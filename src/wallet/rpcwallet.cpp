@@ -30,6 +30,7 @@
 #include "bip47/paymentchannel.h"
 #include "bip47/account.h"
 #include "wallet/coincontrol.h"
+#include "rpcdump.h"
 
 #include <stdint.h>
 
@@ -466,7 +467,7 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
 
     // Find all addresses that have the given account
     UniValue ret(UniValue::VARR);
-    for (const std::pair<CBitcoinAddress, CAddressBookData>& item : pwallet->mapAddressBook) {
+    for (const auto& item : pwallet->mapAddressBook) {
         const CBitcoinAddress& address = item.first;
         const std::string& strName = item.second.name;
         if (strName == strAccount)
@@ -820,7 +821,7 @@ UniValue getreceivedbyaddress(const JSONRPCRequest& request)
 
     // Tally
     CAmount nAmount = 0;
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
         if (wtx.IsCoinBase() || !CheckFinalTx(*wtx.tx))
             continue;
@@ -877,7 +878,7 @@ UniValue getreceivedbyaccount(const JSONRPCRequest& request)
 
     // Tally
     CAmount nAmount = 0;
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
         if (wtx.IsCoinBase() || !CheckFinalTx(*wtx.tx))
             continue;
@@ -1455,7 +1456,7 @@ UniValue ListReceived(CWallet * const pwallet, const UniValue& params, bool fByA
 
     // Tally
     std::map<CBitcoinAddress, tallyitem> mapTally;
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
 
         if (wtx.IsCoinBase() || !CheckFinalTx(*wtx.tx))
@@ -1487,7 +1488,7 @@ UniValue ListReceived(CWallet * const pwallet, const UniValue& params, bool fByA
     // Reply
     UniValue ret(UniValue::VARR);
     std::map<std::string, tallyitem> mapAccountTally;
-    for (const std::pair<CBitcoinAddress, CAddressBookData>& item : pwallet->mapAddressBook) {
+    for (const auto& item : pwallet->mapAddressBook) {
         const CBitcoinAddress& address = item.first;
         const std::string& strAccount = item.second.name;
         std::map<CBitcoinAddress, tallyitem>::iterator it = mapTally.find(address);
@@ -1965,13 +1966,13 @@ UniValue listaccounts(const JSONRPCRequest& request)
             includeWatchonly = includeWatchonly | ISMINE_WATCH_ONLY;
     bool fAddLocked = (request.params.size() > 2 && request.params[2].get_bool());
     std::map<std::string, CAmount> mapAccountBalances;
-    for (const std::pair<CTxDestination, CAddressBookData>& entry : pwallet->mapAddressBook) {
+    for (const auto& entry : pwallet->mapAddressBook) {
         if (IsMine(*pwallet, entry.first) & includeWatchonly) {  // This address belongs to me
             mapAccountBalances[entry.second.name] = 0;
         }
     }
 
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
         CAmount nFee;
         std::string strSentAccount;
@@ -2100,7 +2101,7 @@ UniValue listsinceblock(const JSONRPCRequest& request)
 
     UniValue transactions(UniValue::VARR);
 
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         CWalletTx tx = pairWtx.second;
 
         if (depth == -1 || tx.GetDepthInMainChain() < depth)
@@ -3775,7 +3776,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     BOOST_FOREACH(const std::string& name_, keys)
     {
         spark::Address sAddress(params);
-        unsigned char coinNetwork;
+        FIRO_UNUSED unsigned char coinNetwork;
         bool isSparkAddress;
         std::string sparkAddressStr;
 
@@ -3856,7 +3857,7 @@ UniValue spendspark(const JSONRPCRequest& request)
             else
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ") + name_);
 
-            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}};
             recipients.push_back(recipient);
 
             continue;
@@ -3874,57 +3875,6 @@ UniValue spendspark(const JSONRPCRequest& request)
     }
 
     return wtx.GetHash().GetHex();
-}
-UniValue getsparknames(const JSONRPCRequest &request)
-{
-    if (request.fHelp || request.params.size() > 1) {
-        throw std::runtime_error(
-            "getsparknames [fOnlyOwn] \n"
-            "\nReturns a list of all Spark names and additional info.\n"
-            "\nArguments:\n"
-            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
-            "\nResult:\n"
-            "[\n"
-            "  \"Name (string)\n"
-            "  \"Address (string)\"\n"
-            "  ...\n"
-            "]\n"
-            "\nExamples:\n"
-            + HelpExampleCli("getsparknames", "")
-            + HelpExampleRpc("getsparknames", "")
-        );
-    }
-
-    LOCK(cs_main);
-    CWallet *wallet = GetWalletForJSONRPCRequest(request);
-    LOCK(wallet->cs_wallet);
-
-    if (!spark::IsSparkAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
-    }
-
-    bool fOnlyOwn = request.params.size() > 0 ? request.params[0].get_bool() : false;
-
-    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
-    UniValue result(UniValue::VARR);
-    for (const auto &name : sparkNames) {
-        UniValue entry(UniValue::VOBJ);
-
-        std::string sparkAddress;
-        if (sparkNameManager->GetSparkAddress(name, sparkAddress)) {
-            if (fOnlyOwn && !wallet->IsSparkAddressMine(sparkAddress))
-                continue;
-            entry.push_back(Pair("name", name));
-            entry.push_back(Pair("address", sparkAddress));
-            entry.push_back(Pair("validUntil", sparkNameManager->GetSparkNameBlockHeight(name)));
-            std::string addData = sparkNameManager->GetSparkNameAdditionalData(name);
-            if (addData != "")
-                entry.push_back(Pair("additionalInfo", addData));
-            result.push_back(entry);
-        }
-    }
-    return result;
 }
 
 UniValue registersparkname(const JSONRPCRequest& request) {
@@ -4291,7 +4241,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
     std::vector<CRecipient> vecSend;
     std::vector<CAmount> vMints;
 
-    CAmount totalAmount = 0;
+    FIRO_UNUSED CAmount totalAmount = 0;
 
     auto keys = sendTo.getKeys();
     std::vector<UniValue> mints = mintAmounts.empty() ? std::vector<UniValue>() : mintAmounts.getValues();
@@ -4317,7 +4267,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
         bool fSubtractFeeFromAmount =
                 subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
 
-        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
+        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}});
     }
 
     for(const auto& mint : mints) {
@@ -4640,16 +4590,6 @@ UniValue removetxwallet(const JSONRPCRequest& request) {
     return NullUniValue;
 }
 
-
-
-extern UniValue dumpprivkey_firo(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue importprivkey(const JSONRPCRequest& request);
-extern UniValue importaddress(const JSONRPCRequest& request);
-extern UniValue importpubkey(const JSONRPCRequest& request);
-extern UniValue dumpwallet_firo(const JSONRPCRequest& request);
-extern UniValue importwallet(const JSONRPCRequest& request);
-extern UniValue importprunedfunds(const JSONRPCRequest& request);
-extern UniValue removeprunedfunds(const JSONRPCRequest& request);
 
 // Calculate the size of the transaction assuming all signatures are max size
 // Use DummySignatureCreator, which inserts 72 byte signatures everywhere.
@@ -5265,17 +5205,6 @@ UniValue setusednumber(const JSONRPCRequest& request)
 
 /******************************************************************************/
 
-extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue dumpsparkviewkey(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue importprivkey(const JSONRPCRequest& request);
-extern UniValue importaddress(const JSONRPCRequest& request);
-extern UniValue importpubkey(const JSONRPCRequest& request);
-extern UniValue dumpwallet(const JSONRPCRequest& request);
-extern UniValue importwallet(const JSONRPCRequest& request);
-extern UniValue importprunedfunds(const JSONRPCRequest& request);
-extern UniValue removeprunedfunds(const JSONRPCRequest& request);
-extern UniValue importmulti(const JSONRPCRequest& request);
-
 static const CRPCCommand commands[] =
 { //  category              name                        actor (function)           okSafeMode
     //  --------------------- ------------------------    -----------------------    ----------
@@ -5349,31 +5278,30 @@ static const CRPCCommand commands[] =
     { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false },
 
     //spark
-    { "wallet",             "listunspentsparkmints",  &listunspentsparkmints,  false },
-    { "wallet",             "listsparkmints",         &listsparkmints,         false },
-    { "wallet",             "listsparkspends",        &listsparkspends,        false },
-    { "wallet",             "getsparkdefaultaddress", &getsparkdefaultaddress, false },
-    { "wallet",             "getallsparkaddresses",   &getallsparkaddresses,   false },
-    { "wallet",             "getnewsparkaddress",     &getnewsparkaddress,     false },
-    { "wallet",             "getsparkbalance",        &getsparkbalance,        false },
-    { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false },
-    { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
-    { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
-    { "wallet",             "mintspark",              &mintspark,              true },
-    { "wallet",             "automintspark",          &automintspark,          false },
-    { "wallet",             "spendspark",             &spendspark,             false },
-    { "wallet",             "lelantustospark",        &lelantustospark,        false },
-    { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
-    { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
-    { "wallet",             "registersparkname",      &registersparkname,      false },
-    { "wallet",             "getsparknames",          &getsparknames,          true, {} },
+    { "wallet",             "listunspentsparkmints",  &listunspentsparkmints,  false, {} },
+    { "wallet",             "listsparkmints",         &listsparkmints,         false, {} },
+    { "wallet",             "listsparkspends",        &listsparkspends,        false, {} },
+    { "wallet",             "getsparkdefaultaddress", &getsparkdefaultaddress, false, {} },
+    { "wallet",             "getallsparkaddresses",   &getallsparkaddresses,   false, {} },
+    { "wallet",             "getnewsparkaddress",     &getnewsparkaddress,     false, {} },
+    { "wallet",             "getsparkbalance",        &getsparkbalance,        false, {} },
+    { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false, {} },
+    { "wallet",             "resetsparkmints",        &resetsparkmints,        false, {} },
+    { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false, {} },
+    { "wallet",             "mintspark",              &mintspark,              true,  {} },
+    { "wallet",             "automintspark",          &automintspark,          false, {} },
+    { "wallet",             "spendspark",             &spendspark,             false, {} },
+    { "wallet",             "lelantustospark",        &lelantustospark,        false, {} },
+    { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false, {} },
+    { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false, {} },
+    { "wallet",             "registersparkname",      &registersparkname,      false, {} },
 
     //bip47
-    { "bip47",              "createrapaddress",         &createrapaddress,         true },
-    { "bip47",              "setupchannel",             &setupchannel,             true },
-    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true },
-    { "bip47",              "listrapaddresses",         &listrapaddresses,         true },
-    { "bip47",              "setusednumber",            &setusednumber,            true }
+    { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },
+    { "bip47",              "setupchannel",             &setupchannel,             true,   {} },
+    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true,   {} },
+    { "bip47",              "listrapaddresses",         &listrapaddresses,         true,   {} },
+    { "bip47",              "setusednumber",            &setusednumber,            true,   {} }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

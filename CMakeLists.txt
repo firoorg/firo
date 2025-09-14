@@ -22,7 +22,7 @@ set(CLIENT_VERSION_MINOR 14)
 set(CLIENT_VERSION_REVISION 14)
 set(CLIENT_VERSION_BUILD 1)
 set(CLIENT_VERSION_RC 0)
-set(CLIENT_VERSION_IS_RELEASE "false")
+set(CLIENT_VERSION_IS_RELEASE "false" CACHE STRING "Is this a release build?")
 set(COPYRIGHT_YEAR "2024")
 
 # During the enabling of the CXX and CXXOBJ languages, we modify
@@ -461,12 +461,20 @@ find_library(TOR_LIBRARY
 
 # Find OpenSSL library
 find_package(OpenSSL 1.1.1 REQUIRED)
-
-# Find MiniUPNP library
-find_library(MINIUPNP_LIBRARY
-  NAMES miniupnpc
-  REQUIRED
-)
+if(MINGW)
+  message(STATUS "Patching OpenSSL::Crypto INTERFACE_LINK_LIBRARIES for MinGW")
+  # Retrieve the current INTERFACE_LINK_LIBRARIES property (as a list)
+  get_target_property(_openssl_libs OpenSSL::Crypto INTERFACE_LINK_LIBRARIES)
+  if(_openssl_libs)
+    message(STATUS "Before patch: ${_openssl_libs}")
+    # Remove the 'dl' element from the list
+    list(REMOVE_ITEM _openssl_libs "dl")
+    message(STATUS "After patch: ${_openssl_libs}")
+    set_target_properties(OpenSSL::Crypto PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${_openssl_libs}"
+    )
+  endif()
+endif()
 
 # Find GMP library
 find_package(GMP 6.2.1 REQUIRED)
@@ -585,6 +593,38 @@ foreach(func ${BUILTIN_FUNCTIONS})
         add_compile_definitions(${var_name}=0)
     endif()
 endforeach()
+
+check_cxx_source_compiles(
+  "#if __cplusplus >= 201703L
+  int main() {
+      [[maybe_unused]] int x = 42;
+      return 0;
+  }
+  #else
+  #error \"Requires C++17\"
+  #endif"
+  HAVE_MAYBE_UNUSED
+)
+if(${HAVE_MAYBE_UNUSED})
+    message(STATUS "Compiler supports maybe_unused" )
+    add_compile_definitions(HAVE_MAYBE_UNUSED=1)
+else()
+    message(WARNING "Compiler does not support maybe_unused")
+    check_cxx_source_compiles(
+      "int main() {
+          __attribute__((unused)) int x = 42;
+          return 0;
+      }"
+      HAVE_ATTRIBUTE_UNUSED
+    )
+    if(${HAVE_ATTRIBUTE_UNUSED})
+        message(STATUS "Compiler supports __attribute__((unused))" )
+        add_compile_definitions(HAVE_ATTRIBUTE_UNUSED=1)
+    else()
+        message(WARNING "Compiler does not support __attribute__((unused))")
+        message(WARNING "Please use a compiler that supports C++17 or __attribute__((unused))")
+    endif()
+endif()
 
 include(cmake/ccache.cmake)
 
@@ -837,6 +877,8 @@ add_maintenance_targets()
 add_windows_deploy_target()
 add_macos_deploy_target()
 
+include_directories(${CMAKE_SOURCE_DIR}/src)
+
 message("\n")
 message("Configure summary")
 message("=================")
@@ -893,3 +935,21 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Firo client software")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_VERBATIM_VARIABLES YES)
 include(CPack)
+
+# Static linking option for Windows
+if(WIN32 AND MINGW AND STATIC_BUILD)
+    option(STATIC_BUILD "Build with static linking" OFF)
+    
+    if(STATIC_BUILD)
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".lib")
+        set(BUILD_SHARED_LIBS OFF)
+        
+        # Force static runtime
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -static-libgcc")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+        
+        # Ensure we link against static versions of system libraries
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic")
+    endif()
+endif()

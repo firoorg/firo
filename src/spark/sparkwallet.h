@@ -13,7 +13,7 @@
 #include "../sync.h"
 #include "../chain.h"
 
-class CRecipient;
+struct CRecipient;
 class CReserveKey;
 class CCoinControl;
 extern CChain chainActive;

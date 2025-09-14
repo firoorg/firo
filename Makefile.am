@@ -4,6 +4,7 @@
 
 ACLOCAL_AMFLAGS = -I build-aux/m4
 SUBDIRS = src
+AM_CPPFLAGS = -I$(top_srcdir)/src
 .PHONY: deploy FORCE
 .INTERMEDIATE: $(OSX_TEMP_ISO)
 
@@ -50,9 +51,9 @@ WINDOWS_PACKAGING = $(top_srcdir)/share/pixmaps/bitcoin.ico \
 
 OSX_PACKAGING = $(OSX_DEPLOY_SCRIPT) $(OSX_INSTALLER_ICONS) \
   $(top_srcdir)/contrib/macdeploy/$(OSX_BACKGROUND_SVG) \
-  $(top_srcdir)/contrib/macdeploy/detached-sig-apply.sh \
-  $(top_srcdir)/contrib/macdeploy/detached-sig-create.sh
-
+  $(top_srcdir)/contrib/macdeploy/detached-sig.sh \
+  $(top_srcdir)/contrib/macdeploy/create-dmg.sh \
+  $(top_srcdir)/contrib/macdeploy/install-dmg.md 
 COVERAGE_INFO = baseline_filtered_combined.info baseline.info \
   leveldb_baseline.info test_bitcoin_filtered.info total_coverage.info \
   baseline_filtered.info rpc_test.info rpc_test_filtered.info \

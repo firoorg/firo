@@ -508,7 +508,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     GenerateBlocks(10);
 
     auto outputAmount = 1 * COIN;
-    auto mintAmount = 2 * CENT - CENT; // a cent as fee
+    FIRO_UNUSED auto mintAmount = 2 * CENT - CENT; // a cent as fee
     CAmount fee;
     CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, outputAmount, false}}, {}, fee);
 
@@ -530,7 +530,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
         bool hasLTag = false;
         BOOST_CHECK_MESSAGE(hasLTag = (info.spentLTags.count(lTags[i]) > 0), "No linking tag as expected");
         if (hasLTag) {
-            BOOST_CHECK_MESSAGE(ids[i] == info.spentLTags[lTags[i]], "linking tag group id is invalid");
+            BOOST_CHECK_MESSAGE(cmp::equal(ids[i], info.spentLTags[lTags[i]]), "linking tag group id is invalid");
         }
     }
 

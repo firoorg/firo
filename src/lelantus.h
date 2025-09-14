@@ -14,7 +14,7 @@
 #include <functional>
 #include "coin_containers.h"
 
-namespace lelantus_mintspend { class lelantus_mintspend_test; }
+namespace lelantus_mintspend { struct lelantus_mintspend_test; }
 
 namespace lelantus {
 
@@ -298,12 +298,12 @@ private:
 
         void CheckSurgeCondition();
 
-        friend class lelantus_mintspend::lelantus_mintspend_test;
+        friend struct lelantus_mintspend::lelantus_mintspend_test;
     };
 
     Containers containers;
 
-    friend class lelantus_mintspend::lelantus_mintspend_test;
+    friend struct lelantus_mintspend::lelantus_mintspend_test;
 };
 
 } // end of namespace lelantus

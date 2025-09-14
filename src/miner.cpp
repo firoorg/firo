@@ -1124,7 +1124,7 @@ void static FiroMiner(const CChainParams &chainparams) {
                     const Consensus::Params &params = chainparams.GetConsensus();
                     {
                         LOCK2(cs_main, mempool.cs);
-                        int nCount = 0;
+                        FIRO_UNUSED int nCount = 0;
                         fHasZnodesWinnerForNextBlock =
                                 params.IsRegtest() ||
                                 chainActive.Height()+1 >= chainparams.GetConsensus().DIP0003EnforcementHeight;

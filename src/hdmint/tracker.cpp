@@ -48,8 +48,6 @@ CHDMintTracker::~CHDMintTracker()
  * Initialize the CHDMintTracker object.
  *
  * Calls ListMints, which loads all CSigmaEntries and CHDMints from the database.
- *
- * @return void
  */
 void CHDMintTracker::Init()
 {
@@ -262,7 +260,6 @@ bool CHDMintTracker::UpdateState(const CLelantusMintMeta& meta)
  * @param dMint CHDMint object to add
  * @param isNew set to true if this mint has just been created, also adds mint to database
  * @param isArchived set to true if this mint is archived, used to set meta object correctly
- * @return success
  */
 void CHDMintTracker::AddLelantus(CWalletDB& walletdb, const CHDMint& dMint, bool isNew, bool isArchived)
 {
@@ -296,7 +293,6 @@ void CHDMintTracker::AddLelantus(CWalletDB& walletdb, const CHDMint& dMint, bool
  *
  * @param hashPubcoin mint pubcoin hash. Used to retrieve meta object
  * @param txid transaction ID of mint
- * @return void
  */
 void CHDMintTracker::SetLelantusPubcoinUsed(const uint256& hashPubcoin, const uint256& txid)
 {
@@ -313,7 +309,6 @@ void CHDMintTracker::SetLelantusPubcoinUsed(const uint256& hashPubcoin, const ui
  * Sets a mint as not used via it's pubcoin hash.
  *
  * @param hashPubcoin mint pubcoin hash. Used to retrieve meta object
- * @return void
  */
 
 void CHDMintTracker::SetLelantusPubcoinNotUsed(const uint256& hashPubcoin)
@@ -477,7 +472,6 @@ bool CHDMintTracker::UpdateLelantusMetaStatus(const std::set<uint256>& setMempoo
  *
  * @param mintPoolEntries the set of mint pool entries to update
  * @param updatedMeta the CMintMeta objects to update
- * @return void
  */
 
 void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CLelantusMintMeta>& updatedMeta){
@@ -496,7 +490,6 @@ void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPool
  * We attempt to read a mintpool object from the on-chain data found. If so, update state.
  *
  * @param mints the set of public coin objects to check for.
- * @return void
  */
 void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelantus::PublicCoin, std::pair<uint64_t, uint256>>>& mints) {
     CWalletDB walletdb(strWalletFile);
@@ -537,7 +530,6 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<std::pair<lelant
  * We attempt to read a mintpool object from the on-chain data found. If so, update state.
  *
  * @param spentSerials the set of spent serial objects to check for.
- * @return void
  */
 void CHDMintTracker::UpdateSpendStateFromBlock(const std::unordered_map<Scalar, int>& spentSerials){
     CWalletDB walletdb(strWalletFile);
@@ -578,7 +570,6 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const std::unordered_map<Scalar, 
  * We attempt to read a mintpool object from the mempool data found. If so, update state.
  *
  * @param pubCoins the set of public coin objects to check for.
- * @return void
  */
 
 void CHDMintTracker::UpdateLelantusMintStateFromMempool(const std::vector<GroupElement>& pubCoins, const std::vector<uint64_t>& amounts) {
@@ -629,7 +620,6 @@ void CHDMintTracker::UpdateLelantusMintStateFromMempool(const std::vector<GroupE
  * We attempt to read a mintpool object from the mempool data found. If so, update state.
  *
  * @param spentSerials the set of spent serial objects to check for.
- * @return void
  */
 
 void CHDMintTracker::UpdateJoinSplitStateFromMempool(const std::vector<Scalar>& spentSerials) {
@@ -688,7 +678,6 @@ std::list<CLelantusEntry> CHDMintTracker::MintsAsLelantusEntries(bool fUnusedOnl
 /**
  * Sets up the in memory mint objects.
  *
- * @param fUnusedOnly process unused mints only
  * @param fUnusedOnly process mature (ie. spendable due to sufficient confirmations) mints only
  * @param fUpdateStatus If the mints should be updated
  * @param fLoad If the mints should be loaded from database
@@ -769,8 +758,6 @@ std::set<uint256> CHDMintTracker::GetMempoolTxids(){
 
 /**
  * map of serial hashes -> CMintMeta objects
- *
- * @return void
  */
 void CHDMintTracker::Clear()
 {

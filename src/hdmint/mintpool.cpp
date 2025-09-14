@@ -8,8 +8,6 @@ CMintPool::CMintPool(){}
 
 /**
  * Add a mintpool entry
- *
- * @return void
  */
 void CMintPool::Add(std::pair<uint256, MintPoolEntry> pMint, bool fVerbose)
 {
@@ -31,9 +29,6 @@ bool SortSmallest(const std::pair<uint256, MintPoolEntry>& a, const std::pair<ui
 
 /**
  * place the mintpool in listMints.
- *
- * @param listMints
- * @return void
  */
 void CMintPool::List(std::list<std::pair<uint256, MintPoolEntry>>& listMints)
 {
@@ -46,8 +41,6 @@ void CMintPool::List(std::list<std::pair<uint256, MintPoolEntry>>& listMints)
 
 /**
  * clear the current mintpool
- *
- * @return void
  */
 void CMintPool::Reset()
 {

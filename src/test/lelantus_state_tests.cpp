@@ -81,7 +81,7 @@ public:
         std::vector<CBlockIndex*> indexes;
         auto index = GenerateBlock({});
 
-        for (auto const s : serials) {
+        for (auto const& s : serials) {
             for (size_t i = 0; i != s.second; i++) {
                 Scalar serial;
                 serial.randomize();
@@ -91,7 +91,7 @@ public:
         }
 
         state.AddBlock(index);
-        return {index};
+        return index;
     }
 
     void RemoveBlocks(CLelantusState &state, std::vector<CBlockIndex*> indexes) {
