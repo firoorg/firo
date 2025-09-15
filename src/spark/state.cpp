@@ -779,6 +779,15 @@ bool CheckSparkSpendTransaction(
         } catch (const std::exception &) {
             passVerify = false;
         }
+
+        // remember the result of the check
+        if (!fChecked) {
+            LOCK(cs_checkedSparkSpendTransactions);
+            auto &checkState = gCheckedSparkSpendTransactions[hashTx];
+            checkState.fChecked = true;
+            checkState.fResult = passVerify;
+            checkState.checkInProgress = nullptr;
+        }
     }
 
     if (!fStatefulSigmaCheck)
@@ -918,6 +927,10 @@ bool CheckSparkTransaction(
     }
 
     return true;
+}
+
+void ShutdownSparkState() {
+    gCheckProofThreadPool.Shutdown();
 }
 
 uint256 GetTxHashFromCoin(const spark::Coin& coin) {

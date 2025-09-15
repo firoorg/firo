@@ -1,5 +1,6 @@
 #include "../liblelantus/threadpool.h"
 #include "sparkwallet.h"
+#include "state.h"
 #include "../wallet/wallet.h"
 #include "../wallet/coincontrol.h"
 #include "../wallet/walletexcept.h"
@@ -86,6 +87,7 @@ CSparkWallet::~CSparkWallet() {
 
 void CSparkWallet::FinishTasks() {
     ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
+    spark::ShutdownSparkState();
 }
 
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
