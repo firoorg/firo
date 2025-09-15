@@ -686,13 +686,10 @@ bool CheckSparkSpendTransaction(
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
-        if (index->GetBlockHash() != idAndHash.second)
+        if (index->GetBlockHash() != idAndHash.second && !fStatefulSigmaCheck)
             // if fStatefulSigmaCheck is false, we are in the mempool acceptance code, it's a soft error
-            // just return true, the proof will be checked later. Else return error
-            return fStatefulSigmaCheck ? state.DoS(100,
-                             false,
-                             NO_MINT_ZEROCOIN,
-                             "CheckSparkSpendTransaction: Error: couldn't find anonymity set block") : true;
+            // just return true. If fStatefulSigmaCheck is true, use coinGroup.firstBlock as a reference block
+            return true;
 
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
