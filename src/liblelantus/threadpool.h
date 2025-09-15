@@ -114,6 +114,11 @@ public:
         for (boost::thread &t: threadsToJoin)
             t.join();
     }
+
+    bool IsPoolShutdown() {
+        boost::mutex::scoped_lock lock(task_queue_mutex);
+        return shutdown;
+    }
 };
 
 

@@ -761,6 +761,10 @@ bool CheckSparkSpendTransaction(
                 }
                 else {
                     LOCK(cs_checkedSparkSpendTransactions);
+                    if (gCheckProofThreadPool.IsPoolShutdown())
+                        // if we are shutting down, don't start any new tasks
+                        return true;
+
                     // put the proof into the thread pool for verification
                     auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() {
                         try {
