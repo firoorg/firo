@@ -9,6 +9,9 @@
 #include "primitives/block.h"
 #include "txmempool.h"
 
+// Forward declaration of helper function from txmempool.h
+bool CompareAncestorFeeRate(double aFees, double aSize, double bFees, double bSize);
+
 #include <stdint.h>
 #include <memory>
 #include "boost/multi_index_container.hpp"
@@ -74,17 +77,20 @@ struct modifiedentry_iter {
 };
 
 // This matches the calculation in CompareTxMemPoolEntryByAncestorFee,
-// except operating on CTxMemPoolModifiedEntry.
-// TODO: refactor to avoid duplication of this logic.
+// using the shared helper function to avoid code duplication.
 struct CompareModifiedEntry {
     bool operator()(const CTxMemPoolModifiedEntry &a, const CTxMemPoolModifiedEntry &b) const
     {
-        double f1 = (double)a.nModFeesWithAncestors * b.nSizeWithAncestors;
-        double f2 = (double)b.nModFeesWithAncestors * a.nSizeWithAncestors;
-        if (f1 == f2) {
+        double aFees = (double)a.nModFeesWithAncestors;
+        double aSize = (double)a.nSizeWithAncestors;
+        double bFees = (double)b.nModFeesWithAncestors;
+        double bSize = (double)b.nSizeWithAncestors;
+
+        if (CompareAncestorFeeRate(aFees, aSize, bFees, bSize) == CompareAncestorFeeRate(bFees, bSize, aFees, aSize)) {
             return CTxMemPool::CompareIteratorByHash()(a.iter, b.iter);
         }
-        return f1 > f2;
+
+        return CompareAncestorFeeRate(aFees, aSize, bFees, bSize);
     }
 };
 
