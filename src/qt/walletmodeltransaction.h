@@ -42,7 +42,6 @@ public:
     void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
 
     std::vector<CLelantusEntry>& getSpendCoins();
-    std::vector<CSigmaEntry>& getSigmaSpendCoins();
     std::vector<CHDMint>& getMintCoins();
 
 private:
@@ -53,7 +52,6 @@ private:
 
     // lelantus transaction
     std::vector<CLelantusEntry> spendCoins;
-    std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CHDMint> mintCoins;
 };
 

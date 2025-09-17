@@ -46,8 +46,6 @@ class CWallet;
 class CWalletTx;
 class uint160;
 class uint256;
-class CSigmaEntry;
-class CSigmaSpendEntry;
 
 namespace bip47 {
 class CAccountReceiver;
@@ -240,19 +238,10 @@ public:
     CAmount GetAccountCreditDebit(const std::string& strAccount);
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
-    bool WriteSigmaEntry(const CSigmaEntry& sigma);
-    bool ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
-    bool HasSigmaEntry(const secp_primitives::GroupElement& pub);
-    bool EraseSigmaEntry(const CSigmaEntry& sigma);
-    void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
-    void ListCoinSpendSerial(std::list<CSigmaSpendEntry>& listCoinSpendSerial);
     void ListLelantusSpendSerial(std::list<CLelantusSpendEntry>& listLelantusSpendSerial);
-    bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& sigmaSpend);
     bool WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
     bool ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend);
-    bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial);
-    bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& sigmaSpend);
     bool EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
 
     bool ReadCalculatedZCBlock(int& height);
@@ -263,7 +252,6 @@ public:
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
-    DBErrors ZapSigmaMints(CWallet* pwallet);
     DBErrors ZapLelantusMints(CWallet *pwallet);
     DBErrors ZapSparkMints(CWallet *pwallet);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
@@ -282,7 +270,6 @@ public:
     bool writeFullViewKey(const spark::FullViewKey& viewKey);
 
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
-    bool UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma);
     bool UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
 
     bool WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus);

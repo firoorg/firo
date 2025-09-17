@@ -139,15 +139,14 @@ public:
         }
 
         std::vector<CLelantusEntry>  spendCoins;
-        std::vector<CSigmaEntry> sigmaSpendCoins;
         std::vector<CHDMint> mintCoins;
 
         CAmount fee;
         auto result = pwalletMain->CreateLelantusJoinSplitTransaction(
-            vecs, fee, mints, spendCoins, sigmaSpendCoins, mintCoins, coinControl);
+            vecs, fee, mints, spendCoins, mintCoins, coinControl);
 
         if (!pwalletMain->CommitLelantusTransaction(
-            result, spendCoins, sigmaSpendCoins, mintCoins)) {
+            result, spendCoins, mintCoins)) {
             throw std::runtime_error("Fail to commit transaction");
         }
 
@@ -345,9 +344,9 @@ BOOST_AUTO_TEST_CASE(build_lelantus_state)
 
     block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[0].GetPubcoinValue(), std::make_pair(mints[0].GetAmount(), uint256())));
     block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[1].GetPubcoinValue(), std::make_pair(mints[1].GetAmount(), uint256())));
-    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[2].GetPubcoinValue(), std::make_pair(mints[2].GetAmount(), uint256())));
-    block1.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[3].GetPubcoinValue(), std::make_pair(mints[3].GetAmount(), uint256())));
-
+    block2.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[2].GetPubcoinValue(), std::make_pair(mints[2].GetAmount(), uint256())));
+    block2.lelantusTxInfo->mints.emplace_back(std::make_pair(mints[3].GetPubcoinValue(), std::make_pair(mints[3].GetAmount(), uint256())));
+    lelantusState->Reset();
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx1, &block1);
     lelantusState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
 
@@ -371,7 +370,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
         ActivateBestChain(state, ::Params(), sharedBlock);
     };
 
-    GenerateBlocks(400);
+    GenerateBlocks(110);
 
     std::vector<CMutableTransaction> mintTxs;
     auto hdMints = GenerateMints({3 * COIN, 3 * COIN, 3 * COIN}, mintTxs);
@@ -556,7 +555,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
 BOOST_AUTO_TEST_CASE(checktransaction)
 {
-    GenerateBlocks(400);
+    GenerateBlocks(110);
 
     // mints
     std::vector<CMutableTransaction> txs;
@@ -566,7 +565,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CValidationState state;
     CLelantusTxInfo info;
     BOOST_CHECK(CheckLelantusTransaction(
-        txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, NULL, &info));
+        txs[0], state, tx.GetHash(), false, chainActive.Height(), true, true, &info));
 
     std::vector<std::pair<PublicCoin, std::pair<uint64_t, uint256>>> expectedCoins = {{mints[0].GetPubcoinValue(), {1 * CENT, info.mints[0].second.second}}};
 
@@ -597,7 +596,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     info = CLelantusTxInfo();
 
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
     auto &serials = joinsplit->getCoinSerialNumbers();
     auto &ids = joinsplit->getCoinGroupIds();
@@ -612,7 +611,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     info = CLelantusTxInfo();
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
     // test surge dection.
     while (!lelantusState->IsSurgeConditionDetected()) {
@@ -623,7 +622,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     }
 
     BOOST_CHECK(!CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, &info));
 }
 
 BOOST_AUTO_TEST_CASE(move_to_v3_payload)
@@ -631,7 +630,7 @@ BOOST_AUTO_TEST_CASE(move_to_v3_payload)
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
-    for (int n=chainActive.Height(); n<700; n++)
+    for (int n=chainActive.Height(); n<300; n++)
         GenerateBlock({});
 
     std::vector<CMutableTransaction> lelantusMints;
@@ -821,7 +820,7 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
 
 BOOST_AUTO_TEST_CASE(coingroup)
 {
-    GenerateBlocks(400);
+    GenerateBlocks(210);
 
     // util function
     auto reconnect = [](CBlock const &block) {

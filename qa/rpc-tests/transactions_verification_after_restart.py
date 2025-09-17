@@ -63,7 +63,7 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         getcontext().prec = 6
 
         #1. Generate some blocks
-        self.nodes[0].generate(10)
+        self.nodes[0].generate(401)
         self.sync_all()
 
         #2. Send firos
@@ -72,20 +72,19 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         #3. Gerate blocks
         self.nodes[0].generate(5)
 
-        sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
-        #4. Mint sigma coins
-        for denom in sigma_denoms:
-                 self.nodes[0].mint(denom)
-                 self.nodes[0].mint(denom)
+        sparkAddress = self.nodes[0].getsparkdefaultaddress()[0]
+        #4. Mint coins
+        self.nodes[0].mintspark({sparkAddress: {"amount": 25, "memo": "Test memo"}})
+        self.nodes[0].mintspark({sparkAddress: {"amount": 100, "memo": "Test memo"}})
 
         self.nodes[0].generate(10)
 
         #5. 2 Spend in different time
-        args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 100}
-        self.nodes[0].spendmany("", args)
+        args = {"THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU": {"amount": 1, "subtractFee": False}}
+        self.nodes[0].spendspark(args)
 
-        args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 25}
-        self.nodes[0].spendmany("", args)
+        args = {"THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU": {"amount": 1, "subtractFee": False}}
+        self.nodes[0].spendspark(args)
 
         #6. Send
         self.nodes[0].sendtoaddress('TNZMs3dtwRddC5BuZ9zQUdvksPUjmJPRfL', 10)
