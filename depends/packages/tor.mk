@@ -50,7 +50,8 @@ $(package)_lib_files = \
     src/ext/keccak-tiny/libkeccak-tiny.a
 
 define $(package)_set_vars
-  $(package)_config_opts+=--disable-system-torrc --disable-systemd --disable-lzma --disable-asciidoc --disable-libscrypt --disable-gcc-hardening --enable-pic --disable-unittests --disable-tool-name-check
+  $(package)_config_opts+=--disable-system-torrc --disable-systemd --disable-lzma --disable-asciidoc --disable-libscrypt --disable-gcc-hardening --enable-pic --disable-unittests --disable-tool-name-check --disable-seccomp ac_cv_header_sys_capability_h=no ac_cv_lib_cap_cap_init=no ac_cv_func_cap_set_proc=no
+  $(package)_cflags+=-std=gnu11 -fPIC
 endef
 
 define $(package)_preprocess_cmds

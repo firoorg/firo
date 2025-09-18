@@ -207,6 +207,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     // Spark names
     { "registersparkname", 2, {} },
     { "getsparknames", 0, {} },
+    { "requestsparknametransfer", 3, {} },
 
     /* Evo spork */
     { "spork", 2, "features"},
