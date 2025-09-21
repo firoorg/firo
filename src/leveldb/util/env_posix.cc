@@ -729,6 +729,11 @@ class PosixEnv : public Env {
     std::this_thread::sleep_for(std::chrono::microseconds(micros));
   }
 
+  void Shutdown() override {
+    shutdown_requested_ = true;
+    background_work_cv_.SignalAll();
+  }
+
  private:
   void BackgroundThreadMain();
 
@@ -760,6 +765,7 @@ class PosixEnv : public Env {
   PosixLockTable locks_;  // Thread-safe.
   Limiter mmap_limiter_;  // Thread-safe.
   Limiter fd_limiter_;    // Thread-safe.
+  std::atomic<bool> shutdown_requested_{false};
 };
 
 // Return the maximum number of concurrent mmaps.
@@ -818,6 +824,10 @@ void PosixEnv::BackgroundThreadMain() {
 
     // Wait until there is work to be done.
     while (background_work_queue_.empty()) {
+      if (shutdown_requested_) {
+        background_work_mutex_.Unlock();
+        return;
+      }
       background_work_cv_.Wait();
     }
 
