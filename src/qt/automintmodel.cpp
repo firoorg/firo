@@ -91,7 +91,12 @@ void IncomingFundNotifier::check()
             }
         }
 
-        credit = pwalletMain->GetaAvailableCoinsForLMint();
+        std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXOs;
+        pwalletMain->AvailableCoinsForLMint(valueAndUTXOs, &coinControl);
+
+        for (auto const &valueAndUTXO : valueAndUTXOs) {
+            credit += valueAndUTXO.first;
+        }
 
     }
 

@@ -100,6 +100,25 @@ CAmount CSparkWallet::getFullBalance() {
     return getAvailableBalance() + getUnconfirmedBalance();
 }
 
+std::pair<CAmount, CAmount> CSparkWallet::getSparkBalance() {
+    std::pair<CAmount, CAmount> result = {0, 0};
+    LOCK(cs_spark_wallet);
+    for (auto& it : coinMeta) {
+        CSparkMintMeta mint = it.second;
+
+        if (mint.isUsed)
+            continue;
+
+        // Not confirmed
+        if (mint.nHeight > 1)
+            result.first += mint.v;
+        else
+            result.second += mint.v;
+    }
+
+    return result;
+}
+
 CAmount CSparkWallet::getAvailableBalance() {
     CAmount result = 0;
     LOCK(cs_spark_wallet);

@@ -730,7 +730,8 @@ liblelantus_a_SOURCES = \
   liblelantus/spend_metadata.cpp \
   liblelantus/threadpool.h \
   liblelantus/params.h \
-  liblelantus/params.cpp
+  liblelantus/params.cpp \
+  liblelantus/openssl_context.h
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
