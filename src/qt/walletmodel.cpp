@@ -1086,7 +1086,7 @@ QString WalletModel::generateSparkAddress()
         LOCK(wallet->cs_wallet);
         address = wallet->sparkWallet->generateNewAddress();
         unsigned char network = spark::GetNetworkType();
-    
+
         wallet->SetSparkAddressBook(address.encode(network), "", "receive");
         return QString::fromStdString(address.encode(network));
     }
@@ -1326,7 +1326,6 @@ bool WalletModel::sparkNamesAllowed() const
 
 bool WalletModel::GetSparkNameByAddress(const QString& sparkAddress, QString& name)
 {
-    LOCK(cs_main);
     std::string name_ = name.toStdString();
     bool result = CSparkNameManager::GetInstance()->GetSparkNameByAddress(sparkAddress.toStdString(), name_);
     if (result)
@@ -1341,14 +1340,10 @@ bool WalletModel::validateSparkNameData(const QString &name, const QString &spar
     sparkNameData.sparkAddress = sparkAddress.toStdString();
     sparkNameData.additionalInfo = additionalData.toStdString();
     sparkNameData.sparkNameValidityBlocks = 1000;   // doesn't matter
-
-    {
-        LOCK(cs_main);
-        std::string _strError;
-        bool result = CSparkNameManager::GetInstance()->ValidateSparkNameData(sparkNameData, _strError);
-        strError = QString::fromStdString(_strError);
-        return result;
-    }
+    std::string _strError;
+    bool result = CSparkNameManager::GetInstance()->ValidateSparkNameData(sparkNameData, _strError);
+    strError = QString::fromStdString(_strError);
+    return result;
 }
 
 WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFee) {
@@ -1363,7 +1358,6 @@ WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFe
 }
 
 QString WalletModel::getSparkNameAddress(const QString &sparkName) {
-    LOCK(cs_main);
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     std::string sparkAddress;
     if (sparkNameManager->GetSparkAddress(sparkName.toStdString(), sparkAddress)) {
