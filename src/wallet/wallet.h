@@ -822,7 +822,7 @@ public:
 
     std::set<COutPoint> setLockedCoins;
 
-    std::pair<int, int> cachedLelantusBalance = {-1, -1};
+    std::pair<CAmount, CAmount> cachedLelantusBalance = {-1, -1};
 
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
