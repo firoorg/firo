@@ -27,6 +27,32 @@
 #include "macnotificationhandler.h"
 #endif
 
+#ifdef USE_DBUS
+// Loosely based on http://www.qtcentre.org/archive/index.php/t-25879.html
+class FreedesktopImage
+{
+public:
+    FreedesktopImage() {}
+    FreedesktopImage(const QImage &img);
+
+    static int metaType();
+
+    // Image to variant that can be marshalled over DBus
+    static QVariant toVariant(const QImage &img);
+
+private:
+    int width, height, stride;
+    bool hasAlpha;
+    int channels;
+    int bitsPerSample;
+    QByteArray image;
+
+    friend QDBusArgument &operator<<(QDBusArgument &a, const FreedesktopImage &i);
+    friend const QDBusArgument &operator>>(const QDBusArgument &a, FreedesktopImage &i);
+};
+
+Q_DECLARE_METATYPE(FreedesktopImage);
+#endif
 
 #ifdef USE_DBUS
 // https://wiki.ubuntu.com/NotificationDevelopmentGuidelines recommends at least 128
@@ -53,6 +79,9 @@ Notificator::Notificator(const QString &_programName, QSystemTrayIcon *_trayIcon
     if(interface->isValid())
     {
         mode = Freedesktop;
+        // Make sure the custom DBus type is registered before use
+        FreedesktopImage::metaType();
+        // Alternatively: qDBusRegisterMetaType<FreedesktopImage>();
     }
 #endif
 #ifdef Q_OS_MAC
@@ -71,31 +100,6 @@ Notificator::~Notificator()
 }
 
 #ifdef USE_DBUS
-
-// Loosely based on http://www.qtcentre.org/archive/index.php/t-25879.html
-class FreedesktopImage
-{
-public:
-    FreedesktopImage() {}
-    FreedesktopImage(const QImage &img);
-
-    static int metaType();
-
-    // Image to variant that can be marshalled over DBus
-    static QVariant toVariant(const QImage &img);
-
-private:
-    int width, height, stride;
-    bool hasAlpha;
-    int channels;
-    int bitsPerSample;
-    QByteArray image;
-
-    friend QDBusArgument &operator<<(QDBusArgument &a, const FreedesktopImage &i);
-    friend const QDBusArgument &operator>>(const QDBusArgument &a, FreedesktopImage &i);
-};
-
-Q_DECLARE_METATYPE(FreedesktopImage);
 
 // Image configuration settings
 const int CHANNELS = 4;
