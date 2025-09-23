@@ -259,6 +259,60 @@ class WalletTest (BitcoinTestFramework):
         # This will raise an exception because the amount type is wrong
         assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoaddress, self.nodes[2].getnewaddress(), "1f-4")
 
+        # Test sendtoanyaddress function (universal address dispatcher)
+        print("Testing sendtoanyaddress...")
+        
+        # Test sendtoanyaddress with transparent addresses (backward compatibility)
+        transparent_addr = self.nodes[1].getnewaddress()
+        
+        # Send 5 using sendtoanyaddress - should work identically to sendtoaddress
+        txId = self.nodes[0].sendtoanyaddress(transparent_addr, 5)
+        txObj = self.nodes[0].gettransaction(txId)
+        assert_equal(txObj['amount'], Decimal('-5'))
+        
+        # Test with all optional parameters
+        txId = self.nodes[0].sendtoanyaddress(transparent_addr, 3, "test comment", "test recipient", False, "test memo")
+        txObj = self.nodes[0].gettransaction(txId)
+        assert_equal(txObj['amount'], Decimal('-3'))
+        assert_equal(txObj['comment'], "test comment")
+        assert_equal(txObj['to'], "test recipient")
+        
+        # Test with subtractfeefromamount = True
+        txId = self.nodes[0].sendtoanyaddress(transparent_addr, 2, "", "", True)
+        txObj = self.nodes[0].gettransaction(txId)
+        assert_equal(txObj['amount'], Decimal('-2'))
+        
+        # Test with string amount input
+        txId = self.nodes[0].sendtoanyaddress(transparent_addr, "1.5")
+        txObj = self.nodes[0].gettransaction(txId)
+        assert_equal(txObj['amount'], Decimal('-1.5'))
+        
+        # Test with scientific notation in string
+        txId = self.nodes[0].sendtoanyaddress(transparent_addr, "1e-3")
+        txObj = self.nodes[0].gettransaction(txId)
+        assert_equal(txObj['amount'], Decimal('-0.001'))
+        
+        # Mine a block to confirm these transactions
+        self.nodes[0].generate(1)
+        self.sync_all()
+        
+        # Test sendtoanyaddress error handling
+        # This will raise an exception because the amount type is wrong
+        assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoanyaddress, transparent_addr, "1f-4")
+        
+        # This will raise an exception for zero amount
+        assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoanyaddress, transparent_addr, 0)
+        
+        # This will raise an exception for negative amount
+        assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoanyaddress, transparent_addr, -1)
+        
+        # This will raise an exception for invalid address
+        assert_raises_jsonrpc(-5, "Invalid address", self.nodes[0].sendtoanyaddress, "invalid_address", 1)
+        
+        # This will raise an exception for insufficient funds
+        large_amount = self.nodes[0].getbalance() + 100
+        assert_raises_jsonrpc(-6, "Insufficient funds", self.nodes[0].sendtoanyaddress, transparent_addr, large_amount)
+
         # This will raise an exception since generate does not accept a string
         assert_raises_jsonrpc(-1, "not an integer", self.nodes[0].generate, "2")
 

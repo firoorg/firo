@@ -5334,6 +5334,181 @@ UniValue setusednumber(const JSONRPCRequest& request)
     return UniValue(int(numberOfUsed));
 }
 
+
+UniValue sendtoanyaddress(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 6) {
+        fprintf(stderr, "DEBUG: FAILING parameter validation - showing help\n");
+        throw std::runtime_error(
+            "sendtoaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount \"memo\" )\n"
+            "\nSend an amount to a given address. Automatically detects between transparent, Spark, and BIP47 payment code addresses.\n"
+            + HelpRequiringPassphrase(pwallet) +
+            "\nArguments:\n"
+            "1. \"address\"            (string, required) The Firo, Spark, or BIP47 payment code address to send to.\n"
+            "2. \"amount\"             (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
+            "3. \"comment\"            (string, optional) A comment used to store what the transaction is for. \n"
+            "                               This is not part of the transaction, just kept in your wallet.\n"
+            "4. \"comment_to\"         (string, optional) A comment to store the name of the person or organization \n"
+            "                               to which you're sending the transaction. This is not part of the \n"
+            "                               transaction, just kept in your wallet.\n"
+            "5. subtractfeefromamount  (boolean, optional, default=false) The fee will be deducted from the amount being sent.\n"
+            "                               The recipient will receive less firos than you enter in the amount field.\n"
+            "6. \"memo\"               (string, optional, Spark only) A memo to include with Spark transactions.\n"
+            "\nResult:\n"
+            "\"txid\"                  (string) The transaction id.\n"
+            "\nExamples:\n"
+            "\nSend 0.1 to a transparent address\n"
+            + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
+            + "\nSend 0.1 to a Spark address with memo\n"
+            + HelpExampleCli("sendtoaddress", "\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\" 0.1 \"donation\" \"seans outpost\" false \"test memo\"")
+            + "\nSend 0.1 to a BIP47 payment code\n"
+            + HelpExampleCli("sendtoaddress", "\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleRpc("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\", 0.1, \"donation\", \"seans outpost\"")
+        );
+    }
+    
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+
+
+    // Helper lambda to safely get parameters 
+    auto getStringParam = [&](size_t index, const std::string& defaultValue = "") -> std::string {
+        return (request.params.size() > index && !request.params[index].isNull()) 
+               ? request.params[index].get_str() : defaultValue;
+    };
+    
+    auto getBoolParam = [&](size_t index, bool defaultValue = false) -> bool {
+        return (request.params.size() > index && !request.params[index].isNull()) 
+               ? request.params[index].get_bool() : defaultValue;
+    };
+    
+    // Extract parameters cleanly
+    std::string strAddress = getStringParam(0);
+    const CAmount nAmount = AmountFromValue(request.params[1]);
+    const std::string comment = getStringParam(2);
+    const std::string comment_to = getStringParam(3);
+    const bool subtractFeeFromAmount = getBoolParam(4);
+    const std::string memo = getStringParam(5);
+    
+    // Validate and extract amount first
+    if (nAmount <= 0) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send, amount should be positive");
+    }
+
+    // Early balance check
+    CAmount totalBalance = pwallet->GetBalance();
+    if (pwallet->zwallet)     { totalBalance += pwallet->GetPrivateBalance().first;}
+    if (pwallet->sparkWallet) { totalBalance += pwallet->sparkWallet->getAvailableBalance(); }
+    
+    fprintf(stderr, "DEBUG: Total available balance: %lld, requested amount: %lld\n", totalBalance, nAmount);
+    
+    if (totalBalance < nAmount) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+    }
+
+    
+    // Check if it's a Spark name (starts with @)
+    if (!strAddress.empty() && strAddress[0] == '@') {
+        LOCK(cs_main);
+        CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+        std::string sparkAddressStr;
+        if (!sparkNameManager->GetSparkAddress(strAddress.substr(1), sparkAddressStr))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+strAddress);
+        strAddress = sparkAddressStr;
+    }
+
+    // Check if it's a BIP47 payment code (starts with PM8T)
+    if (strAddress.size() >= 4 && strAddress.substr(0, 4) == "PM8T") {
+        // Handle BIP47 payment code by delegating to sendtorapaddress RPC
+        JSONRPCRequest rapRequest = request; // Copy original request
+        rapRequest.fHelp = false;
+        rapRequest.strMethod = "sendtorapaddress";
+        
+        // Build parameters for BIP47 (doesn't support memo)
+        rapRequest.params = UniValue(UniValue::VARR);
+        rapRequest.params.push_back(request.params[0]); // address - keep original
+        rapRequest.params.push_back(request.params[1]); // amount - keep original
+        if (!comment.empty())
+            rapRequest.params.push_back(UniValue(comment)); // comment
+        if (!comment_to.empty())
+            rapRequest.params.push_back(UniValue(comment_to)); // comment_to
+        if (subtractFeeFromAmount)
+            rapRequest.params.push_back(UniValue(subtractFeeFromAmount)); // subtractfeefromamount
+
+        // Call sendtorapaddress internally
+        return sendtorapaddress(rapRequest);
+    }
+
+    // Try to decode as Spark address first
+    bool isSparkAddress = false;
+    
+    try {
+        const spark::Params* sparkParams = spark::Params::get_default();
+        spark::Address sparkAddress(sparkParams);
+        unsigned char network = spark::GetNetworkType();
+        unsigned char coinNetwork = sparkAddress.decode(strAddress);
+        isSparkAddress = true;
+        if (coinNetwork != network)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+strAddress);
+    } catch (const std::exception &) {
+        isSparkAddress = false;
+    }
+
+    if (isSparkAddress) {
+        // Handle Spark address by delegating to spendspark RPC
+
+        // Create spendspark-compatible JSON object
+        UniValue spendSparkParams(UniValue::VOBJ);
+        UniValue addressObj(UniValue::VOBJ);
+        addressObj.push_back(Pair("amount", ValueFromAmount(nAmount)));
+        if (!memo.empty())
+            addressObj.push_back(Pair("memo", memo));
+        addressObj.push_back(Pair("subtractFee", subtractFeeFromAmount));
+        spendSparkParams.push_back(Pair(strAddress, addressObj));
+
+        // Create new JSONRPCRequest for spendspark
+        JSONRPCRequest spendSparkRequest = request; // Copy original request
+        spendSparkRequest.fHelp = false;
+        spendSparkRequest.strMethod = "spendspark";
+        spendSparkRequest.params = UniValue(UniValue::VARR);
+        spendSparkRequest.params.push_back(spendSparkParams);
+
+        // Call spendspark internally
+        return spendspark(spendSparkRequest);
+    } else {
+        // Handle transparent address by delegating to sendtoaddress RPC for consistency
+        CBitcoinAddress address(strAddress);
+        if (!address.IsValid()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address: not a valid Firo, Spark, or BIP47 payment code address");
+        }
+
+        // Instead of delegation, let's call sendtoaddress directly with proper setup
+        // Create a proper JSONRPCRequest for sendtoaddress
+        JSONRPCRequest transparentRequest = request; // Copy original request
+        transparentRequest.fHelp = false;
+        transparentRequest.strMethod = "sendtoaddress";
+        
+        // Clear and rebuild parameters for sendtoaddress (5 params max)
+        transparentRequest.params = UniValue(UniValue::VARR);
+        transparentRequest.params.push_back(request.params[0]); // address - keep original
+        transparentRequest.params.push_back(request.params[1]); // amount - keep original
+        if (!comment.empty())
+            transparentRequest.params.push_back(UniValue(comment)); // comment
+        if (!comment_to.empty())
+            transparentRequest.params.push_back(UniValue(comment_to)); // comment_to
+        if (subtractFeeFromAmount)
+            transparentRequest.params.push_back(UniValue(subtractFeeFromAmount)); // subtractfeefromamount
+
+        // Call sendtoaddress internally
+        return sendtoaddress(transparentRequest);
+    }
+}
+
 /******************************************************************************/
 
 static const CRPCCommand commands[] =
@@ -5385,6 +5560,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "sendfrom",                 &sendfrom,                 false,  {"fromaccount","toaddress","amount","minconf","comment","comment_to"} },
     { "wallet",             "sendmany",                 &sendmany,                 false,  {"fromaccount","amounts","minconf","comment","subtractfeefrom"} },
     { "wallet",             "sendtoaddress",            &sendtoaddress,            false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
+    { "wallet",             "sendtoanyaddress",         &sendtoanyaddress,         false,  {"address","amount","comment","comment_to","subtractfeefromamount","memo"} },
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
     { "wallet",             "settxfee",                 &settxfee,                 true,   {"amount"} },
     { "wallet",             "signmessage",              &signmessage,              true,   {"address","message"} },
