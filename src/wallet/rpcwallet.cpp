@@ -5345,8 +5345,9 @@ UniValue sendtoanyaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 6) {
         fprintf(stderr, "DEBUG: FAILING parameter validation - showing help\n");
         throw std::runtime_error(
-            "sendtoaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount \"memo\" )\n"
+            "sendtoanyaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount \"memo\" )\n"
             "\nSend an amount to a given address. Automatically detects between transparent, Spark, and BIP47 payment code addresses.\n"
+            "Intelligently selects coin source: uses Lelantus coins if transparent balance is insufficient.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
             "1. \"address\"            (string, required) The Firo, Spark, or BIP47 payment code address to send to.\n"
@@ -5412,7 +5413,9 @@ UniValue sendtoanyaddress(const JSONRPCRequest& request)
     }
 
     
-    // Check if it's a Spark name (starts with @)
+    // Address type detection and routing
+    
+    // 1. Handle Spark names (starts with @) - resolve to Spark address
     if (!strAddress.empty() && strAddress[0] == '@') {
         LOCK(cs_main);
         CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
@@ -5420,92 +5423,126 @@ UniValue sendtoanyaddress(const JSONRPCRequest& request)
         if (!sparkNameManager->GetSparkAddress(strAddress.substr(1), sparkAddressStr))
             throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+strAddress);
         strAddress = sparkAddressStr;
+        // Continue to Spark address handling below
     }
-
-    // Check if it's a BIP47 payment code (starts with PM8T)
+    
+    // 2. Handle BIP47 payment codes (starts with PM8T)
     if (strAddress.size() >= 4 && strAddress.substr(0, 4) == "PM8T") {
-        // Handle BIP47 payment code by delegating to sendtorapaddress RPC
-        JSONRPCRequest rapRequest = request; // Copy original request
+        JSONRPCRequest rapRequest = request;
         rapRequest.fHelp = false;
         rapRequest.strMethod = "sendtorapaddress";
         
         // Build parameters for BIP47 (doesn't support memo)
         rapRequest.params = UniValue(UniValue::VARR);
-        rapRequest.params.push_back(request.params[0]); // address - keep original
-        rapRequest.params.push_back(request.params[1]); // amount - keep original
+        rapRequest.params.push_back(request.params[0]); // address
+        rapRequest.params.push_back(request.params[1]); // amount
         if (!comment.empty())
-            rapRequest.params.push_back(UniValue(comment)); // comment
+            rapRequest.params.push_back(UniValue(comment));
         if (!comment_to.empty())
-            rapRequest.params.push_back(UniValue(comment_to)); // comment_to
+            rapRequest.params.push_back(UniValue(comment_to));
         if (subtractFeeFromAmount)
-            rapRequest.params.push_back(UniValue(subtractFeeFromAmount)); // subtractfeefromamount
+            rapRequest.params.push_back(UniValue(subtractFeeFromAmount));
 
-        // Call sendtorapaddress internally
         return sendtorapaddress(rapRequest);
     }
-
-    // Try to decode as Spark address first
-    bool isSparkAddress = false;
-    
-    try {
-        const spark::Params* sparkParams = spark::Params::get_default();
-        spark::Address sparkAddress(sparkParams);
-        unsigned char network = spark::GetNetworkType();
-        unsigned char coinNetwork = sparkAddress.decode(strAddress);
-        isSparkAddress = true;
-        if (coinNetwork != network)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+strAddress);
-    } catch (const std::exception &) {
-        isSparkAddress = false;
-    }
-
-    if (isSparkAddress) {
-        // Handle Spark address by delegating to spendspark RPC
-
-        // Create spendspark-compatible JSON object
-        UniValue spendSparkParams(UniValue::VOBJ);
-        UniValue addressObj(UniValue::VOBJ);
-        addressObj.push_back(Pair("amount", ValueFromAmount(nAmount)));
-        if (!memo.empty())
-            addressObj.push_back(Pair("memo", memo));
-        addressObj.push_back(Pair("subtractFee", subtractFeeFromAmount));
-        spendSparkParams.push_back(Pair(strAddress, addressObj));
-
-        // Create new JSONRPCRequest for spendspark
-        JSONRPCRequest spendSparkRequest = request; // Copy original request
-        spendSparkRequest.fHelp = false;
-        spendSparkRequest.strMethod = "spendspark";
-        spendSparkRequest.params = UniValue(UniValue::VARR);
-        spendSparkRequest.params.push_back(spendSparkParams);
-
-        // Call spendspark internally
-        return spendspark(spendSparkRequest);
-    } else {
-        // Handle transparent address by delegating to sendtoaddress RPC for consistency
-        CBitcoinAddress address(strAddress);
-        if (!address.IsValid()) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address: not a valid Firo, Spark, or BIP47 payment code address");
+    // 3. Handle Spark addresses (starts with sr1 or resolved from @name)
+    else {
+        bool isSparkAddress = false;
+        
+        try {
+            const spark::Params* sparkParams = spark::Params::get_default();
+            spark::Address sparkAddress(sparkParams);
+            unsigned char network = spark::GetNetworkType();
+            unsigned char coinNetwork = sparkAddress.decode(strAddress);
+            isSparkAddress = true;
+            if (coinNetwork != network)
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+strAddress);
+        } catch (const std::exception &) {
+            isSparkAddress = false;
         }
 
-        // Instead of delegation, let's call sendtoaddress directly with proper setup
-        // Create a proper JSONRPCRequest for sendtoaddress
-        JSONRPCRequest transparentRequest = request; // Copy original request
-        transparentRequest.fHelp = false;
-        transparentRequest.strMethod = "sendtoaddress";
-        
-        // Clear and rebuild parameters for sendtoaddress (5 params max)
-        transparentRequest.params = UniValue(UniValue::VARR);
-        transparentRequest.params.push_back(request.params[0]); // address - keep original
-        transparentRequest.params.push_back(request.params[1]); // amount - keep original
-        if (!comment.empty())
-            transparentRequest.params.push_back(UniValue(comment)); // comment
-        if (!comment_to.empty())
-            transparentRequest.params.push_back(UniValue(comment_to)); // comment_to
-        if (subtractFeeFromAmount)
-            transparentRequest.params.push_back(UniValue(subtractFeeFromAmount)); // subtractfeefromamount
+        if (isSparkAddress) {
+            fprintf(stderr, "DEBUG: Detected Spark address, delegating to spendspark\n");
+            
+            // Create spendspark-compatible JSON object
+            UniValue spendSparkParams(UniValue::VOBJ);
+            UniValue addressObj(UniValue::VOBJ);
+            addressObj.push_back(Pair("amount", ValueFromAmount(nAmount)));
+            if (!memo.empty())
+                addressObj.push_back(Pair("memo", memo));
+            addressObj.push_back(Pair("subtractFee", subtractFeeFromAmount));
+            spendSparkParams.push_back(Pair(strAddress, addressObj));
 
-        // Call sendtoaddress internally
-        return sendtoaddress(transparentRequest);
+            JSONRPCRequest spendSparkRequest = request;
+            spendSparkRequest.fHelp = false;
+            spendSparkRequest.strMethod = "spendspark";
+            spendSparkRequest.params = UniValue(UniValue::VARR);
+            spendSparkRequest.params.push_back(spendSparkParams);
+
+            return spendspark(spendSparkRequest);
+        }
+        // 4. Handle transparent addresses - with smart coin source selection
+        else {
+            CBitcoinAddress address(strAddress);
+            if (!address.IsValid()) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address: not a valid Firo, Spark, or BIP47 payment code address");
+            }
+            
+            fprintf(stderr, "DEBUG: Detected transparent address, checking coin source options\n");
+
+            // Smart coin source selection for transparent destinations
+            CAmount transparentBalance = pwallet->GetBalance();
+            CAmount lelantusBalance = 0;
+            
+            if (pwallet->zwallet) {
+                lelantusBalance = pwallet->GetPrivateBalance().first;
+            }
+            
+            fprintf(stderr, "DEBUG: Balance check - transparent: %lld, lelantus: %lld, needed: %lld\n", 
+                   transparentBalance, lelantusBalance, nAmount);
+            
+            // 4a. Use Lelantus if transparent balance insufficient but Lelantus has enough
+            if (transparentBalance < nAmount && lelantusBalance >= nAmount) {
+                fprintf(stderr, "DEBUG: Using Lelantus coins for transparent destination\n");
+                
+                JSONRPCRequest spendManyRequest = request;
+                spendManyRequest.fHelp = false;
+                spendManyRequest.strMethod = "spendmany";
+                
+                UniValue addressesObj(UniValue::VOBJ);
+                addressesObj.push_back(Pair(strAddress, ValueFromAmount(nAmount)));
+                
+                spendManyRequest.params = UniValue(UniValue::VARR);
+                spendManyRequest.params.push_back(addressesObj);
+                spendManyRequest.params.push_back(subtractFeeFromAmount);
+                
+                if (!comment.empty()) {
+                    spendManyRequest.params.push_back(comment);
+                }
+                
+                return spendmany(spendManyRequest);
+            }
+            // 4b. Use transparent coins (normal sendtoaddress)
+            else {
+                fprintf(stderr, "DEBUG: Using transparent coins for transparent destination\n");
+                
+                JSONRPCRequest transparentRequest = request;
+                transparentRequest.fHelp = false;
+                transparentRequest.strMethod = "sendtoaddress";
+                
+                transparentRequest.params = UniValue(UniValue::VARR);
+                transparentRequest.params.push_back(request.params[0]); // address
+                transparentRequest.params.push_back(request.params[1]); // amount
+                if (!comment.empty())
+                    transparentRequest.params.push_back(UniValue(comment));
+                if (!comment_to.empty())
+                    transparentRequest.params.push_back(UniValue(comment_to));
+                if (subtractFeeFromAmount)
+                    transparentRequest.params.push_back(UniValue(subtractFeeFromAmount));
+
+                return sendtoaddress(transparentRequest);
+            }
+        }
     }
 }
 
