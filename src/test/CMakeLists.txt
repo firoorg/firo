@@ -105,7 +105,6 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/progpow_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bls_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../hdmint/test/hdmint_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../hdmint/test/lelantus_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/challenge_generator_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/coin_tests.cpp
