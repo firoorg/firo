@@ -9,11 +9,17 @@ include(WindowsSystemConfiguration)
 configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_custom_target(generate_build_info
-  BYPRODUCTS ${PROJECT_BINARY_DIR}/src/build.h
-  COMMAND ${CMAKE_COMMAND} -DBUILD_INFO_HEADER_PATH=${PROJECT_BINARY_DIR}/src/build.h -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/script/GenerateBuildInfo.cmake
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/config/build.h
+  COMMAND ${CMAKE_COMMAND}
+          -DBUILD_INFO_HEADER_PATH=${CMAKE_CURRENT_BINARY_DIR}/config/build.h
+          -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+          -P ${PROJECT_SOURCE_DIR}/cmake/script/GenerateBuildInfo.cmake
   COMMENT "Generating build.h"
   VERBATIM
+)
+add_custom_target(generate_build_info
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/config/build.h
 )
 add_library(bitcoin_clientversion OBJECT EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/clientversion.cpp
