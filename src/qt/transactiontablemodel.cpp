@@ -901,20 +901,20 @@ static std::vector< TransactionNotification > vQueueNotifications;
 
 static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet, const uint256 &hash, ChangeType status)
 {
-//    // Find transaction in wallet
-//    std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
-//    // Determine whether to show transaction or not (determine this here so that no relocking is needed in GUI thread)
-//    bool inWallet = mi != wallet->mapWallet.end();
-//    bool showTransaction = (inWallet && TransactionRecord::showTransaction(mi->second));
-//
-//    TransactionNotification notification(hash, status, showTransaction);
-//
-//    if (fQueueNotifications)
-//    {
-//        vQueueNotifications.push_back(notification);
-//        return;
-//    }
-//    notification.invoke(ttm);
+    // Find transaction in wallet
+    std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
+    // Determine whether to show transaction or not (determine this here so that no relocking is needed in GUI thread)
+    bool inWallet = mi != wallet->mapWallet.end();
+    bool showTransaction = (inWallet && TransactionRecord::showTransaction(mi->second));
+
+    TransactionNotification notification(hash, status, showTransaction);
+
+    if (fQueueNotifications)
+    {
+        vQueueNotifications.push_back(notification);
+        return;
+    }
+    notification.invoke(ttm);
 }
 
 static void ShowProgress(TransactionTableModel *ttm, const std::string &title, int nProgress)
