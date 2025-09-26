@@ -16,34 +16,6 @@ env:
   SOURCE_ARTIFACT: source
   SOURCE_ARTIFACT_DIR: source
 jobs:
-  create-source-distribution:
-    name: Create Source Distribution
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libboost-all-dev libdb-dev libdb++-dev libevent-dev bison cmake
-    - name: Create Distribution Tarball
-      run: |
-        ./autogen.sh
-        ./configure --with-incompatible-bdb ac_cv_lib_tor_tor_main=yes
-        make dist
-    - name: Download Dependencies
-      run: make -C depends download
-    - name: Create Dependencies Tarball
-      run: tar -czf depends.tar.gz depends
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $SOURCE_ARTIFACT_DIR
-        mv depends.tar.gz firo-*.tar.gz $SOURCE_ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
   build-linux-cmake:
     name: build-linux-cmake
     runs-on: ubuntu-latest
@@ -57,6 +29,11 @@ jobs:
         python-version: '3.8'
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 1
+        fetch-tags: true
     - name: Install Required Packages
       run: |
         sudo apt-get update
@@ -114,124 +91,6 @@ jobs:
       with:
         name: test-linux-cmake-logs
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
-  build-linux-autotools:
-    name: build-linux-autotools
-    needs: create-source-distribution
-    runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: linux-autotools-binaries
-      TEST_LOG_ARTIFACT_DIR: test-logs
-    steps:
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-zmq
-    - name: Verify ZMQ Installation
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pyzmq
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --disable-jni --enable-tests --with-comparison-tool=no --prefix=$(realpath depends/x86_64-pc-linux-gnu)
-        make -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Run Unit Tests
-      run: make check
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Run RPC Tests
-      env:
-        TIMEOUT: 600
-      run: qa/pull-tester/rpc-tests.py -extended
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-autotools-binaries
-        path: ${{ env.ARTIFACT_DIR }}
-    - name: Prepare Test Logs for Artifact
-      if: failure()
-      run: |
-        tor_log=$SOURCE_ARTIFACT/src/tor/test-suite.log
-        firo_log=$SOURCE_ARTIFACT/src/test-suite.log
-
-        mkdir -p $TEST_LOG_ARTIFACT_DIR
-
-        if test -f $tor_log; then
-          mv $tor_log $TEST_LOG_ARTIFACT_DIR/tor.log
-        fi
-
-        if test -f $firo_log; then
-          mv $firo_log $TEST_LOG_ARTIFACT_DIR/firo.log
-        fi
-    - name: Upload Test Logs Artifact
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-linux-autotools-logs
-        path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
-  build-windows-autotools:
-    name: build-windows-autotools
-    needs: create-source-distribution
-    runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: windows-autotools-binaries
-    steps:
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
-    - name: Switch MinGW GCC and G++ to POSIX Threading
-      run: |
-        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --without-libs --disable-jni --prefix=$(realpath depends/x86_64-w64-mingw32)
-        make -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli.exe,firo-tx.exe,firod.exe,qt/firo-qt.exe} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-autotools-binaries
-        path: ${{ env.ARTIFACT_DIR }}
   build-windows-cmake:
     name: build-windows-cmake
     runs-on: ubuntu-latest
@@ -240,6 +99,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 1
+        fetch-tags: true
     - name: Install Required Packages
       run: |
         sudo apt-get update
@@ -275,6 +139,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 1
+        fetch-tags: true
     - name: Use Xcode instead of Command Line Tools
       run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     - name: Set NJOBS variable
@@ -311,48 +180,6 @@ jobs:
       with:
         name: mac-cmake-binaries
         path: ${{ env.ARTIFACT_DIR }}
-  build-mac-autotools:
-    name: build-mac-autotools
-    needs: create-source-distribution
-    runs-on: macos-latest
-    env:
-      ARTIFACT_DIR: mac-autotools-binaries
-    steps:
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Use Xcode instead of Command Line Tools
-      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-    - name: Install Required Packages
-      run: |
-        brew install --force automake coreutils python-setuptools pkg-config
-      # Workaround for macOS: https://github.com/actions/runner/issues/2958
-    - name: Install setuptools
-      run: sudo -H pip install setuptools
-    - name: Build Dependencies
-      run: make -C depends -j$(sysctl -n hw.activecpu)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --prefix=`pwd`/depends/`depends/config.guess`
-        make -j$(sysctl -n hw.activecpu)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: mac-autotools-binaries
-        path: ${{ env.ARTIFACT_DIR }}
   build-guix-x86_64-linux-gnu:
     name: build-guix-x86_64-linux-gnu
     runs-on: ubuntu-22.04
@@ -363,6 +190,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          fetch-tags: true
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -370,6 +202,24 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
+          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
+          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
+          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
+          sudo apt-get purge google-cloud-sdk imagemagick -y -f
+          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
+          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
+          sudo apt-get purge unixodbc-dev libssl-dev -y -f
+          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
+          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
+          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
+          sudo apt-get purge google-cloud-sdk -f -y 
+          sudo apt-get purge microsoft-edge-stable -f -y  || true
+          sudo apt purge microsoft-edge-stable -f -y  || true
+          sudo apt-get purge "^mysql" -f -y || true
+          sudo apt-get purge "^php" -f -y || true
+          sudo apt-get purge "^dotnet" -f -y || true
+          sudo apt-get autoremove -y 
+          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -379,6 +229,11 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
+          sudo rm -rf \
+            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/lib/jvm || true
+          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -437,6 +292,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          fetch-tags: true
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -444,6 +304,24 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
+          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
+          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
+          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
+          sudo apt-get purge google-cloud-sdk imagemagick -y -f
+          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
+          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
+          sudo apt-get purge unixodbc-dev libssl-dev -y -f
+          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
+          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
+          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
+          sudo apt-get purge google-cloud-sdk -f -y 
+          sudo apt-get purge microsoft-edge-stable -f -y  || true
+          sudo apt purge microsoft-edge-stable -f -y  || true
+          sudo apt-get purge "^mysql" -f -y || true
+          sudo apt-get purge "^php" -f -y || true
+          sudo apt-get purge "^dotnet" -f -y || true
+          sudo apt-get autoremove -y 
+          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -453,6 +331,11 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
+          sudo rm -rf \
+            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/lib/jvm || true
+          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -510,6 +393,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          fetch-tags: true
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -517,6 +405,24 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
+          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
+          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
+          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
+          sudo apt-get purge google-cloud-sdk imagemagick -y -f
+          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
+          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
+          sudo apt-get purge unixodbc-dev libssl-dev -y -f
+          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
+          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
+          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
+          sudo apt-get purge google-cloud-sdk -f -y 
+          sudo apt-get purge microsoft-edge-stable -f -y  || true
+          sudo apt purge microsoft-edge-stable -f -y  || true
+          sudo apt-get purge "^mysql" -f -y || true
+          sudo apt-get purge "^php" -f -y || true
+          sudo apt-get purge "^dotnet" -f -y || true
+          sudo apt-get autoremove -y 
+          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -526,6 +432,11 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
+          sudo rm -rf \
+            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/lib/jvm || true
+          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -587,6 +498,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          fetch-tags: true
       - name: Download macOS SDK
         run: |
           wget https://raw.githubusercontent.com/hebasto/artefacts/refs/heads/Xcode/Xcode/Xcode-15.0/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
@@ -604,6 +520,24 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
+          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
+          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
+          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
+          sudo apt-get purge google-cloud-sdk imagemagick -y -f
+          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
+          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
+          sudo apt-get purge unixodbc-dev libssl-dev -y -f
+          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
+          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
+          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
+          sudo apt-get purge google-cloud-sdk -f -y 
+          sudo apt-get purge microsoft-edge-stable -f -y  || true
+          sudo apt purge microsoft-edge-stable -f -y  || true
+          sudo apt-get purge "^mysql" -f -y || true
+          sudo apt-get purge "^php" -f -y || true
+          sudo apt-get purge "^dotnet" -f -y || true
+          sudo apt-get autoremove -y 
+          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -613,6 +547,11 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
+          sudo rm -rf \
+            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/lib/jvm || true
+          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -677,6 +616,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          fetch-tags: true
       - name: Download macOS SDK
         run: |
           wget https://raw.githubusercontent.com/hebasto/artefacts/refs/heads/Xcode/Xcode/Xcode-15.0/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
@@ -694,6 +638,24 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
+          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
+          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
+          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
+          sudo apt-get purge google-cloud-sdk imagemagick -y -f
+          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
+          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
+          sudo apt-get purge unixodbc-dev libssl-dev -y -f
+          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
+          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
+          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
+          sudo apt-get purge google-cloud-sdk -f -y 
+          sudo apt-get purge microsoft-edge-stable -f -y  || true
+          sudo apt purge microsoft-edge-stable -f -y  || true
+          sudo apt-get purge "^mysql" -f -y || true
+          sudo apt-get purge "^php" -f -y || true
+          sudo apt-get purge "^dotnet" -f -y || true
+          sudo apt-get autoremove -y 
+          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -703,6 +665,11 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
+          sudo rm -rf \
+            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/lib/jvm || true
+          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
