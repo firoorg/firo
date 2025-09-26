@@ -20,10 +20,10 @@ set(CLIENT_NAME "Firo Core")
 set(CLIENT_VERSION_MAJOR 0)
 set(CLIENT_VERSION_MINOR 14)
 set(CLIENT_VERSION_REVISION 14)
-set(CLIENT_VERSION_BUILD 1)
+set(CLIENT_VERSION_BUILD 2)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false" CACHE STRING "Is this a release build?")
-set(COPYRIGHT_YEAR "2024")
+set(COPYRIGHT_YEAR "2025")
 
 # During the enabling of the CXX and CXXOBJ languages, we modify
 # CMake's compiler/linker invocation strings by appending the content
