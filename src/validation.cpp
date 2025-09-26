@@ -4198,7 +4198,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                         pindexMostWork != chainActive.Tip() &&
                         chainActive.Height() >= chainparams.GetConsensus().nMaxReorgDepthEnforcementBlock &&
                         chainActive.Height() < chainparams.GetConsensus().DIP0008Height + 100 &&
-                        !GetBoolArg("-allowdeepreorg", false)) {
+                        !GetBoolArg("-allowdeepreorg", true)) {
                     const CBlockIndex *pindexFork = chainActive.FindFork(pindexMostWork);
                     assert(pindexFork != NULL);
                     if (chainActive.Tip() != pindexFork &&
