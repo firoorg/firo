@@ -16,6 +16,27 @@ env:
   SOURCE_ARTIFACT: source
   SOURCE_ARTIFACT_DIR: source
 jobs:
+  get-commit-hash:
+    name: Get Commit Hash String
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.short-sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}  # Use PR head commit
+          fetch-depth: 1
+      - id: short-sha
+        run: |
+          # For PRs, use pull_request.head.sha, otherwise use the normal HEAD
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
+          else
+            SHA=$(git rev-parse --short=7 HEAD)
+          fi
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          echo "Short hash determined: $SHA"
+
   create-source-distribution:
     name: Create Source Distribution
     runs-on: ubuntu-latest
@@ -44,12 +65,15 @@ jobs:
       with:
         name: ${{ env.SOURCE_ARTIFACT }}
         path: ${{ env.SOURCE_ARTIFACT_DIR }}
+
   build-linux-cmake:
+    needs: get-commit-hash
     name: build-linux-cmake
     runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: linux-cmake-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
@@ -91,7 +115,7 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-cmake-binaries
+        name: linux-cmake-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
     - name: Prepare Test Logs for Artifact
       if: failure()
@@ -112,15 +136,17 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-linux-cmake-logs
+        name: test-linux-cmake-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
+
   build-linux-autotools:
+    needs: [get-commit-hash, create-source-distribution]
     name: build-linux-autotools
-    needs: create-source-distribution
     runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: linux-autotools-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
@@ -167,7 +193,7 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-autotools-binaries
+        name: linux-autotools-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
     - name: Prepare Test Logs for Artifact
       if: failure()
@@ -188,14 +214,16 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-linux-autotools-logs
+        name: test-linux-autotools-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
+
   build-windows-autotools:
+    needs: [get-commit-hash, create-source-distribution]
     name: build-windows-autotools
-    needs: create-source-distribution
     runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: windows-autotools-binaries
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Getting Source
       uses: actions/download-artifact@v4
@@ -230,13 +258,16 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-autotools-binaries
+        name: windows-autotools-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
+
   build-windows-cmake:
+    needs: get-commit-hash
     name: build-windows-cmake
     runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: windows-cmake-binaries
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -265,13 +296,16 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-cmake-binaries
+        name: windows-cmake-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
+
   build-mac-cmake:
+    needs: get-commit-hash
     name: build-mac-cmake
     runs-on: macos-latest
     env:
       ARTIFACT_DIR: mac-cmake-binaries
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -309,14 +343,16 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: mac-cmake-binaries
+        name: mac-cmake-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
+
   build-mac-autotools:
+    needs: [get-commit-hash, create-source-distribution]
     name: build-mac-autotools
-    needs: create-source-distribution
     runs-on: macos-latest
     env:
       ARTIFACT_DIR: mac-autotools-binaries
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Getting Source
       uses: actions/download-artifact@v4
@@ -351,15 +387,18 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: mac-autotools-binaries
+        name: mac-autotools-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
+
   build-guix-x86_64-linux-gnu:
+    needs: get-commit-hash
     name: build-guix-x86_64-linux-gnu
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-linux-gnu
       ARTIFACT_DIR: guix-binaries-x86_64-linux-gnu
       SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -401,13 +440,13 @@ jobs:
       - name: Upload Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-linux-guix-release-binaries
+          name: x86_64-linux-guix-release-binaries-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-release-binaries.tar.gz
           compression-level: 0
       - name: Upload Debug Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-linux-guix-debug-binaries
+          name: x86_64-linux-guix-debug-binaries-${{ env.COMMIT_HASH }}
           path: |
             ${{ env.ARTIFACT_DIR }}/firo-cli
             ${{ env.ARTIFACT_DIR }}/firo-qt
@@ -418,22 +457,25 @@ jobs:
       - name: Upload Debug Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-linux-guix-debug-symbols
+          name: x86_64-linux-guix-debug-symbols-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-debug-symbols.tar.gz
           compression-level: 0
       - name: Upload Check Sums
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-linux-guix-checksums
+          name: x86_64-linux-guix-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-checksums-sha256
           compression-level: 0
+
   build-guix-aarch64-linux-gnu:
+    needs: get-commit-hash
     name: build-guix-aarch64-linux-gnu
     runs-on: ubuntu-22.04
     env:
       HOST: aarch64-linux-gnu
       ARTIFACT_DIR: guix-binaries-aarch64-linux-gnu
       SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -475,13 +517,13 @@ jobs:
       - name: Upload Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: aarch64-linux-guix-release-binaries
+          name: aarch64-linux-guix-release-binaries-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-release-binaries.tar.gz
           compression-level: 0
       - name: Upload Debug Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: aarch64-linux-guix-debug-binaries
+          name: aarch64-linux-guix-debug-binaries-${{ env.COMMIT_HASH }}
           path: |
             ${{ env.ARTIFACT_DIR }}/firo-cli
             ${{ env.ARTIFACT_DIR }}/firo-qt
@@ -492,21 +534,24 @@ jobs:
       - name: Upload Debug Symbols
         uses: actions/upload-artifact@v4
         with:
-          name: aarch64-linux-guix-debug-symbols
+          name: aarch64-linux-guix-debug-symbols-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-debug-symbols.tar.gz
           compression-level: 0
       - name: Upload Check Sums
         uses: actions/upload-artifact@v4
         with:
-          name: aarch64-linux-guix-checksums
+          name: aarch64-linux-guix-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-checksums-sha256
+
   build-guix-x86_64-w64-mingw32:
+    needs: get-commit-hash
     name: build-guix-x86_64-w64-mingw32
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-w64-mingw32
       ARTIFACT_DIR: guix-binaries-x86_64-w64-mingw32
       SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -550,40 +595,43 @@ jobs:
       - name: Upload Windows Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-win64-guix-release-binaries
+          name: x86_64-win64-guix-release-binaries-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-release-binaries.zip
           compression-level: 0
       - name: Upload Windows Debug Symbols  
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-win64-guix-debug
+          name: x86_64-win64-guix-debug-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-debug-symbols.zip
           compression-level: 0
       - name: Upload Windows Installer (Unsigned)
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-win64-guix-installer
+          name: x86_64-win64-guix-installer-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-installer-unsigned.exe
           compression-level: 0
       - name: Upload Windows Setup Sign Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-win64-guix-setup-sign-bundle
+          name: x86_64-win64-guix-setup-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-setup-sign-bundle.tar.gz
           compression-level: 0
       - name: Upload Windows Checksums
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-win64-guix-checksums
+          name: x86_64-win64-guix-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-checksums-sha256
           compression-level: 0
+
   build-guix-arm64-apple-darwin:
+    needs: get-commit-hash
     name: build-guix-arm64-apple-darwin
     runs-on: ubuntu-22.04
     env:
       HOST: arm64-apple-darwin
       ARTIFACT_DIR: guix-binaries-arm64-apple-darwin
       SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -641,7 +689,7 @@ jobs:
       - name: Upload MacOS Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: arm64-apple-darwin-release-binaries
+          name: arm64-apple-darwin-release-binaries-${{ env.COMMIT_HASH }}
           path: |
             ${{ env.ARTIFACT_DIR }}/firo-cli
             ${{ env.ARTIFACT_DIR }}/firo-qt
@@ -653,27 +701,30 @@ jobs:
       - name: Upload MacOS Sign Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: arm64-apple-darwin-sign-bundle
+          name: arm64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-sign-bundle.tar.gz
           compression-level: 0
       - name: Upload MacOS App Image Zip
         uses: actions/upload-artifact@v4
         with:
-          name: arm64-apple-darwin-app-image-zip
+          name: arm64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-app-image.zip
           compression-level: 0
       - name: Upload Check Sums
         uses: actions/upload-artifact@v4
         with:
-          name: arm64-apple-darwin-checksums
+          name: arm64-apple-darwin-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-checksums-sha256
+
   build-guix-x86_64-apple-darwin:
+    needs: get-commit-hash
     name: build-guix-x86_64-apple-darwin
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-apple-darwin
       ARTIFACT_DIR: guix-binaries-x86_64-apple-darwin
       SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -731,7 +782,7 @@ jobs:
       - name: Upload MacOS Release Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-apple-darwin-release-binaries
+          name: x86_64-apple-darwin-release-binaries-${{ env.COMMIT_HASH }}
           path: |
             ${{ env.ARTIFACT_DIR }}/firo-cli
             ${{ env.ARTIFACT_DIR }}/firo-qt
@@ -743,17 +794,17 @@ jobs:
       - name: Upload MacOS Sign Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-apple-darwin-sign-bundle
+          name: x86_64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-sign-bundle.tar.gz
           compression-level: 0
       - name: Upload MacOS App Image Zip
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-apple-darwin-app-image-zip
+          name: x86_64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-app-image.zip
           compression-level: 0
       - name: Upload Check Sums
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-apple-darwin-checksums
+          name: x86_64-apple-darwin-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-checksums-sha256
