@@ -83,6 +83,9 @@ bool CheckSparkTransaction(
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo);
 
+// call this on shutdown
+void ShutdownSparkState();
+
 bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin);
 bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash);
 bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block);
