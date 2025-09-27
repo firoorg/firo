@@ -119,13 +119,9 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     auto block1 = GetCBlock(blockIdx1);
     PopulateLelantusTxInfo(block1, {{mints[0].GetPubcoinValue(), std::make_pair(mints[0].GetAmount(), uint256())}}, {});
 
-    lelantusState->AddMintsToStateAndBlockIndex(blockIdx1, &block1);
-
     auto blockIdx2 = GenerateBlock({txs[1]});
     auto block2 = GetCBlock(blockIdx2);
     PopulateLelantusTxInfo(block2, {{mints[1].GetPubcoinValue(),  std::make_pair(mints[1].GetAmount(), uint256())}}, {});
-
-    lelantusState->AddMintsToStateAndBlockIndex(blockIdx2, &block2);
 
     // verify heigh and id was assigned.
     BOOST_CHECK_EQUAL(std::make_pair(chainActive.Height() - 1, 1), lelantusState->GetMintedCoinHeightAndId(mints[0].GetPubcoinValue()));
@@ -364,6 +360,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     auto lelantusState = new CLelantusState(maxSize, startCoin);
 
     auto addMintsToState = [&](CBlockIndex *index, CBlock const &block) {
+        index->lelantusMintedPubCoins.clear();
         lelantusState->AddMintsToStateAndBlockIndex(index, &block);
     };
 

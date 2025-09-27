@@ -72,7 +72,7 @@ BOOST_FIXTURE_TEST_SUITE(spark_state_tests, SparkStateTests)
 
 BOOST_AUTO_TEST_CASE(add_mints_to_state)
 {
-    GenerateBlocks(1100);
+    GenerateBlocks(500);
 
     std::vector<CMutableTransaction> txs;
     auto mints = GenerateMints({1 * COIN, 2 * COIN, 3 * COIN}, txs);
@@ -134,7 +134,7 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
 
 BOOST_AUTO_TEST_CASE(lTag_adding)
 {
-    GenerateBlocks(1001);
+    GenerateBlocks(501);
     std::vector<CMutableTransaction> txs;
     auto mints = GenerateMints({1 * COIN, 2 * COIN, 1 * CENT}, txs);
 
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(lTag_adding)
 
 BOOST_AUTO_TEST_CASE(mempool)
 {
-    GenerateBlocks(1001);
+    GenerateBlocks(501);
     std::vector<CMutableTransaction> txs;
     auto mint = GenerateMints({1 * COIN}, txs)[0];
 
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(mempool)
 
 BOOST_AUTO_TEST_CASE(add_remove_block)
 {
-    GenerateBlocks(1001);
+    GenerateBlocks(501);
 
     auto index1 = GenerateBlock({});
     auto block1 = GetCBlock(index1);
@@ -333,7 +333,6 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     std::vector<CMutableTransaction> txs;
 
     auto mints = GenerateMints(amounts, txs);
-
     std::vector<spark::Coin> coins;
     std::vector<CBlockIndex*> indexes;
     std::vector<CBlock> blocks;
@@ -341,7 +340,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     for (size_t i = 0; i != mints.size(); i += 2) {
         auto index = GenerateBlock({txs[i], txs[i + 1]});
 
-    auto block = GetCBlock(index);
+        auto block = GetCBlock(index);
         coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[i + 1]));
         coins.push_back(pwalletMain->sparkWallet->getCoinFromMeta(mints[i]));
 
@@ -364,6 +363,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     auto sparkState = new spark::CSparkState(maxSize, startCoin);
 
     auto addMintsToState = [&](CBlockIndex* index, CBlock const& block) {
+        index->sparkMintedCoins.clear();
         sparkState->AddMintsToStateAndBlockIndex(index, &block);
     };
 

@@ -25,7 +25,7 @@ class Bip47SendReceive(BitcoinTestFramework):
 
     def run_test(self):
 
-        self.nodes[1].generate(410)
+        self.nodes[1].generate(210)
         node0_pcode = self.nodes[0].createrapaddress("node0-pcode0")
 
         try:

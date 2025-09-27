@@ -3,8 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "hdmint/mintpool.h"
-#include "sigma.h"
-
+#include "lelantus.h"
 CMintPool::CMintPool(){}
 
 /**

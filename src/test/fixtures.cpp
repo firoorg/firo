@@ -16,7 +16,7 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
-#include "sigma/openssl_context.h"
+#include "liblelantus/openssl_context.h"
 #include "validation.h"
 #include "miner.h"
 #include "pubkey.h"
@@ -36,8 +36,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
-
-#include "sigma.h"
 #include "lelantus.h"
 #include "../libspark/coin.h"
 
@@ -45,16 +43,10 @@
 ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
     TestingSetup(CBaseChainParams::REGTEST, "1") {
     // Crean sigma state, just in case someone forgot to do so.
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    sigmaState->Reset();
 };
 
 ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
     // Clean sigma state after us.
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    sigmaState->Reset();
-
-
 }
 
 CBlock ZerocoinTestingSetupBase::CreateBlock(const CScript& scriptPubKey) {
@@ -65,7 +57,7 @@ CBlock ZerocoinTestingSetupBase::CreateBlock(const CScript& scriptPubKey) {
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-    
+
     uint256 mix_hash;
     while (!CheckProofOfWork(block.GetHashFull(mix_hash), block.nBits, chainparams.GetConsensus())) {
         ++block.nNonce64;

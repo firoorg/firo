@@ -55,7 +55,7 @@ void IncomingFundNotifier::check()
         return;
 
     // update only if there are transaction and last update was done more than 2 minutes ago, and in case it is first time
-    if (txs.empty() || (lastUpdateTime!= 0 && (GetSystemTimeInSeconds() - lastUpdateTime <= 120))) {
+    if ((lastUpdateTime!= 0 && (GetSystemTimeInSeconds() - lastUpdateTime <= 120))) {
         return;
     }
 
@@ -91,12 +91,8 @@ void IncomingFundNotifier::check()
             }
         }
 
-        std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXOs;
-        pwalletMain->AvailableCoinsForLMint(valueAndUTXOs, &coinControl);
+        credit = pwalletMain->GetaAvailableCoinsForLMint();
 
-        for (auto const &valueAndUTXO : valueAndUTXOs) {
-            credit += valueAndUTXO.first;
-        }
     }
 
     for (auto const &tx : immatures) {

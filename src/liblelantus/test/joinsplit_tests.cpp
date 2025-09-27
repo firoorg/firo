@@ -1,6 +1,6 @@
 #include "lelantus_test_fixture.h"
 
-#include "../../sigma/openssl_context.h"
+#include "../openssl_context.h"
 #include "../joinsplit.h"
 
 #include <boost/test/unit_test.hpp>
