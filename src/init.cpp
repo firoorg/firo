@@ -2097,13 +2097,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 14: finished
 
-    SetRPCWarmupFinished();
-    uiInterface.InitMessage(_("Done loading"));
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->postInitProcess(threadGroup);
 #endif
+
+    SetRPCWarmupFinished();
+    uiInterface.InitMessage(_("Done loading"));
 
     return !fRequestShutdown;
 }
