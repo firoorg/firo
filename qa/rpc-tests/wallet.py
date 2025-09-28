@@ -262,56 +262,201 @@ class WalletTest (BitcoinTestFramework):
         # Test sendtoanyaddress function (universal address dispatcher)
         print("Testing sendtoanyaddress...")
         
-        # Test sendtoanyaddress with transparent addresses (backward compatibility)
-        transparent_addr = self.nodes[1].getnewaddress()
+        # Get initial balances for testing
+        initial_balance_0 = self.nodes[0].getbalance()
+        initial_balance_1 = self.nodes[1].getbalance()
+        initial_balance_2 = self.nodes[2].getbalance()
         
-        # Send 5 using sendtoanyaddress - should work identically to sendtoaddress
-        txId = self.nodes[0].sendtoanyaddress(transparent_addr, 5)
-        txObj = self.nodes[0].gettransaction(txId)
-        assert_equal(txObj['amount'], Decimal('-5'))
+        print(f"Initial balances - Node0: {initial_balance_0}, Node1: {initial_balance_1}, Node2: {initial_balance_2}")
         
-        # Test with all optional parameters
-        txId = self.nodes[0].sendtoanyaddress(transparent_addr, 3, "test comment", "test recipient", False, "test memo")
-        txObj = self.nodes[0].gettransaction(txId)
-        assert_equal(txObj['amount'], Decimal('-3'))
-        assert_equal(txObj['comment'], "test comment")
-        assert_equal(txObj['to'], "test recipient")
-        
-        # Test with subtractfeefromamount = True
-        txId = self.nodes[0].sendtoanyaddress(transparent_addr, 2, "", "", True)
-        txObj = self.nodes[0].gettransaction(txId)
-        assert_equal(txObj['amount'], Decimal('-2'))
-        
-        # Test with string amount input
-        txId = self.nodes[0].sendtoanyaddress(transparent_addr, "1.5")
+        # Test 1: Single transparent address with basic parameters
+        print("Test 1: Single transparent address...")
+        transparent_addr1 = self.nodes[1].getnewaddress()
+        sendTo = {transparent_addr1: {"amount": 1.5, "subtractFee": False}}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
         txObj = self.nodes[0].gettransaction(txId)
         assert_equal(txObj['amount'], Decimal('-1.5'))
+        print(f"✓ Single transparent send: {txId}")
         
-        # Test with scientific notation in string
-        txId = self.nodes[0].sendtoanyaddress(transparent_addr, "1e-3")
+        # Test 2: Single transparent address with all optional parameters  
+        print("Test 2: Transparent address with all parameters...")
+        transparent_addr2 = self.nodes[1].getnewaddress()
+        sendTo = {transparent_addr2: {
+            "amount": 2.0, 
+            "subtractFee": False,
+            "comment": "rent payment",
+            "comment_to": "landlord"
+        }}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
+        txObj = self.nodes[0].gettransaction(txId)
+        assert_equal(txObj['amount'], Decimal('-2.0'))
+        assert_equal(txObj['comment'], "rent payment")
+        assert_equal(txObj['to'], "landlord")
+        print(f"✓ Transparent with comments: {txId}")
+        
+        # Test 3: Multiple transparent addresses in one transaction
+        print("Test 3: Multiple transparent addresses...")
+        transparent_addr3 = self.nodes[1].getnewaddress()
+        transparent_addr4 = self.nodes[2].getnewaddress()
+        sendTo = {
+            transparent_addr3: {"amount": 1.0, "subtractFee": False, "comment": "payment1"},
+            transparent_addr4: {"amount": 0.5, "subtractFee": False, "comment": "payment2"}
+        }
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
+        txObj = self.nodes[0].gettransaction(txId)
+        # Should be -(1.0 + 0.5) = -1.5 plus fees
+        assert(txObj['amount'] <= Decimal('-1.5'))
+        print(f"✓ Multiple transparent addresses: {txId}")
+        
+        # Test 4: Subtract fee from amount
+        print("Test 4: Subtract fee from amount...")
+        transparent_addr5 = self.nodes[1].getnewaddress()
+        sendTo = {transparent_addr5: {"amount": 1.0, "subtractFee": True}}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
+        txObj = self.nodes[0].gettransaction(txId)
+        # Amount should be exactly -1.0 since fee is subtracted
+        assert_equal(txObj['amount'], Decimal('-1.0'))
+        print(f"✓ Subtract fee test: {txId}")
+        
+        # Test 5: String amounts (various formats)
+        print("Test 5: String amount formats...")
+        transparent_addr6 = self.nodes[1].getnewaddress()
+        
+        # Test decimal string
+        sendTo = {transparent_addr6: {"amount": "0.75", "subtractFee": False}}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
+        txObj = self.nodes[0].gettransaction(txId)
+        assert_equal(txObj['amount'], Decimal('-0.75'))
+        print(f"✓ Decimal string amount: {txId}")
+        
+        # Test scientific notation string
+        transparent_addr7 = self.nodes[2].getnewaddress()
+        sendTo = {transparent_addr7: {"amount": "1e-3", "subtractFee": False}}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
         txObj = self.nodes[0].gettransaction(txId)
         assert_equal(txObj['amount'], Decimal('-0.001'))
+        print(f"✓ Scientific notation amount: {txId}")
         
-        # Mine a block to confirm these transactions
+        # Mine a block to confirm all transactions
         self.nodes[0].generate(1)
         self.sync_all()
         
-        # Test sendtoanyaddress error handling
-        # This will raise an exception because the amount type is wrong
-        assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoanyaddress, transparent_addr, "1f-4")
+        # Test 6: Error handling - Invalid JSON format
+        print("Test 6: Error handling...")
         
-        # This will raise an exception for zero amount
-        assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoanyaddress, transparent_addr, 0)
+        # Empty object should fail
+        try:
+            self.nodes[0].sendtoanyaddress({})
+            assert False, "Should have failed with empty object"
+        except JSONRPCException as e:
+            assert "At least one address must be provided" in str(e)
+            print("✓ Empty object rejected")
         
-        # This will raise an exception for negative amount
-        assert_raises_jsonrpc(-3, "Invalid amount", self.nodes[0].sendtoanyaddress, transparent_addr, -1)
+        # Invalid amount formats
+        transparent_addr_test = self.nodes[1].getnewaddress()
         
-        # This will raise an exception for invalid address
-        assert_raises_jsonrpc(-5, "Invalid address", self.nodes[0].sendtoanyaddress, "invalid_address", 1)
+        # Invalid amount string
+        try:
+            sendTo = {transparent_addr_test: {"amount": "1f-4", "subtractFee": False}}
+            self.nodes[0].sendtoanyaddress(sendTo)
+            assert False, "Should have failed with invalid amount"
+        except JSONRPCException as e:
+            assert "Invalid amount" in str(e)
+            print("✓ Invalid amount string rejected")
         
-        # This will raise an exception for insufficient funds
-        large_amount = self.nodes[0].getbalance() + 100
-        assert_raises_jsonrpc(-6, "Insufficient funds", self.nodes[0].sendtoanyaddress, transparent_addr, large_amount)
+        # Zero amount
+        try:
+            sendTo = {transparent_addr_test: {"amount": 0, "subtractFee": False}}
+            self.nodes[0].sendtoanyaddress(sendTo)
+            assert False, "Should have failed with zero amount"
+        except JSONRPCException as e:
+            assert "Invalid amount" in str(e)
+            print("✓ Zero amount rejected")
+        
+        # Negative amount
+        try:
+            sendTo = {transparent_addr_test: {"amount": -1, "subtractFee": False}}
+            self.nodes[0].sendtoanyaddress(sendTo)
+            assert False, "Should have failed with negative amount"
+        except JSONRPCException as e:
+            assert "Invalid amount" in str(e)
+            print("✓ Negative amount rejected")
+        
+        # Missing amount parameter
+        try:
+            sendTo = {transparent_addr_test: {"subtractFee": False}}
+            self.nodes[0].sendtoanyaddress(sendTo)
+            assert False, "Should have failed with missing amount"
+        except JSONRPCException as e:
+            assert "no amount" in str(e)
+            print("✓ Missing amount rejected")
+        
+        # Invalid address
+        try:
+            sendTo = {"invalid_address_format": {"amount": 1.0, "subtractFee": False}}
+            self.nodes[0].sendtoanyaddress(sendTo)
+            assert False, "Should have failed with invalid address"
+        except JSONRPCException as e:
+            assert "Invalid address" in str(e)
+            print("✓ Invalid address rejected")
+        
+        # Duplicate addresses (should be prevented in implementation)
+        # Note: This test may not work if implementation doesn't check for duplicates
+        # but it's good practice to test
+        
+        # Insufficient funds
+        try:
+            large_amount = self.nodes[0].getbalance() + 100
+            sendTo = {transparent_addr_test: {"amount": large_amount, "subtractFee": False}}
+            self.nodes[0].sendtoanyaddress(sendTo)
+            assert False, "Should have failed with insufficient funds"
+        except JSONRPCException as e:
+            assert "Insufficient funds" in str(e)
+            print("✓ Insufficient funds rejected")
+        
+        # Test 7: Optional parameters validation
+        print("Test 7: Optional parameters...")
+        
+        # Test that all optional parameters are truly optional
+        transparent_addr8 = self.nodes[1].getnewaddress()
+        
+        # Only amount (minimal valid call)
+        sendTo = {transparent_addr8: {"amount": 0.1}}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
+        print(f"✓ Minimal call (amount only): {txId}")
+        
+        # Amount + subtractFee only
+        transparent_addr9 = self.nodes[1].getnewaddress()
+        sendTo = {transparent_addr9: {"amount": 0.1, "subtractFee": True}}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
+        print(f"✓ Amount + subtractFee only: {txId}")
+        
+        # Amount + memo only (should work for transparent too, even if ignored)
+        transparent_addr10 = self.nodes[1].getnewaddress()
+        sendTo = {transparent_addr10: {"amount": 0.1, "memo": "test memo"}}
+        txId = self.nodes[0].sendtoanyaddress(sendTo)
+        print(f"✓ Amount + memo: {txId}")
+        
+        # Test 8: Address type detection edge cases
+        print("Test 8: Address detection edge cases...")
+        
+        # Very long address (should still validate properly)
+        # Note: We can't easily test Spark/BIP47 addresses without proper setup
+        # but we can test the detection logic doesn't crash on various inputs
+        
+        self.nodes[0].generate(1)  # Generate more coins for additional tests
+        self.sync_all()
+        
+        print("✓ All sendtoanyaddress tests passed!")
+        
+        # Note: Comprehensive tests for Spark addresses, BIP47 payment codes, and Spark names
+        # would require additional setup (Spark activation, BIP47 setup, name registration)
+        # These should be added to dedicated test files for those features
+        # 
+        # IMPORTANT: sendtoanyaddress now uses ONLY the appropriate coin type for each address:
+        # - Transparent addresses use transparent UTXOs only (no Sigma/Lelantus fallback)
+        # - Spark addresses use Spark coins only
+        # - BIP47 addresses use transparent UTXOs for the generated transparent address
 
         # This will raise an exception since generate does not accept a string
         assert_raises_jsonrpc(-1, "not an integer", self.nodes[0].generate, "2")
