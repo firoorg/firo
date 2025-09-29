@@ -196,6 +196,7 @@ void SplashScreen::slotFinish(QWidget *mainWin)
     if (isMinimized())
         showNormal();
     hide();
+    unsubscribeFromCoreSignals();
     deleteLater(); // No more need for this
 }
 
@@ -254,7 +255,7 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
 void SplashScreen::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
-    painter.drawPixmap(0, 0, pixmap);
+    painter.drawPixmap(0, 0, this->pixmap);
     painter.setPen(curColor);
 
     QRect textRect = rect().adjusted(5, 5, -5, -60);
