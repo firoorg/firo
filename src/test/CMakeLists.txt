@@ -50,7 +50,6 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_mintspend_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_state_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma_lelantus_transition.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/limitedmap_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/main_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring_tests.cpp
@@ -78,10 +77,6 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/script_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/serialize_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sighash_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma_manymintspend_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma_mintspend_numinputs.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma_mintspend_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma_state_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sigopcount_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/skiplist_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/streams_tests.cpp
@@ -134,13 +129,6 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_state_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_mintspend_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma/test/coin_spend_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma/test/coin_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma/test/primitives_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma/test/protocol_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma/test/r1_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma/test/serialize_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma/test/sigma_primitive_types_test.cpp
 )
 
 target_link_libraries(test_firo
