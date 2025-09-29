@@ -1293,15 +1293,6 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
     // Break debit/credit balance caches:
     wtx.MarkDirty();
 
-    std::uint64_t credit = 0;
-    std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXOs;
-    pwalletMain->AvailableCoinsForLMint(valueAndUTXOs, NULL);
-    for (auto const &valueAndUTXO : valueAndUTXOs) {
-        credit += valueAndUTXO.first;
-    }
-
-    availableCoinsForLMint = credit;
-
     // Notify UI of new or updated transaction
     NotifyTransactionChanged(this, hash, fInsertedNew ? CT_NEW : CT_UPDATED);
 

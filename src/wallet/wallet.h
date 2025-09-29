@@ -822,10 +822,6 @@ public:
 
     std::set<COutPoint> setLockedCoins;
 
-    std::uint64_t availableCoinsForLMint = 0;
-
-    std::uint64_t GetaAvailableCoinsForLMint() {return availableCoinsForLMint;}
-
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
     //! check whether we are allowed to upgrade (or already support) to the named feature
