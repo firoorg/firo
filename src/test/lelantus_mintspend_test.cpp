@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     CWalletTx result;
     {
         std::vector<CHDMint> mintCoins; // new mints
-        CAmount fee;
+        CAmount fee = 0;
         result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, mintCoins);
         pwalletMain->CommitLelantusTransaction(result, spendCoins, mintCoins);
     }
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(lelantus_mintspend_test)
     result.Init(NULL);
     {
         std::vector<CHDMint> mintCoins; // new mints
-        CAmount fee;
+        CAmount fee = 0;
         result = pwalletMain->CreateLelantusJoinSplitTransaction(recipients, fee, {}, spendCoins, mintCoins);
         pwalletMain->CommitLelantusTransaction(result, spendCoins, mintCoins);
     }

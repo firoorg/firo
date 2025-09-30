@@ -74,10 +74,16 @@ void BatchProofContainer::removeLelantus(std::unordered_map<Scalar, int> spentSe
         int id = spendSerial.second;
 
         // afterFixes bool with the pair of set id is considered separate set identifiers, so try to find in one set, if not found try also in another
-        std::pair<uint32_t, bool> key = std::make_pair(id, false);
+        std::pair<uint32_t, bool> key1 = std::make_pair(id, false);
+        std::pair<uint32_t, bool> key2 = std::make_pair(id, true);
         std::vector<LelantusSigmaProofData>* vProofs;
-        if (lelantusSigmaProofs.count(key) > 0) {
-            vProofs = &lelantusSigmaProofs[key];
+        if (lelantusSigmaProofs.count(key1) > 0) {
+            vProofs = &lelantusSigmaProofs[key1];
+            erase(vProofs, spendSerial.first);
+        }
+
+        if (lelantusSigmaProofs.count(key2) > 0) {
+            vProofs = &lelantusSigmaProofs[key2];
             erase(vProofs, spendSerial.first);
         }
     }
