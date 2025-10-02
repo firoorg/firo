@@ -360,6 +360,7 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
         now = GetTimeMillis();
 
     int64_t& nLastUpdateNotification = fHeader ? nLastHeaderTipUpdateNotification : nLastBlockTipUpdateNotification;
+    clientmodel->cachedNumBlocks = pIndex->nHeight;
 
     if (fHeader) {
         // cache best headers time and height to reduce future cs_main locks
