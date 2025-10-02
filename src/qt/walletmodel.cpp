@@ -168,13 +168,13 @@ void WalletModel::setClientModel(ClientModel* client_model)
 
 void WalletModel::checkBalanceChanged()
 {
-    CAmount newBalance = 0;
-    CAmount newUnconfirmedBalance = 0;
-    CAmount newImmatureBalance = 0;
+    CAmount newBalance = getBalance();
+    CAmount newUnconfirmedBalance = getUnconfirmedBalance();
+    CAmount newImmatureBalance = getImmatureBalance();
     CAmount newWatchOnlyBalance = 0;
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
-    CAmount newAnonymizableBalance = 0;
+    CAmount newAnonymizableBalance = newBalance;
 
     if (!wallet->TryGetBalances(newBalance, newUnconfirmedBalance, newImmatureBalance))
         return;
