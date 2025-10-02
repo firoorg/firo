@@ -419,7 +419,7 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 /** Transaction validation functions */
 
 /** Context-independent validity checks */
-bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, sigma::CSigmaTxInfo *sigmaTxInfo = NULL, lelantus::CLelantusTxInfo* lelantusTxInfo = NULL, spark::CSparkTxInfo* sparkTxInfo = NULL);
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, lelantus::CLelantusTxInfo* lelantusTxInfo = NULL, spark::CSparkTxInfo* sparkTxInfo = NULL);
 
 namespace Consensus {
 

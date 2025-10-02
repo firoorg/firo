@@ -6,7 +6,6 @@
 #define FIRO_HDMINT_H
 
 #include "primitives/mint_spend.h"
-#include "sigma.h"
 
 /**
  * CHDMint object

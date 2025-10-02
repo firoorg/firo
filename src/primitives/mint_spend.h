@@ -10,7 +10,7 @@
 #include <boost/optional.hpp>
 #include <limits.h>
 #include "key.h"
-#include "sigma/coin.h"
+#include "liblelantus/coin.h"
 #include "serialize.h"
 #include "firo_params.h"
 
@@ -33,125 +33,9 @@ protected:
     mutable boost::optional<uint256> pubCoinValueHash;
 };
 
-struct CMintMeta : MintMeta
-{
-    bool isDeterministic;
-    sigma::CoinDenomination denom;
-};
-
 struct CLelantusMintMeta : MintMeta
 {
     uint64_t amount;
-};
-
-
-class CSigmaEntry
-{
-public:
-    void set_denomination(sigma::CoinDenomination denom) {
-        DenominationToInteger(denom, denomination);
-    }
-    void set_denomination_value(int64_t new_denomination) {
-        denomination = new_denomination;
-    }
-    int64_t get_denomination_value() const {
-        return denomination;
-    }
-    sigma::CoinDenomination get_denomination() const {
-        sigma::CoinDenomination result;
-        IntegerToDenomination(denomination, result);
-        return result;
-    }
-
-    std::string get_string_denomination() const {
-        return DenominationToString(get_denomination());
-    }
-
-    //public
-    GroupElement value;
-
-    //private
-    Scalar randomness;
-    Scalar serialNumber;
-
-    // Signature over partial transaction
-    // to make sure the outputs are not changed by attacker.
-    std::vector<unsigned char> ecdsaSecretKey;
-
-    bool IsUsed;
-    int nHeight;
-    int id;
-
-private:
-    // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenomination
-    // to it. In these cases the value is automatically converted to int,
-    // which is not what we want.
-    // Starting from Version 3 == sigma, this number is coin value * COIN,
-    // I.E. it is set to 100.000.000 for 1 firo.
-    int64_t denomination;
-
-public:
-
-    CSigmaEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        IsUsed = false;
-        randomness = Scalar(uint64_t(0));
-        serialNumber = Scalar(uint64_t(0));
-        value = GroupElement();
-        denomination = -1;
-        nHeight = -1;
-        id = -1;
-    }
-
-    bool IsCorrectSigmaMint() const {
-        return randomness.isMember() && serialNumber.isMember();
-    }
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(IsUsed);
-        READWRITE(randomness);
-        READWRITE(serialNumber);
-        READWRITE(value);
-        READWRITE(denomination);
-        READWRITE(nHeight);
-        READWRITE(id);
-        if (ser_action.ForRead()) {
-            if (!is_eof(s)) {
-                int nStoredVersion = 0;
-                READWRITE(nStoredVersion);
-                READWRITE(ecdsaSecretKey);
-            }
-        }
-        else {
-            int streamVersion = s.GetVersion();
-            READWRITE(streamVersion);
-            READWRITE(ecdsaSecretKey);
-        }
-    }
-private:
-    template <typename Stream>
-    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
-        return s.eof();
-    }
-
-    template <typename Stream>
-    bool is_eof_helper(Stream &s, int) {
-        return false;
-    }
-
-    template<typename Stream>
-    bool is_eof(Stream &s) {
-        return is_eof_helper(s, true);
-    }
 };
 
 struct CLelantusEntry {
@@ -173,65 +57,6 @@ struct CLelantusEntry {
     // Starting from Version 3 == sigma, this number is coin value * COIN,
     // I.E. it is set to 100.000.000 for 1 firo.
     int64_t amount;
-};
-
-class CSigmaSpendEntry
-{
-public:
-    Scalar coinSerial;
-    uint256 hashTx;
-    GroupElement pubCoin;
-    int id;
-
-    void set_denomination(sigma::CoinDenomination denom) {
-        DenominationToInteger(denom, denomination);
-    }
-
-    void set_denomination_value(int64_t new_denomination) {
-        denomination = new_denomination;
-    }
-
-    int64_t get_denomination_value() const {
-        return denomination;
-    }
-
-    sigma::CoinDenomination get_denomination() const {
-        sigma::CoinDenomination result;
-        IntegerToDenomination(denomination, result);
-        return result;
-    }
-
-    CSigmaSpendEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        coinSerial = Scalar(uint64_t(0));
-//        hashTx =
-        pubCoin = GroupElement();
-        denomination = 0;
-        id = 0;
-    }
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(coinSerial);
-        READWRITE(hashTx);
-        READWRITE(pubCoin);
-        READWRITE(denomination);
-        READWRITE(id);
-    }
-private:
-    // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenomination
-    // to it. In these cases the value is automatically converted to int,
-    // which is not what we want.
-    // Starting from Version 3 == sigma, this number is coin value * COIN,
-    // I.E. it is set to 100.000.000 for 1 firo.
-    int64_t denomination;
 };
 
 class CLelantusSpendEntry

@@ -7,7 +7,6 @@
 #define BITCOIN_WALLET_WALLET_H
 
 #include "amount.h"
-#include "../sigma/coin.h"
 #include "../liblelantus/coin.h"
 #include "libspark/keys.h"
 #include "streams.h"
@@ -945,33 +944,13 @@ public:
     CAmount GetImmatureWatchOnlyBalance() const;
     CAmount GetLegacyBalance(const isminefilter& filter, int minDepth, const std::string* account, bool fAddLocked = false) const;
 
-    static std::vector<CRecipient> CreateSigmaMintRecipients(
-        std::vector<sigma::PrivateCoin>& coins,
-        std::vector<CHDMint>& vDMints);
-
     static CRecipient CreateLelantusMintRecipient(
         lelantus::PrivateCoin& coin,
         CHDMint& vDMint,
         bool generate = true);
 
-    static int GetRequiredCoinCountForAmount(
-        const CAmount& required,
-        const std::vector<sigma::CoinDenomination>& denominations);
-
-    static CAmount SelectMintCoinsForAmount(
-        const CAmount& required,
-        const std::vector<sigma::CoinDenomination>& denominations,
-        std::vector<sigma::CoinDenomination>& coinsOut);
-
-    static CAmount SelectSpendCoinsForAmount(
-        const CAmount& required,
-        const std::list<CSigmaEntry>& coinsIn,
-        std::vector<CSigmaEntry>& coinsOut);
-
     // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
-    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
-
     std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
     // Returns the list of pairs of coins and meta data for that coin,
@@ -988,14 +967,6 @@ public:
      * \param[out] coinsToMint_out Coins which will be re-minted by the user to get the change back.
      * \returns true, if it was possible to spend exactly required(rounded up to 0.1 firo) amount using coins we have.
      */
-    bool GetCoinsToSpend(
-        CAmount required,
-        std::vector<CSigmaEntry>& coinsToSpend_out,
-        std::vector<sigma::CoinDenomination>& coinsToMint_out,
-        std::list<CSigmaEntry>& coins,
-        const size_t coinsLimit = SIZE_MAX,
-        const CAmount amountLimit = MAX_MONEY,
-        const CCoinControl *coinControl = NULL) const;
 
     bool GetCoinsToJoinSplit(
             CAmount required,
@@ -1025,13 +996,8 @@ public:
     /**
      * Add Mint and Spend functions
      */
-    void ListAvailableSigmaMintCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed) const;
     void ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool fOnlyConfirmed) const;
 
-    bool CreateMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
-    bool CreateMintTransaction(CScript pubCoin, int64_t nValue,
-                                       CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
     bool CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
                                         CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
                                         std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
@@ -1052,36 +1018,19 @@ public:
         const CCoinControl *coinControl,
         bool autoMintAll = false);
 
-    CWalletTx CreateSigmaSpendTransaction(
-        const std::vector<CRecipient>& recipients,
-        CAmount& fee,
-        std::vector<CSigmaEntry>& selected,
-        std::vector<CHDMint>& changes,
-        bool& fChangeAddedToFee,
-        const CCoinControl *coinControl = NULL);
 
     CWalletTx CreateLelantusJoinSplitTransaction(
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
         const std::vector<CAmount>& newMints,
         std::vector<CLelantusEntry>& spendCoins,
-        std::vector<CSigmaEntry>& sigmaSpendCoins,
         std::vector<CHDMint>& mintCoins,
         const CCoinControl *coinControl = NULL,
         std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> modifier = nullptr);
 
-    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
-    bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins);
+    bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CHDMint>& mintCoins);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
-
-    std::string MintAndStoreSigma(
-        const std::vector<CRecipient>& vecSend,
-        const std::vector<sigma::PrivateCoin>& privCoins,
-        std::vector<CHDMint> vDMints,
-        CWalletTx &wtxNew,
-        bool fAskFee=false,
-        const CCoinControl *coinControl = NULL);
 
     std::string MintAndStoreLelantus(
             const CAmount& value,
@@ -1120,14 +1069,9 @@ public:
 
     bool LelantusToSpark(std::string& strFailReason);
 
-    std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
-    std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
-
     std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result,  const CCoinControl *coinControl = NULL);
 
-    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
-
-    bool GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool forEstimation = false) const;
+    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
 
     bool GetMint(const uint256& hashSerial, CLelantusEntry& mint, bool forEstimation = false) const;
 
@@ -1207,8 +1151,6 @@ public:
     DBErrors ZapWalletTx(std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
 
-    // Remove all CSigmaEntry and CHDMint objects from WalletDB.
-    DBErrors ZapSigmaMints();
     // Remove all Lelantus HDMint objects from WalletDB
     DBErrors ZapLelantusMints();
     // Remove all Spark Mint objects from WalletDB
@@ -1487,8 +1429,6 @@ public:
     }
 };
 
-bool CompSigmaHeight(const CSigmaEntry& a, const CSigmaEntry& b);
-bool CompSigmaID(const CSigmaEntry& a, const CSigmaEntry& b);
 void ShutdownWallet();
 
 // Helper for producing a bunch of max-sized low-S signatures (eg 72 bytes)

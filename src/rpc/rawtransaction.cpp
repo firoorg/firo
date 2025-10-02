@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <boost/assign/list_of.hpp>
 #include <univalue.h>
-#include "sigma.h"
 #include "evo/cbtx.h"
 #include "evo/specialtx.h"
 #include "evo/spork.h"
@@ -105,21 +104,6 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsSigmaSpend()) {
-            std::unique_ptr<sigma::CoinSpend> spend;
-            uint32_t pubcoinId;
-            try {
-                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
-            } catch (CBadTxIn&) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
-            } catch (std::ios_base::failure &) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
-            }
-            in.push_back(Pair("anonymityGroup", int64_t(pubcoinId)));
-            fillStdFields(in, txin);
-
-            in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
-            in.push_back(Pair("valueSat", spend->getIntDenomination()));
         } else if (txin.IsLelantusJoinSplit()) {
             in.push_back("joinsplit");
             fillStdFields(in, txin);

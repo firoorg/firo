@@ -37,7 +37,6 @@ bench_bench_bitcoin_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
-  $(LIBFIRO_SIGMA) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \  
   $(LIBMEMENV) \

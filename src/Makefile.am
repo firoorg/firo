@@ -63,8 +63,6 @@ LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libfiroqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
-LIBFIRO_SIGMA=libsigma.a
-
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
@@ -89,7 +87,6 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_CLI) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_ZMQ) \
-  $(LIBFIRO_SIGMA) \
   $(LIBLELANTUS) \
   $(LIBSPARK)
 
@@ -219,7 +216,6 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
-  wallet/sigmaspendbuilder.h \
   wallet/txbuilder.h \
   wallet/lelantusjoinsplitbuilder.h \
   spark/sparkwallet.h \
@@ -245,7 +241,6 @@ BITCOIN_CORE_H = \
   bip47/bip47utils.h \
   bip47/paymentcode.h \
   bip47/secretpoint.h \
-  sigma.h \
   lelantus.h \
   spark/state.h \
   sparkname.h \
@@ -424,7 +419,6 @@ libbitcoin_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
-  sigma.cpp \
   lelantus.cpp \
   bip47/paymentcode.cpp \
   spark/state.cpp \
@@ -454,7 +448,6 @@ libbitcoin_wallet_a_SOURCES = \
   masternode-sync.cpp \
   hdmint/mintpool.cpp \
   hdmint/wallet.cpp \
-  sigma.cpp \
   lelantus.cpp \
   spark/state.cpp \
   wallet/crypter.cpp \
@@ -463,7 +456,6 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
-  wallet/sigmaspendbuilder.cpp \
   wallet/txbuilder.cpp \
   wallet/lelantusjoinsplitbuilder.cpp \
   wallet/walletexcept.cpp \
@@ -738,32 +730,8 @@ liblelantus_a_SOURCES = \
   liblelantus/spend_metadata.cpp \
   liblelantus/threadpool.h \
   liblelantus/params.h \
-  liblelantus/params.cpp
-
-libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libsigma_a_SOURCES = \
-  sigma/r1_proof.h \
-  sigma/r1_proof_generator.h \
-  sigma/r1_proof_generator.hpp \
-  sigma/r1_proof_verifier.h \
-  sigma/r1_proof_verifier.hpp \
-  sigma/sigmaplus_proof.h \
-  sigma/sigmaplus_prover.h \
-  sigma/sigmaplus_prover.hpp \
-  sigma/sigmaplus_verifier.h \
-  sigma/sigmaplus_verifier.hpp \
-  sigma/sigma_primitives.h \
-  sigma/sigma_primitives.hpp \
-  sigma/coin.h \
-  sigma/coin.cpp \
-  sigma/coinspend.cpp \
-  sigma/coinspend.h \
-  sigma/spend_metadata.cpp \
-  sigma/spend_metadata.h \
-  sigma/params.h \
-  sigma/params.cpp \
-  sigma/openssl_context.h
+  liblelantus/params.cpp \
+  liblelantus/openssl_context.h
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
@@ -801,7 +769,6 @@ firod_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_WALLET) \
-  $(LIBFIRO_SIGMA) \
   $(LIBLELANTUS) \
   $(LIBSPARK) \
   $(LIBBITCOIN_ZMQ) \
