@@ -521,57 +521,561 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
+    if (request.fHelp || (request.params.size() < 1 || request.params.size() > 5))
         throw std::runtime_error(
-            "sendtoaddress \"firoaddress\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
-            "\nSend an amount to a given address.\n"
+            "sendtoaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+            "or\n"
+            "sendtoaddress {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
+            "\nSend an amount to a given address. Supports transparent, Spark, BIP47/RAP addresses and Spark names.\n"
             + HelpRequiringPassphrase(pwallet) +
-            "\nArguments:\n"
-            "1. \"firoaddress\"  (string, required) The Firo address to send to.\n"
+            "\nArguments (simple format):\n"
+            "1. \"address\"  (string, required) The address to send to (transparent, Spark, or BIP47/RAP address, or Spark name).\n"
             "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
-            "4. \"comment_to\"         (string, optional) A comment to store the name of the person or organization \n"
+            "4. \"comment_to\"  (string, optional) A comment to store the name of the person or organization \n"
             "                             to which you're sending the transaction. This is not part of the \n"
             "                             transaction, just kept in your wallet.\n"
             "5. subtractfeefromamount  (boolean, optional, default=false) The fee will be deducted from the amount being sent.\n"
-            "                             The recipient will receive less bitcoins than you enter in the amount field.\n"
+            "                             The recipient will receive less firo than you enter in the amount field.\n"
+            "\nArguments (JSON format for multiple addresses):\n"
+            "{\n"
+            "  \"address\":{\n"
+            "    \"amount\": numeric,        (required) The amount in " + CURRENCY_UNIT + " to send\n"
+            "    \"subtractFee\": bool,      (optional) The fee will be deducted from the amount being sent (false as default)\n"
+            "    \"memo\": string,           (optional, Spark only) A memo to include with Spark transactions\n"
+            "    \"comment\": string,        (optional) A comment for this payment\n"
+            "    \"comment_to\": string      (optional) A comment for the recipient\n"
+            "  },\n"
+            "  ...\n"
+            "}\n"
             "\nResult:\n"
-            "\"txid\"                  (string) The transaction id.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1")
-            + HelpExampleCli("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"donation\" \"seans outpost\"")
-            + HelpExampleCli("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\" 0.1 \"\" \"\" true")
-            + HelpExampleRpc("sendtoaddress", "\"1M72Sfpbz1BPpXFHz9m3CdqATR44Jvaydd\", 0.1, \"donation\", \"seans outpost\"")
+            "\"txid\" or [\"txid1\", \"txid2\", ...] (string or array) Transaction ID(s). Multiple transactions may be created \n"
+            "                                    for different address types (transparent, Spark, BIP47).\n"
+            "\nExamples (Simple format):\n"
+            + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
+            + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"\" \"\" true")
+            + HelpExampleCli("sendtoaddress", "\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\" 0.1")
+            + HelpExampleCli("sendtoaddress", "\"@alice\" 0.1")
+            + HelpExampleRpc("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\", 0.1, \"donation\", \"seans outpost\"")
+            + "\nExamples (JSON format for multiple addresses):\n"
+            + HelpExampleCli("sendtoaddress", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
+            + HelpExampleCli("sendtoaddress", "\"{\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false}}\"")
+            + HelpExampleCli("sendtoaddress", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false, \\\"comment\\\":\\\"rent\\\"}, \\\"sr1hk87...\\\":{\\\"amount\\\":0.02, \\\"memo\\\":\\\"secret\\\", \\\"subtractFee\\\": false}}\"")
+            + HelpExampleCli("sendtoaddress", "\"{\\\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
+            + HelpExampleRpc("sendtoaddress", "\"{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}, \"sr1hk87...\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
         );
 
+    EnsureWalletIsUnlocked(pwallet);
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    CBitcoinAddress address(request.params[0].get_str());
-    if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
+    // Check if we're using the simple format (address, amount, ...) or the JSON format ({address:{amount:...},...})
+    bool isSimpleFormat = (request.params.size() >= 2);
+    
+    // Handle simple format (backward compatibility)
+    if (isSimpleFormat) {
+        std::string strAddress = request.params[0].get_str();
+        
+        // Handle Spark names (starts with @)
+        if (!strAddress.empty() && strAddress[0] == '@') {
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            std::string sparkAddressStr;
+            if (!sparkNameManager->GetSparkAddress(strAddress.substr(1), sparkAddressStr)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ") + strAddress);
+            }
+            strAddress = sparkAddressStr;
+        }
+        
+        // Amount
+        CAmount nAmount = AmountFromValue(request.params[1]);
+        if (nAmount <= 0)
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        
+        // Wallet comments
+        CWalletTx wtx;
+        if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty())
+            wtx.mapValue["comment"] = request.params[2].get_str();
+        if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
+            wtx.mapValue["to"]      = request.params[3].get_str();
+            
+        bool fSubtractFeeFromAmount = false;
+        if (request.params.size() > 4)
+            fSubtractFeeFromAmount = request.params[4].get_bool();
+            
+        // 1. Handle BIP47/RAP Address, check if BIP47 payment code (starts with PM8T)
+        if (strAddress.size() >= 4 && strAddress.substr(0, 4) == "PM8T") {
+            bip47::CPaymentCode theirPcode(strAddress);
+            CBitcoinAddress address = pwallet->GetTheirNextAddress(theirPcode);
+            
+            SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+            pwallet->GenerateTheirNextAddress(theirPcode);
+            return wtx.GetHash().GetHex();
+        }
+        
+        // 2. Handle Spark Address, check if Spark address
+        bool isSparkAddress = false;
+        try {
+            const spark::Params* sparkParams = spark::Params::get_default();
+            spark::Address sparkAddress(sparkParams);
+            unsigned char coinNetwork = sparkAddress.decode(strAddress);
+            unsigned char network = spark::GetNetworkType();
+            isSparkAddress = true;
+            
+            if (coinNetwork != network) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + strAddress);
+            }
+            
+            // Ensure Spark is allowed
+            EnsureSparkWalletIsAvailable();
+            if (!spark::IsSparkAllowed()) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+            }
+            
+            // Use transparent funds to send to Spark address
+            try {
+                // First check if Spark is allowed
+                if (!spark::IsSparkAllowed()) {
+                    throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+                }
+                
+                // Check if we have enough transparent balance
+                if (pwallet->GetBalance() < nAmount) {
+                    throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, 
+                        strprintf("Insufficient transparent funds, have %s, need at least %s", 
+                                 FormatMoney(pwallet->GetBalance()), FormatMoney(nAmount)));
+                }
+                
+                // Set up the mint data
+                spark::MintedCoinData mintData;
+                mintData.address = sparkAddress;
+                mintData.memo = ""; // No memo in simple format
+                mintData.v = nAmount;
+                
+                std::vector<spark::MintedCoinData> outputs;
+                outputs.push_back(mintData);
+                
+                // Set up for transaction creation
+                std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+                CAmount totalFee = 0;
+                std::list<CReserveKey> reservekeys;
+                int nChangePosRet = -1;
+                std::string strError;
+                
+                // Configure coin control to ensure transparent funds
+                CCoinControl coinControl;
+                coinControl.nCoinType = CoinType::ALL_COINS;  // Use all available coins
+                
+                // Debug logging to help diagnose the issue
+                LogPrintf("Attempting to create Spark mint transaction to %s for amount %s\n", 
+                          sparkAddress.encode(spark::GetNetworkType()), FormatMoney(nAmount));
+                
+                bool success = pwallet->CreateSparkMintTransactions(
+                    outputs, 
+                    wtxAndFee, 
+                    totalFee, 
+                    reservekeys, 
+                    nChangePosRet, 
+                    fSubtractFeeFromAmount, 
+                    strError, 
+                    false,  // fSplit - don't split the transaction
+                    &coinControl,
+                    false   // autoMintAll
+                );
+                
+                if (!success) {
+                    LogPrintf("Failed to create Spark mint transaction: %s\n", strError);
+                    throw JSONRPCError(RPC_WALLET_ERROR, 
+                        std::string("Failed to create transaction: ") + strError);
+                }
+                
+                if (wtxAndFee.empty()) {
+                    LogPrintf("No transactions returned from CreateSparkMintTransactions\n");
+                    throw JSONRPCError(RPC_WALLET_ERROR, 
+                        "Transaction creation failed: No transactions returned");
+                }
+                
+                // Commit the transaction
+                CValidationState state;
+                CReserveKey reservekey(pwallet);
+                CWalletTx& wtx = wtxAndFee[0].first;
+                
+                LogPrintf("Committing Spark mint transaction with %zu inputs and %zu outputs\n", 
+                          wtx.tx->vin.size(), wtx.tx->vout.size());
+                
+                if (!pwallet->CommitTransaction(wtx, reservekey, g_connman.get(), state)) {
+                    LogPrintf("Failed to commit transaction: %s\n", state.GetRejectReason());
+                    throw JSONRPCError(RPC_WALLET_ERROR, 
+                        std::string("Error committing transaction: ") + state.GetRejectReason());
+                }
+                
+                return wtx.GetHash().GetHex();
+            } catch (const std::exception &e) {
+                LogPrintf("Exception when sending to Spark address (simple format): %s\n", e.what());
+                throw JSONRPCError(RPC_WALLET_ERROR, 
+                    std::string("Failed to send to Spark address: ") + e.what());
+            }
+        } catch (const std::exception &e) {
+            isSparkAddress = false;
+        }
+        
+        // 3. Handle Transparent Address
+        CBitcoinAddress address(strAddress);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
+            
+        SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+        
+        return wtx.GetHash().GetHex();
+    }
+    // Handle JSON format (with support for multiple addresses)
+    else {
+        UniValue sendTo;
+        if (request.params[0].isStr()) {
+            // Parse JSON string parameter 
+            if (!sendTo.read(request.params[0].get_str())) {
+                throw JSONRPCError(RPC_PARSE_ERROR, "Invalid JSON string");
+            }
+            if (!sendTo.isObject()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "JSON parameter must be an object");
+            }
+        } else {
+            // Direct object parameter
+            sendTo = request.params[0].get_obj();
+        }
+        
+        std::vector<std::string> keys = sendTo.getKeys();
+        if (keys.empty()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "At least one address must be provided");
+        }
 
-    // Amount
-    CAmount nAmount = AmountFromValue(request.params[1]);
-    if (nAmount <= 0)
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        // Categorize addresses by type
+        std::vector<CRecipient> transparentRecipients;
+        std::vector<std::pair<spark::OutputCoinData, bool>> sparkRecipients;
+        std::vector<std::pair<std::string, UniValue>> bip47Recipients; // address, params
+        const spark::Params* sparkParams = spark::Params::get_default();
+        unsigned char network = spark::GetNetworkType();
+        std::set<CBitcoinAddress> setTransparentAddresses;
+        CAmount totalTransparentAmount = 0;
+        CAmount totalSparkAmount = 0;
+        CAmount totalBip47Amount = 0;
 
-    // Wallet comments
-    CWalletTx wtx;
-    if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty())
-        wtx.mapValue["comment"] = request.params[2].get_str();
-    if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
-        wtx.mapValue["to"]      = request.params[3].get_str();
+        // ====== Process Addresses ======
+        // Process each address and categorize by type and create recipient entries
+        for (const std::string& strAddress : keys) {
+            UniValue addressValue = sendTo[strAddress];
+            
+            if (!addressValue.isObject()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Parameters for address must be an object: ") + strAddress);
+            }
+            
+            UniValue params = addressValue.get_obj();
+            
+            // Extract common parameters
+            CAmount nAmount = 0;
+            if (params.exists("amount")) {
+                nAmount = AmountFromValue(params["amount"]);
+            } else {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount: ") + strAddress);
+            }
+            
+            if (nAmount <= 0)
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send, pass positive value");
 
-    bool fSubtractFeeFromAmount = false;
-    if (request.params.size() > 4)
-        fSubtractFeeFromAmount = request.params[4].get_bool();
+            bool subtractFee = false;  // default value
+            if (params.exists("subtractFee")) {
+                subtractFee = params["subtractFee"].get_bool();
+            }
 
-    EnsureWalletIsUnlocked(pwallet);
+            std::string memo = "";
+            if (params.exists("memo")) {
+                memo = params["memo"].get_str();
+            }
 
-    SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+            std::string resolvedAddress = strAddress;
+            
+            // 1. Handle Spark names (starts with @)
+            if (!strAddress.empty() && strAddress[0] == '@') {
+                CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+                std::string sparkAddressStr;
+                if (!sparkNameManager->GetSparkAddress(strAddress.substr(1), sparkAddressStr)) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ") + strAddress);
+                }
+                resolvedAddress = sparkAddressStr;
+            }
 
-    return wtx.GetHash().GetHex();
+            // 2. Handle BIP47/RAP Address, check if BIP47 payment code (starts with PM8T)
+            if (resolvedAddress.size() >= 4 && resolvedAddress.substr(0, 4) == "PM8T") {
+                bip47Recipients.push_back(std::make_pair(resolvedAddress, params));
+                totalBip47Amount += nAmount;
+                continue;
+            }
+
+            // 3. Handle Spark Address, check if Spark address
+            bool isSparkAddress = false;
+            try {
+                spark::Address sparkAddress(sparkParams);
+                unsigned char coinNetwork = sparkAddress.decode(resolvedAddress);
+                isSparkAddress = true;
+                if (coinNetwork != network) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + strAddress);
+                }
+                
+                // Add to Spark recipients
+                spark::OutputCoinData data;
+                data.address = sparkAddress;
+                data.memo = memo;
+                data.v = nAmount;
+                sparkRecipients.push_back(std::make_pair(data, subtractFee));
+                totalSparkAmount += nAmount;
+                continue;
+            } catch (const std::exception &) {
+                isSparkAddress = false;
+            }
+
+            // 4. Handle Transparent Address, check if transparent address
+            CBitcoinAddress address(resolvedAddress);
+            if (!address.IsValid()) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid address: ") + strAddress);
+            }
+            
+            if (setTransparentAddresses.count(address)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ") + strAddress);
+            }
+            setTransparentAddresses.insert(address);
+            
+            CScript scriptPubKey = GetScriptForDestination(address.Get());
+            CRecipient recipient = {scriptPubKey, nAmount, subtractFee, {}, {}};
+            transparentRecipients.push_back(recipient);
+            totalTransparentAmount += nAmount;
+        }
+        // ============================================
+
+        // ====== Balance Checking ======
+        // Transparent checking (includes both transparent addresses and BIP47/RAP addresses)
+        if (!transparentRecipients.empty() || !bip47Recipients.empty()) {
+            CAmount transparentBalance = pwallet->GetBalance();
+            CAmount totalTransparentNeeded = totalTransparentAmount + totalBip47Amount;
+            if (transparentBalance < totalTransparentNeeded) {
+                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient transparent funds");
+            }
+        }
+        // Spark checking
+        if (!sparkRecipients.empty()) {
+            EnsureSparkWalletIsAvailable();
+            CAmount sparkBalance = pwallet->sparkWallet->getAvailableBalance();
+            if (sparkBalance < totalSparkAmount) {
+                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient Spark funds");
+            }
+        }
+        // ============================================
+
+        // Transactions ids that we return at the end
+        std::vector<std::string> txids;
+
+        // ====== Handle Transactions ======
+        // Handle Spark transactions
+        if (!sparkRecipients.empty()) {
+            EnsureSparkWalletIsAvailable();
+            if (!spark::IsSparkAllowed()) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+            }
+            
+            try {
+                // Check if we have enough transparent balance
+                CAmount totalNeeded = 0;
+                for (const auto& recipientPair : sparkRecipients) {
+                    totalNeeded += recipientPair.first.v;
+                }
+                
+                if (pwallet->GetBalance() < totalNeeded) {
+                    throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, 
+                        strprintf("Insufficient transparent funds, have %s, need at least %s", 
+                                 FormatMoney(pwallet->GetBalance()), FormatMoney(totalNeeded)));
+                }
+                
+                // Convert from spark::OutputCoinData to spark::MintedCoinData for minting
+                std::vector<spark::MintedCoinData> outputs;
+                std::vector<bool> subtractFeeFromOutputs;
+                
+                for (const auto& recipientPair : sparkRecipients) {
+                    const auto& recipientData = recipientPair.first;
+                    
+                    spark::MintedCoinData mintData;
+                    mintData.address = recipientData.address;
+                    mintData.memo = recipientData.memo;
+                    mintData.v = recipientData.v;
+                    
+                    outputs.push_back(mintData);
+                    subtractFeeFromOutputs.push_back(recipientPair.second);
+                }
+                
+                // Create a mint transaction using transparent funds
+                std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+                CAmount totalFee = 0;
+                std::list<CReserveKey> reservekeys;
+                int nChangePosRet = -1;
+                std::string strError;
+                
+                // Configure coin control to ensure transparent funds
+                CCoinControl coinControl;
+                coinControl.nCoinType = CoinType::ALL_COINS;  // Use all available coins
+                
+                // Handle fee subtraction - if any recipient should have fee subtracted, we need to indicate that
+                bool subtractFeeFromAmount = false;
+                for (bool shouldSubtract : subtractFeeFromOutputs) {
+                    if (shouldSubtract) {
+                        subtractFeeFromAmount = true;
+                        break;
+                    }
+                }
+                
+                // Debug logging
+                LogPrintf("Attempting to create Spark mint transaction for %zu recipients\n", outputs.size());
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    LogPrintf("  Recipient %zu: %s for amount %s\n", 
+                              i, outputs[i].address.encode(spark::GetNetworkType()), FormatMoney(outputs[i].v));
+                }
+                
+                bool success = pwallet->CreateSparkMintTransactions(
+                    outputs, 
+                    wtxAndFee, 
+                    totalFee, 
+                    reservekeys, 
+                    nChangePosRet, 
+                    subtractFeeFromAmount, 
+                    strError, 
+                    false,  // fSplit - don't split the transaction
+                    &coinControl,
+                    false   // autoMintAll
+                );
+                
+                if (!success) {
+                    LogPrintf("Failed to create Spark mint transaction: %s\n", strError);
+                    throw JSONRPCError(RPC_WALLET_ERROR, 
+                        std::string("Failed to create transaction: ") + strError);
+                }
+                
+                if (wtxAndFee.empty()) {
+                    LogPrintf("No transactions returned from CreateSparkMintTransactions\n");
+                    throw JSONRPCError(RPC_WALLET_ERROR, 
+                        "Transaction creation failed: No transactions returned");
+                }
+                
+                // Commit the transactions
+                for (auto& pair : wtxAndFee) {
+                    CWalletTx& wtx = pair.first;
+                    CAmount fee = pair.second;
+                    
+                    CValidationState state;
+                    CReserveKey reservekey(pwallet);
+                    
+                    LogPrintf("Committing Spark mint transaction with %zu inputs and %zu outputs, fee=%s\n", 
+                              wtx.tx->vin.size(), wtx.tx->vout.size(), FormatMoney(fee));
+                    
+                    if (!pwallet->CommitTransaction(wtx, reservekey, g_connman.get(), state)) {
+                        LogPrintf("Failed to commit transaction: %s\n", state.GetRejectReason());
+                        throw JSONRPCError(RPC_WALLET_ERROR, 
+                            std::string("Error committing transaction: ") + state.GetRejectReason());
+                    }
+                    
+                    txids.push_back(wtx.GetHash().GetHex());
+                }
+            } catch (const std::exception &e) {
+                LogPrintf("Exception when sending to Spark address (JSON format): %s\n", e.what());
+                throw JSONRPCError(RPC_WALLET_ERROR, 
+                    std::string("Failed to send to Spark address: ") + e.what());
+            }
+        }
+
+        // Handle BIP47/RAP transactions
+        for (const auto& bip47Pair : bip47Recipients) {
+            std::string rapAddress = bip47Pair.first;
+            UniValue params = bip47Pair.second;
+            
+            bip47::CPaymentCode theirPcode(rapAddress);
+            CBitcoinAddress address = pwallet->GetTheirNextAddress(theirPcode);
+            
+            CAmount nAmount = AmountFromValue(params["amount"]);
+            bool fSubtractFeeFromAmount = false;
+            if (params.exists("subtractFee")) {
+                fSubtractFeeFromAmount = params["subtractFee"].get_bool();
+            }
+            
+            CWalletTx wtx;
+            // Add comments if they were in original params
+            if (params.exists("comment"))
+                wtx.mapValue["comment"] = params["comment"].get_str();
+            if (params.exists("comment_to"))
+                wtx.mapValue["to"] = params["comment_to"].get_str();
+            
+            SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
+            pwallet->GenerateTheirNextAddress(theirPcode);
+            txids.push_back(wtx.GetHash().GetHex());
+        }
+
+        // Handle transparent transactions
+        if (!transparentRecipients.empty()) {
+            if (pwallet->GetBroadcastTransactions() && !g_connman) {
+                throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+            }
+            
+            CWalletTx wtx;
+            
+            // Add transaction comments from first recipient that has them
+            for (const std::string& strAddress : keys) {
+                UniValue addressValue = sendTo[strAddress];
+                if (addressValue.isObject()) {
+                    UniValue params = addressValue.get_obj();
+                    if (params.exists("comment") && !params["comment"].get_str().empty()) {
+                        wtx.mapValue["comment"] = params["comment"].get_str();
+                        break;
+                    }
+                }
+            }
+            for (const std::string& strAddress : keys) {
+                UniValue addressValue = sendTo[strAddress];
+                if (addressValue.isObject()) {
+                    UniValue params = addressValue.get_obj();
+                    if (params.exists("comment_to") && !params["comment_to"].get_str().empty()) {
+                        wtx.mapValue["to"] = params["comment_to"].get_str();
+                        break;
+                    }
+                }
+            }
+            
+            CReserveKey keyChange(pwallet);
+            CAmount nFeeRequired = 0;
+            int nChangePosRet = -1;
+            std::string strFailReason;
+            
+            bool fCreated = pwallet->CreateTransaction(transparentRecipients, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+            if (!fCreated)
+                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+            
+            CValidationState state;
+            if (!pwallet->CommitTransaction(wtx, keyChange, g_connman.get(), state)) {
+                strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
+                throw JSONRPCError(RPC_WALLET_ERROR, strFailReason);
+            }
+            
+            txids.push_back(wtx.GetHash().GetHex());
+        }
+        // ============================================
+
+        // Return transactions ids
+        // Note: Transactions on the same type will be one transaction
+        //  to prevent multiple small transactions + small fees
+        if (txids.size() == 1) {
+            return UniValue(txids[0]);
+        } else {
+            UniValue result(UniValue::VARR);
+            for (const std::string& txid : txids) {
+                result.push_back(txid);
+            }
+            return result;
+        }
+    }
 }
 
 UniValue listaddressgroupings(const JSONRPCRequest& request)
@@ -5343,7 +5847,8 @@ UniValue sendtoanyaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "sendtoanyaddress {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
-            "\nSend amounts to one or multiple addresses. Automatically detects between transparent, Spark, and BIP47 payment code addresses.\n"
+            "\nDEPRECATED: Use sendtoaddress instead.\n"
+            "Send amounts to one or multiple addresses. Automatically detects between transparent, Spark, and BIP47 payment code addresses.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
             "{\n"
