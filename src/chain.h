@@ -243,7 +243,7 @@ public:
 
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
-    std::map<std::pair<std::uint8_t, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
+    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
     //! Map id to <public coin, tag>
     std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
 
@@ -259,7 +259,7 @@ public:
     std::unordered_map<GroupElement, std::pair<uint256, std::vector<unsigned char>>> sparkTxHashContext;
 
     //! Values of coin serials spent in this block
-    std::unordered_map<Scalar, sigma::CSpendCoinInfo> sigmaSpentSerials;
+    sigma::spend_info_container sigmaSpentSerials;
     std::unordered_map<Scalar, int> lelantusSpentSerials;
     std::unordered_map<GroupElement, int> spentLTags;
     // linking tag hash mapped to tx hash
