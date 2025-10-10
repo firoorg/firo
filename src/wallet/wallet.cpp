@@ -5788,16 +5788,9 @@ std::string CWallet::GetSparkViewKeyStr() {
   std::ostringstream keydata;
   ::Serialize(keydata, key);
 
-  std::string keydata_s = keydata.str();
-  assert(keydata_s.size() % 4 == 0);
+  std::string keydata_hex = HexStr(keydata.str());
 
-  SecureVector seckeydata(keydata_s.begin(), keydata_s.end());
-
-  SecureString mnemonicsecstr = Mnemonic::mnemonic_from_data(seckeydata, seckeydata.size());
-  std::string mnemonicstr(mnemonicsecstr.begin(), mnemonicsecstr.end());
-  assert(!mnemonicstr.empty());
-
-  return mnemonicstr;
+  return keydata_hex;
 }
 
 bool CWallet::UpdatedTransaction(const uint256 &hashTx)

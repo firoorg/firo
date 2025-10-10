@@ -444,10 +444,6 @@ bool CheckLelantusJoinSplitTransaction(
         return true;
     }
 
-    if (joinsplit->isSigmaToLelantus()) {
-        return true;
-    }
-
     bool passVerify = false;
     std::map<uint32_t, std::vector<PublicCoin>> anonymity_sets;
     std::vector<PublicCoin> Cout;
@@ -470,6 +466,12 @@ bool CheckLelantusJoinSplitTransaction(
     }
 
     std::vector<std::vector<unsigned char>> anonymity_set_hashes;
+    const std::vector<uint32_t>& ids = joinsplit->getCoinGroupIds();
+
+    if (joinsplit->isSigmaToLelantus()) {
+        passVerify = true;
+        goto skipSigmaToLelantus;
+    }
 
     for (auto& idAndHash : joinsplit->getIdAndBlockHashes()) {
         auto& anonymity_set = anonymity_sets[idAndHash.first];
@@ -526,34 +528,35 @@ bool CheckLelantusJoinSplitTransaction(
         anonymity_sets[idAndHash.first] = anonymity_set;
     }
 
-    const std::vector<uint32_t>& ids = joinsplit->getCoinGroupIds();
-    for (const auto& id: ids) {
-        if (!anonymity_sets.count(id))
-            return state.DoS(100,
-                             error("CheckLelantusJoinSplitTransaction: No anonymity set found."));
+    {
+        for (const auto& id: ids) {
+            if (!anonymity_sets.count(id))
+                return state.DoS(100,
+                                 error("CheckLelantusJoinSplitTransaction: No anonymity set found."));
+        }
+
+        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+        bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete;
+
+        Scalar challenge;
+        // if we are collecting proofs, skip verification and collect proofs
+        passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, useBatching);
+
+        // add proofs into container
+        if(useBatching) {
+            std::map<uint32_t, size_t> idAndSizes;
+
+            for(auto itr : anonymity_sets)
+                idAndSizes[itr.first] = itr.second.size();
+
+            batchProofContainer->add(joinsplit.get(), Cout);
+        }
     }
 
-    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && lelantusTxInfo && !lelantusTxInfo->fInfoIsComplete;
-
-    Scalar challenge;
-    // if we are collecting proofs, skip verification and collect proofs
-    passVerify = joinsplit->Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHashForMetadata, challenge, useBatching);
-
-    // add proofs into container
-    if(useBatching) {
-        std::map<uint32_t, size_t> idAndSizes;
-
-        for(auto itr : anonymity_sets)
-            idAndSizes[itr.first] = itr.second.size();
-
-        batchProofContainer->add(joinsplit.get(), Cout);
-    }
+skipSigmaToLelantus:
 
     if (passVerify) {
         const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
-        const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
-
         if (serials.size() != ids.size()) {
             return state.DoS(100,
                              error("CheckLelantusJoinSplitTransaction: sized of serials and group ids don't match."));

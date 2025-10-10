@@ -5,9 +5,35 @@
 #include "../firo_params.h"
 #include "../uint256.h"
 #include "openssl_context.h"
+#include "crypto/sha256.h"
 
 // keep this just to not break old index
 namespace sigma {
+enum class CoinDenomination : std::uint8_t {
+    SIGMA_DENOM_0_05 = 5,
+    SIGMA_DENOM_0_1 = 0,
+    SIGMA_DENOM_0_5 = 1,
+    SIGMA_DENOM_1 = 2,
+    SIGMA_DENOM_10 = 3,
+    SIGMA_DENOM_25 = 6,
+    SIGMA_DENOM_100 = 4
+};
+// Serialization support for CoinDenomination
+
+template<typename Stream>
+void Serialize(Stream& os, CoinDenomination d)
+{
+    Serialize(os, static_cast<std::uint8_t>(d));
+}
+
+template<typename Stream>
+void Unserialize(Stream& is, CoinDenomination& d)
+{
+    std::uint8_t v;
+    Unserialize(is, v);
+    d = static_cast<CoinDenomination>(v);
+}
+
 class PublicCoin {
 public:
     PublicCoin() {}
@@ -33,11 +59,11 @@ public:
 
 private:
     GroupElement value;
-    std::uint8_t denomination;
+    CoinDenomination denomination;
 };
 
 struct CSpendCoinInfo {
-    std::uint8_t denomination;
+    CoinDenomination denomination;
     int coinGroupId;
 
     template<typename Stream>
@@ -50,11 +76,27 @@ struct CSpendCoinInfo {
     template<typename Stream>
     void Unserialize(Stream& s) {
         int64_t tmp;
-        s >> tmp; denomination = uint8_t(tmp);
+        s >> tmp; denomination = CoinDenomination(tmp);
         s >> tmp; coinGroupId = int(tmp);
     }
 
 };
+
+struct CScalarHash {
+    std::size_t operator ()(const Scalar& bn) const noexcept {
+        std::vector<unsigned char> bnData(bn.memoryRequired());
+        bn.serialize(&bnData[0]);
+        unsigned char hash[CSHA256::OUTPUT_SIZE];
+        CSHA256().Write(&bnData[0], bnData.size()).Finalize(hash);
+        // take the first bytes of "hash".
+        std::size_t result;
+        std::memcpy(&result, hash, sizeof(std::size_t));
+        return result;
+    }
+};
+
+using spend_info_container = std::unordered_map<Scalar, CSpendCoinInfo, CScalarHash>;
+
 }
 
 namespace lelantus {

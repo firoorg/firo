@@ -2884,6 +2884,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
     batchProofContainer->init();
+    std::size_t nSigma = 0;
 
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
@@ -2932,6 +2933,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         || tx.IsLelantusMint()
         || tx.IsLelantusJoinSplit()
         || tx.IsSparkTransaction()) {
+            if(tx.IsSigmaSpend())
+                ++nSigma;
             if(tx.IsLelantusJoinSplit()) {
                 try {
                     nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
@@ -3016,6 +3019,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     //btzc: Add time to check
     CAmount blockSubsidy = GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
     CAmount blockReward = nFees + blockSubsidy;
+    // as we removed sigma lib, are are not able to get the fee, and as blocks are historical, we just skip fee check on blocks containing sigma tx
+    if(nSigma > 0 && pindex->nHeight >= ::Params().GetConsensus().nSigmaStartBlock && pindex->nHeight < ::Params().GetConsensus().nLelantusStartBlock)
+        blockReward = block.vtx[0]->GetValueOut();
     if (block.vtx[0]->GetValueOut() > blockReward)
         return state.DoS(100,
                          error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
