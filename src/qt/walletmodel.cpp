@@ -168,9 +168,9 @@ void WalletModel::setClientModel(ClientModel* client_model)
 
 void WalletModel::checkBalanceChanged()
 {
-    CAmount newBalance = getBalance();
-    CAmount newUnconfirmedBalance = getUnconfirmedBalance();
-    CAmount newImmatureBalance = getImmatureBalance();
+    CAmount newBalance = cachedBalance;
+    CAmount newUnconfirmedBalance = cachedUnconfirmedBalance;
+    CAmount newImmatureBalance = cachedImmatureBalance;
     CAmount newWatchOnlyBalance = 0;
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
