@@ -20,10 +20,10 @@ set(CLIENT_NAME "Firo Core")
 set(CLIENT_VERSION_MAJOR 0)
 set(CLIENT_VERSION_MINOR 14)
 set(CLIENT_VERSION_REVISION 14)
-set(CLIENT_VERSION_BUILD 1)
+set(CLIENT_VERSION_BUILD 3)
 set(CLIENT_VERSION_RC 0)
 set(CLIENT_VERSION_IS_RELEASE "false" CACHE STRING "Is this a release build?")
-set(COPYRIGHT_YEAR "2024")
+set(COPYRIGHT_YEAR "2025")
 
 # During the enabling of the CXX and CXXOBJ languages, we modify
 # CMake's compiler/linker invocation strings by appending the content
@@ -99,6 +99,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/module)
 # Include utility functions
 #=============================
 include(cmake/utilities.cmake)
+include(CheckFunctionExists)
+include(CheckSymbolExists)
+include(CheckCXXCompilerFlag)
 
 #=============================
 # Configurable options
@@ -138,6 +141,7 @@ option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting execu
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
 option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces (default is off)" OFF)
+option(HAVE_DECL_DAEMON "Enable -daemon" ON)
 
 if(ENABLE_CRASH_HOOKS)
   message(STATUS "Crash hooks enabled")
@@ -145,7 +149,25 @@ if(ENABLE_CRASH_HOOKS)
   add_compile_definitions(ENABLE_CRASH_HOOKS=1)
 endif()
 
-include(CheckCXXCompilerFlag)
+if(HAVE_DECL_DAEMON)
+  if(WIN32) # Windows & MinGW: no daemon()
+    message(STATUS "daemon() unavailable on Windows; disabling -daemon support")
+    add_compile_definitions(HAVE_DECL_DAEMON=0)
+  else()
+    message(STATUS "Checking for daemon()")
+    check_function_exists(daemon HAVE_DAEMON_FUNC)
+    if(HAVE_DAEMON_FUNC)
+      add_compile_definitions(HAVE_DECL_DAEMON=1)
+    else()
+      message(WARNING "daemon() not found; defining HAVE_DECL_DAEMON=0 (pass -DHAVE_DECL_DAEMON=OFF to suppress check)")
+      add_compile_definitions(HAVE_DECL_DAEMON=0)
+      # Optionally flip cache so summary reflects reality
+      set(HAVE_DECL_DAEMON OFF CACHE BOOL "Enable -daemon support" FORCE)
+    endif()
+  endif()
+else()
+  add_compile_definitions(HAVE_DECL_DAEMON=0)
+endif()
 
 # Check if the linker supports wrapping __cxa_allocate_exception:
 check_cxx_compiler_flag("-Wl,-wrap=__cxa_allocate_exception" LINK_WRAP_SUPPORTED)
@@ -294,7 +316,6 @@ if(BUILD_FOR_FUZZING)
 endif()
 
 include(ProcessConfigurations)
-include(CheckFunctionExists)
 
 include(TryAppendCXXFlags)
 include(TryAppendLinkerFlag)
@@ -918,6 +939,7 @@ message("Attempt to harden executables ......... ${ENABLE_HARDENING}")
 message("Treat compiler warnings as errors ..... ${WERROR}")
 message("Use ccache for compiling .............. ${WITH_CCACHE}")
 message("Enable crash hooks .................... ${ENABLE_CRASH_HOOKS}")
+message("Daemon mode is enabled ................ ${HAVE_DECL_DAEMON}")
 message("\n")
 if(configure_warnings)
     message("  ******\n")

@@ -127,6 +127,7 @@ public:
 
     CInstantSendLockPtr GetConflictingLock(const CTransaction& tx);
     void RemoveChainLockConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
+    bool RemoveISLockByTxId(const uint256& txid);
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
 

@@ -103,10 +103,25 @@ void AutoMintSparkDialog::reject()
     QDialog::reject();
 }
 
+/**
+ * @brief Attach a WalletModel to the dialog and configure UI based on wallet state.
+ *
+ * Sets the dialog's internal model and resolves its SparkModel. If a SparkModel is found,
+ * this function acquires the SparkModel critical section (ENTER_CRITICAL_SECTION on
+ * sparkModel->cs) and leaves it only when the dialog is destroyed. If the wallet is
+ * currently unlocked, the passphrase input, passphrase label, and lock checkbox are
+ * hidden, the lock warning text is changed to "Do you want to anonymize all transparent funds?",
+ * and requiredPassphase is cleared.
+ *
+ * This method has the side effects of:
+ * - storing the provided WalletModel in the dialog,
+ * - storing and locking sparkModel->cs for the dialog's lifetime,
+ * - mutating UI visibility and the requiredPassphase flag when the wallet is unlocked.
+ *
+ * No action is taken if either the provided model or its SparkModel is null.
+ */
 void AutoMintSparkDialog::setModel(WalletModel *model)
 {
-    LOCK(sparkModel->cs);
-
     this->model = model;
     if (!this->model) {
         return;
@@ -117,7 +132,7 @@ void AutoMintSparkDialog::setModel(WalletModel *model)
         return;
     }
 
-    CCriticalSectionLocker criticalLocker(sparkModel->cs);
+    ENTER_CRITICAL_SECTION(sparkModel->cs);
 
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);

@@ -593,8 +593,17 @@ UniValue dumpsparkviewkey(const JSONRPCRequest& request) {
         throw std::runtime_error("wallet not available");
     }
 
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error("dumpviewkey\n\nDisplay our Spark View Key.\n");
+    if (request.fHelp || request.params.size() != 0)  {
+        throw std::runtime_error(
+            "dumpsparkviewkey\n"
+            "\nDisplay our Spark View Key.\n"
+            "\nResult:\n"
+            "\"key\"                (string) The Spark view key\n"
+            "\nExamples:\n"
+            + HelpExampleCli("dumpsparkviewkey", "")
+            + HelpExampleRpc("dumpsparkviewkey", "")
+        );
+    }
 
   return {pwallet->GetSparkViewKeyStr()};
 }
