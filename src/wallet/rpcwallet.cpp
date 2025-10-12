@@ -1722,13 +1722,13 @@ UniValue sendmany(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
         throw std::runtime_error(
             "sendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
-            "\nSend multiple times. Amounts are double-precision floating point numbers."
+            "\nSend multiple times from transparent balance to various address types. Amounts are double-precision floating point numbers."
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
             "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
             "    {\n"
-            "      \"address\":amount   (numeric or string) The Firo address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark, BIP47/RAP, or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
             "      ,...\n"
             "    }\n"
             "3. minconf                 (numeric, optional, default=1) Only use the balance confirmed at least this many times.\n"
@@ -1745,14 +1745,14 @@ UniValue sendmany(const JSONRPCRequest& request)
             "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
             "                                    the number of addresses.\n"
             "\nExamples:\n"
-            "\nSend two amounts to two different addresses:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
-            "\nSend two amounts to two different addresses setting the confirmation and comment:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\"") +
-            "\nSend two amounts to two different addresses, subtract fee from amount:\n"
-            + HelpExampleCli("sendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 1 \"\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"") +
+            "\nSend amounts to different address types:\n"
+            + HelpExampleCli("sendmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\"") +
+            "\nSend to transparent and Spark addresses with confirmation and comment:\n"
+            + HelpExampleCli("sendmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"@alice\\\":0.02}\" 6 \"testing\"") +
+            "\nSend amounts with fee subtracted from specific addresses:\n"
+            + HelpExampleCli("sendmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\" 1 \"\" \"[\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\"]\"") +
             "\nAs a json rpc call\n"
-            + HelpExampleRpc("sendmany", "\"\", \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XX\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\", 6, \"testing\"")
+            + HelpExampleRpc("sendmany", "\"\", \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\", 6, \"testing\"")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -1779,24 +1779,16 @@ UniValue sendmany(const JSONRPCRequest& request)
     std::set<CBitcoinAddress> setAddress;
     std::vector<CRecipient> vecSend;
 
-    CAmount totalAmount = 0;
+    // Convert sendmany format to sendtoaddress JSON format
+    UniValue convertedSendTo(UniValue::VOBJ);
     std::vector<std::string> keys = sendTo.getKeys();
     BOOST_FOREACH(const std::string& name_, keys)
     {
-        CBitcoinAddress address(name_);
-        if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ")+name_);
-
-        if (setAddress.count(address))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameter, duplicated address: ")+name_);
-        setAddress.insert(address);
-
-        CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = AmountFromValue(sendTo[name_]);
+                CAmount nAmount = AmountFromValue(sendTo[name_]);
         if (nAmount <= 0)
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-        totalAmount += nAmount;
-
+        
+// Check if this address should have fee subtracted
         bool fSubtractFeeFromAmount = false;
         for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
             const UniValue& addr = subtractFeeFromAmount[idx];
@@ -1804,32 +1796,27 @@ UniValue sendmany(const JSONRPCRequest& request)
                 fSubtractFeeFromAmount = true;
         }
 
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
-        vecSend.push_back(recipient);
+        // Create JSON object for this address in sendtoaddress format
+        UniValue addressParams(UniValue::VOBJ);
+        addressParams.push_back(Pair("amount", ValueFromAmount(nAmount)));
+        addressParams.push_back(Pair("subtractFee", fSubtractFeeFromAmount));
+
+        // Add comment if provided
+        if (!wtx.mapValue["comment"].empty()) {
+            addressParams.push_back(Pair("comment", wtx.mapValue["comment"]));
+        }
+        
+        convertedSendTo.push_back(Pair(name_, addressParams));
     }
 
-    EnsureWalletIsUnlocked(pwallet);
-
-    // Check funds
-    CAmount nBalance = pwallet->GetLegacyBalance(ISMINE_SPENDABLE, nMinDepth, strAccount.empty() ? nullptr : &strAccount);
-    if (totalAmount > nBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
-
-    // Send
-    CReserveKey keyChange(pwallet);
-    CAmount nFeeRequired = 0;
-    int nChangePosRet = -1;
-    std::string strFailReason;
-    bool fCreated = pwallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
-    if (!fCreated)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
-    CValidationState state;
-    if (!pwallet->CommitTransaction(wtx, keyChange, g_connman.get(), state)) {
-        strFailReason = strprintf("Transaction commit failed:: %s", state.GetRejectReason());
-        throw JSONRPCError(RPC_WALLET_ERROR, strFailReason);
-    }
-
-    return wtx.GetHash().GetHex();
+    // Create a new JSONRPCRequest for sendtoaddress
+    JSONRPCRequest convertedRequest;
+    convertedRequest.fHelp = false;
+    convertedRequest.params = UniValue(UniValue::VARR);
+    convertedRequest.params.push_back(convertedSendTo);
+    
+    // Forward to sendtoaddress implementation which handles all address types
+    return sendtoaddress(convertedRequest);
 }
 
 // Defined in rpc/misc.cpp
