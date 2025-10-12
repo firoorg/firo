@@ -396,8 +396,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   # These flags are specific to ld64, and may cause issues with other linkers.
   # For example: GNU ld will interpret -dead_strip as -de and then try and use
   # "ad_strip" as the symbol for the entry point.
-  try_append_linker_flag("-Wl,-dead_strip" TARGET core_interface)
-  try_append_linker_flag("-Wl,-dead_strip_dylibs" TARGET core_interface)
+  # Only add dead_strip flags for non-debug builds to preserve debug symbols
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    try_append_linker_flag("-Wl,-dead_strip" TARGET core_interface)
+    try_append_linker_flag("-Wl,-dead_strip_dylibs" TARGET core_interface)
+  else()
+    # For debug builds, keep debug symbols in the executable instead of splitting them
+    # Don't strip debug symbols - they should remain in the executable
+  endif()
   if(CMAKE_HOST_APPLE)
     try_append_linker_flag("-Wl,-headerpad_max_install_names" TARGET core_interface)
   endif()
@@ -702,9 +708,18 @@ configure_file(cmake/script/CoverageInclude.cmake.in CoverageInclude.cmake USE_S
 # Don't allow extended (non-ASCII) symbols in identifiers. This is easier for code review.
 try_append_cxx_flags("-fno-extended-identifiers" TARGET core_interface SKIP_LINK)
 
-try_append_cxx_flags("-ffile-prefix-map=A=B" TARGET core_interface SKIP_LINK
-  IF_CHECK_PASSED "-ffile-prefix-map=${PROJECT_SOURCE_DIR}/src=."
-)
+# Option to use absolute paths for debug symbols (useful for debugging in IDEs)
+option(USE_ABSOLUTE_DSYM_PATHS "Use absolute source paths in debug symbols instead of relative paths" OFF)
+
+# Apply file-prefix-map based on USE_ABSOLUTE_DSYM_PATHS setting
+if(USE_ABSOLUTE_DSYM_PATHS)
+  # Use absolute paths for debug symbols (better for IDE debugging)
+  # Don't apply any file-prefix-map to preserve absolute paths
+  message(STATUS "USE_ABSOLUTE_DSYM_PATHS=ON: Preserving absolute source paths in debug symbols")
+else()
+  # Use relative paths for debug symbols (default behavior)
+  try_append_cxx_flags("-ffile-prefix-map=${PROJECT_SOURCE_DIR}/src=." TARGET core_interface SKIP_LINK)
+endif()
 
 # Currently all versions of gcc are subject to a class of bugs, see the
 # gccbug_90348 test case (only reproduces on GCC 11 and earlier) and
