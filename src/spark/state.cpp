@@ -1105,7 +1105,7 @@ void CSparkState::AddLTagTxHash(const uint256& lTagHash, const uint256& txHash) 
 
 void CSparkState::RemoveSpend(const GroupElement& lTag) {
     auto iter = usedLTags.find(lTag);
-    if (GetBoolArg("-mobile", false)) {
+    if (GetBoolArg("-mobile", false) && iter != usedLTags.end()) {
         for (auto tag = mobileUsedLTags.begin(); tag != mobileUsedLTags.end(); tag++) {
             if (tag->first == lTag) {
                 mobileUsedLTags.erase(tag);
