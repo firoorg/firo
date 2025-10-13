@@ -649,7 +649,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 // Set up the mint data
                 spark::MintedCoinData mintData;
                 mintData.address = sparkAddress;
-                mintData.memo = ""; // No memo in simple format
+                mintData.memo = wtx.mapValue["comment"]; // Use comment as memo for Spark addresses
                 mintData.v = nAmount;
                 
                 std::vector<spark::MintedCoinData> outputs;
@@ -760,6 +760,10 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         CAmount totalSparkAmount = 0;
         CAmount totalBip47Amount = 0;
 
+        // Collect comments for wallet metadata
+        std::string firstComment = "";
+        std::string firstCommentTo = "";
+
         // ====== Process Addresses ======
         // Process each address and categorize by type and create recipient entries
         for (const std::string& strAddress : keys) {
@@ -790,6 +794,23 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             std::string memo = "";
             if (params.exists("memo")) {
                 memo = params["memo"].get_str();
+            }
+
+            // Handle comments for wallet metadata
+            std::string comment = "";
+            if (params.exists("comment")) {
+                comment = params["comment"].get_str();
+                if (firstComment.empty()) {
+                    firstComment = comment;
+                }
+            }
+            
+            std::string comment_to = "";
+            if (params.exists("comment_to")) {
+                comment_to = params["comment_to"].get_str();
+                if (firstCommentTo.empty()) {
+                    firstCommentTo = comment_to;
+                }
             }
 
             std::string resolvedAddress = strAddress;
@@ -824,7 +845,8 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 // Add to Spark recipients
                 spark::OutputCoinData data;
                 data.address = sparkAddress;
-                data.memo = memo;
+// Use memo if provided, otherwise use comment as memo for Spark addresses
+                data.memo = memo.empty() ? comment : memo;
                 data.v = nAmount;
                 sparkRecipients.push_back(std::make_pair(data, subtractFee));
                 totalSparkAmount += nAmount;
@@ -1022,26 +1044,12 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             
             CWalletTx wtx;
             
-            // Add transaction comments from first recipient that has them
-            for (const std::string& strAddress : keys) {
-                UniValue addressValue = sendTo[strAddress];
-                if (addressValue.isObject()) {
-                    UniValue params = addressValue.get_obj();
-                    if (params.exists("comment") && !params["comment"].get_str().empty()) {
-                        wtx.mapValue["comment"] = params["comment"].get_str();
-                        break;
+            // Add transaction comments collected during address processing
+            if (!firstComment.empty()) {
+                        wtx.mapValue["comment"] = firstComment;
                     }
-                }
-            }
-            for (const std::string& strAddress : keys) {
-                UniValue addressValue = sendTo[strAddress];
-                if (addressValue.isObject()) {
-                    UniValue params = addressValue.get_obj();
-                    if (params.exists("comment_to") && !params["comment_to"].get_str().empty()) {
-                        wtx.mapValue["to"] = params["comment_to"].get_str();
-                        break;
-                    }
-                }
+                if (!firstCommentTo.empty()) {
+                        wtx.mapValue["to"] = firstCommentTo;
             }
             
             CReserveKey keyChange(pwallet);
@@ -4282,15 +4290,17 @@ UniValue spendspark(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() != 1)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw std::runtime_error(
-                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}} ( \"comment\" )\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
+"1. recipients              (string, required) A json object with addresses and amounts\n"
                                                      "{\n"
                                                      "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                                                      "  ,...\n"
                                                      " }\n"
+"2. \"comment\"             (string, optional) A comment stored in the wallet\n"
                                                      "\nResult:\n"
                                                      "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
                                                      "                                    the number of addresses.\n"
@@ -4418,6 +4428,20 @@ UniValue spendspark(const JSONRPCRequest& request)
     CWalletTx wtx;
     try {
         wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
+
+        // Handle optional comment parameter
+        if (request.params.size() > 1 && !request.params[1].isNull() && !request.params[1].get_str().empty()) {
+            std::string comment = request.params[1].get_str();
+            
+            // Update the transaction in the wallet
+            LOCK(pwallet->cs_wallet);
+            auto it = pwallet->mapWallet.find(wtx.GetHash());
+            if (it != pwallet->mapWallet.end()) {
+                it->second.mapValue["comment"] = comment;
+                // The wallet will save this automatically on the next flush
+                LogPrintf("spendspark: Added comment to transaction: %s\n", comment);
+            }
+        }
     } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
@@ -4465,9 +4489,9 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
         throw std::runtime_error(
-                "sendsparkmany \"fromaccount\" {\"address\":amount,...} ( [\"address\",...] )\n"
+                "sendsparkmany \"fromaccount\" {\"address\":amount,...} ( \"comment\" [\"address\",...] )\n"
             "\nSend multiple times from Spark balance to various address types. Amounts are double-precision floating point numbers."
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
@@ -4477,7 +4501,8 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
             "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark, BIP47/RAP, or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                                                      "      ,...\n"
                                                      "    }\n"
-"3. subtractfeefrom         (array, optional) A json array with addresses.\n"
+"3. \"comment\"             (string, optional) A comment\n"
+            "4. subtractfeefrom         (array, optional) A json array with addresses.\n"
             "                           The fee will be equally deducted from the amount of each selected address.\n"
             "                           Those recipients will receive less firo than you enter in their corresponding amount field.\n"
             "                           If no addresses are specified here, the sender pays the fee.\n"
@@ -4490,13 +4515,13 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
                                                      "                                    the number of addresses.\n"
                                                      "\nExamples:\n"
                                                      "\nSend amounts to different address types using Spark balance:\n"
-                 + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\"") +
-                 "\nSend to transparent and Spark addresses using Spark balance:\n"
-                 + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"@alice\\\":0.02}\"") +
+                 + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"TDkSCRA8jAZ9kyeYC36cQTEeWTQiNa6PtF\\\":0.001}\"") +
+                 "\nSend to transparent and Spark addresses with comment:\n"
+                 + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"st172la2wfu5npkcunze9ufx0n7d4p65xmv7ktqy0ethw4ynl838yr3esd3rmg933prnlga8uhn0p4gn8r9hm4wjj2yd0xzerrvp6zlmn5e9w2jdgns2nlmyd9vzue7p85c0kpxsxsnmerqk\\\":0.002}\" \"test payment\"") +
             "\nSend amounts with fee subtracted from specific addresses:\n"
             + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\" \"[\\\"TH8UvVbGXZGVjbqKqrJVNtBP\\\"]\"") +
             "\nAs a json rpc call\n"
-            + HelpExampleRpc("sendsparkmany", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\"")
+            + HelpExampleRpc("sendsparkmany", "\"\", \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"TDkSCRA8jAZ9kyeYC36cQTEeWTQiNa6PtF\\\":0.001}\", \"test payment\"")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);
@@ -4519,23 +4544,30 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
     } else {
         throw JSONRPCError(RPC_TYPE_ERROR, "Second parameter must be a JSON object or string");
     }
+
+    // Handle comment parameter (parameter 3)
+    std::string comment;
+    if (request.params.size() > 2 && !request.params[2].isNull() && !request.params[2].get_str().empty()) {
+        comment = request.params[2].get_str();
+        LogPrintf("sendsparkmany: Using comment: %s\n", comment);
+    }
     
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (request.params.size() > 2) {
-        // Handle both string and array formats for subtractFeeFromAmount
-        if (request.params[2].isStr()) {
+    if (request.params.size() > 3) {
+        // Handle both string and array formats for subtractFeeFromAmount (now parameter 4)
+        if (request.params[3].isStr()) {
             // Parse JSON string parameter 
-            if (!subtractFeeFromAmount.read(request.params[2].get_str())) {
+            if (!subtractFeeFromAmount.read(request.params[3].get_str())) {
                 throw JSONRPCError(RPC_PARSE_ERROR, "Invalid JSON string for subtractFeeFromAmount");
             }
             if (!subtractFeeFromAmount.isArray()) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "subtractFeeFromAmount JSON parameter must be an array");
             }
-        } else if (request.params[2].isArray()) {
+        } else if (request.params[3].isArray()) {
             // Direct array parameter
-            subtractFeeFromAmount = request.params[2].get_array();
+            subtractFeeFromAmount = request.params[3].get_array();
         } else {
-            throw JSONRPCError(RPC_TYPE_ERROR, "Third parameter (subtractFeeFromAmount) must be a JSON array or string");
+            throw JSONRPCError(RPC_TYPE_ERROR, "Fourth parameter (subtractFeeFromAmount) must be a JSON array or string");
         }
     }
 
@@ -4560,7 +4592,22 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
         UniValue addressParams(UniValue::VOBJ);
         addressParams.push_back(Pair("amount", ValueFromAmount(nAmount)));
         addressParams.push_back(Pair("subtractFee", fSubtractFeeFromAmount));
-        // No memo support in simple sendsparkmany format (use spendspark for memos)
+        
+        // Add comment as memo for Spark addresses (similar to sendtoaddress behavior)
+        if (!comment.empty()) {
+            // Check if this is a Spark address (starts with 'st' or '@')
+            bool isSparkAddress = false;
+            if (name_.length() >= 2 && name_.substr(0, 2) == "st") {
+                isSparkAddress = true;
+            } else if (!name_.empty() && name_[0] == '@') {
+                isSparkAddress = true; // Spark name
+            }
+            
+            if (isSparkAddress) {
+                addressParams.push_back(Pair("memo", comment));
+                LogPrintf("sendsparkmany: Added comment as memo for Spark address %s: %s\n", name_, comment);
+            }
+        }
         
         convertedSendTo.push_back(Pair(name_, addressParams));
     }
@@ -4570,6 +4617,14 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
     convertedRequest.fHelp = false;
     convertedRequest.params = UniValue(UniValue::VARR);
     convertedRequest.params.push_back(convertedSendTo);
+
+    // Add comment as second parameter if provided
+    if (!comment.empty()) {
+        convertedRequest.params.push_back(comment);
+        LogPrintf("sendsparkmany: Forwarding comment to spendspark: %s\n", comment);
+    }
+    
+    LogPrintf("sendsparkmany: Converted JSON object: %s\n", convertedSendTo.write());
     
     return spendspark(convertedRequest);
 }
@@ -6195,7 +6250,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "move",                     &movecmd,                  false,  {"fromaccount","toaccount","amount","minconf","comment"} },
     { "wallet",             "sendfrom",                 &sendfrom,                 false,  {"fromaccount","toaddress","amount","minconf","comment","comment_to"} },
     { "wallet",             "sendmany",                 &sendmany,                 false,  {"fromaccount","amounts","minconf","comment","subtractfeefrom"} },
-    { "wallet",             "sendsparkmany",            &sendsparkmany,            false,  {"fromaccount","amounts","subtractfeefrom"} },
+    { "wallet",             "sendsparkmany",            &sendsparkmany,            false,  {"fromaccount","amounts","comment","subtractfeefrom"} },
     { "wallet",             "sendtoaddress",            &sendtoaddress,            false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
     { "wallet",             "sendtotransparentaddress", &sendtotransparentaddress, false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
