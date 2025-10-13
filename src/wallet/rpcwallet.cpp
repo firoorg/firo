@@ -845,7 +845,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 // Add to Spark recipients
                 spark::OutputCoinData data;
                 data.address = sparkAddress;
-// Use memo if provided, otherwise use comment as memo for Spark addresses
+                // Use memo if provided, otherwise use comment as memo for Spark addresses
                 data.memo = memo.empty() ? comment : memo;
                 data.v = nAmount;
                 sparkRecipients.push_back(std::make_pair(data, subtractFee));
@@ -1046,10 +1046,10 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             
             // Add transaction comments collected during address processing
             if (!firstComment.empty()) {
-                        wtx.mapValue["comment"] = firstComment;
-                    }
-                if (!firstCommentTo.empty()) {
-                        wtx.mapValue["to"] = firstCommentTo;
+                wtx.mapValue["comment"] = firstComment;
+            }
+            if (!firstCommentTo.empty()) {
+                wtx.mapValue["to"] = firstCommentTo;
             }
             
             CReserveKey keyChange(pwallet);
@@ -1086,7 +1086,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
     }
 }
 
-UniValue sendtotransparentaddress(const JSONRPCRequest& request)
+UniValue sendtransparent(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -1095,9 +1095,9 @@ UniValue sendtotransparentaddress(const JSONRPCRequest& request)
 
     if (request.fHelp || (request.params.size() < 1 || request.params.size() > 5))
         throw std::runtime_error(
-            "sendtotransparentaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
+            "sendtransparent \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
             "or\n"
-            "sendtotransparentaddress {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
+            "sendtransparent {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
             "\nSend an amount to a given address. Supports transparent, Spark, BIP47/RAP addresses and Spark names.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments (simple format):\n"
@@ -1125,22 +1125,28 @@ UniValue sendtotransparentaddress(const JSONRPCRequest& request)
             "\"txid\" or [\"txid1\", \"txid2\", ...] (string or array) Transaction ID(s). Multiple transactions may be created \n"
             "                                    for different address types (transparent, Spark, BIP47).\n"
             "\nExamples (Simple format):\n"
-            + HelpExampleCli("sendtotransparentaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
-            + HelpExampleCli("sendtotransparentaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"donation\" \"seans outpost\"")
-            + HelpExampleCli("sendtotransparentaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"\" \"\" true")
-            + HelpExampleCli("sendtotransparentaddress", "\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\" 0.1")
-            + HelpExampleCli("sendtotransparentaddress", "\"@alice\" 0.1")
-            + HelpExampleRpc("sendtotransparentaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\", 0.1, \"donation\", \"seans outpost\"")
+            + HelpExampleCli("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
+            + HelpExampleCli("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"donation\" \"seans outpost\"")
+            + HelpExampleCli("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"\" \"\" true")
+            + HelpExampleCli("sendtransparent", "\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\" 0.1")
+            + HelpExampleCli("sendtransparent", "\"@alice\" 0.1")
+            + HelpExampleRpc("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\", 0.1, \"donation\", \"seans outpost\"")
             + "\nExamples (JSON format for multiple addresses):\n"
-            + HelpExampleCli("sendtotransparentaddress", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtotransparentaddress", "\"{\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtotransparentaddress", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false, \\\"comment\\\":\\\"rent\\\"}, \\\"sr1hk87...\\\":{\\\"amount\\\":0.02, \\\"memo\\\":\\\"secret\\\", \\\"subtractFee\\\": false}}\"")
-            + HelpExampleCli("sendtotransparentaddress", "\"{\\\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
-            + HelpExampleRpc("sendtotransparentaddress", "\"{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}, \"sr1hk87...\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
+            + HelpExampleCli("sendtransparent", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
+            + HelpExampleCli("sendtransparent", "\"{\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\", \\\"subtractFee\\\": false}}\"")
+            + HelpExampleCli("sendtransparent", "\"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false, \\\"comment\\\":\\\"rent\\\"}, \\\"sr1hk87...\\\":{\\\"amount\\\":0.02, \\\"memo\\\":\\\"secret\\\", \\\"subtractFee\\\": false}}\"")
+            + HelpExampleCli("sendtransparent", "\"{\\\"PM8TJTLJbPRGxSbc8EJi42Wrr6QbNSaSSVJ5Y3E4pbCYiTHUskHg13935Ubb7q8tx9GVbh2UuRnBc3WSyJHhUrw8KhprKnn9eDznYGieTzFcwQRya4GA\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"")
+            + HelpExampleRpc("sendtransparent", "\"{\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\":{\"amount\":0.01, \"subtractFee\": false}, \"sr1hk87...\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
         );
 
-    // Forward the call to sendtoaddress implementation
-    return sendtoaddress(request);
+    // Create a new request and call sendtoaddress
+    JSONRPCRequest newRequest;
+    newRequest.authUser = request.authUser;
+    newRequest.strMethod = "sendtoaddress";
+    newRequest.params = request.params;
+    newRequest.fHelp = request.fHelp;
+    newRequest.URI = request.URI;
+    return sendtoaddress(newRequest);
 }
 
 UniValue listaddressgroupings(const JSONRPCRequest& request)
@@ -4295,12 +4301,12 @@ UniValue spendspark(const JSONRPCRequest& request)
                 "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}} ( \"comment\" )\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
-"1. recipients              (string, required) A json object with addresses and amounts\n"
+                                                     "1. recipients              (string, required) A json object with addresses and amounts\n"
                                                      "{\n"
                                                      "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                                                      "  ,...\n"
                                                      " }\n"
-"2. \"comment\"             (string, optional) A comment stored in the wallet\n"
+                                                     "2. \"comment\"             (string, optional) A comment stored in the wallet\n"
                                                      "\nResult:\n"
                                                      "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
                                                      "                                    the number of addresses.\n"
@@ -4491,17 +4497,17 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 4)
         throw std::runtime_error(
-                "sendsparkmany \"fromaccount\" {\"address\":amount,...} ( \"comment\" [\"address\",...] )\n"
+            "sendsparkmany \"fromaccount\" {\"address\":amount,...} ( \"comment\" [\"address\",...] )\n"
             "\nSend multiple times from Spark balance to various address types. Amounts are double-precision floating point numbers."
-                + HelpRequiringPassphrase(pwallet) + "\n"
-                                                     "\nArguments:\n"
-                                                     "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nArguments:\n"
+            "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
             "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
             "    {\n"
             "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark, BIP47/RAP, or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
-                                                     "      ,...\n"
-                                                     "    }\n"
-"3. \"comment\"             (string, optional) A comment\n"
+            "      ,...\n"
+            "    }\n"
+            "3. \"comment\"             (string, optional) A comment\n"
             "4. subtractfeefrom         (array, optional) A json array with addresses.\n"
             "                           The fee will be equally deducted from the amount of each selected address.\n"
             "                           Those recipients will receive less firo than you enter in their corresponding amount field.\n"
@@ -4510,14 +4516,14 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
             "      \"address\"          (string) Subtract fee from this address\n"
             "      ,...\n"
             "    ]\n"
-                                                     "\nResult:\n"
-                                                     "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                                                     "                                    the number of addresses.\n"
-                                                     "\nExamples:\n"
-                                                     "\nSend amounts to different address types using Spark balance:\n"
-                 + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"TDkSCRA8jAZ9kyeYC36cQTEeWTQiNa6PtF\\\":0.001}\"") +
-                 "\nSend to transparent and Spark addresses with comment:\n"
-                 + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"st172la2wfu5npkcunze9ufx0n7d4p65xmv7ktqy0ethw4ynl838yr3esd3rmg933prnlga8uhn0p4gn8r9hm4wjj2yd0xzerrvp6zlmn5e9w2jdgns2nlmyd9vzue7p85c0kpxsxsnmerqk\\\":0.002}\" \"test payment\"") +
+            "\nResult:\n"
+            "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+            "                                    the number of addresses.\n"
+            "\nExamples:\n"
+            "\nSend amounts to different address types using Spark balance:\n"
+            + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"TDkSCRA8jAZ9kyeYC36cQTEeWTQiNa6PtF\\\":0.001}\"") +
+            "\nSend to transparent and Spark addresses with comment:\n"
+            + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TY2VzjuPgnhjx3G8NmSmUGr9orShiBqrDc\\\":0.001,\\\"st172la2wfu5npkcunze9ufx0n7d4p65xmv7ktqy0ethw4ynl838yr3esd3rmg933prnlga8uhn0p4gn8r9hm4wjj2yd0xzerrvp6zlmn5e9w2jdgns2nlmyd9vzue7p85c0kpxsxsnmerqk\\\":0.002}\" \"test payment\"") +
             "\nSend amounts with fee subtracted from specific addresses:\n"
             + HelpExampleCli("sendsparkmany", "\"\" \"{\\\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\\\":0.01,\\\"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\\\":0.02}\" \"[\\\"TH8UvVbGXZGVjbqKqrJVNtBP\\\"]\"") +
             "\nAs a json rpc call\n"
@@ -6252,7 +6258,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "sendmany",                 &sendmany,                 false,  {"fromaccount","amounts","minconf","comment","subtractfeefrom"} },
     { "wallet",             "sendsparkmany",            &sendsparkmany,            false,  {"fromaccount","amounts","comment","subtractfeefrom"} },
     { "wallet",             "sendtoaddress",            &sendtoaddress,            false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
-    { "wallet",             "sendtotransparentaddress", &sendtotransparentaddress, false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
+    { "wallet",             "sendtransparent", &sendtransparent, false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
     { "wallet",             "settxfee",                 &settxfee,                 true,   {"amount"} },
     { "wallet",             "signmessage",              &signmessage,              true,   {"address","message"} },
