@@ -2826,19 +2826,10 @@ CAmount CWallet::GetBalance(bool fExcludeLocked) const
 
 std::pair<CAmount, CAmount> CWallet::GetPrivateBalance()
 {
-    size_t confirmed, unconfirmed;
-    return GetPrivateBalance(confirmed, unconfirmed);
-}
-
-std::pair<CAmount, CAmount> CWallet::GetPrivateBalance(size_t &confirmed, size_t &unconfirmed)
-{
     if (cachedLelantusBalance.first > 0)
         return {cachedLelantusBalance.first, cachedLelantusBalance.second};
 
     std::pair<CAmount, CAmount> balance = {0, 0};
-
-    confirmed = 0;
-    unconfirmed = 0;
 
     auto zwallet = pwalletMain->zwallet.get();
 
@@ -2856,10 +2847,8 @@ std::pair<CAmount, CAmount> CWallet::GetPrivateBalance(size_t &confirmed, size_t
             ? chainActive.Height() - c.nHeight + 1 : 0;
 
         if (conf >= ZC_MINT_CONFIRMATIONS) {
-            confirmed++;
             balance.first += c.amount;
         } else {
-            unconfirmed++;
             balance.second += c.amount;
         }
     }
