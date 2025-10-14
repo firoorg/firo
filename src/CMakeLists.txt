@@ -337,11 +337,6 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/rpc/server.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/script/ismine.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/script/sigcache.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/coin.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/coinspend.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/params.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/spend_metadata.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/primitives.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/state.cpp

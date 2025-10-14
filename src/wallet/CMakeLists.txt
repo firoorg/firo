@@ -7,7 +7,6 @@
 add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/../activemasternode.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../masternode-sync.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../sigma.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../lelantus.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../hdmint/hdmint.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../hdmint/mintpool.cpp
@@ -29,7 +28,6 @@ add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/db.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcdump.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcwallet.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sigmaspendbuilder.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/txbuilder.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lelantusjoinsplitbuilder.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/walletexcept.cpp

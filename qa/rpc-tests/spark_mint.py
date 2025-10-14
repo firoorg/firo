@@ -14,7 +14,7 @@ class SparkMintTest(BitcoinTestFramework):
             "Spark is not activated yet",
             self.nodes[0].mintspark, 1)
 
-        self.nodes[0].generate(1001)
+        self.nodes[0].generate(501)
 
         # generate coins
         amounts = [1, 1.1, 2, 10]

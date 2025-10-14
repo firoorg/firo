@@ -578,7 +578,7 @@ UniValue importwallet(const JSONRPCRequest& request)
 
     if(fMintUpdate){
         pwallet->zwallet->SyncWithChain();
-        pwallet->zwallet->GetTracker().ListMints(false, false);
+        pwallet->zwallet->GetTracker().ListLelantusMints(false, false);
     }
 
     if (!fGood)

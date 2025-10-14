@@ -32,13 +32,11 @@ private:
 
 public:
     std::vector<CLelantusEntry> spendCoins;
-    std::vector<CSigmaEntry> sigmaSpendCoins;
     std::vector<CHDMint>  mintCoins;
 
     CWallet& wallet;
     const CCoinControl *coinControl;
 
-    bool isSigmaToLelantusJoinSplit = false;
     CAmount fee = 0;
 
 private:

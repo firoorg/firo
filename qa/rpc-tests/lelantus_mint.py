@@ -9,15 +9,6 @@ class LelantusMintTest(BitcoinTestFramework):
         self.setup_clean_chain = False
 
     def run_test(self):
-        activation_block = 400
-
-        assert_raises_message(
-            JSONRPCException,
-            "Lelantus is not active",
-            self.nodes[0].mintlelantus, 1)
-
-        self.nodes[0].generate(activation_block - self.nodes[0].getblockcount())
-
         # generate coins
         amounts = [1, 1.1, 2, 10]
 

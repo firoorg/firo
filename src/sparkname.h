@@ -1,7 +1,6 @@
 #ifndef FIFO_SPARKNAME_H
 #define FIFO_SPARKNAME_H
 
-#include <chain.h>
 #include "consensus/validation.h"
 #include "primitives/transaction.h"
 #include "evo/evodb.h"
