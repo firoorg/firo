@@ -2854,6 +2854,7 @@ std::pair<CAmount, CAmount> CWallet::GetPrivateBalance()
     }
     cachedLelantusBalance.first = balance.first;
     cachedLelantusBalance.second = balance.second;
+
     return balance;
 }
 

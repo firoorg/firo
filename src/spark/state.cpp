@@ -956,6 +956,7 @@ void CSparkState::Reset() {
     latestCoinId = 0;
     mintedCoins.clear();
     usedLTags.clear();
+    mobileUsedLTags.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
 }
@@ -1090,6 +1091,9 @@ void CSparkState::AddMintsToStateAndBlockIndex(
 void CSparkState::AddSpend(const GroupElement& lTag, int coinGroupId) {
     if (mintMetaInfo.count(coinGroupId) > 0) {
         usedLTags[lTag] = coinGroupId;
+        if (GetBoolArg("-mobile", false)) {
+            mobileUsedLTags.push_back({lTag, coinGroupId});
+        }
         spendMetaInfo[coinGroupId] += 1;
     }
 }
@@ -1100,6 +1104,14 @@ void CSparkState::AddLTagTxHash(const uint256& lTagHash, const uint256& txHash) 
 
 void CSparkState::RemoveSpend(const GroupElement& lTag) {
     auto iter = usedLTags.find(lTag);
+    if (GetBoolArg("-mobile", false) && iter != usedLTags.end()) {
+        for (auto tag = mobileUsedLTags.begin(); tag != mobileUsedLTags.end(); tag++) {
+            if (tag->first == lTag) {
+                mobileUsedLTags.erase(tag);
+                break;
+            }
+        }
+    }
     if (iter != usedLTags.end()) {
         spendMetaInfo[iter->second] -= 1;
         usedLTags.erase(iter);
@@ -1476,6 +1488,10 @@ std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSpark
 }
 std::unordered_map<GroupElement, int, spark::CLTagHash> const & CSparkState::GetSpends() const {
     return usedLTags;
+}
+
+std::vector<std::pair<GroupElement, int>> const & CSparkState::GetSpendsMobile() const {
+    return mobileUsedLTags;
 }
 
 std::unordered_map<uint256, uint256> const& CSparkState::GetSpendTxIds() const {
