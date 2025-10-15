@@ -3246,7 +3246,8 @@ std::vector<unsigned char> CWallet::ProvePrivateTxOwn(const uint256& txid, const
 
 bool CWallet::TryGetBalances(CAmount& balance,
                              CAmount& unconfirmedBalance,
-                             CAmount& newImmatureBalance) const {
+                             CAmount& newImmatureBalance,
+                             CAmount& mintableBalance) const {
     TRY_LOCK(cs_main, locked_main);
     if (!locked_main) {
         return false;
@@ -3260,6 +3261,7 @@ bool CWallet::TryGetBalances(CAmount& balance,
     balance = GetBalance();
     unconfirmedBalance = GetUnconfirmedBalance();
     newImmatureBalance = GetImmatureBalance();
+    mintableBalance = GetBalance(true);
 
     return true;
 }

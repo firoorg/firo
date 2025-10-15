@@ -938,7 +938,7 @@ public:
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance(bool fExcludeLocked = false) const;
     std::pair<CAmount, CAmount> GetPrivateBalance();
-    bool TryGetBalances(CAmount& balance, CAmount& unconfirmedBalance, CAmount& newImmatureBalance) const;
+    bool TryGetBalances(CAmount& balance, CAmount& unconfirmedBalance, CAmount& newImmatureBalance, CAmount& mintableBalance) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;

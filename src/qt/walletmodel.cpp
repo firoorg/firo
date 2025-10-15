@@ -173,9 +173,9 @@ void WalletModel::checkBalanceChanged()
     CAmount newWatchOnlyBalance = 0;
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
-    CAmount newAnonymizableBalance = newBalance;
+    CAmount newAnonymizableBalance = cachedAnonymizableBalance;
 
-    if (!wallet->TryGetBalances(newBalance, newUnconfirmedBalance, newImmatureBalance))
+    if (!wallet->TryGetBalances(newBalance, newUnconfirmedBalance, newImmatureBalance, newAnonymizableBalance))
         return;
 
 
