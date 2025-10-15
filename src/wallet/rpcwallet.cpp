@@ -614,13 +614,11 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         }
         
         // 2. Handle Spark Address, check if Spark address
-        bool isSparkAddress = false;
         try {
             const spark::Params* sparkParams = spark::Params::get_default();
             spark::Address sparkAddress(sparkParams);
             unsigned char coinNetwork = sparkAddress.decode(strAddress);
             unsigned char network = spark::GetNetworkType();
-            isSparkAddress = true;
             
             if (coinNetwork != network) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + strAddress);
@@ -716,7 +714,6 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                     std::string("Failed to send to Spark address: ") + e.what());
             }
         } catch (const std::exception &e) {
-            isSparkAddress = false;
         }
         
         // 3. Handle Transparent Address
@@ -833,11 +830,9 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             }
 
             // 3. Handle Spark Address, check if Spark address
-            bool isSparkAddress = false;
             try {
                 spark::Address sparkAddress(sparkParams);
                 unsigned char coinNetwork = sparkAddress.decode(resolvedAddress);
-                isSparkAddress = true;
                 if (coinNetwork != network) {
                     throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + strAddress);
                 }
@@ -852,7 +847,6 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 totalSparkAmount += nAmount;
                 continue;
             } catch (const std::exception &) {
-                isSparkAddress = false;
             }
 
             // 4. Handle Transparent Address, check if transparent address
@@ -1777,9 +1771,6 @@ UniValue sendmany(const JSONRPCRequest& request)
 
     std::string strAccount = AccountFromValue(request.params[0]);
     UniValue sendTo = request.params[1].get_obj();
-    int nMinDepth = 1;
-    if (request.params.size() > 2)
-        nMinDepth = request.params[2].get_int();
 
     CWalletTx wtx;
     wtx.strFromAccount = strAccount;
@@ -4331,7 +4322,19 @@ UniValue spendspark(const JSONRPCRequest& request)
     std::vector<CRecipient> recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients;
 
-    UniValue sendTo = request.params[0].get_obj();
+    UniValue sendTo;
+    if (request.params[0].isStr()) {
+        // Parse JSON string parameter 
+        if (!sendTo.read(request.params[0].get_str())) {
+            throw JSONRPCError(RPC_PARSE_ERROR, "Invalid JSON string");
+        }
+        if (!sendTo.isObject()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "JSON parameter must be an object");
+        }
+    } else {
+        // Direct object parameter
+        sendTo = request.params[0].get_obj();
+    }
     std::vector<std::string> keys = sendTo.getKeys();
     const spark::Params* params = spark::Params::get_default();
     std::set<CBitcoinAddress> setAddress;
@@ -4462,9 +4465,9 @@ UniValue sendspark(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() != 1)
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw std::runtime_error(
-                "sendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                "sendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}} ( \"comment\" )\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
                                                      "{\n"
@@ -4483,8 +4486,14 @@ UniValue sendspark(const JSONRPCRequest& request)
                  + HelpExampleRpc("sendspark", "\"{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01, \"subtractFee\": false},\"TuzUyNtTznSNnT2rPXG6Mk7hHG8Svuuoci\":{\"amount\":0.01, \"subtractFee\": true}, \"sr1hk87wuh660mss6vnxjf0syt4p6r6ptew97de3dvz698tl7p5p3w7h4m4hcw74mxnqhtz70r7gyydcx6pmkfmnew9q4z0c0muga3sd83h786znjx74ccsjwm284aswppqf2jd0sssendlj\":{\"amount\":0.01, \"memo\":\"\", \"subtractFee\": false},\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.01, \"memo\":\"test_memo\", \"subtractFee\": false}}\"")
         );
 
-    // Forward the call to spendspark implementation
-    return spendspark(request);
+    // Create a new request and call spendspark
+    JSONRPCRequest newRequest;
+    newRequest.authUser = request.authUser;
+    newRequest.strMethod = "spendspark";
+    newRequest.params = request.params;
+    newRequest.fHelp = request.fHelp;
+    newRequest.URI = request.URI;
+    return spendspark(newRequest);
 }
 
 
