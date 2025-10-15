@@ -139,12 +139,11 @@ void WalletModel::pollBalanceChanged()
     // Get required locks upfront. This avoids the GUI from getting stuck on
     // periodical polls if the core is holding the locks for a longer time -
     // for example, during a wallet rescan.
-    int currentNumBlocks = 0;
-    if (_client_model){
-        currentNumBlocks = _client_model->cachedNumBlocks;
-    } else {
-        currentNumBlocks = chainActive.Height();
+    if (!_client_model) {
+        // ClientModel not yet set; defer to avoid cs_main locking and races
+       return;
     }
+    int currentNumBlocks = _client_model->cachedNumBlocks;
 
     if(fForceCheckBalanceChanged || currentNumBlocks != cachedNumBlocks)
     {

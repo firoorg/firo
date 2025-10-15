@@ -110,7 +110,7 @@ std::pair<CAmount, CAmount> CSparkWallet::getSparkBalance() {
             continue;
 
         // Not confirmed
-        if (mint.nHeight > 1)
+        if (mint.nHeight >= 1)
             result.first += mint.v;
         else
             result.second += mint.v;
@@ -147,7 +147,7 @@ CAmount CSparkWallet::getUnconfirmedBalance() {
             continue;
 
         // Continue if confirmed
-        if (mint.nHeight > 1)
+        if (mint.nHeight >= 1)
             continue;
 
         result += mint.v;
@@ -192,7 +192,7 @@ CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address
             continue;
 
         // Not confirmed
-        if (mint.nHeight > 1)
+        if (mint.nHeight >= 1)
             continue;
 
         if (address.get_d() != mint.d)

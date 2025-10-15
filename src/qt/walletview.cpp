@@ -156,7 +156,6 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
-    if (walletModel) walletModel->setClientModel(_clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)
@@ -207,6 +206,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
             connect(autoMintSparkModel, &AutoMintSparkModel::requireShowAutomintSparkNotification, this, &WalletView::showAutomintSparkNotification);
             connect(autoMintSparkModel, &AutoMintSparkModel::closeAutomintSparkNotification, this, &WalletView::closeAutomintSparkNotification);
         }
+        walletModel->setClientModel(clientModel);
     }
 }
 

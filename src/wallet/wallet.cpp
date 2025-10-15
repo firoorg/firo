@@ -2826,7 +2826,7 @@ CAmount CWallet::GetBalance(bool fExcludeLocked) const
 
 std::pair<CAmount, CAmount> CWallet::GetPrivateBalance()
 {
-    if (cachedLelantusBalance.first > 0)
+    if (cachedLelantusBalance.first >= 0)
         return {cachedLelantusBalance.first, cachedLelantusBalance.second};
 
     std::pair<CAmount, CAmount> balance = {0, 0};
