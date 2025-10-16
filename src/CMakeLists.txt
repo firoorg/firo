@@ -352,6 +352,63 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/warnings.cpp
 )
 
+# Fix duplicate object file names to prevent debug symbol conflicts
+# This ensures that files with the same basename in different directories
+# get unique object file names, preventing dsymutil from skipping debug symbols
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/params.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "liblelantus_params.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/params.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "libspark_params.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/params.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "sigma_params.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/coin.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "liblelantus_coin.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/coin.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "libspark_coin.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/coin.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "sigma_coin.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/spend_metadata.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "liblelantus_spend_metadata.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sigma/spend_metadata.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "sigma_spend_metadata.cpp.o"
+)
+
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpc/net.cpp
+  PROPERTIES
+  OBJECT_OUTPUTS "rpc_net.cpp.o"
+)
+
 target_link_libraries(firo_node
   PRIVATE
     core_interface
