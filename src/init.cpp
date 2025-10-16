@@ -578,13 +578,23 @@ std::string HelpMessage(HelpMessageMode mode)
     return strUsage;
 }
 
+/**
+ * @brief Return the application's license and attribution text.
+ *
+ * Produces a formatted multi-line string containing the copyright notice,
+ * contribution request and website/source URLs, license statement, and
+ * third-party attributions included with the distribution.
+ *
+ * @return std::string The full license and attribution text suitable for
+ * display to users or inclusion in help/version output.
+ */
 std::string LicenseInfo()
 {
     const std::string URL_SOURCE_CODE = "<https://github.com/firoorg/firo>";
     const std::string URL_WEBSITE = "<https://firo.org/>";
 
     std::string copyright = CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2016, COPYRIGHT_YEAR) + " ");
-    
+
     const std::string bitcoinStr = strprintf("%i-%i The Bitcoin Core", 2016, COPYRIGHT_YEAR);
     if (copyright.find(bitcoinStr) != std::string::npos) {
         copyright.replace(copyright.find(bitcoinStr), sizeof("2016") - 1, "2009");
@@ -1419,6 +1429,18 @@ bool AppInitSanityChecks()
     return LockDataDirectory(true);
 }
 
+/**
+ * @brief Perform the main application initialization and bring the node to a running state.
+ *
+ * Performs startup checks and initialization of subsystems (datadir lock, logging, signature cache,
+ * script verification threads, RPC/HTTP servers, wallet, networking, Tor/proxy settings, chainstate
+ * and block index loading/reindex handling, LLMQ/masternode setup, block import, and connection
+ * manager), and schedules/starts background threads required for normal node operation.
+ *
+ * @param threadGroup Thread group used to create and manage background threads during initialization.
+ * @param scheduler Scheduler used to register periodic tasks and to drive subsystem work queues.
+ * @return bool `true` if initialization completed successfully and the node should continue running; `false` on initialization failure or when shutdown was requested. 
+ */
 bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 {
     const CChainParams& chainparams = Params();
@@ -1595,33 +1617,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     fRelayTxes = !GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY);
 
     if (fListen) {
-        bool fBound = false;
-        if (mapMultiArgs.count("-bind")) {
-            BOOST_FOREACH(const std::string& strBind, mapMultiArgs.at("-bind")) {
-                CService addrBind;
-                if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
-                    return InitError(ResolveErrMsg("bind", strBind));
-                fBound |= connman.Bind(addrBind, (BF_EXPLICIT | BF_REPORT_ERROR));
-            }
-        }
-        if (mapMultiArgs.count("-whitebind")) {
-            BOOST_FOREACH(const std::string& strBind, mapMultiArgs.at("-whitebind")) {
-                CService addrBind;
-                if (!Lookup(strBind.c_str(), addrBind, 0, false))
-                    return InitError(ResolveErrMsg("whitebind", strBind));
-                if (addrBind.GetPort() == 0)
-                    return InitError(strprintf(_("Need to specify a port with -whitebind: '%s'"), strBind));
-                fBound |= connman.Bind(addrBind, (BF_EXPLICIT | BF_REPORT_ERROR | BF_WHITELIST));
-            }
-        }
-        if (!mapMultiArgs.count("-bind") && !mapMultiArgs.count("-whitebind")) {
-            struct in_addr inaddr_any;
-            inaddr_any.s_addr = INADDR_ANY;
-            fBound |= connman.Bind(CService((in6_addr)IN6ADDR_ANY_INIT, GetListenPort()), BF_NONE);
-            fBound |= connman.Bind(CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE);
-        }
-        if (!fBound)
-            return InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
+        // The bind is done in the CConnman constructor. Just leaving this here for reference.
     }
 
     if (mapMultiArgs.count("-externalip")) {
