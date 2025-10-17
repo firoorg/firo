@@ -27,7 +27,7 @@ BOOST_FIXTURE_TEST_SUITE(spark_mintspend, SparkTestingSetup)
 
 BOOST_AUTO_TEST_CASE(spark_mintspend_test)
 {
-    GenerateBlocks(1001);
+    GenerateBlocks(501);
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
 
     pwalletMain->SetBroadcastTransactions(true);

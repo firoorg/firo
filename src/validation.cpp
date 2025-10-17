@@ -42,7 +42,6 @@
 #include "wallet/walletdb.h"
 #endif // ENABLE_WALLET
 #include "batchproof_container.h"
-#include "sigma.h"
 #include "lelantus.h"
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
@@ -56,8 +55,6 @@
 #include "coins.h"
 
 #include "blacklists.h"
-
-#include "sigma/coinspend.h"
 #include "warnings.h"
 
 #include "masternode-payments.h"
@@ -645,7 +642,7 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, sigma::CSigmaTxInfo *sigmaTxInfo, lelantus::CLelantusTxInfo* lelantusTxInfo, spark::CSparkTxInfo* sparkTxInfo)
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, lelantus::CLelantusTxInfo* lelantusTxInfo, spark::CSparkTxInfo* sparkTxInfo)
 {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 
@@ -751,17 +748,10 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 || tx.IsSparkSpend()))
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 
-        if (tx.IsZerocoinV3SigmaTransaction()) {
-            if (hasExchangeUTXOs)
-                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-            if (!CheckSigmaTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo))
-                return false;
-        }
-
         if (tx.IsLelantusTransaction()) {
             if (hasExchangeUTXOs)
                 return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-            if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo, lelantusTxInfo))
+            if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, lelantusTxInfo))
                 return false;
         }
 
@@ -776,6 +766,11 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
             if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
+        }
+
+        if (tx.IsSigmaSpend() || tx.IsSigmaMint()) {
+            if (!isVerifyDB && nHeight >= (::Params().GetConsensus().nLelantusStartBlock + 5))
+                return state.DoS(1, error( "Sigma already is not available, start using Lelantus."));
         }
 
         if (tx.IsZerocoinRemint()) {
@@ -877,7 +872,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                               bool isCheckWalletTransaction, bool markFiroSpendTransactionSerial)
 {
     bool fTestNet = Params().GetConsensus().IsTestnet();
-    LogPrintf("AcceptToMemoryPoolWorker(), tx.IsSpend()=%s, fTestNet=%s\n", ptx->IsSigmaSpend() || ptx->IsLelantusJoinSplit(), fTestNet);
+    LogPrintf("AcceptToMemoryPoolWorker(), tx.IsSpend()=%s, fTestNet=%s\n", ptx->IsLelantusJoinSplit(), fTestNet);
 
     const CTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
@@ -920,11 +915,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
     }
 
-    // V3 sigma spends.
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    std::vector<Scalar> zcSpendSerialsV3;
-    std::vector<GroupElement> zcMintPubcoinsV3;
-
     //lelantus
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
     std::vector<Scalar> lelantusSpendSerials;
@@ -940,22 +930,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     {
         LOCK(pool.cs);
-        if (tx.IsSigmaSpend()) {
-            BOOST_FOREACH(const CTxIn &txin, tx.vin)
-            {
-                Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(tx, txin);
-                Scalar zero;
-
-                if (zcSpendSerial == zero)
-                    return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
-                if (!sigmaState->CanAddSpendToMempool(zcSpendSerial)) {
-                    LogPrintf("AcceptToMemoryPool(): sigma serial number %s has been used\n", zcSpendSerial.tostring());
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                }
-                zcSpendSerialsV3.push_back(zcSpendSerial);
-            }
-        }
-        else if (tx.IsLelantusJoinSplit()) {
+        if (tx.IsLelantusJoinSplit()) {
             if (tx.vin.size() > 1) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
@@ -986,24 +961,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 if (!serials[i].isMember() || serials[i].isZero())
                     return state.Invalid(false, REJECT_INVALID, "txn-invalid-lelantus-joinsplit-serial");
 
-                int coinGroupId = ids[i] % (CENT / 1000);
-                int64_t intDenom = (ids[i] - coinGroupId);
-                intDenom *= 1000;
-                sigma::CoinDenomination denomination;
-
-                if (chainActive.Height() < consensus.nLelantusV3PayloadStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
-                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i]) ||
-                        !sigmaState->CanAddSpendToMempool(serials[i])) {
-                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
-                                  serials[i].tostring());
-                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                    }
-                } else {
-                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i])) {
-                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
-                                  serials[i].tostring());
-                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                    }
+                if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i])) {
+                    LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
+                              serials[i].tostring());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
                 lelantusSpendSerials.push_back(serials[i]);
             }
@@ -1041,20 +1002,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
-            if (txout.scriptPubKey.IsSigmaMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                } catch (std::invalid_argument&) {
-                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
-                }
-                if (!sigmaState->CanAddMintToMempool(pubCoinValue)) {
-                    LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                }
-                zcMintPubcoinsV3.push_back(pubCoinValue);
-            }
-
             if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
                 GroupElement pubCoinValue;
                 try {
@@ -1239,9 +1186,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             //            if (!CheckSequenceLocks(tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
             //                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
             //
-        }
-        else if (tx.IsSigmaSpend()) {
-            nValueIn = sigma::GetSigmaSpendInput(tx);
         }
 
         // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
@@ -1611,18 +1555,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
     }
 
-    if (tx.IsSigmaSpend()) {
-        if(markFiroSpendTransactionSerial)
-            sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
-        LogPrintf("Updating mint tracker state from Mempool..\n");
-#ifdef ENABLE_WALLET
-        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-            LogPrintf("Updating spend state from Mempool..\n");
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
-        }
-#endif
-    }
-
     if (tx.IsLelantusJoinSplit()) {
         if(markFiroSpendTransactionSerial) {
             for (const auto &spendSerial: lelantusSpendSerials)
@@ -1633,7 +1565,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
             LogPrintf("Updating spend state from Mempool..\n");
             pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(lelantusSpendSerials);
         }
 #endif
     }
@@ -1657,20 +1588,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 #endif
     }
 
-    if(markFiroSpendTransactionSerial) {
-        sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
-        for (const auto &pubCoin: lelantusMintPubcoins)
-            pool.lelantusState.AddMintToMempool(pubCoin);
-
-        //  Add spark mints to mempool
-        sparkState->AddMintsToMempool(sparkMintCoins);
-    }
 
 #ifdef ENABLE_WALLET
-    if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        LogPrintf("Updating mint state from Mempool..\n");
-        pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
-    }
 
     if(tx.IsSparkTransaction() && !GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
         LogPrintf("Adding Spark mints to Mempool..\n");
@@ -2408,30 +2327,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
                 }
             }
         }
-    } else if (tx.IsSigmaSpend()) {
-        // Total sum of inputs of transaction.
-        CAmount totalInputValue = 0;
-
-        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-            if(!txin.scriptSig.IsSigmaSpend()) {
-                return state.DoS(
-                    100, false,
-                    REJECT_MALFORMED,
-                    "CheckSpendFiroTransaction: can't mix zerocoin spend input with regular ones");
-            }
-            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
-                                            (const char *)&*txin.scriptSig.end(),
-                                            SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpend newSpend(sigma::Params::get_default(), serializedCoinSpend);
-            uint64_t denom = newSpend.getIntDenomination();
-            totalInputValue += denom;
-        }
-        if (totalInputValue < tx.GetValueOut()) {
-            return state.DoS(
-                100,
-                error("Spend transaction outputs larger than the inputs."));
-        }
-    } else if (tx.IsLelantusJoinSplit()) {
+    }  else if (tx.IsLelantusJoinSplit()) {
         if(tx.vin.size() > 1 || !tx.vin[0].scriptSig.IsLelantusJoinSplit()) {
             return state.DoS(
                     100, false,
@@ -2644,9 +2540,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
             // At this point, all of txundo.vprevout should have been moved out.
         }
 
-        if(tx.IsSigmaSpend())
-            nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
-        else if (tx.IsLelantusJoinSplit()) {
+        if (tx.IsLelantusJoinSplit()) {
             try {
                 nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
             }
@@ -2989,8 +2883,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
     batchProofContainer->init();
+    std::size_t nSigma = 0;
 
-    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
     for (unsigned int i = 0; i < block.vtx.size(); i++)
@@ -3038,9 +2932,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         || tx.IsLelantusMint()
         || tx.IsLelantusJoinSplit()
         || tx.IsSparkTransaction()) {
-            if( tx.IsSigmaSpend())
-                nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
-
+            if(tx.IsSigmaSpend())
+                ++nSigma;
             if(tx.IsLelantusJoinSplit()) {
                 try {
                     nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
@@ -3066,7 +2959,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
 
             // Check transaction against signa/lelantus state
-            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.sigmaTxInfo.get(), block.lelantusTxInfo.get(), block.sparkTxInfo.get()))
+            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.lelantusTxInfo.get(), block.sparkTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -3111,7 +3004,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     }
 
-    block.sigmaTxInfo->Complete();
     block.lelantusTxInfo->Complete();
     block.sparkTxInfo->Complete();
 
@@ -3126,6 +3018,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     //btzc: Add time to check
     CAmount blockSubsidy = GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
     CAmount blockReward = nFees + blockSubsidy;
+    // as we removed sigma lib, are are not able to get the fee, and as blocks are historical, we just skip fee check on blocks containing sigma tx
+    if(nSigma > 0 && pindex->nHeight >= ::Params().GetConsensus().nSigmaStartBlock && pindex->nHeight < ::Params().GetConsensus().nLelantusStartBlock)
+        blockReward = block.vtx[0]->GetValueOut();
     if (block.vtx[0]->GetValueOut() > blockReward)
         return state.DoS(100,
                          error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
@@ -3199,8 +3094,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    if (!sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
-        !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck) ||
+    if (!lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck) ||
         !spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
@@ -3283,30 +3177,11 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
     LOCK(mempool.cs);
 
     // Erase conflicting sigma/lelantus txs from the mempool
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
     lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
-        if (tx->IsSigmaSpend()) {
-            BOOST_FOREACH(const CTxIn &txin, tx->vin)
-            {
-                Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(*tx, txin);
-                uint256 thisTxHash = tx->GetHash();
-                uint256 conflictingTxHash = sigmaState->GetMempoolConflictingTxHash(zcSpendSerial);
-                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                    std::list<CTransaction> removed;
-                    auto pTx = mempool.get(conflictingTxHash);
-                    if (pTx)
-                        mempool.removeRecursive(*pTx);
-                    LogPrintf("ConnectBlock: removed conflicting sigma/lelantus spend tx %s from the mempool\n",
-                                conflictingTxHash.ToString());
-                }
-
-                // In any case we need to remove serial from mempool set
-                sigmaState->RemoveSpendFromMempool(zcSpendSerial);
-            }
-        }
-        else if (tx->IsLelantusJoinSplit()) {
+        if (tx->IsLelantusJoinSplit()) {
            std::vector<Scalar> serials;
            try {
                serials = lelantus::GetLelantusJoinSplitSerialNumbers(*tx, tx->vin[0]);
@@ -3362,15 +3237,6 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
         }
         BOOST_FOREACH(const CTxOut &txout, tx->vout)
         {
-            if (txout.scriptPubKey.IsSigmaMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                } catch (std::invalid_argument&) {
-                    // nothing
-                }
-                sigmaState->RemoveMintFromMempool(pubCoinValue);
-            }
             if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
                 GroupElement pubCoinValue;
                 try {
@@ -3601,17 +3467,15 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 
     // retrieve all mints
-    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
 
     std::unordered_map<Scalar, int> lelantusSerialsToRemove;
     std::vector<lelantus::RangeProof> rangeProofsToRemove;
-    sigma::spend_info_container sigmaSerialsToRemove;
     std::vector<spark::SpendTransaction> sparkTransactionsToRemove;
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
-            false, false, block.sigmaTxInfo.get(), block.lelantusTxInfo.get(), block.sparkTxInfo.get());
+            false, false, block.lelantusTxInfo.get(), block.sparkTxInfo.get());
         if(GetBoolArg("-batching", true)) {
             if (tx->IsLelantusJoinSplit()) {
                 std::unique_ptr<lelantus::JoinSplit> joinsplit;
@@ -3635,22 +3499,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                 }
 
                 rangeProofsToRemove.push_back(joinsplit->getLelantusProof().bulletproofs);
-            } else if (tx->IsSigmaSpend()) {
-                for (const CTxIn &txin : tx->vin) {
-                    std::unique_ptr<sigma::CoinSpend> spend;
-                    uint32_t coinGroupId;
-
-                    try {
-                        std::tie(spend, coinGroupId) = sigma::ParseSigmaSpend(txin);
-                    }
-                    catch (CBadTxIn &) {
-                        continue;
-                    }
-
-                    Scalar serial = spend->getCoinSerialNumber();
-                    sigmaSerialsToRemove.insert(std::make_pair(
-                            serial, sigma::CSpendCoinInfo::make(spend->getDenomination(), coinGroupId)));
-                }
             } else if (tx->IsSparkSpend()) {
                 try {
                     spark::SpendTransaction spendTransaction = spark::ParseSparkSpend(*tx);
@@ -3677,15 +3525,10 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
-	sigma::DisconnectTipSigma(block, pindexDelete);
     lelantus::DisconnectTipLelantus(block, pindexDelete);
     spark::DisconnectTipSpark(block, pindexDelete);
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    if (sigmaSerialsToRemove.size() > 0) {
-        batchProofContainer->removeSigma(sigmaSerialsToRemove);
-    }
-
     if (lelantusSerialsToRemove.size() > 0) {
         batchProofContainer->removeLelantus(lelantusSerialsToRemove);
     }
@@ -3747,14 +3590,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 #ifdef ENABLE_WALLET
     // update mint/spend wallet
     if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        if (block.sigmaTxInfo->spentSerials.size() > 0) {
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
-        }
-
-        if (block.sigmaTxInfo->mints.size() > 0) {
-            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
-        }
-
         if (block.lelantusTxInfo->spentSerials.size() > 0) {
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.lelantusTxInfo->spentSerials);
         }
@@ -3857,18 +3692,8 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 #ifdef ENABLE_WALLET
     // Sync with HDMint wallet
 
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet && blockConnecting.sigmaTxInfo) {
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet && blockConnecting.lelantusTxInfo) {
         LogPrintf("Checking if block contains wallet mints..\n");
-        if (blockConnecting.sigmaTxInfo->spentSerials.size() > 0) {
-            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(blockConnecting.sigmaTxInfo->spentSerials);
-        }
-
-        if (blockConnecting.sigmaTxInfo->mints.size() > 0) {
-            LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
-            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
-        }
-
         if (blockConnecting.lelantusTxInfo->spentSerials.size() > 0) {
             LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
             pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(blockConnecting.lelantusTxInfo->spentSerials);
@@ -4590,8 +4415,6 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, int nHeight, bool isVerifyDB) {
     // CheckBlock not only checks the block, but also fills up sparkTxInfo, lelantusTxInfo and sigmaTxInfo.
-    if (!block.sigmaTxInfo)
-        block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     if (!block.lelantusTxInfo)
         block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     if (!block.sparkTxInfo)
@@ -4652,9 +4475,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         nHeight = GetNHeight(block.GetBlockHeader());
 
     for (CTransactionRef tx : block.vtx) {
-        if (nHeight >= consensusParams.nStartSigmaBlacklist && nHeight < consensusParams.nRestartSigmaWithBlacklistCheck && (tx->IsSigmaMint() || tx->IsSigmaSpend())) {
-            return state.DoS(100, error("Sigma is temporarily disabled"), REJECT_INVALID, "bad-txns-zerocoin");
-        }
         // We don't check transactions against sigma/lelantus state here, we'll check it again later in ConnectBlock
         if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
@@ -4671,9 +4491,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     if (fCheckPOW && fCheckMerkleRoot)
         block.fChecked = true;
-
-    if (!sigma::CheckSigmaBlock(state, block))
-        return false;
 
     if (!lelantus::CheckLelantusBlock(state, block))
         return false;
@@ -5513,7 +5330,6 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
 
     PruneBlockIndexCandidates();
 
-    sigma::BuildSigmaStateFromIndex(&chainActive);
     lelantus::BuildLelantusStateFromIndex(&chainActive);
     spark::BuildSparkStateFromIndex(&chainActive);
 

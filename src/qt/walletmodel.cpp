@@ -24,8 +24,6 @@
 #include "wallet/walletexcept.h"
 #include "txmempool.h"
 #include "consensus/validation.h"
-#include "sigma.h"
-#include "sigma/coin.h"
 #include "lelantus.h"
 #include "bip47/account.h"
 #include "bip47/bip47utils.h"

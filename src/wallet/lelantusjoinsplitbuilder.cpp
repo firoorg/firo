@@ -124,9 +124,8 @@ CWalletTx LelantusJoinSplitBuilder::Build(
         nCountNextUse = pwalletMain->zwallet->GetCount();
     }
 
-    std::list<CSigmaEntry> sigmaCoins = pwalletMain->GetAvailableCoins(coinControl);
     std::list<CLelantusEntry> coins = pwalletMain->GetAvailableLelantusCoins(coinControl);
-    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, sigmaCoins, coins, coinControl);
+    std::tie(fee, std::ignore) = wallet.EstimateJoinSplitFee(vOut + mint, recipientsToSubtractFee, coins, coinControl);
 
     for (;;) {
         // In case of not enough fee, reset mint seed counter
@@ -186,37 +185,9 @@ CWalletTx LelantusJoinSplitBuilder::Build(
 
         // get coins
         spendCoins.clear();
-        sigmaSpendCoins.clear();
 
         const auto& consensusParams = Params().GetConsensus();
         CAmount changeToMint = 0;
-
-        std::vector<sigma::CoinDenomination> denomChanges;
-        if (chainActive.Height() < Params().GetConsensus().nSigmaEndBlock) {
-            try {
-                CAmount availableBalance(0);
-                for (auto coin : sigmaCoins) {
-                    availableBalance += coin.get_denomination_value();
-                }
-                if(availableBalance > 0) {
-                    CAmount inputFromSigma;
-                    if (required > availableBalance)
-                        inputFromSigma = availableBalance;
-                    else
-                        inputFromSigma = required;
-
-                    std::list<CSigmaEntry> sigmaCoinsCp = sigmaCoins;
-                    wallet.GetCoinsToSpend(inputFromSigma, sigmaSpendCoins, denomChanges, sigmaCoinsCp, //try to spend sigma first
-                                           consensusParams.nMaxLelantusInputPerTransaction,
-                                           consensusParams.nMaxValueLelantusSpendPerTransaction, coinControl);
-
-                    required -= inputFromSigma;
-
-                    isSigmaToLelantusJoinSplit = true;
-                }
-            } catch (std::runtime_error const &) {
-            }
-        }
 
         if(required > 0) {
             if (!wallet.GetCoinsToJoinSplit(required, spendCoins, changeToMint, coins,
@@ -226,20 +197,12 @@ CWalletTx LelantusJoinSplitBuilder::Build(
             }
         }
 
-        if ((sigmaSpendCoins.size() + spendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
+        if ((spendCoins.size()) > consensusParams.nMaxLelantusInputPerTransaction)
             throw std::invalid_argument(
                     _("Number of inputs is bigger then limit."));
 
-        for(const auto& demon : denomChanges) {
-            int64_t intDenom;
-            sigma::DenominationToInteger(demon, intDenom);
-            changeToMint += intDenom;
-        }
 
         CAmount input(0);
-        for (const auto &spend : sigmaSpendCoins) {
-            input += spend.get_denomination_value();
-        }
         for (const auto &spend : spendCoins) {
             input += spend.amount;
         }
@@ -438,16 +401,11 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
     int version = 0;
 
     // after nLelantusFixesStartBlock set new transaction version,
-    if(!isSigmaToLelantusJoinSplit) {
+    {
         if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
             version = LELANTUS_TX_TPAYLOAD;
         else
             version = LELANTUS_TX_VERSION_4_5;
-    } else {
-        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock)
-            version = SIGMA_TO_LELANTUS_TX_TPAYLOAD;
-        else
-            version = SIGMA_TO_LELANTUS_JOINSPLIT_FIXED;
     }
 
     std::vector<std::vector<unsigned char>> anonymity_set_hashes;
@@ -497,59 +455,6 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
             if (!setHash.empty())
                 anonymity_set_hashes.push_back(setHash);
         }
-    }
-
-
-    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
-
-    for (const auto &spend : sigmaSpendCoins) {
-        int64_t denom = spend.get_denomination_value();
-        // construct public part of the mint
-        sigma::PublicCoin pub(spend.value, spend.get_denomination());
-        // construct private part of the mint
-        lelantus::PrivateCoin priv(params, denom);
-        priv.setVersion(version);
-        priv.setSerialNumber(spend.serialNumber);
-        priv.setRandomness(spend.randomness);
-        priv.setEcdsaSeckey(spend.ecdsaSecretKey);
-        lelantus::PublicCoin lPub(spend.value + params->get_h1() * denom);
-        priv.setPublicCoin(lPub);
-
-        // get coin group
-        int groupId;
-
-        std::tie(std::ignore, groupId) = sigmaState->GetMintedCoinHeightAndId(pub);
-
-        if (groupId < 0) {
-            throw std::runtime_error(_("One of the sigma coins has not been found in the chain!"));
-        }
-
-        //this way we are remembering denomination and group id in one field as we have no demomination in Lelantus
-        // with dividing by 1000 we just making maximum denomiation fit into uint32
-        coins.emplace_back(std::make_pair(priv, denom / 1000 + groupId));
-
-
-        if (anonymity_sets.count(denom / 1000 + groupId) == 0) {
-            std::vector<sigma::PublicCoin> group;
-            uint256 blockHash;
-            if (sigmaState->GetCoinSetForSpend(
-                    &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 1 confirmation for mint to spend
-                    spend.get_denomination(),
-                    groupId,
-                    blockHash,
-                    group) < 2)
-                throw std::runtime_error(
-                        _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
-            std::vector<lelantus::PublicCoin> set;
-            set.reserve(group.size());
-            for(auto& coin : group) {
-                set.push_back(coin.getValue() + params->get_h1() * denom);
-            }
-            groupBlockHashes[denom / 1000 + groupId] = blockHash;
-            anonymity_sets[denom / 1000 + groupId] = set;
-        }
-
     }
 
     std::sort(coins.begin(), coins.end(), CoinCompare());

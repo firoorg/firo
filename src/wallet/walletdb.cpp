@@ -271,24 +271,12 @@ void CWalletDB::ListAccountCreditDebit(const std::string& strAccount, std::list<
     pcursor->close();
 }
 
-bool CWalletDB::WriteCoinSpendSerialEntry(const CSigmaSpendEntry &sigmaSpend) {
-    return Write(std::make_pair(std::string("sigma_spend"), sigmaSpend.coinSerial), sigmaSpend, true);
-}
-
 bool CWalletDB::WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend) {
     return Write(std::make_pair(std::string("lelantus_spend"), lelantusSpend.coinSerial), lelantusSpend, true);
 }
 
-bool CWalletDB::HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial) {
-    return Exists(std::make_pair(std::string("sigma_spend"), serial));
-}
-
 bool CWalletDB::HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial) {
     return Exists(std::make_pair(std::string("lelantus_spend"), serial));
-}
-
-bool CWalletDB::EraseCoinSpendSerialEntry(const CSigmaSpendEntry &sigmaSpend) {
-    return Erase(std::make_pair(std::string("sigma_spend"), sigmaSpend.coinSerial));
 }
 
 bool CWalletDB::EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend) {
@@ -299,92 +287,8 @@ bool CWalletDB::ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& seri
     return Read(std::make_pair(std::string("lelantus_spend"), serial), lelantusSpend);
 }
 
-bool CWalletDB::WriteSigmaEntry(const CSigmaEntry &sigma) {
-    return Write(std::make_pair(std::string("sigma_mint"), sigma.value), sigma, true);
-}
-
-bool CWalletDB::ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry) {
-    return Read(std::make_pair(std::string("sigma_mint"), pub), entry);
-}
-
-bool CWalletDB::HasSigmaEntry(const secp_primitives::GroupElement& pub) {
-    return Exists(std::make_pair(std::string("sigma_mint"), pub));
-}
-
-bool CWalletDB::EraseSigmaEntry(const CSigmaEntry &sigma) {
-    return Erase(std::make_pair(std::string("sigma_mint"), sigma.value));
-}
-
 bool CWalletDB::WriteCalculatedZCBlock(int height) {
     return Write(std::string("calculatedzcblock"), height);
-}
-
-void CWalletDB::ListSigmaPubCoin(std::list <CSigmaEntry> &listPubCoin) {
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error("CWalletDB::ListSigmaPubCoin() : cannot create DB cursor");
-    bool setRange = true;
-    while (true) {
-        // Read next record
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("sigma_mint"), secp_primitives::GroupElement());
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0) {
-            pcursor->close();
-            throw std::runtime_error("CWalletDB::ListSigmaPubCoin() : error scanning DB");
-        }
-        // Unserialize
-        std::string strType;
-        ssKey >> strType;
-        if (strType != "sigma_mint")
-            break;
-        GroupElement value;
-        ssKey >> value;
-        CSigmaEntry sigmaItem;
-        ssValue >> sigmaItem;
-        listPubCoin.push_back(sigmaItem);
-    }
-    pcursor->close();
-}
-
-void CWalletDB::ListCoinSpendSerial(std::list <CSigmaSpendEntry> &listCoinSpendSerial) {
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
-    bool setRange = true;
-    while (true) {
-        // Read next record
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("sigma_spend"), secp_primitives::GroupElement());
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0) {
-            pcursor->close();
-            throw std::runtime_error("CWalletDB::ListCoinSpendSerial() : error scanning DB");
-        }
-
-        // Unserialize
-        std::string strType;
-        ssKey >> strType;
-        if (strType != "sigma_spend")
-            break;
-        Scalar value;
-        ssKey >> value;
-        CSigmaSpendEntry sigmaSpendItem;
-        ssValue >> sigmaSpendItem;
-        listCoinSpendSerial.push_back(sigmaSpendItem);
-    }
-
-    pcursor->close();
 }
 
 void CWalletDB::ListLelantusSpendSerial(std::list <CLelantusSpendEntry>& listLelantusSpendSerial) {
@@ -1080,31 +984,6 @@ DBErrors CWalletDB::ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vTxHashI
     return DB_LOAD_OK;
 }
 
-DBErrors CWalletDB::ZapSigmaMints(CWallet *pwallet) {
-    // get list of HD Mints
-    std::list<CHDMint> vHDMints = ListHDMints(false);
-
-    // get list of non HD Mints
-    std::list <CSigmaEntry> sigmaEntries;
-    ListSigmaPubCoin(sigmaEntries);
-
-    // erase each HD Mint
-    BOOST_FOREACH(CHDMint & hdMint, vHDMints)
-    {
-        if (!EraseHDMint(hdMint))
-            return DB_CORRUPT;
-    }
-
-    // erase each non HD Mint
-    BOOST_FOREACH(CSigmaEntry & sigmaEntry, sigmaEntries)
-    {
-        if (!EraseSigmaEntry(sigmaEntry))
-            return DB_CORRUPT;
-    }
-
-    return DB_LOAD_OK;
-}
-
 DBErrors CWalletDB::ZapLelantusMints(CWallet *pwallet) {
     // get list of HD Mints
     std::list<CHDMint> lelantusHDMints = ListHDMints(true);
@@ -1703,21 +1582,6 @@ bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHD
 
     if (!Erase(std::make_pair(std::string("dzco"), dMint.GetPubCoinHash())))
         return error("%s : failed to erase archived deterministic mint", __func__);
-
-    return true;
-}
-
-bool CWalletDB::UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma)
-{
-    if (!Read(std::make_pair(std::string("zco"), hashPubcoin), sigma))
-        return error("%s: failed to retrieve sigmamint from archive", __func__);
-
-    if (!WriteSigmaEntry(sigma))
-        return error("%s: failed to write sigmamint", __func__);
-
-    uint256 hash = primitives::GetPubCoinValueHash(sigma.value);
-    if (!Erase(std::make_pair(std::string("zco"), hash)))
-        return error("%s : failed to erase archived sigma mint", __func__);
 
     return true;
 }

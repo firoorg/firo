@@ -14,7 +14,7 @@
 #include "bitcoin_bignum/bignum.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
-#include "sigma/coin.h"
+#include "liblelantus/coin.h"
 #include "libspark/coin.h"
 #include "evo/spork.h"
 #include "firo_params.h"
@@ -305,6 +305,7 @@ public:
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
         sigmaMintedPubCoins.clear();
+        sigmaSpentSerials.clear();
         lelantusMintedPubCoins.clear();
         lelantusMintData.clear();
         anonymitySetHash.clear();
@@ -313,7 +314,6 @@ public:
         spentLTags.clear();
         ltagTxhash.clear();
         sparkTxHashContext.clear();
-        sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
         addedSparkNames.clear();

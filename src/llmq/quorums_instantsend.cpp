@@ -1369,6 +1369,31 @@ void CInstantSendManager::RemoveChainLockConflictingLock(const uint256& islockHa
     }
 }
 
+bool CInstantSendManager::RemoveISLockByTxId(const uint256& txid)
+{
+    if (!IsNewInstantSendEnabled()) {
+        return false;
+    }
+
+    int tipHeight;
+    {
+        LOCK(cs_main);
+        tipHeight = chainActive.Height();
+    }
+
+    LOCK(cs);
+    auto islock = db.GetInstantSendLockByTxid(txid);
+    if (!islock) {
+        return false;
+    }
+    auto removedIslocks = db.RemoveChainedInstantSendLocks(::SerializeHash(*islock), txid, tipHeight);
+    for (auto& h : removedIslocks) {
+        LogPrintf("CInstantSendManager::%s -- txid=%s: removed (child) ISLOCK %s\n", __func__,
+                  txid.ToString(), h.ToString());
+    }
+    return !removedIslocks.empty();
+}
+
 void CInstantSendManager::AskNodesForLockedTx(const uint256& txid)
 {
     std::vector<CNode*> nodesToAskFor;

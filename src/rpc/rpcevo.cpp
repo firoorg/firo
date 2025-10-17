@@ -24,6 +24,7 @@
 #include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
 #include "evo/spork.h"
+#include "llmq/quorums_instantsend.h"
 
 #include "bls/bls.h"
 
@@ -1428,12 +1429,34 @@ UniValue spork(const JSONRPCRequest& request)
 #endif // ENABLE_WALLET
 }
 
+UniValue removeislock(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "removeislock \"txid\"\n"
+            "\nRemoves an InstantSend lock for a transaction.\n"
+            "\nArguments:\n"
+            "1. \"txid\"        (string, required) The transaction id\n"
+            "\nExamples:\n"
+            + HelpExampleCli("removeislock", "\"txid\"")
+        );
+
+    uint256 hash = ParseHashV(request.params[0], "txid");
+
+    if (llmq::quorumInstantSendManager->RemoveISLockByTxId(hash)) {
+        return "ISLock removed";
+    } else {
+        return "ISLock not found";
+    }
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "evo",                "bls",                    &_bls,                   false, {}  },
     { "evo",                "protx",                  &protx,                  false, {}  },
     { "evo",                "spork",                  &spork,                  false, {}  },
+    { "evo",                "removeislock",           &removeislock,           false, {}  },
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)

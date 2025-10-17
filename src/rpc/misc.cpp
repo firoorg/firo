@@ -19,7 +19,6 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
-#include "sigma.h"
 #include "txdb.h"
 
 #include "masternode-sync.h"
@@ -1542,10 +1541,10 @@ UniValue getusedcoinstags(const JSONRPCRequest& request)
     }
 
     spark::CSparkState* sparkState =  spark::CSparkState::GetState();
-    std::unordered_map<GroupElement, int, spark::CLTagHash>  tags;
+    std::vector<std::pair<GroupElement, int>>  tags;
     {
         LOCK(cs_main);
-        tags = sparkState->GetSpends();
+        tags = sparkState->GetSpendsMobile();
     }
     UniValue serializedTags(UniValue::VARR);
     int i = 0;

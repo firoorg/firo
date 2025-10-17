@@ -1265,18 +1265,18 @@ public:
         nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
 
         // Sigma related values.
-        consensus.nSigmaStartBlock = 100;
+        consensus.nSigmaStartBlock = 1;
         consensus.nSigmaPaddingBlock = 1;
         consensus.nDisableUnpaddedSigmaBlock = 1;
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 1;
-        consensus.nLelantusStartBlock = 400;
-        consensus.nLelantusFixesStartBlock = 400;
-        consensus.nSparkStartBlock = 1000;
+        consensus.nLelantusStartBlock = 100;
+        consensus.nLelantusFixesStartBlock = 100;
+        consensus.nSparkStartBlock = 400;
         consensus.nExchangeAddressStartBlock = 1000;
-        consensus.nLelantusGracefulPeriod = 1500;
-        consensus.nSigmaEndBlock = 1400;
+        consensus.nLelantusGracefulPeriod = 600;
+        consensus.nSigmaEndBlock = 1;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
         consensus.nZerocoinV2MintGracefulPeriod = 1;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
@@ -1295,7 +1295,7 @@ public:
         consensus.nSparkLimitV2StartBlock = 1500;
         consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
-        consensus.nZerocoinToSigmaRemintWindowSize = 1000;
+        consensus.nZerocoinToSigmaRemintWindowSize = 1;
 
         // evo spork
         consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ

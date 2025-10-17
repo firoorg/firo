@@ -9,7 +9,7 @@
 #include "../script/sign.h"
 #include "state.h"
 #include "sparkname.h"
-
+#include "../chain.h"
 #include <boost/format.hpp>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;

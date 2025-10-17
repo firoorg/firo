@@ -33,7 +33,6 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-#include "sigma.h"
 #include "lelantus.h"
 #include "evo/spork.h"
 #include <algorithm>
@@ -431,21 +430,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
     const CTransaction &tx = iter->GetTx();
 
-    // Check transaction against sigma limits
-    if (tx.IsSigmaSpend()) {
-        CAmount spendAmount = sigma::GetSpendAmount(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (tx.vin.size() > params.nMaxSigmaInputPerTransaction || spendAmount > params.nMaxValueSigmaSpendPerTransaction)
-            return false;
-
-        if (tx.vin.size() + nSigmaSpendInputs > params.nMaxSigmaInputPerBlock)
-            return false;
-
-        if (spendAmount + nSigmaSpendAmount > params.nMaxValueSigmaSpendPerBlock)
-            return false;
-    }
-
     // Check transaction against lelantus limits
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
@@ -480,16 +464,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 {
     const CTransaction &tx = iter->GetTx();
-    if (tx.IsSigmaSpend()) {
-        // Update sigma stats
-        CAmount spendAmount = sigma::GetSpendAmount(tx);
-
-        if ((nSigmaSpendAmount += spendAmount) > chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
-            return;
-
-        if ((nSigmaSpendInputs += tx.vin.size()) > chainparams.GetConsensus().nMaxSigmaInputPerBlock)
-            return;
-    }
 
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
