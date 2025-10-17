@@ -17,9 +17,17 @@
 class CSparkNameTxData
 {
 public:
-    static const uint16_t CURRENT_VERSION = 1;
+    static const uint16_t CURRENT_VERSION = 2;
 
 public:
+    enum OperationType
+    {
+        opRegister = 0,
+        opTransfer,
+        opUnregister,
+        opMaximumValue
+    };
+
     uint16_t nVersion{CURRENT_VERSION};     // version
     uint256 inputsHash;
 
@@ -36,6 +44,15 @@ public:
     // failsafe if the hash of the transaction data is can't be converted to a scalar for proof creation/verification
     uint32_t hashFailsafe{0};
 
+    // v2 fields
+
+    // operation type (register/transfer/unregister)
+    uint8_t operationType{(uint8_t)opRegister};
+    // old spark address
+    std::string oldSparkAddress;
+    // proof of transfer
+    std::vector<unsigned char> transferOwnershipProof;
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -49,6 +66,15 @@ public:
         READWRITE(sparkNameValidityBlocks);
         READWRITE(additionalInfo);
         READWRITE(hashFailsafe);
+
+        if (nVersion >= 2)
+        {
+            READWRITE(operationType);
+            if (operationType == (uint8_t)opTransfer) {
+                READWRITE(oldSparkAddress);
+                READWRITE(transferOwnershipProof);
+            }
+        }
     }
 };
 

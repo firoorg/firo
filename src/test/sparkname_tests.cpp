@@ -92,6 +92,7 @@ public:
     CMutableTransaction CreateSparkNameTx(const std::string &name, const std::string &address, uint32_t sparkNameValidityHeight, const std::string &additionalInfo, bool fCommit = false, CAmount sparkNameFee = 0) {
         CSparkNameTxData sparkNameData;
         sparkNameData.name = name;
+        sparkNameData.nVersion = 1;
         sparkNameData.sparkAddress = address;
         sparkNameData.sparkNameValidityBlocks = sparkNameValidityHeight;
         sparkNameData.additionalInfo = additionalInfo;
