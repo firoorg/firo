@@ -282,7 +282,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
             return state.DoS(100, error("CheckSparkNameTx: hash is out of range"));
         }
 
-        if (!oldSparkAddress.verify_own(m, transferOwnershipProof))
+        if (!oldSparkAddress.verify_own(mTransfer, transferOwnershipProof))
             return state.DoS(100, error("CheckSparkNameTx: transfer ownership proof is invalid"));
     }
 
