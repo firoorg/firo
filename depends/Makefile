@@ -156,7 +156,7 @@ boost_packages_$(NO_BOOST) = $(boost_packages)
 
 libevent_packages_$(NO_LIBEVENT) = $(libevent_packages)
 
-qrencode_packages_$(NO_QR) = $(qrencode_$(host_os)_packages)
+qrencode_packages_$(NO_QR) = $(qrencode_packages)
 
 qt_packages_$(NO_QT) = $(qt_packages) $(qt_$(host_os)_packages) $(qt_$(host_arch)_$(host_os)_packages) $(qrencode_packages_)
 qt_native_packages_$(NO_QT) = $(qt_native_packages)
