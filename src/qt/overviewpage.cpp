@@ -370,8 +370,7 @@ void OverviewPage::countDown()
 
 void OverviewPage::onRefreshClicked()
 {
-    size_t confirmed, unconfirmed;
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     int heightDifference = lGracefulPeriod - chainActive.Height();
     const int approxBlocksPerDay = 570;
@@ -395,8 +394,7 @@ void OverviewPage::onRefreshClicked()
 
 void OverviewPage::migrateClicked()
 {
-    size_t confirmed, unconfirmed;
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
     FIRO_UNUSED auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
     migrateAmount.append("</b>");

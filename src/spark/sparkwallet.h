@@ -61,6 +61,7 @@ public:
     CAmount getFullBalance();
     CAmount getAvailableBalance();
     CAmount getUnconfirmedBalance();
+    std::pair<CAmount, CAmount> getSparkBalance();
 
     CAmount getAddressFullBalance(const spark::Address& address);
     CAmount getAddressAvailableBalance(const spark::Address& address);

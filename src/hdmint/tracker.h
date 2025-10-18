@@ -30,7 +30,6 @@ public:
     void AddLelantus(CWalletDB& walletdb, const CHDMint& dMint, bool isNew = false, bool isArchived = false);
     bool Archive(CLelantusMintMeta& meta);
     bool HasPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const;
-    bool HasSerialHash(const uint256& hashSerial) const;
     bool HasLelantusSerialHash(const uint256& hashSerial) const;
     bool IsEmpty() const { return mapLelantusSerialHashes.empty(); }
     void Init();

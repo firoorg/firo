@@ -2824,18 +2824,12 @@ CAmount CWallet::GetBalance(bool fExcludeLocked) const
     return nTotal;
 }
 
-std::pair<CAmount, CAmount> CWallet::GetPrivateBalance() const
+std::pair<CAmount, CAmount> CWallet::GetPrivateBalance()
 {
-    size_t confirmed, unconfirmed;
-    return GetPrivateBalance(confirmed, unconfirmed);
-}
+    if (cachedLelantusBalance.first >= 0)
+        return {cachedLelantusBalance.first, cachedLelantusBalance.second};
 
-std::pair<CAmount, CAmount> CWallet::GetPrivateBalance(size_t &confirmed, size_t &unconfirmed) const
-{
     std::pair<CAmount, CAmount> balance = {0, 0};
-
-    confirmed = 0;
-    unconfirmed = 0;
 
     auto zwallet = pwalletMain->zwallet.get();
 
@@ -2853,13 +2847,13 @@ std::pair<CAmount, CAmount> CWallet::GetPrivateBalance(size_t &confirmed, size_t
             ? chainActive.Height() - c.nHeight + 1 : 0;
 
         if (conf >= ZC_MINT_CONFIRMATIONS) {
-            confirmed++;
             balance.first += c.amount;
         } else {
-            unconfirmed++;
             balance.second += c.amount;
         }
     }
+    cachedLelantusBalance.first = balance.first;
+    cachedLelantusBalance.second = balance.second;
 
     return balance;
 }
@@ -3248,6 +3242,28 @@ std::vector<unsigned char> CWallet::ProvePrivateTxOwn(const uint256& txid, const
     }
 
     return result;
+}
+
+bool CWallet::TryGetBalances(CAmount& balance,
+                             CAmount& unconfirmedBalance,
+                             CAmount& newImmatureBalance,
+                             CAmount& mintableBalance) const {
+    TRY_LOCK(cs_main, locked_main);
+    if (!locked_main) {
+        return false;
+    }
+
+    TRY_LOCK(cs_wallet, locked_wallet);
+    if (!locked_wallet) {
+        return false;
+    }
+
+    balance = GetBalance();
+    unconfirmedBalance = GetUnconfirmedBalance();
+    newImmatureBalance = GetImmatureBalance();
+    mintableBalance = GetBalance(true);
+
+    return true;
 }
 
 CAmount CWallet::GetUnconfirmedBalance() const {
@@ -7154,15 +7170,12 @@ bool CWallet::CreateSparkMintTransactions(
 
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 {
-    std::pair<CAmount, CAmount> balance = {0, 0};
     auto sparkWallet = pwalletMain->sparkWallet.get();
 
     if(!sparkWallet)
-        return balance;
+        return {0, 0};
 
-    balance.first = sparkWallet->getAvailableBalance();
-    balance.second = sparkWallet->getUnconfirmedBalance();
-    return balance;
+    return sparkWallet->getSparkBalance();
 }
 
 bool CWallet::IsSparkAddressMine(const std::string& address) {
