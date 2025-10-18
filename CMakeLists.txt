@@ -702,9 +702,18 @@ configure_file(cmake/script/CoverageInclude.cmake.in CoverageInclude.cmake USE_S
 # Don't allow extended (non-ASCII) symbols in identifiers. This is easier for code review.
 try_append_cxx_flags("-fno-extended-identifiers" TARGET core_interface SKIP_LINK)
 
-try_append_cxx_flags("-ffile-prefix-map=A=B" TARGET core_interface SKIP_LINK
-  IF_CHECK_PASSED "-ffile-prefix-map=${PROJECT_SOURCE_DIR}/src=."
-)
+# Only apply for GCC/Clang-like compilers
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  # Normalize to forward slashes (helps on mingw/Windows)
+  file(TO_CMAKE_PATH "${CMAKE_BINARY_DIR}" _bin_path)
+  file(TO_CMAKE_PATH "${CMAKE_SOURCE_DIR}" _src_path)
+
+  # Map build-tree -> source-tree in debug info for Debug builds
+  # Use generator-expression so it only affects Debug config
+  add_compile_options(
+    "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-fdebug-prefix-map=${_bin_path}=${_src_path}>"
+  )
+endif()
 
 # Currently all versions of gcc are subject to a class of bugs, see the
 # gccbug_90348 test case (only reproduces on GCC 11 and earlier) and
@@ -843,8 +852,6 @@ if(BUILD_TESTS)
     set(abs_top_srcdir ${PROJECT_SOURCE_DIR})
     set(abs_top_builddir ${PROJECT_BINARY_DIR})
     set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
-    message(WARNING "CMAKE_EXECUTABLE_SUFFIX : ${CMAKE_EXECUTABLE_SUFFIX}")
-    message(WARNING "WITH_ZMQ : ${WITH_ZMQ}")
 
     macro(set_configure_variable var conf_var)
       if(${var})
