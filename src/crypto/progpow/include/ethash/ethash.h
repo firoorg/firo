@@ -124,6 +124,12 @@ const struct ethash_epoch_context* ethash_get_global_epoch_context(int epoch_num
 const struct ethash_epoch_context_full* ethash_get_global_epoch_context_full(
     int epoch_number) NOEXCEPT;
 
+/**
+ * Clamp memory usage to the given limit. Set epoch number to terminal_epoch after epoch number
+ * exceeds max_epoch.
+ */
+void ethash_clamp_memory_usage(int max_epoch, int terminal_epoch) NOEXCEPT;
+
 
 struct ethash_result ethash_hash(const struct ethash_epoch_context* context,
     const union ethash_hash256* header_hash, uint64_t nonce) NOEXCEPT;

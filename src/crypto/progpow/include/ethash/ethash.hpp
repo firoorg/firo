@@ -32,6 +32,10 @@ static constexpr int light_cache_item_size = ETHASH_LIGHT_CACHE_ITEM_SIZE;
 static constexpr int full_dataset_item_size = ETHASH_FULL_DATASET_ITEM_SIZE;
 static constexpr int num_dataset_accesses = ETHASH_NUM_DATASET_ACCESSES;
 
+// Maximum epoch number after which the memory usage is reduced
+extern int max_epoch;
+extern int terminal_epoch;
+
 using epoch_context = ethash_epoch_context;
 using epoch_context_full = ethash_epoch_context_full;
 
@@ -72,11 +76,18 @@ static constexpr auto calculate_full_dataset_num_items = ethash_calculate_full_d
 /// Alias for ethash_calculate_epoch_seed().
 static constexpr auto calculate_epoch_seed = ethash_calculate_epoch_seed;
 
+inline void ethash_clamp_memory_usage(int _max_epoch, int _terminal_epoch) noexcept {
+    max_epoch = _max_epoch;
+    terminal_epoch = _terminal_epoch;
+}
 
 /// Calculates the epoch number out of the block number.
-inline constexpr int get_epoch_number(int block_number) noexcept
+inline int get_epoch_number(int block_number) noexcept
 {
-    return block_number / epoch_length;
+    int epoch = block_number / epoch_length;
+    if (epoch > max_epoch)
+        epoch = terminal_epoch;
+    return epoch;
 }
 
 /**

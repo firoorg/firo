@@ -3883,9 +3883,12 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 6) {
         throw std::runtime_error(
-                "registersparkname \"name\" \"sparkaddress\" years [\"additionalData\"]\n");
+                "registersparkname \"name\" \"sparkaddress\" years [\"additionalData\"]\n"
+                "  Or if you want to transfer a spark name:\n"
+                "registersparkname \"name\" \"sparkaddress\" years \"oldsparkaddress\" \"transferproof\" [\"additionalData\"]\n"
+                "  \"transferproof\" can be acquired via \"transfersparkname\" call\n");
     }
 
     EnsureWalletIsUnlocked(pwallet);
@@ -3897,15 +3900,20 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         chainHeight = chainActive.Height();
     }
 
+    const auto &consensusParams = Params().GetConsensus();
+
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!spark::IsSparkAllowed() || chainHeight < Params().GetConsensus().nSparkNamesStartBlock) {
+    if (!spark::IsSparkAllowed() || chainHeight < consensusParams.nSparkNamesStartBlock) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark names are not activated yet");
     }
 
-    const auto &consensusParams = Params().GetConsensus();
+    bool fTransfer = request.params.size() > 4;
+    if (fTransfer && chainHeight < consensusParams.nSparkNamesV2StartBlock) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark name transfers are not activated yet");
+    }
 
-    if (request.params.size() < 3 || request.params.size() > 4)
+    if (!fTransfer && request.params.size() > 4)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
 
     std::string sparkName = request.params[0].get_str();
@@ -3916,17 +3924,29 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     if (numberOfYears < 1 || numberOfYears > 10)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
 
-    if (request.params.size() >= 4)
-        additionalData = request.params[3].get_str();
+    int additionalDataIndex = fTransfer ? 5 : 3;
+    if (request.params.size() > additionalDataIndex)
+        additionalData = request.params[additionalDataIndex].get_str();
 
     if (sparkName.empty() || sparkName.size() > 20)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spark name");
 
     CSparkNameTxData    sparkNameData;
+    sparkNameData.nVersion = chainHeight >= consensusParams.nSparkNamesV2StartBlock ? CSparkNameTxData::CURRENT_VERSION : 1;
+    sparkNameData.operationType = fTransfer ? CSparkNameTxData::opTransfer : CSparkNameTxData::opRegister;
     sparkNameData.name = sparkName;
     sparkNameData.sparkAddress = sparkAddress;
     sparkNameData.additionalInfo = additionalData;
     sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
+
+    if (fTransfer) {
+        sparkNameData.oldSparkAddress = request.params[3].get_str();
+        std::string transferProofHex = request.params[4].get_str();
+        // sanity check
+        if (transferProofHex.size() > 2048)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid transfer proof");
+        sparkNameData.transferOwnershipProof = ParseHex(request.params[4].get_str());
+    }
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     std::string errorDescription;
@@ -3961,6 +3981,117 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     }
 
     return wtx.GetHash().GetHex();
+}
+
+UniValue requestsparknametransfer(const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() < 4 || request.params.size() > 5) {
+        throw std::runtime_error(
+            "requestsparknametransfer \"name\" \"sparkaddress\" \"oldsparkaddress\" years [\"additionalData\"]\n"
+        );
+    }
+
+    if (request.params.size() < 4 || request.params.size() > 5)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
+
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+    const auto &consensusParams = Params().GetConsensus();
+    if (chainHeight < consensusParams.nSparkNamesV2StartBlock) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark name transfers are not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    std::string sparkAddress = request.params[1].get_str();
+    std::string oldSparkAddress = request.params[2].get_str();
+    std::string additionalData;
+
+    int numberOfYears = request.params[3].get_int();
+    if (numberOfYears < 1 || numberOfYears > 10)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
+
+    if (request.params.size() >= 5)
+        additionalData = request.params[4].get_str();
+
+    if (sparkName.empty() || sparkName.size() > 20)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spark name");
+
+    CSparkNameTxData    sparkNameData;
+    sparkNameData.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    sparkNameData.name = sparkName;
+    sparkNameData.sparkAddress = sparkAddress;
+    sparkNameData.oldSparkAddress = oldSparkAddress;
+    sparkNameData.additionalInfo = additionalData;
+    sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
+    sparkNameData.operationType = CSparkNameTxData::opTransfer;
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << sparkNameData;
+
+    CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+    hashStream << "SparkNameTransferProof";
+    hashStream << sparkNameData.oldSparkAddress << sparkNameData.sparkAddress;
+    hashStream << ss.GetHash();
+
+    return hashStream.GetHash().ToString();
+}
+
+UniValue transfersparkname(const JSONRPCRequest &request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 2) {
+        throw std::runtime_error(
+            "transfersparkname \"oldSparkAddress\" \"requestHash\"\n"
+        );
+    }
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Unable to generate spend key."));
+    }
+
+    if (spendKey == spark::SpendKey(params))
+        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
+
+    std::string oldSparkAddress = request.params[0].get_str();
+    std::string requestHash = request.params[1].get_str();
+
+    spark::Address  address(spark::Params::get_default());
+    try {
+        address.decode(oldSparkAddress);
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Invalid spark address"));
+    }
+
+    if (!pwallet->sparkWallet->isAddressMine(address))
+        throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
+    
+    spark::Scalar m;
+    try {
+        m.SetHex(requestHash);
+    }
+    catch (const std::exception &) {
+        throw std::runtime_error("Failed to set hex for scalar, try again");
+    }
+
+    spark::OwnershipProof ownProof;
+    address.prove_own(m, spendKey, spark::FullViewKey(spendKey), ownProof);
+
+    CDataStream ownStream(SER_NETWORK, PROTOCOL_VERSION);
+    ownStream << ownProof;
+    
+    return HexStr(ownStream.begin(), ownStream.end());
 }
 
 UniValue lelantustospark(const JSONRPCRequest& request) {
@@ -5295,6 +5426,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false, {} },
     { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false, {} },
     { "wallet",             "registersparkname",      &registersparkname,      false, {} },
+    { "wallet",             "requestsparknametransfer", &requestsparknametransfer, false,  {} },
+    { "wallet",             "transfersparkname",        &transfersparkname,        false,  {} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },
