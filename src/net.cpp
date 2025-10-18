@@ -1358,27 +1358,34 @@ void CConnman::ThreadSocketHandler()
         // Disconnect nodes
         //
         {
-            LOCK(cs_vNodes);
             // Disconnect unused nodes
-            std::vector<CNode*> vNodesCopy = vNodes;
-            BOOST_FOREACH(CNode* pnode, vNodesCopy)
+            LOCK(cs_vNodes);
+
+            // Only copy nodes which are actually disconnected so as to minimise lock time.
+            std::vector<CNode*> vDisconnectedNodes;
+            BOOST_FOREACH(CNode* pnode, vNodes)
             {
                 if (pnode->fDisconnect)
                 {
-                    // remove from vNodes
-                    vNodes.erase(remove(vNodes.begin(), vNodes.end(), pnode), vNodes.end());
-
-                    // release outbound grant (if any)
-                    pnode->grantOutbound.Release();
-                    pnode->grantMasternodeOutbound.Release();
-
-                    // close socket and cleanup
-                    pnode->CloseSocketDisconnect();
-
-                    // hold in disconnected pool until all refs are released
-                    pnode->Release();
-                    vNodesDisconnected.push_back(pnode);
+                    vDisconnectedNodes.push_back(pnode);
                 }
+            }
+
+            BOOST_FOREACH(CNode* pnode, vDisconnectedNodes)
+            {
+                // remove from vNodes
+                vNodes.erase(remove(vNodes.begin(), vNodes.end(), pnode), vNodes.end());
+
+                // release outbound grant (if any)
+                pnode->grantOutbound.Release();
+                pnode->grantMasternodeOutbound.Release();
+
+                // close socket and cleanup
+                pnode->CloseSocketDisconnect();
+
+                // hold in disconnected pool until all refs are released
+                pnode->Release();
+                vNodesDisconnected.push_back(pnode);
             }
         }
         {
@@ -2326,48 +2333,19 @@ void CConnman::ThreadMessageHandler()
 {
     while (!flagInterruptMsgProc)
     {
-        std::vector<CNode*> vNodesCopy;
-        {
-            LOCK(cs_vNodes);
-            vNodesCopy = vNodes;
-            BOOST_FOREACH(CNode* pnode, vNodesCopy) {
-                pnode->AddRef();
-            }
-        }
-
-        bool fMoreWork = false;
-
-        BOOST_FOREACH(CNode* pnode, vNodesCopy)
-        {
+        ForEachNode([&](CNode* pnode) {
             if (pnode->fDisconnect)
-                continue;
-
-            // Receive messages
-            bool fMoreNodeWork = GetNodeSignals().ProcessMessages(pnode, *this, flagInterruptMsgProc);
-            fMoreWork |= (fMoreNodeWork && !pnode->fPauseSend);
-            if (flagInterruptMsgProc)
                 return;
 
-            // Send messages
-            {
+            // Receive messages
+            while (GetNodeSignals().ProcessMessages(pnode, *this, flagInterruptMsgProc) && !pnode->fPauseSend && !flagInterruptMsgProc) {
                 LOCK(pnode->cs_sendProcessing);
                 GetNodeSignals().SendMessages(pnode, *this, flagInterruptMsgProc);
             }
-            if (flagInterruptMsgProc)
-                return;
-        }
+        });
 
-        {
-            LOCK(cs_vNodes);
-            BOOST_FOREACH(CNode* pnode, vNodesCopy)
-                pnode->Release();
-        }
-
-        std::unique_lock<std::mutex> lock(mutexMsgProc);
-        if (!fMoreWork) {
-            condMsgProc.wait_until(lock, std::chrono::steady_clock::now() + std::chrono::milliseconds(100), [this] { return fMsgProcWake; });
-        }
-        fMsgProcWake = false;
+        if (!interruptNet.sleep_for(std::chrono::milliseconds(100)))
+            return;
     }
 }
 
