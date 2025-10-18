@@ -76,7 +76,8 @@ UniValue getpeerinfo(const JSONRPCRequest& request)
             "  {\n"
             "    \"id\": n,                   (numeric) Peer index\n"
             "    \"addr\":\"host:port\",      (string) The ip address and port of the peer\n"
-            "    \"addrlocal\":\"ip:port\",   (string) local address\n"
+            "    \"addrbind\":\"ip:port\",    (string) Bind address of the connection to the peer\n"
+            "    \"addrlocal\":\"ip:port\",   (string) Local address as reported by the peer\n"
             "    \"services\":\"xxxxxxxxxxxxxxxx\",   (string) The services offered\n"
             "    \"verified_proregtx_hash\": h, (hex) Only present when the peer is a znode and succesfully\n"
             "                               autheticated via MNAUTH. In this case, this field contains the\n"
@@ -138,6 +139,8 @@ UniValue getpeerinfo(const JSONRPCRequest& request)
         obj.push_back(Pair("addr", stats.addrName));
         if (!(stats.addrLocal.empty()))
             obj.push_back(Pair("addrlocal", stats.addrLocal));
+        if (stats.addrBind.IsValid())
+            obj.push_back(Pair("addrbind", stats.addrBind.ToString()));
         obj.push_back(Pair("services", strprintf("%016x", stats.nServices)));
         if (!stats.verifiedProRegTxHash.IsNull()) {
             obj.push_back(Pair("verified_proregtx_hash", stats.verifiedProRegTxHash.ToString()));

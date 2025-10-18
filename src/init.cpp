@@ -120,23 +120,21 @@ static CDSNotificationInterface* pdsNotificationInterface = NULL;
 #define MIN_CORE_FILEDESCRIPTORS 150
 #endif
 
-/** Used to pass flags to the Bind() function */
 enum BindFlags {
-    BF_NONE = 0,
-    BF_EXPLICIT = (1U << 0),
+    BF_NONE         = 0,
+    BF_EXPLICIT     = (1U << 0),
     BF_REPORT_ERROR = (1U << 1),
-    BF_WHITELIST = (1U << 2),
+    BF_WHITELIST    = (1U << 2),
 };
 
-static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
-
+static const char* FEE_ESTIMATES_FILENAME="fee_estimates.dat";
 extern CTxPoolAggregate txpools;
 
 namespace fs = boost::filesystem;
 
 extern "C" {
-    int tor_main(int argc, char *argv[]);
-    void tor_cleanup(void);
+int tor_main(int argc, char *argv[]);
+void tor_cleanup(void);
 }
 
 
@@ -145,7 +143,6 @@ static char *convert_str(const std::string &s) {
     std::strcpy(pc, s.c_str());
     return pc;
 }
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
@@ -365,17 +362,6 @@ static BOOL WINAPI consoleCtrlHandler(DWORD dwCtrlType)
 }
 #endif
 
-bool static Bind(CConnman& connman, const CService &addr, unsigned int flags) {
-    if (!(flags & BF_EXPLICIT) && IsLimited(addr))
-        return false;
-    std::string strError;
-    if (!connman.BindListenPort(addr, strError, (flags & BF_WHITELIST) != 0)) {
-        if (flags & BF_REPORT_ERROR)
-            return InitError(strError);
-        return false;
-    }
-    return true;
-}
 void OnRPCStarted()
 {
     uiInterface.NotifyBlockTip.connect(&RPCNotifyBlockChange);
@@ -592,13 +578,23 @@ std::string HelpMessage(HelpMessageMode mode)
     return strUsage;
 }
 
+/**
+ * @brief Return the application's license and attribution text.
+ *
+ * Produces a formatted multi-line string containing the copyright notice,
+ * contribution request and website/source URLs, license statement, and
+ * third-party attributions included with the distribution.
+ *
+ * @return std::string The full license and attribution text suitable for
+ * display to users or inclusion in help/version output.
+ */
 std::string LicenseInfo()
 {
     const std::string URL_SOURCE_CODE = "<https://github.com/firoorg/firo>";
     const std::string URL_WEBSITE = "<https://firo.org/>";
 
     std::string copyright = CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2016, COPYRIGHT_YEAR) + " ");
-    
+
     const std::string bitcoinStr = strprintf("%i-%i The Bitcoin Core", 2016, COPYRIGHT_YEAR);
     if (copyright.find(bitcoinStr) != std::string::npos) {
         copyright.replace(copyright.find(bitcoinStr), sizeof("2016") - 1, "2009");
@@ -977,9 +973,9 @@ void RunTor(){
 		clientTransportPlugin = "obfs4 exec obfs4proxy.exe";
 	}
 
-	fs::path tor_dir = GetDataDir() / "tor";
-	fs::create_directory(tor_dir);
-	fs::path log_file = tor_dir / "tor.log";
+    boost::filesystem::path tor_dir = GetDataDir() / "tor";
+    boost::filesystem::create_directory(tor_dir);
+    boost::filesystem::path log_file = tor_dir / "tor.log";
 
 	std::vector < std::string > argv;
 	argv.push_back("tor");
@@ -1169,6 +1165,10 @@ bool AppInitParameterInteraction()
                 (mapMultiArgs.count("-whitebind") ? mapMultiArgs.at("-whitebind").size() : 0), size_t(1));
     nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
     nMaxConnections = std::max(nUserMaxConnections, 0);
+
+    if (nBind != 0 && !GetBoolArg("-listen", DEFAULT_LISTEN)) {
+        return InitError("Cannot set -bind or -whitebind together with -listen=0");
+    }
 
     // Trim requested connection counts, to fit into system limitations
     nMaxConnections = std::max(std::min(nMaxConnections, (int)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS - MAX_ADDNODE_CONNECTIONS)), 0);
@@ -1428,6 +1428,18 @@ bool AppInitSanityChecks()
     return LockDataDirectory(true);
 }
 
+/**
+ * @brief Perform the main application initialization and bring the node to a running state.
+ *
+ * Performs startup checks and initialization of subsystems (datadir lock, logging, signature cache,
+ * script verification threads, RPC/HTTP servers, wallet, networking, Tor/proxy settings, chainstate
+ * and block index loading/reindex handling, LLMQ/masternode setup, block import, and connection
+ * manager), and schedules/starts background threads required for normal node operation.
+ *
+ * @param threadGroup Thread group used to create and manage background threads during initialization.
+ * @param scheduler Scheduler used to register periodic tasks and to drive subsystem work queues.
+ * @return bool `true` if initialization completed successfully and the node should continue running; `false` on initialization failure or when shutdown was requested. 
+ */
 bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 {
     const CChainParams& chainparams = Params();
@@ -1549,24 +1561,24 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
     if(torEnabled){
     	StartTorEnabled(threadGroup, scheduler);
-        SetLimited(NET_TOR);
+        SetLimited(NET_ONION);
         SetLimited(NET_IPV4);
         SetLimited(NET_IPV6);
         proxyType addrProxy = proxyType(LookupNumeric("127.0.0.1", 9050),
                         true);
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_TOR, addrProxy);
+        SetProxy(NET_ONION, addrProxy);
         SetLimited(NET_IPV4, false);
         SetLimited(NET_IPV6, false);
-        SetLimited(NET_TOR, false);
+        SetLimited(NET_ONION, false);
     }
 
     bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
-    SetLimited(NET_TOR);
+    SetLimited(NET_ONION);
     if (proxyArg != "" && proxyArg != "0") {
         CService resolved(LookupNumeric(proxyArg.c_str(), 9050));
         proxyType addrProxy = proxyType(resolved, proxyRandomize);
@@ -1575,9 +1587,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_TOR, addrProxy);
+        SetProxy(NET_ONION, addrProxy);
         SetNameProxy(addrProxy);
-        SetLimited(NET_TOR, false); // by default, -proxy sets onion as reachable, unless -noonion later
+        SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
     }
 
     // -onion can be used to set only a proxy for .onion, or override normal proxy for .onion addresses
@@ -1586,14 +1598,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string onionArg = GetArg("-onion", "");
     if (onionArg != "") {
         if (onionArg == "0") { // Handle -noonion/-onion=0
-            SetLimited(NET_TOR); // set onions as unreachable
+            SetLimited(NET_ONION); // set onions as unreachable
         } else {
             CService resolved(LookupNumeric(onionArg.c_str(), 9050));
             proxyType addrOnion = proxyType(resolved, proxyRandomize);
             if (!addrOnion.IsValid())
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
-            SetProxy(NET_TOR, addrOnion);
-            SetLimited(NET_TOR, false);
+            SetProxy(NET_ONION, addrOnion);
+            SetLimited(NET_ONION, false);
         }
     }
 
@@ -1604,33 +1616,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     fRelayTxes = !GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY);
 
     if (fListen) {
-        bool fBound = false;
-        if (mapMultiArgs.count("-bind")) {
-            BOOST_FOREACH(const std::string& strBind, mapMultiArgs.at("-bind")) {
-                CService addrBind;
-                if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
-                    return InitError(ResolveErrMsg("bind", strBind));
-                fBound |= Bind(connman, addrBind, (BF_EXPLICIT | BF_REPORT_ERROR));
-            }
-        }
-        if (mapMultiArgs.count("-whitebind")) {
-            BOOST_FOREACH(const std::string& strBind, mapMultiArgs.at("-whitebind")) {
-                CService addrBind;
-                if (!Lookup(strBind.c_str(), addrBind, 0, false))
-                    return InitError(ResolveErrMsg("whitebind", strBind));
-                if (addrBind.GetPort() == 0)
-                    return InitError(strprintf(_("Need to specify a port with -whitebind: '%s'"), strBind));
-                fBound |= Bind(connman, addrBind, (BF_EXPLICIT | BF_REPORT_ERROR | BF_WHITELIST));
-            }
-        }
-        if (!mapMultiArgs.count("-bind") && !mapMultiArgs.count("-whitebind")) {
-            struct in_addr inaddr_any;
-            inaddr_any.s_addr = INADDR_ANY;
-            fBound |= Bind(connman, CService((in6_addr)IN6ADDR_ANY_INIT, GetListenPort()), BF_NONE);
-            fBound |= Bind(connman, CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE);
-        }
-        if (!fBound)
-            return InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
+        // The bind is done in the CConnman constructor. Just leaving this here for reference.
     }
 
     if (mapMultiArgs.count("-externalip")) {
@@ -2070,7 +2056,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Map ports with UPnP
     MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
 
-    std::string strNodeError;
     CConnman::Options connOptions;
     connOptions.nLocalServices = nLocalServices;
     connOptions.nRelevantServices = nRelevantServices;
@@ -2085,9 +2070,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
     connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
-
-    if (!connman.Start(scheduler, strNodeError, connOptions))
-        return InitError(strNodeError);
+    if (!connman.Start(scheduler, connOptions))
+        return false;
 
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
