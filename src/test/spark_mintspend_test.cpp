@@ -129,4 +129,92 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
     mempool.clear();
     sparkState->Reset();
 }
+
+BOOST_AUTO_TEST_CASE(spark_limit_test)
+{
+    GenerateBlocks(1000);
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+
+
+    pwalletMain->SetBroadcastTransactions(true);
+    // logic
+    std::vector<CMutableTransaction> txs;
+    auto mints = GenerateMints({500*COIN, 500*COIN, 
+        1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN,
+        1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN}, txs);
+
+    int nHeight = chainActive.Height();
+    GenerateBlock(txs);
+    BOOST_CHECK_EQUAL(chainActive.Tip()->nHeight, nHeight + 1);
+
+    // try spending 700 + 700 (under limit)
+    auto spend1 = GenerateSparkSpend({700 * COIN}, {}, nullptr);
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "First SparkSpend not added to mempool");
+
+    auto spend2 = GenerateSparkSpend({700 * COIN}, {}, nullptr);
+    BOOST_CHECK_MESSAGE(mempool.size() == 2, "Second SparkSpend not added to mempool");
+
+    int prevHeight = chainActive.Height();
+    CBlock block = CreateBlock({CMutableTransaction(spend1), CMutableTransaction(spend2)}, script);
+    const CChainParams& chainparams = Params();
+    BOOST_CHECK_MESSAGE(ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block), true, NULL), "Block with two spends failed to process");
+    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight + 1);
+
+    // try spending 800 + 800 (over limit)
+    auto spend3 = GenerateSparkSpend({800 * COIN}, {}, nullptr);
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "First 800 FIRO SparkSpend not added to mempool");
+
+    auto spend4 = GenerateSparkSpend({800 * COIN}, {}, nullptr);
+    BOOST_CHECK_MESSAGE(mempool.size() == 2, "Second 800 FIRO SparkSpend not added to mempool");
+
+    prevHeight = chainActive.Height();
+    CBlock block2 = CreateBlock({CMutableTransaction(spend3), CMutableTransaction(spend4)}, script);
+    BOOST_CHECK_MESSAGE(!ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block2), true, NULL), "Block with two 800 FIRO spends should not be processed");
+    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight);
+    mempool.clear();
+
+    auto spend5 = GenerateSparkSpend({1100 * COIN}, {}, nullptr);
+    // Check that the spend of 1100 FIRO has not made it into the mempool
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "1100 FIRO SparkSpend should not be added to mempool");
+
+    // Try to process a block with the 1100 FIRO spend and ensure it is rejected
+    prevHeight = chainActive.Height();
+    CBlock block3 = CreateBlock({CMutableTransaction(spend5)}, script);
+    BOOST_CHECK_MESSAGE(!ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block3), true, NULL), "Block with 1100 FIRO SparkSpend should not be processed");
+    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight);
+
+    // advance to block 1500 so new limits are applied
+    GenerateBlocks(1500 - chainActive.Height());
+    // After block 1500, limits should be updated, so try spending 800 + 800 again
+    int postLimitHeight = chainActive.Height();
+    CBlock block4 = CreateBlock({spend3, spend4}, script);
+    BOOST_CHECK_MESSAGE(ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block4), true, NULL), "Block with two 800 FIRO spends after limit update failed to process");
+    BOOST_CHECK_EQUAL(chainActive.Height(), postLimitHeight + 1);
+
+    // single spend of 1100 FIRO should now be allowed
+    prevHeight = chainActive.Height();
+    CBlock block5 = CreateBlock({CMutableTransaction(spend5)}, script);
+    BOOST_CHECK_MESSAGE(ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block5), true, NULL), "Block with 1100 FIRO SparkSpend after limit update failed to process");
+    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight + 1);
+
+    auto spend6 = GenerateSparkSpend({3100 * COIN}, {}, nullptr);
+    // Check that the spend of 3100 FIRO has not made it into the mempool
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "3100 FIRO SparkSpend should not be added to mempool");
+
+    auto spend7 = GenerateSparkSpend({2500 * COIN}, {}, nullptr);
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "First 2500 FIRO SparkSpend not added to mempool");
+
+    auto spend8 = GenerateSparkSpend({2500 * COIN}, {}, nullptr);
+    BOOST_CHECK_MESSAGE(mempool.size() == 2, "Second 2500 FIRO SparkSpend not added to mempool");
+
+    prevHeight = chainActive.Height();
+    CBlock block6 = CreateBlock({CMutableTransaction(spend7), CMutableTransaction(spend8)}, script);
+    BOOST_CHECK_MESSAGE(!ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block6), true, NULL), "Block with two 2500 FIRO spends should not be processed");
+    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight);
+
+    mempool.clear();
+    sparkState->Reset();    
+}
+
+
     BOOST_AUTO_TEST_SUITE_END()

@@ -124,6 +124,16 @@ bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::Spen
     return true;
 }
 
+bool CSparkNameManager::CheckPaymentToTransparentAddress(const CTransaction &tx, const std::string &address, CAmount amount) const
+{
+    for (const CTxOut &txout : tx.vout)
+    {
+        if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(address).Get()) && txout.nValue >= amount)
+            return true;
+    }
+    return false;
+}
+
 bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData)
 {
     const Consensus::Params &consensusParams = Params().GetConsensus();
@@ -155,6 +165,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (sparkNameData.nVersion > CSparkNameTxData::CURRENT_VERSION)
         return state.DoS(100, error("CheckSparkNameTx: invalid version"));
 
+    if (sparkNameData.nVersion >= 2 && nHeight < consensusParams.nSparkNamesV2StartBlock)
+        return state.DoS(100, error("CheckSparkNameTx: spark name tx v2 is not allowed yet"));
+
     if (outSparkNameData)
         *outSparkNameData = sparkNameData;
 
@@ -168,13 +181,14 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
 
     CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
-    CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
+
     bool payoutFound = false;
-    for (const CTxOut &txout: tx.vout)
-        if (txout.scriptPubKey == devPayoutScript && txout.nValue >= nameFee) {
-            payoutFound = true;
-            break;
-        }
+    // Up until stage 4.1, the fee is paid to the development fund address. Afterwards, it is paid to the community fund address.
+    // Graceful period allows to register spark names with the old address for the payment
+    if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
+        payoutFound = CheckPaymentToTransparentAddress(tx, consensusParams.stage3DevelopmentFundAddress, nameFee);
+    if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
+        payoutFound = payoutFound || CheckPaymentToTransparentAddress(tx, consensusParams.stage3CommunityFundAddress, nameFee);
 
     if (!payoutFound)
         return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
@@ -183,8 +197,12 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         return state.DoS(100, error("CheckSparkNameTx: additional info is too long"));
 
     bool fUpdateExistingRecord = false;
+    bool fSparkNameTransfer = sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer;
+
     if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
-        if (sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+        // it's possible to change any metadata of the existing name but if the spark address is being
+        // tranferred, new name shouldn't be already registered
+        if (!fSparkNameTransfer && sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
             return state.DoS(100, error("CheckSparkNameTx: name already exists"));
 
         fUpdateExistingRecord = true;
@@ -192,7 +210,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     {
         LOCK(cs_spark_name);
-        if (!fUpdateExistingRecord && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
+        if ((fSparkNameTransfer || !fUpdateExistingRecord) && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
             return state.DoS(100, error("CheckSparkNameTx: spark address is already used for another name"));
     }
 
@@ -238,6 +256,53 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (!sparkAddress.verify_own(m, ownershipProof))
         return state.DoS(100, error("CheckSparkNameTx: ownership proof is invalid"));
 
+    // check the transfer ownership proof (if present)
+    if (fSparkNameTransfer) {
+        spark::Address oldSparkAddress(spark::Params::get_default());
+        try {
+            oldSparkAddress.decode(sparkNameData.oldSparkAddress);
+        }
+        catch (const std::exception &) {
+            return state.DoS(100, error("CheckSparkNameTx: cannot decode old spark address"));
+        }
+
+        // check if the old spark address is the one currently associated with the spark name
+        if (sparkNameAddresses.count(sparkNameData.oldSparkAddress) == 0 ||
+            sparkNameAddresses[sparkNameData.oldSparkAddress] != ToUpper(sparkNameData.name))
+            return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+
+        spark::OwnershipProof transferOwnershipProof;
+        try {
+            CDataStream transferOwnershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+            transferOwnershipProofStream.write((const char *)sparkNameData.transferOwnershipProof.data(), sparkNameData.transferOwnershipProof.size());
+            transferOwnershipProofStream >> transferOwnershipProof;
+        }
+        catch (const std::exception &) {
+            return state.DoS(100, error("CheckSparkNameTx: failed to deserialize transfer ownership proof"));
+        }
+
+        CHashWriter sparkNameDataStream(SER_GETHASH, PROTOCOL_VERSION);
+        sparkNameDataCopy.addressOwnershipProof.clear();
+        sparkNameDataCopy.transferOwnershipProof.clear();
+        sparkNameDataStream << sparkNameDataCopy;
+
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+        hashStream << "SparkNameTransferProof";
+        hashStream << sparkNameData.oldSparkAddress << sparkNameData.sparkAddress;
+        hashStream << sparkNameDataStream.GetHash();
+
+        spark::Scalar mTransfer;
+        try {
+            mTransfer.SetHex(hashStream.GetHash().ToString());
+        }
+        catch (const std::exception &) {
+            return state.DoS(100, error("CheckSparkNameTx: hash is out of range"));
+        }
+
+        if (!oldSparkAddress.verify_own(mTransfer, transferOwnershipProof))
+            return state.DoS(100, error("CheckSparkNameTx: transfer ownership proof is invalid"));
+    }
+
     return true;
 }
 
@@ -266,12 +331,20 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
         errorDescription = "transaction can't be valid for more than 10 years";
 
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
-                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
+                (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
         errorDescription = "name already exists with another spark address as a destination";
 
     else if (sparkNameAddresses.count(sparkNameData.sparkAddress) > 0 &&
                 sparkNameAddresses[sparkNameData.sparkAddress] != ToUpper(sparkNameData.name))
         errorDescription = "spark address is already used for another name";
+
+    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
+                sparkNameData.oldSparkAddress.empty())
+        errorDescription = "old spark address is required for transfer operation";
+
+    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
+        errorDescription = "unregister operation is not supported yet";
 
     else {
         LOCK(mempool.cs);
@@ -291,6 +364,8 @@ size_t CSparkNameManager::GetSparkNameTxDataSize(const CSparkNameTxData &sparkNa
     ownershipProofStream << ownershipProof;
 
     sparkNameDataCopy.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
+    if (sparkNameDataCopy.operationType == (uint8_t)CSparkNameTxData::opTransfer)
+        sparkNameDataCopy.transferOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
 
     CDataStream sparkNameDataStream(SER_NETWORK, PROTOCOL_VERSION);
     sparkNameDataStream << sparkNameDataCopy;

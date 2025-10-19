@@ -1349,7 +1349,17 @@ WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFe
     const auto &consensusParams = Params().GetConsensus();
     SendCoinsRecipient recipient;
 
-    recipient.address = QString::fromStdString(consensusParams.stage3DevelopmentFundAddress);
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+
+    std::string destAddress = nHeight >= consensusParams.stage41StartBlockDevFundAddressChange
+        ? consensusParams.stage3CommunityFundAddress
+        : consensusParams.stage3DevelopmentFundAddress;
+        
+    recipient.address = QString::fromStdString(destAddress);
     recipient.amount = sparkNameFee;
     recipient.fSubtractFeeFromAmount = false;
 

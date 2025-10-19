@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <climits>
 
 namespace ethash
 {
@@ -32,6 +33,9 @@ static_assert(sizeof(hash1024) == ETHASH_FULL_DATASET_ITEM_SIZE, "");
 static_assert(light_cache_item_size == ETHASH_LIGHT_CACHE_ITEM_SIZE, "");
 static_assert(full_dataset_item_size == ETHASH_FULL_DATASET_ITEM_SIZE, "");
 
+// Maximum epoch number after which the memory usage is reduced
+int max_epoch = INT_MAX;
+int terminal_epoch = INT_MAX;
 
 namespace
 {

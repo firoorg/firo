@@ -451,10 +451,10 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
+        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return false;
 
-        if (spendAmount + nSparkSpendAmount > params.nMaxValueSparkSpendPerBlock)
+        if (spendAmount + nSparkSpendAmount > params.GetMaxValueSparkSpendPerBlock(nHeight))
             return false;
     }
 
@@ -484,10 +484,10 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
+        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return;
 
-        if ((nSparkSpendAmount += spendAmount) > params.nMaxValueSparkSpendPerBlock)
+        if ((nSparkSpendAmount += spendAmount) > params.GetMaxValueSparkSpendPerBlock(nHeight))
             return;
     }
 
@@ -814,7 +814,7 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
             bool fStage3 = nHeight < params.nSubsidyHalvingSecond;
             bool fStage4 = nHeight >= params.stage4StartBlock;
             CAmount devPayoutValue = 0, communityPayoutValue = 0;
-            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3DevelopmentFundAddress).Get());
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.GetStage4DevelopmentFundAddress(nHeight)).Get());
             CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3CommunityFundAddress).Get());
 
             // There is no dev/community payout for testnet for some time

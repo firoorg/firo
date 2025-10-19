@@ -171,6 +171,18 @@ struct Params {
     /** percentage of block subsidy going to masternode */
     int stage4MasternodeShare;
 
+    // after this block number dev fund address changes. Also spark name fee goes into community fund. This is known as stage 4.1.
+    int stage41StartBlockDevFundAddressChange;
+    // new dev fund address
+    std::string stage41DevelopmentFundAddress;
+    // number of "grace period" blocks that allows spark names to be registered with old address
+    int stage41SparkNamesGracefulPeriod;
+
+    std::string GetStage4DevelopmentFundAddress(int nHeight) const {
+        return stage41StartBlockDevFundAddressChange > 0 && nHeight >= stage41StartBlockDevFundAddressChange ?
+                stage41DevelopmentFundAddress : stage3DevelopmentFundAddress;
+    }
+
     /**  tail emission (after stage 4) */
     int tailEmissionBlockSubsidy;
 
@@ -265,6 +277,7 @@ struct Params {
     int nSparkStartBlock;
 
     int nSparkNamesStartBlock;
+    int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
     std::array<int,21> nSparkNamesFee;
 
     int nLelantusGracefulPeriod;
@@ -340,9 +353,21 @@ struct Params {
 
     // Value of maximum spark spend per transaction
     int64_t nMaxValueSparkSpendPerTransaction;
-
     // Value of maximum spark spend per block.
     int64_t nMaxValueSparkSpendPerBlock;
+
+    // Two values above increase after this block number
+    int nSparkLimitV2StartBlock;
+    // ... by this factor
+    int nSparkLimitV2Factor;
+
+    // Functions to get the maximum spark spend per transaction and per block
+    int64_t GetMaxValueSparkSpendPerTransaction(int nHeight) const {
+        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerTransaction * nSparkLimitV2Factor : nMaxValueSparkSpendPerTransaction;
+    }
+    int64_t GetMaxValueSparkSpendPerBlock(int nHeight) const {
+        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerBlock * nSparkLimitV2Factor : nMaxValueSparkSpendPerBlock;
+    }
 
     unsigned nMaxSparkOutLimitPerTx;
 
@@ -365,6 +390,10 @@ struct Params {
     int nInitialPPDifficulty;
     /** block height at the moment of PP transition (0 if unknown) */
     int nPPBlockNumber;
+
+    /** Clamp memory usage of ProgPOW (if epoch > nMaxPPEpoch it's set to nTerminalPPEpoch) */
+    int nMaxPPEpoch;
+    int nTerminalPPEpoch;
 
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;

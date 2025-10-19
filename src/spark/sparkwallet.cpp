@@ -1307,8 +1307,14 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         }
     }
 
-    if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
-        throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+
+    if (vOut > consensusParams.GetMaxValueSparkSpendPerBlock(nHeight))
+        throw std::runtime_error(_("Spend to transparent address limit exceeded."));
 
     std::vector<CWalletTx> result;
     std::vector<CMutableTransaction> txs;
@@ -1638,9 +1644,19 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, CAmount sparkNameFee, CAmount &txFee, const CCoinControl *coinConrol) {
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
+    const auto &consensusParams = Params().GetConsensus();
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+    std::string payoutAddress = nHeight >= consensusParams.stage41StartBlockDevFundAddressChange
+        ? consensusParams.stage3CommunityFundAddress
+        : consensusParams.stage3DevelopmentFundAddress;
+
     CRecipient devPayout;
     devPayout.nAmount = sparkNameFee;
-    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
+    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(payoutAddress).Get());
     devPayout.fSubtractFeeFromAmount = false;
 
     CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, txFee, coinConrol,

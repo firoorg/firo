@@ -103,6 +103,8 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
         CSparkNameTxData sparkNameData;
+        sparkNameData.nVersion = chainActive.Height() >= consensusParams.nSparkNamesV2StartBlock ? CSparkNameTxData::CURRENT_VERSION : 1;
+        sparkNameData.operationType = (uint8_t)CSparkNameTxData::opRegister;
         sparkNameData.name = name;
         sparkNameData.sparkAddress = address;
         sparkNameData.additionalInfo = additionalInfo;

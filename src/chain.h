@@ -271,7 +271,7 @@ public:
 
     //! List of spark names that were created or extended in this block. Map of spark name to <address, expiration block height, additional info>
     std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
-    //! List of spark names that were removed in this block because of expiration
+    //! List of spark names that were removed in this block because of expiration, unregistration or transfer. Map of spark name to <address, expiration block height, additional info>
     std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
 
     void SetNull()

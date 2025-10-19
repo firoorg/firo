@@ -315,13 +315,54 @@ bool ConnectBlockSpark(
         }
 
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
-            FIRO_UNUSED CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
-                pindexNew->addedSparkNames[sparkName.first] =
-                        CSparkNameBlockIndexData(sparkName.second.name,
-                            sparkName.second.sparkAddress,
-                            pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
-                            sparkName.second.additionalInfo);
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+            try {
+                for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
+                    uint8_t opType = sparkName.second.nVersion >= 2 ?
+                                                    sparkName.second.operationType : CSparkNameTxData::opRegister;
+                    switch (opType) {
+                        case CSparkNameTxData::opRegister:
+                            pindexNew->addedSparkNames[sparkName.first] =
+                                CSparkNameBlockIndexData(sparkName.second.name,
+                                    sparkName.second.sparkAddress,
+                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    sparkName.second.additionalInfo);
+                            break;
+
+                        case CSparkNameTxData::opTransfer:
+                            // old name data goes to removed list
+                            pindexNew->removedSparkNames[sparkName.first] = 
+                                CSparkNameBlockIndexData(sparkName.second.name,
+                                    sparkName.second.oldSparkAddress,
+                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                    sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
+
+                            pindexNew->addedSparkNames[sparkName.first] =
+                                CSparkNameBlockIndexData(sparkName.second.name,
+                                    sparkName.second.sparkAddress,
+                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    sparkName.second.additionalInfo);
+
+                            break;
+
+                        case CSparkNameTxData::opUnregister:
+                            pindexNew->removedSparkNames[sparkName.first] =
+                                CSparkNameBlockIndexData(sparkName.second.name,
+                                    sparkName.second.sparkAddress,
+                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                    sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
+                            break;
+
+                        default:
+                            return state.DoS(100, error("ConnectBlockSpark: invalid spark name op type"));
+                    }
+                }
+            }
+            catch (const std::exception &) {
+                // fatal error, should never happen
+                LogPrintf("ConnectBlockSpark: fatal exception when adding spark names to index\n");
+                return state.DoS(100, error("ConnectBlockSpark: failed to index spark names"));
             }
 
             // names were added, backup rewritten names if necessary
@@ -342,7 +383,11 @@ bool ConnectBlockSpark(
     }
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    pindexNew->removedSparkNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
+
+    auto removedNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
+    for (const auto &name: removedNames)
+        pindexNew->removedSparkNames[name.first] = name.second;
+    
     sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
 
     return true;
@@ -406,14 +451,14 @@ bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
     for (const auto& tx : block.vtx) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
 
-        if (txSpendsValue > consensus.nMaxValueSparkSpendPerTransaction) {
+        if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(block.nHeight)) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-spend-invalid");
         }
         blockSpendsValue += txSpendsValue;
     }
 
-    if (cmp::greater(blockSpendsValue, consensus.nMaxValueSparkSpendPerBlock)) {
+    if (cmp::greater(blockSpendsValue, consensus.GetMaxValueSparkSpendPerBlock(block.nHeight))) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }
@@ -789,7 +834,13 @@ bool CheckSparkTransaction(
 
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
-        if (GetSpendTransparentAmount(tx) > consensus.nMaxValueSparkSpendPerTransaction) {
+        int nRealHeight = nHeight;
+        if (nRealHeight == INT_MAX)  // if height is not set, use chainActive height
+        {
+            LOCK(cs_main);
+            nRealHeight = chainActive.Height();
+        }
+        if (GetSpendTransparentAmount(tx) > consensus.GetMaxValueSparkSpendPerTransaction(nRealHeight)) {
             return state.DoS(100, false,
                              REJECT_INVALID,
                              "bad-txns-spend-invalid");
@@ -805,7 +856,7 @@ bool CheckSparkTransaction(
 
                 CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
                 CSparkNameTxData sparkTxData;
-                if (sparkNameManager->CheckSparkNameTx(tx, nHeight, state, &sparkTxData)) {
+                if (sparkNameManager->CheckSparkNameTx(tx, nRealHeight, state, &sparkTxData)) {
                     if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                         // Check if the block already contains conflicting spark name
                         if (CSparkNameManager::IsInConflict(sparkTxData, sparkTxInfo->sparkNames,
