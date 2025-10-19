@@ -69,7 +69,7 @@ jobs:
   build-linux-cmake:
     needs: get-commit-hash
     name: build-linux-cmake
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       ARTIFACT_DIR: linux-cmake-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
@@ -264,7 +264,7 @@ jobs:
   build-windows-cmake:
     needs: get-commit-hash
     name: build-windows-cmake
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       ARTIFACT_DIR: windows-cmake-binaries
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
