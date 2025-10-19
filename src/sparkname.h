@@ -116,6 +116,8 @@ private:
     std::map<std::string, CSparkNameBlockIndexData> sparkNames;
     std::map<std::string, std::string> sparkNameAddresses;
 
+    mutable CCriticalSection cs_spark_name;
+
 public:
     static const unsigned maximumSparkNameLength = 20;
 

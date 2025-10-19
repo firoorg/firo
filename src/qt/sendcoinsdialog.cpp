@@ -367,9 +367,8 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
-    size_t confirmed, unconfirmed;
     if (model->getWallet() &&
-        model->getWallet()->GetPrivateBalance(confirmed, unconfirmed).first > 0 &&
+        model->getWallet()->GetPrivateBalance().first > 0 &&
         spark::IsSparkAllowed() &&
         chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
@@ -748,7 +747,7 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = (spark::IsSparkAllowed() && model->getWallet() && model->getWallet()->sparkWallet);
+    auto allowed = (spark::IsSparkAllowed(count) && model->getWallet() && model->getWallet()->sparkWallet);
 
 
     if (allowed && !ui->switchFundButton->isEnabled())
