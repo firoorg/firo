@@ -362,7 +362,7 @@ bool ConnectBlockSpark(
             catch (const std::exception &) {
                 // fatal error, should never happen
                 LogPrintf("ConnectBlockSpark: fatal exception when adding spark names to index\n");
-                assert(false);
+                return state.DoS(100, error("ConnectBlockSpark: failed to index spark names"));
             }
 
             // names were added, backup rewritten names if necessary

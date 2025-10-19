@@ -277,6 +277,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
 
         CHashWriter sparkNameDataStream(SER_GETHASH, PROTOCOL_VERSION);
+        sparkNameDataCopy.addressOwnershipProof.clear();
         sparkNameDataCopy.transferOwnershipProof.clear();
         sparkNameDataStream << sparkNameDataCopy;
 
