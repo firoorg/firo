@@ -822,6 +822,8 @@ public:
 
     std::set<COutPoint> setLockedCoins;
 
+    std::pair<CAmount, CAmount> cachedLelantusBalance = {-1, -1};
+
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
     //! check whether we are allowed to upgrade (or already support) to the named feature
@@ -935,8 +937,8 @@ public:
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance(bool fExcludeLocked = false) const;
-    std::pair<CAmount, CAmount> GetPrivateBalance() const;
-    std::pair<CAmount, CAmount> GetPrivateBalance(size_t &confirmed, size_t &unconfirmed) const;
+    std::pair<CAmount, CAmount> GetPrivateBalance();
+    bool TryGetBalances(CAmount& balance, CAmount& unconfirmedBalance, CAmount& newImmatureBalance, CAmount& mintableBalance) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;

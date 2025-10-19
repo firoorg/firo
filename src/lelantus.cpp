@@ -567,7 +567,7 @@ skipSigmaToLelantus:
             for (size_t i = 0; i < serials.size(); ++i) {
                 if (!CheckLelantusSpendSerial(
                         state, lelantusTxInfo, serials[i], nHeight, false)) {
-                    LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serials[i]);
+                    LogPrintf("CheckLelantusJoinSplitTransaction: serial check failed, serial=%s\n", serials[i].GetHex());
                     return false;
                 }
             }

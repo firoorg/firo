@@ -13,6 +13,7 @@ CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameMan
 
 bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
 {
+    LOCK(cs_spark_name);
     for (const auto &entry : pindex->removedSparkNames) {
         sparkNameAddresses.erase(entry.second.sparkAddress);
         sparkNames.erase(ToUpper(entry.first));
@@ -33,6 +34,7 @@ bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntri
 
 bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 {
+    LOCK(cs_spark_name);
     for (const auto &entry : pindex->addedSparkNames) {
         sparkNames.erase(ToUpper(entry.first));
         sparkNameAddresses.erase(entry.second.sparkAddress);
@@ -188,8 +190,11 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         fUpdateExistingRecord = true;
     }
 
-    if (!fUpdateExistingRecord && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
-        return state.DoS(100, error("CheckSparkNameTx: spark address is already used for another name"));
+    {
+        LOCK(cs_spark_name);
+        if (!fUpdateExistingRecord && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
+            return state.DoS(100, error("CheckSparkNameTx: spark address is already used for another name"));
+    }
 
     // calculate the hash of the all the transaction except the spark ownership proof
     CMutableTransaction txMutable(tx);
@@ -238,6 +243,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
 bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::string& name)
 {
+    LOCK(cs_spark_name);
     auto it = sparkNameAddresses.find(address);
     if (it != sparkNameAddresses.end()) {
         name = sparkNames[it->second].name;
@@ -249,7 +255,7 @@ bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::s
 bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription)
 {
     errorDescription.clear();
-
+    LOCK(cs_spark_name);
     if (!IsSparkNameValid(sparkNameData.name))
         errorDescription = "invalid spark name";
 
@@ -344,7 +350,7 @@ std::string CSparkNameManager::ToUpper(const std::string &str)
 bool CSparkNameManager::AddSparkName(const std::string &name, const std::string &address, uint32_t validityBlocks, const std::string &additionalInfo)
 {
     std::string upperName = ToUpper(name);
-
+    LOCK(cs_spark_name);
     if (sparkNames.count(upperName) > 0 && address != sparkNames[upperName].sparkAddress)
         return false;
     else if (sparkNameAddresses.count(address) > 0)
@@ -360,7 +366,7 @@ bool CSparkNameManager::AddSparkName(const std::string &name, const std::string 
 bool CSparkNameManager::RemoveSparkName(const std::string &name, const std::string &address)
 {
     std::string upperName = ToUpper(name);
-
+    LOCK(cs_spark_name);
     if (sparkNames.count(upperName) == 0 || sparkNameAddresses.count(address) == 0)
         return false;
 
@@ -375,7 +381,7 @@ bool CSparkNameManager::RemoveSparkName(const std::string &name, const std::stri
 std::map<std::string, CSparkNameBlockIndexData> CSparkNameManager::RemoveSparkNamesLosingValidity(int nHeight)
 {
     std::map<std::string, CSparkNameBlockIndexData> result;
-
+    LOCK(cs_spark_name);
     for (auto it = sparkNames.begin(); it != sparkNames.end();)
         if (cmp::greater_equal(nHeight, it->second.sparkNameValidityHeight)) {
             std::string sparkAddressStr = it->second.sparkAddress;
@@ -403,6 +409,7 @@ bool CSparkNameManager::IsSparkNameValid(const std::string &name)
 
 void CSparkNameManager::Reset()
 {
+    LOCK(cs_spark_name);
     sparkNames.clear();
     sparkNameAddresses.clear();
 }
