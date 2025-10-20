@@ -27,12 +27,11 @@ To Build
 
 ```bash
 cd depends
-make -j`nproc`
+make -j$(nproc)
 cd ..
-./autogen.sh
-./configure --prefix=`pwd`/depends/`depends/config.guess`
-make
-make install # optional
+cmake -B build --toolchain depends/$(depends/config.guess)/toolchain.cmake
+cmake --build build -j$(nproc)
+cmake --install build # optional
 ```
 
 This will build firo-qt as well if the dependencies are met.
@@ -53,7 +52,7 @@ Building requires Ubuntu 18.04 at minimum.
 
 Build requirements:
 
-    sudo apt-get install git curl python build-essential libtool automake pkg-config cmake
+    sudo apt-get install git curl python build-essential cmake pkg-config
 
 BerkeleyDB is required for the wallet.
 
@@ -85,7 +84,7 @@ Dependency Build Instructions: Fedora
 -------------------------------------
 Build requirements:
 
-    sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ libtool make autoconf automake cmake patch which
+    sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ make cmake patch which
 
 Optional:
 
@@ -203,9 +202,10 @@ This example lists the steps necessary to setup and build a command line only, n
     pacman -S git base-devel python cmake
     git clone https://github.com/bitcoin/bitcoin.git
     cd bitcoin/
-    ./autogen.sh
-    ./configure --disable-wallet --without-gui --without-miniupnpc
-    make check
+    cd depends && make -j$(nproc) && cd ..
+    cmake -B build --toolchain depends/$(depends/config.guess)/toolchain.cmake -DENABLE_WALLET=OFF -DBUILD_GUI=OFF
+    cmake --build build -j$(nproc)
+    cd build && make test
 
 Note:
 Enabling wallet support requires either compiling against a Berkeley DB newer than 4.8 (package `db`) using `--with-incompatible-bdb`,
@@ -263,9 +263,9 @@ with 4.8-built Bitcoin Core is needed follow the steps under "Berkeley DB" above
 
 Then build using:
 
-    ./autogen.sh
-    ./configure --with-incompatible-bdb BDB_CFLAGS="-I/usr/local/include/db5" BDB_LIBS="-L/usr/local/lib -ldb_cxx-5"
-    gmake
+    cd depends && gmake -j$(nproc) && cd ..
+    cmake -B build --toolchain depends/$(depends/config.guess)/toolchain.cmake
+    cmake --build build -j$(nproc) -- -j$(nproc)
 
 *Note on debugging*: The version of `gdb` installed by default is [ancient and considered harmful](https://wiki.freebsd.org/GdbRetirement).
 It is not suitable for debugging a multi-threaded C++ program, not even for getting backtraces. Please install the package `gdb` and
