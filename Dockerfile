@@ -1,13 +1,18 @@
 # This is a Dockerfile for firod.
-FROM debian:bullseye as build-image
+FROM debian:bullseye AS build-image
 
 # Install required system packages
 RUN apt-get update && apt-get install -y \
+    autoconf \
     automake \
     bsdmainutils \
+    build-essential \
+    cmake \
     curl \
+    file \
     g++ \
     libtool \
+    m4 \
     make \
     pkg-config \
     patch 
