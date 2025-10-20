@@ -760,6 +760,8 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         // Collect comments for wallet metadata
         std::string firstComment = "";
         std::string firstCommentTo = "";
+        std::vector<std::string> transparentComments;
+        std::vector<std::string> transparentCommentsTo;
 
         // ====== Process Addresses ======
         // Process each address and categorize by type and create recipient entries
@@ -860,6 +862,13 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             }
             setTransparentAddresses.insert(address);
             
+            if (!comment.empty()) {
+                transparentComments.push_back(comment);
+            }
+            if (!comment_to.empty()) {
+                transparentCommentsTo.push_back(comment_to);
+            }
+            
             CScript scriptPubKey = GetScriptForDestination(address.Get());
             CRecipient recipient = {scriptPubKey, nAmount, subtractFee, {}, {}};
             transparentRecipients.push_back(recipient);
@@ -897,6 +906,10 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
             }
             
+            // Configure coin control to ensure transparent funds
+            CCoinControl coinControl;
+            coinControl.nCoinType = CoinType::ALL_COINS;  // Use all available coins
+            
             try {
                 // Check if we have enough transparent balance
                 CAmount totalNeeded = 0;
@@ -925,6 +938,72 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                     outputs.push_back(mintData);
                     subtractFeeFromOutputs.push_back(recipientPair.second);
                 }
+                // Subtract the fee from the amount
+                // Handle per-output fee subtraction for Spark addresses
+                bool hasAnySubtractFee = false;
+                for (bool shouldSubtract : subtractFeeFromOutputs) {
+                    if (shouldSubtract) {
+                        hasAnySubtractFee = true;
+                        break;
+                    }
+                }
+                
+                if (hasAnySubtractFee) {
+                    // Estimate the fee first with a dummy transaction
+                    std::vector<std::pair<CWalletTx, CAmount>> dummyWtxAndFee;
+                    CAmount estimatedTotalFee = 0;
+                    std::list<CReserveKey> dummyReserveKeys;
+                    int dummyChangePosRet = -1;
+                    std::string dummyStrError;
+                    
+                    // Create a temporary copy of outputs for fee estimation
+                    std::vector<spark::MintedCoinData> tempOutputs = outputs;
+                    
+                    bool estimateSuccess = pwallet->CreateSparkMintTransactions(
+                        tempOutputs,
+                        dummyWtxAndFee,
+                        estimatedTotalFee,
+                        dummyReserveKeys,
+                        dummyChangePosRet,
+                        false,
+                        dummyStrError, 
+                        false,
+                        &coinControl,
+                        false
+                    );
+                    
+                    if (estimateSuccess && !dummyWtxAndFee.empty()) {
+                        std::vector<size_t> subtractFeeIndices;
+                        // Calculate fee per output that needs fee subtraction
+                        for (size_t i = 0; i < subtractFeeFromOutputs.size(); i++) {
+                            if (subtractFeeFromOutputs[i]) {
+                                subtractFeeIndices.push_back(i);
+                            }
+                        }
+                        
+                        if (!subtractFeeIndices.empty()) {
+                            CAmount totalEstimatedFee = dummyWtxAndFee[0].second;
+                            CAmount feePerOutput = totalEstimatedFee / static_cast<CAmount>(subtractFeeIndices.size());
+                            CAmount remainingFee = totalEstimatedFee % static_cast<CAmount>(subtractFeeIndices.size());
+                            
+                            // Subtract fee from the specified outputs
+                            for (size_t i = 0; i < subtractFeeIndices.size(); i++) {
+                                size_t idx = subtractFeeIndices[i];
+                                CAmount feeToSubtract = feePerOutput;
+                                if (static_cast<CAmount>(i) < remainingFee) {
+                                    feeToSubtract += 1; // Distribute remainder
+                                }
+                                
+                                if (static_cast<CAmount>(outputs[idx].v) > feeToSubtract) {
+                                    outputs[idx].v -= static_cast<uint64_t>(feeToSubtract);
+                                } else {
+                                    throw JSONRPCError(RPC_WALLET_ERROR, 
+                                        strprintf("Amount too small to subtract fee from output %zu", idx));
+                                }
+                            }
+                        }
+                    }
+                }
                 
                 // Create a mint transaction using transparent funds
                 std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
@@ -933,18 +1012,6 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 int nChangePosRet = -1;
                 std::string strError;
                 
-                // Configure coin control to ensure transparent funds
-                CCoinControl coinControl;
-                coinControl.nCoinType = CoinType::ALL_COINS;  // Use all available coins
-                
-                // Handle fee subtraction - if any recipient should have fee subtracted, we need to indicate that
-                bool subtractFeeFromAmount = false;
-                for (bool shouldSubtract : subtractFeeFromOutputs) {
-                    if (shouldSubtract) {
-                        subtractFeeFromAmount = true;
-                        break;
-                    }
-                }
                 
                 // Debug logging
                 LogPrintf("Attempting to create Spark mint transaction for %zu recipients\n", outputs.size());
@@ -959,7 +1026,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                     totalFee, 
                     reservekeys, 
                     nChangePosRet, 
-                    subtractFeeFromAmount, 
+                    false, 
                     strError, 
                     false,  // fSplit - don't split the transaction
                     &coinControl,
@@ -1039,10 +1106,26 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             CWalletTx wtx;
             
             // Add transaction comments collected during address processing
-            if (!firstComment.empty()) {
+            // Concatenate all transparent comments
+            if (!transparentComments.empty()) {
+                std::string combinedComment = "";
+                for (size_t i = 0; i < transparentComments.size(); i++) {
+                    if (i > 0) combinedComment += "; ";
+                    combinedComment += transparentComments[i];
+                }
+                wtx.mapValue["comment"] = combinedComment;
+            } else if (!firstComment.empty()) {
                 wtx.mapValue["comment"] = firstComment;
             }
-            if (!firstCommentTo.empty()) {
+            
+            if (!transparentCommentsTo.empty()) {
+                std::string combinedCommentTo = "";
+                for (size_t i = 0; i < transparentCommentsTo.size(); i++) {
+                    if (i > 0) combinedCommentTo += "; ";
+                    combinedCommentTo += transparentCommentsTo[i];
+                }
+                wtx.mapValue["to"] = combinedCommentTo;
+            } else if (!firstCommentTo.empty()) {
                 wtx.mapValue["to"] = firstCommentTo;
             }
             
@@ -4692,7 +4775,7 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     if (numberOfYears < 1 || numberOfYears > 10)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
 
-    int additionalDataIndex = fTransfer ? 5 : 3;
+    std::size_t additionalDataIndex = fTransfer ? 5 : 3;
     if (request.params.size() > additionalDataIndex)
         additionalData = request.params[additionalDataIndex].get_str();
 
