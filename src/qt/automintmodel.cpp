@@ -110,7 +110,7 @@ void IncomingFundNotifier::check()
 
 void IncomingFundNotifier::importTransactions()
 {
-    LOCK2(cs, cs_main);
+    LOCK2(cs_main, cs);
     LOCK(wallet->cs_wallet);
 
     for (auto const &tx : wallet->mapWallet) {
