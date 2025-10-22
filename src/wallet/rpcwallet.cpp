@@ -1129,25 +1129,47 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             CWalletTx wtx;
             
             // Add transaction comments collected during address processing
-            // Concatenate all transparent comments
+            // Concatenate unique transparent comments (avoid duplicates)
             if (!transparentComments.empty()) {
-                std::string combinedComment = "";
-                for (size_t i = 0; i < transparentComments.size(); i++) {
-                    if (i > 0) combinedComment += "; ";
-                    combinedComment += transparentComments[i];
+                std::set<std::string> uniqueComments;
+                for (const std::string& comment : transparentComments) {
+                    if (!comment.empty()) {
+                        uniqueComments.insert(comment);
+                    }
                 }
-                wtx.mapValue["comment"] = combinedComment;
+                
+                if (!uniqueComments.empty()) {
+                    std::string combinedComment = "";
+                    bool first = true;
+                    for (const std::string& comment : uniqueComments) {
+                        if (!first) combinedComment += "; ";
+                        combinedComment += comment;
+                        first = false;
+                    }
+                    wtx.mapValue["comment"] = combinedComment;
+                }
             } else if (!firstComment.empty()) {
                 wtx.mapValue["comment"] = firstComment;
             }
             
             if (!transparentCommentsTo.empty()) {
-                std::string combinedCommentTo = "";
-                for (size_t i = 0; i < transparentCommentsTo.size(); i++) {
-                    if (i > 0) combinedCommentTo += "; ";
-                    combinedCommentTo += transparentCommentsTo[i];
+                std::set<std::string> uniqueCommentsTo;
+                for (const std::string& commentTo : transparentCommentsTo) {
+                    if (!commentTo.empty()) {
+                        uniqueCommentsTo.insert(commentTo);
+                    }
                 }
-                wtx.mapValue["to"] = combinedCommentTo;
+                
+                if (!uniqueCommentsTo.empty()) {
+                    std::string combinedCommentTo = "";
+                    bool first = true;
+                    for (const std::string& commentTo : uniqueCommentsTo) {
+                        if (!first) combinedCommentTo += "; ";
+                        combinedCommentTo += commentTo;
+                        first = false;
+                    }
+                    wtx.mapValue["to"] = combinedCommentTo;
+                }
             } else if (!firstCommentTo.empty()) {
                 wtx.mapValue["to"] = firstCommentTo;
             }
@@ -1893,6 +1915,7 @@ UniValue sendmany(const JSONRPCRequest& request)
     // Convert sendmany format to sendtoaddress JSON format
     UniValue convertedSendTo(UniValue::VOBJ);
     std::vector<std::string> keys = sendTo.getKeys();
+    bool isFirstAddress = true;
     BOOST_FOREACH(const std::string& name_, keys)
     {
         CAmount nAmount = AmountFromValue(sendTo[name_]);
@@ -1915,9 +1938,10 @@ UniValue sendmany(const JSONRPCRequest& request)
         addressParams.push_back(Pair("amount", ValueFromAmount(nAmount)));
         addressParams.push_back(Pair("subtractFee", fSubtractFeeFromAmount));
         
-        // Add comment if provided
-        if (!wtx.mapValue["comment"].empty()) {
+        // Add comment only to the first address to avoid duplication
+        if (isFirstAddress && !wtx.mapValue["comment"].empty()) {
             addressParams.push_back(Pair("comment", wtx.mapValue["comment"]));
+            isFirstAddress = false;
         }
         
         convertedSendTo.push_back(Pair(name_, addressParams));
