@@ -514,6 +514,23 @@ static void SendMoney(CWallet * const pwallet, const CTxDestination &address, CA
     }
 }
 
+
+static void ValidateFeeSubtractionAmount(CAmount nAmount, bool fSubtractFeeFromAmount, const std::string& strAddress)
+{
+    if (fSubtractFeeFromAmount) {
+        // Estimate typical transaction size for a simple send (1 input, 2 outputs)
+        // Typical sizes: 1 input ~150 bytes, 2 outputs ~68 bytes, overhead ~10 bytes
+        unsigned int estimatedTxSize = 230; // Conservative estimate for simple transaction
+        
+        // Get estimated fee using wallet's fee calculation with default confirmation target
+        CAmount estimatedFee = CWallet::GetMinimumFee(estimatedTxSize, 6, mempool); // 6 blocks = ~1 hour
+        
+        if (nAmount <= estimatedFee) {
+            throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Amount %s is too small when subtracting fee from address %s. Estimated fee is %s, so amount must be greater than the fee.", FormatMoney(nAmount), strAddress, FormatMoney(estimatedFee)));
+        }
+    }
+}
+
 UniValue sendtoaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -602,6 +619,9 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         bool fSubtractFeeFromAmount = false;
         if (request.params.size() > 4)
             fSubtractFeeFromAmount = request.params[4].get_bool();
+            
+        // Validate that amount is reasonable when fee is being subtracted
+        ValidateFeeSubtractionAmount(nAmount, fSubtractFeeFromAmount, strAddress);
             
         // 1. Handle BIP47/RAP Address, check if BIP47 payment code (starts with PM8T)
         if (strAddress.size() >= 4 && strAddress.substr(0, 4) == "PM8T") {
@@ -789,6 +809,9 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             if (params.exists("subtractFee")) {
                 subtractFee = params["subtractFee"].get_bool();
             }
+
+            // Validate that amount is reasonable when fee is being subtracted
+            ValidateFeeSubtractionAmount(nAmount, subtractFee, strAddress);
 
             std::string memo = "";
             if (params.exists("memo")) {
@@ -1883,6 +1906,9 @@ UniValue sendmany(const JSONRPCRequest& request)
             if (addr.get_str() == name_)
                 fSubtractFeeFromAmount = true;
         }
+
+        // Validate that amount is reasonable when fee is being subtracted
+        ValidateFeeSubtractionAmount(nAmount, fSubtractFeeFromAmount, name_);
 
         // Create JSON object for this address in sendtoaddress format
         UniValue addressParams(UniValue::VOBJ);
@@ -4473,6 +4499,9 @@ UniValue spendspark(const JSONRPCRequest& request)
 
             if (nAmount <= 0)
                 throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+                
+            // Validate that amount is reasonable when fee is being subtracted
+            ValidateFeeSubtractionAmount(nAmount, subtractFee, name_);
             LogPrintf("rpcWallet.mintSpark() nAmount = %d \n", nAmount);
 
             spark::OutputCoinData data;
@@ -4506,6 +4535,9 @@ UniValue spendspark(const JSONRPCRequest& request)
                 fSubtractFeeFromAmount = amountObj["subtractFee"].get_bool();
             else
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ") + name_);
+
+            // Validate that amount is reasonable when fee is being subtracted
+            ValidateFeeSubtractionAmount(nAmount, fSubtractFeeFromAmount, name_);
 
             CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}};
             recipients.push_back(recipient);
@@ -4685,6 +4717,9 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
             if (addr.get_str() == name_)
                 fSubtractFeeFromAmount = true;
         }
+
+        // Validate that amount is reasonable when fee is being subtracted
+        ValidateFeeSubtractionAmount(nAmount, fSubtractFeeFromAmount, name_);
 
         // Create JSON object for this address in spendspark format
         UniValue addressParams(UniValue::VOBJ);
