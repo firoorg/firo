@@ -50,17 +50,6 @@ void IncomingFundNotifier::pushTransaction(uint256 const &id)
 
 void IncomingFundNotifier::check()
 {
-    TRY_LOCK(cs, lock);
-    if(!lock)
-        return;
-
-    // update only if there are transaction and last update was done more than 2 minutes ago, and in case it is first time
-    if (txs.empty() || (lastUpdateTime!= 0 && (GetSystemTimeInSeconds() - lastUpdateTime <= 120))) {
-        return;
-    }
-
-    lastUpdateTime = GetSystemTimeInSeconds();
-
     CAmount credit = 0;
     std::vector<uint256> immatures;
 
@@ -68,9 +57,17 @@ void IncomingFundNotifier::check()
         TRY_LOCK(cs_main,lock_main);
         if (!lock_main)
             return;
+        TRY_LOCK(cs, lock);
+        if(!lock)
+            return;
         TRY_LOCK(wallet->cs_wallet,lock_wallet);
         if (!lock_wallet)
             return;
+        // update only if there are transaction and last update was done more than 2 minutes ago, and in case it is first time
+        if (txs.empty() || (lastUpdateTime!= 0 && (GetSystemTimeInSeconds() - lastUpdateTime <= 120))) {
+            return;
+        }
+        lastUpdateTime = GetSystemTimeInSeconds();
         CCoinControl coinControl;
         coinControl.nCoinType = CoinType::ONLY_NOT1000IFMN;
         while (!txs.empty()) {
@@ -97,20 +94,18 @@ void IncomingFundNotifier::check()
         for (auto const &valueAndUTXO : valueAndUTXOs) {
             credit += valueAndUTXO.first;
         }
-    }
-
-    for (auto const &tx : immatures) {
-        txs.push_back(tx);
-    }
-
-    if (credit > 0) {
-        Q_EMIT matureFund(credit);
+        for (auto const &tx : immatures) {
+            txs.push_back(tx);
+        }
+        if (credit > 0) {
+            Q_EMIT matureFund(credit);
+        }
     }
 }
 
 void IncomingFundNotifier::importTransactions()
 {
-    LOCK2(cs, cs_main);
+    LOCK2(cs_main, cs);
     LOCK(wallet->cs_wallet);
 
     for (auto const &tx : wallet->mapWallet) {
