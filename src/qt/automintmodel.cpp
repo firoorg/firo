@@ -52,10 +52,15 @@ void IncomingFundNotifier::check()
 {
     CAmount credit = 0;
     std::vector<uint256> immatures;
+    CCoinControl coinControl;
+    coinControl.nCoinType = CoinType::ONLY_NOT1000IFMN;
 
     {
-        TRY_LOCK(cs_main,lock_main);
-        if (!lock_main)
+        TRY_LOCK(cs_main, lock_main);
+        if (!lock_main) {
+            // Put back batch if we couldn't proceed
+            LOCK(cs);
+            txs.insert(txs.end(), batch.begin(), batch.end());
             return;
         TRY_LOCK(cs, lock);
         if(!lock)
@@ -74,25 +79,24 @@ void IncomingFundNotifier::check()
             auto const &tx = txs.back();
             txs.pop_back();
 
-            auto wtx = wallet->mapWallet.find(tx);
-            if (wtx == wallet->mapWallet.end()) {
+        for (const auto& txid : batch) {
+            auto it = wallet->mapWallet.find(txid);
+            if (it == wallet->mapWallet.end())
                 continue;
+
+            for (uint32_t i = 0; i != it->second.tx->vout.size(); ++i) {
+                coinControl.Select({it->first, i});
             }
 
-            for (uint32_t i = 0; i != wtx->second.tx->vout.size(); i++) {
-                coinControl.Select({wtx->first, i});
-            }
-
-            if (wtx->second.GetImmatureCredit() > 0) {
-                immatures.push_back(tx);
+            if (it->second.GetImmatureCredit() > 0) {
+                immatures.push_back(txid);
             }
         }
 
         std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXOs;
         pwalletMain->AvailableCoinsForLMint(valueAndUTXOs, &coinControl);
-
-        for (auto const &valueAndUTXO : valueAndUTXOs) {
-            credit += valueAndUTXO.first;
+        for (const auto& p : valueAndUTXOs) {
+            credit += p.first;
         }
         for (auto const &tx : immatures) {
             txs.push_back(tx);
@@ -108,13 +112,19 @@ void IncomingFundNotifier::importTransactions()
     LOCK2(cs_main, cs);
     LOCK(wallet->cs_wallet);
 
-    for (auto const &tx : wallet->mapWallet) {
-        if (tx.second.GetAvailableCredit() > 0 || tx.second.GetImmatureCredit() > 0) {
-            txs.push_back(tx.first);
+        for (const auto& it : wallet->mapWallet) {
+            if (it.second.GetAvailableCredit() > 0 || it.second.GetImmatureCredit() > 0) {
+                to_add.push_back(it.first);
+            }
         }
     }
 
-    resetTimer();
+    // Append under local lock, no core locks held
+    {
+        LOCK(cs);
+        txs.insert(txs.end(), to_add.begin(), to_add.end());
+        resetTimer();
+    }
 }
 
 void IncomingFundNotifier::resetTimer()
