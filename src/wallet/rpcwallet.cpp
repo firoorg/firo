@@ -4420,9 +4420,9 @@ UniValue spendspark(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+    if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}} ( \"comment\" )\n"
+                "spendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
                                                      "1. recipients              (string, required) A json object with addresses and amounts\n"
@@ -4430,7 +4430,6 @@ UniValue spendspark(const JSONRPCRequest& request)
                                                      "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                                                      "  ,...\n"
                                                      " }\n"
-                                                     "2. \"comment\"             (string, optional) A comment stored in the wallet\n"
                                                      "\nResult:\n"
                                                      "\"txid\"                   (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
                                                      "                                    the number of addresses.\n"
@@ -4577,19 +4576,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     try {
         wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
 
-        // Handle optional comment parameter
-        if (request.params.size() > 1 && !request.params[1].isNull() && !request.params[1].get_str().empty()) {
-            std::string comment = request.params[1].get_str();
-            
-            // Update the transaction in the wallet
-            LOCK(pwallet->cs_wallet);
-            auto it = pwallet->mapWallet.find(wtx.GetHash());
-            if (it != pwallet->mapWallet.end()) {
-                it->second.mapValue["comment"] = comment;
-                // The wallet will save this automatically on the next flush
-                LogPrintf("spendspark: Added comment to transaction: %s\n", comment);
-            }
-        }
+
     } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
@@ -4604,9 +4591,9 @@ UniValue sendspark(const JSONRPCRequest& request)
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+    if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "sendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}} ( \"comment\" )\n"
+                "sendspark {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
                 + HelpRequiringPassphrase(pwallet) + "\n"
                                                      "\nArguments:\n"
                                                      "{\n"
@@ -4750,7 +4737,7 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
         addressParams.push_back(Pair("amount", ValueFromAmount(nAmount)));
         addressParams.push_back(Pair("subtractFee", fSubtractFeeFromAmount));
         
-        // Add comment as memo for Spark addresses (similar to sendtoaddress behavior)
+        // Add global comment as memo for Spark addresses (similar to sendtoaddress behavior)
         if (!comment.empty()) {
             // Check if this is a Spark address (starts with 'st' or '@')
             bool isSparkAddress = false;
@@ -4775,11 +4762,6 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
     convertedRequest.params = UniValue(UniValue::VARR);
     convertedRequest.params.push_back(convertedSendTo);
 
-    // Add comment as second parameter if provided
-    if (!comment.empty()) {
-        convertedRequest.params.push_back(comment);
-        LogPrintf("sendsparkmany: Forwarding comment to spendspark: %s\n", comment);
-    }
     
     LogPrintf("sendsparkmany: Converted JSON object: %s\n", convertedSendTo.write());
     
