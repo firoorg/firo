@@ -193,7 +193,8 @@ testScripts = [
     'bip47-walletrestore.py',
 
     'sendtoaddress.py',
-    'sendmany.py'
+    'sendmany.py',
+    'sendtransparent.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
