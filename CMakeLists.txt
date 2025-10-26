@@ -897,6 +897,9 @@ include(cmake/crc32c.cmake)
 include(cmake/leveldb.cmake)
 add_subdirectory(src)
 
+# Ensure build info is generated early for all targets that need it
+add_dependencies(core_interface generate_build_info)
+
 include(cmake/tests.cmake)
 
 include(Maintenance)
