@@ -91,7 +91,6 @@ public:
     void updateChainLockHeight(int chainLockHeight);
     int getNumISLocks() const;
     int getChainLockHeight() const;
-    void refreshWallet() const;
 
 private:
     CWallet* wallet;

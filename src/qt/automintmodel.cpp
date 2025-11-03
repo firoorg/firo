@@ -19,6 +19,7 @@ IncomingFundNotifier::IncomingFundNotifier(
 
     connect(timer, &QTimer::timeout, this, &IncomingFundNotifier::check, Qt::QueuedConnection);
 
+    autoMintEnable = false;
     QMetaObject::invokeMethod(this, "importTransactions", Qt::QueuedConnection);
     subscribeToCoreSignals();
 }
@@ -39,6 +40,11 @@ void IncomingFundNotifier::newBlock()
     if (!txs.empty()) {
         resetTimer();
     }
+}
+
+void IncomingFundNotifier::updateState(bool flag) {
+    LOCK(cs);
+    autoMintEnable = flag;
 }
 
 void IncomingFundNotifier::pushTransaction(uint256 const &id)
@@ -63,6 +69,11 @@ void IncomingFundNotifier::check()
         TRY_LOCK(wallet->cs_wallet,lock_wallet);
         if (!lock_wallet)
             return;
+
+        if (!autoMintEnable) {
+            return;
+        }
+
         // update only if there are transaction and last update was done more than 2 minutes ago, and in case it is first time
         if (txs.empty() || (lastUpdateTime!= 0 && (GetSystemTimeInSeconds() - lastUpdateTime <= 120))) {
             return;
@@ -88,12 +99,7 @@ void IncomingFundNotifier::check()
             }
         }
 
-        std::vector<std::pair<CAmount, std::vector<COutput>>> valueAndUTXOs;
-        pwalletMain->AvailableCoinsForLMint(valueAndUTXOs, &coinControl);
-
-        for (auto const &valueAndUTXO : valueAndUTXOs) {
-            credit += valueAndUTXO.first;
-        }
+        credit = pwalletMain->GetBalance(true);
         for (auto const &tx : immatures) {
             txs.push_back(tx);
         }
@@ -186,6 +192,7 @@ AutoMintSparkModel::AutoMintSparkModel(
     connect(autoMintSparkCheckTimer, &QTimer::timeout, [this]{ checkAutoMintSpark(); });
 
     notifier = new IncomingFundNotifier(wallet, this);
+    notifier->updateState(optionsModel->getAutoAnonymize());
 
     connect(notifier, &IncomingFundNotifier::matureFund, this, &AutoMintSparkModel::startAutoMintSpark);
 
@@ -318,6 +325,8 @@ void AutoMintSparkModel::updateAutoMintSparkOption(bool enabled)
     TRY_LOCK(sparkModel->cs, lock);
     if (!lock)
         return;
+
+    notifier->updateState(enabled);
 
     if (enabled) {
         if (autoMintSparkState == AutoMintSparkState::Disabled) {
