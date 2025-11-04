@@ -6,6 +6,7 @@
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/firoorg/firo/latest/master)](https://github.com/firoorg/firo/graphs/commit-activity)
 [![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/firoorg/firo)](https://github.com/firoorg/firo/graphs/code-frequency)
 [![GitHub last-commit](https://img.shields.io/github/last-commit/firoorg/firo)](https://github.com/firoorg/firo/commits/master)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/firoorg/firo?utm_source=oss&utm_medium=github&utm_campaign=firoorg%2Ffiro&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 [Firo](https://firo.org) formerly known as Zcoin, is a privacy focused cryptocurrency that utilizes the [Lelantus Spark protocol](https://eprint.iacr.org/2021/1173) which supports high anonymity sets without requiring trusted setup and relying on standard cryptographic assumptions.
 
