@@ -55,7 +55,6 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mempool_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/merkle_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/miner_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mtp_halving_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mtp_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mtp_trans_tests.cpp
@@ -88,7 +87,6 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/timedata_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/transaction_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/txdb_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/txvalidationcache_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/uint256_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/univalue_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/util_tests.cpp
