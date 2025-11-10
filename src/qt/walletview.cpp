@@ -422,7 +422,7 @@ void WalletView::requestedSyncWarningInfo()
 void WalletView::showAutomintSparkNotification()
 {
     auto sparkModel = walletModel->getSparkModel();
-    if (!sparkModel) {
+    if (!sparkModel || !walletModel->getWallet()->sparkWallet) {
         return;
     }
 
