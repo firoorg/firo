@@ -22,6 +22,8 @@ public:
     explicit IncomingFundNotifier(CWallet *wallet, QObject *parent = 0);
     ~IncomingFundNotifier();
 
+    void updateState(bool flag);
+
 public Q_SLOTS:
     void newBlock();
     void pushTransaction(uint256 const &);
@@ -44,6 +46,7 @@ private:
     mutable CCriticalSection cs;
 
     int64_t lastUpdateTime;
+    bool autoMintEnable;
 };
 
 enum class AutoMintSparkState : uint8_t {

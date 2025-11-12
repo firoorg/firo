@@ -82,12 +82,7 @@ public:
         qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
         {
-            TRY_LOCK(cs_main,lock_main);
-            if (!lock_main)
-                return;
-            TRY_LOCK(wallet->cs_wallet,lock_wallet);
-            if (!lock_wallet)
-                return;
+            LOCK2(cs_main, wallet->cs_wallet);
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
                 if(TransactionRecord::showTransaction(it->second))
@@ -227,12 +222,7 @@ public:
     QString describe(TransactionRecord *rec, int unit)
     {
         {
-            TRY_LOCK(cs_main,lock_main);
-            if (!lock_main)
-                return QString();;
-            TRY_LOCK(wallet->cs_wallet,lock_wallet);
-            if (!lock_wallet)
-                return QString();
+            LOCK2(cs_main, wallet->cs_wallet);
             std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
             if (mi != wallet->mapWallet.end())
             {
@@ -244,12 +234,7 @@ public:
 
     QString getTxHex(TransactionRecord *rec)
     {
-        TRY_LOCK(cs_main,lock_main);
-        if (!lock_main)
-            return QString();
-        TRY_LOCK(wallet->cs_wallet,lock_wallet);
-        if (!lock_wallet)
-            return QString();
+        LOCK2(cs_main, wallet->cs_wallet);
         std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
         if (mi != wallet->mapWallet.end())
         {
@@ -287,11 +272,6 @@ void TransactionTableModel::updateAmountColumnTitle()
 {
     columns[Amount] = BitcoinUnits::getAmountColumnTitle(walletModel->getOptionsModel()->getDisplayUnit());
     Q_EMIT headerDataChanged(Qt::Horizontal,Amount,Amount);
-}
-
-void TransactionTableModel::refreshWallet() const
-{
-    priv->refreshWallet();
 }
 
 void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
@@ -919,9 +899,8 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet
 
 static void ShowProgress(TransactionTableModel *ttm, const std::string &title, int nProgress)
 {
-    if (nProgress == 0) {
+    if (nProgress == 0)
         fQueueNotifications = true;
-    }
 
     if (nProgress == 100)
     {
@@ -936,7 +915,6 @@ static void ShowProgress(TransactionTableModel *ttm, const std::string &title, i
             vQueueNotifications[i].invoke(ttm);
         }
         std::vector<TransactionNotification >().swap(vQueueNotifications); // clear
-        ttm->refreshWallet();
     }
 }
 
