@@ -4147,7 +4147,9 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
 
     CTransactionRef tx;
     uint256 hashBlock;
-    GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock);
+    if (!GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock))
+        throw std::runtime_error(
+                "Transaction is not found by the given txHash.");
     CWalletDB walletdb(pwallet->strWalletFile);
 
     UniValue results(UniValue::VOBJ);
