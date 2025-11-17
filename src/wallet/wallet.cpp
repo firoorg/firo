@@ -811,7 +811,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
             coin.setSerialContext(serialContext);
             if (!pwalletMain->sparkWallet)
                 return false;
-            
+
             CSparkMintMeta mintMeta;
             if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
                 bool fIsSpent = mintMeta.isUsed;
@@ -1302,6 +1302,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
     if ( !strCmd.empty())
     {
         boost::replace_all(strCmd, "%s", wtxIn.GetHash().GetHex());
+        boost::replace_all(strCmd, "%t", wtxIn.tx->IsSparkTransaction() ? "spark" : "regular");
         boost::thread t(runCommand, strCmd); // thread runs free
     }
 
@@ -6054,7 +6055,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-upgradewallet", _("Upgrade wallet to latest format on startup"));
     strUsage += HelpMessageOpt("-wallet=<file>", _("Specify wallet file (within data directory)") + " " + strprintf(_("(default: %s)"), DEFAULT_WALLET_DAT));
     strUsage += HelpMessageOpt("-walletbroadcast", _("Make the wallet broadcast transactions") + " " + strprintf(_("(default: %u)"), DEFAULT_WALLETBROADCAST));
-    strUsage += HelpMessageOpt("-walletnotify=<cmd>", _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)"));
+    strUsage += HelpMessageOpt("-walletnotify=<cmd>", _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID, %t is replaced by transaction type: 'spark' or 'regular')"));
     strUsage += HelpMessageOpt("-zapwalletmints", _("Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup"));
     strUsage += HelpMessageOpt("-zapwallettxes=<mode>", _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") +
                                " " + _("(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)"));
@@ -7203,7 +7204,7 @@ bool CWallet::SetSparkAddressBook(const std::string& address, const std::string&
         return false;
     if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(address, strPurpose))
         return false;
-        
+
     return CWalletDB(strWalletFile).WriteName(address, strName);
 }
 
@@ -7257,7 +7258,7 @@ bool CWallet::DelAddressBook(const std::string& address)
         }
 
     }
-    
+
     if(checkSpark){
         NotifySparkAddressBookChanged(this, address, "", IsSparkAddressMine(address), "", CT_DELETED);
     } else if(bip47::CPaymentCode::validate(address)){
@@ -7269,7 +7270,7 @@ bool CWallet::DelAddressBook(const std::string& address)
         } else {
             NotifyRAPAddressBookChanged(this, address, "", false, "", CT_DELETED);
         }
-        
+
     } else if(validateAddress(address)){
         NotifyAddressBookChanged(this, CBitcoinAddress(address).Get(), "", ::IsMine(*this, CBitcoinAddress(address).Get()) != ISMINE_NO, "", CT_DELETED);
     }
