@@ -121,7 +121,7 @@ If you use a later version of Ubuntu, you may need to replace `python` with `pyt
 sudo dnf update
 sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ make cmake patch which
 # Also needed for GUI wallet only:
-sudo dnf install qt5-qttools-devel qt5-qtbase-devel xz bison
+sudo dnf install qt6-qttools-devel qt6-qtbase-devel xz bison
 sudo ln /usr/bin/bison /usr/bin/yacc
 ```
 - Arch:

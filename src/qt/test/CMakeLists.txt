@@ -32,9 +32,8 @@ target_link_libraries(test_firo-qt
   ${TOR_LIBRARY}
   Boost::headers
   Boost::unit_test_framework
-  Qt5::Test
-  Qt5::Dependencies
-  Qt5::Widgets
+  Qt6::Test
+  Qt6::Widgets
   Boost::thread
   $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
   $<TARGET_NAME_IF_EXISTS:libevent::extra>
