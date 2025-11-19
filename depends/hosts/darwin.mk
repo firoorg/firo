@@ -66,8 +66,8 @@ darwin_LDFLAGS=-Wl,-platform_version,macos,$(OSX_MIN_VERSION),$(OSX_SDK_VERSION)
 
 ifneq ($(build_os),darwin)
 darwin_CFLAGS += -mlinker-version=$(LLD_VERSION)
-darwin_CXXFLAGS += -mlinker-version=$(LLD_VERSION)
-darwin_LDFLAGS += -Wl,-no_adhoc_codesign -fuse-ld=lld
+darwin_CXXFLAGS += -mlinker-version=$(LLD_VERSION) -nostdinc++ -isystem$(OSX_SDK)/usr/include/c++/v1 -fuse-ld=lld
+darwin_LDFLAGS += -Wl,-syslibroot,$(OSX_SDK) -Wl,-platform_version,macos,$(OSX_MIN_VERSION),$(OSX_SDK_VERSION) -Wl,-no_adhoc_codesign -fuse-ld=lld
 endif
 
 darwin_release_CFLAGS=-O2
