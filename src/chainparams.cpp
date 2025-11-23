@@ -504,6 +504,7 @@ public:
         consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = INT_MAX;
     }
     virtual bool SkipUndoForBlock(int nHeight) const override
     {
@@ -820,6 +821,7 @@ public:
         consensus.nSparkNamesStartBlock = 174000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = INT_MAX;
     }
 };
 
@@ -1078,6 +1080,7 @@ public:
         consensus.nSparkNamesStartBlock = 3500;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = INT_MAX;
     }
 };
 
@@ -1333,6 +1336,7 @@ public:
         consensus.nSparkNamesStartBlock = 2000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = 2500;
+        consensus.nSparkNamesV21StartBlock = 2700;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
