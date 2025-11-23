@@ -764,7 +764,10 @@ bool CheckSparkSpendTransaction(
         bool fChecked = false;
 
         try {
-            {
+            bool fRecheckNeeded;
+            do {
+                fRecheckNeeded = false;
+
                 LOCK(cs_checkedSparkSpendTransactions);
                 if (gCheckedSparkSpendTransactions.count(hashTx)) {
                     auto& checkState = gCheckedSparkSpendTransactions[hashTx];
@@ -788,8 +791,13 @@ bool CheckSparkSpendTransaction(
                         checkState.fResult = result;
                         checkState.checkInProgress = nullptr;
 
-                        if (!result)
-                            return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
+                        if (!result) {
+                            // unfortunately, it's possible that the proof was checked and failed
+                            // because the anonymity set was incomplete at the time of checking. We need
+                            // to recheck the proof again
+                            fRecheckNeeded = true;
+                            gCheckedSparkSpendTransactions.erase(hashTx);
+                        }
                         else
                             fChecked = true;
                     }
@@ -809,6 +817,7 @@ bool CheckSparkSpendTransaction(
                     checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
                 }
             }
+            while (fRecheckNeeded);
     
             if (fChecked) {
                 // if we are here, then the proof was already checked and it passed
