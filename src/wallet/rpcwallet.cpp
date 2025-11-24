@@ -543,10 +543,10 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             "sendtoaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
             "or\n"
             "sendtoaddress {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
-            "\nSend an amount to a given address. Supports transparent, Spark, BIP47/RAP addresses and Spark names.\n"
+            "\nSend an amount to a given address. Supports transparent, Spark addresses and Spark names.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments (simple format):\n"
-            "1. \"address\"  (string, required) The address to send to (transparent, Spark, or BIP47/RAP address, or Spark name).\n"
+            "1. \"address\"  (string, required) The address to send to (transparent, Spark address, or Spark name).\n"
             "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
@@ -568,7 +568,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
             "}\n"
             "\nResult:\n"
             "\"txid\" or [\"txid1\", \"txid2\", ...] (string or array) Transaction ID(s). Multiple transactions may be created \n"
-            "                                    for different address types (transparent, Spark, BIP47).\n"
+            "                                    for different address types (transparent, Spark).\n"
             "\nExamples (Simple format):\n"
             + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
             + HelpExampleCli("sendtoaddress", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"donation\" \"seans outpost\"")
@@ -623,17 +623,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         // Validate that amount is reasonable when fee is being subtracted
         ValidateFeeSubtractionAmount(nAmount, fSubtractFeeFromAmount, strAddress);
             
-        // 1. Handle BIP47/RAP Address, check if BIP47 payment code (starts with PM8T)
-        if (strAddress.size() >= 4 && strAddress.substr(0, 4) == "PM8T") {
-            bip47::CPaymentCode theirPcode(strAddress);
-            CBitcoinAddress address = pwallet->GetTheirNextAddress(theirPcode);
-            
-            SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
-            pwallet->GenerateTheirNextAddress(theirPcode);
-            return wtx.GetHash().GetHex();
-        }
-        
-        // 2. Handle Spark Address, check if Spark address
+        // 1. Handle Spark Address, check if Spark address
         try {
             const spark::Params* sparkParams = spark::Params::get_default();
             spark::Address sparkAddress(sparkParams);
@@ -687,21 +677,15 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 // Debug logging to help diagnose the issue
                 LogPrintf("Attempting to create Spark mint transaction to %s for amount %s\n", 
                           sparkAddress.encode(spark::GetNetworkType()), FormatMoney(nAmount));
-                
-                bool success = pwallet->CreateSparkMintTransactions(
-                    outputs, 
-                    wtxAndFee, 
-                    totalFee, 
-                    reservekeys, 
-                    nChangePosRet, 
-                    fSubtractFeeFromAmount, 
-                    strError, 
-                    false,  // fSplit - don't split the transaction
-                    &coinControl,
-                    false   // autoMintAll
-                );
-                
-                if (!success) {
+
+                strError = pwallet->MintAndStoreSpark(outputs,
+                                                      wtxAndFee,
+                                                      fSubtractFeeFromAmount,
+                                                      false, // fSplit
+                                                      false, // autoMintAll
+                                                      false, // fAskFee
+                                                      &coinControl);
+                if (!strError.empty()) {
                     LogPrintf("Failed to create Spark mint transaction: %s\n", strError);
                     throw JSONRPCError(RPC_WALLET_ERROR, 
                         std::string("Failed to create transaction: ") + strError);
@@ -736,7 +720,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         } catch (const std::exception &e) {
         }
         
-        // 3. Handle Transparent Address
+        // 2. Handle Transparent Address
         CBitcoinAddress address(strAddress);
         if (!address.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address");
@@ -769,13 +753,11 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         // Categorize addresses by type
         std::vector<CRecipient> transparentRecipients;
         std::vector<std::pair<spark::OutputCoinData, bool>> sparkRecipients;
-        std::vector<std::pair<std::string, UniValue>> bip47Recipients; // address, params
         const spark::Params* sparkParams = spark::Params::get_default();
         unsigned char network = spark::GetNetworkType();
         std::set<CBitcoinAddress> setTransparentAddresses;
         CAmount totalTransparentAmount = 0;
         CAmount totalSparkAmount = 0;
-        CAmount totalBip47Amount = 0;
 
         // Collect comments for wallet metadata
         std::string firstComment = "";
@@ -847,14 +829,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 resolvedAddress = sparkAddressStr;
             }
 
-            // 2. Handle BIP47/RAP Address, check if BIP47 payment code (starts with PM8T)
-            if (resolvedAddress.size() >= 4 && resolvedAddress.substr(0, 4) == "PM8T") {
-                bip47Recipients.push_back(std::make_pair(resolvedAddress, params));
-                totalBip47Amount += nAmount;
-                continue;
-            }
-
-            // 3. Handle Spark Address, check if Spark address
+            // 2. Handle Spark Address, check if Spark address
             try {
                 spark::Address sparkAddress(sparkParams);
                 unsigned char coinNetwork = sparkAddress.decode(resolvedAddress);
@@ -900,10 +875,10 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
         // ============================================
 
         // ====== Balance Checking ======
-        // Transparent checking (includes both transparent addresses and BIP47/RAP addresses)
-        if (!transparentRecipients.empty() || !bip47Recipients.empty()) {
+        // Transparent checking
+        if (!transparentRecipients.empty()) {
             CAmount transparentBalance = pwallet->GetBalance();
-            CAmount totalTransparentNeeded = totalTransparentAmount + totalBip47Amount;
+            CAmount totalTransparentNeeded = totalTransparentAmount;
             if (transparentBalance < totalTransparentNeeded) {
                 throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient transparent funds");
             }
@@ -1043,20 +1018,16 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                               i, outputs[i].address.encode(spark::GetNetworkType()), FormatMoney(outputs[i].v));
                 }
                 
-                bool success = pwallet->CreateSparkMintTransactions(
-                    outputs, 
-                    wtxAndFee, 
-                    totalFee, 
-                    reservekeys, 
-                    nChangePosRet, 
-                    false, 
-                    strError, 
-                    false,  // fSplit - don't split the transaction
-                    &coinControl,
-                    false   // autoMintAll
-                );
+                strError = pwallet->MintAndStoreSpark(
+                    outputs,
+                    wtxAndFee,
+                    false, // fSubtractFeeFromAmount - already handled per output
+                    false, // fSplit
+                    false, // autoMintAll
+                    false, // fAskFee
+                    &coinControl);
                 
-                if (!success) {
+                if (!strError.empty()) {
                     LogPrintf("Failed to create Spark mint transaction: %s\n", strError);
                     throw JSONRPCError(RPC_WALLET_ERROR, 
                         std::string("Failed to create transaction: ") + strError);
@@ -1092,32 +1063,6 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 throw JSONRPCError(RPC_WALLET_ERROR, 
                     std::string("Failed to send to Spark address: ") + e.what());
             }
-        }
-
-        // Handle BIP47/RAP transactions
-        for (const auto& bip47Pair : bip47Recipients) {
-            std::string rapAddress = bip47Pair.first;
-            UniValue params = bip47Pair.second;
-            
-            bip47::CPaymentCode theirPcode(rapAddress);
-            CBitcoinAddress address = pwallet->GetTheirNextAddress(theirPcode);
-            
-            CAmount nAmount = AmountFromValue(params["amount"]);
-            bool fSubtractFeeFromAmount = false;
-            if (params.exists("subtractFee")) {
-                fSubtractFeeFromAmount = params["subtractFee"].get_bool();
-            }
-            
-            CWalletTx wtx;
-            // Add comments if they were in original params
-            if (params.exists("comment"))
-                wtx.mapValue["comment"] = params["comment"].get_str();
-            if (params.exists("comment_to"))
-                wtx.mapValue["to"] = params["comment_to"].get_str();
-            
-            SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx);
-            pwallet->GenerateTheirNextAddress(theirPcode);
-            txids.push_back(wtx.GetHash().GetHex());
         }
 
         // Handle transparent transactions
@@ -1220,10 +1165,10 @@ UniValue sendtransparent(const JSONRPCRequest& request)
             "sendtransparent \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
             "or\n"
             "sendtransparent {\"address\":{\"amount\":value, \"subtractFee\":bool, \"memo\":string, \"comment\":string, \"comment_to\":string}, ...}\n"
-            "\nSend an amount to a given address. Supports transparent, Spark, BIP47/RAP addresses and Spark names.\n"
+            "\nSend an amount to a given address. Supports transparent, Spark addresses and Spark names.\n"
             + HelpRequiringPassphrase(pwallet) +
             "\nArguments (simple format):\n"
-            "1. \"address\"  (string, required) The address to send to (transparent, Spark, or BIP47/RAP address, or Spark name).\n"
+            "1. \"address\"  (string, required) The address to send to (transparent, Spark address, or Spark name).\n"
             "2. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
@@ -1245,7 +1190,7 @@ UniValue sendtransparent(const JSONRPCRequest& request)
             "}\n"
             "\nResult:\n"
             "\"txid\" or [\"txid1\", \"txid2\", ...] (string or array) Transaction ID(s). Multiple transactions may be created \n"
-            "                                    for different address types (transparent, Spark, BIP47).\n"
+            "                                    for different address types (transparent, Spark).\n"
             "\nExamples (Simple format):\n"
             + HelpExampleCli("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1")
             + HelpExampleCli("sendtransparent", "\"TH8UvVbGXZGVjbakCpRjYhJbqKqrJVNtBP\" 0.1 \"donation\" \"seans outpost\"")
@@ -1864,7 +1809,7 @@ UniValue sendmany(const JSONRPCRequest& request)
             "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
             "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
             "    {\n"
-            "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark, BIP47/RAP, or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark, or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
             "      ,...\n"
             "    }\n"
             "3. minconf                 (numeric, optional, default=1) Only use the balance confirmed at least this many times.\n"
@@ -4639,7 +4584,7 @@ UniValue sendsparkmany(const JSONRPCRequest& request)
             "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
             "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
             "    {\n"
-            "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark, BIP47/RAP, or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+            "      \"address\":amount   (numeric or string) The address is the key (transparent, Spark or Spark name), the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
             "      ,...\n"
             "    }\n"
             "3. \"comment\"             (string, optional) A comment\n"
