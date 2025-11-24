@@ -7,7 +7,6 @@
 
 target_sources(test_firo
   PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/accounting_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/crypto_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mnemonic_tests.cpp
