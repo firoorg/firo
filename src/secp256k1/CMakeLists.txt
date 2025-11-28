@@ -40,7 +40,7 @@ set(${PROJECT_NAME}_LIB_VERSION_AGE 0)
 #=============================
 set(CMAKE_C_STANDARD 90)
 set(CMAKE_C_EXTENSIONS OFF)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 #=============================

@@ -164,11 +164,11 @@ QDateTime ClientModel::getLastBlockDate() const
         return cachedLastBlockDate;
 
     if (chainActive.Tip()) {
-        cachedLastBlockDate = QDateTime::fromTime_t(chainActive.Tip()->GetBlockTime());
+        cachedLastBlockDate = QDateTime::fromSecsSinceEpoch(chainActive.Tip()->GetBlockTime());
         return cachedLastBlockDate;
     }
 
-    return QDateTime::fromTime_t(Params().GenesisBlock().GetBlockTime()); // Genesis block's time of current network
+    return QDateTime::fromSecsSinceEpoch(Params().GenesisBlock().GetBlockTime()); // Genesis block's time of current network
 }
 
 long ClientModel::getMempoolSize() const
@@ -286,7 +286,7 @@ bool ClientModel::isReleaseVersion() const
 
 QString ClientModel::formatClientStartupTime() const
 {
-    return QDateTime::fromTime_t(nClientStartupTime).toString();
+    return QDateTime::fromSecsSinceEpoch(nClientStartupTime).toString();
 }
 
 QString ClientModel::dataDir() const
@@ -372,7 +372,7 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
         //pass a async signal to the UI thread
         QMetaObject::invokeMethod(clientmodel, "numBlocksChanged", Qt::QueuedConnection,
                                   Q_ARG(int, pIndex->nHeight),
-                                  Q_ARG(QDateTime, QDateTime::fromTime_t(pIndex->GetBlockTime())),
+                                  Q_ARG(QDateTime, QDateTime::fromSecsSinceEpoch(pIndex->GetBlockTime())),
                                   Q_ARG(double, clientmodel->getVerificationProgress(pIndex)),
                                   Q_ARG(bool, fHeader));
         nLastUpdateNotification = now;

@@ -84,7 +84,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_HOST_APPLE)
   set(CMAKE_PLATFORM_HAS_INSTALLNAME FALSE)
 endif()
 enable_language(CXX)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -245,7 +245,7 @@ if(BUILD_GUI)
   if(BUILD_GUI_TESTS)
     list(APPEND qt_components Test)
   endif()
-  find_package(Qt 5.11.3 MODULE REQUIRED
+  find_package(Qt 6.7.3 MODULE REQUIRED
     COMPONENTS ${qt_components}
   )
   unset(qt_components)
@@ -830,15 +830,6 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
   # have "make test" depend on "make all"
   set(CMAKE_SKIP_TEST_ALL_DEPENDENCY FALSE)
 endif()
-
-# TODO: The `CMAKE_SKIP_BUILD_RPATH` variable setting can be deleted
-#       in the future after reordering Guix script commands to
-#       perform binary checks after the installation step.
-# Relevant discussions:
-# - https://github.com/hebasto/firo/pull/236#issuecomment-2183120953
-# - https://github.com/firo/firo/pull/30312#issuecomment-2191235833
-set(CMAKE_SKIP_BUILD_RPATH TRUE)
-set(CMAKE_SKIP_INSTALL_RPATH TRUE)
 
 if(BUILD_TESTS)
   # Create test configuration file

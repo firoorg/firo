@@ -52,11 +52,6 @@ jobs:
         python-version: '3.8'
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 1
-        fetch-tags: true
     - name: Install Required Packages
       run: |
         sudo apt-get update
@@ -66,14 +61,27 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install pyzmq
     - name: Download Dependencies
-      run: make -C depends download
+      run: |
+        attempt=1
+        max=5
+        until make -C depends download; do
+          if [ "$attempt" -ge "$max" ]; then
+            echo "make -C depends download failed after $attempt attempts"
+            exit 1
+          fi
+          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+          sleep $((attempt*5))
+          attempt=$((attempt+1))
+        done
     - name: Build Dependencies
       run: make -C depends -j$(nproc)
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Run Unit Tests
       run: |
@@ -114,38 +122,47 @@ jobs:
       with:
         name: test-linux-cmake-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
+
   build-windows-cmake:
     needs: get-commit-hash
     name: build-windows-cmake
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: windows-cmake-binaries
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 1
-        fetch-tags: true
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip
     - name: Switch MinGW GCC and G++ to POSIX Threading
       run: |
         sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
         sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
     - name: Download Dependencies
-      run: make -C depends download
+      run: |
+        attempt=1
+        max=5
+        until make -C depends download; do
+          if [ "$attempt" -ge "$max" ]; then
+            echo "make -C depends download failed after $attempt attempts"
+            exit 1
+          fi
+          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+          sleep $((attempt*5))
+          attempt=$((attempt+1))
+        done
     - name: Build Dependencies
       run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_GUI=ON -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Prepare Files for Artifact
       run: |
@@ -167,11 +184,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 1
-        fetch-tags: true
     - name: Use Xcode instead of Command Line Tools
       run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     - name: Set NJOBS variable
@@ -189,15 +201,28 @@ jobs:
     - name: Install setuptools
       run: sudo -H pip install setuptools
     - name: Download Dependencies
-      run: make -C depends download
+      run: |
+        attempt=1
+        max=5
+        until make -C depends download; do
+          if [ "$attempt" -ge "$max" ]; then
+            echo "make -C depends download failed after $attempt attempts"
+            exit 1
+          fi
+          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+          sleep $((attempt*5))
+          attempt=$((attempt+1))
+        done
     - name: Build Dependencies
       run: |
         make -C depends -j$NJOBS
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
+        env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
         cd build && make -j$NJOBS
     - name: Prepare Files for Artifact
       run: |
@@ -208,6 +233,7 @@ jobs:
       with:
         name: mac-cmake-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
+
   build-guix-x86_64-linux-gnu:
     needs: get-commit-hash
     name: build-guix-x86_64-linux-gnu
@@ -220,11 +246,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          fetch-tags: true
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -232,24 +253,6 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
-          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
-          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
-          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
-          sudo apt-get purge google-cloud-sdk imagemagick -y -f
-          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
-          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
-          sudo apt-get purge unixodbc-dev libssl-dev -y -f
-          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
-          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
-          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
-          sudo apt-get purge google-cloud-sdk -f -y 
-          sudo apt-get purge microsoft-edge-stable -f -y  || true
-          sudo apt purge microsoft-edge-stable -f -y  || true
-          sudo apt-get purge "^mysql" -f -y || true
-          sudo apt-get purge "^php" -f -y || true
-          sudo apt-get purge "^dotnet" -f -y || true
-          sudo apt-get autoremove -y 
-          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -259,11 +262,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
-          sudo rm -rf \
-            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
-            /usr/lib/jvm || true
-          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -325,11 +323,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          fetch-tags: true
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -337,24 +330,6 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
-          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
-          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
-          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
-          sudo apt-get purge google-cloud-sdk imagemagick -y -f
-          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
-          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
-          sudo apt-get purge unixodbc-dev libssl-dev -y -f
-          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
-          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
-          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
-          sudo apt-get purge google-cloud-sdk -f -y 
-          sudo apt-get purge microsoft-edge-stable -f -y  || true
-          sudo apt purge microsoft-edge-stable -f -y  || true
-          sudo apt-get purge "^mysql" -f -y || true
-          sudo apt-get purge "^php" -f -y || true
-          sudo apt-get purge "^dotnet" -f -y || true
-          sudo apt-get autoremove -y 
-          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -364,11 +339,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
-          sudo rm -rf \
-            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
-            /usr/lib/jvm || true
-          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -429,11 +399,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          fetch-tags: true
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -441,24 +406,6 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
-          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
-          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
-          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
-          sudo apt-get purge google-cloud-sdk imagemagick -y -f
-          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
-          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
-          sudo apt-get purge unixodbc-dev libssl-dev -y -f
-          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
-          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
-          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
-          sudo apt-get purge google-cloud-sdk -f -y 
-          sudo apt-get purge microsoft-edge-stable -f -y  || true
-          sudo apt purge microsoft-edge-stable -f -y  || true
-          sudo apt-get purge "^mysql" -f -y || true
-          sudo apt-get purge "^php" -f -y || true
-          sudo apt-get purge "^dotnet" -f -y || true
-          sudo apt-get autoremove -y 
-          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -468,11 +415,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
-          sudo rm -rf \
-            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
-            /usr/lib/jvm || true
-          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -537,14 +479,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          fetch-tags: true
       - name: Download macOS SDK
         run: |
-          wget https://raw.githubusercontent.com/hebasto/artefacts/refs/heads/Xcode/Xcode/Xcode-15.0/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
       - name: Verify macOS SDK SHA256
         run: |
           echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
@@ -559,24 +496,6 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
-          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
-          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
-          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
-          sudo apt-get purge google-cloud-sdk imagemagick -y -f
-          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
-          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
-          sudo apt-get purge unixodbc-dev libssl-dev -y -f
-          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
-          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
-          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
-          sudo apt-get purge google-cloud-sdk -f -y 
-          sudo apt-get purge microsoft-edge-stable -f -y  || true
-          sudo apt purge microsoft-edge-stable -f -y  || true
-          sudo apt-get purge "^mysql" -f -y || true
-          sudo apt-get purge "^php" -f -y || true
-          sudo apt-get purge "^dotnet" -f -y || true
-          sudo apt-get autoremove -y 
-          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -586,11 +505,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
-          sudo rm -rf \
-            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
-            /usr/lib/jvm || true
-          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -598,7 +512,18 @@ jobs:
           sudo apt-get install -y guix
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Download Dependencies
-        run: make -C depends download
+        run: |
+          attempt=1
+          max=5
+          until make -C depends download; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "make -C depends download failed after $attempt attempts"
+              exit 1
+            fi
+            echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+            sleep $((attempt*5))
+            attempt=$((attempt+1))
+          done
       - name: Run Guix Build
         run: |
           CORES=$(nproc)
@@ -658,14 +583,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          fetch-tags: true
       - name: Download macOS SDK
         run: |
-          wget https://raw.githubusercontent.com/hebasto/artefacts/refs/heads/Xcode/Xcode/Xcode-15.0/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
       - name: Verify macOS SDK SHA256
         run: |
           echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
@@ -680,24 +600,6 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo apt-get clean
-          sudo apt-get purge nginx nginx-common nginx-core nginx-full nginx-light nginx-extras -y -f
-          sudo apt-get purge aria2 ansible azure-cli shellcheck rpm xorriso zsync -y -f
-          sudo apt-get purge firefox gfortran-9 google-chrome-stable -y -f
-          sudo apt-get purge google-cloud-sdk imagemagick -y -f
-          sudo apt-get purge libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl -y -f
-          sudo apt-get purge mercurial apt-transport-https mono-complete -y -f
-          sudo apt-get purge unixodbc-dev libssl-dev -y -f
-          sudo apt-get purge libfreetype6-dev libfontconfig1-dev -y -f
-          sudo apt-get purge snmp pollinate libpq-dev postgresql-client powershell ruby-full -y -f
-          sudo apt-get purge sphinxsearch subversion azure-cli microsoft-edge-stable -y -f
-          sudo apt-get purge google-cloud-sdk -f -y 
-          sudo apt-get purge microsoft-edge-stable -f -y  || true
-          sudo apt purge microsoft-edge-stable -f -y  || true
-          sudo apt-get purge "^mysql" -f -y || true
-          sudo apt-get purge "^php" -f -y || true
-          sudo apt-get purge "^dotnet" -f -y || true
-          sudo apt-get autoremove -y 
-          sudo apt-get autoclean -y 
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
           sudo rm -rf /tmp/*
@@ -707,11 +609,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
-          sudo rm -rf \
-            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
-            /usr/lib/jvm || true
-          echo "some directories deleted"
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Install Guix
         run: |
@@ -719,7 +616,18 @@ jobs:
           sudo apt-get install -y guix
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Download Dependencies
-        run: make -C depends download
+        run: |
+          attempt=1
+          max=5
+          until make -C depends download; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "make -C depends download failed after $attempt attempts"
+              exit 1
+            fi
+            echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+            sleep $((attempt*5))
+            attempt=$((attempt+1))
+          done
       - name: Run Guix Build
         run: |
           CORES=$(nproc)
