@@ -125,7 +125,7 @@ std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveConfirmed
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
-        if (nHeight > nUntilHeight) {
+        if (cmp::greater(nHeight, nUntilHeight)) {
             break;
         }
 
@@ -164,7 +164,7 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
-        if (nHeight > nUntilHeight) {
+        if (cmp::greater(nHeight, nUntilHeight)) {
             break;
         }
 
@@ -511,7 +511,7 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return true;
     }
 
-    CAmount nValueIn = 0;
+    FIRO_UNUSED CAmount nValueIn = 0;
     for (const auto& in : tx.vin) {
         CAmount v = 0;
         if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), &v, params)) {
@@ -587,7 +587,7 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
     if (llmqType == Consensus::LLMQ_NONE) {
         return;
     }
-    auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    FIRO_UNUSED auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     uint256 txid;
     bool isInstantSendLock = false;
@@ -609,7 +609,7 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
 
 void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid)
 {
-    auto llmqType = Params().GetConsensus().llmqForInstantSend;
+    FIRO_UNUSED auto llmqType = Params().GetConsensus().llmqForInstantSend;
 
     CTransactionRef tx;
     uint256 hashBlock;
@@ -1367,6 +1367,31 @@ void CInstantSendManager::RemoveChainLockConflictingLock(const uint256& islockHa
         LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCK %s\n", __func__,
                   islock.txid.ToString(), islockHash.ToString(), h.ToString());
     }
+}
+
+bool CInstantSendManager::RemoveISLockByTxId(const uint256& txid)
+{
+    if (!IsNewInstantSendEnabled()) {
+        return false;
+    }
+
+    int tipHeight;
+    {
+        LOCK(cs_main);
+        tipHeight = chainActive.Height();
+    }
+
+    LOCK(cs);
+    auto islock = db.GetInstantSendLockByTxid(txid);
+    if (!islock) {
+        return false;
+    }
+    auto removedIslocks = db.RemoveChainedInstantSendLocks(::SerializeHash(*islock), txid, tipHeight);
+    for (auto& h : removedIslocks) {
+        LogPrintf("CInstantSendManager::%s -- txid=%s: removed (child) ISLOCK %s\n", __func__,
+                  txid.ToString(), h.ToString());
+    }
+    return !removedIslocks.empty();
 }
 
 void CInstantSendManager::AskNodesForLockedTx(const uint256& txid)

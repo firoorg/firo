@@ -26,16 +26,18 @@
 #include <QDesktopWidget>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QTimer>
+#include <QtMath>
 
 SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashScreen(pixmap, f)
 {
     // set reference point, paddings
-    int paddingLeftCol2         = 232;
-    int paddingTopCol2          = 200;
-    int line1 = 0;
-    int line2 = 13;
-    int line3 = 26;
-    int line4 = 39;
+    FIRO_UNUSED int paddingLeftCol2         = 232;
+    FIRO_UNUSED int paddingTopCol2          = 200;
+    FIRO_UNUSED int line1 = 0;
+    FIRO_UNUSED int line2 = 13;
+    FIRO_UNUSED int line3 = 26;
+    FIRO_UNUSED int line4 = 39;
 
     float fontFactor            = 1.0;
 
@@ -72,6 +74,7 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashSc
     pixPaint.end();
 
     this->setPixmap(newPixmap);
+    subscribeToCoreSignals();
 }
 
 
@@ -195,6 +198,7 @@ void SplashScreen::slotFinish(QWidget *mainWin)
     if (isMinimized())
         showNormal();
     hide();
+    unsubscribeFromCoreSignals();
     deleteLater(); // No more need for this
 }
 
@@ -204,7 +208,7 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
         Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
-        Q_ARG(QColor, QColor(55,55,55)));
+        Q_ARG(QColor, QColor(255,255,255)));
 }
 
 static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress)
@@ -253,14 +257,43 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
 void SplashScreen::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
-    painter.drawPixmap(0, 0, pixmap);
-    QRect r = rect().adjusted(5, 5, -5, -5);
+    painter.drawPixmap(0, 0, this->pixmap);
     painter.setPen(curColor);
-    painter.drawText(r, curAlignment, curMessage);
+
+    QRect textRect = rect().adjusted(5, 5, -5, -60);
+    painter.drawText(textRect, Qt::AlignHCenter | Qt::AlignBottom, curMessage);
+
+    static int rotation = 0;
+    rotation = (rotation + 10) % 360;
+
+    painter.setRenderHint(QPainter::Antialiasing);
+    int x = width() / 2;
+    int y = height() - 120;
+    int radius = 5;
+    int circleRadius = 18;
+
+    for (int i = 0; i < 12; ++i) {
+        int alpha = 255 - i * 20;
+        painter.setBrush(QColor(255, 255, 255, alpha));
+        painter.setPen(Qt::NoPen);
+
+        qreal angleRad = qDegreesToRadians(qreal(rotation + i * 30));
+        int dx = int(x + qCos(angleRad) * circleRadius);
+        int dy = int(y + qSin(angleRad) * circleRadius);
+
+        painter.drawEllipse(QPoint(dx, dy), radius, radius);
+    }
+
+    QTimer::singleShot(50, this, SLOT(update()));
 }
 
 void SplashScreen::closeEvent(QCloseEvent *event)
 {
     StartShutdown(); // allows an "emergency" shutdown during startup
+    event->ignore();
+}
+
+void SplashScreen::mousePressEvent(QMouseEvent* event)
+{
     event->ignore();
 }

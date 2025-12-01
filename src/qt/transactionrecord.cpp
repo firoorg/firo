@@ -245,7 +245,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::MintSparkToSelf, "",
                     -(nDebit - nChange), 0));
             } else if (wtx.tx->IsSparkSpend()) {
-                CAmount fee;
+                CAmount fee = 0;
                 try {
                     fee = spark::GetSparkFee(*wtx.tx);
                 } catch (...) {

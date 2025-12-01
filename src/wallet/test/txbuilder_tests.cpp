@@ -22,8 +22,8 @@ public:
     {
     }
 
-    explicit TestInputSigner(const CScript& sig, const COutPoint& output = COutPoint(), uint32_t seq = CTxIn::SEQUENCE_FINAL) :
-        InputSigner(output, seq),
+    explicit TestInputSigner(const CScript& sig, const COutPoint& outputParam = COutPoint(), uint32_t seq = CTxIn::SEQUENCE_FINAL) :
+        InputSigner(outputParam, seq),
         signature(sig)
     {
     }
@@ -46,7 +46,7 @@ public:
     std::function<CAmount(CAmount needed, unsigned txSize)> adjustFee;
 
 public:
-    explicit TestTxBuilder(CWallet& wallet) : TxBuilder(wallet)
+    explicit TestTxBuilder(CWallet& walletParam) : TxBuilder(walletParam)
     {
     }
 

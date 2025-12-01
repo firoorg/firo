@@ -6,21 +6,21 @@ include(GenerateHeaders)
 generate_header_from_raw(data/block413567.raw benchmark::data)
 
 add_executable(bench_firo
-  bench_bitcoin.cpp
-  bench.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bench_bitcoin.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/data/block413567.raw.h
 # Benchmarks:
-  base58.cpp
-  ccoins_caching.cpp
-  checkblock.cpp
-  checkqueue.cpp
-  crypto_hash.cpp
-  Examples.cpp
-  lockedpool.cpp
-  mempool_eviction.cpp
-  perf.cpp
-  rollingbloom.cpp
-  verify_script.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/base58.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ccoins_caching.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/checkblock.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/checkqueue.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/crypto_hash.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/Examples.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/lockedpool.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mempool_eviction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/perf.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rollingbloom.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/verify_script.cpp
 )
 
 target_link_libraries(bench_firo
@@ -32,7 +32,7 @@ target_link_libraries(bench_firo
 if(ENABLE_WALLET)
   target_sources(bench_firo
     PRIVATE
-      coin_selection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/coin_selection.cpp
   )
   target_link_libraries(bench_firo firo_wallet)
 endif()

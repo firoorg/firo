@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "sendcoinsdialog.h"
+#include "compat_layer.h"
 #include "ui_sendcoinsdialog.h"
 
 #include "addresstablemodel.h"
@@ -365,9 +366,8 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
-    size_t confirmed, unconfirmed;
     if (model->getWallet() &&
-        model->getWallet()->GetPrivateBalance(confirmed, unconfirmed).first > 0 &&
+        model->getWallet()->GetPrivateBalance().first > 0 &&
         spark::IsSparkAllowed() &&
         chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
         MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
@@ -537,7 +537,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    double txSize;
+    double txSize = 0.0;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for (auto &transaction : transactions) {
@@ -628,7 +628,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     {
         for(int i = 0; i < ui->entries->count(); ++i)
         {
-            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            FIRO_UNUSED SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         }
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
@@ -746,7 +746,7 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = (spark::IsSparkAllowed() && model->getWallet() && model->getWallet()->sparkWallet);
+    auto allowed = (spark::IsSparkAllowed(count) && model->getWallet() && model->getWallet()->sparkWallet);
 
 
     if (allowed && !ui->switchFundButton->isEnabled())

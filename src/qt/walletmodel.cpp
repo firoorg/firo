@@ -5,7 +5,7 @@
 #include "../boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
 
 #include "walletmodel.h"
-
+#include "clientmodel.h"
 #include "addresstablemodel.h"
 #include "consensus/validation.h"
 #include "guiconstants.h"
@@ -26,8 +26,6 @@
 #include "wallet/walletexcept.h"
 #include "txmempool.h"
 #include "consensus/validation.h"
-#include "sigma.h"
-#include "sigma/coin.h"
 #include "lelantus.h"
 #include "bip47/account.h"
 #include "bip47/bip47utils.h"
@@ -44,6 +42,7 @@
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0), pcodeAddressTableModel(0),
     sparkModel(0),
+    _client_model(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
@@ -142,14 +141,18 @@ void WalletModel::pollBalanceChanged()
     // Get required locks upfront. This avoids the GUI from getting stuck on
     // periodical polls if the core is holding the locks for a longer time -
     // for example, during a wallet rescan.
-    LOCK2(cs_main, wallet->cs_wallet);
+    if (!_client_model) {
+        // ClientModel not yet set; defer to avoid cs_main locking and races
+       return;
+    }
+    int currentNumBlocks = _client_model->cachedNumBlocks;
 
-    if(fForceCheckBalanceChanged || chainActive.Height() != cachedNumBlocks)
+    if(fForceCheckBalanceChanged || currentNumBlocks != cachedNumBlocks)
     {
         fForceCheckBalanceChanged = false;
 
         // Balance and number of transactions might have changed
-        cachedNumBlocks = chainActive.Height();
+        cachedNumBlocks = currentNumBlocks;
 
         QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
         if(transactionTableModel)
@@ -157,16 +160,30 @@ void WalletModel::pollBalanceChanged()
     }
 }
 
+
+void WalletModel::setClientModel(ClientModel* client_model)
+{
+    _client_model = client_model;
+}
+
+
 void WalletModel::checkBalanceChanged()
 {
-    CAmount newBalance = getBalance();
-    CAmount newUnconfirmedBalance = getUnconfirmedBalance();
-    CAmount newImmatureBalance = getImmatureBalance();
+    CAmount newBalance = cachedBalance;
+    CAmount newUnconfirmedBalance = cachedUnconfirmedBalance;
+    CAmount newImmatureBalance = cachedImmatureBalance;
     CAmount newWatchOnlyBalance = 0;
     CAmount newWatchUnconfBalance = 0;
     CAmount newWatchImmatureBalance = 0;
-    CAmount newAnonymizableBalance = getAnonymizableBalance();
     auto newSpatsBalances = getSpatsBalances();
+    CAmount newAnonymizableBalance = cachedAnonymizableBalance;
+
+    if (!wallet->TryGetBalances(newBalance, newUnconfirmedBalance, newImmatureBalance, newAnonymizableBalance))
+        return;
+    
+    CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
+    std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
+            getSparkBalance();
 
     if (haveWatchOnly())
     {
@@ -1072,7 +1089,7 @@ QString WalletModel::generateSparkAddress()
         LOCK(wallet->cs_wallet);
         address = wallet->sparkWallet->generateNewAddress();
         unsigned char network = spark::GetNetworkType();
-    
+
         wallet->SetSparkAddressBook(address.encode(network), "", "receive");
         return QString::fromStdString(address.encode(network));
     }
@@ -1080,6 +1097,7 @@ QString WalletModel::generateSparkAddress()
 
 std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 {
+    LOCK(wallet->cs_wallet);
     return wallet->GetSparkBalance();
 }
 
@@ -1316,7 +1334,6 @@ bool WalletModel::sparkNamesAllowed() const
 
 bool WalletModel::GetSparkNameByAddress(const QString& sparkAddress, QString& name)
 {
-    LOCK(cs_main);
     std::string name_ = name.toStdString();
     bool result = CSparkNameManager::GetInstance()->GetSparkNameByAddress(sparkAddress.toStdString(), name_);
     if (result)
@@ -1331,21 +1348,27 @@ bool WalletModel::validateSparkNameData(const QString &name, const QString &spar
     sparkNameData.sparkAddress = sparkAddress.toStdString();
     sparkNameData.additionalInfo = additionalData.toStdString();
     sparkNameData.sparkNameValidityBlocks = 1000;   // doesn't matter
-
-    {
-        LOCK(cs_main);
-        std::string _strError;
-        bool result = CSparkNameManager::GetInstance()->ValidateSparkNameData(sparkNameData, _strError);
-        strError = QString::fromStdString(_strError);
-        return result;
-    }
+    std::string _strError;
+    bool result = CSparkNameManager::GetInstance()->ValidateSparkNameData(sparkNameData, _strError);
+    strError = QString::fromStdString(_strError);
+    return result;
 }
 
 WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFee) {
     const auto &consensusParams = Params().GetConsensus();
     SendCoinsRecipient recipient;
 
-    recipient.address = QString::fromStdString(consensusParams.stage3DevelopmentFundAddress);
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+
+    std::string destAddress = nHeight >= consensusParams.stage41StartBlockDevFundAddressChange
+        ? consensusParams.stage3CommunityFundAddress
+        : consensusParams.stage3DevelopmentFundAddress;
+        
+    recipient.address = QString::fromStdString(destAddress);
     recipient.amount = sparkNameFee;
     recipient.fSubtractFeeFromAmount = false;
 
@@ -1353,7 +1376,6 @@ WalletModelTransaction WalletModel::initSparkNameTransaction(CAmount sparkNameFe
 }
 
 QString WalletModel::getSparkNameAddress(const QString &sparkName) {
-    LOCK(cs_main);
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     std::string sparkAddress;
     if (sparkNameManager->GetSparkAddress(sparkName.toStdString(), sparkAddress)) {
@@ -1446,8 +1468,6 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
                     std::string strAddress = rcp.address.toStdString();
                     std::string strLabel = rcp.label.toStdString();
                     {
-                        LOCK(wallet->cs_wallet);
-
                         std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(strAddress);
 
                         // Check if we have a new address or an updated label
@@ -1493,8 +1513,6 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
             CTxDestination dest = CBitcoinAddress(strAddress).Get();
             std::string strLabel = rcp.label.toStdString();
             {
-                LOCK(wallet->cs_wallet);
-
                 if(validateAddress(rcp.address)) {
                     std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(dest);
                     // Check if we have a new address or an updated label

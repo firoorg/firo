@@ -7,25 +7,28 @@ pipeline {
     }
     environment {
         CCACHE_DIR = '/tmp/.ccache'
+        HOST = 'x86_64-linux-gnu'
     }
     stages {
         stage('Build dependencies') {
             steps {
                 sh 'git clean -d -f -f -q -x'
                 dir('depends') {
-                    sh 'make -j`nproc` HOST=x86_64-linux-gnu'
+                    sh 'make -j`nproc` HOST=${HOST}'
                 }
             }
         }
         stage('Build') {
             steps {
-                sh './autogen.sh'
-                sh './configure --prefix=`pwd`/depends/x86_64-linux-gnu'
-                sh 'make dist'
-                sh 'mkdir -p dist'
-                sh 'tar -C dist --strip-components=1 -xzf firo-*.tar.gz'
-                dir('dist') {
-                    sh './configure --prefix=`pwd`/../depends/x86_64-linux-gnu --enable-tests --enable-crash-hooks'
+                sh '''
+                    export HOST_TRIPLET=${HOST}
+                    env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \\
+                    cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \\
+                    -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \\
+                    -DCLIENT_VERSION_IS_RELEASE=true -DENABLE_CRASH_HOOKS=ON \\
+                    -S$(pwd) -B$(pwd)/build
+                '''
+                dir('build') {
                     sh 'make -j`nproc`'
                 }
             }
@@ -33,23 +36,46 @@ pipeline {
         stage('Test') {
             steps {
                 catchError(buildResult: 'FAILURE', stageResult: 'FAILURE'){
-                    dir('dist') {
-                        sh 'make check'
+                    dir('build') {
+                        sh 'make test'
                     }
                 }
             }
         }
         stage('Archive unit tests logs') {
             steps {
-                archiveArtifacts artifacts: 'dist/src/test-suite.log',
-                allowEmptyArchive: true
+                script {
+                    sh '''
+                        mkdir -p test-logs
+                        find build -name "LastTest.log" -exec cp {} test-logs/ctest-last.log \\; || true
+                        find build -name "LastTestsFailed.log" -exec cp {} test-logs/ctest-failed.log \\; || true
+                        find build -path "*/Testing/Temporary/*" -name "*.log" -exec cp {} test-logs/ \\; || true
+                        find build -name "*test*.log" -exec cp {} test-logs/ \\; || true
+                    '''
                 }
+                archiveArtifacts artifacts: 'test-logs/**',
+                allowEmptyArchive: true
+            }
         }
         stage('RPC Tests') {
             steps {
-                dir('dist') {
-                    sh 'qa/pull-tester/rpc-tests.py -extended'
+                sh '''
+                    export FIROD="$(pwd)/build/bin/firod"
+                    export FIROCLI="$(pwd)/build/bin/firo-cli"
+                    qa/pull-tester/rpc-tests.py -extended
+                '''
+            }
+        }
+        stage('Archive Binaries') {
+            steps {
+                script {
+                    sh '''
+                        mkdir -p artifacts
+                        cp build/bin/firo* artifacts/ || true
+                    '''
                 }
+                archiveArtifacts artifacts: 'artifacts/**',
+                allowEmptyArchive: true
             }
         }
     }

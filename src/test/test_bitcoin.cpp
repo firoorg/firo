@@ -37,7 +37,6 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/unit_test_monitor.hpp>
 #include <boost/thread.hpp>
-#include "sigma.h"
 #include "evo/evodb.h"
 #include "evo/cbtx.h"
 #include "evo/specialtx.h"

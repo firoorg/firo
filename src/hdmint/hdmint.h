@@ -6,15 +6,12 @@
 #define FIRO_HDMINT_H
 
 #include "primitives/mint_spend.h"
-#include "sigma.h"
 
 /**
  * CHDMint object
  *
  * struct that is safe to store essential mint data, without holding any information that allows for actual spending
  * (ie. serial, randomness, private key)
- *
- * @return CHDMint object
  */
 class CHDMint
 {

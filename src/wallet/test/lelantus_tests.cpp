@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(mint_and_store_lelantus)
     fRequireStandard = true; // to verify mainnet can accept lelantus mint
     pwalletMain->SetBroadcastTransactions(true);
 
-    GenerateBlocks(450);
+    GenerateBlocks(110);
     auto amount = 1 * COIN;
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
@@ -167,12 +167,8 @@ BOOST_AUTO_TEST_CASE(mintlelantus_and_mint_all)
         LOCK2(cs_main, pwalletMain->cs_wallet);
         std::vector<CScript> scripts;
         while (blocks != 0) {
-
             CPubKey key;
-            {
-                LOCK(pwalletMain->cs_wallet);
-                key = pwalletMain->GenerateNewKey();
-            }
+            key = pwalletMain->GenerateNewKey();
             scripts.push_back(GetScriptForDestination(key.GetID()));
 
             auto blockCount = std::min(blocksPerScript, blocks);
@@ -253,7 +249,7 @@ BOOST_AUTO_TEST_CASE(spend)
 {
     fRequireStandard = true; // to verify mainnet can accept lelantus mint
     pwalletMain->SetBroadcastTransactions(true);
-    GenerateBlocks(450);
+    GenerateBlocks(150);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
     std::vector<CHDMint> mints;

@@ -42,6 +42,7 @@
 #include "validation.h"
 #include "mtpstate.h"
 #include "batchproof_container.h"
+#include <crypto/progpow/include/ethash/progpow.hpp>
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -415,7 +416,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-conf=<file>", strprintf(_("Specify configuration file (default: %s)"), BITCOIN_CONF_FILENAME));
     if (mode == HMM_BITCOIND)
     {
-#if HAVE_DECL_DAEMON
+#if defined(HAVE_DECL_DAEMON) && HAVE_DECL_DAEMON
         strUsage += HelpMessageOpt("-daemon", _("Run in the background as a daemon and accept commands"));
 #endif
     }
@@ -808,7 +809,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     }
     // Need this to restore Sigma spend state
     if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        pwalletMain->zwallet->GetTracker().ListMints();
         pwalletMain->zwallet->GetTracker().ListLelantusMints();
     }
 #endif
@@ -1098,7 +1098,7 @@ bool AppInitBasicSetup()
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_WARN, CreateFileA("NUL", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, 0));
 #endif
-#if _MSC_VER >= 1400
+#if defined(_MSC_VER) && _MSC_VER  >= 1400
     // Disable confusing "helpful" text message on abort, Ctrl-C
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
 #endif
@@ -1112,7 +1112,8 @@ bool AppInitBasicSetup()
 #define PROCESS_DEP_ENABLE 0x00000001
 #endif
     typedef BOOL (WINAPI *PSETPROCDEPPOL)(DWORD);
-    PSETPROCDEPPOL setProcDEPPol = (PSETPROCDEPPOL)GetProcAddress(GetModuleHandleA("Kernel32.dll"), "SetProcessDEPPolicy");
+    PSETPROCDEPPOL setProcDEPPol = reinterpret_cast<PSETPROCDEPPOL>(
+        reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("Kernel32.dll"), "SetProcessDEPPolicy")));
     if (setProcDEPPol != NULL) setProcDEPPol(PROCESS_DEP_ENABLE);
 #endif
 
@@ -1483,7 +1484,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
-    int64_t nStart;
+    int64_t nStart = 0;
 
     // ********************************************************* Step 5: verify wallet database integrity
 #ifdef ENABLE_WALLET
@@ -1690,6 +1691,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         mutableParams.nMTPStripDataTime = GetArg("-mtpstripdatatime", INT_MAX);
     else if (IsArgSet("-mtpstripdatatimefromnow"))
         mutableParams.nMTPStripDataTime = GetArg("-mtpstripdatatimefromnow", 0) + (uint32_t)GetTime();
+
+    // set PP memory usage clamp if needed
+    const auto &params = Params().GetConsensus();
+    if (params.nMaxPPEpoch != INT_MAX)
+        ethash::ethash_clamp_memory_usage(params.nMaxPPEpoch, params.nTerminalPPEpoch);
 
     // ********************************************************* Step 7a: check lite mode
 
@@ -2096,13 +2102,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 14: finished
 
-    SetRPCWarmupFinished();
-    uiInterface.InitMessage(_("Done loading"));
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->postInitProcess(threadGroup);
 #endif
+
+    SetRPCWarmupFinished();
+    uiInterface.InitMessage(_("Done loading"));
 
     return !fRequestShutdown;
 }

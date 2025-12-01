@@ -13,8 +13,9 @@
 #include "../sync.h"
 #include "../sparkname.h"
 #include "../spats/wallet.hpp"
+#include "../chain.h"
 
-class CRecipient;
+struct CRecipient;
 class CReserveKey;
 class CCoinControl;
 extern CChain chainActive;
@@ -76,9 +77,10 @@ public:
     spark::Coin getCoinFromLTagHash(const uint256& lTagHash) const;
 
     // functions to get spark balance
-    CAmount getFullBalance() const;
-    CAmount getAvailableBalance() const;
-    CAmount getUnconfirmedBalance() const;
+    CAmount getFullBalance();
+    CAmount getAvailableBalance();
+    CAmount getUnconfirmedBalance();
+    std::pair<CAmount, CAmount> getSparkBalance();
 
     CAmount getAddressFullBalance(const spark::Address& address) const;
     CAmount getAddressAvailableBalance(const spark::Address& address) const;

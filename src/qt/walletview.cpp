@@ -210,6 +210,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
             connect(autoMintSparkModel, &AutoMintSparkModel::requireShowAutomintSparkNotification, this, &WalletView::showAutomintSparkNotification);
             connect(autoMintSparkModel, &AutoMintSparkModel::closeAutomintSparkNotification, this, &WalletView::closeAutomintSparkNotification);
         }
+        walletModel->setClientModel(clientModel);
     }
 }
 
@@ -504,6 +505,8 @@ bool WalletView::eventFilter(QObject *watched, QEvent *event)
     case QEvent::Type::Resize:
     case QEvent::Type::Move:
         repositionAutomintSparkNotification();
+        break;
+    default:
         break;
     }
 

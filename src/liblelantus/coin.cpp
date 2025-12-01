@@ -1,6 +1,8 @@
 #include "coin.h"
 #include "primitives/mint_spend.h"
 #include "lelantus_primitives.h"
+#include <secp256k1.h>
+#include <secp256k1_ecdh.h>
 
 namespace lelantus {
     

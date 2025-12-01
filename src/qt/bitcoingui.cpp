@@ -117,8 +117,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     toggleHideAction(0),
     encryptWalletAction(0),
     backupWalletAction(0),
-    changePassphraseAction(0),
     exportViewKeyAction(0),
+    changePassphraseAction(0),
     aboutQtAction(0),
     openRPCConsoleAction(0),
     openAction(0),
@@ -1175,9 +1175,12 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
     QString title = (amount < 0) ? tr("Sent transaction") : tr("Incoming transaction");
     QString finalMsg = msg;
 
-    QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
-        message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
-    }, Qt::QueuedConnection);
+    // skip tx notifications in case it is not fully sync
+    if (masternodeSync.IsBlockchainSynced()) {
+        QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
+            message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
+        }, Qt::QueuedConnection);
+    }
 
 }
 #endif // ENABLE_WALLET

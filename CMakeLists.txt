@@ -19,11 +19,11 @@ endif()
 set(CLIENT_NAME "Firo Core")
 set(CLIENT_VERSION_MAJOR 0)
 set(CLIENT_VERSION_MINOR 14)
-set(CLIENT_VERSION_REVISION 14)
-set(CLIENT_VERSION_BUILD 1)
+set(CLIENT_VERSION_REVISION 15)
+set(CLIENT_VERSION_BUILD 0)
 set(CLIENT_VERSION_RC 0)
-set(CLIENT_VERSION_IS_RELEASE "false")
-set(COPYRIGHT_YEAR "2024")
+set(CLIENT_VERSION_IS_RELEASE "false" CACHE STRING "Is this a release build?")
+set(COPYRIGHT_YEAR "2025")
 
 # During the enabling of the CXX and CXXOBJ languages, we modify
 # CMake's compiler/linker invocation strings by appending the content
@@ -99,6 +99,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/module)
 # Include utility functions
 #=============================
 include(cmake/utilities.cmake)
+include(CheckFunctionExists)
+include(CheckSymbolExists)
+include(CheckCXXCompilerFlag)
 
 #=============================
 # Configurable options
@@ -138,6 +141,7 @@ option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting execu
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
 option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces (default is off)" OFF)
+option(HAVE_DECL_DAEMON "Enable -daemon" ON)
 
 if(ENABLE_CRASH_HOOKS)
   message(STATUS "Crash hooks enabled")
@@ -145,7 +149,25 @@ if(ENABLE_CRASH_HOOKS)
   add_compile_definitions(ENABLE_CRASH_HOOKS=1)
 endif()
 
-include(CheckCXXCompilerFlag)
+if(HAVE_DECL_DAEMON)
+  if(WIN32) # Windows & MinGW: no daemon()
+    message(STATUS "daemon() unavailable on Windows; disabling -daemon support")
+    add_compile_definitions(HAVE_DECL_DAEMON=0)
+  else()
+    message(STATUS "Checking for daemon()")
+    check_function_exists(daemon HAVE_DAEMON_FUNC)
+    if(HAVE_DAEMON_FUNC)
+      add_compile_definitions(HAVE_DECL_DAEMON=1)
+    else()
+      message(WARNING "daemon() not found; defining HAVE_DECL_DAEMON=0 (pass -DHAVE_DECL_DAEMON=OFF to suppress check)")
+      add_compile_definitions(HAVE_DECL_DAEMON=0)
+      # Optionally flip cache so summary reflects reality
+      set(HAVE_DECL_DAEMON OFF CACHE BOOL "Enable -daemon support" FORCE)
+    endif()
+  endif()
+else()
+  add_compile_definitions(HAVE_DECL_DAEMON=0)
+endif()
 
 # Check if the linker supports wrapping __cxa_allocate_exception:
 check_cxx_compiler_flag("-Wl,-wrap=__cxa_allocate_exception" LINK_WRAP_SUPPORTED)
@@ -294,7 +316,6 @@ if(BUILD_FOR_FUZZING)
 endif()
 
 include(ProcessConfigurations)
-include(CheckFunctionExists)
 
 include(TryAppendCXXFlags)
 include(TryAppendLinkerFlag)
@@ -461,12 +482,20 @@ find_library(TOR_LIBRARY
 
 # Find OpenSSL library
 find_package(OpenSSL 1.1.1 REQUIRED)
-
-# Find MiniUPNP library
-find_library(MINIUPNP_LIBRARY
-  NAMES miniupnpc
-  REQUIRED
-)
+if(MINGW)
+  message(STATUS "Patching OpenSSL::Crypto INTERFACE_LINK_LIBRARIES for MinGW")
+  # Retrieve the current INTERFACE_LINK_LIBRARIES property (as a list)
+  get_target_property(_openssl_libs OpenSSL::Crypto INTERFACE_LINK_LIBRARIES)
+  if(_openssl_libs)
+    message(STATUS "Before patch: ${_openssl_libs}")
+    # Remove the 'dl' element from the list
+    list(REMOVE_ITEM _openssl_libs "dl")
+    message(STATUS "After patch: ${_openssl_libs}")
+    set_target_properties(OpenSSL::Crypto PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${_openssl_libs}"
+    )
+  endif()
+endif()
 
 # Find GMP library
 find_package(GMP 6.2.1 REQUIRED)
@@ -586,6 +615,38 @@ foreach(func ${BUILTIN_FUNCTIONS})
     endif()
 endforeach()
 
+check_cxx_source_compiles(
+  "#if __cplusplus >= 201703L
+  int main() {
+      [[maybe_unused]] int x = 42;
+      return 0;
+  }
+  #else
+  #error \"Requires C++17\"
+  #endif"
+  HAVE_MAYBE_UNUSED
+)
+if(${HAVE_MAYBE_UNUSED})
+    message(STATUS "Compiler supports maybe_unused" )
+    add_compile_definitions(HAVE_MAYBE_UNUSED=1)
+else()
+    message(WARNING "Compiler does not support maybe_unused")
+    check_cxx_source_compiles(
+      "int main() {
+          __attribute__((unused)) int x = 42;
+          return 0;
+      }"
+      HAVE_ATTRIBUTE_UNUSED
+    )
+    if(${HAVE_ATTRIBUTE_UNUSED})
+        message(STATUS "Compiler supports __attribute__((unused))" )
+        add_compile_definitions(HAVE_ATTRIBUTE_UNUSED=1)
+    else()
+        message(WARNING "Compiler does not support __attribute__((unused))")
+        message(WARNING "Please use a compiler that supports C++17 or __attribute__((unused))")
+    endif()
+endif()
+
 include(cmake/ccache.cmake)
 
 add_library(warn_interface INTERFACE)
@@ -641,9 +702,18 @@ configure_file(cmake/script/CoverageInclude.cmake.in CoverageInclude.cmake USE_S
 # Don't allow extended (non-ASCII) symbols in identifiers. This is easier for code review.
 try_append_cxx_flags("-fno-extended-identifiers" TARGET core_interface SKIP_LINK)
 
-try_append_cxx_flags("-ffile-prefix-map=A=B" TARGET core_interface SKIP_LINK
-  IF_CHECK_PASSED "-ffile-prefix-map=${PROJECT_SOURCE_DIR}/src=."
-)
+# Only apply for GCC/Clang-like compilers
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  # Normalize to forward slashes (helps on mingw/Windows)
+  file(TO_CMAKE_PATH "${CMAKE_BINARY_DIR}" _bin_path)
+  file(TO_CMAKE_PATH "${CMAKE_SOURCE_DIR}" _src_path)
+
+  # Map build-tree -> source-tree in debug info for Debug builds
+  # Use generator-expression so it only affects Debug config
+  add_compile_options(
+    "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-fdebug-prefix-map=${_bin_path}=${_src_path}>"
+  )
+endif()
 
 # Currently all versions of gcc are subject to a class of bugs, see the
 # gccbug_90348 test case (only reproduces on GCC 11 and earlier) and
@@ -782,8 +852,6 @@ if(BUILD_TESTS)
     set(abs_top_srcdir ${PROJECT_SOURCE_DIR})
     set(abs_top_builddir ${PROJECT_BINARY_DIR})
     set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})
-    message(WARNING "CMAKE_EXECUTABLE_SUFFIX : ${CMAKE_EXECUTABLE_SUFFIX}")
-    message(WARNING "WITH_ZMQ : ${WITH_ZMQ}")
 
     macro(set_configure_variable var conf_var)
       if(${var})
@@ -829,6 +897,9 @@ include(cmake/crc32c.cmake)
 include(cmake/leveldb.cmake)
 add_subdirectory(src)
 
+# Ensure build info is generated early for all targets that need it
+add_dependencies(core_interface generate_build_info)
+
 include(cmake/tests.cmake)
 
 include(Maintenance)
@@ -836,6 +907,8 @@ setup_split_debug_script()
 add_maintenance_targets()
 add_windows_deploy_target()
 add_macos_deploy_target()
+
+include_directories(${CMAKE_SOURCE_DIR}/src)
 
 message("\n")
 message("Configure summary")
@@ -876,6 +949,7 @@ message("Attempt to harden executables ......... ${ENABLE_HARDENING}")
 message("Treat compiler warnings as errors ..... ${WERROR}")
 message("Use ccache for compiling .............. ${WITH_CCACHE}")
 message("Enable crash hooks .................... ${ENABLE_CRASH_HOOKS}")
+message("Daemon mode is enabled ................ ${HAVE_DECL_DAEMON}")
 message("\n")
 if(configure_warnings)
     message("  ******\n")
@@ -893,3 +967,21 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Firo client software")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_VERBATIM_VARIABLES YES)
 include(CPack)
+
+# Static linking option for Windows
+if(WIN32 AND MINGW AND STATIC_BUILD)
+    option(STATIC_BUILD "Build with static linking" OFF)
+    
+    if(STATIC_BUILD)
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".lib")
+        set(BUILD_SHARED_LIBS OFF)
+        
+        # Force static runtime
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -static-libgcc")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+        
+        # Ensure we link against static versions of system libraries
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic")
+    endif()
+endif()

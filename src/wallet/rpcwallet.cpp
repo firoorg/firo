@@ -10,11 +10,9 @@
 #include "core_io.h"
 #include "init.h"
 #include "validation.h"
-#include "sigma.h"
 #include "lelantus.h"
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
-#include "../sigma/coinspend.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "policy/rbf.h"
@@ -32,6 +30,7 @@
 #include "bip47/paymentchannel.h"
 #include "bip47/account.h"
 #include "wallet/coincontrol.h"
+#include "rpcdump.h"
 
 #include <stdint.h>
 
@@ -63,13 +62,6 @@ bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException)
             return false;
     }
     return true;
-}
-
-void EnsureSigmaWalletIsAvailable()
-{
-    if (!pwalletMain || !pwalletMain->zwallet) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
-    }
 }
 
 void EnsureLelantusWalletIsAvailable()
@@ -475,7 +467,7 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
 
     // Find all addresses that have the given account
     UniValue ret(UniValue::VARR);
-    for (const std::pair<CBitcoinAddress, CAddressBookData>& item : pwallet->mapAddressBook) {
+    for (const auto& item : pwallet->mapAddressBook) {
         const CBitcoinAddress& address = item.first;
         const std::string& strName = item.second.name;
         if (strName == strAccount)
@@ -829,7 +821,7 @@ UniValue getreceivedbyaddress(const JSONRPCRequest& request)
 
     // Tally
     CAmount nAmount = 0;
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
         if (wtx.IsCoinBase() || !CheckFinalTx(*wtx.tx))
             continue;
@@ -886,7 +878,7 @@ UniValue getreceivedbyaccount(const JSONRPCRequest& request)
 
     // Tally
     CAmount nAmount = 0;
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
         if (wtx.IsCoinBase() || !CheckFinalTx(*wtx.tx))
             continue;
@@ -1464,7 +1456,7 @@ UniValue ListReceived(CWallet * const pwallet, const UniValue& params, bool fByA
 
     // Tally
     std::map<CBitcoinAddress, tallyitem> mapTally;
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
 
         if (wtx.IsCoinBase() || !CheckFinalTx(*wtx.tx))
@@ -1496,7 +1488,7 @@ UniValue ListReceived(CWallet * const pwallet, const UniValue& params, bool fByA
     // Reply
     UniValue ret(UniValue::VARR);
     std::map<std::string, tallyitem> mapAccountTally;
-    for (const std::pair<CBitcoinAddress, CAddressBookData>& item : pwallet->mapAddressBook) {
+    for (const auto& item : pwallet->mapAddressBook) {
         const CBitcoinAddress& address = item.first;
         const std::string& strAccount = item.second.name;
         std::map<CBitcoinAddress, tallyitem>::iterator it = mapTally.find(address);
@@ -1979,13 +1971,13 @@ UniValue listaccounts(const JSONRPCRequest& request)
             includeWatchonly = includeWatchonly | ISMINE_WATCH_ONLY;
     bool fAddLocked = (request.params.size() > 2 && request.params[2].get_bool());
     std::map<std::string, CAmount> mapAccountBalances;
-    for (const std::pair<CTxDestination, CAddressBookData>& entry : pwallet->mapAddressBook) {
+    for (const auto& entry : pwallet->mapAddressBook) {
         if (IsMine(*pwallet, entry.first) & includeWatchonly) {  // This address belongs to me
             mapAccountBalances[entry.second.name] = 0;
         }
     }
 
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         const CWalletTx& wtx = pairWtx.second;
         CAmount nFee;
         std::string strSentAccount;
@@ -2114,7 +2106,7 @@ UniValue listsinceblock(const JSONRPCRequest& request)
 
     UniValue transactions(UniValue::VARR);
 
-    for (const std::pair<uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
+    for (const std::pair<const uint256, CWalletTx>& pairWtx : pwallet->mapWallet) {
         CWalletTx tx = pairWtx.second;
 
         if (depth == -1 || tx.GetDepthInMainChain() < depth)
@@ -3178,71 +3170,6 @@ UniValue regeneratemintpool(const JSONRPCRequest& request) {
     return true;
 }
 
-//[firo]: sigma/lelantus section
-
-UniValue listunspentsigmamints(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() > 2)
-        throw std::runtime_error(
-                "listunspentsigmamints [minconf=1] [maxconf=9999999] \n"
-                        "Returns array of unspent transaction outputs\n"
-                        "with between minconf and maxconf (inclusive) confirmations.\n"
-                        "Results are an array of Objects, each of which has:\n"
-                        "{txid, vout, scriptPubKey, amount, confirmations}");
-
-    if (pwallet->IsLocked())
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
-                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
-
-    EnsureSigmaWalletIsAvailable();
-
-    RPCTypeCheck(request.params, boost::assign::list_of(UniValue::VNUM)(UniValue::VNUM)(UniValue::VARR));
-
-    int nMinDepth = 1;
-    if (request.params.size() > 0)
-        nMinDepth = request.params[0].get_int();
-
-    int nMaxDepth = 9999999;
-    if (request.params.size() > 1)
-        nMaxDepth = request.params[1].get_int();
-
-    UniValue results(UniValue::VARR);
-    std::vector <COutput> vecOutputs;
-    assert(pwallet != NULL);
-    pwallet->ListAvailableSigmaMintCoins(vecOutputs, false);
-    LogPrintf("vecOutputs.size()=%s\n", vecOutputs.size());
-    BOOST_FOREACH(const COutput &out, vecOutputs)
-    {
-        if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
-            continue;
-
-        int64_t nValue = out.tx->tx->vout[out.i].nValue;
-        const CScript &pk = out.tx->tx->vout[out.i].scriptPubKey;
-        UniValue entry(UniValue::VOBJ);
-        entry.push_back(Pair("txid", out.tx->GetHash().GetHex()));
-        entry.push_back(Pair("vout", out.i));
-        entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
-        if (pk.IsPayToScriptHash()) {
-            CTxDestination address;
-            if (ExtractDestination(pk, address)) {
-                const CScriptID &hash = boost::get<CScriptID>(address);
-                CScript redeemScript;
-                if (pwallet->GetCScript(hash, redeemScript))
-                    entry.push_back(Pair("redeemScript", HexStr(redeemScript.begin(), redeemScript.end())));
-            }
-        }
-        entry.push_back(Pair("amount", ValueFromAmount(nValue)));
-        entry.push_back(Pair("confirmations", out.nDepth));
-        results.push_back(entry);
-    }
-
-    return results;
-}
-
 UniValue listunspentlelantusmints(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -3983,7 +3910,7 @@ UniValue spendspark(const JSONRPCRequest& request)
     BOOST_FOREACH(const std::string& name_, keys)
     {
         spark::Address sAddress(params);
-        unsigned char coinNetwork;
+        FIRO_UNUSED unsigned char coinNetwork;
         bool isSparkAddress;
         std::string sparkAddressStr;
 
@@ -4081,7 +4008,7 @@ UniValue spendspark(const JSONRPCRequest& request)
             else
                 throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ") + name_);
 
-            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}};
             recipients.push_back(recipient);
 
             continue;
@@ -4159,9 +4086,12 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 6) {
         throw std::runtime_error(
-                "registersparkname \"name\" \"sparkaddress\" years [\"additionalData\"]\n");
+                "registersparkname \"name\" \"sparkaddress\" years [\"additionalData\"]\n"
+                "  Or if you want to transfer a spark name:\n"
+                "registersparkname \"name\" \"sparkaddress\" years \"oldsparkaddress\" \"transferproof\" [\"additionalData\"]\n"
+                "  \"transferproof\" can be acquired via \"transfersparkname\" call\n");
     }
 
     EnsureWalletIsUnlocked(pwallet);
@@ -4173,15 +4103,20 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         chainHeight = chainActive.Height();
     }
 
+    const auto &consensusParams = Params().GetConsensus();
+
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!spark::IsSparkAllowed() || chainHeight < Params().GetConsensus().nSparkNamesStartBlock) {
+    if (!spark::IsSparkAllowed() || chainHeight < consensusParams.nSparkNamesStartBlock) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark names are not activated yet");
     }
 
-    const auto &consensusParams = Params().GetConsensus();
+    bool fTransfer = request.params.size() > 4;
+    if (fTransfer && chainHeight < consensusParams.nSparkNamesV2StartBlock) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark name transfers are not activated yet");
+    }
 
-    if (request.params.size() < 3 || request.params.size() > 4)
+    if (!fTransfer && request.params.size() > 4)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
 
     std::string sparkName = request.params[0].get_str();
@@ -4192,17 +4127,29 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     if (numberOfYears < 1 || numberOfYears > 10)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
 
-    if (request.params.size() >= 4)
-        additionalData = request.params[3].get_str();
+    int additionalDataIndex = fTransfer ? 5 : 3;
+    if (request.params.size() > additionalDataIndex)
+        additionalData = request.params[additionalDataIndex].get_str();
 
     if (sparkName.empty() || sparkName.size() > 20)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spark name");
 
     CSparkNameTxData    sparkNameData;
+    sparkNameData.nVersion = chainHeight >= consensusParams.nSparkNamesV2StartBlock ? CSparkNameTxData::CURRENT_VERSION : 1;
+    sparkNameData.operationType = fTransfer ? CSparkNameTxData::opTransfer : CSparkNameTxData::opRegister;
     sparkNameData.name = sparkName;
     sparkNameData.sparkAddress = sparkAddress;
     sparkNameData.additionalInfo = additionalData;
     sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
+
+    if (fTransfer) {
+        sparkNameData.oldSparkAddress = request.params[3].get_str();
+        std::string transferProofHex = request.params[4].get_str();
+        // sanity check
+        if (transferProofHex.size() > 2048)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid transfer proof");
+        sparkNameData.transferOwnershipProof = ParseHex(request.params[4].get_str());
+    }
 
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
     std::string errorDescription;
@@ -4237,6 +4184,117 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     }
 
     return wtx.GetHash().GetHex();
+}
+
+UniValue requestsparknametransfer(const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() < 4 || request.params.size() > 5) {
+        throw std::runtime_error(
+            "requestsparknametransfer \"name\" \"sparkaddress\" \"oldsparkaddress\" years [\"additionalData\"]\n"
+        );
+    }
+
+    if (request.params.size() < 4 || request.params.size() > 5)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
+
+    int chainHeight;
+    {
+        LOCK(cs_main);
+        chainHeight = chainActive.Height();
+    }
+    const auto &consensusParams = Params().GetConsensus();
+    if (chainHeight < consensusParams.nSparkNamesV2StartBlock) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark name transfers are not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    std::string sparkAddress = request.params[1].get_str();
+    std::string oldSparkAddress = request.params[2].get_str();
+    std::string additionalData;
+
+    int numberOfYears = request.params[3].get_int();
+    if (numberOfYears < 1 || numberOfYears > 10)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
+
+    if (request.params.size() >= 5)
+        additionalData = request.params[4].get_str();
+
+    if (sparkName.empty() || sparkName.size() > 20)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spark name");
+
+    CSparkNameTxData    sparkNameData;
+    sparkNameData.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    sparkNameData.name = sparkName;
+    sparkNameData.sparkAddress = sparkAddress;
+    sparkNameData.oldSparkAddress = oldSparkAddress;
+    sparkNameData.additionalInfo = additionalData;
+    sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
+    sparkNameData.operationType = CSparkNameTxData::opTransfer;
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << sparkNameData;
+
+    CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+    hashStream << "SparkNameTransferProof";
+    hashStream << sparkNameData.oldSparkAddress << sparkNameData.sparkAddress;
+    hashStream << ss.GetHash();
+
+    return hashStream.GetHash().ToString();
+}
+
+UniValue transfersparkname(const JSONRPCRequest &request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 2) {
+        throw std::runtime_error(
+            "transfersparkname \"oldSparkAddress\" \"requestHash\"\n"
+        );
+    }
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Unable to generate spend key."));
+    }
+
+    if (spendKey == spark::SpendKey(params))
+        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
+
+    std::string oldSparkAddress = request.params[0].get_str();
+    std::string requestHash = request.params[1].get_str();
+
+    spark::Address  address(spark::Params::get_default());
+    try {
+        address.decode(oldSparkAddress);
+    } catch (std::exception& e) {
+        throw std::runtime_error(_("Invalid spark address"));
+    }
+
+    if (!pwallet->sparkWallet->isAddressMine(address))
+        throw std::runtime_error(_("Spark address doesn't belong to the wallet"));
+    
+    spark::Scalar m;
+    try {
+        m.SetHex(requestHash);
+    }
+    catch (const std::exception &) {
+        throw std::runtime_error("Failed to set hex for scalar, try again");
+    }
+
+    spark::OwnershipProof ownProof;
+    address.prove_own(m, spendKey, spark::FullViewKey(spendKey), ownProof);
+
+    CDataStream ownStream(SER_NETWORK, PROTOCOL_VERSION);
+    ownStream << ownProof;
+    
+    return HexStr(ownStream.begin(), ownStream.end());
 }
 
 UniValue lelantustospark(const JSONRPCRequest& request) {
@@ -4292,7 +4350,9 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
 
     CTransactionRef tx;
     uint256 hashBlock;
-    GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock);
+    if (!GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock))
+        throw std::runtime_error(
+                "Transaction is not found by the given txHash.");
     CWalletDB walletdb(pwallet->strWalletFile);
 
     UniValue results(UniValue::VOBJ);
@@ -4353,74 +4413,6 @@ UniValue getsparkcoinaddr(const JSONRPCRequest& request)
     }
 
     return results;
-}
-
-UniValue mint(const JSONRPCRequest& request)
-{
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
-        return NullUniValue;
-
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-            "mint amount\n"
-            "\nAutomatically choose denominations to mint by amount."
-            + HelpRequiringPassphrase(pwallet) + "\n"
-            "\nArguments:\n"
-            "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be a multiple of 0.05\n"
-            "\nResult:\n"
-            "\"transactionid\"  (string) The transaction id.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("mint", "0.15")
-            + HelpExampleCli("mint", "100.9")
-            + HelpExampleRpc("mint", "0.15")
-        );
-
-    EnsureWalletIsUnlocked(pwallet);
-    EnsureSigmaWalletIsAvailable();
-
-    // Ensure Sigma mints is already accepted by network so users will not lost their coins
-    // due to other nodes will treat it as garbage data.
-    if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not active");
-    }
-
-    CAmount nAmount = AmountFromValue(request.params[0]);
-    LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", request.params[0].getValStr(), nAmount);
-
-    std::vector<sigma::CoinDenomination> denominations;
-    sigma::GetAllDenoms(denominations);
-
-    CAmount smallestDenom;
-    DenominationToInteger(denominations.back(), smallestDenom);
-
-    if (nAmount % smallestDenom != 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
-    }
-
-    std::vector<sigma::CoinDenomination> mints;
-    if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Problem with coin selection.\n");
-    }
-
-    std::vector<sigma::PrivateCoin> privCoins;
-
-    const auto& sigmaParams = sigma::Params::get_default();
-    std::transform(mints.begin(), mints.end(), std::back_inserter(privCoins),
-        [sigmaParams](const sigma::CoinDenomination& denom) -> sigma::PrivateCoin {
-            return sigma::PrivateCoin(sigmaParams, denom);
-        });
-    std::vector<CHDMint> vDMints;
-    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
-
-    CWalletTx wtx;
-    std::string strError = pwallet->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
-
-    if (strError != "")
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-
-    return wtx.GetHash().GetHex();
 }
 
 UniValue mintlelantus(const JSONRPCRequest& request)
@@ -4507,119 +4499,6 @@ UniValue autoMintlelantus(const JSONRPCRequest& request) {
     return result;
 }
 
-UniValue spendmany(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
-        throw std::runtime_error(
-                "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
-                "\nSpend multiple coins and remint changes in a single transaction by specify addresses and amount for each address."
-                + HelpRequiringPassphrase(pwallet) + "\n"
-                "\nArguments:\n"
-                "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
-                "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
-                "    {\n"
-                "      \"address\":amount   (numeric or string) The Firo address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
-                "      ,...\n"
-                "    }\n"
-                "3. minconf                 (numeric, optional, default=6) NOT IMPLEMENTED. Only use the balance confirmed at least this many times.\n"
-                "4. \"comment\"             (string, optional) A comment\n"
-                "5. subtractfeefromamount   (string, optional) A json array with addresses.\n"
-                "                           The fee will be equally deducted from the amount of each selected address.\n"
-                "                           Those recipients will receive less firos than you enter in their corresponding amount field.\n"
-                "                           If no addresses are specified here, the sender pays the fee.\n"
-                "    [\n"
-                "      \"address\"            (string) Subtract fee from this address\n"
-                "      ,...\n"
-                "    ]\n"
-                "\nResult:\n"
-                "\"transactionid\"          (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                "                                    the number of addresses.\n"
-                "\nExamples:\n"
-                "\nSend two amounts to two different addresses:\n"
-                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
-                "\nSend two amounts to two different addresses and subtract fee from amount:\n"
-                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
-        );
-
-    if (!sigma::IsSigmaAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not active");
-    }
-
-    EnsureSigmaWalletIsAvailable();
-
-    LOCK2(cs_main, pwallet->cs_wallet);
-
-    // Only account "" have sigma coins.
-    std::string strAccount = AccountFromValue(request.params[0]);
-    if (!strAccount.empty())
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
-
-    UniValue sendTo = request.params[1].get_obj();
-
-    CWalletTx wtx;
-    if (request.params.size() > 3 && !request.params[3].isNull() && !request.params[3].get_str().empty())
-        wtx.mapValue["comment"] = request.params[3].get_str();
-
-    std::unordered_set<std::string> subtractFeeFromAmountSet;
-    UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (request.params.size() > 4) {
-        subtractFeeFromAmount = request.params[4].get_array();
-        for (int i = subtractFeeFromAmount.size(); i--;) {
-            subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
-        }
-    }
-
-    std::set<CBitcoinAddress> setAddress;
-    std::vector<CRecipient> vecSend;
-
-    CAmount totalAmount = 0;
-    auto keys = sendTo.getKeys();
-    if (keys.size() <= 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Required at least an address to send");
-    }
-
-    for (const auto& strAddr : keys) {
-        CBitcoinAddress address(strAddr);
-        if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Firo address: " + strAddr);
-
-        if (!setAddress.insert(address).second)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
-
-        CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = AmountFromValue(sendTo[strAddr]);
-        if (nAmount <= 0) {
-            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
-        }
-        totalAmount += nAmount;
-
-        bool fSubtractFeeFromAmount =
-            subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
-
-        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
-    }
-
-    EnsureWalletIsUnlocked(pwallet);
-
-    CAmount nFeeRequired = 0;
-
-    try {
-        pwallet->SpendSigma(vecSend, wtx, nFeeRequired);
-    }
-    catch (const InsufficientFunds& e) {
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
-    }
-    catch (const std::exception& e) {
-        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
-    }
-
-    return wtx.GetHash().GetHex();
-}
-
 UniValue joinsplit(const JSONRPCRequest& request) {
 
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4698,7 +4577,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
     std::vector<CRecipient> vecSend;
     std::vector<CAmount> vMints;
 
-    CAmount totalAmount = 0;
+    FIRO_UNUSED CAmount totalAmount = 0;
 
     auto keys = sendTo.getKeys();
     std::vector<UniValue> mints = mintAmounts.empty() ? std::vector<UniValue>() : mintAmounts.getValues();
@@ -4724,7 +4603,7 @@ UniValue joinsplit(const JSONRPCRequest& request) {
         bool fSubtractFeeFromAmount =
                 subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
 
-        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
+        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}});
     }
 
     for(const auto& mint : mints) {
@@ -4751,36 +4630,6 @@ UniValue joinsplit(const JSONRPCRequest& request) {
     }
 
     return wtx.GetHash().GetHex();
-}
-
-UniValue resetsigmamint(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "resetsigmamint"
-                + HelpRequiringPassphrase(pwallet));
-
-    EnsureSigmaWalletIsAvailable();
-
-    std::vector <CMintMeta> listMints;
-    CWalletDB walletdb(pwallet->strWalletFile);
-    listMints = pwallet->zwallet->GetTracker().ListMints(false, false);
-
-    BOOST_FOREACH(CMintMeta &mint, listMints) {
-        CHDMint dMint;
-        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), false, dMint)){
-            continue;
-        }
-        dMint.SetUsed(false);
-        dMint.SetHeight(-1);
-        pwallet->zwallet->GetTracker().Add(walletdb, dMint, true);
-    }
-
-    return NullUniValue;
 }
 
 UniValue resetlelantusmint(const JSONRPCRequest& request) {
@@ -4811,52 +4660,6 @@ UniValue resetlelantusmint(const JSONRPCRequest& request) {
     }
 
     return NullUniValue;
-}
-
-UniValue listsigmamints(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() > 1)
-        throw std::runtime_error(
-                "listsigmamints <all>(false/true)\n"
-                "\nArguments:\n"
-                "1. <all> (boolean, optional) false (default) to return own mints. true to return every mints.\n"
-                "\nResults are an array of Objects, each of which has:\n"
-                "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
-
-    EnsureSigmaWalletIsAvailable();
-
-    bool fAllStatus = false;
-    if (request.params.size() > 0) {
-        fAllStatus = request.params[0].get_bool();
-    }
-
-    // Mint secret data encrypted in wallet
-    EnsureWalletIsUnlocked(pwallet);
-
-    std::list <CSigmaEntry> listPubcoin;
-    CWalletDB walletdb(pwallet->strWalletFile);
-    listPubcoin = pwallet->zwallet->GetTracker().MintsAsSigmaEntries(false, false);
-    UniValue results(UniValue::VARR);
-
-    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
-        if (fAllStatus || sigmaItem.IsUsed || (sigmaItem.randomness != uint64_t(0) && sigmaItem.serialNumber != uint64_t(0))) {
-            UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("id", sigmaItem.id));
-            entry.push_back(Pair("IsUsed", sigmaItem.IsUsed));
-            entry.push_back(Pair("denomination", sigmaItem.get_denomination_value()));
-            entry.push_back(Pair("value", sigmaItem.value.GetHex()));
-            entry.push_back(Pair("serialNumber", sigmaItem.serialNumber.GetHex()));
-            entry.push_back(Pair("nHeight", sigmaItem.nHeight));
-            entry.push_back(Pair("randomness", sigmaItem.randomness.GetHex()));
-            results.push_back(entry);
-        }
-    }
-
-    return results;
 }
 
 UniValue listlelantusmints(const JSONRPCRequest& request) {
@@ -4899,146 +4702,6 @@ UniValue listlelantusmints(const JSONRPCRequest& request) {
             entry.push_back(Pair("nHeight", lelantusItem.nHeight));
             entry.push_back(Pair("randomness", lelantusItem.randomness.GetHex()));
             results.push_back(entry);
-        }
-    }
-
-    return results;
-}
-
-UniValue listsigmapubcoins(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    std::string help_message =
-        "listsigmapubcoins <all>(0.05/0.1/0.5/1/10/25/100)\n"
-            "\nArguments:\n"
-            "1. <all> (string, optional) 0.05, 0.1, 0.5, 1, 10, 25, 100 (default) to return all sigma public coins with given denomination. empty to return all pubcoin.\n"
-            "\nResults are an array of Objects, each of which has:\n"
-            "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}";
-    if (request.fHelp || request.params.size() > 1) {
-        throw std::runtime_error(help_message);
-    }
-
-    EnsureSigmaWalletIsAvailable();
-
-    sigma::CoinDenomination denomination;
-    bool filter_by_denom = false;
-    if (request.params.size() > 0) {
-        filter_by_denom = true;
-        if (!sigma::StringToDenomination(request.params[0].get_str(), denomination)) {
-            throw std::runtime_error(help_message);
-        }
-    }
-
-    // Mint secret data encrypted in wallet
-    EnsureWalletIsUnlocked(pwallet);
-
-    std::list<CSigmaEntry> listPubcoin;
-    CWalletDB walletdb(pwallet->strWalletFile);
-    listPubcoin = pwallet->zwallet->GetTracker().MintsAsSigmaEntries(false, false);
-    UniValue results(UniValue::VARR);
-    listPubcoin.sort(CompSigmaHeight);
-
-    auto state = sigma::CSigmaState::GetState();
-    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
-        sigma::PublicCoin coin(sigmaItem.value, sigmaItem.get_denomination());
-        int height, id;
-        std::tie(height, id) = state->GetMintedCoinHeightAndId(coin);
-        if (id > 0 &&
-            (!filter_by_denom || sigmaItem.get_denomination() == denomination)) {
-            UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("id", id));
-            entry.push_back(Pair("IsUsed", sigmaItem.IsUsed));
-            entry.push_back(Pair("denomination", sigmaItem.get_string_denomination()));
-            entry.push_back(Pair("value", sigmaItem.value.GetHex()));
-            entry.push_back(Pair("serialNumber", sigmaItem.serialNumber.GetHex()));
-            entry.push_back(Pair("nHeight", height));
-            entry.push_back(Pair("randomness", sigmaItem.randomness.GetHex()));
-            results.push_back(entry);
-        }
-    }
-
-    return results;
-}
-
-UniValue setsigmamintstatus(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() != 2)
-        throw std::runtime_error(
-                "setsigmamintstatus \"coinserial\" <isused>(true/false)\n"
-                "Set mintsigma IsUsed status to True or False\n"
-                "Results are an array of one or no Objects, each of which has:\n"
-                "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
-
-    EnsureSigmaWalletIsAvailable();
-
-    Scalar coinSerial;
-    coinSerial.SetHex(request.params[0].get_str());
-
-    bool fStatus = true;
-    fStatus = request.params[1].get_bool();
-
-    EnsureWalletIsUnlocked(pwallet);
-
-    std::vector <CMintMeta> listMints;
-    CWalletDB walletdb(pwallet->strWalletFile);
-    listMints = pwallet->zwallet->GetTracker().ListMints(false, false);
-
-    UniValue results(UniValue::VARR);
-
-    BOOST_FOREACH(CMintMeta &mint, listMints) {
-        CSigmaEntry sigmaItem;
-        if(!pwallet->GetMint(mint.hashSerial, sigmaItem))
-            continue;
-
-        CHDMint dMint;
-        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), false, dMint)){
-            continue;
-        }
-
-        if (sigmaItem.serialNumber != uint64_t(0)) {
-            LogPrintf("sigmaItem.serialNumber = %s\n", sigmaItem.serialNumber.GetHex());
-            if (sigmaItem.serialNumber == coinSerial) {
-                LogPrintf("setmintsigmastatus Found!\n");
-
-                const std::string& isUsedDenomStr =
-                    fStatus
-                    ? "Used (" + std::to_string((double)sigmaItem.get_denomination_value() / COIN) + " mint)"
-                    : "New (" + std::to_string((double)sigmaItem.get_denomination_value() / COIN) + " mint)";
-                pwallet->NotifyZerocoinChanged(pwallet, sigmaItem.value.GetHex(), isUsedDenomStr, CT_UPDATED);
-
-                if(!mint.isDeterministic){
-                    sigmaItem.IsUsed = fStatus;
-                    pwallet->zwallet->GetTracker().Add(walletdb, sigmaItem, true);
-                }else{
-                    dMint.SetUsed(fStatus);
-                    pwallet->zwallet->GetTracker().Add(walletdb, dMint, true);
-                }
-
-                if (!fStatus) {
-                    // erase sigma spend entry
-                    CSigmaSpendEntry spendEntry;
-                    spendEntry.coinSerial = coinSerial;
-                    walletdb.EraseCoinSpendSerialEntry(spendEntry);
-                }
-
-                UniValue entry(UniValue::VOBJ);
-                entry.push_back(Pair("id", sigmaItem.id));
-                entry.push_back(Pair("IsUsed", fStatus));
-                entry.push_back(Pair("denomination", sigmaItem.get_denomination_value()));
-                entry.push_back(Pair("value", sigmaItem.value.GetHex()));
-                entry.push_back(Pair("serialNumber", sigmaItem.serialNumber.GetHex()));
-                entry.push_back(Pair("nHeight", sigmaItem.nHeight));
-                entry.push_back(Pair("randomness", sigmaItem.randomness.GetHex()));
-                results.push_back(entry);
-                break;
-            }
         }
     }
 
@@ -5120,121 +4783,6 @@ UniValue setlelantusmintstatus(const JSONRPCRequest& request) {
     }
 
     return results;
-}
-
-UniValue listsigmaspends(const JSONRPCRequest& request) {
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
-        return NullUniValue;
-    }
-
-    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
-        throw std::runtime_error(
-                "listsigmaspends\n"
-                "Return up to \"count\" saved sigma spend transactions\n"
-                "\nArguments:\n"
-                "1. count            (numeric) The number of transactions to return, <=0 means no limit\n"
-                "2. onlyunconfirmed  (bool, optional, default=false) If true return only unconfirmed transactions\n"
-                "\nResult:\n"
-                "[\n"
-                "  {\n"
-                "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
-                "    \"confirmations\": n,             (numeric) The number of confirmations for the transaction\n"
-                "    \"abandoned\": xxx,               (bool) True if the transaction was already abandoned\n"
-                "    \"spends\": \n"
-                "    [\n"
-                "      {\n"
-                "        \"denomination\": d,            (string) Denomination\n"
-                "        \"spendid\": id,                (numeric) Spend group id\n"
-                "        \"serial\": \"s\",              (string) Serial number of the coin\n"
-                "      }\n"
-                "    ]\n"
-                "    \"re-mints\": \n"
-                "    [\n"
-                "      {\n"
-                "        \"denomination\": \"s\",        (string) Denomination\n"
-                "        \"value\": \"s\",               (string) value\n"
-                "      }\n"
-                "    ]\n"
-                "  }\n"
-                "]\n");
-
-    EnsureSigmaWalletIsAvailable();
-
-    int  count = request.params[0].get_int();
-    bool fOnlyUnconfirmed = request.params.size()>=2 && request.params[1].get_bool();
-
-    LOCK2(cs_main, pwallet->cs_wallet);
-
-    UniValue ret(UniValue::VARR);
-    const CWallet::TxItems& txOrdered = pwallet->wtxOrdered;
-
-    for (CWallet::TxItems::const_reverse_iterator it = txOrdered.rbegin();
-         it != txOrdered.rend();
-         ++it) {
-        CWalletTx *const pwtx = (*it).second.first;
-
-        if (!pwtx || !pwtx->tx->IsSigmaSpend())
-            continue;
-
-        UniValue entry(UniValue::VOBJ);
-
-        int confirmations = pwtx->GetDepthInMainChain();
-        if (confirmations > 0 && fOnlyUnconfirmed)
-            continue;
-
-        entry.push_back(Pair("txid", pwtx->GetHash().GetHex()));
-        entry.push_back(Pair("confirmations", confirmations));
-        entry.push_back(Pair("abandoned", pwtx->isAbandoned()));
-
-        UniValue spends(UniValue::VARR);
-        BOOST_FOREACH(const CTxIn &txin, pwtx->tx->vin) {
-            // For sigma public coin group id is prevout.n.
-            int pubcoinId = txin.prevout.n;
-
-            // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
-            // OP_SIGMASPEND is written.
-            // because the size of serialized spend is also written, probably in 3 bytes.
-            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
-                                            (const char *)&*txin.scriptSig.end(),
-                                            SER_NETWORK, PROTOCOL_VERSION);
-            sigma::Params* zcParams = sigma::Params::get_default();
-            sigma::CoinSpend spend(zcParams, serializedCoinSpend);
-
-            UniValue spendEntry(UniValue::VOBJ);
-            spendEntry.push_back(Pair("denomination",
-                                 sigma::DenominationToString(spend.getDenomination())));
-            spendEntry.push_back(Pair("spendid", pubcoinId));
-            spendEntry.push_back(Pair("serial", spend.getCoinSerialNumber().GetHex()));
-            spends.push_back(spendEntry);
-        }
-
-        entry.push_back(Pair("spends", spends));
-
-        UniValue remints(UniValue::VARR);
-        BOOST_FOREACH(const CTxOut &txout, pwtx->tx->vout) {
-            if (txout.scriptPubKey.empty() || !txout.scriptPubKey.IsSigmaMint()) {
-                continue;
-            }
-            sigma::CoinDenomination denomination;
-            IntegerToDenomination(txout.nValue, denomination);
-
-            UniValue remintEntry(UniValue::VOBJ);
-            remintEntry.push_back(Pair(
-                "denomination", sigma::DenominationToString(denomination)));
-            remintEntry.push_back(Pair(
-                "value", sigma::ParseSigmaMintScript(txout.scriptPubKey).tostring()));
-            remints.push_back(remintEntry);
-        }
-
-        entry.push_back(Pair("remints", remints));
-        ret.push_back(entry);
-
-        if (count > 0 && (int)ret.size() >= count)
-            break;
-    }
-
-    return ret;
 }
 
 UniValue listlelantusjoinsplits(const JSONRPCRequest& request) {
@@ -5378,16 +4926,6 @@ UniValue removetxwallet(const JSONRPCRequest& request) {
     return NullUniValue;
 }
 
-
-
-extern UniValue dumpprivkey_firo(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue importprivkey(const JSONRPCRequest& request);
-extern UniValue importaddress(const JSONRPCRequest& request);
-extern UniValue importpubkey(const JSONRPCRequest& request);
-extern UniValue dumpwallet_firo(const JSONRPCRequest& request);
-extern UniValue importwallet(const JSONRPCRequest& request);
-extern UniValue importprunedfunds(const JSONRPCRequest& request);
-extern UniValue removeprunedfunds(const JSONRPCRequest& request);
 
 // Calculate the size of the transaction assuming all signatures are max size
 // Use DummySignatureCreator, which inserts 72 byte signatures everywhere.
@@ -6003,17 +5541,6 @@ UniValue setusednumber(const JSONRPCRequest& request)
 
 /******************************************************************************/
 
-extern UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue dumpsparkviewkey(const JSONRPCRequest& request); // in rpcdump.cpp
-extern UniValue importprivkey(const JSONRPCRequest& request);
-extern UniValue importaddress(const JSONRPCRequest& request);
-extern UniValue importpubkey(const JSONRPCRequest& request);
-extern UniValue dumpwallet(const JSONRPCRequest& request);
-extern UniValue importwallet(const JSONRPCRequest& request);
-extern UniValue importprunedfunds(const JSONRPCRequest& request);
-extern UniValue removeprunedfunds(const JSONRPCRequest& request);
-extern UniValue importmulti(const JSONRPCRequest& request);
-
 static const CRPCCommand commands[] =
 { //  category              name                        actor (function)           okSafeMode
     //  --------------------- ------------------------    -----------------------    ----------
@@ -6072,56 +5599,50 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true,   {"passphrase","timeout"} },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true,   {"txid"} },
 
-    { "wallet",             "listunspentsigmamints",    &listunspentsigmamints,    false },
-    { "wallet",             "listunspentlelantusmints", &listunspentlelantusmints, false },
-    { "wallet",             "mint",                     &mint,                     false },
-    { "wallet",             "mintlelantus",             &mintlelantus,             false },
-    { "wallet",             "autoMintlelantus",         &autoMintlelantus,         false },
-    { "wallet",             "spendmany",                &spendmany,                false },
-    { "wallet",             "joinsplit",                &joinsplit,                false },
-    { "wallet",             "resetsigmamint",           &resetsigmamint,           false },
-    { "wallet",             "resetlelantusmint",        &resetlelantusmint,        false },
-    { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
-    { "wallet",             "setlelantusmintstatus",    &setlelantusmintstatus,    false },
-    { "wallet",             "listsigmamints",           &listsigmamints,           false },
-    { "wallet",             "listsigmapubcoins",        &listsigmapubcoins,        false },
-    { "wallet",             "listlelantusmints",        &listlelantusmints,        false },
+    { "wallet",             "listunspentlelantusmints", &listunspentlelantusmints, false, {} },
+    { "wallet",             "mintlelantus",             &mintlelantus,             false, {} },
+    { "wallet",             "autoMintlelantus",         &autoMintlelantus,         false, {} },
+    { "wallet",             "joinsplit",                &joinsplit,                false, {} },
+    { "wallet",             "resetlelantusmint",        &resetlelantusmint,        false, {} },
+    { "wallet",             "setlelantusmintstatus",    &setlelantusmintstatus,    false, {} },
+    { "wallet",             "listlelantusmints",        &listlelantusmints,        false, {} },
 
-    { "wallet",             "setmininput",              &setmininput,              false },
-    { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false },
-    { "wallet",             "removetxmempool",          &removetxmempool,          false },
-    { "wallet",             "removetxwallet",           &removetxwallet,           false },
-    { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
-    { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false },
+    { "wallet",             "setmininput",              &setmininput,              false, {} },
+    { "wallet",             "regeneratemintpool",       &regeneratemintpool,       false, {} },
+    { "wallet",             "removetxmempool",          &removetxmempool,          false, {} },
+    { "wallet",             "removetxwallet",           &removetxwallet,           false, {} },
+    { "wallet",             "listlelantusjoinsplits",   &listlelantusjoinsplits,   false, {} },
 
     //spark
-    { "wallet",             "listunspentsparkmints",  &listunspentsparkmints,  false },
+    { "wallet",             "listunspentsparkmints",  &listunspentsparkmints,  false, {} },
     { "wallet",             "listunspentspatsmints",  &listunspentspatsmints,  false },
-    { "wallet",             "listsparkmints",         &listsparkmints,         false },
-    { "wallet",             "listsparkspends",        &listsparkspends,        false },
-    { "wallet",             "getsparkdefaultaddress", &getsparkdefaultaddress, false },
-    { "wallet",             "getallsparkaddresses",   &getallsparkaddresses,   false },
-    { "wallet",             "getnewsparkaddress",     &getnewsparkaddress,     false },
-    { "wallet",             "getsparkbalance",        &getsparkbalance,        false },
-    { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false },
-    { "wallet",             "resetsparkmints",        &resetsparkmints,        false },
-    { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false },
-    { "wallet",             "mintspark",              &mintspark,              true },
+    { "wallet",             "listsparkmints",         &listsparkmints,         false, {} },
+    { "wallet",             "listsparkspends",        &listsparkspends,        false, {} },
+    { "wallet",             "getsparkdefaultaddress", &getsparkdefaultaddress, false, {} },
+    { "wallet",             "getallsparkaddresses",   &getallsparkaddresses,   false, {} },
+    { "wallet",             "getnewsparkaddress",     &getnewsparkaddress,     false, {} },
+    { "wallet",             "getsparkbalance",        &getsparkbalance,        false, {} },
+    { "wallet",             "getsparkaddressbalance", &getsparkaddressbalance, false, {} },
+    { "wallet",             "resetsparkmints",        &resetsparkmints,        false, {} },
+    { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false, {} },
+    { "wallet",             "mintspark",              &mintspark,              true,  {} },
     { "wallet",             "mintspats",              &mintspats,              false },
-    { "wallet",             "automintspark",          &automintspark,          false },
-    { "wallet",             "spendspark",             &spendspark,             false },
-    { "wallet",             "lelantustospark",        &lelantustospark,        false },
-    { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false },
-    { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false },
-    { "wallet",             "registersparkname",      &registersparkname,      false },
+    { "wallet",             "automintspark",          &automintspark,          false, {} },
+    { "wallet",             "spendspark",             &spendspark,             false, {} },
+    { "wallet",             "lelantustospark",        &lelantustospark,        false, {} },
+    { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false, {} },
+    { "wallet",             "getsparkcoinaddr",       &getsparkcoinaddr,       false, {} },
+    { "wallet",             "registersparkname",      &registersparkname,      false, {} },
+    { "wallet",             "requestsparknametransfer", &requestsparknametransfer, false,  {} },
+    { "wallet",             "transfersparkname",        &transfersparkname,        false,  {} },
     { "wallet",             "getsparknames",          &getsparknames,          true, {} },
 
     //bip47
-    { "bip47",              "createrapaddress",         &createrapaddress,         true },
-    { "bip47",              "setupchannel",             &setupchannel,             true },
-    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true },
-    { "bip47",              "listrapaddresses",         &listrapaddresses,         true },
-    { "bip47",              "setusednumber",            &setusednumber,            true }
+    { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },
+    { "bip47",              "setupchannel",             &setupchannel,             true,   {} },
+    { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true,   {} },
+    { "bip47",              "listrapaddresses",         &listrapaddresses,         true,   {} },
+    { "bip47",              "setusednumber",            &setusednumber,            true,   {} }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

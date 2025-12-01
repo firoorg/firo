@@ -14,7 +14,7 @@
 #include "bitcoin_bignum/bignum.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
-#include "sigma/coin.h"
+#include "liblelantus/coin.h"
 #include "libspark/coin.h"
 #include "evo/spork.h"
 #include "firo_params.h"
@@ -272,7 +272,7 @@ public:
 
     //! List of spark names that were created or extended in this block. Map of spark name to <address, expiration block height, additional info>
     std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
-    //! List of spark names that were removed in this block because of expiration
+    //! List of spark names that were removed in this block because of expiration, unregistration or transfer. Map of spark name to <address, expiration block height, additional info>
     std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
 
     spats::Actions spats_actions;
@@ -308,6 +308,7 @@ public:
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
         sigmaMintedPubCoins.clear();
+        sigmaSpentSerials.clear();
         lelantusMintedPubCoins.clear();
         lelantusMintData.clear();
         anonymitySetHash.clear();
@@ -316,7 +317,6 @@ public:
         spentLTags.clear();
         ltagTxhash.clear();
         sparkTxHashContext.clear();
-        sigmaSpentSerials.clear();
         lelantusSpentSerials.clear();
         activeDisablingSporks.clear();
         addedSparkNames.clear();

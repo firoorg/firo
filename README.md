@@ -6,6 +6,7 @@
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/firoorg/firo/latest/master)](https://github.com/firoorg/firo/graphs/commit-activity)
 [![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/firoorg/firo)](https://github.com/firoorg/firo/graphs/code-frequency)
 [![GitHub last-commit](https://img.shields.io/github/last-commit/firoorg/firo)](https://github.com/firoorg/firo/commits/master)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/firoorg/firo?utm_source=oss&utm_medium=github&utm_campaign=firoorg%2Ffiro&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 [Firo](https://firo.org) formerly known as Zcoin, is a privacy focused cryptocurrency that utilizes the [Lelantus Spark protocol](https://eprint.iacr.org/2021/1173) which supports high anonymity sets without requiring trusted setup and relying on standard cryptographic assumptions.
 
@@ -17,7 +18,7 @@ Firo uses a hybrid PoW and LLMQ Chainlocks system combining fair distribution of
 
 # Running with Docker
 
-If you are already familiar with Docker, then running Firo with Docker might be the the easier method for you. To run Firo using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
+If you are already familiar with Docker, then running Firo with Docker might be the easier method for you. To run Firo using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
 continue with the following instructions.
 
 Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `firo-cli` utility) to interact with Firo via this method.
@@ -107,7 +108,7 @@ Bootstrappable builds can [be achieved with Guix.](contrib/guix/README.md)
 
 ```sh
 sudo apt-get update
-sudo apt-get install python; sudo apt-get install git curl build-essential libtool automake pkg-config cmake
+sudo apt-get install python git curl build-essential cmake pkg-config
 # Also needed for GUI wallet only:
 sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
 ```
@@ -118,7 +119,7 @@ If you use a later version of Ubuntu, you may need to replace `python` with `pyt
 
 ```sh
 sudo dnf update
-sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ libtool make autoconf automake cmake patch which
+sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ make cmake patch which
 # Also needed for GUI wallet only:
 sudo dnf install qt5-qttools-devel qt5-qtbase-devel xz bison
 sudo ln /usr/bin/bison /usr/bin/yacc
@@ -130,7 +131,10 @@ sudo pacman -Sy
 sudo pacman -S git base-devel python cmake
 ```
 
-## Build Firo with autotools
+## Build Firo
+
+### Prerequisites (macOS Specific)
+Ensure [Homebrew](https://brew.sh/) is installed as per the [macOS build guide](https://github.com/firoorg/firo/blob/master/doc/build-macos.md).
 
 1.  Download the source:
 
@@ -139,7 +143,15 @@ git clone https://github.com/firoorg/firo
 cd firo
 ```
 
-2.  Build dependencies and firo:
+2.  Build dependencies:
+
+```sh
+cd depends
+make -j$(nproc)
+cd ..
+```
+
+3.  Configure and build Firo:
 
 Headless (command-line only for servers etc.):
 
@@ -147,59 +159,30 @@ Headless (command-line only for servers etc.):
 cd depends
 NO_QT=true make -j`nproc`
 cd ..
-./autogen.sh
-./configure --prefix=`pwd`/depends/`depends/config.guess` --without-gui
-make -j`nproc`
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$(depends/config.guess)/toolchain.cmake \
+-DBUILD_GUI=OFF -DBUILD_CLI=ON
+cd build && make -j$(nproc)
 ```
 
 Or with GUI wallet as well:
 
 ```sh
-cd depends
-make -j`nproc`
-cd ..
-./autogen.sh
-./configure --prefix=`pwd`/depends/`depends/config.guess`
-make -j`nproc`
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$(depends/config.guess)/toolchain.cmake \
+-DBUILD_GUI=ON -DBUILD_CLI=ON
+cd build && make -j$(nproc)
 ```
 
-3.  *(optional)* It is recommended to build and run the unit tests:
+4.  *(optional)* It is recommended to build and run the unit tests:
 
 ```sh
-./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-tests
-make check
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$(depends/config.guess)/toolchain.cmake \
+-DBUILD_TESTS=ON -DBUILD_GUI=OFF -DBUILD_CLI=ON
+cd build && make -j$(nproc)
+make test
 ```
 
-If the build succeeded, two binaries will be generated in `/src`: `firod` and `firo-cli`. If you chose to build the GUI, `firo-qt` will be also generated in the `qt` folder.
+If the build succeeded, binaries will be generated in `build/bin/`: `firod`, `firo-cli`, and if GUI is enabled, `firo-qt`.
 
-## Build Firo with CMake
-
-This document provides instructions for building Firo using the new CMake-based build system.
-
-### Prerequisites (macOS Specific)
-Ensure [Homebrew](https://brew.sh/) is installed as per the [macOS build guide](https://github.com/firoorg/firo/blob/master/doc/build-macos.md).
-
----
-
-### Build Instructions
-
-#### 1. Build Dependencies
-```bash
-cd depends
-make -j$(nproc)
-cd ..
-```
-#### 2. Configure and Build
-
-```bash
-mkdir build && cd build
-cmake .. \
-  -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../depends/x86_64-pc-linux-gnu/toolchain.cmake \
-  -DBUILD_CLI=ON \
-  -DBUILD_GUI=ON \
-  -DBUILD_TESTS=ON
-make -j$(nproc)
-```
 #### 3. Run GUI Client
 
 ```
@@ -221,37 +204,35 @@ make -j$(nproc)
 
 ### Supported Cross-Compilation Targets
 
+To build for other platforms, specify the `HOST` variable when building dependencies:
 | Host Target              | Platform                  |
 |--------------------------|---------------------------|
+| `x86_64-pc-linux-gnu`    | Linux 64-bit (default)    |
 | `x86_64-w64-mingw32`     | Windows 64-bit            |
 | `aarch64-apple-darwin`   | macOS                     |
 | `arm-linux-gnueabihf`    | Linux ARM 32-bit          |
 | `aarch64-linux-gnu`      | Linux ARM 64-bit          |
 
 #### Usage Example:
+1.  Build dependencies:
+
 ```bash
 # Build dependencies for Windows 64-bit
 cd depends
 make HOST=x86_64-w64-mingw32 -j$(nproc)
 cd ..
 ```
-### Cross-Compilation 
-To build for other platforms, specify `HOST` variable. 
+2.  Configure and build Firo:
 ```bash
-
-mkdir build && cd build
-cmake .. \
-  -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../depends/x86_64-w64-mingw32/toolchain.cmake \
-  -DBUILD_CLI=ON \
-  -DBUILD_GUI=ON \
-  -DBUILD_TESTS=ON
-make -j$(nproc)
-
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/x86_64-w64-mingw32/toolchain.cmake \
+  -DBUILD_TESTS=ON -DBUILD_CLI=ON -DBUILD_GUI=ON \
+cd build && make -j$(nproc)
 ```
 
 ### Notes
  * The toolchain path in `CMAKE_TOOLCHAIN_FILE`must match your target architecture. 
  * `BUILD_TX` is automatically enabled if `BUILD_CLI=ON` is enabled. 
+
 
 ## macOS Build Instructions and Notes
 

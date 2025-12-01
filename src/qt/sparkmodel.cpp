@@ -62,7 +62,6 @@ AutoMintSparkModel* SparkModel::getAutoMintSparkModel()
 
 std::pair<CAmount, CAmount> SparkModel::getSparkBalance()
 {
-    size_t confirmed, unconfirmed;
     return pwalletMain->GetSparkBalance();
 }
 

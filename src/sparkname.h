@@ -1,16 +1,11 @@
 #ifndef FIFO_SPARKNAME_H
 #define FIFO_SPARKNAME_H
 
-#include <chain.h>
 #include "consensus/validation.h"
 #include "primitives/transaction.h"
 #include "evo/evodb.h"
 #include "libspark/keys.h"
 #include "libspark/spend_transaction.h"
-
-namespace spark {
-    unsigned char GetNetworkType();
-}
 
 /*
  * Spark alias transaction data. This is to be stored in the transaction's extra data field
@@ -21,9 +16,17 @@ namespace spark {
 class CSparkNameTxData
 {
 public:
-    static const uint16_t CURRENT_VERSION = 1;
+    static const uint16_t CURRENT_VERSION = 2;
 
 public:
+    enum OperationType
+    {
+        opRegister = 0,
+        opTransfer,
+        opUnregister,
+        opMaximumValue
+    };
+
     uint16_t nVersion{CURRENT_VERSION};     // version
     uint256 inputsHash;
 
@@ -40,6 +43,15 @@ public:
     // failsafe if the hash of the transaction data is can't be converted to a scalar for proof creation/verification
     uint32_t hashFailsafe{0};
 
+    // v2 fields
+
+    // operation type (register/transfer/unregister)
+    uint8_t operationType{(uint8_t)opRegister};
+    // old spark address
+    std::string oldSparkAddress;
+    // proof of transfer
+    std::vector<unsigned char> transferOwnershipProof;
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -53,6 +65,15 @@ public:
         READWRITE(sparkNameValidityBlocks);
         READWRITE(additionalInfo);
         READWRITE(hashFailsafe);
+
+        if (nVersion >= 2)
+        {
+            READWRITE(operationType);
+            if (operationType == (uint8_t)opTransfer) {
+                READWRITE(oldSparkAddress);
+                READWRITE(transferOwnershipProof);
+            }
+        }
     }
 };
 
@@ -94,6 +115,8 @@ private:
 
     std::map<std::string, CSparkNameBlockIndexData> sparkNames;
     std::map<std::string, std::string> sparkNameAddresses;
+
+    mutable CCriticalSection cs_spark_name;
 
 public:
     static const unsigned maximumSparkNameLength = 20;
@@ -174,6 +197,10 @@ public:
 
     // reset method for test purposes only
     void Reset();
+
+private:
+    // check if at payment of at least "amount" is made to the transparent address
+    bool CheckPaymentToTransparentAddress(const CTransaction &tx, const std::string &address, CAmount amount) const;
 };
 
 #endif // FIRO_SPARKNAME_H
