@@ -804,9 +804,12 @@ bool CheckSparkSpendTransaction(
                 }
                 else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
                     // not an urgent check, put the proof into the thread pool for verification
-                    auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() {
+                    auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() mutable {
                         try {
-                            return spark::SpendTransaction::verify(*spend, cover_sets);
+                            bool result = spark::SpendTransaction::verify(*spend, cover_sets);
+                            spend.reset();
+                            cover_sets.clear();
+                            return result;
                         } catch (const std::exception &) {
                             return false;
                         }
