@@ -804,20 +804,23 @@ bool CheckSparkSpendTransaction(
                 }
                 else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
                     // not an urgent check, put the proof into the thread pool for verification
-                    auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() mutable {
-                        try {
-                            bool result = spark::SpendTransaction::verify(*spend, cover_sets);
-                            spend.reset();
-                            cover_sets.clear();
-                            return result;
-                        } catch (const std::exception &) {
-                            return false;
-                        }
-                    });
-                    auto &checkState = gCheckedSparkSpendTransactions[hashTx];
-                    checkState.fChecked = false;
-                    checkState.fResult = false;
-                    checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                    // don't post a request if there are too many tasks already
+                    if (gCheckProofThreadPool.GetPendingTaskCount() < gCheckProofThreadPool.GetNumberOfThreads() * 2) {
+                        auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() mutable {
+                            try {
+                                bool result = spark::SpendTransaction::verify(*spend, cover_sets);
+                                spend.reset();
+                                cover_sets.clear();
+                                return result;
+                            } catch (const std::exception &) {
+                                return false;
+                            }
+                        });
+                        auto &checkState = gCheckedSparkSpendTransactions[hashTx];
+                        checkState.fChecked = false;
+                        checkState.fResult = false;
+                        checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                    }
                 }
             }
             while (fRecheckNeeded);

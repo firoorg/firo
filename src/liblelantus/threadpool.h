@@ -119,6 +119,11 @@ public:
         boost::mutex::scoped_lock lock(task_queue_mutex);
         return shutdown;
     }
+
+    std::size_t GetPendingTaskCount() {
+        boost::mutex::scoped_lock lock(task_queue_mutex);
+        return task_queue.size();
+    }
 };
 
 
