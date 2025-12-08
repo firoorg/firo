@@ -1,8 +1,8 @@
 package=boost
-$(package)_version=1.81.0
+$(package)_version=1.83.0
 $(package)_download_path=https://archives.boost.io/release/$($(package)_version)/source/
 $(package)_file_name=boost_$(subst .,_,$($(package)_version)).tar.bz2
-$(package)_sha256_hash=71feeed900fbccca04a3b4f2f84a7c217186f28a940ed8b7ed4725986baf99fa
+$(package)_sha256_hash=6478edfe2f3305127cffe8caf73ea0176c53769f4bf1585be237eb30798c3b8e
 $(package)_dependencies=native_b2
 $(package)_patches=fix_boost_jam_cross-compilation.patch
 
@@ -21,7 +21,7 @@ $(package)_config_opts_i686_linux=address-model=32 architecture=x86
 $(package)_toolset_$(host_os)=gcc
 $(package)_archiver_$(host_os)=$($(package)_ar)
 $(package)_toolset_darwin=darwin
-$(package)_cxxflags=-std=c++17
+$(package)_cxxflags=-std=c++20
 $(package)_cxxflags_linux+=-fPIC
 $(package)_cxxflags_freebsd+=-fPIC
 $(package)_cxxflags_darwin+=-ffile-prefix-map=$($(package)_extract_dir)=/usr
