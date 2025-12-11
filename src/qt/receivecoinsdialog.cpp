@@ -26,6 +26,7 @@
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QScreen>
+#include <QGraphicsDropShadowEffect>
 
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -88,7 +89,28 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
 
     connect(ui->createSparkNameButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::createSparkName);
+    
+    addShadow(ui->frame);
+    addShadow(ui->frame2);
+    addShadow(ui->receiveButton);
+    addShadow(ui->clearButton);
+    addShadow(ui->createSparkNameButton);
+    addShadow(ui->showRequestButton);
+    addShadow(ui->removeRequestButton);
+    addShadow(ui->recentRequestsView);
+    addShadow(ui->addressTypeCombobox);
+    addShadow(ui->addressTypeHistoryCombobox);
 }
+
+void ReceiveCoinsDialog::addShadow(QWidget* w)
+{
+    auto *shadow = new QGraphicsDropShadowEffect(this);
+    shadow->setBlurRadius(18);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 60));
+    w->setGraphicsEffect(shadow);
+}
+
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
 {

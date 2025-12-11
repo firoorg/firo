@@ -57,6 +57,7 @@ public:
     explicit ReceiveCoinsDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~ReceiveCoinsDialog();
 
+    void addShadow(QWidget* w);
     void setModel(WalletModel *model);
    
     void resizeEvent(QResizeEvent* event) override;

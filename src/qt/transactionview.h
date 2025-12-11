@@ -79,8 +79,7 @@ private:
     QLineEdit *amountWidget;
 
     QMenu *contextMenu;
-
-    QFrame *dateRangeWidget;
+    QWidget* dateRangeWidget;
     QDateTimeEdit *dateFrom;
     QDateTimeEdit *dateTo;
     QAction *copyLabelAction;
@@ -91,6 +90,7 @@ private:
     void updateCalendarWidgets();
 
     bool eventFilter(QObject *obj, QEvent *event);
+    void addShadow(QWidget* w);
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);

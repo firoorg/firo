@@ -20,8 +20,11 @@
 
 namespace spats {
 
+class SparkAssetsPage;
+
 class Registry {
 public:
+   friend class SparkAssetsPage;
    using block_hash_t = uint256;
 
    Registry();

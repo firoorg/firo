@@ -85,6 +85,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   optionsdialog.cpp
   optionsmodel.cpp
   overviewpage.cpp
+  sparkassetspage.cpp
   paymentserver.cpp
   peertablemodel.cpp
   platformstyle.cpp
@@ -185,6 +186,7 @@ if(ENABLE_WALLET)
         myownspats.cpp
         openuridialog.cpp
         overviewpage.cpp
+        sparkassetspage.cpp
         paymentserver.cpp
         receivecoinsdialog.cpp
         receiverequestdialog.cpp

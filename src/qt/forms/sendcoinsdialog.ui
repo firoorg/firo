@@ -2,6 +2,83 @@
 <ui version="4.0">
  <class>SendCoinsDialog</class>
  <widget class="QDialog" name="SendCoinsDialog">
+  <property name="styleSheet">
+<string notr="true">
+QWidget#SendCoinsDialog {
+    background: #F7F8FA;
+    font-family: "Segoe UI";
+}
+
+QFrame {
+    background: #FFFFFF;
+    border-radius: 18px;
+    border: 1px solid #F3F4F6;
+}
+
+QLabel {
+    color: #111827;
+    font-size: 15pt;
+}
+
+QLineEdit,
+QComboBox,
+QValidatedLineEdit,
+BitcoinAmountField {
+    background: #FFFFFF;
+    border-radius: 10px;
+    border: 1px solid #D1D5DB;
+    padding: 6px 10px;
+    font-size: 10pt;
+    color: #111827;
+}
+
+QPushButton#sendButton {
+    background: #B24040;
+    border-radius: 12px;
+    font-weight: 600;
+    color: #FFFFFF;
+    padding: 8px 20px;
+}
+QPushButton#sendButton:hover {
+    background: #9F3434;
+}
+
+QPushButton {
+    background: #B24040;
+    border-radius: 10px;
+    border: 1px solid #E5E7EB;
+    padding: 6px 14px;
+    font-size: 10pt;
+    color: #FFFFFF;
+}
+QPushButton:hover {
+    background: #E5E7EB;
+}
+
+QTableView {
+    background: #FFF;
+    border-radius: 14px;
+    border: 1px solid #E5E7EB;
+    font-size: 10pt;
+    gridline-color: #FFFFFF;
+}
+
+QHeaderView::section {
+    background: #FFFFFF;
+    padding: 6px;
+    border: none;
+    font-weight: 600;
+    color: #6B7280;
+}
+
+QFrame#SendCoins {
+    background: #FFFFFF;
+    border-radius: 18px;
+    border: 1px solid #E5E7EB;
+    padding: 16px;
+}
+</string>
+</property>
   <property name="geometry">
    <rect>
     <x>0</x>

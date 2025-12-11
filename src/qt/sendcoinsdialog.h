@@ -76,6 +76,7 @@ private:
     void updateFeeMinimizedLabel();
     void setAnonymizeMode(bool enableAnonymizeMode);
     void removeUnmatchedOutput(CCoinControl &coinControl);
+    void addShadow(QWidget* w);
 
 private Q_SLOTS:
     void on_sendButton_clicked();

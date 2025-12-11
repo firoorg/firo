@@ -146,6 +146,14 @@ void WalletFrame::gotoMyOwnSpatsPage()
         i.value()->gotoMyOwnSpatsPage();
 }
 
+void WalletFrame::gotoSparkAssetsPage()
+{
+    WalletView *view = currentWalletView();
+    if (!view)
+        return;
+    view->gotoSparkAssetsPage();
+}
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
