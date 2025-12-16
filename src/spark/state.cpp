@@ -805,7 +805,7 @@ bool CheckSparkSpendTransaction(
                 else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
                     // not an urgent check, put the proof into the thread pool for verification
                     // don't post a request if there are too many tasks already
-                    if (gCheckProofThreadPool.GetPendingTaskCount() < gCheckProofThreadPool.GetNumberOfThreads() * 2) {
+                    if (gCheckProofThreadPool.GetPendingTaskCount() < (std::size_t)gCheckProofThreadPool.GetNumberOfThreads()/2) {
                         auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() mutable {
                             try {
                                 bool result = spark::SpendTransaction::verify(*spend, cover_sets);
