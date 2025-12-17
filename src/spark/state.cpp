@@ -24,7 +24,7 @@ struct ProofCheckState {
 static std::map<uint256, ProofCheckState> gCheckedSparkSpendTransactions;
 static CCriticalSection cs_checkedSparkSpendTransactions;
 
-static ParallelOpThreadPool<bool> gCheckProofThreadPool(boost::thread::hardware_concurrency());
+static ParallelOpThreadPool<bool> gCheckProofThreadPool(std::max(boost::thread::hardware_concurrency(), 8u));
 
 static CSparkState sparkState;
 
