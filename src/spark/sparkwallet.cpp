@@ -1358,7 +1358,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         nHeight = chainActive.Height();
     }
 
-    if (vOut > consensusParams.GetMaxValueSparkSpendPerBlock(nHeight))
+    if (vOut > consensusParams.GetMaxValueSparkSpendPerTransaction(nHeight))
         throw std::runtime_error(_("Spend to transparent address limit exceeded."));
 
     std::vector<CWalletTx> result;

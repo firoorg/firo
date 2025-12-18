@@ -173,15 +173,9 @@ BOOST_AUTO_TEST_CASE(spark_limit_test)
     BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight);
     mempool.clear();
 
-    auto spend5 = GenerateSparkSpend({1100 * COIN}, {}, nullptr);
+    BOOST_CHECK_THROW(GenerateSparkSpend({1100 * COIN}, {}, nullptr), std::runtime_error);
     // Check that the spend of 1100 FIRO has not made it into the mempool
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "1100 FIRO SparkSpend should not be added to mempool");
-
-    // Try to process a block with the 1100 FIRO spend and ensure it is rejected
-    prevHeight = chainActive.Height();
-    CBlock block3 = CreateBlock({CMutableTransaction(spend5)}, script);
-    BOOST_CHECK_MESSAGE(!ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block3), true, NULL), "Block with 1100 FIRO SparkSpend should not be processed");
-    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight);
 
     // advance to block 1500 so new limits are applied
     GenerateBlocks(1500 - chainActive.Height());
@@ -191,13 +185,7 @@ BOOST_AUTO_TEST_CASE(spark_limit_test)
     BOOST_CHECK_MESSAGE(ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block4), true, NULL), "Block with two 800 FIRO spends after limit update failed to process");
     BOOST_CHECK_EQUAL(chainActive.Height(), postLimitHeight + 1);
 
-    // single spend of 1100 FIRO should now be allowed
-    prevHeight = chainActive.Height();
-    CBlock block5 = CreateBlock({CMutableTransaction(spend5)}, script);
-    BOOST_CHECK_MESSAGE(ProcessNewBlock(chainparams, std::make_shared<const CBlock>(block5), true, NULL), "Block with 1100 FIRO SparkSpend after limit update failed to process");
-    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight + 1);
-
-    auto spend6 = GenerateSparkSpend({3100 * COIN}, {}, nullptr);
+    BOOST_CHECK_THROW(GenerateSparkSpend({3100 * COIN}, {}, nullptr), std::runtime_error);
     // Check that the spend of 3100 FIRO has not made it into the mempool
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "3100 FIRO SparkSpend should not be added to mempool");
 
