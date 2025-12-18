@@ -2920,7 +2920,7 @@ std::list<CSparkMintMeta> CWallet::GetAvailableSparkCoins(const CCoinControl *co
     EnsureSparkWalletAvailable();
 
     LOCK2(cs_main, cs_wallet);
-    return sparkWallet->GetAvailableSparkCoins(coinControl);
+    return sparkWallet->GetAvailableSparkCoins(std::make_pair(ZERO, ZERO), coinControl);
 }
 
 // Calculate total balance in a different way from GetBalance. The biggest
@@ -4833,6 +4833,36 @@ std::string CWallet::MintAndStoreSpark(
 
     return "";
 }
+
+CWalletTx CWallet::MintAndStoreSpats(
+        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
+        const CCoinControl *coinControl) {
+
+    EnsureSparkWalletAvailable();
+
+    std::list<CReserveKey> reservekeys;
+    CAmount fee;
+    CWalletTx wtx;
+//    CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
+
+    // commit
+    try {
+        CValidationState state;
+        CReserveKey reserveKey(this);
+        CommitTransaction(wtx, reserveKey, g_connman.get(), state);
+    } catch (const std::exception &) {
+        auto error = _(
+                "Error: The transaction was rejected! This might happen if some of "
+                "the coins in your wallet were already spent, such as if you used "
+                "a copy of wallet.dat and coins were spent in the copy but not "
+                "marked as spent here."
+        );
+
+        std::throw_with_nested(std::runtime_error(error));
+    }
+    return wtx;
+}
+
 
 std::vector<CLelantusEntry> CWallet::JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result, const CCoinControl *coinControl) {
     // create transaction

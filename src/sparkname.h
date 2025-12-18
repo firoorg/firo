@@ -13,6 +13,8 @@
  * to a transparent output designated as an alias output, has this data in the extra data field
  * after Spark data, and has spent enough to cover the alias fee.
  */
+class CBlockIndex;
+
 class CSparkNameTxData
 {
 public:

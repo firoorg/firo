@@ -1,5 +1,3 @@
-#include "../boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
-
 #include "../masternode-sync.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"

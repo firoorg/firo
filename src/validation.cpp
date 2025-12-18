@@ -2,9 +2,6 @@
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-#include "boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
-
 #include "validation.h"
 
 #if defined(HAVE_CONFIG_H)

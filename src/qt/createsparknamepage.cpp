@@ -6,7 +6,6 @@
 #include "ui_createsparkname.h"
 #include "sendcoinsdialog.h"
 #include "addresstablemodel.h"
-#include "sendconfirmationdialog.h"
 
 #include "platformstyle.h"
 #include "validation.h"

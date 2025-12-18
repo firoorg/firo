@@ -98,6 +98,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcconsole.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sendconfirmationdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
@@ -190,6 +191,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/recentrequeststablemodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sendconfirmationdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp

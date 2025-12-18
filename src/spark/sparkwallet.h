@@ -22,6 +22,7 @@ extern CChain chainActive;
 
 const uint32_t BIP44_SPARK_INDEX = 0x6;
 const uint32_t SPARK_CHANGE_D = 0x270F;
+const Scalar ZERO = Scalar((uint64_t)0);
 
 class CSparkWallet {
 public:
@@ -77,9 +78,9 @@ public:
     spark::Coin getCoinFromLTagHash(const uint256& lTagHash) const;
 
     // functions to get spark balance
-    CAmount getFullBalance();
-    CAmount getAvailableBalance();
-    CAmount getUnconfirmedBalance();
+    CAmount getFullBalance() const;
+    CAmount getAvailableBalance() const;
+    CAmount getUnconfirmedBalance() const;
     std::pair<CAmount, CAmount> getSparkBalance();
 
     CAmount getAddressFullBalance(const spark::Address& address) const;

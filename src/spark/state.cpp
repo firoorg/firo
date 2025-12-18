@@ -1288,17 +1288,33 @@ bool CheckSparkSpendTransaction(
                 }
                 else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
                     // not an urgent check, put the proof into the thread pool for verification
-                    auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() {
-                        try {
-                            return spark::SpendTransaction::verify(*spend, cover_sets);
-                        } catch (const std::exception &) {
-                            return false;
-                        }
-                    });
-                    auto &checkState = gCheckedSparkSpendTransactions[hashTx];
-                    checkState.fChecked = false;
-                    checkState.fResult = false;
-                    checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                    if (spatsStarted) {
+                        auto* typed = static_cast<spats::SpendTransaction*>(spend.get());
+                        auto future = gCheckProofThreadPool.PostTask([typed, cover_sets]() {
+                            try {
+                                return spats::SpendTransaction::verify(*typed, cover_sets);
+                            } catch (const std::exception &) {
+                                return false;
+                            }
+                        });
+                        auto &checkState = gCheckedSparkSpendTransactions[hashTx];
+                        checkState.fChecked = false;
+                        checkState.fResult = false;
+                        checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                    } else {
+                        auto* typed = static_cast<spark::SpendTransaction*>(spend.get());
+                        auto future = gCheckProofThreadPool.PostTask([typed, cover_sets]() {
+                            try {
+                                return spark::SpendTransaction::verify(*typed, cover_sets);
+                            } catch (const std::exception &) {
+                                return false;
+                            }
+                        });
+                        auto &checkState = gCheckedSparkSpendTransactions[hashTx];
+                        checkState.fChecked = false;
+                        checkState.fResult = false;
+                        checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                    }
                 }
             }
             while (fRecheckNeeded);

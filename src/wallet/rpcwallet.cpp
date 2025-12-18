@@ -4028,58 +4028,6 @@ UniValue spendspark(const JSONRPCRequest& request)
     return wtx.GetHash().GetHex();
 }
 
-UniValue getsparknames(const JSONRPCRequest &request)
-{
-    if (request.fHelp || request.params.size() > 1) {
-        throw std::runtime_error(
-            "getsparknames [fOnlyOwn] \n"
-            "\nReturns a list of all Spark names and additional info.\n"
-            "\nArguments:\n"
-            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
-            "\nResult:\n"
-            "[\n"
-            "  \"Name (string)\n"
-            "  \"Address (string)\"\n"
-            "  ...\n"
-            "]\n"
-            "\nExamples:\n"
-            + HelpExampleCli("getsparknames", "")
-            + HelpExampleRpc("getsparknames", "")
-        );
-    }
-
-    LOCK(cs_main);
-    CWallet *wallet = GetWalletForJSONRPCRequest(request);
-    LOCK(wallet->cs_wallet);
-
-    if (!spark::IsSparkAllowed()) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
-    }
-
-    bool fOnlyOwn = request.params.size() > 0 ? request.params[0].get_bool() : false;
-
-    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
-    UniValue result(UniValue::VARR);
-    for (const auto &name : sparkNames) {
-        UniValue entry(UniValue::VOBJ);
-
-        std::string sparkAddress;
-        if (sparkNameManager->GetSparkAddress(name, sparkAddress)) {
-            if (fOnlyOwn && !wallet->IsSparkAddressMine(sparkAddress))
-                continue;
-            entry.push_back(Pair("name", name));
-            entry.push_back(Pair("address", sparkAddress));
-            entry.push_back(Pair("validUntil", sparkNameManager->GetSparkNameBlockHeight(name)));
-            std::string addData = sparkNameManager->GetSparkNameAdditionalData(name);
-            if (addData != "")
-                entry.push_back(Pair("additionalInfo", addData));
-            result.push_back(entry);
-        }
-    }
-    return result;
-}
-
 UniValue registersparkname(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
@@ -5635,7 +5583,6 @@ static const CRPCCommand commands[] =
     { "wallet",             "registersparkname",      &registersparkname,      false, {} },
     { "wallet",             "requestsparknametransfer", &requestsparknametransfer, false,  {} },
     { "wallet",             "transfersparkname",        &transfersparkname,        false,  {} },
-    { "wallet",             "getsparknames",          &getsparknames,          true, {} },
 
     //bip47
     { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },

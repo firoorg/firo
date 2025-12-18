@@ -15,7 +15,6 @@
 #include <boost/format.hpp>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
-const Scalar ZERO = Scalar((uint64_t)0);
 
 CSparkWallet::CSparkWallet(const std::string& strWalletFile)
    : spats_wallet_(*this)
@@ -104,8 +103,6 @@ void CSparkWallet::updateDiversifierInDB(CWalletDB& walletdb) const
 
 CAmount CSparkWallet::getFullBalance() const
 {
-    // TODO GV #Review: While this implementation is straightforward, it might lead to inaccurate results due to locking twice at different times.
-    //                  Also, this is more inefficient than the correct implementation would be.
     return getAvailableBalance() + getUnconfirmedBalance();
 }
 
@@ -128,7 +125,7 @@ std::pair<CAmount, CAmount> CSparkWallet::getSparkBalance() {
     return result;
 }
 
-CAmount CSparkWallet::getAvailableBalance() {
+CAmount CSparkWallet::getAvailableBalance() const {
     CAmount result = 0;
     VisitUnusedCoinMetasWhere([](const CSparkMintMeta& meta) { return meta.IsConfirmed() && !meta.IsSpats(); },
                               [&result] (const CSparkMintMeta& meta) { assert(meta.coin.iota.isZero()); result += meta.GetValue(); });
@@ -145,7 +142,6 @@ CAmount CSparkWallet::getUnconfirmedBalance() const
 
 CAmount CSparkWallet::getAddressFullBalance(const spark::Address& address) const
 {
-    // TODO GV #Review: same comment as for getFullBalance()
     return getAddressAvailableBalance(address) + getAddressUnconfirmedBalance(address);
 }
 
@@ -182,7 +178,7 @@ spark::Address CSparkWallet::generateNewAddress() {
     lastDiversifier++;
     spark::Address address(viewKey, lastDiversifier);
 
-    addresses[lastDiversifier] = address; // TODO GV #Review: shouldn't there be MT protection for `addresses` access?
+    addresses[lastDiversifier] = address;
     CWalletDB walletdb(strWalletFile);
     updateDiversifierInDB(walletdb);
     return  address;
@@ -191,7 +187,7 @@ spark::Address CSparkWallet::generateNewAddress() {
 spark::Address CSparkWallet::getDefaultAddress() {
     if (addresses.count(0))
         return addresses[0];
-    lastDiversifier = 0; // TODO GV #Review: why should calling this function change lastDiversifier? Why is this function not const?
+    lastDiversifier = 0;
     return spark::Address(viewKey, lastDiversifier);
 }
 
@@ -2088,10 +2084,9 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
         },
         [&coins] (const CSparkMintMeta& meta) { coins.push_back(meta); });
 
-    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins; // TODO GV #Review: isn't this a potential data race?
+    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins;
 
     // Filter out coins that have not been selected from CoinControl should that be used
-    // TODO GV #Review Performance: move these checks to inside the predicate for VisitCoinMetasWhere, and get rid of this remove_if
     coins.remove_if([&lockedCoins, coinControl](const CSparkMintMeta& coin) {
         COutPoint outPoint;
         // ignore if the coin is not actually on chain

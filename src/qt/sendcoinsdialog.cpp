@@ -24,7 +24,6 @@
 #include "txmempool.h"
 #include "wallet/wallet.h"
 #include "overviewpage.h"
-#include "sendconfirmationdialog.h"
 
 #include <QFontMetrics>
 #include <QMessageBox>
@@ -36,14 +35,14 @@
 #define SEND_CONFIRM_DELAY   3
 
 SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::SendCoinsDialog),
-    clientModel(0),
-    model(0),
-    fNewRecipientAllowed(true),
-    fFeeMinimized(true),
-    fAnonymousMode(true),
-    platformStyle(_platformStyle)
+        QDialog(parent),
+        ui(new Ui::SendCoinsDialog),
+        clientModel(0),
+        model(0),
+        fNewRecipientAllowed(true),
+        fFeeMinimized(true),
+        fAnonymousMode(true),
+        platformStyle(_platformStyle)
 {
     ui->setupUi(this);
 
@@ -156,6 +155,8 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             }
         }
 
+        auto privateBalance = _model->getSparkBalance();
+
         if (model->getWallet()) {
             auto allowed = (spark::IsSparkAllowed() && model->getWallet()->sparkWallet);
             setAnonymizeMode(allowed);
@@ -166,9 +167,9 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         }
 
         setBalance(
-            _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
-            _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
-            _model->getSpatsBalances(), _model->getAnonymizableBalance());
+                _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
+                _model->getWatchBalance(), _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(),
+                _model->getSpatsBalances(), _model->getAnonymizableBalance());
 
         connect(_model, &WalletModel::balanceChanged, this, &SendCoinsDialog::setBalance);
         connect(_model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SendCoinsDialog::updateDisplayUnit);
@@ -354,7 +355,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         extraFee = CWallet::GetMinimumFee(secondTxSize, nTxConfirmTarget, mempool);
 
-        SendCoinsRecipient newRecipient;        
+        SendCoinsRecipient newRecipient;
         newRecipient.address = CBitcoinAddress(newKey.GetID()).ToString().c_str();
         newRecipient.amount = exchangeAddressAmount + extraFee;
         newRecipient.fSubtractFeeFromAmount = false;
@@ -395,7 +396,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // process prepareStatus and on error generate message shown to user
     processSendCoinsReturn(prepareStatus,
-        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+                           BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;
@@ -421,7 +422,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed())
     {
         for(int i = 0; i < recipients.size(); i++) {
             recipients[i].amount = 0;
@@ -429,7 +430,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         for (auto &transaction : transactions)
         {
-            for (auto &rcp : transaction.getRecipients()) 
+            for (auto &rcp : transaction.getRecipients())
             {
                 for(int i = 0; i < recipients.size(); i++) {
                     if( recipients[i].address == rcp.address) {
@@ -437,9 +438,9 @@ void SendCoinsDialog::on_sendButton_clicked()
                     }
                 }
             }
-        }    
+        }
 
-        for (auto &rcp : recipients) 
+        for (auto &rcp : recipients)
         {
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
@@ -519,7 +520,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         QString transparentAddress = "<span style='font-family: monospace;'>" + recipients[recipients.size()-1].address + "</span>";
         formatted.append("<br />");
         formatted.append(tr("EX-addresses can only receive FIRO from transparent addresses.<br /><br />"
-            "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(transparentAddress));
+                            "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(transparentAddress));
     }
 
     QString questionString = tr("Are you sure you want to send?");
@@ -538,7 +539,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     double txSize = 0.0;
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed())
     {
         for (auto &transaction : transactions) {
             txFee += transaction.getTransactionFee();
@@ -566,14 +567,14 @@ void SendCoinsDialog::on_sendButton_clicked()
             feeString.append("<span style='color:#aa0000;'>");
             feeString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
             feeString.append("</span>");
-            
+
             questionString.append(tr(". An additional transaction fee of %1 will apply to complete the send from the transparent address to the EX-address.").arg(feeString));
         }
     }
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
+    if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed())
     {
         totalAmount = mintSparkAmount + txFee;
     } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
@@ -593,12 +594,12 @@ void SendCoinsDialog::on_sendButton_clicked()
             alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
     }
     questionString.append(tr("Total Amount %1")
-        .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
+                                  .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
     questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
-        .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
+                                  .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
     SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
-        questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
+                                              questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
     confirmationDialog.exec();
     QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
 
@@ -669,7 +670,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         // process prepareStatus and on error generate message shown to user
         processSendCoinsReturn(prepareStatus,
-            BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+                               BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
 
         if(prepareStatus.status != WalletModel::OK) {
             fNewRecipientAllowed = true;
@@ -848,14 +849,14 @@ bool SendCoinsDialog::handlePaymentRequest(const SendCoinsRecipient &rv)
 }
 
 void SendCoinsDialog::setBalance(
-    const CAmount& balance,
-    const CAmount& unconfirmedBalance,
-    const CAmount& immatureBalance,
-    const CAmount& watchBalance,
-    const CAmount& watchUnconfirmedBalance,
-    const CAmount& watchImmatureBalance,
-    const spats::Wallet::asset_balances_t& spats_balances,
-    const CAmount& anonymizableBalance)
+        const CAmount& balance,
+        const CAmount& unconfirmedBalance,
+        const CAmount& immatureBalance,
+        const CAmount& watchBalance,
+        const CAmount& watchUnconfirmedBalance,
+        const CAmount& watchImmatureBalance,
+        const spats::Wallet::asset_balances_t& spats_balances,
+        const CAmount& anonymizableBalance)
 {
     Q_UNUSED(unconfirmedBalance);
     Q_UNUSED(immatureBalance);
@@ -867,7 +868,7 @@ void SendCoinsDialog::setBalance(
     if(model && model->getOptionsModel())
     {
         ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
-            fAnonymousMode ? spats_balances.at(spats::base::universal_id).available.raw() : balance));
+                                                               spats_balances.at(spats::base::universal_id).available.raw(), balance));
     }
 }
 
@@ -890,40 +891,40 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
     // all others are used only in WalletModel::prepareTransaction()
     switch(sendCoinsReturn.status)
     {
-    case WalletModel::InvalidAddress:
-        msgParams.first = tr("The recipient address is not valid. Please recheck.");
-        break;
-    case WalletModel::InvalidAmount:
-        msgParams.first = tr("The amount to pay must be larger than 0.");
-        break;
-    case WalletModel::AmountExceedsBalance:
-        msgParams.first = tr("The amount exceeds your balance.");
-        break;
-    case WalletModel::AmountWithFeeExceedsBalance:
-        msgParams.first = tr("The total exceeds your balance when the %1 transaction fee is included.").arg(msgArg);
-        break;
-    case WalletModel::DuplicateAddress:
-        msgParams.first = tr("Duplicate address found: addresses should only be used once each.");
-        break;
-    case WalletModel::TransactionCreationFailed:
-        msgParams.first = tr("Transaction creation failed!");
-        msgParams.second = CClientUIInterface::MSG_ERROR;
-        break;
-    case WalletModel::TransactionCommitFailed:
-        msgParams.first = tr("The transaction was rejected with the following reason: %1").arg(sendCoinsReturn.reasonCommitFailed);
-        msgParams.second = CClientUIInterface::MSG_ERROR;
-        break;
-    case WalletModel::AbsurdFee:
-        msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), maxTxFee));
-        break;
-    case WalletModel::PaymentRequestExpired:
-        msgParams.first = tr("Payment request expired.");
-        msgParams.second = CClientUIInterface::MSG_ERROR;
-        break;
-    // included to prevent a compiler warning.
-    case WalletModel::OK:
-    default:
-        return;
+        case WalletModel::InvalidAddress:
+            msgParams.first = tr("The recipient address is not valid. Please recheck.");
+            break;
+        case WalletModel::InvalidAmount:
+            msgParams.first = tr("The amount to pay must be larger than 0.");
+            break;
+        case WalletModel::AmountExceedsBalance:
+            msgParams.first = tr("The amount exceeds your balance.");
+            break;
+        case WalletModel::AmountWithFeeExceedsBalance:
+            msgParams.first = tr("The total exceeds your balance when the %1 transaction fee is included.").arg(msgArg);
+            break;
+        case WalletModel::DuplicateAddress:
+            msgParams.first = tr("Duplicate address found: addresses should only be used once each.");
+            break;
+        case WalletModel::TransactionCreationFailed:
+            msgParams.first = tr("Transaction creation failed!");
+            msgParams.second = CClientUIInterface::MSG_ERROR;
+            break;
+        case WalletModel::TransactionCommitFailed:
+            msgParams.first = tr("The transaction was rejected with the following reason: %1").arg(sendCoinsReturn.reasonCommitFailed);
+            msgParams.second = CClientUIInterface::MSG_ERROR;
+            break;
+        case WalletModel::AbsurdFee:
+            msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), maxTxFee));
+            break;
+        case WalletModel::PaymentRequestExpired:
+            msgParams.first = tr("Payment request expired.");
+            msgParams.second = CClientUIInterface::MSG_ERROR;
+            break;
+            // included to prevent a compiler warning.
+        case WalletModel::OK:
+        default:
+            return;
     }
 
     Q_EMIT message(tr("Send Coins"), msgParams.first, msgParams.second);
@@ -1005,7 +1006,7 @@ void SendCoinsDialog::updateFeeMinimizedLabel()
         ui->labelFeeMinimized->setText(ui->labelSmartFee->text());
     else {
         ui->labelFeeMinimized->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), ui->customFee->value()) +
-            ((ui->radioCustomPerKilobyte->isChecked()) ? "/kB" : ""));
+                                       ((ui->radioCustomPerKilobyte->isChecked()) ? "/kB" : ""));
     }
 }
 
@@ -1060,7 +1061,7 @@ void SendCoinsDialog::updateMinFeeLabel()
 {
     if (model && model->getOptionsModel())
         ui->checkBoxMinimumFee->setText(tr("Pay only the required fee of %1").arg(
-            BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CWallet::GetRequiredFee(1000)) + "/kB")
+                BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), CWallet::GetRequiredFee(1000)) + "/kB")
         );
 }
 
@@ -1075,8 +1076,8 @@ void SendCoinsDialog::updateSmartFeeLabel()
     if (feeRate <= CFeeRate(0)) // not enough data => minfee
     {
         ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(
-            model->getOptionsModel()->getDisplayUnit(),
-            std::max(CWallet::fallbackFee.GetFeePerK(), CWallet::GetRequiredFee(1000))) + "/kB");
+                model->getOptionsModel()->getDisplayUnit(),
+                std::max(CWallet::fallbackFee.GetFeePerK(), CWallet::GetRequiredFee(1000))) + "/kB");
         ui->labelSmartFee2->show(); // (Smart fee not initialized yet. This usually takes a few blocks...)
         ui->labelFeeEstimation->setText("");
         ui->fallbackFeeWarningLabel->setVisible(true);
@@ -1205,7 +1206,7 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
 
                 // confirmation dialog
                 QMessageBox::StandardButton btnRetVal = QMessageBox::question(this, tr("Confirm custom change address"), tr("The address you selected for change is not part of this wallet. Any or all funds in your wallet may be sent to this address. Are you sure?"),
-                    QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+                                                                              QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
 
                 if(btnRetVal == QMessageBox::Yes)
                     CoinControlDialog::coinControl->destChange = addr.Get();
@@ -1246,8 +1247,8 @@ void SendCoinsDialog::coinControlUpdateLabels()
 
         // only enable the feature if inputs are selected
         ui->radioCustomAtLeast->setEnabled(ui->radioCustomFee->isChecked()
-            && !ui->checkBoxMinimumFee->isChecked()
-            && CoinControlDialog::coinControl->HasSelected());
+                                           && !ui->checkBoxMinimumFee->isChecked()
+                                           && CoinControlDialog::coinControl->HasSelected());
     }
     else
     {
@@ -1366,7 +1367,7 @@ void SendCoinsDialog::adjustTextSize(int width, int height) {
     ui->confirmationTargetLabel->setFont(font);
 
 
-    // Adjust font for all buttons 
+    // Adjust font for all buttons
     ui->sendButton->setFont(font);
     ui->clearButton->setFont(font);
     ui->addButton->setFont(font);
