@@ -334,7 +334,7 @@ void ReceiveCoinsDialog::copyAmount()
 
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
-    if(ui->addressTypeCombobox->currentText() == "Spark"){
+    if(ui->addressTypeCombobox->currentText() == tr("Spark")){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
     } else {
