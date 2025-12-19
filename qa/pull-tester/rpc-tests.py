@@ -190,7 +190,14 @@ testScripts = [
 
     # bip47
     'bip47-sendreceive.py',
-    'bip47-walletrestore.py'
+    'bip47-walletrestore.py',
+
+    'sendtoaddress.py',
+    'sendmany.py',
+    'sendtransparent.py',
+    'spendspark.py',
+    'sendspark.py',
+    'sendsparkmany.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
