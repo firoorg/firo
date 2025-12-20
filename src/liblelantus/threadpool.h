@@ -49,7 +49,7 @@ private:
                     // In case of shutdown thread list will be empty and destructor will wait for this thread completion
                     boost::thread::id currentId = boost::this_thread::get_id();
                     auto pThread = std::find_if(threads.begin(), threads.end(),
-                                                [=](const boost::thread &t) { return t.get_id() == currentId; });
+                                                [currentId](const boost::thread &t) { return t.get_id() == currentId; });
                     if (pThread != threads.end()) {
                         pThread->detach();
                         threads.erase(pThread);
