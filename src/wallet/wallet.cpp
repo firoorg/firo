@@ -769,7 +769,6 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
         LOCK(cs_wallet);
 
         auto& script = tx->tx->vout[n].scriptPubKey;
-        CWalletDB db(strWalletFile);
 
         if (script.IsZerocoinMint()) {
             return true;
