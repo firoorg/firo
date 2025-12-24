@@ -49,7 +49,7 @@ private:
                     // In case of shutdown thread list will be empty and destructor will wait for this thread completion
                     boost::thread::id currentId = boost::this_thread::get_id();
                     auto pThread = std::find_if(threads.begin(), threads.end(),
-                                                [=](const boost::thread &t) { return t.get_id() == currentId; });
+                                                [currentId](const boost::thread &t) { return t.get_id() == currentId; });
                     if (pThread != threads.end()) {
                         pThread->detach();
                         threads.erase(pThread);
@@ -79,7 +79,7 @@ public:
 
     // Post a task to the thread pool and return a future to wait for its completion
     boost::future<Result> PostTask(std::function<Result()> task) {
-        boost::packaged_task<Result> packagedTask(std::move(task));
+        boost::packaged_task<Result> packagedTask(task);
         boost::future<Result> ret = packagedTask.get_future();
 
         boost::mutex::scoped_lock lock(task_queue_mutex);
@@ -91,7 +91,7 @@ public:
         task_queue.emplace(std::move(packagedTask));
         task_queue_condition.notify_one();
 
-        return std::move(ret);
+        return ret;
     }
 
     int GetNumberOfThreads() const {
@@ -118,6 +118,11 @@ public:
     bool IsPoolShutdown() {
         boost::mutex::scoped_lock lock(task_queue_mutex);
         return shutdown;
+    }
+
+    std::size_t GetPendingTaskCount() {
+        boost::mutex::scoped_lock lock(task_queue_mutex);
+        return task_queue.size();
     }
 };
 
