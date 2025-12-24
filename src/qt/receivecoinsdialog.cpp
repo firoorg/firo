@@ -122,6 +122,13 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->horizontalHeader()->setMinimumSectionSize(23);
         tableView->horizontalHeader()->setStretchLastSection(true);
 
+        auto wallet = _model->getWallet();
+        if (!wallet || !wallet->sparkWallet) {
+            ui->addressTypeCombobox->removeItem(0);
+            ui->reuseAddress->show();
+            ui->createSparkNameButton->setVisible(false);
+        }
+
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
                 this, &ReceiveCoinsDialog::recentRequestsView_selectionChanged);
     }
@@ -327,7 +334,7 @@ void ReceiveCoinsDialog::copyAmount()
 
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
-    if(idx==0){
+    if(ui->addressTypeCombobox->currentText() == tr("Spark")){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
     } else {
