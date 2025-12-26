@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(netbase_networks)
     BOOST_CHECK(ResolveIP("::1").GetNetwork()                                    == NET_UNROUTABLE);
     BOOST_CHECK(ResolveIP("8.8.8.8").GetNetwork()                                == NET_IPV4);
     BOOST_CHECK(ResolveIP("2001::8888").GetNetwork()                             == NET_IPV6);
-    BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").GetNetwork() == NET_TOR);
+    BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").GetNetwork() == NET_ONION);
 
 }
 

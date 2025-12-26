@@ -38,14 +38,14 @@ std::string CDeterministicMNState::ToString() const
     return strprintf("CDeterministicMNState(nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
         "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutAddress=%s, operatorPayoutAddress=%s)",
         nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight, nRevocationReason,
-        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.Get().ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(false), payoutAddress, operatorPayoutAddress);
+        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.Get().ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(), payoutAddress, operatorPayoutAddress);
 }
 
 void CDeterministicMNState::ToJson(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
-    obj.push_back(Pair("service", addr.ToStringIPPort(false)));
+    obj.push_back(Pair("service", addr.ToStringIPPort()));
     obj.push_back(Pair("registeredHeight", nRegisteredHeight));
     obj.push_back(Pair("lastPaidHeight", nLastPaidHeight));
     obj.push_back(Pair("PoSePenalty", nPoSePenalty));
