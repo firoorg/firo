@@ -493,7 +493,7 @@ void CDKGSessionHandler::HandleDKGRound()
                     if (!dmn) {
                         debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
                     } else {
-                        debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString(false));
+                        debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString());
                     }
                 }
                 LogPrint("llmq-dkg", debugMsg);

@@ -1552,24 +1552,24 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
     if(torEnabled){
     	StartTorEnabled(threadGroup, scheduler);
-        SetLimited(NET_TOR);
+        SetLimited(NET_ONION);
         SetLimited(NET_IPV4);
         SetLimited(NET_IPV6);
         proxyType addrProxy = proxyType(LookupNumeric("127.0.0.1", 9050),
                         true);
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_TOR, addrProxy);
+        SetProxy(NET_ONION, addrProxy);
         SetLimited(NET_IPV4, false);
         SetLimited(NET_IPV6, false);
-        SetLimited(NET_TOR, false);
+        SetLimited(NET_ONION, false);
     }
 
     bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
-    SetLimited(NET_TOR);
+    SetLimited(NET_ONION);
     if (proxyArg != "" && proxyArg != "0") {
         CService resolved(LookupNumeric(proxyArg.c_str(), 9050));
         proxyType addrProxy = proxyType(resolved, proxyRandomize);
@@ -1578,9 +1578,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_TOR, addrProxy);
+        SetProxy(NET_ONION, addrProxy);
         SetNameProxy(addrProxy);
-        SetLimited(NET_TOR, false); // by default, -proxy sets onion as reachable, unless -noonion later
+        SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
     }
 
     // -onion can be used to set only a proxy for .onion, or override normal proxy for .onion addresses
@@ -1589,14 +1589,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string onionArg = GetArg("-onion", "");
     if (onionArg != "") {
         if (onionArg == "0") { // Handle -noonion/-onion=0
-            SetLimited(NET_TOR); // set onions as unreachable
+            SetLimited(NET_ONION); // set onions as unreachable
         } else {
             CService resolved(LookupNumeric(onionArg.c_str(), 9050));
             proxyType addrOnion = proxyType(resolved, proxyRandomize);
             if (!addrOnion.IsValid())
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
-            SetProxy(NET_TOR, addrOnion);
-            SetLimited(NET_TOR, false);
+            SetProxy(NET_ONION, addrOnion);
+            SetLimited(NET_ONION, false);
         }
     }
 
