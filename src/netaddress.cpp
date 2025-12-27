@@ -266,6 +266,10 @@ bool CNetAddr::IsValid() const
     if (IsRFC3849())
         return false;
 
+    // INTERNAL addresses are not valid for external use
+    if (IsInternal())
+        return false;
+
     if (IsIPv4()) {
         // INADDR_NONE
         uint32_t ipNone = INADDR_NONE;
@@ -381,9 +385,9 @@ std::vector<unsigned char> CNetAddr::GetGroup(const std::vector<bool> &asmap) co
     int nStartByte = 0;
     int nBits = 16;
 
-    // all local addresses belong to the same group
-    if (IsLocal()) {
-        vchRet.push_back(255);
+    // all unroutable addresses belong to the same group
+    if (!IsRoutable()) {
+        vchRet.push_back(NET_UNROUTABLE);
         return vchRet;
     }
 
@@ -393,18 +397,19 @@ std::vector<unsigned char> CNetAddr::GetGroup(const std::vector<bool> &asmap) co
         return vchRet;
     }
 
-    // all unroutable addresses belong to the same group
-    if (!IsRoutable()) {
-        vchRet.push_back(NET_UNROUTABLE);
-        return vchRet;
-    }
-
     // for IPv4 addresses, '1' + the 16 higher-order bits of the IP
     // includes mapped IPv4, SIIT translated IPv4, and the well-known prefix
-    if (IsIPv4() || IsRFC6145() || IsRFC6052()) {
+    if (IsIPv4()) {
         vchRet.push_back(NET_IPV4);
-        vchRet.push_back(m_addr[0]);
+        vchRet.push_back(m_addr[0]); // ipv4 addr is stored in m_addr[0..3]
         vchRet.push_back(m_addr[1]);
+        return vchRet;
+    }
+    
+    if (IsRFC6145() || IsRFC6052()) {
+        vchRet.push_back(NET_IPV4);
+        vchRet.push_back(m_addr[12]); // ipv4 is embedded at bytes 12-15 in the ipv6 address
+        vchRet.push_back(m_addr[13]);
         return vchRet;
     }
 
@@ -653,7 +658,12 @@ CSubNet::CSubNet():
 
 CSubNet::CSubNet(const CNetAddr &addr, uint8_t mask)
 {
-    valid = true;
+    valid = (addr.IsIPv4() && mask <= ADDR_IPV4_SIZE * 8) ||
+            (addr.IsIPv6() && mask <= ADDR_IPV6_SIZE * 8);
+    if (!valid) {
+        return;
+    }
+
     network = addr;
     // Default to /32 (IPv4) or /128 (IPv6), i.e. match single address
     memset(netmask, 255, sizeof(netmask));
@@ -661,15 +671,16 @@ CSubNet::CSubNet(const CNetAddr &addr, uint8_t mask)
     // IPv4 addresses start at offset 12 in legacy representation
     const int astartofs = network.IsIPv4() ? 12 : 0;
 
-    int32_t n = mask;
-    if(n >= 0 && n <= (128 - astartofs*8)) // Only valid if in range of bits of address
-    {
-        n += astartofs*8;
-        // Clear bits [n..127]
-        for (; n < 128; ++n)
-            netmask[n>>3] &= ~(1<<(7-(n&7)));
-    } else
-        valid = false;
+    // byte-level clearing with bit precision
+    for (int32_t i = astartofs; i < 16; i++) {
+        uint8_t bits = (i - astartofs) * 8;
+        if (bits >= mask) {
+            netmask[i] = 0;
+        } else {
+            uint8_t remainingBits = mask - bits;
+            netmask[i] = (remainingBits >= 8) ? 0xFF : (0xFF << (8 - remainingBits));
+        }
+    }
 
     // Normalize network according to netmask
     std::vector<uint8_t> addr_bytes = network.GetAddrBytes();
@@ -699,7 +710,10 @@ CSubNet::CSubNet(const CNetAddr &addr, uint8_t mask)
 
 CSubNet::CSubNet(const CNetAddr &addr, const CNetAddr &mask)
 {
-    valid = true;
+    valid = (addr.IsIPv4() && mask.IsIPv4()) || (addr.IsIPv6() && mask.IsIPv6());
+    if (!valid) {
+        return;
+    }
     network = addr;
     // Default to /32 (IPv4) or /128 (IPv6), i.e. match single address
     memset(netmask, 255, sizeof(netmask));
@@ -710,6 +724,25 @@ CSubNet::CSubNet(const CNetAddr &addr, const CNetAddr &mask)
         memcpy(netmask + 12, mask_bytes.data(), 4);
     } else if (mask.IsIPv6()) {
         memcpy(netmask, mask_bytes.data(), 16);
+    }
+
+    // Validate netmask - all 1 bits must be contiguous on the left
+    // e.g., 255.0.255.255, 255.255.255.129 are not valid
+    //       255.255.255.0, 255.255.255.192 are valid
+    bool zeros_found = false;
+    for (size_t i = 0; i < 16; i++) {
+        uint8_t x = netmask[i];
+        for (int bit = 0; bit < 8; bit++) {
+            bool bit_set = (x & 0x80) != 0;
+            if (!bit_set) {
+                zeros_found = true;
+            } else if (zeros_found) {
+                // Found a 1 bit after a 0 bit -> invalid
+                valid = false;
+                return;
+            }
+            x <<= 1;
+        }
     }
 
     // Normalize network according to netmask
