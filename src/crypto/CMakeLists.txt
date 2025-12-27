@@ -13,6 +13,7 @@ add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/ripemd160.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sha1.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sha256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sha3.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sha512.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/scrypt.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/MerkleTreeProof/arith_uint256.cpp
