@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(addrman_simple)
     // Test 1: Does Addrman respond correctly when empty.
     BOOST_CHECK(addrman.size() == 0);
     CAddrInfo addr_null = addrman.Select();
-    BOOST_CHECK(addr_null.ToString() == "[::]:0");
+    BOOST_CHECK(addr_null.ToString() == "[0:0:0:0:0:0:0:0]:0");
 
     // Test 2: Does Addrman::Add work as expected.
     CService addr1 = ResolveService("250.1.1.1", 8333);
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(addrman_simple)
     addrman.Clear();
     BOOST_CHECK(addrman.size() == 0);
     CAddrInfo addr_null2 = addrman.Select();
-    BOOST_CHECK(addr_null2.ToString() == "[::]:0");
+    BOOST_CHECK(addr_null2.ToString() == "[0:0:0:0:0:0:0:0]:0");
 }
 
 BOOST_AUTO_TEST_CASE(addrman_ports)
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(addrman_select)
     addrman.Good(CAddress(addr1, NODE_NONE));
     BOOST_CHECK(addrman.size() == 1);
     CAddrInfo addr_ret2 = addrman.Select(newOnly);
-    BOOST_CHECK(addr_ret2.ToString() == "[::]:0");
+    BOOST_CHECK(addr_ret2.ToString() == "[0:0:0:0:0:0:0:0]:0");
 
     CAddrInfo addr_ret3 = addrman.Select();
     BOOST_CHECK(addr_ret3.ToString() == "250.1.1.1:8333");
