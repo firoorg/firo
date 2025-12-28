@@ -14,6 +14,11 @@
 
 #include <exception>
 
+// Witness encoding is enabled by OR-ing in this flag with GetSerializeType() for streams.
+// For full details see BIP144. SERIALIZE_TRANSACTION_NO_WITNESS (0x40000000) is defined
+// separately and is checked for in network stream serialization. This flag overlaps with
+// ADDRV2_FORMAT (0x20000000), which is OK as the two flags are never used together in the
+// same context.
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 static const int WITNESS_SCALE_FACTOR = 4;
