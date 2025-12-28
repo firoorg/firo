@@ -1525,19 +1525,25 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
     int actionWidth = newWidth / 7;
 
     if (toolbar) {
-        // Set widths for each action dynamically
-        QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
-        QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
-        QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
-        QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
-        QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
-        QWidget* myownspatsWidget = myownspatsWidget ? toolbar->widgetForAction(myownspatsAction) : nullptr;
+        auto widgetFor = [&](QAction* action) -> QWidget* {
+            return (action && toolbar->widgetForAction(action))
+                ? toolbar->widgetForAction(action)
+                : nullptr;
+        };
 
-        if (overviewWidget) overviewWidget->setMinimumWidth(actionWidth);
-        if (receiveWidget) receiveWidget->setMinimumWidth(actionWidth);
-        if (historyWidget) historyWidget->setMinimumWidth(actionWidth);
-        if (sendCoinsWidget) sendCoinsWidget->setMinimumWidth(actionWidth);
+        QWidget* overviewWidget     = widgetFor(overviewAction);
+        QWidget* receiveWidget      = widgetFor(receiveCoinsAction);
+        QWidget* historyWidget      = widgetFor(historyAction);
+        QWidget* sendCoinsWidget    = widgetFor(sendCoinsAction);
+        QWidget* masternodeWidget   = widgetFor(masternodeAction);
+        QWidget* myownspatsWidget   = widgetFor(myownspatsAction);
+
+        if (overviewWidget)   overviewWidget->setMinimumWidth(actionWidth);
+        if (receiveWidget)    receiveWidget->setMinimumWidth(actionWidth);
+        if (historyWidget)    historyWidget->setMinimumWidth(actionWidth);
+        if (sendCoinsWidget)  sendCoinsWidget->setMinimumWidth(actionWidth);
         if (masternodeWidget) masternodeWidget->setMinimumWidth(actionWidth);
         if (myownspatsWidget) myownspatsWidget->setMinimumWidth(actionWidth);
     }
+
 }
