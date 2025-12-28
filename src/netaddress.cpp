@@ -923,7 +923,7 @@ std::string CService::ToStringIPPort() const
     if (IsIPv4() || IsTor()) {
         return ToStringIP() + ":" + ToStringPort();
     } else {
-        return "[" + ToStringIP() + "]" + ToStringPort();
+        return "[" + ToStringIP() + "]:" + ToStringPort();
     }
 }
 
