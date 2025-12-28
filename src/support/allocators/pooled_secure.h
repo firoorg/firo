@@ -8,6 +8,8 @@
 #include "support/lockedpool.h"
 #include "support/cleanse.h"
 
+#include "../../compat_layer.h"
+
 #include <string>
 #include <vector>
 
@@ -21,21 +23,22 @@ template <typename T>
 struct pooled_secure_allocator : public std::allocator<T> {
     // MSVC8 default copy constructor is broken
     typedef std::allocator<T> base;
-    using base_traits = std::allocator_traits<base>;
     typedef typename base::size_type size_type;
     typedef typename base::difference_type difference_type;
-    typedef typename base_traits::pointer pointer;
-    typedef typename base_traits::const_pointer const_pointer;
-    using reference = T&;
-    using const_reference = const T&;
-    typedef typename base_traits::value_type value_type;
+
+    typedef T* pointer;
+    typedef const T* const_pointer;
+    typedef T& reference;
+    typedef const T& const_reference;
+
+    typedef typename base::value_type value_type;
     pooled_secure_allocator(const size_type nrequested_size = 32,
                             const size_type nnext_size = 32,
-                            const size_type nmax_size = 0) noexcept :
-                            pool(nrequested_size, nnext_size, nmax_size){}
-    ~pooled_secure_allocator() noexcept {}
+                            const size_type nmax_size = 0) throw() :
+            pool(nrequested_size, nnext_size, nmax_size){}
+    ~pooled_secure_allocator() throw() {}
 
-    T* allocate(std::size_t n, const void* hint = nullptr)
+    T* allocate(std::size_t n, const void* hint = 0)
     {
         size_t chunks = (n * sizeof(T) + pool.get_requested_size() - 1) / pool.get_requested_size();
         return static_cast<T*>(pool.ordered_malloc(chunks));

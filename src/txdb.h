@@ -100,12 +100,12 @@ class CCoinsViewDBCursor: public CCoinsViewCursor
 public:
     ~CCoinsViewDBCursor() {}
 
-    bool GetKey(COutPoint &key) const;
-    bool GetValue(Coin &coin) const;
-    unsigned int GetValueSize() const;
+    bool GetKey(COutPoint &key) const override;
+    bool GetValue(Coin &coin) const override;
+    unsigned int GetValueSize() const override;
 
-    bool Valid() const;
-    void Next();
+    bool Valid() const override;
+    void Next() override;
 
 private:
     CCoinsViewDBCursor(CDBIterator* pcursorIn, const uint256 &hashBlockIn):
@@ -158,15 +158,18 @@ public:
 
 /**
  * This class was introduced as the logic for address and tx indices became too intricate.
- *
- * @param addressIndex, spentIndex - true if to update the corresponding index
- *
- * It is undefined behavior if the helper was created with addressIndex == false
- * and getAddressIndex was called later (same for spentIndex and unspentIndex).
  */
 class CDbIndexHelper : boost::noncopyable
 {
 public:
+
+    /**
+     *  @brief It is undefined behavior if the helper was created with addressIndex == false
+     *      and getAddressIndex was called later (same for spentIndex and unspentIndex).
+     *
+     *  @param addressIndex true if to update the corresponding index
+     *  @param spentIndex true if to update the corresponding index
+     */
     CDbIndexHelper(bool addressIndex, bool spentIndex);
 
     void ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);

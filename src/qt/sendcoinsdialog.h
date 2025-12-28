@@ -8,7 +8,10 @@
 #include "walletmodel.h"
 
 #include <QDialog>
+#include <QMessageBox>
 #include <QString>
+#include <QTimer>
+#include "sendconfirmationdialog.h"
 
 class ClientModel;
 class OptionsModel;
@@ -43,13 +46,13 @@ public:
     void setAddress(const QString &address);
     void pasteEntry(const SendCoinsRecipient &rv);
     bool handlePaymentRequest(const SendCoinsRecipient &recipient);
-    
+
     SendCoinsEntry *entry;
 
 public Q_SLOTS:
-    void clear();
-    void reject();
-    void accept();
+            void clear();
+    void reject() override;
+    void accept() override;
     SendCoinsEntry *addEntry();
     void updateBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void updateTabsAndLabels();
@@ -79,7 +82,7 @@ private:
     void addShadow(QWidget* w);
 
 private Q_SLOTS:
-    void on_sendButton_clicked();
+            void on_sendButton_clicked();
     void on_switchFundButton_clicked();
     void on_buttonChooseFee_clicked();
     void on_buttonMinimizeFee_clicked();
@@ -103,9 +106,9 @@ private Q_SLOTS:
     void updateSmartFeeLabel();
     void updateGlobalFeeVariables();
 
-Q_SIGNALS:
-    // Fired when a message should be reported to the user
-    void message(const QString &title, const QString &message, unsigned int style);
+    Q_SIGNALS:
+            // Fired when a message should be reported to the user
+            void message(const QString &title, const QString &message, unsigned int style);
 };
 
 #endif // BITCOIN_QT_SENDCOINSDIALOG_H

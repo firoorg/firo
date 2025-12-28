@@ -269,6 +269,9 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
      <property name="text">
       <string/>
      </property>
+     <property name="styleSheet">
+      <string notr="true">color:red;</string>
+     </property>
      <property name="wordWrap">
       <bool>true</bool>
      </property>

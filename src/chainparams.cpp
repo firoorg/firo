@@ -218,6 +218,10 @@ public:
         consensus.stage4MasternodeShare = 70;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
 
+        consensus.stage41DevelopmentFundAddress = "a7GJ9bYfbZqvXmEmxzxZyZYtUTQmzckpjG";
+        consensus.stage41StartBlockDevFundAddressChange = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
+        consensus.stage41SparkNamesGracefulPeriod = 100; // 100 blocks grace period for spark names
+
         consensus.nStartBlacklist = 293990;
         consensus.nStartDuplicationCheck = 293526;
 
@@ -433,6 +437,8 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
+        consensus.nSparkLimitV2Factor = 5;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 50000;
 
@@ -488,18 +494,23 @@ public:
         consensus.nPPBlockNumber = 419264;
         consensus.nInitialPPDifficulty = 0x1b1774cd;    // 40GH/s
 
+        // limit ProgPoW DAG size to ~7.1GB
+        consensus.nMaxPPEpoch = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK/1300 - 1;
+        consensus.nTerminalPPEpoch = 650;
+
         // exchange address
         consensus.nExchangeAddressStartBlock = consensus.nSparkStartBlock;
 
         // spark names
         consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
+        consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
     }
-    virtual bool SkipUndoForBlock(int nHeight) const
+    virtual bool SkipUndoForBlock(int nHeight) const override
     {
         return nHeight == 293526;
     }
-    virtual bool ApplyUndoForTxout(int nHeight, uint256 const & txid, int n) const
+    virtual bool ApplyUndoForTxout(int nHeight, uint256 const & txid, int n) const override
     {
         // We only apply first 23 tx inputs UNDOs for the tx 7702 in block 293526
         if (!SkipUndoForBlock(nHeight)) {
@@ -550,6 +561,10 @@ public:
         consensus.stage4DevelopmentFundShare = 15;
         consensus.stage4MasternodeShare = 70;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
+
+        consensus.stage41DevelopmentFundAddress = "TEQQi3AraGdo7VHVM7Z8xKYTiiNcy8rydF";
+        consensus.stage41StartBlockDevFundAddressChange = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
+        consensus.stage41SparkNamesGracefulPeriod = 100; // 100 blocks grace period for spark names
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
@@ -752,6 +767,8 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
+        consensus.nSparkLimitV2Factor = 5;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
@@ -795,12 +812,16 @@ public:
         consensus.nPPBlockNumber = 37305;
         consensus.nInitialPPDifficulty = 0x1d016e81;    // 10MH/s
 
+        consensus.nMaxPPEpoch = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK/1300 - 1;
+        consensus.nTerminalPPEpoch = 100;
+
         // exchange address
         consensus.nExchangeAddressStartBlock = 147000;
 
         // spark names
         consensus.nSparkNamesStartBlock = 174000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
+        consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
     }
 };
 
@@ -837,6 +858,10 @@ public:
         consensus.stage4DevelopmentFundShare = 15;
         consensus.stage4MasternodeShare = 70;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
+
+        consensus.stage41DevelopmentFundAddress = "Tv6LBcQB3UVW7c71JyysoEUMoj4NtWGeP8";
+        consensus.stage41StartBlockDevFundAddressChange = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
+        consensus.stage41SparkNamesGracefulPeriod = 100; // 100 blocks grace period for spark names
 
         consensus.nStartBlacklist = 0;
         consensus.nStartDuplicationCheck = 0;
@@ -1012,6 +1037,8 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
+        consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
         consensus.nZerocoinToSigmaRemintWindowSize = 0;
 
@@ -1044,12 +1071,16 @@ public:
         consensus.nPPBlockNumber = 1;
         consensus.nInitialPPDifficulty = 0x2000ffff;
 
+        consensus.nMaxPPEpoch = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK/1300 - 1;
+        consensus.nTerminalPPEpoch = 1;
+
         // exchange address
         consensus.nExchangeAddressStartBlock = 2500;
 
         // spark names
         consensus.nSparkNamesStartBlock = 3500;
         consensus.nSparkNamesFee = standardSparkNamesFee;
+        consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
     }
 };
 
@@ -1088,6 +1119,10 @@ public:
         consensus.stage4DevelopmentFundShare = 25;
         consensus.stage4MasternodeShare = 50;
         consensus.tailEmissionBlockSubsidy = 4 * COIN; // real value would be 1 FIRO (because of two halvings due to different block times)
+
+        consensus.stage41DevelopmentFundAddress = "TEK8Kd2hd344LABNbMDTUTM3q4hH9WRn4q";  // private key cMhmPMuRXVfzM8RRNdJM1BxGEwt1okuKKWNP8FeHhz35avXK5SU5
+        consensus.stage41StartBlockDevFundAddressChange = 2600;
+        consensus.stage41SparkNamesGracefulPeriod = 100;
 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
@@ -1233,19 +1268,19 @@ public:
         nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
 
         // Sigma related values.
-        consensus.nSigmaStartBlock = 100;
+        consensus.nSigmaStartBlock = 1;
         consensus.nSigmaPaddingBlock = 1;
         consensus.nDisableUnpaddedSigmaBlock = 1;
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 1;
-        consensus.nLelantusStartBlock = 400;
-        consensus.nLelantusFixesStartBlock = 400;
-        consensus.nSparkStartBlock = 1000;
-        consensus.nSpatsStartBlock = 2000;
+        consensus.nLelantusStartBlock = 100;
+        consensus.nLelantusFixesStartBlock = 100;
+        consensus.nSparkStartBlock = 400;
+        consensus.nSpatsStartBlock = 1100;
         consensus.nExchangeAddressStartBlock = 1000;
-        consensus.nLelantusGracefulPeriod = 1500;
-        consensus.nSigmaEndBlock = 1400;
+        consensus.nLelantusGracefulPeriod = 600;
+        consensus.nSigmaEndBlock = 1;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
         consensus.nZerocoinV2MintGracefulPeriod = 1;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = 1;
@@ -1259,10 +1294,12 @@ public:
         consensus.nMaxLelantusInputPerTransaction = ZC_LELANTUS_INPUT_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusSpendPerTransaction = ZC_LELANTUS_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
-        consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
-        consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSparkSpendPerTransaction = 1000 * COIN; // 1000 FIRO
+        consensus.nMaxValueSparkSpendPerBlock = 1500 * COIN; // 1500 FIRO
+        consensus.nSparkLimitV2StartBlock = 1500;
+        consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
-        consensus.nZerocoinToSigmaRemintWindowSize = 1000;
+        consensus.nZerocoinToSigmaRemintWindowSize = 1;
 
         // evo spork
         consensus.evoSporkKeyID = "TSpmHGzQT4KJrubWa4N2CRmpA7wKMMWDg4";  // private key is cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ
@@ -1293,9 +1330,13 @@ public:
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
 
+        consensus.nMaxPPEpoch = 2;
+        consensus.nTerminalPPEpoch = 1;
+
         // spark names
         consensus.nSparkNamesStartBlock = 2000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
+        consensus.nSparkNamesV2StartBlock = 2500;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

@@ -16,40 +16,35 @@ env:
   SOURCE_ARTIFACT: source
   SOURCE_ARTIFACT_DIR: source
 jobs:
-  create-source-distribution:
-    name: Create Source Distribution
+  get-commit-hash:
+    name: Get Commit Hash String
     runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.short-sha.outputs.sha }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libboost-all-dev libdb-dev libdb++-dev libevent-dev bison cmake
-    - name: Create Distribution Tarball
-      run: |
-        ./autogen.sh
-        ./configure --with-incompatible-bdb ac_cv_lib_tor_tor_main=yes
-        make dist
-    - name: Download Dependencies
-      run: make -C depends download
-    - name: Create Dependencies Tarball
-      run: tar -czf depends.tar.gz depends
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $SOURCE_ARTIFACT_DIR
-        mv depends.tar.gz firo-*.tar.gz $SOURCE_ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}  # Use PR head commit
+          fetch-depth: 1
+      - id: short-sha
+        run: |
+          # For PRs, use pull_request.head.sha, otherwise use the normal HEAD
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
+          else
+            SHA=$(git rev-parse --short=7 HEAD)
+          fi
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          echo "Short hash determined: $SHA"
+
   build-linux-cmake:
-    name: Build for Linux (CMake)
-    runs-on: ubuntu-latest
+    needs: get-commit-hash
+    name: build-linux-cmake
+    runs-on: ubuntu-22.04
     env:
       ARTIFACT_DIR: linux-cmake-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
@@ -66,14 +61,27 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install pyzmq
     - name: Download Dependencies
-      run: make -C depends download
+      run: |
+        attempt=1
+        max=5
+        until make -C depends download; do
+          if [ "$attempt" -ge "$max" ]; then
+            echo "make -C depends download failed after $attempt attempts"
+            exit 1
+          fi
+          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+          sleep $((attempt*5))
+          attempt=$((attempt+1))
+        done
     - name: Build Dependencies
       run: make -C depends -j$(nproc)
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Run Unit Tests
       run: |
@@ -91,7 +99,7 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-cmake-binaries
+        name: linux-cmake-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
     - name: Prepare Test Logs for Artifact
       if: failure()
@@ -112,151 +120,49 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-cmake-logs
+        name: test-linux-cmake-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
-  build-linux-autotools:
-    name: Build for Linux (Autotools)
-    needs: create-source-distribution
-    runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: linux-autotools-binaries
-      TEST_LOG_ARTIFACT_DIR: test-logs
-    steps:
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-zmq
-    - name: Verify ZMQ Installation
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pyzmq
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --disable-jni --enable-tests --with-comparison-tool=no --prefix=$(realpath depends/x86_64-pc-linux-gnu)
-        make -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Run Unit Tests
-      run: make check
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Run RPC Tests
-      env:
-        TIMEOUT: 600
-      run: qa/pull-tester/rpc-tests.py -extended
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-autotools-binaries
-        path: ${{ env.ARTIFACT_DIR }}
-    - name: Prepare Test Logs for Artifact
-      if: failure()
-      run: |
-        tor_log=$SOURCE_ARTIFACT/src/tor/test-suite.log
-        firo_log=$SOURCE_ARTIFACT/src/test-suite.log
 
-        mkdir -p $TEST_LOG_ARTIFACT_DIR
-
-        if test -f $tor_log; then
-          mv $tor_log $TEST_LOG_ARTIFACT_DIR/tor.log
-        fi
-
-        if test -f $firo_log; then
-          mv $firo_log $TEST_LOG_ARTIFACT_DIR/firo.log
-        fi
-    - name: Upload Test Logs Artifact
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-autotools-logs
-        path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
-  build-windows-autotools:
-    name: Build for Windows (Autotools)
-    needs: create-source-distribution
-    runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: windows-autotools-binaries
-    steps:
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
-    - name: Switch MinGW GCC and G++ to POSIX Threading
-      run: |
-        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --without-libs --disable-jni --prefix=$(realpath depends/x86_64-w64-mingw32)
-        make -j$(nproc)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli.exe,firo-tx.exe,firod.exe,qt/firo-qt.exe} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-autotools-binaries
-        path: ${{ env.ARTIFACT_DIR }}
   build-windows-cmake:
-    name: Build for Windows (CMake)
+    needs: get-commit-hash
+    name: build-windows-cmake
     runs-on: ubuntu-latest
     env:
       ARTIFACT_DIR: windows-cmake-binaries
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 cmake
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip
     - name: Switch MinGW GCC and G++ to POSIX Threading
       run: |
         sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
         sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
     - name: Download Dependencies
-      run: make -C depends download
+      run: |
+        attempt=1
+        max=5
+        until make -C depends download; do
+          if [ "$attempt" -ge "$max" ]; then
+            echo "make -C depends download failed after $attempt attempts"
+            exit 1
+          fi
+          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+          sleep $((attempt*5))
+          attempt=$((attempt+1))
+        done
     - name: Build Dependencies
       run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && make -j$(nproc)
     - name: Prepare Files for Artifact
       run: |
@@ -265,13 +171,16 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-cmake-binaries
+        name: windows-cmake-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
+
   build-mac-cmake:
-    name: Build for macOS (CMake)
+    needs: get-commit-hash
+    name: build-mac-cmake
     runs-on: macos-latest
     env:
       ARTIFACT_DIR: mac-cmake-binaries
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -286,26 +195,34 @@ jobs:
       # -j$(sysctl -n hw.activecpu) fails. due to high load on macOS, and crappy github runners.
     - name: Install Required Packages
       run: |
-        if ! command -v pkg-config &> /dev/null; then
-          echo "pkg-config not found, installing..."
-          brew install pkg-config
-        else
-          echo "pkg-config is already installed"
-        fi
-        brew install automake coreutils python-setuptools cmake make
+        brew uninstall --force cmake
+        brew install --force automake coreutils python-setuptools cmake make pkg-config
       # Workaround for macOS: https://github.com/actions/runner/issues/2958
     - name: Install setuptools
       run: sudo -H pip install setuptools
     - name: Download Dependencies
-      run: make -C depends download
+      run: |
+        attempt=1
+        max=5
+        until make -C depends download; do
+          if [ "$attempt" -ge "$max" ]; then
+            echo "make -C depends download failed after $attempt attempts"
+            exit 1
+          fi
+          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+          sleep $((attempt*5))
+          attempt=$((attempt+1))
+        done
     - name: Build Dependencies
       run: |
         make -C depends -j$NJOBS
     - name: Build Firo
       run: |
-        mkdir build
         export HOST_TRIPLET=$(depends/config.guess)
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -S$(pwd) -B$(pwd)/build
+        env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
         cd build && make -j$NJOBS
     - name: Prepare Files for Artifact
       run: |
@@ -314,53 +231,446 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: mac-cmake-binaries
+        name: mac-cmake-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
-  build-mac-autotools:
-    name: Build for macOS (Autotools)
-    needs: create-source-distribution
-    runs-on: macos-latest
+
+  build-guix-x86_64-linux-gnu:
+    needs: get-commit-hash
+    name: build-guix-x86_64-linux-gnu
+    runs-on: ubuntu-22.04
     env:
-      ARTIFACT_DIR: mac-autotools-binaries
+      HOST: x86_64-linux-gnu
+      ARTIFACT_DIR: guix-binaries-x86_64-linux-gnu
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
-    - name: Getting Source
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.SOURCE_ARTIFACT }}
-        path: ${{ env.SOURCE_ARTIFACT_DIR }}
-    - name: Extract Archives
-      run: |
-        tar -xzf depends.tar.gz
-        tar -xzf firo-*.tar.gz --strip-components=1
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Use Xcode instead of Command Line Tools
-      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-    - name: Install Required Packages
-      run: |
-        if ! command -v pkg-config &> /dev/null; then
-          echo "pkg-config not found, installing..."
-          brew install pkg-config
-        else
-          echo "pkg-config is already installed"
-        fi
-        brew install automake coreutils python-setuptools
-      # Workaround for macOS: https://github.com/actions/runner/issues/2958
-    - name: Install setuptools
-      run: sudo -H pip install setuptools
-    - name: Build Dependencies
-      run: make -C depends -j$(sysctl -n hw.activecpu)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Build Firo
-      run: |
-        ./configure --prefix=`pwd`/depends/`depends/config.guess`
-        make -j$(sysctl -n hw.activecpu)
-      working-directory: ${{ env.SOURCE_ARTIFACT }}
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv $SOURCE_ARTIFACT/src/{firo-cli,firo-tx,firod,qt/firo-qt} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: mac-autotools-binaries
-        path: ${{ env.ARTIFACT_DIR }}
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          env HOSTS="${HOST}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-gnu.tar.gz x86_64-linux-guix-release-binaries.tar.gz || true
+          mv *-gnu-debug.tar.gz x86_64-linux-guix-debug-symbols.tar.gz || true
+          mv SHA256SUMS.part x86_64-linux-guix-checksums-sha256 || true
+      - name: Upload Release Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux-guix-release-binaries-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-release-binaries.tar.gz
+          compression-level: 0
+      - name: Upload Debug Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux-guix-debug-binaries-${{ env.COMMIT_HASH }}
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+          compression-level: 6
+      - name: Upload Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux-guix-debug-symbols-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-debug-symbols.tar.gz
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux-guix-checksums-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-checksums-sha256
+          compression-level: 0
+
+  build-guix-aarch64-linux-gnu:
+    needs: get-commit-hash
+    name: build-guix-aarch64-linux-gnu
+    runs-on: ubuntu-22.04
+    env:
+      HOST: aarch64-linux-gnu
+      ARTIFACT_DIR: guix-binaries-aarch64-linux-gnu
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          env HOSTS="${HOST}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-gnu.tar.gz aarch64-linux-guix-release-binaries.tar.gz || true
+          mv *-gnu-debug.tar.gz aarch64-linux-guix-debug-symbols.tar.gz || true
+          mv SHA256SUMS.part aarch64-linux-guix-checksums-sha256 || true
+      - name: Upload Release Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-linux-guix-release-binaries-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-release-binaries.tar.gz
+          compression-level: 0
+      - name: Upload Debug Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-linux-guix-debug-binaries-${{ env.COMMIT_HASH }}
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+          compression-level: 6
+      - name: Upload Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-linux-guix-debug-symbols-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-debug-symbols.tar.gz
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: aarch64-linux-guix-checksums-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-checksums-sha256
+
+  build-guix-x86_64-w64-mingw32:
+    needs: get-commit-hash
+    name: build-guix-x86_64-w64-mingw32
+    runs-on: ubuntu-22.04
+    env:
+      HOST: x86_64-w64-mingw32
+      ARTIFACT_DIR: guix-binaries-x86_64-w64-mingw32
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          env HOSTS="${HOST}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-win-unsigned.tar.gz x86_64-win64-guix-setup-sign-bundle.tar.gz || true
+          mv *-win64-debug.zip x86_64-win64-guix-debug-symbols.zip || true  
+          mv *-win64-setup-unsigned.exe x86_64-win64-guix-installer-unsigned.exe || true
+          mv *-win64.zip x86_64-win64-guix-release-binaries.zip || true
+          mv SHA256SUMS.part x86_64-wind64-guix-checksums-sha256 || true
+      - name: Upload Windows Release Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-release-binaries-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-release-binaries.zip
+          compression-level: 0
+      - name: Upload Windows Debug Symbols  
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-debug-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-debug-symbols.zip
+          compression-level: 0
+      - name: Upload Windows Installer (Unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-installer-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-installer-unsigned.exe
+          compression-level: 0
+      - name: Upload Windows Setup Sign Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-setup-sign-bundle-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-setup-sign-bundle.tar.gz
+          compression-level: 0
+      - name: Upload Windows Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-win64-guix-checksums-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-checksums-sha256
+          compression-level: 0
+
+  build-guix-arm64-apple-darwin:
+    needs: get-commit-hash
+    name: build-guix-arm64-apple-darwin
+    runs-on: ubuntu-22.04
+    env:
+      HOST: arm64-apple-darwin
+      ARTIFACT_DIR: guix-binaries-arm64-apple-darwin
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download macOS SDK
+        run: |
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+      - name: Verify macOS SDK SHA256
+        run: |
+          echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
+      - name: Extract macOS SDK
+        run: |
+          mkdir -p depends/SDKs
+          tar -xf Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz -C depends/SDKs/
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Download Dependencies
+        run: |
+          attempt=1
+          max=5
+          until make -C depends download; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "make -C depends download failed after $attempt attempts"
+              exit 1
+            fi
+            echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+            sleep $((attempt*5))
+            attempt=$((attempt+1))
+          done
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          export SDK_PATH="$(pwd)/depends/SDKs"
+          env HOSTS="${HOST}" \
+              SDK_PATH="$SDK_PATH" \
+              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-osx-unsigned.tar.gz arm64-apple-darwin-sign-bundle.tar.gz || true
+          mv Firo-Core.zip arm64-apple-darwin-app-image.zip || true
+          mv SHA256SUMS.part arm64-apple-darwin-checksums-sha256 || true
+          tar xf firo*arm64-apple-darwin.tar.gz --strip-components=1 || true
+          mv share/man . || true
+      - name: Upload MacOS Release Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apple-darwin-release-binaries-${{ env.COMMIT_HASH }}
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+            ${{ env.ARTIFACT_DIR }}/man
+          compression-level: 6
+      - name: Upload MacOS Sign Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-sign-bundle.tar.gz
+          compression-level: 0
+      - name: Upload MacOS App Image Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-app-image.zip
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-apple-darwin-checksums-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-checksums-sha256
+
+  build-guix-x86_64-apple-darwin:
+    needs: get-commit-hash
+    name: build-guix-x86_64-apple-darwin
+    runs-on: ubuntu-22.04
+    env:
+      HOST: x86_64-apple-darwin
+      ARTIFACT_DIR: guix-binaries-x86_64-apple-darwin
+      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download macOS SDK
+        run: |
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+      - name: Verify macOS SDK SHA256
+        run: |
+          echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
+      - name: Extract macOS SDK
+        run: |
+          mkdir -p depends/SDKs
+          tar -xf Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz -C depends/SDKs/
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Free Disk Space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/cache/*
+          sudo rm -rf /var/log/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Install Guix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Download Dependencies
+        run: |
+          attempt=1
+          max=5
+          until make -C depends download; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "make -C depends download failed after $attempt attempts"
+              exit 1
+            fi
+            echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+            sleep $((attempt*5))
+            attempt=$((attempt+1))
+          done
+      - name: Run Guix Build
+        run: |
+          CORES=$(nproc)
+          export SDK_PATH="$(pwd)/depends/SDKs"
+          env HOSTS="${HOST}" \
+              SDK_PATH="$SDK_PATH" \
+              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+      - name: Prepare Files for Artifact
+        run: |
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-osx-unsigned.tar.gz x86_64-apple-darwin-sign-bundle.tar.gz || true
+          mv Firo-Core.zip x86_64-apple-darwin-app-image.zip || true
+          mv SHA256SUMS.part x86_64-apple-darwin-checksums-sha256 || true
+          tar xf firo*x86_64-apple-darwin.tar.gz --strip-components=1 || true
+          mv share/man . || true
+      - name: Upload MacOS Release Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-apple-darwin-release-binaries-${{ env.COMMIT_HASH }}
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+            ${{ env.ARTIFACT_DIR }}/man
+          compression-level: 6
+      - name: Upload MacOS Sign Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-sign-bundle.tar.gz
+          compression-level: 0
+      - name: Upload MacOS App Image Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-app-image.zip
+          compression-level: 0
+      - name: Upload Check Sums
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-apple-darwin-checksums-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-checksums-sha256

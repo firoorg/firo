@@ -16,7 +16,7 @@
 #include "primitives.h"
 #include "sparkname.h"
 
-namespace spark_mintspend { class spark_mintspend_test; }
+namespace spark_mintspend { struct spark_mintspend_test; }
 
 namespace spark {
 
@@ -93,6 +93,9 @@ bool CheckSparkTransaction(
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo);
+
+// call this on shutdown
+void ShutdownSparkState();
 
 bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin);
 bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash);
@@ -250,6 +253,7 @@ public:
 
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
+    std::vector<std::pair<GroupElement, int>> const & GetSpendsMobile() const;
     std::unordered_map<uint256, uint256> const& GetSpendTxIds() const;
     std::unordered_map<int, SparkCoinGroupInfo> const & GetCoinGroups() const;
     std::unordered_map<GroupElement, uint256, spark::CLTagHash> const & GetMempoolLTags() const;
@@ -280,6 +284,8 @@ private:
     std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins;
     // Set of all used coin linking tags.
     std::unordered_map<GroupElement, int, spark::CLTagHash> usedLTags;
+    // Set of all used linking tags, used only when -mobile=true
+    std::vector<std::pair<GroupElement, int>> mobileUsedLTags;
     // linking tag hash mapped to tx hash
     std::unordered_map<uint256, uint256> ltagTxhash;
 
@@ -288,7 +294,7 @@ private:
 
     spats::Manager spats_manager_;
 
-    friend class spark_mintspend::spark_mintspend_test;
+    friend struct spark_mintspend::spark_mintspend_test;
 };
 
 std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransaction &tx);

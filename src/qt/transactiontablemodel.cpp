@@ -2,8 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "../boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
-
 #include "transactiontablemodel.h"
 
 #include "addresstablemodel.h"
@@ -85,12 +83,7 @@ public:
         qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
         {
-            TRY_LOCK(cs_main,lock_main);
-            if (!lock_main)
-                return;
-            TRY_LOCK(wallet->cs_wallet,lock_wallet);
-            if (!lock_wallet)
-                return;
+            LOCK2(cs_main, wallet->cs_wallet);
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
                 if(TransactionRecord::showTransaction(it->second))
@@ -230,12 +223,7 @@ public:
     QString describe(TransactionRecord *rec, int unit)
     {
         {
-            TRY_LOCK(cs_main,lock_main);
-            if (!lock_main)
-                return QString();;
-            TRY_LOCK(wallet->cs_wallet,lock_wallet);
-            if (!lock_wallet)
-                return QString();
+            LOCK2(cs_main, wallet->cs_wallet);
             std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
             if (mi != wallet->mapWallet.end())
             {
@@ -247,12 +235,7 @@ public:
 
     QString getTxHex(TransactionRecord *rec)
     {
-        TRY_LOCK(cs_main,lock_main);
-        if (!lock_main)
-            return QString();
-        TRY_LOCK(wallet->cs_wallet,lock_wallet);
-        if (!lock_wallet)
-            return QString();
+        LOCK2(cs_main, wallet->cs_wallet);
         std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
         if (mi != wallet->mapWallet.end())
         {
@@ -290,11 +273,6 @@ void TransactionTableModel::updateAmountColumnTitle()
 {
     columns[Amount] = BitcoinUnits::getAmountColumnTitle(walletModel->getOptionsModel()->getDisplayUnit());
     Q_EMIT headerDataChanged(Qt::Horizontal,Amount,Amount);
-}
-
-void TransactionTableModel::refreshWallet() const
-{
-    priv->refreshWallet();
 }
 
 void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
@@ -762,7 +740,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case TypeRole:
         return rec->type;
     case DateRole:
-        return QDateTime::fromTime_t(static_cast<uint>(rec->time));
+        return QDateTime::fromSecsSinceEpoch(static_cast<uint>(rec->time));
     case WatchonlyRole:
         return rec->involvesWatchAddress;
     case WatchonlyDecorationRole:
@@ -791,7 +769,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case TxPlainTextRole:
         {
             QString details;
-            QDateTime date = QDateTime::fromTime_t(static_cast<uint>(rec->time));
+            QDateTime date = QDateTime::fromSecsSinceEpoch(static_cast<uint>(rec->time));
             QString txLabel = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->address));
 
             details.append(date.toString("M/d/yy HH:mm"));
@@ -928,9 +906,8 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet
 
 static void ShowProgress(TransactionTableModel *ttm, const std::string &title, int nProgress)
 {
-    if (nProgress == 0) {
+    if (nProgress == 0)
         fQueueNotifications = true;
-    }
 
     if (nProgress == 100)
     {
@@ -945,7 +922,6 @@ static void ShowProgress(TransactionTableModel *ttm, const std::string &title, i
             vQueueNotifications[i].invoke(ttm);
         }
         std::vector<TransactionNotification >().swap(vQueueNotifications); // clear
-        ttm->refreshWallet();
     }
 }
 

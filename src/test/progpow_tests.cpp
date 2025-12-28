@@ -17,7 +17,7 @@
 
 struct ProgpowTestingSetup : public TestChain100Setup
 {
-    CKey coinbaseKey;
+    CKey m_coinbaseKey;
     CScript coinbaseScript;
     Consensus::Params &mutableParams;
     Consensus::Params originalParams;
@@ -27,7 +27,7 @@ struct ProgpowTestingSetup : public TestChain100Setup
         std::string errorCode;
 
     protected:
-        virtual void BlockChecked(const CBlock&, const CValidationState& state) {
+        virtual void BlockChecked(const CBlock&, const CValidationState& state) override {
             errorCode = state.GetRejectReason();
         }
     };
@@ -36,13 +36,14 @@ struct ProgpowTestingSetup : public TestChain100Setup
     {
         originalParams = mutableParams;
         mutableParams.nPPSwitchTime = INT_MAX;
-        coinbaseKey.MakeNewKey(true);
-        coinbaseScript = GetScriptForDestination(coinbaseKey.GetPubKey().GetID());
+        m_coinbaseKey.MakeNewKey(true);
+        coinbaseScript = GetScriptForDestination(m_coinbaseKey.GetPubKey().GetID());
     }
 
     ~ProgpowTestingSetup() {
         mutableParams = originalParams;
         SetMockTime(0);
+        ethash::ethash_clamp_memory_usage(INT_MAX, INT_MAX);
     }
 
     bool VerifyBlockCheckStatus(const CBlock &block, const std::string &correctError, bool shouldPassPowCheck=true) {
@@ -69,21 +70,21 @@ BOOST_AUTO_TEST_CASE(transition)
 {
     mutableParams.nPPSwitchTime = INT_MAX;
 
-    CBlock regularBlock = CreateAndProcessBlock({}, coinbaseKey);
+    CBlock regularBlock = CreateAndProcessBlock({}, m_coinbaseKey);
     BOOST_ASSERT(!regularBlock.IsProgPow());
 
     mutableParams.nPPSwitchTime = (uint32_t)(chainActive.Tip()->GetMedianTimePast()+10);
     SetMockTime(mutableParams.nPPSwitchTime+1);
 
     int oldHeight = chainActive.Height();
-    CBlock ppBlock = CreateAndProcessBlock({}, coinbaseKey);
+    CBlock ppBlock = CreateAndProcessBlock({}, m_coinbaseKey);
     BOOST_ASSERT(chainActive.Height() == oldHeight+1);
     BOOST_ASSERT(ppBlock.IsProgPow());
 
     // Try to add regular block after PP one. Should throw an exception
     SetMockTime(mutableParams.nPPSwitchTime-1);
     try {
-        CreateBlock({}, coinbaseKey);
+        CreateBlock({}, m_coinbaseKey);
         BOOST_ASSERT(false);
     }
     catch (std::runtime_error &err) {
@@ -96,7 +97,7 @@ BOOST_AUTO_TEST_CASE(corruption)
     mutableParams.nPPSwitchTime = (uint32_t)(chainActive.Tip()->GetMedianTimePast()+10);
     SetMockTime(mutableParams.nPPSwitchTime+1);
 
-    CBlock block = CreateBlock({}, coinbaseKey);
+    CBlock block = CreateBlock({}, m_coinbaseKey);
     BOOST_ASSERT(block.IsProgPow());
 
     CBlock modifiedBlock = block;
@@ -133,6 +134,31 @@ BOOST_AUTO_TEST_CASE(corruption)
 
     // verify that unmodified block passes all the checks
     BOOST_ASSERT(VerifyBlockCheckStatus(block, ""));
+}
+
+BOOST_AUTO_TEST_CASE(limit)
+{
+    mutableParams.nPPSwitchTime = INT_MAX;
+
+    // normal initialization is skipped, so we need to set the maximum epoch number manually
+    ethash::ethash_clamp_memory_usage(mutableParams.nMaxPPEpoch, mutableParams.nTerminalPPEpoch);
+
+    while (chainActive.Height() < 1300*(mutableParams.nMaxPPEpoch+1) - 2) {
+        CreateAndProcessBlock({}, m_coinbaseKey);
+    }
+
+    mutableParams.nPPSwitchTime = (uint32_t)(chainActive.Tip()->GetMedianTimePast()+10);
+    SetMockTime(mutableParams.nPPSwitchTime+1);
+
+    int epoch1 = ethash::get_epoch_number(chainActive.Height());
+    for (int i=0; i<5; i++) {
+        CBlock ppBlock = CreateAndProcessBlock({}, m_coinbaseKey);
+        BOOST_ASSERT(ppBlock.IsProgPow());
+    }
+    int epoch2 = ethash::get_epoch_number(chainActive.Height());
+
+    BOOST_CHECK_EQUAL(epoch1, mutableParams.nMaxPPEpoch);
+    BOOST_CHECK_EQUAL(epoch2, mutableParams.nTerminalPPEpoch);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

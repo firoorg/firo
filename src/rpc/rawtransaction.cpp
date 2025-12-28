@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <boost/assign/list_of.hpp>
 #include <univalue.h>
-#include "sigma.h"
 #include "evo/cbtx.h"
 #include "evo/specialtx.h"
 #include "evo/spork.h"
@@ -105,21 +104,6 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsSigmaSpend()) {
-            std::unique_ptr<sigma::CoinSpend> spend;
-            uint32_t pubcoinId;
-            try {
-                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
-            } catch (CBadTxIn&) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
-            } catch (std::ios_base::failure &) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
-            }
-            in.push_back(Pair("anonymityGroup", int64_t(pubcoinId)));
-            fillStdFields(in, txin);
-
-            in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
-            in.push_back(Pair("valueSat", spend->getIntDenomination()));
         } else if (txin.IsLelantusJoinSplit()) {
             in.push_back("joinsplit");
             fillStdFields(in, txin);
@@ -549,12 +533,12 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
     }
 
     for (unsigned int idx = 0; idx < inputs.size(); idx++) {
-        const UniValue& input = inputs[idx];
-        const UniValue& o = input.get_obj();
+        const auto input = inputs[idx];
+        const auto o = input.get_obj();
 
         uint256 txid = ParseHashO(o, "txid");
 
-        const UniValue& vout_v = find_value(o, "vout");
+        const auto vout_v = find_value(o, "vout");
         if (!vout_v.isNum())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
         int nOutput = vout_v.get_int();
@@ -564,13 +548,13 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
         uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
 
         // set the sequence number if passed in the parameters object
-        const UniValue& sequenceObj = find_value(o, "sequence");
+        const auto sequenceObj = find_value(o, "sequence");
         if (sequenceObj.isNum()) {
             int64_t seqNr64 = sequenceObj.get_int64();
             if (seqNr64 < 0 || seqNr64 > std::numeric_limits<uint32_t>::max())
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence number is out of range");
             else
-                nSequence = (uint32_t)seqNr64;
+                nSequence = static_cast<uint32_t>(seqNr64);
         }
 
         CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);

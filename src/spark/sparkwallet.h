@@ -13,14 +13,16 @@
 #include "../sync.h"
 #include "../sparkname.h"
 #include "../spats/wallet.hpp"
+#include "../chain.h"
 
-class CRecipient;
+struct CRecipient;
 class CReserveKey;
 class CCoinControl;
 extern CChain chainActive;
 
 const uint32_t BIP44_SPARK_INDEX = 0x6;
 const uint32_t SPARK_CHANGE_D = 0x270F;
+const Scalar ZERO = Scalar((uint64_t)0);
 
 class CSparkWallet {
 public:
@@ -79,6 +81,7 @@ public:
     CAmount getFullBalance() const;
     CAmount getAvailableBalance() const;
     CAmount getUnconfirmedBalance() const;
+    std::pair<CAmount, CAmount> getSparkBalance();
 
     CAmount getAddressFullBalance(const spark::Address& address) const;
     CAmount getAddressAvailableBalance(const spark::Address& address) const;

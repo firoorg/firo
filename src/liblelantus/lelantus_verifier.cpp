@@ -52,7 +52,7 @@ bool LelantusVerifier::verify(
     }
 
     // max possible number of output coins is 8,
-    if (Cout.size() > (params->get_bulletproofs_max_m() / 2)) {
+    if (cmp::greater(Cout.size(), (params->get_bulletproofs_max_m() / 2))) {
         LogPrintf("Number of output coins are more than allowed.");
         return false;
     }

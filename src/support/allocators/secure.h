@@ -31,10 +31,10 @@ struct secure_allocator : public std::allocator<T> {
     secure_allocator() throw() {}
     secure_allocator(const secure_allocator& a) throw() : base(a) {}
     template <typename U>
-    secure_allocator(const secure_allocator<U>& a) noexcept : base(a)
+    secure_allocator(const secure_allocator<U>& a) throw() : base(a)
     {
     }
-    ~secure_allocator() noexcept {}
+    ~secure_allocator() throw() {}
     template <typename _Other>
     struct rebind {
         typedef secure_allocator<_Other> other;

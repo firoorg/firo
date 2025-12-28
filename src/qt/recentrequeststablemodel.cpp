@@ -11,6 +11,8 @@
 #include "clientversion.h"
 #include "streams.h"
 
+#include "../compat_layer.h"
+
 #include <boost/foreach.hpp>
 
 const QString RecentRequestsTableModel::Transparent = "Transparent";
@@ -84,6 +86,7 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index, int role) cons
             {
                 return tr("spark");
             }
+            FIRO_FALLTHROUGH;
         case Message:
             if(rec->recipient.message.isEmpty() && role == Qt::DisplayRole)
             {
@@ -239,7 +242,7 @@ bool RecentRequestEntryLessThan::operator()(RecentRequestEntry &left, RecentRequ
     switch(column)
     {
     case RecentRequestsTableModel::Date:
-        return pLeft->date.toTime_t() < pRight->date.toTime_t();
+        return pLeft->date.toSecsSinceEpoch() < pRight->date.toSecsSinceEpoch();
     case RecentRequestsTableModel::Label:
         return pLeft->recipient.label < pRight->recipient.label;
     case RecentRequestsTableModel::Message:

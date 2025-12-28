@@ -11,21 +11,35 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   string(APPEND CMAKE_OBJCXX_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CXXFLAGS}")
 endif()
 
-get_target_property(qt_lib_type Qt5::Core TYPE)
+get_target_property(qt_lib_type Qt6::Core TYPE)
 
 function(import_plugins target)
   if(qt_lib_type STREQUAL "STATIC_LIBRARY")
-    set(plugins Qt5::QMinimalIntegrationPlugin)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-      list(APPEND plugins Qt5::QXcbIntegrationPlugin)
+    set(plugins Qt6::QMinimalIntegrationPlugin)
+    if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$")
+      list(APPEND plugins Qt6::QXcbIntegrationPlugin)
     elseif(WIN32)
-      list(APPEND plugins Qt5::QWindowsIntegrationPlugin Qt5::QWindowsVistaStylePlugin)
+      list(APPEND plugins Qt6::QWindowsIntegrationPlugin Qt6::QModernWindowsStylePlugin)
     elseif(APPLE)
-      list(APPEND plugins Qt5::QCocoaIntegrationPlugin Qt5::QMacStylePlugin)
+      list(APPEND plugins Qt6::QCocoaIntegrationPlugin Qt6::QMacStylePlugin)
     endif()
-    qt5_import_plugins(${target}
+    qt6_import_plugins(${target}
       INCLUDE ${plugins}
-      EXCLUDE_BY_TYPE imageformats iconengines
+      EXCLUDE_BY_TYPE
+        accessiblebridge
+        platforms
+        platforms_darwin
+        xcbglintegrations
+        platformthemes
+        platforminputcontexts
+        generic
+        iconengines
+        imageformats
+        egldeviceintegrations
+        styles
+        networkaccess
+        networkinformation
+        tls
     )
   endif()
 endfunction()
@@ -40,91 +54,103 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOUIC_SEARCH_PATHS forms)
 
-# TODO: The file(GLOB ...) command should be replaced with an explicit
-# file list. Such a change must be synced with the corresponding change
-# to https://github.com/bitcoin-core/bitcoin-maintainer-tools/blob/main/update-translations.py
-file(GLOB ts_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} locale/*.ts)
-set_source_files_properties(${ts_files} PROPERTIES OUTPUT_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/locale)
-qt5_add_translation(qm_files ${ts_files})
+# Generate QM files from TS files
+file(GLOB TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/locale/*.ts")
+set(LOCALE_BUILD_DIR "${CMAKE_BINARY_DIR}/src/qt/locale")
+file(MAKE_DIRECTORY ${LOCALE_BUILD_DIR})
+foreach(TS_FILE ${TS_FILES})
+  get_filename_component(TS_NAME ${TS_FILE} NAME_WE)
+  set(QM_FILE "${LOCALE_BUILD_DIR}/${TS_NAME}.qm")
+  add_custom_command(
+    OUTPUT ${QM_FILE}
+    COMMAND Qt6::lrelease ${TS_FILE} -qm ${QM_FILE}
+    DEPENDS ${TS_FILE}
+    COMMENT "Generating ${TS_NAME}.qm in build directory"
+  )
+  list(APPEND QM_FILES ${QM_FILE})
+endforeach()
+
+add_custom_target(translations ALL DEPENDS ${QM_FILES})
 
 configure_file(bitcoin_locale.qrc bitcoin_locale.qrc USE_SOURCE_PERMISSIONS COPYONLY)
 
-# The firoqt sources have to include headers in
+# The bitcoinqt sources have to include headers in
 # order to parse them to collect translatable strings.
 add_library(firoqt STATIC EXCLUDE_FROM_ALL
-  bitcoin.qrc
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoin.qrc
   ${CMAKE_CURRENT_BINARY_DIR}/bitcoin_locale.qrc
-  addressbookpage.cpp
-  addresstablemodel.cpp
-  askpassphrasedialog.cpp
-  automintdialog.cpp
-  automintmodel.cpp
-  automintnotification.cpp
-  bantablemodel.cpp
-  bitcoinaddressvalidator.cpp
-  bitcoinamountfield.cpp
-  bitcoingui.cpp
-  bitcoinstrings.cpp
-  bitcoinunits.cpp
-  cancelpassworddialog.cpp
-  clientmodel.cpp
-  coincontroldialog.cpp
-  coincontroltreewidget.cpp
-  csvmodelwriter.cpp
-  editaddressdialog.cpp
-  guiutil.cpp
-  intro.cpp
-  manualmintdialog.cpp
-  masternodelist.cpp
-  modaloverlay.cpp
-  myownspats.cpp
-  networkstyle.cpp
-  notificator.cpp
-  notifymnemonic.cpp
-  openuridialog.cpp
-  optionsdialog.cpp
-  optionsmodel.cpp
-  overviewpage.cpp
-  sparkassetspage.cpp
-  paymentserver.cpp
-  peertablemodel.cpp
-  platformstyle.cpp
-  quint64spinbox.cpp
-  qvalidatedlineedit.cpp
-  qvaluecombobox.cpp
-  receivecoinsdialog.cpp
-  receiverequestdialog.cpp
-  recentrequeststablemodel.cpp
-  recover.cpp
-  rpcconsole.cpp
-  sendcoinsdialog.cpp
-  sendcoinsentry.cpp
-  sendconfirmationdialog.cpp
-  signverifymessagedialog.cpp
-  sparkmodel.cpp
-  sparkassetdialog.cpp
-  spatsburndialog.cpp
-  spatsmintdialog.cpp
-  spatsuserconfirmationdialog.cpp
-  splashscreen.cpp
-  trafficgraphwidget.cpp
-  transactiondesc.cpp
-  transactiondescdialog.cpp
-  transactionfilterproxy.cpp
-  transactionrecord.cpp
-  transactiontablemodel.cpp
-  transactionview.cpp
-  utilitydialog.cpp
-  walletframe.cpp
-  walletmodel.cpp
-  walletmodeltransaction.cpp
-  walletview.cpp
-  $<$<PLATFORM_ID:Darwin>:macdockiconhandler.h>
-  $<$<PLATFORM_ID:Darwin>:macdockiconhandler.mm>
-  $<$<PLATFORM_ID:Darwin>:macnotificationhandler.h>
-  $<$<PLATFORM_ID:Darwin>:macnotificationhandler.mm>
-  $<$<BOOL:${WIN32}>:winshutdownmonitor.cpp>
-  $<$<BOOL:${WIN32}>:winshutdownmonitor.h>
+  
+  ${CMAKE_CURRENT_SOURCE_DIR}/addressbookpage.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/addresstablemodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/askpassphrasedialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/automintdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/automintmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/automintnotification.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bantablemodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinaddressvalidator.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinamountfield.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoingui.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinstrings.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinunits.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/cancelpassworddialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/clientmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/coincontroldialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/coincontroltreewidget.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/csvmodelwriter.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/editaddressdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/guiutil.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/intro.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/manualmintdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/masternodelist.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/modaloverlay.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/myownspats.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/networkstyle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/notificator.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/notifymnemonic.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/openuridialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/optionsdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/optionsmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/overviewpage.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/paymentserver.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/peertablemodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/platformstyle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quint64spinbox.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/qvalidatedlineedit.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/qvaluecombobox.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/receivecoinsdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/receiverequestdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/recentrequeststablemodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/recover.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rpcconsole.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sendconfirmationdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetspage.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spatsmintdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spatsuserconfirmationdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/splashscreen.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/trafficgraphwidget.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transactiondesc.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transactiondescdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transactionfilterproxy.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transactionrecord.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transactiontablemodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transactionview.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utilitydialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/walletframe.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/walletmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/walletmodeltransaction.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/walletview.cpp
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macdockiconhandler.h>
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macdockiconhandler.mm>
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnotificationhandler.h>
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnotificationhandler.mm>
+  $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/winshutdownmonitor.cpp>
+  $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/winshutdownmonitor.h>
 )
 target_compile_definitions(firoqt
   PUBLIC
@@ -142,8 +168,8 @@ set_property(SOURCE macnotificationhandler.mm
 )
 # Add this to skip specific files from UIC processing
 set_source_files_properties(
-    clientmodel.cpp
-    clientmodel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/clientmodel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/clientmodel.h
     PROPERTIES SKIP_AUTOUIC ON 
 )
 target_link_libraries(firoqt
@@ -152,8 +178,8 @@ target_link_libraries(firoqt
     secp256k1
     univalue
     secp256k1pp
-    Qt5::Widgets
-    Qt5::Network
+    Qt6::Widgets
+    Qt6::Network
   PRIVATE
     core_interface
     firo_cli
@@ -170,71 +196,89 @@ target_link_libraries(firoqt
     $<$<BOOL:${WIN32}>:windows_system>
 )
 
+# Make sure translations are built before firoqt
+add_dependencies(firoqt translations)
+
 if(ENABLE_WALLET)
   target_sources(firoqt
     PRIVATE
-        addressbookpage.cpp
-        automintdialog.cpp
-        automintnotification.cpp
-        addresstablemodel.cpp
-        askpassphrasedialog.cpp
-        coincontroldialog.cpp
-        coincontroltreewidget.cpp
-        editaddressdialog.cpp
-        exportviewkeydialog.cpp
-        manualmintdialog.cpp
-        myownspats.cpp
-        openuridialog.cpp
-        overviewpage.cpp
-        sparkassetspage.cpp
-        paymentserver.cpp
-        receivecoinsdialog.cpp
-        receiverequestdialog.cpp
-        recentrequeststablemodel.cpp
-        sendcoinsdialog.cpp
-        sendcoinsentry.cpp
-        sendconfirmationdialog.cpp
-        signverifymessagedialog.cpp
-        sparkassetdialog.cpp
-        spatsburndialog.cpp
-        spatsmintdialog.cpp
-        spatsuserconfirmationdialog.cpp
-        transactiondesc.cpp
-        transactiondescdialog.cpp
-        transactionfilterproxy.cpp
-        transactionrecord.cpp
-        transactiontablemodel.cpp
-        transactionview.cpp
-        walletframe.cpp
-        walletmodel.cpp
-        walletmodeltransaction.cpp
-        masternodelist.cpp
-        walletview.cpp
-        automintmodel.cpp
-        sparkmodel.cpp
-        createsparknamepage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/addressbookpage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/automintdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/automintnotification.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/addresstablemodel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/askpassphrasedialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/coincontroldialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/coincontroltreewidget.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/editaddressdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/exportviewkeydialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/manualmintdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/myownspats.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/openuridialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/overviewpage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/paymentserver.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/receivecoinsdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/receiverequestdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/recentrequeststablemodel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sendconfirmationdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/spatsmintdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/spatsuserconfirmationdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transactiondesc.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transactiondescdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transactionfilterproxy.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transactionrecord.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transactiontablemodel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transactionview.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/walletframe.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/walletmodel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/walletmodeltransaction.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/masternodelist.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/walletview.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/automintmodel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetspage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/createsparknamepage.cpp
   )
   target_link_libraries(firoqt
     PRIVATE
       firo_wallet
-      Qt5::Network
+      Qt6::Network
   )
 endif()
 
 if(WITH_DBUS AND NOT MINGW)
-  target_link_libraries(firoqt PRIVATE Qt5::DBus)
+  target_link_libraries(firoqt PRIVATE Qt6::DBus)
 endif()
 
 if(qt_lib_type STREQUAL "STATIC_LIBRARY")
   # We want to define static plugins to link ourselves, thus preventing
   # automatic linking against a "sane" set of default static plugins.
-  qt5_import_plugins(firoqt
-      EXCLUDE_BY_TYPE bearer iconengines imageformats platforms styles
+  qt6_import_plugins(firoqt
+    EXCLUDE_BY_TYPE
+      bearer
+      accessiblebridge
+      platforms
+      platforms_darwin
+      xcbglintegrations
+      platformthemes
+      platforminputcontexts
+      generic
+      iconengines
+      imageformats
+      egldeviceintegrations
+      styles
+      networkaccess
+      networkinformation
+      tls
   )
 endif()
 
 add_executable(firo-qt
-  bitcoin.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bitcoin.cpp
 )
 
 add_windows_resources(firo-qt res/bitcoin-qt-res.rc)
@@ -242,8 +286,7 @@ target_link_libraries(firo-qt
   PUBLIC
     core_interface
     firoqt
-    Qt5::Widgets
-    Qt5::Dependencies
+    Qt6::Widgets
     firo_node
     firo_cli
     univalue
@@ -293,7 +336,7 @@ endif()
 
 if(WITH_MULTIPROCESS)
   add_executable(bitcoin-gui
-    main.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
   )
   target_link_libraries(bitcoin-gui
     core_interface
@@ -320,36 +363,37 @@ endif()
 # Gets sources to be parsed to gather translatable strings.
 function(get_translatable_sources var)
   set(result)
-  set(targets)
   foreach(dir IN ITEMS ${ARGN})
-    get_directory_property(dir_targets DIRECTORY ${PROJECT_SOURCE_DIR}/${dir} BUILDSYSTEM_TARGETS)
-    list(APPEND targets ${dir_targets})
-  endforeach()
-  foreach(target IN LISTS targets)
-    get_target_property(target_sources ${target} SOURCES)
-    if(target_sources)
-      foreach(source IN LISTS target_sources)
-        # Get an expression from the generator expression, if any.
-        if(source MATCHES ":([^>]+)>$")
-          set(source ${CMAKE_MATCH_1})
-        endif()
-        cmake_path(GET source EXTENSION LAST_ONLY ext)
-        if(ext STREQUAL ".qrc")
-          continue()
-        endif()
-        if(NOT IS_ABSOLUTE source)
-          get_target_property(target_source_dir ${target} SOURCE_DIR)
-          cmake_path(APPEND target_source_dir ${source} OUTPUT_VARIABLE source)
-        endif()
-        get_property(is_generated
-          SOURCE  ${source} TARGET_DIRECTORY ${target}
-          PROPERTY GENERATED
-        )
-        if(NOT is_generated)
-          list(APPEND result ${source})
-        endif()
-      endforeach()
-    endif()
+    # Use file() instead of get_directory_property() to avoid target dependency issues
+    file(GLOB_RECURSE dir_sources 
+      ${PROJECT_SOURCE_DIR}/${dir}/*.cpp
+      ${PROJECT_SOURCE_DIR}/${dir}/*.h
+      ${PROJECT_SOURCE_DIR}/${dir}/*.mm
+    )
+    
+    foreach(source IN LISTS dir_sources)
+      # Skip resource files and generated files
+      get_filename_component(source_name ${source} NAME)
+      if(source_name MATCHES "^(moc_|ui_|qrc_)")
+        continue()
+      endif()
+      
+      cmake_path(GET source EXTENSION LAST_ONLY ext)
+      if(ext STREQUAL ".qrc")
+        continue()
+      endif()
+      
+      # Check if file is generated (best effort without target dependencies)
+      get_filename_component(source_dir ${source} DIRECTORY)
+      get_filename_component(build_dir ${CMAKE_BINARY_DIR} REALPATH)
+      get_filename_component(source_dir_real ${source_dir} REALPATH)
+      string(FIND "${source_dir_real}" "${build_dir}" is_in_build_dir)
+      if(NOT is_in_build_dir EQUAL -1)
+        continue()  # Skip files in build directory (likely generated)
+      endif()
+      
+      list(APPEND result ${source})
+    endforeach()
   endforeach()
   set(${var} ${result} PARENT_SCOPE)
 endfunction()
@@ -365,7 +409,7 @@ elseif(NOT SED_EXECUTABLE)
     COMMAND ${CMAKE_COMMAND} -E echo "Error: GNU sed not found"
   )
 else()
-  set(translatable_sources_directories src src/qt)
+  set(translatable_sources_directories src src/qt src/util)
   if(ENABLE_WALLET)
     list(APPEND translatable_sources_directories src/wallet)
   endif()
@@ -373,9 +417,9 @@ else()
   get_translatable_sources(qt_translatable_sources src/qt)
   file(GLOB ui_files ${CMAKE_CURRENT_SOURCE_DIR}/forms/*.ui)
   add_custom_target(translate
-    COMMAND ${CMAKE_COMMAND} -E env XGETTEXT=${XGETTEXT_EXECUTABLE} COPYRIGHT_HOLDERS=${COPYRIGHT_HOLDERS} ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/share/qt/extract_strings_qt.py ${translatable_sources}
-    COMMAND Qt5::lupdate -no-obsolete -I ${PROJECT_SOURCE_DIR}/src -locations relative ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinstrings.cpp ${ui_files} ${qt_translatable_sources} -ts ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.ts
-    COMMAND Qt5::lconvert -drop-translations -o ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf -i ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.ts
+    COMMAND ${CMAKE_COMMAND} -E env XGETTEXT=${XGETTEXT_EXECUTABLE} COPYRIGHT_HOLDERS=${COPYRIGHT_HOLDERS} $<TARGET_FILE:Python3::Interpreter> ${PROJECT_SOURCE_DIR}/share/qt/extract_strings_qt.py ${translatable_sources}
+    COMMAND Qt6::lupdate -no-obsolete -I ${PROJECT_SOURCE_DIR}/src -locations relative ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinstrings.cpp ${ui_files} ${qt_translatable_sources} -ts ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.ts
+    COMMAND Qt6::lconvert -drop-translations -o ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf -i ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.ts
     COMMAND ${SED_EXECUTABLE} -i.old -e "s|source-language=\"en\" target-language=\"en\"|source-language=\"en\"|" -e "/<target xml:space=\"preserve\"><\\/target>/d" ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf
     COMMAND ${CMAKE_COMMAND} -E rm ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf.old
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/src

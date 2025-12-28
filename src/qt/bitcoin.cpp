@@ -6,8 +6,6 @@
 #include "config/bitcoin-config.h"
 #endif
 
-#include "../boost_function_epilogue.hpp" // TODO remove sometime after Boost upgrade
-
 #include "bitcoingui.h"
 
 #include "chainparams.h"
@@ -231,6 +229,8 @@ public:
     void requestInitialize();
     /// Request core shutdown
     void requestShutdown();
+
+    void showCloseWindow();
 
     /// Get process return value
     int getReturnValue() { return returnValue; }
@@ -484,7 +484,7 @@ void BitcoinApplication::requestShutdown()
     window->hide();
     window->setClientModel(0);
     pollShutdownTimer->stop();
-
+    showCloseWindow();
 #ifdef ENABLE_WALLET
     window->removeAllWallets();
     delete walletModel;
@@ -494,9 +494,15 @@ void BitcoinApplication::requestShutdown()
     clientModel = 0;
 
     StartShutdown();
+    // Delay shutdown signal by 500 milliseconds
+    QTimer::singleShot(1000, this, [this]() {
+        // Request shutdown from core thread after delay
+        Q_EMIT requestedShutdown();
+    });
+}
 
-    // Request shutdown from core thread
-    Q_EMIT requestedShutdown();
+void BitcoinApplication::showCloseWindow(){
+    shutdownWindow->show();
 }
 
 void BitcoinApplication::initializeResult(int retval)
@@ -555,6 +561,10 @@ void BitcoinApplication::initializeResult(int retval)
 void BitcoinApplication::shutdownResult(int retval)
 {
     qDebug() << __func__ << ": Shutdown result: " << retval;
+    if (shutdownWindow) {
+        shutdownWindow->close();
+        shutdownWindow.reset();
+    }
     quit(); // Exit main loop after shutdown finished
 }
 

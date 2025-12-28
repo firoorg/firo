@@ -115,7 +115,7 @@ const GroupElement& Params::get_E() const {
     return this->E;
 }
 
-const std::size_t Params::get_memo_bytes() const {
+std::size_t Params::get_memo_bytes() const {
     return this->memo_bytes;
 }
 

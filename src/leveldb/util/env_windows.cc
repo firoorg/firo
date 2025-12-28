@@ -677,6 +677,11 @@ class WindowsEnv : public Env {
     std::this_thread::sleep_for(std::chrono::microseconds(micros));
   }
 
+  void Shutdown() override {
+    shutdown_requested_ = true;
+    background_work_cv_.SignalAll();
+  }
+
  private:
   void BackgroundThreadMain();
 
@@ -701,6 +706,7 @@ class WindowsEnv : public Env {
   port::Mutex background_work_mutex_;
   port::CondVar background_work_cv_ GUARDED_BY(background_work_mutex_);
   bool started_background_thread_ GUARDED_BY(background_work_mutex_);
+  std::atomic<bool> shutdown_requested_{false};
 
   std::queue<BackgroundWorkItem> background_work_queue_
       GUARDED_BY(background_work_mutex_);
@@ -768,6 +774,10 @@ void WindowsEnv::BackgroundThreadMain() {
 
     // Wait until there is work to be done.
     while (background_work_queue_.empty()) {
+      if (shutdown_requested_) {
+        background_work_mutex_.Unlock();
+        return;
+      }
       background_work_cv_.Wait();
     }
 

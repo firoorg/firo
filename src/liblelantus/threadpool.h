@@ -71,7 +71,7 @@ private:
         }
 
 public:
-    ParallelOpThreadPool(std::size_t thread_number) : number_of_threads(thread_number), shutdown(false) {}
+    ParallelOpThreadPool(std::size_t thread_number) : shutdown(false), number_of_threads(thread_number) {}
 
     ~ParallelOpThreadPool() {
         Shutdown();
@@ -113,6 +113,11 @@ public:
         // wait for all the threads
         for (boost::thread &t: threadsToJoin)
             t.join();
+    }
+
+    bool IsPoolShutdown() {
+        boost::mutex::scoped_lock lock(task_queue_mutex);
+        return shutdown;
     }
 };
 

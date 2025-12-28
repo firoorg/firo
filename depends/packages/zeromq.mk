@@ -13,6 +13,9 @@ define $(package)_set_vars
   $(package)_config_opts_linux=--with-pic
   $(package)_config_opts_android=--with-pic
   $(package)_cxxflags=-std=c++20
+ifdef GUIX_ENVIRONMENT
+$(package)_config_env_x86_64_darwin = LIB_LIBRARY_BACKUP="$(LIBRARY_PATH)" LIBRARY_PATH=""
+endif
 endef
 
 define $(package)_preprocess_cmds

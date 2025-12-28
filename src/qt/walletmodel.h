@@ -28,7 +28,7 @@ class PlatformStyle;
 class RecentRequestsTableModel;
 class TransactionTableModel;
 class WalletModelTransaction;
-
+class ClientModel;
 class CCoinControl;
 class CKeyID;
 class COutPoint;
@@ -135,6 +135,8 @@ public:
     SparkModel *getSparkModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
+
+    void setClientModel(ClientModel* client_model);
 
     CWallet *getWallet() const { return wallet; }
 
@@ -294,6 +296,8 @@ private:
     // Wallet has an options model for wallet-specific options
     // (transaction fee, for example)
     OptionsModel *optionsModel;
+
+    ClientModel *_client_model;
 
     AddressTableModel *addressTableModel;
     PcodeAddressTableModel *pcodeAddressTableModel;

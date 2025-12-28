@@ -12,7 +12,7 @@ endmacro()
 
 if(DEFINED BUILD_INFO_HEADER_PATH AND IS_ABSOLUTE "${BUILD_INFO_HEADER_PATH}")
   if(EXISTS "${BUILD_INFO_HEADER_PATH}")
-    file(STRINGS ${BUILD_INFO_HEADER_PATH} INFO LIMIT_COUNT 1)
+    file(READ "${BUILD_INFO_HEADER_PATH}" INFO)
   endif()
 else()
   fatal_error()
@@ -100,14 +100,22 @@ if(NOT "$ENV{BITCOIN_GENBUILD_NO_GIT}" STREQUAL "1")
 endif()
 
 if(GIT_TAG)
-  set(NEWINFO "#define BUILD_GIT_TAG \"${GIT_TAG}\"")
+  message(STATUS "Building with build tag: ${GIT_TAG}")
+  set(NEWINFO "#ifndef BITCOIN_BUILD_INFO_H
+#define BITCOIN_BUILD_INFO_H
+#define BUILD_GIT_TAG \"${GIT_TAG}\"
+#endif // BITCOIN_BUILD_INFO_H")
 elseif(GIT_COMMIT)
-  set(NEWINFO "#define BUILD_GIT_COMMIT \"${GIT_COMMIT}\"")
+  message(STATUS "Building with git commit: ${GIT_COMMIT}")
+  set(NEWINFO "#ifndef BITCOIN_BUILD_INFO_H
+#define BITCOIN_BUILD_INFO_H
+#define BUILD_GIT_COMMIT \"${GIT_COMMIT}\"
+#endif // BITCOIN_BUILD_INFO_H")
 else()
   set(NEWINFO "// No build information available")
 endif()
 
 # Only update the header if necessary.
 if(NOT "${INFO}" STREQUAL "${NEWINFO}")
-  file(WRITE ${BUILD_INFO_HEADER_PATH} "${NEWINFO}\n")
+  file(WRITE ${BUILD_INFO_HEADER_PATH} "${NEWINFO}")
 endif()

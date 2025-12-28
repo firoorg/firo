@@ -18,6 +18,7 @@
 #include <QClipboard>
 #include <QResizeEvent>
 #include <QGraphicsDropShadowEffect>
+#include <QRegularExpression>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -106,7 +107,7 @@ void SendCoinsEntry::on_MemoTextChanged(const QString &text)
         ui->iconMessageWarning->setVisible(true);
     } else {
         QString sanitized = text;
-        sanitized.remove(QRegExp("[\\x00-\\x1F\\x7F]"));
+        sanitized.remove(QRegularExpression("[\\x00-\\x1F\\x7F]"));
         if (sanitized != text) {
             ui->messageTextLabel->setText(sanitized);
             return;
@@ -233,7 +234,7 @@ bool SendCoinsEntry::validate()
 
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
 
-    if (ui->payTo->text().startsWith("@") && ui->payTo->text().size() <= CSparkNameManager::maximumSparkNameLength+1) {
+    if (ui->payTo->text().startsWith("@") && cmp::less_equal(ui->payTo->text().size(), CSparkNameManager::maximumSparkNameLength+1)) {
         ui->payTo->setValid(true);
     }
     else if (!(model->validateAddress(ui->payTo->text()) || model->validateSparkAddress(ui->payTo->text()) || isPcodeEntry))

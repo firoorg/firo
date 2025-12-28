@@ -415,18 +415,18 @@ public:
     CDeterministicMNCPtr GetMNPayee() const;
 
     /**
-     * Calculates the projected MN payees for the next *count* blocks. The result is not guaranteed to be correct
+     * Calculates the projected MN payees for the next *nCount* blocks. The result is not guaranteed to be correct
      * as PoSe banning might occur later
-     * @param count
-     * @return
+     * @param nCount number of future blocks to project payees for (will be clamped to valid MN count)
+     * @return projected payees sorted by payment priority
      */
     std::vector<CDeterministicMNCPtr> GetProjectedMNPayees(int nCount) const;
 
     /**
      * Calculate a quorum based on the modifier. The resulting list is deterministically sorted by score
-     * @param maxSize
-     * @param modifier
-     * @return
+     * @param maxSize maximum number of masternodes to include in the quorum
+     * @param modifier hash modifier used for score calculation
+     * @return std::vector<CDeterministicMNCPtr> selected quorum members, sorted by descending score
      */
     std::vector<CDeterministicMNCPtr> CalculateQuorum(size_t maxSize, const uint256& modifier) const;
     std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScores(const uint256& modifier) const;
@@ -434,7 +434,7 @@ public:
     /**
      * Calculates the maximum penalty which is allowed at the height of this MN list. It is dynamic and might change
      * for every block.
-     * @return
+     * @return maximum penalty
      */
     int CalcMaxPoSePenalty() const;
 
@@ -443,8 +443,8 @@ public:
      * value later passed to PoSePunish. The percentage should be high enough to take per-block penalty decreasing for MNs
      * into account. This means, if you want to accept 2 failures per payment cycle, you should choose a percentage that
      * is higher then 50%, e.g. 66%.
-     * @param percent
-     * @return
+     * @param percent percentage of maximum penalty to calculate (1-100)
+     * @return computed penalty value
      */
     int CalcPenalty(int percent) const;
 
@@ -452,15 +452,16 @@ public:
      * Punishes a MN for misbehavior. If the resulting penalty score of the MN reaches the max penalty, it is banned.
      * Penalty scores are only increased when the MN is not already banned, which means that after banning the penalty
      * might appear lower then the current max penalty, while the MN is still banned.
-     * @param proTxHash
-     * @param penalty
+     * @param proTxHash the unique hash identifying the masternode to punish
+     * @param penalty positive penalty value to add to current PoSe score
+     * @param debugLogs when true, logs punishment details and ban events
      */
     void PoSePunish(const uint256& proTxHash, int penalty, bool debugLogs);
 
     /**
      * Decrease penalty score of MN by 1.
      * Only allowed on non-banned MNs.
-     * @param proTxHash
+     * @param proTxHash The hash to uniquely identifying the masternode
      */
     void PoSeDecrease(const uint256& proTxHash);
 

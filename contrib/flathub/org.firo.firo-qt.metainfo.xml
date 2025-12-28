@@ -27,13 +27,19 @@
     Firo has dedicated itself to being a privacy preserving cryptocurrency and have designed and built trustless privacy protocols such as Lelantus and Lelantus Spark that have inspired and shaped the designs of other privacy protocols (for e.g. Triptych, Seraphis, Lelantus-MW).</p>
   </description>
   <screenshots>
-    <screenshot>
+    <screenshot type="default">
       <image type="source">
         https://raw.githubusercontent.com/firoorg/firo/0f9d27dfef6f27f5c4d97a060c0954846d3ea547/contrib/debian/qt-screenshot.jpg
       </image>
     </screenshot>
   </screenshots>
   <releases>
+    <release date="2025-10-20" version="0.14.15.0"/>
+    <release date="2025-09-28" version="0.14.14.3"/>
+    <release date="2025-09-27" version="0.14.14.2"/>
+    <release date="2025-04-15" version="0.14.14.1"/>
+    <release date="2024-09-03" version="0.14.14.0"/>
+    <release date="2024-06-19" version="0.14.13.3"/>
     <release date="2024-02-19" version="0.14.13.2"/>
   </releases>
   <content_rating type="oars-1.1"/>

@@ -87,6 +87,8 @@ Status ReadFileToString(Env* env, const std::string& fname, std::string* data) {
   return s;
 }
 
+void Env::Shutdown() {}
+
 EnvWrapper::~EnvWrapper() {}
 
 }  // namespace leveldb

@@ -33,7 +33,6 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-#include "sigma.h"
 #include "lelantus.h"
 #include "evo/spork.h"
 #include <algorithm>
@@ -431,21 +430,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
     const CTransaction &tx = iter->GetTx();
 
-    // Check transaction against sigma limits
-    if (tx.IsSigmaSpend()) {
-        CAmount spendAmount = sigma::GetSpendAmount(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (tx.vin.size() > params.nMaxSigmaInputPerTransaction || spendAmount > params.nMaxValueSigmaSpendPerTransaction)
-            return false;
-
-        if (tx.vin.size() + nSigmaSpendInputs > params.nMaxSigmaInputPerBlock)
-            return false;
-
-        if (spendAmount + nSigmaSpendAmount > params.nMaxValueSigmaSpendPerBlock)
-            return false;
-    }
-
     // Check transaction against lelantus limits
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
@@ -467,10 +451,10 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
+        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return false;
 
-        if (spendAmount + nSparkSpendAmount > params.nMaxValueSparkSpendPerBlock)
+        if (spendAmount + nSparkSpendAmount > params.GetMaxValueSparkSpendPerBlock(nHeight))
             return false;
     }
 
@@ -480,16 +464,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 {
     const CTransaction &tx = iter->GetTx();
-    if (tx.IsSigmaSpend()) {
-        // Update sigma stats
-        CAmount spendAmount = sigma::GetSpendAmount(tx);
-
-        if ((nSigmaSpendAmount += spendAmount) > chainparams.GetConsensus().nMaxValueSigmaSpendPerBlock)
-            return;
-
-        if ((nSigmaSpendInputs += tx.vin.size()) > chainparams.GetConsensus().nMaxSigmaInputPerBlock)
-            return;
-    }
 
     if(tx.IsLelantusJoinSplit()) {
         CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
@@ -510,10 +484,10 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
         const auto &params = chainparams.GetConsensus();
 
-        if (spendAmount > params.nMaxValueSparkSpendPerTransaction)
+        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
             return;
 
-        if ((nSparkSpendAmount += spendAmount) > params.nMaxValueSparkSpendPerBlock)
+        if ((nSparkSpendAmount += spendAmount) > params.GetMaxValueSparkSpendPerBlock(nHeight))
             return;
     }
 
@@ -840,7 +814,7 @@ void BlockAssembler::FillFoundersReward(CMutableTransaction &coinbaseTx, bool fM
             bool fStage3 = nHeight < params.nSubsidyHalvingSecond;
             bool fStage4 = nHeight >= params.stage4StartBlock;
             CAmount devPayoutValue = 0, communityPayoutValue = 0;
-            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3DevelopmentFundAddress).Get());
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(params.GetStage4DevelopmentFundAddress(nHeight)).Get());
             CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(params.stage3CommunityFundAddress).Get());
 
             // There is no dev/community payout for testnet for some time
@@ -1150,7 +1124,7 @@ void static FiroMiner(const CChainParams &chainparams) {
                     const Consensus::Params &params = chainparams.GetConsensus();
                     {
                         LOCK2(cs_main, mempool.cs);
-                        int nCount = 0;
+                        FIRO_UNUSED int nCount = 0;
                         fHasZnodesWinnerForNextBlock =
                                 params.IsRegtest() ||
                                 chainActive.Height()+1 >= chainparams.GetConsensus().DIP0003EnforcementHeight;

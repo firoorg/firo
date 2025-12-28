@@ -149,7 +149,7 @@ public:
         painter->restore();
     }
 
-    inline QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override
+    inline QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         return QSize(DECORATION_SIZE, DECORATION_SIZE + 12);
     }
@@ -621,7 +621,8 @@ void OverviewPage::onRefreshClicked()
     if (!walletModel) return;
 
     size_t confirmed, unconfirmed;
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
+
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     int heightDifference = lGracefulPeriod - chainActive.Height();
     const int approxBlocksPerDay = 570;
@@ -648,8 +649,9 @@ void OverviewPage::migrateClicked()
     if (!walletModel) return;
 
     size_t confirmed, unconfirmed;
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance(confirmed, unconfirmed);
-    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
+    FIRO_UNUSED auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
+
     migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
     migrateAmount.append("</b>");
     QString info = tr("Your wallet needs to be unlocked to migrate your funds to Spark.");

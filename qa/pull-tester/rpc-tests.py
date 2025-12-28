@@ -102,6 +102,7 @@ if ENABLE_ZMQ:
 
 testScripts = [
     'spark_mint.py',
+    'spark_mintspend.py',
     'spark_spend_gettransaction.py',
     'spark_setmintstatus_validation.py',
     'lelantus_mint.py',
@@ -172,24 +173,7 @@ testScripts = [
     'notifications.py',
 
     # Firo-specific tests
-    'wallet_dumpsigma.py',
     'transactions_verification_after_restart.py',
-    'sigma_zapwalletmints.py',
-    'sigma_nonhd_wallet.py',
-    'sigma_meetspend.py',
-    'sigma_listsigmamints_validation.py',
-    'sigma_listsigmaspends_validation.py',
-    'sigma_listunspentmints_sigma_validation.py',
-    'sigma_resetsigmamint_validation.py',
-    'sigma_setsigmamintstatus_validation.py',
-    'sigma_spend_gettransaction.py',
-    'sigma_spend_validation.py',
-    'sigma_spend_extra_validation.py',
-    'sigma_mint_validation.py',
-    'sigma_mintspend.py',
-    'sigma_blocklimit.py',
-    'hdmint_mempool_zap.py',
-    'sigma_zapwalletmints_unconf_trans.py',
 
     # Evo Znodes
     'dip3-deterministicmns.py',
@@ -200,7 +184,6 @@ testScripts = [
     'llmq-cl-evospork.py',
     'llmq-is-cl-conflicts.py',
     'llmq-is-retroactive.py',
-    'llmq-is-lelantus.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'

@@ -1,5 +1,6 @@
 #include "../liblelantus/threadpool.h"
 #include "sparkwallet.h"
+#include "state.h"
 #include "../wallet/wallet.h"
 #include "../wallet/coincontrol.h"
 #include "../wallet/walletexcept.h"
@@ -10,10 +11,10 @@
 #include "state.h"
 #include "../libspark/spats/spend_transaction.h"
 #include "sparkname.h"
+#include "../chain.h"
 #include <boost/format.hpp>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
-const Scalar ZERO = Scalar((uint64_t)0);
 
 CSparkWallet::CSparkWallet(const std::string& strWalletFile)
    : spats_wallet_(*this)
@@ -88,6 +89,7 @@ CSparkWallet::~CSparkWallet() {
 
 void CSparkWallet::FinishTasks() {
     ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
+    spark::ShutdownSparkState();
 }
 
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
@@ -101,13 +103,29 @@ void CSparkWallet::updateDiversifierInDB(CWalletDB& walletdb) const
 
 CAmount CSparkWallet::getFullBalance() const
 {
-    // TODO GV #Review: While this implementation is straightforward, it might lead to inaccurate results due to locking twice at different times.
-    //                  Also, this is more inefficient than the correct implementation would be.
     return getAvailableBalance() + getUnconfirmedBalance();
 }
 
-CAmount CSparkWallet::getAvailableBalance() const
-{
+std::pair<CAmount, CAmount> CSparkWallet::getSparkBalance() {
+    std::pair<CAmount, CAmount> result = {0, 0};
+    LOCK(cs_spark_wallet);
+    for (auto& it : coinMeta) {
+        CSparkMintMeta mint = it.second;
+
+        if (mint.isUsed)
+            continue;
+
+        // Not confirmed
+        if (mint.nHeight >= 1)
+            result.first += mint.v;
+        else
+            result.second += mint.v;
+    }
+
+    return result;
+}
+
+CAmount CSparkWallet::getAvailableBalance() const {
     CAmount result = 0;
     VisitUnusedCoinMetasWhere([](const CSparkMintMeta& meta) { return meta.IsConfirmed() && !meta.IsSpats(); },
                               [&result] (const CSparkMintMeta& meta) { assert(meta.coin.iota.isZero()); result += meta.GetValue(); });
@@ -124,7 +142,6 @@ CAmount CSparkWallet::getUnconfirmedBalance() const
 
 CAmount CSparkWallet::getAddressFullBalance(const spark::Address& address) const
 {
-    // TODO GV #Review: same comment as for getFullBalance()
     return getAddressAvailableBalance(address) + getAddressUnconfirmedBalance(address);
 }
 
@@ -161,7 +178,7 @@ spark::Address CSparkWallet::generateNewAddress() {
     lastDiversifier++;
     spark::Address address(viewKey, lastDiversifier);
 
-    addresses[lastDiversifier] = address; // TODO GV #Review: shouldn't there be MT protection for `addresses` access?
+    addresses[lastDiversifier] = address;
     CWalletDB walletdb(strWalletFile);
     updateDiversifierInDB(walletdb);
     return  address;
@@ -170,7 +187,7 @@ spark::Address CSparkWallet::generateNewAddress() {
 spark::Address CSparkWallet::getDefaultAddress() {
     if (addresses.count(0))
         return addresses[0];
-    lastDiversifier = 0; // TODO GV #Review: why should calling this function change lastDiversifier? Why is this function not const?
+    lastDiversifier = 0;
     return spark::Address(viewKey, lastDiversifier);
 }
 
@@ -370,7 +387,7 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
 void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
 
-    if (mint.i > lastDiversifier) {
+    if (cmp::greater(mint.i, lastDiversifier)) {
         lastDiversifier = mint.i;
         walletdb.writeDiversifier(lastDiversifier);
     }
@@ -905,7 +922,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                         CAmount singleFee = nFeeRet / singleTxOutputs.size();
                         CAmount reminder = nFeeRet % singleTxOutputs.size();
                         for (size_t i = 0; i < singleTxOutputs.size(); ++i) {
-                            if (singleTxOutputs[i].v <= singleFee) {
+                            if (cmp::less_equal(singleTxOutputs[i].v, singleFee)) {
                                 singleTxOutputs.erase(singleTxOutputs.begin() + i);
                                 reminder += singleTxOutputs[i].v - singleFee;
                                 if (!singleTxOutputs.size()) {
@@ -1094,7 +1111,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     if (nFeeRet >= nFeeNeeded) {
                         for (auto &usedCoin : setCoins) {
                             for (auto coin = itr->second.begin(); coin != itr->second.end(); coin++) {
-                                if (usedCoin.first == coin->tx && usedCoin.second == coin->i) {
+                                if (usedCoin.first == coin->tx && cmp::equal(usedCoin.second, coin->i)) {
                                     itr->first -= coin->tx->tx->vout[coin->i].nValue;
                                     itr->second.erase(coin);
                                     break;
@@ -1335,8 +1352,14 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         additionalTxSize += 2 * Scalar::memoryRequired();
     }
 
-    if (vOut > consensusParams.nMaxValueSparkSpendPerTransaction)
-        throw std::runtime_error(_("Spend to transparent address limit exceeded (10,000 Firo per transaction)."));
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+
+    if (vOut > consensusParams.GetMaxValueSparkSpendPerTransaction(nHeight))
+        throw std::runtime_error(_("Spend to transparent address limit exceeded."));
 
     std::vector<CWalletTx> result;
     std::vector<CMutableTransaction> txs;
@@ -1576,7 +1599,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             for (auto& coin : coinsToSpend) {
                 spark::CSparkState::SparkCoinGroupInfo nextCoinGroupInfo;
                 uint64_t groupId = coin.nId;
-                if (sparkState->GetLatestCoinID() > groupId && sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
+                if (cmp::greater(sparkState->GetLatestCoinID(), groupId) && sparkState->GetCoinGroupInfo(groupId + 1, nextCoinGroupInfo)) {
                     if (nextCoinGroupInfo.firstBlock->nHeight <= coin.nHeight)
                         groupId += 1;
                 }
@@ -1811,9 +1834,19 @@ std::optional<CWalletTx> CSparkWallet::CreateSpatsMintTransaction(
 CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, CAmount sparkNameFee, CAmount &txFee, const CCoinControl *coinConrol) {
        CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
+    const auto &consensusParams = Params().GetConsensus();
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+    std::string payoutAddress = nHeight >= consensusParams.stage41StartBlockDevFundAddressChange
+        ? consensusParams.stage3CommunityFundAddress
+        : consensusParams.stage3DevelopmentFundAddress;
+
     CRecipient devPayout;
     devPayout.nAmount = sparkNameFee;
-    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(Params().GetConsensus().stage3DevelopmentFundAddress).Get());
+    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(payoutAddress).Get());
     devPayout.fSubtractFeeFromAmount = false;
     CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, {}, coinConrol,
         sparkNameManager->GetSparkNameTxDataSize(nameData) + 20 /* add a little bit to the fee to be on the safe side */);
@@ -1905,7 +1938,7 @@ bool CSparkWallet::GetCoinsToSpend(
             CAmount need = required - spend_val;
 
             auto itr = coins.begin();
-            if (need >= itr->v) {
+            if (cmp::greater_equal(need, itr->v)) {
                 choosen = *itr;
                 coins.erase(itr);
             } else {
@@ -1913,7 +1946,7 @@ bool CSparkWallet::GetCoinsToSpend(
                     auto nextItr = coinIt;
                     nextItr++;
 
-                    if (coinIt->v >= need && (nextItr == coins.rend() || nextItr->v != coinIt->v)) {
+                    if (cmp::greater_equal(coinIt->v, need) && (nextItr == coins.rend() || nextItr->v != coinIt->v)) {
                         choosen = *coinIt;
                         coins.erase(std::next(coinIt).base());
                         break;
@@ -2051,10 +2084,9 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
         },
         [&coins] (const CSparkMintMeta& meta) { coins.push_back(meta); });
 
-    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins; // TODO GV #Review: isn't this a potential data race?
+    std::set<COutPoint> lockedCoins = pwalletMain->setLockedCoins;
 
     // Filter out coins that have not been selected from CoinControl should that be used
-    // TODO GV #Review Performance: move these checks to inside the predicate for VisitCoinMetasWhere, and get rid of this remove_if
     coins.remove_if([&lockedCoins, coinControl](const CSparkMintMeta& coin) {
         COutPoint outPoint;
         // ignore if the coin is not actually on chain

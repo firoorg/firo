@@ -26,10 +26,10 @@ struct zero_after_free_allocator : public std::allocator<T> {
     zero_after_free_allocator() throw() {}
     zero_after_free_allocator(const zero_after_free_allocator& a) throw() : base(a) {}
     template <typename U>
-    zero_after_free_allocator(const zero_after_free_allocator<U>& a) noexcept : base(a)
+    zero_after_free_allocator(const zero_after_free_allocator<U>& a) throw() : base(a)
     {
     }
-    ~zero_after_free_allocator() noexcept {}
+    ~zero_after_free_allocator() throw() {}
     template <typename _Other>
     struct rebind {
         typedef zero_after_free_allocator<_Other> other;
