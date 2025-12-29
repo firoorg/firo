@@ -1084,9 +1084,6 @@ public:
         const std::function<bool(const spats::UnregisterAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
     std::optional<CWalletTx> ModifySparkAsset(const spats::SparkAsset& old_asset, const spats::SparkAsset& new_asset,
         const std::function<bool(const spats::ModifyAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
-    std::optional<CWalletTx> MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
-        const CCoinControl *coin_control = nullptr,
-        const std::function<bool(const spats::MintAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
     std::optional<CWalletTx> BurnSparkAssetSupply(spats::asset_type_t asset_type, const spats::asset_symbol_t &asset_symbol, spats::supply_amount_t burn_amount,
         const spats::BurnActionUserConfirmationCallback& user_confirmation_callback = {});
 

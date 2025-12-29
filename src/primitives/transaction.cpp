@@ -273,7 +273,7 @@ bool CTransaction::IsSpatsBurn() const
 
 bool CTransaction::IsSpatsTransaction() const
 {
-    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn() || HasSpatsMintCoin() || HasSpatsBurnAmount();    // TODO more maybe
+    return IsSpatsCreate() || IsSpatsUnregister() || IsSpatsModify() || IsSpatsMint() || IsSpatsBurn() || HasSpatsBurnAmount();
 }
 
 bool CTransaction::IsZerocoinTransaction() const
@@ -306,14 +306,6 @@ bool CTransaction::HasNoRegularInputs() const {
 
 bool CTransaction::HasPrivateInputs() const {
     return IsSigmaSpend() || IsLelantusJoinSplit() || IsSparkSpend();
-}
-
-bool CTransaction::HasSpatsMintCoin() const
-{
-    for (const CTxOut &txout: vout)
-        if (txout.scriptPubKey.IsSpatsMintCoin())
-            return true;
-    return false;
 }
 
 bool CTransaction::HasSpatsBurnAmount() const

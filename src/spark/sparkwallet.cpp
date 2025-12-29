@@ -1520,7 +1520,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 output.v = recipientAmount;
                 privOutputs.push_back(output);
             }
-            auto base_outputs_count = privOutputs.size();
 
             if (!privOutputs.size() || spendInCurrentTx > 0) {
                 spark::OutputCoinData output;
@@ -1755,7 +1754,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
 void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
     const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
-    const spark::SpendKey& spendKey, const spats::public_address_t& initiator_public_address)
+    const spark::SpendKey& spendKey)
 {
     std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
 
@@ -1765,69 +1764,44 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 
     CScript script;
     // opcode is inserted as 1 byte according to file script/script.h
-    script << OP_SPATSMINTCOIN;
+    script << OP_SPATSMINT;
     script.insert(script.end(), serializedMint.begin(), serializedMint.end());
-
-    // serialize & insert initiator address and asset precision too
-    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-    serialized << initiator_public_address;
-    script.insert(script.end(), serialized.begin(), serialized.end());
-    script.insert(script.end(), spark::OwnershipProof::memoryRequired(), 0);    // placeholder for OwnershipProof
 
     tx.vout.push_back(CTxOut(spatsRecipient.first.v, script));
 
     assert(isAddressMine(spatsRecipient.second));
-    assert(spatsRecipient.second.encode(spark::GetNetworkType()) == initiator_public_address);
     Scalar m = spark::GetSpatsMintM(tx);
     spark::OwnershipProof ownershipProof;
     spatsRecipient.second.prove_own(m, spendKey, viewKey, ownershipProof);
-    assert(decodeAddress(initiator_public_address).verify_own(m, ownershipProof));
     CDataStream serializedOwn(SER_NETWORK, PROTOCOL_VERSION);
     serializedOwn << ownershipProof;
 
     auto& scriptRef = tx.vout.back().scriptPubKey;
-    std::copy(serializedOwn.begin(), serializedOwn.end(), scriptRef.end() - spark::OwnershipProof::memoryRequired());
+    scriptRef.insert(scriptRef.end(), serializedOwn.begin(), serializedOwn.end());
 }
 
-std::optional<CWalletTx> CSparkWallet::CreateSpatsMintTransaction(
+CWalletTx CSparkWallet::CreateSpatsMintTransaction(
         const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
         CAmount &fee,
-        const CCoinControl *coinControl,
-        std::optional<spats::supply_amount_t::precision_type> precision,
-        const std::function<bool(const spats::MintAction &action, CAmount standard_fee, std::int64_t txsize)> &user_confirmation_callback)
+        const CCoinControl *coinControl)
 {
-    // A limitation of spats mint coin functionality, at least currently, is that the recipient address should be that of the initiator, i.e. the asset admin itself.
-    // TODO Therefore it makes sense to remove the 'recipient' field from the GUI.
-    if (!isAddressMine(spatsRecipient.second))
-        throw std::domain_error(_("Spark address doesn't belong to the wallet"));
+
+    if (spatsRecipient.first.a == Scalar(uint64_t(0)) || spatsRecipient.first.iota == Scalar(uint64_t(0)))
+        throw std::runtime_error(_("Invalid assed type and identifier, please use spark mint creation."));
+    // TODO levon also check type and identifier against spark asset registry
     const spats::asset_type_t a{std::stoull(spatsRecipient.first.a.tostring())};
     if (!is_fungible_asset_type(a)) [[unlikely]]
-        throw std::invalid_argument(_("NFTs can never have their total supply changed by any means, including minting"));
-    // Constructing a MintParameters object so that basic validations can be performed. On validation failure the next line with throw.
-    const spats::MintParameters action_params(a, spatsRecipient.first.v,
-                                              spatsRecipient.second.encode(spark::GetNetworkType()), spats_wallet_.my_public_address_as_admin(), precision);
-    // Constructing this too, for user confirmation callback and for validation that the exact expected action can be extracted from the transaction.
-    const spats::MintAction action(action_params);
+                throw std::invalid_argument(_("NFTs can never have their total supply changed by any means, including minting"));
 
-    // TODO GV #Review: What is 8 here for? And shouldn't we add SchnorrProof::memoryRequired() too?
-    const auto additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequiredSpats() + 8 +
-        action_params.initiator_public_address().size() + GetSizeOfCompactSize(action_params.initiator_public_address().size());
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, {}, coinControl, additionalTxSize);
+    CAmount additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequired() + 8;
+    std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, emptyBurn, coinControl, additionalTxSize);
 
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
-    AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey(), action_params.initiator_public_address());
-    // TODO GV #Review: what was this for?:    spark::Address  address(spark::Params::get_default());
+    AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey());
+    spark::Address  address(spark::Params::get_default());
 
     wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
-
-    assert(spark::ExtractSpatsMintAction(wtxSparkSpend).first == action.copy_without_optionals());
-
-    if (user_confirmation_callback) // give the user a chance to confirm/cancel, if there are means to do so
-        if (const auto tx_size = ::GetVirtualTransactionSize(wtxSparkSpend); !user_confirmation_callback(action, fee, tx_size)) {
-            LogPrintf("User cancelled %s, which would require fee=%d and txsize=%d\n", action.summary(), fee, tx_size);
-            return {};
-        }
-
     return wtxSparkSpend;
 }
 
@@ -1897,7 +1871,6 @@ bool CSparkWallet::GetCoinsToSpend(
         bool fSpats)
 {
     CAmount availableBalance = CalculateBalance(coins.begin(), coins.end());
-
     if (required > availableBalance) {
         throw InsufficientFunds();
     }

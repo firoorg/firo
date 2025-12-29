@@ -173,18 +173,17 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
     }
 }
 
-void ParseSpatsMintCoinTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof,
-                                   spats::public_address_t& initiator_public_address)
+void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof)
 {
-    if (!script.IsSpatsMintCoin())
+    if (!script.IsSpatsMint())
         throw std::invalid_argument("Script is not a Spats coin mint");
 
     std::vector<unsigned char> serialized(script.begin() + 1, script.end());
     const std::size_t proofsize = ownershipProof.memoryRequired();
 
-    const size_t size = spark::Coin::memoryRequiredSpats() + proofsize; // TODO match to additionalTxSize in CSparkWallet::CreateSpatsMintTransaction() closer
+    const size_t size = spark::Coin::memoryRequiredSpats() + proofsize; // TODO Levon match to additionalTxSize in CSparkWallet::CreateSpatsMintTransaction() closer
     if (serialized.size() < size) {
-        throw std::invalid_argument("Script is not a valid Spats coin mint");
+        throw std::invalid_argument("Script is not a valid Spats mint");
     }
 
     std::vector<CDataStream> serializedCoins = { CDataStream( serialized, SER_NETWORK, PROTOCOL_VERSION ) };
@@ -192,11 +191,15 @@ void ParseSpatsMintCoinTransaction(const CScript& script, MintTransaction& mintT
     try {
         mintTransaction.setMintTransaction(serializedCoins);
     } catch (const std::exception &) {
-        throw std::invalid_argument("Unable to deserialize Spats coin mint");
+        throw std::invalid_argument("Unable to deserialize Spark mint transaction");
     }
 
-    auto& stream = serializedCoins.front();
-    stream >> initiator_public_address >> ownershipProof;
+    CDataStream proofstream(
+            std::vector<unsigned char>(serialized.end() - proofsize, serialized.end()),
+            SER_NETWORK,
+            PROTOCOL_VERSION
+    );
+    proofstream >> ownershipProof;
 }
 
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
@@ -283,43 +286,41 @@ static spats::CreateAssetAction ParseSpatsCreateTransaction(const CTransaction &
             throw CBadTxIn();
 
         const auto& potential_coin_script = tx.vout.back().scriptPubKey;
-        const bool has_coin_script = potential_coin_script.IsSpatsMintCoin();
+        const bool has_coin_script = true;//= potential_coin_script.IsSpatsMintCoin();
         if (!has_coin_script)   // 07/25 new guarantee
             throw CBadTxIn();
-        if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); }) != tx.vout.end() - 1)
-            throw CBadTxIn();   // more than 1 spats coin in one tx is not allowed
+//        if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); }) != tx.vout.end() - 1)
+//            throw CBadTxIn();   // more than 1 spats coin in one tx is not allowed
 
         const auto initial_supply = spats::get_total_supply(action.get());
 #if 0   // TODO remove
         if (has_coin_script != !!initial_supply)
             throw CBadTxIn();   // has initial supply but no spats coin, or doesn't have initial supply but has spats coin
 #endif
-        if (has_coin_script) {  // TODO remove the condition, as it will always be true here from now on (07/25)
-            const auto& coin_script = potential_coin_script;
-            const spark::Params* params = spark::Params::get_default();
-            MintTransaction mint_transaction(params);
-            spark::OwnershipProof ownership_proof;
-            spats::public_address_t initiator_public_address;
-            ParseSpatsMintCoinTransaction(coin_script, mint_transaction, ownership_proof, initiator_public_address);	// may throw
-            if (!mint_transaction.verify())
-                throw CBadTxIn();
-            if (!a.verify_own(GetSpatsMintM(tx), ownership_proof))
-                throw CBadTxIn();
-            if (initiator_public_address != admin_public_address)
-                throw CBadTxIn();
-            const auto& coins = mint_transaction.getCoins();
-            if (coins.size() != 1)
-                throw CBadTxIn();
-            auto coin = coins.front();
-            if (coin.v != tx.vout.back().nValue || coin.v != initial_supply.raw())
-                throw CBadTxIn();
-            if (spats::asset_type_t{std::stoull(coin.a.tostring())} != b.asset_type())
-                throw CBadTxIn();
-            if (spats::identifier_t{std::stoull(coin.iota.tostring())} != spats::get_identifier(new_asset).value_or(spats::identifier_t{}))
-                throw CBadTxIn();
-            // TODO should we check that coin.type is COIN_TYPE_MINT_V2?
-            action.set_coin(std::move(coin));
-        }
+        const auto& coin_script = potential_coin_script;
+        const spark::Params* params = spark::Params::get_default();
+        MintTransaction mint_transaction(params);
+        spark::OwnershipProof ownership_proof;
+        spats::public_address_t initiator_public_address;
+//            ParseSpatsMintCoinTransaction(coin_script, mint_transaction, ownership_proof, initiator_public_address);	// may throw
+        if (!mint_transaction.verify())
+            throw CBadTxIn();
+        if (!a.verify_own(GetSpatsMintM(tx), ownership_proof))
+            throw CBadTxIn();
+        if (initiator_public_address != admin_public_address)
+            throw CBadTxIn();
+        const auto& coins = mint_transaction.getCoins();
+        if (coins.size() != 1)
+            throw CBadTxIn();
+        auto coin = coins.front();
+        if (coin.v != tx.vout.back().nValue || coin.v != initial_supply.raw())
+            throw CBadTxIn();
+        if (spats::asset_type_t{std::stoull(coin.a.tostring())} != b.asset_type())
+            throw CBadTxIn();
+        if (spats::identifier_t{std::stoull(coin.iota.tostring())} != spats::get_identifier(new_asset).value_or(spats::identifier_t{}))
+            throw CBadTxIn();
+        // TODO should we check that coin.type is COIN_TYPE_MINT_V2?
+        action.set_coin(std::move(coin));
 
         return action;
     }
@@ -512,7 +513,7 @@ static spats::Action ParseSpatsTransaction(const CTransaction &tx)
     if (tx.IsSpatsModify())
         return ParseSpatsModifyTransaction(tx);
     assert(!tx.IsSpatsCreate());    // Important, handled and taken out of the way above.
-    if (tx.HasSpatsMintCoin()) {    // So this for sure is just a mint tx, not a 'create'.
+    if (tx.IsSpatsMint()) {    // So this for sure is just a mint tx, not a 'create'.
         auto [action, coin] = ExtractSpatsMintAction(tx);
         action.set_coin(std::move(coin));
         return action;
@@ -547,7 +548,7 @@ Scalar GetSpatsMintM(const CTransaction& tx)
 {
     CMutableTransaction txTemp = tx;
     for (auto& txout : txTemp.vout)
-        if (txout.scriptPubKey.IsSpatsMintCoin()) {
+        if (txout.scriptPubKey.IsSpatsMint()) {
             const auto proof_size = spark::OwnershipProof::memoryRequired();
             assert(txout.scriptPubKey.size() >= proof_size);
             std::fill_n(txout.scriptPubKey.end() - proof_size, proof_size, 0);
@@ -963,7 +964,6 @@ bool CheckSparkMintTransaction(
     return true;
 }
 
-#if 0	// TODO remove
 bool CheckSpatsMintTransaction(
         const CTransaction &tx,
         CTxOut& txOut,
@@ -1017,9 +1017,14 @@ bool CheckSpatsMintTransaction(
                          false,
                          PUBCOIN_NOT_VALIDATE,
                          "CheckSpatsMintTransaction : mintTransaction failed, wrong amount");
-    //TODO levon verify against asset regystry and get address
-    coin.a;
-    coin.iota;
+    //TODO levon verify against asset regystry and get address, also check against max supply
+
+    if (coin.a == ZERO || coin.iota == ZERO)
+        return state.DoS(100,
+                         false,
+                         PUBCOIN_NOT_VALIDATE,
+                         "CheckSpatsMintTransaction : Invalid asset type or identifier");
+
     if (sparkTxInfo != nullptr && !sparkTxInfo->fInfoIsComplete) {
         // Update coin list in the info
         sparkTxInfo->mints.push_back(coin);
@@ -1028,7 +1033,6 @@ bool CheckSpatsMintTransaction(
 
     return true;
 }
-#endif
 
 bool CheckSparkSMintTransaction(
         const std::vector<CTxOut>& vout,
@@ -1122,7 +1126,7 @@ bool CheckSparkSpendTransaction(
     // Obtain the hash of the transaction sans the Spark part
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
-    std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSparkSMint() || out.scriptPubKey.IsSpatsMintCoin() || out.scriptPubKey.IsSpatsBurnAmount(); });
+    std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSparkSMint() || out.scriptPubKey.IsSpatsMint() || out.scriptPubKey.IsSpatsBurnAmount(); });
     txHashForMetadata = txTemp.GetHash();
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
@@ -1141,7 +1145,7 @@ bool CheckSparkSpendTransaction(
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
             return false;
-        } else if (script.IsSpatsMint() || script.IsSpatsMintCoin()) {
+        } else if (script.IsSpatsMint()) {
             continue;
         } else if (script.IsSpatsBurnAmount()) {
             burn += txout.nValue;
@@ -1257,7 +1261,8 @@ bool CheckSparkSpendTransaction(
                     auto& checkState = gCheckedSparkSpendTransactions[hashTx];
                     if (checkState.fChecked) {
                         if (!checkState.fResult)
-                            return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
+                            return state.DoS(100, false, REJECT_INVALID,
+                                             "CheckSparkSpendTransaction: previously checked and failed");
                         else {
                             LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
                             fChecked = true;
@@ -1289,10 +1294,10 @@ bool CheckSparkSpendTransaction(
                 else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
                     // not an urgent check, put the proof into the thread pool for verification
                     if (spatsStarted) {
-                        auto* typed = static_cast<spats::SpendTransaction*>(spend.get());
+                        spats::SpendTransaction typed = *static_cast<spats::SpendTransaction*>(spend.get());;
                         auto future = gCheckProofThreadPool.PostTask([typed, cover_sets]() {
                             try {
-                                return spats::SpendTransaction::verify(*typed, cover_sets);
+                                return spats::SpendTransaction::verify(typed, cover_sets);
                             } catch (const std::exception &) {
                                 return false;
                             }
@@ -1302,10 +1307,10 @@ bool CheckSparkSpendTransaction(
                         checkState.fResult = false;
                         checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
                     } else {
-                        auto* typed = static_cast<spark::SpendTransaction*>(spend.get());
+                        spark::SpendTransaction typed = *static_cast<spark::SpendTransaction*>(spend.get());;
                         auto future = gCheckProofThreadPool.PostTask([typed, cover_sets]() {
                             try {
-                                return spark::SpendTransaction::verify(*typed, cover_sets);
+                                return spark::SpendTransaction::verify(typed, cover_sets);
                             } catch (const std::exception &) {
                                 return false;
                             }
@@ -1392,50 +1397,50 @@ bool CheckSparkSpendTransaction(
         LogPrintf("CheckSparkSpendTransaction: verification failed at block %d\n", nHeight);
         return false;
     }
-
-    // Check Spats
-    // It is proper to do it here, because all spats transactions are created as spark spends, due to having to process the regular tx fee at the very least
-    std::optional<spats::Action> action;
-    if (tx.IsSpatsTransaction()) {
-         if (!isVerifyDB) {    // TODO what is this, do I need to keep this check?
-              if (height < params.nSpatsStartBlock) {
-                  // TODO is the check and the error message correct?
-                  return state.DoS(100, false, NSEQUENCE_INCORRECT, "CheckSparkSpendTransaction: block too young for supporting Spats transactions");
-              }
-              try {
-                  action = ParseSpatsTransaction(tx);
-              }
-              catch (CBadTxIn&) {
-                  return state.DoS(100,
-                                   false,
-                                   REJECT_MALFORMED,
-                                   "CheckSparkSpendTransaction: invalid spats transaction");
-              }
-              catch (const std::exception &e) {
-                  return state.DoS(100,
-                                   false,
-                                   REJECT_MALFORMED,
-                                   "CheckSparkSpendTransaction: failed to deserialize spats tx: "s + e.what());
-              }
-
-              try {
-                  sparkState.GetSpatsManager().registry().validate(*action, height);
-              } catch (...) {
-                  return state.DoS(100,
-                                   false,
-                                   REJECT_INVALID,
-                                   "CheckSparkSpendTransaction: Spats action validation failed: " + boost::current_exception_diagnostic_information());
-              }
-        }
-    }
+//TODO levon
+//    // Check Spats
+//    // It is proper to do it here, because all spats transactions are created as spark spends, due to having to process the regular tx fee at the very least
+//    std::optional<spats::Action> action;
+//    if (tx.IsSpatsTransaction()) {
+//         if (!isVerifyDB) {    // TODO what is this, do I need to keep this check?
+//              if (height < params.nSpatsStartBlock) {
+//                  // TODO is the check and the error message correct?
+//                  return state.DoS(100, false, NSEQUENCE_INCORRECT, "CheckSparkSpendTransaction: block too young for supporting Spats transactions");
+//              }
+//              try {
+//                  action = ParseSpatsTransaction(tx);
+//              }
+//              catch (CBadTxIn&) {
+//                  return state.DoS(100,
+//                                   false,
+//                                   REJECT_MALFORMED,
+//                                   "CheckSparkSpendTransaction: invalid spats transaction");
+//              }
+//              catch (const std::exception &e) {
+//                  return state.DoS(100,
+//                                   false,
+//                                   REJECT_MALFORMED,
+//                                   "CheckSparkSpendTransaction: failed to deserialize spats tx: "s + e.what());
+//              }
+//
+//              try {
+//                  sparkState.GetSpatsManager().registry().validate(*action, height);
+//              } catch (...) {
+//                  return state.DoS(100,
+//                                   false,
+//                                   REJECT_INVALID,
+//                                   "CheckSparkSpendTransaction: Spats action validation failed: " + boost::current_exception_diagnostic_information());
+//              }
+//        }
+//    }
 
     if (!isVerifyDB && !isCheckWallet) {
         if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
-            if (action) {
-                for (auto&& coin : get_coins(*action))
-                    sparkTxInfo->mints.push_back(std::move(coin));
-                sparkTxInfo->spats_actions.push_back(std::move(*action));
-            }
+//            if (action) {
+//                for (auto&& coin : get_coins(*action))
+//                    sparkTxInfo->mints.push_back(std::move(coin));
+//                sparkTxInfo->spats_actions.push_back(std::move(*action));
+//            }
             sparkTxInfo->spTransactions.insert(hashTx);
         }
     }
@@ -1482,12 +1487,11 @@ bool CheckSparkTransaction(
         }
     }
 
-#if 0
     // Check Spats Mint Transaction
     if (allowSpark && !isVerifyDB && tx.IsSpatsMint()) {
         std::vector<CTxOut> txOuts;
         for (const CTxOut &txout : tx.vout) {
-            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSpatsMintCoin()) {
+            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSpatsMint()) {
                 txOuts.push_back(txout);
             }
         }
@@ -1513,7 +1517,6 @@ bool CheckSparkTransaction(
                              "bad-txns-mint-invalid");
         }
     }
-#endif
 
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
@@ -2315,19 +2318,19 @@ void CSparkMempoolState::Reset() {
 std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransaction& tx)
 {
     assert(!tx.IsSpatsCreate());
-    assert(tx.HasSpatsMintCoin());
+//    assert(tx.HasSpatsMintCoin());
     if (tx.vout.empty())
         throw CBadTxIn();
     const auto &mintcoin_script = tx.vout.back().scriptPubKey;
-    if (!mintcoin_script.IsSpatsMintCoin())
+    if (!mintcoin_script.IsSpatsMint())
         throw CBadTxIn();
-    if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsMintCoin(); }) != tx.vout.end() - 1)
+    if (std::find_if(tx.vout.begin(), tx.vout.end() - 1, [](const CTxOut& out) { return out.scriptPubKey.IsSpatsMint(); }) != tx.vout.end() - 1)
         throw CBadTxIn();   // more than 1 spats coin in one tx is not allowed
 
     MintTransaction mintTransaction(spark::Params::get_default());
     spark::OwnershipProof ownershipProof;
     spats::public_address_t initiator_public_address;
-    ParseSpatsMintCoinTransaction(mintcoin_script, mintTransaction, ownershipProof, initiator_public_address);	// may throw
+    ParseSpatsMintTransaction(mintcoin_script, mintTransaction, ownershipProof);	// may throw
     if (!mintTransaction.verify())
         throw CBadTxIn();
     // ATTENTION: Assuming the receiver address is the same as initiator_public_address!

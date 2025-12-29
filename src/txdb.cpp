@@ -688,7 +688,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(out.scriptPubKey.IsSparkSMint())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::sparksMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
-    if(out.scriptPubKey.IsSpatsMintCoin())
+    if(out.scriptPubKey.IsSpatsMint())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::spatsMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
     txnouttype type;

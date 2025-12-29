@@ -468,7 +468,6 @@ public:
 
     bool HasNoRegularInputs() const;
     bool HasPrivateInputs() const;
-    bool HasSpatsMintCoin() const;
     bool HasSpatsBurnAmount() const;
 
     /**

@@ -194,12 +194,15 @@ void MyOwnSpats::onMintButtonClicked()
          const auto &fungible_asset = std::get< spats::FungibleSparkAsset >( asset );
          assert( fungible_asset.resupplyable() );
          SpatsMintDialog dialog( platform_style_, fungible_asset, this );
-         if ( dialog.exec() == QDialog::Accepted )
-            wallet_model_->getWallet()->MintSparkAssetSupply( asset_type,
-                                                              dialog.getNewSupply(),
-                                                              dialog.getRecipient(),
-                                                              nullptr,	// TODO proper coin_control?
-                                                              MakeSpatsUserConfirmationCallback( *wallet_model_, this ) );
+//         if ( dialog.exec() == QDialog::Accepted )
+//             wallet_model_->getWallet()->MintAndStoreSpats({spats::Wallet::create_minted_coin_data(action_params), wallet_model_->getWallet()->sparkWallet->getDefaultAddress()},
+//                                                           nullptr);
+         //TODO levon
+//            wallet_model_->getWallet()->MintSparkAssetSupply( asset_type,
+//                                                              dialog.getNewSupply(),
+//                                                              dialog.getRecipient(),
+//                                                              nullptr,	// TODO proper coin_control?
+//                                                              MakeSpatsUserConfirmationCallback( *wallet_model_, this ) );
       }
       catch ( const std::exception &e ) {
          QMessageBox::critical( this, tr( "Error" ), tr( "An error occurred: %1" ).arg( e.what() ) );
