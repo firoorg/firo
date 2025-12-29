@@ -1,0 +1,504 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SparkAssetsPage</class>
+ <widget class="QWidget" name="SparkAssetsPage">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>1080</width><height>680</height></rect>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">
+    QWidget#SparkAssetsPage {
+      background: #F7F8FA;
+      font-family: "Segoe UI";
+    }
+    QPushButton {
+        background: #E5E7EB;
+        border-radius: 10px;
+        color: #111827;
+        border: 1px solid #D1D5DB;
+    }
+    QPushButton#btnPortfolio,
+    QPushButton#btnMyCreations,
+    QPushButton#btnCreateAsset {
+      background: #FFFFFF;
+      border: 1px solid #D1D5DB;
+      border-radius: 8px;
+      padding: 6px 20px;
+      color: #111827;
+
+      box-shadow:
+        0px 3px 6px rgba(0,0,0,0.08),
+        -1px -1px 4px rgba(255,255,255,0.9);
+    }
+    QPushButton#btnPortfolio:checked,
+    QPushButton#btnMyCreations:checked,
+    QPushButton#btnCreateAsset:checked {
+      background: #B24040;
+      border: 1px solid #B24040;
+      color: white;
+    }
+
+    QLineEdit#searchAssets {
+      background: #FFFFFF;
+      border: 1px solid #D1D5DB;
+      border-radius: 10px;
+      padding: 6px 12px;
+      font-size: 10pt;
+      color: #111827;
+    }
+
+    QTableWidget {
+      background: #FFFFFF;
+      border: none;
+      gridline-color: #FFFFFF;
+      selection-background-color: transparent;
+      selection-color: #111827;
+      alternate-background-color: transparent;
+    }
+
+    QHeaderView::section {
+        background: #FFFFFF;
+        color: #6B7280;
+        font-size: 10pt;
+        font-weight: 600;
+        border: none;
+        padding-bottom: 6px;
+    }
+
+    QTableWidget::item {
+        font-size: 20pt;
+        font-weight: 700;
+        color: #111827;
+        padding: 8px 0;
+        border: none;
+        background: #FFFFFF;
+    }
+
+    QTableWidget::item:selected {
+        background: #F3F4F6; ;
+        color: #111827;
+    }
+
+    QTextEdit {
+        background: #FFFFFF;
+        border: none;
+        font-size: 10pt;
+        color: #111827;
+    }
+    QFrame#assetsCard,
+    QFrame#detailsCard,
+    QFrame#frameMyCreated,
+    QFrame#frameActivity {
+        background: #FFFFFF;
+        border-radius: 18px;
+        border: 1px solid #F3F4F6;
+        box-shadow:
+            0px 8px 15px rgba(0,0,0,0.10),
+            0px 4px 6px rgba(0,0,0,0.06),
+            inset 0px 1px 3px rgba(255,255,255,0.8);
+    }
+
+    QPushButton#btnMint,
+    QPushButton#btnBurn,
+    QPushButton#btnMetadata,
+    QPushButton#btnResupply,
+    QPushButton#btnRevoke,
+    QPushButton#btnSend,
+    QPushButton#btnReceive,
+    QPushButton#btnAddWatch,
+    QPushButton#btnRemove,
+    QPushButton#btnExport,
+    QPushButton#btnCopy,
+    QPushButton#btnDetailsSend,
+    QPushButton#btnDetailsReceive,
+    QPushButton#btnAll,
+    QPushButton#btnHeld,
+    QPushButton#btnWatchOnly,
+    QPushButton#btnRefresh {
+        background: #F1F3F5;
+        border-radius: 10px;
+        padding: 4px 10px;
+        font-size: 9pt;
+        font-weight: 600;
+        color: #111827;
+        border: 1px solid #E5E7EB;
+        box-shadow:
+            2px 2px 6px rgba(0,0,0,0.08),
+            -2px -2px 6px rgba(255,255,255,0.8);
+    }
+   </string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QHBoxLayout" name="topButtonsLayout">
+     <item><widget class="QPushButton" name="btnPortfolio">
+        <property name="checkable"><bool>true</bool></property>
+        <property name="text"><string>Portfolio</string></property>
+     </widget></item>
+     <item><widget class="QPushButton" name="btnMyCreations">
+        <property name="checkable"><bool>true</bool></property>
+        <property name="text"><string>My Creations</string></property>
+     </widget></item>
+     <item><widget class="QPushButton" name="btnCreateAsset">
+        <property name="checkable"><bool>true</bool></property>
+        <property name="text"><string>Create Asset</string></property>
+     </widget></item>
+     <item><spacer name="topSpacer">
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
+     </spacer></item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QWidget" name="searchContainer">
+     <layout class="QHBoxLayout" name="searchRow">
+      <property name="spacing"><number>10</number></property>
+      <item>
+       <widget class="QLineEdit" name="searchAssets">
+        <property name="placeholderText"><string>Search assets, symbol, identifier...</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="labelFilter">
+        <property name="text"><string>Filter:</string></property>
+        <property name="styleSheet"><string notr="true">
+          color:#6B7280; font-size:10pt;
+        </string></property>
+       </widget>
+      </item>
+      <item><widget class="QPushButton" name="btnAll"><property name="text"><string>All</string></property></widget></item>
+      <item><widget class="QPushButton" name="btnHeld"><property name="text"><string>Held</string></property></widget></item>
+      <item><widget class="QPushButton" name="btnWatchOnly"><property name="text"><string>Watch-only</string></property></widget></item>
+      <item><spacer name="midSpacer">
+        <property name="orientation"><enum>Qt::Horizontal</enum></property>
+      </spacer></item>
+      <item><widget class="QPushButton" name="btnRefresh">
+        <property name="text"><string>Refresh</string></property>
+      </widget></item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QStackedWidget" name="stackedAssets">
+     <widget class="QWidget" name="pagePortfolio">
+      <layout class="QHBoxLayout" name="layoutPortfolio">
+       <item>
+        <widget class="QFrame" name="assetsCard">
+         <layout class="QVBoxLayout" name="leftLayout">
+          <property name="spacing"><number>10</number></property>
+          <item>
+           <widget class="QLabel" name="labelAssets">
+            <property name="text"><string>Assets</string></property>
+            <property name="styleSheet">
+             <string notr="true">
+              font-weight:700; font-size:14pt; color:#111827; background:#FFFFFF;
+             </string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTableWidget" name="tableAssets">
+            <column><property name="text"><string>Asset ID</string></property></column>
+            <column><property name="text"><string>Name</string></property></column>
+            <column><property name="text"><string>Available</string></property></column>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="portfolioBtnsRow">
+            <item><widget class="QPushButton" name="btnSend"><property name="text"><string>Send</string></property></widget></item>
+            <item><widget class="QPushButton" name="btnReceive"><property name="text"><string>Receive</string></property></widget></item>
+            <item><widget class="QPushButton" name="btnAddWatch"><property name="text"><string>Add Watch Asset</string></property></widget></item>
+            <item><widget class="QPushButton" name="btnRemove"><property name="text"><string>Remove</string></property></widget></item>
+            <item><widget class="QPushButton" name="btnExport"><property name="text"><string>Export...</string></property></widget></item>
+            <item><spacer>
+              <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            </spacer></item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="detailsCard">
+         <layout class="QVBoxLayout" name="rightLayout">
+          <property name="spacing"><number>10</number></property>
+          <item>
+           <widget class="QLabel" name="labelDetailsTitle">
+            <property name="text"><string>Asset Details</string></property>
+            <property name="styleSheet">
+             <string notr="true">
+              font-weight:700; font-size:20pt; color:#111827; background: #FFFFFF;
+             </string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTextEdit" name="textDetails">
+            <property name="readOnly"><bool>true</bool></property>
+            <property name="styleSheet">
+             <string notr="true">
+              background:#FFFFFF; border:none; font-size:10pt; color:#111827;
+             </string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="detailsButtons">
+            <item><widget class="QPushButton" name="btnDetailsSend"><property name="text"><string>Send</string></property></widget></item>
+            <item><widget class="QPushButton" name="btnDetailsReceive"><property name="text"><string>Receive</string></property></widget></item>
+            <item><widget class="QPushButton" name="btnCopy"><property name="text"><string>Copy Identifier</string></property></widget></item>
+            <item><spacer>
+              <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            </spacer></item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="pageMyCreations">
+      <layout class="QVBoxLayout" name="layoutMyCreations">
+       <property name="spacing"><number>15</number></property>
+       <item>
+        <widget class="QFrame" name="frameMyCreated">
+            <layout class="QVBoxLayout" name="layoutMyCreatedFrame">
+            <item>
+                <widget class="QLabel" name="labelMyAssetsTitle">
+                    <property name="text"><string>My Created Assets</string></property>
+                    <property name="styleSheet">
+                    <string notr="true">
+                        font-weight:700; font-size:14pt; color:#111827; background: #FFFFFF;
+                    </string>
+                    </property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QTableWidget" name="tableMyCreated">
+                <column><property name="text"><string>Asset ID</string></property></column>
+                <column><property name="text"><string>Name</string></property></column>
+                <column><property name="text"><string>Available</string></property></column>
+                </widget>
+            </item>
+            <item>
+                <layout class="QHBoxLayout" name="btnRowMyAssets">
+            <property name="spacing"><number>8</number></property>
+            <item>
+                <widget class="QPushButton" name="btnMint">
+                    <property name="text"><string>Mint...</string></property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QPushButton" name="btnBurn">
+                    <property name="text"><string>Burn...</string></property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QPushButton" name="btnMetadata">
+                    <property name="text"><string>Change Metadata...</string></property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QPushButton" name="btnResupply">
+                    <property name="text"><string>Resupply Settings...</string></property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QPushButton" name="btnRevoke">
+                    <property name="text"><string>Revoke / Retire...</string></property>
+                </widget>
+            </item>
+            <item>
+                <spacer>
+                    <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                </spacer>
+            </item>
+        </layout>
+       </item>
+            </layout>
+        </widget>
+        </item>
+       <item>
+        <widget class="QFrame" name="frameActivity">
+            <layout class="QVBoxLayout" name="layoutActivityFrame">
+            <item>
+                <widget class="QLabel" name="labelActivityTitle">
+                    <property name="text"><string>Activity (selected asset)</string></property>
+                    <property name="styleSheet">
+                    <string notr="true">
+                        font-weight:700; font-size:13pt; color:#111827; background: #FFFFFF;
+                    </string>
+                    </property>
+                </widget>
+            </item>
+            <item>
+                <widget class="QTableWidget" name="tableActivity">
+                <column><property name="text"><string>Date</string></property></column>
+                <column><property name="text"><string>Type</string></property></column>
+                <column><property name="text"><string>Txid</string></property></column>
+                <column><property name="text"><string>Notes</string></property></column>
+                </widget>
+            </item>
+            </layout>
+        </widget>
+        </item>
+           </layout>
+   </widget>
+     <widget class="QWidget" name="pageCreateAsset">
+      <layout class="QVBoxLayout" name="layoutCreateAsset">
+       <property name="spacing"><number>20</number></property>
+       <item>
+        <widget class="QFrame" name="frameCreateAsset">
+         <property name="styleSheet">
+          <string notr="true">
+           background:#FFFFFF;
+           border-radius:18px;
+           border:1px solid #F3F4F6;
+           padding:10px;
+          </string>
+         </property>
+         <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred"/>
+        </property>
+         <layout class="QGridLayout" name="createGrid">
+          <property name="horizontalSpacing"><number>25</number></property>
+          <property name="verticalSpacing"><number>15</number></property>
+          <item row="0" column="0" colspan="2">
+           <widget class="QLabel" name="labelCreateTitle">
+            <property name="text"><string>Create Spark Asset</string></property>
+            <property name="styleSheet">
+             <string notr="true">font-size:18pt; font-weight:700;</string>
+            </property>
+           </widget>
+          </item>
+        <item row="1" column="0">
+        <widget class="QWidget">
+        <layout class="QGridLayout" name="leftGrid">
+        <item row="0" column="0" colspan="2">
+            <widget class="QLabel" name="labelEssentials">
+            <property name="text"><string>Essentials</string></property>
+            <property name="styleSheet"><string notr="true">font-weight:600;</string></property>
+            </widget>
+        </item>
+        <item row="1" column="0">
+            <widget class="QCheckBox" name="chkFungible">
+            <property name="text"><string>Fungible asset</string></property>
+            </widget>
+        </item>
+        <item row="2" column="0">
+            <widget class="QLabel" name="labelAssetType">
+            <property name="text"><string>Asset Type:</string></property>
+            </widget>
+        </item>
+        <item row="2" column="1">
+           <widget class="QLineEdit" name="editAssetType">
+                <property name="readOnly"><bool>true</bool></property>
+                <property name="placeholderText"><string>Auto</string></property>
+           </widget>
+        </item>
+        <item row="3" column="0">
+            <widget class="QLabel" name="labelName"><property name="text"><string>Name:</string></property></widget>
+        </item>
+        <item row="3" column="1">
+            <widget class="QLineEdit" name="editName"/>
+        </item>
+        <item row="4" column="0">
+            <widget class="QLabel" name="labelSymbol"><property name="text"><string>Symbol:</string></property></widget>
+        </item>
+        <item row="4" column="1">
+            <widget class="QLineEdit" name="editSymbol"/>
+        </item>
+        <item row="5" column="0">
+            <widget class="QLabel" name="labelSupply"><property name="text"><string>Total Supply:</string></property></widget>
+        </item>
+        <item row="5" column="1">
+            <widget class="QLineEdit" name="editSupply"/>
+        </item>
+        <item row="6" column="0">
+            <widget class="QLabel" name="labelPrecision"><property name="text"><string>Precision:</string></property></widget>
+        </item>
+        <item row="6" column="1">
+           <widget class="QComboBox" name="comboPrecision">
+                <item><property name="text"><string>0</string></property></item>
+                <item><property name="text"><string>1</string></property></item>
+                <item><property name="text"><string>2</string></property></item>
+                <item><property name="text"><string>3</string></property></item>
+                <item><property name="text"><string>4</string></property></item>
+                <item><property name="text"><string>5</string></property></item>
+                <item><property name="text"><string>6</string></property></item>
+                <item><property name="text"><string>7</string></property></item>
+                <item><property name="text"><string>8</string></property></item>
+            </widget>
+        </item>
+        <item row="7" column="0">
+            <widget class="QLabel" name="labelResupply"><property name="text"><string>Resupplyable:</string></property></widget>
+        </item>
+        <item row="7" column="1">
+            <widget class="QComboBox" name="comboResupply">
+            <item><property name="text"><string>Yes</string></property></item>
+            <item><property name="text"><string>No</string></property></item>
+            </widget>
+        </item>
+        </layout>
+        </widget>
+        </item>
+          <item row="1" column="1">
+           <layout class="QVBoxLayout" name="rightCreateColumn">
+            <item>
+             <widget class="QLabel" name="labelAdvanced">
+              <property name="text"><string>Advanced</string></property>
+              <property name="styleSheet"><string notr="true">font-weight:600;</string></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="labelIdentifier"><property name="text"><string>Identifier:</string></property></widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout">
+              <item><widget class="QLineEdit" name="editIdentifier"/></item>
+              <item><widget class="QPushButton" name="btnAutoId"><property name="text"><string>Auto</string></property></widget></item>
+              <item><widget class="QPushButton" name="btnGenerateId"><property name="text"><string>Generate</string></property></widget></item>
+             </layout>
+            </item>
+            <item><widget class="QLabel" name="labelDescription"><property name="text"><string>Description:</string></property></widget></item>
+            <item>
+             <widget class="QTextEdit" name="editDescription">
+              <property name="placeholderText">
+               <string></string>
+              </property>
+             </widget>
+            </item>
+            <item><widget class="QLabel" name="labelMetadata"><property name="text"><string>Metadata (JSON / key-value)</string></property></widget></item>
+            <item>
+             <widget class="QTextEdit" name="editMetadata">
+              <property name="plainText">
+               <string></string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="2" column="0" colspan="2">
+           <layout class="QHBoxLayout" name="layoutCreateButtons">
+            <item>
+             <widget class="QPushButton" name="btnDoCreate">
+              <property name="text"><string>Create Asset</string></property>
+              <property name="styleSheet"><string notr="true">background:#B24040; color:white;</string></property>
+             </widget>
+            </item>
+            <item><widget class="QPushButton" name="btnClear"><property name="text"><string>Clear</string></property></widget></item>
+            <item><widget class="QPushButton" name="btnEstimate"><property name="text"><string>Estimate Fee ▾</string></property></widget></item>
+            <item>
+             <spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+  </widget>
+ </item>
+</layout>
+</widget>
+</ui>

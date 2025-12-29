@@ -79,6 +79,7 @@ configure_file(bitcoin_locale.qrc bitcoin_locale.qrc USE_SOURCE_PERMISSIONS COPY
 add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/bitcoin.qrc
   ${CMAKE_CURRENT_BINARY_DIR}/bitcoin_locale.qrc
+  
   ${CMAKE_CURRENT_SOURCE_DIR}/addressbookpage.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/addresstablemodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/askpassphrasedialog.cpp
@@ -127,6 +128,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetspage.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spatsmintdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spatsuserconfirmationdialog.cpp
@@ -238,6 +240,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/walletview.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/automintmodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetspage.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/createsparknamepage.cpp
   )
   target_link_libraries(firoqt

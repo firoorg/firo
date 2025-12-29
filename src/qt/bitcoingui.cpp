@@ -125,6 +125,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     lelantusAction(0),
     masternodeAction(0),
     myownspatsAction(nullptr),
+    sparkAssetsAction(nullptr),
     logoAction(0),
     trayIcon(0),
     trayIconMenu(0),
@@ -375,6 +376,13 @@ void BitcoinGUI::createActions()
     myownspatsAction->setShortcut(QKeySequence(Qt::ALT +  key++));
     tabGroup->addAction(myownspatsAction);
 
+    sparkAssetsAction = new QAction(tr("&Spark Assets"), this);
+    sparkAssetsAction->setStatusTip(tr("Manage and view your Spark assets"));
+    sparkAssetsAction->setToolTip(sparkAssetsAction->statusTip());
+    sparkAssetsAction->setCheckable(true);
+    sparkAssetsAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(sparkAssetsAction);
+
 #ifdef ENABLE_WALLET
     connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(masternodeAction, &QAction::triggered, this, &BitcoinGUI::gotoMasternodePage);
@@ -392,6 +400,8 @@ void BitcoinGUI::createActions()
 	connect(receiveCoinsMenuAction, &QAction::triggered, this, &BitcoinGUI::gotoReceiveCoinsPage);
 	connect(historyAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
 	connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
+    connect(sparkAssetsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
+    connect(sparkAssetsAction, &QAction::triggered, this, &BitcoinGUI::gotoSparkAssetsPage);
 
 #endif // ENABLE_WALLET
 
@@ -528,25 +538,57 @@ void BitcoinGUI::createToolBars()
         toolbar = addToolBar(tr("Tabs toolbar"));
         toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
         toolbar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
         toolbar->setMovable(false);
-        toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
-        toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
         toolbar->addAction(myownspatsAction);
+        toolbar->addAction(sparkAssetsAction);
 
         logoLabel = new QLabel();
         logoLabel->setObjectName("lblToolbarLogo");
         logoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        
         toolbar->addWidget(logoLabel);
 
         overviewAction->setChecked(true);
     }
+
+    toolbar->setStyleSheet(R"(
+    QToolBar {
+        background: #F7F8FA;
+        border: none;
+        spacing: 8px;
+        padding: 4px 8px;
+    }
+
+    QToolButton {
+        background-color: #F7F8FA;
+        color: #111827;
+        border: none;
+        border-radius: 9px;
+        min-width: 90px;
+        min-height: 28px;
+        font-size: 10pt;
+        font-weight: 800;
+        padding: 2px 8px;
+        margin: 1px 2px;
+    }
+
+    QToolButton:hover {
+        background-color: #E5E7EB;
+    }
+
+    QToolButton:checked {
+        background-color: #B24040;
+        color: #FFFFFF;
+        border-radius: 9px;
+        padding: 2px 8px;
+    }
+    )");
+
 }
 
 void BitcoinGUI::setClientModel(ClientModel *_clientModel)
@@ -821,6 +863,13 @@ void BitcoinGUI::gotoSendCoinsPage(QString addr)
 {
     sendCoinsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoSendCoinsPage(addr);
+}
+
+void BitcoinGUI::gotoSparkAssetsPage()
+{
+    if (!walletFrame)
+        return;
+    walletFrame->gotoSparkAssetsPage();
 }
 
 void BitcoinGUI::gotoSignMessageTab(QString addr)
@@ -1478,19 +1527,25 @@ void BitcoinGUI::resizeEvent(QResizeEvent* event) {
     int actionWidth = newWidth / 7;
 
     if (toolbar) {
-        // Set widths for each action dynamically
-        QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
-        QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
-        QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
-        QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
-        QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
-        QWidget* myownspatsWidget = myownspatsWidget ? toolbar->widgetForAction(myownspatsAction) : nullptr;
+        auto widgetFor = [&](QAction* action) -> QWidget* {
+            return (action && toolbar->widgetForAction(action))
+                ? toolbar->widgetForAction(action)
+                : nullptr;
+        };
 
-        if (overviewWidget) overviewWidget->setMinimumWidth(actionWidth);
-        if (receiveWidget) receiveWidget->setMinimumWidth(actionWidth);
-        if (historyWidget) historyWidget->setMinimumWidth(actionWidth);
-        if (sendCoinsWidget) sendCoinsWidget->setMinimumWidth(actionWidth);
+        QWidget* overviewWidget     = widgetFor(overviewAction);
+        QWidget* receiveWidget      = widgetFor(receiveCoinsAction);
+        QWidget* historyWidget      = widgetFor(historyAction);
+        QWidget* sendCoinsWidget    = widgetFor(sendCoinsAction);
+        QWidget* masternodeWidget   = widgetFor(masternodeAction);
+        QWidget* myownspatsWidget   = widgetFor(myownspatsAction);
+
+        if (overviewWidget)   overviewWidget->setMinimumWidth(actionWidth);
+        if (receiveWidget)    receiveWidget->setMinimumWidth(actionWidth);
+        if (historyWidget)    historyWidget->setMinimumWidth(actionWidth);
+        if (sendCoinsWidget)  sendCoinsWidget->setMinimumWidth(actionWidth);
         if (masternodeWidget) masternodeWidget->setMinimumWidth(actionWidth);
         if (myownspatsWidget) myownspatsWidget->setMinimumWidth(actionWidth);
     }
+
 }

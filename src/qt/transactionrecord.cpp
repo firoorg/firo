@@ -46,6 +46,44 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
+    if (wtx.tx->IsSpatsTransaction()) {
+        TransactionRecord rec(hash, nTime);
+        rec.involvesWatchAddress = false;
+        rec.debit = nDebit;
+        rec.credit = nCredit;
+
+        if (wtx.tx->IsSpatsCreate()) {
+            rec.type = TransactionRecord::SpatsCreate;
+            rec.address = "Spats Create";
+        }
+        else if (wtx.tx->IsSpatsMint()) {
+            rec.type = TransactionRecord::SpatsMint;
+            rec.address = "Spats Mint";
+        }
+        else if (wtx.tx->IsSpatsModify()) {
+            rec.type = TransactionRecord::SpatsModify;
+            rec.address = "Spats Modify";
+        }
+        else if (wtx.tx->IsSpatsUnregister()) {
+            rec.type = TransactionRecord::SpatsRevoke;
+            rec.address = "Spats Unregister";
+        }
+        else if (wtx.tx->IsSpatsBurn()) {
+            rec.type = TransactionRecord::SpatsRevoke;
+            rec.address = "Spats Burn";
+        }
+        else if (wtx.tx->HasSpatsMintCoin()) {
+            rec.type = TransactionRecord::SpatsMint;
+            rec.address = "Spats MintCoin";
+        }
+        else if (wtx.tx->HasSpatsBurnAmount()) {
+            rec.type = TransactionRecord::SpatsRevoke;
+            rec.address = "Spats BurnAmount";
+        }
+        parts.append(rec);
+        return parts;
+    }
+
     bool isAllSigmaSpendFromMe = false;
     if (wtx.tx->vin[0].IsSigmaSpend()) {
         isAllSigmaSpendFromMe = (wallet->IsMine(wtx.tx->vin[0], *wtx.tx) & ISMINE_SPENDABLE);

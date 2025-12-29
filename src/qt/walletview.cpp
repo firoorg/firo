@@ -22,6 +22,7 @@
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
+#include "sparkassetspage.h"
 
 
 #include <QAction>
@@ -53,6 +54,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     sendCoinsPage = new QWidget(this);
     masternodeListPage = new MasternodeList(platformStyle);
     myOwnSpatsPage = new MyOwnSpats(platformStyle);
+    sparkAssetsPage = new spats::SparkAssetsPage(platformStyle, this);
 
     automintSparkNotification = new AutomintSparkNotification(this);
     automintSparkNotification->setWindowModality(Qt::NonModal);
@@ -66,9 +68,12 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(sendCoinsPage);
     addWidget(masternodeListPage);
     addWidget(myOwnSpatsPage);
+    addWidget(sparkAssetsPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::focusBitcoinHistoryTab);
+    connect(overviewPage, &OverviewPage::gotoSendCoinsPage, this, QOverload<>::of(&WalletView::gotoSendCoinsPage));
+    connect(overviewPage, &OverviewPage::gotoReceiveCoinsPage, this, QOverload<>::of(&WalletView::gotoReceiveCoinsPage));
 }
 
 WalletView::~WalletView()
@@ -169,6 +174,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
+    sparkAssetsPage->setWalletModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
@@ -265,12 +271,24 @@ void WalletView::gotoMyOwnSpatsPage()
     setCurrentWidget(myOwnSpatsPage);
 }
 
+void WalletView::gotoSparkAssetsPage()
+{
+    setCurrentWidget(sparkAssetsPage);
+}
+
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
+    Q_EMIT signalShowReceiveTab();
 }
 
-void WalletView::gotoSendCoinsPage(QString addr)
+void WalletView::gotoSendCoinsPage()
+{
+    setCurrentWidget(sendCoinsPage);
+    Q_EMIT signalShowSendTab();
+}
+
+void WalletView::gotoSendCoinsPage(const QString &addr)
 {
     setCurrentWidget(sendCoinsPage);
 

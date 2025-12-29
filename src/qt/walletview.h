@@ -14,6 +14,7 @@
 #include "amount.h"
 #include "masternodelist.h"
 #include "myownspats.h"
+#include "sparkassetspage.h"
 
 #include <QStackedWidget>
 
@@ -85,6 +86,7 @@ private:
     QWidget *firoTransactionsView;
     MasternodeList *masternodeListPage;
     MyOwnSpats *myOwnSpatsPage;
+    spats::SparkAssetsPage* sparkAssetsPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -107,7 +109,10 @@ public Q_SLOTS:
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
-    void gotoSendCoinsPage(QString addr = "");
+    void gotoSendCoinsPage();
+    void gotoSendCoinsPage(const QString &addr);
+
+    void gotoSparkAssetsPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -176,6 +181,8 @@ Q_SIGNALS:
     void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label);
     /** Notify that the out of sync warning icon has been pressed */
     void outOfSyncWarningClicked();
+    void signalShowSendTab();
+    void signalShowReceiveTab();
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H

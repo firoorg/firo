@@ -20,7 +20,6 @@
 #include <QTimer>
 #include <QResizeEvent>
 
-
 class ClientModel;
 class TransactionFilterProxy;
 class TxViewDelegate;
@@ -70,6 +69,9 @@ Q_SIGNALS:
     void enabledTorChanged();
     void outOfSyncWarningClicked();
     void spatsRegistryChangedSignal();
+    void gotoSendCoinsPage();
+    void gotoReceiveCoinsPage();
+
 private:
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
@@ -89,7 +91,7 @@ private:
     std::unique_ptr<TransactionFilterProxy> filter;
 
     QTimer countDownTimer;
-    int secDelay;
+    int secDelay{30};
     QString migrationWindowClosesIn;
     QString blocksRemaining;
     QString migrateAmount;
@@ -100,7 +102,7 @@ private:
     void displaySpatsBalances();
     const spats::SparkAssetDisplayAttributes* getSpatsDisplayAttributes(spats::universal_asset_id_t asset_id);
     void adjustTextSize(int width,int height);
-
+    void addShadow(QWidget *w);
     void process_spats_registry_changed(const admin_addresses_set_t &affected_asset_admin_addresses, const asset_ids_set_t &affected_asset_ids) override;
 
 private Q_SLOTS:
@@ -112,16 +114,14 @@ private Q_SLOTS:
     void handleOutOfSyncWarningClicks();
     void countDown();
     void handleSpatsRegistryChangedSignal();
-    
-    void on_tableWidgetSparkBalances_contextMenuRequested(const QPoint &pos);
 };
 
 class MigrateLelantusToSparkDialog : public QMessageBox
 {
     Q_OBJECT
 private:
-    bool clickedButton;
-    WalletModel *model;
+    bool clickedButton{false};
+    WalletModel *model{nullptr};
 public:
     MigrateLelantusToSparkDialog(WalletModel *model);
     bool getClickedButton();

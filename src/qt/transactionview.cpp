@@ -33,6 +33,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QCalendarWidget>
+#include <QGraphicsDropShadowEffect>
 
 namespace {
 char const * CopyLabelText{"Copy label"};
@@ -40,20 +41,24 @@ char const * CopyRapText{"Copy RAP address/label"};
 }
 
 TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *parent) :
-    QWidget(parent), model(0), transactionProxyModel(0),
-    transactionView(0), abandonAction(0)
+    QWidget(parent),
+    model(0),
+    transactionProxyModel(0),
+    transactionView(0),
+    abandonAction(0)
 {
-    // Build filter row
     setContentsMargins(0,0,0,0);
 
-    headerLayout = new QHBoxLayout();
-    headerLayout->setContentsMargins(0,0,0,0);
+    QFrame* filterCard = new QFrame(this);
+    filterCard->setObjectName("filterCard");
+
+    headerLayout = new QHBoxLayout(filterCard);
+    headerLayout->setContentsMargins(10,10,10,10);
+    headerLayout->setSpacing(10);
 
     if (platformStyle->getUseExtraSpacing()) {
-        headerLayout->setSpacing(5);
         headerLayout->addSpacing(26);
     } else {
-        headerLayout->setSpacing(0);
         headerLayout->addSpacing(23);
     }
 
@@ -71,11 +76,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(instantsendWidget);
 
     dateWidget = new QComboBox(this);
-    if (platformStyle->getUseExtraSpacing()) {
-        dateWidget->setFixedWidth(121);
-    } else {
-        dateWidget->setFixedWidth(120);
-    }
+    dateWidget->setFixedWidth(120);
     dateWidget->addItem(tr("All"), All);
     dateWidget->addItem(tr("Today"), Today);
     dateWidget->addItem(tr("This week"), ThisWeek);
@@ -86,17 +87,14 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(dateWidget);
 
     typeWidget = new QComboBox(this);
-    if (platformStyle->getUseExtraSpacing()) {
-        typeWidget->setFixedWidth(121);
-    } else {
-        typeWidget->setFixedWidth(120);
-    }
-
+    typeWidget->setFixedWidth(120);
     typeWidget->addItem(tr("All"), TransactionFilterProxy::ALL_TYPES);
-    typeWidget->addItem(tr("Received with"), TransactionFilterProxy::TYPE(TransactionRecord::RecvWithAddress) |
-                                        TransactionFilterProxy::TYPE(TransactionRecord::RecvFromOther));
-    typeWidget->addItem(tr("Sent to"), TransactionFilterProxy::TYPE(TransactionRecord::SendToAddress) |
-                                  TransactionFilterProxy::TYPE(TransactionRecord::SendToOther));
+    typeWidget->addItem(tr("Received with"),
+                        TransactionFilterProxy::TYPE(TransactionRecord::RecvWithAddress) |
+                        TransactionFilterProxy::TYPE(TransactionRecord::RecvFromOther));
+    typeWidget->addItem(tr("Sent to"),
+                        TransactionFilterProxy::TYPE(TransactionRecord::SendToAddress) |
+                        TransactionFilterProxy::TYPE(TransactionRecord::SendToOther));
     typeWidget->addItem(tr("To yourself"), TransactionFilterProxy::TYPE(TransactionRecord::SendToSelf));
     typeWidget->addItem(tr("Mined"), TransactionFilterProxy::TYPE(TransactionRecord::Generated));
     typeWidget->addItem(tr("Other"), TransactionFilterProxy::TYPE(TransactionRecord::Other));
@@ -110,65 +108,60 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("Mint spark to"), TransactionFilterProxy::TYPE(TransactionRecord::MintSparkTo));
     typeWidget->addItem(tr("Spend spark to"), TransactionFilterProxy::TYPE(TransactionRecord::SpendSparkTo));
     typeWidget->addItem(tr("Received Spark"), TransactionFilterProxy::TYPE(TransactionRecord::RecvSpark));
-
     headerLayout->addWidget(typeWidget);
 
     addressWidget = new QLineEdit(this);
-#if QT_VERSION >= 0x040700
     addressWidget->setPlaceholderText(tr("Enter address or label to search"));
-#endif
     headerLayout->addWidget(addressWidget);
 
     amountWidget = new QLineEdit(this);
-#if QT_VERSION >= 0x040700
     amountWidget->setPlaceholderText(tr("Min amount"));
-#endif
-    if (platformStyle->getUseExtraSpacing()) {
-        amountWidget->setFixedWidth(97);
-    } else {
-        amountWidget->setFixedWidth(100);
-    }
+    amountWidget->setFixedWidth(100);
     amountWidget->setValidator(new QDoubleValidator(0, 1e20, 8, this));
     headerLayout->addWidget(amountWidget);
 
     QVBoxLayout *vlayout = new QVBoxLayout(this);
-    vlayout->setContentsMargins(0,0,0,0);
-    vlayout->setSpacing(0);
+    vlayout->setContentsMargins(10,10,10,10);
+    vlayout->setSpacing(10);
+
+    vlayout->addWidget(filterCard);
+
+    dateRangeWidget = createDateRangeWidget();
+    dateRangeWidget->setObjectName("dateRangeWidget");
+    vlayout->addWidget(dateRangeWidget);
+
+    QFrame* tableCard = new QFrame(this);
+    tableCard->setObjectName("tableCard");
+
+    QVBoxLayout* tableLayout = new QVBoxLayout(tableCard);
+    tableLayout->setContentsMargins(10,10,10,10);
 
     QTableView *view = new QTableView(this);
-    vlayout->addLayout(headerLayout);
-    vlayout->addWidget(createDateRangeWidget());
-    vlayout->addWidget(view);
-    vlayout->setSpacing(0);
-    int width = view->verticalScrollBar()->sizeHint().width();
-    // Cover scroll bar width with spacing
-    if (platformStyle->getUseExtraSpacing()) {
-        headerLayout->addSpacing(width+2);
-    } else {
-        headerLayout->addSpacing(width);
-    }
-    // Always show scroll bar
-    view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    view->setTabKeyNavigation(false);
-    view->setContextMenuPolicy(Qt::CustomContextMenu);
-    view->setItemDelegateForColumn(TransactionTableModel::ToAddress, new GUIUtil::TextElideStyledItemDelegate(view));
-
-    view->installEventFilter(this);
-
     transactionView = view;
 
-    // Actions
-    abandonAction = new QAction(tr("Abandon transaction"), this);
-    resendAction = new QAction(tr("Re-broadcast transaction"), this);
+    tableLayout->addWidget(view);
+    vlayout->addWidget(tableCard);
 
-    QAction *copyAddressAction = new QAction(tr("Copy address"), this);
-    copyLabelAction = new QAction(tr(CopyLabelText), this);
-    QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
-    QAction *copyTxIDAction = new QAction(tr("Copy transaction ID"), this);
-    QAction *copyTxHexAction = new QAction(tr("Copy raw transaction"), this);
-    QAction *copyTxPlainText = new QAction(tr("Copy full transaction details"), this);
-    QAction *editLabelAction = new QAction(tr("Edit label"), this);
-    QAction *showDetailsAction = new QAction(tr("Show transaction details"), this);
+    view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    view->setContextMenuPolicy(Qt::CustomContextMenu);
+    view->setTabKeyNavigation(false);
+    view->setItemDelegateForColumn(
+        TransactionTableModel::ToAddress,
+        new GUIUtil::TextElideStyledItemDelegate(view)
+    );
+    view->installEventFilter(this);
+
+    abandonAction = new QAction(tr("Abandon transaction"), this);
+    resendAction  = new QAction(tr("Re-broadcast transaction"), this);
+
+    QAction *copyAddressAction   = new QAction(tr("Copy address"), this);
+    copyLabelAction              = new QAction(tr(CopyLabelText), this);
+    QAction *copyAmountAction    = new QAction(tr("Copy amount"), this);
+    QAction *copyTxIDAction      = new QAction(tr("Copy transaction ID"), this);
+    QAction *copyTxHexAction     = new QAction(tr("Copy raw transaction"), this);
+    QAction *copyTxPlainText     = new QAction(tr("Copy full transaction details"), this);
+    QAction *editLabelAction     = new QAction(tr("Edit label"), this);
+    QAction *showDetailsAction   = new QAction(tr("Show transaction details"), this);
 
     contextMenu = new QMenu(this);
     contextMenu->addAction(copyAddressAction);
@@ -183,30 +176,110 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     contextMenu->addAction(editLabelAction);
     contextMenu->addAction(resendAction);
 
-    // Connect actions
-
-    connect(dateWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
-    connect(typeWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseType);
-    connect(watchOnlyWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseWatchonly);
-    connect(instantsendWidget, qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
-    connect(addressWidget, &QLineEdit::textChanged, this, &TransactionView::changedPrefix);
-    connect(amountWidget, &QLineEdit::textChanged, this, &TransactionView::changedAmount);
+    connect(dateWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseDate);
+    connect(typeWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseType);
+    connect(watchOnlyWidget,    qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseWatchonly);
+    connect(instantsendWidget,  qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
+    connect(addressWidget,      &QLineEdit::textChanged,               this, &TransactionView::changedPrefix);
+    connect(amountWidget,       &QLineEdit::textChanged,               this, &TransactionView::changedAmount);
 
     connect(view, &QTableView::doubleClicked, this, &TransactionView::doubleClicked);
     connect(view, &QTableView::customContextMenuRequested, this, &TransactionView::contextualMenu);
     connect(view->horizontalHeader(), &QHeaderView::sectionResized, this, &TransactionView::updateHeaderSizes);
 
-    connect(abandonAction, &QAction::triggered, this, &TransactionView::abandonTx);
-    connect(copyAddressAction, &QAction::triggered, this, &TransactionView::copyAddress);
-    connect(copyLabelAction, &QAction::triggered, this, &TransactionView::copyLabel);
-    connect(copyAmountAction, &QAction::triggered, this, &TransactionView::copyAmount);
-    connect(copyTxIDAction, &QAction::triggered, this, &TransactionView::copyTxID);
-    connect(copyTxHexAction, &QAction::triggered, this, &TransactionView::copyTxHex);
-    connect(copyTxPlainText, &QAction::triggered, this, &TransactionView::copyTxPlainText);
-    connect(editLabelAction, &QAction::triggered, this, &TransactionView::editLabel);
-    connect(showDetailsAction, &QAction::triggered, this, &TransactionView::showDetails);
-    connect(this, &TransactionView::doubleClicked, this, &TransactionView::showDetails);
-    connect(resendAction, &QAction::triggered, this, &TransactionView::rebroadcastTx);
+    connect(abandonAction,      &QAction::triggered, this, &TransactionView::abandonTx);
+    connect(copyAddressAction,  &QAction::triggered, this, &TransactionView::copyAddress);
+    connect(copyLabelAction,    &QAction::triggered, this, &TransactionView::copyLabel);
+    connect(copyAmountAction,   &QAction::triggered, this, &TransactionView::copyAmount);
+    connect(copyTxIDAction,     &QAction::triggered, this, &TransactionView::copyTxID);
+    connect(copyTxHexAction,    &QAction::triggered, this, &TransactionView::copyTxHex);
+    connect(copyTxPlainText,    &QAction::triggered, this, &TransactionView::copyTxPlainText);
+    connect(editLabelAction,    &QAction::triggered, this, &TransactionView::editLabel);
+    connect(showDetailsAction,  &QAction::triggered, this, &TransactionView::showDetails);
+    connect(resendAction,       &QAction::triggered, this, &TransactionView::rebroadcastTx);
+
+    setStyleSheet(
+        "QWidget { background: #F7F8FA; font-family: 'Segoe UI'; color: #111827; font-size: 11pt; }"
+
+        "QFrame#filterCard, QFrame#tableCard, QFrame#dateRangeWidget {"
+        "   background: #FFFFFF;"
+        "   border-radius: 18px;"
+        "   border: 1px solid #F3F4F6;"
+        "}"
+
+        "QLabel { font-size: 11pt; color: #111827; background: transparent; }"
+
+        "QLineEdit, QComboBox {"
+        "   background: #FFFFFF;"
+        "   border-radius: 10px;"
+        "   border: 1px solid #D1D5DB;"
+        "   padding: 6px 10px;"
+        "   font-size: 10pt;"
+        "   color: #111827;"
+        "}"
+        "QLineEdit:!focus { color: #6B7280; }"
+        "QLineEdit:focus, QComboBox:focus { border: 1px solid #9CA3AF; }"
+
+        "QComboBox QAbstractItemView {"
+        "   background: #FFFFFF;"
+        "   border-radius: 10px;"
+        "   border: 1px solid #D1D5DB;"
+        "   selection-background-color: #F3F4F6;"
+        "   padding: 4px;"
+        "}"
+
+        "QComboBox::drop-down { border: none; width: 24px; }"
+        "QComboBox::down-arrow { width: 12px; height: 12px; image: url(:/icons/arrow_down); }"
+
+        "QDateTimeEdit { background:#FFFFFF; border-radius:10px; border:1px solid #D1D5DB; padding:6px 10px; }"
+
+        "QCalendarWidget QWidget { background:#FFFFFF; }"
+        "QCalendarWidget QAbstractItemView { selection-background-color:#E5E7EB; border:none; }"
+        "QCalendarWidget QToolButton { color:#111827; background:transparent; font-weight:bold; }"
+
+        "QTableView {"
+        "   background: #FFFFFF;"
+        "   border-radius: 14px;"
+        "   border: 1px solid #E5E7EB;"
+        "   font-size: 10pt;"
+        "   gridline-color: #FFFFFF;"
+        "   selection-background-color: #F3F4F6;"
+        "}"
+
+        "QHeaderView::section { background:#FFFFFF; padding:6px; border:none; font-weight:600; color:#6B7280; }"
+        "QTableView::item:selected { background:#F1F3F5; color:#111827; }"
+
+        "QScrollBar:vertical { background:#F3F4F6; width:12px; border-radius:6px; }"
+        "QScrollBar::handle:vertical { background:#D1D5DB; border-radius:6px; }"
+        "QScrollBar::handle:vertical:hover { background:#9CA3AF; }"
+        "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
+
+        "QMenu { background:#FFFFFF; border:1px solid #D1D5DB; padding:6px; font-size:10pt; }"
+        "QMenu::item:selected { background:#F3F4F6; color:#111827; }"
+
+        "QPushButton {"
+        "   background:#F1F3F5;"
+        "   border-radius:10px;"
+        "   border:1px solid #E5E7EB;"
+        "   padding:6px 14px;"
+        "   font-size:10pt;"
+        "   font-weight:600;"
+        "}"
+        "QPushButton:hover { background:#E5E7EB; }"
+    );
+
+    addShadow(filterCard);
+    addShadow(tableCard);
+    addShadow(dateRangeWidget);
+}
+
+void TransactionView::addShadow(QWidget* w)
+{
+    auto *shadow = new QGraphicsDropShadowEffect(this);
+    shadow->setBlurRadius(18);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 60));
+    w->setGraphicsEffect(shadow);
 }
 
 void TransactionView::setModel(WalletModel *_model)
@@ -600,11 +673,21 @@ void TransactionView::openThirdPartyTxUrl(QString url)
 
 QWidget *TransactionView::createDateRangeWidget()
 {
-    dateRangeWidget = new QFrame();
-    dateRangeWidget->setFrameStyle(QFrame::Panel | QFrame::Raised);
-    dateRangeWidget->setContentsMargins(1,1,1,1);
-    QHBoxLayout *layout = new QHBoxLayout(dateRangeWidget);
-    layout->setContentsMargins(0,0,0,0);
+    dateRangeWidget = new QWidget(this);
+    dateRangeWidget->setObjectName("dateRangeWidget");
+
+    QFrame* frame = new QFrame(dateRangeWidget);
+    frame->setObjectName("filterCard");
+    frame->setContentsMargins(10, 10, 10, 10);
+
+    QHBoxLayout* outer = new QHBoxLayout(dateRangeWidget);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->addWidget(frame);
+
+    QHBoxLayout* layout = new QHBoxLayout(frame);
+    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setSpacing(10);
+
     layout->addSpacing(23);
     layout->addWidget(new QLabel(tr("Range:")));
 
@@ -624,14 +707,13 @@ QWidget *TransactionView::createDateRangeWidget()
     layout->addWidget(dateTo);
     layout->addStretch();
 
-    // Hide by default
     dateRangeWidget->setVisible(false);
-
-    // Notify on change
     connect(dateFrom, &QDateTimeEdit::dateChanged, this, &TransactionView::dateRangeChanged);
     connect(dateTo, &QDateTimeEdit::dateChanged, this, &TransactionView::dateRangeChanged);
 
     updateCalendarWidgets();
+    addShadow(frame);
+
     return dateRangeWidget;
 }
 

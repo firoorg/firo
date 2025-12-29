@@ -16,10 +16,9 @@
 
 #include <QApplication>
 #include <QClipboard>
-
+#include <QResizeEvent>
+#include <QGraphicsDropShadowEffect>
 #include <QRegularExpression>
-
-#include<QResizeEvent>
 
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
@@ -65,6 +64,29 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->messageLabel->setVisible(false);
     ui->messageTextLabel->setVisible(false);
     ui->iconMessageWarning->setVisible(false);
+    {
+        auto *shadow = new QGraphicsDropShadowEffect(this);
+        shadow->setBlurRadius(18);
+        shadow->setOffset(0, 4);
+        shadow->setColor(QColor(0, 0, 0, 60));
+
+        ui->SendCoins->setGraphicsEffect(shadow);
+    }
+
+    ui->SendCoins->setStyleSheet(
+        "QFrame#SendCoins {"
+        "   background: #FFFFFF;"
+        "   border-radius: 20px;"
+        "   border: 1px solid #FFFFFF;"
+        "   padding: 16px;"
+        "}"
+    );
+
+    this->setStyleSheet(
+        "QStackedWidget#SendCoinsEntry {"
+        "   background: #FFFFFF;"
+        "}"
+    );
 }
 
 SendCoinsEntry::~SendCoinsEntry()

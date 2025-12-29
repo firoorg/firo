@@ -1819,3 +1819,215 @@ QPushButton#warningIcon {
     background-color: #f4f4f4;
     height: 33px;
 }
+
+QWidget#OverviewPage {
+      background: #FFFFFF;
+      font-family: "Segoe UI";
+    }
+    QFrame#card, QFrame#warningFrame, QFrame#sparkCard, QFrame#activityCard {
+      background: #FFFFFF;
+      border: none;
+      border-radius: 0;
+      margin: 0px;
+      padding: 0px;   
+    }
+    QLabel.hint {
+      color: #6B7280;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    QLabel#labelTotalText {
+      color: #111827;
+      font-weight: 700;
+      font-size: 30pt;
+      padding: 0px;
+      background: transparent;
+    }
+    QLabel#labelTotal {
+      color: #111827;
+      font-weight: 500;
+      font-size: 30pt;
+      padding: 0px;
+      background: transparent;
+    }
+
+    QLabel#labelTransparentAvailableText,
+    QLabel#labelPendingText,
+    QLabel#labelTransparentImmatureText,
+    QLabel#labelPrivateAvailableText {
+      color: #6B7280;
+      font-size: 8px;
+    }
+
+    QLabel#labelBalance,
+    QLabel#labelUnconfirmed,
+    QLabel#labelImmature,
+    QLabel#labelAnonymizable {
+      color: #111827;
+      font-size: 8px;
+      font-weight: 600;
+    }
+
+    QLabel#labelAlerts {
+      background: #FFF7E6;
+      color: #92400E;
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid #FDEDD0;
+    }
+
+    QPushButton#labelWalletStatus,
+    QPushButton#labelTransactionsStatus {
+      background: transparent;
+      border: none;
+    }
+
+    QPushButton#accentButton,
+    QPushButton#migrateButton,
+    QPushButton#anonymizeButton {
+      color: #FFFFFF;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      padding: 2px 7px;
+      background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                  stop:0 #B24040,
+                                  stop:1 #B24040);
+    }
+    QPushButton#accentButton:hover,
+    QPushButton#migrateButton:hover,
+    QPushButton#anonymizeButton:hover {
+      background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                  stop:0 #B24040,
+                                  stop:1 #B24040);
+    }
+    QPushButton#accentButton:disabled,
+    QPushButton#migrateButton:disabled,
+    QPushButton#anonymizeButton:disabled {
+      background: #CFCFCF;
+      color: #F9FAFB;
+    }
+    QPushButton#secondaryButton {
+      background: #E5E7EB;
+      color: #111827;
+      border: none;
+      border-radius: 8px;
+      padding: 2px 7px;
+      font-weight: 600;
+    }
+    QPushButton#secondaryButton:hover {
+      background: #D1D5DB;
+    }
+
+    QTableWidget#tableWidgetSparkBalances {
+      background: #FFFFFF;
+      border-radius: 10px;
+      border: 1px solid #FFFFFF;
+      gridline-color: #EEF0F2;
+      selection-background-color: ##FFFFFF;
+      selection-color: #111827;
+      alternate-background-color: ##FFFFFF;
+    }
+    QHeaderView::section {
+      background: #F3F4F6;
+      color: #374151;
+      padding: 8px;
+      border: none;
+      border-right: 1px solid #E5E7EB;
+      font-weight: 600;
+    }
+    QTableCornerButton::section { background: #F3F4F6; border: none; }
+    QTableWidget::item { padding: 8px; }
+
+    QListView#listTransactions {
+      background: transparent;
+      border: none;
+      padding: 0;
+    }
+    QCheckBox#checkboxEnabledTor { color: #374151; }
+
+    QWidget#scrollWidgetSparkAssets {
+      background: #FFFFFF;
+      border: none;
+      padding: 0px;
+    }
+
+    QWidget#scrollWidgetSparkAssets QLabel {
+      color: #000000;
+      font-size: 10pt;
+      font-weight: 500;
+      background: transparent;
+      border: none;
+      padding: 2px 0px;
+    }
+
+    QWidget#scrollWidgetSparkAssets QLabel#balance {
+      color: #000000;
+      font-weight: 600;
+      font-size: 10pt;
+    }
+
+    QWidget#scrollWidgetSparkAssets QFrame {
+      background: #FFFFFF;
+      border: none;
+      padding: 4px 0px;
+    }
+
+    QWidget#scrollWidgetSparkAssets QFrame:hover {
+      background: #FFFFFF;
+    }
+    QLabel#labelHeaderAssetID,
+    QLabel#labelHeaderName,
+    QLabel#labelHeaderAvailable {
+      color: #000000;
+      font-size: 9pt;
+      font-weight: 600;
+      background: transparent;
+    }
+    QFrame#sparkCard,
+    QFrame#activityCard {
+        background: #FFFFFF;
+        border-radius: 18px;
+        border: 1px solid #F0F0F0;
+        padding: 8px;
+    }
+
+    QFrame#balancesCard {
+        background: #FFFFFF;
+        border-radius: 15px;
+        border: 1px solidrgb(151, 149, 149);
+        padding: 8px;
+    }
+
+    QFrame#framePrivateAvailable,
+    QFrame#framePrivatePending,
+    QFrame#frameTransparentAvailable,
+    QFrame#frameTransparentPending,
+    QFrame#frameTransparentImmature {
+        background:rgb(144, 146, 150);
+        border-radius: 14px;
+        padding: 4px 10px;
+        border: none;
+    }
+
+    QFrame#framePrivateAvailable QLabel,
+    QFrame#framePrivatePending QLabel,
+    QFrame#frameTransparentAvailable QLabel,
+    QFrame#frameTransparentPending QLabel,
+    QFrame#frameTransparentImmature QLabel {
+        background: transparent;
+        font-size: 10pt;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    QLabel#labelPrivateAvailableTitle,
+    QLabel#labelPrivatePendingTitle,
+    QLabel#labelTransparentAvailableTitle,
+    QLabel#labelTransparentPendingTitle,
+    QLabel#labelTransparentImmatureTitle {
+        font-weight: 500;
+        color: #6B7280;
+    }

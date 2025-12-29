@@ -31,6 +31,8 @@
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
+#include <QGraphicsDropShadowEffect>
+#include <QColor>
 
 #define SEND_CONFIRM_DELAY   3
 
@@ -45,6 +47,11 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
         platformStyle(_platformStyle)
 {
     ui->setupUi(this);
+    ui->scrollArea->setStyleSheet("QScrollArea { background: transparent; border: none; }");
+    ui->scrollArea->viewport()->setStyleSheet("background: transparent;");
+    ui->scrollAreaWidgetContents->setStyleSheet(
+        "QWidget#scrollAreaWidgetContents { background: transparent; border: none; }"
+    );
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->addButton->setIcon(QIcon());
@@ -90,7 +97,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
     ui->frameCoinControl->setAutoFillBackground(true);
-    ui->scrollArea->setAutoFillBackground(true);
+    ui->scrollArea->setAutoFillBackground(false);
     ui->frameFee->setAutoFillBackground(true);
 
     {
@@ -127,7 +134,27 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->customFee->setValue(settings.value("nTransactionFee").toLongLong());
     ui->checkBoxMinimumFee->setChecked(settings.value("fPayOnlyMinFee").toBool());
     minimizeFeeSection(settings.value("fFeeSectionMinimized").toBool());
+
+    addShadow(ui->sendButton);
+    addShadow(ui->clearButton);
+    addShadow(ui->addButton);
+    addShadow(ui->switchFundButton);
+
+    addShadow(ui->frameCoinControl);
+    addShadow(ui->frameFee);
+    addShadow(ui->scrollArea);
+
 }
+
+void SendCoinsDialog::addShadow(QWidget* w)
+{
+    auto *shadow = new QGraphicsDropShadowEffect(this);
+    shadow->setBlurRadius(18);
+    shadow->setOffset(0, 4);
+    shadow->setColor(QColor(0, 0, 0, 60));
+    w->setGraphicsEffect(shadow);
+}
+
 
 void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
 {
@@ -775,7 +802,6 @@ void SendCoinsDialog::removeEntry(SendCoinsEntry* entry)
     // If the last entry is about to be removed add an empty one
     if (ui->entries->count() == 1)
         addEntry();
-
     entry->deleteLater();
 
     updateTabsAndLabels();
