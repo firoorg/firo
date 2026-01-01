@@ -266,6 +266,54 @@ BOOST_AUTO_TEST_CASE(cnetaddr_basic)
     BOOST_CHECK(!addr.SetSpecial("totally bogus"));
 }
 
+BOOST_AUTO_TEST_CASE(cnetaddr_addrv1_compatibility)
+{
+    CNetAddr addr;
+
+    // IPv4 is v1-compatible
+    BOOST_REQUIRE(LookupHost("1.2.3.4", addr, false));
+    BOOST_CHECK(addr.IsAddrV1Compatible());
+
+    // IPv6 is v1-compatible
+    BOOST_REQUIRE(LookupHost("1122:3344:5566:7788:9900:aabb:ccdd:eeff", addr, false));
+    BOOST_CHECK(addr.IsAddrV1Compatible());
+
+    // TORv2 is v1-compatible
+    BOOST_REQUIRE(addr.SetSpecial("6hzph5hv6337r6p2.onion"));
+    BOOST_CHECK(addr.IsAddrV1Compatible());
+
+    // TORv3 is NOT v1-compatible
+    BOOST_REQUIRE(addr.SetSpecial("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"));
+    BOOST_CHECK(!addr.IsAddrV1Compatible());
+
+    // Internal is v1-compatible
+    addr.SetInternal("esffpp");
+    BOOST_CHECK(addr.IsAddrV1Compatible());
+
+    // Note: I2P and CJDNS tests are commented out because Firo doesn't have full I2P/CJDNS support yet
+    // These address types are defined in BIP155 but not yet implemented in Firo
+    // When implementing I2P/CJDNS, uncomment and update these tests:
+    //
+    // // I2P is NOT v1-compatible - parse from v2 serialization
+    // CDataStream s_i2p(SER_NETWORK, PROTOCOL_VERSION | ADDRV2_FORMAT);
+    // s_i2p << ParseHex("05" // network type (I2P)
+    //               "20" // address length
+    //               "a2894dabaec08c0051a481a6dac88b64" // address
+    //               "f98232ae42d4b6fd2fa81952dfe36a87");
+    // s_i2p >> addr;
+    // BOOST_CHECK(addr.IsI2P());
+    // BOOST_CHECK(!addr.IsAddrV1Compatible());
+    //
+    // // CJDNS is NOT v1-compatible
+    // CDataStream s_cjdns(SER_NETWORK, PROTOCOL_VERSION | ADDRV2_FORMAT);
+    // s_cjdns << ParseHex("06" // network type (CJDNS)
+    //               "10" // address length
+    //               "fc000001000200030004000500060007"); // address
+    // s_cjdns >> addr;
+    // BOOST_CHECK(addr.IsCJDNS());
+    // BOOST_CHECK(!addr.IsAddrV1Compatible());
+}
+
 BOOST_AUTO_TEST_CASE(cnetaddr_serialize_v1)
 {
     CNetAddr addr;
