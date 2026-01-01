@@ -1486,6 +1486,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERACK));
 
+        // BIP155: Signal addrv2 support (no message content)
+        connman.PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::SENDADDRV2));
+
         pfrom->nServices = nServices;
         pfrom->SetAddrLocal(addrMe);
         {
@@ -1607,6 +1610,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // nodes)
             connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDHEADERS));
         }
+        // BIP155: Send our SENDADDRV2 message after receiving VERACK
+        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDADDRV2));
+        
         if (pfrom->nVersion >= SHORT_IDS_BLOCKS_VERSION) {
             // Tell our peer we are willing to provide version 1 or 2 cmpctblocks
             // However, we do not request new block announcements using
@@ -1642,6 +1648,97 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 1);
         return false;
+    }
+
+    else if (strCommand == NetMsgType::SENDADDRV2)
+    {
+        // BIP155: Peer supports addrv2 format
+        pfrom->m_wants_addrv2 = true;
+        return true;
+    }
+
+    else if (strCommand == NetMsgType::ADDRV2)
+    {
+        // BIP155: Process ADDRV2 messages (same as ADDR but with addrv2 serialization)
+        std::vector<CAddress> vAddr;
+        vRecv >> vAddr;
+
+        // Don't want addr from older versions unless seeding
+        if (pfrom->nVersion < CADDR_TIME_VERSION && connman.GetAddressCount() > 1000)
+            return true;
+        if (vAddr.size() > 1000)
+        {
+            LOCK(cs_main);
+            Misbehaving(pfrom->GetId(), 20);
+            return error("message addrv2 size() = %u", vAddr.size());
+        }
+
+        // Store the new addresses (same logic as ADDR)
+        std::vector<CAddress> vAddrOk;
+        int64_t nNow = GetAdjustedTime();
+        int64_t nSince = nNow - 10 * 60;
+
+        // track rate limiting within this message
+        uint64_t nProcessedAddrs = 0;
+        uint64_t nRatelimitedAddrs = 0;
+
+        // Update/increment addr rate limiting bucket.
+        const uint64_t nCurrentTime = GetMockableTimeMicros();
+        if (pfrom->nAddrTokenBucket < MAX_ADDR_PROCESSING_TOKEN_BUCKET) {
+          const uint64_t nTimeElapsed = std::max(nCurrentTime - pfrom->nAddrTokenTimestamp, uint64_t(0));
+          const double nIncrement = nTimeElapsed * MAX_ADDR_RATE_PER_SECOND / 1e6;
+          pfrom->nAddrTokenBucket = std::min<double>(pfrom->nAddrTokenBucket + nIncrement, MAX_ADDR_PROCESSING_TOKEN_BUCKET);
+        }
+        pfrom->nAddrTokenTimestamp = nCurrentTime;
+
+        // Randomize entries before processing
+        std::shuffle(vAddr.begin(), vAddr.end(), FastRandomContext());
+
+        BOOST_FOREACH(CAddress& addr, vAddr)
+        {
+            if (interruptMsgProc)
+                return true;
+
+            // apply rate limiting
+            if (!pfrom->fWhitelisted) {
+              if (pfrom->nAddrTokenBucket < 1.0) {
+                nRatelimitedAddrs++;
+                continue;
+              }
+              pfrom->nAddrTokenBucket -= 1.0;
+            }
+
+            nProcessedAddrs++;
+
+            if ((addr.nServices & REQUIRED_SERVICES) != REQUIRED_SERVICES)
+                continue;
+
+            if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
+                addr.nTime = nNow - 5 * 24 * 60 * 60;
+            pfrom->AddAddressKnown(addr);
+            bool fReachable = IsReachable(addr);
+            if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
+            {
+                // Relay to a limited number of other nodes
+                RelayAddress(addr, fReachable, connman);
+            }
+            // Do not store addresses outside our network
+            if (fReachable)
+                vAddrOk.push_back(addr);
+        }
+
+        pfrom->nProcessedAddrs += nProcessedAddrs;
+        pfrom->nRatelimitedAddrs += nRatelimitedAddrs;
+
+        LogPrint("net", "Received addrv2: %u addresses (%u processed, %u rate-limited) peer=%d\n",
+                 vAddr.size(), nProcessedAddrs, nRatelimitedAddrs, pfrom->id);
+
+        connman.AddNewAddresses(vAddrOk, pfrom->addr, 2 * 60 * 60);
+        if (vAddr.size() < 1000)
+            pfrom->fGetAddr = false;
+        if (pfrom->fOneShot)
+            pfrom->fDisconnect = true;
+        return true;
     }
 
     else if (strCommand == NetMsgType::ADDR)
@@ -3274,29 +3371,48 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
         }
 
         //
-        // Message: addr
+        // Message: addr (or addrv2 if peer supports BIP155)
         //
         if (pto->nNextAddrSend < nNow) {
             pto->nNextAddrSend = PoissonNextSend(nNow, AVG_ADDRESS_BROADCAST_INTERVAL);
             std::vector<CAddress> vAddr;
             vAddr.reserve(pto->vAddrToSend.size());
+            
+            // BIP155: Separate v1-compatible and v2-only addresses
+            std::vector<CAddress> vAddrV1;
+            std::vector<CAddress> vAddrV2;
+            
             BOOST_FOREACH(const CAddress& addr, pto->vAddrToSend)
             {
                 if (!pto->addrKnown.contains(addr.GetKey()))
                 {
                     pto->addrKnown.insert(addr.GetKey());
-                    vAddr.push_back(addr);
-                    // receiver rejects addr messages larger than 1000
-                    if (vAddr.size() >= 1000)
-                    {
-                        connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
-                        vAddr.clear();
+                    
+                    // BIP155: Send addrv2-only addresses only to peers that support it
+                    if (pto->m_wants_addrv2 || addr.IsAddrV1Compatible()) {
+                        vAddr.push_back(addr);
+                        
+                        // receiver rejects addr messages larger than 1000
+                        if (vAddr.size() >= 1000)
+                        {
+                            if (pto->m_wants_addrv2) {
+                                connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDRV2, vAddr));
+                            } else {
+                                connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
+                            }
+                            vAddr.clear();
+                        }
                     }
                 }
             }
             pto->vAddrToSend.clear();
-            if (!vAddr.empty())
-                connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
+            if (!vAddr.empty()) {
+                if (pto->m_wants_addrv2) {
+                    connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDRV2, vAddr));
+                } else {
+                    connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
+                }
+            }
             // we only send the big addr message once
             if (pto->vAddrToSend.capacity() > 40)
                 pto->vAddrToSend.shrink_to_fit();

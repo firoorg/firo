@@ -171,6 +171,12 @@ class CNetAddr
         bool IsRoutable() const;
         bool IsInternal() const;
         bool IsValid() const;
+
+        /**
+         * Check if the current object can be serialized in pre-ADDRv2/BIP155 format.
+         */
+        bool IsAddrV1Compatible() const;
+
         enum Network GetNetwork() const;
         std::string ToString() const;
         std::string ToStringIP() const;
@@ -512,12 +518,16 @@ class CService : public CNetAddr
 
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
-            CNetAddr* pthis = this;
-            READWRITE(*pthis);
-            uint16_t portN = htons(port);
-            READWRITE(portN);
-            if (ser_action.ForRead())
+            READWRITE(*(CNetAddr*)this);
+            // Serialize port in big-endian (network byte order)
+            if (ser_action.ForRead()) {
+                uint16_t portN;
+                READWRITE(portN);
                 port = ntohs(portN);
+            } else {
+                uint16_t portN = htons(port);
+                READWRITE(portN);
+            }
         }
 };
 

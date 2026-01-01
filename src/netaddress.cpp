@@ -567,8 +567,33 @@ std::string CNetAddr::ToString() const
     return ToStringIP();
 }
 
+bool CNetAddr::IsAddrV1Compatible() const
+{
+    switch (m_net) {
+    case NET_IPV4:
+    case NET_IPV6:
+    case NET_INTERNAL:
+        return true;
+    case NET_ONION:
+        return m_addr.size() == ADDR_TORV2_SIZE;
+    case NET_I2P:
+    case NET_CJDNS:
+        return false;
+    case NET_UNROUTABLE: // m_net is never and should not be set to NET_UNROUTABLE
+    case NET_MAX:        // m_net is never and should not be set to NET_MAX
+        assert(false);
+    } // no default case, so the compiler can warn about missing cases
+
+    assert(false);
+}
+
 std::vector<uint8_t> CNetAddr::GetAddrBytes() const
 {
+    if (IsAddrV1Compatible()) {
+        uint8_t serialized[V1_SERIALIZATION_SIZE];
+        SerializeV1Array(serialized);
+        return std::vector<uint8_t>(std::begin(serialized), std::end(serialized));
+    }
     return std::vector<uint8_t>(m_addr.begin(), m_addr.end());
 }
 
@@ -969,8 +994,8 @@ CSubNet::CSubNet(const CNetAddr &addr, uint8_t mask)
     // For backward compatibility, compute normalized address in legacy format
     uint8_t ip_legacy[16];
     if (network.IsIPv4()) {
-        memcpy(ip_legacy, IPV4_IN_IPV6_PREFIX.data(), sizeof(IPV4_IN_IPV6_PREFIX));
-        memcpy(ip_legacy + 12, addr_bytes.data(), 4);
+        // addr_bytes is already 16 bytes with IPv4-in-IPv6 format
+        memcpy(ip_legacy, addr_bytes.data(), 16);
     } else if (network.IsIPv6()) {
         memcpy(ip_legacy, addr_bytes.data(), 16);
     } else {
@@ -981,13 +1006,8 @@ CSubNet::CSubNet(const CNetAddr &addr, uint8_t mask)
     for(int x=0; x<16; ++x)
         ip_legacy[x] &= netmask[x];
     
-    // Convert back to proper network type
-    if (network.IsIPv4()) {
-        network.m_net = NET_IPV4;
-        network.m_addr.assign(ip_legacy + 12, ip_legacy + 16);
-    } else if (network.IsIPv6()) {
-        network.SetLegacyIPv6(ip_legacy);
-    }
+    // Convert back to CNetAddr using SetLegacyIPv6
+    network.SetLegacyIPv6(Span<const uint8_t>(ip_legacy, 16));
 }
 
 CSubNet::CSubNet(const CNetAddr &addr, const CNetAddr &mask)
@@ -1003,7 +1023,8 @@ CSubNet::CSubNet(const CNetAddr &addr, const CNetAddr &mask)
     // Convert mask to legacy format for computation
     std::vector<uint8_t> mask_bytes = mask.GetAddrBytes();
     if (mask.IsIPv4()) {
-        memcpy(netmask + 12, mask_bytes.data(), 4);
+        // mask_bytes is 16 bytes with IPv4 at offset 12
+        memcpy(netmask + 12, mask_bytes.data() + 12, 4);
     } else if (mask.IsIPv6()) {
         memcpy(netmask, mask_bytes.data(), 16);
     }
@@ -1031,8 +1052,8 @@ CSubNet::CSubNet(const CNetAddr &addr, const CNetAddr &mask)
     std::vector<uint8_t> addr_bytes = network.GetAddrBytes();
     uint8_t ip_legacy[16];
     if (network.IsIPv4()) {
-        memcpy(ip_legacy, IPV4_IN_IPV6_PREFIX.data(), sizeof(IPV4_IN_IPV6_PREFIX));
-        memcpy(ip_legacy + 12, addr_bytes.data(), 4);
+        // addr_bytes is already 16 bytes with IPv4-in-IPv6 format
+        memcpy(ip_legacy, addr_bytes.data(), 16);
     } else if (network.IsIPv6()) {
         memcpy(ip_legacy, addr_bytes.data(), 16);
     } else {
@@ -1042,13 +1063,8 @@ CSubNet::CSubNet(const CNetAddr &addr, const CNetAddr &mask)
     for(int x=0; x<16; ++x)
         ip_legacy[x] &= netmask[x];
     
-    // Convert back
-    if (network.IsIPv4()) {
-        network.m_net = NET_IPV4;
-        network.m_addr.assign(ip_legacy + 12, ip_legacy + 16);
-    } else if (network.IsIPv6()) {
-        network.SetLegacyIPv6(ip_legacy);
-    }
+    // Convert back to CNetAddr using SetLegacyIPv6
+    network.SetLegacyIPv6(Span<const uint8_t>(ip_legacy, 16));
 }
 
 CSubNet::CSubNet(const CNetAddr &addr):
@@ -1067,27 +1083,27 @@ bool CSubNet::Match(const CNetAddr &addr) const
     std::vector<uint8_t> addr_bytes = addr.GetAddrBytes();
     uint8_t ip_legacy[16];
     if (addr.IsIPv4()) {
-        memcpy(ip_legacy, IPV4_IN_IPV6_PREFIX.data(), sizeof(IPV4_IN_IPV6_PREFIX));
-        memcpy(ip_legacy + 12, addr_bytes.data(), 4);
+        // addr_bytes is already 16 bytes with IPv4-in-IPv6 format
+        memcpy(ip_legacy, addr_bytes.data(), 16);
     } else if (addr.IsIPv6()) {
         memcpy(ip_legacy, addr_bytes.data(), 16);
     } else {
         return false;
     }
     
+    // Get network bytes in legacy format
+    std::vector<uint8_t> net_bytes = network.GetAddrBytes();
+    uint8_t net_legacy[16];
+    if (network.IsIPv4()) {
+        // net_bytes is already 16 bytes with IPv4-in-IPv6 format
+        memcpy(net_legacy, net_bytes.data(), 16);
+    } else if (network.IsIPv6()) {
+        memcpy(net_legacy, net_bytes.data(), 16);
+    } else {
+        return false;
+    }
+    
     for(int x=0; x<16; ++x) {
-        // Get network bytes in legacy format
-        std::vector<uint8_t> net_bytes = network.GetAddrBytes();
-        uint8_t net_legacy[16];
-        if (network.IsIPv4()) {
-            memcpy(net_legacy, IPV4_IN_IPV6_PREFIX.data(), sizeof(IPV4_IN_IPV6_PREFIX));
-            memcpy(net_legacy + 12, net_bytes.data(), 4);
-        } else if (network.IsIPv6()) {
-            memcpy(net_legacy, net_bytes.data(), 16);
-        } else {
-            return false;
-        }
-        
         if ((ip_legacy[x] & netmask[x]) != net_legacy[x])
             return false;
     }
