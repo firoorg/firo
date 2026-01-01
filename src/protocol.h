@@ -87,6 +87,18 @@ extern const char *VERACK;
  */
 extern const char *ADDR;
 /**
+ * The addrv2 message relays connection information for peers on the network just
+ * like the addr message, but is extended to allow gossiping of longer node
+ * addresses (see BIP155).
+ */
+extern const char *ADDRV2;
+/**
+ * The sendaddrv2 message signals support for receiving ADDRV2 messages (BIP155).
+ * It also implies that its sender can encode as ADDRV2 and would send ADDRV2
+ * instead of ADDR to a peer that has signaled ADDRV2 support by sending SENDADDRV2.
+ */
+extern const char *SENDADDRV2;
+/**
  * The inv message (inventory message) transmits one or more inventories of
  * objects known to the transmitting peer.
  * @see https://bitcoin.org/en/developer-reference#inv
@@ -307,7 +319,8 @@ class CAddress : public CService
 {
 public:
     CAddress();
-    explicit CAddress(CService ipIn, ServiceFlags nServicesIn);
+    CAddress(CService ipIn, ServiceFlags nServicesIn);
+    CAddress(CService ipIn, ServiceFlags nServicesIn, unsigned int nTimeIn);
 
     void Init();
 
@@ -324,9 +337,24 @@ public:
         if ((s.GetType() & SER_DISK) ||
             (nVersion >= CADDR_TIME_VERSION && !(s.GetType() & SER_GETHASH)))
             READWRITE(nTime);
-        uint64_t nServicesInt = nServices;
-        READWRITE(nServicesInt);
-        nServices = (ServiceFlags)nServicesInt;
+        
+        if (nVersion & ADDRV2_FORMAT) {
+            // ADDRv2 format (BIP155) - use CompactSize for services
+            // Note: range_check=false because service flags are a bitmask, not a size
+            if (ser_action.ForRead()) {
+                uint64_t nServicesInt;
+                READWRITE(COMPACTSIZE_NO_RANGECHECK(nServicesInt));
+                nServices = (ServiceFlags)nServicesInt;
+            } else {
+                uint64_t nServicesInt = nServices;
+                READWRITE(COMPACTSIZE_NO_RANGECHECK(nServicesInt));
+            }
+        } else {
+            // ADDRv1 format - fixed 8 bytes for services
+            uint64_t nServicesInt = nServices;
+            READWRITE(nServicesInt);
+            nServices = (ServiceFlags)nServicesInt;
+        }
         READWRITE(*(CService*)this);
     }
 
