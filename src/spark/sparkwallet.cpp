@@ -276,7 +276,7 @@ std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() {
 
 spark::Address CSparkWallet::getAddress(const int32_t& i) {
     if (lastDiversifier < i || addresses.count(i) == 0)
-        return spark::Address(viewKey, lastDiversifier);
+        return spark::Address(viewKey, i);
 
     return addresses[i];
 }
