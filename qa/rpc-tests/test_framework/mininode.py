@@ -264,12 +264,21 @@ class CService(object):
 # Objects that map to bitcoind objects, which can be serialized/deserialized
 
 class CAddress(object):
+    # BIP155 network type constants
+    NET_IPV4 = 1
+    NET_IPV6 = 2
+    NET_TORV2 = 3
+    NET_TORV3 = 4
+    NET_I2P = 5
+    NET_CJDNS = 6
+
     def __init__(self):
         self.time = 0;
         self.nServices = 1
         self.pchReserved = b"\x00" * 10 + b"\xff" * 2
         self.ip = "0.0.0.0"
         self.port = 0
+        self.net = self.NET_IPV4  # Default to IPv4
 
     def deserialize(self, f, *, with_time = True):
         if with_time:
@@ -287,6 +296,64 @@ class CAddress(object):
         r += struct.pack("<Q", self.nServices)
         r += self.pchReserved
         r += socket.inet_aton(self.ip)
+        r += struct.pack(">H", self.port)
+        return r
+
+    def deserialize_v2(self, f):
+        """Deserialize from addrv2 format (BIP155)"""
+        self.time = struct.unpack("<I", f.read(4))[0]
+        self.nServices = deser_compact_size(f)
+        self.net = struct.unpack("B", f.read(1))[0]
+        addrlen = deser_compact_size(f)
+        addr = f.read(addrlen)
+        self.port = struct.unpack(">H", f.read(2))[0]
+        
+        if self.net == self.NET_IPV4:
+            assert addrlen == 4
+            self.ip = socket.inet_ntoa(addr)
+            self.pchReserved = b"\x00" * 10 + b"\xff" * 2
+        elif self.net == self.NET_IPV6:
+            assert addrlen == 16
+            self.ip = socket.inet_ntop(socket.AF_INET6, addr)
+        elif self.net == self.NET_TORV2:
+            assert addrlen == 10
+            self.ip = "torv2:" + addr.hex()
+        elif self.net == self.NET_TORV3:
+            assert addrlen == 32
+            self.ip = "torv3:" + addr.hex()
+        elif self.net == self.NET_I2P:
+            assert addrlen == 32
+            self.ip = "i2p:" + addr.hex()
+        elif self.net == self.NET_CJDNS:
+            assert addrlen == 16
+            self.ip = socket.inet_ntop(socket.AF_INET6, addr)
+        else:
+            self.ip = "unknown:" + addr.hex()
+
+    def serialize_v2(self):
+        """Serialize in addrv2 format (BIP155)"""
+        r = b""
+        r += struct.pack("<I", self.time)
+        r += ser_compact_size(self.nServices)
+        r += struct.pack("B", self.net)
+        
+        if self.net == self.NET_IPV4:
+            addr = socket.inet_aton(self.ip)
+        elif self.net == self.NET_IPV6:
+            addr = socket.inet_pton(socket.AF_INET6, self.ip)
+        elif self.net == self.NET_TORV2:
+            addr = bytes.fromhex(self.ip.split(":")[1])
+        elif self.net == self.NET_TORV3:
+            addr = bytes.fromhex(self.ip.split(":")[1])
+        elif self.net == self.NET_I2P:
+            addr = bytes.fromhex(self.ip.split(":")[1])
+        elif self.net == self.NET_CJDNS:
+            addr = socket.inet_pton(socket.AF_INET6, self.ip)
+        else:
+            addr = bytes.fromhex(self.ip.split(":")[1])
+        
+        r += ser_compact_size(len(addr))
+        r += addr
         r += struct.pack(">H", self.port)
         return r
 
@@ -1271,6 +1338,46 @@ class msg_addr(object):
         return "msg_addr(addrs=%s)" % (repr(self.addrs))
 
 
+class msg_sendaddrv2(object):
+    command = b"sendaddrv2"
+
+    def __init__(self):
+        pass
+
+    def deserialize(self, f):
+        pass
+
+    def serialize(self):
+        return b""
+
+    def __repr__(self):
+        return "msg_sendaddrv2()"
+
+
+class msg_addrv2(object):
+    command = b"addrv2"
+
+    def __init__(self):
+        self.addrs = []
+
+    def deserialize(self, f):
+        self.addrs = []
+        num_addrs = deser_compact_size(f)
+        for i in range(num_addrs):
+            addr = CAddress()
+            addr.deserialize_v2(f)
+            self.addrs.append(addr)
+
+    def serialize(self):
+        r = ser_compact_size(len(self.addrs))
+        for addr in self.addrs:
+            r += addr.serialize_v2()
+        return r
+
+    def __repr__(self):
+        return "msg_addrv2(addrs=%s)" % (repr(self.addrs))
+
+
 class msg_alert(object):
     command = b"alert"
 
@@ -1288,6 +1395,26 @@ class msg_alert(object):
 
     def __repr__(self):
         return "msg_alert(alert=%s)" % (repr(self.alert), )
+
+
+class msg_unrecognized(object):
+    """Message class for testing unrecognized/invalid messages"""
+    def __init__(self):
+        self.msgtype = b"unknown"
+        self.data = b""
+
+    @property
+    def command(self):
+        return self.msgtype
+
+    def deserialize(self, f):
+        pass
+
+    def serialize(self):
+        return self.data
+
+    def __repr__(self):
+        return "msg_unrecognized(msgtype=%s)" % self.msgtype
 
 
 class msg_inv(object):
@@ -1870,6 +1997,10 @@ class NodeConnCB(object):
             conn.send_message(want)
 
     def on_addr(self, conn, message): pass
+    def on_sendaddrv2(self, conn, message): 
+        self.last_sendaddrv2 = message
+    def on_addrv2(self, conn, message): 
+        self.last_addrv2 = message
     def on_alert(self, conn, message): pass
     def on_getdata(self, conn, message): pass
     def on_getblocks(self, conn, message): pass
@@ -1943,6 +2074,8 @@ class NodeConn(asyncore.dispatcher):
         b"version": msg_version,
         b"verack": msg_verack,
         b"addr": msg_addr,
+        b"addrv2": msg_addrv2,
+        b"sendaddrv2": msg_sendaddrv2,
         b"alert": msg_alert,
         b"inv": msg_inv,
         b"getdata": msg_getdata,
