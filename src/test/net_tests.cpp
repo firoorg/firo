@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(cnetaddr_basic)
     BOOST_REQUIRE(addr.IsIPv6());
 
     BOOST_CHECK(addr.IsBindAny());
-    BOOST_CHECK_EQUAL(addr.ToString(), "0:0:0:0:0:0:0:0"); // Firo outputs full format, not compressed
+    BOOST_CHECK_EQUAL(addr.ToString(), "::"); // RFC 5952 compressed format (BIP155)
 
     // IPv6, casual
     BOOST_REQUIRE(LookupHost("1122:3344:5566:7788:9900:aabb:ccdd:eeff", addr, false));
