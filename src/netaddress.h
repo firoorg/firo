@@ -379,7 +379,8 @@ class CNetAddr
                 // but in ADDRv2 we use addr.m_net to signify the network. Therefore,
                 // internally we need to map addr.m_net to BIP155's representation for IPv6.
                 s << static_cast<uint8_t>(BIP155Network::IPV6);
-                s << COMPACTSIZE(ADDR_IPV6_SIZE);
+                uint64_t addr_size = ADDR_IPV6_SIZE;
+                s << COMPACTSIZE(addr_size);
                 uint8_t serialized[V1_SERIALIZATION_SIZE];
                 SerializeV1Array(serialized);
                 s << serialized;
@@ -399,7 +400,7 @@ class CNetAddr
             uint8_t bip155_net;
             s >> bip155_net;
 
-            size_t address_size;
+            uint64_t address_size;
             s >> COMPACTSIZE(address_size);
 
             if (address_size > MAX_ADDRV2_SIZE) {
