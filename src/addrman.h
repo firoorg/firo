@@ -468,17 +468,17 @@ public:
         // Store positions in the new table buckets to apply later (if possible).
         // An entry may appear in up to ADDRMAN_NEW_BUCKETS_PER_ADDRESS buckets,
         // so we store all bucket-entry_index pairs to iterate through later.
-        std::map<int, int> entryToBucket;
+        std::map<int, std::vector<int>> entryToBuckets;
         for (int bucket = 0; bucket < nUBuckets; bucket++) {
-            int nSize = 0;
-            s >> nSize;
-            for (int n = 0; n < nSize; n++) {
-                int nIndex = 0;
-                s >> nIndex;
-                if (nIndex >= 0 && nIndex < nNew) {
-                    entryToBucket[nIndex] = bucket;
-                }
+          int nSize = 0;
+          s >> nSize;
+          for (int i = 0; i < nSize; i++) {
+            int nIndex = 0;
+            s >> nIndex;
+            if (nIndex >= 0 && nIndex < nNew) {
+              entryToBuckets[nIndex].push_back(bucket); // Store ALL buckets
             }
+          }
         }
 
         // If the bucket count and asmap checksum haven't changed, then attempt
@@ -493,27 +493,37 @@ public:
             s >> serialized_asmap_version;
         }
 
+        // Iterate through addresses to restore
         for (int n = 0; n < nNew; n++) {
-            CAddrInfo &info = mapInfo[n];
-            int bucket = entryToBucket[n];
+          CAddrInfo &info = mapInfo[n];
+
+          // Check if we have buckets for this address
+          if (entryToBuckets.count(n) == 0) continue;
+
+          const std::vector<int>& buckets = entryToBuckets[n];
+
+          // Iterate through ALL buckets this address belongs to
+          LogPrint("addrman", "Updating bucketing, re-bucketing addrman entries from disk\n");
+          for (int bucket : buckets) {
             int nUBucketPos = info.GetBucketPosition(nKey, true, bucket);
+
             if (format >= Format::V2_ASMAP && nUBuckets == ADDRMAN_NEW_BUCKET_COUNT &&
                 vvNew[bucket][nUBucketPos] == -1 && info.nRefCount < ADDRMAN_NEW_BUCKETS_PER_ADDRESS &&
                 serialized_asmap_version == supplied_asmap_version) {
-                // Bucketing has not changed, using existing bucket positions for the new table
+
+              vvNew[bucket][nUBucketPos] = n;
+              info.nRefCount++;
+            } else {
+              // In case the new table data cannot be used (format unknown, bucket count wrong or new asmap),
+              // try to give them a reference based on their primary source address.
+              bucket = info.GetNewBucket(nKey);
+              nUBucketPos = info.GetBucketPosition(nKey, true, bucket);
+              if (vvNew[bucket][nUBucketPos] == -1) {
                 vvNew[bucket][nUBucketPos] = n;
                 info.nRefCount++;
-            } else {
-                // In case the new table data cannot be used (format unknown, bucket count wrong or new asmap),
-                // try to give them a reference based on their primary source address.
-                LogPrint("addrman", "Bucketing method was updated, re-bucketing addrman entries from disk\\n");
-                bucket = info.GetNewBucket(nKey);
-                nUBucketPos = info.GetBucketPosition(nKey, true, bucket);
-                if (vvNew[bucket][nUBucketPos] == -1) {
-                    vvNew[bucket][nUBucketPos] = n;
-                    info.nRefCount++;
-                }
+              }
             }
+          }
         }
 
         // Prune new entries with refcount 0 (as a result of collisions).

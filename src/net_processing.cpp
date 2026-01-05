@@ -1610,8 +1610,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // nodes)
             connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDHEADERS));
         }
-        // BIP155: Send our SENDADDRV2 message after receiving VERACK
-        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDADDRV2));
         
         if (pfrom->nVersion >= SHORT_IDS_BLOCKS_VERSION) {
             // Tell our peer we are willing to provide version 1 or 2 cmpctblocks
@@ -1661,7 +1659,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     {
         // BIP155: Process ADDRV2 messages (same as ADDR but with addrv2 serialization)
         std::vector<CAddress> vAddr;
-        vRecv >> vAddr;
+        // Use OverrideStream to set the ADDRV2_FORMAT flag
+        OverrideStream<CDataStream> s(&vRecv, vRecv.GetType(), vRecv.GetVersion() | ADDRV2_FORMAT);
+        s >> vAddr;
 
         // Don't want addr from older versions unless seeding
         if (pfrom->nVersion < CADDR_TIME_VERSION && connman.GetAddressCount() > 1000)
@@ -3396,7 +3396,7 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                         if (vAddr.size() >= 1000)
                         {
                             if (pto->m_wants_addrv2) {
-                                connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDRV2, vAddr));
+                                connman.PushMessage(pto, msgMaker.Make(ADDRV2_FORMAT, NetMsgType::ADDRV2, vAddr));
                             } else {
                                 connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
                             }
@@ -3408,7 +3408,7 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
             pto->vAddrToSend.clear();
             if (!vAddr.empty()) {
                 if (pto->m_wants_addrv2) {
-                    connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDRV2, vAddr));
+                    connman.PushMessage(pto, msgMaker.Make(ADDRV2_FORMAT, NetMsgType::ADDRV2, vAddr));
                 } else {
                     connman.PushMessage(pto, msgMaker.Make(NetMsgType::ADDR, vAddr));
                 }
