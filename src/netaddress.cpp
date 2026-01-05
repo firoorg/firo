@@ -509,18 +509,55 @@ bool CNetAddr::SetNetFromBIP155Network(uint8_t possible_bip155_net, size_t addre
     return false;
 }
 
+// Return an IPv6 address text representation with zero compression as described in RFC 5952
+// ("A Recommendation for IPv6 Address Text Representation").
 static std::string IPv6ToString(Span<const uint8_t> a)
 {
     assert(a.size() == ADDR_IPV6_SIZE);
-    return strprintf("%x:%x:%x:%x:%x:%x:%x:%x",
-                     ReadBE16(&a[0]),
-                     ReadBE16(&a[2]),
-                     ReadBE16(&a[4]),
-                     ReadBE16(&a[6]),
-                     ReadBE16(&a[8]),
-                     ReadBE16(&a[10]),
-                     ReadBE16(&a[12]),
-                     ReadBE16(&a[14]));
+    const std::array<uint16_t, 8> groups{
+        ReadBE16(&a[0]),
+        ReadBE16(&a[2]),
+        ReadBE16(&a[4]),
+        ReadBE16(&a[6]),
+        ReadBE16(&a[8]),
+        ReadBE16(&a[10]),
+        ReadBE16(&a[12]),
+        ReadBE16(&a[14]),
+    };
+
+    struct ZeroSpan {
+        size_t start_index{0};
+        size_t len{0};
+    };
+
+    // Find longest sequence of consecutive all-zero fields. Use first zero sequence if two or more
+    // zero sequences of equal length are found.
+    ZeroSpan longest, current;
+    for (size_t i{0}; i < groups.size(); ++i) {
+        if (groups[i] != 0) {
+            current = {i + 1, 0};
+            continue;
+        }
+        current.len += 1;
+        if (current.len > longest.len) {
+            longest = current;
+        }
+    }
+
+    std::string r;
+    r.reserve(39);
+    for (size_t i{0}; i < groups.size(); ++i) {
+        // Replace the longest sequence of consecutive all-zero fields with two colons ("::").
+        if (longest.len >= 2 && i >= longest.start_index && i < longest.start_index + longest.len) {
+            if (i == longest.start_index) {
+                r += "::";
+            }
+            continue;
+        }
+        r += strprintf("%s%x", ((!r.empty() && r.back() != ':') ? ":" : ""), groups[i]);
+    }
+
+    return r;
 }
 
 std::string CNetAddr::ToStringIP() const

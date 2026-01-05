@@ -102,10 +102,10 @@ BOOST_AUTO_TEST_CASE(netbase_lookupnumeric)
     BOOST_CHECK(TestParse("127.0.0.1", "127.0.0.1:65535"));
     BOOST_CHECK(TestParse("127.0.0.1:8333", "127.0.0.1:8333"));
     BOOST_CHECK(TestParse("::ffff:127.0.0.1", "127.0.0.1:65535"));
-    BOOST_CHECK(TestParse("::", "[0:0:0:0:0:0:0:0]:65535"));
-    BOOST_CHECK(TestParse("[::]:8333", "[0:0:0:0:0:0:0:0]:8333"));
+    BOOST_CHECK(TestParse("::", "[::]:65535"));
+    BOOST_CHECK(TestParse("[::]:8333", "[::]:8333"));
     BOOST_CHECK(TestParse("[127.0.0.1]", "127.0.0.1:65535"));
-    BOOST_CHECK(TestParse(":::", "[0:0:0:0:0:0:0:0]:0"));
+    BOOST_CHECK(TestParse(":::", "[::]:0"));
 }
 
 BOOST_AUTO_TEST_CASE(onioncat_test)
@@ -264,9 +264,9 @@ BOOST_AUTO_TEST_CASE(subnet_test)
     subnet = ResolveSubNet("1:2:3:4:5:6:7:8/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff");
     BOOST_CHECK_EQUAL(subnet.ToString(), "1:2:3:4:5:6:7:8/128");
     subnet = ResolveSubNet("1:2:3:4:5:6:7:8/ffff:0000:0000:0000:0000:0000:0000:0000");
-    BOOST_CHECK_EQUAL(subnet.ToString(), "1:0:0:0:0:0:0:0/16");
+    BOOST_CHECK_EQUAL(subnet.ToString(), "1::/16");
     subnet = ResolveSubNet("1:2:3:4:5:6:7:8/0000:0000:0000:0000:0000:0000:0000:0000");
-    BOOST_CHECK_EQUAL(subnet.ToString(), "0:0:0:0:0:0:0:0/0");
+    BOOST_CHECK_EQUAL(subnet.ToString(), "::/0");
     // Invalid netmasks (with 1-bits after 0-bits)
     subnet = ResolveSubNet("1.2.3.4/255.255.232.0");
     BOOST_CHECK(!subnet.IsValid());
