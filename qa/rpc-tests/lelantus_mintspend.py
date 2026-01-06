@@ -23,11 +23,12 @@ class LelantusMintSpendTest(BitcoinTestFramework):
         mint_trans.append(self.nodes[0].mintlelantus(1))
         mint_trans.append(self.nodes[0].mintlelantus(2))
 
-        # Get last added transaction and fee for it
-        info = self.nodes[0].gettransaction(mint_trans[-1][0])
+        # Get fees from both transactions (they may differ)
+        info1 = self.nodes[0].gettransaction(mint_trans[0][0])
+        info2 = self.nodes[0].gettransaction(mint_trans[1][0])
 
-        # fee in transaction is negative
-        fee = -(info['fee'] * 2)
+        # fee in transaction is negative, sum both actual fees
+        fee = -(info1['fee'] + info2['fee'])
         cur_bal = self.nodes[0].getbalance()
         start_bal = float(start_bal) - float(fee) - 3
         start_bal = Decimal(format(start_bal, '.8f'))
