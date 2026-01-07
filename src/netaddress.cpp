@@ -19,11 +19,15 @@ void CNetAddr::Init()
 {
     memset(ip, 0, sizeof(ip));
     scopeId = 0;
+    memset(m_addr_torv3, 0, sizeof(m_addr_torv3));
+    m_is_tor_v3 = false;
 }
 
 void CNetAddr::SetIP(const CNetAddr& ipIn)
 {
     memcpy(ip, ipIn.ip, sizeof(ip));
+    memcpy(m_addr_torv3, ipIn.m_addr_torv3, sizeof(m_addr_torv3));
+    m_is_tor_v3 = ipIn.m_is_tor_v3;
 }
 
 void CNetAddr::SetRaw(Network network, const uint8_t *ip_in)
@@ -46,12 +50,29 @@ bool CNetAddr::SetSpecial(const std::string &strName)
 {
     if (strName.size()>6 && strName.substr(strName.size() - 6, 6) == ".onion") {
         std::vector<unsigned char> vchAddr = DecodeBase32(strName.substr(0, strName.size() - 6).c_str());
-        if (vchAddr.size() != 16-sizeof(pchOnionCat))
-            return false;
-        memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
-        for (unsigned int i=0; i<16-sizeof(pchOnionCat); i++)
-            ip[i + sizeof(pchOnionCat)] = vchAddr[i];
-        return true;
+
+        // Tor v3 addresses are 35 bytes (decoded from 56 base32 characters)
+        if (vchAddr.size() == ADDR_TORV3_SIZE) {
+            // Verify version byte is 0x03
+            if (vchAddr[ADDR_TORV3_SIZE - 1] != 0x03) {
+                return false;
+            }
+            m_is_tor_v3 = true;
+            memcpy(m_addr_torv3, vchAddr.data(), ADDR_TORV3_SIZE);
+            // Also set the OnionCat prefix in ip[] for IsTor() compatibility
+            memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
+            memset(ip + sizeof(pchOnionCat), 0, 16 - sizeof(pchOnionCat));
+            return true;
+        }
+        // Tor v2 addresses are 10 bytes (decoded from 16 base32 characters) - deprecated
+        if (vchAddr.size() == 16-sizeof(pchOnionCat)) {
+            m_is_tor_v3 = false;
+            memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
+            for (unsigned int i=0; i<16-sizeof(pchOnionCat); i++)
+                ip[i + sizeof(pchOnionCat)] = vchAddr[i];
+            return true;
+        }
+        return false;
     }
     return false;
 }
@@ -63,11 +84,13 @@ CNetAddr::CNetAddr()
 
 CNetAddr::CNetAddr(const struct in_addr& ipv4Addr)
 {
+    Init();
     SetRaw(NET_IPV4, (const uint8_t*)&ipv4Addr);
 }
 
 CNetAddr::CNetAddr(const struct in6_addr& ipv6Addr, const uint32_t scope)
 {
+    Init();
     SetRaw(NET_IPV6, (const uint8_t*)&ipv6Addr);
     scopeId = scope;
 }
@@ -242,8 +265,14 @@ enum Network CNetAddr::GetNetwork() const
 
 std::string CNetAddr::ToStringIP(bool fUseGetnameinfo) const
 {
-    if (IsTor())
+    if (IsTor()) {
+        if (m_is_tor_v3) {
+            // Tor v3: encode 35 bytes to 56 base32 characters
+            return EncodeBase32(m_addr_torv3, ADDR_TORV3_SIZE) + ".onion";
+        }
+        // Tor v2 (deprecated): encode 10 bytes to 16 base32 characters
         return EncodeBase32(&ip[6], 10) + ".onion";
+    }
     if (fUseGetnameinfo)
     {
         CService serv(*this, 0);
@@ -272,16 +301,32 @@ std::string CNetAddr::ToString() const
 
 bool operator==(const CNetAddr& a, const CNetAddr& b)
 {
+    // If both are Tor v3, compare v3 addresses
+    if (a.m_is_tor_v3 && b.m_is_tor_v3) {
+        return (memcmp(a.m_addr_torv3, b.m_addr_torv3, ADDR_TORV3_SIZE) == 0);
+    }
+    // If one is v3 and the other is not, they're not equal
+    if (a.m_is_tor_v3 != b.m_is_tor_v3) {
+        return false;
+    }
     return (memcmp(a.ip, b.ip, 16) == 0);
 }
 
 bool operator!=(const CNetAddr& a, const CNetAddr& b)
 {
-    return (memcmp(a.ip, b.ip, 16) != 0);
+    return !(a == b);
 }
 
 bool operator<(const CNetAddr& a, const CNetAddr& b)
 {
+    // v3 addresses sort after v2/IPv4/IPv6
+    if (a.m_is_tor_v3 != b.m_is_tor_v3) {
+        return b.m_is_tor_v3; // a < b if a is not v3 but b is v3
+    }
+    // If both are Tor v3, compare v3 addresses
+    if (a.m_is_tor_v3 && b.m_is_tor_v3) {
+        return (memcmp(a.m_addr_torv3, b.m_addr_torv3, ADDR_TORV3_SIZE) < 0);
+    }
     return (memcmp(a.ip, b.ip, 16) < 0);
 }
 
@@ -345,6 +390,13 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
     else if (IsTor())
     {
         nClass = NET_TOR;
+        if (m_is_tor_v3) {
+            // For Tor v3, use first 4 bits of the ed25519 public key for grouping
+            vchRet.push_back(nClass);
+            vchRet.push_back(m_addr_torv3[0] | 0x0F); // Use first 4 bits
+            return vchRet;
+        }
+        // Tor v2 (deprecated)
         nStartByte = 6;
         nBits = 4;
     }
@@ -370,7 +422,13 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
 
 uint64_t CNetAddr::GetHash() const
 {
-    uint256 hash = Hash(&ip[0], &ip[16]);
+    uint256 hash;
+    if (m_is_tor_v3) {
+        // For Tor v3, hash the full v3 address data
+        hash = Hash(&m_addr_torv3[0], &m_addr_torv3[ADDR_TORV3_SIZE]);
+    } else {
+        hash = Hash(&ip[0], &ip[16]);
+    }
     uint64_t nRet;
     memcpy(&nRet, &hash, sizeof(nRet));
     return nRet;
@@ -547,10 +605,18 @@ bool CService::GetSockAddr(struct sockaddr* paddr, socklen_t *addrlen) const
 std::vector<unsigned char> CService::GetKey() const
 {
      std::vector<unsigned char> vKey;
-     vKey.resize(18);
-     memcpy(&vKey[0], ip, 16);
-     vKey[16] = port / 0x100;
-     vKey[17] = port & 0x0FF;
+     if (m_is_tor_v3) {
+         // For Tor v3: include full v3 address + port
+         vKey.resize(ADDR_TORV3_SIZE + 2);
+         memcpy(&vKey[0], m_addr_torv3, ADDR_TORV3_SIZE);
+         vKey[ADDR_TORV3_SIZE] = port / 0x100;
+         vKey[ADDR_TORV3_SIZE + 1] = port & 0x0FF;
+     } else {
+         vKey.resize(18);
+         memcpy(&vKey[0], ip, 16);
+         vKey[16] = port / 0x100;
+         vKey[17] = port & 0x0FF;
+     }
      return vKey;
 }
 

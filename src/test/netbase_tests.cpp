@@ -110,6 +110,7 @@ BOOST_AUTO_TEST_CASE(onioncat_test)
 {
 
     // values from https://web.archive.org/web/20121122003543/http://www.cypherpunk.at/onioncat/wiki/OnionCat
+    // Note: Tor v2 addresses are deprecated but we still support parsing them for compatibility
     CNetAddr addr1(ResolveIP("5wyqrzbvrdsumnok.onion"));
     CNetAddr addr2(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca"));
     BOOST_CHECK(addr1 == addr2);
@@ -117,6 +118,34 @@ BOOST_AUTO_TEST_CASE(onioncat_test)
     BOOST_CHECK(addr1.ToStringIP() == "5wyqrzbvrdsumnok.onion");
     BOOST_CHECK(addr1.IsRoutable());
 
+}
+
+BOOST_AUTO_TEST_CASE(torv3_test)
+{
+    // Test Tor v3 onion addresses (56 base32 characters)
+    // This is a test v3 address (not a real service)
+    // Format: 32 bytes pubkey + 2 bytes checksum + 1 byte version (0x03)
+
+    // Using a well-known v3 address format for testing
+    // pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd is a valid v3 format
+    CNetAddr addr_v3(ResolveIP("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"));
+    BOOST_CHECK(addr_v3.IsTor());
+    BOOST_CHECK(addr_v3.IsRoutable());
+    BOOST_CHECK(addr_v3.IsValid());
+    // Check that the address round-trips correctly
+    BOOST_CHECK(addr_v3.ToStringIP() == "pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion");
+
+    // Test that v3 and v2 addresses are different types
+    CNetAddr addr_v2(ResolveIP("5wyqrzbvrdsumnok.onion"));
+    BOOST_CHECK(addr_v3 != addr_v2);
+
+    // Test GetNetwork returns NET_TOR for both
+    BOOST_CHECK(addr_v3.GetNetwork() == NET_TOR);
+    BOOST_CHECK(addr_v2.GetNetwork() == NET_TOR);
+
+    // Test that two identical v3 addresses are equal
+    CNetAddr addr_v3_copy(ResolveIP("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion"));
+    BOOST_CHECK(addr_v3 == addr_v3_copy);
 }
 
 BOOST_AUTO_TEST_CASE(subnet_test)

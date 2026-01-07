@@ -1,7 +1,11 @@
-TOR SUPPORT IN BITCOIN
-======================
+TOR SUPPORT IN FIRO
+===================
 
-It is possible to run Bitcoin as a Tor hidden service, and connect to such services.
+It is possible to run Firo as a Tor hidden service, and connect to such services.
+
+Firo supports Tor v3 onion addresses (56 characters), which provide improved security
+over the deprecated v2 addresses (16 characters). When automatically creating hidden
+services, Firo will generate v3 addresses using ED25519-V3 keys.
 
 The following directions assume you have a Tor proxy running on port 9050. Many distributions default to having a SOCKS proxy listening on port 9050, but others may not. In particular, the Tor Browser Bundle defaults to listening on port 9150. See [Tor Project FAQ:TBBSocksPort](https://www.torproject.org/docs/faq.html.en#TBBSocksPort) for how to properly
 configure Tor.
@@ -68,9 +72,9 @@ your bitcoind's P2P listen port (8333 by default).
 
 In a typical situation, where you're only reachable via Tor, this should suffice:
 
-	./bitcoind -proxy=127.0.0.1:9050 -externalip=57qr3yd1nyntf5k.onion -listen
+	./firod -proxy=127.0.0.1:9050 -externalip=youronionaddresshere.onion -listen
 
-(obviously, replace the Onion address with your own). It should be noted that you still
+(obviously, replace the onion address with your own v3 address). It should be noted that you still
 listen on all devices and another node could establish a clearnet connection, when knowing
 your address. To mitigate this, additionally bind the address of your Tor proxy:
 
@@ -86,23 +90,27 @@ and open port 8333 on your firewall (or use -upnp).
 If you only want to use Tor to reach onion addresses, but not use it as a proxy
 for normal IPv4/IPv6 communication, use:
 
-	./bitcoin -onion=127.0.0.1:9050 -externalip=57qr3yd1nyntf5k.onion -discover
+	./firo-qt -onion=127.0.0.1:9050 -externalip=youronionaddresshere.onion -discover
 
 3. Automatically listen on Tor
 --------------------------------
 
 Starting with Tor version 0.2.7.1 it is possible, through Tor's control socket
 API, to create and destroy 'ephemeral' hidden services programmatically.
-Bitcoin Core has been updated to make use of this.
+Firo has been updated to make use of this feature with Tor v3 addresses.
 
 This means that if Tor is running (and proper authentication has been configured),
-Bitcoin Core automatically creates a hidden service to listen on. This will positively 
+Firo automatically creates a v3 hidden service to listen on. This will positively 
 affect the number of available .onion nodes.
 
-This new feature is enabled by default if Bitcoin Core is listening (`-listen`), and
+This new feature is enabled by default if Firo is listening (`-listen`), and
 requires a Tor connection to work. It can be explicitly disabled with `-listenonion=0`
 and, if not disabled, configured using the `-torcontrol` and `-torpassword` settings.
 To show verbose debugging information, pass `-debug=tor`.
+
+Note: Firo generates ED25519-V3 keys for v3 onion addresses. The private key is stored
+in `onion_v3_private_key` in your data directory. If you have an old v2 private key in
+`onion_private_key`, it will not be used as v2 addresses are deprecated.
 
 Connecting to Tor's control socket API requires one of two authentication methods to be 
 configured. For cookie authentication the user running bitcoind must have write access 
