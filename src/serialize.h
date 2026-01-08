@@ -28,8 +28,11 @@
 #include "definition.h"
 #include <boost/optional.hpp>
 
-
-static const unsigned int MAX_SIZE = 0x02000000;
+/**
+ * The maximum size of a serialized object in bytes or number of elements
+ * (for eg vectors) when the size is encoded as CompactSize.
+ */
+static constexpr uint64_t MAX_SIZE = 0x02000000;
 
 /**
  * Dummy data type to identify deserializing constructors.
@@ -124,6 +127,12 @@ template<typename Stream> inline void ser_writedata64(Stream &s, uint64_t obj)
     s.write((char*)&obj, 8);
 }
 
+template<typename Stream> inline void ser_writedata16be(Stream &s, uint16_t obj)
+{
+    obj = htobe16(obj);
+    s.write((char*)&obj, 2);
+}
+
 template<typename Stream> inline void ser_writedata32be(Stream &s, uint32_t obj)
 {
     obj = htobe32(obj);
@@ -154,6 +163,13 @@ template<typename Stream> inline uint64_t ser_readdata64(Stream &s)
     s.read((char*)&obj, 8);
     return le64toh(obj);
 }
+template<typename Stream> inline uint16_t ser_readdata16be(Stream &s)
+{
+    uint16_t obj;
+    s.read((char*)&obj, 2);
+    return be16toh(obj);
+}
+
 template<typename Stream> inline uint32_t ser_readdata32be(Stream &s)
 {
     uint32_t obj;
@@ -314,7 +330,7 @@ void WriteCompactSize(Stream& os, uint64_t nSize)
 }
 
 template<typename Stream>
-uint64_t ReadCompactSize(Stream& is)
+uint64_t ReadCompactSize(Stream& is, bool range_check = true)
 {
     uint8_t chSize = ser_readdata8(is);
     uint64_t nSizeRet = 0;
@@ -340,7 +356,8 @@ uint64_t ReadCompactSize(Stream& is)
         if (nSizeRet < 0x100000000ULL)
             throw std::ios_base::failure("non-canonical ReadCompactSize()");
     }
-    if (nSizeRet > (uint64_t)MAX_SIZE)
+    // range_check=false allows reading numbers > MAX_SIZE (e.g., BIP155 address lengths)
+    if (range_check && nSizeRet > (uint64_t)MAX_SIZE)
         throw std::ios_base::failure("ReadCompactSize(): size too large");
     return nSizeRet;
 }
@@ -422,7 +439,8 @@ I ReadVarInt(Stream& is)
 #define FIXEDVARINTSBITSET(obj, size) REF(CFixedVarIntsBitSet(REF(obj), (size)))
 #define AUTOBITSET(obj, size) REF(CAutoBitSet(REF(obj), (size)))
 #define VARINT(obj) REF(WrapVarInt(REF(obj)))
-#define COMPACTSIZE(obj) REF(CCompactSize(REF(obj)))
+#define COMPACTSIZE(obj) REF(CCompactSize<true>(REF(obj)))
+#define COMPACTSIZE_NO_RANGECHECK(obj) REF(CCompactSize<false>(REF(obj)))
 #define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
 
 /**
@@ -640,6 +658,8 @@ public:
     }
 };
 
+/** Formatter for integers in CompactSize format. */
+template<bool RangeCheck>
 class CCompactSize
 {
 protected:
@@ -654,7 +674,7 @@ public:
 
     template<typename Stream>
     void Unserialize(Stream& s) {
-        n = ReadCompactSize<Stream>(s);
+        n = ReadCompactSize<Stream>(s, RangeCheck);
     }
 };
 

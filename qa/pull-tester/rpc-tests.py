@@ -147,6 +147,8 @@ testScripts = [
     'httpbasics.py',
     'reindex.py',
     'p2p-addr.py',
+    'p2p-addrv2-relay.py',
+    'p2p-addrv2-invalid.py',
     'multi_rpc.py',
     'zapwallettxes.py',
     'proxy_test.py',
