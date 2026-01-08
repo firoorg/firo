@@ -447,7 +447,7 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
         // For Tor v3, use first 4 bits of the public key for grouping
         nClass = NET_ONION;
         vchRet.push_back(nClass);
-        vchRet.push_back(m_addr[0] | 0x0F); // Use first byte with lower nibble masked
+        vchRet.push_back(m_addr[0] & 0xF0); // Use first byte with lower nibble masked
         return vchRet;
     }
     // for he.net, use /36 groups
