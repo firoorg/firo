@@ -32,7 +32,8 @@ BOOST_AUTO_TEST_CASE(netbase_networks)
     BOOST_CHECK(ResolveIP("::1").GetNetwork()                                    == NET_UNROUTABLE);
     BOOST_CHECK(ResolveIP("8.8.8.8").GetNetwork()                                == NET_IPV4);
     BOOST_CHECK(ResolveIP("2001::8888").GetNetwork()                             == NET_IPV6);
-    BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").GetNetwork() == NET_TOR);
+    // Tor v3 address test - pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion
+    BOOST_CHECK(ResolveIP("pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion").GetNetwork() == NET_ONION);
 
 }
 
@@ -53,12 +54,16 @@ BOOST_AUTO_TEST_CASE(netbase_properties)
     BOOST_CHECK(ResolveIP("2001:10::").IsRFC4843());
     BOOST_CHECK(ResolveIP("FE80::").IsRFC4862());
     BOOST_CHECK(ResolveIP("64:FF9B::").IsRFC6052());
-    BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").IsTor());
+    // Tor v3 address test
+    BOOST_CHECK(ResolveIP("pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion").IsTor());
     BOOST_CHECK(ResolveIP("127.0.0.1").IsLocal());
     BOOST_CHECK(ResolveIP("::1").IsLocal());
     BOOST_CHECK(ResolveIP("8.8.8.8").IsRoutable());
     BOOST_CHECK(ResolveIP("2001::1").IsRoutable());
     BOOST_CHECK(ResolveIP("127.0.0.1").IsValid());
+    // Tor v3 addresses should be routeable and valid
+    BOOST_CHECK(ResolveIP("pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion").IsRoutable());
+    BOOST_CHECK(ResolveIP("pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion").IsValid());
 
 }
 
@@ -106,16 +111,26 @@ BOOST_AUTO_TEST_CASE(netbase_lookupnumeric)
     BOOST_CHECK(TestParse(":::", "[::]:0"));
 }
 
-BOOST_AUTO_TEST_CASE(onioncat_test)
+BOOST_AUTO_TEST_CASE(torv3_test)
 {
-
-    // values from https://web.archive.org/web/20121122003543/http://www.cypherpunk.at/onioncat/wiki/OnionCat
-    CNetAddr addr1(ResolveIP("5wyqrzbvrdsumnok.onion"));
-    CNetAddr addr2(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca"));
-    BOOST_CHECK(addr1 == addr2);
+    // Test Tor v3 address parsing and encoding
+    // This is a valid Tor v3 address (56 chars base32)
+    CNetAddr addr1(ResolveIP("pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion"));
     BOOST_CHECK(addr1.IsTor());
-    BOOST_CHECK(addr1.ToStringIP() == "5wyqrzbvrdsumnok.onion");
+    BOOST_CHECK(addr1.IsValid());
     BOOST_CHECK(addr1.IsRoutable());
+    // Verify that encoding back produces the same address
+    BOOST_CHECK(addr1.ToStringIP() == "pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion");
+    
+    // Test invalid Tor v2 addresses (16 chars - no longer supported)
+    CNetAddr addr2(ResolveIP("5wyqrzbvrdsumnok.onion"));
+    BOOST_CHECK(!addr2.IsTor()); // Should fail to parse as Tor v2 is not supported
+    BOOST_CHECK(!addr2.IsValid() || !addr2.IsRoutable()); // Either invalid or unroutable
+    
+    // Test that old OnionCat IPv6 addresses are not recognized as Tor
+    CNetAddr addr3(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca"));
+    BOOST_CHECK(!addr3.IsTor()); // OnionCat format is no longer used for Tor
+    BOOST_CHECK(addr3.IsIPv6()); // It's just a regular IPv6 address now
 
 }
 
@@ -278,7 +293,11 @@ BOOST_AUTO_TEST_CASE(netbase_getgroup)
     BOOST_CHECK(ResolveIP("64:FF9B::102:304").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV4)(1)(2)); // RFC6052
     BOOST_CHECK(ResolveIP("2002:102:304:9999:9999:9999:9999:9999").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV4)(1)(2)); // RFC3964
     BOOST_CHECK(ResolveIP("2001:0:9999:9999:9999:9999:FEFD:FCFB").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV4)(1)(2)); // RFC4380
-    BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").GetGroup() == boost::assign::list_of((unsigned char)NET_TOR)(239)); // Tor
+    // Tor v3 address grouping
+    CNetAddr torAddr = ResolveIP("pg6mmjiez2xzmp52wdi23y2npsmvmxymdqk4apnbw3gkvxjj3b6xgpad.onion");
+    std::vector<unsigned char> torGroup = torAddr.GetGroup();
+    BOOST_CHECK(torGroup.size() == 2); // NET_ONION + 1 byte
+    BOOST_CHECK(torGroup[0] == (unsigned char)NET_ONION);
     BOOST_CHECK(ResolveIP("2001:470:abcd:9999:9999:9999:9999:9999").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV6)(32)(1)(4)(112)(175)); //he.net
     BOOST_CHECK(ResolveIP("2001:2001:9999:9999:9999:9999:9999:9999").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV6)(32)(1)(32)(1)); //IPv6
 
