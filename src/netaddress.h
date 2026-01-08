@@ -110,54 +110,42 @@ class CNetAddr
 
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
-            // For network serialization, we use a legacy-compatible format
-            // IPv4/IPv6 addresses are serialized as 16-byte IPv6 (IPv4 mapped)
-            // Tor v3 addresses are serialized as 16-byte OnionCat prefix + first 10 bytes,
-            // followed by an additional 22 bytes containing the rest of the public key.
-            // This allows old nodes to at least parse the address (they'll ignore the extra
-            // bytes in the next field), while new nodes can reconstruct the full Tor v3 address.
+            // For network serialization, we use a legacy-compatible 16-byte format.
+            // IPv4/IPv6 addresses are serialized as 16-byte IPv6 (IPv4 mapped).
+            // Tor v3 addresses are serialized as 16-byte OnionCat prefix + first 10 bytes
+            // of the public key. This is lossy (Tor v3 requires 32 bytes) but maintains
+            // backward compatibility with peers.dat and network messages from older nodes.
+            //
+            // NOTE: We intentionally do NOT read extra bytes based on OnionCat prefix
+            // detection, because legacy Tor v2 addresses also used this prefix but only
+            // occupy 16 bytes. Reading extra bytes would corrupt the deserialization
+            // stream when processing old data.
             unsigned char ip_legacy[16];
-            unsigned char torv3_extra[22]; // Extra bytes for Tor v3 public key
-            bool is_torv3 = false;
-            
+
             if (!ser_action.ForRead()) {
                 if (m_net == NET_ONION) {
-                    // Serialize Tor v3: OnionCat prefix + first 10 bytes, then remaining 22 bytes
+                    // Serialize Tor v3: OnionCat prefix + first 10 bytes of public key
+                    // This is lossy but backward compatible (only 16 bytes written)
                     static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
                     memcpy(ip_legacy, pchOnionCat, sizeof(pchOnionCat));
                     memcpy(ip_legacy + sizeof(pchOnionCat), m_addr, 10);
-                    memcpy(torv3_extra, m_addr + 10, 22);
-                    is_torv3 = true;
                 } else {
                     memcpy(ip_legacy, m_addr, 16);
                 }
             }
             READWRITE(FLATDATA(ip_legacy));
             if (ser_action.ForRead()) {
-                // When reading, detect if this is a Tor v3 address (OnionCat prefix)
-                static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
-                if (memcmp(ip_legacy, pchOnionCat, sizeof(pchOnionCat)) == 0) {
-                    is_torv3 = true;
+                // Copy the 16-byte legacy address and determine network type.
+                // OnionCat prefix addresses (both legacy Tor v2 and truncated Tor v3)
+                // are treated as IPv6 for backward compatibility. Full Tor v3 support
+                // requires a versioned serialization format (e.g., ADDRv2/BIP 155).
+                memcpy(m_addr, ip_legacy, 16);
+                memset(m_addr + 16, 0, sizeof(m_addr) - 16); // Clear remaining bytes
+                static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
+                if (memcmp(m_addr, pchIPv4, sizeof(pchIPv4)) == 0) {
+                    m_net = NET_IPV4;
                 } else {
-                    memcpy(m_addr, ip_legacy, 16);
-                    // Determine network type from the address
-                    static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
-                    if (memcmp(m_addr, pchIPv4, sizeof(pchIPv4)) == 0) {
-                        m_net = NET_IPV4;
-                    } else {
-                        m_net = NET_IPV6;
-                    }
-                }
-            }
-            // For Tor v3, read/write the additional 22 bytes of the public key
-            if (is_torv3) {
-                READWRITE(FLATDATA(torv3_extra));
-                if (ser_action.ForRead()) {
-                    // Reconstruct full 32-byte Tor v3 public key
-                    memset(m_addr, 0, sizeof(m_addr));
-                    memcpy(m_addr, ip_legacy + 6, 10);  // First 10 bytes from legacy field
-                    memcpy(m_addr + 10, torv3_extra, 22); // Remaining 22 bytes
-                    m_net = NET_ONION;
+                    m_net = NET_IPV6;
                 }
             }
         }
@@ -234,51 +222,41 @@ class CService : public CNetAddr
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
             // Serialize the CNetAddr portion (handles IPv4/IPv6 and Tor v3)
-            // For legacy wire format, we serialize as 16-byte IPv6 address
-            // Tor v3 addresses are serialized as 16-byte OnionCat prefix + first 10 bytes,
-            // followed by an additional 22 bytes containing the rest of the public key.
+            // For legacy wire format, we serialize as 16-byte IPv6 address.
+            // Tor v3 addresses are serialized as 16-byte OnionCat prefix + first 10 bytes
+            // of the public key. This is lossy (Tor v3 requires 32 bytes) but maintains
+            // backward compatibility with peers.dat and network messages from older nodes.
+            //
+            // NOTE: We intentionally do NOT read extra bytes based on OnionCat prefix
+            // detection, because legacy Tor v2 addresses also used this prefix but only
+            // occupy 16 bytes. Reading extra bytes would corrupt the deserialization
+            // stream when processing old data.
             unsigned char ip_legacy[16];
-            unsigned char torv3_extra[22]; // Extra bytes for Tor v3 public key
-            bool is_torv3 = false;
-            
+
             if (!ser_action.ForRead()) {
                 if (m_net == NET_ONION) {
-                    // Serialize Tor v3: OnionCat prefix + first 10 bytes, then remaining 22 bytes
+                    // Serialize Tor v3: OnionCat prefix + first 10 bytes of public key
+                    // This is lossy but backward compatible (only 16 bytes written)
                     static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
                     memcpy(ip_legacy, pchOnionCat, sizeof(pchOnionCat));
                     memcpy(ip_legacy + sizeof(pchOnionCat), m_addr, 10);
-                    memcpy(torv3_extra, m_addr + 10, 22);
-                    is_torv3 = true;
                 } else {
                     memcpy(ip_legacy, m_addr, 16);
                 }
             }
             READWRITE(FLATDATA(ip_legacy));
             if (ser_action.ForRead()) {
-                // When reading, detect if this is a Tor v3 address (OnionCat prefix)
-                static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
-                if (memcmp(ip_legacy, pchOnionCat, sizeof(pchOnionCat)) == 0) {
-                    is_torv3 = true;
+                // Copy the 16-byte legacy address and determine network type.
+                // OnionCat prefix addresses (both legacy Tor v2 and truncated Tor v3)
+                // are treated as IPv6 for backward compatibility. Full Tor v3 support
+                // requires a versioned serialization format (e.g., ADDRv2/BIP 155).
+                memcpy(m_addr, ip_legacy, 16);
+                memset(m_addr + 16, 0, sizeof(m_addr) - 16); // Clear remaining bytes
+                static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
+                if (memcmp(m_addr, pchIPv4, sizeof(pchIPv4)) == 0) {
+                    m_net = NET_IPV4;
                 } else {
-                    memcpy(m_addr, ip_legacy, 16);
-                    // Determine network type from the address
-                    static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
-                    if (memcmp(m_addr, pchIPv4, sizeof(pchIPv4)) == 0) {
-                        m_net = NET_IPV4;
-                    } else {
-                        m_net = NET_IPV6;
-                    }
-                }
-            }
-            // For Tor v3, read/write the additional 22 bytes of the public key
-            if (is_torv3) {
-                READWRITE(FLATDATA(torv3_extra));
-                if (ser_action.ForRead()) {
-                    // Reconstruct full 32-byte Tor v3 public key
-                    memset(m_addr, 0, sizeof(m_addr));
-                    memcpy(m_addr, ip_legacy + 6, 10);  // First 10 bytes from legacy field
-                    memcpy(m_addr + 10, torv3_extra, 22); // Remaining 22 bytes
-                    m_net = NET_ONION;
+                    m_net = NET_IPV6;
                 }
             }
             unsigned short portN = htons(port);
