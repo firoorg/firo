@@ -45,9 +45,16 @@ pchOnionCat = bytearray([0xFD,0x87,0xD8,0x7E,0xEB,0x43])
 def name_to_ipv6(addr):
     if len(addr)>6 and addr.endswith('.onion'):
         vchAddr = b32decode(addr[0:-6], True)
-        if len(vchAddr) != 16-len(pchOnionCat):
-            raise ValueError('Invalid onion %s' % s)
-        return pchOnionCat + vchAddr
+        # Tor v2 addresses are 10 bytes, v3 are 35 bytes
+        if len(vchAddr) == 16-len(pchOnionCat):
+            # Tor v2 (deprecated) - fits in 16-byte IPv6 format
+            return pchOnionCat + vchAddr
+        elif len(vchAddr) == 35:
+            # Tor v3 - too large for 16-byte format, skip for now
+            # TODO: Implement BIP155 addrv2 format for v3 onion seeds
+            raise ValueError('Tor v3 onion addresses not yet supported in seed format: %s' % addr)
+        else:
+            raise ValueError('Invalid onion %s' % addr)
     elif '.' in addr: # IPv4
         return pchIPv4 + bytearray((int(x) for x in addr.split('.')))
     elif ':' in addr: # IPv6

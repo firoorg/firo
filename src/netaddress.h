@@ -26,12 +26,19 @@ enum Network
     NET_MAX,
 };
 
+/// Size of Tor v3 address (32-byte ed25519 pubkey + 2-byte checksum + 1-byte version)
+static const size_t ADDR_TORV3_SIZE = 32 + 2 + 1;
+
 /** IP address (IPv6, or IPv4 using mapped IPv6 range (::FFFF:0:0/96)) */
 class CNetAddr
 {
     protected:
         unsigned char ip[16]; // in network byte order
         uint32_t scopeId; // for scoped/link-local ipv6 addresses
+
+        // Tor v3 address storage
+        unsigned char m_addr_torv3[ADDR_TORV3_SIZE];
+        bool m_is_tor_v3;
 
     public:
         CNetAddr();
@@ -87,6 +94,9 @@ class CNetAddr
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
             READWRITE(FLATDATA(ip));
+            // Serialize Tor v3 data
+            READWRITE(FLATDATA(m_addr_torv3));
+            READWRITE(m_is_tor_v3);
         }
 
         friend class CSubNet;
