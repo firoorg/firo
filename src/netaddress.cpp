@@ -179,12 +179,12 @@ bool CNetAddr::IsRFC5737() const
 
 bool CNetAddr::IsRFC3849() const
 {
-    return GetByte(15) == 0x20 && GetByte(14) == 0x01 && GetByte(13) == 0x0D && GetByte(12) == 0xB8;
+    return m_net == NET_IPV6 && GetByte(15) == 0x20 && GetByte(14) == 0x01 && GetByte(13) == 0x0D && GetByte(12) == 0xB8;
 }
 
 bool CNetAddr::IsRFC3964() const
 {
-    return (GetByte(15) == 0x20 && GetByte(14) == 0x02);
+    return (m_net == NET_IPV6 && GetByte(15) == 0x20 && GetByte(14) == 0x02);
 }
 
 bool CNetAddr::IsRFC6052() const
