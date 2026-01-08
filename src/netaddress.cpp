@@ -14,6 +14,9 @@
 
 static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
 static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
+// I2P uses a "GarliCat" prefix similar to OnionCat for Tor
+// This is a made-up prefix in the IPv6 range for internal representation
+static const unsigned char pchGarliCat[] = {0xFD,0x60,0xDB,0x4D,0xDD,0xB5};
 
 void CNetAddr::Init()
 {
@@ -44,6 +47,7 @@ void CNetAddr::SetRaw(Network network, const uint8_t *ip_in)
 
 bool CNetAddr::SetSpecial(const std::string &strName)
 {
+    // Handle .onion addresses (Tor)
     if (strName.size()>6 && strName.substr(strName.size() - 6, 6) == ".onion") {
         std::vector<unsigned char> vchAddr = DecodeBase32(strName.substr(0, strName.size() - 6).c_str());
         if (vchAddr.size() != 16-sizeof(pchOnionCat))
@@ -51,6 +55,29 @@ bool CNetAddr::SetSpecial(const std::string &strName)
         memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
         for (unsigned int i=0; i<16-sizeof(pchOnionCat); i++)
             ip[i + sizeof(pchOnionCat)] = vchAddr[i];
+        return true;
+    }
+    // Handle .b32.i2p addresses (I2P)
+    // I2P B32 addresses are 52 base32 characters + ".b32.i2p" suffix
+    if (strName.size() > 8 && strName.substr(strName.size() - 8, 8) == ".b32.i2p") {
+        std::string host = strName.substr(0, strName.size() - 8);
+        // I2P B32 addresses should be exactly 52 characters
+        if (host.size() != 52)
+            return false;
+        // Validate that the host contains only valid base32 characters
+        static const std::string base32chars = "abcdefghijklmnopqrstuvwxyz234567";
+        for (char c : host) {
+            if (base32chars.find(tolower(c)) == std::string::npos)
+                return false;
+        }
+        std::vector<unsigned char> vchAddr = DecodeBase32(host.c_str());
+        // Base32 decoding of 52 chars should give us 32 bytes (52*5/8 = 32.5, but padding makes it 32)
+        if (vchAddr.size() < 16-sizeof(pchGarliCat))
+            return false;
+        memcpy(ip, pchGarliCat, sizeof(pchGarliCat));
+        // Store the first 10 bytes of the decoded address
+        for (unsigned int i=0; i<16-sizeof(pchGarliCat); i++)
+            ip[i + sizeof(pchGarliCat)] = vchAddr[i];
         return true;
     }
     return false;
@@ -84,7 +111,7 @@ bool CNetAddr::IsIPv4() const
 
 bool CNetAddr::IsIPv6() const
 {
-    return (!IsIPv4() && !IsTor());
+    return (!IsIPv4() && !IsTor() && !IsI2P());
 }
 
 bool CNetAddr::IsRFC1918() const
@@ -165,6 +192,11 @@ bool CNetAddr::IsTor() const
     return (memcmp(ip, pchOnionCat, sizeof(pchOnionCat)) == 0);
 }
 
+bool CNetAddr::IsI2P() const
+{
+    return (memcmp(ip, pchGarliCat, sizeof(pchGarliCat)) == 0);
+}
+
 bool CNetAddr::IsLocal() const
 {
     // IPv4 loopback
@@ -223,7 +255,7 @@ bool CNetAddr::IsValid() const
 
 bool CNetAddr::IsRoutable() const
 {
-    return IsValid() && !(IsRFC1918() || IsRFC2544() || IsRFC3927() || IsRFC4862() || IsRFC6598() || IsRFC5737() || (IsRFC4193() && !IsTor()) || IsRFC4843() || IsLocal());
+    return IsValid() && !(IsRFC1918() || IsRFC2544() || IsRFC3927() || IsRFC4862() || IsRFC6598() || IsRFC5737() || (IsRFC4193() && !IsTor() && !IsI2P()) || IsRFC4843() || IsLocal());
 }
 
 enum Network CNetAddr::GetNetwork() const
@@ -237,6 +269,9 @@ enum Network CNetAddr::GetNetwork() const
     if (IsTor())
         return NET_TOR;
 
+    if (IsI2P())
+        return NET_I2P;
+
     return NET_IPV6;
 }
 
@@ -244,6 +279,11 @@ std::string CNetAddr::ToStringIP(bool fUseGetnameinfo) const
 {
     if (IsTor())
         return EncodeBase32(&ip[6], 10) + ".onion";
+    if (IsI2P())
+        // Note: This produces a truncated/partial I2P address since we only store 10 bytes
+        // of the original 32-byte address. This is sufficient for logging/display purposes
+        // but the full address should be stored separately for making connections.
+        return EncodeBase32(&ip[6], 10) + ".b32.i2p";
     if (fUseGetnameinfo)
     {
         CService serv(*this, 0);
@@ -348,6 +388,12 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
         nStartByte = 6;
         nBits = 4;
     }
+    else if (IsI2P())
+    {
+        nClass = NET_I2P;
+        nStartByte = 6;
+        nBits = 4;
+    }
     // for he.net, use /36 groups
     else if (GetByte(15) == 0x20 && GetByte(14) == 0x01 && GetByte(13) == 0x04 && GetByte(12) == 0x70)
         nBits = 36;
@@ -428,6 +474,12 @@ int CNetAddr::GetReachabilityFrom(const CNetAddr *paddrPartner) const
         case NET_IPV4:   return REACH_IPV4; // Tor users can connect to IPv4 as well
         case NET_TOR:    return REACH_PRIVATE;
         }
+    case NET_I2P:
+        switch(ourNet) {
+        default:         return REACH_DEFAULT;
+        case NET_IPV4:   return REACH_IPV4; // I2P users can connect to IPv4 as well
+        case NET_I2P:    return REACH_PRIVATE;
+        }
     case NET_TEREDO:
         switch(ourNet) {
         default:          return REACH_DEFAULT;
@@ -444,6 +496,7 @@ int CNetAddr::GetReachabilityFrom(const CNetAddr *paddrPartner) const
         case NET_IPV6:    return REACH_IPV6_WEAK;
         case NET_IPV4:    return REACH_IPV4;
         case NET_TOR:     return REACH_PRIVATE; // either from Tor, or don't care about our address
+        case NET_I2P:     return REACH_PRIVATE; // either from I2P, or don't care about our address
         }
     }
 }
@@ -561,7 +614,7 @@ std::string CService::ToStringPort() const
 
 std::string CService::ToStringIPPort(bool fUseGetnameinfo) const
 {
-    if (IsIPv4() || IsTor()) {
+    if (IsIPv4() || IsTor() || IsI2P()) {
         return ToStringIP(fUseGetnameinfo) + ":" + ToStringPort();
     } else {
         return "[" + ToStringIP(fUseGetnameinfo) + "]:" + ToStringPort();
