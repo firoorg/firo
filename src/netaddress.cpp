@@ -558,6 +558,7 @@ int CNetAddr::GetReachabilityFrom(const CNetAddr *paddrPartner) const
 
 void CService::Init()
 {
+    CNetAddr::Init();
     port = 0;
 }
 
