@@ -242,7 +242,7 @@ bool CNetAddr::IsLocal() const
 bool CNetAddr::IsMulticast() const
 {
     return    (IsIPv4() && (GetByte(3) & 0xF0) == 0xE0)
-           || (GetByte(15) == 0xFF);
+           || (m_net == NET_IPV6 && GetByte(15) == 0xFF);
 }
 
 bool CNetAddr::IsValid() const
