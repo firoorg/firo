@@ -24,6 +24,7 @@ static const int keccak_rotation_offsets[25] = {
 };
 
 static inline uint64_t rotl64(uint64_t x, int n) {
+    if (n == 0) return x;
     return (x << n) | (x >> (64 - n));
 }
 
