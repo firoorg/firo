@@ -29,7 +29,8 @@ import collections
 
 PATTERN_IPV4 = re.compile(r"^((\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})):(\d+)$")
 PATTERN_IPV6 = re.compile(r"^\[([0-9a-z:]+)\]:(\d+)$")
-PATTERN_ONION = re.compile(r"^([abcdefghijklmnopqrstuvwxyz234567]{16}\.onion):(\d+)$")
+# Tor v3 addresses are 56 characters in base32
+PATTERN_ONION = re.compile(r"^([abcdefghijklmnopqrstuvwxyz234567]{56}\.onion):(\d+)$")
 PATTERN_AGENT = re.compile(r"^(/Satoshi:0.12.(0|1|99)/|/Satoshi:0.13.(0|1|2|99)/)$")
 
 def parseline(line):
