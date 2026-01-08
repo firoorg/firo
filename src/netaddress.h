@@ -219,7 +219,38 @@ class CService : public CNetAddr
 
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
-            READWRITE(FLATDATA(ip));
+            // Serialize the CNetAddr portion (handles IPv4/IPv6 and legacy Tor detection)
+            // For legacy wire format, we serialize as 16-byte IPv6 address
+            unsigned char ip_legacy[16];
+            if (!ser_action.ForRead()) {
+                if (m_net == NET_ONION) {
+                    // Serialize Tor v3 as a special IPv6 address for legacy compatibility
+                    // Use prefix FD87:D87E:EB43 (OnionCat) + first 10 bytes of pubkey
+                    static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
+                    memcpy(ip_legacy, pchOnionCat, sizeof(pchOnionCat));
+                    memcpy(ip_legacy + sizeof(pchOnionCat), m_addr, 10);
+                } else {
+                    memcpy(ip_legacy, m_addr, 16);
+                }
+            }
+            READWRITE(FLATDATA(ip_legacy));
+            if (ser_action.ForRead()) {
+                // When reading, detect if this is a legacy OnionCat address
+                static const unsigned char pchOnionCat[] = {0xFD,0x87,0xD8,0x7E,0xEB,0x43};
+                if (memcmp(ip_legacy, pchOnionCat, sizeof(pchOnionCat)) == 0) {
+                    // Legacy Tor v2 format - mark as unroutable since v2 is no longer supported
+                    Init();
+                } else {
+                    memcpy(m_addr, ip_legacy, 16);
+                    // Determine network type from the address
+                    static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
+                    if (memcmp(m_addr, pchIPv4, sizeof(pchIPv4)) == 0) {
+                        m_net = NET_IPV4;
+                    } else {
+                        m_net = NET_IPV6;
+                    }
+                }
+            }
             unsigned short portN = htons(port);
             READWRITE(FLATDATA(portN));
             if (ser_action.ForRead())
