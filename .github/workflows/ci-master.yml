@@ -40,7 +40,7 @@ jobs:
   build-linux-cmake:
     needs: get-commit-hash
     name: build-linux-cmake
-    runs-on: ubuntu-22.04
+    runs-on: powerrun # ubuntu-22.04
     env:
       ARTIFACT_DIR: linux-cmake-binaries
       TEST_LOG_ARTIFACT_DIR: test-logs
@@ -126,7 +126,7 @@ jobs:
   build-windows-cmake:
     needs: get-commit-hash
     name: build-windows-cmake
-    runs-on: ubuntu-latest
+    runs-on: powerrun # ubuntu-latest
     env:
       ARTIFACT_DIR: windows-cmake-binaries
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
@@ -237,7 +237,7 @@ jobs:
   build-guix-x86_64-linux-gnu:
     needs: get-commit-hash
     name: build-guix-x86_64-linux-gnu
-    runs-on: ubuntu-22.04
+    runs-on: powerrun
     env:
       HOST: x86_64-linux-gnu
       ARTIFACT_DIR: guix-binaries-x86_64-linux-gnu
@@ -314,7 +314,7 @@ jobs:
   build-guix-aarch64-linux-gnu:
     needs: get-commit-hash
     name: build-guix-aarch64-linux-gnu
-    runs-on: ubuntu-22.04
+    runs-on: powerrun
     env:
       HOST: aarch64-linux-gnu
       ARTIFACT_DIR: guix-binaries-aarch64-linux-gnu
@@ -390,7 +390,7 @@ jobs:
   build-guix-x86_64-w64-mingw32:
     needs: get-commit-hash
     name: build-guix-x86_64-w64-mingw32
-    runs-on: ubuntu-22.04
+    runs-on: powerrun # ubuntu-22.04
     env:
       HOST: x86_64-w64-mingw32
       ARTIFACT_DIR: guix-binaries-x86_64-w64-mingw32
@@ -470,7 +470,7 @@ jobs:
   build-guix-arm64-apple-darwin:
     needs: get-commit-hash
     name: build-guix-arm64-apple-darwin
-    runs-on: ubuntu-22.04
+    runs-on: powerrun
     env:
       HOST: arm64-apple-darwin
       ARTIFACT_DIR: guix-binaries-arm64-apple-darwin
@@ -574,7 +574,7 @@ jobs:
   build-guix-x86_64-apple-darwin:
     needs: get-commit-hash
     name: build-guix-x86_64-apple-darwin
-    runs-on: ubuntu-22.04
+    runs-on: powerrun
     env:
       HOST: x86_64-apple-darwin
       ARTIFACT_DIR: guix-binaries-x86_64-apple-darwin
