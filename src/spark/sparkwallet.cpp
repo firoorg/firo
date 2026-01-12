@@ -784,6 +784,36 @@ std::vector<CRecipient> CSparkWallet::CreateSparkMintRecipients(
     return results;
 }
 
+/**
+ * Calculates the maximum number of inputs that can fit in a transaction
+ * given the current transaction weight and the weight limit.
+ *
+ * @param currentWeight  The current transaction weight
+ * @param numInputs      The current number of inputs in the transaction
+ * @return Maximum number of inputs that should fit within MAX_NEW_TX_WEIGHT
+ */
+static size_t EstimateMaxInputsForWeight(int64_t currentWeight, size_t numInputs) {
+    if (numInputs == 0) return 0;
+
+    // Estimate weight per input (assumes roughly linear scaling)
+    int64_t weightPerInput = currentWeight / static_cast<int64_t>(numInputs);
+    if (weightPerInput <= 0) return numInputs;
+
+    // Target 80% of max weight to leave margin for:
+    // - Fixed transaction overhead not scaling with inputs
+    // - Signature size variations
+    // - Safety margin to ensure convergence
+    static const int64_t TARGET_WEIGHT = MAX_NEW_TX_WEIGHT * 8 / 10;
+
+    size_t maxInputs = static_cast<size_t>(TARGET_WEIGHT / weightPerInput);
+
+    // Ensure at least 1 input and at most numInputs-1 (to guarantee reduction)
+    if (maxInputs < 1) maxInputs = 1;
+    if (maxInputs >= numInputs) maxInputs = numInputs - 1;
+
+    return maxInputs;
+}
+
 bool CSparkWallet::CreateSparkMintTransactions(
         const std::vector<spark::MintedCoinData>& outputs,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
@@ -832,6 +862,12 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     balance += coin.tx->tx->vout[coin.i].nValue;
                 valueAndUTXO.emplace_back(std::make_pair(balance, vAvailableCoins));
             }
+            // When a transaction is too large and needs to be split, excess UTXOs are
+            // stored here temporarily. They're added back to valueAndUTXO at the end of
+            // each successful transaction to be processed in subsequent iterations.
+            // This deferred approach avoids invalidating the iterator during splitting.
+            std::vector<std::pair<CAmount, std::vector<COutput>>> deferredUtxoGroups;
+
             while (!valueAndUTXO.empty()) {
 
                 // initialize
@@ -862,6 +898,13 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                 std::set<std::pair<const CWalletTx *, unsigned int>> setCoins;
                 bool skipCoin = false;
+
+                // Track transaction size split attempts to prevent infinite loops.
+                // In normal operation, 1-3 splits should be sufficient. The limit of 20
+                // is a safety net for edge cases with unusual weight distributions.
+                const int MAX_TX_SIZE_SPLIT_RETRIES = 20;
+                int txSizeSplitRetries = 0;
+
                 // Start with no fee and loop until there is enough fee
                 while (true) {
                     mintedValue = valueToMintInTx;
@@ -1068,9 +1111,72 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                     unsigned int nBytes = GetVirtualTransactionSize(tx);
 
-                    // Limit size
+                    // =========================================================================
+                    // TRANSACTION SIZE CHECK AND AUTO-SPLIT
+                    // =========================================================================
+                    // If the transaction exceeds MAX_NEW_TX_WEIGHT (250KB), automatically
+                    // split it by reducing inputs and deferring excess UTXOs for processing
+                    // in subsequent transactions. This allows "Anonymize All" to work with
+                    // any number of UTXOs without manual intervention.
+                    // =========================================================================
                     CTransaction txConst(tx);
-                    if (GetTransactionWeight(txConst) >= MAX_NEW_TX_WEIGHT) {
+                    int64_t txWeight = GetTransactionWeight(txConst);
+
+                    if (txWeight >= MAX_NEW_TX_WEIGHT) {
+                        txSizeSplitRetries++;
+
+                        // Safety check: prevent infinite loops from estimation errors
+                        if (txSizeSplitRetries > MAX_TX_SIZE_SPLIT_RETRIES) {
+                            strFailReason = _("Transaction is too large (size limit: 250Kb). Unable to split transaction after multiple attempts.");
+                            return false;
+                        }
+
+                        size_t numInputs = setCoins.size();
+
+                        // Cannot split a single-input transaction
+                        if (numInputs <= 1) {
+                            strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
+                            return false;
+                        }
+
+                        // Calculate how many inputs we can fit within the weight limit
+                        size_t maxInputs = EstimateMaxInputsForWeight(txWeight, numInputs);
+
+                        std::vector<COutput>& currentUtxos = itr->second;
+
+                        // Only split if we have more UTXOs than can fit
+                        if (currentUtxos.size() > maxInputs) {
+                            // Partition UTXOs: [0, maxInputs) stays, [maxInputs, end) deferred
+                            std::vector<COutput> excessUtxos(currentUtxos.begin() + maxInputs, currentUtxos.end());
+
+                            // Calculate value of excess UTXOs
+                            CAmount excessValue = 0;
+                            for (const auto& utxo : excessUtxos) {
+                                excessValue += utxo.tx->tx->vout[utxo.i].nValue;
+                            }
+
+                            // Trim current group and recalculate its value
+                            currentUtxos.resize(maxInputs);
+                            itr->first = 0;
+                            for (const auto& utxo : currentUtxos) {
+                                itr->first += utxo.tx->tx->vout[utxo.i].nValue;
+                            }
+
+                            // Queue excess for processing in a later iteration
+                            // (deferred to avoid invalidating the iterator)
+                            deferredUtxoGroups.push_back(std::make_pair(excessValue, std::move(excessUtxos)));
+
+                            // Recalculate mint value and retry with fewer inputs
+                            valueToMintInTx = itr->first;
+                            if (!autoMintAll) {
+                                valueToMintInTx = std::min(valueToMintInTx, valueToMint);
+                            }
+                            nFeeRet = 0;
+                            continue;
+                        }
+
+                        // Edge case: all available UTXOs were selected but tx is still too large.
+                        // This shouldn't happen normally, but handle it gracefully.
                         strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
                         return false;
                     }
@@ -1242,6 +1348,15 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     valueToMint -= mintedValue;
                     if (valueToMint == 0)
                         break;
+                }
+
+                // Re-queue any UTXOs that were deferred due to transaction size splitting.
+                // These will be processed in subsequent iterations of the outer loop.
+                if (!deferredUtxoGroups.empty()) {
+                    for (auto& deferredGroup : deferredUtxoGroups) {
+                        valueAndUTXO.push_back(std::move(deferredGroup));
+                    }
+                    deferredUtxoGroups.clear();
                 }
             }
         }
