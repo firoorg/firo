@@ -363,3 +363,310 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+// Test for transaction validation with correct transaction object
+// This test verifies the fix where IsTransactionAllowed should use txNewConst
+// instead of *wtx.tx (which is not yet initialized at that point)
+BOOST_AUTO_TEST_CASE(create_spark_mint_transaction_validation)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    
+    const uint64_t v = 5 * COIN;
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    spark::MintedCoinData data;
+    data.address = sparkAddress;
+    data.v = v;
+    data.memo = "Transaction validation test";
+
+    std::vector<spark::MintedCoinData> mintedCoins;
+    mintedCoins.push_back(data);
+
+    // This should succeed - the transaction should be properly validated
+    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false, true);
+    BOOST_CHECK_EQUAL(result, "");
+    BOOST_CHECK_GT(wtxAndFee.size(), 0);
+
+    // Verify that all returned transactions are valid and properly constructed
+    for (const auto& wtxPair : wtxAndFee) {
+        const CWalletTx& wtx = wtxPair.first;
+        
+        // Verify the transaction was properly set in wtx
+        BOOST_CHECK(wtx.tx != nullptr);
+        BOOST_CHECK(wtx.tx->IsSparkMint());
+        BOOST_CHECK(wtx.tx->IsSparkTransaction());
+        
+        // Verify the transaction passes validation
+        CValidationState state;
+        BOOST_CHECK(mempool.IsTransactionAllowed(*wtx.tx, state));
+        
+        // Verify transaction has proper inputs and outputs
+        BOOST_CHECK_GT(wtx.tx->vin.size(), 0);
+        BOOST_CHECK_GT(wtx.tx->vout.size(), 0);
+        
+        // Verify at least one output is a Spark mint
+        bool hasSparkMint = false;
+        for (const auto& out : wtx.tx->vout) {
+            if (out.scriptPubKey.IsSparkMint()) {
+                hasSparkMint = true;
+                break;
+            }
+        }
+        BOOST_CHECK(hasSparkMint);
+    }
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
+// Test transaction validation with multiple outputs
+BOOST_AUTO_TEST_CASE(create_spark_mint_transaction_multiple_outputs)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    std::vector<spark::MintedCoinData> mintedCoins;
+    
+    // Create multiple mint outputs
+    for (int i = 0; i < 3; i++) {
+        spark::MintedCoinData data;
+        data.address = sparkAddress;
+        data.v = (i + 1) * COIN;
+        data.memo = "Multiple output test " + std::to_string(i);
+        mintedCoins.push_back(data);
+    }
+
+    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false, true);
+    BOOST_CHECK_EQUAL(result, "");
+    BOOST_CHECK_GT(wtxAndFee.size(), 0);
+
+    // Track total minted amount
+    CAmount totalMinted = 0;
+    
+    for (const auto& wtxPair : wtxAndFee) {
+        const CWalletTx& wtx = wtxPair.first;
+        
+        // Verify transaction object is properly initialized
+        BOOST_CHECK(wtx.tx != nullptr);
+        
+        // Verify transaction validation passes
+        CValidationState state;
+        BOOST_CHECK(mempool.IsTransactionAllowed(*wtx.tx, state));
+        
+        // Count minted outputs
+        for (const auto& out : wtx.tx->vout) {
+            if (out.scriptPubKey.IsSparkMint()) {
+                totalMinted += out.nValue;
+            }
+        }
+    }
+    
+    // Verify total minted amount matches requested
+    CAmount expectedTotal = 6 * COIN; // 1 + 2 + 3
+    BOOST_CHECK_EQUAL(totalMinted, expectedTotal);
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
+// Test transaction validation with fee subtraction
+BOOST_AUTO_TEST_CASE(create_spark_mint_transaction_with_fee_subtraction)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    
+    const uint64_t v = 10 * COIN;
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    spark::MintedCoinData data;
+    data.address = sparkAddress;
+    data.v = v;
+    data.memo = "Fee subtraction test";
+
+    std::vector<spark::MintedCoinData> mintedCoins;
+    mintedCoins.push_back(data);
+
+    // Mint with fee subtracted from amount
+    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, true, true);
+    BOOST_CHECK_EQUAL(result, "");
+    BOOST_CHECK_GT(wtxAndFee.size(), 0);
+
+    CAmount totalMinted = 0;
+    CAmount totalFees = 0;
+    
+    for (const auto& wtxPair : wtxAndFee) {
+        const CWalletTx& wtx = wtxPair.first;
+        const CAmount& fee = wtxPair.second;
+        
+        // Verify transaction is properly initialized before validation
+        BOOST_CHECK(wtx.tx != nullptr);
+        
+        // Verify transaction passes validation with correct transaction object
+        CValidationState state;
+        BOOST_CHECK(mempool.IsTransactionAllowed(*wtx.tx, state));
+        
+        totalFees += fee;
+        
+        for (const auto& out : wtx.tx->vout) {
+            if (out.scriptPubKey.IsSparkMint()) {
+                totalMinted += out.nValue;
+            }
+        }
+    }
+    
+    // When fee is subtracted, total minted + fees should equal original amount
+    BOOST_CHECK_EQUAL(totalMinted + totalFees, v);
+    BOOST_CHECK_GT(totalFees, 0);
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
+// Test transaction construction and validation sequence
+BOOST_AUTO_TEST_CASE(spark_mint_transaction_construction_sequence)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    
+    const uint64_t v = 3 * COIN;
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    spark::MintedCoinData data;
+    data.address = sparkAddress;
+    data.v = v;
+    data.memo = "Construction sequence test";
+
+    std::vector<spark::MintedCoinData> mintedCoins;
+    mintedCoins.push_back(data);
+
+    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false, true);
+    BOOST_CHECK_EQUAL(result, "");
+    
+    for (const auto& wtxPair : wtxAndFee) {
+        const CWalletTx& wtx = wtxPair.first;
+        
+        // Critical test: Verify wtx.tx is properly set and not null
+        // This ensures the fix is working - wtx.SetTx() was called correctly
+        BOOST_CHECK(wtx.tx != nullptr);
+        BOOST_CHECK(wtx.tx.get() != nullptr);
+        
+        // Verify the transaction reference count is correct
+        BOOST_CHECK_GT(wtx.tx.use_count(), 0);
+        
+        // Verify transaction is valid according to mempool rules
+        CValidationState state;
+        bool isAllowed = mempool.IsTransactionAllowed(*wtx.tx, state);
+        BOOST_CHECK(isAllowed);
+        
+        // If validation failed, state should indicate the reason
+        if (!isAllowed) {
+            BOOST_TEST_MESSAGE("Transaction validation failed: " + state.GetRejectReason());
+        }
+        
+        // Verify transaction has been properly signed
+        BOOST_CHECK_GT(wtx.tx->vin.size(), 0);
+        for (const auto& in : wtx.tx->vin) {
+            BOOST_CHECK_GT(in.scriptSig.size(), 0);
+        }
+    }
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
+// Test edge case: small mint amounts
+BOOST_AUTO_TEST_CASE(spark_mint_transaction_small_amounts)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    
+    // Test with very small amounts
+    const uint64_t v = 1000; // Minimal amount
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    spark::MintedCoinData data;
+    data.address = sparkAddress;
+    data.v = v;
+    data.memo = "Small amount test";
+
+    std::vector<spark::MintedCoinData> mintedCoins;
+    mintedCoins.push_back(data);
+
+    std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false, true);
+    
+    // Small amounts might fail or succeed depending on fee requirements
+    // If it succeeds, verify proper validation
+    if (result.empty() && wtxAndFee.size() > 0) {
+        for (const auto& wtxPair : wtxAndFee) {
+            const CWalletTx& wtx = wtxPair.first;
+            
+            BOOST_CHECK(wtx.tx != nullptr);
+            
+            CValidationState state;
+            BOOST_CHECK(mempool.IsTransactionAllowed(*wtx.tx, state));
+        }
+    }
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
+// Test transaction validation consistency across multiple mints
+BOOST_AUTO_TEST_CASE(spark_mint_transaction_validation_consistency)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
+
+    // Perform multiple mint operations
+    for (int iteration = 0; iteration < 3; iteration++) {
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        
+        spark::MintedCoinData data;
+        data.address = sparkAddress;
+        data.v = (iteration + 1) * COIN;
+        data.memo = "Consistency test iteration " + std::to_string(iteration);
+
+        std::vector<spark::MintedCoinData> mintedCoins;
+        mintedCoins.push_back(data);
+
+        std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false, true);
+        BOOST_CHECK_EQUAL(result, "");
+        
+        // Each iteration should produce valid transactions
+        for (const auto& wtxPair : wtxAndFee) {
+            const CWalletTx& wtx = wtxPair.first;
+            
+            // Verify transaction object consistency
+            BOOST_CHECK(wtx.tx != nullptr);
+            BOOST_CHECK(wtx.GetHash() == wtx.tx->GetHash());
+            
+            // Verify validation passes consistently
+            CValidationState state;
+            BOOST_CHECK(mempool.IsTransactionAllowed(*wtx.tx, state));
+            
+            // Verify transaction properties
+            BOOST_CHECK(wtx.tx->IsSparkMint());
+            BOOST_CHECK_GT(wtx.tx->vin.size(), 0);
+            BOOST_CHECK_GT(wtx.tx->vout.size(), 0);
+        }
+    }
+
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
