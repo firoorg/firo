@@ -1203,7 +1203,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                 {
                     CValidationState state;
-                    if (!mempool.IsTransactionAllowed(*wtx.tx, state)) {
+                    if (!mempool.IsTransactionAllowed(txNewConst, state)) {
                         strFailReason = _("Signing transaction failed");
                         return false;
                     }
