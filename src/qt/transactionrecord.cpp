@@ -182,7 +182,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     } catch (std::invalid_argument&) {
                         ok = false;
                     }
-                    if (ok) {
+                    if (ok && pwalletMain && pwalletMain->sparkWallet) {
                         coin.setSerialContext(spark::getSerialContext(*wtx.tx));
                         spark::Address addr = pwalletMain->sparkWallet->getMyCoinAddress(coin);
                         unsigned char network = spark::GetNetworkType();

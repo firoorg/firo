@@ -103,7 +103,7 @@ CAmount SparkModel::mintSparkAll()
             } catch (std::invalid_argument&) {
                 ok = false;
             }
-            if (ok) {
+            if (ok && pwalletMain && pwalletMain->sparkWallet) {
                 CSparkMintMeta mintMeta;
                 coin.setSerialContext(spark::getSerialContext(* wtx.first.tx));
                 if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {

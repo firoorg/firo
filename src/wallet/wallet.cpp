@@ -1493,7 +1493,9 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
                 continue;
             }
 
-            sparkWallet->AbandonSpends(lTags);
+            if (sparkWallet) {
+                sparkWallet->AbandonSpends(lTags);
+            }
         }
 
         if (wtx.tx->IsLelantusMint()) {
@@ -1515,7 +1517,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
             }
         }
 
-        if (wtx.tx->IsSparkTransaction()) {
+        if (wtx.tx->IsSparkTransaction() && sparkWallet) {
             std::vector<spark::Coin> coins = spark::GetSparkMintCoins(*wtx.tx);
             sparkWallet->AbandonSparkMints(coins);
         }
@@ -1837,6 +1839,8 @@ CAmount CWallet::GetChange(const uint256& tx, const CTxOut &txout) const
         throw std::runtime_error(std::string(__func__) + ": value out of range");
     if (txout.scriptPubKey.IsSparkSMint()) {
         if (IsChange(tx, txout)) {
+            if (!sparkWallet)
+                return 0;
             std::vector<unsigned char> serial_context = spark::getSerialContext(*GetWalletTx(tx)->tx);
             spark::Coin coin(spark::Params::get_default());
             try {
@@ -2703,6 +2707,8 @@ bool CWalletTx::IsChange(uint32_t out) const {
     }
 
     if (tx->IsSparkSpend()) {
+        if (!pwallet->sparkWallet)
+            return false;
         std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
         spark::Coin coin(spark::Params::get_default());
         try {
@@ -4883,7 +4889,7 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         const CCoinControl *coinControl)
 {
     // sanity check
-    EnsureMintWalletAvailable();
+    EnsureSparkWalletAvailable();
 
     if (IsLocked()) {
         throw std::runtime_error(_("Wallet locked"));
@@ -4899,7 +4905,7 @@ CWalletTx CWallet::CreateSparkNameTransaction(
         const CCoinControl *coinControl)
 {
     // sanity check
-    EnsureMintWalletAvailable();
+    EnsureSparkWalletAvailable();
 
     if (IsLocked()) {
         throw std::runtime_error(_("Wallet locked"));
@@ -7165,6 +7171,10 @@ bool CWallet::CreateSparkMintTransactions(
     const CCoinControl *coinControl,
     bool autoMintAll)
 {
+    if (!sparkWallet) {
+        strFailReason = _("Spark wallet is not available");
+        return false;
+    }
     return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, fSplit, coinControl, autoMintAll);
 }
 
