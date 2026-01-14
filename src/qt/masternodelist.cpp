@@ -33,6 +33,34 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 {
     ui->setupUi(this);
 
+    ui->tableWidgetMasternodesDIP3->setStyleSheet(
+        "QTableWidget {"
+        "  background-color: #f5f5f7;"
+        "  border-radius: 10px;"
+        "  border: 1px solid #e0e0e0;"
+        "  gridline-color: #e0e0e0;"
+        "}"
+        "QHeaderView::section {"
+        "  background-color: #B24040;"
+        "  color: #FFFFFF;"
+        "  border: none;"
+        "  padding: 8px;"
+        "  font-weight: bold;"
+        "}"
+        "QTableWidget::item {"
+        "  border-bottom: 1px dashed #e0e0e0;"
+        "  padding: 8px;"
+        "  color: #111827;"
+        "}"
+        "QTableWidget::item:selected {"
+        "  background-color: #ffcccc;"
+        "  color: #B24040;"
+        "}"
+        "QTableWidget::item:hover {"
+        "  background-color: #fff0f0;"
+        "}"
+    );
+
     int columnAddressWidth = 200;
     int columnStatusWidth = 80;
     int columnPoSeScoreWidth = 80;
