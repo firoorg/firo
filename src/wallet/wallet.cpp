@@ -3214,7 +3214,6 @@ std::vector<unsigned char> CWallet::ProvePrivateTxOwn(const uint256& txid, const
 
         for (const auto& serial : serials) {
             CLelantusEntry mint;
-            uint256 hashSerial = primitives::GetSerialHash(serial);
             std::vector<unsigned char> ecdsaSecretKey;
             ecdsaSecretKey = mint.ecdsaSecretKey;
 
@@ -4842,8 +4841,7 @@ CWalletTx CWallet::MintAndStoreSpats(
 
     std::list<CReserveKey> reservekeys;
     CAmount fee;
-    CWalletTx wtx;
-//    CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
+    CWalletTx wtx = sparkWallet->CreateSpatsMintTransaction(spatsRecipient, fee, coinControl);
 
     // commit
     try {
@@ -5042,37 +5040,6 @@ std::optional<CWalletTx> CWallet::ModifySparkAsset(const spats::SparkAsset& old_
     } catch (const std::exception &) {
         auto error = _(
                 "Error: The ModifySparkAsset transaction was rejected! This might happen e.g. if some of "
-                "the coins in your wallet were already spent, such as if you used "
-                "a copy of wallet.dat and coins were spent in the copy but not "
-                "marked as spent here."
-        );
-
-        std::throw_with_nested(std::runtime_error(error));
-    }
-
-    return wtx;
-}
-
-std::optional<CWalletTx> CWallet::MintSparkAssetSupply(spats::asset_type_t asset_type, spats::supply_amount_t new_supply, const spats::public_address_t &receiver_pubaddress,
-    const CCoinControl *coin_control, const std::function<bool(const spats::MintAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback)
-{
-    // create transaction
-    CAmount standard_fee;
-    const spats::MintParameters action_params(asset_type, new_supply.raw(), receiver_pubaddress, sparkWallet->getSpatsWallet().my_public_address_as_admin(), new_supply.precision());
-    auto wtx = sparkWallet->CreateSpatsMintTransaction({spats::Wallet::create_minted_coin_data(action_params), sparkWallet->getDefaultAddress()},
-                                                       standard_fee, coin_control, new_supply.precision(), user_confirmation_callback);
-    if (!wtx)
-        return wtx;
-
-    // commit
-    try {
-        CValidationState state;
-        CReserveKey reserveKey(this);
-        if (!CommitTransaction(*wtx, reserveKey, g_connman.get(), state))
-            throw std::runtime_error("Failed to commit mint spark asset supply transaction");
-    } catch (const std::exception &) {
-        auto error = _(
-                "Error: The MintSparkAssetSupply transaction was rejected! This might happen e.g. if some of "
                 "the coins in your wallet were already spent, such as if you used "
                 "a copy of wallet.dat and coins were spent in the copy but not "
                 "marked as spent here."

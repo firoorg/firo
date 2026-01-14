@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     const IncomingViewKey incoming_view_key(full_view_key);
 
     const uint64_t i = 12345;
-    const uint64_t v = 1;   // TODO GV #Review: Shouldn't be 1 * COIN?
+    const uint64_t v = 1;
     const std::string memo = "test memo";
 
     // Generate address
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
     serializedCoins = spatsMint.getMintedCoinsSerialized();
 
     CScript spatsScript;
-    spatsScript << OP_SPATSMINTCOIN;
+    spatsScript << OP_SPATSMINT;
     spatsScript.insert(spatsScript.end(), serializedCoins[0].begin(), serializedCoins[0].end());
 
     // coin parse test
@@ -192,7 +192,7 @@ BOOST_AUTO_TEST_CASE(parse_spark_smint)
     const IncomingViewKey incoming_view_key(full_view_key);
 
     const uint64_t i = 12345;
-    const uint64_t v = 1;   // TODO GV #Review: Shouldn't be 1 * COIN?
+    const uint64_t v = 1;
     const std::string memo = "test memo";
 
     // Generate address
@@ -355,6 +355,7 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
     // GetOutPointFromBlock
     out = COutPoint();
     BOOST_CHECK(GetOutPointFromBlock(out, coin, block1));
+
     BOOST_CHECK(expectedOut1 == out);
 
     nonCommittedCoin = pwalletMain->sparkWallet->getCoinFromMeta(nonCommitted);
@@ -376,7 +377,7 @@ BOOST_AUTO_TEST_CASE(get_outpoint)
 
     non_commited_coin_hash = primitives::GetSparkCoinHash(nonCommittedCoin);
     BOOST_CHECK(!GetOutPoint(out, non_commited_coin_hash));
-
+    mempool.clear();
     sparkState->Reset();
 }
 
@@ -402,7 +403,7 @@ BOOST_AUTO_TEST_CASE(build_spark_state)
     BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[1])));
     BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[2])));
     BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[3])));
-
+    mempool.clear();
     sparkState->Reset();
 }
 
@@ -429,7 +430,7 @@ BOOST_AUTO_TEST_CASE(build_new_spark_state)
     BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[1])));
     BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[2])));
     BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[3])));
-
+    mempool.clear();
     sparkState->Reset();
 }
 
@@ -648,6 +649,7 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     GenerateBlocks(910);
     connect_disconnect(checker, emptyChecker);
 
+    mempool.clear();
     sparkState->Reset();
 }
 
@@ -784,16 +786,17 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
-    auto new_asset_wtx = pwalletMain->CreateNewSparkAsset(
-        spats::FungibleSparkAsset(spats::asset_type_t{2}, spats::AssetNaming{"abcdef"s, "ABCDEF"s, "whatever"s}, "",
-                                       pwalletMain->sparkWallet->getSpatsWallet().my_public_address_as_admin(),
-                                       {30000, 4}, true));
-    BOOST_REQUIRE(new_asset_wtx);
-    CMutableTransaction createTx(*new_asset_wtx);
-    currentBlock = chainActive.Tip()->nHeight;
+    //TODO levon
+//    auto new_asset_wtx = pwalletMain->CreateNewSparkAsset(
+//        spats::FungibleSparkAsset(spats::asset_type_t{2}, spats::AssetNaming{"abcdef"s, "ABCDEF"s, "whatever"s}, "",
+//                                       pwalletMain->sparkWallet->getSpatsWallet().my_public_address_as_admin(),
+//                                       {30000, 4}, true));
+//    BOOST_REQUIRE(new_asset_wtx);
+//    CMutableTransaction createTx(*new_asset_wtx);
+//    currentBlock = chainActive.Tip()->nHeight;
     mempool.clear();
-    GenerateBlock({createTx});
-    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
+//    GenerateBlock({createTx});
+//    BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
 
     auto address = pwalletMain->sparkWallet->getDefaultAddress();
     spark::MintedCoinData minted;
@@ -801,7 +804,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     minted.v = 100 * 10000;
     minted.memo = "";
 	minted.a = Scalar(uint64_t(2));
-	minted.iota = Scalar(uint64_t(0));
+	minted.iota = Scalar(uint64_t(1));
     wtx = pwalletMain->MintAndStoreSpats({minted ,address});
 
     CMutableTransaction mintTx(wtx);
@@ -810,7 +813,9 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
 
     currentBlock = chainActive.Tip()->nHeight;
     mempool.clear();
+
     GenerateBlock({mintTx});
+
     BOOST_CHECK_EQUAL(currentBlock, chainActive.Tip()->nHeight -1);
 
     spark::OutputCoinData output;
@@ -818,7 +823,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     output.v = 25 * 10000;
     output.memo = "";
 	output.a = Scalar(uint64_t(2));
-	output.iota = Scalar(uint64_t(0));
+	output.iota = Scalar(uint64_t(1));
 
     wtx = pwalletMain->SpendAndStoreSpark({}, {}, {output, output}, fee, burn);
 

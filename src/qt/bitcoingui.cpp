@@ -385,7 +385,6 @@ void BitcoinGUI::createActions()
     sparkAssetsAction->setShortcut(
         QKeySequence(Qt::ALT | static_cast<Qt::Key>(key++))
     );
-
     tabGroup->addAction(sparkAssetsAction);
 
 #ifdef ENABLE_WALLET

@@ -1694,7 +1694,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             else if (wtx.tx->IsZerocoinMint() || wtx.tx->IsSigmaMint() || wtx.tx->IsLelantusMint() || wtx.tx->IsSparkMint()) {
                 entry.push_back(Pair("category", "mint"));
             }
-            else if (wtx.tx->HasSpatsMintCoin()) {
+            else if (wtx.tx->IsSpatsMint()) {
                 entry.push_back(Pair("category", "spatsmint"));
             }
             else {
@@ -3252,7 +3252,7 @@ UniValue listunspentsparkmints(const std::pair<Scalar, Scalar>& identifier, cons
         serialized << coin.coin;
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
-        script << (coin.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINTCOIN);
+        script << (coin.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINT);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
         entry.push_back(Pair("amount", ValueFromAmount(coin.v)));
@@ -3376,7 +3376,7 @@ UniValue listsparkmints(const JSONRPCRequest& request) {
         serialized << pwallet->sparkWallet->getCoinFromMeta(coin.second);
         CScript script;
         // opcode is inserted as 1 byte according to file script/script.h
-        script << (coin.second.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINTCOIN);
+        script << (coin.second.a == Scalar(uint64_t(0)) ? OP_SPARKMINT : OP_SPATSMINT);
         script.insert(script.end(), serialized.begin(), serialized.end());
         entry.push_back(Pair("scriptPubKey", HexStr(script.begin(), script.end())));
         entry.push_back(Pair("amount", ValueFromAmount(coin.second.v)));

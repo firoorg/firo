@@ -196,8 +196,7 @@ std::optional< CWalletTx > Wallet::create_new_spark_asset_transaction(
    CMutableTransaction mtx( *tx.tx );
    spark_wallet_.AppendSpatsMintTxData( mtx,
                                         { spats::create_minted_coin_data( action, destination_public_address ), spark_wallet_.getDefaultAddress() },
-                                        spark_wallet_.ensureSpendKey(),
-                                        admin_public_address );
+                                        spark_wallet_.ensureSpendKey());
    tx.tx = MakeTransactionRef( std::move( mtx ) );
    assert( tx.tx->IsSpatsCreate() );
    //}
