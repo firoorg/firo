@@ -498,8 +498,19 @@ if platform.system() == "Darwin":
 
 # ------------------------------------------------
 
+print("+ Creating Applications symlink +")
+
+# Create a symlink to /Applications in the dist directory for easy drag-and-drop installation
+applications_symlink = os.path.join("dist", "Applications")
+if not os.path.exists(applications_symlink):
+    os.symlink("/Applications", applications_symlink)
+    if verbose:
+        print("Created symlink:", applications_symlink, "->", "/Applications")
+
+# ------------------------------------------------
+
 if config.zip is not None:
-    shutil.make_archive('{}'.format(appname), format='zip', root_dir='dist', base_dir='Firo-Qt.app')
+    shutil.make_archive('{}'.format(appname), format='zip', root_dir='dist', base_dir='.')
 
 # ------------------------------------------------
 
