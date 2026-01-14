@@ -152,7 +152,7 @@ function(add_macos_deploy_target)
       add_custom_command(
         OUTPUT ${PROJECT_BINARY_DIR}/dist/${osx_volname}.tar.gz
         WORKING_DIRECTORY dist
-        COMMAND ${PROJECT_SOURCE_DIR}/cmake/script/macos_tar.sh ${TAR_COMMAND} ${osx_volname}.tar.gz
+        COMMAND ${PROJECT_SOURCE_DIR}/cmake/script/macos_tar.bash ${TAR_COMMAND} ${osx_volname}.tar.gz
         VERBATIM
       )
       add_custom_target(deploy
