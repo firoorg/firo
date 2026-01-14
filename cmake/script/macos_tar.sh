@@ -1,5 +1,5 @@
 #!/bin/sh
-
+set -exo pipefail
 export LC_ALL=C
 
 if [ -n "$SOURCE_DATE_EPOCH" ]; then
