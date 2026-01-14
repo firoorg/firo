@@ -55,12 +55,41 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-zmq cmake build-essential
+        sudo apt-get install -y python3-zmq cmake build-essential ninja-build ccache
+    - name: Setup ccache
+      uses: actions/cache@v5
+      with:
+        path: ~/.ccache
+        key: ccache-linux-${{ github.sha }}
+        restore-keys: |
+          ccache-linux-
+    - name: Configure ccache
+      run: |
+        ccache --set-config=max_size=500M
+        ccache --set-config=compression=true
+        echo "/usr/lib/ccache" >> $GITHUB_PATH
     - name: Verify ZMQ Installation
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install pyzmq
+    - name: Set HOST_TRIPLET for cache key
+      id: depends-host-triplet
+      run: |
+        echo "value=$(depends/config.guess)" >> $GITHUB_OUTPUT
+    - name: Cache Dependencies
+      uses: actions/cache@v5
+      id: cache-depends-linux
+      with:
+        path: |
+          depends/built
+          depends/sources
+          depends/work
+        key: depends-linux-${{ steps.depends-host-triplet.outputs.value }}-${{ hashFiles('depends/packages/*.mk', 'depends/patches/**', 'depends/hosts/*.mk', 'depends/builders/*.mk') }}
+        restore-keys: |
+          depends-linux-${{ steps.depends-host-triplet.outputs.value }}-
+          depends-linux-
     - name: Download Dependencies
+      if: steps.cache-depends-linux.outputs.cache-hit != 'true'
       run: |
         attempt=1
         max=5
@@ -79,10 +108,10 @@ jobs:
       run: |
         export HOST_TRIPLET=$(depends/config.guess)
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
         -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
         -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
-        cd build && make -j$(nproc)
+        cd build && ninja
     - name: Run Unit Tests
       run: |
         cd build && make test
@@ -136,12 +165,41 @@ jobs:
     - name: Install Required Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip ninja-build ccache
+    - name: Setup ccache
+      uses: actions/cache@v5
+      with:
+        path: ~/.ccache
+        key: ccache-windows-${{ github.sha }}
+        restore-keys: |
+          ccache-windows-
+    - name: Configure ccache
+      run: |
+        ccache --set-config=max_size=500M
+        ccache --set-config=compression=true
+        echo "/usr/lib/ccache" >> $GITHUB_PATH
     - name: Switch MinGW GCC and G++ to POSIX Threading
       run: |
         sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
         sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+    - name: Set HOST_TRIPLET for cache key
+      id: depends-host-triplet
+      run: |
+        echo "value=$(x86_64-w64-mingw32-gcc -dumpmachine)" >> $GITHUB_OUTPUT
+    - name: Cache Dependencies
+      uses: actions/cache@v5
+      id: cache-depends-windows
+      with:
+        path: |
+          depends/built
+          depends/sources
+          depends/work
+        key: depends-windows-${{ steps.depends-host-triplet.outputs.value }}-${{ hashFiles('depends/packages/*.mk', 'depends/patches/**', 'depends/hosts/*.mk', 'depends/builders/*.mk') }}
+        restore-keys: |
+          depends-windows-${{ steps.depends-host-triplet.outputs.value }}-
+          depends-windows-
     - name: Download Dependencies
+      if: steps.cache-depends-windows.outputs.cache-hit != 'true'
       run: |
         attempt=1
         max=5
@@ -177,10 +235,10 @@ jobs:
       run: |
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
         -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release \
         -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
-        cd build && make -j$(nproc)
+        cd build && ninja
     - name: Prepare Files for Artifact
       run: |
         mkdir -p $ARTIFACT_DIR
@@ -213,11 +271,40 @@ jobs:
     - name: Install Required Packages
       run: |
         brew uninstall --force cmake
-        brew install --force automake coreutils python-setuptools cmake make pkg-config
+        brew install --force automake coreutils python-setuptools cmake make pkg-config ninja ccache
       # Workaround for macOS: https://github.com/actions/runner/issues/2958
     - name: Install setuptools
       run: sudo -H pip install setuptools
+    - name: Setup ccache
+      uses: actions/cache@v5
+      with:
+        path: ~/Library/Caches/ccache
+        key: ccache-mac-${{ github.sha }}
+        restore-keys: |
+          ccache-mac-
+    - name: Configure ccache
+      run: |
+        ccache --set-config=max_size=500M
+        ccache --set-config=compression=true
+        echo "$(brew --prefix ccache)/libexec" >> $GITHUB_PATH
+    - name: Set HOST_TRIPLET for cache key
+      id: depends-host-triplet
+      run: |
+        echo "value=$(depends/config.guess)" >> $GITHUB_OUTPUT
+    - name: Cache Dependencies
+      uses: actions/cache@v5
+      id: cache-depends-mac
+      with:
+        path: |
+          depends/built
+          depends/sources
+          depends/work
+        key: depends-mac-${{ steps.depends-host-triplet.outputs.value }}-${{ hashFiles('depends/packages/*.mk', 'depends/patches/**', 'depends/hosts/*.mk', 'depends/builders/*.mk') }}
+        restore-keys: |
+          depends-mac-${{ steps.depends-host-triplet.outputs.value }}-
+          depends-mac-
     - name: Download Dependencies
+      if: steps.cache-depends-mac.outputs.cache-hit != 'true'
       run: |
         attempt=1
         max=5
@@ -237,10 +324,10 @@ jobs:
       run: |
         export HOST_TRIPLET=$(depends/config.guess)
         env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
+        cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
         -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
         -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
-        cd build && make -j$NJOBS
+        cd build && ninja
     - name: Prepare Files for Artifact
       run: |
         mkdir -p $ARTIFACT_DIR
@@ -280,6 +367,32 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Setup Swap Space
+        run: |
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "Swap enabled:"
+          sudo swapon --show
+      - name: Prepare Guix cache dirs
+        run: |
+          sudo mkdir -p /var/guix/cache /var/guix/archives
+          sudo chown -R $USER:$USER /var/guix/cache /var/guix/archives
+          mkdir -p ~/.cache/guix ~/.config/guix ~/.local/share/guix
+      - name: Cache Guix downloads
+        uses: actions/cache@v5
+        id: cache-guix-x86_64-linux-gnu
+        with:
+          path: |
+            ~/.cache/guix
+            ~/.config/guix
+            ~/.local/share/guix
+            /var/guix/cache
+            /var/guix/archives
+          key: guix-${{ env.HOST }}-${{ hashFiles('contrib/guix/**') }}
+          restore-keys: |
+            guix-${{ env.HOST }}-
       - name: Install Guix
         run: |
           sudo apt-get update
@@ -287,7 +400,8 @@ jobs:
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
-          CORES=$(nproc)
+          ./contrib/guix/guix-clean || true
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           env HOSTS="${HOST}" \
             ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
@@ -357,6 +471,32 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Setup Swap Space
+        run: |
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "Swap enabled:"
+          sudo swapon --show
+      - name: Prepare Guix cache dirs
+        run: |
+          sudo mkdir -p /var/guix/cache /var/guix/archives
+          sudo chown -R $USER:$USER /var/guix/cache /var/guix/archives
+          mkdir -p ~/.cache/guix ~/.config/guix ~/.local/share/guix
+      - name: Cache Guix downloads
+        uses: actions/cache@v5
+        id: cache-guix-aarch64-linux-gnu
+        with:
+          path: |
+            ~/.cache/guix
+            ~/.config/guix
+            ~/.local/share/guix
+            /var/guix/cache
+            /var/guix/archives
+          key: guix-${{ env.HOST }}-${{ hashFiles('contrib/guix/**') }}
+          restore-keys: |
+            guix-${{ env.HOST }}-
       - name: Install Guix
         run: |
           sudo apt-get update
@@ -364,7 +504,8 @@ jobs:
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
-          CORES=$(nproc)
+          ./contrib/guix/guix-clean || true
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           env HOSTS="${HOST}" \
             ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
@@ -433,6 +574,32 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Setup Swap Space
+        run: |
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "Swap enabled:"
+          sudo swapon --show
+      - name: Prepare Guix cache dirs
+        run: |
+          sudo mkdir -p /var/guix/cache /var/guix/archives
+          sudo chown -R $USER:$USER /var/guix/cache /var/guix/archives
+          mkdir -p ~/.cache/guix ~/.config/guix ~/.local/share/guix
+      - name: Cache Guix downloads
+        uses: actions/cache@v5
+        id: cache-guix-x86_64-w64-mingw32
+        with:
+          path: |
+            ~/.cache/guix
+            ~/.config/guix
+            ~/.local/share/guix
+            /var/guix/cache
+            /var/guix/archives
+          key: guix-${{ env.HOST }}-${{ hashFiles('contrib/guix/**') }}
+          restore-keys: |
+            guix-${{ env.HOST }}-
       - name: Install Guix
         run: |
           sudo apt-get update
@@ -440,9 +607,30 @@ jobs:
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
-          CORES=$(nproc)
+          ./contrib/guix/guix-clean || true
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           env HOSTS="${HOST}" \
             ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+      - name: Run Guix Build
+        run: |
+          ./contrib/guix/guix-clean || true
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
+          for attempt in 1 2 3 4 5; do
+            echo "Attempt $attempt: Running guix-build..."
+            if env HOSTS="${HOST}" \
+              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build; then
+              echo "guix-build succeeded"
+              break
+            fi
+            if [ $attempt -lt 5 ]; then
+              echo "Attempt $attempt failed, cleaning up and retrying in 120s..."
+              ./contrib/guix/guix-clean || true
+              sleep 120
+            else
+              echo "All attempts failed"
+              exit 1
+            fi
+          done
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
@@ -496,6 +684,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Clean Guix build dirs
+        run: |
+          ./contrib/guix/guix-clean || true
+      - name: Download macOS SDK
+        run: |
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+      - name: Verify macOS SDK SHA256
+        run: |
+          echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
+      - name: Extract macOS SDK
+        run: |
+          mkdir -p depends/SDKs
+          tar -xf Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz -C depends/SDKs/
       - name: Download macOS SDK
         run: |
           wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
@@ -523,11 +724,42 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Setup Swap Space
+        run: |
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "Swap enabled:"
+          sudo swapon --show
+      - name: Prepare Guix cache dirs
+        run: |
+          sudo mkdir -p /var/guix/cache /var/guix/archives
+          sudo chown -R $USER:$USER /var/guix/cache /var/guix/archives
+          mkdir -p ~/.cache/guix ~/.config/guix ~/.local/share/guix
+      - name: Cache Guix downloads
+        uses: actions/cache@v5
+        id: cache-guix-arm64-apple-darwin
+        with:
+          path: |
+            ~/.cache/guix
+            ~/.config/guix
+            ~/.local/share/guix
+            /var/guix/cache
+            /var/guix/archives
+          key: guix-${{ env.HOST }}-${{ hashFiles('contrib/guix/**') }}
+          restore-keys: |
+            guix-${{ env.HOST }}-
       - name: Install Guix
         run: |
           sudo apt-get update
           sudo apt-get install -y guix
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Run Guix Build
+        run: |
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
+          env HOSTS="${HOST}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Download Dependencies
         run: |
           attempt=1
@@ -541,13 +773,17 @@ jobs:
             sleep $((attempt*5))
             attempt=$((attempt+1))
           done
+      - name: Clean Guix build dirs for retry
+        run: |
+          rm -rf guix-build-*/distsrc-*-"${HOST}"
+          rm -rf guix-build-*/build-*-"${HOST}"
       - name: Run Guix Build
         run: |
-          CORES=$(nproc)
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           export SDK_PATH="$(pwd)/depends/SDKs"
           env HOSTS="${HOST}" \
-              SDK_PATH="$SDK_PATH" \
-              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+            SDK_PATH="$SDK_PATH" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR
@@ -600,6 +836,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Clean Guix build dirs
+        run: |
+          ./contrib/guix/guix-clean || true
       - name: Download macOS SDK
         run: |
           wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
@@ -627,11 +866,42 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Setup Swap Space
+        run: |
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "Swap enabled:"
+          sudo swapon --show
+      - name: Prepare Guix cache dirs
+        run: |
+          sudo mkdir -p /var/guix/cache /var/guix/archives
+          sudo chown -R $USER:$USER /var/guix/cache /var/guix/archives
+          mkdir -p ~/.cache/guix ~/.config/guix ~/.local/share/guix
+      - name: Cache Guix downloads
+        uses: actions/cache@v5
+        id: cache-guix-x86_64-apple-darwin
+        with:
+          path: |
+            ~/.cache/guix
+            ~/.config/guix
+            ~/.local/share/guix
+            /var/guix/cache
+            /var/guix/archives
+          key: guix-${{ env.HOST }}-${{ hashFiles('contrib/guix/**') }}
+          restore-keys: |
+            guix-${{ env.HOST }}-
       - name: Install Guix
         run: |
           sudo apt-get update
           sudo apt-get install -y guix
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Run Guix Build
+        run: |
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
+          env HOSTS="${HOST}" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Download Dependencies
         run: |
           attempt=1
@@ -645,13 +915,17 @@ jobs:
             sleep $((attempt*5))
             attempt=$((attempt+1))
           done
+      - name: Clean Guix build dirs for retry
+        run: |
+          rm -rf guix-build-*/distsrc-*-"${HOST}"
+          rm -rf guix-build-*/build-*-"${HOST}"
       - name: Run Guix Build
         run: |
-          CORES=$(nproc)
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           export SDK_PATH="$(pwd)/depends/SDKs"
           env HOSTS="${HOST}" \
-              SDK_PATH="$SDK_PATH" \
-              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
+            SDK_PATH="$SDK_PATH" \
+            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
       - name: Prepare Files for Artifact
         run: |
           mkdir -p $ARTIFACT_DIR

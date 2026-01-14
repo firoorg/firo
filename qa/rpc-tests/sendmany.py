@@ -35,6 +35,9 @@ class SendManyTest(BitcoinTestFramework):
             else:
                 raise
 
+        # Sync all nodes to ensure they're at the same block height
+        self.sync_all()
+
     def run_test(self):
         self.activate_spark()
         self.test_sendmany_1transparent_simple()
