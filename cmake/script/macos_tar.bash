@@ -2,7 +2,7 @@
 set -exo pipefail
 export LC_ALL=C
 
-if [ -n "$SOURCE_DATE_EPOCH" ]; then
+if [[ -n "$SOURCE_DATE_EPOCH" ]]; then
   find . -exec touch -d "@$SOURCE_DATE_EPOCH" {} +
 fi
 
