@@ -373,14 +373,19 @@ void BitcoinGUI::createActions()
     myownspatsAction->setStatusTip(tr("Browse My Own Spats"));
     myownspatsAction->setToolTip(myownspatsAction->statusTip());
     myownspatsAction->setCheckable(true);
-    myownspatsAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    myownspatsAction->setShortcut(
+        QKeySequence(Qt::ALT | static_cast<Qt::Key>(key++))
+    );
     tabGroup->addAction(myownspatsAction);
 
     sparkAssetsAction = new QAction(tr("&Spark Assets"), this);
     sparkAssetsAction->setStatusTip(tr("Manage and view your Spark assets"));
     sparkAssetsAction->setToolTip(sparkAssetsAction->statusTip());
     sparkAssetsAction->setCheckable(true);
-    sparkAssetsAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    sparkAssetsAction->setShortcut(
+        QKeySequence(Qt::ALT | static_cast<Qt::Key>(key++))
+    );
+
     tabGroup->addAction(sparkAssetsAction);
 
 #ifdef ENABLE_WALLET
