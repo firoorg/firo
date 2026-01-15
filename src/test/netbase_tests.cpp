@@ -33,6 +33,7 @@ BOOST_AUTO_TEST_CASE(netbase_networks)
     BOOST_CHECK(ResolveIP("8.8.8.8").GetNetwork()                                == NET_IPV4);
     BOOST_CHECK(ResolveIP("2001::8888").GetNetwork()                             == NET_IPV6);
     BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").GetNetwork() == NET_TOR);
+    BOOST_CHECK(ResolveIP("FD60:DB4D:DDB5:edb1:8e4:3588:e546:35ca").GetNetwork() == NET_I2P);
 
 }
 
@@ -54,6 +55,7 @@ BOOST_AUTO_TEST_CASE(netbase_properties)
     BOOST_CHECK(ResolveIP("FE80::").IsRFC4862());
     BOOST_CHECK(ResolveIP("64:FF9B::").IsRFC6052());
     BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").IsTor());
+    BOOST_CHECK(ResolveIP("FD60:DB4D:DDB5:edb1:8e4:3588:e546:35ca").IsI2P());
     BOOST_CHECK(ResolveIP("127.0.0.1").IsLocal());
     BOOST_CHECK(ResolveIP("::1").IsLocal());
     BOOST_CHECK(ResolveIP("8.8.8.8").IsRoutable());
@@ -117,6 +119,34 @@ BOOST_AUTO_TEST_CASE(onioncat_test)
     BOOST_CHECK(addr1.ToStringIP() == "5wyqrzbvrdsumnok.onion");
     BOOST_CHECK(addr1.IsRoutable());
 
+}
+
+BOOST_AUTO_TEST_CASE(i2p_test)
+{
+    // Test I2P address parsing (52-char base32 + .b32.i2p suffix)
+    CNetAddr addr1;
+    // Valid I2P b32 address (52 lowercase base32 characters)
+    BOOST_CHECK(addr1.SetSpecial("ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p"));
+    BOOST_CHECK(addr1.IsI2P());
+    BOOST_CHECK(!addr1.IsTor());
+    BOOST_CHECK(addr1.IsRoutable());
+    BOOST_CHECK(addr1.GetNetwork() == NET_I2P);
+
+    // Invalid I2P addresses (wrong length)
+    CNetAddr addr2;
+    BOOST_CHECK(!addr2.SetSpecial("tooshort.b32.i2p"));
+    BOOST_CHECK(!addr2.IsI2P());
+
+    // Invalid I2P addresses (invalid characters)
+    CNetAddr addr3;
+    BOOST_CHECK(!addr3.SetSpecial("ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7d0kdq.b32.i2p")); // contains '0' which is not base32
+    BOOST_CHECK(!addr3.IsI2P());
+
+    // Make sure I2P and Tor don't conflict
+    CNetAddr torAddr;
+    BOOST_CHECK(torAddr.SetSpecial("5wyqrzbvrdsumnok.onion"));
+    BOOST_CHECK(torAddr.IsTor());
+    BOOST_CHECK(!torAddr.IsI2P());
 }
 
 BOOST_AUTO_TEST_CASE(subnet_test)
@@ -279,6 +309,7 @@ BOOST_AUTO_TEST_CASE(netbase_getgroup)
     BOOST_CHECK(ResolveIP("2002:102:304:9999:9999:9999:9999:9999").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV4)(1)(2)); // RFC3964
     BOOST_CHECK(ResolveIP("2001:0:9999:9999:9999:9999:FEFD:FCFB").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV4)(1)(2)); // RFC4380
     BOOST_CHECK(ResolveIP("FD87:D87E:EB43:edb1:8e4:3588:e546:35ca").GetGroup() == boost::assign::list_of((unsigned char)NET_TOR)(239)); // Tor
+    BOOST_CHECK(ResolveIP("FD60:DB4D:DDB5:edb1:8e4:3588:e546:35ca").GetGroup() == boost::assign::list_of((unsigned char)NET_I2P)(239)); // I2P
     BOOST_CHECK(ResolveIP("2001:470:abcd:9999:9999:9999:9999:9999").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV6)(32)(1)(4)(112)(175)); //he.net
     BOOST_CHECK(ResolveIP("2001:2001:9999:9999:9999:9999:9999:9999").GetGroup() == boost::assign::list_of((unsigned char)NET_IPV6)(32)(1)(32)(1)); //IPv6
 
