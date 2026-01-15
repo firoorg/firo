@@ -885,7 +885,6 @@ void SparkAssetsPage::display_all_assets()
 
         auto it = balances.find(uid);
         if (it != balances.end()) {
-            // available — это CAmount
             availableText = QString::number(it->second.available.raw());
         }
 
