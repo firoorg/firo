@@ -154,15 +154,14 @@ jobs:
           sleep $((attempt*5))
           attempt=$((attempt+1))
         done
-    - name: Fix MinGW headers (Patch d3d12.h correctly)
+    - name: Fix MinGW netlistmgr.h header
       shell: bash
       run: |
         set -euxo pipefail
         
         MINGW_INC="/usr/x86_64-w64-mingw32/include"
-        D3D12_H="$MINGW_INC/d3d12.h"
 
-        # 1. Patch netlistmgr.h (Standard fix)
+        # Patch netlistmgr.h to add missing NLM_INTERNET_CONNECTIVITY_WEBHIJACK constant
         if ! grep -q "NLM_INTERNET_CONNECTIVITY_WEBHIJACK" "$MINGW_INC/netlistmgr.h"; then
           sudo bash -c "cat >> '$MINGW_INC/netlistmgr.h' <<'EOF'
 
