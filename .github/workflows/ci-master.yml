@@ -154,6 +154,23 @@ jobs:
           sleep $((attempt*5))
           attempt=$((attempt+1))
         done
+    - name: Fix MinGW headers
+      shell: bash
+      run: |
+        set -euxo pipefail
+        
+        MINGW_INC="/usr/x86_64-w64-mingw32/include"
+        D3D12_H="$MINGW_INC/d3d12.h"
+
+        # 1. Patch netlistmgr.h (Standard fix)
+        if ! grep -q "NLM_INTERNET_CONNECTIVITY_WEBHIJACK" "$MINGW_INC/netlistmgr.h"; then
+          sudo bash -c "cat >> '$MINGW_INC/netlistmgr.h' <<'EOF'
+
+        #ifndef NLM_INTERNET_CONNECTIVITY_WEBHIJACK
+        #define NLM_INTERNET_CONNECTIVITY_WEBHIJACK 0x1
+        #endif
+        EOF"
+        fi
     - name: Build Dependencies
       run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
     - name: Build Firo
