@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SpatsSendDialog</class>
+ <widget class="QDialog" name="SpatsSendDialog">
+  <property name="windowTitle">
+   <string>Send Asset</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="labelRecipient">
+     <property name="text">
+      <string>Recipient Address</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="editRecipient"/>
+   </item>
+   <item>
+    <widget class="QLabel" name="labelAmount">
+     <property name="text">
+      <string>Amount</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDoubleSpinBox" name="spinAmount">
+     <property name="decimals">
+      <number>8</number>
+     </property>
+     <property name="minimum">
+      <double>0.00000001</double>
+     </property>
+     <property name="maximum">
+      <double>1000000000</double>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="buttonLayout">
+     <item>
+      <widget class="QPushButton" name="btnSend">
+       <property name="text">
+        <string>Send</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnCancel">
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

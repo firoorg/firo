@@ -21,6 +21,7 @@
 #include "sparkassetdialog.h"
 #include "spatsmintdialog.h"
 #include "spatsuserconfirmationdialog.h"
+#include "spatssenddialog.h"
 
 #include <boost/numeric/conversion/cast.hpp>
 #include "../utils/math.hpp"
@@ -176,6 +177,7 @@ SparkAssetsPage::SparkAssetsPage(const PlatformStyle *platform_style, QWidget *p
     connect(ui->btnResupply,  &QPushButton::clicked, this, &SparkAssetsPage::onModifyButtonClicked);
     connect(ui->btnRevoke,    &QPushButton::clicked, this, &SparkAssetsPage::onUnregisterButtonClicked);
     connect(ui->btnBurn, &QPushButton::clicked, this, &SparkAssetsPage::onBurnButtonClicked);
+    connect(ui->btnSend, &QPushButton::clicked, this, &SparkAssetsPage::onSendButtonClicked);
 
     connect(ui->tableMyCreated->selectionModel(),
             &QItemSelectionModel::selectionChanged,
@@ -885,7 +887,6 @@ void SparkAssetsPage::display_all_assets()
 
         auto it = balances.find(uid);
         if (it != balances.end()) {
-            // available — это CAmount
             availableText = QString::number(it->second.available.raw());
         }
 
@@ -947,6 +948,15 @@ void SparkAssetsPage::onClearCreateForm()
     ui->comboResupply->setCurrentIndex(0);
     updateAssetTypeField();
     ui->editName->setFocus();
+}
+
+void SparkAssetsPage::onSendButtonClicked()
+{
+    int row = ui->tableAssets->currentRow();
+    if (row < 0)
+        return;
+    SpatsSendDialog dialog(platform_style_, this);
+    dialog.exec();
 }
 
 }

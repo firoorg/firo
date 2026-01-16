@@ -460,10 +460,10 @@ void OverviewPage::displaySpatsBalances()
         QString labelStyle = R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 500; background: transparent; } )";
 
         auto *idLabel = new QLabel(idText, frame);
-        idLabel->setStyleSheet(QString(R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 600; background: transparent; padding-left: 20px; /* лёгкий сдвиг вправо под заголовок Asset ID */ } )"));
+        idLabel->setStyleSheet(QString(R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 600; background: transparent; padding-left: 20px;})"));
 
         auto *nameLabel = new QLabel(nameText, frame);
-        nameLabel->setStyleSheet(QString(R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 500; background: transparent; padding-left: 40px; /* добавлено: смещение текста под заголовок Name */ } )"));
+        nameLabel->setStyleSheet(QString(R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 500; background: transparent; padding-left: 40px;})"));
 
         auto *spacer = new QSpacerItem(20, 10, QSizePolicy::Expanding, QSizePolicy::Minimum);
 

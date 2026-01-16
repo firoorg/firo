@@ -128,6 +128,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spatssenddialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetspage.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spatsmintdialog.cpp
@@ -224,6 +225,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/sendconfirmationdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/spatssenddialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/spatsmintdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/spatsuserconfirmationdialog.cpp
