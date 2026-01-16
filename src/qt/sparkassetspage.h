@@ -45,6 +45,7 @@ private Q_SLOTS:
     void onBurnButtonClicked();
     void onRefreshButtonClicked();
     void onClearCreateForm();
+    void onSendButtonClicked();
 
 Q_SIGNALS:
     void displayMyOwnSpatsSignal();
