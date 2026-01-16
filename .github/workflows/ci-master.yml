@@ -114,7 +114,7 @@ jobs:
         cd build && ninja
     - name: Run Unit Tests
       run: |
-        cd build && make test
+        cd build && ctest --output-on-failure
     - name: Run RPC Tests
       env:
         TIMEOUT: 600
