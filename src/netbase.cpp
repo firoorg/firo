@@ -44,7 +44,7 @@ enum Network ParseNetwork(std::string net) {
     boost::to_lower(net);
     if (net == "ipv4") return NET_IPV4;
     if (net == "ipv6") return NET_IPV6;
-    if (net == "tor" || net == "onion")  return NET_TOR;
+    if (net == "tor" || net == "onion")  return NET_ONION;
     return NET_UNROUTABLE;
 }
 
@@ -53,7 +53,7 @@ std::string GetNetworkName(enum Network net) {
     {
     case NET_IPV4: return "ipv4";
     case NET_IPV6: return "ipv6";
-    case NET_TOR: return "onion";
+    case NET_ONION: return "onion";
     default: return "";
     }
 }
@@ -612,9 +612,9 @@ bool LookupSubNet(const char* pszName, CSubNet& ret)
         if (slash != strSubnet.npos)
         {
             std::string strNetmask = strSubnet.substr(slash + 1);
-            int32_t n;
-            // IPv4 addresses start at offset 12, and first 12 bytes must match, so just offset n
-            if (ParseInt32(strNetmask, &n)) { // If valid number, assume /24 syntax
+            uint8_t n;
+            // Valid number of bits (CIDR) for subnet
+            if (ParseUInt8(strNetmask, &n)) { // If valid number, assume CIDR notation
                 ret = CSubNet(network, n);
                 return ret.IsValid();
             }

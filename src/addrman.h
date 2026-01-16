@@ -6,11 +6,14 @@
 #ifndef BITCOIN_ADDRMAN_H
 #define BITCOIN_ADDRMAN_H
 
+#include "hash.h"
 #include "netaddress.h"
 #include "protocol.h"
 #include "random.h"
+#include "streams.h"
 #include "sync.h"
 #include "timedata.h"
+#include "tinyformat.h"
 #include "util.h"
 
 #include <map>
@@ -212,6 +215,18 @@ private:
     //! last time Good was called (memory only)
     int64_t nLastGood;
 
+    //! Compressed IP->ASN mapping, loaded from a file when a node starts.
+    //! Should be always empty if no file was provided.
+    //! This mapping is then used for bucketing nodes in Addrman.
+    //!
+    //! If asmap is provided, nodes will be bucketed by
+    //! AS they belong to, in order to make impossible for a node
+    //! to connect to several nodes hosted in a single AS.
+    //! This is done in response to Erebus attack, but also to generally
+    //! diversify the connections every node creates,
+    //! especially useful when a specific AS is censored by an ISP.
+    std::vector<bool> m_asmap;
+
 protected:
     //! secret key to randomize bucket select with
     uint256 nKey;
@@ -271,8 +286,16 @@ protected:
     CAddrInfo GetAddressInfo_(const CService& addr);
 
 public:
+    //! Serialization versions.
+    enum class Format : uint8_t {
+        V0_HISTORICAL = 0,    //!< historic format, before commit e6b343d88
+        V1_DETERMINISTIC = 1, //!< for pre-asmap files
+        V2_ASMAP = 2,         //!< for files including asmap version
+        V3_BIP155 = 3,        //!< same as V2_ASMAP plus addresses are in BIP155 format
+    };
+
     /**
-     * serialized format:
+     * Serialized format:
      * * version byte (currently 1)
      * * 0x20 + nKey (serialized as if it were a vector, for backward compatibility)
      * * nNew
@@ -301,12 +324,15 @@ public:
      * very little in common.
      */
     template<typename Stream>
-    void Serialize(Stream &s) const
+    void Serialize(Stream& s_) const
     {
         LOCK(cs);
 
-        unsigned char nVersion = 1;
-        s << nVersion;
+        // Always serialize in the latest version (currently Format::V3_BIP155).
+
+        OverrideStream<Stream> s(&s_, s_.GetType(), s_.GetVersion() | ADDRV2_FORMAT);
+
+        s << static_cast<uint8_t>(Format::V3_BIP155);
         s << ((unsigned char)32);
         s << nKey;
         s << nNew;
@@ -348,17 +374,46 @@ public:
                 }
             }
         }
+
+        // Serialize the asmap checksum if the asmap is provided.
+        // If the asmap is not provided, serialize a dummy value that will be
+        // ignored on deserialization.
+        uint256 asmap_version;
+        if (m_asmap.size() != 0) {
+            asmap_version = SerializeHash(m_asmap);
+        }
+        s << asmap_version;
     }
 
     template<typename Stream>
-    void Unserialize(Stream& s)
+    void Unserialize(Stream& s_)
     {
         LOCK(cs);
 
         Clear();
 
-        unsigned char nVersion;
-        s >> nVersion;
+        uint8_t format_u8;
+        s_ >> format_u8;
+        Format format = static_cast<Format>(format_u8);
+
+        static constexpr Format maximum_supported_format = Format::V3_BIP155;
+        if (format > maximum_supported_format) {
+            throw std::ios_base::failure(strprintf(
+                "Unsupported format of addrman database: %u. Maximum supported is %u. "
+                "Continuing operation without using the saved list of peers.",
+                static_cast<uint8_t>(format),
+                static_cast<uint8_t>(maximum_supported_format)));
+        }
+
+        int stream_version = s_.GetVersion();
+        if (format >= Format::V3_BIP155) {
+            // Add ADDRV2_FORMAT to the version so that the CNetAddr and CAddress
+            // unserialize methods know that an address in addrv2 format is coming.
+            stream_version |= ADDRV2_FORMAT;
+        }
+
+        OverrideStream<Stream> s(&s_, s_.GetType(), stream_version);
+
         unsigned char nKeySize;
         s >> nKeySize;
         if (nKeySize != 32) throw std::ios_base::failure("Incorrect keysize in addrman deserialization");
@@ -367,7 +422,7 @@ public:
         s >> nTried;
         int nUBuckets = 0;
         s >> nUBuckets;
-        if (nVersion != 0) {
+        if (format >= Format::V1_DETERMINISTIC) {
             nUBuckets ^= (1 << 30);
         }
 
@@ -386,16 +441,6 @@ public:
             mapAddr[info] = n;
             info.nRandomPos = vRandom.size();
             vRandom.push_back(n);
-            if (nVersion != 1 || nUBuckets != ADDRMAN_NEW_BUCKET_COUNT) {
-                // In case the new table data cannot be used (nVersion unknown, or bucket count wrong),
-                // immediately try to give them a reference based on their primary source address.
-                int nUBucket = info.GetNewBucket(nKey);
-                int nUBucketPos = info.GetBucketPosition(nKey, true, nUBucket);
-                if (vvNew[nUBucket][nUBucketPos] == -1) {
-                    vvNew[nUBucket][nUBucketPos] = n;
-                    info.nRefCount++;
-                }
-            }
         }
         nIdCount = nNew;
 
@@ -420,22 +465,65 @@ public:
         }
         nTried -= nLost;
 
-        // Deserialize positions in the new table (if possible).
+        // Store positions in the new table buckets to apply later (if possible).
+        // An entry may appear in up to ADDRMAN_NEW_BUCKETS_PER_ADDRESS buckets,
+        // so we store all bucket-entry_index pairs to iterate through later.
+        std::map<int, std::vector<int>> entryToBuckets;
         for (int bucket = 0; bucket < nUBuckets; bucket++) {
-            int nSize = 0;
-            s >> nSize;
-            for (int n = 0; n < nSize; n++) {
-                int nIndex = 0;
-                s >> nIndex;
-                if (nIndex >= 0 && nIndex < nNew) {
-                    CAddrInfo &info = mapInfo[nIndex];
-                    int nUBucketPos = info.GetBucketPosition(nKey, true, bucket);
-                    if (nVersion == 1 && nUBuckets == ADDRMAN_NEW_BUCKET_COUNT && vvNew[bucket][nUBucketPos] == -1 && info.nRefCount < ADDRMAN_NEW_BUCKETS_PER_ADDRESS) {
-                        info.nRefCount++;
-                        vvNew[bucket][nUBucketPos] = nIndex;
-                    }
-                }
+          int nSize = 0;
+          s >> nSize;
+          for (int i = 0; i < nSize; i++) {
+            int nIndex = 0;
+            s >> nIndex;
+            if (nIndex >= 0 && nIndex < nNew) {
+              entryToBuckets[nIndex].push_back(bucket); // Store ALL buckets
             }
+          }
+        }
+
+        // If the bucket count and asmap checksum haven't changed, then attempt
+        // to restore the entries to the buckets/positions they were in before
+        // serialization.
+        uint256 supplied_asmap_version;
+        if (m_asmap.size() != 0) {
+            supplied_asmap_version = SerializeHash(m_asmap);
+        }
+        uint256 serialized_asmap_version;
+        if (format >= Format::V2_ASMAP) {
+            s >> serialized_asmap_version;
+        }
+
+        // Iterate through addresses to restore
+        for (int n = 0; n < nNew; n++) {
+          CAddrInfo &info = mapInfo[n];
+
+          // Check if we have buckets for this address
+          if (entryToBuckets.count(n) == 0) continue;
+
+          const std::vector<int>& buckets = entryToBuckets[n];
+
+          // Iterate through ALL buckets this address belongs to
+          LogPrint("addrman", "Updating bucketing, re-bucketing addrman entries from disk\n");
+          for (int bucket : buckets) {
+            int nUBucketPos = info.GetBucketPosition(nKey, true, bucket);
+
+            if (format >= Format::V2_ASMAP && nUBuckets == ADDRMAN_NEW_BUCKET_COUNT &&
+                vvNew[bucket][nUBucketPos] == -1 && info.nRefCount < ADDRMAN_NEW_BUCKETS_PER_ADDRESS &&
+                serialized_asmap_version == supplied_asmap_version) {
+
+              vvNew[bucket][nUBucketPos] = n;
+              info.nRefCount++;
+            } else {
+              // In case the new table data cannot be used (format unknown, bucket count wrong or new asmap),
+              // try to give them a reference based on their primary source address.
+              bucket = info.GetNewBucket(nKey);
+              nUBucketPos = info.GetBucketPosition(nKey, true, bucket);
+              if (vvNew[bucket][nUBucketPos] == -1) {
+                vvNew[bucket][nUBucketPos] = n;
+                info.nRefCount++;
+              }
+            }
+          }
         }
 
         // Prune new entries with refcount 0 (as a result of collisions).

@@ -231,15 +231,16 @@ std::string DecodeBase64(const std::string& str)
     return (vchRet.size() == 0) ? std::string() : std::string((const char*)&vchRet[0], vchRet.size());
 }
 
-std::string EncodeBase32(const unsigned char* pch, size_t len)
+std::string EncodeBase32(Span<const unsigned char> input, bool pad)
 {
     static const char *pbase32 = "abcdefghijklmnopqrstuvwxyz234567";
 
     std::string strRet="";
-    strRet.reserve((len+4)/5*8);
+    strRet.reserve((input.size()+4)/5*8);
 
     int mode=0, left=0;
-    const unsigned char *pchEnd = pch+len;
+    const unsigned char *pch = input.data();
+    const unsigned char *pchEnd = pch + input.size();
 
     while (pch<pchEnd)
     {
@@ -279,20 +280,22 @@ std::string EncodeBase32(const unsigned char* pch, size_t len)
         }
     }
 
-    static const int nPadding[5] = {0, 6, 4, 3, 1};
     if (mode)
     {
         strRet += pbase32[left];
-        for (int n=0; n<nPadding[mode]; n++)
-             strRet += '=';
+        if (pad) {
+            static const int nPadding[5] = {0, 6, 4, 3, 1};
+            for (int n=0; n<nPadding[mode]; n++)
+                 strRet += '=';
+        }
     }
 
     return strRet;
 }
 
-std::string EncodeBase32(const std::string& str)
+std::string EncodeBase32(const std::string& str, bool pad)
 {
-    return EncodeBase32((const unsigned char*)str.c_str(), str.size());
+    return EncodeBase32(MakeUCharSpan(str), pad);
 }
 
 std::vector<unsigned char> DecodeBase32(const char* p, bool* pfInvalid)
@@ -458,6 +461,18 @@ bool ParseInt64(const std::string& str, int64_t *out)
     return endp && *endp == 0 && !errno &&
         n >= std::numeric_limits<int64_t>::min() &&
         n <= std::numeric_limits<int64_t>::max();
+}
+
+bool ParseUInt8(const std::string& str, uint8_t *out)
+{
+    uint32_t u32;
+    if (!ParseUInt32(str, &u32) || u32 > std::numeric_limits<uint8_t>::max()) {
+        return false;
+    }
+    if (out != nullptr) {
+        *out = static_cast<uint8_t>(u32);
+    }
+    return true;
 }
 
 bool ParseUInt32(const std::string& str, uint32_t *out)
