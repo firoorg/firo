@@ -1338,6 +1338,7 @@ void CSigSharesManager::BanNode(NodeId nodeId)
 void CSigSharesManager::WorkThreadMain()
 {
     int64_t lastSendTime = 0;
+    int64_t lastRemoveBannedNodeStatesTime = 0;
 
     while (!workInterrupt) {
         if (!quorumSigningManager || !g_connman) {
@@ -1349,7 +1350,13 @@ void CSigSharesManager::WorkThreadMain()
 
         bool didWork = false;
 
-        RemoveBannedNodeStates();
+        // RemoveBannedNodeStates holds cs_main, and its functionality is only required for local memory management. It
+        // is much more performant to call this rarely.
+        if (GetTimeMillis() - lastRemoveBannedNodeStatesTime > 30000 /* 30s */) {
+            RemoveBannedNodeStates();
+            lastRemoveBannedNodeStatesTime = GetTimeMillis();
+        }
+
         didWork |= quorumSigningManager->ProcessPendingRecoveredSigs(*g_connman);
         didWork |= ProcessPendingSigShares(*g_connman);
         didWork |= SignPendingSigShares();
@@ -1364,7 +1371,7 @@ void CSigSharesManager::WorkThreadMain()
 
         // TODO Wakeup when pending signing is needed?
         if (!didWork) {
-            if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+            if (!workInterrupt.sleep_for(std::chrono::milliseconds(1000))) {
                 return;
             }
         }
