@@ -488,12 +488,12 @@ mkdir -p "$DISTSRC"
                 echo "Running deploy with DMG support..."
                 make -C build deploy ${V:+V=1} OSX_DMG="${OUTDIR}/${DISTNAME}-osx-unsigned.dmg"
             else
-                echo "Running deploy without DMG (will create .zip instead)..."
+                echo "Running deploy without DMG (will create .tar.gz instead)..."
                 make -C build deploy ${V:+V=1}
             fi
 
             # Copy any generated files to output
-            find build/dist -name "*.zip" -o -name "*.dmg" 2>/dev/null | while read file; do
+            find build/dist -name "*.tar.gz" -o -name "*.dmg" 2>/dev/null | while read file; do
                 if [ -f "$file" ]; then
                     cp "$file" "${OUTDIR}/" && echo "✓ Copied $(basename "$file")"
                 fi

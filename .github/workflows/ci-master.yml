@@ -104,17 +104,17 @@ jobs:
     - name: Prepare Test Logs for Artifact
       if: failure()
       run: |
-        tor_log=$(find . -path '*/tor/test-suite.log' -type f || true)
-        firo_log=$(find . -path '*/src/test-suite.log' -type f || true)
+        tor_log=$(find . -path '*/tor/test-suite.log' -type f 2>/dev/null | head -n1)
+        firo_log=$(find . -path '*/src/test-suite.log' -type f 2>/dev/null | head -n1)
 
         mkdir -p $TEST_LOG_ARTIFACT_DIR
 
-        if test -f $tor_log; then
-          mv $tor_log $TEST_LOG_ARTIFACT_DIR/tor.log
+        if [ -n "$tor_log" ] && [ -f "$tor_log" ]; then
+          mv "$tor_log" "$TEST_LOG_ARTIFACT_DIR/tor.log"
         fi
 
-        if test -f $firo_log; then
-          mv $firo_log $TEST_LOG_ARTIFACT_DIR/firo.log
+        if [ -n "$firo_log" ] && [ -f "$firo_log" ]; then
+          mv "$firo_log" "$TEST_LOG_ARTIFACT_DIR/firo.log"
         fi
     - name: Upload Test Logs Artifact
       if: failure()
@@ -554,7 +554,7 @@ jobs:
           cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
           cd $ARTIFACT_DIR
           mv *-osx-unsigned.tar.gz arm64-apple-darwin-sign-bundle.tar.gz || true
-          mv Firo-Core.zip arm64-apple-darwin-app-image.zip || true
+          mv Firo-Core.tar.gz arm64-apple-darwin-app-image.tar.gz || true
           mv SHA256SUMS.part arm64-apple-darwin-checksums-sha256 || true
           tar xf firo*arm64-apple-darwin.tar.gz --strip-components=1 || true
           mv share/man . || true
@@ -576,11 +576,11 @@ jobs:
           name: arm64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-sign-bundle.tar.gz
           compression-level: 0
-      - name: Upload MacOS App Image Zip
+      - name: Upload MacOS App Image
         uses: actions/upload-artifact@v4
         with:
-          name: arm64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-app-image.zip
+          name: arm64-apple-darwin-app-image-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-app-image.tar.gz
           compression-level: 0
       - name: Upload Check Sums
         uses: actions/upload-artifact@v4
@@ -658,7 +658,7 @@ jobs:
           cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
           cd $ARTIFACT_DIR
           mv *-osx-unsigned.tar.gz x86_64-apple-darwin-sign-bundle.tar.gz || true
-          mv Firo-Core.zip x86_64-apple-darwin-app-image.zip || true
+          mv Firo-Core.tar.gz x86_64-apple-darwin-app-image.tar.gz || true
           mv SHA256SUMS.part x86_64-apple-darwin-checksums-sha256 || true
           tar xf firo*x86_64-apple-darwin.tar.gz --strip-components=1 || true
           mv share/man . || true
@@ -680,11 +680,11 @@ jobs:
           name: x86_64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-sign-bundle.tar.gz
           compression-level: 0
-      - name: Upload MacOS App Image Zip
+      - name: Upload MacOS App Image
         uses: actions/upload-artifact@v4
         with:
-          name: x86_64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-app-image.zip
+          name: x86_64-apple-darwin-app-image-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-app-image.tar.gz
           compression-level: 0
       - name: Upload Check Sums
         uses: actions/upload-artifact@v4
