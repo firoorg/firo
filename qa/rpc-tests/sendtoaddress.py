@@ -38,6 +38,9 @@ class SendToAddressTest(BitcoinTestFramework):
             else:
                 raise
 
+        # Sync all nodes to ensure they're at the same block height
+        self.sync_all()
+
     def run_test(self):
         """Run all test cases."""
         self.activate_spark()  # Ensure Spark is activated
