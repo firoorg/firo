@@ -380,36 +380,6 @@ void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
     if (column != COLUMN_CHECKBOX)
         return;
 
-    const bool treeMode = ui->radioTreeMode->isChecked();
-    auto updateParentCheckState = [this](QTreeWidgetItem* parent) {
-        if (!parent)
-            return;
-
-        int checked = 0;
-        int unchecked = 0;
-        for (int i = 0; i < parent->childCount(); ++i)
-        {
-            Qt::CheckState childState = parent->child(i)->checkState(COLUMN_CHECKBOX);
-            if (childState == Qt::Checked)
-                checked++;
-            else
-                unchecked++;
-        }
-
-        Qt::CheckState state = Qt::Unchecked;
-        if (checked > 0 && unchecked > 0)
-            state = Qt::PartiallyChecked;
-        else if (checked > 0)
-            state = Qt::Checked;
-
-        if (parent->checkState(COLUMN_CHECKBOX) != state)
-        {
-            bool wasBlocked = ui->treeWidget->blockSignals(true);
-            parent->setCheckState(COLUMN_CHECKBOX, state);
-            ui->treeWidget->blockSignals(wasBlocked);
-        }
-    };
-
     if (item->text(COLUMN_TXHASH).length() == 64) // transaction hash is 64 characters (this means its a child node, so its not a parent node in tree mode)
     {
         COutPoint outpt(uint256S(item->text(COLUMN_TXHASH).toStdString()), item->text(COLUMN_VOUT_INDEX).toUInt());
@@ -421,47 +391,15 @@ void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
         else
             coinControl->Select(outpt);
 
-        if (treeMode)
-            updateParentCheckState(item->parent());
-
         // selection changed -> update labels
         if (ui->treeWidget->isEnabled()) // do not update on every click for (un)select all
             CoinControlDialog::updateLabels(model, this, anonymousMode);
-
-        return;
-    }
-
-    if (treeMode && item->childCount() > 0)
-    {
-        Qt::CheckState state = item->checkState(COLUMN_CHECKBOX);
-        if (state != Qt::PartiallyChecked)
-        {
-            bool wasEnabled = ui->treeWidget->isEnabled();
-            ui->treeWidget->setEnabled(false);
-            for (int i = 0; i < item->childCount(); ++i)
-            {
-                QTreeWidgetItem *child = item->child(i);
-                if (child->isDisabled())
-                {
-                    if (child->checkState(COLUMN_CHECKBOX) != Qt::Unchecked)
-                        child->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
-                    continue;
-                }
-                if (child->checkState(COLUMN_CHECKBOX) != state)
-                    child->setCheckState(COLUMN_CHECKBOX, state);
-            }
-            ui->treeWidget->setEnabled(wasEnabled);
-            if (wasEnabled)
-                CoinControlDialog::updateLabels(model, this, anonymousMode);
-        }
-
-        updateParentCheckState(item);
     }
 
     // TODO: Remove this temporary qt5 fix after Qt5.3 and Qt5.4 are no longer used.
     //       Fixed in Qt5.5 and above: https://bugreports.qt.io/browse/QTBUG-43473
 #if QT_VERSION >= 0x050000
-    if (item->childCount() > 0)
+    else if (item->childCount() > 0)
     {
         if (item->checkState(COLUMN_CHECKBOX) == Qt::PartiallyChecked && item->child(0)->checkState(COLUMN_CHECKBOX) == Qt::PartiallyChecked)
             item->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
@@ -743,7 +681,11 @@ void CoinControlDialog::updateView()
     ui->treeWidget->setEnabled(false); // performance, otherwise updateLabels would be called for every checked checkbox
     ui->treeWidget->setAlternatingRowColors(true);
     QFlags<Qt::ItemFlag> flgCheckbox = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;
-    QFlags<Qt::ItemFlag> flgTristate = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsUserTristate;
+#if QT_VERSION >= 0x050000
+    QFlags<Qt::ItemFlag> flgTristate = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate;
+#else
+    QFlags<Qt::ItemFlag> flgTristate = Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsTristate;
+#endif
 
     int nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
 
