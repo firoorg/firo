@@ -1203,7 +1203,10 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                 {
                     CValidationState state;
-                    if (!mempool.IsTransactionAllowed(*wtx.tx, state)) {
+                    // Use txNewConst (the actual signed transaction) instead of wtx.tx
+                    // which still points to an empty/uninitialized transaction at this point.
+                    // Using wtx.tx here would cause EXCEPTION_ACCESS_VIOLATION crash.
+                    if (!mempool.IsTransactionAllowed(txNewConst, state)) {
                         strFailReason = _("Signing transaction failed");
                         return false;
                     }

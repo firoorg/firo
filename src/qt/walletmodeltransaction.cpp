@@ -65,7 +65,7 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
                     ok = false;
                 }
 
-                if (ok) {
+                if (ok && pwalletMain && pwalletMain->sparkWallet) {
                     CSparkMintMeta mintMeta;
                     coin.setSerialContext(spark::getSerialContext(* walletTransaction->tx));
                     if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {

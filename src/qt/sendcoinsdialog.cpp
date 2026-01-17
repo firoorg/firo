@@ -416,7 +416,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     QString warningMessage;
 
     for(int i = 0; i < recipients.size(); ++i) {
-        warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
+        warningMessage = SendCoinsEntry::generateWarningText(recipients[i].address, fAnonymousMode);
         if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
             break;
         }
@@ -688,8 +688,16 @@ void SendCoinsDialog::on_sendButton_clicked()
 void SendCoinsDialog::on_switchFundButton_clicked()
 {
     setAnonymizeMode(!fAnonymousMode);
-    entry->setfAnonymousMode(fAnonymousMode);
-    entry->setWarning(fAnonymousMode);
+    // Update all entries with the new anonymous mode setting
+    for(int i = 0; i < ui->entries->count(); ++i)
+    {
+        SendCoinsEntry *entryWidget = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if(entryWidget)
+        {
+            entryWidget->setfAnonymousMode(fAnonymousMode);
+            entryWidget->setWarning(fAnonymousMode);
+        }
+    }
     coinControlUpdateLabels();
 }
 
