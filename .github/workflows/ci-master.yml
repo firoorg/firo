@@ -15,7 +15,7 @@ on:
 env:
   SOURCE_ARTIFACT: source
   SOURCE_ARTIFACT_DIR: source
-  CACHE_MAX_SIZE: 5000M
+  CACHE_MAX_SIZE: 5G
 jobs:
   get-commit-hash:
     name: Get Commit Hash String
