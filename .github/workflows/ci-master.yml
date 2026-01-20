@@ -717,6 +717,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install Guix
+        run: |
+          set -exo pipefail
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Clean Guix build dirs
+        run: |
+          set -exo pipefail
+          ./contrib/guix/guix-clean || true
       - name: Download macOS SDK
         run: |
           set -exo pipefail
@@ -776,12 +786,6 @@ jobs:
           key: guix-${{ env.HOST }}-${{ hashFiles('contrib/guix/**') }}
           restore-keys: |
             guix-${{ env.HOST }}-
-      - name: Install Guix
-        run: |
-          set -exo pipefail
-          sudo apt-get update
-          sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Download Dependencies
         run: |
           set -exo pipefail
@@ -804,7 +808,6 @@ jobs:
       - name: Run Guix Build
         run: |
           set -exo pipefail
-          ./contrib/guix/guix-clean || true
           CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           export SDK_PATH="$(pwd)/depends/SDKs"
           env HOSTS="${HOST}" \
@@ -863,6 +866,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install Guix
+        run: |
+          set -exo pipefail
+          sudo apt-get update
+          sudo apt-get install -y guix
+          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      - name: Clean Guix build dirs
+        run: |
+          set -exo pipefail
+          ./contrib/guix/guix-clean || true
       - name: Download macOS SDK
         run: |
           set -exo pipefail
@@ -922,12 +935,6 @@ jobs:
           key: guix-${{ env.HOST }}-${{ hashFiles('contrib/guix/**') }}
           restore-keys: |
             guix-${{ env.HOST }}-
-      - name: Install Guix
-        run: |
-          set -exo pipefail
-          sudo apt-get update
-          sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Download Dependencies
         run: |
           set -exo pipefail
@@ -950,7 +957,6 @@ jobs:
       - name: Run Guix Build
         run: |
           set -exo pipefail
-          ./contrib/guix/guix-clean || true
           CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           export SDK_PATH="$(pwd)/depends/SDKs"
           env HOSTS="${HOST}" \
