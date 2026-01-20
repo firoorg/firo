@@ -665,9 +665,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Clean Guix build dirs
-        run: |
-          ./contrib/guix/guix-clean || true
       - name: Download macOS SDK
         run: |
           wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
@@ -745,6 +742,7 @@ jobs:
           rm -rf guix-build-*/build-*-"${HOST}"
       - name: Run Guix Build
         run: |
+          ./contrib/guix/guix-clean || true
           CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           export SDK_PATH="$(pwd)/depends/SDKs"
           env HOSTS="${HOST}" \
@@ -802,9 +800,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Clean Guix build dirs
-        run: |
-          ./contrib/guix/guix-clean || true
       - name: Download macOS SDK
         run: |
           wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
@@ -882,6 +877,7 @@ jobs:
           rm -rf guix-build-*/build-*-"${HOST}"
       - name: Run Guix Build
         run: |
+          ./contrib/guix/guix-clean || true
           CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
           export SDK_PATH="$(pwd)/depends/SDKs"
           env HOSTS="${HOST}" \
