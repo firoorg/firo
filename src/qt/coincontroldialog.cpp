@@ -377,31 +377,52 @@ void CoinControlDialog::radioListMode(bool checked)
 // checkbox clicked by user
 void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
 {
-    if (column == COLUMN_CHECKBOX && item->text(COLUMN_TXHASH).length() == 64) // transaction hash is 64 characters (this means its a child node, so its not a parent node in tree mode)
+    if (column == COLUMN_CHECKBOX)
     {
-        COutPoint outpt(uint256S(item->text(COLUMN_TXHASH).toStdString()), item->text(COLUMN_VOUT_INDEX).toUInt());
+        // Handle child items (individual coins)
+        if (item->text(COLUMN_TXHASH).length() == 64)
+        {
+            COutPoint outpt(uint256S(item->text(COLUMN_TXHASH).toStdString()), item->text(COLUMN_VOUT_INDEX).toUInt());
 
-        if (item->checkState(COLUMN_CHECKBOX) == Qt::Unchecked)
-            coinControl->UnSelect(outpt);
-        else if (item->isDisabled()) // locked (this happens if "check all" through parent node)
-            item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
-        else
-            coinControl->Select(outpt);
+            if (item->checkState(COLUMN_CHECKBOX) == Qt::Unchecked)
+                coinControl->UnSelect(outpt);
+            else if (item->isDisabled())
+                item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
+            else
+                coinControl->Select(outpt);
+        }
+        // Handle parent items (wallet addresses)
+        else if (item->childCount() > 0)
+        {
+            Qt::CheckState parentState = item->checkState(COLUMN_CHECKBOX);
+
+            // If user clicks and Qt cycles to PartiallyChecked, force it to Checked.
+            if (parentState == Qt::PartiallyChecked) {
+                parentState = Qt::Checked;
+                item->setCheckState(COLUMN_CHECKBOX, parentState);
+            }
+
+            bool wasEnabled = ui->treeWidget->isEnabled();
+            if (wasEnabled)
+                ui->treeWidget->setEnabled(false);
+
+            for (int i = 0; i < item->childCount(); ++i)
+            {
+                QTreeWidgetItem* child = item->child(i);
+                if (!child->isDisabled())
+                {
+                    child->setCheckState(COLUMN_CHECKBOX, parentState);
+                }
+            }
+
+            if (wasEnabled)
+                ui->treeWidget->setEnabled(true);
+        }
 
         // selection changed -> update labels
-        if (ui->treeWidget->isEnabled()) // do not update on every click for (un)select all
+        if (ui->treeWidget->isEnabled())
             CoinControlDialog::updateLabels(model, this, anonymousMode);
     }
-
-    // TODO: Remove this temporary qt5 fix after Qt5.3 and Qt5.4 are no longer used.
-    //       Fixed in Qt5.5 and above: https://bugreports.qt.io/browse/QTBUG-43473
-#if QT_VERSION >= 0x050000
-    else if (column == COLUMN_CHECKBOX && item->childCount() > 0)
-    {
-        if (item->checkState(COLUMN_CHECKBOX) == Qt::PartiallyChecked && item->child(0)->checkState(COLUMN_CHECKBOX) == Qt::PartiallyChecked)
-            item->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
-    }
-#endif
 }
 
 // shows count of locked unspent outputs
