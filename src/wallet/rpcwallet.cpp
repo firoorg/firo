@@ -4214,24 +4214,38 @@ UniValue mintspark(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() == 0 || request.params.size() > 3)
         throw std::runtime_error(
-            "mintspark {\"address\":{amount,memo...}}\n"
+            "mintspark {\"address\":{\"amount\":n,\"memo\":\"...\"},...} ( subtractFeeFromAmount [\"fromAddress\",...] )\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
-                                                 "\nArguments:\n"
-                                                 "    {\n"
-                                                 "      \"address\":amount   (numeric or string) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT +
-                                                 " is the value\n"
-                                                 "      ,...\n"
-                                                 "    }\n"
-                                                 "\nResult:\n"
-                                                 "\"txid\" (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                                                "                                    the number of addresses.\n"
-                                                "\nExamples:\n"
-                                                "\nSend two amounts to two different spark addresses:\n"
-            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\"},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\"}}\"") +
-            "\nSend two amounts to two different spark addresses, setting subtractFeeFromAmount flag and giving fromAddress array:\n"
-            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"test_memo\\\"},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.01, \\\"memo\\\":\\\"\\\"}}\" true [\\\"THhFWpJTDNyo6vL75kpob7UWVfwwp8t6kD\\\"]") +
-            "\nSend two amounts to two different spark addresses setting memo:\n"
-            + HelpExampleRpc("mintspark", "\"{\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":1},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\":{\"amount\":0.01, \"memo\":\"test_memo2\"}}\"")
+            "\nMint transparent funds to Spark addresses. This converts transparent " + CURRENCY_UNIT + " into private Spark coins.\n"
+            "\nArguments:\n"
+            "1. recipients               (object, required) A JSON object mapping Spark addresses to mint details\n"
+            "   {\n"
+            "     \"sparkAddress\": {     (object) The Spark address as key\n"
+            "       \"amount\": n,        (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint\n"
+            "       \"memo\": \"text\"      (string, optional, default=\"\") An optional memo attached to the mint\n"
+            "     },\n"
+            "     ...\n"
+            "   }\n"
+            "2. subtractFeeFromAmount    (boolean, optional, default=false) If true, the fee is deducted from the mint amounts\n"
+            "3. fromAddresses            (array, optional) A JSON array of transparent Firo addresses to use as inputs\n"
+            "   [\n"
+            "     \"address\",            (string) A transparent Firo address\n"
+            "     ...\n"
+            "   ]\n"
+            "\nResult:\n"
+            "[                           (array) Array of transaction IDs\n"
+            "  \"txid\",                  (string) The transaction ID of the mint transaction\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            "\nMint 0.01 " + CURRENCY_UNIT + " to a Spark address with a memo:\n"
+            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01,\\\"memo\\\":\\\"test_memo\\\"}}\"") +
+            "\nMint to multiple Spark addresses:\n"
+            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01,\\\"memo\\\":\\\"memo1\\\"},\\\"sr1x7gcqdy670l2v4p9h2m4n5zgzde9y6ht86egffa0qrq40c6z329yfgvu8vyf99tgvnq4hwshvfxxhfzuyvz8dr3lt32j70x8l34japg73ca4w6z9x7c7ryd2gnafg9eg3gpr90gtunraw\\\":{\\\"amount\\\":0.02,\\\"memo\\\":\\\"\\\"}}\"") +
+            "\nMint with fee subtracted from amount and using specific source addresses:\n"
+            + HelpExampleCli("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.5,\\\"memo\\\":\\\"\\\"}}\" true \"[\\\"THhFWpJTDNyo6vL75kpob7UWVfwwp8t6kD\\\"]\"") +
+            "\nJSON-RPC example:\n"
+            + HelpExampleRpc("mintspark", "\"{\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":1,\\\"memo\\\":\\\"test\\\"}}\"")
         );
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
