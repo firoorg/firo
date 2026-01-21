@@ -688,8 +688,18 @@ void SendCoinsDialog::on_sendButton_clicked()
 void SendCoinsDialog::on_switchFundButton_clicked()
 {
     setAnonymizeMode(!fAnonymousMode);
-    entry->setfAnonymousMode(fAnonymousMode);
-    entry->setWarning(fAnonymousMode);
+
+    // Update all entries, not just the last one
+    for(int i = 0; i < ui->entries->count(); ++i)
+    {
+        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if(entry)
+        {
+            entry->setfAnonymousMode(fAnonymousMode);
+            entry->setWarning(fAnonymousMode);
+        }
+    }
+
     coinControlUpdateLabels();
 }
 
