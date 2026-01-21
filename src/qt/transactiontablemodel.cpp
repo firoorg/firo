@@ -274,11 +274,8 @@ void TransactionTableModel::updateAmountColumnTitle()
     Q_EMIT headerDataChanged(Qt::Horizontal,Amount,Amount);
 }
 
-void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
+void TransactionTableModel::processCachedTransactions()
 {
-    uint256 updated;
-    updated.SetHex(hash.toStdString());
-    priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
     size_t currentSize = priv->cachedUpdatedTx.size();
     while (!priv->cachedUpdatedTx.empty())
     {
@@ -292,6 +289,14 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
     }
 }
 
+void TransactionTableModel::updateTransaction(const QString &hash, int status, bool showTransaction)
+{
+    uint256 updated;
+    updated.SetHex(hash.toStdString());
+    priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
+    processCachedTransactions();
+}
+
 void TransactionTableModel::updateConfirmations()
 {
     // Blocks came in since last poll.
@@ -301,6 +306,10 @@ void TransactionTableModel::updateConfirmations()
     int numRows = std::min(100, priv->size()-1);
     Q_EMIT dataChanged(index(0, Status), index(numRows, Status));
     Q_EMIT dataChanged(index(0, ToAddress), index(numRows, ToAddress));
+
+    // Process any cached transactions that couldn't be processed due to lock contention
+    // This ensures transactions are eventually added even if wallet updates are infrequent
+    processCachedTransactions();
 }
 
 void TransactionTableModel::updateNumISLocks(int numISLocks)
