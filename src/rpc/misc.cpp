@@ -1941,6 +1941,52 @@ CAmount getzerocoinpoolbalance()
     return  nTotalAmount;
 }
 
+CAmount getsigmapoolbalance()
+{
+    CAmount nTotalAmount = 0;
+
+    // Iterate over all mints
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    if (GetAddressIndex(uint160(), AddressType::sigmaMint, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+    addressIndex.clear();
+
+    // Iterate over all spends
+    if (GetAddressIndex(uint160(), AddressType::sigmaSpend, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+
+    return nTotalAmount;
+}
+
+CAmount getlelantuspoolbalance()
+{
+    CAmount nTotalAmount = 0;
+
+    // Iterate over all mints
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    if (GetAddressIndex(uint160(), AddressType::lelantusMint, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+    addressIndex.clear();
+
+    // Iterate over all spends
+    if (GetAddressIndex(uint160(), AddressType::lelantusJSplit, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+
+    return nTotalAmount;
+}
+
 CAmount getCVE17144amount()
 {
     // CVE-2018-17144 was a critical bug that allowed double-spending of inputs
@@ -2090,6 +2136,7 @@ UniValue gettotalsupply(const JSONRPCRequest& request)
     total -= getzerocoinpoolbalance(); //498,397.00000000 The actual amount of coins forged during the Zerocoin attacks (the negative balance after the pool closed),
     total += getCVE17144amount(); //320,841.99803185 The cmount of forged coins during CVE-2018-17144 attacks,
     total -= 16810168037465;// burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
+    total -= getsigmapoolbalance() + getlelantuspoolbalance(); // after closing sigma and lelantus pools, we have some amount of coins left in the pools. So we need to subtract them from the total supply.
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("total", total));
 
@@ -2113,6 +2160,44 @@ UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
         );
 
     return  getzerocoinpoolbalance();
+}
+
+UniValue getsigmapoolbalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getsigmapoolbalance\n"
+                "\nReturns the total coin amount, which remains after sigma pool closed.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getsigmapoolbalance", "")
+                + HelpExampleRpc("getsigmapoolbalance", "")
+        );
+
+    return getsigmapoolbalance();
+}
+
+UniValue getlelantuspoolbalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getlelantuspoolbalance\n"
+                "\nReturns the total coin amount, which remains after lelantus pool closed.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getlelantuspoolbalance", "")
+                + HelpExampleRpc("getlelantuspoolbalance", "")
+        );
+
+    return getlelantuspoolbalance();
 }
 
 UniValue getCVE17144amount(const JSONRPCRequest& request)
@@ -2262,6 +2347,8 @@ static const CRPCCommand commands[] =
     { "hidden",             "getinfoex",              &getinfoex,              false,         {} },
     { "addressindex",       "gettotalsupply",         &gettotalsupply,         false,         {} },
     { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance, false,         {} },
+    { "addressindex",       "getsigmapoolbalance",    &getsigmapoolbalance,    false,         {} },
+    { "addressindex",       "getlelantuspoolbalance", &getlelantuspoolbalance, false,         {} },
     { "addressindex",       "getCVE17144amount",      &getCVE17144amount,      false,         {} },
         /* Mobile related */
     { "mobile",             "getanonymityset",        &getanonymityset,        false,         {} },
