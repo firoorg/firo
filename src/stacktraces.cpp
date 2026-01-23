@@ -118,22 +118,29 @@ static std::string GetExeFileName()
 static std::string g_exeFileName = GetExeFileName();
 static std::string g_exeFileBaseName = fs::path(g_exeFileName).filename().string();
 
-static void my_backtrace_error_callback (void *data, const char *msg,
-                                  int errnum)
+static void my_backtrace_error_callback (void *data, const char *msg, int errnum)
 {
+    if (msg) {
+        LogPrintf("libbacktrace error: %s (errno: %d)\n", msg, errnum);
+    }
 }
 
 static backtrace_state* GetLibBacktraceState()
 {
 #if WIN32
-    // libbacktrace is not able to handle the DWARF debuglink in the .exe
-    // but luckily we can just specify the .dbg file here as it's a valid PE/XCOFF file
     static std::string debugFileName = g_exeFileName + ".dbg";
     static const char* exeFileNamePtr = fs::exists(debugFileName) ? debugFileName.c_str() : g_exeFileName.c_str();
 #else
     static const char* exeFileNamePtr = g_exeFileName.empty() ? nullptr : g_exeFileName.c_str();
 #endif
-    static backtrace_state* st = backtrace_create_state(exeFileNamePtr, 1, my_backtrace_error_callback, nullptr);
+    static bool logged = false;
+    static backtrace_state* st = [](){ 
+        if (!logged) {
+            LogPrintf("libbacktrace using executable: %s\n", exeFileNamePtr ? exeFileNamePtr : "(nullptr)");
+            logged = true;
+        }
+        return backtrace_create_state(exeFileNamePtr, 1, my_backtrace_error_callback, nullptr);
+    }();
     return st;
 }
 
