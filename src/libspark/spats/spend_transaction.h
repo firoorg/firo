@@ -61,7 +61,8 @@ public:
         const BPPlusProof& range_proof,
         const BaseAssetProof& base_proof,
         const TypeProof& type_proof,
-        const BalanceProof& balance_proof
+        const BalanceProof& balance_proof,
+        bool include_asset_proofs = true
     );
     static Scalar hash_bind(
         const std::vector<unsigned char>& hash_bind_inner,
@@ -82,14 +83,17 @@ public:
         READWRITE(T);
         READWRITE(grootle_proofs);
         READWRITE(chaum_proof);
-        READWRITE(balance_proof);
         READWRITE(range_proof);
         READWRITE(rep_proof);
         READWRITE(inputBase);
         READWRITE(outBase);
         READWRITE(base_proof);
-        if (inputBase < C1.size())
+        // Only serialize type_proof and balance_proof if there are asset (non-base) inputs
+        bool has_asset_inputs = (inputBase < C1.size());
+        if (has_asset_inputs) {
             READWRITE(type_proof);
+            READWRITE(balance_proof);
+        }
     }
 
     void setOutCoins(const std::vector<spark::Coin>& out_coins_) override {

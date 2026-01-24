@@ -228,16 +228,23 @@ SpendTransaction::SpendTransaction(
     base.prove(base_y, base_z, base_c, this->base_proof);
 
 
-    // Generate a proof that all generic-type
+    // Generate a proof that all generic-type assets have the same type
+    // Only generate this proof if there are asset (non-base) coins
     TypeEquality type(
         this->params->get_E(),
         this->params->get_F(),
         this->params->get_G(),
         this->params->get_H());
 
-    // This call crashes when type_y is empty, due to y[0] access on line 80
-    // TODO for Levon: should there be such a proof at all when type_y is empty?
-    type.prove(type_c, asset_type, identifier, type_y, type_z, this->type_proof);
+    // Check if we have any asset coins (non-base inputs or outputs)
+    // This prevents crashes when type_y/type_c is empty (y[0] access in type.prove)
+    bool has_asset_inputs = (this->inputBase < w);
+    bool has_asset_outputs = (this->outBase < t);
+    bool has_asset_coins = has_asset_inputs || has_asset_outputs;
+    
+    if (has_asset_coins) {
+        type.prove(type_c, asset_type, identifier, type_y, type_z, this->type_proof);
+    }
 
 
     // Generate the Rep proof
@@ -281,10 +288,12 @@ SpendTransaction::SpendTransaction(
         this->rep_proof);
 
 
-    // Generate Balance proof
+    // Generate Balance proof (only if there are asset coins)
     Balance balance(this->params->get_E(), this->params->get_F(), this->params->get_H());
-    Scalar wl = Scalar(w_generic) - Scalar(t_generic);
-    balance.prove(balance_statement, wl * asset_type, wl * identifier, balance_witness, balance_proof);
+    if (has_asset_coins) {
+        Scalar wl = Scalar(w_generic) - Scalar(t_generic);
+        balance.prove(balance_statement, wl * asset_type, wl * identifier, balance_witness, balance_proof);
+    }
 
 
     // Compute the binding hash
@@ -299,7 +308,8 @@ SpendTransaction::SpendTransaction(
             this->range_proof,
             this->base_proof,
             this->type_proof,
-            this->balance_proof),
+            this->balance_proof,
+            has_asset_coins),
         this->out_coins,
         this->f + vout,
         this->burn
@@ -419,6 +429,16 @@ bool SpendTransaction::verify(
             grootle_buckets[tx.cover_set_ids[u]].emplace_back(std::pair<std::size_t, std::size_t>(i, u));
         }
 
+        // Check if we have asset coins (non-base coins)
+        // This must be computed before hash_bind_inner to determine if asset proofs should be included
+        bool has_asset_inputs = (tx.inputBase < w);
+        bool has_asset_outputs = (tx.outBase < t);
+        if (has_asset_inputs != has_asset_outputs) {
+            // Inputs and outputs must either both include asset coins or both be base-only.
+            return false;
+        }
+        bool has_asset_coins = has_asset_inputs;
+
         // Compute the binding hash
         Scalar mu = hash_bind(
             tx.hash_bind_inner(
@@ -431,7 +451,8 @@ bool SpendTransaction::verify(
                 tx.range_proof,
                 tx.base_proof,
                 tx.type_proof,
-                tx.balance_proof),
+                tx.balance_proof,
+                has_asset_coins),
             tx.out_coins,
             tx.f + tx.vout,
             tx.burn
@@ -468,9 +489,26 @@ bool SpendTransaction::verify(
             }
         }
 
-        if (!(type.verify(type_c, tx.type_proof))) {
-            return false;
+        // Verify type proof only if there are asset coins
+        // If there are no asset coins, we skip type proof verification
+        if (has_asset_coins) {
+            // Verify that type_c is not empty when we expect asset coins
+            if (type_c.empty()) {
+                // Inconsistent state: we have asset coins but type_c is empty
+                return false;
+            }
+            if (!(type.verify(type_c, tx.type_proof))) {
+                return false;
+            }
+        } else {
+            // If there are no asset coins, type_c should be empty
+            if (!type_c.empty()) {
+                // Inconsistent state: no asset coins but type_c is not empty
+                return false;
+            }
         }
+        
+        // Verify base proof (always present if there are any coins)
         if (!(base.verify(base_c, tx.base_proof))) {
             return false;
         }
@@ -503,10 +541,12 @@ bool SpendTransaction::verify(
         }
 
 
-        Balance balance(tx.params->get_E(), tx.params->get_F(), tx.params->get_H());
-
-        if (!balance.verify(balance_statement, tx.balance_proof)) {
-            return false;
+        // Verify balance proof only if there are asset coins
+        if (has_asset_coins) {
+            Balance balance(tx.params->get_E(), tx.params->get_F(), tx.params->get_H());
+            if (!balance.verify(balance_statement, tx.balance_proof)) {
+                return false;
+            }
         }
     }
 
@@ -592,7 +632,8 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
     const BPPlusProof& range_proof,
     const BaseAssetProof& base_proof,
     const TypeProof& type_proof,
-    const BalanceProof& balance_proof
+    const BalanceProof& balance_proof,
+    bool include_asset_proofs
 )
 {
     spark::Hash hash(spark::LABEL_HASH_BIND_INNER);
@@ -605,8 +646,12 @@ std::vector<unsigned char> SpendTransaction::hash_bind_inner(
     stream << rep_proof;
     stream << range_proof;
     stream << base_proof;
-    stream << type_proof;
-    stream << balance_proof;
+    
+    // Only include type_proof and balance_proof if there are asset coins
+    if (include_asset_proofs) {
+        stream << type_proof;
+        stream << balance_proof;
+    }
 
     hash.include(stream);
 
