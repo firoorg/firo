@@ -115,6 +115,12 @@ public:
         this->burn = burn_;
     }
 
+    void setBurnAssetId(const Scalar& asset_type_, const Scalar& identifier_) {
+        this->burn_asset_type = asset_type_;
+        this->burn_identifier = identifier_;
+        this->burn_asset_id_set = true;
+    }
+
     bool isSpats() const override {
         return true;
     }
@@ -131,6 +137,9 @@ private:
     std::vector<spark::Coin> out_coins;
     uint64_t vout = 0;
     uint64_t burn = 0;
+    Scalar burn_asset_type = Scalar((uint64_t)0);
+    Scalar burn_identifier = Scalar((uint64_t)0);
+    bool burn_asset_id_set = false;
 
     // All this data we need to serialize
     std::map<uint64_t, uint256> set_id_blockHash;

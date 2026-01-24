@@ -1135,6 +1135,7 @@ bool CheckSparkSpendTransaction(
 
     uint64_t Vout = 0;
     uint64_t burn = 0;
+    std::optional<std::pair<Scalar, Scalar>> burn_asset_id;
     std::size_t private_num = 0;
     for (const CTxOut &txout : tx.vout) {
         const auto& script = txout.scriptPubKey;
@@ -1149,6 +1150,17 @@ bool CheckSparkSpendTransaction(
             continue;
         } else if (script.IsSpatsBurnAmount()) {
             burn += txout.nValue;
+            if (burn_asset_id) {
+                return false;
+            }
+            std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+            CDataStream stream(serialized, SER_NETWORK, PROTOCOL_VERSION);
+            std::pair<Scalar, Scalar> asset_id_scalars;
+            stream >> asset_id_scalars;
+            if (!asset_id_scalars.second.isZero()) {
+                return false;
+            }
+            burn_asset_id = asset_id_scalars;
         } else {
             Vout += txout.nValue;
         }
@@ -1235,6 +1247,13 @@ bool CheckSparkSpendTransaction(
     spend->setCoverSets(cover_set_data);
     spend->setVout(Vout);
     spend->setBurn(burn);
+    if (spatsStarted && burn > 0) {
+        if (!burn_asset_id) {
+            return false;
+        }
+        auto* spats_spend = static_cast<spats::SpendTransaction*>(spend.get());
+        spats_spend->setBurnAssetId(burn_asset_id->first, burn_asset_id->second);
+    }
 
     const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {

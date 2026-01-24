@@ -28,8 +28,8 @@ SpendTransaction::SpendTransaction(
 {
     this->params = params;
 
-    Scalar asset_type;
-    Scalar identifier;
+    Scalar asset_type = ZERO;
+    Scalar identifier = ZERO;
 
 
     // Size parameters
@@ -223,6 +223,24 @@ SpendTransaction::SpendTransaction(
             type_z.emplace_back(spark::SparkUtils::hash_val(k[j]));
         }
     }
+    bool has_asset_inputs = (this->inputBase < w);
+    bool has_asset_outputs = (this->outBase < t);
+    bool has_asset_coins = has_asset_inputs || has_asset_outputs;
+
+    if (burn > 0) {
+        if (!has_asset_inputs) {
+            throw std::invalid_argument("Burn requires asset inputs");
+        }
+        this->burn_asset_type = asset_type;
+        this->burn_identifier = identifier;
+        this->burn_asset_id_set = true;
+        type_c.emplace_back(
+            (this->params->get_E() * asset_type) +
+            (this->params->get_F() * identifier) +
+            (this->params->get_G() * Scalar(burn)));
+        type_y.emplace_back(Scalar(burn));
+        type_z.emplace_back(ZERO);
+    }
     // Generate a proof that all base-type assets
     BaseAsset base(this->params->get_G(), this->params->get_H());
     base.prove(base_y, base_z, base_c, this->base_proof);
@@ -238,10 +256,6 @@ SpendTransaction::SpendTransaction(
 
     // Check if we have any asset coins (non-base inputs or outputs)
     // This prevents crashes when type_y/type_c is empty (y[0] access in type.prove)
-    bool has_asset_inputs = (this->inputBase < w);
-    bool has_asset_outputs = (this->outBase < t);
-    bool has_asset_coins = has_asset_inputs || has_asset_outputs;
-    
     if (has_asset_coins) {
         type.prove(type_c, asset_type, identifier, type_y, type_z, this->type_proof);
     }
@@ -487,6 +501,16 @@ bool SpendTransaction::verify(
             } else {
                 type_c.emplace_back(tx.out_coins[j].C);
             }
+        }
+
+        if (tx.burn > 0) {
+            if (!has_asset_coins || !tx.burn_asset_id_set) {
+                return false;
+            }
+            type_c.emplace_back(
+                (tx.params->get_E() * tx.burn_asset_type) +
+                (tx.params->get_F() * tx.burn_identifier) +
+                (tx.params->get_G() * Scalar(tx.burn)));
         }
 
         // Verify type proof only if there are asset coins
