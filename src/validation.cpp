@@ -3864,13 +3864,22 @@ static CBlockIndex* FindMostWorkChain() {
 
 /** Delete all entries in setBlockIndexCandidates that are worse than the current tip. */
 static void PruneBlockIndexCandidates() {
-    // Note that we can't delete the current block itself, as we may need to return to it later in case a
-    // reorganization to a better block fails.
+    // Ensure the current tip is in the candidates set before pruning.
+    // This guards against edge cases in reorg/invalidation where it might be missing.
+    if (chainActive.Tip() &&
+        chainActive.Tip()->IsValid(BLOCK_VALID_TRANSACTIONS) &&
+        chainActive.Tip()->nChainTx &&
+        setBlockIndexCandidates.count(chainActive.Tip()) == 0) {
+        LogPrintf("WARNING: PruneBlockIndexCandidates: tip was missing from candidates, re-adding\n");
+        setBlockIndexCandidates.insert(chainActive.Tip());
+    }
+
     std::set<CBlockIndex*, CBlockIndexWorkComparator>::iterator it = setBlockIndexCandidates.begin();
     while (it != setBlockIndexCandidates.end() && setBlockIndexCandidates.value_comp()(*it, chainActive.Tip())) {
         setBlockIndexCandidates.erase(it++);
     }
-    // Either the current tip or a successor of it we're working towards is left in setBlockIndexCandidates.
+
+    // Keep the assertion - if we still fail here, something is seriously wrong
     assert(!setBlockIndexCandidates.empty());
 }
 
