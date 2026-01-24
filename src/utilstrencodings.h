@@ -11,6 +11,7 @@
 
 #include "span.h"
 
+#include <array>
 #include <stdint.h>
 #include <string>
 #include <vector>
