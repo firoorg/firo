@@ -108,6 +108,7 @@ QT_FORMS_UI = \
   qt/forms/myownspats.ui \
   qt/forms/sparkassetspage.ui \
   qt/forms/sparkassetdialog.ui \
+  qt/forms/spatssenddialog.ui \
   qt/forms/spatsburndialog.ui \
   qt/forms/spatsmintdialog.ui \
   qt/forms/intro.ui \
@@ -154,6 +155,7 @@ QT_MOC_CPP = \
   qt/moc_myownspats.cpp \
   qt/moc_sparkassetspage.cpp \
   qt/moc_sparkassetdialog.cpp \
+  qt/moc_spatssenddialog.cpp \
   qt/moc_spatsburndialog.cpp \
   qt/moc_spatsmintdialog.cpp \
   qt/moc_modaloverlay.cpp \
@@ -236,6 +238,7 @@ BITCOIN_QT_H = \
   qt/masternodelist.h \
   qt/myownspats.h \
   qt/sparkassetdialog.h \
+  qt/spatssenddialog.h \
   qt/spatsburndialog.h \
   qt/spatsmintdialog.h \
   qt/modaloverlay.h \
@@ -466,6 +469,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/masternodelist.cpp \
   qt/myownspats.cpp \
   qt/sparkassetdialog.cpp \
+  qt/spatssenddialog.cpp \
   qt/spatsburndialog.cpp \
   qt/spatsmintdialog.cpp \
   qt/spatsuserconfirmationdialog.cpp \
