@@ -403,9 +403,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Setup Swap Space
+      - name: Setup swap
         run: |
           set -exo pipefail
+          # Turn off and remove existing swapfile if present
+          if [ -f /swapfile ]; then
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
+          fi
           sudo fallocate -l 10G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
@@ -513,9 +518,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Setup Swap Space
+      - name: Setup swap
         run: |
           set -exo pipefail
+          # Turn off and remove existing swapfile if present
+          if [ -f /swapfile ]; then
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
+          fi
           sudo fallocate -l 10G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
@@ -622,9 +632,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Setup Swap Space
+      - name: Setup swap
         run: |
           set -exo pipefail
+          # Turn off and remove existing swapfile if present
+          if [ -f /swapfile ]; then
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
+          fi
           sudo fallocate -l 10G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
@@ -758,9 +773,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Setup Swap Space
+      - name: Setup swap
         run: |
           set -exo pipefail
+          # Turn off and remove existing swapfile if present
+          if [ -f /swapfile ]; then
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
+          fi
           sudo fallocate -l 10G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
@@ -907,9 +927,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Setup Swap Space
+      - name: Setup swap
         run: |
           set -exo pipefail
+          # Turn off and remove existing swapfile if present
+          if [ -f /swapfile ]; then
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
+          fi
           sudo fallocate -l 10G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
