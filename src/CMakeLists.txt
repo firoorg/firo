@@ -406,6 +406,13 @@ if(BUILD_DAEMON)
   set_platform_output_name(firod FIRO_DAEMON_NAME)
   apply_wrapped_exception_flags(firod)
   list(APPEND installable_targets firod)
+  # Generate DLSymbols on macOS
+  if(APPLE)
+      add_custom_command(TARGET firod POST_BUILD
+          COMMAND dsymutil "$<TARGET_FILE:firod>"
+          COMMENT "Generating dSYM for firod"
+      )
+  endif()
 endif()
 if(WITH_MULTIPROCESS)
   add_executable(bitcoin-node

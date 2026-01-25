@@ -317,6 +317,13 @@ endif()
 if(WIN32)
   set_target_properties(firo-qt PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
+# Generate DLSymbols on macOS
+if(APPLE)
+    add_custom_command(TARGET firo-qt POST_BUILD
+        COMMAND dsymutil "$<TARGET_FILE:firo-qt>"
+        COMMENT "Generating dSYM for firo-qt"
+    )
+endif()
 
 if(WITH_MULTIPROCESS)
   add_executable(bitcoin-gui
