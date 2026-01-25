@@ -511,7 +511,10 @@ static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
     }
 
     // get max "filename:line" length so we can better format it
-    size_t lstrlen = std::max_element(lstrs.begin(), lstrs.end(), [](const std::string& a, const std::string& b) { return a.size() < b.size(); })->size();
+    size_t lstrlen = lstrs.empty() ? 0 : std::max_element(lstrs.begin(), lstrs.end(),
+        [](const std::string& a, const std::string& b) {
+            return a.size() < b.size();
+        })->size();
 
     std::string fmtStr = strprintf("%%2d#: (0x%%08X) %%-%ds - %%s\n", lstrlen);
 
