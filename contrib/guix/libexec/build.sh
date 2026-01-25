@@ -512,7 +512,14 @@ mkdir -p "$DISTSRC"
         rm -rf "./lib/pkgconfig"
 
         case "$HOST" in
-            *darwin*) ;;
+            *darwin*)
+                # Copy dSYM bundles from build directory to install directory
+                for dsym in "${DISTSRC}/build/bin/"*.dSYM; do
+                    if [ -d "$dsym" ]; then
+                        cp -a "$dsym" "./bin/"
+                    fi
+                done
+                ;;
             *)
                 # Split binaries and libraries from their debug symbols
                 {
@@ -585,12 +592,24 @@ mkdir -p "$DISTSRC"
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" && exit 1 )
                 ;;
             *darwin*)
-                find . -print0 \
+                # Main tarball (exclude .dSYM bundles)
+                find . -name "*.dSYM" -prune -o -print0 \
                     | sort --zero-terminated \
                     | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
                     --transform="s|^\.|${DISTNAME}|" \
                     | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" \
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" && exit 1 )
+
+                # Debug tarball (only .dSYM bundles)
+                find . -type d -name "*.dSYM" -print0 \
+                    | while IFS= read -r -d '' dsym; do
+                        find "$dsym" -print0
+                    done \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    --transform="s|^\.|${DISTNAME}|" \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}-debug.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}-debug.tar.gz" && exit 1 )
                 ;;
         esac
     )  # $DISTSRC/installed

@@ -429,7 +429,7 @@ static std::string GetCrashInfoStrNoDebugInfo(crash_info ci)
 
     auto ciStr = EncodeBase32(MakeUCharSpan(ds));
     std::string s = ci.crashDescription + "\n";
-    s += strprintf("No debug information available for stacktrace. You should add debug information and then run:\n"
+    s += strprintf("Add debug information and then run:\n"
                    "%s -printcrashinfo=%s\n", g_exeFileBaseName, ciStr);
     return s;
 }
@@ -484,9 +484,7 @@ std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr)
 
 static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
 {
-    if (ci.stackframeInfos.empty()) {
-        return GetCrashInfoStrNoDebugInfo(ci);
-    }
+    std::string s = GetCrashInfoStrNoDebugInfo(ci) + "\n";
 
     std::string sp;
     for (size_t i = 0; i < spaces; i++) {
@@ -513,11 +511,14 @@ static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
     }
 
     // get max "filename:line" length so we can better format it
-    size_t lstrlen = std::max_element(lstrs.begin(), lstrs.end(), [](const std::string& a, const std::string& b) { return a.size() < b.size(); })->size();
+    size_t lstrlen = lstrs.empty() ? 0 : std::max_element(lstrs.begin(), lstrs.end(),
+        [](const std::string& a, const std::string& b) {
+            return a.size() < b.size();
+        })->size();
 
     std::string fmtStr = strprintf("%%2d#: (0x%%08X) %%-%ds - %%s\n", lstrlen);
 
-    std::string s = ci.crashDescription + "\n";
+    s += ci.crashDescription + "\n";
     for (size_t i = 0; i < ci.stackframeInfos.size(); i++) {
         auto& si = ci.stackframeInfos[i];
 

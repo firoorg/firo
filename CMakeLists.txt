@@ -140,8 +140,18 @@ option(ENABLE_HARDENING "Attempt to harden the resulting executables." ON)
 option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting executables." OFF)
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
-option(ENABLE_CRASH_HOOKS "Hook into exception/signal/assert handling to gather stack traces (default is off)" OFF)
 option(HAVE_DECL_DAEMON "Enable -daemon" ON)
+
+# Decide the default (only reliable for single-config generators)
+set(_crash_hooks_default OFF)
+
+# Single-config generators use CMAKE_BUILD_TYPE at configure time
+if(NOT CMAKE_CONFIGURATION_TYPES)
+  if(CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
+    set(_crash_hooks_default ON)
+  endif()
+endif()
+option(ENABLE_CRASH_HOOKS "Enable crash hooks / crashinfo printing" ${_crash_hooks_default})
 
 if(ENABLE_CRASH_HOOKS)
   message(STATUS "Crash hooks enabled")

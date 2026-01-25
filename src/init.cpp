@@ -1443,6 +1443,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return false;
     }
 
+    // Trigger a test exception to verify stacktrace handlers only for debugging purposes.
+    if (GetBoolArg("-testcrash", false)) {
+        throw std::runtime_error("Test crash triggered by -testcrash flag. This is for testing purposes only.");
+    }
+
 #ifndef WIN32
     CreatePidFile(GetPidFile(), getpid());
 #endif
