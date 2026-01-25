@@ -1569,7 +1569,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
-    SetLimited(NET_ONION);
+    // Only set NET_ONION as limited by default if -onlynet was not specified.
+    // If -onlynet was specified, the network limitations have already been set correctly above.
+    if (!mapMultiArgs.count("-onlynet")) {
+        SetLimited(NET_ONION);
+    }
     if (proxyArg != "" && proxyArg != "0") {
         CService resolved(LookupNumeric(proxyArg.c_str(), 9050));
         proxyType addrProxy = proxyType(resolved, proxyRandomize);
