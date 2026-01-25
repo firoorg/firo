@@ -15,11 +15,8 @@ RUN apt-get update && apt-get install -y \
     m4 \
     make \
     pkg-config \
-    patch \
-    m4 \
-    autoconf \
-    automake \
-    libtool
+    rsync \
+    patch
 
 # Build Firo
 COPY . /tmp/firo/
@@ -32,7 +29,7 @@ RUN cd depends && \
 RUN cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$(uname -m)-linux-gnu/toolchain.cmake -DBUILD_GUI=OFF -DBUILD_TESTS=ON && \
     cmake --build build -j$(nproc) && \
     cd build && make test && \
-    cmake --install build --prefix /tmp/firo/depends/$(uname -m)-linux-gnu
+    cmake --install . --prefix /tmp/firo/depends/$(uname -m)-linux-gnu
 
 # extract shared dependencies of firod and firo-cli
 # copy relevant binaries to /usr/bin, the COPY --from cannot use $(uname -m) variable in argument
@@ -41,17 +38,17 @@ RUN mkdir /tmp/ldd && \
     ./depends/ldd_copy.sh -b "./depends/$(uname -m)-linux-gnu/bin/firo-cli" -t "/tmp/ldd" && \
     cp ./depends/$(uname -m)-linux-gnu/bin/* /usr/bin/
 
-FROM debian:bullseye-slim
+FROM debian:bookworm
 
 COPY --from=build-image /usr/bin/firod /usr/bin/firod
 COPY --from=build-image /usr/bin/firo-cli /usr/bin/firo-cli
 COPY --from=build-image /tmp/ldd /tmp/ldd
 
-# restore ldd files in correct paths
-# -n will not override libraries already present in this image,
-# standard libraries like `libc` can crash when overriden at runtime
-RUN cp -vnrT /tmp/ldd / && \
-    rm -rf /tmp/ldd && \
+# use rsync to copy shared libraries to root filesystem
+RUN apt-get update && apt-get install -y --no-install-recommends rsync && \
+    rsync -av --ignore-existing /tmp/ldd/ / && \
+    apt-get purge -y rsync && apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/* /tmp/ldd && \
     ldd /usr/bin/firod
 
 # Create user to run daemon
