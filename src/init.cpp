@@ -1604,6 +1604,25 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
+    // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
+    // This check is similar to Bitcoin Core's approach to provide a helpful error message.
+    if (mapMultiArgs.count("-onlynet")) {
+        bool onlynetIncludesOnion = false;
+        for (const std::string& snet : mapMultiArgs.at("-onlynet")) {
+            if (ParseNetwork(snet) == NET_ONION) {
+                onlynetIncludesOnion = true;
+                break;
+            }
+        }
+        if (onlynetIncludesOnion) {
+            proxyType onionProxy;
+            bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
+            if (!haveOnionProxy && !torEnabled) {
+                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but no proxy for reaching the Tor network is provided. Use -proxy, -onion, or -torsetup to configure a Tor proxy."));
+            }
+        }
+    }
+
     // see Step 2: parameter interactions for more information about these
     fListen = GetBoolArg("-listen", DEFAULT_LISTEN);
     fDiscover = GetBoolArg("-discover", true);
