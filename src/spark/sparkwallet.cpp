@@ -898,7 +898,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                         singleTxOutputs.push_back(mintedCoinData);
                     } else {
                         uint64_t remainingMintValue = mintedValue;
-                        while (remainingMintValue > 0){
+                        while (remainingMintValue > 0 && !remainingOutputs.empty()){
                             // Create the mint data and push into vector
                             uint64_t singleMintValue = std::min(remainingMintValue, remainingOutputs.begin()->v);
                             spark::MintedCoinData mintedCoinData;
@@ -922,12 +922,12 @@ bool CSparkWallet::CreateSparkMintTransactions(
                         for (size_t i = 0; i < singleTxOutputs.size(); ++i) {
                             if (cmp::less_equal(singleTxOutputs[i].v, singleFee)) {
                                 singleTxOutputs.erase(singleTxOutputs.begin() + i);
-                                reminder += singleTxOutputs[i].v - singleFee;
-                                if (!singleTxOutputs.size()) {
+                                if (singleTxOutputs.empty()) {
                                     strFailReason = _("Transaction amount too small");
                                     return false;
                                 }
                                 --i;
+                                continue;
                             }
                             singleTxOutputs[i].v -= singleFee;
                             if (reminder > 0 && singleTxOutputs[i].v > nFeeRet % singleTxOutputs.size()) {// first receiver pays the remainder not divisible by output count

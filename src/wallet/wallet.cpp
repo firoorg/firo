@@ -7165,6 +7165,10 @@ bool CWallet::CreateSparkMintTransactions(
     const CCoinControl *coinControl,
     bool autoMintAll)
 {
+    if (!sparkWallet) {
+        strFailReason = _("Spark wallet is not available");
+        return false;
+    }
     return sparkWallet->CreateSparkMintTransactions(outputs, wtxAndFee, nAllFeeRet, reservekeys, nChangePosInOut, subtractFeeFromAmount, strFailReason, fSplit, coinControl, autoMintAll);
 }
 
