@@ -119,7 +119,7 @@ jobs:
         export HOST_TRIPLET=$(depends/config.guess)
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
         -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
         cd build && ninja
     - name: Run Unit Tests
@@ -258,7 +258,7 @@ jobs:
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DCMAKE_BUILD_TYPE=Release \
         -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && ninja
     - name: Prepare Files for Artifact
@@ -359,7 +359,7 @@ jobs:
         export HOST_TRIPLET=$(depends/config.guess)
         env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
         -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
         cd build && ninja
     - name: Prepare Files for Artifact
