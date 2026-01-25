@@ -385,6 +385,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0 # Optional: Ensures git describe finds tags correctly
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -500,6 +503,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0 # Optional: Ensures git describe finds tags correctly
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -614,6 +620,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0 # Optional: Ensures git describe finds tags correctly
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
@@ -732,6 +741,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0 # Optional: Ensures git describe finds tags correctly
       - name: Install Guix
         run: |
           set -exo pipefail
@@ -886,6 +898,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0 # Optional: Ensures git describe finds tags correctly
       - name: Install Guix
         run: |
           set -exo pipefail
