@@ -251,7 +251,8 @@ fi
 ###########################
 
 # Use COMMIT_TIMESTAMP for the source and release binary archives
-export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
+# Use the same SOURCE_DATE_EPOCH as source tarball for consistency
+export SOURCE_DATE_EPOCH=${COMMIT_TIMESTAMP:-$(git log -1 --format=%ct)}
 export TAR_OPTIONS="--owner=0 --group=0 --numeric-owner --mtime='@${SOURCE_DATE_EPOCH}' --sort=name"
 
 
