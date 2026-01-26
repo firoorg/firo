@@ -805,10 +805,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
     wtxNew.BindWallet(pwalletMain);
 
     CMutableTransaction txNew;
-    txNew.nLockTime = chainActive.Height();
 
-    assert(txNew.nLockTime <= (unsigned int) chainActive.Height());
-    assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
     std::vector<spark::MintedCoinData> outputs_ = outputs;
     CAmount valueToMint = 0;
 
@@ -817,6 +814,13 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
+
+        // Must access chainActive.Height() under cs_main lock to avoid race conditions
+        txNew.nLockTime = chainActive.Height();
+
+        assert(txNew.nLockTime <= (unsigned int) chainActive.Height());
+        assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
+
         {
             std::list<CWalletTx> cacheWtxs;
             // vector pairs<available amount, outputs> for each transparent address
@@ -1346,7 +1350,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     // enough, that fee sniping isn't a problem yet, but by implementing a fix
     // now we ensure code won't be written that makes assumptions about
     // nLockTime that preclude a fix later.
-    tx.nLockTime = chainActive.Height();
+    // Use nHeight which was obtained under cs_main lock to avoid race conditions
+    tx.nLockTime = nHeight;
 
     // Secondly occasionally randomly pick a nLockTime even further back, so
     // that transactions that are delayed after signing for whatever reason,
@@ -1356,7 +1361,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         tx.nLockTime = std::max(0, static_cast<int>(tx.nLockTime) - GetRandInt(100));
     }
 
-    assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
+    assert(tx.nLockTime <= static_cast<unsigned>(nHeight));
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
     std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
 
