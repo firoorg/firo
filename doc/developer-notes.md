@@ -104,7 +104,7 @@ Not OK (used plenty in the current source, but not picked up):
 //
 ```
 
-A full list of comment syntaxes picked up by doxygen can be found at http://www.stack.nl/~dimitri/doxygen/manual/docblocks.html,
+A full list of comment syntaxes picked up by doxygen can be found at https://www.doxygen.nl/manual/docblocks.html
 but if possible use one of the above styles.
 
 Development tips and tricks
