@@ -1374,18 +1374,24 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             bool remainderSubtracted = false;
             fee = estimated.first;
+            const CAmount feePerRecipient = recipientsToSubtractFee > 0 ? fee / recipientsToSubtractFee : 0;
+            const CAmount feeRemainder = recipientsToSubtractFee > 0 ? fee % recipientsToSubtractFee : 0;
             for (size_t i = 0; i < recipients_.size(); i++) {
                 auto &recipient = recipients_[i];
 
                 if (recipient.fSubtractFeeFromAmount) {
-                    // Subtract fee equally from each selected recipient.
-                    recipient.nAmount -= fee / recipientsToSubtractFee;
-
+                    CAmount feeToSubtract = feePerRecipient;
                     if (!remainderSubtracted) {
                         // First receiver pays the remainder not divisible by output count.
-                        recipient.nAmount -= fee % recipientsToSubtractFee;
-                        remainderSubtracted = true;
+                        feeToSubtract += feeRemainder;
                     }
+                    if (cmp::less_equal(recipient.nAmount, feeToSubtract)) {
+                        throw std::runtime_error(boost::str(
+                                boost::format(_("Amount for recipient %1% is too small to send after the fee has been deducted")) % i));
+                    }
+                    // Subtract fee equally from each selected recipient.
+                    recipient.nAmount -= feeToSubtract;
+                    remainderSubtracted = true;
                 }
             }
 
@@ -1393,14 +1399,18 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 auto &privateRecipient = privateRecipients_[i];
 
                 if (privateRecipient.second) {
-                    // Subtract fee equally from each selected recipient.
-                    privateRecipient.first.v -= fee / recipientsToSubtractFee;
-
+                    CAmount feeToSubtract = feePerRecipient;
                     if (!remainderSubtracted) {
                         // First receiver pays the remainder not divisible by output count.
-                        privateRecipient.first.v -= fee % recipientsToSubtractFee;
-                        remainderSubtracted = true;
+                        feeToSubtract += feeRemainder;
                     }
+                    if (cmp::less_equal(privateRecipient.first.v, feeToSubtract)) {
+                        throw std::runtime_error(boost::str(
+                                boost::format(_("Amount for private recipient %1% is too small to send after the fee has been deducted")) % i));
+                    }
+                    // Subtract fee equally from each selected recipient.
+                    privateRecipient.first.v -= feeToSubtract;
+                    remainderSubtracted = true;
                 }
             }
 
