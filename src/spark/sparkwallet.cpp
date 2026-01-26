@@ -805,9 +805,14 @@ bool CSparkWallet::CreateSparkMintTransactions(
     wtxNew.BindWallet(pwalletMain);
 
     CMutableTransaction txNew;
-    txNew.nLockTime = chainActive.Height();
+    int nHeight = 0;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+    txNew.nLockTime = nHeight;
 
-    assert(txNew.nLockTime <= (unsigned int) chainActive.Height());
+    assert(txNew.nLockTime <= static_cast<unsigned int>(nHeight));
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
     std::vector<spark::MintedCoinData> outputs_ = outputs;
     CAmount valueToMint = 0;
@@ -1309,7 +1314,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         }
     }
 
-    int nHeight;
+    int nHeight = 0;
     {
         LOCK(cs_main);
         nHeight = chainActive.Height();
@@ -1346,7 +1351,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     // enough, that fee sniping isn't a problem yet, but by implementing a fix
     // now we ensure code won't be written that makes assumptions about
     // nLockTime that preclude a fix later.
-    tx.nLockTime = chainActive.Height();
+    tx.nLockTime = nHeight;
 
     // Secondly occasionally randomly pick a nLockTime even further back, so
     // that transactions that are delayed after signing for whatever reason,
@@ -1356,53 +1361,49 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         tx.nLockTime = std::max(0, static_cast<int>(tx.nLockTime) - GetRandInt(100));
     }
 
-    assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));
+    assert(tx.nLockTime <= static_cast<unsigned>(nHeight));
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
-    std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
-
-    std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
-            SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, additionalTxSize);
-
     std::vector<CRecipient> recipients_ = recipients;
     std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients_ = privateRecipients;
     {
-        bool remainderSubtracted = false;
-        fee = estimated.first;
-        for (size_t i = 0; i < recipients_.size(); i++) {
-            auto &recipient = recipients_[i];
-
-            if (recipient.fSubtractFeeFromAmount) {
-                // Subtract fee equally from each selected recipient.
-                recipient.nAmount -= fee / recipientsToSubtractFee;
-
-                if (!remainderSubtracted) {
-                    // First receiver pays the remainder not divisible by output count.
-                    recipient.nAmount -= fee % recipientsToSubtractFee;
-                    remainderSubtracted = true;
-                }
-            }
-        }
-
-        for (size_t i = 0; i < privateRecipients_.size(); i++) {
-            auto &privateRecipient = privateRecipients_[i];
-
-            if (privateRecipient.second) {
-                // Subtract fee equally from each selected recipient.
-                privateRecipient.first.v -= fee / recipientsToSubtractFee;
-
-                if (!remainderSubtracted) {
-                    // First receiver pays the remainder not divisible by output count.
-                    privateRecipient.first.v -= fee % recipientsToSubtractFee;
-                    remainderSubtracted = true;
-                }
-            }
-        }
-
-    }
-
-    {
         LOCK2(cs_main, pwalletMain->cs_wallet);
         {
+            std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
+            std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
+                    SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, additionalTxSize);
+
+            bool remainderSubtracted = false;
+            fee = estimated.first;
+            for (size_t i = 0; i < recipients_.size(); i++) {
+                auto &recipient = recipients_[i];
+
+                if (recipient.fSubtractFeeFromAmount) {
+                    // Subtract fee equally from each selected recipient.
+                    recipient.nAmount -= fee / recipientsToSubtractFee;
+
+                    if (!remainderSubtracted) {
+                        // First receiver pays the remainder not divisible by output count.
+                        recipient.nAmount -= fee % recipientsToSubtractFee;
+                        remainderSubtracted = true;
+                    }
+                }
+            }
+
+            for (size_t i = 0; i < privateRecipients_.size(); i++) {
+                auto &privateRecipient = privateRecipients_[i];
+
+                if (privateRecipient.second) {
+                    // Subtract fee equally from each selected recipient.
+                    privateRecipient.first.v -= fee / recipientsToSubtractFee;
+
+                    if (!remainderSubtracted) {
+                        // First receiver pays the remainder not divisible by output count.
+                        privateRecipient.first.v -= fee % recipientsToSubtractFee;
+                        remainderSubtracted = true;
+                    }
+                }
+            }
+
             const spark::Params* params = spark::Params::get_default();
             spark::CSparkState *sparkState = spark::CSparkState::GetState();
             spark::SpendKey spendKey(params);
