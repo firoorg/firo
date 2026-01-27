@@ -3832,7 +3832,7 @@ UniValue listunspentlelantusmints(const JSONRPCRequest& request) {
     std::vector <COutput> vecOutputs;
     assert(pwallet != NULL);
     pwallet->ListAvailableLelantusMintCoins(vecOutputs, false);
-    LogPrintf("vecOutputs.size()=%s\n", vecOutputs.size());
+    LogPrintf("vecOutputs.size()=%zu\n", vecOutputs.size());
     BOOST_FOREACH(const COutput &out, vecOutputs)
     {
         if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
@@ -3887,7 +3887,7 @@ UniValue listunspentsparkmints(const JSONRPCRequest& request) {
 
 
     std::list<CSparkMintMeta> coins = pwallet->sparkWallet->GetAvailableSparkCoins();
-    LogPrintf("coins.size()=%s\n", coins.size());
+    LogPrintf("coins.size()=%zu\n", coins.size());
     BOOST_FOREACH(const auto& coin, coins)
     {
         UniValue entry(UniValue::VOBJ);
