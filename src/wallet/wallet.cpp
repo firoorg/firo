@@ -4389,8 +4389,8 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 CHDMint dMint;
 
-                auto nFeeRet = 0;
-                LogPrintf("nFeeRet=%s\n", nFeeRet);
+                CAmount nFeeRet = 0;
+                LogPrintf("nFeeRet=%d\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();
 

@@ -849,8 +849,8 @@ bool CSparkWallet::CreateSparkMintTransactions(
                 if (GetRandInt(10) == 0)
                     tx.nLockTime = std::max(0, (int) tx.nLockTime - GetRandInt(100));
 
-                auto nFeeRet = 0;
-                LogPrintf("nFeeRet=%s\n", nFeeRet);
+                CAmount nFeeRet = 0;
+                LogPrintf("nFeeRet=%d\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();
 
