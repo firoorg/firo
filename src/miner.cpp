@@ -1165,11 +1165,11 @@ void static FiroMiner(const CChainParams &chainparams) {
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
             LogPrintf("hashTarget: %s\n", hashTarget.ToString());
             LogPrintf("fTestnet: %d\n", fTestNet);
-            LogPrintf("pindexPrev->nHeight: %s\n", pindexPrev->nHeight);
+            LogPrintf("pindexPrev->nHeight: %d\n", pindexPrev->nHeight);
             LogPrintf("pblock: %s\n", pblock->ToString());
-            LogPrintf("pblock->nVersion: %s\n", pblock->nVersion);
-            LogPrintf("pblock->nTime: %s\n", pblock->nTime);
-            LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
+            LogPrintf("pblock->nVersion: %d\n", pblock->nVersion);
+            LogPrintf("pblock->nTime: %u\n", pblock->nTime);
+            LogPrintf("pblock->nNonce: %u\n", pblock->nNonce);
             LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
 
             while (true) {
