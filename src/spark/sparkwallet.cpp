@@ -959,9 +959,10 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     // Choose coins to use
                     CAmount nValueIn = 0;
                     if (!pwalletMain->SelectCoins(itr->second, nValueToSelect, setCoins, nValueIn, coinControl)) {
-
                         if (nValueIn < nValueToSelect) {
                             strFailReason = _("Insufficient funds");
+                        } else {
+                            strFailReason = _("Unable to select coins for minting");
                         }
                         return false;
                     }
@@ -995,7 +996,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             // send change to one of the specified change addresses
                         else if (IsArgSet("-change") && mapMultiArgs.at("-change").size() > 0) {
                             CBitcoinAddress address(
-                                    mapMultiArgs.at("change")[GetRandInt(mapMultiArgs.at("-change").size())]);
+                                    mapMultiArgs.at("-change")[GetRandInt(mapMultiArgs.at("-change").size())]);
                             CKeyID keyID;
                             if (!address.GetKeyID(keyID)) {
                                 strFailReason = _("Bad change address");
@@ -1209,7 +1210,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                 {
                     CValidationState state;
                     if (!mempool.IsTransactionAllowed(*wtx.tx, state)) {
-                        strFailReason = _("Signing transaction failed");
+                        strFailReason = _("Transaction not allowed in mempool");
                         return false;
                     }
                 }
@@ -1228,12 +1229,14 @@ bool CSparkWallet::CreateSparkMintTransactions(
 
                     bool added = false;
                     for (auto &utxos : valueAndUTXO) {
+                        if (utxos.second.empty())
+                            continue;
                         auto const &o = utxos.second.front();
                         if (o.tx->tx->vout[o.i].scriptPubKey == wtx.tx->vout[nChangePosInOut].scriptPubKey) {
                             utxos.first += val;
                             utxos.second.push_back(out);
-
                             added = true;
+                            break;
                         }
                     }
 
@@ -1253,6 +1256,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
     }
 
     if (!autoMintAll && valueToMint > 0) {
+        strFailReason = _("Unable to mint full amount; only partial minting was possible");
         return false;
     }
 
