@@ -1108,7 +1108,8 @@ void static FiroMiner(const CChainParams &chainparams) {
         // due to some internal error but also if the keypool is empty.
         // In the latter case, already the pointer is NULL.
         if (!coinbaseScript || coinbaseScript->reserveScript.empty()) {
-            LogPrintf("FiroMiner stop here coinbaseScript=%p, coinbaseScript->reserveScript.empty()=%d\n", coinbaseScript, coinbaseScript->reserveScript.empty());
+            LogPrintf("FiroMiner stop here coinbaseScript=%p, coinbaseScript->reserveScript.empty()=%d\n", 
+                      coinbaseScript, coinbaseScript ? coinbaseScript->reserveScript.empty() : true);
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
         }
 
