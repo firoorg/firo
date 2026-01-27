@@ -39,14 +39,19 @@ jobs:
           echo "sha=$SHA" >> $GITHUB_OUTPUT
           echo "Short hash determined: $SHA"
 
-  build-linux-cmake:
+  linux-cmake:
     needs: get-commit-hash
-    name: build-linux-cmake
+    name: linux-cmake-${{ matrix.build_type }}
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, Debug]
     env:
-      ARTIFACT_DIR: linux-cmake-binaries
+      ARTIFACT_DIR: linux-cmake-binaries-${{ matrix.build_type }}
       TEST_LOG_ARTIFACT_DIR: test-logs
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+      BUILD_TYPE: ${{ matrix.build_type }}
     steps:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
@@ -63,8 +68,9 @@ jobs:
       uses: actions/cache@v5
       with:
         path: ~/.ccache
-        key: ccache-linux-${{ github.sha }}
+        key: ccache-linux-${{ matrix.build_type }}-${{ github.sha }}
         restore-keys: |
+          ccache-linux-${{ matrix.build_type }}-
           ccache-linux-
     - name: Configure ccache
       run: |
@@ -117,10 +123,21 @@ jobs:
       run: |
         set -exo pipefail
         export HOST_TRIPLET=$(depends/config.guess)
+
+        # Set build-type specific flags
+        CMAKE_EXTRA_FLAGS=""
+        if [ "$BUILD_TYPE" = "Debug" ]; then
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=false"
+        else
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=true"
+        fi
+
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
-        -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+        $CMAKE_EXTRA_FLAGS \
+        -S$(realpath .) -B$(realpath build)
         cd build && ninja
     - name: Run Unit Tests
       run: |
@@ -141,7 +158,7 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-cmake-binaries-${{ env.COMMIT_HASH }}
+        name: linux-cmake-${{ matrix.build_type }}-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
     - name: Prepare Test Logs for Artifact
       if: failure()
@@ -163,16 +180,21 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-linux-cmake-logs-${{ env.COMMIT_HASH }}
+        name: test-linux-cmake-${{ matrix.build_type }}-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
 
-  build-windows-cmake:
+  windows-cmake:
     needs: get-commit-hash
-    name: build-windows-cmake
+    name: windows-cmake-${{ matrix.build_type }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, Debug]
     env:
-      ARTIFACT_DIR: windows-cmake-binaries
+      ARTIFACT_DIR: windows-cmake-binaries-${{ matrix.build_type }}
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+      BUILD_TYPE: ${{ matrix.build_type }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -185,8 +207,9 @@ jobs:
       uses: actions/cache@v5
       with:
         path: ~/.ccache
-        key: ccache-windows-${{ github.sha }}
+        key: ccache-windows-${{ matrix.build_type }}-${{ github.sha }}
         restore-keys: |
+          ccache-windows-${{ matrix.build_type }}-
           ccache-windows-
     - name: Configure ccache
       run: |
@@ -239,7 +262,6 @@ jobs:
         MINGW_INC="/usr/x86_64-w64-mingw32/include"
         D3D12_H="$MINGW_INC/d3d12.h"
 
-        # 1. Patch netlistmgr.h (Standard fix)
         if ! grep -q "NLM_INTERNET_CONNECTIVITY_WEBHIJACK" "$MINGW_INC/netlistmgr.h"; then
           sudo bash -c "cat >> '$MINGW_INC/netlistmgr.h' <<'EOF'
 
@@ -256,10 +278,20 @@ jobs:
       run: |
         set -exo pipefail
         export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
+
+        CMAKE_EXTRA_FLAGS=""
+        if [ "$BUILD_TYPE" = "Debug" ]; then
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=false"
+        else
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=true"
+        fi
+
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DCMAKE_BUILD_TYPE=Release \
-        -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+        $CMAKE_EXTRA_FLAGS \
+        -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && ninja
     - name: Prepare Files for Artifact
       run: |
@@ -269,16 +301,21 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-cmake-binaries-${{ env.COMMIT_HASH }}
+        name: windows-cmake-${{ matrix.build_type }}-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
 
-  build-mac-cmake:
+  mac-cmake:
     needs: get-commit-hash
-    name: build-mac-cmake
+    name: mac-cmake-${{ matrix.build_type }}
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, Debug]
     env:
-      ARTIFACT_DIR: mac-cmake-binaries
+      ARTIFACT_DIR: mac-cmake-binaries-${{ matrix.build_type }}
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+      BUILD_TYPE: ${{ matrix.build_type }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -290,16 +327,14 @@ jobs:
       run: |
         set -exo pipefail
         NCPU=$(sysctl -n hw.ncpu)
-        JOBS=$((NCPU / 2 > 1 ? NCPU / 2 : 1)) # Use half, but at least 1
-        echo "NJOBS=$JOBS" >> $GITHUB_ENV  # Persist NJOBS across steps
+        JOBS=$((NCPU / 2 > 1 ? NCPU / 2 : 1))
+        echo "NJOBS=$JOBS" >> $GITHUB_ENV
         echo "Using $JOBS jobs for parallel builds."
-      # -j$(sysctl -n hw.activecpu) fails. due to high load on macOS, and crappy github runners.
     - name: Install Required Packages
       run: |
         set -exo pipefail
         brew uninstall --force cmake
         brew install --force automake coreutils python-setuptools cmake make pkg-config ninja ccache
-      # Workaround for macOS: https://github.com/actions/runner/issues/2958
     - name: Install setuptools
       run: |
         set -exo pipefail
@@ -308,8 +343,9 @@ jobs:
       uses: actions/cache@v5
       with:
         path: ~/Library/Caches/ccache
-        key: ccache-mac-${{ github.sha }}
+        key: ccache-mac-${{ matrix.build_type }}-${{ github.sha }}
         restore-keys: |
+          ccache-mac-${{ matrix.build_type }}-
           ccache-mac-
     - name: Configure ccache
       run: |
@@ -357,10 +393,20 @@ jobs:
       run: |
         set -exo pipefail
         export HOST_TRIPLET=$(depends/config.guess)
+
+        CMAKE_EXTRA_FLAGS=""
+        if [ "$BUILD_TYPE" = "Debug" ]; then
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=false"
+        else
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=true"
+        fi
+
         env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
-        -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+        $CMAKE_EXTRA_FLAGS \
+        -S$(pwd) -B$(pwd)/build
         cd build && ninja
     - name: Prepare Files for Artifact
       run: |
@@ -370,12 +416,12 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: mac-cmake-binaries-${{ env.COMMIT_HASH }}
+        name: mac-cmake-${{ matrix.build_type }}-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
 
-  build-guix-x86_64-linux-gnu:
+  guix-x86_64-linux-gnu:
     needs: get-commit-hash
-    name: build-guix-x86_64-linux-gnu
+    name: guix-x86_64-linux-gnu
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-linux-gnu
@@ -491,9 +537,9 @@ jobs:
           path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-checksums-sha256
           compression-level: 0
 
-  build-guix-aarch64-linux-gnu:
+  guix-aarch64-linux-gnu:
     needs: get-commit-hash
-    name: build-guix-aarch64-linux-gnu
+    name: guix-aarch64-linux-gnu
     runs-on: ubuntu-22.04
     env:
       HOST: aarch64-linux-gnu
@@ -608,9 +654,9 @@ jobs:
           name: aarch64-linux-guix-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-checksums-sha256
 
-  build-guix-x86_64-w64-mingw32:
+  guix-x86_64-w64-mingw32:
     needs: get-commit-hash
-    name: build-guix-x86_64-w64-mingw32
+    name: guix-x86_64-w64-mingw32
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-w64-mingw32
@@ -729,9 +775,9 @@ jobs:
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-checksums-sha256
           compression-level: 0
 
-  build-guix-arm64-apple-darwin:
+  guix-arm64-apple-darwin:
     needs: get-commit-hash
-    name: build-guix-arm64-apple-darwin
+    name: guix-arm64-apple-darwin
     runs-on: ubuntu-22.04
     env:
       HOST: arm64-apple-darwin
@@ -886,9 +932,9 @@ jobs:
           name: arm64-apple-darwin-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-checksums-sha256
 
-  build-guix-x86_64-apple-darwin:
+  guix-x86_64-apple-darwin:
     needs: get-commit-hash
-    name: build-guix-x86_64-apple-darwin
+    name: guix-x86_64-apple-darwin
     runs-on: ubuntu-22.04
     env:
       HOST: x86_64-apple-darwin
