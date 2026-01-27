@@ -922,23 +922,23 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     }
 
                     if (subtractFeeFromAmount) {
-                        CAmount singleFee = nFeeRet / singleTxOutputs.size();
-                        CAmount reminder = nFeeRet % singleTxOutputs.size();
+                        if (singleTxOutputs.empty()) {
+                            strFailReason = _("Transaction amount too small");
+                            return false;
+                        }
+                        const CAmount outputCount = static_cast<CAmount>(singleTxOutputs.size());
+                        const CAmount singleFee = nFeeRet / outputCount;
+                        const CAmount remainder = nFeeRet % outputCount;
                         for (size_t i = 0; i < singleTxOutputs.size(); ++i) {
-                            if (cmp::less_equal(singleTxOutputs[i].v, singleFee)) {
-                                singleTxOutputs.erase(singleTxOutputs.begin() + i);
-                                reminder += singleTxOutputs[i].v - singleFee;
-                                if (!singleTxOutputs.size()) {
-                                    strFailReason = _("Transaction amount too small");
-                                    return false;
-                                }
-                                --i;
+                            CAmount feeToSubtract = singleFee;
+                            if (i == 0) {
+                                feeToSubtract += remainder;
                             }
-                            singleTxOutputs[i].v -= singleFee;
-                            if (reminder > 0 && singleTxOutputs[i].v > nFeeRet % singleTxOutputs.size()) {// first receiver pays the remainder not divisible by output count
-                                singleTxOutputs[i].v -= reminder;
-                                reminder = 0;
+                            if (cmp::less_equal(singleTxOutputs[i].v, feeToSubtract)) {
+                                strFailReason = _("Transaction amount too small");
+                                return false;
                             }
+                            singleTxOutputs[i].v -= feeToSubtract;
                         }
                     }
 
