@@ -903,7 +903,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                         singleTxOutputs.push_back(mintedCoinData);
                     } else {
                         uint64_t remainingMintValue = mintedValue;
-                        while (remainingMintValue > 0){
+                        while (remainingMintValue > 0 && !remainingOutputs.empty()) {
                             // Create the mint data and push into vector
                             uint64_t singleMintValue = std::min(remainingMintValue, remainingOutputs.begin()->v);
                             spark::MintedCoinData mintedCoinData;
