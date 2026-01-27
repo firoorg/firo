@@ -1574,7 +1574,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
-    SetLimited(NET_ONION);
+    // Only set NET_ONION as limited by default if -onlynet was not specified.
+    // If -onlynet was specified, the network limitations have already been set correctly above.
+    if (!mapMultiArgs.count("-onlynet")) {
+        SetLimited(NET_ONION);
+    }
     if (proxyArg != "" && proxyArg != "0") {
         CService resolved(LookupNumeric(proxyArg.c_str(), 9050));
         proxyType addrProxy = proxyType(resolved, proxyRandomize);
@@ -1602,6 +1606,25 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
             SetProxy(NET_ONION, addrOnion);
             SetLimited(NET_ONION, false);
+        }
+    }
+
+    // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
+    // This check is similar to Bitcoin Core's approach to provide a helpful error message.
+    if (mapMultiArgs.count("-onlynet")) {
+        bool onlynetIncludesOnion = false;
+        for (const std::string& snet : mapMultiArgs.at("-onlynet")) {
+            if (ParseNetwork(snet) == NET_ONION) {
+                onlynetIncludesOnion = true;
+                break;
+            }
+        }
+        if (onlynetIncludesOnion) {
+            proxyType onionProxy;
+            bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
+            if (!haveOnionProxy && !torEnabled) {
+                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but no proxy for reaching the Tor network is provided. Use -proxy, -onion, or -torsetup to configure a Tor proxy."));
+            }
         }
     }
 
