@@ -489,7 +489,28 @@ jobs:
         run: |
           set -exo pipefail
           sudo apt-get update
-          sudo apt-get install -y guix
+          sudo apt-get install -y wget gpg apparmor-utils
+          # Disable AppArmor to prevent Guix installer conflict
+          sudo systemctl stop apparmor || true
+          sudo systemctl disable apparmor || true
+          sudo aa-teardown || true
+          sudo aa-complain unprivileged_userns || true
+          # Remove apparmor_parser so Guix installer skips AppArmor setup
+          sudo apt-get remove -y apparmor || true
+          # Pre-import Guix signing keys into root's keyring (installer runs as sudo), sometimes guix script fail to fetch keys from ftpmirror.gnu.org
+          wget -qO - https://codeberg.org/civodul.gpg | sudo gpg --import -
+          wget -qO - https://codeberg.org/apteryx.gpg | sudo gpg --import -
+          cd /tmp
+          wget https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
+          chmod +x guix-install.sh
+          # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
+          set +o pipefail
+          yes 2>/dev/null | sudo ./guix-install.sh
+          set -o pipefail
+          echo "Guix install script completed"
+          source /etc/profile.d/zzz-guix.sh
+          # Verify installation using absolute path
+          /usr/local/bin/guix --version
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
@@ -607,7 +628,28 @@ jobs:
         run: |
           set -exo pipefail
           sudo apt-get update
-          sudo apt-get install -y guix
+          sudo apt-get install -y wget gpg apparmor-utils
+          # Disable AppArmor to prevent Guix installer conflict
+          sudo systemctl stop apparmor || true
+          sudo systemctl disable apparmor || true
+          sudo aa-teardown || true
+          sudo aa-complain unprivileged_userns || true
+          # Remove apparmor_parser so Guix installer skips AppArmor setup
+          sudo apt-get remove -y apparmor || true
+          # Pre-import Guix signing keys into root's keyring (installer runs as sudo), sometimes guix script fail to fetch keys from ftpmirror.gnu.org
+          wget -qO - https://codeberg.org/civodul.gpg | sudo gpg --import -
+          wget -qO - https://codeberg.org/apteryx.gpg | sudo gpg --import -
+          cd /tmp
+          wget https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
+          chmod +x guix-install.sh
+          # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
+          set +o pipefail
+          yes 2>/dev/null | sudo ./guix-install.sh
+          set -o pipefail
+          echo "Guix install script completed"
+          source /etc/profile.d/zzz-guix.sh
+          # Verify installation using absolute path
+          /usr/local/bin/guix --version
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
@@ -724,7 +766,28 @@ jobs:
         run: |
           set -exo pipefail
           sudo apt-get update
-          sudo apt-get install -y guix g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
+          sudo apt-get install -y wget gpg apparmor-utils g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
+          # Disable AppArmor to prevent Guix installer conflict
+          sudo systemctl stop apparmor || true
+          sudo systemctl disable apparmor || true
+          sudo aa-teardown || true
+          sudo aa-complain unprivileged_userns || true
+          # Remove apparmor_parser so Guix installer skips AppArmor setup
+          sudo apt-get remove -y apparmor || true
+          # Pre-import Guix signing keys into root's keyring (installer runs as sudo), sometimes guix script fail to fetch keys from ftpmirror.gnu.org
+          wget -qO - https://codeberg.org/civodul.gpg | sudo gpg --import -
+          wget -qO - https://codeberg.org/apteryx.gpg | sudo gpg --import -
+          cd /tmp
+          wget https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
+          chmod +x guix-install.sh
+          # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
+          set +o pipefail
+          yes 2>/dev/null | sudo ./guix-install.sh
+          set -o pipefail
+          echo "Guix install script completed"
+          source /etc/profile.d/zzz-guix.sh
+          # Verify installation using absolute path
+          /usr/local/bin/guix --version
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Run Guix Build
         run: |
@@ -794,7 +857,28 @@ jobs:
         run: |
           set -exo pipefail
           sudo apt-get update
-          sudo apt-get install -y guix
+          sudo apt-get install -y wget gpg apparmor-utils
+          # Disable AppArmor to prevent Guix installer conflict
+          sudo systemctl stop apparmor || true
+          sudo systemctl disable apparmor || true
+          sudo aa-teardown || true
+          sudo aa-complain unprivileged_userns || true
+          # Remove apparmor_parser so Guix installer skips AppArmor setup
+          sudo apt-get remove -y apparmor || true
+          # Pre-import Guix signing keys into root's keyring (installer runs as sudo), sometimes guix script fail to fetch keys from ftpmirror.gnu.org
+          wget -qO - https://codeberg.org/civodul.gpg | sudo gpg --import -
+          wget -qO - https://codeberg.org/apteryx.gpg | sudo gpg --import -
+          cd /tmp
+          wget https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
+          chmod +x guix-install.sh
+          # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
+          set +o pipefail
+          yes 2>/dev/null | sudo ./guix-install.sh
+          set -o pipefail
+          echo "Guix install script completed"
+          source /etc/profile.d/zzz-guix.sh
+          # Verify installation using absolute path
+          /usr/local/bin/guix --version
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Clean Guix build dirs
         run: |
@@ -951,7 +1035,28 @@ jobs:
         run: |
           set -exo pipefail
           sudo apt-get update
-          sudo apt-get install -y guix
+          sudo apt-get install -y wget gpg apparmor-utils
+          # Disable AppArmor to prevent Guix installer conflict
+          sudo systemctl stop apparmor || true
+          sudo systemctl disable apparmor || true
+          sudo aa-teardown || true
+          sudo aa-complain unprivileged_userns || true
+          # Remove apparmor_parser so Guix installer skips AppArmor setup
+          sudo apt-get remove -y apparmor || true
+          # Pre-import Guix signing keys into root's keyring (installer runs as sudo), sometimes guix script fail to fetch keys from ftpmirror.gnu.org
+          wget -qO - https://codeberg.org/civodul.gpg | sudo gpg --import -
+          wget -qO - https://codeberg.org/apteryx.gpg | sudo gpg --import -
+          cd /tmp
+          wget https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
+          chmod +x guix-install.sh
+          # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
+          set +o pipefail
+          yes 2>/dev/null | sudo ./guix-install.sh
+          set -o pipefail
+          echo "Guix install script completed"
+          source /etc/profile.d/zzz-guix.sh
+          # Verify installation using absolute path
+          /usr/local/bin/guix --version
           guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Clean Guix build dirs
         run: |
