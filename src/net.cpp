@@ -409,13 +409,27 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     // If pszDest is provided, check if it's an I2P address (.b32.i2p suffix)
     if (!isI2P && pszDest) {
         std::string dest(pszDest);
+        
+        // Strip optional :port suffix before checking for .b32.i2p
+        // This handles cases like "xxx.b32.i2p:0" or "xxx.b32.i2p:8333"
+        std::string destWithoutPort = dest;
+        size_t colonPos = dest.rfind(':');
+        if (colonPos != std::string::npos) {
+            // Check if everything after the colon is numeric (port)
+            std::string portStr = dest.substr(colonPos + 1);
+            bool isPort = !portStr.empty() && std::all_of(portStr.begin(), portStr.end(), ::isdigit);
+            if (isPort) {
+                destWithoutPort = dest.substr(0, colonPos);
+            }
+        }
+        
         // Check for I2P address suffix (case-insensitive)
-        if (dest.size() > 8) {
-            std::string suffix = dest.substr(dest.size() - 8);
+        if (destWithoutPort.size() > 8) {
+            std::string suffix = destWithoutPort.substr(destWithoutPort.size() - 8);
             std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
             if (suffix == ".b32.i2p") {
                 CNetAddr i2pAddr;
-                if (i2pAddr.SetSpecial(dest)) {
+                if (i2pAddr.SetSpecial(destWithoutPort)) {
                     i2pDest = CService(i2pAddr, i2p::I2P_SAM31_PORT);
                     isI2P = true;
                     LogPrint("i2p", "I2P: Parsed destination %s from pszDest\n", i2pDest.ToString());
@@ -2488,6 +2502,13 @@ void CConnman::ThreadI2PAcceptIncoming()
 
         if (!IsSelectableSocket(conn.sock)) {
             LogPrint("i2p", "I2P: Connection from %s dropped: non-selectable socket\n", conn.peer.ToString());
+            CloseSocket(conn.sock);
+            continue;
+        }
+
+        // Check if the peer is banned
+        if (IsBanned(conn.peer)) {
+            LogPrint("i2p", "I2P: Connection from %s dropped (banned)\n", conn.peer.ToString());
             CloseSocket(conn.sock);
             continue;
         }
