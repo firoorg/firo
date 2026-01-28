@@ -1586,12 +1586,16 @@ UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
         throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
     }
 
+    if(!GetBoolArg("-mobile", false)) {
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+
     spark::CSparkState* sparkState =  spark::CSparkState::GetState();
-    std::unordered_map<GroupElement, int, spark::CLTagHash>  tags;
+    std::vector<std::pair<GroupElement, int>>  tags;
     std::unordered_map<uint256, uint256> ltagTxhash;
     {
         LOCK(cs_main);
-        tags = sparkState->GetSpends();
+        tags = sparkState->GetSpendsMobile();
         ltagTxhash = sparkState->GetSpendTxIds();
     }
     UniValue serializedTagsTxIds(UniValue::VARR);
