@@ -24,6 +24,7 @@
 #include "miner.h"
 #include "netbase.h"
 #include "net.h"
+#include "i2p.h"
 #include "net_processing.h"
 #include "policy/policy.h"
 #include "rpc/server.h"
@@ -464,7 +465,9 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-maxsendbuffer=<n>", strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"), DEFAULT_MAXSENDBUFFER));
     strUsage += HelpMessageOpt("-maxtimeadjustment", strprintf(_("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)"), DEFAULT_MAX_TIME_ADJUSTMENT));
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
-    strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"));
+    strUsage += HelpMessageOpt("-i2psam=<ip:port>", _("I2P SAM proxy to reach I2P peers and accept I2P connections (default: none)"));
+    strUsage += HelpMessageOpt("-i2pacceptincoming", strprintf(_("If set and -i2psam is also set then incoming I2P connections are accepted via the SAM proxy. If this is not set but -i2psam is set then only outgoing connections will be made to the I2P network. Ignored if -i2psam is not set (default: %d)"), 1));
+    strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6, onion, i2p or cjdns)"));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), Params(CBaseChainParams::MAIN).GetDefaultPort(), Params(CBaseChainParams::TESTNET).GetDefaultPort()));
@@ -522,7 +525,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-limitdescendantsize=<n>", strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end", "Use given start/end times for specified BIP9 deployment (regtest-only)");
     }
-    std::string debugCategories = "addrman, alert, bench, cmpctblock, coindb, db, http, libevent, lock, mempool, mempoolrej, net, proxy, prune, rand, reindex, rpc, selectcoins, tor, zmq, chainlocks, instantsend"; // Don't translate these and qt below
+    std::string debugCategories = "addrman, alert, bench, cmpctblock, coindb, db, http, i2p, libevent, lock, mempool, mempoolrej, net, proxy, prune, rand, reindex, rpc, selectcoins, tor, zmq, chainlocks, instantsend"; // Don't translate these and qt below
     if (mode == HMM_BITCOIN_QT)
         debugCategories += ", qt";
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
@@ -1609,14 +1612,40 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
+    // I2P SAM proxy configuration
+    // -i2psam can be used to specify the I2P SAM proxy address
+    // If not specified, I2P is limited (unreachable)
+    std::string i2psamArg = GetArg("-i2psam", "");
+    if (!i2psamArg.empty()) {
+        CService i2pSamProxy = LookupNumeric(i2psamArg.c_str(), 7656);
+        if (!i2pSamProxy.IsValid()) {
+            return InitError(strprintf(_("Invalid -i2psam address or port: '%s'"), i2psamArg));
+        }
+        SetLimited(NET_I2P, false);
+        LogPrintf("I2P: SAM proxy configured at %s\n", i2pSamProxy.ToString());
+
+        // Create I2P SAM session
+        const bool i2p_accept_incoming = GetBoolArg("-i2pacceptincoming", true);
+        boost::filesystem::path i2p_private_key_file = GetDataDir() / "i2p_private_key";
+        
+        if (g_connman) {
+            g_connman->InitI2P(i2pSamProxy, i2p_accept_incoming, i2p_private_key_file);
+        }
+    } else {
+        SetLimited(NET_I2P);
+    }
+
     // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
     // This check is similar to Bitcoin Core's approach to provide a helpful error message.
     if (mapMultiArgs.count("-onlynet")) {
         bool onlynetIncludesOnion = false;
+        bool onlynetIncludesI2P = false;
         for (const std::string& snet : mapMultiArgs.at("-onlynet")) {
             if (ParseNetwork(snet) == NET_ONION) {
                 onlynetIncludesOnion = true;
-                break;
+            }
+            if (ParseNetwork(snet) == NET_I2P) {
+                onlynetIncludesI2P = true;
             }
         }
         if (onlynetIncludesOnion) {
@@ -1625,6 +1654,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             if (!haveOnionProxy && !torEnabled) {
                 return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but no proxy for reaching the Tor network is provided. Use -proxy, -onion, or -torsetup to configure a Tor proxy."));
             }
+        }
+        if (onlynetIncludesI2P && i2psamArg.empty()) {
+            return InitError(_("Outbound connections restricted to I2P (-onlynet=i2p) but -i2psam is not provided."));
         }
     }
 

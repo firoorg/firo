@@ -29,6 +29,9 @@
 #include "masternode-sync.h"
 #include "llmq/quorums_instantsend.h"
 #include "evo/mnauth.h"
+#include "i2p.h"
+
+#include <algorithm>
 
 #ifdef WIN32
 #include <string.h>
@@ -395,10 +398,74 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
 
     // Connect
-    SOCKET hSocket;
+    SOCKET hSocket = INVALID_SOCKET;
     bool proxyConnectionFailed = false;
-    if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, Params().GetDefaultPort(), nConnectTimeout, &proxyConnectionFailed) :
-                  ConnectSocket(addrConnect, hSocket, nConnectTimeout, &proxyConnectionFailed))
+    bool connected = false;
+
+    // Check if this is an I2P connection - either via addrConnect or pszDest
+    bool isI2P = addrConnect.IsI2P();
+    CService i2pDest;
+    
+    // If pszDest is provided, check if it's an I2P address (.b32.i2p suffix)
+    if (!isI2P && pszDest) {
+        std::string dest(pszDest);
+        
+        // Strip optional :port suffix before checking for .b32.i2p
+        // This handles cases like "xxx.b32.i2p:0" or "xxx.b32.i2p:8333"
+        std::string destWithoutPort = dest;
+        size_t colonPos = dest.rfind(':');
+        if (colonPos != std::string::npos) {
+            // Check if everything after the colon is numeric (port)
+            std::string portStr = dest.substr(colonPos + 1);
+            bool isPort = !portStr.empty() && std::all_of(portStr.begin(), portStr.end(), ::isdigit);
+            if (isPort) {
+                destWithoutPort = dest.substr(0, colonPos);
+            }
+        }
+        
+        // Check for I2P address suffix (case-insensitive)
+        if (destWithoutPort.size() > 8) {
+            std::string suffix = destWithoutPort.substr(destWithoutPort.size() - 8);
+            std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
+            if (suffix == ".b32.i2p") {
+                CNetAddr i2pAddr;
+                if (i2pAddr.SetSpecial(destWithoutPort)) {
+                    i2pDest = CService(i2pAddr, i2p::I2P_SAM31_PORT);
+                    isI2P = true;
+                    LogPrint("i2p", "I2P: Parsed destination %s from pszDest\n", i2pDest.ToString());
+                }
+            }
+        }
+    }
+
+    // Handle I2P connections via SAM session
+    if (isI2P) {
+        // Use i2pDest if we parsed from pszDest, otherwise use addrConnect
+        if (i2pDest.IsValid()) {
+            // Update addrConnect so it's used correctly for CNode creation and address manager
+            addrConnect = CAddress(i2pDest, addrConnect.nServices);
+        }
+        
+        if (m_i2p_sam_session) {
+            i2p::Connection conn;
+            if (m_i2p_sam_session->Connect(addrConnect, conn, proxyConnectionFailed)) {
+                hSocket = conn.sock;
+                connected = true;
+                LogPrint("i2p", "I2P connection established to %s\n", addrConnect.ToString());
+            } else {
+                LogPrint("i2p", "I2P connection to %s failed\n", addrConnect.ToString());
+            }
+        } else {
+            // I2P connections require a SAM session, which should be set up via -i2psam
+            LogPrint("i2p", "I2P connection to %s failed - no SAM session available (configure -i2psam)\n", addrConnect.ToString());
+            proxyConnectionFailed = true;
+        }
+    } else if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, Params().GetDefaultPort(), nConnectTimeout, &proxyConnectionFailed) :
+                  ConnectSocket(addrConnect, hSocket, nConnectTimeout, &proxyConnectionFailed)) {
+        connected = true;
+    }
+
+    if (connected)
     {
         if (!IsSelectableSocket(hSocket)) {
             LogPrintf("Cannot create connection: non-selectable socket created (fd >= FD_SETSIZE ?)\n");
@@ -2373,7 +2440,126 @@ void CConnman::ThreadMessageHandler()
     }
 }
 
+void CConnman::ThreadI2PAcceptIncoming()
+{
+    static constexpr int64_t err_wait_begin = 1000; // 1 second in milliseconds
+    static constexpr int64_t err_wait_cap = 300000; // 5 minutes in milliseconds
+    int64_t err_wait = err_wait_begin;
 
+    bool advertising_listen_addr = false;
+    i2p::Connection conn;
+
+    while (!interruptNet) {
+        if (!m_i2p_sam_session->Listen(conn)) {
+            if (advertising_listen_addr && conn.me.IsValid()) {
+                RemoveLocal(conn.me);
+                advertising_listen_addr = false;
+            }
+            interruptNet.sleep_for(std::chrono::milliseconds(err_wait));
+            if (err_wait < err_wait_cap) {
+                err_wait += 1000;
+            }
+            continue;
+        }
+
+        if (!advertising_listen_addr) {
+            AddLocal(conn.me, LOCAL_MANUAL);
+            advertising_listen_addr = true;
+            LogPrintf("I2P: Listening for incoming connections at %s\n", conn.me.ToString());
+        }
+
+        if (!m_i2p_sam_session->Accept(conn)) {
+            interruptNet.sleep_for(std::chrono::milliseconds(err_wait));
+            if (err_wait < err_wait_cap) {
+                err_wait += 1000;
+            }
+            continue;
+        }
+
+        // Successfully accepted an incoming I2P connection
+        // Create a CNode for this connection
+        int nInbound = 0;
+        int nVerifiedInboundMasternodes = 0;
+        int nMaxInbound = nMaxConnections - (nMaxOutbound + nMaxFeeler);
+
+        {
+            LOCK(cs_vNodes);
+            BOOST_FOREACH(CNode* pnode, vNodes) {
+                if (pnode->fInbound) {
+                    nInbound++;
+                    if (!pnode->verifiedProRegTxHash.IsNull()) {
+                        nVerifiedInboundMasternodes++;
+                    }
+                }
+            }
+        }
+
+        if (!fNetworkActive) {
+            LogPrint("i2p", "I2P: Connection from %s dropped: not accepting new connections\n", conn.peer.ToString());
+            CloseSocket(conn.sock);
+            continue;
+        }
+
+        if (!IsSelectableSocket(conn.sock)) {
+            LogPrint("i2p", "I2P: Connection from %s dropped: non-selectable socket\n", conn.peer.ToString());
+            CloseSocket(conn.sock);
+            continue;
+        }
+
+        // Check if the peer is banned
+        if (IsBanned(conn.peer)) {
+            LogPrint("i2p", "I2P: Connection from %s dropped (banned)\n", conn.peer.ToString());
+            CloseSocket(conn.sock);
+            continue;
+        }
+
+        // Check max inbound connections
+        if (nInbound - nVerifiedInboundMasternodes >= nMaxInbound) {
+            if (!AttemptToEvictConnection()) {
+                LogPrint("i2p", "I2P: Connection from %s dropped: too many inbound connections\n", conn.peer.ToString());
+                CloseSocket(conn.sock);
+                continue;
+            }
+        }
+
+        // Set TCP_NODELAY for the socket
+        int set = 1;
+#ifdef WIN32
+        setsockopt(conn.sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&set, sizeof(int));
+#else
+        setsockopt(conn.sock, IPPROTO_TCP, TCP_NODELAY, (void*)&set, sizeof(int));
+#endif
+
+        NodeId id = GetNewNodeId();
+        uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
+        CAddress addr(conn.peer, NODE_NONE);
+
+        CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), conn.sock, addr, CalculateKeyedNetGroup(addr), nonce, "", true);
+        pnode->AddRef();
+        pnode->fWhitelisted = false; // I2P connections are not whitelisted by default
+        GetNodeSignals().InitializeNode(pnode, *this);
+
+        LogPrint("i2p", "I2P: Connection from %s accepted\n", conn.peer.ToString());
+
+        {
+            LOCK(cs_vNodes);
+            vNodes.push_back(pnode);
+            // Dandelion: new inbound connection
+            CNode::vDandelionInbound.push_back(pnode);
+            CNode* pto = CNode::SelectFromDandelionDestinations();
+            if (pto != nullptr) {
+                CNode::mDandelionRoutes.insert(std::make_pair(pnode, pto));
+            }
+        }
+
+        err_wait = err_wait_begin;
+    }
+
+    // Remove the local address when shutting down
+    if (advertising_listen_addr && conn.me.IsValid()) {
+        RemoveLocal(conn.me);
+    }
+}
 
 
 
@@ -2757,6 +2943,11 @@ bool CConnman::Start(CScheduler& scheduler, std::string& strNodeError, Options c
     // Process messages
     threadMessageHandler = std::thread(&TraceThread<std::function<void()> >, "msghand", std::function<void()>(std::bind(&CConnman::ThreadMessageHandler, this)));
 
+    // Accept incoming I2P connections if SAM session exists and -i2pacceptincoming is enabled
+    if (m_i2p_sam_session && GetBoolArg("-i2pacceptincoming", true)) {
+        threadI2PAcceptIncoming = std::thread(&TraceThread<std::function<void()> >, "i2paccept", std::function<void()>(std::bind(&CConnman::ThreadI2PAcceptIncoming, this)));
+    }
+
     // Dandelion shuffle
     threadDandelionShuffle = std::thread(TraceThread<std::function<void()> >, "dandelion", std::function<void()>(std::bind(&CConnman::ThreadDandelionShuffle, this)));
 
@@ -2816,6 +3007,8 @@ void CConnman::Stop()
 {
     if (threadMessageHandler.joinable())
         threadMessageHandler.join();
+    if (threadI2PAcceptIncoming.joinable())
+        threadI2PAcceptIncoming.join();
     if (threadOpenMasternodeConnections.joinable())
         threadOpenMasternodeConnections.join();
     if (threadOpenConnections.joinable())
@@ -3542,6 +3735,21 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg, bool allowOpti
     }
     if (nBytesSent)
         RecordBytesSent(nBytesSent);
+}
+
+void CConnman::InitI2P(const CService& sam_proxy, bool accept_incoming, const boost::filesystem::path& private_key_file)
+{
+    if (accept_incoming) {
+        // Persistent session with stored private key - allows incoming connections
+        m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
+            new i2p::sam::Session(private_key_file, sam_proxy, &interruptNet));
+        LogPrintf("I2P: SAM session created (accepting incoming connections)\n");
+    } else {
+        // Transient session - outgoing connections only, no persistent I2P address
+        m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
+            new i2p::sam::Session(sam_proxy, &interruptNet));
+        LogPrintf("I2P: SAM session created (outgoing connections only)\n");
+    }
 }
 
 bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
