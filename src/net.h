@@ -553,6 +553,13 @@ private:
     std::thread threadOpenMasternodeConnections;
     std::thread threadMessageHandler;
     std::thread threadDandelionShuffle;
+    std::thread threadI2PAcceptIncoming;
+    
+    /**
+     * Thread function for accepting incoming I2P connections.
+     * Runs a loop that listens for and accepts incoming connections via the I2P SAM proxy.
+     */
+    void ThreadI2PAcceptIncoming();
 };
 extern std::unique_ptr<CConnman> g_connman;
 void Discover(boost::thread_group& threadGroup);
