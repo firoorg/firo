@@ -10,6 +10,7 @@
 #include "netaddress.h"
 #include "netbase.h"
 #include "random.h"
+#include "support/cleanse.h"
 #include "sync.h"
 #include "tinyformat.h"
 #include "util.h"
@@ -23,6 +24,13 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string.hpp>
+
+#ifndef WIN32
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <errno.h>
+#endif
 
 namespace i2p {
 
@@ -63,16 +71,23 @@ static std::string SwapBase64(const std::string& from)
 /**
  * Decode an I2P-style Base64 string.
  * @param[in] i2p_b64 I2P-style Base64 string.
+ * @param[in] is_sensitive If true, the input contains sensitive data (like private keys)
+ *                         and should not be included in error messages.
  * @return decoded `i2p_b64`
  * @throw std::runtime_error if decoding fails
  */
-static Binary DecodeI2PBase64(const std::string& i2p_b64)
+static Binary DecodeI2PBase64(const std::string& i2p_b64, bool is_sensitive = false)
 {
     const std::string& std_b64 = SwapBase64(i2p_b64);
     bool invalid = false;
     std::vector<unsigned char> decoded = DecodeBase64(std_b64.c_str(), &invalid);
     if (invalid) {
-        throw std::runtime_error(strprintf("Cannot decode Base64: \"%s\"", i2p_b64));
+        if (is_sensitive) {
+            // Don't include the actual value in the error message to prevent private key leakage
+            throw std::runtime_error("Cannot decode Base64 (sensitive data redacted)");
+        } else {
+            throw std::runtime_error(strprintf("Cannot decode Base64: \"%s\"", i2p_b64));
+        }
     }
     return decoded;
 }
@@ -136,6 +151,12 @@ Session::~Session()
 {
     LOCK(m_mutex);
     Disconnect();
+    
+    // Securely clear the private key from memory
+    if (!m_private_key.empty()) {
+        memory_cleanse(m_private_key.data(), m_private_key.size());
+        m_private_key.clear();
+    }
 }
 
 bool Session::Listen(Connection& conn)
@@ -355,14 +376,32 @@ void Session::DestGenerate(SOCKET sock)
     // If SIGNATURE_TYPE is not specified, then the default one is DSA_SHA1.
     const Reply& reply = SendRequestAndGetReply(sock, "DEST GENERATE SIGNATURE_TYPE=7", false);
 
-    m_private_key = DecodeI2PBase64(reply.Get("PRIV"));
+    // Mark as sensitive to prevent private key from being logged in case of decode failure
+    m_private_key = DecodeI2PBase64(reply.Get("PRIV"), true /* is_sensitive */);
 }
 
 void Session::GenerateAndSavePrivateKey(SOCKET sock)
 {
     DestGenerate(sock);
 
-    // Save the private key to disk
+    // Save the private key to disk with restrictive permissions
+    // The private key file must be readable only by the owner (0600)
+#ifndef WIN32
+    // Create file with restrictive permissions on Unix-like systems
+    int fd = open(m_private_key_file.string().c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd == -1) {
+        throw std::runtime_error(
+            strprintf("Cannot save I2P private key to %s: %s", m_private_key_file.string(), strerror(errno)));
+    }
+    ssize_t written = write(fd, m_private_key.data(), m_private_key.size());
+    close(fd);
+    if (written != static_cast<ssize_t>(m_private_key.size())) {
+        throw std::runtime_error(
+            strprintf("Failed to write I2P private key to %s", m_private_key_file.string()));
+    }
+#else
+    // On Windows, use boost::filesystem with default permissions
+    // Windows has different permission model; the data directory is already protected
     boost::filesystem::ofstream file(m_private_key_file, std::ios::binary | std::ios::out);
     if (!file) {
         throw std::runtime_error(
@@ -370,6 +409,7 @@ void Session::GenerateAndSavePrivateKey(SOCKET sock)
     }
     file.write(reinterpret_cast<const char*>(m_private_key.data()), m_private_key.size());
     file.close();
+#endif
 }
 
 Binary Session::MyDestination() const
@@ -380,17 +420,15 @@ Binary Session::MyDestination() const
     static constexpr size_t DEST_LEN_BASE = 387;
     static constexpr size_t CERT_LEN_POS = 385;
 
-    uint16_t cert_len;
-
-    if (m_private_key.size() < CERT_LEN_POS + sizeof(cert_len)) {
+    if (m_private_key.size() < CERT_LEN_POS + 2) {
         throw std::runtime_error(strprintf("The private key is too short (%d < %d)",
                                            m_private_key.size(),
-                                           CERT_LEN_POS + sizeof(cert_len)));
+                                           CERT_LEN_POS + 2));
     }
 
-    memcpy(&cert_len, &m_private_key[CERT_LEN_POS], sizeof(cert_len));
-    // Convert from big endian
-    cert_len = (static_cast<uint16_t>(m_private_key[CERT_LEN_POS]) << 8) | m_private_key[CERT_LEN_POS + 1];
+    // Read certificate length in big-endian format
+    const uint16_t cert_len = (static_cast<uint16_t>(m_private_key[CERT_LEN_POS]) << 8) | 
+                               static_cast<uint16_t>(m_private_key[CERT_LEN_POS + 1]);
 
     const size_t dest_len = DEST_LEN_BASE + cert_len;
 
@@ -429,7 +467,8 @@ void Session::CreateIfNotCreatedAlready()
                           "i2cp.leaseSetEncType=4,0 inbound.quantity=1 outbound.quantity=1",
                           session_id));
 
-            m_private_key = DecodeI2PBase64(reply.Get("DESTINATION"));
+            // Mark as sensitive to prevent private key from being logged in case of decode failure
+            m_private_key = DecodeI2PBase64(reply.Get("DESTINATION"), true /* is_sensitive */);
         } else {
             // Read our persistent destination (private key) from disk or generate
             // one and save it to disk. Then use it when creating the session.

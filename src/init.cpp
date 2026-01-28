@@ -1629,9 +1629,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         boost::filesystem::path i2p_private_key_file = GetDataDir() / "i2p_private_key";
         
         if (g_connman) {
-            g_connman->m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
-                new i2p::sam::Session(i2p_private_key_file, i2pSamProxy, &g_connman->interruptNet));
-            LogPrintf("I2P: SAM session created%s\n", i2p_accept_incoming ? " (accepting incoming)" : "");
+            if (i2p_accept_incoming) {
+                // Persistent session with stored private key - allows incoming connections
+                g_connman->m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
+                    new i2p::sam::Session(i2p_private_key_file, i2pSamProxy, &g_connman->interruptNet));
+                LogPrintf("I2P: SAM session created (accepting incoming connections)\n");
+            } else {
+                // Transient session - outgoing connections only, no persistent I2P address
+                g_connman->m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
+                    new i2p::sam::Session(i2pSamProxy, &g_connman->interruptNet));
+                LogPrintf("I2P: SAM session created (outgoing connections only)\n");
+            }
         }
     } else {
         SetLimited(NET_I2P);
