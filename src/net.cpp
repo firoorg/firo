@@ -3716,6 +3716,21 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg, bool allowOpti
         RecordBytesSent(nBytesSent);
 }
 
+void CConnman::InitI2P(const CService& sam_proxy, bool accept_incoming, const boost::filesystem::path& private_key_file)
+{
+    if (accept_incoming) {
+        // Persistent session with stored private key - allows incoming connections
+        m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
+            new i2p::sam::Session(private_key_file, sam_proxy, &interruptNet));
+        LogPrintf("I2P: SAM session created (accepting incoming connections)\n");
+    } else {
+        // Transient session - outgoing connections only, no persistent I2P address
+        m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
+            new i2p::sam::Session(sam_proxy, &interruptNet));
+        LogPrintf("I2P: SAM session created (outgoing connections only)\n");
+    }
+}
+
 bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
     CNode* found = nullptr;
