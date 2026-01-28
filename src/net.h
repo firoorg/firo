@@ -225,6 +225,17 @@ public:
     bool IsMasternodeOrDisconnectRequested(const CService& addr);
 
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg, bool allowOptimisticSend = DEFAULT_ALLOW_OPTIMISTIC_SEND);
+    
+    /**
+     * Initialize I2P SAM session for connecting to and accepting connections from I2P peers.
+     * @param[in] sam_proxy The address of the I2P SAM proxy.
+     * @param[in] accept_incoming If true, create a persistent session that can accept incoming
+     *            connections (stores private key on disk). If false, create a transient session
+     *            for outgoing connections only.
+     * @param[in] private_key_file Path to file where the I2P private key will be stored
+     *            (only used when accept_incoming is true).
+     */
+    void InitI2P(const CService& sam_proxy, bool accept_incoming, const boost::filesystem::path& private_key_file);
 
     
 
