@@ -133,7 +133,7 @@ template <typename T, typename = void>
 struct is_iterator : std::false_type
 {};
 
-// See http://en.cppreference.com/w/cpp/concept/Iterator
+// See https://en.cppreference.com/w/cpp/iterator.html
 template <typename T>
 struct is_iterator<
     T,
