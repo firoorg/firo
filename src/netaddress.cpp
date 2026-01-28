@@ -197,8 +197,22 @@ bool CNetAddr::SetSpecial(const std::string& str)
         static constexpr size_t suffix_len{8};
 
         if (str.size() > suffix_len && str.substr(str.size() - suffix_len) == suffix) {
+            // Extract the base32-encoded portion (before the .b32.i2p suffix)
+            std::string b32_str = str.substr(0, str.size() - suffix_len);
+            
+            // I2P uses base32 without padding, but DecodeBase32 expects padding.
+            // Add the required padding based on string length.
+            // Valid lengths for 32-byte output: 52 chars (8n+4 -> needs 4 '=')
+            switch (b32_str.size() % 8) {
+                case 2: b32_str.append(6, '='); break;
+                case 4: b32_str.append(4, '='); break;
+                case 5: b32_str.append(3, '='); break;
+                case 7: b32_str.append(1, '='); break;
+                default: break; // 0, 1, 3, 6 are invalid or no padding needed
+            }
+            
             bool invalid;
-            const auto& input = DecodeBase32(str.substr(0, str.size() - suffix_len).c_str(), &invalid);
+            const auto& input = DecodeBase32(b32_str.c_str(), &invalid);
 
             if (invalid) {
                 return false;
