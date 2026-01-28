@@ -1587,11 +1587,11 @@ UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
     }
 
     spark::CSparkState* sparkState =  spark::CSparkState::GetState();
-    std::unordered_map<GroupElement, int, spark::CLTagHash>  tags;
+    std::vector<std::pair<GroupElement, int>>  tags;
     std::unordered_map<uint256, uint256> ltagTxhash;
     {
         LOCK(cs_main);
-        tags = sparkState->GetSpends();
+        tags = sparkState->GetSpendsMobile();
         ltagTxhash = sparkState->GetSpendTxIds();
     }
     UniValue serializedTagsTxIds(UniValue::VARR);
