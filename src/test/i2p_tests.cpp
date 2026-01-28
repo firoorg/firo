@@ -129,15 +129,12 @@ BOOST_AUTO_TEST_CASE(i2p_reachability)
     const std::string valid_i2p = "ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p";
     BOOST_CHECK(addr.SetSpecial(valid_i2p));
     
-    CNetAddr ipv4;
-    ipv4.SetSpecial("8.8.8.8"); // This won't work, need to use proper lookup
-    
     // For I2P addresses, reachability from other I2P addresses should be REACH_PRIVATE
     // This is the highest reachability level for privacy networks
     CNetAddr addr2;
     BOOST_CHECK(addr2.SetSpecial("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq.b32.i2p"));
     
-    // I2P to I2P should have good reachability
+    // I2P to I2P should have good reachability (REACH_PRIVATE = 5)
     int reachability = addr.GetReachabilityFrom(&addr2);
     BOOST_CHECK(reachability > 0);
 }
