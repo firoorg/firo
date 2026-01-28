@@ -133,7 +133,8 @@ BOOST_AUTO_TEST_CASE(i2p_reachability)
     // For I2P addresses, reachability from other I2P addresses should be REACH_PRIVATE
     // This is the highest reachability level for privacy networks
     CNetAddr addr2;
-    BOOST_CHECK(addr2.SetSpecial("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaq.b32.i2p"));
+    // Valid I2P address: 52 base32 characters (a-z, 2-7)
+    BOOST_CHECK(addr2.SetSpecial("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.b32.i2p"));
     
     // I2P to I2P should have good reachability (REACH_PRIVATE = 5)
     int reachability = addr.GetReachabilityFrom(&addr2);
