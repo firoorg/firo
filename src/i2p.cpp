@@ -206,7 +206,15 @@ bool Session::Accept(Connection& conn)
 
     while (!(*m_interrupt)) {
         if (!Wait(conn.sock, MAX_WAIT_FOR_IO, true)) {
-            // Timeout, no incoming connections or errors within MAX_WAIT_FOR_IO.
+            // Wait returned false - could be timeout or socket error
+            // Check if the socket is still valid to distinguish between the two
+            std::string socket_errmsg;
+            if (!IsConnected(conn.sock, socket_errmsg)) {
+                // Socket error - break out to avoid busy-looping
+                errmsg = strprintf("Socket error while waiting for connection: %s", socket_errmsg);
+                break;
+            }
+            // Genuine timeout - continue waiting for incoming connections
             continue;
         }
 
