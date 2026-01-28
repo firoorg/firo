@@ -1,5 +1,6 @@
 #include "keys.h"
 #include "../hash.h"
+#include "../support/cleanse.h"
 #include "transcript.h"
 
 namespace spark {
@@ -27,9 +28,10 @@ SpendKey::SpendKey(const Params* params, const Scalar& r_) {
     hash256.Finalize(result.data());
     this->s1.memberFromSeed(result.data());
 
-    // Reset for s2 generation - resize instead of clear to maintain buffer capacity
-    std::fill(data.begin(), data.end(), 0);
-    std::fill(result.begin(), result.end(), 0);
+    // Reset for s2 generation - use memory_cleanse to securely clear cryptographic material
+    // (memory_cleanse uses OPENSSL_cleanse which is guaranteed not to be optimized away)
+    memory_cleanse(data.data(), data.size());
+    memory_cleanse(result.data(), result.size());
     hash256.Reset();
     s1.serialize(data.data());
 
