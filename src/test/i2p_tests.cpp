@@ -113,12 +113,13 @@ BOOST_AUTO_TEST_CASE(i2p_service)
     const std::string valid_i2p = "ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p";
     BOOST_CHECK(addr.SetSpecial(valid_i2p));
     
-    // I2P uses port 0 (SAM 3.1 doesn't use ports)
+    // I2P SAM 3.1 uses port 0 as the standard port
     CService service(addr, 0);
     BOOST_CHECK(service.IsI2P());
     BOOST_CHECK_EQUAL(service.GetPort(), 0);
     
-    // The port in I2P is always 0, so testing with non-zero port
+    // CService preserves whatever port is supplied, even for I2P addresses.
+    // However, the I2P SAM session will reject non-zero ports when connecting.
     CService service2(addr, 8333);
     BOOST_CHECK_EQUAL(service2.GetPort(), 8333);
 }
