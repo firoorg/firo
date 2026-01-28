@@ -45,6 +45,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/fixtures.h
   ${CMAKE_CURRENT_SOURCE_DIR}/getarg_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/hash_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/i2p_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/key_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/dbwrapper_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_tests.cpp
