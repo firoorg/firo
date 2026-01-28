@@ -106,7 +106,9 @@ static CNetAddr DestBinToAddr(const Binary& dest)
     hasher.Finalize(hash);
 
     CNetAddr addr;
-    const std::string addr_str = EncodeBase32(hash, hash + CSHA256::OUTPUT_SIZE, false) + ".b32.i2p";
+    // Create a vector from the hash for EncodeBase32
+    std::vector<unsigned char> hash_vec(hash, hash + CSHA256::OUTPUT_SIZE);
+    const std::string addr_str = EncodeBase32(hash_vec, false) + ".b32.i2p";
     if (!addr.SetSpecial(addr_str)) {
         throw std::runtime_error(strprintf("Cannot parse I2P address: \"%s\"", addr_str));
     }
@@ -150,6 +152,9 @@ static bool IsSafeSAMValue(const std::string& s)
 }
 
 namespace sam {
+
+// Forward declaration - defined at end of file
+bool ConnectSocketDirectly(const CService& addrConnect, SOCKET& hSocketRet, int nTimeout);
 
 Session::Session(const boost::filesystem::path& private_key_file,
                  const CService& control_host,
