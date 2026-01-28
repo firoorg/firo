@@ -126,6 +126,29 @@ static CNetAddr DestB64ToAddr(const std::string& dest)
     return DestBinToAddr(decoded);
 }
 
+/**
+ * Check if a string is safe to use in SAM protocol commands.
+ * Rejects strings containing control characters (including newlines) that could
+ * be used to inject additional SAM commands.
+ * @param[in] s The string to validate.
+ * @return true if safe, false if contains dangerous characters.
+ */
+static bool IsSafeSAMValue(const std::string& s)
+{
+    for (char c : s) {
+        // Reject control characters (0x00-0x1F) and DEL (0x7F)
+        // This prevents newline injection attacks
+        if (static_cast<unsigned char>(c) < 0x20 || c == 0x7F) {
+            return false;
+        }
+        // Also reject spaces as they delimit SAM protocol tokens
+        if (c == ' ') {
+            return false;
+        }
+    }
+    return true;
+}
+
 namespace sam {
 
 Session::Session(const boost::filesystem::path& private_key_file,
@@ -261,6 +284,11 @@ bool Session::Connect(const CService& to, Connection& conn, bool& proxy_error)
             SendRequestAndGetReply(sock, strprintf("NAMING LOOKUP NAME=%s", to.ToStringIP()));
 
         const std::string& dest = lookup_reply.Get("VALUE");
+        
+        // Validate the destination to prevent SAM command injection attacks
+        if (!IsSafeSAMValue(dest)) {
+            throw std::runtime_error("SAM proxy returned invalid destination (contains control characters)");
+        }
 
         const Reply& connect_reply = SendRequestAndGetReply(
             sock, strprintf("STREAM CONNECT ID=%s DESTINATION=%s SILENT=false", session_id, dest),
@@ -352,7 +380,12 @@ SOCKET Session::Hello() const
         throw std::runtime_error(strprintf("Cannot connect to %s", m_control_host.ToString()));
     }
 
-    SendRequestAndGetReply(sock, "HELLO VERSION MIN=3.1 MAX=3.1");
+    try {
+        SendRequestAndGetReply(sock, "HELLO VERSION MIN=3.1 MAX=3.1");
+    } catch (...) {
+        CloseSocket(sock);
+        throw;
+    }
 
     return sock;
 }
@@ -480,6 +513,12 @@ void Session::CreateIfNotCreatedAlready()
                                         std::istreambuf_iterator<char>(file),
                                         std::istreambuf_iterator<char>());
                     file.close();
+                    
+                    // Validate the private key file is not empty or corrupted
+                    if (m_private_key.empty()) {
+                        LogPrintf("I2P: Private key file %s is empty, regenerating\n", m_private_key_file.string());
+                        GenerateAndSavePrivateKey(sock);
+                    }
                 } else {
                     GenerateAndSavePrivateKey(sock);
                 }
