@@ -29,6 +29,7 @@
 #include "masternode-sync.h"
 #include "llmq/quorums_instantsend.h"
 #include "evo/mnauth.h"
+#include "i2p.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -395,10 +396,32 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
 
     // Connect
-    SOCKET hSocket;
+    SOCKET hSocket = INVALID_SOCKET;
     bool proxyConnectionFailed = false;
-    if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, Params().GetDefaultPort(), nConnectTimeout, &proxyConnectionFailed) :
-                  ConnectSocket(addrConnect, hSocket, nConnectTimeout, &proxyConnectionFailed))
+    bool connected = false;
+
+    // Handle I2P connections via SAM session
+    if (addrConnect.IsI2P()) {
+        if (m_i2p_sam_session) {
+            i2p::Connection conn;
+            if (m_i2p_sam_session->Connect(addrConnect, conn, proxyConnectionFailed)) {
+                hSocket = conn.sock;
+                connected = true;
+                LogPrint("i2p", "I2P connection established to %s\n", addrConnect.ToString());
+            } else {
+                LogPrint("i2p", "I2P connection to %s failed\n", addrConnect.ToString());
+            }
+        } else {
+            // I2P connections require a SAM session, which should be set up via -i2psam
+            LogPrint("i2p", "I2P connection to %s failed - no SAM session available (configure -i2psam)\n", addrConnect.ToString());
+            proxyConnectionFailed = true;
+        }
+    } else if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, Params().GetDefaultPort(), nConnectTimeout, &proxyConnectionFailed) :
+                  ConnectSocket(addrConnect, hSocket, nConnectTimeout, &proxyConnectionFailed)) {
+        connected = true;
+    }
+
+    if (connected)
     {
         if (!IsSelectableSocket(hSocket)) {
             LogPrintf("Cannot create connection: non-selectable socket created (fd >= FD_SETSIZE ?)\n");
