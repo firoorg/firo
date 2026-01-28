@@ -518,6 +518,16 @@ void Session::CreateIfNotCreatedAlready()
                     if (m_private_key.empty()) {
                         LogPrintf("I2P: Private key file %s is empty, regenerating\n", m_private_key_file.string());
                         GenerateAndSavePrivateKey(sock);
+                    } else {
+                        // Validate the private key by attempting to derive the destination
+                        // This will detect truncated or corrupted key files
+                        try {
+                            MyDestination();
+                        } catch (const std::runtime_error& e) {
+                            LogPrintf("I2P: Private key file %s is corrupted (%s), regenerating\n", 
+                                      m_private_key_file.string(), e.what());
+                            GenerateAndSavePrivateKey(sock);
+                        }
                     }
                 } else {
                     GenerateAndSavePrivateKey(sock);

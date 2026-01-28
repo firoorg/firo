@@ -31,6 +31,8 @@
 #include "evo/mnauth.h"
 #include "i2p.h"
 
+#include <algorithm>
+
 #ifdef WIN32
 #include <string.h>
 #else
@@ -400,8 +402,36 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     bool proxyConnectionFailed = false;
     bool connected = false;
 
+    // Check if this is an I2P connection - either via addrConnect or pszDest
+    bool isI2P = addrConnect.IsI2P();
+    CService i2pDest;
+    
+    // If pszDest is provided, check if it's an I2P address (.b32.i2p suffix)
+    if (!isI2P && pszDest) {
+        std::string dest(pszDest);
+        // Check for I2P address suffix (case-insensitive)
+        if (dest.size() > 8) {
+            std::string suffix = dest.substr(dest.size() - 8);
+            std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
+            if (suffix == ".b32.i2p") {
+                CNetAddr i2pAddr;
+                if (i2pAddr.SetSpecial(dest)) {
+                    i2pDest = CService(i2pAddr, i2p::I2P_SAM31_PORT);
+                    isI2P = true;
+                    LogPrint("i2p", "I2P: Parsed destination %s from pszDest\n", i2pDest.ToString());
+                }
+            }
+        }
+    }
+
     // Handle I2P connections via SAM session
-    if (addrConnect.IsI2P()) {
+    if (isI2P) {
+        // Use i2pDest if we parsed from pszDest, otherwise use addrConnect
+        if (i2pDest.IsValid()) {
+            // Update addrConnect so it's used correctly for CNode creation and address manager
+            addrConnect = CAddress(i2pDest, addrConnect.nServices);
+        }
+        
         if (m_i2p_sam_session) {
             i2p::Connection conn;
             if (m_i2p_sam_session->Connect(addrConnect, conn, proxyConnectionFailed)) {
