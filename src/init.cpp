@@ -1623,8 +1623,16 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
         SetLimited(NET_I2P, false);
         LogPrintf("I2P: SAM proxy configured at %s\n", i2pSamProxy.ToString());
-        // Note: The actual I2P session will be created when first needed by the connection manager
-        // The I2P session management is handled through i2p::sam::Session
+
+        // Create I2P SAM session
+        const bool i2p_accept_incoming = GetBoolArg("-i2pacceptincoming", true);
+        boost::filesystem::path i2p_private_key_file = GetDataDir() / "i2p_private_key";
+        
+        if (g_connman) {
+            g_connman->m_i2p_sam_session = std::unique_ptr<i2p::sam::Session>(
+                new i2p::sam::Session(i2p_private_key_file, i2pSamProxy, &g_connman->interruptNet));
+            LogPrintf("I2P: SAM session created%s\n", i2p_accept_incoming ? " (accepting incoming)" : "");
+        }
     } else {
         SetLimited(NET_I2P);
     }

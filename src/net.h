@@ -21,6 +21,7 @@
 #include "uint256.h"
 #include "threadinterrupt.h"
 #include "util.h"
+#include "i2p.h"
 #include "consensus/params.h"
 
 
@@ -539,6 +540,11 @@ private:
     std::atomic<bool> flagInterruptMsgProc;
 
     CThreadInterrupt interruptNet;
+
+    /** I2P SAM session.
+     * Used to connect to I2P peers and accept incoming I2P connections.
+     */
+    std::unique_ptr<i2p::sam::Session> m_i2p_sam_session;
 
     std::thread threadDNSAddressSeed;
     std::thread threadSocketHandler;
