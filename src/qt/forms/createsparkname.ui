@@ -271,8 +271,7 @@
           <enum>Qt::RichText</enum>
          </property>
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To get this spark name you must pay a fee of &lt;span style=&quot; font-weight:600;&quot;&gt;%1 FIRO(s)&lt;/span&gt;. Fee depends on spark name lengths, shorter names are more expensive. Fee can be paid only with private funds.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To get this spark name you must pay a fee of &lt;span style=&quot; font-weight:600;&quot;&gt;%1 FIRO(s)&lt;/span&gt;. Fee depends on spark name lengths, shorter names are more expensive. Fee can be paid only with private funds.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>         </property>
          <property name="wordWrap">
           <bool>true</bool>
          </property>

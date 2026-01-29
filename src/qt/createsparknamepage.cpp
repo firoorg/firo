@@ -45,6 +45,16 @@ void CreateSparkNamePage::setModel(WalletModel *model)
             this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
 }
 
+void CreateSparkNamePage::setExtendMode(const QString &name, const QString &address)
+{
+    ui->sparkNameEdit->setText(name);
+    ui->sparkNameEdit->setEnabled(false);
+    ui->sparkAddressEdit->setText(address);
+    ui->sparkAddressEdit->setEnabled(false);
+    ui->generateButton->setEnabled(false);
+    this->setWindowTitle(tr("Extend Spark Name"));
+}
+
 void CreateSparkNamePage::on_generateButton_clicked()
 {
     QString newSparkAddress = model->generateSparkAddress();

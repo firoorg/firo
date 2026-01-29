@@ -26,6 +26,8 @@ public:
     explicit CreateSparkNamePage(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~CreateSparkNamePage();
 
+    void setExtendMode(const QString &name, const QString &address);
+
     void setModel(WalletModel *model);
 
     void accept() override;
