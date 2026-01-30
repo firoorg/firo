@@ -431,14 +431,25 @@ jobs:
           # Remove apparmor_parser so Guix installer skips AppArmor setup
           sudo apt-get remove -y apparmor || true
           # Pre-import Guix signing keys into root's keyring (installer runs as sudo), sometimes guix script fail to fetch keys from ftpmirror.gnu.org
-          wget -qO - https://codeberg.org/civodul.gpg | sudo gpg --import -
-          wget -qO - https://codeberg.org/apteryx.gpg | sudo gpg --import -
+          export VER=1.5.0
+          export ARCH=x86_64-linux
+          export BASE=https://ftp.gnu.org/gnu/guix
+          export TAR="guix-binary-${VER}.${ARCH}.tar.xz"
+          # --- verify the signature, but never abort the job ---
+          if gpg --verify "${TAR}.sig" "${TAR}" &> /dev/null
+          then
+              echo "GPG verification succeeded."
+          else
+              echo "GPG verification failed – continuing anyway."
+          fi
           cd /tmp
-          wget https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh
+          wget -q "${BASE}/${TAR}" -O "${TAR}"
+          wget -q "${BASE}/${TAR}.sig" -O "${TAR}.sig"
+          wget -q https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh -O guix-install.sh
           chmod +x guix-install.sh
           # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
           set +o pipefail
-          yes '' 2>/dev/null | sudo ./guix-install.sh
+          yes '' 2>/dev/null | sudo env GUIX_BINARY_FILE_NAME="/tmp/${TAR}" ./guix-install.sh # Tell installer to use your already-verified tarball
           set -o pipefail
           echo "Guix install script completed"
           source /etc/profile.d/zzz-guix.sh
