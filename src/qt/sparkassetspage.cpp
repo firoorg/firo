@@ -588,12 +588,15 @@ void SparkAssetsPage::onMintButtonClicked()
 
             SpatsMintDialog dialog(platform_style_, fungible_asset, this);
             if (dialog.exec() == QDialog::Accepted) {
-                wallet_model_->getWallet()->MintSparkAssetSupply(
-                    asset_type,
-                    dialog.getNewSupply(),
-                    dialog.getRecipient(),
-                    nullptr,
-                    MakeSpatsUserConfirmationCallback(*wallet_model_, this));
+                // TODO: MintSparkAssetSupply not yet implemented in CWallet
+                // wallet_model_->getWallet()->MintSparkAssetSupply(
+                //     asset_type,
+                //     dialog.getNewSupply(),
+                //     dialog.getRecipient(),
+                //     nullptr,
+                //     MakeSpatsUserConfirmationCallback(*wallet_model_, this));
+                QMessageBox::warning(this, tr("Not Implemented"),
+                    tr("Minting new asset supply is not yet implemented."));
             }
         } catch (const std::exception &e) {
             QMessageBox::critical(this, tr("Error"),

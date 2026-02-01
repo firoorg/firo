@@ -57,6 +57,7 @@ const Scalar& SpendKey::get_r() const {
 }
 
 SpendKey& SpendKey::operator=(const SpendKey& other) {
+    this->params = other.params;
     this->s1 = other.s1;
     this->s2 = other.s2;
     this->r = other.r;

@@ -72,10 +72,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             rec.type = TransactionRecord::SpatsRevoke;
             rec.address = "Spats Burn";
         }
-        else if (wtx.tx->HasSpatsMintCoin()) {
-            rec.type = TransactionRecord::SpatsMint;
-            rec.address = "Spats MintCoin";
-        }
         else if (wtx.tx->HasSpatsBurnAmount()) {
             rec.type = TransactionRecord::SpatsRevoke;
             rec.address = "Spats BurnAmount";

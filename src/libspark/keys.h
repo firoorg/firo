@@ -103,8 +103,6 @@ private:
     const Params* params;
     std::vector<unsigned char> d;
     GroupElement Q1, Q2;
-
-    static std::string get_checksum(const std::string data); // TODO GV #Review: Not defined. Should be removed?
 };
 
 }

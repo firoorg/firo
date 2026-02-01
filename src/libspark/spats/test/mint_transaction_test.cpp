@@ -79,7 +79,6 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_zero)
     BOOST_CHECK(mint.verify());
 }
 
-#if 0   // This is not a valid test. Identifier can be nonzero only for NFTs, and NFTs cannot mint new supply.
 BOOST_AUTO_TEST_CASE(generate_verify_identifier_not_zero)
 {
     // Parameters
@@ -125,7 +124,6 @@ BOOST_AUTO_TEST_CASE(generate_verify_identifier_not_zero)
         }
     }
 }
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()
 

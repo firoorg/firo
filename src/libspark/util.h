@@ -81,7 +81,6 @@ const int AEAD_COMMIT_SIZE = 32; // byte length of the key commitment
 const unsigned char ADDRESS_ENCODING_PREFIX = 's';
 
 // Address encoding network identifiers
-// TODO: Extend/update/replace these as needed! These are just initial examples
 const unsigned char ADDRESS_NETWORK_MAINNET = 'm';
 const unsigned char ADDRESS_NETWORK_TESTNET = 't';
 const unsigned char ADDRESS_NETWORK_REGTEST = 'r';

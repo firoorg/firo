@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(completeness_single_unpadded)
     // Commitments
     std::vector<Scalar> a, iota, v, r;
     v.resize(M);
-    for (int i = 0; i < M; i++) {
+    for (std::size_t i = 0; i < M; i++) {
         v[i] = Scalar(uint64_t(i));
     }
     a.resize(M);
@@ -65,10 +65,10 @@ BOOST_AUTO_TEST_CASE(completeness_single_unpadded)
     BOOST_CHECK(check);
 }
 
-// Generate and verifly a single aggregated proof with padding
+// Generate and verify a single aggregated proof with padding
 BOOST_AUTO_TEST_CASE(completeness_single_padded)
 {
-    // Paarmeters
+    // Parameters
     std::size_t N = 64; // bit length
     std::size_t M = 5;  // aggregation
 
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(completeness_single_padded)
     std::vector<Scalar> a, iota, v, r;
 
     v.resize(M);
-    for (int i = 0; i < M - 1; i++) {
+    for (std::size_t i = 0; i < M - 1; i++) {
         v[i] = Scalar(uint64_t(i));
     }
     v[M - 1] = Scalar(std::numeric_limits<uint64_t>::max());
@@ -147,8 +147,6 @@ BOOST_AUTO_TEST_CASE(invalid_single_unpadded)
     }
 
     // Commitments
-    Scalar asset_type = Scalar(uint64_t(1));
-    Scalar identifier = Scalar(uint64_t(1));
     std::vector<Scalar> a, iota, v, r;
     v.resize(M);
     for (std::size_t i = 0; i < M - 1; i++) {

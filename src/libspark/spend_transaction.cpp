@@ -356,7 +356,6 @@ bool SpendTransaction::verify(
 	}
 
 	// Verify all Grootle proofs in batches (based on cover set)
-	// TODO: Finish this
 	Grootle grootle(
 		params->get_H(),
 		params->get_G_grootle(),
@@ -448,7 +447,7 @@ Scalar SpendTransaction::hash_bind(
 ) {
     Hash hash(LABEL_HASH_BIND);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-    stream << hash_bind_inner,
+    stream << hash_bind_inner;
     stream << out_coins;
     stream << f_;
     hash.include(stream);

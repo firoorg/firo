@@ -124,6 +124,13 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/spend_transaction_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/f4grumble_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/address_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/balance_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/base_asset_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/bpplus_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/coin_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/mint_transaction_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/spend_transaction_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/type_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_state_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_mintspend_test.cpp
