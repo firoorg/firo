@@ -3541,17 +3541,17 @@ void CWallet::ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool 
     std::list<CLelantusEntry> listOwnCoins;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     listOwnCoins = zwallet->GetTracker().MintsAsLelantusEntries(true, false);
-    LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
+    LogPrintf("listOwnCoins.size()=%zu\n", listOwnCoins.size());
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx *pcoin = &(*it).second;
 //        LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
         if (!CheckFinalTx(*pcoin)) {
-            LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
+            LogPrintf("!CheckFinalTx(*pcoin)=%d\n", !CheckFinalTx(*pcoin));
             continue;
         }
 
         if (fOnlyConfirmed && !pcoin->IsTrusted()) {
-            LogPrintf("fOnlyConfirmed = %s, !pcoin->IsTrusted() = %s\n", fOnlyConfirmed, !pcoin->IsTrusted());
+            LogPrintf("fOnlyConfirmed = %d, !pcoin->IsTrusted() = %d\n", fOnlyConfirmed, !pcoin->IsTrusted());
             continue;
         }
 
@@ -3562,10 +3562,10 @@ void CWallet::ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool 
 
         int nDepth = pcoin->GetDepthInMainChain();
         if (nDepth < 0) {
-            LogPrintf("nDepth=%s\n", nDepth);
+            LogPrintf("nDepth=%d\n", nDepth);
             continue;
         }
-        LogPrintf("pcoin->tx->vout.size()=%s\n", pcoin->tx->vout.size());
+        LogPrintf("pcoin->tx->vout.size()=%zu\n", pcoin->tx->vout.size());
 
         for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
             if (pcoin->tx->vout[i].scriptPubKey.IsLelantusMint() || pcoin->tx->vout[i].scriptPubKey.IsLelantusJMint()) {
@@ -3937,7 +3937,12 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
     // now we ensure code won't be written that makes assumptions about
     // nLockTime that preclude a fix later.
 
-    txNew.nLockTime = chainActive.Height();
+    int nHeight = 0;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+    txNew.nLockTime = nHeight;
 
     // Secondly occasionally randomly pick a nLockTime even further back, so
     // that transactions that are delayed after signing for whatever reason,
@@ -3946,7 +3951,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
     if (GetRandInt(10) == 0)
         txNew.nLockTime = std::max(0, (int)txNew.nLockTime - GetRandInt(100));
 
-    assert(txNew.nLockTime <= (unsigned int)chainActive.Height());
+    assert(txNew.nLockTime <= static_cast<unsigned int>(nHeight));
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
 
     {
@@ -4348,9 +4353,14 @@ bool CWallet::CreateLelantusMintTransactions(
     wtxNew.BindWallet(this);
 
     CMutableTransaction txNew;
-    txNew.nLockTime = chainActive.Height();
+    int nHeight = 0;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+    txNew.nLockTime = nHeight;
 
-    assert(txNew.nLockTime <= (unsigned int) chainActive.Height());
+    assert(txNew.nLockTime <= static_cast<unsigned int>(nHeight));
     assert(txNew.nLockTime < LOCKTIME_THRESHOLD);
 
     {
@@ -4379,8 +4389,8 @@ bool CWallet::CreateLelantusMintTransactions(
 
                 CHDMint dMint;
 
-                auto nFeeRet = 0;
-                LogPrintf("nFeeRet=%s\n", nFeeRet);
+                CAmount nFeeRet = 0;
+                LogPrintf("nFeeRet=%d\n", nFeeRet);
 
                 auto itr = valueAndUTXO.begin();
 
@@ -4477,7 +4487,7 @@ bool CWallet::CreateLelantusMintTransactions(
                             // send change to one of the specified change addresses
                         else if (IsArgSet("-change") && mapMultiArgs.at("-change").size() > 0) {
                             CBitcoinAddress address(
-                                    mapMultiArgs.at("change")[GetRandInt(mapMultiArgs.at("-change").size())]);
+                                    mapMultiArgs.at("-change")[GetRandInt(mapMultiArgs.at("-change").size())]);
                             CKeyID keyID;
                             if (!address.GetKeyID(keyID)) {
                                 strFailReason = _("Bad change address");
@@ -4740,7 +4750,7 @@ std::string CWallet::MintAndStoreLelantus(const CAmount& value,
     if ((value + payTxFee.GetFeePerK()) > GetBalance())
         return _("Insufficient funds");
 
-    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
+    LogPrintf("payTxFee.GetFeePerK()=%d\n", payTxFee.GetFeePerK());
     int64_t nFeeRequired = 0;
 
     int nChangePosRet = -1;
@@ -4809,7 +4819,7 @@ std::string CWallet::MintAndStoreSpark(
     if (cmp::greater((value + payTxFee.GetFeePerK()), GetBalance()))
         return _("Insufficient funds");
 
-    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
+    LogPrintf("payTxFee.GetFeePerK()=%d\n", payTxFee.GetFeePerK());
     int64_t nFeeRequired = 0;
 
     int nChangePosRet = -1;

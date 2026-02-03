@@ -1,5 +1,6 @@
 #include "keys.h"
 #include "../hash.h"
+#include "../support/cleanse.h"
 #include "transcript.h"
 
 namespace spark {
@@ -16,28 +17,29 @@ SpendKey::SpendKey(const Params* params) {
 SpendKey::SpendKey(const Params* params, const Scalar& r_) {
     this->params = params;
     this->r = r_;
-    std::vector<unsigned char> data;
-    data.resize(32);
+    std::vector<unsigned char> data(32);
     r.serialize(data.data());
-    std::vector<unsigned char> result(CSHA256().OUTPUT_SIZE);
+    std::vector<unsigned char> result(CSHA256::OUTPUT_SIZE);
 
     CHash256 hash256;
     std::string prefix1 = "s1_generation";
     hash256.Write(reinterpret_cast<const unsigned char*>(prefix1.c_str()), prefix1.size());
     hash256.Write(data.data(), data.size());
-    hash256.Finalize(&result[0]);
-    this->s1.memberFromSeed(&result[0]);
+    hash256.Finalize(result.data());
+    this->s1.memberFromSeed(result.data());
 
-    data.clear();
-    result.clear();
+    // Reset for s2 generation - use memory_cleanse to securely clear cryptographic material
+    // (memory_cleanse uses OPENSSL_cleanse which is guaranteed not to be optimized away)
+    memory_cleanse(data.data(), data.size());
+    memory_cleanse(result.data(), result.size());
     hash256.Reset();
     s1.serialize(data.data());
 
     std::string prefix2 = "s2_generation";
     hash256.Write(reinterpret_cast<const unsigned char*>(prefix2.c_str()), prefix2.size());
     hash256.Write(data.data(), data.size());
-    hash256.Finalize(&result[0]);
-    this->s2.memberFromSeed(&result[0]);
+    hash256.Finalize(result.data());
+    this->s2.memberFromSeed(result.data());
 }
 
 const Params* SpendKey::get_params() const {
@@ -212,7 +214,10 @@ unsigned char Address::decode(const std::string& str) {
 		throw std::invalid_argument("Bad address encoding");
 	}
 
-	// Check the encoding prefix
+	// Check the hrp length and encoding prefix
+	if (decoded.hrp.size() < 2) {
+		throw std::invalid_argument("Bad address format");
+	}
 	if (decoded.hrp[0] != ADDRESS_ENCODING_PREFIX) {
 		throw std::invalid_argument("Bad address prefix");
 	}
