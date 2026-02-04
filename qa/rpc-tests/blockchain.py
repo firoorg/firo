@@ -167,5 +167,10 @@ class BlockchainTest(BitcoinTestFramework):
         block_false = node.getblock(besthash, False)
         assert_is_hex_string(block_false)
 
+        # Test invalid verbosity values
+        self.log.info("Test getblock with invalid verbosity values")
+        assert_raises(JSONRPCException, lambda: node.getblock(besthash, -1))
+        assert_raises(JSONRPCException, lambda: node.getblock(besthash, 3))
+
 if __name__ == '__main__':
     BlockchainTest().main()
