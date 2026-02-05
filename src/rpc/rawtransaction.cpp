@@ -41,6 +41,9 @@
 #include "evo/providertx.h"
 #include "lelantus.h"
 
+// Forward declaration with default parameter for calls within this file
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock = true);
+
 namespace {
     template<class Tx>
     void ExtraPayloadToJson(const CTransaction& tx, const char * jsonId, UniValue & entry) {
