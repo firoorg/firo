@@ -50,7 +50,7 @@ static std::mutex cs_blockchange;
 static std::condition_variable cond_blockchange;
 static CUpdatedBlock latestblock;
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock = true);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -135,8 +135,9 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
         if(txDetails)
         {
             UniValue objTx(UniValue::VOBJ);
-            // Pass the block hash so TxToJSON can include block context and correct chainlock status
-            TxToJSON(*tx, blockindex->GetBlockHash(), objTx);
+            // Pass the block hash so TxToJSON can include block context
+            // Pass false for includeChainlock since chainlock is reported at block level only
+            TxToJSON(*tx, blockindex->GetBlockHash(), objTx, false);
             // Add raw transaction hex like Bitcoin does for verbosity >= 2
             objTx.push_back(Pair("hex", EncodeHexTx(*tx, RPCSerializationFlags())));
             txs.push_back(objTx);
@@ -1000,8 +1001,7 @@ UniValue getblock(const JSONRPCRequest& request)
             "       \"confirmations\" : n,    (numeric) The confirmations\n"
             "       \"time\" : n,             (numeric) The transaction time\n"
             "       \"blocktime\" : n,        (numeric) The block time\n"
-            "       \"instantlock\" : true|false, (bool) Current transaction InstantSend lock status\n"
-            "       \"chainlock\" : true|false    (bool) The state of the corresponding block ChainLock\n"
+            "       \"instantlock\" : true|false (bool) Current transaction InstantSend lock status\n"
             "     }\n"
             "     ,...\n"
             "  ],\n"

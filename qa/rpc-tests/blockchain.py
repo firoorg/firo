@@ -162,12 +162,12 @@ class BlockchainTest(BitcoinTestFramework):
         # Verify hex field is present (like Bitcoin's verbosity 2)
         assert 'hex' in tx
         assert_is_hex_string(tx['hex'])
-        # Verify instantlock and chainlock fields are present in each transaction
+        # Verify instantlock is present in each transaction (per-transaction lock)
         assert 'instantlock' in tx
-        assert 'chainlock' in tx
         assert isinstance(tx['instantlock'], bool)
-        assert isinstance(tx['chainlock'], bool)
-        # Verify block-level chainlock is also present
+        # Verify chainlock is NOT in transaction (only at block level)
+        assert 'chainlock' not in tx
+        # Verify block-level chainlock is present (chainlock is per-block, not per-tx)
         assert 'chainlock' in block_v2
         assert isinstance(block_v2['chainlock'], bool)
 
