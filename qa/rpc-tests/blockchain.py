@@ -137,6 +137,9 @@ class BlockchainTest(BitcoinTestFramework):
         # With verbosity 1, tx should be an array of txid strings
         assert isinstance(block['tx'][0], str)
         assert_is_hash_string(block['tx'][0])
+        # Verify block-level chainlock is present
+        assert 'chainlock' in block
+        assert isinstance(block['chainlock'], bool)
 
         # Test default verbosity (should be same as verbosity 1)
         self.log.info("Test getblock default verbosity")
@@ -151,10 +154,22 @@ class BlockchainTest(BitcoinTestFramework):
         assert 'tx' in block_v2
         assert len(block_v2['tx']) > 0
         # With verbosity 2, tx should be an array of objects with transaction details
-        assert isinstance(block_v2['tx'][0], dict)
-        assert 'txid' in block_v2['tx'][0]
-        assert 'vin' in block_v2['tx'][0]
-        assert 'vout' in block_v2['tx'][0]
+        tx = block_v2['tx'][0]
+        assert isinstance(tx, dict)
+        assert 'txid' in tx
+        assert 'vin' in tx
+        assert 'vout' in tx
+        # Verify hex field is present (like Bitcoin's verbosity 2)
+        assert 'hex' in tx
+        assert_is_hex_string(tx['hex'])
+        # Verify instantlock and chainlock fields are present in each transaction
+        assert 'instantlock' in tx
+        assert 'chainlock' in tx
+        assert isinstance(tx['instantlock'], bool)
+        assert isinstance(tx['chainlock'], bool)
+        # Verify block-level chainlock is also present
+        assert 'chainlock' in block_v2
+        assert isinstance(block_v2['chainlock'], bool)
 
         # Test backwards compatibility with boolean (true = verbosity 1)
         self.log.info("Test getblock with boolean true (backwards compat)")

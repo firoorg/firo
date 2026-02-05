@@ -135,7 +135,10 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
         if(txDetails)
         {
             UniValue objTx(UniValue::VOBJ);
-            TxToJSON(*tx, uint256(), objTx);
+            // Pass the block hash so TxToJSON can include block context and correct chainlock status
+            TxToJSON(*tx, blockindex->GetBlockHash(), objTx);
+            // Add raw transaction hex like Bitcoin does for verbosity >= 2
+            objTx.push_back(Pair("hex", EncodeHexTx(*tx, RPCSerializationFlags())));
             txs.push_back(objTx);
         }
         else
@@ -976,13 +979,31 @@ UniValue getblock(const JSONRPCRequest& request)
             "  \"difficulty\" : x.xxx,  (numeric) The difficulty\n"
             "  \"chainwork\" : \"xxxx\",  (string) Expected number of hashes required to produce the chain up to this block (in hex)\n"
             "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
-            "  \"nextblockhash\" : \"hash\"       (string) The hash of the next block\n"
+            "  \"nextblockhash\" : \"hash\",      (string) The hash of the next block\n"
+            "  \"chainlock\" : true|false        (bool) The state of the ChainLock for this block\n"
             "}\n"
             "\nResult (for verbosity = 2):\n"
             "{\n"
             "  ...,                     Same output as verbosity = 1.\n"
-            "  \"tx\" : [               (array of Objects) The transactions in the format of the getrawtransaction RPC. Different from verbosity = 1 \"tx\" result.\n"
-            "         ,...\n"
+            "  \"tx\" : [               (array of Objects) The transactions in the format of the getrawtransaction RPC.\n"
+            "     {\n"
+            "       \"txid\" : \"id\",        (string) The transaction id\n"
+            "       \"hash\" : \"id\",        (string) The transaction hash\n"
+            "       \"size\" : n,             (numeric) The transaction size\n"
+            "       \"vsize\" : n,            (numeric) The virtual transaction size\n"
+            "       \"version\" : n,          (numeric) The version\n"
+            "       \"locktime\" : n,         (numeric) The lock time\n"
+            "       \"vin\" : [...],          (array) The transaction inputs\n"
+            "       \"vout\" : [...],         (array) The transaction outputs\n"
+            "       \"hex\" : \"data\",       (string) Raw transaction data\n"
+            "       \"blockhash\" : \"hash\", (string) The block hash\n"
+            "       \"confirmations\" : n,    (numeric) The confirmations\n"
+            "       \"time\" : n,             (numeric) The transaction time\n"
+            "       \"blocktime\" : n,        (numeric) The block time\n"
+            "       \"instantlock\" : true|false, (bool) Current transaction InstantSend lock status\n"
+            "       \"chainlock\" : true|false    (bool) The state of the corresponding block ChainLock\n"
+            "     }\n"
+            "     ,...\n"
             "  ],\n"
             "  ,...                     Same output as verbosity = 1.\n"
             "}\n"
