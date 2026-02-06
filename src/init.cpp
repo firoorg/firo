@@ -118,7 +118,9 @@ static CDSNotificationInterface* pdsNotificationInterface = NULL;
 // accessing block files don't count towards the fd_set size limit
 // anyway.
 #define MIN_CORE_FILEDESCRIPTORS 0
+#define rlim_t unsigned long long
 #else
+#include <sys/resource.h>
 #define MIN_CORE_FILEDESCRIPTORS 150
 #endif
 
@@ -601,7 +603,7 @@ std::string LicenseInfo()
     const std::string URL_WEBSITE = "<https://firo.org/>";
 
     std::string copyright = CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2016, COPYRIGHT_YEAR) + " ");
-    
+
     const std::string bitcoinStr = strprintf("%i-%i The Bitcoin Core", 2016, COPYRIGHT_YEAR);
     if (copyright.find(bitcoinStr) != std::string::npos) {
         copyright.replace(copyright.find(bitcoinStr), sizeof("2016") - 1, "2009");
@@ -1072,9 +1074,9 @@ void InitLogging() {
 namespace { // Variables internal to initialization process only
 
 ServiceFlags nRelevantServices = NODE_NETWORK;
-int nMaxConnections;
-int nUserMaxConnections;
-int nFD;
+rlim_t nMaxConnections;
+rlim_t nUserMaxConnections;
+rlim_t nFD;
 ServiceFlags nLocalServices = NODE_NETWORK;
 
 }
@@ -1171,10 +1173,10 @@ bool AppInitParameterInteraction()
                 (mapMultiArgs.count("-bind") ? mapMultiArgs.at("-bind").size() : 0) +
                 (mapMultiArgs.count("-whitebind") ? mapMultiArgs.at("-whitebind").size() : 0), size_t(1));
     nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
-    nMaxConnections = std::max(nUserMaxConnections, 0);
+    nMaxConnections = std::max(nUserMaxConnections, (rlim_t)0);
 
     // Trim requested connection counts, to fit into system limitations
-    nMaxConnections = std::max(std::min(nMaxConnections, (int)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS - MAX_ADDNODE_CONNECTIONS)), 0);
+    nMaxConnections = std::max(std::min(nMaxConnections, (rlim_t)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS - MAX_ADDNODE_CONNECTIONS)), (rlim_t)0);
     nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS + MAX_ADDNODE_CONNECTIONS);
     if (nFD < MIN_CORE_FILEDESCRIPTORS)
         return InitError(_("Not enough file descriptors available."));
