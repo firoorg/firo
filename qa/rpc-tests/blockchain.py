@@ -45,6 +45,7 @@ class BlockchainTest(BitcoinTestFramework):
     def run_test(self):
         self._test_gettxoutsetinfo()
         self._test_getblockheader()
+        self._test_getblock()
         self.nodes[0].verifychain(4, 0)
 
     def _test_gettxoutsetinfo(self):
@@ -110,6 +111,81 @@ class BlockchainTest(BitcoinTestFramework):
         assert isinstance(header['version'], int)
         assert isinstance(int(header['versionHex'], 16), int)
         assert isinstance(header['difficulty'], Decimal)
+
+    def _test_getblock(self):
+        node = self.nodes[0]
+
+        self.log.info("Test getblock with invalid block hash")
+        assert_raises(
+            JSONRPCException, lambda: node.getblock('nonsense'))
+
+        besthash = node.getbestblockhash()
+
+        # Test verbosity 0 (hex-encoded data)
+        self.log.info("Test getblock verbosity 0 (hex-encoded data)")
+        block_hex = node.getblock(besthash, 0)
+        assert_is_hex_string(block_hex)
+
+        # Test verbosity 1 (JSON with transaction ids - default)
+        self.log.info("Test getblock verbosity 1 (JSON with tx ids)")
+        block = node.getblock(besthash, 1)
+        assert_equal(block['hash'], besthash)
+        assert_equal(block['height'], 200)
+        assert_equal(block['confirmations'], 1)
+        assert 'tx' in block
+        assert len(block['tx']) > 0
+        # With verbosity 1, tx should be an array of txid strings
+        assert isinstance(block['tx'][0], str)
+        assert_is_hash_string(block['tx'][0])
+        # Verify block-level chainlock is present
+        assert 'chainlock' in block
+        assert isinstance(block['chainlock'], bool)
+
+        # Test default verbosity (should be same as verbosity 1)
+        self.log.info("Test getblock default verbosity")
+        block_default = node.getblock(besthash)
+        assert_equal(block_default['hash'], besthash)
+        assert isinstance(block_default['tx'][0], str)
+
+        # Test verbosity 2 (JSON with full transaction details)
+        self.log.info("Test getblock verbosity 2 (JSON with full tx details)")
+        block_v2 = node.getblock(besthash, 2)
+        assert_equal(block_v2['hash'], besthash)
+        assert 'tx' in block_v2
+        assert len(block_v2['tx']) > 0
+        # With verbosity 2, tx should be an array of objects with transaction details
+        tx = block_v2['tx'][0]
+        assert isinstance(tx, dict)
+        assert 'txid' in tx
+        assert 'vin' in tx
+        assert 'vout' in tx
+        # Verify hex field is present (like Bitcoin's verbosity 2)
+        assert 'hex' in tx
+        assert_is_hex_string(tx['hex'])
+        # Verify instantlock is present in each transaction (per-transaction lock)
+        assert 'instantlock' in tx
+        assert isinstance(tx['instantlock'], bool)
+        # Verify chainlock is NOT in transaction (only at block level)
+        assert 'chainlock' not in tx
+        # Verify block-level chainlock is present (chainlock is per-block, not per-tx)
+        assert 'chainlock' in block_v2
+        assert isinstance(block_v2['chainlock'], bool)
+
+        # Test backwards compatibility with boolean (true = verbosity 1)
+        self.log.info("Test getblock with boolean true (backwards compat)")
+        block_true = node.getblock(besthash, True)
+        assert_equal(block_true['hash'], besthash)
+        assert isinstance(block_true['tx'][0], str)
+
+        # Test backwards compatibility with boolean (false = verbosity 0)
+        self.log.info("Test getblock with boolean false (backwards compat)")
+        block_false = node.getblock(besthash, False)
+        assert_is_hex_string(block_false)
+
+        # Test invalid verbosity values
+        self.log.info("Test getblock with invalid verbosity values")
+        assert_raises(JSONRPCException, lambda: node.getblock(besthash, -1))
+        assert_raises(JSONRPCException, lambda: node.getblock(besthash, 3))
 
 if __name__ == '__main__':
     BlockchainTest().main()
