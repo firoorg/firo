@@ -21,6 +21,7 @@
 #include "uint256.h"
 #include "threadinterrupt.h"
 #include "util.h"
+#include "i2p.h"
 #include "consensus/params.h"
 
 
@@ -224,6 +225,17 @@ public:
     bool IsMasternodeOrDisconnectRequested(const CService& addr);
 
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg, bool allowOptimisticSend = DEFAULT_ALLOW_OPTIMISTIC_SEND);
+    
+    /**
+     * Initialize I2P SAM session for connecting to and accepting connections from I2P peers.
+     * @param[in] sam_proxy The address of the I2P SAM proxy.
+     * @param[in] accept_incoming If true, create a persistent session that can accept incoming
+     *            connections (stores private key on disk). If false, create a transient session
+     *            for outgoing connections only.
+     * @param[in] private_key_file Path to file where the I2P private key will be stored
+     *            (only used when accept_incoming is true).
+     */
+    void InitI2P(const CService& sam_proxy, bool accept_incoming, const boost::filesystem::path& private_key_file);
 
     
 
@@ -540,6 +552,11 @@ private:
 
     CThreadInterrupt interruptNet;
 
+    /** I2P SAM session.
+     * Used to connect to I2P peers and accept incoming I2P connections.
+     */
+    std::unique_ptr<i2p::sam::Session> m_i2p_sam_session;
+
     std::thread threadDNSAddressSeed;
     std::thread threadSocketHandler;
     std::thread threadOpenAddedConnections;
@@ -547,6 +564,13 @@ private:
     std::thread threadOpenMasternodeConnections;
     std::thread threadMessageHandler;
     std::thread threadDandelionShuffle;
+    std::thread threadI2PAcceptIncoming;
+    
+    /**
+     * Thread function for accepting incoming I2P connections.
+     * Runs a loop that listens for and accepts incoming connections via the I2P SAM proxy.
+     */
+    void ThreadI2PAcceptIncoming();
 };
 extern std::unique_ptr<CConnman> g_connman;
 void Discover(boost::thread_group& threadGroup);
