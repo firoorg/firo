@@ -1598,11 +1598,18 @@ UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
         tags = sparkState->GetSpendsMobile();
         ltagTxhash = sparkState->GetSpendTxIds();
     }
+
+    // Handle edge cases: negative startNumber or too large.
+    size_t skip = 0;
+    if (startNumber > 0) {
+        skip = static_cast<size_t>(startNumber);
+        if (skip > tags.size()) {
+            skip = tags.size();
+        }
+    }
+
     UniValue serializedTagsTxIds(UniValue::VARR);
-    int i = 0;
-    for ( auto it = tags.begin(); it != tags.end(); ++it, ++i) {
-        if (cmp::less((tags.size() - i - 1), startNumber))
-            continue;
+    for (auto it = tags.begin() + skip; it != tags.end(); ++it) {
         std::vector<unsigned char> serialized;
         serialized.resize(34);
         it->first.serialize(serialized.data());
