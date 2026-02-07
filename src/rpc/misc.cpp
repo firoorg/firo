@@ -1599,10 +1599,13 @@ UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
         ltagTxhash = sparkState->GetSpendTxIds();
     }
 
-    // Handle edge case: startNumber exceeds available elements
-    size_t skip = static_cast<size_t>(startNumber);
-    if (skip > tags.size()) {
-        skip = tags.size();
+    // Handle edge cases: negative startNumber or too large.
+    size_t skip = 0;
+    if (startNumber > 0) {
+        skip = static_cast<size_t>(startNumber);
+        if (skip > tags.size()) {
+            skip = tags.size();
+        }
     }
 
     UniValue serializedTagsTxIds(UniValue::VARR);
