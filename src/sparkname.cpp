@@ -202,7 +202,8 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
             return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
     }
 
-    int nYears = (validityBlocks + nBlockPerYear-1) / nBlockPerYear;
+    // fee is based on the new time being purchased, not including leftover time from a previous registration
+    int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
 
     CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
 
