@@ -10,6 +10,7 @@ define $(package)_set_vars
   $(package)_config_opts := --enable-option-checking --disable-dependency-tracking
   $(package)_config_opts += --enable-shared --disable-static --disable-documentation
   $(package)_config_opts += --disable-dtd-validation --with-host-scanner
+  $(package)_cppflags += -D_GNU_SOURCE
 endef
 
 define $(package)_config_cmds

@@ -26,7 +26,7 @@ $(package)_qttranslations_sha256_hash=$(qt_details_qttranslations_sha256_hash)
 $(package)_qttools_file_name=$(qt_details_qttools_file_name)
 $(package)_qttools_sha256_hash=$(qt_details_qttools_sha256_hash)
 
-$(package)_qtwayland_file_name = qtwayland-$($(package)_suffix)
+$(package)_qtwayland_file_name = qtwayland-$(qt_details_suffix)
 $(package)_qtwayland_sha256_hash = 686ada6c5525bfa7f39aa37e2a811a381374c2c4137a7d9883a19ff24209240b
 
 $(package)_extra_sources := $($(package)_qttranslations_file_name)
@@ -313,7 +313,6 @@ define $(package)_extract_cmds
   mkdir qttranslations && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttranslations_file_name) -C qttranslations && \
   mkdir qttools && \
-  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttools_file_name) -C qttools && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttools_file_name) -C qttools && \
   mkdir qtwayland && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qtwayland_file_name) -C qtwayland && \
