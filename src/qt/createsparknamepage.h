@@ -21,6 +21,7 @@ class CreateSparkNamePage : public QDialog
 
 private:
     QString feeText;
+    bool extendMode = false;
 
 public:
     explicit CreateSparkNamePage(const PlatformStyle *platformStyle, QWidget *parent = 0);

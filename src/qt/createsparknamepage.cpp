@@ -9,10 +9,12 @@
 
 #include "platformstyle.h"
 #include "validation.h"
+#include "sparkname.h"
 #include "compat_layer.h"
 
 #include <QStyle>
 #include <QMessageBox>
+#include <QDateTime>
 
 #define SEND_CONFIRM_DELAY   3
 
@@ -47,12 +49,14 @@ void CreateSparkNamePage::setModel(WalletModel *model)
 
 void CreateSparkNamePage::setExtendMode(const QString &name, const QString &address)
 {
+    extendMode = true;
     ui->sparkNameEdit->setText(name);
     ui->sparkNameEdit->setEnabled(false);
     ui->sparkAddressEdit->setText(address);
     ui->sparkAddressEdit->setEnabled(false);
     ui->generateButton->setEnabled(false);
     this->setWindowTitle(tr("Extend Spark Name"));
+    updateFee();
 }
 
 void CreateSparkNamePage::on_generateButton_clicked()
@@ -97,10 +101,42 @@ void CreateSparkNamePage::updateFee() {
     QString sparkName = ui->sparkNameEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) || numberOfYears == 0 || numberOfYears > 10)
+    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) || numberOfYears == 0 || numberOfYears > 10) {
         ui->feeTextLabel->setText(feeText.arg("?"));
-    else
-        ui->feeTextLabel->setText(feeText.arg(QString::number(Params().GetConsensus().nSparkNamesFee[sparkName.length()]*numberOfYears)));
+        return;
+    }
+
+    int fee = Params().GetConsensus().nSparkNamesFee[sparkName.length()] * numberOfYears;
+    QString label;
+
+    if (extendMode) {
+        try {
+            constexpr int nBlocksPerHour = 24;
+            int newValidityBlocks = numberOfYears * 365 * 24 * nBlocksPerHour;
+
+            LOCK(cs_main);
+            int currentHeight = chainActive.Height();
+            int currentExpirationHeight = CSparkNameManager::GetInstance()->GetSparkNameBlockHeight(
+                CSparkNameManager::ToUpper(sparkName.toStdString()));
+
+            int remainingBlocks = currentExpirationHeight - currentHeight;
+            int totalValidityBlocks = newValidityBlocks + std::max(0, remainingBlocks);
+            int blocksFromNow = totalValidityBlocks;
+
+            QDateTime expirationDate = QDateTime::currentDateTime().addSecs(
+                (qint64)blocksFromNow * 3600 / nBlocksPerHour);
+
+            label = tr("Fee: %1 FIRO. New estimated expiration: %2")
+                .arg(fee)
+                .arg(expirationDate.toString("MMMM d, yyyy"));
+        } catch (...) {
+            label = feeText.arg(QString::number(fee));
+        }
+    } else {
+        label = feeText.arg(QString::number(fee));
+    }
+
+    ui->feeTextLabel->setText(label);
 }
 
 bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo)
