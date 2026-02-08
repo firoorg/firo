@@ -399,4 +399,80 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
 }
 
+BOOST_AUTO_TEST_CASE(extension_v21)
+{
+    // regtest: spark names start at 2000, V2.1 starts at 2700
+    constexpr int nBlockPerYear = 365*24*24;
+
+    Initialize();
+    // we're now at block ~2001
+
+    std::string addr1 = GenerateSparkAddress();
+
+    // Register "exttest" with 1 year validity
+    CMutableTransaction txReg = CreateSparkNameTx("exttest", addr1, nBlockPerYear, "initial", true);
+    GenerateBlock({txReg});
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+
+    int registrationHeight = chainActive.Height();
+    uint64_t originalExpiration = sparkNameManager->GetSparkNameBlockHeight("exttest");
+    BOOST_CHECK_EQUAL(originalExpiration, registrationHeight + nBlockPerYear);
+
+    // --- Pre-V2.1: extend the name by 1 year ---
+    // Advance some blocks so there's meaningful remaining validity
+    GenerateBlocks(100);
+    int preV21Height = chainActive.Height();
+    BOOST_CHECK(preV21Height < consensus.nSparkNamesV21StartBlock);
+    int remainingBeforeExtend = (int)originalExpiration - preV21Height;
+    BOOST_CHECK(remainingBeforeExtend > 0);
+
+    CMutableTransaction txExtPre = CreateSparkNameTx("exttest", addr1, nBlockPerYear, "extended-pre", true);
+    GenerateBlock({txExtPre});
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+
+    int extendHeightPre = chainActive.Height();
+    uint64_t expirationAfterPreV21Extend = sparkNameManager->GetSparkNameBlockHeight("exttest");
+
+    // Before V2.1, remaining validity is NOT preserved — new expiration = extendHeight + newBlocks
+    BOOST_CHECK_EQUAL(expirationAfterPreV21Extend, extendHeightPre + nBlockPerYear);
+    // The remaining blocks from original registration are lost
+    BOOST_CHECK(expirationAfterPreV21Extend < (uint64_t)(extendHeightPre + nBlockPerYear + remainingBeforeExtend));
+
+    // --- Advance to V2.1 ---
+    int blocksToV21 = consensus.nSparkNamesV21StartBlock - chainActive.Height();
+    BOOST_CHECK(blocksToV21 > 0);
+    GenerateBlocks(blocksToV21);
+    BOOST_CHECK(chainActive.Height() >= consensus.nSparkNamesV21StartBlock);
+
+    // Name should still be valid (we registered for 1 year = 210240 blocks and only advanced ~700 blocks)
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+    uint64_t expirationBeforeV21Extend = sparkNameManager->GetSparkNameBlockHeight("exttest");
+    int preV21ExtendHeight = chainActive.Height();
+    int remainingBeforeV21Extend = (int)expirationBeforeV21Extend - preV21ExtendHeight;
+    BOOST_CHECK(remainingBeforeV21Extend > 0);
+
+    // --- Post-V2.1: extend the name by 1 year ---
+    CMutableTransaction txExtPost = CreateSparkNameTx("exttest", addr1, nBlockPerYear, "extended-post", true);
+    GenerateBlock({txExtPost});
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+
+    int extendHeightPost = chainActive.Height();
+    uint64_t expirationAfterV21Extend = sparkNameManager->GetSparkNameBlockHeight("exttest");
+
+    // After V2.1, remaining validity IS preserved — new expiration = extendHeight + newBlocks + remaining
+    int expectedRemaining = (int)expirationBeforeV21Extend - extendHeightPost;
+    BOOST_CHECK(expectedRemaining > 0);
+    BOOST_CHECK_EQUAL(expirationAfterV21Extend, (uint64_t)(extendHeightPost + nBlockPerYear + expectedRemaining));
+
+    // Verify rollback restores old expiration
+    DisconnectBlocks(1);
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+    BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("exttest"), expirationBeforeV21Extend);
+
+    // Reprocess and verify extension is restored
+    ReprocessBlocks(1);
+    BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("exttest"), expirationAfterV21Extend);
+    BOOST_CHECK_EQUAL(GetSparkNameAdditionalData("exttest"), "extended-post");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
