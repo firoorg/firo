@@ -339,8 +339,14 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     else if (sparkNameData.additionalInfo.size() > 1024)
         errorDescription = "additional info is too long";
 
-    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
-        errorDescription = "transaction can't be valid for more than 10 years";
+    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10) {
+        int nHeight = chainActive.Height();
+        const auto& consensusParams = ::Params().GetConsensus();
+        if (nHeight < consensusParams.nSparkNamesV21StartBlock || sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
+            errorDescription = nHeight >= consensusParams.nSparkNamesV21StartBlock ?
+                "transaction can't be valid for more than 15 years" :
+                "transaction can't be valid for more than 10 years";
+    }
 
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
                 sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&

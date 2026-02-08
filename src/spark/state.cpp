@@ -341,12 +341,26 @@ bool ConnectBlockSpark(
                 for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
                     uint8_t opType = sparkName.second.nVersion >= 2 ?
                                                     sparkName.second.operationType : CSparkNameTxData::opRegister;
+                    // For V2.1+, renewals and transfers preserve remaining validity
+                    int validityBlocks = sparkName.second.sparkNameValidityBlocks;
+                    const auto& consensusParams = ::Params().GetConsensus();
+                    if (pindexNew->nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+                        try {
+                            int existingExpirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
+                            int remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
+                            if (remainingBlocks > 0)
+                                validityBlocks += remainingBlocks;
+                        } catch (...) {
+                            // name doesn't exist yet, no adjustment needed
+                        }
+                    }
+
                     switch (opType) {
                         case CSparkNameTxData::opRegister:
                             pindexNew->addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    pindexNew->nHeight + validityBlocks,
                                     sparkName.second.additionalInfo);
                             break;
 
@@ -361,7 +375,7 @@ bool ConnectBlockSpark(
                             pindexNew->addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    pindexNew->nHeight + validityBlocks,
                                     sparkName.second.additionalInfo);
 
                             break;
