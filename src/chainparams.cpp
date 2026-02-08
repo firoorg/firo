@@ -1080,7 +1080,7 @@ public:
         consensus.nSparkNamesStartBlock = 3500;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
-        consensus.nSparkNamesV21StartBlock = INT_MAX;
+        consensus.nSparkNamesV21StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK + 200;
     }
 };
 
