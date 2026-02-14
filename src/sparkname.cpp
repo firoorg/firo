@@ -178,14 +178,17 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     bool fUpdateExistingRecord = false;
     bool fSparkNameTransfer = sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer;
 
-    if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
-        // it's possible to change any metadata of the existing name but if the spark address is being
-        // tranferred, new name shouldn't be already registered
-        if (!fSparkNameTransfer && sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
-            return state.DoS(100, error("CheckSparkNameTx: name already exists"));
+    {
+        LOCK(cs_spark_name);
+        if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
+            // it's possible to change any metadata of the existing name but if the spark address is being
+            // tranferred, new name shouldn't be already registered
+            if (!fSparkNameTransfer && sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+                return state.DoS(100, error("CheckSparkNameTx: name already exists"));
 
-        fUpdateExistingRecord = true;
-        existingExpirationHeight = sparkNames[ToUpper(sparkNameData.name)].sparkNameValidityHeight;
+            fUpdateExistingRecord = true;
+            existingExpirationHeight = sparkNames[ToUpper(sparkNameData.name)].sparkNameValidityHeight;
+        }
     }
 
     constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
@@ -341,7 +344,11 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
         errorDescription = "additional info is too long";
 
     else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10) {
-        int nHeight = chainActive.Height();
+        int nHeight;
+        {
+            LOCK(cs_main);
+            nHeight = chainActive.Height();
+        }
         const auto& consensusParams = ::Params().GetConsensus();
         if (nHeight < consensusParams.nSparkNamesV21StartBlock || sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
             errorDescription = nHeight >= consensusParams.nSparkNamesV21StartBlock ?

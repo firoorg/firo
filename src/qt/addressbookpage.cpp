@@ -298,7 +298,8 @@ void AddressBookPage::on_extendAddress_clicked()
     if (selectionLabel.isEmpty() || selectionAddress.isEmpty())
         return;
 
-    QString name = selectionLabel.at(0).data(Qt::EditRole).toString().mid(1); // remove leading '@'
+    QString rawLabel = selectionLabel.at(0).data(Qt::EditRole).toString();
+    QString name = rawLabel.startsWith('@') ? rawLabel.mid(1) : rawLabel;
     QString address = selectionAddress.at(0).data(Qt::EditRole).toString();
     CreateSparkNamePage *dialog = new CreateSparkNamePage(platformStyle, this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
