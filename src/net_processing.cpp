@@ -3870,6 +3870,33 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
     return true;
 }
 
+void RebroadcastISLockedMempool(CConnman& connman)
+{
+    LOCK(mempool.cs);
+    
+    // Don't relay during initial sync
+    if (fReindex || fImporting || IsInitialBlockDownload())
+        return;
+
+    if (!llmq::quorumInstantSendManager)
+        return;
+
+    std::vector<uint256> vtxid;
+    mempool.queryHashes(vtxid);
+
+    int nRelayed = 0;
+    for (const uint256& hash : vtxid) {
+        if (llmq::quorumInstantSendManager->IsLocked(hash)) {
+            CInv inv(MSG_TX, hash);
+            connman.RelayInv(inv);
+            nRelayed++;
+        }
+    }
+
+    if (nRelayed > 0)
+        LogPrint("net", "Rebroadcast %d InstantSend-locked mempool transactions\n", nRelayed);
+}
+
 class CNetProcessingCleanup
 {
 public:

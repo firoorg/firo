@@ -428,6 +428,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-feefilter", strprintf("Tell other nodes to filter invs to us by our mempool min fee (default: %u)", DEFAULT_FEEFILTER));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file on startup"));
     strUsage += HelpMessageOpt("-maxorphantx=<n>", strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+    strUsage += HelpMessageOpt("-rebroadcastislockinterval=<n>", strprintf(_("Interval in seconds for rebroadcasting InstantSend-locked mempool transactions to peers (0 = disabled, default: %u)"), DEFAULT_REBROADCAST_ISLOCK_INTERVAL));
     strUsage += HelpMessageOpt("-maxmempool=<n>", strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"), DEFAULT_MAX_MEMPOOL_SIZE));
     strUsage += HelpMessageOpt("-mempoolexpiry=<n>", strprintf(_("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DEFAULT_MEMPOOL_EXPIRY));
     strUsage += HelpMessageOpt("-blockreconstructionextratxn=<n>", strprintf(_("Extra transactions to keep in memory for compact block reconstructions (default: %u)"), DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN));
@@ -2055,6 +2056,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60);
         */
+
+        int64_t nRebroadcastISLockInterval = GetArg("-rebroadcastislockinterval", DEFAULT_REBROADCAST_ISLOCK_INTERVAL);
+        if (nRebroadcastISLockInterval > 0) {
+            scheduler.scheduleEvery(boost::bind(&RebroadcastISLockedMempool, boost::ref(*g_connman)), nRebroadcastISLockInterval);
+            LogPrintf("Scheduled rebroadcast of InstantSend-locked mempool transactions every %d seconds\n", nRebroadcastISLockInterval);
+        }
     }
 
     llmq::StartLLMQSystem();
