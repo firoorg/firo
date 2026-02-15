@@ -29,7 +29,8 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     ui(new Ui::AddressBookPage),
     model(0),
     mode(_mode),
-    tab(_tab)
+    tab(_tab),
+    initialAddressType(-1)
 {
     ui->setupUi(this);
     this->isReused = isReused;
@@ -140,18 +141,24 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     proxyModel = new QSortFilterProxyModel(this);
     fproxyModel = new AddressBookFilterProxy(this);
     proxyModel->setSourceModel(model);
-    switch(tab)
-    {
-    case ReceivingTab:
-        // Receive filter
-        proxyModel->setFilterRole(AddressTableModel::TypeRole);
-        proxyModel->setFilterFixedString(AddressTableModel::Receive);
-        break;
-    case SendingTab:
-        // Send filter
-        proxyModel->setFilterRole(AddressTableModel::TypeRole);
-        proxyModel->setFilterFixedString(AddressTableModel::Send);
-        break;
+    // Spark names are always stored with Send type, so skip the
+    // Send/Receive filter when we specifically want spark names.
+    if (initialAddressType == SparkName || initialAddressType == SparkNameMine) {
+        // No TypeRole filter — let fproxyModel handle filtering by address type
+    } else {
+        switch(tab)
+        {
+        case ReceivingTab:
+            // Receive filter
+            proxyModel->setFilterRole(AddressTableModel::TypeRole);
+            proxyModel->setFilterFixedString(AddressTableModel::Receive);
+            break;
+        case SendingTab:
+            // Send filter
+            proxyModel->setFilterRole(AddressTableModel::TypeRole);
+            proxyModel->setFilterFixedString(AddressTableModel::Send);
+            break;
+        }
     }
     proxyModel->setDynamicSortFilter(true);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
@@ -179,7 +186,17 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     connect(model, &AddressTableModel::rowsInserted, this, &AddressBookPage::selectNewAddress);
 
     selectionChanged();
-    chooseAddressType(0);
+    int startIdx = 0;
+    if (initialAddressType >= 0) {
+        for (int i = 0; i < ui->addressType->count(); ++i) {
+            if (ui->addressType->itemData(i).toInt() == initialAddressType) {
+                startIdx = i;
+                ui->addressType->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+    chooseAddressType(startIdx);
     connect(ui->addressType, qOverload<int>(&QComboBox::activated), this, &AddressBookPage::chooseAddressType);
 }
 
@@ -198,6 +215,10 @@ void AddressBookPage::updateSpark() {
     }
 
     chooseAddressType(0);
+}
+
+void AddressBookPage::setInitialAddressType(AddressTypeEnum type) {
+    initialAddressType = static_cast<int>(type);
 }
 
 void AddressBookPage::on_copyAddress_clicked()
@@ -357,10 +378,16 @@ void AddressBookPage::done(int retval)
 
     // Figure out which address was selected, and return it
     QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QModelIndexList labelIndexes = table->selectionModel()->selectedRows(AddressTableModel::Label);
 
     for (const QModelIndex& index : indexes) {
         QVariant address = table->model()->data(index);
         returnValue = address.toString();
+    }
+
+    for (const QModelIndex& index : labelIndexes) {
+        QVariant label = table->model()->data(index);
+        returnLabel = label.toString();
     }
 
     if(returnValue.isEmpty())

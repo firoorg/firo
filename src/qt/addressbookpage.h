@@ -55,6 +55,9 @@ public:
 
     void setModel(AddressTableModel *model);
     const QString &getReturnValue() const { return returnValue; }
+    const QString &getReturnLabel() const { return returnLabel; }
+
+    void setInitialAddressType(AddressTypeEnum type);
 
     void updateSpark();
 
@@ -68,6 +71,8 @@ private:
     Mode mode;
     Tabs tab;
     QString returnValue;
+    QString returnLabel;
+    int initialAddressType;
     QSortFilterProxyModel *proxyModel;
     AddressBookFilterProxy *fproxyModel;
     QMenu *contextMenu;
