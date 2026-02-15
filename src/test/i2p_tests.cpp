@@ -28,7 +28,8 @@ BOOST_AUTO_TEST_CASE(i2p_address_parsing)
     BOOST_CHECK(addr.SetSpecial(valid_i2p));
     BOOST_CHECK(addr.IsI2P());
     BOOST_CHECK(addr.IsValid());
-    BOOST_CHECK(!addr.IsRoutable()); // I2P addresses are routable within I2P network but IsRoutable() returns false for privacy nets
+    // I2P addresses are routable within their network (similar to Tor)
+    BOOST_CHECK(addr.IsRoutable());
     BOOST_CHECK_EQUAL(addr.GetNetwork(), NET_I2P);
     
     // The string representation should be the .b32.i2p address

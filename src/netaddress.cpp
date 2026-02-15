@@ -414,12 +414,9 @@ bool CNetAddr::IsValid() const
 
 bool CNetAddr::IsRoutable() const
 {
-    // Privacy networks (Tor, I2P, CJDNS) are routable within their own networks,
-    // but not on the regular internet. IsRoutable() returns false for these.
     return IsValid() && !(IsRFC1918() || IsRFC2544() || IsRFC3927() || IsRFC4862() || 
                           IsRFC6598() || IsRFC5737() || (IsRFC4193() && !IsInternal()) || 
-                          IsRFC4843() || IsLocal() || IsInternal() ||
-                          IsTor() || IsI2P() || IsCJDNS());
+                          IsRFC4843() || IsLocal() || IsInternal());
 }
 
 bool CNetAddr::IsInternal() const
