@@ -320,10 +320,24 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
         return true; // let's still try other announcements from the same message
     }
 
+    if (!CLLMQUtils::IsQuorumActive(llmqType, ann.quorumHash)) {
+        LogPrint("llmq-sigs", "CSigSharesManager::%s -- quorum %s not active, node=%d\n", __func__,
+                  ann.quorumHash.ToString(), pfrom->id);
+        return true;
+    }
+
     FIRO_UNUSED auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
 
     LOCK(cs);
     auto& nodeState = nodeStates[pfrom->id];
+
+    // Limit sessions per node to prevent memory exhaustion DoS
+    static const size_t MAX_SESSIONS_PER_NODE = 1000;
+    if (nodeState.sessions.size() >= MAX_SESSIONS_PER_NODE) {
+        LogPrint("llmq-sigs", "CSigSharesManager::%s -- too many sessions for node=%d, dropping\n", __func__, pfrom->id);
+        return true;
+    }
+
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.sessionId);
@@ -434,16 +448,17 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(CNode* pfrom, const CBatc
             CSigShare sigShare = RebuildSigShare(sessionInfo, batchedSigShares, i);
             nodeState.requestedSigShares.Erase(sigShare.GetKey());
 
-            // TODO track invalid sig shares received for PoSe?
+            // Drop sig shares for sessions we've already recovered
+            // Check both by ID and by signHash to prevent late sigShares from being processed
+            if (quorumSigningManager->HasRecoveredSigForId((Consensus::LLMQType)sigShare.llmqType, sigShare.id) ||
+                quorumSigningManager->HasRecoveredSigForSession(sigShare.GetSignHash())) {
+                continue;
+            }
+
             // It's important to only skip seen *valid* sig shares here. If a node sends us a
             // batch of mostly valid sig shares with a single invalid one and thus batched
             // verification fails, we'd skip the valid ones in the future if received from other nodes
             if (this->sigShares.Has(sigShare.GetKey())) {
-                continue;
-            }
-
-            // TODO for PoSe, we should consider propagating shares even if we already have a recovered sig
-            if (quorumSigningManager->HasRecoveredSigForId((Consensus::LLMQType)sigShare.llmqType, sigShare.id)) {
                 continue;
             }
 
@@ -535,7 +550,9 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
             auto& sigShare = *ns.pendingIncomingSigShares.GetFirst();
 
             bool alreadyHave = this->sigShares.Has(sigShare.GetKey());
-            if (!alreadyHave) {
+            bool alreadyRecovered = quorumSigningManager->HasRecoveredSigForId((Consensus::LLMQType)sigShare.llmqType, sigShare.id) ||
+                                    quorumSigningManager->HasRecoveredSigForSession(sigShare.GetSignHash());
+            if (!alreadyHave && !alreadyRecovered) {
                 uniqueSignHashes.emplace(nodeId, sigShare.GetSignHash());
                 retSigShares[nodeId].emplace_back(sigShare);
             }
@@ -590,7 +607,8 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
         auto& v = p.second;
 
         for (auto& sigShare : v) {
-            if (quorumSigningManager->HasRecoveredSigForId((Consensus::LLMQType)sigShare.llmqType, sigShare.id)) {
+            if (quorumSigningManager->HasRecoveredSigForId((Consensus::LLMQType)sigShare.llmqType, sigShare.id) ||
+                quorumSigningManager->HasRecoveredSigForSession(sigShare.GetSignHash())) {
                 continue;
             }
 
