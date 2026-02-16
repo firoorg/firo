@@ -338,6 +338,7 @@ public:
 
 public:
     CDKGMember* GetMember(const uint256& proTxHash) const;
+    CDKGMember* GetMemberAtIndex(size_t idx) const;
 };
 
 void SetSimulatedDKGErrorRate(const std::string& type, double rate);

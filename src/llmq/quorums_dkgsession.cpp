@@ -707,7 +707,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification&
 
     std::set<size_t> contributionsSet;
     for (const auto& p : qj.contributions) {
-        if (p.first > members.size()) {
+        if (p.first >= members.size()) {
             logger.Batch("invalid contribution index");
             retBan = true;
             return false;
@@ -786,7 +786,8 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
     }
 
     for (const auto& p : qj.contributions) {
-        auto& member2 = members[p.first];
+        auto* member2 = GetMemberAtIndex(p.first);
+        assert(member2);
 
         if (!member->complaintsFromOthers.count(member2->dmn->proTxHash)) {
             logger.Batch("got justification from %s for %s even though he didn't complain",
@@ -802,7 +803,8 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
 
     std::list<std::future<bool>> futures;
     for (const auto& p : qj.contributions) {
-        auto& member2 = members[p.first];
+        auto* member2 = GetMemberAtIndex(p.first);
+        assert(member2);
         auto& skContribution = p.second;
 
         // watch out to not bail out before these async calls finish (they rely on valid references)
@@ -810,7 +812,8 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
     }
     auto resultIt = futures.begin();
     for (const auto& p : qj.contributions) {
-        auto& member2 = members[p.first];
+        auto* member2 = GetMemberAtIndex(p.first);
+        assert(member2);
         auto& skContribution = p.second;
 
         bool result = (resultIt++)->get();
@@ -1252,6 +1255,14 @@ CDKGMember* CDKGSession::GetMember(const uint256& proTxHash) const
         return nullptr;
     }
     return members[it->second].get();
+}
+
+CDKGMember* CDKGSession::GetMemberAtIndex(size_t idx) const
+{
+    if (idx >= members.size()) {
+        return nullptr;
+    }
+    return members[idx].get();
 }
 
 void CDKGSession::MarkBadMember(size_t idx)
