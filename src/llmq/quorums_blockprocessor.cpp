@@ -81,6 +81,13 @@ void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& strC
                 Misbehaving(pfrom->id, 100);
                 return;
             }
+            // Reject commitments for quorums that are too old (stale re-propagation)
+            if (pquorumIndex->nHeight < (chainActive.Height() - params.dkgInterval)) {
+                LogPrintf("CQuorumBlockProcessor::%s -- block %s is too old, peer=%d\n", __func__,
+                          qc.quorumHash.ToString(), pfrom->id);
+                Misbehaving(pfrom->id, 100);
+                return;
+            }
         }
 
         {
@@ -204,7 +211,11 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-height");
     }
 
-    auto quorumIndex = mapBlockIndex.at(qc.quorumHash);
+    auto quorumIt = mapBlockIndex.find(qc.quorumHash);
+    if (quorumIt == mapBlockIndex.end()) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-quorum-hash-not-found");
+    }
+    auto quorumIndex = quorumIt->second;
     auto members = CLLMQUtils::GetAllQuorumMembers(params.type, quorumIndex);
 
     if (!qc.Verify(members, true)) {
