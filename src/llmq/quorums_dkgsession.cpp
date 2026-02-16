@@ -227,6 +227,17 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGContribution& 
         return false;
     }
 
+    if (!qc.vvec) {
+        logger.Batch("missing verification vector");
+        retBan = true;
+        return false;
+    }
+    if (!qc.contributions) {
+        logger.Batch("missing contributions");
+        retBan = true;
+        return false;
+    }
+
     if (qc.contributions->blobs.size() != members.size()) {
         logger.Batch("invalid contributions count");
         retBan = true;
@@ -707,7 +718,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification&
 
     std::set<size_t> contributionsSet;
     for (const auto& p : qj.contributions) {
-        if (p.first > members.size()) {
+        if (p.first >= members.size()) {
             logger.Batch("invalid contribution index");
             retBan = true;
             return false;
@@ -786,6 +797,11 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
     }
 
     for (const auto& p : qj.contributions) {
+        if (p.first >= members.size()) {
+            logger.Batch("invalid justification contribution index %d from %s", p.first, member->dmn->proTxHash.ToString());
+            MarkBadMember(member->idx);
+            return;
+        }
         auto& member2 = members[p.first];
 
         if (!member->complaintsFromOthers.count(member2->dmn->proTxHash)) {
@@ -799,6 +815,12 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
     }
 
     cxxtimer::Timer t1(true);
+
+    if (!receivedVvecs[member->idx]) {
+        logger.Batch("  no verification vector for %s, marking as bad", member->dmn->proTxHash.ToString());
+        MarkBadMember(member->idx);
+        return;
+    }
 
     std::list<std::future<bool>> futures;
     for (const auto& p : qj.contributions) {
@@ -1029,6 +1051,16 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGPrematureCommi
 
     if (qc.CountValidMembers() < params.minSize) {
         logger.Batch("invalid validMembers count. validMembersCount=%d", qc.CountValidMembers());
+        retBan = true;
+        return false;
+    }
+    if (!qc.quorumPublicKey.IsValid()) {
+        logger.Batch("invalid quorumPublicKey");
+        retBan = true;
+        return false;
+    }
+    if (qc.quorumVvecHash.IsNull()) {
+        logger.Batch("invalid quorumVvecHash");
         retBan = true;
         return false;
     }
