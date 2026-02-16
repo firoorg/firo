@@ -326,13 +326,13 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
 
         // are all messages from the same node?
         NodeId firstNodeId = 0;
-        first = true;
+        bool isFirst = true;
         bool nodeIdsAllSame = true;
         for (auto it = messages.begin(); it != messages.end(); ++it) {
-            if (first) {
+            if (isFirst) {
                 firstNodeId = it->first;
+                isFirst = false;
             } else {
-                first = false;
                 if (it->first != firstNodeId) {
                     nodeIdsAllSame = false;
                     break;
@@ -459,10 +459,15 @@ void CDKGSessionHandler::HandleDKGRound()
     const CBlockIndex* pindexQuorum;
     {
         LOCK(cs_main);
-        pindexQuorum = mapBlockIndex.at(curQuorumHash);
+        auto it = mapBlockIndex.find(curQuorumHash);
+        if (it == mapBlockIndex.end()) {
+            WaitForNewQuorum(curQuorumHash);
+            throw AbortPhaseException();
+        }
+        pindexQuorum = it->second;
     }
 
-    if (!InitNewQuorum(pindexQuorum)) {
+    if (!pindexQuorum || !InitNewQuorum(pindexQuorum)) {
         // should actually never happen
         WaitForNewQuorum(curQuorumHash);
         throw AbortPhaseException();
