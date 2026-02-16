@@ -808,7 +808,14 @@ public:
     // Probabilistic filter of Dandelion transactions that should be known to this peer.
     // Uses a rolling bloom filter (like filterInventoryKnown) to bound memory usage and
     // prevent remote peers from inflating memory via unbounded INV insertion.
-    CRollingBloomFilter filterDandelionInventoryKnown;
+    //
+    // Protected by its own dedicated mutex (cs_filterDandelionInventoryKnown) rather
+    // than cs_inventory or cs_main, because call sites hold different locks:
+    // PushInventory/SendMessages hold cs_inventory while the INV and GETDATA message
+    // handlers hold cs_main. A dedicated leaf mutex avoids the data race and any
+    // lock-ordering issues.
+    CRollingBloomFilter filterDandelionInventoryKnown GUARDED_BY(cs_filterDandelionInventoryKnown);
+    mutable CCriticalSection cs_filterDandelionInventoryKnown;
     // Set of transaction ids we still have to announce.
     // They are sorted by the mempool before relay, so the order is not important.
     std::set<uint256> setInventoryTxToSend;
@@ -989,8 +996,11 @@ public:
                 setInventoryTxToSend.insert(inv.hash);
             }
         } else if (inv.type == MSG_DANDELION_TX) {
-        	if (!filterDandelionInventoryKnown.contains(inv.hash)) {
-        		vInventoryDandelionTxToSend.push_back(inv.hash);
+        	{
+        		LOCK(cs_filterDandelionInventoryKnown);
+        		if (!filterDandelionInventoryKnown.contains(inv.hash)) {
+        			vInventoryDandelionTxToSend.push_back(inv.hash);
+        		}
         	}
         } else if (inv.type == MSG_BLOCK) {
             vInventoryBlockToSend.push_back(inv.hash);

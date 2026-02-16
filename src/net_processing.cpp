@@ -1193,12 +1193,15 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     uint256 dandelionServiceDiscoveryHash;
                     dandelionServiceDiscoveryHash.SetHex(
                             "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-                    if (txinfo.tx && !CNode::isDandelionInbound(pfrom) &&
-                            pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
+                    bool fDandelionKnown;
+                    {
+                        LOCK(pfrom->cs_filterDandelionInventoryKnown);
+                        fDandelionKnown = pfrom->filterDandelionInventoryKnown.contains(inv.hash);
+                    }
+                    if (txinfo.tx && !CNode::isDandelionInbound(pfrom) && fDandelionKnown) {
                         connman.PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::DANDELIONTX, *txinfo.tx));
                         push = true;
-                    } else if (inv.hash == dandelionServiceDiscoveryHash &&
-                               pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
+                    } else if (inv.hash == dandelionServiceDiscoveryHash && fDandelionKnown) {
                         pfrom->fSupportsDandelion = true;
                         push = true;
                     }
@@ -1910,8 +1913,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             else if (inv.type == MSG_DANDELION_TX) {
-                fAlreadyHave = pfrom->filterDandelionInventoryKnown.contains(inv.hash);
-                pfrom->filterDandelionInventoryKnown.insert(inv.hash);
+                {
+                    LOCK(pfrom->cs_filterDandelionInventoryKnown);
+                    fAlreadyHave = pfrom->filterDandelionInventoryKnown.contains(inv.hash);
+                    pfrom->filterDandelionInventoryKnown.insert(inv.hash);
+                }
                 uint256 dandelionServiceDiscoveryHash;
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -3611,7 +3617,10 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 
             // Add Dandelion transactions
             for (const uint256& hash : pto->vInventoryDandelionTxToSend) {
-                pto->filterDandelionInventoryKnown.insert(hash);
+                {
+                    LOCK(pto->cs_filterDandelionInventoryKnown);
+                    pto->filterDandelionInventoryKnown.insert(hash);
+                }
                 uint256 dandelionServiceDiscoveryHash;
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
