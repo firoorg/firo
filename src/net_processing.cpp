@@ -3880,16 +3880,13 @@ void RebroadcastISLockedMempool(CConnman& connman)
         return;
 
     std::vector<uint256> vtxid;
-    {
-        LOCK(mempool.cs);
-        mempool.queryHashes(vtxid);
-    }
+    mempool.queryHashes(vtxid);
 
     int nRelayed = 0;
     for (const uint256& hash : vtxid) {
         if (llmq::quorumInstantSendManager->IsLocked(hash)) {
             CInv inv(MSG_TX, hash);
-            connman.RelayInv(inv);
+            connman.RelayInv(inv, MIN_PEER_PROTO_VERSION, true);
             nRelayed++;
         }
     }
