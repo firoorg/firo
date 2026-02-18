@@ -3872,8 +3872,6 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 
 void RebroadcastISLockedMempool(CConnman& connman)
 {
-    LOCK(mempool.cs);
-    
     // Don't relay during initial sync
     if (fReindex || fImporting || IsInitialBlockDownload())
         return;
@@ -3882,7 +3880,10 @@ void RebroadcastISLockedMempool(CConnman& connman)
         return;
 
     std::vector<uint256> vtxid;
-    mempool.queryHashes(vtxid);
+    {
+        LOCK(mempool.cs);
+        mempool.queryHashes(vtxid);
+    }
 
     int nRelayed = 0;
     for (const uint256& hash : vtxid) {
