@@ -543,8 +543,11 @@ UniValue verifymessagewithsparkaddress(const JSONRPCRequest& request)
     spark::Scalar m;
     m.SetHex(msgHash.GetHex());
 
-    bool result = address.verify_own(m, proof);
-    return result;
+    try {
+        return address.verify_own(m, proof);
+    } catch (const std::exception&) {
+        return false;
+    }
 }
 
 UniValue signmessagewithprivkey(const JSONRPCRequest& request)
