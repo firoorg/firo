@@ -1370,6 +1370,85 @@ UniValue signmessage(const JSONRPCRequest& request)
     return EncodeBase64(&vchSig[0], vchSig.size());
 }
 
+UniValue signmessagewithsparkaddress(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+            "signmessagewithsparkaddress \"sparkaddress\" \"message\"\n"
+            "\nSign a message with a Spark address using an ownership proof committed to the message hash."
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nArguments:\n"
+            "1. \"sparkaddress\"   (string, required) The Spark address whose key will be used to sign.\n"
+            "2. \"message\"        (string, required) The message to create a signature of.\n"
+            "\nResult:\n"
+            "\"signature\"         (string) The ownership proof signature as a hex string\n"
+            "\nExamples:\n"
+            "\nUnlock the wallet for 30 seconds\n"
+            + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
+            "\nCreate the signature\n"
+            + HelpExampleCli("signmessagewithsparkaddress", "\"sm1...\" \"my message\"") +
+            "\nVerify the signature\n"
+            + HelpExampleCli("verifymessagewithsparkaddress", "\"sm1...\" \"signature\" \"my message\"") +
+            "\nAs json rpc\n"
+            + HelpExampleRpc("signmessagewithsparkaddress", "\"sm1...\", \"my message\"")
+        );
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    std::string strAddress = request.params[0].get_str();
+    std::string strMessage = request.params[1].get_str();
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address address(params);
+    unsigned char coinNetwork;
+    try {
+        coinNetwork = address.decode(strAddress);
+    } catch (const std::exception&) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Spark address");
+    }
+    if (coinNetwork != spark::GetNetworkType())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address is for a different network");
+
+    if (!pwallet->sparkWallet->isAddressMine(address))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark address does not belong to this wallet");
+
+    // Hash the message the same way as signmessage
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << strMessage;
+    uint256 msgHash = ss.GetHash();
+
+    spark::Scalar m;
+    m.SetHex(msgHash.ToString());
+
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
+    } catch (const std::exception&) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Unable to generate spend key");
+    }
+
+    if (spendKey == spark::SpendKey(params))
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
+
+    spark::OwnershipProof proof;
+    spark::FullViewKey fullViewKey(spendKey);
+    address.prove_own(m, spendKey, fullViewKey, proof);
+
+    CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+    proofStream << proof;
+
+    return HexStr(proofStream.begin(), proofStream.end());
+}
+
 UniValue proveprivatetxown(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -6242,6 +6321,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "setaccount",               &setaccount,               true,   {"address","account"} },
     { "wallet",             "settxfee",                 &settxfee,                 true,   {"amount"} },
     { "wallet",             "signmessage",              &signmessage,              true,   {"address","message"} },
+    { "wallet",             "signmessagewithsparkaddress", &signmessagewithsparkaddress, true, {"sparkaddress","message"} },
     { "wallet",             "proveprivatetxown",        &proveprivatetxown,        true,   {"txid","message"} },
     { "wallet",             "walletlock",               &walletlock,               true,   {} },
     { "wallet",             "walletpassphrasechange",   &walletpassphrasechange,   true,   {"oldpassphrase","newpassphrase"} },
