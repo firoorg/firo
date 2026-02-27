@@ -810,6 +810,9 @@ public:
     // Set of transaction ids we still have to announce.
     // They are sorted by the mempool before relay, so the order is not important.
     std::set<uint256> setInventoryTxToSend;
+    // Hashes force-pushed via PushInventory(fForce=true) that must bypass
+    // the filterInventoryKnown check at the actual send point in SendMessages.
+    std::set<uint256> setInventoryForcedToSend;
     // List of Dandelion transaction ids to announce.
     std::vector<uint256> vInventoryDandelionTxToSend;
     // List of block ids we still have announce.
@@ -985,6 +988,8 @@ public:
         if (inv.type == MSG_TX) {
             if (fForce || !filterInventoryKnown.contains(inv.hash)) {
                 setInventoryTxToSend.insert(inv.hash);
+                if (fForce)
+                    setInventoryForcedToSend.insert(inv.hash);
             }
         } else if (inv.type == MSG_DANDELION_TX) {
         	if (fForce || setDandelionInventoryKnown.count(inv.hash) == 0) {
@@ -996,6 +1001,8 @@ public:
             if (fForce || !filterInventoryKnown.contains(inv.hash)) {
                 LogPrint("net", "PushInventory --  inv: %s peer=%d\n", inv.ToString(), id);
                 vInventoryOtherToSend.push_back(inv);
+                if (fForce)
+                    setInventoryForcedToSend.insert(inv.hash);
             } else {
                 LogPrint("net", "PushInventory --  filtered inv: %s peer=%d\n", inv.ToString(), id);
             }

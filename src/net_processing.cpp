@@ -3705,8 +3705,9 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     uint256 hash = *it;
                     // Remove it from the to-be-sent set
                     pto->setInventoryTxToSend.erase(it);
-                    // Check if not in the filter already
-                    if (pto->filterInventoryKnown.contains(hash)) {
+                    bool fForcedRelay = pto->setInventoryForcedToSend.erase(hash) > 0;
+                    // Check if not in the filter already (skip for forced rebroadcasts)
+                    if (!fForcedRelay && pto->filterInventoryKnown.contains(hash)) {
                         continue;
                     }
                     // Not in the mempool anymore? don't bother sending it.
@@ -3744,7 +3745,8 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 
             // Send non-tx/non-block inventory items
             for (const auto& inv : pto->vInventoryOtherToSend) {
-                if (pto->filterInventoryKnown.contains(inv.hash)) {
+                bool fForcedRelay = pto->setInventoryForcedToSend.erase(inv.hash) > 0;
+                if (!fForcedRelay && pto->filterInventoryKnown.contains(inv.hash)) {
                     continue;
                 }
                 vInv.push_back(inv);
