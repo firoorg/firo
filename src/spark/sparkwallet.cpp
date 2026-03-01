@@ -12,6 +12,7 @@
 #include "sparkname.h"
 #include "../chain.h"
 #include <boost/format.hpp>
+#include <string>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
@@ -40,7 +41,15 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         }
 
         // Generating spark key set first time
-        spark::SpendKey spendKey = generateSpendKey(params);
+        spark::SpendKey spendKey(params);
+        try {
+            spendKey = std::move(generateSpendKey(params));
+        } catch (const std::exception& e) {
+            if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
+                throw std::runtime_error("Spark wallet creation FAILED, wallet is locked\n");
+            }
+            throw std::runtime_error("Spark wallet creation FAILED, unable to generate spend key\n");
+        }
         fullViewKey = generateFullViewKey(spendKey);
         viewKey = generateIncomingViewKey(fullViewKey);
 
@@ -232,10 +241,12 @@ spark::Address CSparkWallet::getChangeAddress() {
     return spark::Address(viewKey, SPARK_CHANGE_D);
 }
 
+const char* SPARK_WALLET_LOCKED_MSG = "spark_wallet_locked";
+
 spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
     if (pwalletMain->IsLocked()) {
         LogPrintf("Spark spend key generation FAILED, wallet is locked\n");
-        return spark::SpendKey(params);
+        throw std::runtime_error(SPARK_WALLET_LOCKED_MSG);
     }
 
     CKey secret;
@@ -1423,12 +1434,12 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             spark::SpendKey spendKey(params);
             try {
                 spendKey = std::move(generateSpendKey(params));
-            } catch (std::exception& e) {
+            } catch (const std::exception& e) {
+                if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
+                    throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
+                }
                 throw std::runtime_error(_("Unable to generate spend key."));
             }
-
-            if (spendKey == spark::SpendKey(params))
-                throw std::runtime_error(_("Unable to generate spend key, looks wallet locked."));
 
 
             tx.vin.clear();
@@ -1683,12 +1694,12 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     spark::SpendKey spendKey(params);
     try {
         spendKey = std::move(generateSpendKey(params));
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
+        if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
+            throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
+        }
         throw std::runtime_error(_("Unable to generate spend key."));
     }
-
-    if (spendKey == spark::SpendKey(params))
-        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
 
     spark::Address  address(spark::Params::get_default());
     try {
