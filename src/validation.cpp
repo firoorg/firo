@@ -2551,7 +2551,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         }
         else if (tx.IsSparkSpend()) {
             try {
-                nFees = spark::ParseSparkSpend(tx).getFee();
+                nFees += spark::ParseSparkSpend(tx).getFee();
             }
             catch (const std::exception &) {
                 // do nothing
