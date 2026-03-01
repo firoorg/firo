@@ -774,6 +774,7 @@ bool CheckSparkSpendTransaction(
         batchProofContainer->add(*spend);
     } else {
         bool fChecked = false;
+        bool scheduledAsync = false;
 
         try {
             bool fRecheckNeeded;
@@ -832,6 +833,7 @@ bool CheckSparkSpendTransaction(
                         checkState.fChecked = false;
                         checkState.fResult = false;
                         checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                        scheduledAsync = true;
                     }
                 }
             }
@@ -847,8 +849,13 @@ bool CheckSparkSpendTransaction(
                     passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
                 }
                 else {
-                    // return true for now, the result will be processed later
-                    return true;
+                    if (scheduledAsync) {
+                        // result will be processed later by the async task
+                        passVerify = true;
+                    } else {
+                        // Pool was busy so verification was not scheduled; verify synchronously for defense-in-depth
+                        passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+                    }
                 }
             }
         }
@@ -859,8 +866,7 @@ bool CheckSparkSpendTransaction(
     }
 
     if (!fStatefulSigmaCheck)
-        // nothing more to do
-        return true;
+        return passVerify;
 
     if (passVerify) {
         const std::vector<GroupElement>& lTags = spend->getUsedLTags();
