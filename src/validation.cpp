@@ -2959,6 +2959,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 }
             }
 
+            if (!MoneyRange(nFees))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+
             // Check transaction against signa/lelantus state
             if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.lelantusTxInfo.get(), block.sparkTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
