@@ -168,6 +168,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (sparkNameData.nVersion >= 2 && nHeight < consensusParams.nSparkNamesV2StartBlock)
         return state.DoS(100, error("CheckSparkNameTx: spark name tx v2 is not allowed yet"));
 
+    if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+        return state.DoS(100, error("CheckSparkNameTx: invalid operation type"));
+
     if (outSparkNameData)
         *outSparkNameData = sparkNameData;
 
@@ -329,6 +332,9 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
 
     else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
         errorDescription = "transaction can't be valid for more than 10 years";
+
+    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+        errorDescription = "invalid operation type";
 
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
                 sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
