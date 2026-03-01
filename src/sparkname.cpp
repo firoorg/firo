@@ -178,6 +178,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         return state.DoS(100, error("CheckSparkNameTx: invalid name"));
 
     constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
+    if (sparkNameData.sparkNameValidityBlocks == 0)
+        return state.DoS(100, error("CheckSparkNameTx: validity period must be at least 1 block"));
+
     int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
 
     if (sparkNameData.sparkNameValidityBlocks > nBlockPerYear * 10)
