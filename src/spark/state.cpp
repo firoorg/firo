@@ -458,6 +458,18 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 
     sparkState.RemoveBlock(pindexDelete);
 
+    // Invalidate proof cache for Spark spends in the disconnected block. After a reorg,
+    // those spends may be re-applied on the new fork where the anonymity set differs;
+    // they must be re-verified instead of using a stale cache hit.
+    {
+        LOCK(cs_checkedSparkSpendTransactions);
+        for (const auto& txRef : block.vtx) {
+            const CTransaction& tx = *txRef;
+            if (tx.IsSparkSpend())
+                gCheckedSparkSpendTransactions.erase(tx.GetHash());
+        }
+    }
+
     // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
     RemoveSpendReferencingBlock(txpools.getStemTxPool(), pindexDelete);
