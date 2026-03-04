@@ -2551,7 +2551,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         }
         else if (tx.IsSparkSpend()) {
             try {
-                nFees = spark::ParseSparkSpend(tx).getFee();
+                nFees += spark::ParseSparkSpend(tx).getFee();
             }
             catch (const std::exception &) {
                 // do nothing
@@ -2958,6 +2958,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize spark spend");
                 }
             }
+
+            if (!MoneyRange(nFees))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
 
             // Check transaction against signa/lelantus state
             if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.lelantusTxInfo.get(), block.sparkTxInfo.get()))

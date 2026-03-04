@@ -97,6 +97,9 @@ bool Chaum::verify(
         if (S[i].isInfinity()) {
             throw std::invalid_argument("Bad Chaum input!");
         }
+        if (T[i].isInfinity()) {
+            throw std::invalid_argument("Bad Chaum input!");
+        }
     }
 
     Scalar c = challenge(mu, S, T, proof.A1, proof.A2);

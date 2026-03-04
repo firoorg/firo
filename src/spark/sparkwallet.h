@@ -21,6 +21,9 @@ extern CChain chainActive;
 const uint32_t BIP44_SPARK_INDEX = 0x6;
 const uint32_t SPARK_CHANGE_D = 0x270F;
 
+/** Exception message thrown by generateSpendKey() when the wallet is locked. */
+extern const char* SPARK_WALLET_LOCKED_MSG;
+
 class CSparkWallet  {
 public:
     CSparkWallet(const std::string& strWalletFile);

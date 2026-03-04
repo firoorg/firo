@@ -458,6 +458,18 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 
     sparkState.RemoveBlock(pindexDelete);
 
+    // Invalidate proof cache for Spark spends in the disconnected block. After a reorg,
+    // those spends may be re-applied on the new fork where the anonymity set differs;
+    // they must be re-verified instead of using a stale cache hit.
+    {
+        LOCK(cs_checkedSparkSpendTransactions);
+        for (const auto& txRef : block.vtx) {
+            const CTransaction& tx = *txRef;
+            if (tx.IsSparkSpend())
+                gCheckedSparkSpendTransactions.erase(tx.GetHash());
+        }
+    }
+
     // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
     RemoveSpendReferencingBlock(txpools.getStemTxPool(), pindexDelete);
@@ -762,6 +774,7 @@ bool CheckSparkSpendTransaction(
         batchProofContainer->add(*spend);
     } else {
         bool fChecked = false;
+        bool scheduledAsync = false;
 
         try {
             bool fRecheckNeeded;
@@ -787,9 +800,17 @@ bool CheckSparkSpendTransaction(
                         bool result = future->get();
                         cs_checkedSparkSpendTransactions.lock();
 
-                        checkState.fChecked = true;
-                        checkState.fResult = result;
-                        checkState.checkInProgress = nullptr;
+                        // Entry may have been erased by DisconnectTipSpark during the unlock window
+                        auto it = gCheckedSparkSpendTransactions.find(hashTx);
+                        if (it == gCheckedSparkSpendTransactions.end()) {
+                            fRecheckNeeded = true;
+                            continue;
+                        }
+                        ProofCheckState& checkStateAfterWait = it->second;
+
+                        checkStateAfterWait.fChecked = true;
+                        checkStateAfterWait.fResult = result;
+                        checkStateAfterWait.checkInProgress = nullptr;
 
                         if (!result) {
                             // unfortunately, it's possible that the proof was checked and failed
@@ -820,6 +841,7 @@ bool CheckSparkSpendTransaction(
                         checkState.fChecked = false;
                         checkState.fResult = false;
                         checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                        scheduledAsync = true;
                     }
                 }
             }
@@ -835,8 +857,13 @@ bool CheckSparkSpendTransaction(
                     passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
                 }
                 else {
-                    // return true for now, the result will be processed later
-                    return true;
+                    if (scheduledAsync) {
+                        // result will be processed later by the async task
+                        passVerify = true;
+                    } else {
+                        // Pool was busy so verification was not scheduled; verify synchronously for defense-in-depth
+                        passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+                    }
                 }
             }
         }
@@ -847,8 +874,7 @@ bool CheckSparkSpendTransaction(
     }
 
     if (!fStatefulSigmaCheck)
-        // nothing more to do
-        return true;
+        return passVerify;
 
     if (passVerify) {
         const std::vector<GroupElement>& lTags = spend->getUsedLTags();

@@ -1194,11 +1194,11 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     dandelionServiceDiscoveryHash.SetHex(
                             "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
                     if (txinfo.tx && !CNode::isDandelionInbound(pfrom) &&
-                            pfrom->setDandelionInventoryKnown.count(inv.hash) != 0) {                                
+                            pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {                                
                         connman.PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::DANDELIONTX, *txinfo.tx));
                         push = true;
                     } else if (inv.hash == dandelionServiceDiscoveryHash &&
-                               pfrom->setDandelionInventoryKnown.count(inv.hash) != 0) {
+                               pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
                         pfrom->fSupportsDandelion = true;
                         push = true;
                     }
@@ -1910,8 +1910,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             else if (inv.type == MSG_DANDELION_TX) {
-                auto result = pfrom->setDandelionInventoryKnown.insert(inv.hash);
-                fAlreadyHave = !result.second;
+                fAlreadyHave = pfrom->filterDandelionInventoryKnown.contains(inv.hash);
+                pfrom->filterDandelionInventoryKnown.insert(inv.hash);
                 uint256 dandelionServiceDiscoveryHash;
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -3611,7 +3611,7 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 
             // Add Dandelion transactions
             for (const uint256& hash : pto->vInventoryDandelionTxToSend) {
-                pto->setDandelionInventoryKnown.insert(hash);
+                pto->filterDandelionInventoryKnown.insert(hash);
                 uint256 dandelionServiceDiscoveryHash;
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");

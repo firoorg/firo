@@ -145,7 +145,15 @@ public:
                 spark::Address sparkAddress(spark::Params::get_default());
                 spark::OwnershipProof ownershipProof;
         
-                spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(spark::Params::get_default());
+                spark::SpendKey spendKey(spark::Params::get_default());
+                try {
+                    spendKey = std::move(pwalletMain->sparkWallet->generateSpendKey(spark::Params::get_default()));
+                } catch (const std::exception& e) {
+                    if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
+                        BOOST_FAIL("Spark wallet is locked; unlock wallet to run this test");
+                    }
+                    throw;
+                }
                 spark::IncomingViewKey incomingViewKey(spendKey);
                 sparkAddress.decode(sparkNameData.sparkAddress);
                 sparkAddress.prove_own(m, spendKey, incomingViewKey, ownershipProof);
