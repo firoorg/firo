@@ -171,6 +171,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
         return state.DoS(100, error("CheckSparkNameTx: invalid operation type"));
 
+    if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opUnregister)
+        return state.DoS(100, error("CheckSparkNameTx: unregister operation is not supported yet"));
+
     if (outSparkNameData)
         *outSparkNameData = sparkNameData;
 
@@ -332,6 +335,9 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
 
     else if (sparkNameData.additionalInfo.size() > 1024)
         errorDescription = "additional info is too long";
+
+    else if (sparkNameData.sparkNameValidityBlocks == 0)
+        errorDescription = "validity period must be at least 1 block";
 
     else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
         errorDescription = "transaction can't be valid for more than 10 years";

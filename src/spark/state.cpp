@@ -800,9 +800,17 @@ bool CheckSparkSpendTransaction(
                         bool result = future->get();
                         cs_checkedSparkSpendTransactions.lock();
 
-                        checkState.fChecked = true;
-                        checkState.fResult = result;
-                        checkState.checkInProgress = nullptr;
+                        // Entry may have been erased by DisconnectTipSpark during the unlock window
+                        auto it = gCheckedSparkSpendTransactions.find(hashTx);
+                        if (it == gCheckedSparkSpendTransactions.end()) {
+                            fRecheckNeeded = true;
+                            continue;
+                        }
+                        ProofCheckState& checkStateAfterWait = it->second;
+
+                        checkStateAfterWait.fChecked = true;
+                        checkStateAfterWait.fResult = result;
+                        checkStateAfterWait.checkInProgress = nullptr;
 
                         if (!result) {
                             // unfortunately, it's possible that the proof was checked and failed

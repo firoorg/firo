@@ -4995,7 +4995,7 @@ UniValue transfersparkname(const JSONRPCRequest &request) {
         spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
     } catch (const std::exception& e) {
         if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
-            throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
+            throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
         }
         throw std::runtime_error(_("Unable to generate spend key."));
     }
