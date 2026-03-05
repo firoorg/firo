@@ -318,7 +318,7 @@ public:
     void ReleaseNodeVector(const std::vector<CNode*>& vecNodes);
 
     void RelayTransaction(const CTransaction& tx);
-    void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
+    void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION, bool fForce = false);
     void RelayInvFiltered(CInv &inv, const CTransaction &relatedTx, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
     // This overload will not update node filters,  so use it only for the cases when other messages will update related transaction data in filters
     void RelayInvFiltered(CInv &inv, const uint256 &relatedTxHash, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
@@ -810,6 +810,9 @@ public:
     // Set of transaction ids we still have to announce.
     // They are sorted by the mempool before relay, so the order is not important.
     std::set<uint256> setInventoryTxToSend;
+    // Hashes force-pushed via PushInventory(fForce=true) that must bypass
+    // the filterInventoryKnown check at the actual send point in SendMessages.
+    std::set<uint256> setInventoryForcedToSend;
     // List of Dandelion transaction ids to announce.
     std::vector<uint256> vInventoryDandelionTxToSend;
     // List of block ids we still have announce.
@@ -979,23 +982,27 @@ public:
         }
     }
 
-    void PushInventory(const CInv& inv)
+    void PushInventory(const CInv& inv, bool fForce = false)
     {
         LOCK(cs_inventory);
         if (inv.type == MSG_TX) {
-            if (!filterInventoryKnown.contains(inv.hash)) {
+            if (fForce || !filterInventoryKnown.contains(inv.hash)) {
                 setInventoryTxToSend.insert(inv.hash);
+                if (fForce)
+                    setInventoryForcedToSend.insert(inv.hash);
             }
         } else if (inv.type == MSG_DANDELION_TX) {
-        	if (setDandelionInventoryKnown.count(inv.hash) == 0) {
+        	if (fForce || setDandelionInventoryKnown.count(inv.hash) == 0) {
         		vInventoryDandelionTxToSend.push_back(inv.hash);
         	}
         } else if (inv.type == MSG_BLOCK) {
             vInventoryBlockToSend.push_back(inv.hash);
         } else {
-            if (!filterInventoryKnown.contains(inv.hash)) {
+            if (fForce || !filterInventoryKnown.contains(inv.hash)) {
                 LogPrint("net", "PushInventory --  inv: %s peer=%d\n", inv.ToString(), id);
                 vInventoryOtherToSend.push_back(inv);
+                if (fForce)
+                    setInventoryForcedToSend.insert(inv.hash);
             } else {
                 LogPrint("net", "PushInventory --  filtered inv: %s peer=%d\n", inv.ToString(), id);
             }

@@ -3705,8 +3705,9 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     uint256 hash = *it;
                     // Remove it from the to-be-sent set
                     pto->setInventoryTxToSend.erase(it);
-                    // Check if not in the filter already
-                    if (pto->filterInventoryKnown.contains(hash)) {
+                    bool fForcedRelay = pto->setInventoryForcedToSend.erase(hash) > 0;
+                    // Check if not in the filter already (skip for forced rebroadcasts)
+                    if (!fForcedRelay && pto->filterInventoryKnown.contains(hash)) {
                         continue;
                     }
                     // Not in the mempool anymore? don't bother sending it.
@@ -3744,7 +3745,8 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 
             // Send non-tx/non-block inventory items
             for (const auto& inv : pto->vInventoryOtherToSend) {
-                if (pto->filterInventoryKnown.contains(inv.hash)) {
+                bool fForcedRelay = pto->setInventoryForcedToSend.erase(inv.hash) > 0;
+                if (!fForcedRelay && pto->filterInventoryKnown.contains(inv.hash)) {
                     continue;
                 }
                 vInv.push_back(inv);
@@ -3868,6 +3870,31 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
         }
     }
     return true;
+}
+
+void RebroadcastISLockedMempool(CConnman& connman)
+{
+    // Don't relay during initial sync
+    if (fReindex || fImporting || IsInitialBlockDownload())
+        return;
+
+    if (!llmq::quorumInstantSendManager)
+        return;
+
+    std::vector<uint256> vtxid;
+    mempool.queryHashes(vtxid);
+
+    int nRelayed = 0;
+    for (const uint256& hash : vtxid) {
+        if (llmq::quorumInstantSendManager->IsLocked(hash)) {
+            CInv inv(MSG_TX, hash);
+            connman.RelayInv(inv, MIN_PEER_PROTO_VERSION, true);
+            nRelayed++;
+        }
+    }
+
+    if (nRelayed > 0)
+        LogPrint("net", "Rebroadcast %d InstantSend-locked mempool transactions\n", nRelayed);
 }
 
 class CNetProcessingCleanup
