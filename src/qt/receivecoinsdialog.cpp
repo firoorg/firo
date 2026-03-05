@@ -15,6 +15,7 @@
 #include "recentrequeststablemodel.h"
 #include "walletmodel.h"
 #include "createsparknamepage.h"
+#include "sparkname.h"
 
 #include <QAction>
 #include <QCursor>
@@ -54,9 +55,11 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     if(ui->addressTypeCombobox->currentText() == "Spark"){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
+        ui->mySparkNamesButton->setVisible(true);
     } else {
         ui->reuseAddress->show();
         ui->createSparkNameButton->setVisible(false);
+        ui->mySparkNamesButton->setVisible(false);
     }
 
     ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
@@ -88,6 +91,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
 
     connect(ui->createSparkNameButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::createSparkName);
+    connect(ui->mySparkNamesButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::mySparkNames);
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -127,6 +131,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             ui->addressTypeCombobox->removeItem(0);
             ui->reuseAddress->show();
             ui->createSparkNameButton->setVisible(false);
+            ui->mySparkNamesButton->setVisible(false);
         }
 
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
@@ -195,7 +200,17 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         if(ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
         } else if(ui->addressTypeCombobox->currentText() == AddressTableModel::Spark) {
-            address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            // Check if label is a @name reference to a spark name
+            if (label.startsWith("@") && label.size() > 1 && label.size() <= (int)CSparkNameManager::maximumSparkNameLength + 1) {
+                QString sparkName = label.mid(1);
+                address = model->getSparkNameAddress(sparkName);
+                if (address.isEmpty()) {
+                    QMessageBox::critical(this, tr("Error"), tr("Spark name \"%1\" not found or expired.").arg(sparkName));
+                    return;
+                }
+            } else {
+                address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            }
         }
     }
     SendCoinsRecipient info(address, addressType, label,
@@ -337,9 +352,11 @@ void ReceiveCoinsDialog::displayCheckBox(int idx)
     if(ui->addressTypeCombobox->currentText() == tr("Spark")){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
+        ui->mySparkNamesButton->setVisible(true);
     } else {
         ui->reuseAddress->show();
         ui->createSparkNameButton->setVisible(false);
+        ui->mySparkNamesButton->setVisible(false);
     }
 }
 
@@ -432,6 +449,16 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     ui->removeRequestButton->setMinimumHeight(buttonMinHeight);
     ui->removeRequestButton->setMaximumHeight(buttonMaxHeight);
 
+    ui->mySparkNamesButton->setMinimumWidth(buttonMinWidth);
+    ui->mySparkNamesButton->setMaximumWidth(buttonMaxWidth);
+    ui->mySparkNamesButton->setMinimumHeight(buttonMinHeight);
+    ui->mySparkNamesButton->setMaximumHeight(buttonMaxHeight);
+
+    ui->createSparkNameButton->setMinimumWidth(buttonMinWidth);
+    ui->createSparkNameButton->setMaximumWidth(buttonMaxWidth);
+    ui->createSparkNameButton->setMinimumHeight(buttonMinHeight);
+    ui->createSparkNameButton->setMaximumHeight(buttonMaxHeight);
+
     // Adjust column widths proportionally
     int dateColumnWidth = newWidth * 0.25;
     int labelColumnWidth = newWidth * 0.25;
@@ -465,6 +492,8 @@ void ReceiveCoinsDialog::adjustTextSize(int width,int height){
     ui->clearButton->setFont(font);
     ui->showRequestButton->setFont(font);
     ui->removeRequestButton->setFont(font);
+    ui->mySparkNamesButton->setFont(font);
+    ui->createSparkNameButton->setFont(font);
     ui->addressTypeCombobox->setFont(font);
     ui->addressTypeHistoryCombobox->setFont(font);
     ui->recentRequestsView->setFont(font);
@@ -477,4 +506,22 @@ void ReceiveCoinsDialog::createSparkName() {
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModel(model);
     dialog->show();
+}
+
+void ReceiveCoinsDialog::mySparkNames() {
+    if (!model || !model->getAddressTableModel())
+        return;
+
+    AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this, false);
+    dlg.setInitialAddressType(AddressBookPage::SparkNameMine);
+    dlg.setModel(model->getAddressTableModel());
+    if (dlg.exec()) {
+        QString label = dlg.getReturnLabel();
+        // Ensure the label is in @name notation
+        if (!label.isEmpty()) {
+            if (!label.startsWith("@"))
+                label = "@" + label;
+            ui->reqLabel->setText(label);
+        }
+    }
 }

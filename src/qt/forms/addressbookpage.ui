@@ -86,6 +86,19 @@
             </widget>
             </item>
             <item>
+            <widget class="QPushButton" name="extendAddress">
+            <property name="toolTip">
+                <string>Extend address expiration date</string>
+            </property>
+            <property name="text">
+                <string>&amp;Extend</string>
+            </property>
+            <property name="autoDefault">
+                <bool>false</bool>
+            </property>
+            </widget>
+            </item>
+            <item>
             <widget class="QPushButton" name="copyAddress">
             <property name="toolTip">
                 <string>Copy the currently selected address to the system clipboard</string>
