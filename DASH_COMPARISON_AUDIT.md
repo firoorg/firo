@@ -8,14 +8,15 @@ which issues also exist upstream and which have been fixed.
 
 | Status | Count | % |
 |--------|-------|---|
-| **Fixed in Dash** | 26 | 55% |
-| **Exists in Dash** | 17 | 36% |
+| **Fixed in Dash** | 25 | 53% |
+| **Exists in Dash** | 18 | 38% |
 | **Not Applicable** (feature removed) | 2 | 4% |
 | **Exists by Design** | 2 | 4% |
 
 Dash has fixed **all HIGH-severity P2P, Auth, and Evo findings** through incremental
 hardening across v18–v20. The BLS/IES cryptographic layer remains the weakest shared
-area: 11 of 14 BLS findings exist in both codebases.
+area: 12 of 14 BLS findings exist in both codebases (including the HIGH-severity
+use-after-free in BLS-1).
 
 ---
 
@@ -56,11 +57,11 @@ area: 11 of 14 BLS findings exist in both codebases.
 
 ---
 
-## Area 3: BLS Cryptography (3 fixed / 11 exist)
+## Area 3: BLS Cryptography (2 fixed / 12 exist)
 
 | ID | Severity | Finding | Dash Status | Notes |
 |----|----------|---------|-------------|-------|
-| BLS-1 | HIGH | Use-After-Free in AsyncVerify | **FIXED** | Restructured to synchronous batch verify or explicit shared_ptr ownership |
+| BLS-1 | HIGH | Use-After-Free in AsyncVerify | EXISTS | Lambda in `bls_worker.cpp` still captures by reference and dispatches to thread pool; caller comment acknowledges danger |
 | BLS-2 | HIGH | IES Encryption No HMAC | EXISTS | AES-256-CBC still has no authentication tag; CBC bit-flipping possible |
 | BLS-3 | HIGH | IES Key From Raw EC Point (No KDF) | EXISTS | Raw truncated point serialization still used as AES key |
 | BLS-4 | MEDIUM | Secret Key Not Zeroed on Stack | EXISTS | `MakeNewKey()` stack buffer never `memory_cleanse()`d |
@@ -124,7 +125,6 @@ These have known, tested fixes in Dash that can be backported:
 - EVO-1: Provider TX validation bypass
 - AUTH-1: MNAUTH locking and sequencing
 - AUTH-2: GETMNLISTDIFF rate limiting
-- BLS-1: Use-after-free elimination
 
 **Important (DoS/resource exhaustion):**
 - QS-4: Session limits with Misbehaving() penalty
@@ -140,11 +140,12 @@ These have known, tested fixes in Dash that can be backported:
 - DKG-1, DKG-10, DKG-11, QS-9, QS-11: Various bug fixes
 - EVO-5, EVO-6, AUTH-3, AUTH-4: Safety improvements
 
-### Priority 2: Shared Vulnerabilities (17 findings)
+### Priority 2: Shared Vulnerabilities (18 findings)
 
 These exist in both Dash and Firo and need original fixes:
 
 **BLS/IES crypto (most impactful):**
+- BLS-1: Use-after-free in AsyncVerifyContributionShare (lambda captures by reference)
 - BLS-2 + BLS-3: Add authenticated encryption (AES-GCM or HMAC) and proper KDF
 - BLS-4 + BLS-5 + BLS-10: Memory sanitization for key material
 - BLS-8, BLS-9, BLS-12: Input validation and safe aggregation
