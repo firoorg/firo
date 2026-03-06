@@ -8,8 +8,8 @@ which issues also exist upstream and which have been fixed.
 
 | Status | Count | % |
 |--------|-------|---|
-| **Fixed in Dash** | 25 | 53% |
-| **Exists in Dash** | 18 | 38% |
+| **Fixed in Dash** | 22 | 47% |
+| **Exists in Dash** | 21 | 45% |
 | **Not Applicable** (feature removed) | 2 | 4% |
 | **Exists by Design** | 2 | 4% |
 
@@ -20,21 +20,21 @@ use-after-free in BLS-1).
 
 ---
 
-## Area 1: DKG Session Code (5 fixed / 6 exist)
+## Area 1: DKG Session Code (2 fixed / 9 exist)
 
 | ID | Severity | Finding | Dash Status | Notes |
 |----|----------|---------|-------------|-------|
-| DKG-1 | HIGH | BatchVerifyMessageSigs Logic Bug | **FIXED** | Dash rewrote batch verification; per-source-id result tracking replaces the broken first/second flag logic |
+| DKG-1 | HIGH | BatchVerifyMessageSigs Logic Bug | **FIXED** | Rewritten with `std::adjacent_find` instead of broken first/second flag logic |
 | DKG-2 | HIGH | Vvec Written to DB Before SK Share Verified | EXISTS | Same pattern — vvec stored in member before `VerifyPendingContributions()` runs |
-| DKG-3 | MED-HIGH | dkgsimerror RPC in Production | EXISTS | Still ships on mainnet, gated only by RPC auth |
-| DKG-4 | MED-HIGH | QWATCH Unauthenticated DKG Surveillance | EXISTS | Partially mitigated (dedup check), but no auth/rate-limit on QWATCH itself |
-| DKG-5 | MEDIUM | Unbounded seenMessages Set | EXISTS | No global cap added; bounded only per-member by quorum size |
-| DKG-6 | MEDIUM | No Misbehaving Penalty for Flooding | **FIXED** | Exceeding per-source limit now triggers `Misbehaving(from, 100)` (immediate ban) |
-| DKG-7 | MEDIUM | Premature Commitment Without Full Validation | EXISTS | Bounded per quorum hash, but commitments still stored before full validation |
-| DKG-8 | MEDIUM | No Phase-Gating of Incoming DKG Messages | **FIXED** | Phase state machine added; messages >1 phase ahead rejected with `Misbehaving()` |
-| DKG-9 | MEDIUM | Justification + QWATCH Reveals SK Shares | EXISTS | Inherent to Feldman VSS protocol; would need protocol change to fix |
-| DKG-10 | LOW-MED | AddMinableCommitment Stale Map Entry | **FIXED** | Refactored to use insert_or_assign; stale entry bug eliminated |
-| DKG-11 | LOW-MED | No Cross-Validation of llmqType | **FIXED** | Explicit `msg.GetLLMQType() != params.type` guard added |
+| DKG-3 | MED-HIGH | dkgsimerror RPC in Production | EXISTS (partially mitigated) | RPC callable on mainnet but `ShouldSimulateError()` restricted to `LLMQ_TEST` quorum type only |
+| DKG-4 | MED-HIGH | QWATCH Unauthenticated DKG Surveillance | **FIXED** | Non-masternodes sending QWATCH receive `Misbehaving(10)` penalty; requires MN status |
+| DKG-5 | MEDIUM | Unbounded seenMessages Set | EXISTS | No global cap; cleared only per DKG round |
+| DKG-6 | MEDIUM | No Misbehaving Penalty for Flooding | EXISTS | Same `// TODO ban?` comment; no `Misbehaving()` call on excess messages |
+| DKG-7 | MEDIUM | Premature Commitment Without Full Validation | EXISTS | Identical flow — commitment stored and added to `validCommitments` before full verification |
+| DKG-8 | MEDIUM | No Phase-Gating of Incoming DKG Messages | EXISTS | Messages routed to pending queues without phase check; gating only on serve side |
+| DKG-9 | MEDIUM | Justification + QWATCH Reveals SK Shares | EXISTS (partially mitigated) | Protocol-inherent, but DKG-4 fix limits observers to masternodes only |
+| DKG-10 | LOW-MED | AddMinableCommitment Stale Map Entry | EXISTS | Identical bug — `insertedQuorumHash` overwritten, then new hash erased instead of old |
+| DKG-11 | LOW-MED | No Cross-Validation of llmqType | EXISTS | `PreVerifyMessage` checks `quorumHash` but not `llmqType` against session `params.type` |
 
 ---
 
@@ -114,7 +114,7 @@ use-after-free in BLS-1).
 
 ## Recommendations for Firo
 
-### Priority 1: Port Dash Fixes (26 findings)
+### Priority 1: Port Dash Fixes (22 findings)
 
 These have known, tested fixes in Dash that can be backported:
 
@@ -125,22 +125,22 @@ These have known, tested fixes in Dash that can be backported:
 - EVO-1: Provider TX validation bypass
 - AUTH-1: MNAUTH locking and sequencing
 - AUTH-2: GETMNLISTDIFF rate limiting
+- DKG-4: QWATCH masternode-only restriction
 
 **Important (DoS/resource exhaustion):**
 - QS-4: Session limits with Misbehaving() penalty
 - QS-6, QS-7: Bounded pending maps with LRU eviction
-- DKG-6: Misbehaving() penalty for DKG flooding
-- DKG-8: Phase-gating of DKG messages
 - AUTH-5: Replace assert(false) with error returns
 - AUTH-6: Re-enable ProcessMasternodeConnections
 - AUTH-7: Fix nested ForEachNode deadlock
 
 **Thread safety:**
 - BLS-6, EVO-2, EVO-3, EVO-8: Atomic/mutex fixes
-- DKG-1, DKG-10, DKG-11, QS-9, QS-11: Various bug fixes
+- DKG-1, QS-9, QS-11: Various bug fixes
 - EVO-5, EVO-6, AUTH-3, AUTH-4: Safety improvements
+- BLS-7: Worker pool thread count fix
 
-### Priority 2: Shared Vulnerabilities (18 findings)
+### Priority 2: Shared Vulnerabilities (21 findings)
 
 These exist in both Dash and Firo and need original fixes:
 
@@ -150,9 +150,16 @@ These exist in both Dash and Firo and need original fixes:
 - BLS-4 + BLS-5 + BLS-10: Memory sanitization for key material
 - BLS-8, BLS-9, BLS-12: Input validation and safe aggregation
 
+**DKG hardening:**
+- DKG-6: Add Misbehaving() penalty for DKG message flooding
+- DKG-8: Phase-gating of incoming DKG messages
+- DKG-10: Fix AddMinableCommitment stale map entry bug
+- DKG-11: Cross-validate llmqType in messages against session
+- DKG-5: Bound seenMessages set size
+- DKG-7: Validate premature commitments before storage
+
 **Protocol/design:**
 - DKG-9: Encrypted justifications (protocol change)
-- DKG-4: QWATCH authentication requirement
 - QS-5: Configurable verification rate
 
 ### Priority 3: Feature Removal
