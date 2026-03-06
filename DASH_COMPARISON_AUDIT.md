@@ -8,15 +8,16 @@ which issues also exist upstream and which have been fixed.
 
 | Status | Count | % |
 |--------|-------|---|
-| **Fixed in Dash** | 22 | 47% |
-| **Exists in Dash** | 21 | 45% |
-| **Not Applicable** (feature removed) | 2 | 4% |
+| **Fixed in Dash** | 18 | 38% |
+| **Exists in Dash** | 24 | 51% |
+| **Not Applicable** (feature removed/restructured) | 3 | 6% |
 | **Exists by Design** | 2 | 4% |
 
-Dash has fixed **all HIGH-severity P2P, Auth, and Evo findings** through incremental
-hardening across v18–v20. The BLS/IES cryptographic layer remains the weakest shared
-area: 12 of 14 BLS findings exist in both codebases (including the HIGH-severity
-use-after-free in BLS-1).
+Dash has fixed the most critical Auth and Evo findings (MNAUTH hijacking, GETMNLISTDIFF
+amplification, provider TX bypass) but many HIGH-severity issues remain shared between
+both codebases. 12 of 14 BLS findings exist in both projects (including use-after-free
+BLS-1). Multiple unbounded resource consumption vectors (QS-4, QS-6, QS-7, QS-8) and
+DKG hardening gaps also remain unfixed in Dash.
 
 ---
 
@@ -38,22 +39,22 @@ use-after-free in BLS-1).
 
 ---
 
-## Area 2: Quorum Signing & Consensus (8 fixed / 4 exist)
+## Area 2: Quorum Signing & Consensus (4 fixed / 7 exist / 1 N/A)
 
 | ID | Severity | Finding | Dash Status | Notes |
 |----|----------|---------|-------------|-------|
 | QS-1 | HIGH | Conflict Detection Self-Comparison | **FIXED** | Complete rewrite; now compares incoming sig against stored sig via DB lookup |
 | QS-2 | HIGH | VerifyRecoveredSig Ignores llmqType | **FIXED** | Now properly uses the `llmqType` parameter to look up correct quorum set |
-| QS-3 | HIGH | Out-of-Bounds Array Access (crash) | **FIXED** | Bounds check: `if (outpoint.n >= tx->vout.size()) return false` |
-| QS-4 | HIGH | Unbounded Sessions Per Node | **FIXED** | Per-node session limit with `Misbehaving()` penalty on excess; global limit added |
-| QS-5 | MEDIUM | Recovered Sig Verified 1/100 | EXISTS (by design) | Dash still uses probabilistic verification as CPU trade-off |
-| QS-6 | MEDIUM | Unbounded pendingInstantSendLocks | **FIXED** | Size limits added with LRU eviction and per-peer tracking |
-| QS-7 | MEDIUM | Unbounded pendingRecoveredSigs | **FIXED** | Per-peer and global limits added |
-| QS-8 | MEDIUM | seenChainLocks Pre-Verification Growth | EXISTS (mitigated) | Pattern exists but bounded with LRU cache |
-| QS-9 | MEDIUM | ChainLock Negative Height | **FIXED** | Height bounds validation added |
-| QS-10 | LOW | Batch Verification Innocent Banning | EXISTS (by design) | Dash mostly uses `perMessageFallback=true` for critical paths |
-| QS-11 | LOW | CQuorum Destructor Race | **FIXED** | Refactored to `shared_ptr<const CQuorum>` for safe shared ownership |
-| QS-12 | LOW | Cleanup Uses Adjusted Time | EXISTS (mitigated) | Peer time adjustment limits tightened; discussing removal of GetAdjustedTime() |
+| QS-3 | HIGH | Out-of-Bounds Array Access (crash) | N/A | Dash restructured InstantSend; outpoints used only as DB lookup keys, never as array indices |
+| QS-4 | HIGH | Unbounded Sessions Per Node | EXISTS | Per-message limit of 100 `QSIGSESANN`, but no total per-node session cap across messages; sessions map grows unbounded |
+| QS-5 | MEDIUM | Recovered Sig Verified 1/100 | EXISTS (by design) | Explicit `(recoveredSigsCounter++) % 100` — 99% accepted without final BLS verification |
+| QS-6 | MEDIUM | Unbounded pendingInstantSendLocks | EXISTS | `FetchPendingLocks` has `maxCount` drain limit, but map itself has no size cap; flood grows it unbounded |
+| QS-7 | MEDIUM | Unbounded pendingRecoveredSigs | EXISTS | Per-node map in `pendingRecoveredSigs` has no cap; incoming rate not throttled |
+| QS-8 | MEDIUM | seenChainLocks Pre-Verification Growth | EXISTS | Inserted before BLS verification; cleanup every 30s/24h TTL, but grows unbounded during attack |
+| QS-9 | MEDIUM | ChainLock Negative Height | EXISTS (mitigated) | No explicit validation, but negative heights fail downstream quorum selection implicitly |
+| QS-10 | LOW | Batch Verification Innocent Banning | EXISTS (mitigated) | Sig shares use `perMessageFallback=true`, but recovered sigs use `false` — innocent peers scored Misbehaving(100) |
+| QS-11 | LOW | CQuorum Destructor Race | **FIXED** | Proper locking with `cs_vvec_shShare` mutex; `fQuorumDataRecoveryThreadRunning` is `std::atomic<bool>` |
+| QS-12 | LOW | Cleanup Uses Adjusted Time | **FIXED** | All cleanup uses `GetTime<std::chrono::seconds>()` not `GetAdjustedTime()`; not influenced by peer timestamps |
 
 ---
 
@@ -114,12 +115,11 @@ use-after-free in BLS-1).
 
 ## Recommendations for Firo
 
-### Priority 1: Port Dash Fixes (22 findings)
+### Priority 1: Port Dash Fixes (18 findings)
 
 These have known, tested fixes in Dash that can be backported:
 
 **Critical (crash/consensus):**
-- QS-3: OOB array access bounds check
 - QS-1: Conflict detection rewrite
 - QS-2: VerifyRecoveredSig llmqType fix
 - EVO-1: Provider TX validation bypass
@@ -127,20 +127,19 @@ These have known, tested fixes in Dash that can be backported:
 - AUTH-2: GETMNLISTDIFF rate limiting
 - DKG-4: QWATCH masternode-only restriction
 
-**Important (DoS/resource exhaustion):**
-- QS-4: Session limits with Misbehaving() penalty
-- QS-6, QS-7: Bounded pending maps with LRU eviction
+**Important (DoS/safety):**
 - AUTH-5: Replace assert(false) with error returns
 - AUTH-6: Re-enable ProcessMasternodeConnections
 - AUTH-7: Fix nested ForEachNode deadlock
+- QS-12: Replace GetAdjustedTime() with GetTime<>()
 
 **Thread safety:**
 - BLS-6, EVO-2, EVO-3, EVO-8: Atomic/mutex fixes
-- DKG-1, QS-9, QS-11: Various bug fixes
+- DKG-1, QS-11: Various bug fixes
 - EVO-5, EVO-6, AUTH-3, AUTH-4: Safety improvements
 - BLS-7: Worker pool thread count fix
 
-### Priority 2: Shared Vulnerabilities (21 findings)
+### Priority 2: Shared Vulnerabilities (24 findings)
 
 These exist in both Dash and Firo and need original fixes:
 
@@ -150,17 +149,24 @@ These exist in both Dash and Firo and need original fixes:
 - BLS-4 + BLS-5 + BLS-10: Memory sanitization for key material
 - BLS-8, BLS-9, BLS-12: Input validation and safe aggregation
 
+**Unbounded resource consumption (DoS):**
+- QS-4: Unbounded sessions per node in signature shares manager
+- QS-6: Unbounded pendingInstantSendLocks map
+- QS-7: Unbounded pendingRecoveredSigs queue
+- QS-8: seenChainLocks grows before signature verification
+- DKG-5: Bound seenMessages set size
+- DKG-7: Validate premature commitments before storage
+
 **DKG hardening:**
 - DKG-6: Add Misbehaving() penalty for DKG message flooding
 - DKG-8: Phase-gating of incoming DKG messages
 - DKG-10: Fix AddMinableCommitment stale map entry bug
 - DKG-11: Cross-validate llmqType in messages against session
-- DKG-5: Bound seenMessages set size
-- DKG-7: Validate premature commitments before storage
 
 **Protocol/design:**
 - DKG-9: Encrypted justifications (protocol change)
 - QS-5: Configurable verification rate
+- QS-9: ChainLock height validation
 
 ### Priority 3: Feature Removal
 
