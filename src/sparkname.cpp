@@ -345,6 +345,9 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
         errorDescription = "invalid operation type";
 
+    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opUnregister)
+        errorDescription = "unregister operation is not supported yet";
+
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
                 sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
                 (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
