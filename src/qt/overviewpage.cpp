@@ -132,7 +132,8 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     currentWatchOnlyBalance(-1),
     currentWatchUnconfBalance(-1),
     currentWatchImmatureBalance(-1),
-    txdelegate(new TxViewDelegate(platformStyle, this))
+    txdelegate(new TxViewDelegate(platformStyle, this)),
+    secDelay(1)
 {
     ui->setupUi(this);
 
@@ -225,6 +226,8 @@ void OverviewPage::setBalance(
     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
     const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance)
 {
+    if (!walletModel || !walletModel->getOptionsModel())
+        return;
     int unit = walletModel->getOptionsModel()->getDisplayUnit();
     currentBalance = balance;
     currentUnconfirmedBalance = unconfirmedBalance;
@@ -290,7 +293,8 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
-    onRefreshClicked();
+    if (model)
+        onRefreshClicked();
     if(model && model->getOptionsModel())
     {
         // Set up transaction list
@@ -362,7 +366,7 @@ void OverviewPage::countDown()
 {
     secDelay--;
     if(secDelay <= 0) {
-        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
+        if(walletModel && walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
             MigrateLelantusToSparkDialog migrate(walletModel);
         }
         countDownTimer.stop();
@@ -371,7 +375,12 @@ void OverviewPage::countDown()
 
 void OverviewPage::onRefreshClicked()
 {
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
+    if (!walletModel || !walletModel->getOptionsModel())
+        return;
+    auto wallet = walletModel->getWallet();
+    if (!wallet)
+        return;
+    auto privateBalance = wallet->GetPrivateBalance();
     auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     int heightDifference = lGracefulPeriod - chainActive.Height();
     const int approxBlocksPerDay = 570;
@@ -395,7 +404,12 @@ void OverviewPage::onRefreshClicked()
 
 void OverviewPage::migrateClicked()
 {
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
+    if (!walletModel || !walletModel->getOptionsModel())
+        return;
+    auto wallet = walletModel->getWallet();
+    if (!wallet)
+        return;
+    auto privateBalance = wallet->GetPrivateBalance();
     FIRO_UNUSED auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
     migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
     migrateAmount.append("</b>");
