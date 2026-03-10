@@ -311,11 +311,14 @@ void OptionsDialog::clearStatusLabel()
 
 void OptionsDialog::updateProxyValidationState()
 {
-    QValidatedLineEdit *pUiProxyIp = ui->proxyIp;
-    QValidatedLineEdit *otherProxyWidget = (pUiProxyIp == ui->proxyIpTor) ? ui->proxyIp : ui->proxyIpTor;
-    if (pUiProxyIp->isValid() && (!ui->proxyPort->isEnabled() || ui->proxyPort->text().toInt() > 0) && (!ui->proxyPortTor->isEnabled() || ui->proxyPortTor->text().toInt() > 0))
+    bool proxyValid = !ui->proxyIp->isEnabled() || ui->proxyIp->isValid();
+    bool proxyTorValid = !ui->proxyIpTor->isEnabled() || ui->proxyIpTor->isValid();
+    bool proxyPortValid = !ui->proxyPort->isEnabled() || ui->proxyPort->text().toInt() > 0;
+    bool proxyPortTorValid = !ui->proxyPortTor->isEnabled() || ui->proxyPortTor->text().toInt() > 0;
+
+    if (proxyValid && proxyTorValid && proxyPortValid && proxyPortTorValid)
     {
-        setOkButtonState(otherProxyWidget->isValid()); //only enable ok button if both proxys are valid
+        setOkButtonState(true);
         clearStatusLabel();
     }
     else

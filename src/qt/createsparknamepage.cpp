@@ -48,6 +48,8 @@ void CreateSparkNamePage::setModel(WalletModel *model)
 
 void CreateSparkNamePage::on_generateButton_clicked()
 {
+    if (!model)
+        return;
     QString newSparkAddress = model->generateSparkAddress();
     ui->sparkAddressEdit->setText(newSparkAddress);
 }
