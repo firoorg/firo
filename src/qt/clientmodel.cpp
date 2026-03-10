@@ -94,10 +94,6 @@ CDeterministicMNList ClientModel::getMasternodeList() const
 
 void ClientModel::refreshMasternodeList()
 {
-    TRY_LOCK(cs_mnlinst,lock);
-    if(!lock){
-        return;
-    }
     setMasternodeList(deterministicMNManager->GetListAtChainTip());
 }
 
