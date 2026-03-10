@@ -126,9 +126,13 @@ bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::Spen
 
 bool CSparkNameManager::CheckPaymentToTransparentAddress(const CTransaction &tx, const std::string &address, CAmount amount) const
 {
+    CScript expectedScript = GetScriptForDestination(CBitcoinAddress(address).Get());
     for (const CTxOut &txout : tx.vout)
     {
-        if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(address).Get()) && txout.nValue >= amount)
+        CScript baseScript = txout.scriptPubKey.IsSparkNameFee()
+            ? GetBaseScriptFromSparkNameFee(txout.scriptPubKey)
+            : txout.scriptPubKey;
+        if (baseScript == expectedScript && txout.nValue >= amount)
             return true;
     }
     return false;
@@ -220,6 +224,19 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     if (!payoutFound)
         return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
+
+    // After v2.1, validate that any spark name fee output contains matching spark name data
+    if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+        for (const CTxOut &txout : tx.vout) {
+            if (txout.scriptPubKey.IsSparkNameFee()) {
+                std::string embeddedName, embeddedAddress;
+                if (!ExtractSparkNameFromScript(txout.scriptPubKey, embeddedName, embeddedAddress))
+                    return state.DoS(100, error("CheckSparkNameTx: malformed spark name fee output"));
+                if (embeddedName != sparkNameData.name || embeddedAddress != sparkNameData.sparkAddress)
+                    return state.DoS(100, error("CheckSparkNameTx: spark name fee output data mismatch"));
+            }
+        }
+    }
 
     if (sparkNameData.additionalInfo.size() > 1024)
         return state.DoS(100, error("CheckSparkNameTx: additional info is too long"));
@@ -331,6 +348,19 @@ bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::s
         return true;
     }
     return false;
+}
+
+CScript CSparkNameManager::GetSparkNameFeeScript(const std::string &feeAddress, const std::string &sparkName, const std::string &sparkAddress)
+{
+    CTxDestination dest = CBitcoinAddress(feeAddress).Get();
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+    if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock)
+        return GetScriptForSparkNameFee(dest, sparkName, sparkAddress);
+    return GetScriptForDestination(dest);
 }
 
 bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription)

@@ -727,6 +727,15 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     if (hasExchangeUTXOs && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
         return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
 
+    // Spark name fee outputs (with OP_SPARKNAMEID) are only allowed after nSparkNamesV21StartBlock
+    for (const auto &vout : tx.vout) {
+        if (vout.scriptPubKey.IsSparkNameFee()) {
+            if (!isVerifyDB && nTxHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-sparkname-fee-output");
+            break;
+        }
+    }
+
     if (tx.IsCoinBase())
     {
         size_t minCbSize = 2;
