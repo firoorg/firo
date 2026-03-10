@@ -310,6 +310,9 @@ void AddressBookPage::on_deleteAddress_clicked()
 
 void AddressBookPage::on_extendAddress_clicked()
 {
+    if(!model)
+        return;
+
     if (!ui->tableView || !ui->tableView->selectionModel())
         return;
 

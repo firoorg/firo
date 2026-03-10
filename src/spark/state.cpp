@@ -350,7 +350,7 @@ bool ConnectBlockSpark(
                             int remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
                             if (remainingBlocks > 0)
                                 validityBlocks += remainingBlocks;
-                        } catch (...) {
+                        } catch (const std::runtime_error&) {
                             // name doesn't exist yet, no adjustment needed
                         }
                     }
