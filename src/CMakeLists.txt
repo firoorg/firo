@@ -269,6 +269,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/evo/spork.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/httprpc.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/httpserver.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/i2p.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/init.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/lelantus.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/coin.cpp
