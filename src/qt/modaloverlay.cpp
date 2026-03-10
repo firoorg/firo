@@ -99,8 +99,10 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
             if (sample.first < (currentDate.toMSecsSinceEpoch() - 500 * 1000) || i == blockProcessTime.size() - 1) {
                 progressDelta = progressStart-sample.second;
                 timeDelta = blockProcessTime[0].first - sample.first;
-                progressPerHour = progressDelta/(double)timeDelta*1000*3600;
-                remainingMSecs = remainingProgress / progressDelta * timeDelta;
+                if (timeDelta > 0 && progressDelta > 0) {
+                    progressPerHour = progressDelta/(double)timeDelta*1000*3600;
+                    remainingMSecs = remainingProgress / progressDelta * timeDelta;
+                }
                 break;
             }
         }

@@ -48,8 +48,9 @@ void AutoMintSparkDialog::accept()
     ui->lockCheckBox->setVisible(false);
 
     if (requiredPassphase) {
-        auto rawPassphase = ui->passEdit->text().toStdString();
+        QByteArray rawPassphase = ui->passEdit->text().toUtf8();
         SecureString passphase(rawPassphase.begin(), rawPassphase.end());
+        rawPassphase.fill('\0');
         auto lock = ui->lockCheckBox->isChecked();
 
         progress = AutoMintSparkProgress::Unlocking;
