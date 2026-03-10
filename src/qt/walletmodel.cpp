@@ -985,6 +985,8 @@ bool WalletModel::rebroadcastTransaction(uint256 hash, CValidationState &state)
         return false;
     }
 
+    if (!g_connman)
+        return false;
     g_connman->RelayTransaction(*wtx->tx);
     return true;
 }
@@ -1493,13 +1495,16 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
         {
             if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
                 newTx->vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
-        
-            if (!wallet->CommitTransaction(*newTx, reserveKey, g_connman.get(), state))
-                return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
-            CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-            ssTx << *newTx->tx;
-            transaction_array.append(&(ssTx[0]), ssTx.size());
-        
+        }
+
+        if (!wallet->CommitTransaction(*newTx, reserveKey, g_connman.get(), state))
+            return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << *newTx->tx;
+        transaction_array.append(&(ssTx[0]), ssTx.size());
+
+        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+        {
             std::string strAddress = rcp.address.toStdString();
             CTxDestination dest = CBitcoinAddress(strAddress).Get();
             std::string strLabel = rcp.label.toStdString();
@@ -1512,7 +1517,7 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
                     } else if (mi->second.name != strLabel) {
                         wallet->SetAddressBook(dest, strLabel, ""); // "" means don't change purpose
                     }
-                } else if (validateSparkAddress(rcp.address)) {                
+                } else if (validateSparkAddress(rcp.address)) {
                     std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(strAddress);
 
                     // Check if we have a new address or an updated label

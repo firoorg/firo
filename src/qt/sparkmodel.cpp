@@ -94,10 +94,10 @@ CAmount SparkModel::mintSparkAll()
     }
 
     CAmount s = 0;
-    bool ok = true;
     for (auto const &wtx : wtxAndFee) {
         for (auto const &out : wtx.first.tx->vout) {
             spark::Coin coin(spark::Params::get_default());
+            bool ok = true;
             try {
                 spark::ParseSparkMintCoin(out.scriptPubKey, coin);
             } catch (std::invalid_argument&) {

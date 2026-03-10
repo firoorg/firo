@@ -215,7 +215,7 @@ SendCoinsDialog::~SendCoinsDialog()
 {
     QSettings settings;
     settings.setValue("fFeeSectionMinimized", fFeeMinimized);
-    settings.setValue("nFeeRadio", true);
+    settings.setValue("nFeeRadio", ui->groupFee->checkedId());
     settings.setValue("nCustomFeeRadio", ui->groupCustomFee->checkedId());
     settings.setValue("nSmartFeeSliderPosition", ui->sliderSmartFee->value());
     settings.setValue("nTransactionFee", (qint64)ui->customFee->value());
@@ -416,7 +416,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     QString warningMessage;
 
     for(int i = 0; i < recipients.size(); ++i) {
-        warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
+        warningMessage = SendCoinsEntry::generateWarningText(recipients[i].address, fAnonymousMode);
         if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
             break;
         }
@@ -619,6 +619,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
         sendStatus = model->sendCoins(currentTransaction);
     } else {
+        fNewRecipientAllowed = true;
         return;
     }
 
@@ -757,7 +758,7 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = (spark::IsSparkAllowed(count) && model->getWallet() && model->getWallet()->sparkWallet);
+    auto allowed = (spark::IsSparkAllowed(count) && model && model->getWallet() && model->getWallet()->sparkWallet);
 
 
     if (allowed && !ui->switchFundButton->isEnabled())
@@ -814,7 +815,7 @@ void SendCoinsDialog::setAddress(const QString &address)
     if(ui->entries->count() == 1)
     {
         SendCoinsEntry *first = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(0)->widget());
-        if(first->isClear())
+        if(first && first->isClear())
         {
             entry = first;
         }
@@ -836,7 +837,7 @@ void SendCoinsDialog::pasteEntry(const SendCoinsRecipient &rv)
     if(ui->entries->count() == 1)
     {
         SendCoinsEntry *first = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(0)->widget());
-        if(first->isClear())
+        if(first && first->isClear())
         {
             entry = first;
         }
@@ -1059,6 +1060,11 @@ void SendCoinsDialog::removeUnmatchedOutput(CCoinControl &coinControl)
     for (auto const &out : outpoints) {
         auto it = pwalletMain->mapWallet.find(out.hash);
         if (it == pwalletMain->mapWallet.end()) {
+            coinControl.UnSelect(out);
+            continue;
+        }
+
+        if (out.n >= it->second.tx->vout.size()) {
             coinControl.UnSelect(out);
             continue;
         }

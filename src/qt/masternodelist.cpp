@@ -65,7 +65,7 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
-    contextMenuDIP3 = new QMenu();
+    contextMenuDIP3 = new QMenu(this);
     contextMenuDIP3->addAction(copyProTxHashAction);
     contextMenuDIP3->addAction(copyCollateralOutpointAction);
     connect(ui->tableWidgetMasternodesDIP3, &QWidget::customContextMenuRequested, this, &MasternodeList::showContextMenuDIP3);
@@ -270,22 +270,35 @@ void MasternodeList::updateDIP3List()
                           collateralItem->text() + " " +
                           ownerItem->text() + " " +
                           proTxHashItem->text();
-            if (!strToFilter.contains(strCurrentFilterDIP3)) return;
+            if (!strToFilter.contains(strCurrentFilterDIP3)) {
+                delete addressItem;
+                delete statusItem;
+                delete PoSeScoreItem;
+                delete registeredItem;
+                delete lastPaidItem;
+                delete nextPaymentItem;
+                delete payeeItem;
+                delete operatorRewardItem;
+                delete collateralItem;
+                delete ownerItem;
+                delete proTxHashItem;
+                return;
+            }
         }
 
-        numColumn = 0;
+        int col = 0;
         ui->tableWidgetMasternodesDIP3->insertRow(0);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, addressItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, statusItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, PoSeScoreItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, registeredItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, lastPaidItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, nextPaymentItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, payeeItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, operatorRewardItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, collateralItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn++, ownerItem);
-        ui->tableWidgetMasternodesDIP3->setItem(0, numColumn, proTxHashItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, addressItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, statusItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, PoSeScoreItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, registeredItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, lastPaidItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, nextPaymentItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, payeeItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, operatorRewardItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, collateralItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col++, ownerItem);
+        ui->tableWidgetMasternodesDIP3->setItem(0, col, proTxHashItem);
     });
 
     ui->countLabelDIP3->setText(QString::number(ui->tableWidgetMasternodesDIP3->rowCount()));
@@ -324,7 +337,8 @@ CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
 
         QModelIndex index = selected.at(0);
         int nSelectedRow = index.row();
-        strProTxHash = ui->tableWidgetMasternodesDIP3->item(nSelectedRow, numColumn)->text().toStdString();
+        static const int PROTXHASH_COLUMN = 10;
+        strProTxHash = ui->tableWidgetMasternodesDIP3->item(nSelectedRow, PROTXHASH_COLUMN)->text().toStdString();
     }
 
     uint256 proTxHash;

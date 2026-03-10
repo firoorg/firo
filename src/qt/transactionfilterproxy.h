@@ -25,7 +25,7 @@ public:
     /** Type filter bit field (all types) */
     static const quint32 ALL_TYPES = 0xFFFFFFFF;
 
-    static quint32 TYPE(int type) { return 1<<type; }
+    static quint32 TYPE(int type) { return (type >= 0 && type < 32) ? (quint32(1) << type) : 0; }
 
     enum WatchOnlyFilter
     {

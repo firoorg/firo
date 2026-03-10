@@ -27,10 +27,7 @@ IncomingFundNotifier::IncomingFundNotifier(
 IncomingFundNotifier::~IncomingFundNotifier()
 {
     unsubscribeFromCoreSignals();
-
-    delete timer;
-
-    timer = nullptr;
+    // timer is owned by QObject parent (this), no manual delete needed
 }
 
 void IncomingFundNotifier::newBlock()
@@ -201,9 +198,7 @@ AutoMintSparkModel::AutoMintSparkModel(
 
 AutoMintSparkModel::~AutoMintSparkModel()
 {
-    delete autoMintSparkCheckTimer;
-
-    autoMintSparkCheckTimer = nullptr;
+    // autoMintSparkCheckTimer is owned by QObject parent (this), no manual delete needed
 }
 
 bool AutoMintSparkModel::isSparkAnonymizing() const

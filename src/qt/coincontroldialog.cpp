@@ -636,10 +636,10 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     QLabel *l8 = dialog->findChild<QLabel *>("labelCoinControlChange");
 
     // enable/disable "dust" and "change"
-    dialog->findChild<QLabel *>("labelCoinControlLowOutputText")->setEnabled(nPayAmount > 0);
-    dialog->findChild<QLabel *>("labelCoinControlLowOutput")    ->setEnabled(nPayAmount > 0);
-    dialog->findChild<QLabel *>("labelCoinControlChangeText")   ->setEnabled(nPayAmount > 0);
-    dialog->findChild<QLabel *>("labelCoinControlChange")       ->setEnabled(nPayAmount > 0);
+    if (QLabel *w = dialog->findChild<QLabel *>("labelCoinControlLowOutputText")) w->setEnabled(nPayAmount > 0);
+    if (QLabel *w = dialog->findChild<QLabel *>("labelCoinControlLowOutput"))     w->setEnabled(nPayAmount > 0);
+    if (QLabel *w = dialog->findChild<QLabel *>("labelCoinControlChangeText"))    w->setEnabled(nPayAmount > 0);
+    if (QLabel *w = dialog->findChild<QLabel *>("labelCoinControlChange"))        w->setEnabled(nPayAmount > 0);
 
     // stats
     l1->setText(QString::number(nQuantity));                                 // Quantity

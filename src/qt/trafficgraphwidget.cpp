@@ -126,8 +126,10 @@ void TrafficGraphWidget::updateRates()
 
     quint64 bytesIn = clientModel->getTotalBytesRecv(),
             bytesOut = clientModel->getTotalBytesSent();
-    float inRate = (bytesIn - nLastBytesIn) / 1024.0f * 1000 / timer->interval();
-    float outRate = (bytesOut - nLastBytesOut) / 1024.0f * 1000 / timer->interval();
+    int interval = timer->interval();
+    if (interval <= 0) return;
+    float inRate = (bytesIn - nLastBytesIn) / 1024.0f * 1000 / interval;
+    float outRate = (bytesOut - nLastBytesOut) / 1024.0f * 1000 / interval;
     vSamplesIn.push_front(inRate);
     vSamplesOut.push_front(outRate);
     nLastBytesIn = bytesIn;

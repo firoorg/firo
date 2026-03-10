@@ -107,7 +107,7 @@ class MigrateLelantusToSparkDialog : public QMessageBox
 {
     Q_OBJECT
 private:
-    bool clickedButton;
+    bool clickedButton = true;
     WalletModel *model;
 public:
     MigrateLelantusToSparkDialog(WalletModel *model);

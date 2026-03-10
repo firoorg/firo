@@ -97,7 +97,7 @@ QString dateTimeStr(const QDateTime &date)
 
 QString dateTimeStr(qint64 nTime)
 {
-    return dateTimeStr(QDateTime::fromSecsSinceEpoch((qint32)nTime));
+    return dateTimeStr(QDateTime::fromSecsSinceEpoch(nTime));
 }
 
 QFont fixedPitchFont()
@@ -226,7 +226,7 @@ bool parseBitcoinURI(QString uri, SendCoinsRecipient *out)
     //    which will lower-case it (and thus invalidate the address).
     if(uri.startsWith("firo://", Qt::CaseInsensitive))
     {
-        uri.replace(0, 10, "firo:");
+        uri.replace(0, 7, "firo:");
     }
     QUrl uriInstance(uri);
     return parseBitcoinURI(uriInstance, out);

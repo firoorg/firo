@@ -15,6 +15,8 @@
 WalletFrame::WalletFrame(const PlatformStyle *_platformStyle, BitcoinGUI *_gui) :
     QFrame(_gui),
     gui(_gui),
+    clientModel(nullptr),
+    bOutOfSync(false),
     platformStyle(_platformStyle)
 {
     // Leave HBox hook for adding a list view later
@@ -83,14 +85,17 @@ bool WalletFrame::removeWallet(const QString &name)
 
     WalletView *walletView = mapWalletViews.take(name);
     walletStack->removeWidget(walletView);
+    walletView->deleteLater();
     return true;
 }
 
 void WalletFrame::removeAllWallets()
 {
     QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i) {
         walletStack->removeWidget(i.value());
+        i.value()->deleteLater();
+    }
     mapWalletViews.clear();
 }
 

@@ -38,10 +38,10 @@ Recover::Recover(QWidget *parent) :
 
 Recover::~Recover()
 {
-    delete ui;
-    /* Ensure thread is finished before it is deleted */
+    /* Ensure thread is finished before deleting ui */
     Q_EMIT stopThread();
     thread->wait();
+    delete ui;
 }
 
 void Recover::setCreateNew()
@@ -116,12 +116,12 @@ bool Recover::askRecover(bool& newWallet)
 
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
-                    std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
+                    QByteArray mnemonicBytes = recover.ui->mnemonicWords->text().toUtf8();
                     QDate date = recover.ui->dateInput->date();
                     QDate newDate = date.addDays(-1);
                     recover.ui->dateInput->setDate(newDate);
                     SoftSetArg("-wcdate", recover.ui->dateInput->text().toStdString());
-                    const char* str = mnemonic.c_str();
+                    const char* str = mnemonicBytes.constData();
                     bool space = true;
                     int n = 0;
 
@@ -141,41 +141,47 @@ bool Recover::askRecover(bool& newWallet)
 
                     if((n == 12 && !use12) || (n != 24 && n != 12) || (n != 12 && use12)) {
                         recover.ui->errorMessage->setText(tr("Wrong number of words. Please try again."));
+                        mnemonicBytes.fill('\0');
                         continue;
                     }
 
-                    if(mnemonic.empty()) {
+                    if(mnemonicBytes.isEmpty()) {
                         recover.ui->errorMessage->setText("Recovery seed phrase can't be empty.");
                         continue;
                     }
 
-                    SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
+                    SecureString secmnemonic(mnemonicBytes.constData(), mnemonicBytes.constData() + mnemonicBytes.size());
+                    mnemonicBytes.fill('\0');
                     if(!Mnemonic::mnemonic_check(secmnemonic)){
                         recover.ui->errorMessage->setText(tr("You have entered an invalid recovery seed phrase. Please double check the spelling and order."));
                         continue;
                     }
 
-                    SoftSetArg("-mnemonic", mnemonic);
+                    SoftSetArg("-mnemonic", std::string(secmnemonic.begin(), secmnemonic.end()));
                 } else {
                     newWallet = true;
                     SoftSetBoolArg("-newwallet", newWallet);
                 }
 
                 if(recover.ui->usePassphrase->isChecked()) {
-                    std::string mnemonicPassPhrase = recover.ui->mnemonicPassPhrase->text().toStdString();
-                    std::string mnemonicPassPhrase2 = recover.ui->mnemonicPassPhrase2->text().toStdString();
+                    QByteArray passBytes1 = recover.ui->mnemonicPassPhrase->text().toUtf8();
+                    QByteArray passBytes2 = recover.ui->mnemonicPassPhrase2->text().toUtf8();
 
-                    if(mnemonicPassPhrase != mnemonicPassPhrase2) {
+                    if(passBytes1 != passBytes2) {
                         recover.ui->errorMessage->setText(tr("Passphrases don't match."));
+                        passBytes1.fill('\0');
+                        passBytes2.fill('\0');
                         continue;
                     }
 
-                    if(mnemonicPassPhrase.empty()) {
+                    if(passBytes1.isEmpty()) {
                         recover.ui->errorMessage->setText(tr("Passphrase can't be empty."));
                         continue;
                     }
 
-                    SoftSetArg("-mnemonicpassphrase", mnemonicPassPhrase);
+                    SoftSetArg("-mnemonicpassphrase", std::string(passBytes1.constData(), passBytes1.size()));
+                    passBytes1.fill('\0');
+                    passBytes2.fill('\0');
                 }
 
                 if(use12)

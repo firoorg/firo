@@ -72,7 +72,12 @@ public:
     {
         bool valid = false;
         CAmount val = value(&valid);
-        val = val + steps * singleStep;
+        if (steps > 0 && singleStep > 0 && steps > (BitcoinUnits::maxMoney() - val) / singleStep)
+            val = BitcoinUnits::maxMoney();
+        else if (steps < 0 && singleStep > 0 && (-steps) > val / singleStep)
+            val = 0;
+        else
+            val = val + steps * singleStep;
         val = qMin(qMax(val, CAmount(0)), BitcoinUnits::maxMoney());
         setValue(val);
     }

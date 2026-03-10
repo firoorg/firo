@@ -24,12 +24,15 @@
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
 
-AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
+AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),
+    platformStyle(_platformStyle),
     model(0),
     mode(_mode),
-    tab(_tab)
+    tab(_tab),
+    proxyModel(0),
+    fproxyModel(0)
 {
     ui->setupUi(this);
     this->isReused = isReused;
@@ -426,7 +429,8 @@ void AddressBookPage::chooseAddressType(int idx)
 }
 
 AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :
-    QSortFilterProxyModel(parent)
+    QSortFilterProxyModel(parent),
+    typeFilter(0)
 {
 }
 

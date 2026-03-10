@@ -42,6 +42,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     walletModel(0),
     overviewPage(0),
     firoTransactionsView(0),
+    progressDialog(nullptr),
     platformStyle(_platformStyle)
 {
     overviewPage = new OverviewPage(platformStyle);
@@ -168,8 +169,10 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     receiveCoinsPage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
-    usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
-    usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
+    if (_walletModel) {
+        usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
+        usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
+    }
     masternodeListPage->setWalletModel(_walletModel);
     sendFiroView->setModel(_walletModel);
     automintSparkNotification->setModel(_walletModel);
@@ -306,6 +309,8 @@ void WalletView::showOutOfSyncWarning(bool fShow)
 
 void WalletView::updateEncryptionStatus()
 {
+    if (!walletModel)
+        return;
     Q_EMIT encryptionStatusChanged(walletModel->getEncryptionStatus());
 }
 
@@ -341,7 +346,12 @@ void WalletView::backupWallet()
 
 void WalletView::exportViewKey()
 {
-    ExportViewKeyDialog dlg(this, walletModel->getWallet()->GetSparkViewKeyStr());
+    if (!walletModel)
+        return;
+    auto wallet = walletModel->getWallet();
+    if (!wallet)
+        return;
+    ExportViewKeyDialog dlg(this, wallet->GetSparkViewKeyStr());
     dlg.exec();
 }
 
@@ -421,6 +431,8 @@ void WalletView::requestedSyncWarningInfo()
 
 void WalletView::showAutomintSparkNotification()
 {
+    if (!walletModel)
+        return;
     auto sparkModel = walletModel->getSparkModel();
     auto wallet = walletModel->getWallet();
    if (!sparkModel || !wallet || !wallet->sparkWallet) {

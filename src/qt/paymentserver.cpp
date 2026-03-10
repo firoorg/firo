@@ -260,9 +260,14 @@ void PaymentServer::handleURIOrFile(const QString& s)
 void PaymentServer::handleURIConnection()
 {
     QLocalSocket *clientConnection = uriServer->nextPendingConnection();
+    if (!clientConnection)
+        return;
 
     while (clientConnection->bytesAvailable() < (int)sizeof(quint32))
-        clientConnection->waitForReadyRead();
+        if (!clientConnection->waitForReadyRead(2000)) {
+            clientConnection->deleteLater();
+            return;
+        }
 
     connect(clientConnection, &QLocalSocket::disconnected, clientConnection, &QLocalSocket::deleteLater);
 

@@ -352,7 +352,7 @@ void TransactionView::changedAmount(const QString &amount)
     if(!transactionProxyModel)
         return;
     CAmount amount_parsed = 0;
-    if(BitcoinUnits::parse(model->getOptionsModel()->getDisplayUnit(), amount, &amount_parsed))
+    if(model && model->getOptionsModel() && BitcoinUnits::parse(model->getOptionsModel()->getDisplayUnit(), amount, &amount_parsed))
     {
         transactionProxyModel->setMinAmount(amount_parsed);
     }
@@ -445,6 +445,8 @@ void TransactionView::abandonTx()
     if(!transactionView || !transactionView->selectionModel())
         return;
     QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
+    if(selection.isEmpty())
+        return;
 
     // get the hash from the TxHashRole (QVariant / QString)
     uint256 hash;
@@ -463,6 +465,8 @@ void TransactionView::rebroadcastTx()
     if(!transactionView || !transactionView->selectionModel())
         return;
     QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
+    if(selection.isEmpty())
+        return;
 
     // get the hash from the TxHashRole (QVariant / QString)
     uint256 hash;

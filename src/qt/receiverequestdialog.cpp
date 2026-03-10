@@ -90,7 +90,8 @@ void QRImageWidget::contextMenuEvent(QContextMenuEvent *event)
 ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ReceiveRequestDialog),
-    model(0)
+    model(0),
+    walletModel(0)
 {
     ui->setupUi(this);
 
@@ -116,6 +117,11 @@ void ReceiveRequestDialog::setModel(OptionsModel *_model)
 
     // update the display unit if necessary
     update();
+}
+
+void ReceiveRequestDialog::setWalletModel(WalletModel *_walletModel)
+{
+    this->walletModel = _walletModel;
 }
 
 void ReceiveRequestDialog::setInfo(const SendCoinsRecipient &_info)
@@ -146,11 +152,11 @@ void ReceiveRequestDialog::update()
         html += "<b>"+tr("Amount")+"</b>: " + BitcoinUnits::formatHtmlWithUnit(model->getDisplayUnit(), info.amount) + "<br>";
     if(!info.label.isEmpty())
         html += "<b>"+tr("Label")+"</b>: " + GUIUtil::HtmlEscape(info.label) + "<br>";
-    if(walletModel->validateAddress(info.address))
+    if(walletModel && walletModel->validateAddress(info.address))
     {
         html += "<b>"+tr("Address Type")+"</b>: " + tr("transparent") + "<br>";
     }
-    else if(walletModel->validateSparkAddress(info.address))
+    else if(walletModel && walletModel->validateSparkAddress(info.address))
     {
         html += "<b>"+tr("Address Type")+"</b>: " + tr("spark") + "<br>";
     }
