@@ -38,10 +38,10 @@ Recover::Recover(QWidget *parent) :
 
 Recover::~Recover()
 {
-    delete ui;
-    /* Ensure thread is finished before it is deleted */
+    /* Ensure thread is finished before deleting ui */
     Q_EMIT stopThread();
     thread->wait();
+    delete ui;
 }
 
 void Recover::setCreateNew()

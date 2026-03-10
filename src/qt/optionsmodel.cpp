@@ -93,6 +93,9 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fLelantusPage", false);
     fLelantusPage = settings.value("fLelantusPage", false).toBool();
 
+    if (!settings.contains("fenableRapAddresses"))
+        settings.setValue("fenableRapAddresses", false);
+    fenableRapAddresses = settings.value("fenableRapAddresses", false).toBool();
 
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.

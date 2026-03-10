@@ -18,7 +18,8 @@
 
 CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::CreateSparkNamePage)
+    ui(new Ui::CreateSparkNamePage),
+    model(nullptr)
 {
     ui->setupUi(this);
 
@@ -63,6 +64,8 @@ void CreateSparkNamePage::on_numberOfYearsEdit_valueChanged(int value)
 
 void CreateSparkNamePage::accept()
 {
+    if (!model)
+        return;
     if (!model->sparkNamesAllowed()) {
         QMessageBox::critical(this, tr("Error"), tr("Spark names are not yet allowed"));
         return;
@@ -108,7 +111,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         sparkNameData.name = name;
         sparkNameData.sparkAddress = address;
         sparkNameData.additionalInfo = additionalInfo;
-        sparkNameData.sparkNameValidityBlocks = numberOfYears*365*24*24;
+        sparkNameData.sparkNameValidityBlocks = numberOfYears*365*24*12;
 
         std::string strError;
 
