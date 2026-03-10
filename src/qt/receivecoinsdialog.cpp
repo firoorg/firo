@@ -213,10 +213,13 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
 
 void ReceiveCoinsDialog::on_recentRequestsView_doubleClicked(const QModelIndex &index)
 {
+    if (!model || !recentRequestsProxyModel)
+        return;
     QModelIndex targetIdx = recentRequestsProxyModel->mapToSource(index);
     const RecentRequestsTableModel *submodel = model->getRecentRequestsTableModel();
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
     dialog->setModel(model->getOptionsModel());
+    dialog->setWalletModel(model);
     dialog->setInfo(submodel->entry(targetIdx.row()).recipient);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
@@ -289,7 +292,8 @@ void ReceiveCoinsDialog::copyColumnToClipboard(int column)
     if (!firstIndex.isValid()) {
         return;
     }
-    GUIUtil::setClipboard(model->getRecentRequestsTableModel()->index(firstIndex.row(), column).data(Qt::EditRole).toString());
+    QModelIndex sourceIndex = recentRequestsProxyModel->mapToSource(firstIndex);
+    GUIUtil::setClipboard(model->getRecentRequestsTableModel()->index(sourceIndex.row(), column).data(Qt::EditRole).toString());
 }
 
 // context menu
@@ -309,8 +313,9 @@ void ReceiveCoinsDialog::copyURI()
         return;
     }
 
+    QModelIndex sourceIndex = recentRequestsProxyModel->mapToSource(sel);
     const RecentRequestsTableModel * const submodel = model->getRecentRequestsTableModel();
-    const QString uri = GUIUtil::formatBitcoinURI(submodel->entry(sel.row()).recipient);
+    const QString uri = GUIUtil::formatBitcoinURI(submodel->entry(sourceIndex.row()).recipient);
     GUIUtil::setClipboard(uri);
 }
 

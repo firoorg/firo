@@ -54,6 +54,7 @@ public:
     ~ReceiveRequestDialog();
 
     void setModel(OptionsModel *model);
+    void setWalletModel(WalletModel *model);
     void setInfo(const SendCoinsRecipient &info);
 
 private Q_SLOTS:
