@@ -303,6 +303,8 @@ void TransactionTableModel::updateConfirmations()
     // Invalidate status (number of confirmations) and (possibly) description
     //  for all rows. Qt is smart enough to only actually request the data for the
     //  visible rows.
+    if (priv->size() == 0)
+        return;
     int numRows = std::min(100, priv->size()-1);
     Q_EMIT dataChanged(index(0, Status), index(numRows, Status));
     Q_EMIT dataChanged(index(0, ToAddress), index(numRows, ToAddress));
@@ -407,7 +409,9 @@ namespace {
             pcodeDesc = wallet->FindPcode(bip47::CPaymentCode(pcode));
         } catch (std::runtime_error const &)
         {}
-        result = QString::fromStdString(std::get<2>(*pcodeDesc));
+        if(pcodeDesc) {
+            result = QString::fromStdString(std::get<2>(*pcodeDesc));
+        }
         if(result.isEmpty())
             result = QString::fromStdString(pcode);
         return result;
@@ -613,7 +617,7 @@ QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord *wtx)
         return QIcon(":/icons/transaction_conflicted");
     case TransactionStatus::Immature: {
         int total = wtx->status.depth + wtx->status.matures_in;
-        int part = (wtx->status.depth * 4 / total) + 1;
+        int part = (total > 0) ? (wtx->status.depth * 4 / total) + 1 : 1;
         return QIcon(QString(":/icons/transaction_%1").arg(part));
         }
     case TransactionStatus::MaturesWarning:
@@ -891,10 +895,14 @@ static std::vector< TransactionNotification > vQueueNotifications;
 static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet, const uint256 &hash, ChangeType status)
 {
     // Find transaction in wallet
-    std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
-    // Determine whether to show transaction or not (determine this here so that no relocking is needed in GUI thread)
-    bool inWallet = mi != wallet->mapWallet.end();
-    bool showTransaction = (inWallet && TransactionRecord::showTransaction(mi->second));
+    bool inWallet;
+    bool showTransaction;
+    {
+        LOCK(wallet->cs_wallet);
+        std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
+        inWallet = mi != wallet->mapWallet.end();
+        showTransaction = (inWallet && TransactionRecord::showTransaction(mi->second));
+    }
 
     TransactionNotification notification(hash, status, showTransaction);
 
