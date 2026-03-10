@@ -423,7 +423,8 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     platformStyle(_platformStyle),
     peersTableContextMenu(0),
     banTableContextMenu(0),
-    consoleFontSize(0)
+    consoleFontSize(0),
+    autoCompleter(0)
 {
     ui->setupUi(this);
     QSettings settings;
@@ -510,7 +511,7 @@ bool RPCConsole::eventFilter(QObject* obj, QEvent *event)
         case Qt::Key_Return:
         case Qt::Key_Enter:
             // forward these events to lineEdit
-            if(obj == autoCompleter->popup()) {
+            if(autoCompleter && obj == autoCompleter->popup()) {
                 QApplication::postEvent(ui->lineEdit, new QKeyEvent(
                     keyevt->type(),
                     keyevt->key(),
@@ -706,7 +707,8 @@ void RPCConsole::setFontSize(int newSize)
     settings.setValue(fontSizeSettingsKey, consoleFontSize);
 
     // clear console (reset icon sizes, default stylesheet) and re-add the content
-    float oldPosFactor = 1.0 / ui->messagesWidget->verticalScrollBar()->maximum() * ui->messagesWidget->verticalScrollBar()->value();
+    int scrollMax = ui->messagesWidget->verticalScrollBar()->maximum();
+    float oldPosFactor = scrollMax > 0 ? (float)ui->messagesWidget->verticalScrollBar()->value() / scrollMax : 0.0f;
     clear(false);
     ui->messagesWidget->setHtml(str);
     ui->messagesWidget->verticalScrollBar()->setValue(oldPosFactor * ui->messagesWidget->verticalScrollBar()->maximum());
@@ -803,6 +805,8 @@ void RPCConsole::setNumConnections(int count)
 
 void RPCConsole::setNetworkActive(bool networkActive)
 {
+    if (!clientModel)
+        return;
     updateNetworkState();
 }
 
@@ -977,7 +981,8 @@ void RPCConsole::peerLayoutAboutToChange()
     for(int i = 0; i < selected.size(); i++)
     {
         const CNodeCombinedStats *stats = clientModel->getPeerTableModel()->getNodeStats(selected.at(i).row());
-        cachedNodeids.append(stats->nodeStats.nodeid);
+        if (stats)
+            cachedNodeids.append(stats->nodeStats.nodeid);
     }
 }
 

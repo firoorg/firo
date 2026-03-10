@@ -187,6 +187,11 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashSc
 //    unsubscribeFromCoreSignals();
 //}
 
+SplashScreen::~SplashScreen()
+{
+    unsubscribeFromCoreSignals();
+}
+
 void SplashScreen::slotFinish(QWidget *mainWin)
 {
     Q_UNUSED(mainWin);

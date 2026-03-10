@@ -816,6 +816,8 @@ void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 
 void BitcoinGUI::updateNetworkState()
 {
+    if (!clientModel)
+        return;
     int count = clientModel->getNumConnections();
     QString icon;
     switch(count)
@@ -1298,6 +1300,7 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
         {
             progressDialog->close();
             progressDialog->deleteLater();
+            progressDialog = nullptr;
         }
     }
     else if (progressDialog)
@@ -1443,7 +1446,7 @@ void UnitDisplayStatusBarControl::onDisplayUnitsClicked(const QPoint& point)
 /** Tells underlying optionsModel to update its current display unit. */
 void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
 {
-    if (action)
+    if (action && optionsModel)
     {
         optionsModel->setDisplayUnit(action->data());
     }
