@@ -465,7 +465,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-maxsendbuffer=<n>", strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"), DEFAULT_MAXSENDBUFFER));
     strUsage += HelpMessageOpt("-maxtimeadjustment", strprintf(_("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)"), DEFAULT_MAX_TIME_ADJUSTMENT));
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
-    strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"));
+    strUsage += HelpMessageOpt("-onlynet=<net>", _("Make automatic outbound connections only to network <net> (ipv4, ipv6 or onion). Can be specified multiple times to allow multiple networks."));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), Params(CBaseChainParams::MAIN).GetDefaultPort(), Params(CBaseChainParams::TESTNET).GetDefaultPort()));
@@ -1529,17 +1529,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
-    if (mapMultiArgs.count("-onlynet")) {
-        std::set<enum Network> nets;
+    bool fOnlyNet = mapMultiArgs.count("-onlynet");
+    std::set<enum Network> onlyNetNets;
+    if (fOnlyNet) {
         BOOST_FOREACH(const std::string& snet, mapMultiArgs.at("-onlynet")) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
-            nets.insert(net);
+            onlyNetNets.insert(net);
         }
         for (int n = 0; n < NET_MAX; n++) {
             enum Network net = (enum Network)n;
-            if (!nets.count(net))
+            if (!onlyNetNets.count(net))
                 SetLimited(net);
         }
     }
@@ -1566,9 +1567,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
         SetProxy(NET_ONION, addrProxy);
-        SetLimited(NET_IPV4, false);
-        SetLimited(NET_IPV6, false);
-        SetLimited(NET_ONION, false);
+        if (!fOnlyNet || onlyNetNets.count(NET_IPV4))
+            SetLimited(NET_IPV4, false);
+        if (!fOnlyNet || onlyNetNets.count(NET_IPV6))
+            SetLimited(NET_IPV6, false);
+        if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+            SetLimited(NET_ONION, false);
     }
 
     bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
@@ -1577,7 +1581,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string proxyArg = GetArg("-proxy", "");
     // Only set NET_ONION as limited by default if -onlynet was not specified.
     // If -onlynet was specified, the network limitations have already been set correctly above.
-    if (!mapMultiArgs.count("-onlynet")) {
+    if (!fOnlyNet) {
         SetLimited(NET_ONION);
     }
     if (proxyArg != "" && proxyArg != "0") {
@@ -1590,7 +1594,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         SetProxy(NET_IPV6, addrProxy);
         SetProxy(NET_ONION, addrProxy);
         SetNameProxy(addrProxy);
-        SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
+        if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+            SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
     }
 
     // -onion can be used to set only a proxy for .onion, or override normal proxy for .onion addresses
@@ -1606,21 +1611,15 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             if (!addrOnion.IsValid())
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
             SetProxy(NET_ONION, addrOnion);
-            SetLimited(NET_ONION, false);
+            if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+                SetLimited(NET_ONION, false);
         }
     }
 
     // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
     // This check is similar to Bitcoin Core's approach to provide a helpful error message.
-    if (mapMultiArgs.count("-onlynet")) {
-        bool onlynetIncludesOnion = false;
-        for (const std::string& snet : mapMultiArgs.at("-onlynet")) {
-            if (ParseNetwork(snet) == NET_ONION) {
-                onlynetIncludesOnion = true;
-                break;
-            }
-        }
-        if (onlynetIncludesOnion) {
+    if (fOnlyNet) {
+        if (onlyNetNets.count(NET_ONION)) {
             proxyType onionProxy;
             bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
             if (!haveOnionProxy && !torEnabled) {
