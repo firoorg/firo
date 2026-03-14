@@ -178,6 +178,10 @@ public:
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
     void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
 
+    // Build a fee output scriptPubKey tagged with spark name and address (for v2.1+).
+    // Falls back to a plain P2PKH script if the current height is before nSparkNamesV21StartBlock.
+    static CScript GetSparkNameFeeScript(const std::string &feeAddress, const std::string &sparkName, const std::string &sparkAddress);
+
     // add and remove spark name
     bool AddSparkName(const std::string &name, const std::string &address, uint32_t validityBlocks, const std::string &additionalInfo);
     bool RemoveSparkName(const std::string &name, const std::string &address);

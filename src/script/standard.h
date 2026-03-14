@@ -59,7 +59,8 @@ enum txnouttype
     TX_LELANTUSJMINT,
     TX_SPARKMINT,
     TX_SPARKSMINT,
-    TX_EXCHANGEADDRESS
+    TX_EXCHANGEADDRESS,
+    TX_SPARKNAMEFEE
 };
 
 class CNoDestination {
@@ -85,6 +86,9 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
 bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet);
 
 CScript GetScriptForDestination(const CTxDestination& dest);
+CScript GetScriptForSparkNameFee(const CTxDestination& dest, const std::string& sparkName, const std::string& sparkAddress);
+bool ExtractSparkNameFromScript(const CScript& scriptPubKey, std::string& sparkName, std::string& sparkAddress);
+CScript GetBaseScriptFromSparkNameFee(const CScript& scriptPubKey);
 CScript GetScriptForRawPubKey(const CPubKey& pubkey);
 CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
 CScript GetScriptForWitness(const CScript& redeemscript);

@@ -55,6 +55,9 @@ public:
 
     void setModel(AddressTableModel *model);
     const QString &getReturnValue() const { return returnValue; }
+    const QString &getReturnLabel() const { return returnLabel; }
+
+    void setInitialAddressType(AddressTypeEnum type);
 
     void updateSpark();
 
@@ -68,6 +71,8 @@ private:
     Mode mode;
     Tabs tab;
     QString returnValue;
+    QString returnLabel;
+    int initialAddressType;
     QSortFilterProxyModel *proxyModel;
     AddressBookFilterProxy *fproxyModel;
     QMenu *contextMenu;
@@ -81,6 +86,8 @@ private Q_SLOTS:
     void on_deleteAddress_clicked();
     /** Create a new address for receiving coins and / or add a new address book entry */
     void on_newAddress_clicked();
+    /** Extend address expiration date (spark names only) */
+    void on_extendAddress_clicked();
     /** Copy address of currently selected address entry to clipboard */
     void on_copyAddress_clicked();
     /** Copy label of currently selected address entry to clipboard (no button) */

@@ -353,6 +353,10 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // otherwise NOOP
                     break;
 
+                case OP_SPARKNAMEID:
+                    // NOP - used only to tag fee outputs with spark name data
+                    break;
+
                 case OP_CHECKLOCKTIMEVERIFY:
                 {
                     if (!(flags & SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY)) {

@@ -38,6 +38,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_SPARKMINT: return "sparkmint";
     case TX_SPARKSMINT: return "sparksmint";
     case TX_EXCHANGEADDRESS: return "exchangeaddress";
+    case TX_SPARKNAMEFEE: return "sparknamefee";
     }
     return NULL;
 }
@@ -88,6 +89,15 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::v
     {
         typeRet = TX_EXCHANGEADDRESS;
         std::vector<unsigned char> hashBytes(scriptPubKey.begin()+4, scriptPubKey.begin()+24);
+        vSolutionsRet.push_back(hashBytes);
+        return true;
+    }
+
+    // Spark name fee: P2PKH + OP_SPARKNAMEID <name> OP_DROP <sparkaddr> OP_DROP
+    if (scriptPubKey.IsSparkNameFee())
+    {
+        typeRet = TX_SPARKNAMEFEE;
+        std::vector<unsigned char> hashBytes(scriptPubKey.begin()+3, scriptPubKey.begin()+23);
         vSolutionsRet.push_back(hashBytes);
         return true;
     }
@@ -283,6 +293,11 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
         addressRet = CExchangeKeyID(uint160(vSolutions[0]));
         return true;
     }
+    else if (whichType == TX_SPARKNAMEFEE)
+    {
+        addressRet = CKeyID(uint160(vSolutions[0]));
+        return true;
+    }
     else if (whichType == TX_SCRIPTHASH)
     {
         addressRet = CScriptID(uint160(vSolutions[0]));
@@ -372,6 +387,51 @@ CScript GetScriptForDestination(const CTxDestination& dest)
 
     boost::apply_visitor(CScriptVisitor(&script), dest);
     return script;
+}
+
+CScript GetScriptForSparkNameFee(const CTxDestination& dest, const std::string& sparkName, const std::string& sparkAddress)
+{
+    CScript script = GetScriptForDestination(dest);
+    script << OP_SPARKNAMEID;
+    script << std::vector<unsigned char>(sparkName.begin(), sparkName.end());
+    script << OP_DROP;
+    script << std::vector<unsigned char>(sparkAddress.begin(), sparkAddress.end());
+    script << OP_DROP;
+    return script;
+}
+
+bool ExtractSparkNameFromScript(const CScript& scriptPubKey, std::string& sparkName, std::string& sparkAddress)
+{
+    if (!scriptPubKey.IsSparkNameFee())
+        return false;
+
+    CScript::const_iterator pc = scriptPubKey.begin() + 26; // skip P2PKH (25 bytes) + OP_SPARKNAMEID (1 byte)
+    std::vector<unsigned char> nameData;
+    opcodetype opcode;
+
+    if (!scriptPubKey.GetOp(pc, opcode, nameData))
+        return false;
+    if (pc >= scriptPubKey.end() || *pc != OP_DROP)
+        return false;
+    ++pc; // skip OP_DROP
+
+    std::vector<unsigned char> addrData;
+    if (!scriptPubKey.GetOp(pc, opcode, addrData))
+        return false;
+    if (pc >= scriptPubKey.end() || *pc != OP_DROP)
+        return false;
+
+    sparkName.assign(nameData.begin(), nameData.end());
+    sparkAddress.assign(addrData.begin(), addrData.end());
+    return true;
+}
+
+CScript GetBaseScriptFromSparkNameFee(const CScript& scriptPubKey)
+{
+    if (!scriptPubKey.IsSparkNameFee())
+        return scriptPubKey;
+    // The first 25 bytes are the standard P2PKH script
+    return CScript(scriptPubKey.begin(), scriptPubKey.begin() + 25);
 }
 
 CScript GetScriptForRawPubKey(const CPubKey& pubKey)
