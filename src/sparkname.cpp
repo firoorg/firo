@@ -225,17 +225,23 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (!payoutFound)
         return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
 
-    // After v2.1, validate that any spark name fee output contains matching spark name data
+    // After v2.1, the fee output must carry the spark name and address, and they must match the tx data
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+        bool fFoundTaggedFeeOutput = false;
         for (const CTxOut &txout : tx.vout) {
             if (txout.scriptPubKey.IsSparkNameFee()) {
                 std::string embeddedName, embeddedAddress;
                 if (!ExtractSparkNameFromScript(txout.scriptPubKey, embeddedName, embeddedAddress))
                     return state.DoS(100, error("CheckSparkNameTx: malformed spark name fee output"));
-                if (embeddedName != sparkNameData.name || embeddedAddress != sparkNameData.sparkAddress)
-                    return state.DoS(100, error("CheckSparkNameTx: spark name fee output data mismatch"));
+                if (embeddedName != sparkNameData.name)
+                    return state.DoS(100, error("CheckSparkNameTx: spark name in fee output does not match transaction data"));
+                if (embeddedAddress != sparkNameData.sparkAddress)
+                    return state.DoS(100, error("CheckSparkNameTx: spark address in fee output does not match transaction data"));
+                fFoundTaggedFeeOutput = true;
             }
         }
+        if (!fFoundTaggedFeeOutput)
+            return state.DoS(100, error("CheckSparkNameTx: spark name fee output with name/address tag is required after v2.1"));
     }
 
     if (sparkNameData.additionalInfo.size() > 1024)
