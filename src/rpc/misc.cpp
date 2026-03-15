@@ -2326,6 +2326,7 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false,        {} },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false,        {} },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false,        {} },
+    { "addressindex",       "getspentinfo",           &getspentinfo,           false,        {} },
 
     /* Znode features */
     { "firo",              "znsync",                 &mnsync,                 true,           {} },
