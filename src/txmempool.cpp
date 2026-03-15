@@ -518,6 +518,10 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 {
     NotifyEntryRemoved(it->GetSharedTx(), reason);
     const uint256 hash = it->GetTx().GetHash();
+
+    removeAddressIndex(hash);
+    removeSpentIndex(hash);
+
     if (!it->GetTx().HasPrivateInputs()) {
         LogPrintf("removeUnchecked txHash=%s (no private inputs)\n", hash.ToString());
         BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
