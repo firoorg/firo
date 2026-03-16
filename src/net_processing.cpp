@@ -1193,14 +1193,17 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     uint256 dandelionServiceDiscoveryHash;
                     dandelionServiceDiscoveryHash.SetHex(
                             "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-                    if (txinfo.tx && !CNode::isDandelionInbound(pfrom) &&
-                            pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {                                
-                        connman.PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::DANDELIONTX, *txinfo.tx));
-                        push = true;
-                    } else if (inv.hash == dandelionServiceDiscoveryHash &&
-                               pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
-                        pfrom->fSupportsDandelion = true;
-                        push = true;
+                    {
+                        LOCK(pfrom->cs_inventory);
+                        if (txinfo.tx && !CNode::isDandelionInbound(pfrom) &&
+                                pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
+                            connman.PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::DANDELIONTX, *txinfo.tx));
+                            push = true;
+                        } else if (inv.hash == dandelionServiceDiscoveryHash &&
+                                   pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
+                            pfrom->fSupportsDandelion = true;
+                            push = true;
+                        }
                     }
                 }
                 if (!push) {
@@ -1910,8 +1913,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             else if (inv.type == MSG_DANDELION_TX) {
-                fAlreadyHave = pfrom->filterDandelionInventoryKnown.contains(inv.hash);
-                pfrom->filterDandelionInventoryKnown.insert(inv.hash);
+                {
+                    LOCK(pfrom->cs_inventory);
+                    fAlreadyHave = pfrom->filterDandelionInventoryKnown.contains(inv.hash);
+                    pfrom->filterDandelionInventoryKnown.insert(inv.hash);
+                }
                 uint256 dandelionServiceDiscoveryHash;
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -3610,21 +3616,24 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
             pto->vInventoryBlockToSend.clear();
 
             // Add Dandelion transactions
-            for (const uint256& hash : pto->vInventoryDandelionTxToSend) {
-                pto->filterDandelionInventoryKnown.insert(hash);
-                uint256 dandelionServiceDiscoveryHash;
-                dandelionServiceDiscoveryHash.SetHex(
-                    "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-                if (!pto->fSupportsDandelion && hash != dandelionServiceDiscoveryHash) {
-                    //LogPrintf("Pushing transaction MSG_TX %s to %s.",
-                    //          hash.ToString(), pto->addr.ToString());
-                    vInv.push_back(CInv(MSG_TX, hash));
-                } else {
-                    vInv.push_back(CInv(MSG_DANDELION_TX, hash));
-                }
-                if (vInv.size() == MAX_INV_SZ) {
-                        connman.PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
-                    vInv.clear();
+            {
+                LOCK(pto->cs_inventory);
+                for (const uint256& hash : pto->vInventoryDandelionTxToSend) {
+                    pto->filterDandelionInventoryKnown.insert(hash);
+                    uint256 dandelionServiceDiscoveryHash;
+                    dandelionServiceDiscoveryHash.SetHex(
+                            "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+                    if (!pto->fSupportsDandelion && hash != dandelionServiceDiscoveryHash) {
+                        //LogPrintf("Pushing transaction MSG_TX %s to %s.",
+                        //          hash.ToString(), pto->addr.ToString());
+                        vInv.push_back(CInv(MSG_TX, hash));
+                    } else {
+                        vInv.push_back(CInv(MSG_DANDELION_TX, hash));
+                    }
+                    if (vInv.size() == MAX_INV_SZ) {
+                            connman.PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
+                        vInv.clear();
+                    }
                 }
             }
             pto->vInventoryDandelionTxToSend.clear();
