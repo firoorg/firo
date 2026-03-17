@@ -19,7 +19,7 @@ env:
 jobs:
   get-commit-hash:
     name: Get Commit Hash String
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       short_sha: ${{ steps.short-sha.outputs.sha }}
     steps:
