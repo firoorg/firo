@@ -1,5 +1,9 @@
 #ifndef FIRO_SPARK_SPEND_TRANSACTION_H
 #define FIRO_SPARK_SPEND_TRANSACTION_H
+// Include <random> before any project headers to avoid macro conflicts in system headers (e.g. uniform_real_distribution.h)
+#include <random>
+
+#include "grootle_proof.h"
 #include "keys.h"
 #include "coin.h"
 #include "schnorr.h"

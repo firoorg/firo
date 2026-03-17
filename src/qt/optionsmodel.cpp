@@ -89,11 +89,6 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fSplit", true);
     fSplit = settings.value("fSplit", true).toBool();
 
-    if (!settings.contains("fLelantusPage"))
-        settings.setValue("fLelantusPage", false);
-    fLelantusPage = settings.value("fLelantusPage", false).toBool();
-
-
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.
     //
@@ -122,21 +117,6 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("bSpendZeroConfChange", true);
     if (!SoftSetBoolArg("-spendzeroconfchange", settings.value("bSpendZeroConfChange").toBool()))
         addOverriddenOption("-spendzeroconfchange");
-
-    if (!settings.contains("bReindexLelantus"))
-        settings.setValue("bReindexLelantus", DEFAULT_ZAP_WALLET);
-    bool reindexLelantus = settings.value("bReindexLelantus").toBool();
-    if (reindexLelantus) {
-        if (!SoftSetBoolArg("-zapwalletmints", true))
-            addOverriddenOption("-zapwalletmints");
-        if (!SoftSetBoolArg("-reindex", true))
-            addOverriddenOption("-reindex");
-        if (!SoftSetArg("-zapwallettxes", std::string("1")))
-            addOverriddenOption("-zapwallettxes");
-    }
-
-    // Reset the flag to prevent unneeded reindex,
-    settings.setValue("bReindexLelantus", false);
 
 #endif
 
@@ -269,9 +249,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
 #ifdef ENABLE_WALLET
         case SpendZeroConfChange:
             return settings.value("bSpendZeroConfChange");
-
-        case ReindexLelantus:
-            return settings.value("bReindexLelantus");
 #endif
         case DisplayUnit:
             return nDisplayUnit;
@@ -285,8 +262,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return fAutoAnonymize;
         case Split:
             return fSplit;
-        case LelantusPage:
-            return fLelantusPage;
         case DatabaseCache:
             return settings.value("nDatabaseCache");
         case ThreadsScriptVerif:
@@ -402,12 +377,6 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             }
             break;
 
-        case ReindexLelantus:
-            if (settings.value("bReindexLelantus") != value) {
-                settings.setValue("bReindexLelantus", value);
-                setRestartRequired(true);
-            }
-            break;
 #endif
         case DisplayUnit:
             setDisplayUnit(value);
@@ -438,11 +407,6 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         case Split:
             fSplit = value.toBool();
             settings.setValue("fSplit", fSplit);
-            break;
-        case LelantusPage:
-            fLelantusPage = value.toBool();
-            settings.setValue("fLelantusPage", fLelantusPage);
-            Q_EMIT lelantusPageChanged(fLelantusPage);
             break;
         case DatabaseCache:
             if (settings.value("nDatabaseCache") != value) {

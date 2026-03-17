@@ -164,7 +164,6 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->threadsScriptVerif, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     /* Wallet */
     connect(ui->spendZeroConfChange, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
-    connect(ui->reindexLelantus, &QCheckBox::clicked, this, &OptionsDialog::handleEnabledZapChanged);
     /* Network */
     connect(ui->allowIncoming, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
@@ -183,17 +182,7 @@ void OptionsDialog::setMapper()
 
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
-    mapper->addMapping(ui->reindexLelantus, OptionsModel::ReindexLelantus);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
-
-    /* Lelantus */
-    mapper->addMapping(ui->autoAnonymize, OptionsModel::AutoAnonymize);
-    mapper->addMapping(ui->fSplit, OptionsModel::Split);
-    if (!lelantus::IsLelantusAllowed()) {
-        ui->lelantusPage->setVisible(false);
-    }
-    mapper->addMapping(ui->lelantusPage, OptionsModel::LelantusPage);
-
     /* Network */
     mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
     mapper->addMapping(ui->allowIncoming, OptionsModel::Listen);
@@ -269,19 +258,7 @@ void OptionsDialog::on_hideTrayIcon_stateChanged(int fState)
 void OptionsDialog::handleEnabledZapChanged(){
 	QMessageBox msgBox;
 
-	if(ui->reindexLelantus->isChecked()){
-        QMessageBox::StandardButton retval = QMessageBox::warning(this, tr("Confirm Reindex Lelantus"),
-                     tr("Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore the list from the seed in your wallet. This will likely take a few hours. Are you sure?"),
-                     QMessageBox::Yes|QMessageBox::Cancel,
-                     QMessageBox::Cancel);
-        if(retval == QMessageBox::Cancel) {
-            ui->reindexLelantus->setChecked(false);
-        }else {
-            showRestartWarning();
-        }
-    }else {
-        clearStatusLabel();
-    }
+	clearStatusLabel();
 }
 
 void OptionsDialog::showRestartWarning(bool fPersistent)

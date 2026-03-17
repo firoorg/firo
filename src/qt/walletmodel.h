@@ -209,10 +209,6 @@ public:
         std::list<CReserveKey> &reserveKeys
         );
     
-    bool migrateLelantusToSpark();
-
-    bool getAvailableLelantusCoins();
-
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
     // Wallet encryption

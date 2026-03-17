@@ -5,7 +5,6 @@
 #ifndef BITCOIN_QT_WALLETMODELTRANSACTION_H
 #define BITCOIN_QT_WALLETMODELTRANSACTION_H
 
-#include "../hdmint/hdmint.h"
 #include "../primitives/mint_spend.h"
 #include "spark/state.h"
 
@@ -41,18 +40,15 @@ public:
 
     void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
 
-    std::vector<CLelantusEntry>& getSpendCoins();
-    std::vector<CHDMint>& getMintCoins();
-
 private:
     QList<SendCoinsRecipient> recipients;
     CWalletTx *walletTransaction;
     CReserveKey *keyChange;
     CAmount fee;
 
-    // lelantus transaction
-    std::vector<CLelantusEntry> spendCoins;
-    std::vector<CHDMint> mintCoins;
+    // spark transaction
+    std::vector<spark::Coin> spendCoins;
+    std::vector<spark::Coin> mintCoins;
 };
 
 #endif // BITCOIN_QT_WALLETMODELTRANSACTION_H

@@ -710,12 +710,7 @@ void CleanupBlockRevFiles()
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        //Load zerocoin mint hashes to memory
-        LogPrintf("Loading mints to wallet..\n");
-        pwalletMain->zwallet->GetTracker().Init();
-        pwalletMain->zwallet->LoadMintPoolFromDB();
-    }
+    // Lelantus wallet (zwallet) was removed; mint loading skipped
 #endif
 
     const CChainParams &chainparams = Params();
@@ -805,15 +800,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LoadMempool();
     }
 
-#ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        pwalletMain->zwallet->SyncWithChain();
-    }
-    // Need this to restore Sigma spend state
-    if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        pwalletMain->zwallet->GetTracker().ListLelantusMints();
-    }
-#endif
     fDumpMempoolLater = !fRequestShutdown;
 }
 
@@ -1829,11 +1815,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     CBlockIndex *tip = chainActive.Tip();
                     if (tip) {
                         int lastBlockIndexVersion = pblocktree->GetBlockIndexVersion(*tip->phashBlock);
-                        if ((tip->nHeight >= chainparams.GetConsensus().nLelantusStartBlock &&
-                                    lastBlockIndexVersion < LELANTUS_PROTOCOL_ENABLEMENT_VERSION) ||
-                            (tip->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
-                                    lastBlockIndexVersion < EVOSPORK_MIN_VERSION))
-                        {
+                        bool lelantusReindex = false;
+                        bool evoReindex = (tip->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                                lastBlockIndexVersion < EVOSPORK_MIN_VERSION);
+                        if (lelantusReindex || evoReindex) {
                             strLoadError = _(
                                     "Block index is outdated, reindex required\n");
                             break;

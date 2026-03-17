@@ -33,7 +33,6 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-#include "lelantus.h"
 #include "evo/spork.h"
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -430,22 +429,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
     const CTransaction &tx = iter->GetTx();
 
-    // Check transaction against lelantus limits
-    if(tx.IsLelantusJoinSplit()) {
-        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
-        size_t spendNumber = lelantus::GetSpendInputs(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (spendNumber > params.nMaxLelantusInputPerTransaction || spendAmount > params.nMaxValueLelantusSpendPerTransaction)
-            return false;
-
-        if (spendNumber + nLelantusSpendInputs > params.nMaxLelantusInputPerBlock)
-            return false;
-
-        if (spendAmount + nLelantusSpendAmount > params.nMaxValueLelantusSpendPerBlock)
-            return false;
-    }
-
     // Check transaction against spark limits
     if(tx.IsSparkSpend()) {
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
@@ -464,21 +447,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 {
     const CTransaction &tx = iter->GetTx();
-
-    if(tx.IsLelantusJoinSplit()) {
-        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
-        size_t spendNumber = lelantus::GetSpendInputs(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
-            return;
-
-        if ((nLelantusSpendAmount += spendAmount) > params.nMaxValueLelantusSpendPerBlock)
-            return;
-
-        if ((nLelantusSpendInputs += spendNumber) > params.nMaxLelantusInputPerBlock)
-            return;
-    }
 
     if(tx.IsSparkSpend()) {
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
@@ -985,13 +953,6 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             if (!sporkManager->IsTransactionAllowed(mi->GetTx(), sporkMap, state))
                 mempool.CalculateDescendants(mi, txBlackList);
         }
-    }
-
-    // Now if we have limit on lelantus transparent outputs scan mempool and drop all the transactions exceeding the limit
-    if (sporkMap.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
-        BlacklistTxsExceedingLimit(sporkMap[CSporkAction::featureLelantusTransparentLimit].second,
-            [](const CTransaction &tx)->bool { return tx.IsLelantusJoinSplit(); },
-            [](const CTransaction &tx)->CAmount { return lelantus::GetSpendTransparentAmount(tx); });
     }
 
     // Same for spark spends

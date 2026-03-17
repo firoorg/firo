@@ -529,41 +529,6 @@ UniValue signmessagewithprivkey(const JSONRPCRequest& request)
     return EncodeBase64(&vchSig[0], vchSig.size());
 }
 
-UniValue verifyprivatetxown(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 3)
-        throw std::runtime_error(
-                "verifyprivatetxown \"txid\" \"signature\" \"message\"\n"
-                "\nVerify a lelantus tx ownership\n"
-                "\nArguments:\n"
-                "1. \"txid\"        (string, required) Txid, in which we spend lelantus coins.\n"
-                "2. \"proof\"       (string, required) The signatures of the message encoded in base 64\n"
-                "3. \"message\"     (string, required) The message that was signed.\n"
-                "\nResult:\n"
-                "true|false   (boolean) If the signature is verified or not.\n"
-                "\nExamples:\n"
-                "\nVerify the signature\n"
-                + HelpExampleCli("verifyprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9\" \"signature\" \"my message\"") +
-                "\nAs json rpc\n"
-                + HelpExampleRpc("verifyprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9\", \"signature\", \"my message\"")
-        );
-
-    LOCK(cs_main);
-
-    std::string strTxId  = request.params[0].get_str();
-    std::string strProof = request.params[1].get_str();
-    std::string strMessage  = request.params[2].get_str();
-
-    uint256 txid = uint256S(strTxId);
-    bool fInvalid = false;
-    std::vector<unsigned char> vchSig = DecodeBase64(strProof.c_str(), &fInvalid);
-
-    if (fInvalid)
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Malformed base64 encoding");
-
-    return VerifyPrivateTxOwn(txid, vchSig, strMessage);
-}
-
 
 UniValue setmocktime(const JSONRPCRequest& request)
 {
@@ -1026,180 +991,6 @@ UniValue getAddressNumWBalance(const JSONRPCRequest& request)
     return uint64_t(pblocktree->findAddressNumWBalance());
 }
 
-UniValue getanonymityset(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 2)
-        throw std::runtime_error(
-                "getanonymityset\n"
-                        "\nReturns the anonymity set and latest block hash.\n"
-                        "\nArguments:\n"
-                        "{\n"
-                        "      \"coinGroupId\"  (int)\n"
-                        "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
-                        "}\n"
-                        "\nResult:\n"
-                        "{\n"
-                        "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                        "  \"setHash\"   (string) Anonymity set hash\n"
-                        "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Serialized GroupElements paired with txhash which is paired with mint tag and mint value\n"
-                        "}\n"
-                + HelpExampleCli("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-                + HelpExampleRpc("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-        );
-
-
-    int coinGroupId;
-    std::string startBlockHash;
-    try {
-        coinGroupId = std::stol(request.params[0].get_str());
-        startBlockHash = request.params[1].get_str();
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-    if(!GetBoolArg("-mobile", false)){
-        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
-    }
-
-    uint256 blockHash;
-    std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
-    std::vector<unsigned char> setHash;
-
-    {
-        LOCK(cs_main);
-        lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-        lelantusState->GetCoinsForRecovery(
-                &chainActive,
-                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                coinGroupId,
-                startBlockHash,
-                blockHash,
-                coins,
-                setHash);
-    }
-
-    UniValue ret(UniValue::VOBJ);
-    UniValue mints(UniValue::VARR);
-
-    FIRO_UNUSED int i = 0;
-    for (const auto& coin : coins) {
-        std::vector<unsigned char> vch = coin.first.getValue().getvch();
-        std::vector<UniValue> data;
-        data.push_back(EncodeBase64(vch.data(), size_t(34)));
-        data.push_back(EncodeBase64(coin.second.second.begin(), coin.second.second.size()));
-        if (coin.second.first.isJMint) {
-            data.push_back(EncodeBase64(coin.second.first.encryptedValue.data(), coin.second.first.encryptedValue.size()));
-        } else {
-            data.push_back(coin.second.first.amount);
-        }
-        data.push_back(EncodeBase64(coin.second.first.txHash.begin(), coin.second.first.txHash.size()));
-
-        UniValue entity(UniValue::VARR);
-        entity.push_backV(data);
-        mints.push_back(entity);
-        i++;
-    }
-
-    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
-    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
-    ret.push_back(Pair("coins", mints));
-
-    return ret;
-}
-
-UniValue getmintmetadata(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "getmintmetadata\n"
-                        "\nReturns the anonymity set id and nHeight of mint.\n"
-                        "\nArguments:\n"
-                        "  \"mints\"\n"
-                        "    [\n"
-                        "      {\n"
-                        "        \"pubcoin\" (string) The PubCoin value\n"
-                        "      }\n"
-                        "      ,...\n"
-                        "    ]\n"
-                        "\nResult:\n"
-                        "{\n"
-                        "  \"metadata\"   (Pair<string,int>) nHeight and id for each pubcoin\n"
-                        "}\n"
-                + HelpExampleCli("getmintmetadata", "'{\"mints\": [{\"denom\":5000000, \"pubcoin\":\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"}]}'")
-                + HelpExampleRpc("getmintmetadata", "{\"mints\": [{\"denom\":5000000, \"pubcoin\":\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"}]}")
-        );
-
-    UniValue mintValues = find_value(request.params[0].get_obj(), "mints");
-    if (!mintValues.isArray()) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
-    }
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    UniValue ret(UniValue::VARR);
-    for(UniValue const & mintData : mintValues.getValues()){
-        std::vector<unsigned char> serializedCoin = ParseHex(find_value(mintData, "pubcoin").get_str().c_str());
-
-        secp_primitives::GroupElement pubCoin;
-        pubCoin.deserialize(serializedCoin.data());
-
-        std::pair<int, int> coinHeightAndId;
-        {
-            LOCK(cs_main);
-            coinHeightAndId = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(pubCoin));
-        }
-        UniValue metaData(UniValue::VOBJ);
-        metaData.pushKV(std::to_string(coinHeightAndId.first), coinHeightAndId.second);
-        ret.push_back(metaData);
-    }
-    return ret;
-}
-
-UniValue getusedcoinserials(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "getusedcoinserials\n"
-                "\nReturns the set of used coin serial.\n"
-                "\nArguments:\n"
-                "{\n"
-                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
-                "}\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"serials\" (std::string[]) array of Serialized Scalars\n"
-                "}\n"
-        );
-
-    int startNumber;
-    try {
-        startNumber = std::stol(request.params[0].get_str());
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    std::unordered_map<Scalar, int>  serials;
-    {
-        LOCK(cs_main);
-        serials = lelantusState->GetSpends();
-    }
-
-    UniValue serializedSerials(UniValue::VARR);
-    int i = 0;
-    for ( auto it = serials.begin(); it != serials.end(); ++it, ++i) {
-        if (cmp::less((serials.size() - i - 1), startNumber))
-            continue;
-        std::vector<unsigned char> serialized;
-        serialized.resize(32);
-        it->first.serialize(serialized.data());
-        serializedSerials.push_back(EncodeBase64(serialized.data(), 32));
-    }
-
-    UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("serials", serializedSerials));
-
-    return ret;
-}
-
 UniValue getfeerate(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1218,31 +1009,29 @@ UniValue getfeerate(const JSONRPCRequest& request)
     return ret;
 }
 
+// Lelantus RPC stubs (protocol removed; throw if called).
+UniValue getanonymityset(const JSONRPCRequest& request)
+{
+    (void)request;
+    throw std::runtime_error("getanonymityset is disabled (Lelantus has been removed). Use getsparkanonymityset for Spark.");
+}
+
+UniValue getmintmetadata(const JSONRPCRequest& request)
+{
+    (void)request;
+    throw std::runtime_error("getmintmetadata is disabled (Lelantus has been removed). Use getsparkmintmetadata for Spark.");
+}
+
+UniValue getusedcoinserials(const JSONRPCRequest& request)
+{
+    (void)request;
+    throw std::runtime_error("getusedcoinserials is disabled (Lelantus has been removed). Use getusedcoinstags for Spark.");
+}
+
 UniValue getlatestcoinid(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "getlatestcoinid\n"
-                "\nReturns the set of used coin serial.\n"
-                "\nResult:\n"
-                "{\n"
-                "  [\n"
-                "      {\n"
-                "        \"coinGroupId\" (int) The latest group id\n"
-                "      }\n"
-                "      ,...\n"
-                "    ]\n"
-                "}\n"
-        );
-
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    int latestCoinId;
-    {
-        LOCK(cs_main);
-        latestCoinId = lelantusState->GetLatestCoinID();
-    }
-
-    return UniValue(latestCoinId);
+    (void)request;
+    throw std::runtime_error("getlatestcoinid is disabled (Lelantus has been removed). Use getsparklatestcoinid for Spark.");
 }
 
 UniValue getsparkanonymityset(const JSONRPCRequest& request)
@@ -2259,8 +2048,6 @@ static const CRPCCommand commands[] =
     /* Znode features */
     { "firo",              "znsync",                 &mnsync,                 true,           {} },
     { "firo",              "evoznsync",              &mnsync,                 true,           {} },
-
-    { "firo",              "verifyprivatetxown",      &verifyprivatetxown,      true,         {} },
 
     /* Not shown in help */
     { "hidden",             "getinfoex",              &getinfoex,              false,         {} },

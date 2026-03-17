@@ -45,12 +45,10 @@ public:
         ThreadsScriptVerif,     // int
         DatabaseCache,          // int
         SpendZeroConfChange,    // bool
-        ReindexLelantus,        // bool
         Listen,                 // bool
         TorSetup,               // bool
         AutoAnonymize,          // bool
         Split,                  // bool
-        LelantusPage,           // bool
         enableRapAddresses,     // bool
         OptionIDRowCount,
     };
@@ -75,7 +73,6 @@ public:
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
     bool getAutoAnonymize() { return fAutoAnonymize; }
     bool getfSplit() { return fSplit; }
-    bool getLelantusPage() {return fLelantusPage; }
 
     /* Restart flag helper */
     void setRestartRequired(bool fRequired);
@@ -92,7 +89,6 @@ private:
     bool fCoinControlFeatures;
     bool fAutoAnonymize;
     bool fSplit;
-    bool fLelantusPage;
     bool fenableRapAddresses;
 
     /* settings that were overridden by command-line */
@@ -108,7 +104,6 @@ Q_SIGNALS:
     void coinControlFeaturesChanged(bool);
     void enableRapAddressesChanged(bool);
     void autoAnonymizeChanged(bool);
-    void lelantusPageChanged(bool);
     void hideTrayIconChanged(bool);
 };
 
