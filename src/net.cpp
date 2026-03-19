@@ -300,6 +300,8 @@ void SetNetworkExplicitlyLimited(enum Network net, bool fLimited)
 
 bool IsNetworkExplicitlyLimited(enum Network net)
 {
+    if (net == NET_UNROUTABLE || net >= NET_MAX)
+        return false;
     LOCK(cs_mapLocalHost);
     return vfExplicitlyLimited[net];
 }
