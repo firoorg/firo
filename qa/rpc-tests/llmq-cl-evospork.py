@@ -5,6 +5,7 @@
 
 from test_framework.mininode import *
 from test_framework.test_framework import EvoZnodeTestFramework
+from test_framework.authproxy import JSONRPCException
 from test_framework.util import *
 from time import time, sleep
 
@@ -112,7 +113,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
                 block = node.getblock(block_hash)
                 if block["confirmations"] > 0 and block["chainlock"]:
                     return
-            except Exception:
+            except JSONRPCException:
                 pass
             sleep(0.1)
         raise AssertionError("wait_for_chainlock timed out for block %s" % block_hash)
@@ -124,7 +125,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
             try:
                 if node1.getbestblockhash() == node2.getbestblockhash():
                     return True
-            except Exception:
+            except JSONRPCException:
                 pass
             sleep(0.5)
         return False
