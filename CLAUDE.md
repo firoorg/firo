@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Firo is a privacy-focused cryptocurrency forked from Bitcoin Core, featuring zero-knowledge proof protocols (Spark, Lelantus), masternode infrastructure (LLMQ), and FiroPOW mining. Current version: **0.14.15.2**. Licensed under MIT.
+Firo is a privacy-focused cryptocurrency forked from Bitcoin Core, featuring zero-knowledge proof protocols (Spark, Lelantus), masternode infrastructure (LLMQ), and FiroPOW mining. Current version: **0.14.15.3**. Licensed under MIT.
 
 ## Build System
 
@@ -35,7 +35,7 @@ cd build && ninja
 | `BUILD_TESTS` | OFF | Build unit test suite |
 | `ENABLE_WALLET` | ON | Wallet functionality |
 | `WITH_ZMQ` | ON | ZeroMQ notifications |
-| `ENABLE_CRASH_HOOKS` | ON | Stack trace generation |
+| `ENABLE_CRASH_HOOKS` | ON (Release) | Stack trace generation (OFF for Debug builds) |
 | `CLIENT_VERSION_IS_RELEASE` | false | Release build flag |
 
 ### Build Outputs
@@ -65,7 +65,7 @@ cmake -Bbuild -DBUILD_TESTS=ON ...
 cd build && ctest --output-on-failure
 ```
 
-Test source: `src/test/` (~60 test files). Framework setup in `src/test/test_bitcoin.h`.
+Test source: `src/test/` (~80 test files). Framework setup in `src/test/test_bitcoin.h`.
 
 ### Integration Tests (Python)
 
@@ -75,7 +75,7 @@ cp -rf build/bin/* build/src/
 qa/pull-tester/rpc-tests.py -extended
 ```
 
-Test scripts: `qa/rpc-tests/` (50+ Python scripts covering wallet, privacy protocols, masternodes, consensus).
+Test scripts: `qa/rpc-tests/` (100+ Python scripts covering wallet, privacy protocols, masternodes, consensus).
 
 ### Test Networks
 
@@ -201,7 +201,7 @@ The codebase is multi-threaded using `LOCK`/`TRY_LOCK` macros. Compile with `-DD
 ## CI/CD
 
 GitHub Actions (`.github/workflows/ci-master.yml`):
-- Triggers on all pushes and PRs to master (ignores `doc/**` and `README.md`)
+- Triggers on pushes to all branches and PRs to master (ignores `doc/**` and `README.md`)
 - **Linux** (ubuntu-22.04): Release + Debug builds, unit tests, RPC integration tests
 - **Windows** (cross-compile via MinGW): Release + Debug builds
 - **macOS** (macos-latest): Release + Debug builds
@@ -215,6 +215,7 @@ GitHub Actions (`.github/workflows/ci-master.yml`):
 |---------|-----|-----|
 | Mainnet | 8168 | 8888 |
 | Testnet | 18168 | 18888 |
+| Devnet  | 38168 | 38888 |
 | Regtest | 18444 | 28888 |
 
 ## Key Privacy Protocols
