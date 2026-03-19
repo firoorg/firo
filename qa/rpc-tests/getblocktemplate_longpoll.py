@@ -67,7 +67,7 @@ class GetBlockTemplateLPTest(BitcoinTestFramework):
         thr.start()
         # Submit a transaction directly to node 0 (where the longpoll is running)
         # to avoid depending on cross-node mempool relay timing
-        (txid, txhex, fee) = random_transaction([self.nodes[0]], Decimal("1.1"), Decimal("0.0"), Decimal("0.001"), 20)
+        random_transaction([self.nodes[0]], Decimal("1.1"), Decimal("0.0"), Decimal("0.001"), 20)
         # after one minute, every 10 seconds the mempool is probed, so in 100 seconds it should have returned
         thr.join(60 + 20 + 20)
         assert not thr.is_alive(), "Test 4: longpoll did not return after mempool tx"
