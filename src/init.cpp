@@ -1538,11 +1538,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
             onlyNetNets.insert(net);
         }
-        for (int n = 0; n < NET_MAX; n++) {
-            enum Network net = (enum Network)n;
-            if (!onlyNetNets.count(net))
-                SetLimited(net);
-        }
+    }
+    for (int n = 0; n < NET_MAX; n++) {
+        enum Network net = (enum Network)n;
+        const bool explicitlyLimited = fOnlyNet && !onlyNetNets.count(net);
+        SetNetworkExplicitlyLimited(net, explicitlyLimited);
+        if (explicitlyLimited)
+            SetLimited(net);
     }
 
     if (mapMultiArgs.count("-whitelist")) {

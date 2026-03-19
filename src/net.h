@@ -596,6 +596,8 @@ enum
 bool IsPeerAddrLocalGood(CNode *pnode);
 void AdvertiseLocal(CNode *pnode);
 void SetLimited(enum Network net, bool fLimited = true);
+void SetNetworkExplicitlyLimited(enum Network net, bool fLimited = true);
+bool IsNetworkExplicitlyLimited(enum Network net);
 bool IsLimited(enum Network net);
 bool IsLimited(const CNetAddr& addr);
 bool AddLocal(const CService& addr, int nScore = LOCAL_NONE);
