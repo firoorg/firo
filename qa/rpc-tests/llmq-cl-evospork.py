@@ -133,15 +133,17 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
 
     def wait_for_tip(self, node, expected_tip, timeout=15):
         """Wait until node's best block hash equals expected_tip."""
+        last_tip = "<unavailable>"
         t = time()
         while time() - t < timeout:
             try:
-                if node.getbestblockhash() == expected_tip:
+                last_tip = node.getbestblockhash()
+                if last_tip == expected_tip:
                     return
             except JSONRPCException:
                 pass
             sleep(0.5)
-        raise AssertionError("wait_for_tip timed out: expected tip %s, got %s" % (expected_tip, node.getbestblockhash()))
+        raise AssertionError("wait_for_tip timed out: expected tip %s, got %s" % (expected_tip, last_tip))
 
     def disable_chainlocks(self, till_height):
         self.nodes[0].spork(self.sporkprivkey, self.payment_address, {"disable":{"chainlocks": till_height}})
