@@ -90,6 +90,8 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
             current_tip = self.nodes[0].getbestblockhash()
             assert self.wait_for_sync(self.nodes[0], self.nodes[5], timeout=15), \
                 "Timed out when waiting for a chainlocked chain"
+        assert self.nodes[0].getbestblockhash() == current_tip, \
+            "Node 0 did not keep the chainlocked tip"
 
 
 
