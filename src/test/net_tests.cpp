@@ -612,4 +612,39 @@ BOOST_AUTO_TEST_CASE(cnetaddr_unserialize_v2)
     BOOST_REQUIRE(s.empty());
 }
 
+BOOST_AUTO_TEST_CASE(explicit_network_limit_state)
+{
+    const auto invalid_low = static_cast<Network>(-1);
+    const auto invalid_high = static_cast<Network>(NET_MAX);
+
+    SetLimited(NET_ONION, false);
+    SetNetworkExplicitlyLimited(NET_ONION, false);
+
+    SetNetworkExplicitlyLimited(NET_ONION);
+    BOOST_CHECK(IsNetworkExplicitlyLimited(NET_ONION));
+
+    // Mirror the Tor auth callback behavior: onion stays limited when
+    // -onlynet explicitly excluded it, and can be re-enabled otherwise.
+    SetLimited(NET_ONION);
+    if (!IsNetworkExplicitlyLimited(NET_ONION)) {
+        SetLimited(NET_ONION, false);
+    }
+    BOOST_CHECK(IsLimited(NET_ONION));
+
+    SetNetworkExplicitlyLimited(NET_ONION, false);
+    if (!IsNetworkExplicitlyLimited(NET_ONION)) {
+        SetLimited(NET_ONION, false);
+    }
+    BOOST_CHECK(!IsLimited(NET_ONION));
+
+    SetNetworkExplicitlyLimited(invalid_low);
+    SetNetworkExplicitlyLimited(invalid_high);
+    BOOST_CHECK(!IsNetworkExplicitlyLimited(invalid_low));
+    BOOST_CHECK(!IsNetworkExplicitlyLimited(invalid_high));
+    BOOST_CHECK(!IsNetworkExplicitlyLimited(NET_UNROUTABLE));
+
+    SetLimited(NET_ONION, false);
+    SetNetworkExplicitlyLimited(NET_ONION, false);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

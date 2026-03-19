@@ -112,6 +112,12 @@ static bool vfLimited[NET_MAX] = {};
 static bool vfExplicitlyLimited[NET_MAX] = {};
 std::string strSubVersion;
 
+static bool IsExplicitLimitNetwork(enum Network net)
+{
+    // Track explicit limits only for real outbound networks.
+    return net > NET_UNROUTABLE && net < NET_MAX;
+}
+
 limitedmap<uint256, int64_t> mapAlreadyAskedFor(MAX_INV_SZ);
 
 // Signals for message handling
@@ -292,7 +298,7 @@ bool IsLimited(const CNetAddr &addr)
 
 void SetNetworkExplicitlyLimited(enum Network net, bool fLimited)
 {
-    if (net == NET_UNROUTABLE || net >= NET_MAX)
+    if (!IsExplicitLimitNetwork(net))
         return;
     LOCK(cs_mapLocalHost);
     vfExplicitlyLimited[net] = fLimited;
@@ -300,7 +306,7 @@ void SetNetworkExplicitlyLimited(enum Network net, bool fLimited)
 
 bool IsNetworkExplicitlyLimited(enum Network net)
 {
-    if (net == NET_UNROUTABLE || net >= NET_MAX)
+    if (!IsExplicitLimitNetwork(net))
         return false;
     LOCK(cs_mapLocalHost);
     return vfExplicitlyLimited[net];
