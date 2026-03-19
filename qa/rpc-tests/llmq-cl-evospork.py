@@ -136,6 +136,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
             if node.getbestblockhash() == expected_tip:
                 return
             sleep(0.5)
+        raise AssertionError("wait_for_tip timed out: expected tip %s, got %s" % (expected_tip, node.getbestblockhash()))
 
     def disable_chainlocks(self, till_height):
         self.nodes[0].spork(self.sporkprivkey, self.payment_address, {"disable":{"chainlocks": till_height}})
