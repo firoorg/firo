@@ -88,9 +88,11 @@ Firo uses a two-stage build process: first build dependencies via the `depends/`
 ```bash
 sudo apt-get update
 sudo apt-get install python3 git curl build-essential cmake pkg-config
-# For GUI wallet:
-sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
+# For GUI wallet (Qt6):
+sudo apt-get install qt6-tools-dev qt6-tools-dev-tools libxcb-xkb-dev bison
 ```
+
+> **Note:** The recommended build flow uses the `depends/` system, which compiles all dependencies (including Qt 6.7.3) from source. System Qt packages are only needed if building without `depends/`.
 
 ### Full Build (Headless + Tests)
 
