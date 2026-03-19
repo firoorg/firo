@@ -3,6 +3,7 @@
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
 #include "../wallet/wallet.h"
+#include "../wallet/walletexcept.h"
 #include "../net.h"
 #include "../sparkname.h"
 
@@ -148,11 +149,8 @@ public:
                 spark::SpendKey spendKey(spark::Params::get_default());
                 try {
                     spendKey = std::move(pwalletMain->sparkWallet->generateSpendKey(spark::Params::get_default()));
-                } catch (const std::exception& e) {
-                    if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
-                        BOOST_FAIL("Spark wallet is locked; unlock wallet to run this test");
-                    }
-                    throw;
+                } catch (const WalletLocked&) {
+                    BOOST_FAIL("Spark wallet is locked; unlock wallet to run this test");
                 }
                 spark::IncomingViewKey incomingViewKey(spendKey);
                 sparkAddress.decode(sparkNameData.sparkAddress);

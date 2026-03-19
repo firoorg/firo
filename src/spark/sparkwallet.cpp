@@ -44,10 +44,9 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         spark::SpendKey spendKey(params);
         try {
             spendKey = std::move(generateSpendKey(params));
-        } catch (const std::exception& e) {
-            if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
+        } catch (const WalletLocked&) {
                 throw std::runtime_error("Spark wallet creation FAILED, wallet is locked\n");
-            }
+        } catch (const std::exception&) {
             throw std::runtime_error("Spark wallet creation FAILED, unable to generate spend key\n");
         }
         fullViewKey = generateFullViewKey(spendKey);
@@ -241,12 +240,10 @@ spark::Address CSparkWallet::getChangeAddress() {
     return spark::Address(viewKey, SPARK_CHANGE_D);
 }
 
-const char* SPARK_WALLET_LOCKED_MSG = "spark_wallet_locked";
-
 spark::SpendKey CSparkWallet::generateSpendKey(const spark::Params* params) {
     if (pwalletMain->IsLocked()) {
         LogPrintf("Spark spend key generation FAILED, wallet is locked\n");
-        throw std::runtime_error(SPARK_WALLET_LOCKED_MSG);
+        throw WalletLocked();
     }
 
     CKey secret;
@@ -1434,10 +1431,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             spark::SpendKey spendKey(params);
             try {
                 spendKey = std::move(generateSpendKey(params));
-            } catch (const std::exception& e) {
-                if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
-                    throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
-                }
+            } catch (const WalletLocked&) {
+                throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
+            } catch (const std::exception&) {
                 throw std::runtime_error(_("Unable to generate spend key."));
             }
 
@@ -1694,10 +1690,9 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     spark::SpendKey spendKey(params);
     try {
         spendKey = std::move(generateSpendKey(params));
-    } catch (const std::exception& e) {
-        if (std::string(e.what()) == SPARK_WALLET_LOCKED_MSG) {
-            throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
-        }
+    } catch (const WalletLocked&) {
+        throw std::runtime_error(_("Unable to generate spend key, wallet is locked."));
+    } catch (const std::exception&) {
         throw std::runtime_error(_("Unable to generate spend key."));
     }
 
