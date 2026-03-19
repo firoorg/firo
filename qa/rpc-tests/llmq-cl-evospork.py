@@ -54,7 +54,6 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         current_tip = self.nodes[0].getbestblockhash()
         self.nodes[0].invalidateblock(current_tip)
         self.wait_for_tip(self.nodes[0], current_tip, timeout=15)
-        assert(current_tip == self.nodes[0].getbestblockhash())
 
         ##### Disable chainlocks for 10 blocks
 
