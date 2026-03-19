@@ -135,8 +135,11 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         """Wait until node's best block hash equals expected_tip."""
         t = time()
         while time() - t < timeout:
-            if node.getbestblockhash() == expected_tip:
-                return
+            try:
+                if node.getbestblockhash() == expected_tip:
+                    return
+            except JSONRPCException:
+                pass
             sleep(0.5)
         raise AssertionError("wait_for_tip timed out: expected tip %s, got %s" % (expected_tip, node.getbestblockhash()))
 
