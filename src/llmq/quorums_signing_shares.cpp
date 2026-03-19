@@ -237,6 +237,14 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
         return;
     }
 
+    {
+        LOCK(cs);
+        auto it = nodeStates.find(pfrom->id);
+        if (it != nodeStates.end() && it->second.banned) {
+            return;
+        }
+    }
+
     if (strCommand == NetMsgType::QSIGSESANN) {
         std::vector<CSigSesAnn> msgs;
         vRecv >> msgs;
@@ -1291,21 +1299,54 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
 
 void CSigSharesManager::RemoveBannedNodeStates()
 {
-    // Called regularly to cleanup local node states for banned nodes
+    // Called regularly to cleanup local node states for banned peers after MarkNodeBanned already removed the
+    // request/session state which affects correctness. Keep markers for still-connected peers so they stay ignored.
 
-    LOCK2(cs_main, cs);
-    std::unordered_set<NodeId> toRemove;
-    for (auto it = nodeStates.begin(); it != nodeStates.end();) {
-        if (IsBanned(it->first)) {
-            // re-request sigshares from other nodes
-            it->second.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
-                sigSharesRequested.Erase(k);
-            });
-            it = nodeStates.erase(it);
-        } else {
-            ++it;
+    std::unordered_set<NodeId> nodeStatesToDelete;
+    {
+        LOCK(cs);
+        for (const auto& p : nodeStates) {
+            if (p.second.banned) {
+                nodeStatesToDelete.emplace(p.first);
+            }
         }
     }
+
+    g_connman->ForEachNode([&](CNode* pnode) {
+        if (!pnode->fDisconnect) {
+            nodeStatesToDelete.erase(pnode->id);
+        }
+    });
+
+    LOCK(cs);
+    for (auto nodeId : nodeStatesToDelete) {
+        auto it = nodeStates.find(nodeId);
+        if (it != nodeStates.end() && it->second.banned) {
+            nodeStates.erase(it);
+        }
+    }
+}
+
+void CSigSharesManager::MarkNodeBanned(NodeId nodeId)
+{
+    if (nodeId == -1) {
+        return;
+    }
+
+    LOCK(cs);
+    auto& nodeState = nodeStates[nodeId];
+
+    // Whatever we requested from him, let's request it from someone else now.
+    nodeState.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
+        sigSharesRequested.Erase(k);
+    });
+    nodeState.requestedSigShares.Clear();
+
+    // Drop all cached sessions and pending work from banned peers immediately.
+    nodeState.pendingIncomingSigShares.Clear();
+    nodeState.sessions.clear();
+    nodeState.sessionByRecvId.clear();
+    nodeState.banned = true;
 }
 
 void CSigSharesManager::BanNode(NodeId nodeId)
@@ -1319,20 +1360,7 @@ void CSigSharesManager::BanNode(NodeId nodeId)
         Misbehaving(nodeId, 100);
     }
 
-    LOCK(cs);
-    auto it = nodeStates.find(nodeId);
-    if (it == nodeStates.end()) {
-        return;
-    }
-    auto& nodeState = it->second;
-
-    // Whatever we requested from him, let's request it from someone else now
-    nodeState.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
-        sigSharesRequested.Erase(k);
-    });
-    nodeState.requestedSigShares.Clear();
-
-    nodeState.banned = true;
+    MarkNodeBanned(nodeId);
 }
 
 void CSigSharesManager::WorkThreadMain()
@@ -1350,8 +1378,8 @@ void CSigSharesManager::WorkThreadMain()
 
         bool didWork = false;
 
-        // RemoveBannedNodeStates holds cs_main, and its functionality is only required for local memory management. It
-        // is much more performant to call this rarely.
+        // MarkNodeBanned handles the correctness-sensitive cleanup immediately, so this periodic pass only reclaims the
+        // remaining per-node state for banned peers.
         if (GetTimeMillis() - lastRemoveBannedNodeStatesTime > 30000 /* 30s */) {
             RemoveBannedNodeStates();
             lastRemoveBannedNodeStatesTime = GetTimeMillis();

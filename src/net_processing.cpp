@@ -3167,6 +3167,9 @@ static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman& connman)
     state.rejects.clear();
 
     if (state.fShouldBan) {
+        if (llmq::quorumSigSharesManager) {
+            llmq::quorumSigSharesManager->MarkNodeBanned(pnode->GetId());
+        }
         state.fShouldBan = false;
         if (pnode->fWhitelisted)
             LogPrintf("Warning: not punishing whitelisted peer %s!\n", pnode->addr.ToString());
