@@ -1359,26 +1359,32 @@ void CConnman::ThreadSocketHandler()
         //
         {
             LOCK(cs_vNodes);
-            // Disconnect unused nodes
-            std::vector<CNode*> vNodesCopy = vNodes;
-            BOOST_FOREACH(CNode* pnode, vNodesCopy)
+
+            // Only copy nodes which are actually disconnected so as to minimise allocations.
+            std::vector<CNode*> vDisconnectedNodes;
+            BOOST_FOREACH(CNode* pnode, vNodes)
             {
                 if (pnode->fDisconnect)
                 {
-                    // remove from vNodes
-                    vNodes.erase(remove(vNodes.begin(), vNodes.end(), pnode), vNodes.end());
-
-                    // release outbound grant (if any)
-                    pnode->grantOutbound.Release();
-                    pnode->grantMasternodeOutbound.Release();
-
-                    // close socket and cleanup
-                    pnode->CloseSocketDisconnect();
-
-                    // hold in disconnected pool until all refs are released
-                    pnode->Release();
-                    vNodesDisconnected.push_back(pnode);
+                    vDisconnectedNodes.push_back(pnode);
                 }
+            }
+
+            BOOST_FOREACH(CNode* pnode, vDisconnectedNodes)
+            {
+                // remove from vNodes
+                vNodes.erase(remove(vNodes.begin(), vNodes.end(), pnode), vNodes.end());
+
+                // release outbound grant (if any)
+                pnode->grantOutbound.Release();
+                pnode->grantMasternodeOutbound.Release();
+
+                // close socket and cleanup
+                pnode->CloseSocketDisconnect();
+
+                // hold in disconnected pool until all refs are released
+                pnode->Release();
+                vNodesDisconnected.push_back(pnode);
             }
         }
         {
