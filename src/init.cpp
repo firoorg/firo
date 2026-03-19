@@ -1559,9 +1559,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
     if(torEnabled){
     	StartTorEnabled(threadGroup, scheduler);
-        SetLimited(NET_ONION);
-        SetLimited(NET_IPV4);
-        SetLimited(NET_IPV6);
         proxyType addrProxy = proxyType(LookupNumeric("127.0.0.1", 9050),
                         true);
         SetProxy(NET_IPV4, addrProxy);
