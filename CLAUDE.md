@@ -31,11 +31,11 @@ cd build && ninja
 | `BUILD_DAEMON` | ON | Build `firod` |
 | `BUILD_GUI` | ON | Build `firo-qt` (requires Qt 6.7.3+) |
 | `BUILD_CLI` | ON | Build `firo-cli` |
-| `BUILD_TX` | ON | Build `firo-tx` |
+| `BUILD_TX` | `${BUILD_CLI}` | Build `firo-tx` (defaults to same as `BUILD_CLI`) |
 | `BUILD_TESTS` | OFF | Build unit test suite |
 | `ENABLE_WALLET` | ON | Wallet functionality |
 | `WITH_ZMQ` | ON | ZeroMQ notifications |
-| `ENABLE_CRASH_HOOKS` | ON (Release) | Stack trace generation (OFF for Debug builds) |
+| `ENABLE_CRASH_HOOKS` | OFF | Stack trace generation (auto-enabled for Release/RelWithDebInfo/MinSizeRel) |
 | `CLIENT_VERSION_IS_RELEASE` | false | Release build flag |
 
 ### Build Outputs
@@ -233,7 +233,7 @@ GitHub Actions (`.github/workflows/ci-master.yml`):
 
 ## PR and Commit Conventions
 
-- PR titles prefixed by area: `Consensus:`, `Net:`, `Qt:`, `Wallet:`, `RPC/REST/ZMQ:`, `Mining:`, `Tests:`, `Trivial:`, `Docs:`
+- PR titles prefixed by area: `Consensus:`, `Net:` or `P2P:`, `Qt:`, `Wallet:`, `RPC/REST/ZMQ:`, `Mining:`, `Scripts and tools:`, `Tests:`, `Trivial:`, `Utils and libraries:`, `Docs:`
 - Commits should be atomic; don't mix formatting with logic changes
 - Commit messages: short subject (50 chars max), blank line, detailed body
-- Reference issues with `refs #1234` or `fixes #4321`
+- Reference issues with `refs #1234`, `fixes #4321`, or `closes #1234`
