@@ -1334,7 +1334,11 @@ void CSigSharesManager::MarkNodeBanned(NodeId nodeId)
     }
 
     LOCK(cs);
-    auto& nodeState = nodeStates[nodeId];
+    auto it = nodeStates.find(nodeId);
+    if (it == nodeStates.end()) {
+        return;
+    }
+    auto& nodeState = it->second;
 
     // Whatever we requested from him, let's request it from someone else now.
     nodeState.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {

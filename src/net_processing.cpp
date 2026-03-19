@@ -3167,15 +3167,15 @@ static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman& connman)
     state.rejects.clear();
 
     if (state.fShouldBan) {
-        if (llmq::quorumSigSharesManager) {
-            llmq::quorumSigSharesManager->MarkNodeBanned(pnode->GetId());
-        }
         state.fShouldBan = false;
         if (pnode->fWhitelisted)
             LogPrintf("Warning: not punishing whitelisted peer %s!\n", pnode->addr.ToString());
         else if (pnode->fAddnode)
             LogPrintf("Warning: not punishing addnoded peer %s!\n", pnode->addr.ToString());
         else {
+            if (llmq::quorumSigSharesManager) {
+                llmq::quorumSigSharesManager->MarkNodeBanned(pnode->GetId());
+            }
             pnode->fDisconnect = true;
             if (pnode->addr.IsLocal())
                 LogPrintf("Warning: not banning local peer %s!\n", pnode->addr.ToString());
