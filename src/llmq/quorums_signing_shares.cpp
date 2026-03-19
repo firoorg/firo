@@ -331,7 +331,11 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
     FIRO_UNUSED auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it != nodeStates.end() && it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it != nodeStates.end() ? it->second : nodeStates[pfrom->id];
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.sessionId);
@@ -379,7 +383,11 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(CNode* pfrom, const CSigShare
     }
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it == nodeStates.end() || it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it->second;
     auto session = nodeState.GetSessionByRecvId(inv.sessionId);
     if (!session) {
         return true;
@@ -409,7 +417,11 @@ bool CSigSharesManager::ProcessMessageGetSigShares(CNode* pfrom, const CSigShare
             sessionInfo.signHash.ToString(), inv.ToString(), pfrom->id);
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it == nodeStates.end() || it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it->second;
     auto session = nodeState.GetSessionByRecvId(inv.sessionId);
     if (!session) {
         return true;
@@ -436,7 +448,11 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(CNode* pfrom, const CBatc
 
     {
         LOCK(cs);
-        auto& nodeState = nodeStates[pfrom->id];
+        auto it = nodeStates.find(pfrom->id);
+        if (it == nodeStates.end() || it->second.banned) {
+            return true;
+        }
+        auto& nodeState = it->second;
 
         for (size_t i = 0; i < batchedSigShares.sigShares.size(); i++) {
             CSigShare sigShare = RebuildSigShare(sessionInfo, batchedSigShares, i);
@@ -467,7 +483,11 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(CNode* pfrom, const CBatc
     }
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it == nodeStates.end() || it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it->second;
     for (auto& s : sigShares) {
         nodeState.pendingIncomingSigShares.Add(s.GetKey(), s);
     }
@@ -537,6 +557,10 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
         CLLMQUtils::IterateNodesRandom(nodeStates, [&]() {
             return uniqueSignHashes.size() < maxUniqueSessions;
         }, [&](NodeId nodeId, CSigSharesNodeState& ns) {
+            if (ns.banned) {
+                ns.pendingIncomingSigShares.Clear();
+                return false;
+            }
             if (ns.pendingIncomingSigShares.Empty()) {
                 return false;
             }
