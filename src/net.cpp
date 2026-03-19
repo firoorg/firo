@@ -109,6 +109,7 @@ bool fRelayTxes = true;
 CCriticalSection cs_mapLocalHost;
 std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
 static bool vfLimited[NET_MAX] = {};
+static bool vfExplicitlyLimited[NET_MAX] = {};
 std::string strSubVersion;
 
 limitedmap<uint256, int64_t> mapAlreadyAskedFor(MAX_INV_SZ);
@@ -287,6 +288,20 @@ bool IsLimited(enum Network net)
 bool IsLimited(const CNetAddr &addr)
 {
     return IsLimited(addr.GetNetwork());
+}
+
+void SetNetworkExplicitlyLimited(enum Network net, bool fLimited)
+{
+    if (net == NET_UNROUTABLE || net >= NET_MAX)
+        return;
+    LOCK(cs_mapLocalHost);
+    vfExplicitlyLimited[net] = fLimited;
+}
+
+bool IsNetworkExplicitlyLimited(enum Network net)
+{
+    LOCK(cs_mapLocalHost);
+    return vfExplicitlyLimited[net];
 }
 
 /** vote for a local address */

@@ -1540,8 +1540,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
         for (int n = 0; n < NET_MAX; n++) {
             enum Network net = (enum Network)n;
-            if (!onlyNetNets.count(net))
+            if (!onlyNetNets.count(net)) {
                 SetLimited(net);
+                SetNetworkExplicitlyLimited(net);
+            }
         }
     }
 
