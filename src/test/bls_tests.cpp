@@ -46,6 +46,45 @@ BOOST_AUTO_TEST_CASE(bls_sig_tests)
     BOOST_CHECK(sig2.VerifyInsecure(sk2.GetPublicKey(), msgHash1));
 }
 
+static std::vector<uint8_t> MakeCanonicalIdentityBytes(size_t size)
+{
+    std::vector<uint8_t> identity(size, 0);
+    identity[0] = 0xc0;
+    return identity;
+}
+
+BOOST_AUTO_TEST_CASE(bls_identity_elements_rejected)
+{
+    const auto pubKeyIdentity = MakeCanonicalIdentityBytes(BLS_CURVE_PUBKEY_SIZE);
+    const auto sigIdentity = MakeCanonicalIdentityBytes(BLS_CURVE_SIG_SIZE);
+
+    CBLSPublicKey pubKey(pubKeyIdentity);
+    CBLSSignature sig(sigIdentity);
+
+    BOOST_CHECK(!pubKey.IsValid());
+    BOOST_CHECK(!sig.IsValid());
+    BOOST_CHECK(pubKey == CBLSPublicKey());
+    BOOST_CHECK(sig == CBLSSignature());
+}
+
+BOOST_AUTO_TEST_CASE(bls_identity_deserialization_rejected)
+{
+    const auto pubKeyIdentity = MakeCanonicalIdentityBytes(BLS_CURVE_PUBKEY_SIZE);
+    const auto sigIdentity = MakeCanonicalIdentityBytes(BLS_CURVE_SIG_SIZE);
+
+    CDataStream pubKeyStream(SER_DISK, PROTOCOL_VERSION);
+    pubKeyStream.write((const char*)pubKeyIdentity.data(), pubKeyIdentity.size());
+
+    CDataStream sigStream(SER_DISK, PROTOCOL_VERSION);
+    sigStream.write((const char*)sigIdentity.data(), sigIdentity.size());
+
+    CBLSPublicKey pubKey;
+    CBLSSignature sig;
+
+    BOOST_CHECK_THROW(pubKeyStream >> pubKey, std::ios_base::failure);
+    BOOST_CHECK_THROW(sigStream >> sig, std::ios_base::failure);
+}
+
 struct Message
 {
     uint32_t sourceId;
