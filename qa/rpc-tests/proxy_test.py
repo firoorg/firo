@@ -45,7 +45,7 @@ RANGE_BEGIN = PORT_MIN + 2 * PORT_RANGE  # Start after p2p and rpc ports
 class ProxyTest(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
-        self.num_nodes = 4
+        self.num_nodes = 5
         self.setup_clean_chain = False
 
         self.have_ipv6 = test_ipv6_local()
@@ -85,7 +85,12 @@ class ProxyTest(BitcoinTestFramework):
             ['-listen', '-debug=net', '-debug=proxy', '-proxy=%s:%i' % (self.conf1.addr),'-proxyrandomize=1'], 
             ['-listen', '-debug=net', '-debug=proxy', '-proxy=%s:%i' % (self.conf1.addr),'-onion=%s:%i' % (self.conf2.addr),'-proxyrandomize=0'], 
             ['-listen', '-debug=net', '-debug=proxy', '-proxy=%s:%i' % (self.conf2.addr),'-proxyrandomize=1'], 
-            []
+            [],
+            ['-listen', '-debug=net', '-debug=proxy',
+             '-proxy=%s:%i' % (self.conf1.addr),
+             '-onion=%s:%i' % (self.conf2.addr),
+             '-onlynet=ipv4',
+             '-proxyrandomize=0'],
             ]
         if self.have_ipv6:
             args[3] = ['-listen', '-debug=net', '-debug=proxy', '-proxy=[%s]:%i' % (self.conf3.addr),'-proxyrandomize=0', '-noonion']
@@ -197,6 +202,23 @@ class ProxyTest(BitcoinTestFramework):
                 assert_equal(n3[net]['proxy'], '[%s]:%i' % (self.conf3.addr))
                 assert_equal(n3[net]['proxy_randomize_credentials'], False)
             assert_equal(n3['onion']['reachable'], False)
+
+        n4 = networks_dict(self.nodes[4].getnetworkinfo())
+        assert_equal(n4['ipv4']['proxy'], '%s:%i' % (self.conf1.addr))
+        assert_equal(n4['ipv4']['proxy_randomize_credentials'], False)
+        assert_equal(n4['ipv4']['limited'], False)
+        assert_equal(n4['ipv4']['reachable'], True)
+
+        assert_equal(n4['ipv6']['proxy'], '%s:%i' % (self.conf1.addr))
+        assert_equal(n4['ipv6']['proxy_randomize_credentials'], False)
+        assert_equal(n4['ipv6']['limited'], True)
+        assert_equal(n4['ipv6']['reachable'], False)
+
+        # -proxy and -onion must not override a narrower -onlynet allow-list.
+        assert_equal(n4['onion']['proxy'], '%s:%i' % (self.conf2.addr))
+        assert_equal(n4['onion']['proxy_randomize_credentials'], False)
+        assert_equal(n4['onion']['limited'], True)
+        assert_equal(n4['onion']['reachable'], False)
 
 if __name__ == '__main__':
     ProxyTest().main()
