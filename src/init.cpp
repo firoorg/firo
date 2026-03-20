@@ -467,7 +467,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-maxtimeadjustment", strprintf(_("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)"), DEFAULT_MAX_TIME_ADJUSTMENT));
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
     strUsage += HelpMessageOpt("-i2psam=<ip:port>", _("I2P SAM proxy to reach I2P peers and accept I2P connections (default: none)"));
-    strUsage += HelpMessageOpt("-i2pacceptincoming", strprintf(_("If set and -i2psam is also set then incoming I2P connections are accepted via the SAM proxy. If this is not set but -i2psam is set then only outgoing connections will be made to the I2P network. Ignored if -i2psam is not set (default: %d)"), 1));
+    strUsage += HelpMessageOpt("-i2pacceptincoming", strprintf(_("Whether to accept inbound I2P connections (default: %d). Ignored if -i2psam is not set. Listening for inbound I2P connections is done through the SAM proxy, not by binding to a local address and port."), 1));
     strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6, onion, i2p or cjdns)"));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
@@ -1622,6 +1622,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (!i2pSamProxy.IsValid()) {
             return InitError(strprintf(_("Invalid -i2psam address or port: '%s'"), i2psamArg));
         }
+        SetProxy(NET_I2P, proxyType(i2pSamProxy));
         SetLimited(NET_I2P, false);
         LogPrintf("I2P: SAM proxy configured at %s\n", i2pSamProxy.ToString());
 
