@@ -113,7 +113,6 @@ public:
                 impl = ImplType::FromBytes(bls::Bytes(vecBytes), fLegacy);
                 if (impl == ImplType()) {
                     Reset();
-                    cachedHash.SetNull();
                     return;
                 }
                 fValid = true;
