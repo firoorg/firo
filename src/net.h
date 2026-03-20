@@ -565,6 +565,8 @@ private:
     std::thread threadMessageHandler;
     std::thread threadDandelionShuffle;
     std::thread threadI2PAcceptIncoming;
+
+    void CountInboundConnections(int& nInbound, int& nVerifiedInboundMasternodes) const;
     
     /**
      * Thread function for accepting incoming I2P connections.

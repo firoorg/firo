@@ -60,6 +60,7 @@ BOOST_AUTO_TEST_CASE(i2p_network_type)
     // Test that NET_I2P is properly identified
     BOOST_CHECK_EQUAL(ParseNetwork("i2p"), NET_I2P);
     BOOST_CHECK_EQUAL(ParseNetwork("I2P"), NET_I2P);
+    BOOST_CHECK_EQUAL(ParseNetwork("cjdns"), NET_UNROUTABLE);
     BOOST_CHECK_EQUAL(GetNetworkName(NET_I2P), "i2p");
 }
 

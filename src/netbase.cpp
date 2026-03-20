@@ -46,7 +46,6 @@ enum Network ParseNetwork(std::string net) {
     if (net == "ipv6") return NET_IPV6;
     if (net == "tor" || net == "onion")  return NET_ONION;
     if (net == "i2p") return NET_I2P;
-    if (net == "cjdns") return NET_CJDNS;
     return NET_UNROUTABLE;
 }
 

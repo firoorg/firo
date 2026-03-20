@@ -384,7 +384,7 @@ static UniValue GetNetworksInfo()
     for(int n=0; n<NET_MAX; ++n)
     {
         enum Network network = static_cast<enum Network>(n);
-        if (network == NET_UNROUTABLE || network == NET_INTERNAL)
+        if (network == NET_UNROUTABLE || network == NET_INTERNAL || network == NET_CJDNS)
             continue;
         proxyType proxy;
         UniValue obj(UniValue::VOBJ);
@@ -417,7 +417,7 @@ UniValue getnetworkinfo(const JSONRPCRequest& request)
             "  \"networkactive\": true|false,           (bool) whether p2p networking is enabled\n"
             "  \"networks\": [                          (array) information per network\n"
             "  {\n"
-            "    \"name\": \"xxx\",                     (string) network (ipv4, ipv6, onion, i2p, cjdns)\n"
+            "    \"name\": \"xxx\",                     (string) network (ipv4, ipv6, onion, i2p)\n"
             "    \"limited\": true|false,               (boolean) is the network limited using -onlynet?\n"
             "    \"reachable\": true|false,             (boolean) is the network reachable?\n"
             "    \"proxy\": \"host:port\"               (string) the proxy that is used for this network, or empty if none\n"

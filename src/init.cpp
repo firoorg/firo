@@ -468,7 +468,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
     strUsage += HelpMessageOpt("-i2psam=<ip:port>", _("I2P SAM proxy to reach I2P peers and accept I2P connections (default: none)"));
     strUsage += HelpMessageOpt("-i2pacceptincoming", strprintf(_("Whether to accept inbound I2P connections (default: %d). Ignored if -i2psam is not set. Listening for inbound I2P connections is done through the SAM proxy, not by binding to a local address and port."), 1));
-    strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6, onion, i2p or cjdns)"));
+    strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6, onion or i2p)"));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), Params(CBaseChainParams::MAIN).GetDefaultPort(), Params(CBaseChainParams::TESTNET).GetDefaultPort()));
@@ -1623,15 +1623,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(strprintf(_("Invalid -i2psam address or port: '%s'"), i2psamArg));
         }
         SetProxy(NET_I2P, proxyType(i2pSamProxy));
-        SetLimited(NET_I2P, false);
-        LogPrintf("I2P: SAM proxy configured at %s\n", i2pSamProxy.ToString());
+        if (!IsLimited(NET_I2P)) {
+            LogPrintf("I2P: SAM proxy configured at %s\n", i2pSamProxy.ToString());
 
-        // Create I2P SAM session
-        const bool i2p_accept_incoming = GetBoolArg("-i2pacceptincoming", true);
-        boost::filesystem::path i2p_private_key_file = GetDataDir() / "i2p_private_key";
-        
-        if (g_connman) {
-            g_connman->InitI2P(i2pSamProxy, i2p_accept_incoming, i2p_private_key_file);
+            const bool i2p_accept_incoming = GetBoolArg("-listen", DEFAULT_LISTEN) && GetBoolArg("-i2pacceptincoming", true);
+            const boost::filesystem::path i2p_private_key_file = GetDataDir() / "i2p_private_key";
+            if (g_connman) {
+                g_connman->InitI2P(i2pSamProxy, i2p_accept_incoming, i2p_private_key_file);
+            }
         }
     } else {
         SetLimited(NET_I2P);

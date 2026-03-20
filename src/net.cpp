@@ -425,11 +425,11 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         
         // Check for I2P address suffix (case-insensitive)
         if (destWithoutPort.size() > 8) {
-            std::string suffix = destWithoutPort.substr(destWithoutPort.size() - 8);
-            std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
-            if (suffix == ".b32.i2p") {
+            std::string lowerDest = destWithoutPort;
+            std::transform(lowerDest.begin(), lowerDest.end(), lowerDest.begin(), ::tolower);
+            if (lowerDest.substr(lowerDest.size() - 8) == ".b32.i2p") {
                 CNetAddr i2pAddr;
-                if (i2pAddr.SetSpecial(destWithoutPort)) {
+                if (i2pAddr.SetSpecial(lowerDest)) {
                     i2pDest = CService(i2pAddr, i2p::I2P_SAM31_PORT);
                     isI2P = true;
                     LogPrint("i2p", "I2P: Parsed destination %s from pszDest\n", i2pDest.ToString());
@@ -1240,6 +1240,22 @@ std::string CNode::GetDandelionRoutingDataDebugString() {
     return dandelionRoutingDataDebugString;
 }
 
+void CConnman::CountInboundConnections(int& nInbound, int& nVerifiedInboundMasternodes) const
+{
+    nInbound = 0;
+    nVerifiedInboundMasternodes = 0;
+
+    LOCK(cs_vNodes);
+    BOOST_FOREACH(const CNode* pnode, vNodes) {
+        if (pnode->fInbound) {
+            ++nInbound;
+            if (!pnode->verifiedProRegTxHash.IsNull()) {
+                ++nVerifiedInboundMasternodes;
+            }
+        }
+    }
+}
+
 void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     struct sockaddr_storage sockaddr;
     socklen_t len = sizeof(sockaddr);
@@ -1254,18 +1270,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
             LogPrintf("Warning: Unknown socket family\n");
 
     bool whitelisted = hListenSocket.whitelisted || IsWhitelistedRange(addr);
-    {
-        LOCK(cs_vNodes);
-        BOOST_FOREACH(CNode* pnode, vNodes) {
-            if (pnode->fInbound) {
-                nInbound++;
-                if (!pnode->verifiedProRegTxHash.IsNull()) {
-                    nVerifiedInboundMasternodes++;
-                }
-            }
-        }
-
-    }
+    CountInboundConnections(nInbound, nVerifiedInboundMasternodes);
 
     if (hSocket == INVALID_SOCKET)
     {
@@ -2469,6 +2474,9 @@ void CConnman::ThreadI2PAcceptIncoming()
         }
 
         if (!m_i2p_sam_session->Accept(conn)) {
+            if (conn.sock != INVALID_SOCKET) {
+                CloseSocket(conn.sock);
+            }
             interruptNet.sleep_for(std::chrono::milliseconds(err_wait));
             if (err_wait < err_wait_cap) {
                 err_wait += 1000;
@@ -2482,17 +2490,7 @@ void CConnman::ThreadI2PAcceptIncoming()
         int nVerifiedInboundMasternodes = 0;
         int nMaxInbound = nMaxConnections - (nMaxOutbound + nMaxFeeler);
 
-        {
-            LOCK(cs_vNodes);
-            BOOST_FOREACH(CNode* pnode, vNodes) {
-                if (pnode->fInbound) {
-                    nInbound++;
-                    if (!pnode->verifiedProRegTxHash.IsNull()) {
-                        nVerifiedInboundMasternodes++;
-                    }
-                }
-            }
-        }
+        CountInboundConnections(nInbound, nVerifiedInboundMasternodes);
 
         if (!fNetworkActive) {
             LogPrint("i2p", "I2P: Connection from %s dropped: not accepting new connections\n", conn.peer.ToString());
@@ -2538,6 +2536,7 @@ void CConnman::ThreadI2PAcceptIncoming()
         pnode->AddRef();
         pnode->fWhitelisted = false; // I2P connections are not whitelisted by default
         GetNodeSignals().InitializeNode(pnode, *this);
+        conn.sock = INVALID_SOCKET;
 
         LogPrint("i2p", "I2P: Connection from %s accepted\n", conn.peer.ToString());
 
@@ -2944,7 +2943,7 @@ bool CConnman::Start(CScheduler& scheduler, std::string& strNodeError, Options c
     threadMessageHandler = std::thread(&TraceThread<std::function<void()> >, "msghand", std::function<void()>(std::bind(&CConnman::ThreadMessageHandler, this)));
 
     // Accept incoming I2P connections if SAM session exists and -i2pacceptincoming is enabled
-    if (m_i2p_sam_session && GetBoolArg("-i2pacceptincoming", true)) {
+    if (m_i2p_sam_session && fListen && GetBoolArg("-i2pacceptincoming", true)) {
         threadI2PAcceptIncoming = std::thread(&TraceThread<std::function<void()> >, "i2paccept", std::function<void()>(std::bind(&CConnman::ThreadI2PAcceptIncoming, this)));
     }
 
