@@ -362,3 +362,47 @@ Changes to subtrees should ideally be sent upstream first. Use `contrib/devtools
 
 - **Wallet** (`src/wallet/`): Full wallet with BerkeleyDB storage, BIP39 mnemonic support, HD key derivation, Lelantus/Spark minting and spending, coin control, and encryption.
 - **BIP47** (`src/bip47/`): Reusable payment codes for enhanced privacy.
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+Firo is a self-contained C++ cryptocurrency node. There are no external services, databases, or Docker containers required. All dependencies (Boost, OpenSSL, BerkeleyDB, libevent, etc.) are built from source via the `depends/` system and statically linked.
+
+| Binary | Purpose |
+|--------|---------|
+| `firod` | Full node daemon (blockchain validation, P2P, RPC server) |
+| `firo-cli` | RPC command-line client |
+| `firo-tx` | Offline transaction construction utility |
+| `test_firo` | Boost.Test unit test executable |
+
+### Building
+
+See the "Building" section above. The two-stage process is: (1) `make -C depends` then (2) CMake configure + build. The `depends/` build is cached and only needs re-running when dependency `.mk` files change.
+
+### Running
+
+Start `firod` in regtest mode for local development and testing:
+
+```bash
+firod -regtest -daemon -datadir=/tmp/firo-regtest -rpcuser=user -rpcpassword=pass -rpcport=28888 -listen=0
+firo-cli -regtest -datadir=/tmp/firo-regtest -rpcuser=user -rpcpassword=pass -rpcport=28888 getblockchaininfo
+```
+
+### Testing
+
+- **Unit tests**: `cd build && ctest --output-on-failure` (104 test suites, ~3 min)
+- **RPC/functional tests**: copy binaries to `build/src/` first, then run with env vars:
+  ```bash
+  cp -rf build/bin/* build/src/
+  FIROD=$(pwd)/build/src/firod FIROCLI=$(pwd)/build/src/firo-cli qa/rpc-tests/<test_name>.py
+  ```
+- All RPC tests: `FIROD=$(pwd)/build/src/firod FIROCLI=$(pwd)/build/src/firo-cli qa/pull-tester/rpc-tests.py -extended`
+
+### Non-obvious caveats
+
+- **Python 3.12+ compatibility**: The RPC test framework uses the deprecated `asyncore` module. Install `pyasyncore` and `pyasynchat` packages (`pip3 install pyasyncore pyasynchat`) before running RPC tests.
+- **RPC test binary location**: The test runner expects `firod` and `firo-cli` in `build/src/`, not `build/bin/`. Always run `cp -rf build/bin/* build/src/` before running RPC tests, or set the `FIROD` and `FIROCLI` environment variables.
+- **No lint tooling**: There is no project-level lint command. Code style is defined in `src/.clang-format`; use `clang-format` manually if needed.
+- **Depends build is slow**: The initial `make -C depends` takes ~5 minutes. Results are cached in `depends/built/`, `depends/sources/`, and `depends/work/`. Subsequent builds only rebuild changed packages.
+- **GUI (`firo-qt`)**: Requires Qt 6.7.3+ and additional X11 packages. Build without Qt in headless environments using `NO_QT=true make -C depends` and `-DBUILD_GUI=OFF`.
