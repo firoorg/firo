@@ -440,11 +440,10 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
 
     // Handle I2P connections via SAM session
     if (isI2P) {
-        // Use i2pDest if we parsed from pszDest, otherwise use addrConnect
-        if (i2pDest.IsValid()) {
-            // Update addrConnect so it's used correctly for CNode creation and address manager
-            addrConnect = CAddress(i2pDest, addrConnect.nServices);
-        }
+        const CService normalized_i2p = i2pDest.IsValid()
+            ? i2pDest
+            : CService(static_cast<const CNetAddr&>(addrConnect), i2p::I2P_SAM31_PORT);
+        addrConnect = CAddress(normalized_i2p, addrConnect.nServices);
         
         if (m_i2p_sam_session) {
             i2p::Connection conn;
