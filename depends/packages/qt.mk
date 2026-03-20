@@ -26,8 +26,8 @@ $(package)_qttranslations_sha256_hash=$(qt_details_qttranslations_sha256_hash)
 $(package)_qttools_file_name=$(qt_details_qttools_file_name)
 $(package)_qttools_sha256_hash=$(qt_details_qttools_sha256_hash)
 
-$(package)_qtwayland_file_name = qtwayland-$($(package)_suffix)
-$(package)_qtwayland_sha256_hash = 686ada6c5525bfa7f39aa37e2a811a381374c2c4137a7d9883a19ff24209240b
+$(package)_qtwayland_file_name=$(qt_details_qtwayland_file_name)
+$(package)_qtwayland_sha256_hash=$(qt_details_qtwayland_sha256_hash)
 
 $(package)_extra_sources := $($(package)_qttranslations_file_name)
 $(package)_extra_sources += $($(package)_qttools_file_name)
@@ -189,8 +189,6 @@ $(package)_config_opts_linux += -no-feature-wayland-shm-emulation-server-buffer
 $(package)_config_opts_linux += -no-feature-wayland-client-fullscreen-shell-v1
 $(package)_config_opts_linux += -no-feature-wayland-client-ivi-shell
 $(package)_config_opts_linux += -no-feature-wayland-client-wl-shell
-$(package)_config_opts_linux += -no-feature-wayland-client-xdg-shell-v5
-$(package)_config_opts_linux += -no-feature-wayland-client-xdg-shell-v6
 $(package)_config_opts_linux += -no-feature-wayland-server
 
 ifneq ($(LTO),)
@@ -370,10 +368,6 @@ endef
 define $(package)_stage_cmds
   cmake --install . --prefix $($(package)_staging_prefix_dir)
 endef
-
-ifeq ($(host_os),linux)
-  $(package)_stage_cmds += && $(MAKE) -C qtwayland/src INSTALL_ROOT=$($(package)_staging_dir) sub-plugins-install_subtargets
-endif
 
 define $(package)_postprocess_cmds
   rm -rf doc/
