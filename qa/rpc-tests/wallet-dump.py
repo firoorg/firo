@@ -81,8 +81,8 @@ class WalletDumpTest(BitcoinTestFramework):
     def run_test (self):
         tmpdir = self.options.tmpdir
 
-        # 21 hdmint keys generated initially (0-20)
-        hdmint_key_count = 21
+        # hdmint/sigma mint keys no longer generated (Lelantus stripped)
+        hdmint_key_count = 0
 
         # generate 20 addresses to compare against the dump
         test_addr_count = 20
@@ -132,8 +132,8 @@ class WalletDumpTest(BitcoinTestFramework):
         assert_equal(found_addr, test_addr_count)
         
         assert_equal(found_addr_chg, 50) # 50 block were mined
-        # Wallet encryption doesn't change master key anymore, therefore we just verify hdmint_key_count is the same as before.
-        assert_equal(found_addr_sigma, hdmint_key_count) # hdmint keys
+        # Wallet encryption doesn't change master key anymore; sigma key count unchanged after Lelantus strip (0).
+        assert_equal(found_addr_sigma, hdmint_key_count)
         assert_equal(found_addr_rsv, 90 + 1)  # keypool size (TODO: fix off-by-one)
 
 if __name__ == '__main__':

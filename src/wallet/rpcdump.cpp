@@ -558,7 +558,6 @@ UniValue importwallet(const JSONRPCRequest& request)
         if(!masterKeyID.IsNull() && fHd){
             // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
             if(pwallet->mapKeyMetadata[keyid].nChange.first==2){
-                pwallet->zwallet->RegenerateMintPoolEntry(walletdb, hdMasterKeyID, keyid, pwallet->mapKeyMetadata[keyid].nChild.first);
                 fMintUpdate = true;
             }
         }
@@ -577,8 +576,8 @@ UniValue importwallet(const JSONRPCRequest& request)
     pwallet->MarkDirty();
 
     if(fMintUpdate){
-        pwallet->zwallet->SyncWithChain();
-        pwallet->zwallet->GetTracker().ListLelantusMints(false, false);
+        pwallet->ScanForWalletTransactions(chainActive.Genesis(), true);
+        pwallet->sparkWallet->ListSparkMints();
     }
 
     if (!fGood)

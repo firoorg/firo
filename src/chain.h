@@ -14,7 +14,6 @@
 #include "bitcoin_bignum/bignum.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
-#include "liblelantus/coin.h"
 #include "libspark/coin.h"
 #include "evo/spork.h"
 #include "firo_params.h"
@@ -23,6 +22,7 @@
 #include "coin_containers.h"
 #include "streams.h"
 #include "sparkname.h"
+#include "libspark/coin.h"
 
 #include <vector>
 #include <unordered_set>

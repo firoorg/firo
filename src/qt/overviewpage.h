@@ -50,11 +50,9 @@ public:
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
-    void migrateClicked();
-    void onRefreshClicked();
 
     void setBalance(
-        const CAmount& balance,
+        const CAmount& balance, 
         const CAmount& unconfirmedBalance,
         const CAmount& immatureBalance,
         const CAmount& watchOnlyBalance,
@@ -100,22 +98,6 @@ private Q_SLOTS:
     void updateAlerts(const QString &warnings);
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
-    void countDown();
-};
-
-class MigrateLelantusToSparkDialog : public QMessageBox
-{
-    Q_OBJECT
-private:
-    bool clickedButton;
-    WalletModel *model;
-public:
-    MigrateLelantusToSparkDialog(WalletModel *model);
-    bool getClickedButton();
-
-private Q_SLOTS:
-    void onIgnoreClicked();
-    void onMigrateClicked();
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

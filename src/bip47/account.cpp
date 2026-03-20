@@ -6,7 +6,6 @@
 #include "util.h"
 #include "bip47/bip47utils.h"
 #include "wallet/wallet.h"
-#include "lelantus.h"
 
 
 namespace bip47 {
@@ -251,27 +250,10 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
 
 bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTransaction const & tx)
 {
-    std::unique_ptr<lelantus::JoinSplit> jsplit;
-    try {
-        jsplit = lelantus::ParseLelantusJoinSplit(tx);
-    }catch (const std::exception &) {
-        return false;
-    }
-    if (!jsplit)
-        return false;
-    std::unique_ptr<CPaymentCode> pcode;
-    CExtKey pcodePrivkey = utils::Derive(privkey, {0});
-    try {
-        CDataStream ds(SER_NETWORK, 0);
-        ds << jsplit->getCoinSerialNumbers()[0];
-        pcode = bip47::utils::PcodeFromMaskedPayload(maskedPayload, (unsigned char const *)ds.vch.data(), ds.vch.size(), pcodePrivkey.key, jsplit->GetEcdsaPubkeys()[0]);
-        if (!pcode)
-            return false;
-    } catch (std::runtime_error const &) {
-        return false;
-    }
-    acceptPcode(*pcode);
-    return true;
+    // Lelantus was removed; BIP47 masked payload from Lelantus JoinSplit is no longer parsed.
+    (void)maskedPayload;
+    (void)tx;
+    return false;
 }
 
 CPaymentCode const & CAccountReceiver::lastPcode() const

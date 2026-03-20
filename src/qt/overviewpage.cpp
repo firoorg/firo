@@ -2,8 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "../lelantus.h"
-
 #include "overviewpage.h"
 #include "ui_overviewpage.h"
 
@@ -168,10 +166,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     showOutOfSyncWarning(true);
     connect(ui->labelWalletStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
-
-    connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
-    countDownTimer.start(30000);
-    connect(ui->migrateButton, &QPushButton::clicked, this, &OverviewPage::migrateClicked);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -202,6 +196,60 @@ void OverviewPage::handleOutOfSyncWarningClicks()
 OverviewPage::~OverviewPage()
 {
     delete ui;
+}
+
+void OverviewPage::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event); 
+
+    // Retrieve new dimensions from the resize event
+    const int newWidth = event->size().width();
+    const int newHeight = event->size().height();
+    adjustTextSize(newWidth, newHeight);
+
+    // Determine widths for specific widgets as percentages of total width
+    int labelWidth = static_cast<int>(newWidth * 0.5);
+    int labelMinWidth = static_cast<int>(newWidth * 0.15);
+    int labelMaxWidth = static_cast<int>(newWidth * 0.35);
+    const int labelHeight = 20;
+
+    // Configure the dimensions and constraints of each widget
+    ui->labelBalance->setFixedWidth(labelWidth);
+    ui->labelBalance->setMinimumWidth(labelMinWidth);
+    ui->labelBalance->setMaximumWidth(labelMaxWidth);
+    ui->labelBalance->setFixedHeight(labelHeight);
+
+    ui->labelUnconfirmed->setFixedWidth(labelWidth);
+    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmed->setMaximumWidth(labelMaxWidth);
+    ui->labelUnconfirmed->setFixedHeight(labelHeight);
+
+    int buttonWidth = static_cast<int>(newWidth * 0.15);
+    FIRO_UNUSED int buttonHeight = static_cast<int>(newHeight * 0.05);
+    int buttonMinHeight = static_cast<int>(20);
+    int buttonMaxHeight = static_cast<int>(45);
+
+    ui->anonymizeButton->setMinimumWidth(buttonWidth);
+    ui->anonymizeButton->setMaximumWidth(buttonWidth * 2);
+    ui->anonymizeButton->setMinimumHeight(buttonMinHeight);
+    ui->anonymizeButton->setMaximumHeight(buttonMaxHeight);
+
+    // Set the minimum width for all label widgets to ensure they maintain a consistent and readable size regardless of window resizing
+    ui->labelAnonymizable->setMinimumWidth(labelMinWidth);
+    ui->labelAlerts->setMinimumWidth(labelMinWidth);
+    ui->label->setMinimumWidth(labelMinWidth);
+    ui->labelWatchPending->setMinimumWidth(labelMinWidth);
+    ui->labelBalance->setMinimumWidth(labelMinWidth);
+    ui->labelSpendable->setMinimumWidth(labelMinWidth);
+    ui->labelWatchAvailable->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmedPrivate->setMinimumWidth(labelMinWidth);
+    ui->labelWatchonly->setMinimumWidth(labelMinWidth);
+    ui->labelTotal->setMinimumWidth(labelMinWidth);
+    ui->labelWatchTotal->setMinimumWidth(labelMinWidth);
+    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
+    ui->labelImmature->setMinimumWidth(labelMinWidth);
+    ui->labelPrivate->setMinimumWidth(labelMinWidth);
+    ui->label_4->setMinimumWidth(labelMinWidth);
 }
 
 void OverviewPage::on_anonymizeButton_clicked()
@@ -280,7 +328,7 @@ void OverviewPage::setClientModel(ClientModel *model)
     this->clientModel = model;
     if(model)
     {
-        connect(model, &ClientModel::numBlocksChanged, this, &OverviewPage::onRefreshClicked);
+        connect(model, &ClientModel::numBlocksChanged, this, [this]() { ui->warningFrame->hide(); });
         // Show warning if this is a prerelease version
         connect(model, &ClientModel::alertsChanged, this, &OverviewPage::updateAlerts);
         updateAlerts(model->getStatusBarWarnings());
@@ -290,7 +338,7 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
-    onRefreshClicked();
+    ui->warningFrame->hide();
     if(model && model->getOptionsModel())
     {
         // Set up transaction list
@@ -358,190 +406,6 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
     ui->labelTransactionsStatus->setVisible(fShow);
 }
 
-void OverviewPage::countDown()
-{
-    secDelay--;
-    if(secDelay <= 0) {
-        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
-            MigrateLelantusToSparkDialog migrate(walletModel);
-        }
-        countDownTimer.stop();
-    }
-}
-
-void OverviewPage::onRefreshClicked()
-{
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
-    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
-    int heightDifference = lGracefulPeriod - chainActive.Height();
-    const int approxBlocksPerDay = 570;
-    int daysUntilMigrationCloses = heightDifference / approxBlocksPerDay;
-
-    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
-        ui->warningFrame->show();
-        migrationWindowClosesIn = QString::fromStdString(std::to_string(daysUntilMigrationCloses));
-        blocksRemaining = QString::fromStdString(std::to_string(heightDifference));
-        migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
-        migrateAmount.append("</b>");
-        ui->textWarning1->setText(tr("We have detected Lelantus coins that have not been migrated to Spark. Migration window will close in %1 blocks (~ %2 days).").arg(blocksRemaining , migrationWindowClosesIn));
-        ui->textWarning2->setText(tr("to migrate %1 ").arg(migrateAmount));
-        QFont qFont = ui->migrateButton->font();
-        qFont.setUnderline(true);
-        ui->migrateButton->setFont(qFont);
-    } else {
-        ui->warningFrame->hide();
-    }
-}
-
-void OverviewPage::migrateClicked()
-{
-    auto privateBalance = walletModel->getWallet()->GetPrivateBalance();
-    FIRO_UNUSED auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
-    migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
-    migrateAmount.append("</b>");
-    QString info = tr("Your wallet needs to be unlocked to migrate your funds to Spark.");
-
-    if(walletModel->getEncryptionStatus() == WalletModel::Locked) {
-
-        AskPassphraseDialog dlg(AskPassphraseDialog::Unlock, this, info);
-        dlg.setModel(walletModel);
-        dlg.exec();
-    }
-    if (walletModel->getEncryptionStatus() == WalletModel::Unlocked){
-        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
-            MigrateLelantusToSparkDialog migrate(walletModel);
-            if(!migrate.getClickedButton()){
-                ui->warningFrame->hide();
-            }
-        }
-    }
-}
-MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):QMessageBox()
-{
-        this->model = _model;
-        QDialog::setWindowTitle("Migrate funds from Lelantus to Spark");
-        QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
-        
-        QLabel *ic = new QLabel();
-        QIcon icon_;
-        icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
-        ic->setPixmap(icon_.pixmap(18, 18));
-        ic->setFixedWidth(90);
-        ic->setAlignment(Qt::AlignRight);
-        ic->setStyleSheet("color:#92400E");
-
-        QLabel *text = new QLabel();
-        text->setText(tr("Firo is migrating to Spark. Please migrate your funds."));
-        text->setAlignment(Qt::AlignLeft);
-        text->setWordWrap(true);
-        text->setStyleSheet("color:#92400E;text-align:center;word-wrap: break-word;");
-
-        QPushButton *ignore = new QPushButton(this);
-        ignore->setText("Ignore");
-        ignore->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
-        QPushButton *migrate = new QPushButton(this);
-        migrate->setText("Migrate");
-        migrate->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
-        QHBoxLayout *groupButton = new QHBoxLayout(this);
-        groupButton->addWidget(ignore);
-        groupButton->addWidget(migrate);
-        
-        QHBoxLayout *hlayout = new QHBoxLayout(this);
-        hlayout->addWidget(ic);
-        hlayout->addWidget(text);
-        
-        QWidget *layout_ = new QWidget();
-        layout_->setLayout(hlayout);
-        layout_->setStyleSheet("background-color:#FEF3C7;");
-        
-        QVBoxLayout *vlayout = new QVBoxLayout(this);
-        vlayout->addWidget(layout_);
-        vlayout->addLayout(groupButton);
-        vlayout->setContentsMargins(0,0,0,0);
-
-        QWidget *wbody = new QWidget();
-        wbody->setLayout(vlayout);
-
-        layout()->addWidget(wbody);
-        setContentsMargins(0, 0, 0, 0);
-        setStyleSheet("margin-right:-30px;");
-        setStandardButtons(StandardButtons());    
-
-        connect(ignore, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onIgnoreClicked);
-        connect(migrate, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onMigrateClicked);
-        exec();
-}
-
-void MigrateLelantusToSparkDialog::onIgnoreClicked()
-{
-    setVisible(false);
-    clickedButton = true;
-}
-
-void MigrateLelantusToSparkDialog::onMigrateClicked()
-{
-    setVisible(false);
-    clickedButton = false;
-    model->migrateLelantusToSpark();
-}
-
-bool MigrateLelantusToSparkDialog::getClickedButton()
-{
-    return clickedButton;
-}
-void OverviewPage::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event); 
-
-    // Retrieve new dimensions from the resize event
-    const int newWidth = event->size().width();
-    const int newHeight = event->size().height();
-    adjustTextSize(newWidth, newHeight);
-
-    // Determine widths for specific widgets as percentages of total width
-    int labelWidth = static_cast<int>(newWidth * 0.5);
-    int labelMinWidth = static_cast<int>(newWidth * 0.15);
-    int labelMaxWidth = static_cast<int>(newWidth * 0.35);
-    const int labelHeight = 20;
-
-    // Configure the dimensions and constraints of each widget
-    ui->labelBalance->setFixedWidth(labelWidth);
-    ui->labelBalance->setMinimumWidth(labelMinWidth);
-    ui->labelBalance->setMaximumWidth(labelMaxWidth);
-    ui->labelBalance->setFixedHeight(labelHeight);
-
-    ui->labelUnconfirmed->setFixedWidth(labelWidth);
-    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
-    ui->labelUnconfirmed->setMaximumWidth(labelMaxWidth);
-    ui->labelUnconfirmed->setFixedHeight(labelHeight);
-
-    int buttonWidth = static_cast<int>(newWidth * 0.15);
-    FIRO_UNUSED int buttonHeight = static_cast<int>(newHeight * 0.05);
-    int buttonMinHeight = static_cast<int>(20);
-    int buttonMaxHeight = static_cast<int>(45);
-
-    ui->anonymizeButton->setMinimumWidth(buttonWidth);
-    ui->anonymizeButton->setMaximumWidth(buttonWidth * 2);
-    ui->anonymizeButton->setMinimumHeight(buttonMinHeight);
-    ui->anonymizeButton->setMaximumHeight(buttonMaxHeight);
-
-    // Set the minimum width for all label widgets to ensure they maintain a consistent and readable size regardless of window resizing
-    ui->labelAnonymizable->setMinimumWidth(labelMinWidth);
-    ui->labelAlerts->setMinimumWidth(labelMinWidth);
-    ui->label->setMinimumWidth(labelMinWidth);
-    ui->labelWatchPending->setMinimumWidth(labelMinWidth);
-    ui->labelBalance->setMinimumWidth(labelMinWidth);
-    ui->labelSpendable->setMinimumWidth(labelMinWidth);
-    ui->labelWatchAvailable->setMinimumWidth(labelMinWidth);
-    ui->labelUnconfirmedPrivate->setMinimumWidth(labelMinWidth);
-    ui->labelWatchonly->setMinimumWidth(labelMinWidth);
-    ui->labelTotal->setMinimumWidth(labelMinWidth);
-    ui->labelWatchTotal->setMinimumWidth(labelMinWidth);
-    ui->labelUnconfirmed->setMinimumWidth(labelMinWidth);
-    ui->labelImmature->setMinimumWidth(labelMinWidth);
-    ui->labelPrivate->setMinimumWidth(labelMinWidth);
-    ui->label_4->setMinimumWidth(labelMinWidth);
-}
 void OverviewPage::adjustTextSize(int width, int height){
 
     const double fontSizeScalingFactor = 133.0;

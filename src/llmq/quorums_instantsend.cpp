@@ -490,23 +490,13 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
-    if (tx.nType == isutils::INSTANTSEND_ADAPTED_TX ) {
-        if (tx.IsLelantusJoinSplit()) {
-            for (CTxIn const & in : tx.vin) {
-                Scalar serial;
-                serial.deserialize(&in.scriptSig.front());
-                LOCK(cs_main);
-                if (lelantus::CLelantusState::GetState()->IsUsedCoinSerial(serial))
-                    return false;
-            }
-        } else if (tx.IsSparkSpend()) {
-            for (CTxIn const & in : tx.vin) {
-                GroupElement lTag;
-                lTag.deserialize(&in.scriptSig.front());
-                LOCK(cs_main);
-                if (spark::CSparkState::GetState()->IsUsedLTag(lTag))
-                    return false;
-            }
+    if (tx.IsSparkSpend()) {
+        for (CTxIn const & in : tx.vin) {
+            GroupElement lTag;
+            lTag.deserialize(&in.scriptSig.front());
+            LOCK(cs_main);
+            if (spark::CSparkState::GetState()->IsUsedLTag(lTag))
+                return false;
         }
         return true;
     }
@@ -617,7 +607,7 @@ void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& re
         return;
     }
 
-    if (tx && (tx->IsLelantusJoinSplit() || tx->IsSparkSpend())) {
+    if (tx && tx->IsSparkSpend()) {
         tx = MakeTransactionRef(isutils::AdaptPrivateTx(*tx));
     }
 
@@ -1577,31 +1567,6 @@ bool CInstantSendManager::IsNewInstantSendEnabled() const
 
 namespace isutils
 {
-CTransaction AdaptJsplitTx(CTransaction const & tx)
-{
-    static size_t const jsplitSerialSize = 32;
-
-    CTransaction result{tx};
-    std::unique_ptr <lelantus::JoinSplit> jsplit;
-    try {
-        jsplit = lelantus::ParseLelantusJoinSplit(tx);
-    }
-    catch (...) {
-        return result;
-    }
-    const_cast<std::vector<CTxIn>*>(&result.vin)->clear();                      //This const_cast was done intentionally as the current design allows for this way only
-    for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
-        CTxIn newin;
-        newin.scriptSig.resize(jsplitSerialSize);
-        serial.serialize(&newin.scriptSig.front());
-        newin.prevout.hash = primitives::GetSerialHash(serial);
-        newin.prevout.n = 0;
-        const_cast<std::vector<CTxIn>*>(&result.vin)->push_back(newin);
-    }
-    *const_cast<int16_t*>(&result.nType) = INSTANTSEND_ADAPTED_TX;
-    assert(result.GetHash() == tx.GetHash());
-    return result;
-}
 
 CTransaction AdaptSparkTx(CTransaction const & tx)
 {
@@ -1632,9 +1597,7 @@ CTransaction AdaptSparkTx(CTransaction const & tx)
 
 CTransaction AdaptPrivateTx(CTransaction const & tx)
 {
-    if (tx.IsLelantusJoinSplit()) {
-        return AdaptJsplitTx(tx);
-    } else if (tx.IsSparkSpend()) {
+    if (tx.IsSparkSpend()) {
         return AdaptSparkTx(tx);
     }
     return tx;

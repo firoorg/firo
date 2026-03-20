@@ -1401,10 +1401,8 @@ UniValue spork(const JSONRPCRequest& request)
         throw std::runtime_error("No spork actions specified");
 
     std::set<std::string> validFeatureNames {
-        CSporkAction::featureLelantus,
         CSporkAction::featureChainlocks,
         CSporkAction::featureInstantSend,
-        CSporkAction::featureLelantusTransparentLimit,
         CSporkAction::featureSpark,
         CSporkAction::featureSparkTransparentLimit
     };

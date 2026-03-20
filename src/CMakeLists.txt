@@ -200,7 +200,6 @@ add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/compressor.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/core_read.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/core_write.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/hdmint/hdmint.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/init.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/key.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/keystore.cpp
@@ -270,22 +269,6 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/httprpc.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/httpserver.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/init.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/lelantus.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/coin.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/innerproduct_proof_generator.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/innerproduct_proof_verifier.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/joinsplit.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/lelantus_primitives.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/lelantus_prover.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/lelantus_verifier.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/params.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/range_prover.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/range_verifier.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/schnorr_prover.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/schnorr_verifier.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/sigmaextended_prover.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/sigmaextended_verifier.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/liblelantus/spend_metadata.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/aead.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/bech32.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/bpplus.cpp

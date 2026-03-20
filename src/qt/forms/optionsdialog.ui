@@ -163,46 +163,6 @@
             </property>
            </widget>
           </item>
-          <item>
-           <widget class="QCheckBox" name="reindexLelantus">
-            <property name="toolTip">
-             <string>Restore all Lelantus transactions following a reindex.</string>
-            </property>
-            <property name="text">
-             <string>&amp;Reindex Lelantus</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="lelantusGroupBox">
-         <property name="title">
-          <string>Lelantus</string>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
-          <item>
-           <widget class="QCheckBox" name="autoAnonymize">
-            <property name="text">
-             <string>Enable &amp;auto-anonymize features</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="fSplit">
-            <property name="text">
-             <string>Enable &amp;splitting when minting</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="lelantusPage">
-            <property name="text">
-             <string>Enable &amp;lelantus manual-anonymize page</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </widget>
        </item>

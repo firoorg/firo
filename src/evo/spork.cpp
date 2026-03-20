@@ -53,19 +53,7 @@ bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValida
 
 static bool IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &sporkMap, CValidationState &state)
 {
-    if (tx.IsLelantusTransaction()) {
-        if (sporkMap.count(CSporkAction::featureLelantus) > 0)
-            return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Lelantus transactions are disabled at the moment");
-
-        if (tx.IsLelantusJoinSplit()) {
-            const auto &limitSpork = sporkMap.find(CSporkAction::featureLelantusTransparentLimit);
-            if (limitSpork != sporkMap.cend()) {
-                if (lelantus::GetSpendTransparentAmount(tx) > (CAmount)limitSpork->second.second)
-                    return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Lelantus transaction is over the transparent limit");
-            }
-        }
-    }
-    else if (tx.IsSparkTransaction()) {
+    if (tx.IsSparkTransaction()) {
         if (sporkMap.count(CSporkAction::featureSpark) > 0)
             return state.DoS(100, false, REJECT_CONFLICT, "txn-spark-disabled", false, "Spark transactions are disabled at the moment");
 
@@ -176,24 +164,7 @@ bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const ActiveSpo
 }
 
 bool CSporkManager::IsBlockAllowed(const CBlock &block, const CBlockIndex *pindex, CValidationState &state) {
-    if (pindex->activeDisablingSporks.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
-        // limit total transparent output of lelantus joinsplit
-        int64_t limit = pindex->activeDisablingSporks.at(CSporkAction::featureLelantusTransparentLimit).second;
-        CAmount totalTransparentOutput = 0;
-
-        for (const auto &tx: block.vtx) {
-            if (!tx->IsLelantusJoinSplit())
-                continue;
-
-            totalTransparentOutput += lelantus::GetSpendTransparentAmount(*tx);
-        }
-
-        if (totalTransparentOutput > CAmount(limit))
-            return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Block is over the transparent output limit because of existing spork");
-    }
-
     if (pindex->activeDisablingSporks.count(CSporkAction::featureSparkTransparentLimit) > 0) {
-        // limit total transparent output of lelantus joinsplit
         int64_t limit = pindex->activeDisablingSporks.at(CSporkAction::featureSparkTransparentLimit).second;
         CAmount totalTransparentOutput = 0;
 
