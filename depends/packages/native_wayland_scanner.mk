@@ -6,7 +6,7 @@ $(package)_sha256_hash := b8a034154c7059772e0fdbd27dbfcda6c732df29cae56a82274f6e
 $(package)_dependencies := libffi
 
 define $(package)_config_cmds
-  PKG_CONFIG_LIBDIR=$(build_prefix)/lib/pkgconfig \
+  PKG_CONFIG_LIBDIR=$(host_prefix)/lib/pkgconfig:$(build_prefix)/lib/pkgconfig \
   PKG_CONFIG_PATH=$(build_prefix)/share/pkgconfig \
   EXPAT_LIBS=$$$$(env -u PKG_CONFIG_LIBDIR PKG_CONFIG_PATH=$(SYSTEM_PKG_CONFIG_PATH) pkg-config --libs expat) \
   EXPAT_CFLAGS=$$$$(env -u PKG_CONFIG_LIBDIR PKG_CONFIG_PATH=$(SYSTEM_PKG_CONFIG_PATH) PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --cflags expat) \
