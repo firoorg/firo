@@ -12,7 +12,9 @@ BUILD_DIR="${PROJECT_DIR}/build"
 # Skip if already fully built
 if [ -f "${BUILD_DIR}/bin/firod" ] && [ -f "${BUILD_DIR}/bin/test_firo" ]; then
   if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-    echo "export PATH=\"${BUILD_DIR}/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+    if ! grep -qF "${BUILD_DIR}/bin" "$CLAUDE_ENV_FILE" 2>/dev/null; then
+      echo "export PATH=\"${BUILD_DIR}/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+    fi
   fi
   exit 0
 fi
@@ -80,27 +82,27 @@ fi
 ########################################
 BLS_PREFIX="/usr/local"
 if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
-  TMPDIR=$(mktemp -d)
+  WORK_DIR=$(mktemp -d)
 
   BLS_VERSION="1.1.0"
   RELIC_COMMIT="3a23142be0a5510a3aa93cd6c76fc59d3fc732a5"
 
   curl -sL "https://github.com/dashpay/bls-signatures/archive/${BLS_VERSION}.tar.gz" \
-    -o "${TMPDIR}/bls.tar.gz"
+    -o "${WORK_DIR}/bls.tar.gz"
   curl -sL "https://github.com/relic-toolkit/relic/archive/${RELIC_COMMIT}.tar.gz" \
-    -o "${TMPDIR}/relic.tar.gz"
+    -o "${WORK_DIR}/relic.tar.gz"
 
-  mkdir -p "${TMPDIR}/bls-signatures"
-  tar -xzf "${TMPDIR}/bls.tar.gz" -C "${TMPDIR}/bls-signatures" --strip-components=1
+  mkdir -p "${WORK_DIR}/bls-signatures"
+  tar -xzf "${WORK_DIR}/bls.tar.gz" -C "${WORK_DIR}/bls-signatures" --strip-components=1
 
   # Apply Firo's patches first (before URL substitution)
-  cd "${TMPDIR}/bls-signatures"
+  cd "${WORK_DIR}/bls-signatures"
   if [ -f "${PROJECT_DIR}/depends/patches/bls-dash/bls-signatures.patch" ]; then
     patch -p1 < "${PROJECT_DIR}/depends/patches/bls-dash/bls-signatures.patch"
   fi
 
   # Point CMake at local relic tarball instead of git
-  sed -i "s|GIT_REPOSITORY https://github.com/relic-toolkit/relic.git|URL \"${TMPDIR}/relic.tar.gz\"|" \
+  sed -i "s|GIT_REPOSITORY https://github.com/relic-toolkit/relic.git|URL \"${WORK_DIR}/relic.tar.gz\"|" \
     src/CMakeLists.txt
   sed -i 's|GIT_TAG.*RELIC_GIT_TAG.*|URL_HASH SHA256=ddad83b1406985a1e4703bd03bdbab89453aa700c0c99567cf8de51c205e5dde|' \
     src/CMakeLists.txt
@@ -117,13 +119,13 @@ if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
     -DWSIZE=64 \
     "-DCMAKE_C_FLAGS=-DUBLSALLOC_SODIUM" \
     "-DCMAKE_CXX_FLAGS=-DUBLSALLOC_SODIUM" \
-    -S"${TMPDIR}/bls-signatures" -B"${TMPDIR}/bls-build"
+    -S"${WORK_DIR}/bls-signatures" -B"${WORK_DIR}/bls-build"
 
-  make -C "${TMPDIR}/bls-build" -j"$(nproc)"
-  sudo cmake --install "${TMPDIR}/bls-build"
+  make -C "${WORK_DIR}/bls-build" -j"$(nproc)"
+  sudo cmake --install "${WORK_DIR}/bls-build"
   sudo ldconfig
 
-  rm -rf "${TMPDIR}"
+  rm -rf "${WORK_DIR}"
   cd "${PROJECT_DIR}"
 fi
 
@@ -132,19 +134,21 @@ fi
 #    (needed for ENABLE_CRASH_HOOKS)
 ########################################
 if [ ! -f "${BLS_PREFIX}/lib/libbacktrace.a" ]; then
-  TMPDIR=$(mktemp -d)
+  WORK_DIR=$(mktemp -d)
 
-  curl -sL "https://github.com/ianlancetaylor/libbacktrace/archive/refs/heads/master.tar.gz" \
-    -o "${TMPDIR}/libbacktrace.tar.gz"
-  mkdir -p "${TMPDIR}/libbacktrace"
-  tar -xzf "${TMPDIR}/libbacktrace.tar.gz" -C "${TMPDIR}/libbacktrace" --strip-components=1
+  # Pin to a specific commit for deterministic builds
+  LIBBACKTRACE_COMMIT="4ead348bb45f753121ca0bd44170ff8352d4c514"
+  curl -sL "https://github.com/ianlancetaylor/libbacktrace/archive/${LIBBACKTRACE_COMMIT}.tar.gz" \
+    -o "${WORK_DIR}/libbacktrace.tar.gz"
+  mkdir -p "${WORK_DIR}/libbacktrace"
+  tar -xzf "${WORK_DIR}/libbacktrace.tar.gz" -C "${WORK_DIR}/libbacktrace" --strip-components=1
 
-  cd "${TMPDIR}/libbacktrace"
+  cd "${WORK_DIR}/libbacktrace"
   ./configure --prefix="${BLS_PREFIX}" --enable-static --disable-shared CFLAGS="-fPIC"
   make -j"$(nproc)"
   sudo make install
 
-  rm -rf "${TMPDIR}"
+  rm -rf "${WORK_DIR}"
   cd "${PROJECT_DIR}"
 fi
 
@@ -158,9 +162,9 @@ fi
 #    development/testing workflows.
 ########################################
 if [ ! -f "${BLS_PREFIX}/lib/libtor.a" ]; then
-  TMPDIR=$(mktemp -d)
+  WORK_DIR=$(mktemp -d)
 
-  cat > "${TMPDIR}/tor_stub.c" << 'STUBEOF'
+  cat > "${WORK_DIR}/tor_stub.c" << 'STUBEOF'
 #include <stdio.h>
 int tor_main(int argc, char *argv[]) {
     (void)argc; (void)argv;
@@ -170,11 +174,11 @@ int tor_main(int argc, char *argv[]) {
 void tor_cleanup(void) {}
 STUBEOF
 
-  gcc -c -fPIC "${TMPDIR}/tor_stub.c" -o "${TMPDIR}/tor_stub.o"
-  ar rcs "${TMPDIR}/libtor.a" "${TMPDIR}/tor_stub.o"
-  sudo install -m 644 "${TMPDIR}/libtor.a" "${BLS_PREFIX}/lib/libtor.a"
+  gcc -c -fPIC "${WORK_DIR}/tor_stub.c" -o "${WORK_DIR}/tor_stub.o"
+  ar rcs "${WORK_DIR}/libtor.a" "${WORK_DIR}/tor_stub.o"
+  sudo install -m 644 "${WORK_DIR}/libtor.a" "${BLS_PREFIX}/lib/libtor.a"
 
-  rm -rf "${TMPDIR}"
+  rm -rf "${WORK_DIR}"
 fi
 
 ########################################
@@ -189,6 +193,10 @@ if [ ! -f "${BUILD_DIR}/build.ninja" ]; then
   BOOST_CMAKE="${PROJECT_DIR}/cmake/module/AddBoostIfNeeded.cmake"
   if grep -q 'set(Boost_USE_STATIC_RUNTIME ON)' "${BOOST_CMAKE}"; then
     sed -i 's/set(Boost_USE_STATIC_RUNTIME ON)/set(Boost_USE_STATIC_RUNTIME OFF)/' "${BOOST_CMAKE}"
+    # Hide this local-only workaround from git so it doesn't show up in diffs.
+    # A cleaner alternative would be to pass -DBoost_USE_STATIC_RUNTIME=OFF via
+    # CMake cache variables, but the upstream CMakeLists.txt unconditionally
+    # overrides it with set(), so patching the file is the only option for now.
     git -C "${PROJECT_DIR}" update-index --assume-unchanged "${BOOST_CMAKE}"
   fi
 
@@ -212,7 +220,7 @@ fi
 ########################################
 # 7. Build
 ########################################
-if [ ! -f "${BUILD_DIR}/bin/firod" ]; then
+if [ ! -f "${BUILD_DIR}/bin/firod" ] || [ ! -f "${BUILD_DIR}/bin/test_firo" ]; then
   cmake --build "${BUILD_DIR}" -j"$(nproc)"
 fi
 
@@ -220,5 +228,7 @@ fi
 # 8. Set environment variables
 ########################################
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-  echo "export PATH=\"${BUILD_DIR}/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+  if ! grep -qF "${BUILD_DIR}/bin" "$CLAUDE_ENV_FILE" 2>/dev/null; then
+    echo "export PATH=\"${BUILD_DIR}/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+  fi
 fi
