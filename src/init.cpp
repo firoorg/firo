@@ -136,6 +136,7 @@ extern CTxPoolAggregate txpools;
 
 namespace fs = boost::filesystem;
 
+#ifdef ENABLE_TOR
 extern "C" {
     int tor_main(int argc, char *argv[]);
     void tor_cleanup(void);
@@ -147,6 +148,7 @@ static char *convert_str(const std::string &s) {
     std::strcpy(pc, s.c_str());
     return pc;
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -969,6 +971,7 @@ static std::string ResolveErrMsg(const char *const optname, const std::string &s
     return strprintf(_("Cannot resolve -%s address: '%s'"), optname, strBind);
 }
 
+#ifdef ENABLE_TOR
 void RunTor(){
 	printf("TOR thread started.\n");
 
@@ -1059,6 +1062,20 @@ void StopTorEnabled()
         baseTor = 0;
     }
 }
+#else
+void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
+{
+    LogPrintf("tor: Built without Tor support\n");
+}
+
+void InterruptTorEnabled()
+{
+}
+
+void StopTorEnabled()
+{
+}
+#endif
 
 void InitLogging() {
     fPrintToConsole = GetBoolArg("-printtoconsole", false);

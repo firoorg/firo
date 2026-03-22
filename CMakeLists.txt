@@ -485,10 +485,17 @@ else()
 endif()
 
 # Find tor library
-find_library(TOR_LIBRARY
-  NAMES tor
-  REQUIRED
-)
+option(WITH_TOR "Build with embedded Tor support" ON)
+if(WITH_TOR)
+  find_library(TOR_LIBRARY
+    NAMES tor
+    REQUIRED
+  )
+  add_compile_definitions(ENABLE_TOR=1)
+else()
+  set(TOR_LIBRARY "")
+  message(STATUS "Building without Tor support (WITH_TOR=OFF)")
+endif()
 
 # Find OpenSSL library
 find_package(OpenSSL 1.1.1 REQUIRED)
@@ -516,10 +523,12 @@ find_library(ZLIB_LIBRARY
   REQUIRED
 )
 
-if(${TOR_LIBRARY} STREQUAL "TOR_LIBRARY-NOTFOUND")
-  message(FATAL_ERROR "tor library not found")
-else()
-  message(STATUS "Found tor library: ${TOR_LIBRARY}")
+if(WITH_TOR)
+  if(${TOR_LIBRARY} STREQUAL "TOR_LIBRARY-NOTFOUND")
+    message(FATAL_ERROR "tor library not found")
+  else()
+    message(STATUS "Found tor library: ${TOR_LIBRARY}")
+  endif()
 endif()
 
 if(ENABLE_CRASH_HOOKS)
