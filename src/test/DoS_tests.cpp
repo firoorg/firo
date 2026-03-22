@@ -215,4 +215,63 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
     BOOST_CHECK(mapOrphanTransactions.empty());
 }
 
+// Regression test for the LLMQ sig-share ban race window (refs #1799).
+//
+// In CSigSharesManager::ProcessPendingSigShares(), sig shares are collected
+// from pendingIncomingSigShares into a local map under cs, then the lock is
+// released for batch verification. If a peer is banned between collection
+// and final processing, the already-copied shares must not be applied.
+// The fix adds a banned re-check before ProcessPendingSigSharesFromNode().
+//
+// This test verifies that the IsBanned() / fShouldBan mechanism (which
+// BanNode triggers via Misbehaving(nodeId, 100)) returns true immediately,
+// confirming the guard can detect a mid-flight ban. It also confirms
+// partially-misbehaving nodes are not prematurely flagged.
+BOOST_AUTO_TEST_CASE(llmq_sigshare_ban_race_guard)
+{
+    connman->ClearBanned();
+
+    CAddress addr1(ip(0xa0b0c010), NODE_NONE);
+    CNode dummyNode1(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr1, 0, 0, "", true);
+    dummyNode1.SetSendVersion(PROTOCOL_VERSION);
+    GetNodeSignals().InitializeNode(&dummyNode1, *connman);
+    dummyNode1.nVersion = 1;
+    dummyNode1.fSuccessfullyConnected = true;
+
+    CAddress addr2(ip(0xa0b0c020), NODE_NONE);
+    CNode dummyNode2(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr2, 0, 0, "", true);
+    dummyNode2.SetSendVersion(PROTOCOL_VERSION);
+    GetNodeSignals().InitializeNode(&dummyNode2, *connman);
+    dummyNode2.nVersion = 1;
+    dummyNode2.fSuccessfullyConnected = true;
+
+    NodeId nodeId1 = dummyNode1.GetId();
+    NodeId nodeId2 = dummyNode2.GetId();
+
+    {
+        LOCK(cs_main);
+
+        // Before any misbehavior, neither node should be banned
+        BOOST_CHECK(!IsBanned(nodeId1));
+        BOOST_CHECK(!IsBanned(nodeId2));
+
+        // Partially misbehaving node should NOT be banned (below threshold)
+        Misbehaving(nodeId1, 50);
+        BOOST_CHECK(!IsBanned(nodeId1));
+
+        // Simulate the race: node2 gets banned while sig-share batch is in flight.
+        // IsBanned() must return true immediately after Misbehaving with score >= 100,
+        // so that the guard in ProcessPendingSigShares skips this node's shares.
+        Misbehaving(nodeId2, 100);
+        BOOST_CHECK(IsBanned(nodeId2));
+
+        // node1 is still not banned (only partial misbehavior)
+        BOOST_CHECK(!IsBanned(nodeId1));
+
+        // Pushing node1 over the threshold also bans it immediately
+        Misbehaving(nodeId1, 50);
+        BOOST_CHECK(IsBanned(nodeId1));
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -667,6 +667,21 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
             continue;
         }
 
+        // Re-check ban status before processing. A peer may have been banned by
+        // another thread (e.g. ProcessMessage calling BanNode/MarkNodeBanned)
+        // after CollectPendingSigSharesToVerify copied shares out but before we
+        // got here. Without this check, already-copied shares from a banned peer
+        // would still be applied.
+        {
+            LOCK(cs);
+            auto it = nodeStates.find(nodeId);
+            if (it != nodeStates.end() && it->second.banned) {
+                LogPrint("llmq-sigs", "CSigSharesManager::%s -- skipping sig shares from banned peer=%d\n",
+                         __func__, nodeId);
+                continue;
+            }
+        }
+
         ProcessPendingSigSharesFromNode(nodeId, v, quorums, connman);
     }
 
