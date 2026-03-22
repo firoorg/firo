@@ -149,14 +149,49 @@ if [ ! -f "${BLS_PREFIX}/lib/libbacktrace.a" ]; then
 fi
 
 ########################################
-# 5. Configure CMake
-#    Note: WITH_TOR=OFF because
+# 5. Create stub libtor.a
 #    archive.torproject.org is blocked
-#    by the cloud egress proxy.
-#    Tor integration is not needed for
+#    by the cloud egress proxy, so we
+#    create a stub with the symbols
+#    referenced by src/init.cpp.
+#    The embedded Tor is not needed for
 #    development/testing workflows.
 ########################################
+if [ ! -f "${BLS_PREFIX}/lib/libtor.a" ]; then
+  TMPDIR=$(mktemp -d)
+
+  cat > "${TMPDIR}/tor_stub.c" << 'STUBEOF'
+#include <stdio.h>
+int tor_main(int argc, char *argv[]) {
+    (void)argc; (void)argv;
+    fprintf(stderr, "tor: stub library - embedded Tor not available in this build\n");
+    return 1;
+}
+void tor_cleanup(void) {}
+STUBEOF
+
+  gcc -c -fPIC "${TMPDIR}/tor_stub.c" -o "${TMPDIR}/tor_stub.o"
+  ar rcs "${TMPDIR}/libtor.a" "${TMPDIR}/tor_stub.o"
+  sudo install -m 644 "${TMPDIR}/libtor.a" "${BLS_PREFIX}/lib/libtor.a"
+
+  rm -rf "${TMPDIR}"
+fi
+
+########################################
+# 6. Configure CMake
+#    The upstream AddBoostIfNeeded.cmake
+#    hardcodes Boost_USE_STATIC_RUNTIME=ON.
+#    Cloud uses system shared Boost, so we
+#    patch the local copy and hide the
+#    change from git with assume-unchanged.
+########################################
 if [ ! -f "${BUILD_DIR}/build.ninja" ]; then
+  BOOST_CMAKE="${PROJECT_DIR}/cmake/module/AddBoostIfNeeded.cmake"
+  if grep -q 'set(Boost_USE_STATIC_RUNTIME ON)' "${BOOST_CMAKE}"; then
+    sed -i 's/set(Boost_USE_STATIC_RUNTIME ON)/set(Boost_USE_STATIC_RUNTIME OFF)/' "${BOOST_CMAKE}"
+    git -C "${PROJECT_DIR}" update-index --assume-unchanged "${BOOST_CMAKE}"
+  fi
+
   cmake -G Ninja \
     -DBUILD_DAEMON=ON \
     -DBUILD_CLI=ON \
@@ -167,8 +202,6 @@ if [ ! -f "${BUILD_DIR}/build.ninja" ]; then
     -DWITH_BDB=ON \
     -DWITH_ZMQ=ON \
     -DENABLE_CRASH_HOOKS=ON \
-    -DWITH_TOR=OFF \
-    -DBoost_USE_STATIC_RUNTIME=OFF \
     -DWARN_INCOMPATIBLE_BDB=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -177,14 +210,14 @@ if [ ! -f "${BUILD_DIR}/build.ninja" ]; then
 fi
 
 ########################################
-# 6. Build
+# 7. Build
 ########################################
 if [ ! -f "${BUILD_DIR}/bin/firod" ]; then
   cmake --build "${BUILD_DIR}" -j"$(nproc)"
 fi
 
 ########################################
-# 7. Set environment variables
+# 8. Set environment variables
 ########################################
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   echo "export PATH=\"${BUILD_DIR}/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
