@@ -45,7 +45,11 @@ enum Network ParseNetwork(std::string net) {
     if (net == "ipv4") return NET_IPV4;
     if (net == "ipv6") return NET_IPV6;
     if (net == "tor") {
-        LogPrintf("Warning: net name 'tor' is deprecated and will be removed in the future. You should use 'onion' instead.\n");
+        static bool warned = false;
+        if (!warned) {
+            LogPrintf("Warning: net name 'tor' is deprecated and will be removed in the future. You should use 'onion' instead.\n");
+            warned = true;
+        }
         return NET_ONION;
     }
     if (net == "onion") return NET_ONION;
@@ -64,8 +68,8 @@ std::string GetNetworkName(enum Network net) {
     case NET_INTERNAL: return "internal";
     case NET_MAX: break;
     }
-    assert(false);
-    return "";
+    assert(!"unexpected Network value");
+    return "unknown";
 }
 
 void SplitHostPort(std::string in, int &portOut, std::string &hostOut) {
