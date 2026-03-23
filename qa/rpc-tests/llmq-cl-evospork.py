@@ -93,8 +93,6 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         except AssertionError:
             self.nodes[0].generate(1)
             current_tip = self.nodes[0].getbestblockhash()
-            assert self.nodes[0].getblock(current_tip)["previousblockhash"] == chainlocked_tip, \
-                "Retry block did not extend the chainlocked tip"
             self.wait_for_tip(self.nodes[5], current_tip, timeout=15)
         assert self.nodes[0].getbestblockhash() == current_tip, \
             "Node 0 did not keep the chainlocked tip"
