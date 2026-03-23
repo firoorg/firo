@@ -5,6 +5,7 @@
 #include "bls/bls.h"
 #include "bls/bls_batchverifier.h"
 #include "test/test_bitcoin.h"
+#include "streams.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -191,6 +192,78 @@ BOOST_AUTO_TEST_CASE(batch_verifier_tests)
     // last message invalid from one source
     AddMessage(msgs, 1, 7, 1, false);
     Verify(msgs);
+}
+
+// ---------------------------------------------------------------------------
+// Lazy-wrapper identity rejection tests
+// ---------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE(lazy_pubkey_rejects_identity)
+{
+    // Construct a stream containing all-zero (identity) public-key bytes.
+    std::vector<uint8_t> identityBytes(CBLSPublicKey::SerSize, 0);
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss.write((const char*)identityBytes.data(), identityBytes.size());
+
+    CBLSLazyPublicKey lazy;
+    lazy.Unserialize(ss);
+
+    // Get() must return an invalid object.
+    const CBLSPublicKey& pk = lazy.Get();
+    BOOST_CHECK(!pk.IsValid());
+
+    // GetHash() must return a null hash – identity bytes must not influence hashes.
+    BOOST_CHECK(lazy.GetHash().IsNull());
+}
+
+BOOST_AUTO_TEST_CASE(lazy_signature_rejects_identity)
+{
+    std::vector<uint8_t> identityBytes(CBLSSignature::SerSize, 0);
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss.write((const char*)identityBytes.data(), identityBytes.size());
+
+    CBLSLazySignature lazy;
+    lazy.Unserialize(ss);
+
+    const CBLSSignature& sig = lazy.Get();
+    BOOST_CHECK(!sig.IsValid());
+    BOOST_CHECK(lazy.GetHash().IsNull());
+}
+
+BOOST_AUTO_TEST_CASE(lazy_wrapper_valid_roundtrip)
+{
+    // A valid key must survive the lazy path and produce a non-null hash.
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    CBLSPublicKey pk = sk.GetPublicKey();
+    BOOST_CHECK(pk.IsValid());
+
+    // Serialize the valid key, then deserialize through the lazy wrapper.
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss.write((const char*)pk.ToByteVector().data(), CBLSPublicKey::SerSize);
+
+    CBLSLazyPublicKey lazy;
+    lazy.Unserialize(ss);
+
+    const CBLSPublicKey& recovered = lazy.Get();
+    BOOST_CHECK(recovered.IsValid());
+    BOOST_CHECK(recovered == pk);
+    BOOST_CHECK(!lazy.GetHash().IsNull());
+}
+
+BOOST_AUTO_TEST_CASE(lazy_identity_cannot_influence_serialization)
+{
+    // After deserializing identity bytes, Serialize() must throw because the
+    // wrapper is in an uninitialised state (neither buf nor obj is valid).
+    std::vector<uint8_t> identityBytes(CBLSPublicKey::SerSize, 0);
+    CDataStream ssIn(SER_NETWORK, PROTOCOL_VERSION);
+    ssIn.write((const char*)identityBytes.data(), identityBytes.size());
+
+    CBLSLazyPublicKey lazy;
+    lazy.Unserialize(ssIn);
+
+    CDataStream ssOut(SER_NETWORK, PROTOCOL_VERSION);
+    BOOST_CHECK_THROW(lazy.Serialize(ssOut), std::ios_base::failure);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

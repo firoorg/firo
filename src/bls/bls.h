@@ -369,6 +369,16 @@ public:
     {
         std::unique_lock<std::mutex> l(mutex);
         s.read((char*)vecBytes.data(), BLSObject::SerSize);
+
+        // Reject canonical identity (all-zero) encodings immediately,
+        // consistent with CBLSWrapper::SetByteVector().
+        if (std::all_of(vecBytes.begin(), vecBytes.end(), [](uint8_t c) { return c == 0; })) {
+            bufValid = false;
+            objInitialized = false;
+            hash.SetNull();
+            return;
+        }
+
         bufValid = true;
         objInitialized = false;
         hash.SetNull();
@@ -422,6 +432,11 @@ public:
     {
         std::unique_lock<std::mutex> l(mutex);
         if (!bufValid) {
+            if (!objInitialized) {
+                // Neither buffer nor object is valid (e.g. identity was rejected);
+                // return null hash rather than hashing uninitialised data.
+                return hash;
+            }
             vecBytes = obj.ToByteVector();
             bufValid = true;
             hash.SetNull();
