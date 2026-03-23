@@ -100,6 +100,8 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
             "Node 0 did not keep the chainlocked tip"
         assert self.nodes[5].getbestblockhash() == current_tip, \
             "Isolated node did not adopt the chainlocked tip"
+        assert self.nodes[5].getblockcount() == self.nodes[0].getblockcount(), \
+            "Node 5 block count diverges from node 0 after reconnect"
 
 
 
@@ -125,18 +127,6 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
                 pass
             sleep(0.1)
         raise AssertionError("wait_for_chainlock timed out for block %s" % block_hash)
-
-    def wait_for_sync(self, node1, node2, timeout=30):
-        """Wait until node1 has the same tip as node2. Returns True if synced, False on timeout."""
-        t = time()
-        while time() - t < timeout:
-            try:
-                if node1.getbestblockhash() == node2.getbestblockhash():
-                    return True
-            except JSONRPCException:
-                pass
-            sleep(0.5)
-        return False
 
     def wait_for_tip(self, node, expected_tip, timeout=15):
         """Wait until node's best block hash equals expected_tip."""
