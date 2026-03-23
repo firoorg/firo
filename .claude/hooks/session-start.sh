@@ -85,6 +85,7 @@ if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
   WORK_DIR=$(mktemp -d)
 
   BLS_VERSION="1.1.0"
+  BLS_SHA256="276c8573104e5f18bb5b9fd3ffd49585dda5ba5f6de2de74759dda8ca5a9deac"
   RELIC_COMMIT="3a23142be0a5510a3aa93cd6c76fc59d3fc732a5"
   RELIC_SHA256="ddad83b1406985a1e4703bd03bdbab89453aa700c0c99567cf8de51c205e5dde"
 
@@ -92,6 +93,12 @@ if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
     -o "${WORK_DIR}/bls.tar.gz"
   curl -sL "https://github.com/relic-toolkit/relic/archive/${RELIC_COMMIT}.tar.gz" \
     -o "${WORK_DIR}/relic.tar.gz"
+
+  # Verify downloaded tarballs against known hashes
+  echo "${BLS_SHA256}  ${WORK_DIR}/bls.tar.gz" | sha256sum -c - || \
+    { echo "ERROR: bls-signatures tarball SHA256 mismatch"; rm -rf "${WORK_DIR}"; exit 1; }
+  echo "${RELIC_SHA256}  ${WORK_DIR}/relic.tar.gz" | sha256sum -c - || \
+    { echo "ERROR: relic tarball SHA256 mismatch"; rm -rf "${WORK_DIR}"; exit 1; }
 
   mkdir -p "${WORK_DIR}/bls-signatures"
   tar -xzf "${WORK_DIR}/bls.tar.gz" -C "${WORK_DIR}/bls-signatures" --strip-components=1
@@ -137,10 +144,13 @@ fi
 if [ ! -f "${BLS_PREFIX}/lib/libbacktrace.a" ]; then
   WORK_DIR=$(mktemp -d)
 
-  # Pin to a specific commit for deterministic builds
-  LIBBACKTRACE_COMMIT="4ead348bb45f753121ca0bd44170ff8352d4c514"
+  # Pin to the same commit and hash used by depends/packages/backtrace.mk
+  LIBBACKTRACE_COMMIT="b9e40069c0b47a722286b94eb5231f7f05c08713"
+  LIBBACKTRACE_SHA256="81b37e762965c676b3316e90564c89f6480606add446651c785862571a1fdbca"
   curl -sL "https://github.com/ianlancetaylor/libbacktrace/archive/${LIBBACKTRACE_COMMIT}.tar.gz" \
     -o "${WORK_DIR}/libbacktrace.tar.gz"
+  echo "${LIBBACKTRACE_SHA256}  ${WORK_DIR}/libbacktrace.tar.gz" | sha256sum -c - || \
+    { echo "ERROR: libbacktrace tarball SHA256 mismatch"; rm -rf "${WORK_DIR}"; exit 1; }
   mkdir -p "${WORK_DIR}/libbacktrace"
   tar -xzf "${WORK_DIR}/libbacktrace.tar.gz" -C "${WORK_DIR}/libbacktrace" --strip-components=1
 
