@@ -35,7 +35,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         # mine single block, wait for chainlock
         self.nodes[0].generate(1)
         sync_blocks(self.nodes)
-        self.wait_for_chainlock_tip_all_nodes()
+        self.wait_for_chainlock_tip_all_nodes(self.nodes[0].getbestblockhash())
         self.payment_address = self.nodes[0].getaccountaddress("")
         self.nodes[0].sendtoaddress(self.payment_address, 1)
 
@@ -43,7 +43,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         while self.nodes[0].getblockcount() < 800:
             self.nodes[0].generate(20)
         sync_blocks(self.nodes, timeout=120)
-        self.wait_for_chainlock_tip_all_nodes()
+        self.wait_for_chainlock_tip_all_nodes(self.nodes[0].getbestblockhash())
 
         # assert that all blocks up until the tip are chainlocked
         for h in range(1, self.nodes[0].getblockcount()):
@@ -74,7 +74,7 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         self.nodes[0].spork('list')
         connected_nodes = [n for n in self.nodes if n != self.nodes[5]]
         sync_blocks(connected_nodes, timeout=120)
-        self.wait_for_chainlock_tip(connected_nodes)
+        self.wait_for_chainlock_tip(connected_nodes, self.nodes[0].getbestblockhash(), timeout=90)
         sporks = self.nodes[0].spork("list")
         assert(not sporks["blockchain"])
         assert(not sporks["mempool"])
@@ -103,17 +103,16 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
 
 
 
-    def wait_for_chainlock_tip_all_nodes(self):
-        for node in self.nodes:
-            tip = node.getbestblockhash()
-            self.wait_for_chainlock(node, tip)
+    def wait_for_chainlock_tip_all_nodes(self, tip_hash=None, timeout=60):
+        self.wait_for_chainlock_tip(self.nodes, tip_hash, timeout)
 
-    def wait_for_chainlock_tip(self, nodes):
+    def wait_for_chainlock_tip(self, nodes, tip_hash=None, timeout=60):
         if not isinstance(nodes, list):
             nodes = [nodes]
+        if tip_hash is None:
+            tip_hash = nodes[0].getbestblockhash()
         for node in nodes:
-            tip = node.getbestblockhash()
-            self.wait_for_chainlock(node, tip)
+            self.wait_for_chainlock(node, tip_hash, timeout)
 
     def wait_for_chainlock(self, node, block_hash, timeout=60):
         t = time()
