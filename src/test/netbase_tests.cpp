@@ -38,6 +38,24 @@ BOOST_AUTO_TEST_CASE(netbase_networks)
 
 }
 
+BOOST_AUTO_TEST_CASE(netbase_network_name_helpers)
+{
+    BOOST_CHECK(ParseNetwork("ipv4") == NET_IPV4);
+    BOOST_CHECK(ParseNetwork("ipv6") == NET_IPV6);
+    BOOST_CHECK(ParseNetwork("onion") == NET_ONION);
+    BOOST_CHECK(ParseNetwork("tor") == NET_ONION);
+    BOOST_CHECK(ParseNetwork("bogus") == NET_UNROUTABLE);
+
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_IPV4), "ipv4");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_IPV6), "ipv6");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_ONION), "onion");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_UNROUTABLE), "unknown");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_I2P), "unknown");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_CJDNS), "unknown");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_INTERNAL), "unknown");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_MAX), "unknown");
+}
+
 BOOST_AUTO_TEST_CASE(netbase_properties)
 {
 

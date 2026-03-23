@@ -1529,17 +1529,16 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
+    std::set<enum Network> onlyNetNets;
     if (mapMultiArgs.count("-onlynet")) {
-        std::set<enum Network> nets;
         BOOST_FOREACH(const std::string& snet, mapMultiArgs.at("-onlynet")) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
-            nets.insert(net);
+            onlyNetNets.insert(net);
         }
-        for (int n = 0; n < NET_MAX; n++) {
-            enum Network net = (enum Network)n;
-            if (!nets.count(net))
+        for (const auto net : {NET_IPV4, NET_IPV6, NET_ONION}) {
+            if (!onlyNetNets.count(net))
                 SetLimited(net);
         }
     }
@@ -1599,6 +1598,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string onionArg = GetArg("-onion", "");
     if (onionArg != "") {
         if (onionArg == "0") { // Handle -noonion/-onion=0
+            if (onlyNetNets.count(NET_ONION)) {
+                return InitError(
+                    _("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is explicitly forbidden: -onion=0"));
+            }
             SetLimited(NET_ONION); // set onions as unreachable
         } else {
             CService resolved(LookupNumeric(onionArg.c_str(), 9050));
@@ -1612,20 +1615,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
     // This check is similar to Bitcoin Core's approach to provide a helpful error message.
-    if (mapMultiArgs.count("-onlynet")) {
-        bool onlynetIncludesOnion = false;
-        for (const std::string& snet : mapMultiArgs.at("-onlynet")) {
-            if (ParseNetwork(snet) == NET_ONION) {
-                onlynetIncludesOnion = true;
-                break;
-            }
-        }
-        if (onlynetIncludesOnion) {
-            proxyType onionProxy;
-            bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
-            if (!haveOnionProxy && !torEnabled) {
-                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but no proxy for reaching the Tor network is provided. Use -proxy, -onion, or -torsetup to configure a Tor proxy."));
-            }
+    if (onlyNetNets.count(NET_ONION)) {
+        proxyType onionProxy;
+        bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
+        if (!haveOnionProxy && !torEnabled) {
+            return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but no proxy for reaching the Tor network is provided. Use -proxy, -onion, or -torsetup to configure a Tor proxy."));
         }
     }
 
