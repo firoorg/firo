@@ -38,6 +38,18 @@ BOOST_AUTO_TEST_CASE(netbase_networks)
 
 }
 
+BOOST_AUTO_TEST_CASE(netbase_parse_network)
+{
+    BOOST_CHECK_EQUAL(ParseNetwork("ipv4"), NET_IPV4);
+    BOOST_CHECK_EQUAL(ParseNetwork("ipv6"), NET_IPV6);
+    BOOST_CHECK_EQUAL(ParseNetwork("onion"), NET_ONION);
+    BOOST_CHECK_EQUAL(ParseNetwork("tor"), NET_ONION);
+    BOOST_CHECK_EQUAL(ParseNetwork("Tor"), NET_ONION);
+    BOOST_CHECK_EQUAL(ParseNetwork("bogus"), NET_UNROUTABLE);
+
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_ONION), "onion");
+}
+
 BOOST_AUTO_TEST_CASE(netbase_properties)
 {
 
