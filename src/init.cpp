@@ -1538,8 +1538,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
             onlyNetNets.insert(net);
         }
-        for (int n = 0; n < NET_MAX; n++) {
-            enum Network net = (enum Network)n;
+        for (const auto net : {NET_IPV4, NET_IPV6, NET_ONION}) {
             if (!onlyNetNets.count(net)) {
                 SetLimited(net);
                 SetNetworkExplicitlyLimited(net);
@@ -1603,6 +1602,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string onionArg = GetArg("-onion", "");
     if (onionArg != "") {
         if (onionArg == "0") { // Handle -noonion/-onion=0
+            if (onlyNetNets.count(NET_ONION)) {
+                return InitError(
+                    _("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is explicitly forbidden: -onion=0"));
+            }
             SetLimited(NET_ONION); // set onions as unreachable
         } else {
             CService resolved(LookupNumeric(onionArg.c_str(), 9050));
