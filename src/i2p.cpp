@@ -622,12 +622,13 @@ std::string Session::RecvUntilTerminator(SOCKET sock, char terminator, int64_t t
             throw std::runtime_error("Interrupted");
         }
 
+        int64_t elapsed = GetTimeMillis() - start_time;
+        if (elapsed >= timeout_ms) {
+            throw std::runtime_error("Timeout reading from socket");
+        }
+        remaining_time = timeout_ms - elapsed;
+
         if (!Wait(sock, std::min(remaining_time, (int64_t)1000), true)) {
-            int64_t elapsed = GetTimeMillis() - start_time;
-            remaining_time = timeout_ms - elapsed;
-            if (remaining_time <= 0) {
-                throw std::runtime_error("Timeout reading from socket");
-            }
             continue;
         }
 
