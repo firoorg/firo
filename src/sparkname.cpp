@@ -205,8 +205,8 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
             return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
     }
     else {
-        if (validityBlocks > nBlockPerYear * 10)
-            return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
+        if (validityBlocks > nBlockPerYear * 15)
+            return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
     }
 
     // fee is based on the new time being purchased, not including leftover time from a previous registration
@@ -379,18 +379,8 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     else if (sparkNameData.additionalInfo.size() > 1024)
         errorDescription = "additional info is too long";
 
-    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10) {
-        int nHeight;
-        {
-            LOCK(cs_main);
-            nHeight = chainActive.Height();
-        }
-        const auto& consensusParams = ::Params().GetConsensus();
-        if (nHeight < consensusParams.nSparkNamesV21StartBlock || sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
-            errorDescription = nHeight >= consensusParams.nSparkNamesV21StartBlock ?
-                "transaction can't be valid for more than 15 years" :
-                "transaction can't be valid for more than 10 years";
-    }
+    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
+        errorDescription = "transaction can't be valid for more than 15 years";
 
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
                 sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&

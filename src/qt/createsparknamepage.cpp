@@ -26,7 +26,7 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
 
     feeText = ui->feeTextLabel->text();
     ui->numberOfYearsEdit->setValue(1);
-    ui->numberOfYearsEdit->setRange(1, 10);
+    ui->numberOfYearsEdit->setRange(1, 15);
     updateFee();
 }
 
@@ -101,7 +101,7 @@ void CreateSparkNamePage::updateFee() {
     QString sparkName = ui->sparkNameEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) || numberOfYears == 0 || numberOfYears > 10) {
+    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) || numberOfYears == 0 || numberOfYears > 15) {
         ui->feeTextLabel->setText(feeText.arg("?"));
         return;
     }

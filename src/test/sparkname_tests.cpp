@@ -644,4 +644,63 @@ BOOST_AUTO_TEST_CASE(extension_v21)
     BOOST_CHECK_EQUAL(GetSparkNameAdditionalData("exttest"), "extended-post");
 }
 
+BOOST_AUTO_TEST_CASE(extension_max_validity)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    // Initialize past V2.1 (regtest V2.1 starts at block 2700)
+    Initialize(2700);
+
+    // --- Test 1: Register for exactly 15 years - should succeed ---
+    std::string addr1 = GenerateSparkAddress();
+    CMutableTransaction txReg15 = CreateSparkNameTx("maxval1", addr1, nBlockPerYear * 15, "", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg15});
+    BOOST_CHECK(IsSparkNamePresent("maxval1"));
+    int regHeight = chainActive.Height();
+    uint64_t exp15 = sparkNameManager->GetSparkNameBlockHeight("maxval1");
+    BOOST_CHECK_EQUAL(exp15, (uint64_t)(regHeight + nBlockPerYear * 15));
+
+    // --- Test 2: Try to include a 16-year registration in a block - should be rejected ---
+    std::string addr2 = GenerateSparkAddress();
+    CMutableTransaction txReg16 = CreateSparkNameTx("maxval2", addr2, nBlockPerYear * 16, "", false);
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txReg16});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected
+    BOOST_CHECK(!IsSparkNamePresent("maxval2"));
+
+    // --- Test 3: Register for 10 years, extend by 5 years -> total ~15 years -> should succeed ---
+    std::string addr3 = GenerateSparkAddress();
+    CMutableTransaction txReg10a = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 10, "", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg10a});
+    BOOST_CHECK(IsSparkNamePresent("maxval3"));
+
+    GenerateBlocks(5);
+
+    CMutableTransaction txExt5 = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 5, "ext5", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txExt5});
+    BOOST_CHECK(IsSparkNamePresent("maxval3"));
+
+    // Verify extended expiration preserves remaining time (post-V21 behavior)
+    int extHeight = chainActive.Height();
+    uint64_t expExt = sparkNameManager->GetSparkNameBlockHeight("maxval3");
+    // Total from extend height should be close to 15 years (minus the few blocks advanced)
+    BOOST_CHECK(expExt > (uint64_t)(extHeight + nBlockPerYear * 14));
+    BOOST_CHECK(expExt <= (uint64_t)(extHeight + nBlockPerYear * 15));
+
+    // --- Test 4: Register for 10 years, try extending by 6 years -> total > 15 years -> should fail ---
+    std::string addr4 = GenerateSparkAddress();
+    CMutableTransaction txReg10b = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 10, "", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg10b});
+    BOOST_CHECK(IsSparkNamePresent("maxval4"));
+
+    CMutableTransaction txExt6 = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 6, "ext6", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txExt6});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected - total exceeds 15 years
+}
+
 BOOST_AUTO_TEST_SUITE_END()
