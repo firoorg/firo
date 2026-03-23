@@ -13,13 +13,19 @@ endif()
 
 get_target_property(qt_lib_type Qt6::Core TYPE)
 
+if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$" AND TARGET Qt6::QWaylandIntegrationPlugin)
+  set(HAVE_WAYLAND TRUE)
+endif()
+
 function(import_plugins target)
   if(qt_lib_type STREQUAL "STATIC_LIBRARY")
     set(plugins Qt6::QMinimalIntegrationPlugin)
     if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$")
       list(APPEND plugins Qt6::QXcbIntegrationPlugin)
-      list(APPEND plugins Qt6::QWaylandIntegrationPlugin)
-      list(APPEND plugins Qt6::QWaylandEglPlatformIntegrationPlugin)
+      if(TARGET Qt6::QWaylandIntegrationPlugin)
+        list(APPEND plugins Qt6::QWaylandIntegrationPlugin)
+        list(APPEND plugins Qt6::QWaylandEglPlatformIntegrationPlugin)
+      endif()
     elseif(WIN32)
       list(APPEND plugins Qt6::QWindowsIntegrationPlugin Qt6::QModernWindowsStylePlugin)
     elseif(APPLE)
@@ -149,6 +155,7 @@ target_compile_definitions(firoqt
   PUBLIC
     QT_NO_KEYWORDS
     QT_USE_QSTRINGBUILDER
+    $<$<BOOL:${HAVE_WAYLAND}>:HAVE_WAYLAND>
 )
 target_include_directories(firoqt
   PUBLIC

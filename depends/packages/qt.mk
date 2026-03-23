@@ -163,6 +163,7 @@ endif
 
 $(package)_config_opts_darwin := -no-dbus
 $(package)_config_opts_darwin += -no-opengl
+$(package)_config_opts_darwin += -no-egl
 $(package)_config_opts_darwin += -pch
 $(package)_config_opts_darwin += -no-feature-printsupport
 $(package)_config_opts_darwin += -no-freetype
@@ -197,6 +198,8 @@ endif
 $(package)_config_opts_freebsd := $$($(package)_config_opts_linux)
 
 $(package)_config_opts_mingw32 := -no-dbus
+$(package)_config_opts_mingw32 += -no-opengl
+$(package)_config_opts_mingw32 += -no-egl
 $(package)_config_opts_mingw32 += -no-freetype
 $(package)_config_opts_mingw32 += -no-pkg-config
 
@@ -311,7 +314,6 @@ define $(package)_extract_cmds
   mkdir qttranslations && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttranslations_file_name) -C qttranslations && \
   mkdir qttools && \
-  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttools_file_name) -C qttools && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttools_file_name) -C qttools && \
   mkdir qtwayland && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qtwayland_file_name) -C qtwayland && \
