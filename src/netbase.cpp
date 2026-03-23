@@ -62,9 +62,10 @@ std::string GetNetworkName(enum Network net) {
     case NET_I2P: return "i2p";
     case NET_CJDNS: return "cjdns";
     case NET_INTERNAL: return "internal";
-    case NET_MAX: assert(false);
+    case NET_MAX: break;
     }
     assert(false);
+    return "";
 }
 
 void SplitHostPort(std::string in, int &portOut, std::string &hostOut) {

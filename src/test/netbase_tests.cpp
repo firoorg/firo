@@ -48,6 +48,7 @@ BOOST_AUTO_TEST_CASE(netbase_parse_network)
     BOOST_CHECK_EQUAL(ParseNetwork("bogus"), NET_UNROUTABLE);
 
     BOOST_CHECK_EQUAL(GetNetworkName(NET_ONION), "onion");
+    BOOST_CHECK_EQUAL(GetNetworkName(static_cast<Network>(NET_MAX)), "");
 }
 
 BOOST_AUTO_TEST_CASE(netbase_properties)
