@@ -7,15 +7,167 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
 fi
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-/home/user/firo}"
-BUILD_DIR="${PROJECT_DIR}/build"
+BUILD_DIR="${CLAUDE_BUILD_DIR:-${PROJECT_DIR}/build}"
+BLS_PREFIX="${CLAUDE_PREFIX_DIR:-/usr/local}"
+HOOK_STATE_DIR="${CLAUDE_HOOK_STATE_DIR:-${BLS_PREFIX}/share/firo-cloud-session-start}"
+BUILD_STAMP_FILE="${BUILD_DIR}/.build_stamp"
+BLS_STAMP_FILE="${HOOK_STATE_DIR}/bls-dash.stamp"
+LIBBACKTRACE_STAMP_FILE="${HOOK_STATE_DIR}/libbacktrace.stamp"
+LIBTOR_STAMP_FILE="${HOOK_STATE_DIR}/libtor.stamp"
+PATH_EXPORT_LINE="export PATH=\"${BUILD_DIR}/bin:\$PATH\""
 
-# Skip if already fully built
-if [ -f "${BUILD_DIR}/bin/firod" ] && [ -f "${BUILD_DIR}/bin/test_firo" ]; then
+REQUIRED_BUILD_BINS=(
+  firod
+  firo-cli
+  firo-tx
+  test_firo
+)
+
+BLS_VERSION="1.1.0"
+BLS_SHA256="276c8573104e5f18bb5b9fd3ffd49585dda5ba5f6de2de74759dda8ca5a9deac"
+RELIC_COMMIT="3a23142be0a5510a3aa93cd6c76fc59d3fc732a5"
+RELIC_SHA256="ddad83b1406985a1e4703bd03bdbab89453aa700c0c99567cf8de51c205e5dde"
+
+# Pin to the same commit and hash used by depends/packages/backtrace.mk
+LIBBACKTRACE_COMMIT="b9e40069c0b47a722286b94eb5231f7f05c08713"
+LIBBACKTRACE_SHA256="81b37e762965c676b3316e90564c89f6480606add446651c785862571a1fdbca"
+LIBTOR_STUB_VERSION="1"
+
+ensure_path_export()
+{
   if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-    if ! grep -qF "${BUILD_DIR}/bin" "$CLAUDE_ENV_FILE" 2>/dev/null; then
-      echo "export PATH=\"${BUILD_DIR}/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+    if ! grep -qF "${PATH_EXPORT_LINE}" "$CLAUDE_ENV_FILE" 2>/dev/null; then
+      echo "${PATH_EXPORT_LINE}" >> "$CLAUDE_ENV_FILE"
     fi
   fi
+}
+
+stamp_matches()
+{
+  local stamp_path="$1"
+  local expected="$2"
+  local current
+
+  [ -f "${stamp_path}" ] || return 1
+  current=$(<"${stamp_path}")
+  [ "${current}" = "${expected}" ]
+}
+
+write_stamp()
+{
+  local stamp_path="$1"
+  local content="$2"
+  local stamp_dir tmp_file
+
+  stamp_dir="$(dirname "${stamp_path}")"
+  tmp_file="$(mktemp)"
+  printf '%s\n' "${content}" > "${tmp_file}"
+
+  if mkdir -p "${stamp_dir}" 2>/dev/null && install -m 644 "${tmp_file}" "${stamp_path}" 2>/dev/null; then
+    rm -f "${tmp_file}"
+    return 0
+  fi
+
+  sudo install -d "${stamp_dir}"
+  sudo install -m 644 "${tmp_file}" "${stamp_path}"
+  rm -f "${tmp_file}"
+}
+
+build_outputs_present()
+{
+  local bin_name
+
+  for bin_name in "${REQUIRED_BUILD_BINS[@]}"; do
+    [ -f "${BUILD_DIR}/bin/${bin_name}" ] || return 1
+  done
+}
+
+build_stamp_content()
+{
+  local git_head git_status_hash
+
+  git_head="$(git -C "${PROJECT_DIR}" rev-parse HEAD)"
+  git_status_hash="$(git -C "${PROJECT_DIR}" status --porcelain --untracked-files=no | sha256sum | cut -d' ' -f1)"
+
+  cat <<EOF
+schema=1
+git_head=${git_head}
+git_status_hash=${git_status_hash}
+build_daemon=ON
+build_cli=ON
+build_tx=ON
+build_gui=OFF
+build_tests=ON
+enable_wallet=ON
+with_bdb=ON
+with_zmq=ON
+enable_crash_hooks=ON
+warn_incompatible_bdb=OFF
+cmake_build_type=Release
+boost_use_static_runtime=OFF
+required_bins=${REQUIRED_BUILD_BINS[*]}
+EOF
+}
+
+bls_stamp_content()
+{
+  cat <<EOF
+schema=1
+bls_version=${BLS_VERSION}
+bls_sha256=${BLS_SHA256}
+relic_commit=${RELIC_COMMIT}
+relic_sha256=${RELIC_SHA256}
+EOF
+}
+
+libbacktrace_stamp_content()
+{
+  cat <<EOF
+schema=1
+libbacktrace_commit=${LIBBACKTRACE_COMMIT}
+libbacktrace_sha256=${LIBBACKTRACE_SHA256}
+EOF
+}
+
+libtor_stamp_content()
+{
+  cat <<EOF
+schema=1
+libtor_stub_version=${LIBTOR_STUB_VERSION}
+EOF
+}
+
+ensure_boost_runtime_override()
+{
+  local boost_cmake
+
+  boost_cmake="${PROJECT_DIR}/cmake/module/AddBoostIfNeeded.cmake"
+  if grep -q 'set(Boost_USE_STATIC_RUNTIME ON)' "${boost_cmake}"; then
+    sed -i 's/set(Boost_USE_STATIC_RUNTIME ON)/set(Boost_USE_STATIC_RUNTIME OFF)/' "${boost_cmake}"
+    # Hide this local-only workaround from git so it doesn't show up in diffs.
+    # A cleaner alternative would be to pass -DBoost_USE_STATIC_RUNTIME=OFF via
+    # CMake cache variables, but the upstream CMakeLists.txt unconditionally
+    # overrides it with set(), so patching the file is the only option for now.
+    git -C "${PROJECT_DIR}" update-index --assume-unchanged "${boost_cmake}"
+  fi
+}
+
+BLS_STAMP_CONTENT="$(bls_stamp_content)"
+LIBBACKTRACE_STAMP_CONTENT="$(libbacktrace_stamp_content)"
+LIBTOR_STAMP_CONTENT="$(libtor_stamp_content)"
+BUILD_STAMP_CONTENT="$(build_stamp_content)"
+
+# Skip only when dependencies and build outputs match the current workspace state.
+if [ -f "${BLS_PREFIX}/lib/libbls-dash.a" ] \
+  && stamp_matches "${BLS_STAMP_FILE}" "${BLS_STAMP_CONTENT}" \
+  && [ -f "${BLS_PREFIX}/lib/libbacktrace.a" ] \
+  && stamp_matches "${LIBBACKTRACE_STAMP_FILE}" "${LIBBACKTRACE_STAMP_CONTENT}" \
+  && [ -f "${BLS_PREFIX}/lib/libtor.a" ] \
+  && stamp_matches "${LIBTOR_STAMP_FILE}" "${LIBTOR_STAMP_CONTENT}" \
+  && [ -f "${BUILD_DIR}/build.ninja" ] \
+  && build_outputs_present \
+  && stamp_matches "${BUILD_STAMP_FILE}" "${BUILD_STAMP_CONTENT}"; then
+  ensure_path_export
   exit 0
 fi
 
@@ -80,14 +232,9 @@ fi
 # 3. Build bls-dash from source
 #    (github.com is accessible via proxy)
 ########################################
-BLS_PREFIX="/usr/local"
-if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
+if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ] \
+  || ! stamp_matches "${BLS_STAMP_FILE}" "${BLS_STAMP_CONTENT}"; then
   WORK_DIR=$(mktemp -d)
-
-  BLS_VERSION="1.1.0"
-  BLS_SHA256="276c8573104e5f18bb5b9fd3ffd49585dda5ba5f6de2de74759dda8ca5a9deac"
-  RELIC_COMMIT="3a23142be0a5510a3aa93cd6c76fc59d3fc732a5"
-  RELIC_SHA256="ddad83b1406985a1e4703bd03bdbab89453aa700c0c99567cf8de51c205e5dde"
 
   curl -sL "https://github.com/dashpay/bls-signatures/archive/${BLS_VERSION}.tar.gz" \
     -o "${WORK_DIR}/bls.tar.gz"
@@ -132,6 +279,7 @@ if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
   make -C "${WORK_DIR}/bls-build" -j"$(nproc)"
   sudo cmake --install "${WORK_DIR}/bls-build"
   sudo ldconfig
+  write_stamp "${BLS_STAMP_FILE}" "${BLS_STAMP_CONTENT}"
 
   rm -rf "${WORK_DIR}"
   cd "${PROJECT_DIR}"
@@ -141,12 +289,9 @@ fi
 # 4. Build libbacktrace from source
 #    (needed for ENABLE_CRASH_HOOKS)
 ########################################
-if [ ! -f "${BLS_PREFIX}/lib/libbacktrace.a" ]; then
+if [ ! -f "${BLS_PREFIX}/lib/libbacktrace.a" ] \
+  || ! stamp_matches "${LIBBACKTRACE_STAMP_FILE}" "${LIBBACKTRACE_STAMP_CONTENT}"; then
   WORK_DIR=$(mktemp -d)
-
-  # Pin to the same commit and hash used by depends/packages/backtrace.mk
-  LIBBACKTRACE_COMMIT="b9e40069c0b47a722286b94eb5231f7f05c08713"
-  LIBBACKTRACE_SHA256="81b37e762965c676b3316e90564c89f6480606add446651c785862571a1fdbca"
   curl -sL "https://github.com/ianlancetaylor/libbacktrace/archive/${LIBBACKTRACE_COMMIT}.tar.gz" \
     -o "${WORK_DIR}/libbacktrace.tar.gz"
   echo "${LIBBACKTRACE_SHA256}  ${WORK_DIR}/libbacktrace.tar.gz" | sha256sum -c - || \
@@ -158,6 +303,7 @@ if [ ! -f "${BLS_PREFIX}/lib/libbacktrace.a" ]; then
   ./configure --prefix="${BLS_PREFIX}" --enable-static --disable-shared CFLAGS="-fPIC"
   make -j"$(nproc)"
   sudo make install
+  write_stamp "${LIBBACKTRACE_STAMP_FILE}" "${LIBBACKTRACE_STAMP_CONTENT}"
 
   rm -rf "${WORK_DIR}"
   cd "${PROJECT_DIR}"
@@ -172,7 +318,8 @@ fi
 #    The embedded Tor is not needed for
 #    development/testing workflows.
 ########################################
-if [ ! -f "${BLS_PREFIX}/lib/libtor.a" ]; then
+if [ ! -f "${BLS_PREFIX}/lib/libtor.a" ] \
+  || ! stamp_matches "${LIBTOR_STAMP_FILE}" "${LIBTOR_STAMP_CONTENT}"; then
   WORK_DIR=$(mktemp -d)
 
   cat > "${WORK_DIR}/tor_stub.c" << 'STUBEOF'
@@ -188,6 +335,7 @@ STUBEOF
   gcc -c -fPIC "${WORK_DIR}/tor_stub.c" -o "${WORK_DIR}/tor_stub.o"
   ar rcs "${WORK_DIR}/libtor.a" "${WORK_DIR}/tor_stub.o"
   sudo install -m 644 "${WORK_DIR}/libtor.a" "${BLS_PREFIX}/lib/libtor.a"
+  write_stamp "${LIBTOR_STAMP_FILE}" "${LIBTOR_STAMP_CONTENT}"
 
   rm -rf "${WORK_DIR}"
 fi
@@ -200,17 +348,9 @@ fi
 #    patch the local copy and hide the
 #    change from git with assume-unchanged.
 ########################################
-if [ ! -f "${BUILD_DIR}/build.ninja" ]; then
-  BOOST_CMAKE="${PROJECT_DIR}/cmake/module/AddBoostIfNeeded.cmake"
-  if grep -q 'set(Boost_USE_STATIC_RUNTIME ON)' "${BOOST_CMAKE}"; then
-    sed -i 's/set(Boost_USE_STATIC_RUNTIME ON)/set(Boost_USE_STATIC_RUNTIME OFF)/' "${BOOST_CMAKE}"
-    # Hide this local-only workaround from git so it doesn't show up in diffs.
-    # A cleaner alternative would be to pass -DBoost_USE_STATIC_RUNTIME=OFF via
-    # CMake cache variables, but the upstream CMakeLists.txt unconditionally
-    # overrides it with set(), so patching the file is the only option for now.
-    git -C "${PROJECT_DIR}" update-index --assume-unchanged "${BOOST_CMAKE}"
-  fi
-
+if [ ! -f "${BUILD_DIR}/build.ninja" ] \
+  || ! stamp_matches "${BUILD_STAMP_FILE}" "${BUILD_STAMP_CONTENT}"; then
+  ensure_boost_runtime_override
   cmake -G Ninja \
     -DBUILD_DAEMON=ON \
     -DBUILD_CLI=ON \
@@ -231,15 +371,16 @@ fi
 ########################################
 # 7. Build
 ########################################
-if [ ! -f "${BUILD_DIR}/bin/firod" ] || [ ! -f "${BUILD_DIR}/bin/test_firo" ]; then
+if ! build_outputs_present \
+  || ! stamp_matches "${BUILD_STAMP_FILE}" "${BUILD_STAMP_CONTENT}"; then
   cmake --build "${BUILD_DIR}" -j"$(nproc)"
+fi
+
+if build_outputs_present; then
+  write_stamp "${BUILD_STAMP_FILE}" "${BUILD_STAMP_CONTENT}"
 fi
 
 ########################################
 # 8. Set environment variables
 ########################################
-if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-  if ! grep -qF "${BUILD_DIR}/bin" "$CLAUDE_ENV_FILE" 2>/dev/null; then
-    echo "export PATH=\"${BUILD_DIR}/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
-  fi
-fi
+ensure_path_export
