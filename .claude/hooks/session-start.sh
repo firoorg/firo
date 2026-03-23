@@ -86,6 +86,7 @@ if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
 
   BLS_VERSION="1.1.0"
   RELIC_COMMIT="3a23142be0a5510a3aa93cd6c76fc59d3fc732a5"
+  RELIC_SHA256="ddad83b1406985a1e4703bd03bdbab89453aa700c0c99567cf8de51c205e5dde"
 
   curl -sL "https://github.com/dashpay/bls-signatures/archive/${BLS_VERSION}.tar.gz" \
     -o "${WORK_DIR}/bls.tar.gz"
@@ -104,7 +105,7 @@ if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
   # Point CMake at local relic tarball instead of git
   sed -i "s|GIT_REPOSITORY https://github.com/relic-toolkit/relic.git|URL \"${WORK_DIR}/relic.tar.gz\"|" \
     src/CMakeLists.txt
-  sed -i 's|GIT_TAG.*RELIC_GIT_TAG.*|URL_HASH SHA256=ddad83b1406985a1e4703bd03bdbab89453aa700c0c99567cf8de51c205e5dde|' \
+  sed -i "s|GIT_TAG.*RELIC_GIT_TAG.*|URL_HASH SHA256=${RELIC_SHA256}|" \
     src/CMakeLists.txt
 
   # Build with Unix Makefiles (Ninja has globbing issues with the combined archive step)
@@ -117,8 +118,8 @@ if [ ! -f "${BLS_PREFIX}/lib/libbls-dash.a" ]; then
     -DBUILD_BLS_BENCHMARKS=0 \
     -DOPSYS=LINUX -DCMAKE_SYSTEM_NAME=Linux \
     -DWSIZE=64 \
-    "-DCMAKE_C_FLAGS=-DUBLSALLOC_SODIUM" \
-    "-DCMAKE_CXX_FLAGS=-DUBLSALLOC_SODIUM" \
+    "-DCMAKE_C_FLAGS=-UBLSALLOC_SODIUM" \
+    "-DCMAKE_CXX_FLAGS=-UBLSALLOC_SODIUM" \
     -S"${WORK_DIR}/bls-signatures" -B"${WORK_DIR}/bls-build"
 
   make -C "${WORK_DIR}/bls-build" -j"$(nproc)"
