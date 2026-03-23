@@ -85,13 +85,18 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         reconnect_isolated_node(self.nodes[5], 1)
         self.nodes[0].generate(1)
         current_tip = self.nodes[0].getbestblockhash()
-        if not self.wait_for_sync(self.nodes[0], self.nodes[5], timeout=15):
+        try:
+            self.wait_for_chainlock(self.nodes[5], current_tip, timeout=15)
+        except AssertionError:
             self.nodes[0].generate(1)
             current_tip = self.nodes[0].getbestblockhash()
-            assert self.wait_for_sync(self.nodes[0], self.nodes[5], timeout=15), \
-                "Timed out when waiting for a chainlocked chain"
+            self.wait_for_chainlock(self.nodes[5], current_tip, timeout=15)
+        assert self.wait_for_sync(self.nodes[0], self.nodes[5], timeout=15), \
+            "Timed out when waiting for a chainlocked chain"
         assert self.nodes[0].getbestblockhash() == current_tip, \
             "Node 0 did not keep the chainlocked tip"
+        assert self.nodes[5].getbestblockhash() == current_tip, \
+            "Isolated node did not adopt the chainlocked tip"
 
 
 
