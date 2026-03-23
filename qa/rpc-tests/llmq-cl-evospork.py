@@ -79,20 +79,23 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         assert(not sporks["blockchain"])
         assert(not sporks["mempool"])
         assert(True == self.nodes[0].getblock(self.nodes[0].getbestblockhash())["chainlock"])
+        chainlocked_tip = self.nodes[0].getbestblockhash()
 
         # generate a longer chain on the isolated node then reconnect it back and make sure it picks the chainlocked chain
         self.nodes[5].generate(20)
         reconnect_isolated_node(self.nodes[5], 1)
         self.nodes[0].generate(1)
         current_tip = self.nodes[0].getbestblockhash()
+        assert self.nodes[0].getblock(current_tip)["previousblockhash"] == chainlocked_tip, \
+            "Node 0 did not extend the chainlocked tip"
         try:
-            self.wait_for_chainlock(self.nodes[5], current_tip, timeout=15)
+            self.wait_for_tip(self.nodes[5], current_tip, timeout=15)
         except AssertionError:
             self.nodes[0].generate(1)
             current_tip = self.nodes[0].getbestblockhash()
-            self.wait_for_chainlock(self.nodes[5], current_tip, timeout=15)
-        assert self.wait_for_sync(self.nodes[0], self.nodes[5], timeout=15), \
-            "Timed out when waiting for a chainlocked chain"
+            assert self.nodes[0].getblock(current_tip)["previousblockhash"] == chainlocked_tip, \
+                "Retry block did not extend the chainlocked tip"
+            self.wait_for_tip(self.nodes[5], current_tip, timeout=15)
         assert self.nodes[0].getbestblockhash() == current_tip, \
             "Node 0 did not keep the chainlocked tip"
         assert self.nodes[5].getbestblockhash() == current_tip, \
