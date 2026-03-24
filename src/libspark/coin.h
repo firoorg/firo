@@ -174,26 +174,29 @@ public:
     PublicCoin() {}
     template<typename Stream>
     inline void Serialize(Stream& s) const {
-        constexpr int size = GroupElement::memoryRequired();
+        constexpr int size = secp_primitives::GroupElement::memoryRequired();
         unsigned char buffer[size + sizeof(int32_t)];
         value.serialize(buffer);
-        std::memcpy(buffer + size, &denomination, sizeof(denomination));
+        int32_t denom32 = static_cast<int32_t>(static_cast<std::uint8_t>(denomination));
+        std::memcpy(buffer + size, &denom32, sizeof(denom32));
         char* b = (char*)buffer;
         s.write(b, size + sizeof(int32_t));
     }
 
     template<typename Stream>
     inline void Unserialize(Stream& s) {
-        constexpr int size = GroupElement::memoryRequired();
+        constexpr int size = secp_primitives::GroupElement::memoryRequired();
         unsigned char buffer[size + sizeof(int32_t)];
         char* b = (char*)buffer;
         s.read(b, size + sizeof(int32_t));
         value.deserialize(buffer);
-        std::memcpy(&denomination, buffer + size, sizeof(denomination));
+        int32_t denom32;
+        std::memcpy(&denom32, buffer + size, sizeof(denom32));
+        denomination = static_cast<CoinDenomination>(static_cast<std::uint8_t>(denom32));
     }
 
 private:
-    GroupElement value;
+    secp_primitives::GroupElement value;
     CoinDenomination denomination;
 };
 
@@ -218,7 +221,7 @@ struct CSpendCoinInfo {
 };
 
 struct CScalarHash {
-    std::size_t operator ()(const Scalar& bn) const noexcept {
+    std::size_t operator ()(const secp_primitives::Scalar& bn) const noexcept {
         std::vector<unsigned char> bnData(bn.memoryRequired());
         bn.serialize(&bnData[0]);
         unsigned char hash[CSHA256::OUTPUT_SIZE];
@@ -230,7 +233,7 @@ struct CScalarHash {
     }
 };
 
-using spend_info_container = std::unordered_map<Scalar, CSpendCoinInfo, CScalarHash>;
+using spend_info_container = std::unordered_map<secp_primitives::Scalar, CSpendCoinInfo, CScalarHash>;
 
 }
 

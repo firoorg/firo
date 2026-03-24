@@ -571,14 +571,14 @@ UniValue importwallet(const JSONRPCRequest& request)
 
     CBlockIndex *pindex = chainActive.FindEarliestAtLeast(nTimeBegin - 7200);
 
-    LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
-    pwallet->ScanForWalletTransactions(pindex);
-    pwallet->MarkDirty();
-
-    if(fMintUpdate){
+    if (fMintUpdate) {
+        LogPrintf("Rescanning full chain (legacy HD mint key path)\n");
         pwallet->ScanForWalletTransactions(chainActive.Genesis(), true);
-        pwallet->sparkWallet->ListSparkMints();
+    } else {
+        LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
+        pwallet->ScanForWalletTransactions(pindex);
     }
+    pwallet->MarkDirty();
 
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");

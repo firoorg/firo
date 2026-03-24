@@ -473,7 +473,7 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight) {
     auto& consensus = ::Params().GetConsensus();
 
-    size_t blockSpendsValue = 0;
+    CAmount blockSpendsValue = 0;
 
     for (const auto& tx : block.vtx) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);

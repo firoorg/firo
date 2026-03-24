@@ -491,10 +491,10 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
     }
 
     if (tx.IsSparkSpend()) {
+        LOCK(cs_main);
         for (CTxIn const & in : tx.vin) {
             GroupElement lTag;
             lTag.deserialize(&in.scriptSig.front());
-            LOCK(cs_main);
             if (spark::CSparkState::GetState()->IsUsedLTag(lTag))
                 return false;
         }
@@ -1013,7 +1013,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx_, const CBlockI
         return;
     }
 
-    CTransaction const & tx{(tx_.IsLelantusJoinSplit() || tx_.IsSparkSpend()) ? isutils::AdaptPrivateTx(tx_) : tx_};
+    CTransaction const & tx{tx_.IsSparkSpend() ? isutils::AdaptPrivateTx(tx_) : tx_};
 
     bool inMempool = mempool.get(tx.GetHash()) != nullptr;
     bool isDisconnect = pindex && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK;
@@ -1522,7 +1522,7 @@ CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& 
         return nullptr;
     }
 
-    CTransaction const & tx{(tx_.IsLelantusJoinSplit() || tx_.IsSparkSpend()) ? isutils::AdaptPrivateTx(tx_) : tx_};
+    CTransaction const & tx{tx_.IsSparkSpend() ? isutils::AdaptPrivateTx(tx_) : tx_};
 
     LOCK(cs);
     for (const auto& in : tx.vin) {

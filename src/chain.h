@@ -22,7 +22,6 @@
 #include "coin_containers.h"
 #include "streams.h"
 #include "sparkname.h"
-#include "libspark/coin.h"
 
 #include <vector>
 #include <unordered_set>

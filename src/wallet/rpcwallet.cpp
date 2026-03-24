@@ -65,7 +65,7 @@ bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException)
 void EnsureSparkWalletIsAvailable()
 {
     if (!pwalletMain || !pwalletMain->sparkWallet) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "spark mint is not allowed for legacy wallet");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet is not available for this wallet (legacy or disabled)");
     }
 }
 
@@ -1666,9 +1666,9 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             "gettotalbalance\n"
-            "\nReturns total (transparent + private) balance.\n"
-            "Transparent balance is the sum of coin amounts received as utxo.\n"
-            "Private balance is the sum of all confirmed spark mints which are created by the wallet.\n"
+            "\nReturns total (transparent + Spark private) balance.\n"
+            "Transparent balance is the sum of UTXO amounts.\n"
+            "Private balance is the sum of confirmed Spark funds tracked by the wallet.\n"
             "\nResult:\n"
             "amount              (numeric) The total balance in " + CURRENCY_UNIT + " for the wallet.\n"
             "\nExamples:\n"
@@ -1680,7 +1680,9 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
     EnsureSparkWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    return  ValueFromAmount(pwallet->sparkWallet->getAvailableBalance());
+    const CAmount transparent = pwallet->GetBalance();
+    const CAmount spark = pwallet->sparkWallet->getAvailableBalance();
+    return ValueFromAmount(transparent + spark);
 }
 
 UniValue getunconfirmedbalance(const JSONRPCRequest &request)

@@ -693,12 +693,15 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
 
         if (tx.IsSigmaSpend() || tx.IsSigmaMint()) {
-            if (!isVerifyDB && ::Params().GetConsensus().nLelantusStartBlock > 1 && nHeight >= (::Params().GetConsensus().nLelantusStartBlock + 5))
+            if (!isVerifyDB && nHeight >= params.nLelantusStartBlock)
                 return state.DoS(1, error("Sigma already is not available, start using Lelantus."));
         }
 
         if (tx.IsLelantusJoinSplit() || tx.IsLelantusMint()) {
-            if (!isVerifyDB && !IsInitialBlockDownload() && nHeight >= (::Params().GetConsensus().nSparkStartBlock + 5))
+            const int lelantusDisabledHeight = params.nLelantusGracefulPeriod > 0
+                ? params.nLelantusGracefulPeriod
+                : params.nSparkStartBlock;
+            if (!isVerifyDB && nHeight >= lelantusDisabledHeight)
                 return state.DoS(1, error("Lelantus already is not available, start using Spark."));
         }
 
@@ -4194,11 +4197,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-sigops", false, "out-of-bounds SigOpCount");
 
-    if (fCheckPOW && fCheckMerkleRoot)
-        block.fChecked = true;
-
     if (!spark::CheckSparkBlock(state, block, nHeight))
         return false;
+
+    if (fCheckPOW && fCheckMerkleRoot)
+        block.fChecked = true;
 
     return true;
 }
