@@ -477,8 +477,6 @@ UniValue importwallet(const JSONRPCRequest& request)
 
     bool fGood = true;
 
-    bool fMintUpdate = false;
-
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
 
@@ -547,19 +545,18 @@ UniValue importwallet(const JSONRPCRequest& request)
                 pwallet->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
                 pwallet->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
                 pwallet->mapKeyMetadata[keyid].ParseComponents();
+                if (pwallet->mapKeyMetadata[keyid].nChange.first == 2) {
+                    throw JSONRPCError(RPC_WALLET_ERROR,
+                        "This dump contains legacy Lelantus mint-seed keys (HD change=2). "
+                        "This release cannot recover funds from those keys. "
+                    );
+                }
             }
         }
 
         if (!pwallet->AddKeyPubKey(key, pubkey)) {
             fGood = false;
             continue;
-        }
-
-        if(!masterKeyID.IsNull() && fHd){
-            // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-            if(pwallet->mapKeyMetadata[keyid].nChange.first==2){
-                fMintUpdate = true;
-            }
         }
         if (fLabel)
             pwallet->SetAddressBook(keyid, strLabel, "receive");
@@ -571,13 +568,8 @@ UniValue importwallet(const JSONRPCRequest& request)
 
     CBlockIndex *pindex = chainActive.FindEarliestAtLeast(nTimeBegin - 7200);
 
-    if (fMintUpdate) {
-        LogPrintf("Rescanning full chain (legacy HD mint key path)\n");
-        pwallet->ScanForWalletTransactions(chainActive.Genesis(), true);
-    } else {
-        LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
-        pwallet->ScanForWalletTransactions(pindex, true);
-    }
+    LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
+    pwallet->ScanForWalletTransactions(pindex, true);
     pwallet->MarkDirty();
 
     if (!fGood)

@@ -497,6 +497,8 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
     if (tx.IsSparkSpend()) {
         LOCK(cs_main);
         for (CTxIn const & in : tx.vin) {
+            if (in.scriptSig.empty())
+                return false;
             GroupElement lTag;
             lTag.deserialize(&in.scriptSig.front());
             if (spark::CSparkState::GetState()->IsUsedLTag(lTag))

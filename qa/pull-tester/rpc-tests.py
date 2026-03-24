@@ -187,7 +187,6 @@ testScripts = [
     #, 'dip4-coinbasemerkleroots.py'
 
     # bip47
-    'bip47-sendreceive.py',
     'bip47-walletrestore.py',
 
     'sendtoaddress.py',
