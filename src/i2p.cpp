@@ -622,12 +622,13 @@ std::string Session::RecvUntilTerminator(SOCKET sock, char terminator, int64_t t
             throw std::runtime_error("Interrupted");
         }
 
+        int64_t elapsed = GetTimeMillis() - start_time;
+        remaining_time = timeout_ms - elapsed;
+        if (remaining_time <= 0) {
+            throw std::runtime_error("Timeout reading from socket");
+        }
+
         if (!Wait(sock, std::min(remaining_time, (int64_t)1000), true)) {
-            int64_t elapsed = GetTimeMillis() - start_time;
-            remaining_time = timeout_ms - elapsed;
-            if (remaining_time <= 0) {
-                throw std::runtime_error("Timeout reading from socket");
-            }
             continue;
         }
 
@@ -751,9 +752,9 @@ bool Session::IsConnected(SOCKET sock, std::string& errmsg) const
             return false;
         }
         if (n < 0) {
-            int err = WSAGetLastError();
-            if (err != WSAEWOULDBLOCK && err != WSAEINTR) {
-                errmsg = strprintf("recv failed: %s", NetworkErrorString(err));
+            int recv_err = WSAGetLastError();
+            if (recv_err != WSAEWOULDBLOCK && recv_err != WSAEINTR) {
+                errmsg = strprintf("recv failed: %s", NetworkErrorString(recv_err));
                 return false;
             }
         }
