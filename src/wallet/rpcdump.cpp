@@ -545,12 +545,6 @@ UniValue importwallet(const JSONRPCRequest& request)
                 pwallet->mapKeyMetadata[keyid].hdKeypath = hdKeypath;
                 pwallet->mapKeyMetadata[keyid].hdMasterKeyID = hdMasterKeyID;
                 pwallet->mapKeyMetadata[keyid].ParseComponents();
-                if (pwallet->mapKeyMetadata[keyid].nChange.first == 2) {
-                    throw JSONRPCError(RPC_WALLET_ERROR,
-                        "This dump contains legacy Lelantus mint-seed keys (HD change=2). "
-                        "This release cannot recover funds from those keys. "
-                    );
-                }
             }
         }
 
@@ -569,7 +563,7 @@ UniValue importwallet(const JSONRPCRequest& request)
     CBlockIndex *pindex = chainActive.FindEarliestAtLeast(nTimeBegin - 7200);
 
     LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
-    pwallet->ScanForWalletTransactions(pindex, true);
+    pwallet->ScanForWalletTransactions(pindex);
     pwallet->MarkDirty();
 
     if (!fGood)
