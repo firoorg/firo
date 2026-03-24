@@ -1,4 +1,5 @@
 #include "sparkwallet.h"
+#include "threadpool.h"
 #include "state.h"
 #include "../wallet/wallet.h"
 #include "../wallet/coincontrol.h"
@@ -12,6 +13,7 @@
 #include "../chain.h"
 #include <boost/format.hpp>
 #include <string>
+#include <thread>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
@@ -82,16 +84,23 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         }
 
     }
-    threadPool = nullptr;
+
+    unsigned nThreads = std::thread::hardware_concurrency();
+    threadPool = new ParallelOpThreadPool<void>(static_cast<std::size_t>(nThreads));
 
     if (fWalletJustUnlocked)
         pwalletMain->Lock();
 }
 
 CSparkWallet::~CSparkWallet() {
+    delete (ParallelOpThreadPool<void>*)threadPool;
+    threadPool = nullptr;
 }
 
 void CSparkWallet::FinishTasks() {
+    if (threadPool) {
+        ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
+    }
     spark::ShutdownSparkState();
 }
 
@@ -511,32 +520,36 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txH
 }
 
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
-    LOCK(cs_spark_wallet);
-    for (const auto& lTag : lTags) {
-        uint256 lTagHash = primitives::GetLTagHash(lTag);
-        if (coinMeta.count(lTagHash)) {
-            UpdateSpendState(lTag, lTagHash, txHash, fUpdateMint);
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
+        LOCK(cs_spark_wallet);
+        for (const auto& lTag : lTags) {
+            uint256 lTagHash = primitives::GetLTagHash(lTag);
+            if (coinMeta.count(lTagHash)) {
+                UpdateSpendState(lTag, lTagHash, txHash, fUpdateMint);
+            }
         }
-    }
+    });
 }
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
-    const auto& transactions = block.vtx;
-    LOCK(cs_spark_wallet);
-    for (const auto& tx : transactions) {
-        if (tx->IsSparkSpend()) {
-            try {
-                spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
-                const auto& txLTags = spend.getUsedLTags();
-                for (const auto& txLTag : txLTags) {
-                    uint256 txHash = tx->GetHash();
-                    uint256 lTagHash = primitives::GetLTagHash(txLTag);
-                    UpdateSpendState(txLTag, lTagHash, txHash);
+    std::vector<CTransactionRef> vtxCopy = block.vtx;
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
+        LOCK(cs_spark_wallet);
+        for (const auto& tx : vtxCopy) {
+            if (tx->IsSparkSpend()) {
+                try {
+                    spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
+                    const auto& txLTags = spend.getUsedLTags();
+                    for (const auto& txLTag : txLTags) {
+                        uint256 txHash = tx->GetHash();
+                        uint256 lTagHash = primitives::GetLTagHash(txLTag);
+                        UpdateSpendState(txLTag, lTagHash, txHash);
+                    }
+                } catch (const std::exception &) {
                 }
-            } catch (const std::exception &) {
             }
         }
-    }
+    });
 }
 
 bool CSparkWallet::isMine(spark::Coin coin) const {
@@ -655,22 +668,26 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
 }
 
 void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash) {
-    LOCK(cs_spark_wallet);
-    CWalletDB walletdb(strWalletFile);
-    UpdateMintState(coins, txHash, walletdb);
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() mutable {
+        LOCK(cs_spark_wallet);
+        CWalletDB walletdb(strWalletFile);
+        UpdateMintState(coins, txHash, walletdb);
+    });
 }
 
 void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
-    const auto& transactions = block.vtx;
-    LOCK(cs_spark_wallet);
-    CWalletDB walletdb(strWalletFile);
-    for (const auto& tx : transactions) {
-        if (tx->IsSparkTransaction()) {
-            auto coins = spark::GetSparkMintCoins(*tx);
-            uint256 txHash = tx->GetHash();
-            UpdateMintState(coins, txHash, walletdb);
+    std::vector<CTransactionRef> vtxCopy = block.vtx;
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() mutable {
+        LOCK(cs_spark_wallet);
+        CWalletDB walletdb(strWalletFile);
+        for (const auto& tx : vtxCopy) {
+            if (tx->IsSparkTransaction()) {
+                auto coins = spark::GetSparkMintCoins(*tx);
+                uint256 txHash = tx->GetHash();
+                UpdateMintState(coins, txHash, walletdb);
+            }
         }
-    }
+    });
 }
 
 void CSparkWallet::RemoveSparkMints(const std::vector<spark::Coin>& mints) {

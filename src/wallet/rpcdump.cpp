@@ -576,7 +576,7 @@ UniValue importwallet(const JSONRPCRequest& request)
         pwallet->ScanForWalletTransactions(chainActive.Genesis(), true);
     } else {
         LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
-        pwallet->ScanForWalletTransactions(pindex);
+        pwallet->ScanForWalletTransactions(pindex, true);
     }
     pwallet->MarkDirty();
 

@@ -485,9 +485,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 222400;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 401580;
-        
         // ProgPow
         consensus.nPPSwitchTime = 1635228000;           // Tue Oct 26 2021 06:00:00 GMT+0000
         consensus.nPPBlockNumber = 419264;
@@ -801,9 +798,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 1;
 
-        // Lelantus strip
-        consensus.nLelantusV3PayloadStartBlock = 1;
-
         // ProgPow
         consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
         consensus.nPPBlockNumber = 37305;
@@ -1020,7 +1014,7 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
 
         consensus.nSparkStartBlock = 1500;
-        consensus.nLelantusGracefulPeriod = 0;
+        consensus.nLelantusGracefulPeriod = 6000;
         consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
         consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
@@ -1058,9 +1052,6 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 1;
-
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 1;
 
         // ProgPow
         consensus.nPPSwitchTime = 1631261566;           // immediately after network start
@@ -1270,12 +1261,11 @@ public:
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 1;
-        // Lelantus stripped (like Sigma): both "start" at 1, only Spark active (Sigma end=1, Lelantus grace=0)
         consensus.nLelantusStartBlock = 1;
         consensus.nLelantusFixesStartBlock = 1;
         consensus.nSparkStartBlock = 100;
         consensus.nExchangeAddressStartBlock = 1000;
-        consensus.nLelantusGracefulPeriod = 0;
+        consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = 1;
         consensus.nZerocoinV2MintGracefulPeriod = 1;
@@ -1316,9 +1306,6 @@ public:
 
         // Bip39
         consensus.nMnemonicBlock = 0;
-
-        // Lelantus strip: no v3 payload boundary (same as testnet/devnet)
-        consensus.nLelantusV3PayloadStartBlock = 1;
 
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags

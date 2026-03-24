@@ -490,6 +490,10 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
+    if (tx.IsLelantusJoinSplit()) {
+        return false;
+    }
+
     if (tx.IsSparkSpend()) {
         LOCK(cs_main);
         for (CTxIn const & in : tx.vin) {

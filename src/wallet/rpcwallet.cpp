@@ -1668,7 +1668,7 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
             "gettotalbalance\n"
             "\nReturns total (transparent + Spark private) balance.\n"
             "Transparent balance is the sum of UTXO amounts.\n"
-            "Private balance is the sum of confirmed Spark funds tracked by the wallet.\n"
+            "Private balance is confirmed Spark funds when Spark wallet is enabled; otherwise 0.\n"
             "\nResult:\n"
             "amount              (numeric) The total balance in " + CURRENCY_UNIT + " for the wallet.\n"
             "\nExamples:\n"
@@ -1677,11 +1677,13 @@ UniValue gettotalbalance(const JSONRPCRequest& request)
             + HelpExampleRpc("gettotalbalance", "")
         );
 
-    EnsureSparkWalletIsAvailable();
     LOCK2(cs_main, pwallet->cs_wallet);
 
     const CAmount transparent = pwallet->GetBalance();
-    const CAmount spark = pwallet->sparkWallet->getAvailableBalance();
+    CAmount spark = 0;
+    if (pwallet->sparkWallet) {
+        spark = pwallet->sparkWallet->getAvailableBalance();
+    }
     return ValueFromAmount(transparent + spark);
 }
 
