@@ -16,8 +16,10 @@ namespace spark {
 
 class SparkNameTests : public SparkTestingSetup
 {
-private:
+public:
     Consensus::Params &mutableConsensus;
+
+private:
     Consensus::Params oldConsensus;
 
 public:
@@ -28,9 +30,11 @@ public:
           consensus(::Params().GetConsensus()),
           sparkNameManager(CSparkNameManager::GetInstance()) {
         oldConsensus = mutableConsensus;
+        mempool.clear();
     }
 
     ~SparkNameTests() {
+       mempool.clear();
        sparkState->Reset();
        sparkNameManager->Reset();
        mutableConsensus = oldConsensus;
@@ -316,6 +320,10 @@ BOOST_AUTO_TEST_CASE(general)
 BOOST_AUTO_TEST_CASE(hfblocknumber)
 {
     Initialize(1000);   // stay below HF block number for a time being
+
+    // Push V2.1 activation past the end of the graceful period so fee-tag
+    // requirements don't interfere with the address-transition test below.
+    mutableConsensus.nSparkNamesV21StartBlock = INT_MAX;
 
     int oldHeight =  chainActive.Height();
 
@@ -653,9 +661,10 @@ BOOST_AUTO_TEST_CASE(extension_max_validity)
 
     // --- Test 1: Register for exactly 15 years - should succeed ---
     std::string addr1 = GenerateSparkAddress();
-    CMutableTransaction txReg15 = CreateSparkNameTx("maxval1", addr1, nBlockPerYear * 15, "", true);
-    BOOST_CHECK(lastState.IsValid());
+    CMutableTransaction txReg15 = CreateSparkNameTx("maxval1", addr1, nBlockPerYear * 15, "", false);
+    int oldHeight = chainActive.Height();
     GenerateBlock({txReg15});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
     BOOST_CHECK(IsSparkNamePresent("maxval1"));
     int regHeight = chainActive.Height();
     uint64_t exp15 = sparkNameManager->GetSparkNameBlockHeight("maxval1");
@@ -664,23 +673,25 @@ BOOST_AUTO_TEST_CASE(extension_max_validity)
     // --- Test 2: Try to include a 16-year registration in a block - should be rejected ---
     std::string addr2 = GenerateSparkAddress();
     CMutableTransaction txReg16 = CreateSparkNameTx("maxval2", addr2, nBlockPerYear * 16, "", false);
-    int oldHeight = chainActive.Height();
+    oldHeight = chainActive.Height();
     GenerateBlock({txReg16});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected
     BOOST_CHECK(!IsSparkNamePresent("maxval2"));
 
     // --- Test 3: Register for 10 years, extend by 5 years -> total ~15 years -> should succeed ---
     std::string addr3 = GenerateSparkAddress();
-    CMutableTransaction txReg10a = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 10, "", true);
-    BOOST_CHECK(lastState.IsValid());
+    CMutableTransaction txReg10a = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 10, "", false);
+    oldHeight = chainActive.Height();
     GenerateBlock({txReg10a});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
     BOOST_CHECK(IsSparkNamePresent("maxval3"));
 
     GenerateBlocks(5);
 
-    CMutableTransaction txExt5 = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 5, "ext5", true);
-    BOOST_CHECK(lastState.IsValid());
+    CMutableTransaction txExt5 = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 5, "ext5", false);
+    oldHeight = chainActive.Height();
     GenerateBlock({txExt5});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
     BOOST_CHECK(IsSparkNamePresent("maxval3"));
 
     // Verify extended expiration preserves remaining time (post-V21 behavior)
@@ -692,9 +703,10 @@ BOOST_AUTO_TEST_CASE(extension_max_validity)
 
     // --- Test 4: Register for 10 years, try extending by 6 years -> total > 15 years -> should fail ---
     std::string addr4 = GenerateSparkAddress();
-    CMutableTransaction txReg10b = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 10, "", true);
-    BOOST_CHECK(lastState.IsValid());
+    CMutableTransaction txReg10b = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 10, "", false);
+    oldHeight = chainActive.Height();
     GenerateBlock({txReg10b});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
     BOOST_CHECK(IsSparkNamePresent("maxval4"));
 
     CMutableTransaction txExt6 = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 6, "ext6", false);
