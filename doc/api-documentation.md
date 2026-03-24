@@ -8,11 +8,13 @@ This document provides comprehensive documentation for all public APIs, function
 2. [RPC API Reference](#rpc-api-reference)
    - [Blockchain RPCs](#blockchain-rpcs)
    - [Wallet RPCs](#wallet-rpcs)
+   - [Utility RPCs](#utility-rpcs)
    - [Network RPCs](#network-rpcs)
    - [Mining RPCs](#mining-rpcs)
    - [Masternode RPCs](#masternode-rpcs)
    - [Privacy RPCs](#privacy-rpcs)
    - [Mobile RPCs](#mobile-rpcs)
+   - [Address Index RPCs](#address-index-rpcs)
 3. [Privacy Protocols](#privacy-protocols)
    - [Lelantus Protocol](#lelantus-protocol)
    - [Spark Protocol](#spark-protocol)
@@ -95,14 +97,16 @@ firo-cli getbestblockhash
 
 ---
 
-#### `getblock "blockhash" [verbose]`
+#### `getblock "blockhash" [verbosity]`
 Returns block data for the given block hash.
 
 **Arguments:**
 1. `blockhash` (string, required) - The block hash
-2. `verbose` (boolean, optional, default=true) - true for JSON object, false for hex data
+2. `verbosity` (numeric, optional, default=1) - 0 for hex-encoded block data, 1 for a JSON object, 2 for a JSON object with fully decoded transaction data. Boolean values are still accepted for backward compatibility (`true=1`, `false=0`).
 
-**Result (verbose=true):**
+**Result (verbosity=0):** `"data"` (string) - The serialized block encoded as hex
+
+**Result (verbosity=1):**
 ```json
 {
   "hash": "000000...",
@@ -116,6 +120,37 @@ Returns block data for the given block hash.
   "nonce": 12345,
   "bits": "1d00ffff",
   "difficulty": 12345.678,
+  "chainlock": true
+}
+```
+
+**Result (verbosity=2):**
+```json
+{
+  "hash": "000000...",
+  "confirmations": 123,
+  "size": 1234,
+  "height": 123456,
+  "tx": [
+    {
+      "txid": "txid1",
+      "hash": "txhash1",
+      "size": 225,
+      "vsize": 144,
+      "version": 3,
+      "locktime": 0,
+      "vin": [...],
+      "vout": [...],
+      "hex": "0200...",
+      "blockhash": "000000...",
+      "confirmations": 123,
+      "time": 1234567890,
+      "blocktime": 1234567890,
+      "instantlock": false,
+      "lelantusData": {...},
+      "sparkData": "hex..."
+    }
+  ],
   "chainlock": true
 }
 ```
@@ -551,6 +586,100 @@ Safely copies wallet.dat to destination.
 
 **Arguments:**
 1. `destination` (string, required) - Destination path/filename
+
+---
+
+#### `signmessage "firoaddress" "message"`
+Sign a message with the private key of a transparent Firo address.
+
+**Arguments:**
+1. `firoaddress` (string, required) - The transparent Firo address whose private key will sign the message
+2. `message` (string, required) - The message to sign
+
+**Result:** `"signature"` (string) - Compact signature encoded in base64
+
+**Notes:**
+- Requires the wallet to be unlocked
+- The address must refer to a wallet key, not a script address
+
+**Example:**
+```bash
+firo-cli walletpassphrase "mypassphrase" 30
+firo-cli signmessage "aXy123..." "my message"
+```
+
+---
+
+#### `signmessagewithsparkaddress "sparkaddress" "message"`
+Sign a message with a Spark address using a Spark ownership proof.
+
+**Arguments:**
+1. `sparkaddress` (string, required) - The Spark address whose key will sign the message
+2. `message` (string, required) - The message to sign
+
+**Result:** `"signature"` (string) - Ownership proof serialized as a hex string
+
+**Notes:**
+- Requires the wallet to be unlocked
+- The Spark address must belong to the wallet and match the active network
+
+**Example:**
+```bash
+firo-cli walletpassphrase "mypassphrase" 30
+firo-cli signmessagewithsparkaddress "sm1..." "my message"
+```
+
+---
+
+### Utility RPCs
+
+#### `verifymessage "address" "signature" "message"`
+Verify a signed message for a transparent Firo address.
+
+**Arguments:**
+1. `address` (string, required) - The transparent Firo address used for signing
+2. `signature` (string, required) - The base64 signature returned by `signmessage`
+3. `message` (string, required) - The signed message
+
+**Result:** `true|false` (boolean) - Whether the signature is valid
+
+**Example:**
+```bash
+firo-cli verifymessage "aXy123..." "signature" "my message"
+```
+
+---
+
+#### `verifymessagewithsparkaddress "sparkaddress" "signature" "message"`
+Verify a message signature produced by `signmessagewithsparkaddress`.
+
+**Arguments:**
+1. `sparkaddress` (string, required) - The Spark address that was used to sign
+2. `signature` (string, required) - The ownership proof signature as a hex string
+3. `message` (string, required) - The signed message
+
+**Result:** `true|false` (boolean) - Whether the signature is valid
+
+**Example:**
+```bash
+firo-cli verifymessagewithsparkaddress "sm1..." "signature" "my message"
+```
+
+---
+
+#### `signmessagewithprivkey "privkey" "message"`
+Sign a message with a WIF private key without using the wallet key store.
+
+**Arguments:**
+1. `privkey` (string, required) - The private key in WIF format
+2. `message` (string, required) - The message to sign
+
+**Result:** `"signature"` (string) - Compact signature encoded in base64
+
+**Example:**
+```bash
+firo-cli signmessagewithprivkey "privkey" "my message"
+```
 
 ---
 
@@ -1059,6 +1188,28 @@ Returns used Spark coin tags.
 
 ---
 
+#### `getusedcoinstagstxhashes startNumber`
+Returns used Spark coin tags paired with the transaction IDs where they were spent.
+
+**Arguments:**
+1. `startNumber` (int, required) - Number of existing elements on the client side; results before this offset are skipped
+
+**Result:**
+```json
+{
+  "tagsandtxids": [
+    ["base64_tag", "base64_txid"],
+    ...
+  ]
+}
+```
+
+**Notes:**
+- Requires the `-mobile` flag
+- Both the tag and transaction ID are base64 encoded in the result
+
+---
+
 #### `getlatestcoinid`
 Returns the latest Lelantus coin group ID.
 
@@ -1191,6 +1342,31 @@ Returns mempool deltas for addresses.
 
 **Arguments:**
 1. (object, required) - `{"addresses": ["addr1"]}`
+
+---
+
+#### `getspentinfo {"txid":"...","index":n}`
+Returns the transaction ID and input index where a given output was spent.
+
+**Arguments:**
+1. (object, required) - `{"txid": "0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9", "index": 0}`
+
+**Result:**
+```json
+{
+  "txid": "spending_txid",
+  "index": 1,
+  "height": 123456
+}
+```
+
+**Notes:**
+- Requires the `-spentindex` flag
+
+**Example:**
+```bash
+firo-cli getspentinfo '{"txid": "0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9", "index": 0}'
+```
 
 ---
 
@@ -1362,11 +1538,47 @@ class SpendTransaction {
 
 #### Spark Address Format
 
-Spark addresses use Bech32 encoding:
-- **Mainnet prefix:** `sp`
+Spark addresses use Bech32m encoding:
+- **Mainnet prefix:** `sm`
 - **Testnet prefix:** `st`
+- **Regtest prefix:** `sr`
+- **Devnet prefix:** `sd`
 
-Example: `sp1qw508d6qejxtdg4y5r3zarvary0c5xw7k...`
+Example: `sm1qw508d6qejxtdg4y5r3zarvary0c5xw7k...`
+
+#### Address Validation
+
+##### Transparent Addresses
+
+Transparent addresses use Base58Check encoding. On mainnet:
+- **P2PKH version byte:** `0x52` (decimal `82`). Standard wallet addresses from this version can begin with `a` or `Z`, depending on the payload.
+- **P2SH version byte:** `0x07`. These addresses typically begin with `3`.
+- **Exchange address version bytes:** `0x01b9bb`. These encode to the dedicated `EXX...` format.
+
+On testnet:
+- **P2PKH version byte:** `0x41` (decimal `65`), typically beginning with `T`
+- **P2SH version byte:** `0xb2` (decimal `178`)
+
+Useful regexes:
+- Mainnet P2PKH addresses beginning with `a`: `^a[1-9A-HJ-NP-Za-km-z]{33}$`
+- Mainnet P2PKH addresses beginning with `Z`: `^Z[1-9A-HJ-NP-Za-km-z]{33}$`
+- Combined mainnet P2PKH shorthand: `^[aZ][1-9A-HJ-NP-Za-km-z]{33}$`
+
+##### Spark Addresses
+
+Spark addresses use Bech32m with a human-readable part composed of `s` plus the network code:
+- **Mainnet HRP:** `sm`
+- **Testnet HRP:** `st`
+- **Regtest HRP:** `sr`
+- **Devnet HRP:** `sd`
+
+Useful regex:
+- Mainnet Spark addresses: `^sm1[a-z0-9]{100,}$`
+
+Validation notes:
+- The decoded address must use Bech32m, not legacy Bech32
+- The decoded payload must be exactly `2 * GroupElement::serialize_size + AES_BLOCKSIZE` bytes
+- The embedded network byte must match the active chain parameters
 
 ---
 
