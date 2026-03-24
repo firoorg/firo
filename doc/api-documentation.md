@@ -15,6 +15,7 @@ This document provides comprehensive documentation for all public APIs, function
    - [Privacy RPCs](#privacy-rpcs)
    - [Mobile RPCs](#mobile-rpcs)
    - [Address Index RPCs](#address-index-rpcs)
+   - [Complete RPC Command Index](#complete-rpc-command-index)
 3. [Privacy Protocols](#privacy-protocols)
    - [Lelantus Protocol](#lelantus-protocol)
    - [Spark Protocol](#spark-protocol)
@@ -37,6 +38,8 @@ Firo is a privacy-focused cryptocurrency that utilizes the **Lelantus Spark prot
 ---
 
 ## RPC API Reference
+
+The detailed sections below describe selected high-traffic RPCs. For exhaustive coverage of every command registered in the current branch, see [Complete RPC Command Index](#complete-rpc-command-index).
 
 ### Blockchain RPCs
 
@@ -97,60 +100,41 @@ firo-cli getbestblockhash
 
 ---
 
-#### `getblock "blockhash" [verbosity]`
+#### `getblock "blockhash" [verbose]`
 Returns block data for the given block hash.
 
 **Arguments:**
 1. `blockhash` (string, required) - The block hash
-2. `verbosity` (numeric, optional, default=1) - 0 for hex-encoded block data, 1 for a JSON object, 2 for a JSON object with fully decoded transaction data. Boolean values are still accepted for backward compatibility (`true=1`, `false=0`).
+2. `verbose` (boolean, optional, default=true) - `true` for a JSON object, `false` for hex-encoded block data
 
-**Result (verbosity=0):** `"data"` (string) - The serialized block encoded as hex
+**Result (verbose=false):** `"data"` (string) - The serialized block encoded as hex
 
-**Result (verbosity=1):**
+**Result (verbose=true):**
 ```json
 {
   "hash": "000000...",
   "confirmations": 123,
+  "strippedsize": 1234,
   "size": 1234,
+  "weight": 4936,
   "height": 123456,
   "version": 4,
+  "versionHex": "00000004",
   "merkleroot": "abc123...",
   "tx": ["txid1", "txid2", ...],
+  "cbTx": {
+    "version": 2,
+    "height": 123456,
+    "merkleRootMNList": "abcd..."
+  },
   "time": 1234567890,
+  "mediantime": 1234567800,
   "nonce": 12345,
   "bits": "1d00ffff",
   "difficulty": 12345.678,
-  "chainlock": true
-}
-```
-
-**Result (verbosity=2):**
-```json
-{
-  "hash": "000000...",
-  "confirmations": 123,
-  "size": 1234,
-  "height": 123456,
-  "tx": [
-    {
-      "txid": "txid1",
-      "hash": "txhash1",
-      "size": 225,
-      "vsize": 144,
-      "version": 3,
-      "locktime": 0,
-      "vin": [...],
-      "vout": [...],
-      "hex": "0200...",
-      "blockhash": "000000...",
-      "confirmations": 123,
-      "time": 1234567890,
-      "blocktime": 1234567890,
-      "instantlock": false,
-      "lelantusData": {...},
-      "sparkData": "hex..."
-    }
-  ],
+  "chainwork": "000000...",
+  "previousblockhash": "000000...",
+  "nextblockhash": "000000...",
   "chainlock": true
 }
 ```
@@ -362,7 +346,7 @@ Returns a list of all Spark names.
 [
   {
     "name": "myname",
-    "address": "spark1...",
+    "address": "sm1...",
     "validUntil": 123456
   }
 ]
@@ -610,26 +594,6 @@ firo-cli signmessage "aXy123..." "my message"
 
 ---
 
-#### `signmessagewithsparkaddress "sparkaddress" "message"`
-Sign a message with a Spark address using a Spark ownership proof.
-
-**Arguments:**
-1. `sparkaddress` (string, required) - The Spark address whose key will sign the message
-2. `message` (string, required) - The message to sign
-
-**Result:** `"signature"` (string) - Ownership proof serialized as a hex string
-
-**Notes:**
-- Requires the wallet to be unlocked
-- The Spark address must belong to the wallet and match the active network
-
-**Example:**
-```bash
-firo-cli walletpassphrase "mypassphrase" 30
-firo-cli signmessagewithsparkaddress "sm1..." "my message"
-```
-
----
 
 ### Utility RPCs
 
@@ -650,22 +614,6 @@ firo-cli verifymessage "aXy123..." "signature" "my message"
 
 ---
 
-#### `verifymessagewithsparkaddress "sparkaddress" "signature" "message"`
-Verify a message signature produced by `signmessagewithsparkaddress`.
-
-**Arguments:**
-1. `sparkaddress` (string, required) - The Spark address that was used to sign
-2. `signature` (string, required) - The ownership proof signature as a hex string
-3. `message` (string, required) - The signed message
-
-**Result:** `true|false` (boolean) - Whether the signature is valid
-
-**Example:**
-```bash
-firo-cli verifymessagewithsparkaddress "sm1..." "signature" "my message"
-```
-
----
 
 #### `signmessagewithprivkey "privkey" "message"`
 Sign a message with a WIF private key without using the wallet key store.
@@ -1064,7 +1012,7 @@ Create a Spark mint transaction.
 
 **Example:**
 ```bash
-firo-cli mintspark "[{\"address\":\"spark1...\",\"amount\":1.0,\"memo\":\"test\"}]"
+firo-cli mintspark "[{\"address\":\"sm1...\",\"amount\":1.0,\"memo\":\"test\"}]"
 ```
 
 ---
@@ -1079,7 +1027,7 @@ Create a Spark spend transaction.
 
 **Example:**
 ```bash
-firo-cli spendspark "[{\"address\":\"spark1...\",\"amount\":0.5}]"
+firo-cli spendspark "[{\"address\":\"sm1...\",\"amount\":0.5}]"
 ```
 
 ---
@@ -1345,30 +1293,73 @@ Returns mempool deltas for addresses.
 
 ---
 
-#### `getspentinfo {"txid":"...","index":n}`
-Returns the transaction ID and input index where a given output was spent.
 
-**Arguments:**
-1. (object, required) - `{"txid": "0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9", "index": 0}`
+<!-- BEGIN COMPLETE_RPC_COMMAND_INDEX -->
+### Complete RPC Command Index
 
-**Result:**
-```json
-{
-  "txid": "spending_txid",
-  "index": 1,
-  "height": 123456
-}
-```
+This index is derived from the RPC command registration tables in the current branch. It provides full command coverage even where the detailed sections above only expand a selected subset of commands. Categories such as `hidden` and `test` are internal or debug-oriented interfaces rather than standard end-user RPCs.
 
-**Notes:**
-- Requires the `-spentindex` flag
+#### `blockchain`
 
-**Example:**
-```bash
-firo-cli getspentinfo '{"txid": "0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9", "index": 0}'
-```
+`clearmempool`, `getbestblockhash`, `getblock`, `getblockchaininfo`, `getblockcount`, `getblockhash`, `getblockhashes`, `getblockheader`, `getchaintips`, `getdifficulty`, `getmempoolancestors`, `getmempooldescendants`, `getmempoolentry`, `getmempoolinfo`, `getrawmempool`, `getsparknamedata`, `getsparknames`, `getsparknametxdetails`, `getspecialtxes`, `gettxout`, `gettxoutproof`, `gettxoutsetinfo`, `preciousblock`, `pruneblockchain`, `verifychain`, `verifytxoutproof`
 
----
+#### `wallet`
+
+`abandontransaction`, `addmultisigaddress`, `addwitnessaddress`, `autoMintlelantus`, `automintspark`, `backupwallet`, `bumpfee`, `dumpprivkey`, `dumpsparkviewkey`, `dumpwallet`, `encryptwallet`, `getaccount`, `getaccountaddress`, `getaddressesbyaccount`, `getallsparkaddresses`, `getbalance`, `getnewaddress`, `getnewsparkaddress`, `getprivatebalance`, `getrawchangeaddress`, `getreceivedbyaccount`, `getreceivedbyaddress`, `getsparkaddressbalance`, `getsparkbalance`, `getsparkcoinaddr`, `getsparkdefaultaddress`, `gettotalbalance`, `gettransaction`, `getunconfirmedbalance`, `getwalletinfo`, `identifysparkcoins`, `importaddress`, `importmulti`, `importprivkey`, `importprunedfunds`, `importpubkey`, `importwallet`, `joinsplit`, `keypoolrefill`, `lelantustospark`, `listaccounts`, `listaddressbalances`, `listaddressgroupings`, `listlelantusjoinsplits`, `listlelantusmints`, `listlockunspent`, `listreceivedbyaccount`, `listreceivedbyaddress`, `listsinceblock`, `listsparkmints`, `listsparkspends`, `listtransactions`, `listunspent`, `listunspentlelantusmints`, `listunspentsparkmints`, `lockunspent`, `mintlelantus`, `mintspark`, `move`, `proveprivatetxown`, `regeneratemintpool`, `registersparkname`, `removeprunedfunds`, `removetxmempool`, `removetxwallet`, `requestsparknametransfer`, `resetlelantusmint`, `resetsparkmints`, `sendfrom`, `sendmany`, `sendspark`, `sendsparkmany`, `sendtoaddress`, `sendtransparent`, `setaccount`, `setlelantusmintstatus`, `setmininput`, `setsparkmintstatus`, `settxfee`, `signmessage`, `spendspark`, `transfersparkname`, `walletlock`, `walletpassphrase`, `walletpassphrasechange`
+
+#### `util`
+
+`createmultisig`, `estimatefee`, `estimatepriority`, `estimatesmartfee`, `estimatesmartpriority`, `signmessagewithprivkey`, `validateaddress`, `verifymessage`
+
+#### `network`
+
+`addnode`, `clearbanned`, `disconnectnode`, `getaddednodeinfo`, `getconnectioncount`, `getnettotals`, `getnetworkinfo`, `getpeerinfo`, `listbanned`, `ping`, `setban`, `setnetworkactive`
+
+#### `mining`
+
+`getblocktemplate`, `getmininginfo`, `getnetworkhashps`, `pprpcsb`, `prioritisetransaction`, `submitblock`
+
+#### `rawtransactions`
+
+`createrawtransaction`, `decoderawtransaction`, `decodescript`, `fundrawtransaction`, `getrawtransaction`, `sendrawtransaction`, `signrawtransaction`
+
+#### `addressindex`
+
+`getAddressNumWBalance`, `getCVE17144amount`, `getaddressbalance`, `getaddressdeltas`, `getaddressmempool`, `getaddresstxids`, `getaddressutxos`, `gettotalsupply`, `getzerocoinpoolbalance`
+
+#### `mobile`
+
+`checkifmncollateral`, `getanonymityset`, `getfeerate`, `getlatestcoinid`, `getmempoolsparktxids`, `getmempoolsparktxs`, `getmintmetadata`, `getsparkanonymityset`, `getsparkanonymitysetmeta`, `getsparkanonymitysetsector`, `getsparklatestcoinid`, `getsparkmintmetadata`, `getusedcoinserials`, `getusedcoinstags`, `getusedcoinstagstxhashes`
+
+#### `control`
+
+`getinfo`, `getmemoryinfo`, `help`, `stop`
+
+#### `generating`
+
+`generate`, `generatetoaddress`, `setgenerate`
+
+#### `bip47`
+
+`createrapaddress`, `listrapaddresses`, `sendtorapaddress`, `setupchannel`, `setusednumber`
+
+#### `evo`
+
+`bls`, `protx`, `quorum`, `removeislock`, `spork`
+
+#### `firo`
+
+`evoznode`, `evoznodelist`, `evoznsync`, `verifyprivatetxown`, `znode`, `znodelist`, `znsync`
+
+#### `hidden`
+
+`echo`, `echojson`, `getinfoex`, `getnewexchangeaddress`, `invalidateblock`, `reconsiderblock`, `resendwallettransactions`, `setmocktime`, `waitforblock`, `waitforblockheight`, `waitfornewblock`
+
+#### `test`
+
+`rpcNestedTest`
+
+<!-- END COMPLETE_RPC_COMMAND_INDEX -->
 
 ## Privacy Protocols
 
@@ -1792,13 +1783,13 @@ firo-cli listtransactions
 firo-cli getnewsparkaddress
 
 # Mint to Spark (anonymize coins)
-firo-cli mintspark "[{\"address\":\"spark1...\",\"amount\":10.0,\"memo\":\"savings\"}]"
+firo-cli mintspark "[{\"address\":\"sm1...\",\"amount\":10.0,\"memo\":\"savings\"}]"
 
 # Check Spark balance
 firo-cli getsparkbalance
 
 # Send from Spark (private transaction)
-firo-cli spendspark "[{\"address\":\"spark1...\",\"amount\":5.0}]"
+firo-cli spendspark "[{\"address\":\"sm1...\",\"amount\":5.0}]"
 ```
 
 ### Example 3: Masternode Operations
