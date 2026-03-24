@@ -495,15 +495,13 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
     }
 
     if (tx.nType == isutils::INSTANTSEND_ADAPTED_TX) {
-        if (tx.IsSparkSpend()) {
-            for (CTxIn const & in : tx.vin) {
-                if (in.scriptSig.empty())
-                    return false;
-                GroupElement lTag;
-                lTag.deserialize(&in.scriptSig.front());
-                if (spark::CSparkState::GetState()->IsUsedLTag(lTag))
-                    return false;
-            }
+        for (CTxIn const & in : tx.vin) {
+            if (in.scriptSig.empty())
+                return false;
+            GroupElement lTag;
+            lTag.deserialize(&in.scriptSig.front());
+            if (spark::CSparkState::GetState()->IsUsedLTag(lTag))
+                return false;
         }
         return true;
     }
