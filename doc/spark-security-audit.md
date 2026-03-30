@@ -313,8 +313,6 @@ More concretely:
 This means Spark proof verification can be intentionally deferred across many
 historical blocks during IBD or reindex.
 
-This means verification is intentionally deferred during historical sync.
-
 ### Why developers should care
 
 The risk here is not “known invalid spends are accepted on mainline mempool
@@ -346,6 +344,85 @@ cover sets from the block-hash-pinned ancestry walk in
 `CheckSparkSpendTransaction()`. The current review did not prove this creates a
 consensus failure, but it is precisely the sort of equivalence assumption that
 should be locked down with tests and explicit developer documentation.
+
+### Deeper batching flow analysis
+
+The key sequencing is:
+
+1. `ConnectBlock()` sets `batchProofContainer->fCollectProofs` based on block
+   age and calls `batchProofContainer->init()`.
+2. While iterating transactions, `CheckSparkSpendTransaction()` may skip
+   immediate proof verification and instead enqueue Spark spends if
+   `useBatching` is true.
+3. `ConnectBlockSpark()` then applies block-local Spark state derived from
+   `sparkTxInfo`, including linking tags and mint/index updates.
+4. `ConnectBlock()` finishes, calls `batchProofContainer->finalize()`, and
+   returns success.
+5. Only later, in `ActivateBestChain()`, the node decides whether to call
+   `batchProofContainer->verify()`, and that depends on the **new tip's**
+   recency relative to wall clock time.
+
+This means that:
+
+- per-block Spark proof soundness is not enforced at the same moment as
+  `ConnectBlockSpark()` state transitions for old blocks
+- proof collection can span many connected historical blocks before actual
+  Spark batch verification happens
+- the trigger for running verification is driven by wall-clock freshness of the
+  active tip, not by an explicit "all collected Spark proofs for this block have
+  now been checked" barrier
+
+### Why this is subtle
+
+The current design appears to be optimizing IBD / reindex performance rather
+than weakening the final validation goal. However, it introduces a second
+validation mode with a different set of assumptions:
+
+- **single-transaction path:** proof verified against a cover set assembled from
+  the spend's referenced block hash and ancestry walk
+- **batched path:** proof verified later against a cover set rebuilt from the
+  current Spark state using `GetCoinSet()`
+
+The review did not confirm that these two paths disagree today, but the code
+clearly relies on that equivalence.
+
+### Specific developer risks
+
+1. **Behavior drift risk**
+   - A future change to cover-set selection, set-hash semantics, or grouping
+     rules could preserve one path while accidentally changing the other.
+
+2. **Late-failure / liveness risk**
+   - Batch verification failures are raised late and currently instruct the user
+     to rerun with `-reindex -batching=0`.
+   - That is acceptable as a recovery mechanism, but it means failures can
+     surface long after individual historical blocks were connected.
+
+3. **Resource concentration risk**
+   - Spark proofs can accumulate across many old blocks and then be checked in a
+     large batch once the tip becomes recent enough.
+   - This creates a concentrated CPU / memory / latency event rather than a
+     per-block cost.
+
+4. **Testing gap**
+   - The existing tests exercise normal Spark mint/spend behavior, but this
+     review did not find explicit coverage that:
+     - compares batched and non-batched verification on the same history
+     - forces delayed batch failure handling
+     - asserts equivalence of block-hash-pinned and state-rebuilt cover sets
+
+### Suggested concrete follow-up for developers
+
+- Add a targeted test harness that replays the same Spark-heavy historical
+  chain twice:
+  - once with batching disabled
+  - once with batching enabled
+  - and asserts identical accept/reject outcomes
+- Add tests that explicitly validate the relationship between:
+  - `CheckSparkSpendTransaction()` cover-set assembly
+  - `CSparkState::GetCoinSet()` / `GetCoinSetForSpend()`
+- Add regression coverage for a late batch-verification failure path so that
+  operational recovery behavior is intentional and documented
 
 ## B. Wallet-state inconsistencies around Spark mint removal on reorg
 
