@@ -1616,6 +1616,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             SetProxy(NET_ONION, addrOnion);
             if (!fOnlyNet || onlyNetNets.count(NET_ONION))
                 SetLimited(NET_ONION, false);
+            // When onlynet=onion and a dedicated -onion proxy is set (but no -proxy),
+            // also set it as the name proxy so DNS resolution goes through Tor
+            // and doesn't leak over clearnet.
+            if (fOnlyNet && onlyNetNets.count(NET_ONION) && !HaveNameProxy())
+                SetNameProxy(addrOnion);
         }
     }
 

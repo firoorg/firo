@@ -2257,6 +2257,12 @@ void CConnman::ThreadOpenMasternodeConnections()
                 }
             }
 
+            // Respect -onlynet: filter out masternodes on limited networks
+            // before selecting, so we don't waste the iteration or lose
+            // dequeued vPendingMasternodes entries.
+            pending.erase(std::remove_if(pending.begin(), pending.end(),
+                [](const CService& s) { return IsLimited(s); }), pending.end());
+
             if (pending.empty()) {
                 // nothing to do, keep waiting
                 continue;
@@ -2264,11 +2270,6 @@ void CConnman::ThreadOpenMasternodeConnections()
 
             Shuffle(pending.begin(), pending.end(), FastRandomContext());
             addr = pending.front();
-        }
-
-        // Respect -onlynet: don't connect to masternodes on limited networks
-        if (IsLimited(addr)) {
-            continue;
         }
 
         OpenMasternodeConnection(CAddress(addr, NODE_NETWORK));
