@@ -39,30 +39,48 @@ Supporting Spark tests were also reviewed and executed.
 
 ## Executive Summary
 
-The most important confirmed issues are **not** in the core arithmetic of Spark
-proof construction. Instead, they are concentrated around **secret handling** and
-**wallet export / persistence semantics**.
+After reassessing the review under the intended threat model, the strongest
+developer-actionable items are **not** direct vulnerabilities in Spark proof
+arithmetic. Instead, they are mostly:
 
-The highest-priority issues are:
+- **hardening concerns**
+- **operational / recovery footguns**
+- **developer-facing invariants that need to remain true as the code evolves**
 
-1. `dumpsparkviewkey` exports a secret that is much more powerful than its name
-   suggests.
-2. `dumpwallet` exports Spark spend-derivation material that can be used to
-   reconstruct Spark spend authority.
-3. persisted Spark full-view material appears to live outside the wallet
-   encryption path.
-4. `dumpwallet` and `importwallet` are not a complete Spark backup / restore
-   pair, which creates a realistic operational recovery hazard.
+Under the clarified model:
 
-I did **not** confirm a direct Spark inflation bug in the current reviewed code,
-and I did **not** confirm a default mempool invalid-spend acceptance bug in the
+- `dumpwallet` exporting Spark-sensitive material is **expected behavior**, not
+  a vulnerability
+- persisting `FullViewKey` is **intentional design**, not a vulnerability, if
+  physical access and wallet-file theft are out of scope
+
+The most important remaining items are:
+
+1. `dumpsparkviewkey` still exports a stronger secret than its name implies,
+   and its UX / gating should be treated as a **hardening concern**
+2. `dumpwallet` / `importwallet` is **not** a complete Spark backup / restore
+   pair, which is a real operational recovery footgun
+3. deferred Spark batch verification remains an architectural hardening area,
+   especially around correctness equivalence, liveness, and maintenance risk
+
+I did **not** confirm a direct Spark inflation bug in the reviewed code, and I
+did **not** confirm a default mempool invalid-spend acceptance bug in the
 current stateful validation path.
 
 ---
 
-## Confirmed Findings
+## Reassessed Findings Under the Current Threat Model
 
-## 1. High: `dumpsparkviewkey` exports a materially over-privileged secret
+This section reflects the clarified assumptions:
+
+- `dumpwallet` is an explicit full-secret export and requires wallet unlock
+- one-time authorization for dump RPCs is primarily an anti-scam UX measure
+- the wallet must persist Spark full-view material in order to track balances
+  while locked
+- physical wallet-file access is out of scope
+
+## 1. Hardening Concern: `dumpsparkviewkey` exports a stronger secret than its
+name suggests
 
 ### What happens
 
@@ -86,7 +104,7 @@ Relevant code:
 That key is not just enough to detect incoming outputs. It is also sufficient
 for `coin.recover(...)` to derive owned-coin serial / tag material.
 
-### Why this is dangerous
+### Why this still matters
 
 The name **“view key”** strongly suggests a watch-only or incoming-view-only
 capability. In reality, this export is materially stronger:
@@ -96,14 +114,17 @@ capability. In reality, this export is materially stronger:
 - it can recover serial / tag related metadata for owned coins
 - it is not gated like the more obviously dangerous export RPCs
 
-`dumpsparkviewkey` currently lacks the stronger protections used elsewhere,
-such as the one-time authorization pattern applied to `dumpwallet_firo` and
-`dumpprivkey_firo`.
+Unlike `dumpwallet`, this RPC is presented as a narrower “view key” export, but
+it actually returns `FullViewKey`-class material. Even if this is acceptable in
+the product threat model, the naming still understates sensitivity.
 
-### Impact
+It also does not require `EnsureWalletIsUnlocked`, unlike more obviously
+dangerous export flows.
 
-- catastrophic Spark privacy loss for the wallet whose key is exported
-- high operator risk because the interface naming understates sensitivity
+### Impact classification
+
+- **hardening / UX concern**
+- not treated as a standalone vulnerability under the clarified model
 
 ### What was **not** confirmed
 
@@ -114,14 +135,16 @@ in `FullViewKey`.
 ### Recommended remediation
 
 - Rename the RPC and UI language so it does not imply watch-only semantics.
-- Restrict export behind stronger confirmation / authorization controls.
+- Consider aligning export gating with other sensitive export RPCs, or at
+  minimum documenting the difference clearly.
 - Consider exporting a true incoming-view-only key instead of `FullViewKey`
   where possible.
 - Audit any GUI flows that present this value to users.
 
 ---
 
-## 2. High: `dumpwallet` exports Spark spend-derivation secret material
+## 2. Non-issue as a vulnerability: `dumpwallet` exports Spark spend-derivation
+material by design
 
 ### What happens
 
@@ -143,36 +166,33 @@ The dumped secret comes from:
 And Spark spend authority is deterministically derived from that secret plus
 `sparkncount`.
 
-### Why this is dangerous
+### Reassessment
 
-Anyone who obtains that dumped key material and the matching derivation setting
-can reconstruct the same Spark spend key path and therefore recover Spark spend
-authority.
+This remains theft-capable material, but that is not surprising or
+developer-actionable under the clarified model. `dumpwallet` already requires:
 
-Unlike the previous finding, this is not just a privacy risk. This is a
-**theft-capable export surface**.
+- wallet unlock
+- explicit export intent
+- the anti-scam one-time authorization flow
 
-### Impact
+So this should not be treated as a vulnerability on its own. It is better
+understood as an expected consequence of exporting full wallet secrets.
 
-- direct loss of Spark funds if the dump file is exposed
-
-### Existing mitigation
+### Existing mitigation / context
 
 The exported dump is routed through `dumpwallet_firo`, which adds a one-time
 authorization flow. That helps against casual misuse, but it does not change
 the severity of the material once exported.
 
-### Recommended remediation
+### Developer note
 
-- Explicitly document that the Spark key in wallet dumps is theft-capable.
-- Consider separating Spark-secret export from generic wallet dumps or adding
-  stronger dedicated warnings.
-- Re-evaluate whether generic wallet dump output should include this Spark
-  secret by default.
+The important remaining concern is not that `dumpwallet` exports secrets, but
+that developers should continue treating the exported Spark key as equivalent in
+sensitivity to other wallet-secret exports.
 
 ---
 
-## 3. Medium: persisted Spark full-view material appears to bypass wallet encryption
+## 3. Accepted design under this threat model: persisted Spark `FullViewKey`
 
 ### What happens
 
@@ -188,28 +208,20 @@ The wallet encryption machinery protects:
 
 But there is no Spark-specific path encrypting the persisted `fullViewKey`.
 
-### Why this is dangerous
+### Reassessment
 
-Users may reasonably assume that “encrypted wallet” semantics protect all
-high-sensitivity Spark wallet secrets. In the current design, that assumption
-does not appear to hold for `FullViewKey`.
+Under the clarified assumptions, this is not a vulnerability:
 
-Because `FullViewKey` is stronger than a basic incoming-only view key, this is
-not a trivial metadata leak.
+- balance tracking while locked requires persistent Spark viewing state
+- physical-access / wallet-file compromise is out of scope
 
-### Impact
+So this should be treated as an **accepted design choice**, not a security bug.
 
-- at-rest compromise of Spark wallet privacy material
-- meaningful gap between user expectations and actual protection
+### Developer note
 
-### Recommended remediation
-
-- Either encrypt persisted Spark full-view material at rest,
-- or reduce what needs to be stored persistently,
-- or split storage into lower-sensitivity incoming-view-only material and
-  separately protected full-view material.
-
-Also update developer comments and user-facing assumptions accordingly.
+If the threat model ever expands to include wallet-file theft or “encrypted
+wallet means all Spark privacy state is protected at rest,” this area should be
+revisited. For now, it should not be framed as a confirmed issue.
 
 ---
 
@@ -230,7 +242,7 @@ Relevant code:
 - `src/wallet/rpcdump.cpp` — `dumpwallet`
 - `src/wallet/rpcdump.cpp` — `importwallet`
 
-### Why this is dangerous
+### Why this still matters
 
 A developer or operator may assume that:
 
@@ -264,7 +276,8 @@ but that does not remove the recovery mismatch.
 These issues are important, but this review does **not** elevate them to
 confirmed exploits.
 
-## A. Batched Spark proof verification occurs after best-chain advancement logic
+## A. Deferred / batched Spark verification remains the most important
+hardening concern
 
 Relevant code:
 
@@ -274,20 +287,65 @@ Relevant code:
 - `src/libspark/spend_transaction.cpp`
 
 Spark proof checks can be deferred into `BatchProofContainer::batch_spark()`
-for older blocks. This verification happens after the best-chain step has
-already advanced the tip in the activation loop.
+for older blocks. This is not a confirmed inflation bug in the current review,
+but it remains the strongest architectural hardening topic.
 
-I did not confirm a concrete inflation or invalid-acceptance exploit from this
-path under current default stateful validation behavior. However, it is an
-architectural risk area and deserves explicit review by developers, especially
-if batching behavior changes in the future.
+Important behaviors:
+
+- `CheckSparkSpendTransaction()` can skip direct proof verification and queue
+  the transaction when `useBatching` is true.
+- `ConnectBlockSpark()` applies Spark state transitions based on `sparkTxInfo`
+  built during block connection.
+- `ActivateBestChain()` later decides whether to actually run batched proof
+  verification based on wall-clock age vs tip block time.
+
+More concretely:
+
+- `ConnectBlock()` enables proof collection for blocks older than one day and
+  initializes the batch container before iterating transactions.
+- `CheckSparkSpendTransaction()` sets `passVerify = true` and only queues the
+  spend into `BatchProofContainer` when batching is active.
+- `ConnectBlockSpark()` can then consume `sparkTxInfo` and update state for the
+  block.
+- `ActivateBestChain()` only runs `batchProofContainer->verify()` once the new
+  tip is recent enough that `fCollectProofs` becomes false.
+
+This means Spark proof verification can be intentionally deferred across many
+historical blocks during IBD or reindex.
+
+This means verification is intentionally deferred during historical sync.
+
+### Why developers should care
+
+The risk here is not “known invalid spends are accepted on mainline mempool
+paths.” The review did **not** confirm that. The risk is that batching creates a
+second validation mode whose behavior must stay equivalent to per-transaction
+verification.
+
+That creates ongoing maintenance hazards:
+
+- correctness equivalence between batch and single-tx verification
+- failure-mode handling and user recovery semantics
+- resource spikes when deferred Spark batches are finally verified
+- assumptions about canonical / monotonic cover sets
 
 Questions worth answering in follow-up work:
 
 - Are batch verification assumptions identical to per-transaction verification?
-- Can any failure mode leave state temporarily advanced in a way that is
-  operationally dangerous?
+- Can any failure mode leave chain or wallet state temporarily advanced in a
+  way that is operationally surprising?
 - Are cover-set assumptions sufficiently canonical for batch verification?
+- Are there useful tests that explicitly compare batched and non-batched Spark
+  verification outcomes on the same historical data?
+
+### Additional technical note
+
+`BatchProofContainer::batch_spark()` rebuilds cover sets from the current Spark
+state using `CSparkState::GetCoinSet()`, whereas the per-transaction path builds
+cover sets from the block-hash-pinned ancestry walk in
+`CheckSparkSpendTransaction()`. The current review did not prove this creates a
+consensus failure, but it is precisely the sort of equivalence assumption that
+should be locked down with tests and explicit developer documentation.
 
 ## B. Wallet-state inconsistencies around Spark mint removal on reorg
 
@@ -300,6 +358,10 @@ Relevant code:
 Spark mint metadata removal on disconnect appears capable of causing temporary
 accounting inconsistencies. I did not confirm permanent fund loss from this,
 but it remains a wallet safety area worth closer review.
+
+This should be treated as a wallet robustness concern, especially if future UI
+or RPC behavior assumes Spark metadata and wallet transaction ownership are
+always perfectly aligned during reorgs.
 
 ## C. Sensitive Spark memo/address data is written to logs
 
@@ -363,38 +425,36 @@ mainly about:
 
 ## Recommended Developer Action Plan
 
-## Priority 0 — prevent theft-capable exports from being misunderstood
+## Priority 0 — deepen batching / deferred-verification review
 
-- Reclassify Spark export surfaces by actual sensitivity.
-- Treat `dumpwallet` Spark-secret output as theft-capable.
-- Add stronger user-facing warnings where secrets can be exported.
+- Re-check correctness equivalence between:
+  - per-transaction Spark verification
+  - deferred batched Spark verification
+- Add explicit regression tests for batched verification behavior.
+- Review operator failure handling when batch verification fails late.
 
 ## Priority 1 — fix misleading “view key” semantics
 
 - Rename `dumpsparkviewkey` or change what it exports.
 - If possible, expose a true incoming-only view key for benign viewing use
   cases.
-- Restrict full-view export behind stronger safeguards.
+- Consider whether full-view export should require unlock or stronger
+  confirmation, even if not treated as a vulnerability.
 
-## Priority 2 — protect persisted Spark full-view material
-
-- Decide whether `FullViewKey` truly must be persisted.
-- If yes, store it under an encryption model consistent with wallet user
-  expectations.
-- If no, minimize persisted Spark-sensitive state.
-
-## Priority 3 — fix Spark backup / restore semantics
+## Priority 2 — fix Spark backup / restore semantics
 
 - Either make `dumpwallet` / `importwallet` Spark-complete,
 - or explicitly document that they are not.
 - Add tests for the expected Spark restore behavior.
 
-## Priority 4 — review batch verification architecture
+## Priority 3 — document accepted Spark secret-handling assumptions
 
-- Re-check the correctness and failure semantics of deferred Spark proof
-  verification.
-- Ensure the ordering of chain advancement and deferred verification is fully
-  intentional and safe.
+- Document that:
+  - persisted `FullViewKey` is an intentional design requirement for locked
+    balance tracking
+  - `dumpwallet` exports Spark-sensitive material by design
+  - physical-access / wallet-file compromise is outside the current threat
+    model
 
 ---
 
@@ -405,18 +465,17 @@ for:
 
 1. Spark export semantics
    - verify exactly which key class is exported
-   - verify protection requirements around export RPCs
+   - verify protection requirements and operator-facing wording around export
+     RPCs
 
 2. Spark backup / restore behavior
    - prove whether `dumpwallet` + `importwallet` restores Spark capability
    - ensure user-visible semantics match actual restore behavior
 
-3. At-rest protection expectations
-   - if full-view material becomes encrypted, add tests for persistence and
-     unlock behavior
-
-4. Batch verification safety
+3. Batch verification safety
    - explicit tests for batched Spark verification failure handling
+   - compare batched vs non-batched verification outcomes
+   - exercise historical-sync style deferred verification paths
 
 ---
 
@@ -425,5 +484,11 @@ for:
 This document should be treated as a developer-facing audit summary, not a
 formal external disclosure advisory.
 
-The most actionable issues are currently around **secret handling and wallet
-export semantics**, not a demonstrated failure in the Spark arithmetic itself.
+Under the clarified threat model, the most actionable items are now:
+
+- batch-verification hardening
+- recovery / backup semantics
+- and making Spark export semantics harder to misunderstand
+
+This review still did **not** find a demonstrated failure in core Spark proof
+arithmetic.
