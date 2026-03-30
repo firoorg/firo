@@ -1849,15 +1849,17 @@ void CConnman::ThreadDNSAddressSeed()
 
     LogPrintf("Loading addresses from DNS seeds (could take a while)\n");
 
-    // If only onion is reachable (e.g. -onlynet=onion), skip direct DNS lookups
-    // as they would leak queries over clearnet. Use AddOneShot via proxy instead.
-    bool fOnlyOnion = !IsReachable(NET_IPV4) && !IsReachable(NET_IPV6) && IsReachable(NET_ONION);
+    // If IPv4 is not reachable (e.g. -onlynet=onion or -onlynet=ipv6), skip
+    // direct DNS lookups as they go over the clearnet and the resolved IPv4
+    // addresses would be on a limited network anyway. Use AddOneShot which
+    // resolves via the name proxy instead.
+    bool fSkipDNSLookup = !IsReachable(NET_IPV4);
 
     BOOST_FOREACH(const CDNSSeedData &seed, vSeeds) {
         if (interruptNet) {
             return;
         }
-        if (HaveNameProxy() || fOnlyOnion) {
+        if (HaveNameProxy() || fSkipDNSLookup) {
             AddOneShot(seed.host);
         } else {
             std::vector<CNetAddr> vIPs;
