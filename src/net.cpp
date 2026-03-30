@@ -1849,11 +1849,15 @@ void CConnman::ThreadDNSAddressSeed()
 
     LogPrintf("Loading addresses from DNS seeds (could take a while)\n");
 
+    // If only onion is reachable (e.g. -onlynet=onion), skip direct DNS lookups
+    // as they would leak queries over clearnet. Use AddOneShot via proxy instead.
+    bool fOnlyOnion = !IsReachable(NET_IPV4) && !IsReachable(NET_IPV6) && IsReachable(NET_ONION);
+
     BOOST_FOREACH(const CDNSSeedData &seed, vSeeds) {
         if (interruptNet) {
             return;
         }
-        if (HaveNameProxy()) {
+        if (HaveNameProxy() || fOnlyOnion) {
             AddOneShot(seed.host);
         } else {
             std::vector<CNetAddr> vIPs;
@@ -2266,6 +2270,11 @@ void CConnman::ThreadOpenMasternodeConnections()
             addr = pending.front();
         }
 
+        // Respect -onlynet: don't connect to masternodes on limited networks
+        if (IsLimited(addr)) {
+            continue;
+        }
+
         OpenMasternodeConnection(CAddress(addr, NODE_NETWORK));
         // should be in the list now if connection was opened
         ForNode(addr, CConnman::AllNodes, [&](CNode* pnode) {
@@ -2288,6 +2297,10 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         return false;
     }
     if (!fNetworkActive) {
+        return false;
+    }
+    // Respect -onlynet: don't connect to addresses on limited networks
+    if (!pszDest && addrConnect.IsValid() && IsLimited(addrConnect)) {
         return false;
     }
     bool fAllowLocal = fMasternodeMode;

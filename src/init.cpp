@@ -1565,6 +1565,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
         SetProxy(NET_ONION, addrProxy);
+        SetNameProxy(addrProxy);
         if (!fOnlyNet || onlyNetNets.count(NET_IPV4))
             SetLimited(NET_IPV4, false);
         if (!fOnlyNet || onlyNetNets.count(NET_IPV6))
