@@ -372,6 +372,11 @@ CScript CSparkNameManager::GetSparkNameFeeScript(const std::string &feeAddress, 
 bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription)
 {
     errorDescription.clear();
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
     LOCK(cs_spark_name);
     if (!IsSparkNameValid(sparkNameData.name))
         errorDescription = "invalid spark name";
@@ -402,6 +407,20 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
         LOCK(mempool.cs);
         if (mempool.sparkNames.count(ToUpper(sparkNameData.name)) > 0)
             errorDescription = "spark name transaction with that name is already in the mempool";
+    }
+
+    // After V2.1, check that total validity (including remaining time from existing registration) doesn't exceed 15 years
+    if (errorDescription.empty() && nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
+        auto it = sparkNames.find(ToUpper(sparkNameData.name));
+        if (it != sparkNames.end()) {
+            constexpr int nBlockPerYear = 365*24*24;
+            int validityBlocks = sparkNameData.sparkNameValidityBlocks;
+            int remainingBlocks = it->second.sparkNameValidityHeight - nHeight;
+            if (remainingBlocks > 0)
+                validityBlocks += remainingBlocks;
+            if (validityBlocks > nBlockPerYear * 15)
+                errorDescription = "total validity including remaining time can't exceed 15 years";
+        }
     }
 
     return errorDescription.empty();

@@ -129,7 +129,7 @@ void CreateSparkNamePage::updateFee() {
             label = tr("Fee: %1 FIRO. New estimated expiration: %2")
                 .arg(fee)
                 .arg(expirationDate.toString("MMMM d, yyyy"));
-        } catch (...) {
+        } catch (const std::runtime_error&) {
             label = feeText.arg(QString::number(fee));
         }
     } else {
