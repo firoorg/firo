@@ -13,172 +13,300 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget#MasternodeList {
+  background-color: #F5F6F8;
+  font-family: 'Source Sans Pro', 'Segoe UI', sans-serif;
+}
+QWidget#MasternodeList QLabel {
+  background-color: transparent;
+  color: #5c6370;
+  font-size: 13px;
+}
+QWidget#MasternodeList QLabel#countLabelDIP3 {
+  color: #1c1e22;
+  font-weight: 600;
+  font-size: 13px;
+}
+QFrame#masternodeContentCard {
+  background-color: #FFFFFF;
+  border: 1px solid #e6e8ec;
+  border-radius: 16px;
+}
+QFrame#masternodeContentCard QLineEdit {
+  min-height: 34px;
+  border: 1px solid #dfe2e8;
+  border-radius: 8px;
+  padding: 5px 12px;
+  background-color: #f3f4f6;
+  color: #1c1e22;
+  font-size: 13px;
+  selection-background-color: #9b1c2e;
+}
+QFrame#masternodeContentCard QLineEdit:focus {
+  border: 1px solid #9b1c2e;
+  background-color: #ffffff;
+}
+QFrame#masternodeContentCard QCheckBox {
+  color: #2d3138;
+  font-size: 13px;
+  spacing: 8px;
+  background-color: transparent;
+}
+QFrame#masternodeContentCard QTableWidget {
+  background-color: #ffffff;
+  border: 1px solid #eceef2;
+  border-radius: 10px;
+  gridline-color: #eceef2;
+  font-size: 12px;
+  alternate-background-color: #f9fafb;
+}
+QFrame#masternodeContentCard QTableWidget::item {
+  padding: 4px 8px;
+}
+QFrame#masternodeContentCard QTableWidget::item:selected {
+  background-color: #EEF2FF;
+  color: #1c1e22;
+}
+QFrame#masternodeContentCard QHeaderView::section {
+  background-color: #f3f4f6;
+  color: #3d424b;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 10px 8px;
+  border: none;
+  border-bottom: 1px solid #e6e8ec;
+  border-right: 1px solid #eceef2;
+}
+QFrame#masternodeContentCard QHeaderView::section:last {
+  border-right: none;
+}
+QFrame#masternodeContentCard QScrollBar:vertical {
+  width: 10px;
+  background: #f3f4f6;
+  border-radius: 5px;
+  margin: 0;
+}
+QFrame#masternodeContentCard QScrollBar::handle:vertical {
+  background: #c8ccd4;
+  border-radius: 5px;
+  min-height: 24px;
+}
+QFrame#masternodeContentCard QScrollBar::handle:vertical:hover {
+  background: #9ca3af;
+}</string>
+  </property>
   <layout class="QVBoxLayout" name="topLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
    <property name="leftMargin">
-    <number>20</number>
+    <number>22</number>
    </property>
    <property name="topMargin">
-    <number>0</number>
+    <number>18</number>
    </property>
    <property name="rightMargin">
-    <number>20</number>
+    <number>22</number>
    </property>
    <property name="bottomMargin">
-    <number>0</number>
+    <number>18</number>
    </property>
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout">
-     <property name="bottomMargin">
-      <number>0</number>
+    <widget class="QFrame" name="masternodeContentCard">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
      </property>
-     <item>
-      <spacer name="horizontalSpacer0">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <layout class="QGridLayout" name="gridLayout_3">
-       <item row="0" column="0">
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
-         <property name="bottomMargin">
-          <number>0</number>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>1</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutCard">
+      <property name="spacing">
+       <number>14</number>
+      </property>
+      <property name="leftMargin">
+       <number>20</number>
+      </property>
+      <property name="topMargin">
+       <number>18</number>
+      </property>
+      <property name="rightMargin">
+       <number>20</number>
+      </property>
+      <property name="bottomMargin">
+       <number>18</number>
+      </property>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <property name="spacing">
+         <number>12</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="label_filter_2">
+          <property name="text">
+           <string>Filter List:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="filterLineEditDIP3">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>180</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Filter masternode list</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="checkBoxMyMasternodesOnly">
+          <property name="toolTip">
+           <string>Show only masternodes this wallet has keys for.</string>
+          </property>
+          <property name="text">
+           <string>My masternodes only</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Expanding</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_count_2">
+          <property name="text">
+           <string>Node Count:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="countLabelDIP3">
+          <property name="text">
+           <string>0</string>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>32</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QTableWidget" name="tableWidgetMasternodesDIP3">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>1</horstretch>
+          <verstretch>1</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>200</height>
+         </size>
+        </property>
+        <property name="editTriggers">
+         <set>QAbstractItemView::NoEditTriggers</set>
+        </property>
+        <property name="alternatingRowColors">
+         <bool>true</bool>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SingleSelection</enum>
+        </property>
+        <property name="selectionBehavior">
+         <enum>QAbstractItemView::SelectRows</enum>
+        </property>
+        <property name="sortingEnabled">
+         <bool>true</bool>
+        </property>
+        <attribute name="horizontalHeaderStretchLastSection">
+         <bool>true</bool>
+        </attribute>
+        <column>
+         <property name="text">
+          <string>Service</string>
          </property>
-         <item>
-          <widget class="QLabel" name="label_filter_2">
-           <property name="text">
-            <string>Filter List:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="filterLineEditDIP3">
-           <property name="toolTip">
-            <string>Filter masternode list</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="checkBoxMyMasternodesOnly">
-           <property name="toolTip">
-            <string>Show only masternodes this wallet has keys for.</string>
-           </property>
-           <property name="text">
-            <string>My masternodes only</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>10</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QLabel" name="label_count_2">
-           <property name="text">
-            <string>Node Count:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="countLabelDIP3">
-           <property name="text">
-            <string>0</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="1" column="0">
-        <widget class="QTableWidget" name="tableWidgetMasternodesDIP3">
-         <property name="editTriggers">
-          <set>QAbstractItemView::NoEditTriggers</set>
+        </column>
+        <column>
+         <property name="text">
+          <string>Status</string>
          </property>
-         <property name="alternatingRowColors">
-          <bool>true</bool>
+        </column>
+        <column>
+         <property name="text">
+          <string>PoSe Score</string>
          </property>
-         <property name="selectionMode">
-          <enum>QAbstractItemView::SingleSelection</enum>
+        </column>
+        <column>
+         <property name="text">
+          <string>Registered (Block)</string>
          </property>
-         <property name="selectionBehavior">
-          <enum>QAbstractItemView::SelectRows</enum>
+        </column>
+        <column>
+         <property name="text">
+          <string>Last Paid (Block)</string>
          </property>
-         <property name="sortingEnabled">
-          <bool>true</bool>
+        </column>
+        <column>
+         <property name="text">
+          <string>Next Payment (Block)</string>
          </property>
-         <attribute name="horizontalHeaderStretchLastSection">
-          <bool>true</bool>
-         </attribute>
-         <column>
-          <property name="text">
-           <string>Service</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Status</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>PoSe Score</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Registered (Block)</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Last Paid (Block)</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Next Payment (Block)</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Payout Address</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Operator Reward</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Collateral Address</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Owner Address</string>
-          </property>
-         </column>
-        </widget>
-       </item>
-      </layout>
-     </item>
-    </layout>
+        </column>
+        <column>
+         <property name="text">
+          <string>Payout Address</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Operator Reward</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Collateral Address</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Owner Address</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+     </layout>
+    </widget>
    </item>
   </layout>
  </widget>

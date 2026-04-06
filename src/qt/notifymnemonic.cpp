@@ -20,6 +20,7 @@ NotifyMnemonic::NotifyMnemonic(QWidget *parent) :
         ui(new Ui::NotifyMnemonic)
 {
     ui->setupUi(this);
+    ui->mnemonicBox->setAttribute(Qt::WA_StyledBackground, true);
     disconnect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &QDialog::reject);
     connect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &NotifyMnemonic::cancelEvent);
 }

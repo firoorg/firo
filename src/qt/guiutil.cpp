@@ -45,6 +45,9 @@
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QClipboard>
+#include <QColor>
+#include <QIcon>
+#include <QImage>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDesktopWidget>
@@ -111,6 +114,33 @@ QFont fixedPitchFont()
 #endif
     return font;
 #endif
+}
+
+QPixmap sparkAssetBadgePixmap(int pixelSize)
+{
+    if (pixelSize <= 0)
+        pixelSize = 18;
+    QPixmap src = QIcon(QStringLiteral(":/icons/spark")).pixmap(pixelSize, pixelSize);
+    if (src.isNull())
+        return src;
+    QImage img = src.toImage().convertToFormat(QImage::Format_ARGB32);
+    const QColor accent(0xC6, 0x28, 0x39);
+    for (int y = 0; y < img.height(); ++y) {
+        for (int x = 0; x < img.width(); ++x) {
+            const QRgb px = img.pixel(x, y);
+            const int a = qAlpha(px);
+            if (!a)
+                continue;
+            const int r = qRed(px), g = qGreen(px), b = qBlue(px);
+            const int lum = (r * 30 + g * 59 + b * 11) / 100;
+            img.setPixel(x, y, qRgba(
+                accent.red() * lum / 255,
+                accent.green() * lum / 255,
+                accent.blue() * lum / 255,
+                a));
+        }
+    }
+    return QPixmap::fromImage(img);
 }
 
 // Just some dummy data to generate an convincing random-looking (but consistent) address

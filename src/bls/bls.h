@@ -13,6 +13,10 @@
 // bls-signatures uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
 #undef ERROR
 #undef DEBUG
+// macOS mach/error.h defines err_get_code(err) as a macro; RELIC declares int err_get_code(void) — undef to avoid a parse error.
+#ifdef err_get_code
+#undef err_get_code
+#endif
 #include <bls-dash/bls.hpp>
 #include <bls-dash/privatekey.hpp>
 #include <bls-dash/elements.hpp>

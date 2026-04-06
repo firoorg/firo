@@ -28,6 +28,10 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
 {
     ui->setupUi(this);
 
+    if (ui->signVerifyCard) {
+        ui->signVerifyCard->setAttribute(Qt::WA_StyledBackground, true);
+    }
+
     ui->addressBookButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
     ui->pasteButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
     ui->copySignatureButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/editcopy"));

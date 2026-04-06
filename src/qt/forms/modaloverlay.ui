@@ -32,53 +32,136 @@
    <item>
     <widget class="QWidget" name="bgWidget" native="true">
      <property name="styleSheet">
-      <string notr="true"/>
+      <string notr="true">#bgWidget {
+    background-color: rgba(15, 23, 42, 148);
+}</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayoutMain" stretch="1">
       <property name="leftMargin">
-       <number>60</number>
+       <number>72</number>
       </property>
       <property name="topMargin">
-       <number>60</number>
+       <number>72</number>
       </property>
       <property name="rightMargin">
-       <number>60</number>
+       <number>72</number>
       </property>
       <property name="bottomMargin">
-       <number>60</number>
+       <number>72</number>
       </property>
       <item>
        <widget class="QWidget" name="contentWidget" native="true">
         <property name="styleSheet">
-         <string notr="true">#contentWidget { background: rgba(255,255,255,240); border-radius: 6px; }
+         <string notr="true">#contentWidget {
+    background-color: #ffffff;
+    border: 1px solid #e6e8ec;
+    border-radius: 18px;
+}
 
-QLabel { color: rgb(40,40,40);  }</string>
+#contentWidget QLabel {
+    background-color: transparent;
+    color: #5c6370;
+    font-size: 12px;
+    font-family: 'Source Sans Pro', 'Segoe UI', sans-serif;
+}
+
+#contentWidget QLabel#infoText {
+    color: #5c6370;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+#contentWidget QLabel#infoTextStrong {
+    color: #2d3138;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+#contentWidget QLabel#labelNumberOfBlocksLeft,
+#contentWidget QLabel#labelLastBlockTime,
+#contentWidget QLabel#labelSyncDone,
+#contentWidget QLabel#labelProgressIncrease,
+#contentWidget QLabel#labelEstimatedTimeLeft {
+    color: #3d424b;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+#contentWidget QLabel#numberOfBlocksLeft,
+#contentWidget QLabel#newestBlockDate,
+#contentWidget QLabel#percentageProgress,
+#contentWidget QLabel#progressIncreasePerH,
+#contentWidget QLabel#expectedTimeLeft {
+    color: #1c1e22;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#contentWidget QProgressBar {
+    min-height: 8px;
+    max-height: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #eceef2;
+}
+
+#contentWidget QProgressBar::chunk {
+    border-radius: 5px;
+    background-color: #9b1c2e;
+}
+
+#contentWidget QPushButton#closeButton {
+    min-width: 100px;
+    min-height: 34px;
+    padding: 8px 18px;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 12px;
+    font-family: 'Source Sans Pro', 'Segoe UI', sans-serif;
+    border: none;
+    border-radius: 8px;
+    background-color: #9b1c2e;
+}
+
+#contentWidget QPushButton#closeButton:hover {
+    background-color: #7c1624;
+}
+
+#contentWidget QPushButton#closeButton:pressed {
+    background-color: #651a22;
+}
+
+#contentWidget QPushButton#warningIcon {
+    background: transparent;
+    border: none;
+    padding: 0;
+}</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayoutSub" stretch="1,0,0,0">
          <property name="spacing">
-          <number>0</number>
+          <number>10</number>
          </property>
          <property name="leftMargin">
-          <number>10</number>
+          <number>22</number>
          </property>
          <property name="topMargin">
-          <number>10</number>
+          <number>20</number>
          </property>
          <property name="rightMargin">
-          <number>10</number>
+          <number>22</number>
          </property>
          <property name="bottomMargin">
-          <number>10</number>
+          <number>18</number>
          </property>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayoutIconText" stretch="0,1">
            <property name="topMargin">
-            <number>20</number>
+            <number>4</number>
            </property>
            <item>
             <layout class="QVBoxLayout" name="verticalLayoutIcon">
              <property name="leftMargin">
-              <number>0</number>
+              <number>2</number>
              </property>
              <item>
               <widget class="QPushButton" name="warningIcon">
@@ -95,8 +178,8 @@ QLabel { color: rgb(40,40,40);  }</string>
                </property>
                <property name="iconSize">
                 <size>
-                 <width>48</width>
-                 <height>48</height>
+                 <width>40</width>
+                 <height>40</height>
                 </size>
                </property>
                <property name="flat">
@@ -112,7 +195,7 @@ QLabel { color: rgb(40,40,40);  }</string>
                <property name="sizeHint" stdset="0">
                 <size>
                  <width>20</width>
-                 <height>40</height>
+                 <height>18</height>
                 </size>
                </property>
               </spacer>
@@ -125,7 +208,7 @@ QLabel { color: rgb(40,40,40);  }</string>
               <number>0</number>
              </property>
              <property name="topMargin">
-              <number>0</number>
+              <number>2</number>
              </property>
              <item>
               <widget class="QLabel" name="infoText">
@@ -167,7 +250,7 @@ QLabel { color: rgb(40,40,40);  }</string>
                <property name="sizeHint" stdset="0">
                 <size>
                  <width>20</width>
-                 <height>40</height>
+                 <height>24</height>
                 </size>
                </property>
               </spacer>
@@ -184,7 +267,7 @@ QLabel { color: rgb(40,40,40);  }</string>
            <property name="sizeHint" stdset="0">
             <size>
              <width>20</width>
-             <height>40</height>
+             <height>18</height>
             </size>
            </property>
           </spacer>
@@ -195,13 +278,13 @@ QLabel { color: rgb(40,40,40);  }</string>
             <enum>QFormLayout::FieldsStayAtSizeHint</enum>
            </property>
            <property name="horizontalSpacing">
-            <number>6</number>
+            <number>14</number>
            </property>
            <property name="verticalSpacing">
-            <number>6</number>
+            <number>8</number>
            </property>
            <property name="topMargin">
-            <number>10</number>
+            <number>4</number>
            </property>
            <item row="0" column="0">
             <widget class="QLabel" name="labelNumberOfBlocksLeft">
@@ -328,20 +411,23 @@ QLabel { color: rgb(40,40,40);  }</string>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayoutButtons">
            <property name="leftMargin">
-            <number>10</number>
+            <number>0</number>
            </property>
            <property name="topMargin">
-            <number>10</number>
+            <number>12</number>
            </property>
            <item>
             <spacer name="horizontalSpacer">
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
              </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
              <property name="sizeHint" stdset="0">
               <size>
-               <width>40</width>
-               <height>20</height>
+               <width>0</width>
+               <height>0</height>
               </size>
              </property>
             </spacer>

@@ -13,6 +13,189 @@
   <property name="windowTitle">
    <string>Debug window</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">
+    /* Modern Debug Window (light) */
+    QWidget#RPCConsole {
+        background: #F3F4F6;
+        color: #111827;
+        font-family: "Segoe UI";
+        font-size: 12px;
+    }
+
+    /* Remove any boxed/striped label backgrounds in the info grid */
+    QWidget#tab_info QLabel,
+    QWidget#tab_peers QLabel,
+    QWidget#tab_nettraffic QLabel,
+    QWidget#tab_console QLabel {
+        background: transparent;
+        border: none;
+        padding: 0px;
+        margin: 0px;
+    }
+
+    /* Also ensure generic frames/lines inside tabs don't draw borders unless explicitly styled */
+    QWidget#tab_info QFrame,
+    QWidget#tab_nettraffic QFrame,
+    QWidget#tab_peers QFrame {
+        border: none;
+        background: transparent;
+    }
+
+    /* Tabs */
+    QTabWidget::pane {
+        border: none;
+        background: transparent;
+        top: 0px;
+    }
+    QTabWidget::tab-bar {
+        left: 10px;
+    }
+    QTabBar::tab {
+        background: #E5E7EB;
+        color: #374151;
+        border: 1px solid #D1D5DB;
+        border-bottom: none;
+        padding: 8px 14px;
+        margin-right: 6px;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        min-height: 24px;
+    }
+    QTabBar::tab:selected {
+        background: #FFFFFF;
+        color: #111827;
+        border-color: #E5E7EB;
+    }
+    QTabBar::tab:hover {
+        background: #FFFFFF;
+    }
+
+    /* Card look for each tab page */
+    QWidget#tab_info,
+    QWidget#tab_console,
+    QWidget#tab_nettraffic,
+    QWidget#tab_peers {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 14px;
+        /* note: Qt style sheets don't support box-shadow reliably;
+           we emulate a soft shadow using a subtle border + slightly darker outer bg */
+    }
+
+    /* Create whitespace inside pages so card border isn't tight */
+    QWidget#tab_info > QLayout,
+    QWidget#tab_console > QLayout,
+    QWidget#tab_nettraffic > QLayout,
+    QWidget#tab_peers > QLayout {
+        margin: 12px;
+    }
+
+    /* Inputs */
+    QLineEdit, QTextEdit {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 8px 10px;
+        selection-background-color: #DBEAFE;
+        selection-color: #111827;
+    }
+    QLineEdit:focus, QTextEdit:focus {
+        border-color: #93C5FD;
+    }
+
+    /* Buttons */
+    QPushButton {
+        background: #F3F4F6;
+        color: #111827;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 7px 12px;
+        min-height: 30px;
+    }
+    QPushButton:hover {
+        background: #FFFFFF;
+        border-color: #D1D5DB;
+    }
+    QPushButton:pressed {
+        background: #E5E7EB;
+    }
+    QPushButton:disabled {
+        color: #9CA3AF;
+        background: #F9FAFB;
+        border-color: #E5E7EB;
+    }
+
+    /* Icon buttons in console header */
+    QPushButton#fontSmallerButton,
+    QPushButton#fontBiggerButton,
+    QPushButton#clearButton,
+    QPushButton#promptIcon {
+        min-height: 24px;
+        padding: 4px;
+        border-radius: 8px;
+        background: transparent;
+        border: 1px solid transparent;
+    }
+    QPushButton#fontSmallerButton:hover,
+    QPushButton#fontBiggerButton:hover,
+    QPushButton#clearButton:hover {
+        background: #F3F4F6;
+        border-color: #E5E7EB;
+    }
+
+    /* Tables */
+    QTableView {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        gridline-color: #EEF2F7;
+        selection-background-color: #DBEAFE;
+        selection-color: #111827;
+        alternate-background-color: #FFFFFF; /* disable zebra */
+    }
+    QHeaderView::section {
+        background: #F9FAFB;
+        border: none;
+        border-bottom: 1px solid #E5E7EB;
+        color: #374151;
+        padding: 6px 8px;
+        font-weight: 600;
+    }
+
+    /* GroupBoxes */
+    QGroupBox {
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        margin-top: 10px;
+        padding: 10px;
+        background: #FFFFFF;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 12px;
+        padding: 0 6px;
+        color: #374151;
+        font-weight: 700;
+    }
+
+    /* Sliders */
+    QSlider::groove:horizontal {
+        height: 6px;
+        background: #E5E7EB;
+        border-radius: 3px;
+    }
+    QSlider::handle:horizontal {
+        width: 14px;
+        margin: -5px 0;
+        border-radius: 7px;
+        background: #9CA3AF;
+    }
+    QSlider::handle:horizontal:hover {
+        background: #6B7280;
+    }
+   </string>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
     <widget class="QTabWidget" name="tabWidget">
@@ -863,7 +1046,7 @@
             <bool>false</bool>
            </property>
            <property name="alternatingRowColors">
-            <bool>true</bool>
+            <bool>false</bool>
            </property>
            <property name="sortingEnabled">
             <bool>true</bool>
@@ -930,7 +1113,7 @@
             <bool>false</bool>
            </property>
            <property name="alternatingRowColors">
-            <bool>true</bool>
+            <bool>false</bool>
            </property>
            <property name="sortingEnabled">
             <bool>true</bool>
@@ -1218,7 +1401,7 @@
            </widget>
           </item>
           <item row="10" column="0">
-           <widget class="QLabel" name="label_15">
+           <widget class="QLabel" name="label_19">
             <property name="text">
              <string>Last Send</string>
             </property>
@@ -1241,7 +1424,7 @@
            </widget>
           </item>
           <item row="11" column="0">
-           <widget class="QLabel" name="label_19">
+           <widget class="QLabel" name="label_lastrecv">
             <property name="text">
              <string>Last Receive</string>
             </property>

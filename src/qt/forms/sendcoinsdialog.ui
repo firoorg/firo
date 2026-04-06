@@ -32,27 +32,56 @@ BitcoinAmountField {
     color: #111827;
 }
 
-QPushButton#sendButton {
-    background: #B24040;
-    border-radius: 12px;
-    font-weight: 600;
+/* Primary actions — same gradient language as Spark Assets / Overview */
+QPushButton#sendButton,
+QPushButton#clearButton,
+QPushButton#addButton,
+QPushButton#pushButtonCoinControl,
+QPushButton#buttonChooseAsset,
+QPushButton#buttonChooseFee,
+QPushButton#buttonMinimizeFee,
+QPushButton#switchFundButton {
     color: #FFFFFF;
-    padding: 8px 20px;
-}
-QPushButton#sendButton:hover {
-    background: #9F3434;
-}
-
-QPushButton {
-    background: #B24040;
-    border-radius: 10px;
-    border: 1px solid #E5E7EB;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
     padding: 6px 14px;
     font-size: 10pt;
-    color: #FFFFFF;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #C62839, stop:1 #7A1736);
 }
-QPushButton:hover {
-    background: #E5E7EB;
+QPushButton#sendButton:hover,
+QPushButton#clearButton:hover,
+QPushButton#addButton:hover,
+QPushButton#pushButtonCoinControl:hover,
+QPushButton#buttonChooseAsset:hover,
+QPushButton#buttonChooseFee:hover,
+QPushButton#buttonMinimizeFee:hover,
+QPushButton#switchFundButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #D23245, stop:1 #7A1736);
+}
+QPushButton#sendButton:pressed,
+QPushButton#clearButton:pressed,
+QPushButton#addButton:pressed,
+QPushButton#pushButtonCoinControl:pressed,
+QPushButton#buttonChooseAsset:pressed,
+QPushButton#buttonChooseFee:pressed,
+QPushButton#buttonMinimizeFee:pressed,
+QPushButton#switchFundButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #9F1E34, stop:1 #6A132E);
+}
+QPushButton#sendButton:disabled,
+QPushButton#clearButton:disabled,
+QPushButton#addButton:disabled,
+QPushButton#pushButtonCoinControl:disabled,
+QPushButton#buttonChooseAsset:disabled,
+QPushButton#buttonChooseFee:disabled,
+QPushButton#buttonMinimizeFee:disabled,
+QPushButton#switchFundButton:disabled {
+    background: #F3F4F6;
+    color: #9CA3AF;
 }
 
 QTableView {
@@ -90,7 +119,7 @@ QFrame#SendCoins {
   <property name="windowTitle">
    <string>Send Coins</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1,0,0,0">
    <property name="bottomMargin">
     <number>8</number>
    </property>
@@ -655,9 +684,79 @@ QFrame#SendCoins {
     </widget>
    </item>
    <item>
+    <widget class="QFrame" name="frameChooseAsset">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayoutChooseAsset">
+      <property name="spacing">
+       <number>10</number>
+      </property>
+      <property name="leftMargin">
+       <number>12</number>
+      </property>
+      <property name="topMargin">
+       <number>8</number>
+      </property>
+      <property name="rightMargin">
+       <number>12</number>
+      </property>
+      <property name="bottomMargin">
+       <number>8</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="labelChooseAssetCaption">
+        <property name="text">
+         <string>Asset:</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">font-weight: 600; color: #374151;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="labelSelectedAsset">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string notr="true">FIRO</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">color: #111827;</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="buttonChooseAsset">
+        <property name="text">
+         <string>Choose asset…</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QScrollArea" name="scrollArea">
      <property name="widgetResizable">
       <bool>true</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QScrollArea#scrollArea { background: transparent; border: none; }
+QScrollArea#scrollArea &gt; QWidget { background: transparent; }</string>
      </property>
      <widget class="QWidget" name="scrollAreaWidgetContents">
       <property name="geometry">
@@ -667,6 +766,9 @@ QFrame#SendCoins {
         <width>830</width>
         <height>68</height>
        </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QWidget#scrollAreaWidgetContents { background: transparent; border: none; }</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
        <property name="leftMargin">

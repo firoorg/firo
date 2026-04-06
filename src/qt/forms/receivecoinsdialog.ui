@@ -50,42 +50,44 @@ QHeaderView::section {
     font-weight: 600;
     color: #6B7280;
 }
-QPushButton {
-    background: #F1F3F5;
-    border-radius: 10px;
-    border: 1px solid #E5E7EB;
+/* Same primary gradient as Spark Assets / Send dialog */
+QPushButton#receiveButton,
+QPushButton#clearButton,
+QPushButton#createSparkNameButton,
+QPushButton#showRequestButton,
+QPushButton#removeRequestButton {
+    color: #FFFFFF;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
     padding: 6px 14px;
     font-size: 10pt;
-    font-weight: 600;
-    color: #111827;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #C62839, stop:1 #7A1736);
 }
-
-QPushButton:hover {
-    background: #E5E7EB;
+QPushButton#receiveButton:hover,
+QPushButton#clearButton:hover,
+QPushButton#createSparkNameButton:hover,
+QPushButton#showRequestButton:hover,
+QPushButton#removeRequestButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #D23245, stop:1 #7A1736);
 }
-
-QPushButton#receiveButton {
-    background: #B24040;
-    border: none;
-    color: #FFFFFF;
-    font-weight: 600;
-    border-radius: 12px;
+QPushButton#receiveButton:pressed,
+QPushButton#clearButton:pressed,
+QPushButton#createSparkNameButton:pressed,
+QPushButton#showRequestButton:pressed,
+QPushButton#removeRequestButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #9F1E34, stop:1 #6A132E);
 }
-
-QPushButton#receiveButton:hover {
-    background: #B24040;
-}
-
-QPushButton#createSparkNameButton {
-    background: #B24040;
-    border-radius: 12px;
-    border: 1px solid #D1D5DB;
-    padding: 6px 18px;
-    color: #FFFFFF;
-}
-
-QPushButton#createSparkNameButton:hover {
+QPushButton#receiveButton:disabled,
+QPushButton#clearButton:disabled,
+QPushButton#createSparkNameButton:disabled,
+QPushButton#showRequestButton:disabled,
+QPushButton#removeRequestButton:disabled {
     background: #F3F4F6;
+    color: #9CA3AF;
 }
 
 QLabel {

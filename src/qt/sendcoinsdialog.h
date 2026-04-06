@@ -7,6 +7,8 @@
 
 #include "walletmodel.h"
 
+#include "../spats/identification.hpp"
+
 #include <QDialog>
 #include <QString>
 
@@ -77,11 +79,17 @@ private:
     void setAnonymizeMode(bool enableAnonymizeMode);
     void removeUnmatchedOutput(CCoinControl &coinControl);
     void addShadow(QWidget* w);
+    void updateSendAssetChooserVisibility();
+    void updateSendAssetChooserLabels();
+
+    /** Spark / Spats asset for private sends (UI; full token send not yet wired here). */
+    spats::universal_asset_id_t sendAssetId_;
 
 private Q_SLOTS:
     void on_sendButton_clicked();
     void on_switchFundButton_clicked();
     void on_buttonChooseFee_clicked();
+    void on_buttonChooseAsset_clicked();
     void on_buttonMinimizeFee_clicked();
     void removeEntry(SendCoinsEntry* entry);
     void updateDisplayUnit();

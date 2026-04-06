@@ -32,6 +32,9 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     mnListChanged(true)
 {
     ui->setupUi(this);
+    if (ui->masternodeContentCard) {
+        ui->masternodeContentCard->setAttribute(Qt::WA_StyledBackground, true);
+    }
 
     int columnAddressWidth = 200;
     int columnStatusWidth = 80;

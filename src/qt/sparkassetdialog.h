@@ -81,9 +81,9 @@ private Q_SLOTS:
 
 private:
    const dialog_context_t context_;
-   std::unique_ptr< Ui::SparkAssetDialog > ui_;   ///< Pointer to the generated UI class.
-   std::optional< spats::SparkAsset > result_asset_;   ///< The resulting asset after dialog completion (if any).
-   std::string result_destination_public_address_;   ///< The resulting destination public address after dialog completion (if any).
+   std::unique_ptr< Ui::SparkAssetDialog > ui_;
+   std::optional< spats::SparkAsset > result_asset_;
+   std::string result_destination_public_address_;
 
    void set_fields( const spats::SparkAsset &existing_asset );
 

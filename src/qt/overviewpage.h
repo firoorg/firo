@@ -71,6 +71,7 @@ Q_SIGNALS:
     void spatsRegistryChangedSignal();
     void gotoSendCoinsPage();
     void gotoReceiveCoinsPage();
+    void gotoSparkAssetsPage();
 
 private:
     Ui::OverviewPage *ui;
@@ -84,6 +85,7 @@ private:
     CAmount currentWatchImmatureBalance;
     spats::Wallet::asset_balances_t currentSpatsBalances_;
     CAmount currentAnonymizableBalance;
+    int privateBarSplitPercent_{0};
 
     QSettings settings;
 
@@ -100,9 +102,10 @@ private:
     asset_ids_set_t spats_registry_change_affected_asset_ids_;  // protected by spats_registry_change_affected_asset_ids_mutex_
 
     void displaySpatsBalances();
+    void updatePrivateTransparentSplitBar();
     const spats::SparkAssetDisplayAttributes* getSpatsDisplayAttributes(spats::universal_asset_id_t asset_id);
     void adjustTextSize(int width,int height);
-    void addShadow(QWidget *w);
+    void addShadow(QWidget *w, int blurRadius = 18, int yOffset = 4, int alpha = 60);
     void process_spats_registry_changed(const admin_addresses_set_t &affected_asset_admin_addresses, const asset_ids_set_t &affected_asset_ids) override;
 
 private Q_SLOTS:

@@ -33,15 +33,22 @@
 
 #include <QAbstractItemDelegate>
 #include <QPainter>
+#include <QPainterPath>
 #include <QMenu>
 #include <QGraphicsDropShadowEffect>
 #include <QHeaderView>
 #include <QButtonGroup>
+#include <QObject>
+#include <QColor>
+#include <QEvent>
+#include <QRegion>
 
 #include "../spark/state.h"
 
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 5
+#define ACTIVITY_ICON_SIZE 42
+#define ACTIVITY_CARD_HEIGHT 72
 
 namespace {
 
@@ -56,6 +63,47 @@ enum SparkAssetColumns {
    ColumnMetadata,
    ColumnDescription,
    ColumnCount
+};
+
+class AssetCardHoverFilter : public QObject
+{
+public:
+    explicit AssetCardHoverFilter(QObject *parent = nullptr) : QObject(parent) {}
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override
+    {
+        auto *widget = qobject_cast<QWidget*>(obj);
+        if (!widget) {
+            return QObject::eventFilter(obj, event);
+        }
+        auto *shadow = qobject_cast<QGraphicsDropShadowEffect*>(widget->graphicsEffect());
+        if (!shadow) {
+            return QObject::eventFilter(obj, event);
+        }
+        if (event->type() == QEvent::Enter) {
+            if (!widget->property("assetBaseY").isValid()) {
+                widget->setProperty("assetBaseY", widget->pos().y());
+            }
+            const int baseY = widget->property("assetBaseY").toInt();
+
+            shadow->setBlurRadius(42);
+            shadow->setOffset(0, 14);
+            // Grey metallic highlight (less aggressive than red).
+            shadow->setColor(QColor(110, 120, 130, 145));
+
+            // "Move forward": small lift above layout position.
+            widget->move(widget->x(), baseY - 4);
+            widget->raise();
+        } else if (event->type() == QEvent::Leave) {
+            const int baseY = widget->property("assetBaseY").toInt();
+            shadow->setBlurRadius(30);
+            shadow->setOffset(0, 8);
+            shadow->setColor(QColor(95, 105, 115, 105));
+            widget->move(widget->x(), baseY);
+        }
+        return QObject::eventFilter(obj, event);
+    }
 };
 
 }
@@ -83,16 +131,62 @@ public:
                       const QModelIndex &index ) const override
     {
         painter->save();
-        if (option.state & QStyle::State_Selected) {
-            painter->fillRect(option.rect, QColor("#FFFFFF"));
-        } else {
-            painter->fillRect(option.rect, QColor("#FFFFFF"));
+        painter->setRenderHint(QPainter::Antialiasing, true);
+
+        const bool mouseOver = (option.state & QStyle::State_MouseOver);
+        const bool selected = (option.state & QStyle::State_Selected);
+
+        const QRect mainRect = option.rect.adjusted(8, 6, -8, -6);
+        if (mainRect.width() <= 0 || mainRect.height() <= 0) {
+            painter->restore();
+            return;
         }
 
+        const int radius = 18;
+        const int glossHeight = 14;
+        const int shadowYOffset = mouseOver ? 3 : 2;
+
+        // Light metallic grey palette (soft transition from white UI).
+        const QColor start = (mouseOver || selected) ? QColor("#D1D8E2") : QColor("#E8EDF2");
+        const QColor mid   = QColor("#B7C3D0");
+        const QColor end   = QColor("#A3AFBA");
+
+        // 3D-ish underlay shadow and main gradient card background.
+        QPainterPath bgShadowPath;
+        bgShadowPath.addRoundedRect(mainRect.translated(0, shadowYOffset), radius, radius);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(100, 110, 120, mouseOver ? 95 : 70));
+        painter->drawPath(bgShadowPath);
+
+        QLinearGradient bgGrad(mainRect.topLeft(), mainRect.bottomRight());
+        bgGrad.setColorAt(0.0, start);
+        bgGrad.setColorAt(0.52, mid);
+        bgGrad.setColorAt(1.0, end);
+
+        QPainterPath bgPath;
+        bgPath.addRoundedRect(mainRect, radius, radius);
+        painter->setBrush(bgGrad);
+        painter->drawPath(bgPath);
+
+        // Glass-like highlight on top.
+        const QRect glossRect(mainRect.left(), mainRect.top(), mainRect.width(), glossHeight);
+        QPainterPath glossPath;
+        glossPath.addRoundedRect(glossRect, radius, radius);
+        QLinearGradient glossGrad(glossRect.topLeft(), glossRect.bottomLeft());
+        glossGrad.setColorAt(0.0, QColor(255, 255, 255, mouseOver ? 85 : 60));
+        glossGrad.setColorAt(0.6, QColor(220, 228, 236, mouseOver ? 28 : 20));
+        glossGrad.setColorAt(1.0, QColor(170, 180, 190, 0));
+        painter->setBrush(glossGrad);
+        painter->drawPath(glossPath);
+
+        // Subtle border to keep the card crisp.
+        painter->setBrush(Qt::NoBrush);
+        painter->setPen(QColor(160, 170, 180, mouseOver ? 85 : 40));
+        painter->drawPath(bgPath);
+
         QIcon icon = qvariant_cast<QIcon>(index.data(TransactionTableModel::RawDecorationRole));
-        QRect mainRect = option.rect.adjusted(6, 6, -6, -6);
-        QRect decorationRect(mainRect.topLeft(), QSize(DECORATION_SIZE, DECORATION_SIZE));
-        int xspace = DECORATION_SIZE + 10;
+        QRect decorationRect(mainRect.topLeft(), QSize(ACTIVITY_ICON_SIZE, ACTIVITY_ICON_SIZE));
+        int xspace = ACTIVITY_ICON_SIZE + 12;
         int ypad = 4;
         int halfheight = (mainRect.height() - 2*ypad)/2;
         QRect amountRect(mainRect.left() + xspace, mainRect.top()+ypad, mainRect.width() - xspace, halfheight);
@@ -105,37 +199,45 @@ public:
         qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
         QVariant value = index.data(Qt::ForegroundRole);
-        QColor foreground = option.palette.color(QPalette::Text);
-        if(value.canConvert<QBrush>())
-        {
+
+        const QColor baseText = QColor(17, 24, 39, 200);
+        QColor foreground = baseText;
+        if(value.canConvert<QBrush>()) {
+            // Keep the model's semantic color if it exists, but still ensure readability.
             QBrush brush = qvariant_cast<QBrush>(value);
             foreground = brush.color();
         }
+        if (amount < 0) {
+            foreground = QColor(255, 205, 205);
+        } else if (!confirmed) {
+            // Keep unconfirmed amounts readable but not blue.
+            foreground = QColor(17, 24, 39, 200);
+        }
 
-        painter->setPen(foreground);
+        painter->setPen(baseText);
+        QFont baseFont = painter->font();
+        baseFont.setFamily("Segoe UI");
+        baseFont.setPointSize(10);
+        painter->setFont(baseFont);
+
         QRect boundingRect;
+
         painter->drawText(addressRect, Qt::AlignLeft|Qt::AlignVCenter, address, &boundingRect);
 
         if (index.data(TransactionTableModel::WatchonlyRole).toBool())
         {
             QIcon iconWatchonly = qvariant_cast<QIcon>(index.data(TransactionTableModel::WatchonlyDecorationRole));
-            QRect watchonlyRect(boundingRect.right() + 5, mainRect.top()+ypad+halfheight, 16, halfheight);
+            QRect watchonlyRect(boundingRect.right() + 6, mainRect.top()+ypad+halfheight, 14, halfheight);
             iconWatchonly.paint(painter, watchonlyRect);
         }
 
-        if(amount < 0)
-        {
-            foreground = COLOR_NEGATIVE;
-        }
-        else if(!confirmed)
-        {
-            foreground = COLOR_UNCONFIRMED;
-        }
-        else
-        {
-            foreground = option.palette.color(QPalette::Text);
-        }
+        // Amount row uses a slightly bolder font for readability.
+        QFont amountFont = baseFont;
+        amountFont.setPointSize(11);
+        amountFont.setBold(true);
+        painter->setFont(amountFont);
         painter->setPen(foreground);
+
         QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
         if(!confirmed)
         {
@@ -143,7 +245,8 @@ public:
         }
         painter->drawText(amountRect, Qt::AlignRight|Qt::AlignVCenter, amountText);
 
-        painter->setPen(option.palette.color(QPalette::Text));
+        painter->setFont(baseFont);
+        painter->setPen(QColor(17, 24, 39, 180));
         painter->drawText(amountRect, Qt::AlignLeft|Qt::AlignVCenter, GUIUtil::dateTimeStr(date));
 
         painter->restore();
@@ -151,7 +254,7 @@ public:
 
     inline QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override
     {
-        return QSize(DECORATION_SIZE, DECORATION_SIZE + 12);
+        return QSize(ACTIVITY_ICON_SIZE, ACTIVITY_CARD_HEIGHT);
     }
 
     int unit;
@@ -180,38 +283,27 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 {
     ui->setupUi(this);
 
-    auto fixCapsule = [](QFrame* f){
-        f->setFixedHeight(28);
-        f->setContentsMargins(8, 0, 8, 0);
-    };
-    fixCapsule(ui->framePrivateAvailable);
-    fixCapsule(ui->framePrivatePending);
-    fixCapsule(ui->frameTransparentAvailable);
-    fixCapsule(ui->frameTransparentPending);
-    fixCapsule(ui->frameTransparentImmature);
-
-    ui->labelPrimaryText->setStyleSheet(R"( QLabel { background: transparent; color:rgb(70, 75, 84); font-size: 18pt; font-weight: 700; } )");
-    ui->sparkCard->setMaximumHeight(510);
-    ui->activityCard->setMaximumHeight(510);
-    ui->sparkCard->setStyleSheet(R"(
-        QFrame#sparkCard {
-            background: #FFFFFF;
-            border-radius: 15px;
-            border: 1px solidrgb(151, 149, 149);
-            padding: 8px;
-        }
-    )");
-
-    ui->activityCard->setStyleSheet(R"(
-        QFrame#activityCard {
-            background: #FFFFFF;
-            border-radius: 15px;
-            border: 1px solidrgb(151, 149, 149);
-            padding: 8px;
-        }
-    )");
-
-    ui->balancesCard->setStyleSheet(R"( QFrame#balancesCard { background: #FFFFFF; border-radius: 15px; border: 1px solidrgb(151, 149, 149); padding: 8px; } )");
+    // Private -> Transparent split bar under Total
+    ui->privateTransparentBarFrame->setAttribute(Qt::WA_StyledBackground, true);
+    ui->privateTransparentBarFrame->setAutoFillBackground(true);
+    ui->privateTransparentBarFrame->setCursor(Qt::ArrowCursor);
+    // Ensure the bar always renders as a proper pill (children can inherit 0 height otherwise).
+    ui->privateTransparentBarFrame->setFixedHeight(22);
+    ui->privateTransparentBarSegmentsLayout->setSpacing(0);
+    ui->privateTransparentBarSegmentsLayout->setContentsMargins(0, 0, 0, 0);
+    // Split is driven by explicit widths (see updatePrivateTransparentSplitBar), not layout stretch,
+    // so the green/transparent ratio always matches the percentage labels.
+    ui->privateTransparentBarSegmentsLayout->setStretch(0, 0);
+    ui->privateTransparentBarSegmentsLayout->setStretch(1, 0);
+    // Force both segments to have a non-zero height, so border-radius is visible.
+    ui->privateBarSegment->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    ui->transparentBarSegment->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    ui->privateBarSegment->setFixedHeight(22);
+    ui->transparentBarSegment->setFixedHeight(22);
+    ui->privateBarSegment->setAttribute(Qt::WA_StyledBackground, true);
+    ui->privateBarSegment->setAutoFillBackground(true);
+    ui->transparentBarSegment->setAttribute(Qt::WA_StyledBackground, true);
+    ui->transparentBarSegment->setAutoFillBackground(true);
 
     auto *filterGroup = new QButtonGroup(this);
     filterGroup->addButton(ui->btnFilterAll);
@@ -269,7 +361,15 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     connect(ui->sendButton, &QPushButton::clicked, this, [this]() { Q_EMIT gotoSendCoinsPage(); });
     connect(ui->receiveButton, &QPushButton::clicked, this, [this]() { Q_EMIT gotoReceiveCoinsPage(); });
 
-    addShadow(ui->balancesCard);
+    if (ui->btnViewAll) {
+        connect(ui->btnViewAll, &QPushButton::clicked, this, [this]() {
+            Q_EMIT gotoSparkAssetsPage();
+        });
+    }
+
+    ui->balancesCard->setAttribute(Qt::WA_StyledBackground, true);
+    ui->balancesCard->setAutoFillBackground(true);
+    addShadow(ui->balancesCard, 34, 9, 95);
     addShadow(ui->sparkCard);
     addShadow(ui->activityCard);
     addShadow(ui->warningFrame);
@@ -294,8 +394,8 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     icon.addPixmap(icon.pixmap(QSize(64,64), QIcon::Normal), QIcon::Disabled);
 
     ui->listTransactions->setItemDelegate(txdelegate);
-    ui->listTransactions->setIconSize(QSize(DECORATION_SIZE, DECORATION_SIZE));
-    ui->listTransactions->setMinimumHeight(NUM_ITEMS * (DECORATION_SIZE + 16));
+    ui->listTransactions->setIconSize(QSize(ACTIVITY_ICON_SIZE, ACTIVITY_ICON_SIZE));
+    ui->listTransactions->setMinimumHeight(NUM_ITEMS * (ACTIVITY_CARD_HEIGHT + 10));
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     connect(ui->listTransactions, &QListView::clicked, this, &OverviewPage::handleTransactionClicked);
@@ -316,24 +416,29 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     }
     ui->checkboxEnabledTor->setChecked(torEnabled);
 
-    ui->labelTotalText->setStyleSheet(R"( QLabel { font-size: 22pt; font-weight: 700; color: #111827; } )");
-    ui->labelTotal->setStyleSheet(R"( QLabel { font-size: 22pt; font-weight: 700; color: #111827; } )");
+    if (ui->labelTransparentSplit)
+        ui->labelTransparentSplit->setAutoFillBackground(false);
 
-    ui->pageSparkAssets->setStyleSheet(R"( QWidget#pageSparkAssets { background: #FFFFFF; border: none; outline: none; margin: 0; padding: 0; } )");
+    if (ui->btnTabSpark && ui->btnTabNFT && ui->sparkContentStack) {
+        auto setSparkTab = [this](int index) {
+            ui->sparkContentStack->setCurrentIndex(index);
+            ui->btnTabSpark->setChecked(index == 0);
+            ui->btnTabNFT->setChecked(index == 1);
+        };
 
-    ui->miniBalancesRow->setSpacing(2);
+        setSparkTab(0);
 
-    ui->anonymizeButton->setMinimumHeight(36);
-    ui->sendButton->setMinimumHeight(36);
-    ui->receiveButton->setMinimumHeight(36);
+        connect(ui->btnTabSpark, &QPushButton::clicked, this, [setSparkTab]() { setSparkTab(0); });
+        connect(ui->btnTabNFT, &QPushButton::clicked, this, [setSparkTab]() { setSparkTab(1); });
+    }
 }
 
-void OverviewPage::addShadow(QWidget *w)
+void OverviewPage::addShadow(QWidget *w, int blurRadius, int yOffset, int alpha)
 {
     auto *shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(18);
-    shadow->setOffset(0, 4);
-    shadow->setColor(QColor(0, 0, 0, 60));
+    shadow->setBlurRadius(blurRadius);
+    shadow->setOffset(0, yOffset);
+    shadow->setColor(QColor(0, 0, 0, alpha));
     w->setGraphicsEffect(shadow);
 }
 
@@ -381,6 +486,51 @@ void OverviewPage::on_anonymizeButton_clicked()
     }
 }
 
+void OverviewPage::updatePrivateTransparentSplitBar()
+{
+    if (!ui->privateTransparentBarFrame || !ui->privateBarSegment || !ui->transparentBarSegment)
+        return;
+
+    const QMargins lm = ui->privateTransparentBarSegmentsLayout->contentsMargins();
+    int w = ui->privateTransparentBarFrame->width() - lm.left() - lm.right();
+    if (w < 0)
+        w = 0;
+
+    const int pct = privateBarSplitPercent_;
+    int wPriv = 0;
+    if (pct <= 0)
+        wPriv = 0;
+    else if (pct >= 100)
+        wPriv = w;
+    else
+        wPriv = (w * pct + 50) / 100;
+
+    if (wPriv > w)
+        wPriv = w;
+    const int wTransp = std::max(0, w - wPriv);
+
+    ui->privateBarSegment->setFixedWidth(wPriv);
+    ui->transparentBarSegment->setFixedWidth(wTransp);
+
+    // Fully rounded pill ends; apply mask after layout applies new widths.
+    QTimer::singleShot(0, this, [this]() {
+        if (!ui->privateBarSegment)
+            return;
+        const int ww = ui->privateBarSegment->width();
+        const int h = ui->privateBarSegment->height();
+        if (ww <= 0 || h <= 0) {
+            ui->privateBarSegment->setMask(QRegion());
+            return;
+        }
+
+        const qreal radius = h / 2.0;
+        QPainterPath path;
+        path.addRoundedRect(QRectF(0, 0, ww, h), radius, radius);
+        const QPolygon poly = path.toFillPolygon().toPolygon();
+        ui->privateBarSegment->setMask(QRegion(poly));
+    });
+}
+
 void OverviewPage::setBalance(
     const CAmount& balance,
     const CAmount& unconfirmedBalance,
@@ -406,17 +556,42 @@ void OverviewPage::setBalance(
 
     currentAnonymizableBalance = anonymizableBalance;
 
-    const auto [privateBalance, unconfirmedPrivateBalance] = currentSpatsBalances_[spats::base::universal_id];
+    const auto spatsIt = spats_balances.find( spats::base::universal_id );
+    CAmount privateTotal = 0;
+    if (spatsIt != spats_balances.end()) {
+        privateTotal = spatsIt->second.available.raw() + spatsIt->second.pending.raw();
+    }
+    const CAmount transparentTotal = balance + unconfirmedBalance + immatureBalance;
+    const CAmount totalAmount = privateTotal + transparentTotal;
+    int privatePercent = 0;
+    if (totalAmount > 0) {
+        privatePercent = static_cast<int>((privateTotal * 100 + totalAmount / 2) / totalAmount);
+        if (privatePercent < 0) privatePercent = 0;
+        if (privatePercent > 100) privatePercent = 100;
+    }
 
-    ui->labelTransparentAvailableText->setText(BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways));
-    ui->labelTransparentPendingText->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTransparentImmatureText->setText(BitcoinUnits::formatWithUnit(unit, immatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelPrivateAvailableText->setText(BitcoinUnits::formatWithUnit(unit, privateBalance.raw(), false, BitcoinUnits::separatorAlways));
+    ui->labelPrivateSplit->setText(
+        QString("Private: %1 (%2%)")
+            .arg(BitcoinUnits::formatWithUnit(unit, privateTotal, false, BitcoinUnits::separatorAlways))
+            .arg(privatePercent)
+    );
+
+    const int transparentPercent = 100 - privatePercent;
+    if (ui->labelTransparentSplit) {
+        ui->labelTransparentSplit->setText(
+            QString("Transparent: %1 (%2%)")
+                .arg(BitcoinUnits::formatWithUnit(unit, transparentTotal, false, BitcoinUnits::separatorAlways))
+                .arg(transparentPercent)
+        );
+    }
+
+    privateBarSplitPercent_ = privatePercent;
+    updatePrivateTransparentSplitBar();
 
     ui->labelTotal->setText(
         BitcoinUnits::formatWithUnit(
             unit,
-            balance + unconfirmedBalance + immatureBalance + privateBalance.raw() + unconfirmedPrivateBalance.raw(),
+            totalAmount,
             false,
             BitcoinUnits::separatorAlways
         )
@@ -425,10 +600,6 @@ void OverviewPage::setBalance(
     ui->anonymizeButton->setEnabled(spark::IsSparkAllowed() && anonymizableBalance > 0);
 
     displaySpatsBalances();
-
-    bool showImmature = immatureBalance != 0;
-    bool showWatchOnlyImmature = watchImmatureBalance != 0;
-    ui->labelTransparentImmatureText->setVisible(showImmature || showWatchOnlyImmature);
 }
 
 void OverviewPage::displaySpatsBalances()
@@ -441,7 +612,12 @@ void OverviewPage::displaySpatsBalances()
         delete child;
     }
 
+    int shown = 0;
     for (const auto& [asset_id, balance] : currentSpatsBalances_) {
+        if (shown >= NUM_ITEMS)
+            break;
+        ++shown;
+
         QString idText = QString::number(static_cast<qulonglong>(asset_id.first)) + ":" + QString::number(static_cast<qulonglong>(asset_id.second));
         QString nameText = "Unknown";
         if (const auto* a = getSpatsDisplayAttributes(asset_id))
@@ -449,35 +625,133 @@ void OverviewPage::displaySpatsBalances()
 
         QString availableText = QString::fromStdString(boost::lexical_cast<std::string>(balance.available));
 
+        struct CardPalette {
+            QString start;
+            QString mid;
+            QString end;
+            QColor shadow;
+        };
+
+        const CardPalette palette{"#E8EDF2", "#B7C3D0", "#A3AFBA", QColor(100, 110, 120, 85)};
+
         auto *frame = new QFrame(ui->scrollWidgetSparkAssets);
         frame->setObjectName("assetRow");
-        frame->setStyleSheet(R"( QFrame#assetRow { background: #FFFFFF; border: none; padding: 6px 10px; } )");
+        frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        frame->setFixedHeight(58);
+        frame->setCursor(Qt::PointingHandCursor);
+        frame->setAttribute(Qt::WA_Hover, true);
+        frame->setStyleSheet(QString(R"(
+            QFrame#assetRow {
+                border: 1px solid rgba(255, 255, 255, 0);
+                border-radius: 12px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                            stop:0 %1,
+                                            stop:0.52 %2,
+                                            stop:1 %3);
+            }
+            QFrame#assetRow:hover {
+                border: 1px solid rgba(255, 255, 255, 0);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                            stop:0 #D1D8E2,
+                                            stop:0.52 #C0CBD6,
+                                            stop:1 #A3AFBA);
+            }
+        )").arg(palette.start, palette.mid, palette.end));
 
-        auto *rowLayout = new QHBoxLayout(frame);
-        rowLayout->setSpacing(16);
-        rowLayout->setContentsMargins(12, 2, 12, 2);
+        auto *cardShadow = new QGraphicsDropShadowEffect(frame);
+        cardShadow->setBlurRadius(10);
+        cardShadow->setOffset(0, 2);
+        cardShadow->setColor(palette.shadow);
+        frame->setGraphicsEffect(cardShadow);
+        frame->installEventFilter(new AssetCardHoverFilter(frame));
 
-        QString labelStyle = R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 500; background: transparent; } )";
+        auto *cardLayout = new QVBoxLayout(frame);
+        cardLayout->setSpacing(0);
+        cardLayout->setContentsMargins(0, 0, 0, 0);
 
-        auto *idLabel = new QLabel(idText, frame);
-        idLabel->setStyleSheet(QString(R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 600; background: transparent; padding-left: 20px; /* лёгкий сдвиг вправо под заголовок Asset ID */ } )"));
+        auto *glassHighlight = new QFrame(frame);
+        glassHighlight->setObjectName("assetGloss");
+        glassHighlight->setFixedHeight(6);
+        glassHighlight->setStyleSheet(R"(
+            QFrame#assetGloss {
+                border: none;
+                border-top-left-radius: 12px;
+                border-top-right-radius: 12px;
+                border-bottom-left-radius: 8px;
+                border-bottom-right-radius: 8px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                            stop:0 rgba(255, 255, 255, 48),
+                                            stop:0.45 rgba(220, 228, 236, 14),
+                                            stop:1 rgba(170, 180, 190, 5));
+            }
+        )");
+        cardLayout->addWidget(glassHighlight);
 
-        auto *nameLabel = new QLabel(nameText, frame);
-        nameLabel->setStyleSheet(QString(R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 500; background: transparent; padding-left: 40px; /* добавлено: смещение текста под заголовок Name */ } )"));
+        auto *rowLayout = new QHBoxLayout();
+        rowLayout->setSpacing(14);
+        rowLayout->setContentsMargins(14, 0, 12, 4);
 
-        auto *spacer = new QSpacerItem(20, 10, QSizePolicy::Expanding, QSizePolicy::Minimum);
+        auto makeCaptionLabel = [frame](const QString &text) {
+            auto *label = new QLabel(text, frame);
+            label->setStyleSheet(R"(QLabel { color: rgba(17, 24, 39, 150); font-size: 8pt; font-weight: 600; background: transparent; })");
+            return label;
+        };
 
-        auto *balanceLabel = new QLabel(availableText, frame);
-        balanceLabel->setStyleSheet(R"( QLabel { color: #6B7280; font-size: 13pt; font-weight: 600; background: transparent; } )");
+        auto makeValueLabel = [frame](const QString &text, bool wide = false) {
+            auto *label = new QLabel(text, frame);
+            label->setStyleSheet(R"(QLabel { color: #111827; font-size: 11pt; font-weight: 700; background: transparent; })");
+            if (wide) {
+                label->setMinimumWidth(120);
+            }
+            return label;
+        };
 
-        rowLayout->addWidget(idLabel);
-        rowLayout->addSpacing(60);
-        rowLayout->addWidget(nameLabel);
-        rowLayout->addItem(spacer);
-        rowLayout->addWidget(balanceLabel);
+        auto *idColumn = new QVBoxLayout();
+        idColumn->setSpacing(1);
+        idColumn->setContentsMargins(0, 0, 0, 0);
+        idColumn->addWidget(makeCaptionLabel(tr("Asset ID")));
+        idColumn->addWidget(makeValueLabel(idText));
+
+        auto *nameColumn = new QVBoxLayout();
+        nameColumn->setSpacing(1);
+        nameColumn->setContentsMargins(0, 0, 0, 0);
+        nameColumn->addWidget(makeCaptionLabel(tr("Name")));
+        nameColumn->addWidget(makeValueLabel(nameText, true));
+
+        auto *balanceColumn = new QVBoxLayout();
+        balanceColumn->setSpacing(1);
+        balanceColumn->setContentsMargins(0, 0, 0, 0);
+        auto *availableCaption = makeCaptionLabel(tr("Available"));
+        availableCaption->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        auto *availableValue = makeValueLabel(availableText);
+        availableValue->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        balanceColumn->addWidget(availableCaption);
+        balanceColumn->addWidget(availableValue);
+
+        auto *leftColumnsLayout = new QHBoxLayout();
+        leftColumnsLayout->setSpacing(16);
+        leftColumnsLayout->setContentsMargins(0, 0, 0, 0);
+        leftColumnsLayout->addLayout(idColumn, 1);
+        leftColumnsLayout->addLayout(nameColumn, 2);
+        leftColumnsLayout->addLayout(balanceColumn, 2);
+
+        auto *leftColumnsWidget = new QWidget(frame);
+        leftColumnsWidget->setStyleSheet("background: transparent;");
+        leftColumnsWidget->setLayout(leftColumnsLayout);
+
+        rowLayout->addWidget(leftColumnsWidget, 1);
+
+        auto *sparkBadge = new QLabel(frame);
+        sparkBadge->setPixmap(GUIUtil::sparkAssetBadgePixmap(18));
+        sparkBadge->setStyleSheet(QStringLiteral("background: transparent; border: none; padding: 0px; margin: 0px;"));
+        sparkBadge->setAlignment(Qt::AlignTop | Qt::AlignRight);
+        rowLayout->addWidget(sparkBadge, 0, Qt::AlignTop);
+
+        cardLayout->addLayout(rowLayout);
 
         ui->layoutSparkAssetsList->addWidget(frame);
     }
+    ui->layoutSparkAssetsList->setAlignment(Qt::AlignTop);
     ui->layoutSparkAssetsList->addStretch();
 }
 
@@ -524,14 +798,15 @@ void OverviewPage::handleSpatsRegistryChangedSignal()
 
 void OverviewPage::updateWatchOnlyLabels(bool showWatchOnly)
 {
-    ui->labelSpendable->setVisible(showWatchOnly);
-    ui->labelWatchonly->setVisible(showWatchOnly);
-    ui->lineWatchBalance->setVisible(showWatchOnly);
-    ui->labelWatchAvailable->setVisible(showWatchOnly);
-    ui->labelWatchPending->setVisible(showWatchOnly);
-    ui->labelWatchTotal->setVisible(showWatchOnly);
-    if (!showWatchOnly)
-        ui->labelWatchImmature->hide();
+    Q_UNUSED(showWatchOnly);
+    // Per request: show only `Total` on the overview page, no separate watch-only balances.
+    ui->labelSpendable->setVisible(false);
+    ui->labelWatchonly->setVisible(false);
+    ui->lineWatchBalance->setVisible(false);
+    ui->labelWatchAvailable->setVisible(false);
+    ui->labelWatchPending->setVisible(false);
+    ui->labelWatchTotal->setVisible(false);
+    ui->labelWatchImmature->setVisible(false);
 }
 
 void OverviewPage::setClientModel(ClientModel *model)
@@ -760,6 +1035,7 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
     }
 
     adjustTextSize(newWidth, newHeight);
+    updatePrivateTransparentSplitBar();
 }
 
 void OverviewPage::adjustTextSize(int width, int /*height*/)
@@ -769,24 +1045,15 @@ void OverviewPage::adjustTextSize(int width, int /*height*/)
 
     QFont baseFont("Segoe UI", base, QFont::Normal);
     QFont boldFont("Segoe UI", base, QFont::DemiBold);
-    auto hintFont = baseFont;
-    hintFont.setPointSize(std::max(11, base - 1));
 
     ui->textWarning1->setFont(baseFont);
     ui->textWarning2->setFont(baseFont);
     ui->anonymizeButton->setFont(boldFont);
     ui->labelAlerts->setFont(boldFont);
 
-    ui->labelPrivateAvailableTitle->setFont(hintFont);
-    ui->labelPrivateAvailableText->setFont(boldFont);
-    ui->labelPrivatePendingTitle->setFont(hintFont);
-    ui->labelPrivatePendingText->setFont(boldFont);
-    ui->labelTransparentAvailableTitle->setFont(hintFont);
-    ui->labelTransparentAvailableText->setFont(boldFont);
-    ui->labelTransparentPendingTitle->setFont(hintFont);
-    ui->labelTransparentPendingText->setFont(boldFont);
-    ui->labelTransparentImmatureTitle->setFont(hintFont);
-    ui->labelTransparentImmatureText->setFont(boldFont);
+    // Mini-balance capsule fonts are intentionally NOT adjusted here.
+    // They are set once to a fixed pixel size in the constructor to ensure
+    // consistent typography across platforms and DPI settings.
 
     QFont totalFont("Segoe UI", 30, QFont::Bold);
     QFont totalVal("Segoe UI", 30, QFont::Normal);

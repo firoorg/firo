@@ -15,6 +15,7 @@
 #include <QString>
 #include <QTableView>
 #include <QLabel>
+#include <QPixmap>
 #include <QStyledItemDelegate>
 
 #include <boost/filesystem.hpp>
@@ -41,6 +42,8 @@ namespace GUIUtil
 
     // Return a monospace font
     QFont fixedPitchFont();
+
+    QPixmap sparkAssetBadgePixmap(int pixelSize);
 
     // Set up widgets for address and amounts
     void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent);

@@ -52,6 +52,9 @@ CoinControlDialog::CoinControlDialog(bool anonymousMode, const PlatformStyle *_p
 {
     ui->setupUi(this);
 
+    if (const int ti = ui->verticalLayout->indexOf(ui->treeWidget); ti >= 0)
+        ui->verticalLayout->setStretch(ti, 1);
+
     // context menu actions
     QAction *copyAddressAction = new QAction(tr("Copy address"), this);
     QAction *copyLabelAction = new QAction(tr("Copy label"), this);
@@ -637,7 +640,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     }
 
     // turn label red when dust
-    l7->setStyleSheet((fDust) ? "color:red;" : "");
+    l7->setStyleSheet((fDust) ? "color: #DC2626; font-weight: 700;" : "");
 
     // tool tips
     QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");

@@ -25,6 +25,81 @@
         <property name="options">
             <set>QWizard::NoBackButtonOnStartPage</set>
         </property>
+        <property name="styleSheet">
+            <string notr="true">QWizard#NotifyMnemonic {
+  background-color: #F5F6F8;
+}
+QWizard#NotifyMnemonic QLabel {
+  background-color: transparent;
+  font-family: 'Source Sans Pro', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: #5c6370;
+}
+QWizard#NotifyMnemonic QLabel#textLabel4 {
+  color: #2d3138;
+  font-weight: 600;
+  font-size: 12px;
+  margin-top: 2px;
+}
+QWizard#NotifyMnemonic QLabel#walletBirthDate {
+  color: #3d4a5c;
+  font-size: 12px;
+  font-weight: 500;
+}
+QWizard#NotifyMnemonic QLabel#textLabel3 {
+  color: #9b1c2e;
+  font-weight: 600;
+  font-size: 12px;
+}
+QWizard#NotifyMnemonic QLabel#mnemonic {
+  color: #1c1e22;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 2px;
+}
+QWizard#NotifyMnemonic QFrame#mnemonicBox {
+  background-color: #f3f4f6;
+  border: 1px solid #e0e2e6;
+  border-radius: 12px;
+}
+QWizard#NotifyMnemonic QTextEdit#words {
+  border: 1px solid #dfe2e8;
+  border-radius: 8px;
+  background-color: #f3f4f6;
+  color: #1c1e22;
+  font-size: 12px;
+  font-family: 'Source Sans Pro', 'Segoe UI', sans-serif;
+  padding: 8px;
+  selection-background-color: #9b1c2e;
+}
+QWizard#NotifyMnemonic QTextEdit#words:focus {
+  border: 1px solid #9b1c2e;
+  background-color: #ffffff;
+}
+QWizard#NotifyMnemonic QPushButton {
+  min-height: 28px;
+  min-width: 72px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  background-color: #e8eaee;
+  color: #3d424b;
+  border: 1px solid #d8dce3;
+}
+QWizard#NotifyMnemonic QPushButton:hover {
+  background-color: #dde0e6;
+}
+QWizard#NotifyMnemonic QPushButton:default {
+  background-color: #9b1c2e;
+  color: #ffffff;
+  border: none;
+}
+QWizard#NotifyMnemonic QPushButton:default:hover {
+  background-color: #7c1624;
+}</string>
+        </property>
         <widget class="QWizardPage" name="wizardPage1">
             <property name="sizePolicy">
                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
@@ -33,6 +108,21 @@
                 </sizepolicy>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout">
+                <property name="spacing">
+                    <number>8</number>
+                </property>
+                <property name="leftMargin">
+                    <number>10</number>
+                </property>
+                <property name="topMargin">
+                    <number>8</number>
+                </property>
+                <property name="rightMargin">
+                    <number>10</number>
+                </property>
+                <property name="bottomMargin">
+                    <number>8</number>
+                </property>
                 <item>
                     <widget class="QLabel" name="textLabel">
                         <property name="sizePolicy">
@@ -68,9 +158,27 @@
                             </sizepolicy>
                         </property>
                         <property name="frameShape">
-                            <enum>QFrame::Box</enum>
+                            <enum>QFrame::NoFrame</enum>
+                        </property>
+                        <property name="frameShadow">
+                            <enum>QFrame::Plain</enum>
                         </property>
                         <layout class="QVBoxLayout" name="horizontalLayout">
+                            <property name="spacing">
+                                <number>0</number>
+                            </property>
+                            <property name="leftMargin">
+                                <number>10</number>
+                            </property>
+                            <property name="topMargin">
+                                <number>8</number>
+                            </property>
+                            <property name="rightMargin">
+                                <number>10</number>
+                            </property>
+                            <property name="bottomMargin">
+                                <number>8</number>
+                            </property>
                             <item>
                                 <widget class="QLabel" name="mnemonic">
                                     <property name="alignment">
@@ -83,7 +191,7 @@
                                         </sizepolicy>
                                     </property>
                                     <property name="text">
-                                        <string></string>
+                                        <string/>
                                     </property>
                                     <property name="wordWrap">
                                         <bool>true</bool>
@@ -109,10 +217,10 @@
                         </property>
                     </spacer>
                 </item>
-                 <item>
+                <item>
                     <widget class="QLabel" name="walletBirthDate">
                         <property name="text">
-                            <string></string>
+                            <string/>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>
@@ -149,6 +257,21 @@
                 </sizepolicy>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout1">
+                <property name="spacing">
+                    <number>8</number>
+                </property>
+                <property name="leftMargin">
+                    <number>10</number>
+                </property>
+                <property name="topMargin">
+                    <number>8</number>
+                </property>
+                <property name="rightMargin">
+                    <number>10</number>
+                </property>
+                <property name="bottomMargin">
+                    <number>8</number>
+                </property>
                 <item>
                     <widget class="QLabel" name="textLabel5">
                         <property name="text">
@@ -175,7 +298,7 @@
                 <item>
                     <widget class="QLabel" name="errorMessage">
                         <property name="text">
-                            <string></string>
+                            <string/>
                         </property>
                         <property name="wordWrap">
                             <bool>true</bool>

@@ -5,6 +5,7 @@
 #include "sendcoinsdialog.h"
 #include "ui_sendcoinsdialog.h"
 
+#include "chooseassetdialog.h"
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "clientmodel.h"
@@ -22,6 +23,7 @@
 #include "validation.h" // mempool and minRelayTxFee
 #include "txmempool.h"
 #include "wallet/wallet.h"
+#include "../spats/base_asset.hpp"
 #include "overviewpage.h"
 #include "sendconfirmationdialog.h"
 
@@ -44,14 +46,10 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     fNewRecipientAllowed(true),
     fFeeMinimized(true),
     fAnonymousMode(true),
-    platformStyle(_platformStyle)
+    platformStyle(_platformStyle),
+    sendAssetId_(spats::base::universal_id)
 {
     ui->setupUi(this);
-    ui->scrollArea->setStyleSheet("QScrollArea { background: transparent; border: none; }");
-    ui->scrollArea->viewport()->setStyleSheet("background: transparent;");
-    ui->scrollAreaWidgetContents->setStyleSheet(
-        "QWidget#scrollAreaWidgetContents { background: transparent; border: none; }"
-    );
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->addButton->setIcon(QIcon());
@@ -69,6 +67,8 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
 
     connect(ui->addButton, &QPushButton::clicked, this, &SendCoinsDialog::addEntry);
     connect(ui->clearButton, &QPushButton::clicked, this, &SendCoinsDialog::clear);
+    connect(ui->buttonChooseAsset, &QPushButton::clicked, this, &SendCoinsDialog::on_buttonChooseAsset_clicked);
+    updateSendAssetChooserVisibility();
     // Coin Control
     connect(ui->pushButtonCoinControl, &QPushButton::clicked, this, &SendCoinsDialog::coinControlButtonClicked);
     connect(ui->checkBoxCoinControlChange, &QCheckBox::stateChanged, this, &SendCoinsDialog::coinControlChangeChecked);
@@ -190,6 +190,8 @@ void SendCoinsDialog::setModel(WalletModel *_model)
                 ui->switchFundButton->setEnabled(false);
             }
         }
+
+        updateSendAssetChooserVisibility();
 
         setBalance(
             _model->getBalance(), _model->getUnconfirmedBalance(), _model->getImmatureBalance(),
@@ -895,6 +897,8 @@ void SendCoinsDialog::setBalance(
         ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
             fAnonymousMode ? spats_balances.at(spats::base::universal_id).available.raw() : balance));
     }
+
+    updateSendAssetChooserLabels();
 }
 
 void SendCoinsDialog::updateDisplayUnit()
@@ -1060,6 +1064,57 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
     if (model) {
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, model->getSpatsBalances(), 0);
     }
+
+    updateSendAssetChooserVisibility();
+    updateSendAssetChooserLabels();
+}
+
+void SendCoinsDialog::updateSendAssetChooserVisibility()
+{
+    const bool show =
+        spark::IsSparkAllowed() && model && model->getWallet() && model->getWallet()->sparkWallet;
+    ui->frameChooseAsset->setVisible(show);
+    if (!show) {
+        sendAssetId_ = spats::base::universal_id;
+    }
+}
+
+void SendCoinsDialog::updateSendAssetChooserLabels()
+{
+    if (!ui->frameChooseAsset->isVisible()) {
+        return;
+    }
+    if (!model) {
+        ui->labelSelectedAsset->clear();
+        return;
+    }
+    const auto balances = model->getSpatsBalances();
+    ui->labelSelectedAsset->setText(FormatSpatsAssetSummary(balances, sendAssetId_));
+    if (sendAssetId_ != spats::base::universal_id) {
+        ui->labelSelectedAsset->setToolTip(tr("Sending Spark tokens from this screen is not supported yet. Use the Assets page to transfer this asset."));
+    } else if (fAnonymousMode) {
+        ui->labelSelectedAsset->setToolTip(tr("Native FIRO in your Spark (private) balance."));
+    } else {
+        ui->labelSelectedAsset->setToolTip(
+            tr("Spark asset balances. This selection applies when you send from your private (Spark) balance."));
+    }
+}
+
+void SendCoinsDialog::on_buttonChooseAsset_clicked()
+{
+    if (!model) {
+        return;
+    }
+
+    ChooseAssetDialog dlg(platformStyle, this);
+    dlg.setWalletModel(model);
+    dlg.setPreselected(sendAssetId_);
+    dlg.reloadAndApplyFilter();
+    if (dlg.exec() != QDialog::Accepted) {
+        return;
+    }
+    sendAssetId_ = dlg.selectedAsset();
+    updateSendAssetChooserLabels();
 }
 
 void SendCoinsDialog::removeUnmatchedOutput(CCoinControl &coinControl)

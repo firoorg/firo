@@ -500,6 +500,14 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
             return tr("Spend spark to");
     case TransactionRecord::RecvSpark:
         return tr("Received Spark");
+    case TransactionRecord::SpatsCreate:
+        return tr("Create Asset");
+    case TransactionRecord::SpatsMint:
+        return tr("Mint asset");
+    case TransactionRecord::SpatsModify:
+        return tr("Modify asset");
+    case TransactionRecord::SpatsRevoke:
+        return tr("Revoke / burn");
     default:
         return QString();
     }
@@ -527,6 +535,10 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
     case TransactionRecord::MintSparkTo:
     case TransactionRecord::SpendSparkTo:
     case TransactionRecord::RecvSpark:
+    case TransactionRecord::SpatsCreate:
+    case TransactionRecord::SpatsMint:
+    case TransactionRecord::SpatsModify:
+    case TransactionRecord::SpatsRevoke:
         return QIcon(":/icons/spark");
     default:
         return QIcon(":/icons/tx_inout");
@@ -563,6 +575,12 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::SendToSelf:
     case TransactionRecord::SpendToSelf:
     case TransactionRecord::SpendSparkToSelf:
+        return tr("(n/a)") + watchAddress;
+    case TransactionRecord::SpatsCreate:
+    case TransactionRecord::SpatsMint:
+    case TransactionRecord::SpatsModify:
+    case TransactionRecord::SpatsRevoke:
+        return formatTxType(wtx) + watchAddress;
     default:
         return tr("(n/a)") + watchAddress;
     }
@@ -665,7 +683,9 @@ QString TransactionTableModel::formatTooltip(const TransactionRecord *rec) const
     QString tooltip = formatTxStatus(rec) + QString("\n") + formatTxType(rec);
     if(rec->type==TransactionRecord::RecvFromOther || rec->type==TransactionRecord::RecvWithAddress ||
        rec->type==TransactionRecord::SendToAddress || rec->type==TransactionRecord::SpendToSelf ||
-        rec->type==TransactionRecord::SpendToAddress || rec->type==TransactionRecord::SendToOther)
+        rec->type==TransactionRecord::SpendToAddress || rec->type==TransactionRecord::SendToOther ||
+        rec->type==TransactionRecord::SpatsCreate || rec->type==TransactionRecord::SpatsMint ||
+        rec->type==TransactionRecord::SpatsModify || rec->type==TransactionRecord::SpatsRevoke)
     {
         tooltip += QString(" ") + formatTxToAddress(rec, true);
     }

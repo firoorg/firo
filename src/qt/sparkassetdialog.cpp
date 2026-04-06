@@ -2,7 +2,7 @@
 // Created by Gevorg Voskanyan
 //
 
-#include <iostream>   // TODO remove
+#include <iostream>
 #include <cmath>
 #include <stdexcept>
 
@@ -11,7 +11,7 @@
 #include "../utils/math.hpp"
 #include "../spark/state.h"
 
-#include "quint64spinbox.h"   // must come before ui_sparkassetdialog.h
+#include "quint64spinbox.h"
 #include "ui_sparkassetdialog.h"
 #include "sparkassetdialog.h"
 
@@ -33,31 +33,24 @@ SparkAssetDialog::SparkAssetDialog( const PlatformStyle *platform_style, dialog_
 {
    ui_->setupUi( this );
 
-   ui_->assetTypeSpinBox->setMinimum( 1 );   // Set minimum asset type value
-   ui_->assetTypeSpinBox->setMaximum( utils::to_underlying( spats::max_allowed_asset_type_value ) );   // Set maximum asset type value
-   ui_->assetTypeSpinBox->setValue( 0 );   // Default value
-   ui_->assetTypeSpinBox->setSingleStep( 2 );   // Step size for asset type adjustment, always keeping it within the same fungibility territory
-   // TODO disable going further down if value <= 2
+   ui_->assetTypeSpinBox->setMinimum( 1 );
+   ui_->assetTypeSpinBox->setMaximum( utils::to_underlying( spats::max_allowed_asset_type_value ) );
+   ui_->assetTypeSpinBox->setValue( 0 );
+   ui_->assetTypeSpinBox->setSingleStep( 2 );
 
-   ui_->identifierSpinBox->setMinimum( 0 );   // Set minimum identifier value
-   ui_->identifierSpinBox->setMaximum( utils::to_underlying( spats::max_allowed_identifier_value ) );   // Set maximum identifier value
+   ui_->identifierSpinBox->setMinimum( 0 );
+   ui_->identifierSpinBox->setMaximum( utils::to_underlying( spats::max_allowed_identifier_value ) );
 
-   ui_->totalSupplySpin->setMinimum( 0.0 );   // Minimum value
+   ui_->totalSupplySpin->setMinimum( 0.0 );
 
-   // Set up the precisionSpinBox to control precision
+   
    connect( ui_->precisionSpinBox, static_cast< void ( QSpinBox::* )( int ) >( &QSpinBox::valueChanged ), this, &SparkAssetDialog::onPrecisionChanged );
-   ui_->precisionSpinBox->setMinimum( 0 );   // Allow 0 precision (integer values)
+   ui_->precisionSpinBox->setMinimum( 0 );
    ui_->precisionSpinBox->setMaximum( std::numeric_limits< std::uint64_t >::digits10 - 1 );
-   ui_->precisionSpinBox->setValue( 8 );   // will trigger onPrecisionChanged(), which is what we want
-
-   // Apply the PlatformStyle if needed
-   if ( platform_style ) {
-      // Example: Apply styles (if applicable to your PlatformStyle)
-   }
+   ui_->precisionSpinBox->setValue( 8 );
 
    std::visit( [ this ]( auto &&arg ) { set_fields( arg ); }, context_ );
 
-   // Connect UI elements to actions
    connect( ui_->fungibilityCheckBox, &QCheckBox::stateChanged, this, &SparkAssetDialog::onFungibilityChanged );
    connect( ui_->assetTypeSpinBox, &QUInt64SpinBox::valueChanged, this, &SparkAssetDialog::onAssetTypeChanged );
    connect( ui_->saveButton, &QPushButton::clicked, this, &SparkAssetDialog::onSave );
@@ -78,11 +71,10 @@ void SparkAssetDialog::onSave()
       std::string metadata = ui_->metadataEdit->text().toStdString();
       auto admin_public_address = get_admin_public_address();
 
-      if ( ui_->fungibilityCheckBox->isChecked() ) {   // Fungible Asset
+      if ( ui_->fungibilityCheckBox->isChecked() ) {
          const double total_supply_value = ui_->totalSupplySpin->value();
          const unsigned precision = ui_->precisionSpinBox->value();
 
-         // Convert total supply to spats::supply_amount_t
          const spats::supply_amount_t total_supply( convert_to_supply_amount( total_supply_value, precision ) );
          const bool resupplyable = ui_->resupplyableCheckBox->isChecked();
 
@@ -98,8 +90,8 @@ void SparkAssetDialog::onSave()
       if ( ui_->destinationPublicAddressEdit->isVisible() )
          result_destination_public_address_ = ui_->destinationPublicAddressEdit->text().toStdString();
 
-      accept();   // Close the dialog with an accepted state
-   }
+         accept();
+      }
    catch ( const std::exception &e ) {
       ui_->errorLabel->setText( e.what() );
       ui_->errorLabel->setVisible( true );
@@ -111,13 +103,11 @@ void SparkAssetDialog::onFungibilityChanged( int state )
    if ( const auto *const context = std::get_if< NewSparkAssetCreationContext >( &context_ ) ) {
       const bool is_fungible = ( state == Qt::Checked );
 
-      // Enable or disable fungible-related fields
       ui_->totalSupplySpin->setEnabled( is_fungible );
       ui_->resupplyableCheckBox->setEnabled( is_fungible );
       ui_->precisionSpinBox->setEnabled( is_fungible );
-      ui_->precisionSpinBox->setValue( is_fungible ? 8 : 0 );   // will trigger onPrecisionChanged(), which is what we want
+      ui_->precisionSpinBox->setValue( is_fungible ? 8 : 0 );
 
-      // Non-Fungible-specific fields
       ui_->identifierSpinBox->setEnabled( !is_fungible );
 
       if ( is_fungible ) {
@@ -219,7 +209,6 @@ void SparkAssetDialog::set_fields( const spats::SparkAsset &existing_asset )
    ui_->labelDestinationPublicAddress->hide();
    ui_->destinationPublicAddressEdit->hide();
 }
-
 const spats::public_address_t &SparkAssetDialog::get_admin_public_address() const
 {
    return std::visit( utils::overloaded{ []( const NewSparkAssetCreationContext &context ) -> const spats::public_address_t & { return context.admin_public_address; },
@@ -234,3 +223,4 @@ spats::identifier_underlying_type SparkAssetDialog::get_lowest_available_identif
       throw std::domain_error( "No available identifiers left in the NFT line, it is full!" );
    return utils::to_underlying( *i );
 }
+

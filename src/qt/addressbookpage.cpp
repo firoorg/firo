@@ -32,6 +32,11 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     tab(_tab)
 {
     ui->setupUi(this);
+
+    if (ui->addressBookCard) {
+        ui->addressBookCard->setAttribute(Qt::WA_StyledBackground, true);
+    }
+
     this->isReused = isReused;
 
     if (!platformStyle->getImagesOnButtons()) {

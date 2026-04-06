@@ -124,7 +124,6 @@ private:
     QAction *showHelpMessageAction;
     QAction *lelantusAction;
     QAction *masternodeAction;
-    QAction *myownspatsAction;
     QAction *sparkAssetsAction;
     QAction *logoAction;
     QToolBar *toolbar;
@@ -149,6 +148,8 @@ private:
     /** Create the toolbars */
     void createToolBars();
     void resizeEvent(QResizeEvent*);
+    /** Size wallet tab tool buttons so they fit with the toolbar logo (see resizeEvent). */
+    void updateToolbarTabWidths();
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
     /** Create system tray menu (or setup the dock menu) */
@@ -222,8 +223,6 @@ public Q_SLOTS:
     void gotoBitcoinHistoryTab();
     /** Switch to masternode page */
     void gotoMasternodePage();
-    /** Switch to myownspats page */
-    void gotoMyOwnSpatsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

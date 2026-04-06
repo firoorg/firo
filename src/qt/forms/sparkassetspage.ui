@@ -11,31 +11,285 @@
       background: #F7F8FA;
       font-family: "Segoe UI";
     }
-    QPushButton {
-        background: #E5E7EB;
-        border-radius: 10px;
-        color: #111827;
-        border: 1px solid #D1D5DB;
+
+    /* --- Create Asset: full-width cards; main card with red Essentials banner --- */
+    QFrame#frameCreateMainCard {
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #B24040;
+      box-shadow:
+        0px 4px 12px rgba(209, 33, 39, 0.12),
+        0px 1px 4px rgba(0, 0, 0, 0.06);
     }
-    QPushButton#btnPortfolio,
-    QPushButton#btnMyCreations,
-    QPushButton#btnCreateAsset {
+
+    QFrame#frameCreateDetailsCard {
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #B24040;
+      box-shadow:
+        0px 4px 12px rgba(209, 33, 39, 0.12),
+        0px 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    QLabel#detailsBannerLabel {
+      color: #FFFFFF;
+      font-size: 9pt;
+      font-weight: 700;
+      background: transparent;
+      padding: 4px 12px;
+      margin: 0px;
+      letter-spacing: 0.2px;
+    }
+
+    QFrame#frameCreateDetailsBody {
+      background: #FFFFFF;
+      border: none;
+      border-bottom-left-radius: 11px;
+      border-bottom-right-radius: 11px;
+    }
+
+    QFrame#lineEssentialsSep,
+    QFrame#lineDetailsSep {
+      background: #E8EAED;
+      border: none;
+      min-height: 1px;
+      max-height: 1px;
+      margin: 2px 0 4px 0;
+    }
+
+    QFrame#frameEssentialsBanner,
+    QFrame#frameDetailsBanner {
+      background: #B24040;
+      border: none;
+      border-top-left-radius: 11px;
+      border-top-right-radius: 11px;
+      border-bottom-left-radius: 0px;
+      border-bottom-right-radius: 0px;
+      min-height: 0px;
+      max-height: 32px;
+    }
+
+    QLabel#essentialsBannerLabel {
+      color: #FFFFFF;
+      font-size: 9pt;
+      font-weight: 700;
+      background: transparent;
+      padding: 4px 12px;
+      margin: 0px;
+      letter-spacing: 0.2px;
+    }
+
+    QFrame#frameCreateMainCardBody {
+      background: #FFFFFF;
+      border: none;
+      border-bottom-left-radius: 11px;
+      border-bottom-right-radius: 11px;
+    }
+
+    QFrame#frameCreateMainCardBody QLineEdit {
+      padding: 4px 8px;
+      font-size: 9pt;
+      border-radius: 8px;
+      border: 1px solid #D1D5DB;
+      background: #FFFFFF;
+      min-height: 26px;
+      max-height: 30px;
+    }
+
+    QFrame#frameCreateMainCardBody QLineEdit:focus {
+      border: 1px solid #B24040;
+    }
+
+    QFrame#frameCreateMainCardBody QComboBox {
+      padding: 3px 8px;
+      font-size: 9pt;
+      border-radius: 8px;
+      border: 1px solid #E5E7EB;
+      background: #F0F2F5;
+      min-height: 26px;
+      max-height: 30px;
+    }
+
+    QFrame#frameCreateMainCardBody QComboBox:focus {
+      border: 1px solid #D1D5DB;
+    }
+
+    QFrame#frameCreateMainCardBody QCheckBox {
+      font-size: 9pt;
+      font-weight: 600;
+      spacing: 6px;
+      padding: 0px;
+      margin: 0px;
+    }
+
+    QLabel#createAssetTypeHint {
+      color: #2563EB;
+      font-size: 8.5pt;
+      font-weight: 600;
+      background: transparent;
+      padding: 0px 0 2px 0;
+      margin: 0px;
+      line-height: 115%;
+    }
+
+    QLabel#createIntroHintLine {
+      color: #6B7280;
+      font-size: 8pt;
+      font-weight: 600;
+      background: transparent;
+      padding: 0px;
+      margin: 0px;
+      line-height: 115%;
+    }
+
+    QLabel#createSubTitle {
+      color:#6B7280;
+      font-size: 8pt;
+      font-weight: 600;
+      background: transparent;
+      margin: 0px;
+      padding: 0px;
+      line-height: 115%;
+    }
+
+    QLabel#createSectionTitle {
+      color:#111827;
+      font-size: 10pt;
+      font-weight: 750;
+      background: transparent;
+      padding: 0px;
+      margin: 4px 0 2px 0;
+    }
+
+    QLabel#createCaption {
+      color:#6B7280;
+      font-size: 8.5pt;
+      font-weight: 600;
+      background: transparent;
+      margin: 0px;
+      padding: 0px 0px 1px 0px;
+    }
+
+    QFrame#frameCreateMainCardBody QLabel#createCaption {
+      font-size: 9.75pt;
+      font-weight: 650;
+      color: #4B5563;
+      padding: 0px 0px 2px 0px;
+    }
+
+    QLineEdit,
+    QComboBox,
+    QDoubleSpinBox,
+    QTextEdit {
       background: #FFFFFF;
       border: 1px solid #D1D5DB;
-      border-radius: 8px;
-      padding: 6px 20px;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 10pt;
       color: #111827;
+      selection-background-color: #FEE2E2;
+    }
+    QLineEdit:focus,
+    QComboBox:focus,
+    QDoubleSpinBox:focus,
+    QTextEdit:focus {
+      border: 1px solid #B24040;
+      outline: none;
+    }
 
-      box-shadow:
-        0px 3px 6px rgba(0,0,0,0.08),
-        -1px -1px 4px rgba(255,255,255,0.9);
+    QComboBox::drop-down { border: none; width: 26px; }
+
+    QCheckBox {
+      color:#111827;
+      font-size: 10pt;
+      font-weight: 650;
+      background: transparent;
+      spacing: 10px;
+      padding: 2px 0;
+    }
+
+    /* Small helper pill */
+    QLabel#pillInfo {
+      background:#F9FAFB;
+      border:1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 6px 10px;
+      color:#374151;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+
+    /* Create row: same primary gradient as Overview (Anonymize / Send / Receive) */
+    QPushButton#btnDoCreate,
+    QPushButton#btnDoCreateWide,
+    QPushButton#btnClear,
+    QPushButton#btnEstimate {
+      color: #FFFFFF;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      padding: 6px 14px;
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #C62839, stop:1 #7A1736);
+    }
+    QPushButton#btnDoCreate:hover,
+    QPushButton#btnDoCreateWide:hover,
+    QPushButton#btnClear:hover,
+    QPushButton#btnEstimate:hover {
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #D23245, stop:1 #7A1736);
+    }
+    QPushButton#btnDoCreate:pressed,
+    QPushButton#btnDoCreateWide:pressed,
+    QPushButton#btnClear:pressed,
+    QPushButton#btnEstimate:pressed {
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #9F1E34, stop:1 #6A132E);
+    }
+    QPushButton#btnDoCreate:disabled,
+    QPushButton#btnDoCreateWide:disabled,
+    QPushButton#btnClear:disabled,
+    QPushButton#btnEstimate:disabled {
+      background: #F3F4F6;
+      color: #9CA3AF;
+    }
+
+    QPushButton#btnAutoId,
+    QPushButton#btnGenerateId {
+      color: #B21E3F;
+      background: #FFFFFF;
+      border: 1px solid rgba(178, 30, 63, 0.35);
+      border-radius: 10px;
+      padding: 6px 14px;
+      font-weight: 600;
+    }
+    QPushButton#btnAutoId:hover,
+    QPushButton#btnGenerateId:hover {
+      background: #FFF5F5;
+      border: 1px solid rgba(178, 30, 63, 0.5);
+      color: #9F1E34;
+    }
+
+    /* Top tabs: use same checkable look as Overview (see firo.css QPushButton[checkable]) */
+    QPushButton#btnPortfolio:!checked,
+    QPushButton#btnMyCreations:!checked,
+    QPushButton#btnCreateAsset:!checked {
+      color: #B21E3F;
+      background: #F3F4F6;
+      border: 1px solid rgba(178, 30, 63, 0.25);
+      border-radius: 10px;
+      padding: 3px 14px;
+      font-weight: 600;
     }
     QPushButton#btnPortfolio:checked,
     QPushButton#btnMyCreations:checked,
     QPushButton#btnCreateAsset:checked {
-      background: #B24040;
-      border: 1px solid #B24040;
-      color: white;
+      color: #FFFFFF;
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #C62839, stop:1 #7A1736);
+      border: none;
+      border-radius: 12px;
+      padding: 4px 14px;
     }
 
     QLineEdit#searchAssets {
@@ -85,6 +339,17 @@
         font-size: 10pt;
         color: #111827;
     }
+    QFrame#frameCreateDetailsBody QTextEdit {
+        background: #FAFBFC;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 9.5pt;
+        min-height: 72px;
+    }
+    QFrame#frameCreateDetailsBody QTextEdit:focus {
+        border: 1px solid #B24040;
+    }
     QFrame#assetsCard,
     QFrame#detailsCard,
     QFrame#frameMyCreated,
@@ -108,23 +373,172 @@
     QPushButton#btnAddWatch,
     QPushButton#btnRemove,
     QPushButton#btnExport,
-    QPushButton#btnCopy,
-    QPushButton#btnDetailsSend,
-    QPushButton#btnDetailsReceive,
+    QPushButton#btnCopy {
+      color: #FFFFFF;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      padding: 6px 16px;
+      font-size: 9.5pt;
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #C62839, stop:1 #7A1736);
+    }
+    QPushButton#btnMint:hover,
+    QPushButton#btnBurn:hover,
+    QPushButton#btnMetadata:hover,
+    QPushButton#btnResupply:hover,
+    QPushButton#btnRevoke:hover,
+    QPushButton#btnSend:hover,
+    QPushButton#btnReceive:hover,
+    QPushButton#btnAddWatch:hover,
+    QPushButton#btnRemove:hover,
+    QPushButton#btnExport:hover,
+    QPushButton#btnCopy:hover {
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #D23245, stop:1 #7A1736);
+    }
+    QPushButton#btnMint:pressed,
+    QPushButton#btnBurn:pressed,
+    QPushButton#btnMetadata:pressed,
+    QPushButton#btnResupply:pressed,
+    QPushButton#btnRevoke:pressed,
+    QPushButton#btnSend:pressed,
+    QPushButton#btnReceive:pressed,
+    QPushButton#btnAddWatch:pressed,
+    QPushButton#btnRemove:pressed,
+    QPushButton#btnExport:pressed,
+    QPushButton#btnCopy:pressed {
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #9F1E34, stop:1 #6A132E);
+    }
+    QPushButton#btnMint:disabled,
+    QPushButton#btnBurn:disabled,
+    QPushButton#btnMetadata:disabled,
+    QPushButton#btnResupply:disabled,
+    QPushButton#btnRevoke:disabled,
+    QPushButton#btnSend:disabled,
+    QPushButton#btnReceive:disabled,
+    QPushButton#btnAddWatch:disabled,
+    QPushButton#btnRemove:disabled,
+    QPushButton#btnExport:disabled,
+    QPushButton#btnCopy:disabled {
+      background: #F3F4F6;
+      color: #9CA3AF;
+    }
+
     QPushButton#btnAll,
     QPushButton#btnHeld,
     QPushButton#btnWatchOnly,
     QPushButton#btnRefresh {
-        background: #F1F3F5;
-        border-radius: 10px;
-        padding: 4px 10px;
-        font-size: 9pt;
-        font-weight: 600;
-        color: #111827;
-        border: 1px solid #E5E7EB;
-        box-shadow:
-            2px 2px 6px rgba(0,0,0,0.08),
-            -2px -2px 6px rgba(255,255,255,0.8);
+      color: #FFFFFF;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      padding: 5px 14px;
+      font-size: 9.5pt;
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #C62839, stop:1 #7A1736);
+    }
+    QPushButton#btnAll:hover,
+    QPushButton#btnHeld:hover,
+    QPushButton#btnWatchOnly:hover,
+    QPushButton#btnRefresh:hover {
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #D23245, stop:1 #7A1736);
+    }
+    QPushButton#btnAll:pressed,
+    QPushButton#btnHeld:pressed,
+    QPushButton#btnWatchOnly:pressed,
+    QPushButton#btnRefresh:pressed {
+      background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+          stop:0 #9F1E34, stop:1 #6A132E);
+    }
+    QPushButton#btnAll:disabled,
+    QPushButton#btnHeld:disabled,
+    QPushButton#btnWatchOnly:disabled,
+    QPushButton#btnRefresh:disabled {
+      background: #F3F4F6;
+      color: #9CA3AF;
+    }
+
+    QScrollArea#scrollPortfolioAssets {
+      border: none;
+      background: #FFFFFF;
+    }
+    QScrollArea#scrollPortfolioAssets > QWidget > QWidget {
+      background: #FFFFFF;
+      border: none;
+    }
+    QWidget#scrollWidgetPortfolioAssets {
+      background: #FFFFFF;
+      border: none;
+    }
+    QScrollArea#scrollPortfolioAssets QScrollBar:vertical {
+      border: none;
+      background: #EEF0F3;
+      width: 12px;
+      margin: 0px;
+    }
+    QScrollArea#scrollPortfolioAssets QScrollBar::handle:vertical {
+      background: #B8BFC9;
+      min-height: 32px;
+      border-radius: 6px;
+      margin: 3px;
+    }
+    QScrollArea#scrollPortfolioAssets QScrollBar::handle:vertical:hover {
+      background: #9CA3AF;
+    }
+    QScrollArea#scrollPortfolioAssets QScrollBar::handle:vertical:pressed {
+      background: #6B7280;
+    }
+    QScrollArea#scrollPortfolioAssets QScrollBar::add-line:vertical,
+    QScrollArea#scrollPortfolioAssets QScrollBar::sub-line:vertical {
+      height: 0px;
+      subcontrol-origin: margin;
+    }
+    QScrollArea#scrollPortfolioAssets QScrollBar::add-page:vertical,
+    QScrollArea#scrollPortfolioAssets QScrollBar::sub-page:vertical {
+      background: none;
+    }
+
+    QScrollArea#scrollMyCreations {
+      border: none;
+      background: #FFFFFF;
+    }
+    QScrollArea#scrollMyCreations > QWidget > QWidget {
+      background: #FFFFFF;
+      border: none;
+    }
+    QWidget#scrollWidgetMyCreations {
+      background: #FFFFFF;
+      border: none;
+    }
+    QScrollArea#scrollMyCreations QScrollBar:vertical {
+      border: none;
+      background: #EEF0F3;
+      width: 12px;
+      margin: 0px;
+    }
+    QScrollArea#scrollMyCreations QScrollBar::handle:vertical {
+      background: #B8BFC9;
+      min-height: 32px;
+      border-radius: 6px;
+      margin: 3px;
+    }
+    QScrollArea#scrollMyCreations QScrollBar::handle:vertical:hover {
+      background: #9CA3AF;
+    }
+    QScrollArea#scrollMyCreations QScrollBar::handle:vertical:pressed {
+      background: #6B7280;
+    }
+    QScrollArea#scrollMyCreations QScrollBar::add-line:vertical,
+    QScrollArea#scrollMyCreations QScrollBar::sub-line:vertical {
+      height: 0px;
+      subcontrol-origin: margin;
+    }
+    QScrollArea#scrollMyCreations QScrollBar::add-page:vertical,
+    QScrollArea#scrollMyCreations QScrollBar::sub-page:vertical {
+      background: none;
     }
    </string>
   </property>
@@ -196,10 +610,21 @@
            </widget>
           </item>
           <item>
-           <widget class="QTableWidget" name="tableAssets">
-            <column><property name="text"><string>Asset ID</string></property></column>
-            <column><property name="text"><string>Name</string></property></column>
-            <column><property name="text"><string>Available</string></property></column>
+           <widget class="QScrollArea" name="scrollPortfolioAssets">
+            <property name="widgetResizable"><bool>true</bool></property>
+            <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+            <property name="horizontalScrollBarPolicy"><enum>Qt::ScrollBarAlwaysOff</enum></property>
+            <property name="sizeAdjustPolicy"><enum>QAbstractScrollArea::AdjustToContents</enum></property>
+            <property name="minimumSize"><size><width>0</width><height>120</height></size></property>
+            <widget class="QWidget" name="scrollWidgetPortfolioAssets">
+             <layout class="QVBoxLayout" name="layoutPortfolioAssetsList">
+              <property name="spacing"><number>9</number></property>
+              <property name="leftMargin"><number>0</number></property>
+              <property name="topMargin"><number>0</number></property>
+              <property name="rightMargin"><number>0</number></property>
+              <property name="bottomMargin"><number>0</number></property>
+             </layout>
+            </widget>
            </widget>
           </item>
           <item>
@@ -232,8 +657,139 @@
            </widget>
           </item>
           <item>
+           <widget class="QWidget" name="detailsPane">
+            <property name="styleSheet">
+             <string notr="true">
+              QWidget#detailsPane { background:#FFFFFF; border:none; }
+              QLabel#labelNameCaption,
+              QLabel#labelSymbolCaption,
+              QLabel#labelIdentifierCaption,
+              QLabel#labelPrecisionCaption,
+              QLabel#labelSupplyCaption,
+              QLabel#labelDescriptionCaption,
+              QLabel#labelMetadataCaption { color:#6B7280; font-size:9pt; }
+              QLabel#labelNameValue,
+              QLabel#labelSymbolValue,
+              QLabel#labelIdentifierValue,
+              QLabel#labelPrecisionValue,
+              QLabel#labelSupplyValue { color:#111827; font-size:12pt; font-weight:700; }
+              QLabel#labelTypeBadge,
+              QLabel#labelResupplyBadge { background:#FEE2E2; color:#7A2626; border-radius:12px; padding:4px 10px; font-weight:600; }
+              QFrame#descriptionPill { background:#F9FAFB; border:1px solid #E5E7EB; border-radius:12px; padding:6px 10px; }
+              QPlainTextEdit#metadataView { background:#F9FAFB; border:1px solid #E5E7EB; border-radius:12px; padding:8px 10px; font-family:Monospace; font-size:10pt; color:#111827; }
+             </string>
+            </property>
+            <layout class="QGridLayout" name="detailsGrid">
+             <property name="horizontalSpacing"><number>12</number></property>
+             <property name="verticalSpacing"><number>8</number></property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="labelNameCaption">
+               <property name="text"><string>Name</string></property>
+               <property name="objectName"><string>labelNameCaption</string></property>
+               <property name="styleSheet"><string notr="true"> /* uses objectName */ </string></property>
+              </widget>
+             </item>
+             <item row="0" column="1" colspan="2">
+              <widget class="QLabel" name="labelNameValue">
+               <property name="text"><string>-</string></property>
+               <property name="objectName"><string>labelNameValue</string></property>
+               <property name="styleSheet"><string notr="true"> /* uses objectName */ </string></property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="labelSymbolCaption">
+               <property name="text"><string>Symbol</string></property>
+               <property name="objectName"><string>labelSymbolCaption</string></property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLabel" name="labelSymbolValue">
+               <property name="text"><string>-</string></property>
+               <property name="objectName"><string>labelSymbolValue</string></property>
+              </widget>
+             </item>
+             <item row="1" column="2">
+              <widget class="QLabel" name="labelTypeBadge">
+               <property name="text"><string>Type</string></property>
+               <property name="objectName"><string>labelTypeBadge</string></property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="labelIdentifierCaption">
+               <property name="text"><string>Identifier</string></property>
+               <property name="objectName"><string>labelIdentifierCaption</string></property>
+              </widget>
+             </item>
+             <item row="2" column="1" colspan="2">
+              <widget class="QLabel" name="labelIdentifierValue">
+               <property name="text"><string>-</string></property>
+               <property name="objectName"><string>labelIdentifierValue</string></property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="labelPrecisionCaption">
+               <property name="text"><string>Precision</string></property>
+               <property name="objectName"><string>labelPrecisionCaption</string></property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QLabel" name="labelPrecisionValue">
+               <property name="text"><string>-</string></property>
+               <property name="objectName"><string>labelPrecisionValue</string></property>
+              </widget>
+             </item>
+             <item row="3" column="2">
+              <widget class="QLabel" name="labelResupplyBadge">
+               <property name="text"><string>Resupplyable</string></property>
+               <property name="objectName"><string>labelResupplyBadge</string></property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="labelSupplyCaption">
+               <property name="text"><string>Total Supply</string></property>
+               <property name="objectName"><string>labelSupplyCaption</string></property>
+              </widget>
+             </item>
+             <item row="4" column="1" colspan="2">
+              <widget class="QLabel" name="labelSupplyValue">
+               <property name="text"><string>-</string></property>
+               <property name="objectName"><string>labelSupplyValue</string></property>
+              </widget>
+             </item>
+             <item row="5" column="0" colspan="3">
+              <widget class="QLabel" name="labelDescriptionCaption">
+               <property name="text"><string>Description</string></property>
+               <property name="objectName"><string>labelDescriptionCaption</string></property>
+              </widget>
+             </item>
+             <item row="6" column="0" colspan="3">
+              <widget class="QFrame" name="descriptionPill">
+               <property name="frameShape"><enum>QFrame::StyledPanel</enum></property>
+               <property name="objectName"><string>descriptionPill</string></property>
+               <layout class="QVBoxLayout" name="descPillLayout">
+                <item><widget class="QLabel" name="labelDescriptionValue"><property name="text"><string>-</string></property></widget></item>
+               </layout>
+              </widget>
+             </item>
+             <item row="7" column="0" colspan="3">
+              <widget class="QLabel" name="labelMetadataCaption">
+               <property name="text"><string>Metadata</string></property>
+               <property name="objectName"><string>labelMetadataCaption</string></property>
+              </widget>
+             </item>
+             <item row="8" column="0" colspan="3">
+              <widget class="QPlainTextEdit" name="metadataView">
+               <property name="readOnly"><bool>true</bool></property>
+               <property name="plainText"><string></string></property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
            <widget class="QTextEdit" name="textDetails">
             <property name="readOnly"><bool>true</bool></property>
+            <property name="visible"><bool>false</bool></property>
             <property name="styleSheet">
              <string notr="true">
               background:#FFFFFF; border:none; font-size:10pt; color:#111827;
@@ -243,8 +799,6 @@
           </item>
           <item>
            <layout class="QHBoxLayout" name="detailsButtons">
-            <item><widget class="QPushButton" name="btnDetailsSend"><property name="text"><string>Send</string></property></widget></item>
-            <item><widget class="QPushButton" name="btnDetailsReceive"><property name="text"><string>Receive</string></property></widget></item>
             <item><widget class="QPushButton" name="btnCopy"><property name="text"><string>Copy Identifier</string></property></widget></item>
             <item><spacer>
               <property name="orientation"><enum>Qt::Horizontal</enum></property>
@@ -257,11 +811,11 @@
       </layout>
      </widget>
      <widget class="QWidget" name="pageMyCreations">
-      <layout class="QVBoxLayout" name="layoutMyCreations">
+      <layout class="QVBoxLayout" name="layoutMyCreations" stretch="2,1">
        <property name="spacing"><number>15</number></property>
        <item>
         <widget class="QFrame" name="frameMyCreated">
-            <layout class="QVBoxLayout" name="layoutMyCreatedFrame">
+            <layout class="QVBoxLayout" name="layoutMyCreatedFrame" stretch="0,1,0">
             <item>
                 <widget class="QLabel" name="labelMyAssetsTitle">
                     <property name="text"><string>My Created Assets</string></property>
@@ -273,10 +827,31 @@
                 </widget>
             </item>
             <item>
-                <widget class="QTableWidget" name="tableMyCreated">
-                <column><property name="text"><string>Asset ID</string></property></column>
-                <column><property name="text"><string>Name</string></property></column>
-                <column><property name="text"><string>Available</string></property></column>
+                <widget class="QScrollArea" name="scrollMyCreations">
+                 <property name="widgetResizable"><bool>true</bool></property>
+                 <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+                 <property name="horizontalScrollBarPolicy"><enum>Qt::ScrollBarAlwaysOff</enum></property>
+                 <property name="verticalScrollBarPolicy"><enum>Qt::ScrollBarAsNeeded</enum></property>
+                 <property name="sizeAdjustPolicy"><enum>QAbstractScrollArea::AdjustIgnored</enum></property>
+                 <property name="minimumSize"><size><width>0</width><height>120</height></size></property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>1</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <widget class="QWidget" name="scrollWidgetMyCreations">
+                  <layout class="QVBoxLayout" name="layoutMyCreationsList">
+                   <property name="spacing"><number>4</number></property>
+                   <property name="leftMargin"><number>0</number></property>
+                   <property name="topMargin"><number>0</number></property>
+                   <property name="rightMargin"><number>0</number></property>
+                   <property name="bottomMargin"><number>0</number></property>
+                   <property name="alignment">
+                    <set>Qt::AlignLeading|Qt::AlignTop</set>
+                   </property>
+                  </layout>
+                 </widget>
                 </widget>
             </item>
             <item>
@@ -345,160 +920,560 @@
    </widget>
      <widget class="QWidget" name="pageCreateAsset">
       <layout class="QVBoxLayout" name="layoutCreateAsset">
-       <property name="spacing"><number>20</number></property>
+       <property name="spacing"><number>0</number></property>
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
        <item>
-        <widget class="QFrame" name="frameCreateAsset">
-         <property name="styleSheet">
-          <string notr="true">
-           background:#FFFFFF;
-           border-radius:18px;
-           border:1px solid #F3F4F6;
-           padding:10px;
-          </string>
-         </property>
-         <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Preferred"/>
-        </property>
-         <layout class="QGridLayout" name="createGrid">
-          <property name="horizontalSpacing"><number>25</number></property>
-          <property name="verticalSpacing"><number>15</number></property>
-          <item row="0" column="0" colspan="2">
-           <widget class="QLabel" name="labelCreateTitle">
-            <property name="text"><string>Create Spark Asset</string></property>
-            <property name="styleSheet">
-             <string notr="true">font-size:18pt; font-weight:700;</string>
-            </property>
-           </widget>
-          </item>
-        <item row="1" column="0">
-        <widget class="QWidget">
-        <layout class="QGridLayout" name="leftGrid">
-        <item row="0" column="0" colspan="2">
-            <widget class="QLabel" name="labelEssentials">
-            <property name="text"><string>Essentials</string></property>
-            <property name="styleSheet"><string notr="true">font-weight:600;</string></property>
-            </widget>
-        </item>
-        <item row="1" column="0">
-            <widget class="QCheckBox" name="chkFungible">
-            <property name="text"><string>Fungible asset</string></property>
-            </widget>
-        </item>
-        <item row="2" column="0">
-            <widget class="QLabel" name="labelAssetType">
-            <property name="text"><string>Asset Type:</string></property>
-            </widget>
-        </item>
-        <item row="2" column="1">
-           <widget class="QLineEdit" name="editAssetType">
-                <property name="readOnly"><bool>true</bool></property>
-                <property name="placeholderText"><string>Auto</string></property>
-           </widget>
-        </item>
-        <item row="3" column="0">
-            <widget class="QLabel" name="labelName"><property name="text"><string>Name:</string></property></widget>
-        </item>
-        <item row="3" column="1">
-            <widget class="QLineEdit" name="editName"/>
-        </item>
-        <item row="4" column="0">
-            <widget class="QLabel" name="labelSymbol"><property name="text"><string>Symbol:</string></property></widget>
-        </item>
-        <item row="4" column="1">
-            <widget class="QLineEdit" name="editSymbol"/>
-        </item>
-        <item row="5" column="0">
-            <widget class="QLabel" name="labelSupply"><property name="text"><string>Total Supply:</string></property></widget>
-        </item>
-        <item row="5" column="1">
-            <widget class="QLineEdit" name="editSupply"/>
-        </item>
-        <item row="6" column="0">
-            <widget class="QLabel" name="labelPrecision"><property name="text"><string>Precision:</string></property></widget>
-        </item>
-        <item row="6" column="1">
-           <widget class="QComboBox" name="comboPrecision">
-                <item><property name="text"><string>0</string></property></item>
-                <item><property name="text"><string>1</string></property></item>
-                <item><property name="text"><string>2</string></property></item>
-                <item><property name="text"><string>3</string></property></item>
-                <item><property name="text"><string>4</string></property></item>
-                <item><property name="text"><string>5</string></property></item>
-                <item><property name="text"><string>6</string></property></item>
-                <item><property name="text"><string>7</string></property></item>
-                <item><property name="text"><string>8</string></property></item>
-            </widget>
-        </item>
-        <item row="7" column="0">
-            <widget class="QLabel" name="labelResupply"><property name="text"><string>Resupplyable:</string></property></widget>
-        </item>
-        <item row="7" column="1">
-            <widget class="QComboBox" name="comboResupply">
-            <item><property name="text"><string>Yes</string></property></item>
-            <item><property name="text"><string>No</string></property></item>
-            </widget>
-        </item>
-        </layout>
-        </widget>
-        </item>
-          <item row="1" column="1">
-           <layout class="QVBoxLayout" name="rightCreateColumn">
+        <layout class="QHBoxLayout" name="createCardsRow">
+         <property name="spacing"><number>8</number></property>
+         <property name="leftMargin"><number>0</number></property>
+         <property name="topMargin"><number>0</number></property>
+         <property name="rightMargin"><number>0</number></property>
+         <property name="bottomMargin"><number>0</number></property>
+         <item>
+            <widget class="QFrame" name="frameCreateMainCard">
+             <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
+               <horstretch>1</horstretch>
+               <verstretch>1</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QVBoxLayout" name="createRoot">
+              <property name="spacing"><number>0</number></property>
+              <property name="leftMargin"><number>0</number></property>
+              <property name="topMargin"><number>0</number></property>
+              <property name="rightMargin"><number>0</number></property>
+              <property name="bottomMargin"><number>0</number></property>
+              <item>
+               <widget class="QFrame" name="frameEssentialsBanner">
+                <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size><width>0</width><height>32</height></size>
+                </property>
+                <property name="maximumSize">
+                 <size><width>16777215</width><height>32</height></size>
+                </property>
+                <layout class="QHBoxLayout" name="layoutEssentialsBannerInner">
+                 <property name="spacing"><number>0</number></property>
+                 <property name="leftMargin"><number>0</number></property>
+                 <property name="topMargin"><number>0</number></property>
+                 <property name="rightMargin"><number>0</number></property>
+                 <property name="bottomMargin"><number>0</number></property>
+                 <item>
+                  <widget class="QLabel" name="labelEssentials">
+                   <property name="objectName"><string>essentialsBannerLabel</string></property>
+                   <property name="text"><string>Essentials</string></property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="spacerEssentialsBanner">
+                   <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                  </spacer>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QFrame" name="frameCreateMainCardBody">
+                <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>1</verstretch>
+                 </sizepolicy>
+                </property>
+                <layout class="QVBoxLayout" name="createMainCardBodyLayout" stretch="0,0,0,0,0,1,0">
+                 <property name="spacing"><number>4</number></property>
+                 <property name="leftMargin"><number>8</number></property>
+                 <property name="topMargin"><number>6</number></property>
+                 <property name="rightMargin"><number>8</number></property>
+                 <property name="bottomMargin"><number>8</number></property>
             <item>
-             <widget class="QLabel" name="labelAdvanced">
-              <property name="text"><string>Advanced</string></property>
-              <property name="styleSheet"><string notr="true">font-weight:600;</string></property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="labelIdentifier"><property name="text"><string>Identifier:</string></property></widget>
-            </item>
-            <item>
-             <layout class="QHBoxLayout">
-              <item><widget class="QLineEdit" name="editIdentifier"/></item>
-              <item><widget class="QPushButton" name="btnAutoId"><property name="text"><string>Auto</string></property></widget></item>
-              <item><widget class="QPushButton" name="btnGenerateId"><property name="text"><string>Generate</string></property></widget></item>
+             <layout class="QVBoxLayout" name="layoutFungibleBlock">
+              <property name="spacing"><number>0</number></property>
+              <item>
+               <widget class="QCheckBox" name="chkFungible">
+                <property name="text"><string>Fungible token</string></property>
+               </widget>
+              </item>
+              <item>
+               <layout class="QHBoxLayout" name="layoutFungibleHintsRow">
+                <property name="spacing"><number>8</number></property>
+                <property name="leftMargin"><number>0</number></property>
+                <property name="topMargin"><number>0</number></property>
+                <property name="rightMargin"><number>0</number></property>
+                <property name="bottomMargin"><number>0</number></property>
+                <item>
+                 <widget class="QLabel" name="labelFungibleHint">
+                  <property name="objectName"><string>createIntroHintLine</string></property>
+                  <property name="text"><string>Off = unique asset (NFT). Supply, decimals, and resupply apply only to fungible tokens.</string></property>
+                  <property name="wordWrap"><bool>true</bool></property>
+                  <property name="alignment">
+                   <set>Qt::AlignLeft|Qt::AlignTop</set>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCreateSubtitle">
+                  <property name="objectName"><string>createSubTitle</string></property>
+                  <property name="text"><string>Step 1: choose fungible or NFT. Step 2: fill essentials and optional details, then create.</string></property>
+                  <property name="wordWrap"><bool>true</bool></property>
+                  <property name="alignment">
+                   <set>Qt::AlignLeft|Qt::AlignTop</set>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
              </layout>
             </item>
-            <item><widget class="QLabel" name="labelDescription"><property name="text"><string>Description:</string></property></widget></item>
             <item>
-             <widget class="QTextEdit" name="editDescription">
-              <property name="placeholderText">
-               <string></string>
+             <layout class="QHBoxLayout" name="layoutEssentialsColumns" stretch="1,1">
+              <property name="spacing"><number>6</number></property>
+              <item>
+               <layout class="QVBoxLayout" name="layoutEssentialsColLeft">
+                <property name="spacing"><number>2</number></property>
+                <item>
+                 <widget class="QLabel" name="labelSymbol">
+                  <property name="objectName"><string>createCaption</string></property>
+                  <property name="text"><string>Symbol</string></property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="editSymbol">
+                  <property name="placeholderText"><string>e.g. MTK</string></property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size><width>0</width><height>26</height></size>
+                  </property>
+                  <property name="maximumSize">
+                   <size><width>16777215</width><height>30</height></size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelPrecision">
+                  <property name="objectName"><string>createCaption</string></property>
+                  <property name="text"><string>Decimal places</string></property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="comboPrecision">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size><width>0</width><height>26</height></size>
+                  </property>
+                  <property name="maximumSize">
+                   <size><width>16777215</width><height>30</height></size>
+                  </property>
+                  <item><property name="text"><string>0</string></property></item>
+                  <item><property name="text"><string>1</string></property></item>
+                  <item><property name="text"><string>2</string></property></item>
+                  <item><property name="text"><string>3</string></property></item>
+                  <item><property name="text"><string>4</string></property></item>
+                  <item><property name="text"><string>5</string></property></item>
+                  <item><property name="text"><string>6</string></property></item>
+                  <item><property name="text"><string>7</string></property></item>
+                  <item><property name="text"><string>8</string></property></item>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <layout class="QVBoxLayout" name="layoutEssentialsColRight">
+                <property name="spacing"><number>2</number></property>
+                <item>
+                 <widget class="QLabel" name="labelName">
+                  <property name="objectName"><string>createCaption</string></property>
+                  <property name="text"><string>Name</string></property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="editName">
+                  <property name="placeholderText"><string>e.g. My Token</string></property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size><width>0</width><height>26</height></size>
+                  </property>
+                  <property name="maximumSize">
+                   <size><width>16777215</width><height>30</height></size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelSupply">
+                  <property name="objectName"><string>createCaption</string></property>
+                  <property name="text"><string>Total supply</string></property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="editSupply">
+                  <property name="placeholderText"><string>e.g. 1000000</string></property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size><width>0</width><height>26</height></size>
+                  </property>
+                  <property name="maximumSize">
+                   <size><width>16777215</width><height>30</height></size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelResupply">
+                  <property name="objectName"><string>createCaption</string></property>
+                  <property name="text"><string>Allow resupply</string></property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="comboResupply">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size><width>0</width><height>26</height></size>
+                  </property>
+                  <property name="maximumSize">
+                   <size><width>16777215</width><height>30</height></size>
+                  </property>
+                  <item><property name="text"><string>Yes</string></property></item>
+                  <item><property name="text"><string>No</string></property></item>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QFrame" name="lineEssentialsSep">
+              <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size><width>0</width><height>1</height></size>
+              </property>
+              <property name="maximumSize">
+               <size><width>16777215</width><height>1</height></size>
               </property>
              </widget>
             </item>
-            <item><widget class="QLabel" name="labelMetadata"><property name="text"><string>Metadata (JSON / key-value)</string></property></widget></item>
             <item>
-             <widget class="QTextEdit" name="editMetadata">
-              <property name="plainText">
-               <string></string>
+             <widget class="QLabel" name="labelCreateHint">
+              <property name="objectName"><string>createAssetTypeHint</string></property>
+              <property name="text"><string>• Asset type is assigned automatically when you create (not shown). For NFTs, set a unique identifier below.</string></property>
+              <property name="wordWrap"><bool>true</bool></property>
+             </widget>
+            </item>
+
+            <item>
+             <layout class="QGridLayout" name="gridIdentifier">
+              <property name="horizontalSpacing"><number>6</number></property>
+              <property name="verticalSpacing"><number>4</number></property>
+              <property name="leftMargin"><number>0</number></property>
+              <property name="topMargin"><number>0</number></property>
+              <property name="rightMargin"><number>0</number></property>
+              <property name="bottomMargin"><number>0</number></property>
+              <item row="0" column="0">
+               <widget class="QLabel" name="labelIdentifier">
+                <property name="objectName"><string>createCaption</string></property>
+                <property name="text"><string>NFT identifier</string></property>
+                <property name="alignment">
+                 <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <layout class="QHBoxLayout" name="layoutIdentifierRow">
+                <property name="spacing"><number>4</number></property>
+                <item>
+                 <widget class="QLineEdit" name="editIdentifier">
+                  <property name="placeholderText"><string>Unique id</string></property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                    <horstretch>1</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size><width>0</width><height>26</height></size>
+                  </property>
+                  <property name="maximumSize">
+                   <size><width>16777215</width><height>30</height></size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnAutoId">
+                  <property name="text"><string>Use 0</string></property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnGenerateId">
+                  <property name="text"><string>Random</string></property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </item>
+
+            <item>
+             <spacer name="spacerEssentialsBeforeButtons">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
               </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Expanding</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+
+            <item>
+             <layout class="QHBoxLayout" name="layoutCreateButtons">
+              <property name="spacing"><number>6</number></property>
+              <property name="leftMargin"><number>0</number></property>
+              <property name="topMargin"><number>2</number></property>
+              <property name="rightMargin"><number>0</number></property>
+              <property name="bottomMargin"><number>0</number></property>
+              <item>
+               <widget class="QPushButton" name="btnDoCreate">
+                <property name="text"><string>Create Asset</string></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnClear">
+                <property name="text"><string>Clear</string></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnEstimate">
+                <property name="text"><string>Estimate fee →</string></property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="createActionsSpacer">
+                <property name="orientation"><enum>Qt::Horizontal</enum></property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+                </layout>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+         </item>
+         <item>
+          <widget class="QFrame" name="frameCreateDetailsCard">
+           <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
+             <horstretch>1</horstretch>
+             <verstretch>1</verstretch>
+            </sizepolicy>
+           </property>
+           <layout class="QVBoxLayout" name="createDetailsRoot">
+            <property name="spacing"><number>0</number></property>
+            <property name="leftMargin"><number>0</number></property>
+            <property name="topMargin"><number>0</number></property>
+            <property name="rightMargin"><number>0</number></property>
+            <property name="bottomMargin"><number>0</number></property>
+            <item>
+             <widget class="QFrame" name="frameDetailsBanner">
+              <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size><width>0</width><height>32</height></size>
+              </property>
+              <property name="maximumSize">
+               <size><width>16777215</width><height>32</height></size>
+              </property>
+              <layout class="QHBoxLayout" name="layoutDetailsBannerInner">
+               <property name="spacing"><number>0</number></property>
+               <property name="leftMargin"><number>0</number></property>
+               <property name="topMargin"><number>0</number></property>
+               <property name="rightMargin"><number>0</number></property>
+               <property name="bottomMargin"><number>0</number></property>
+               <item>
+                <widget class="QLabel" name="labelDetailsBannerTitle">
+                 <property name="objectName"><string>detailsBannerLabel</string></property>
+                 <property name="text"><string>Details &amp; metadata</string></property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="spacerDetailsBanner">
+                 <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QFrame" name="frameCreateDetailsBody">
+              <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+                <horstretch>0</horstretch>
+                <verstretch>1</verstretch>
+               </sizepolicy>
+              </property>
+              <layout class="QVBoxLayout" name="rightCardLayout" stretch="0,1,0,0,1,0">
+               <property name="spacing"><number>4</number></property>
+               <property name="leftMargin"><number>8</number></property>
+               <property name="topMargin"><number>6</number></property>
+               <property name="rightMargin"><number>8</number></property>
+               <property name="bottomMargin"><number>8</number></property>
+
+               <item>
+                <widget class="QLabel" name="labelDescription">
+                 <property name="objectName"><string>createCaption</string></property>
+                 <property name="text"><string>Description</string></property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QTextEdit" name="editDescription">
+                 <property name="placeholderText"><string>Optional short description shown with the asset</string></property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>1</horstretch>
+                   <verstretch>1</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size><width>0</width><height>72</height></size>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QFrame" name="lineDetailsSep">
+                 <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size><width>0</width><height>1</height></size>
+                 </property>
+                 <property name="maximumSize">
+                  <size><width>16777215</width><height>1</height></size>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="labelMetadata">
+                 <property name="objectName"><string>createCaption</string></property>
+                 <property name="text"><string>Metadata (JSON)</string></property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QTextEdit" name="editMetadata">
+                 <property name="placeholderText"><string>Optional JSON, e.g. { &quot;website&quot;: &quot;https://…&quot; }</string></property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>1</horstretch>
+                   <verstretch>1</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size><width>0</width><height>80</height></size>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnDoCreateWide">
+                 <property name="text"><string>Create Asset</string></property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                </widget>
+               </item>
+              </layout>
              </widget>
             </item>
            </layout>
-          </item>
-          <item row="2" column="0" colspan="2">
-           <layout class="QHBoxLayout" name="layoutCreateButtons">
-            <item>
-             <widget class="QPushButton" name="btnDoCreate">
-              <property name="text"><string>Create Asset</string></property>
-              <property name="styleSheet"><string notr="true">background:#B24040; color:white;</string></property>
-             </widget>
-            </item>
-            <item><widget class="QPushButton" name="btnClear"><property name="text"><string>Clear</string></property></widget></item>
-            <item><widget class="QPushButton" name="btnEstimate"><property name="text"><string>Estimate Fee ▾</string></property></widget></item>
-            <item>
-             <spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </widget>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
-  </widget>
- </item>
-</layout>
-</widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
 </ui>

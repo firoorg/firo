@@ -41,7 +41,6 @@
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
-#include "myownspats.h"
 #include <iostream>
 
 #include <QAction>
@@ -125,7 +124,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     showHelpMessageAction(0),
     lelantusAction(0),
     masternodeAction(0),
-    myownspatsAction(nullptr),
     sparkAssetsAction(nullptr),
     logoAction(0),
     trayIcon(0),
@@ -370,14 +368,7 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(masternodeAction);
 #endif
 
-    myownspatsAction = new QAction(tr("M&y Own Spats"), this);
-    myownspatsAction->setStatusTip(tr("Browse My Own Spats"));
-    myownspatsAction->setToolTip(myownspatsAction->statusTip());
-    myownspatsAction->setCheckable(true);
-    myownspatsAction->setShortcut(QKeySequence(Qt::ALT +  key++));
-    tabGroup->addAction(myownspatsAction);
-
-    sparkAssetsAction = new QAction(tr("&Spark Assets"), this);
+    sparkAssetsAction = new QAction(tr("&Assets"), this);
     sparkAssetsAction->setStatusTip(tr("Manage and view your Spark assets"));
     sparkAssetsAction->setToolTip(sparkAssetsAction->statusTip());
     sparkAssetsAction->setCheckable(true);
@@ -387,8 +378,6 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     connect(masternodeAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(masternodeAction, &QAction::triggered, this, &BitcoinGUI::gotoMasternodePage);
-    connect(myownspatsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
-    connect(myownspatsAction, &QAction::triggered, this, &BitcoinGUI::gotoMyOwnSpatsPage);
 	connect(overviewAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(overviewAction, &QAction::triggered, this, &BitcoinGUI::gotoOverviewPage);
 	connect(sendCoinsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
@@ -546,7 +535,6 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(masternodeAction);
-        toolbar->addAction(myownspatsAction);
         toolbar->addAction(sparkAssetsAction);
 
         logoLabel = new QLabel();
@@ -703,7 +691,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     historyAction->setEnabled(enabled);
     lelantusAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
-    myownspatsAction->setEnabled(enabled);
+    sparkAssetsAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -847,13 +835,6 @@ void BitcoinGUI::gotoMasternodePage()
     if (walletFrame) walletFrame->gotoMasternodePage();
 }
 
-void BitcoinGUI::gotoMyOwnSpatsPage()
-{
-    QSettings settings;
-    myownspatsAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoMyOwnSpatsPage();
-}
-
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
     receiveCoinsAction->setChecked(true);
@@ -870,6 +851,7 @@ void BitcoinGUI::gotoSparkAssetsPage()
 {
     if (!walletFrame)
         return;
+    sparkAssetsAction->setChecked(true);
     walletFrame->gotoSparkAssetsPage();
 }
 
@@ -1434,6 +1416,7 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     } else {
         masternodeAction->setVisible(true);
     }
+    updateToolbarTabWidths();
 }
 
 void BitcoinGUI::toggleNetworkActive()
@@ -1516,28 +1499,40 @@ void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
     }
 }
 
+void BitcoinGUI::updateToolbarTabWidths()
+{
+    if (!toolbar)
+        return;
+
+    const int newWidth = width();
+    // Count visible tab actions. Using newWidth/6 per button made the six min widths
+    // sum to the full window width, but the toolbar also has an expanding logo widget —
+    // so when Masternodes became visible after DIP3, Assets was pushed off-screen.
+    int tabCount = 4; // Overview, Send, Receive, History
+    if (masternodeAction && masternodeAction->isVisible())
+        ++tabCount;
+    if (sparkAssetsAction && sparkAssetsAction->isVisible())
+        ++tabCount;
+    const int divisor = tabCount + 1; // +1: reserve width for the logo stretch
+    const int actionWidth = qMax(48, newWidth / divisor);
+
+    QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
+    QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
+    QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
+    QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
+    QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
+    QWidget* sparkAssetsWidget = sparkAssetsAction ? toolbar->widgetForAction(sparkAssetsAction) : nullptr;
+
+    if (overviewWidget) overviewWidget->setMinimumWidth(actionWidth);
+    if (receiveWidget) receiveWidget->setMinimumWidth(actionWidth);
+    if (historyWidget) historyWidget->setMinimumWidth(actionWidth);
+    if (sendCoinsWidget) sendCoinsWidget->setMinimumWidth(actionWidth);
+    if (masternodeWidget) masternodeWidget->setMinimumWidth(actionWidth);
+    if (sparkAssetsWidget) sparkAssetsWidget->setMinimumWidth(actionWidth);
+}
+
 // Handles resize events for the BitcoinGUI widget by adjusting internal component sizes.
 void BitcoinGUI::resizeEvent(QResizeEvent* event) {
-    QMainWindow::resizeEvent(event);  
-
-    // Retrieve new dimensions from the resize event
-    int newWidth = event->size().width();
-    int actionWidth = newWidth / 7;
-
-    if (toolbar) {
-        // Set widths for each action dynamically
-        QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
-        QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
-        QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
-        QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
-        QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
-        QWidget* myownspatsWidget = myownspatsWidget ? toolbar->widgetForAction(myownspatsAction) : nullptr;
-
-        if (overviewWidget) overviewWidget->setMinimumWidth(actionWidth);
-        if (receiveWidget) receiveWidget->setMinimumWidth(actionWidth);
-        if (historyWidget) historyWidget->setMinimumWidth(actionWidth);
-        if (sendCoinsWidget) sendCoinsWidget->setMinimumWidth(actionWidth);
-        if (masternodeWidget) masternodeWidget->setMinimumWidth(actionWidth);
-        if (myownspatsWidget) myownspatsWidget->setMinimumWidth(actionWidth);
-    }
+    QMainWindow::resizeEvent(event);
+    updateToolbarTabWidths();
 }

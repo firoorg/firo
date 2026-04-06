@@ -14,8 +14,11 @@
 #include <boost/filesystem.hpp>
 
 #include <QFileDialog>
+#include <QGraphicsDropShadowEffect>
 #include <QSettings>
 #include <QMessageBox>
+#include <QColor>
+#include <QVBoxLayout>
 
 Recover::Recover(QWidget *parent) :
     QDialog(parent),
@@ -26,6 +29,20 @@ Recover::Recover(QWidget *parent) :
     GUIUtil::loadTheme();
     
     ui->setupUi(this);
+    resize(960, 880);
+
+    if (ui->recoverContentCard) {
+        ui->recoverContentCard->setAttribute(Qt::WA_StyledBackground, true);
+        auto* shadow = new QGraphicsDropShadowEffect(ui->recoverContentCard);
+        shadow->setBlurRadius(22);
+        shadow->setOffset(0, 5);
+        shadow->setColor(QColor(15, 23, 42, 36));
+        ui->recoverContentCard->setGraphicsEffect(shadow);
+        const int cardIndex = ui->verticalLayout->indexOf(ui->recoverContentCard);
+        if (cardIndex >= 0)
+            ui->verticalLayout->setStretch(cardIndex, 1);
+    }
+
     setCreateNew();
     thread = new QThread(this);
 

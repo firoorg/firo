@@ -67,6 +67,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   bitcoinstrings.cpp
   bitcoinunits.cpp
   cancelpassworddialog.cpp
+  chooseassetdialog.cpp
   clientmodel.cpp
   coincontroldialog.cpp
   coincontroltreewidget.cpp
@@ -77,7 +78,6 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   manualmintdialog.cpp
   masternodelist.cpp
   modaloverlay.cpp
-  myownspats.cpp
   networkstyle.cpp
   notificator.cpp
   notifymnemonic.cpp
@@ -183,7 +183,6 @@ if(ENABLE_WALLET)
         editaddressdialog.cpp
         exportviewkeydialog.cpp
         manualmintdialog.cpp
-        myownspats.cpp
         openuridialog.cpp
         overviewpage.cpp
         sparkassetspage.cpp

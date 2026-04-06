@@ -53,7 +53,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 
     sendCoinsPage = new QWidget(this);
     masternodeListPage = new MasternodeList(platformStyle);
-    myOwnSpatsPage = new MyOwnSpats(platformStyle);
     sparkAssetsPage = new spats::SparkAssetsPage(platformStyle, this);
 
     automintSparkNotification = new AutomintSparkNotification(this);
@@ -67,13 +66,10 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(masternodeListPage);
-    addWidget(myOwnSpatsPage);
     addWidget(sparkAssetsPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::focusBitcoinHistoryTab);
-    connect(overviewPage, &OverviewPage::gotoSendCoinsPage, this, QOverload<>::of(&WalletView::gotoSendCoinsPage));
-    connect(overviewPage, &OverviewPage::gotoReceiveCoinsPage, this, QOverload<>::of(&WalletView::gotoReceiveCoinsPage));
 }
 
 WalletView::~WalletView()
@@ -163,7 +159,6 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
-    myOwnSpatsPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)
@@ -180,7 +175,6 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
     masternodeListPage->setWalletModel(_walletModel);
-    myOwnSpatsPage->setWalletModel(_walletModel);
     sendFiroView->setModel(_walletModel);
     automintSparkNotification->setModel(_walletModel);
 
@@ -265,14 +259,10 @@ void WalletView::gotoMasternodePage()
     setCurrentWidget(masternodeListPage);
 }
 
-void WalletView::gotoMyOwnSpatsPage()
-{
-    setCurrentWidget(myOwnSpatsPage);
-}
-
 void WalletView::gotoSparkAssetsPage()
 {
     setCurrentWidget(sparkAssetsPage);
+    sparkAssetsPage->showPortfolioTabOnEntry();
 }
 
 void WalletView::gotoReceiveCoinsPage()

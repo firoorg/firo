@@ -22,6 +22,7 @@ userClosed(false),
 foreverHidden(false)
 {
     ui->setupUi(this);
+    ui->contentWidget->setAttribute(Qt::WA_StyledBackground, true);
     connect(ui->closeButton, &QPushButton::clicked, this, &ModalOverlay::closeClicked);
     if (parent) {
         parent->installEventFilter(this);

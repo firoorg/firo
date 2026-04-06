@@ -36,6 +36,35 @@
         <item>
          <widget class="QPushButton" name="migrateButton">
           <property name="text"><string>Migrate</string></property>
+          <property name="cursor">
+           <cursorShape>PointingHandCursor</cursorShape>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton {
+    color: #FFFFFF;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    padding: 6px 18px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+}
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #9F1E34,
+                                stop:1 #6A132E);
+}
+QPushButton:disabled {
+    background: #F3F4F6;
+    color: #9CA3AF;
+}</string>
+          </property>
          </widget>
         </item>
        </layout>
@@ -64,6 +93,22 @@
      <property name="verticalSpacing"><number>16</number></property>
      <item row="0" column="0" colspan="2">
       <widget class="QFrame" name="balancesCard">
+       <property name="styleSheet">
+          <string notr="true">
+            QFrame#balancesCard {
+              background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FBFCFE,
+                stop:0.35 #FFFFFF,
+                stop:1 #EEF1F6);
+              border-radius: 15px;
+              border-top: 1px solid #FFFFFF;
+              border-left: 1px solid #F3F5F9;
+              border-right: 1px solid #B4BAC8;
+              border-bottom: 1px solid #9CA3B0;
+              padding: 8px;
+            }
+          </string>
+       </property>
        <layout class="QVBoxLayout" name="balancesCardLayout">
         <property name="spacing"><number>1</number></property>
         <item>
@@ -74,7 +119,7 @@
               <string notr="true">
                 QLabel {
                     background: transparent;
-                    color: #6B7280;
+                    color: rgb(70, 75, 84);
                     font-size: 18pt;
                     font-weight: 700;
                 }
@@ -86,14 +131,20 @@
          <layout class="QHBoxLayout" name="totalLayout">
           <item>
            <widget class="QLabel" name="labelTotalText">
-            <property name="text"><string>Total:</string></property>
+            <property name="text"><string>Total: </string></property>
             <property name="alignment"><set>Qt::AlignLeft|Qt::AlignVCenter</set></property>
+            <property name="styleSheet">
+             <string notr="true">QLabel { font-size: 22pt; font-weight: 700; color: #111827; }</string>
+            </property>
            </widget>
           </item>
           <item>
            <widget class="QLabel" name="labelTotal">
             <property name="text"><string>0.00 FIRO</string></property>
             <property name="alignment"><set>Qt::AlignLeft|Qt::AlignVCenter</set></property>
+            <property name="styleSheet">
+             <string notr="true">QLabel { font-size: 22pt; font-weight: 700; color: #111827; }</string>
+            </property>
            </widget>
           </item>
           <item>
@@ -105,104 +156,74 @@
          </layout>
         </item>
         <item>
-        <layout class="QHBoxLayout" name="miniBalancesRow">
-          <property name="spacing"><number>2</number></property>
+         <layout class="QVBoxLayout" name="privateTransparentBarLayout">
+          <property name="spacing"><number>6</number></property>
           <item>
-          <widget class="QFrame" name="framePrivateAvailable">
-            <layout class="QHBoxLayout" name="layoutPrivateAvailable">
-            <property name="spacing"><number>1</number></property>
-            <item>
-              <widget class="QLabel" name="labelPrivateAvailableTitle">
-              <property name="text"><string>Private Available:</string></property>
-              <property name="styleSheet"><string>color:#6B7280; font-size:13px;</string></property>
+           <widget class="QFrame" name="privateTransparentBarFrame">
+            <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+            <property name="styleSheet">
+             <string notr="true">
+              QFrame#privateTransparentBarFrame { background-color: #E5E7EB; border-radius: 999px; min-height: 22px; }
+              QFrame#privateBarSegment { 
+                background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+                                             stop:0 #057A2F,
+                                             stop:1 #34D399);
+                background-color: #10B981;
+                border-radius: 999px; min-height: 22px; 
+              }
+              QFrame#transparentBarSegment { background-color: transparent; border-radius: 999px; min-height: 22px; }
+             </string>
+            </property>
+            <layout class="QHBoxLayout" name="privateTransparentBarSegmentsLayout">
+             <property name="spacing"><number>0</number></property>
+             <item>
+              <widget class="QFrame" name="privateBarSegment">
+               <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
               </widget>
-            </item>
-            <item>
-              <widget class="QLabel" name="labelPrivateAvailableText">
-              <property name="text"><string>0.00 FIRO</string></property>
-              <property name="styleSheet"><string>color:#111827; font-weight:600; font-size:13px;</string></property>
+             </item>
+             <item>
+              <widget class="QFrame" name="transparentBarSegment">
+               <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
               </widget>
-            </item>
+             </item>
             </layout>
-          </widget>
+           </widget>
+          </item>
+        <item>
+         <layout class="QHBoxLayout" name="privateTransparentSplitRow">
+          <property name="spacing"><number>0</number></property>
+          <property name="leftMargin"><number>0</number></property>
+          <property name="topMargin"><number>0</number></property>
+          <property name="rightMargin"><number>0</number></property>
+          <property name="bottomMargin"><number>0</number></property>
+          <item>
+           <widget class="QLabel" name="labelPrivateSplit">
+            <property name="text"><string>Private: 0.00 FIRO (0%)</string></property>
+            <property name="alignment"><set>Qt::AlignLeft|Qt::AlignVCenter</set></property>
+            <property name="styleSheet">
+             <string notr="true">QLabel { background: transparent; border: none; color: #111827; font-weight: 700; font-size: 12px; }</string>
+            </property>
+           </widget>
           </item>
           <item>
-          <widget class="QFrame" name="framePrivatePending">
-            <layout class="QHBoxLayout" name="layoutPrivatePending">
-            <property name="spacing"><number>1</number></property>
-            <item>
-              <widget class="QLabel" name="labelPrivatePendingTitle">
-              <property name="text"><string>Private Pending:</string></property>
-              <property name="styleSheet"><string>color:#6B7280; font-size:13px;</string></property>
-              </widget>
-            </item>
-            <item>
-              <widget class="QLabel" name="labelPrivatePendingText">
-              <property name="text"><string>0.00 FIRO</string></property>
-              <property name="styleSheet"><string>color:#111827; font-weight:600; font-size:13px;</string></property>
-              </widget>
-            </item>
-            </layout>
-          </widget>
+           <spacer name="privateTransparentSplitSpacer">
+            <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            <property name="sizeHint"><size><width>10</width><height>20</height></size></property>
+           </spacer>
           </item>
           <item>
-          <widget class="QFrame" name="frameTransparentAvailable">
-            <layout class="QHBoxLayout" name="layoutTransparentAvailable">
-            <property name="spacing"><number>1</number></property>
-            <item>
-              <widget class="QLabel" name="labelTransparentAvailableTitle">
-              <property name="text"><string>Transparent Available:</string></property>
-              <property name="styleSheet"><string>color:#6B7280; font-size:13px;</string></property>
-              </widget>
-            </item>
-            <item>
-              <widget class="QLabel" name="labelTransparentAvailableText">
-              <property name="text"><string>0.00 FIRO</string></property>
-              <property name="styleSheet"><string>color:#111827; font-weight:600; font-size:13px;</string></property>
-              </widget>
-            </item>
-            </layout>
-          </widget>
+           <widget class="QLabel" name="labelTransparentSplit">
+            <property name="text"><string>Transparent: 0.00 FIRO (0%)</string></property>
+            <property name="alignment"><set>Qt::AlignRight|Qt::AlignVCenter</set></property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
+            <property name="styleSheet"><string notr="true">QLabel#labelTransparentSplit { background: transparent; border: none; padding: 0; margin: 0; color: #111827; font-weight: 600; font-size: 12px; }</string></property>
+           </widget>
           </item>
-          <item>
-          <widget class="QFrame" name="frameTransparentPending">
-            <layout class="QHBoxLayout" name="layoutTransparentPending">
-            <property name="spacing"><number>1</number></property>
-            <item>
-              <widget class="QLabel" name="labelTransparentPendingTitle">
-              <property name="text"><string>Transparent Pending:</string></property>
-              <property name="styleSheet"><string>color:#6B7280; font-size:13px;</string></property>
-              </widget>
-            </item>
-            <item>
-              <widget class="QLabel" name="labelTransparentPendingText">
-              <property name="text"><string>0.00 FIRO</string></property>
-              <property name="styleSheet"><string>color:#111827; font-weight:600; font-size:13px;</string></property>
-              </widget>
-            </item>
-            </layout>
-          </widget>
-          </item>
-          <item>
-          <widget class="QFrame" name="frameTransparentImmature">
-            <layout class="QHBoxLayout" name="layoutTransparentImmature">
-            <property name="spacing"><number>1</number></property>
-            <item>
-              <widget class="QLabel" name="labelTransparentImmatureTitle">
-              <property name="text"><string>Transparent Immature:</string></property>
-              <property name="styleSheet"><string>color:#6B7280; font-size:13px;</string></property>
-              </widget>
-            </item>
-            <item>
-              <widget class="QLabel" name="labelTransparentImmatureText">
-              <property name="text"><string>0.00 FIRO</string></property>
-              <property name="styleSheet"><string>color:#111827; font-weight:600; font-size:13px;</string></property>
-              </widget>
-            </item>
-            </layout>
-          </widget>
-          </item>
-        </layout>
+         </layout>
+        </item>
+         </layout>
         </item>
         <item>
           <layout class="QHBoxLayout" name="watchOnlyRow">
@@ -256,18 +277,114 @@
           <item>
            <widget class="QPushButton" name="anonymizeButton">
             <property name="text"><string>Anonymize All</string></property>
+            <property name="cursor">
+             <cursorShape>PointingHandCursor</cursorShape>
+            </property>
+            <property name="minimumSize">
+             <size><width>0</width><height>36</height></size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton {
+    color: #FFFFFF;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    padding: 6px 18px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+}
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #9F1E34,
+                                stop:1 #6A132E);
+}
+QPushButton:disabled {
+    background: #F3F4F6;
+    color: #9CA3AF;
+}</string>
+            </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="sendButton">
             <property name="objectName"><string>secondaryButton</string></property>
             <property name="text"><string>Send</string></property>
+            <property name="cursor">
+             <cursorShape>PointingHandCursor</cursorShape>
+            </property>
+            <property name="minimumSize">
+             <size><width>0</width><height>36</height></size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton {
+    color: #FFFFFF;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    padding: 6px 18px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+}
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #9F1E34,
+                                stop:1 #6A132E);
+}
+QPushButton:disabled {
+    background: #F3F4F6;
+    color: #9CA3AF;
+}</string>
+            </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="receiveButton">
             <property name="objectName"><string>secondaryButton</string></property>
             <property name="text"><string>Receive</string></property>
+            <property name="cursor">
+             <cursorShape>PointingHandCursor</cursorShape>
+            </property>
+            <property name="minimumSize">
+             <size><width>0</width><height>36</height></size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton {
+    color: #FFFFFF;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    padding: 6px 18px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+}
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #9F1E34,
+                                stop:1 #6A132E);
+}
+QPushButton:disabled {
+    background: #F3F4F6;
+    color: #9CA3AF;
+}</string>
+            </property>
            </widget>
           </item>
           <item>
@@ -283,13 +400,26 @@
      </item>
      <item row="1" column="0">
       <widget class="QFrame" name="sparkCard">
+       <property name="maximumSize">
+        <size><width>16777215</width><height>510</height></size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QFrame#sparkCard {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #FFFFFF,
+                                stop:1 #F3F4F6);
+    border-radius: 15px;
+    border: 1px solid #E5E7EB;
+    padding: 10px;
+}</string>
+       </property>
        <layout class="QVBoxLayout" name="sparkCardLayout">
         <item>
           <layout class="QHBoxLayout" name="sparkHeaderRow">
           <property name="spacing"><number>8</number></property>
           <item>
             <widget class="QLabel" name="labelSparkAssets">
-          <property name="text"><string>Spark Assets</string></property>
+          <property name="text"><string>Assets</string></property>
           <property name="styleSheet">
             <string notr="true">
             QLabel#labelSparkAssets {
@@ -336,26 +466,35 @@
               <widget class="QPushButton" name="btnTabSpark">
                 <property name="checkable"><bool>true</bool></property>
                 <property name="checked"><bool>true</bool></property>
-                <property name="text"><string>Spark Assets</string></property>
+                <property name="text"><string>Assets</string></property>
+                <property name="cursor">
+                 <cursorShape>PointingHandCursor</cursorShape>
+                </property>
                 <property name="styleSheet">
-                  <string notr="true">
-                    QPushButton {
-                      background-color: #B24040;
-                      color: #FFFFFF;
-                      border: none;
-                      border-radius: 10px;
-                      padding: 4px 14px;
-                      font-weight: 600;
-                      font-size: 9pt;
-                    }
-                    QPushButton:hover {
-                      background-color: #993333;
-                    }
-                    QPushButton:checked {
-                      background-color: #B24040;
-                      color: #FFFFFF;
-                    }
-                  </string>
+                  <string notr="true">QPushButton {
+    color: #B21E3F;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 3px 14px;
+    background: #F3F4F6;
+    border: 1px solid rgba(178, 30, 63, 0.25);
+}
+QPushButton:hover {
+    background: rgba(254, 226, 226, 180);
+    border: 1px solid rgba(178, 30, 63, 0.35);
+}
+QPushButton:checked {
+    color: #FFFFFF;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+    border: none;
+}
+QPushButton:checked:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}</string>
                 </property>
               </widget>
             </item>
@@ -363,25 +502,34 @@
               <widget class="QPushButton" name="btnTabNFT">
                 <property name="checkable"><bool>true</bool></property>
                 <property name="text"><string>NFT</string></property>
+                <property name="cursor">
+                 <cursorShape>PointingHandCursor</cursorShape>
+                </property>
                 <property name="styleSheet">
-                  <string notr="true">
-                    QPushButton {
-                      background-color: #E5E7EB;
-                      color: #111827;
-                      border: none;
-                      border-radius: 10px;
-                      padding: 4px 14px;
-                      font-weight: 600;
-                      font-size: 9pt;
-                    }
-                    QPushButton:hover {
-                      background-color: #D1D5DB;
-                    }
-                    QPushButton:checked {
-                      background-color: #B24040;
-                      color: #FFFFFF;
-                    }
-                  </string>
+                  <string notr="true">QPushButton {
+    color: #B21E3F;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 3px 14px;
+    background: #F3F4F6;
+    border: 1px solid rgba(178, 30, 63, 0.25);
+}
+QPushButton:hover {
+    background: rgba(254, 226, 226, 180);
+    border: 1px solid rgba(178, 30, 63, 0.35);
+}
+QPushButton:checked {
+    color: #FFFFFF;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+    border: none;
+}
+QPushButton:checked:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}</string>
                 </property>
               </widget>
             </item>
@@ -404,8 +552,8 @@
             </property>
             <property name="sizeHint">
               <size>
-                <width>60</width>
-                <height>10</height>
+                <width>0</width>
+                <height>0</height>
               </size>
             </property>
           </spacer>
@@ -419,7 +567,10 @@
               <set>Qt::AlignLeft|Qt::AlignVCenter</set>
             </property>
             <property name="minimumWidth">
-              <number>120</number>
+              <number>0</number>
+            </property>
+            <property name="visible">
+              <bool>false</bool>
             </property>
             <property name="styleSheet">
               <string notr="true">
@@ -440,7 +591,10 @@
               <set>Qt::AlignLeft|Qt::AlignVCenter</set>
             </property>
             <property name="minimumWidth">
-              <number>220</number>
+              <number>0</number>
+            </property>
+            <property name="visible">
+              <bool>false</bool>
             </property>
             <property name="styleSheet">
               <string notr="true">
@@ -459,8 +613,8 @@
             </property>
             <property name="sizeHint">
               <size>
-                <width>40</width>
-                <height>10</height>
+                <width>0</width>
+                <height>0</height>
               </size>
             </property>
           </spacer>
@@ -474,7 +628,10 @@
               <set>Qt::AlignRight|Qt::AlignVCenter</set>
             </property>
             <property name="minimumWidth">
-              <number>120</number>
+              <number>0</number>
+            </property>
+            <property name="visible">
+              <bool>false</bool>
             </property>
             <property name="styleSheet">
               <string notr="true">
@@ -493,8 +650,8 @@
             </property>
             <property name="sizeHint">
               <size>
-                <width>40</width>
-                <height>10</height>
+                <width>0</width>
+                <height>0</height>
               </size>
             </property>
           </spacer>
@@ -504,33 +661,37 @@
         <item>
           <widget class="QStackedWidget" name="sparkContentStack">
             <widget class="QWidget" name="pageSparkAssets">
+              <property name="styleSheet">
+               <string notr="true">QWidget#pageSparkAssets { background: #FFFFFF; border: none; outline: none; margin: 0; padding: 0; }</string>
+              </property>
               <layout class="QVBoxLayout" name="sparkAssetsLayout">
                 <property name="spacing"><number>4</number></property>
                 <item>
-                  <widget class="QScrollArea" name="scrollSparkAssets">
-                    <property name="widgetResizable"><bool>true</bool></property>
-                    <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+                  <widget class="QWidget" name="scrollWidgetSparkAssets">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
                     <property name="styleSheet">
                       <string notr="true">
-                        QScrollArea {
-                          background: transparent;
-                          border: none;
-                        }
-                        QScrollArea > QWidget > QWidget {
-                          background: #FFFFFF;
-                          border: none;
-                        }
                         QWidget#scrollWidgetSparkAssets {
                           background: #FFFFFF;
                           border: none;
                         }
                       </string>
+                    </property>
+                    <layout class="QVBoxLayout" name="layoutSparkAssetsList">
+                      <property name="spacing"><number>12</number></property>
+                      <property name="leftMargin"><number>8</number></property>
+                      <property name="topMargin"><number>10</number></property>
+                      <property name="rightMargin"><number>8</number></property>
+                      <property name="bottomMargin"><number>10</number></property>
+                      <property name="alignment">
+                       <set>Qt::AlignLeading|Qt::AlignTop</set>
                       </property>
-                    <widget class="QWidget" name="scrollWidgetSparkAssets">
-                      <layout class="QVBoxLayout" name="layoutSparkAssetsList">
-                        <property name="spacing"><number>4</number></property>
-                      </layout>
-                    </widget>
+                    </layout>
                   </widget>
                 </item>
               </layout>
@@ -571,22 +732,20 @@
                 <cursorShape>PointingHandCursor</cursorShape>
               </property>
               <property name="styleSheet">
-                <string notr="true">
-                  QPushButton {
-                    background: transparent;
-                    border: none;
-                    color: #B24040;
-                    font-size: 10pt;
-                    font-weight: 600;
-                    text-decoration: none;
-                    padding: 0;
-                    margin-right: 12px;
-                  }
-                  QPushButton:hover {
-                    color: #993333;
-                    text-decoration: underline;
-                  }
-                </string>
+                <string notr="true">QPushButton {
+    background: transparent;
+    border: none;
+    color: #B21E3F;
+    font-size: 10pt;
+    font-weight: 600;
+    padding: 0;
+    margin-right: 12px;
+    text-decoration: none;
+}
+QPushButton:hover {
+    color: #9F1E34;
+    text-decoration: underline;
+}</string>
               </property>
             </widget>
           </item>
@@ -608,6 +767,19 @@
      </item>
    <item row="1" column="1">
       <widget class="QFrame" name="activityCard">
+       <property name="maximumSize">
+        <size><width>16777215</width><height>510</height></size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QFrame#activityCard {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #FFFFFF,
+                                stop:1 #F3F4F6);
+    border-radius: 15px;
+    border: 1px solid #E5E7EB;
+    padding: 10px;
+}</string>
+       </property>
         <layout class="QVBoxLayout" name="activityCardLayout">
     <item>
       <layout class="QVBoxLayout" name="recentHeaderLayout">
@@ -633,23 +805,34 @@
                 <property name="checkable"><bool>true</bool></property>
                 <property name="checked"><bool>true</bool></property>
                 <property name="text"><string>All</string></property>
+                <property name="cursor">
+                 <cursorShape>PointingHandCursor</cursorShape>
+                </property>
                 <property name="styleSheet">
-                  <string notr="true">
-                    QPushButton {
-                      background-color: #B24040;
-                      color: #FFFFFF;
-                      border: none;
-                      border-radius: 10px;
-                      font-size: 8pt;
-                      font-weight: 600;
-                      padding: 3px 10px;
-                    }
-                    QPushButton:hover { background-color: #993333; }
-                    QPushButton:checked {
-                      background-color: #B24040;
-                      color: #FFFFFF;
-                    }
-                  </string>
+                  <string notr="true">QPushButton {
+    color: #B21E3F;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 3px 14px;
+    background: #F3F4F6;
+    border: 1px solid rgba(178, 30, 63, 0.25);
+}
+QPushButton:hover {
+    background: rgba(254, 226, 226, 180);
+    border: 1px solid rgba(178, 30, 63, 0.35);
+}
+QPushButton:checked {
+    color: #FFFFFF;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+    border: none;
+}
+QPushButton:checked:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}</string>
                 </property>
               </widget>
             </item>
@@ -657,23 +840,34 @@
               <widget class="QPushButton" name="btnFilterFIRO">
                 <property name="checkable"><bool>true</bool></property>
                 <property name="text"><string>FIRO</string></property>
+                <property name="cursor">
+                 <cursorShape>PointingHandCursor</cursorShape>
+                </property>
                 <property name="styleSheet">
-                  <string notr="true">
-                    QPushButton {
-                      background-color: #E5E7EB;
-                      color: #111827;
-                      border: none;
-                      border-radius: 12px;
-                      font-size: 8pt;
-                      font-weight: 600;
-                      padding: 3px 12px;
-                    }
-                    QPushButton:hover { background-color: #D1D5DB; }
-                    QPushButton:checked {
-                      background-color: #B24040;
-                      color: #FFFFFF;
-                    }
-                  </string>
+                  <string notr="true">QPushButton {
+    color: #B21E3F;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 3px 14px;
+    background: #F3F4F6;
+    border: 1px solid rgba(178, 30, 63, 0.25);
+}
+QPushButton:hover {
+    background: rgba(254, 226, 226, 180);
+    border: 1px solid rgba(178, 30, 63, 0.35);
+}
+QPushButton:checked {
+    color: #FFFFFF;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+    border: none;
+}
+QPushButton:checked:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}</string>
                 </property>
               </widget>
             </item>
@@ -681,23 +875,34 @@
               <widget class="QPushButton" name="btnFilterAssets">
                 <property name="checkable"><bool>true</bool></property>
                 <property name="text"><string>Assets</string></property>
+                <property name="cursor">
+                 <cursorShape>PointingHandCursor</cursorShape>
+                </property>
                 <property name="styleSheet">
-                  <string notr="true">
-                    QPushButton {
-                      background-color: #E5E7EB;
-                      color: #111827;
-                      border: none;
-                      border-radius: 12px;
-                      font-size: 8pt;
-                      font-weight: 600;
-                      padding: 3px 12px;
-                    }
-                    QPushButton:hover { background-color: #D1D5DB; }
-                    QPushButton:checked {
-                      background-color: #B24040;
-                      color: #FFFFFF;
-                    }
-                  </string>
+                  <string notr="true">QPushButton {
+    color: #B21E3F;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 3px 14px;
+    background: #F3F4F6;
+    border: 1px solid rgba(178, 30, 63, 0.25);
+}
+QPushButton:hover {
+    background: rgba(254, 226, 226, 180);
+    border: 1px solid rgba(178, 30, 63, 0.35);
+}
+QPushButton:checked {
+    color: #FFFFFF;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #C62839,
+                                stop:1 #7A1736);
+    border: none;
+}
+QPushButton:checked:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #D23245,
+                                stop:1 #7A1736);
+}</string>
                 </property>
               </widget>
             </item>
@@ -710,8 +915,14 @@
           <property name="styleSheet">
             <string notr="true">
               QListView, QListView::viewport {
-                  background: #FFFFFF;
+                  background: transparent;
                   border: none;
+              }
+              QListView::item:selected {
+                  background: transparent;
+              }
+              QListView::item:hover {
+                  background: transparent;
               }
             </string>
           </property>

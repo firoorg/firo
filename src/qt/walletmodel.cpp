@@ -972,6 +972,11 @@ bool WalletModel::rebroadcastTransaction(uint256 hash, CValidationState &state)
         return false;
     }
 
+    if (!g_connman) {
+        state.DoS(0, false, REJECT_INVALID, "connman-null", false, "Connection manager is not available");
+        return false;
+    }
+
     g_connman->RelayTransaction(*wtx->tx);
     return true;
 }

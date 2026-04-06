@@ -6,6 +6,7 @@
 
 #include "bitcoingui.h"
 #include "walletview.h"
+#include "overviewpage.h"
 
 #include <cstdio>
 
@@ -61,6 +62,15 @@ bool WalletFrame::addWallet(const QString& name, WalletModel *walletModel)
 
     // Ensure walletview is able to response to resize and move events
     gui->installEventFilter(walletView);
+
+    if (auto overview = walletView->findChild<OverviewPage*>()) {
+        connect(overview, &OverviewPage::gotoSparkAssetsPage, gui, &BitcoinGUI::gotoSparkAssetsPage);
+        connect(overview, &OverviewPage::gotoSendCoinsPage, this, [this]() {
+            if (gui)
+                gui->gotoSendCoinsPage();
+        });
+        connect(overview, &OverviewPage::gotoReceiveCoinsPage, gui, &BitcoinGUI::gotoReceiveCoinsPage);
+    }
 
     return true;
 }
@@ -137,13 +147,6 @@ void WalletFrame::gotoMasternodePage()
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoMasternodePage();
-}
-
-void WalletFrame::gotoMyOwnSpatsPage()
-{
-    QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoMyOwnSpatsPage();
 }
 
 void WalletFrame::gotoSparkAssetsPage()
