@@ -1,0 +1,17 @@
+Description: Replace typeof with __typeof__ for GCC 14+ compatibility
+ The typeof() GNU extension is not recognized as an implicit function in
+ newer GCC versions (14+) when compiling in C23 mode. Use __typeof__
+ which is the portable GCC/Clang built-in that works across all C standard
+ modes.
+
+--- a/src/util/glvnd_pthread.c
++++ b/src/util/glvnd_pthread.c
+@@ -87,7 +87,7 @@
+ 
+ #define GET_MT_FUNC(funcs, handle, func) \
+     pthreadRealFuncs.func =                        \
+-        (typeof(pthreadRealFuncs.func))            \
++        (__typeof__(pthreadRealFuncs.func))        \
+         dlsym(handle, "pthread_" #func);           \
+ 
+ static void glvndSetupPthreads(void)

@@ -10,6 +10,10 @@ define $(package)_set_vars
   $(package)_config_opts += --disable-x11 --disable-gles1
 endef
 
+define $(package)_preprocess_cmds
+  patch -p1 < $($(package)_patch_dir)/fix-typeof-gcc14.patch
+endef
+
 define $(package)_config_cmds
   PKG_CONFIG_LIBDIR=$(host_prefix)/lib/pkgconfig \
   CC="$$($(package)_cc)" CXX="$$($(package)_cxx)" \
