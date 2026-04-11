@@ -175,9 +175,11 @@ jobs:
           depends-${{ matrix.platform }}-${{ steps.depends-host-triplet.outputs.value }}-
           depends-${{ matrix.platform }}-
     - name: Download Dependencies
-      if: steps.cache-depends.outputs.cache-hit != 'true'
       run: |
         set -exo pipefail
+        # Clear download stamps to ensure new/changed extra sources are fetched
+        # even when restoring from a stale cache (partial restore-key match).
+        rm -rf depends/sources/download-stamps
         attempt=1
         max=5
         until make -C depends download; do
