@@ -271,6 +271,7 @@ chain for " target " development."))
         automake
         autoconf-2.71
         pkg-config
+        expat
         ;; Scripting
         python-minimal ;; (3.10)
         perl
