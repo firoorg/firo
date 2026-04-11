@@ -15,6 +15,7 @@
              (gnu packages llvm)
              (gnu packages mingw)
              (gnu packages ninja)
+             ((gnu packages build-tools) #:select (meson))
              (gnu packages pkg-config)
              ((gnu packages python) #:select (python-minimal))
              ((gnu packages python-build) #:select (python-tomli python-poetry-core))
@@ -265,6 +266,7 @@ chain for " target " development."))
         cmake-minimal
         gnu-make
         ninja
+        meson
         libtool
         automake
         autoconf-2.71
