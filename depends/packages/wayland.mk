@@ -58,6 +58,7 @@ define $(package)_config_cmds
 endef
 
 define $(package)_build_cmds
+  LD_LIBRARY_PATH="$(host_prefix)/lib:$(build_prefix)/lib$${LD_LIBRARY_PATH:+:$$LD_LIBRARY_PATH}" \
   ninja -C build
 endef
 
