@@ -7,6 +7,40 @@ $(package)_sha256_hash = $($(native_package)_sha256_hash)
 $(package)_dependencies = $(native_package) libffi expat
 
 define $(package)_config_cmds
+  cross_arg="" ; \
+  if [ "$(host)" != "$(build)" ]; then \
+    CC="$$($(package)_cc)" ; \
+    CXX="$$($(package)_cxx)" ; \
+    cc_first=$$$${CC%% *} ; \
+    cc_rest=$$$${CC#* } ; \
+    cxx_first=$$$${CXX%% *} ; \
+    cxx_rest=$$$${CXX#* } ; \
+    if [ "$$$$cc_first" = "$$$$CC" ]; then \
+      cc_line="c = ['$$$$CC']" ; \
+    else \
+      cc_line="c = ['$$$$cc_first', '$$$$cc_rest']" ; \
+    fi ; \
+    if [ "$$$$cxx_first" = "$$$$CXX" ]; then \
+      cxx_line="cpp = ['$$$$CXX']" ; \
+    else \
+      cxx_line="cpp = ['$$$$cxx_first', '$$$$cxx_rest']" ; \
+    fi ; \
+    printf '%s\n' "[binaries]" "$$$$cc_line" "$$$$cxx_line" \
+      "ar = '$$($(package)_ar)'" \
+      "strip = '$$($(package)_ranlib)'" \
+      "pkg-config = 'pkg-config'" \
+      "" \
+      "[built-in options]" \
+      "pkg_config_path = ['$(host_prefix)/lib/pkgconfig', '$(build_prefix)/lib/pkgconfig', '$(host_prefix)/share/pkgconfig']" \
+      "" \
+      "[host_machine]" \
+      "system = 'linux'" \
+      "cpu_family = '$(host_arch)'" \
+      "cpu = '$(host_arch)'" \
+      "endian = 'little'" \
+      > cross.ini ; \
+    cross_arg="--cross-file cross.ini" ; \
+  fi && \
   PKG_CONFIG_LIBDIR=$(host_prefix)/lib/pkgconfig:$(build_prefix)/lib/pkgconfig \
   PKG_CONFIG_PATH=$(host_prefix)/share/pkgconfig \
   CC="$$($(package)_cc)" CXX="$$($(package)_cxx)" \
@@ -14,6 +48,7 @@ define $(package)_config_cmds
   CXXFLAGS="$$($(package)_cppflags) $$($(package)_cxxflags)" \
   LDFLAGS="$$($(package)_ldflags)" \
   meson setup build --prefix=$(host_prefix) \
+    $$$$cross_arg \
     --libdir=lib \
     -Dlibraries=true \
     -Dscanner=false \
