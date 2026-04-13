@@ -181,17 +181,6 @@ $(package)_config_opts_linux += -no-feature-vulkan
 $(package)_config_opts_linux += -dbus-runtime
 $(package)_config_opts_linux += -feature-xcb
 
-# Wayland-specific options:
-$(package)_config_opts_linux += -egl
-$(package)_config_opts_linux += -opengl es2
-$(package)_config_opts_linux += -no-opengles3
-$(package)_config_opts_linux += -no-feature-wayland-drm-egl-server-buffer
-$(package)_config_opts_linux += -no-feature-wayland-shm-emulation-server-buffer
-$(package)_config_opts_linux += -no-feature-wayland-client-fullscreen-shell-v1
-$(package)_config_opts_linux += -no-feature-wayland-client-ivi-shell
-$(package)_config_opts_linux += -no-feature-wayland-client-wl-shell
-$(package)_config_opts_linux += -no-feature-wayland-server
-
 ifneq ($(LTO),)
 $(package)_config_opts_linux += -ltcg
 endif
@@ -250,6 +239,7 @@ endif
 
 ifeq ($(host_os),linux)
 $(package)_cmake_opts += -DQT_FEATURE_xcb=ON
+$(package)_cmake_opts += -DWaylandScanner_EXECUTABLE=$(build_prefix)/bin/wayland-scanner
 endif
 
 ifdef GUIX_ENVIRONMENT
@@ -329,12 +319,15 @@ else
 define $(package)_extract_cmds
   mkdir -p $($(package)_extract_dir) && \
   echo "$($(package)_sha256_hash)  $($(package)_source)" > $($(package)_extract_dir)/.$($(package)_file_name).hash && \
+  echo "$($(package)_qtwayland_sha256_hash)  $($(package)_source_dir)/$($(package)_qtwayland_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmakelists_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmakelists_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmake_ecmoptionaladdsubdirectory_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmake_qttoplevelhelpers_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmake_qttoplevelhelpers_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   $(build_SHA256SUM) -c $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   mkdir qtbase && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source) -C qtbase && \
+  mkdir qtwayland && \
+  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qtwayland_file_name) -C qtwayland && \
   cp $($(package)_source_dir)/$($(package)_top_cmakelists_file_name)-$($(package)_version) ./$($(package)_top_cmakelists_file_name) && \
   mkdir cmake && \
   cp $($(package)_source_dir)/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version) cmake/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name) && \

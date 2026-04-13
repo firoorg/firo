@@ -6,7 +6,7 @@ $(package)_sha256_hash := f3a3082a23b37c293a4fcd1053147b371f2ff91fa7ea1b2a52e335
 
 define $(package)_set_vars
   $(package)_config_opts := --enable-option-checking --disable-dependency-tracking
-  $(package)_config_opts += --enable-shared --disable-static --disable-docs
+  $(package)_config_opts += --disable-shared --enable-static --disable-docs
   $(package)_config_opts += --disable-multi-os-directory
   $(package)_cflags += -D_GNU_SOURCE -std=gnu11
 endef

@@ -11,6 +11,7 @@ $(package)_patches += qtbase_avoid_native_float16.patch
 $(package)_patches += qtbase_skip_tools.patch
 $(package)_patches += rcc_hardcode_timestamp.patch
 $(package)_patches += qttools_skip_dependencies.patch
+$(package)_patches += qtwayland_build_scanner_without_gui.patch
 
 $(package)_qttranslations_file_name=$(qt_details_qttranslations_file_name)
 $(package)_qttranslations_sha256_hash=$(qt_details_qttranslations_sha256_hash)
@@ -36,6 +37,14 @@ $(package)_top_cmake_qttoplevelhelpers_sha256_hash=$(qt_details_top_cmake_qttopl
 $(package)_extra_sources += $($(package)_top_cmakelists_file_name)-$($(package)_version)
 $(package)_extra_sources += $($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version)
 $(package)_extra_sources += $($(package)_top_cmake_qttoplevelhelpers_file_name)-$($(package)_version)
+
+$(package)_qtwayland_file_name=$(qt_details_qtwayland_file_name)
+$(package)_qtwayland_sha256_hash=$(qt_details_qtwayland_sha256_hash)
+
+ifneq ($(filter linux freebsd,$(host_os)),)
+$(package)_dependencies := native_wayland_scanner
+$(package)_extra_sources += $($(package)_qtwayland_file_name)
+endif
 
 define $(package)_set_vars
 # Build options.
@@ -95,6 +104,9 @@ $(package)_config_env += OBJCXX="$$(build_CXX)"
 endif
 
 $(package)_cmake_opts := -DCMAKE_EXE_LINKER_FLAGS="$$(build_LDFLAGS)"
+ifneq ($(filter linux freebsd,$(host_os)),)
+$(package)_cmake_opts += -DWaylandScanner_EXECUTABLE=$(build_prefix)/bin/wayland-scanner
+endif
 ifneq ($(V),)
 $(package)_cmake_opts += --log-level=STATUS
 endif
@@ -108,6 +120,10 @@ $(call fetch_file,$(package),$($(package)_top_download_path),$($(package)_top_cm
 $(call fetch_file,$(package),$($(package)_top_cmake_download_path),$($(package)_top_cmake_ecmoptionaladdsubdirectory_download_file),$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version),$($(package)_top_cmake_ecmoptionaladdsubdirectory_sha256_hash)) && \
 $(call fetch_file,$(package),$($(package)_top_cmake_download_path),$($(package)_top_cmake_qttoplevelhelpers_download_file),$($(package)_top_cmake_qttoplevelhelpers_file_name)-$($(package)_version),$($(package)_top_cmake_qttoplevelhelpers_sha256_hash))
 endef
+ifneq ($(filter linux freebsd,$(host_os)),)
+$(package)_fetch_cmds += && \
+$(call fetch_file,$(package),$($(package)_download_path),$($(package)_qtwayland_file_name),$($(package)_qtwayland_file_name),$($(package)_qtwayland_sha256_hash))
+endif
 
 define $(package)_extract_cmds
   mkdir -p $($(package)_extract_dir) && \
@@ -129,6 +145,12 @@ define $(package)_extract_cmds
   cp $($(package)_source_dir)/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version) cmake/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name) && \
   cp $($(package)_source_dir)/$($(package)_top_cmake_qttoplevelhelpers_file_name)-$($(package)_version) cmake/$($(package)_top_cmake_qttoplevelhelpers_file_name)
 endef
+ifneq ($(filter linux freebsd,$(host_os)),)
+$(package)_extract_cmds += && \
+  echo "$($(package)_qtwayland_sha256_hash)  $($(package)_source_dir)/$($(package)_qtwayland_file_name)" | $(build_SHA256SUM) -c - && \
+  mkdir qtwayland && \
+  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qtwayland_file_name) -C qtwayland
+endif
 
 define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/dont_hardcode_pwd.patch && \
@@ -138,6 +160,10 @@ define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/rcc_hardcode_timestamp.patch && \
   patch -p1 -i $($(package)_patch_dir)/qttools_skip_dependencies.patch
 endef
+ifneq ($(filter linux freebsd,$(host_os)),)
+$(package)_preprocess_cmds += && \
+  patch -p1 -i $($(package)_patch_dir)/qtwayland_build_scanner_without_gui.patch
+endif
 
 define $(package)_config_cmds
   cd qtbase && \
