@@ -496,10 +496,13 @@ private:
     unsigned int nReceiveFloodSize;
 
     std::vector<ListenSocket> vhListenSocket;
-    /** Guards vhListenSocket. Needed because BindListenPort can be called
-     *  after start-up (e.g. from the Tor control thread once the dedicated
-     *  onion listener is created), while ThreadSocketHandler is concurrently
-     *  iterating the vector. */
+    /** Guards vhListenSocket. All current callers of BindListenPort run at
+     *  init time before ThreadSocketHandler starts, and Stop() runs after it
+     *  joins, so under the current call graph there is no concurrent access.
+     *  The lock is kept as defense-in-depth against a future runtime caller
+     *  (e.g. if the dedicated onion bind ever moves back to the Tor control
+     *  thread) mutating the vector while the socket handler or Stop() is
+     *  iterating it. */
     mutable CCriticalSection cs_vhListenSocket;
     std::atomic<bool> fNetworkActive;
     banmap_t setBanned;
