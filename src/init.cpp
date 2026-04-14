@@ -219,6 +219,10 @@ static CCoinsViewDB *pcoinsdbview = NULL;
 static CCoinsViewErrorCatcher *pcoinscatcher = NULL;
 static std::unique_ptr<ECCVerifyHandle> globalVerifyHandle;
 
+// Forward declaration: definition is further down alongside the -torsetup
+// embedded Tor helpers. File-local because no other TU calls it.
+static void InterruptTorEnabled();
+
 void Interrupt(boost::thread_group& threadGroup)
 {
     InterruptHTTPServer();
@@ -1083,7 +1087,8 @@ void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler,
 // request shutdown. Calling this only makes the wrapping event_base_dispatch
 // that follows tor_main() return immediately once tor_main does return on
 // process exit. Safe to call even while tor_main is still running.
-void InterruptTorEnabled()
+// File-local (forward-declared near Interrupt()).
+static void InterruptTorEnabled()
 {
     if (baseTor) {
         LogPrintf("tor: Thread interrupt\n");
