@@ -1859,14 +1859,19 @@ void CConnman::ThreadDNSAddressSeed()
 
     LogPrintf("Loading addresses from DNS seeds (could take a while)\n");
 
-    // If IPv4 is not reachable (e.g. -onlynet=onion or -onlynet=ipv6), avoid
-    // direct DNS lookups against the seed: they would go over clearnet and any
-    // resolved IPv4 addresses would be on a limited network anyway.
-    //   * If we have a name proxy, route the seed through it via AddOneShot so
-    //     resolution happens privately.
-    //   * Otherwise we have no safe way to resolve the seed host, so skip it
-    //     rather than fall back to system DNS (which would leak the lookup).
-    const bool fSkipDNSLookup = !IsReachable(NET_IPV4);
+    // Skip the direct DNS seed lookup only when *all* clearnet networks are
+    // unreachable, i.e. the user has restricted us to Tor/onion. In that case
+    // a DNS query would leak over clearnet and any resolved A/AAAA addresses
+    // would be on limited networks anyway. In mixed configurations where at
+    // least one of IPv4/IPv6 is still reachable (e.g. -onlynet=ipv6), keep
+    // doing the direct lookup -- getaddrinfo() returns both A and AAAA
+    // records and the unreachable-family addresses are filtered out later at
+    // connect time, so the lookup still produces useful peers.
+    //   * If we have a name proxy, route the seed through it via AddOneShot
+    //     regardless, so resolution happens privately.
+    //   * If we have no name proxy and no clearnet reachability, skip the
+    //     seed rather than fall back to system DNS.
+    const bool fSkipDNSLookup = !IsReachable(NET_IPV4) && !IsReachable(NET_IPV6);
 
     BOOST_FOREACH(const CDNSSeedData &seed, vSeeds) {
         if (interruptNet) {
@@ -1875,8 +1880,8 @@ void CConnman::ThreadDNSAddressSeed()
         if (HaveNameProxy()) {
             AddOneShot(seed.host);
         } else if (fSkipDNSLookup) {
-            LogPrintf("Skipping DNS seed %s: IPv4 not reachable and no name proxy configured "
-                      "(would leak DNS resolution over clearnet)\n", seed.host);
+            LogPrintf("Skipping DNS seed %s: no clearnet network reachable and no name proxy "
+                      "configured (would leak DNS resolution over clearnet)\n", seed.host);
             continue;
         } else {
             std::vector<CNetAddr> vIPs;
