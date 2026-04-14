@@ -482,9 +482,16 @@ void TorController::auth_cb(TorControlConnection& _conn, const TorControlReply& 
         // receive traffic forwarded from our hidden service. Connections
         // accepted on this listener are classified as NET_ONION so that peers
         // reaching us over Tor don't show up as IPv4 127.0.0.1 in the peer
-        // list (and aren't counted against non-onion network quotas). We only
-        // bind it once; the listener persists across Tor reconnects.
-        if (onion_local_port == 0) {
+        // list (and aren't counted against non-onion network quotas).
+        //
+        // The dedicated bind is attempted on every auth until it succeeds; on
+        // success the resolved port is cached and the listener persists across
+        // Tor reconnects. On transient failure we fall back to the shared
+        // listen port for this ADD_ONION cycle only and retry on the next
+        // reconnect, rather than latching into the shared-port fallback
+        // forever.
+        unsigned short forward_port = onion_local_port;
+        if (forward_port == 0) {
             if (g_connman) {
                 CService bindAddr(LookupNumeric("127.0.0.1", 0));
                 std::string strError;
@@ -494,22 +501,24 @@ void TorController::auth_cb(TorControlConnection& _conn, const TorControlReply& 
                                               /*is_onion_listener=*/true,
                                               &resolved_port) && resolved_port != 0) {
                     onion_local_port = resolved_port;
+                    forward_port = resolved_port;
                     LogPrintf("tor: Bound dedicated onion listener on 127.0.0.1:%i\n", onion_local_port);
                 } else {
-                    LogPrintf("tor: Failed to bind dedicated onion listener (%s); falling back to shared listen port %i\n",
-                        strError, GetListenPort());
-                    onion_local_port = GetListenPort();
+                    forward_port = GetListenPort();
+                    LogPrintf("tor: Failed to bind dedicated onion listener (%s); using shared listen port %i for this cycle and retrying on next reconnect\n",
+                        strError, forward_port);
                 }
             } else {
-                // CConnman not yet available; fall back to shared listen port.
-                onion_local_port = GetListenPort();
+                // CConnman not yet available (extremely early reconnect);
+                // use shared listen port for this cycle and retry next time.
+                forward_port = GetListenPort();
             }
         }
 
         // Request hidden service, redirect port.
         // Note that the 'virtual' port doesn't have to be the same as our internal port, but this is just a convenient
         // choice.  TODO; refactor the shutdown sequence some day.
-        _conn.Command(strprintf("ADD_ONION %s Port=%i,127.0.0.1:%i", private_key, GetListenPort(), onion_local_port),
+        _conn.Command(strprintf("ADD_ONION %s Port=%i,127.0.0.1:%i", private_key, GetListenPort(), forward_port),
             boost::bind(&TorController::add_onion_cb, this, _1, _2));
     } else {
         LogPrintf("tor: Authentication failed\n");

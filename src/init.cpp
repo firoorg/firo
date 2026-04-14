@@ -264,9 +264,12 @@ void Shutdown()
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
-    g_connman.reset();
 
+    // Stop the Tor control thread before tearing down CConnman: TorController's
+    // auth_cb may call into g_connman (e.g. to bind the dedicated onion
+    // listener), so the thread must be fully joined before g_connman.reset().
     StopTorControl();
+    g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
     if (fDumpMempoolLater)
         DumpMempool();
@@ -1541,8 +1544,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         for (const auto net : {NET_IPV4, NET_IPV6, NET_ONION}) {
             if (!onlyNetNets.count(net)) {
                 SetLimited(net);
-                SetNetworkExplicitlyLimited(net);
             }
+        }
+        // The "explicitly limited" flag is consulted by background setup paths
+        // that may try to (re)mark a network reachable after init finishes
+        // (today only TorController::auth_cb for NET_ONION). Other networks
+        // have no such async setup, so flagging them here would be dead.
+        if (!onlyNetNets.count(NET_ONION)) {
+            SetNetworkExplicitlyLimited(NET_ONION);
         }
     }
 
