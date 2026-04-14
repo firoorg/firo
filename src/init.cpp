@@ -226,6 +226,13 @@ void Interrupt(boost::thread_group& threadGroup)
     InterruptRPC();
     InterruptREST();
     InterruptTorControl();
+    // Best-effort interrupt for the -torsetup embedded Tor thread. tor_main()
+    // runs its own blocking event loop inside TorEnabledThread, so this only
+    // primes our wrapping event_base to exit once tor_main eventually returns
+    // (on process signal). We cannot cleanly stop embedded Tor from outside
+    // because no control port is configured; that's why Shutdown() does not
+    // call StopTorEnabled() -- joining the thread would deadlock.
+    InterruptTorEnabled();
     llmq::InterruptLLMQSystem();
     if (g_connman)
         g_connman->Interrupt();
@@ -269,6 +276,14 @@ void Shutdown()
     // auth_cb may call into g_connman (e.g. to bind the dedicated onion
     // listener), so the thread must be fully joined before g_connman.reset().
     StopTorControl();
+    // Note: there is intentionally no matching StopTorEnabled() call here
+    // for the -torsetup embedded Tor thread. RunTor() invokes tor_main()
+    // which runs Tor's own blocking event loop and does not return until
+    // the whole process is signaled; we don't configure a control port on
+    // the embedded Tor, so there is no in-band way to stop it. Joining
+    // torEnabledThread would deadlock Shutdown(). InterruptTorEnabled() in
+    // Interrupt() primes our wrapping event_base for post-tor_main
+    // cleanup; the embedded Tor itself is torn down by process exit.
     g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
     if (fDumpMempoolLater)
@@ -1062,6 +1077,12 @@ void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler,
     torEnabledThread = boost::thread(boost::bind(&TraceThread<void (*)()>, "torcontrol", &TorEnabledThread));
 }
 
+// Best-effort interrupt of the embedded Tor wrapper event_base. This does
+// NOT stop tor_main() itself -- Tor runs its own event loop inside
+// TorEnabledThread, and without a control port there is no in-band way to
+// request shutdown. Calling this only makes the wrapping event_base_dispatch
+// that follows tor_main() return immediately once tor_main does return on
+// process exit. Safe to call even while tor_main is still running.
 void InterruptTorEnabled()
 {
     if (baseTor) {
@@ -1070,6 +1091,14 @@ void InterruptTorEnabled()
     }
 }
 
+// WARNING: this will deadlock if called while tor_main() is still running
+// inside TorEnabledThread (the common case at shutdown), because
+// torEnabledThread.join() blocks until tor_main returns and embedded Tor
+// has no in-band shutdown path. Intentionally not called from Shutdown();
+// the embedded Tor thread is left to be torn down by process exit. Kept
+// as a no-op-ish symbol in case a future change adds a control port (e.g.
+// via tor_api_run_main + tor_shutdown_event_loop_for_controller_()) that
+// makes clean shutdown possible.
 void StopTorEnabled()
 {
     if (baseTor) {
@@ -1602,6 +1631,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     //     NET_ONION instead of IPv4 127.0.0.1.
     // The listener is flagged is_onion_listener so AcceptConnection tags
     // accepted peers accordingly.
+    //
+    // Note on -listen=0 interaction: -listen=0 soft-forces -listenonion=0
+    // (see the parameter-interaction block above), but does *not* force
+    // -torsetup=0. So with "-listen=0 -torsetup=1" we still bind this
+    // dedicated local listener and the embedded Tor's hidden service will
+    // route inbound traffic to it. This differs from pre-PR behavior where
+    // -listen=0 + -torsetup=1 effectively disabled inbound onion (the
+    // embedded Tor forwarded to 127.0.0.1:8168 where nothing was
+    // listening). The new behavior is closer to user intent ("-torsetup=1
+    // implies I want inbound via onion") while still honoring -listen=0
+    // for clearnet listeners.
     unsigned short onion_local_port = 0;
     if (torEnabled || listenOnion) {
         std::string strBindError;
