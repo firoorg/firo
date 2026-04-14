@@ -2521,7 +2521,25 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         CloseSocket(hListenSocket);
         return false;
     }
-    LogPrintf("Bound to %s\n", addrBind.ToString());
+
+    // Resolve the actual bound address via getsockname. The input addrBind
+    // may have used port 0 (e.g. the dedicated Tor onion listener requests
+    // an ephemeral port), in which case the kernel has just assigned a real
+    // port and addrBind.ToString() would misleadingly show ":0". Use the
+    // resolved address for the log line below and for the optional out_port
+    // result. getsockname is best-effort for logging; only a hard failure
+    // when the caller actually needs out_port rejects the bind.
+    CService resolvedBind;
+    bool haveResolved = false;
+    {
+        struct sockaddr_storage boundAddr;
+        socklen_t boundLen = sizeof(boundAddr);
+        if (getsockname(hListenSocket, (struct sockaddr*)&boundAddr, &boundLen) == 0 &&
+            resolvedBind.SetSockAddr((const struct sockaddr*)&boundAddr)) {
+            haveResolved = true;
+        }
+    }
+    LogPrintf("Bound to %s\n", haveResolved ? resolvedBind.ToString() : addrBind.ToString());
 
     // Listen for incoming connections
     if (listen(hListenSocket, SOMAXCONN) == SOCKET_ERROR)
@@ -2532,24 +2550,12 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         return false;
     }
 
-    // If requested (e.g. for the Tor onion-forwarded local listener bound to
-    // an ephemeral port), resolve the actual bound port via getsockname so the
-    // caller can use it. Treat any failure here as a hard bind failure: close
-    // the socket and bail out before publishing it to vhListenSocket, so we
-    // don't leave a listening socket the caller can't address.
+    // If the caller needs the resolved port (e.g. to tell Tor where to
+    // forward hidden-service traffic), failing to resolve is fatal -- we
+    // must not publish a listener whose port the caller can't address.
     if (out_port != nullptr) {
-        struct sockaddr_storage boundAddr;
-        socklen_t boundLen = sizeof(boundAddr);
-        if (getsockname(hListenSocket, (struct sockaddr*)&boundAddr, &boundLen) != 0) {
-            strError = strprintf("BindListenPort: getsockname failed after bind on %s (error %s)",
-                                 addrBind.ToString(), NetworkErrorString(WSAGetLastError()));
-            LogPrintf("%s\n", strError);
-            CloseSocket(hListenSocket);
-            return false;
-        }
-        CService resolvedBind;
-        if (!resolvedBind.SetSockAddr((const struct sockaddr*)&boundAddr)) {
-            strError = strprintf("BindListenPort: could not parse bound address for %s",
+        if (!haveResolved) {
+            strError = strprintf("BindListenPort: could not resolve bound address for %s",
                                  addrBind.ToString());
             LogPrintf("%s\n", strError);
             CloseSocket(hListenSocket);
