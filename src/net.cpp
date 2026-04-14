@@ -701,6 +701,7 @@ void CNode::copyStats(CNodeStats &stats)
         X(cleanSubVer);
     }
     X(fInbound);
+    X(m_inbound_onion);
     X(fAddnode);
     X(nStartingHeight);
     {
@@ -1267,12 +1268,13 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
 
-    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, "", true);
+    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, "", true, hListenSocket.is_onion_listener);
     pnode->AddRef();
     pnode->fWhitelisted = whitelisted;
     GetNodeSignals().InitializeNode(pnode, *this);
 
-    LogPrint("net", "connection from %s accepted\n", addr.ToString());
+    LogPrint("net", "connection from %s accepted%s\n", addr.ToString(),
+        hListenSocket.is_onion_listener ? " (inbound via onion)" : "");
 
     {
         LOCK(cs_vNodes);
@@ -1451,7 +1453,15 @@ void CConnman::ThreadSocketHandler()
         SOCKET hSocketMax = 0;
         bool have_fds = false;
 
-        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocket) {
+        // Snapshot the listen sockets under the lock, then work with the copy
+        // so concurrent BindListenPort calls (e.g. the Tor control thread
+        // binding the dedicated onion listener) can't invalidate iterators.
+        std::vector<ListenSocket> vhListenSocketSnapshot;
+        {
+            LOCK(cs_vhListenSocket);
+            vhListenSocketSnapshot = vhListenSocket;
+        }
+        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocketSnapshot) {
             FD_SET(hListenSocket.socket, &fdsetRecv);
             hSocketMax = std::max(hSocketMax, hListenSocket.socket);
             have_fds = true;
@@ -1520,7 +1530,7 @@ void CConnman::ThreadSocketHandler()
         //
         // Accept new connections
         //
-        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocket)
+        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocketSnapshot)
         {
             if (hListenSocket.socket != INVALID_SOCKET && FD_ISSET(hListenSocket.socket, &fdsetRecv))
             {
@@ -2411,7 +2421,8 @@ void CConnman::ThreadMessageHandler()
 
 
 
-bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, bool fWhitelisted)
+bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, bool fWhitelisted,
+                              bool is_onion_listener, unsigned short* out_port)
 {
     strError = "";
     int nOne = 1;
@@ -2501,9 +2512,29 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         return false;
     }
 
-    vhListenSocket.push_back(ListenSocket(hListenSocket, fWhitelisted));
+    // If requested (e.g. for the Tor onion-forwarded local listener) or if an
+    // ephemeral port was requested, resolve the actual bound port via
+    // getsockname so the caller can use it.
+    if (out_port != nullptr) {
+        struct sockaddr_storage boundAddr;
+        socklen_t boundLen = sizeof(boundAddr);
+        if (getsockname(hListenSocket, (struct sockaddr*)&boundAddr, &boundLen) == 0) {
+            CService resolvedBind;
+            if (resolvedBind.SetSockAddr((const struct sockaddr*)&boundAddr)) {
+                *out_port = resolvedBind.GetPort();
+            }
+        }
+    }
 
-    if (addrBind.IsRoutable() && fDiscover && !fWhitelisted)
+    {
+        LOCK(cs_vhListenSocket);
+        vhListenSocket.push_back(ListenSocket(hListenSocket, fWhitelisted, is_onion_listener));
+    }
+
+    // The dedicated local listener used to receive Tor-forwarded hidden
+    // service traffic is bound to 127.0.0.1; we must not advertise it as a
+    // local reachable address.
+    if (addrBind.IsRoutable() && fDiscover && !fWhitelisted && !is_onion_listener)
         AddLocal(addrBind, LOCAL_BIND);
 
     return true;
@@ -3388,12 +3419,13 @@ int CConnman::GetBestHeight() const
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 unsigned int CConnman::GetSendBufferSize() const{ return nSendBufferMaxSize; }
 
-CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const std::string& addrNameIn, bool fInboundIn) :
+CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const std::string& addrNameIn, bool fInboundIn, bool inbound_onion) :
     nTimeConnected(GetSystemTimeInSeconds()),
     nTimeFirstMessageReceived(0),
     fFirstMessageIsMNAUTH(false),
     addr(addrIn),
     fInbound(fInboundIn),
+    m_inbound_onion(inbound_onion),
     id(idIn),
     nKeyedNetGroup(nKeyedNetGroupIn),
     addrKnown(5000, 0.001),
