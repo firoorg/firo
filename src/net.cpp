@@ -1859,18 +1859,25 @@ void CConnman::ThreadDNSAddressSeed()
 
     LogPrintf("Loading addresses from DNS seeds (could take a while)\n");
 
-    // If IPv4 is not reachable (e.g. -onlynet=onion or -onlynet=ipv6), skip
-    // direct DNS lookups as they go over the clearnet and the resolved IPv4
-    // addresses would be on a limited network anyway. Use AddOneShot which
-    // resolves via the name proxy instead.
-    bool fSkipDNSLookup = !IsReachable(NET_IPV4);
+    // If IPv4 is not reachable (e.g. -onlynet=onion or -onlynet=ipv6), avoid
+    // direct DNS lookups against the seed: they would go over clearnet and any
+    // resolved IPv4 addresses would be on a limited network anyway.
+    //   * If we have a name proxy, route the seed through it via AddOneShot so
+    //     resolution happens privately.
+    //   * Otherwise we have no safe way to resolve the seed host, so skip it
+    //     rather than fall back to system DNS (which would leak the lookup).
+    const bool fSkipDNSLookup = !IsReachable(NET_IPV4);
 
     BOOST_FOREACH(const CDNSSeedData &seed, vSeeds) {
         if (interruptNet) {
             return;
         }
-        if (HaveNameProxy() || fSkipDNSLookup) {
+        if (HaveNameProxy()) {
             AddOneShot(seed.host);
+        } else if (fSkipDNSLookup) {
+            LogPrintf("Skipping DNS seed %s: IPv4 not reachable and no name proxy configured "
+                      "(would leak DNS resolution over clearnet)\n", seed.host);
+            continue;
         } else {
             std::vector<CNetAddr> vIPs;
             std::vector<CAddress> vAdd;

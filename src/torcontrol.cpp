@@ -354,7 +354,7 @@ static bool WriteBinaryFile(const std::string &filename, const std::string &data
 class TorController
 {
 public:
-    TorController(struct event_base* base, const std::string& target);
+    TorController(struct event_base* base, const std::string& target, unsigned short onion_local_port);
     ~TorController();
 
     /** Get name fo file to store private key in */
@@ -368,10 +368,13 @@ private:
     TorControlConnection conn;
     std::string private_key;
     std::string service_id;
-    /** Local port of the dedicated 127.0.0.1 listener that Tor forwards the
-     *  hidden service to. Bound once on first successful authentication and
-     *  reused across reconnects. 0 means not yet bound. */
-    unsigned short onion_local_port;
+    /** Local 127.0.0.1 port that Tor should forward the hidden service to.
+     *  Bound at init time on a listener flagged is_onion_listener=true so that
+     *  accepted connections are classified as NET_ONION. 0 means no dedicated
+     *  listener was bound and we will fall back to the shared listen port (in
+     *  which case inbound onion peers are misclassified as IPv4, the
+     *  pre-fix behavior). */
+    const unsigned short onion_local_port;
     bool reconnect;
     struct event *reconnect_ev;
     float reconnect_timeout;
@@ -398,9 +401,9 @@ private:
     static void reconnect_cb(evutil_socket_t fd, short what, void *arg);
 };
 
-TorController::TorController(struct event_base* _base, const std::string& _target):
+TorController::TorController(struct event_base* _base, const std::string& _target, unsigned short _onion_local_port):
     base(_base),
-    target(_target), conn(base), onion_local_port(0), reconnect(true), reconnect_ev(0),
+    target(_target), conn(base), onion_local_port(_onion_local_port), reconnect(true), reconnect_ev(0),
     reconnect_timeout(RECONNECT_TIMEOUT_START)
 {
     reconnect_ev = event_new(base, -1, 0, reconnect_cb, this);
@@ -478,42 +481,15 @@ void TorController::auth_cb(TorControlConnection& _conn, const TorControlReply& 
             private_key = "NEW:ED25519-V3"; // Explicitly request key type - see issue #9214 Bitcoin
         }
 
-        // Bind a dedicated local listener on 127.0.0.1:<ephemeral> that will
-        // receive traffic forwarded from our hidden service. Connections
-        // accepted on this listener are classified as NET_ONION so that peers
-        // reaching us over Tor don't show up as IPv4 127.0.0.1 in the peer
-        // list (and aren't counted against non-onion network quotas).
-        //
-        // The dedicated bind is attempted on every auth until it succeeds; on
-        // success the resolved port is cached and the listener persists across
-        // Tor reconnects. On transient failure we fall back to the shared
-        // listen port for this ADD_ONION cycle only and retry on the next
-        // reconnect, rather than latching into the shared-port fallback
-        // forever.
-        unsigned short forward_port = onion_local_port;
-        if (forward_port == 0) {
-            if (g_connman) {
-                CService bindAddr(LookupNumeric("127.0.0.1", 0));
-                std::string strError;
-                unsigned short resolved_port = 0;
-                if (g_connman->BindListenPort(bindAddr, strError,
-                                              /*fWhitelisted=*/false,
-                                              /*is_onion_listener=*/true,
-                                              &resolved_port) && resolved_port != 0) {
-                    onion_local_port = resolved_port;
-                    forward_port = resolved_port;
-                    LogPrintf("tor: Bound dedicated onion listener on 127.0.0.1:%i\n", onion_local_port);
-                } else {
-                    forward_port = GetListenPort();
-                    LogPrintf("tor: Failed to bind dedicated onion listener (%s); using shared listen port %i for this cycle and retrying on next reconnect\n",
-                        strError, forward_port);
-                }
-            } else {
-                // CConnman not yet available (extremely early reconnect);
-                // use shared listen port for this cycle and retry next time.
-                forward_port = GetListenPort();
-            }
-        }
+        // Forward inbound hidden-service traffic to the dedicated 127.0.0.1
+        // listener bound at init time (see AppInitMain). Accepted connections
+        // on that listener are classified as NET_ONION so peers reaching us
+        // over Tor don't show up as IPv4 127.0.0.1 in the peer list. If init
+        // could not bind the dedicated listener (onion_local_port == 0), fall
+        // back to the shared listen port -- this preserves the pre-fix
+        // behavior (peers visible as IPv4) but keeps the hidden service
+        // working.
+        const unsigned short forward_port = onion_local_port != 0 ? onion_local_port : GetListenPort();
 
         // Request hidden service, redirect port.
         // Note that the 'virtual' port doesn't have to be the same as our internal port, but this is just a convenient
@@ -708,15 +684,19 @@ void TorController::reconnect_cb(evutil_socket_t fd, short what, void *arg)
 /****** Thread ********/
 struct event_base *base;
 boost::thread torControlThread;
+/** Port for the dedicated onion-forwarded local listener, captured by
+ *  StartTorControl() and consumed by TorControlThread() when it constructs
+ *  the TorController. 0 means no dedicated listener was bound at init. */
+static unsigned short g_tor_onion_local_port = 0;
 
 static void TorControlThread()
 {
-    TorController ctrl(base, GetArg("-torcontrol", DEFAULT_TOR_CONTROL));
+    TorController ctrl(base, GetArg("-torcontrol", DEFAULT_TOR_CONTROL), g_tor_onion_local_port);
 
     event_base_dispatch(base);
 }
 
-void StartTorControl(boost::thread_group& threadGroup, CScheduler& scheduler)
+void StartTorControl(boost::thread_group& threadGroup, CScheduler& scheduler, unsigned short onion_local_port)
 {
     assert(!base);
 #ifdef WIN32
@@ -730,6 +710,7 @@ void StartTorControl(boost::thread_group& threadGroup, CScheduler& scheduler)
         return;
     }
 
+    g_tor_onion_local_port = onion_local_port;
     torControlThread = boost::thread(boost::bind(&TraceThread<void (*)()>, "torcontrol", &TorControlThread));
 }
 

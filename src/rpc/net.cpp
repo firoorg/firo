@@ -390,6 +390,13 @@ static UniValue GetNetworksInfo()
     for(int n=0; n<NET_MAX; ++n)
     {
         enum Network network = static_cast<enum Network>(n);
+        // Intentional narrowing relative to Bitcoin Core: Firo only supports
+        // ipv4/ipv6/onion as user-selectable networks (see -onlynet handling
+        // in init.cpp and ParseNetwork() in netbase.cpp). NET_I2P, NET_CJDNS
+        // and NET_INTERNAL are skipped here because they have no proxy
+        // configuration path and the qa/rpc-tests/proxy_test.py harness
+        // asserts the exact set ['ipv4','ipv6','onion']. If/when Firo adds
+        // I2P or CJDNS support, this filter and the test must be updated.
         if (network != NET_IPV4 && network != NET_IPV6 && network != NET_ONION)
             continue;
         proxyType proxy;
