@@ -1676,9 +1676,16 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
-    // Only set NET_ONION as limited by default if -onlynet was not specified.
-    // If -onlynet was specified, the network limitations have already been set correctly above.
-    if (!fOnlyNet) {
+    // Default NET_ONION to limited unless -onlynet already set the limits
+    // explicitly above OR -torsetup=1 has already configured the embedded
+    // Tor SOCKS proxy (and unlimited NET_ONION) in the torEnabled block.
+    // Without the !torEnabled guard, -torsetup=1 alone would end up with
+    // NET_ONION limited because this block runs after the torEnabled
+    // unlimit -- and post-PR that limit is actually enforced in
+    // OpenNetworkConnection / the masternode filter, blocking every
+    // outbound onion connection. -proxy and -onion below still get their
+    // chance to limit/unlimit explicitly.
+    if (!fOnlyNet && !torEnabled) {
         SetLimited(NET_ONION);
     }
     if (proxyArg != "" && proxyArg != "0") {
