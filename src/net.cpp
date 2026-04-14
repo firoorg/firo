@@ -2518,18 +2518,30 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         return false;
     }
 
-    // If requested (e.g. for the Tor onion-forwarded local listener) or if an
-    // ephemeral port was requested, resolve the actual bound port via
-    // getsockname so the caller can use it.
+    // If requested (e.g. for the Tor onion-forwarded local listener bound to
+    // an ephemeral port), resolve the actual bound port via getsockname so the
+    // caller can use it. Treat any failure here as a hard bind failure: close
+    // the socket and bail out before publishing it to vhListenSocket, so we
+    // don't leave a listening socket the caller can't address.
     if (out_port != nullptr) {
         struct sockaddr_storage boundAddr;
         socklen_t boundLen = sizeof(boundAddr);
-        if (getsockname(hListenSocket, (struct sockaddr*)&boundAddr, &boundLen) == 0) {
-            CService resolvedBind;
-            if (resolvedBind.SetSockAddr((const struct sockaddr*)&boundAddr)) {
-                *out_port = resolvedBind.GetPort();
-            }
+        if (getsockname(hListenSocket, (struct sockaddr*)&boundAddr, &boundLen) != 0) {
+            strError = strprintf("BindListenPort: getsockname failed after bind on %s (error %s)",
+                                 addrBind.ToString(), NetworkErrorString(WSAGetLastError()));
+            LogPrintf("%s\n", strError);
+            CloseSocket(hListenSocket);
+            return false;
         }
+        CService resolvedBind;
+        if (!resolvedBind.SetSockAddr((const struct sockaddr*)&boundAddr)) {
+            strError = strprintf("BindListenPort: could not parse bound address for %s",
+                                 addrBind.ToString());
+            LogPrintf("%s\n", strError);
+            CloseSocket(hListenSocket);
+            return false;
+        }
+        *out_port = resolvedBind.GetPort();
     }
 
     {
@@ -2908,10 +2920,16 @@ void CConnman::Stop()
     // Close sockets
     BOOST_FOREACH(CNode* pnode, vNodes)
         pnode->CloseSocketDisconnect();
-    BOOST_FOREACH(ListenSocket& hListenSocket, vhListenSocket)
-        if (hListenSocket.socket != INVALID_SOCKET)
-            if (!CloseSocket(hListenSocket.socket))
-                LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
+    {
+        // Match BindListenPort's locking: a late BindListenPort from the Tor
+        // control thread (auth_cb) could otherwise mutate vhListenSocket
+        // concurrently with Stop().
+        LOCK(cs_vhListenSocket);
+        BOOST_FOREACH(ListenSocket& hListenSocket, vhListenSocket)
+            if (hListenSocket.socket != INVALID_SOCKET)
+                if (!CloseSocket(hListenSocket.socket))
+                    LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
+    }
 
     // clean up some globals (to help leak detection)
     BOOST_FOREACH(CNode *pnode, vNodes) {
@@ -2922,7 +2940,10 @@ void CConnman::Stop()
     }
     vNodes.clear();
     vNodesDisconnected.clear();
-    vhListenSocket.clear();
+    {
+        LOCK(cs_vhListenSocket);
+        vhListenSocket.clear();
+    }
     delete semOutbound;
     semOutbound = NULL;
     delete semAddnode;
