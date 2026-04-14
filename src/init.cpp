@@ -1541,6 +1541,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
             onlyNetNets.insert(net);
         }
+        // Intentional narrowing relative to Bitcoin Core: Firo only enforces
+        // -onlynet over the user-selectable networks (ipv4, ipv6, onion).
+        // NET_I2P / NET_CJDNS aren't supported as -onlynet targets (they have
+        // no proxy/transport plumbing in Firo, ParseNetwork() doesn't accept
+        // them, and getnetworkinfo doesn't surface them). If Firo adds
+        // support for either, extend this list, GetNetworksInfo() in
+        // src/rpc/net.cpp, and the qa/rpc-tests/proxy_test.py expected set.
         for (const auto net : {NET_IPV4, NET_IPV6, NET_ONION}) {
             if (!onlyNetNets.count(net)) {
                 SetLimited(net);
@@ -2121,8 +2128,27 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
     LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
-        StartTorControl(threadGroup, scheduler);
+    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION)) {
+        // Bind a dedicated 127.0.0.1:<ephemeral> listener used only to receive
+        // traffic forwarded by Tor from our hidden service. Doing this here at
+        // init time (mirroring Bitcoin Core's pattern, ref bitcoin#16702)
+        // means the Tor control thread never has to call BindListenPort at
+        // runtime: it just receives the resolved port and points ADD_ONION at
+        // it. Connections accepted on this socket are flagged is_onion_listener
+        // so AcceptConnection classifies them as NET_ONION instead of IPv4.
+        unsigned short onion_local_port = 0;
+        std::string strError;
+        CService onionBindAddr(LookupNumeric("127.0.0.1", 0));
+        if (!connman.BindListenPort(onionBindAddr, strError,
+                                    /*fWhitelisted=*/false,
+                                    /*is_onion_listener=*/true,
+                                    &onion_local_port) || onion_local_port == 0) {
+            LogPrintf("Warning: failed to bind dedicated local listener for Tor hidden service (%s); "
+                      "inbound onion peers will appear as IPv4 127.0.0.1\n", strError);
+            onion_local_port = 0;
+        }
+        StartTorControl(threadGroup, scheduler, onion_local_port);
+    }
 
     Discover(threadGroup);
 
