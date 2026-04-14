@@ -972,7 +972,7 @@ static std::string ResolveErrMsg(const char *const optname, const std::string &s
     return strprintf(_("Cannot resolve -%s address: '%s'"), optname, strBind);
 }
 
-void RunTor(){
+void RunTor(unsigned short onion_local_port){
 	printf("TOR thread started.\n");
 
 	boost::optional < std::string > clientTransportPlugin;
@@ -1000,7 +1000,17 @@ void RunTor(){
 	argv.push_back("--HiddenServiceDir");
 	argv.push_back((tor_dir / "onion").string());
 	argv.push_back("--HiddenServicePort");
-	argv.push_back("8168");
+	// When a dedicated onion listener was bound at init time, point the
+	// hidden service at it so inbound traffic is accepted on a socket
+	// flagged is_onion_listener (and therefore classified as NET_ONION).
+	// Otherwise fall back to the single-port form, which Tor interprets
+	// as VIRTPORT -> localhost:VIRTPORT and lands inbound peers on the
+	// main listener (same as pre-fix behavior).
+	if (onion_local_port != 0) {
+		argv.push_back(strprintf("8168 127.0.0.1:%u", onion_local_port));
+	} else {
+		argv.push_back("8168");
+	}
 
 	if (clientTransportPlugin) {
 		printf("Using OBFS4.\n");
@@ -1021,15 +1031,20 @@ void RunTor(){
 
 struct event_base *baseTor;
 boost::thread torEnabledThread;
+/** Port for the dedicated onion-forwarded local listener, captured by
+ *  StartTorEnabled() and consumed by TorEnabledThread() when it launches
+ *  the embedded Tor. 0 means no dedicated listener was bound. */
+static unsigned short g_tor_enabled_onion_local_port = 0;
 
 static void TorEnabledThread()
 {
-	RunTor();
+	RunTor(g_tor_enabled_onion_local_port);
     event_base_dispatch(baseTor);
 }
 
 
-void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
+void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler,
+                     unsigned short onion_local_port = 0)
 {
     assert(!baseTor);
 #ifdef WIN32
@@ -1043,6 +1058,7 @@ void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
         return;
     }
 
+    g_tor_enabled_onion_local_port = onion_local_port;
     torEnabledThread = boost::thread(boost::bind(&TraceThread<void (*)()>, "torcontrol", &TorEnabledThread));
 }
 
@@ -1574,8 +1590,34 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // start tor
     bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    bool listenOnion = GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION);
+
+    // Bind a dedicated 127.0.0.1:<ephemeral> listener used only to receive
+    // traffic forwarded by Tor from our hidden service. Doing this once at
+    // init (mirroring Bitcoin Core's pattern, ref bitcoin#16702) means:
+    //   * the Tor control thread never has to call BindListenPort at
+    //     runtime (it just receives the resolved port); and
+    //   * -torsetup's embedded Tor can point its --HiddenServicePort target
+    //     at this socket too, so both paths classify inbound peers as
+    //     NET_ONION instead of IPv4 127.0.0.1.
+    // The listener is flagged is_onion_listener so AcceptConnection tags
+    // accepted peers accordingly.
+    unsigned short onion_local_port = 0;
+    if (torEnabled || listenOnion) {
+        std::string strBindError;
+        CService onionBindAddr(LookupNumeric("127.0.0.1", 0));
+        if (!connman.BindListenPort(onionBindAddr, strBindError,
+                                    /*fWhitelisted=*/false,
+                                    /*is_onion_listener=*/true,
+                                    &onion_local_port) || onion_local_port == 0) {
+            LogPrintf("Warning: failed to bind dedicated local listener for Tor hidden service (%s); "
+                      "inbound onion peers will appear as IPv4 127.0.0.1\n", strBindError);
+            onion_local_port = 0;
+        }
+    }
+
     if(torEnabled){
-    	StartTorEnabled(threadGroup, scheduler);
+    	StartTorEnabled(threadGroup, scheduler, onion_local_port);
         proxyType addrProxy = proxyType(LookupNumeric("127.0.0.1", 9050),
                         true);
         SetProxy(NET_IPV4, addrProxy);
@@ -2128,25 +2170,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
     LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION)) {
-        // Bind a dedicated 127.0.0.1:<ephemeral> listener used only to receive
-        // traffic forwarded by Tor from our hidden service. Doing this here at
-        // init time (mirroring Bitcoin Core's pattern, ref bitcoin#16702)
-        // means the Tor control thread never has to call BindListenPort at
-        // runtime: it just receives the resolved port and points ADD_ONION at
-        // it. Connections accepted on this socket are flagged is_onion_listener
-        // so AcceptConnection classifies them as NET_ONION instead of IPv4.
-        unsigned short onion_local_port = 0;
-        std::string strError;
-        CService onionBindAddr(LookupNumeric("127.0.0.1", 0));
-        if (!connman.BindListenPort(onionBindAddr, strError,
-                                    /*fWhitelisted=*/false,
-                                    /*is_onion_listener=*/true,
-                                    &onion_local_port) || onion_local_port == 0) {
-            LogPrintf("Warning: failed to bind dedicated local listener for Tor hidden service (%s); "
-                      "inbound onion peers will appear as IPv4 127.0.0.1\n", strError);
-            onion_local_port = 0;
-        }
+    if (listenOnion) {
+        // The dedicated onion listener (if any) was bound earlier, shared
+        // with the -torsetup path; reuse its port here.
         StartTorControl(threadGroup, scheduler, onion_local_port);
     }
 

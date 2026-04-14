@@ -1459,9 +1459,11 @@ void CConnman::ThreadSocketHandler()
         SOCKET hSocketMax = 0;
         bool have_fds = false;
 
-        // Snapshot the listen sockets under the lock, then work with the copy
-        // so concurrent BindListenPort calls (e.g. the Tor control thread
-        // binding the dedicated onion listener) can't invalidate iterators.
+        // Snapshot the listen sockets under the lock, then work with the
+        // copy. In the current call graph vhListenSocket is only mutated at
+        // init (before this thread starts) and in Stop() (after this thread
+        // joins), so this is defense-in-depth against a future runtime
+        // BindListenPort caller invalidating iterators mid-loop.
         std::vector<ListenSocket> vhListenSocketSnapshot;
         {
             LOCK(cs_vhListenSocket);
@@ -2933,9 +2935,10 @@ void CConnman::Stop()
     BOOST_FOREACH(CNode* pnode, vNodes)
         pnode->CloseSocketDisconnect();
     {
-        // Match BindListenPort's locking: a late BindListenPort from the Tor
-        // control thread (auth_cb) could otherwise mutate vhListenSocket
-        // concurrently with Stop().
+        // Match BindListenPort's locking as defense-in-depth. In the current
+        // call graph all BindListenPort calls happen at init, so nothing
+        // else is mutating vhListenSocket here; this keeps the invariant
+        // stable if a runtime caller is reintroduced.
         LOCK(cs_vhListenSocket);
         BOOST_FOREACH(ListenSocket& hListenSocket, vhListenSocket)
             if (hListenSocket.socket != INVALID_SOCKET)
