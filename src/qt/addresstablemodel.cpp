@@ -106,6 +106,8 @@ public:
 
 private:
     void queueProcessPendingSparkNameChanges() {
+        if (!parent->AutoProcessPendingSparkNameChanges())
+            return;
         QMetaObject::invokeMethod(parent, "ProcessPendingSparkNameChanges", Qt::QueuedConnection);
     }
 
