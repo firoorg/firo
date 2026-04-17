@@ -736,6 +736,14 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
     }
 
+    // After Spark Names v2.1, Spark SMint (OP_SPARKSMINT) outputs must have nValue zero — value is committed only in the script.
+    if (nTxHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
+        for (const auto &vout : tx.vout) {
+            if (vout.scriptPubKey.IsSparkSMint() && vout.nValue != 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-spark-smint-nvalue");
+        }
+    }
+
     if (tx.IsCoinBase())
     {
         size_t minCbSize = 2;
