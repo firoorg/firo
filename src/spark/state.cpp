@@ -1,10 +1,11 @@
+#include "threadpool.h"
 #include "state.h"
 #include "compat_layer.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 
-
+#include <memory>
 #include <set>
 
 namespace spark {
@@ -15,11 +16,16 @@ struct ProofCheckState {
 
     // result of the check (if fChecked is true)
     bool fResult;
+
+    // if this is non-null, then the proof is being checked right now
+    std::shared_ptr<boost::future<bool>> checkInProgress;
 };
 
 // map from transaction hash to the state of checking its proofs
 static std::map<uint256, ProofCheckState> gCheckedSparkSpendTransactions;
 static CCriticalSection cs_checkedSparkSpendTransactions;
+
+static ParallelOpThreadPool<bool> gCheckProofThreadPool(std::min(boost::thread::hardware_concurrency(), 4u));
 
 static CSparkState sparkState;
 
@@ -97,7 +103,7 @@ unsigned char GetNetworkType() {
 }
 
 /*
- * Util funtions
+ * Util functions
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
     return index->sparkMintedCoins.count(id) > 0
@@ -787,10 +793,61 @@ bool CheckSparkSpendTransaction(
                             fChecked = true;
                         }
                     }
+                    // If the check is in progress and we are doing a stateful check, we need to wait
+                    else if (checkState.checkInProgress && fStatefulSigmaCheck) {
+                        // wait for the check to complete
+                        auto future = checkState.checkInProgress;
+                        cs_checkedSparkSpendTransactions.unlock();
+                        bool result = future->get();
+                        cs_checkedSparkSpendTransactions.lock();
+
+                        // Entry may have been erased by DisconnectTipSpark during the unlock window
+                        auto it = gCheckedSparkSpendTransactions.find(hashTx);
+                        if (it == gCheckedSparkSpendTransactions.end()) {
+                            fRecheckNeeded = true;
+                            continue;
+                        }
+                        ProofCheckState& checkStateAfterWait = it->second;
+
+                        checkStateAfterWait.fChecked = true;
+                        checkStateAfterWait.fResult = result;
+                        checkStateAfterWait.checkInProgress = nullptr;
+
+                        if (!result) {
+                            // unfortunately, it's possible that the proof was checked and failed
+                            // because the anonymity set was incomplete at the time of checking. We need
+                            // to recheck the proof again
+                            fRecheckNeeded = true;
+                            gCheckedSparkSpendTransactions.erase(hashTx);
+                        }
+                        else
+                            fChecked = true;
+                    }
+                }
+                else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
+                    // not an urgent check, put the proof into the thread pool for verification
+                    // don't post a request if there are too many tasks already
+                    if (gCheckProofThreadPool.GetPendingTaskCount() < (std::size_t)gCheckProofThreadPool.GetNumberOfThreads()/2) {
+                        auto future = gCheckProofThreadPool.PostTask([spend, cover_sets]() mutable {
+                            try {
+                                bool result = spark::SpendTransaction::verify(*spend, cover_sets);
+                                spend.reset();
+                                cover_sets.clear();
+                                return result;
+                            } catch (const std::exception &) {
+                                return false;
+                            }
+                        });
+                        auto &checkState = gCheckedSparkSpendTransactions[hashTx];
+                        checkState.fChecked = false;
+                        checkState.fResult = false;
+                        checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
+                        scheduledAsync = true;
+                    }
                 }
             }
             while (fRecheckNeeded);
-    
+
             if (fChecked) {
                 // if we are here, then the proof was already checked and it passed
                 passVerify = true;
@@ -799,10 +856,6 @@ bool CheckSparkSpendTransaction(
                 if (fStatefulSigmaCheck) {
                     // we need the answer now, so verify and execute
                     passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
-                    {
-                        LOCK(cs_checkedSparkSpendTransactions);
-                        gCheckedSparkSpendTransactions[hashTx] = {true, passVerify};
-                    }
                 }
                 else {
                     if (scheduledAsync) {
@@ -836,7 +889,7 @@ bool CheckSparkSpendTransaction(
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
             for (size_t i = 0; i < lTags.size(); ++i) {
                     if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
-                        LogPrintf("CheckSparkSpendTransaction: lTAg check failed, ltag=%s\n", lTags[i]);
+                        LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
             }
@@ -966,6 +1019,7 @@ bool CheckSparkTransaction(
 }
 
 void ShutdownSparkState() {
+    gCheckProofThreadPool.Shutdown();
 }
 
 uint256 GetTxHashFromCoin(const spark::Coin& coin) {

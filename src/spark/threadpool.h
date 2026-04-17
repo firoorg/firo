@@ -1,9 +1,8 @@
-// Copyright (c) 2022 The Firo Core Developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Copyright (c) The Firo Core Developers
+// Thread pool for Spark wallet background tasks (same implementation as historical liblelantus/threadpool.h).
 
-#ifndef FIRO_SPARK_THREADPOOL_H
-#define FIRO_SPARK_THREADPOOL_H
+#ifndef THREADPOOL_H
+#define THREADPOOL_H
 
 #include <algorithm>
 #include <functional>
@@ -24,7 +23,7 @@
 // Number of seconds before thread shuts down if idle
 constexpr static int secondsBeforeThreadShutdown = 60;
 
-// Simple thread pool for Spark wallet background tasks (moved from liblelantus with Lelantus strip).
+// Simple thread pool class for using multiple cores efficiently
 
 template <typename Result>
 class ParallelOpThreadPool {
@@ -46,6 +45,8 @@ private:
                 task_queue_condition.wait_for(lock, boost::chrono::seconds(secondsBeforeThreadShutdown),
                                               [this] { return !task_queue.empty() || shutdown; });
                 if (task_queue.empty()) {
+                    // Either timeout or shutdown. If it's a timeout we need to delete ourself from the thread list and detach the thread
+                    // In case of shutdown thread list will be empty and destructor will wait for this thread completion
                     boost::thread::id currentId = boost::this_thread::get_id();
                     auto pThread = std::find_if(threads.begin(), threads.end(),
                                                 [currentId](const boost::thread &t) { return t.get_id() == currentId; });
@@ -63,9 +64,10 @@ private:
     }
 
     void StartThreads() {
-        while (threads.size() < number_of_threads) {
-            threads.emplace_back([this]() { ThreadProc(); });
-        }
+        // should be called with mutex acquired
+        // start missing threads
+        while (threads.size() < number_of_threads)
+            threads.emplace_back(std::bind(&ParallelOpThreadPool::ThreadProc, this));
     }
 
 public:
@@ -75,12 +77,14 @@ public:
         Shutdown();
     }
 
+    // Post a task to the thread pool and return a future to wait for its completion
     boost::future<Result> PostTask(std::function<Result()> task) {
         boost::packaged_task<Result> packagedTask(task);
         boost::future<Result> ret = packagedTask.get_future();
 
         boost::mutex::scoped_lock lock(task_queue_mutex);
 
+        // lazy start threads on first request or after shutdown
         if (threads.size() < number_of_threads)
             StartThreads();
 
@@ -102,9 +106,11 @@ public:
             shutdown = true;
             task_queue_condition.notify_all();
 
+            // move the list to separate variable to wait for the shutdown process to complete
             threadsToJoin.swap(threads);
         }
 
+        // wait for all the threads
         for (boost::thread &t: threadsToJoin)
             t.join();
     }
@@ -120,6 +126,8 @@ public:
     }
 };
 
+
+// helper class to put thread interruption on pause
 class DoNotDisturb {
 private:
     boost::this_thread::disable_interruption dnd;
@@ -127,4 +135,5 @@ public:
     DoNotDisturb() {}
 };
 
-#endif // FIRO_SPARK_THREADPOOL_H
+
+#endif

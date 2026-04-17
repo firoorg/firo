@@ -50,6 +50,8 @@ public:
         AutoAnonymize,          // bool
         Split,                  // bool
         enableRapAddresses,     // bool
+        ReindexSpark,           // bool (wallet: zap Spark mints + reindex; QSettings bReindexSpark)
+        SparkPage,              // bool (show Spark manual-anonymize UI; QSettings fSparkPage)
         OptionIDRowCount,
     };
 
@@ -73,6 +75,7 @@ public:
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
     bool getAutoAnonymize() { return fAutoAnonymize; }
     bool getfSplit() { return fSplit; }
+    bool getSparkPage() { return fSparkPage; }
 
     /* Restart flag helper */
     void setRestartRequired(bool fRequired);
@@ -89,6 +92,7 @@ private:
     bool fCoinControlFeatures;
     bool fAutoAnonymize;
     bool fSplit;
+    bool fSparkPage;
     bool fenableRapAddresses;
 
     /* settings that were overridden by command-line */
@@ -104,6 +108,7 @@ Q_SIGNALS:
     void coinControlFeaturesChanged(bool);
     void enableRapAddressesChanged(bool);
     void autoAnonymizeChanged(bool);
+    void sparkPageChanged(bool);
     void hideTrayIconChanged(bool);
 };
 

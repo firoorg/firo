@@ -687,33 +687,32 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
 
         const auto &params = ::Params().GetConsensus();
+        // Use nTxHeight (not nHeight) so mempool calls with nHeight==INT_MAX use chain tip like
+        // nExchangeAddressStartBlock checks above — same idea as Sigma/Lelantus mempool gates.
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
-            if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
+            if (!isVerifyDB && nTxHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
         }
 
         if (tx.IsSigmaSpend() || tx.IsSigmaMint()) {
-            if (!isVerifyDB && nHeight >= params.nLelantusStartBlock)
+            if (!isVerifyDB && nTxHeight >= params.nLelantusStartBlock)
                 return state.DoS(1, error("Sigma already is not available, start using Lelantus."));
         }
 
         if (tx.IsLelantusJoinSplit() || tx.IsLelantusMint()) {
-            const int lelantusDisabledHeight = params.nLelantusGracefulPeriod > 0
-                ? params.nLelantusGracefulPeriod
-                : params.nSparkStartBlock;
-            if (!isVerifyDB && nHeight >= lelantusDisabledHeight)
+            if (!isVerifyDB && nTxHeight >= params.nLelantusGracefulPeriod)
                 return state.DoS(1, error("Lelantus already is not available, start using Spark."));
         }
 
         if (tx.IsZerocoinRemint()) {
-            if (!isVerifyDB && (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
+            if (!isVerifyDB && (nTxHeight < params.nSigmaStartBlock || nTxHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
                 // we allow transactions of remint type only during specific window
                 return false;
         }
     }
 
     bool isInWhitelist = Params().GetConsensus().txidWhitelist.count(tx.GetHash()) > 0;
-    if (nHeight >= ::Params().GetConsensus().nStartBlacklist && !isInWhitelist) {
+    if (nTxHeight >= ::Params().GetConsensus().nStartBlacklist && !isInWhitelist) {
         for (const auto& vin : tx.vin) {
             if (txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
                     return state.DoS(100, error("Spending this tx is temporarily disabled"),

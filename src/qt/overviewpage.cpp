@@ -10,6 +10,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "sparkmodel.h"
+#include "spark/state.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "transactionfilterproxy.h"
@@ -296,6 +297,7 @@ void OverviewPage::setBalance(
     ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
 
     auto wallet = walletModel->getWallet();
+    updateSparkAnonymizeRowVisibility();
     ui->anonymizeButton->setEnabled(wallet && wallet->sparkWallet && spark::IsSparkAllowed() && anonymizableBalance > 0);
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
@@ -369,9 +371,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
 
         connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &OverviewPage::updateDisplayUnit);
+        connect(model->getOptionsModel(), &OptionsModel::sparkPageChanged, this, &OverviewPage::updateSparkAnonymizeRowVisibility);
 
         updateWatchOnlyLabels(model->haveWatchOnly());
         connect(model, &WalletModel::notifyWatchonlyChanged, this, &OverviewPage::updateWatchOnlyLabels);
+        updateSparkAnonymizeRowVisibility();
     }
 
     // update the display unit, to not use the default ("BTC")
@@ -452,4 +456,15 @@ void OverviewPage::adjustTextSize(int width, int height){
     ui->labelPrivate->setFont(labelFont);
     ui->label_4->setFont(labelFont);
    
+}
+
+void OverviewPage::updateSparkAnonymizeRowVisibility()
+{
+    if (!walletModel || !walletModel->getOptionsModel()) {
+        return;
+    }
+    const bool show = spark::IsSparkAllowed() && walletModel->getOptionsModel()->getSparkPage();
+    ui->labelAnonymizableText->setVisible(show);
+    ui->labelAnonymizable->setVisible(show);
+    ui->anonymizeButton->setVisible(show);
 }

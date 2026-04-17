@@ -5,9 +5,6 @@
 #ifndef BITCOIN_QT_WALLETMODELTRANSACTION_H
 #define BITCOIN_QT_WALLETMODELTRANSACTION_H
 
-#include "../primitives/mint_spend.h"
-#include "spark/state.h"
-
 #include "walletmodel.h"
 
 #include <QObject>
@@ -45,10 +42,6 @@ private:
     CWalletTx *walletTransaction;
     CReserveKey *keyChange;
     CAmount fee;
-
-    // spark transaction
-    std::vector<spark::Coin> spendCoins;
-    std::vector<spark::Coin> mintCoins;
 };
 
 #endif // BITCOIN_QT_WALLETMODELTRANSACTION_H

@@ -13,7 +13,7 @@
 
 #include "amount.h"
 #include "init.h"
-#include "validation.h" // For DEFAULT_SCRIPTCHECK_THREADS
+#include "validation.h" // For DEFAULT_SCRIPTCHECK_THREADS and DEFAULT_ZAP_WALLET
 #include "net.h"
 #include "netbase.h"
 #include "txdb.h" // for -dbcache defaults
@@ -89,6 +89,14 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fSplit", true);
     fSplit = settings.value("fSplit", true).toBool();
 
+    if (!settings.contains("fSparkPage")) {
+        if (settings.contains("fLelantusPage"))
+            settings.setValue("fSparkPage", settings.value("fLelantusPage"));
+        else
+            settings.setValue("fSparkPage", false);
+    }
+    fSparkPage = settings.value("fSparkPage", false).toBool();
+
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.
     //
@@ -117,6 +125,23 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("bSpendZeroConfChange", true);
     if (!SoftSetBoolArg("-spendzeroconfchange", settings.value("bSpendZeroConfChange").toBool()))
         addOverriddenOption("-spendzeroconfchange");
+
+    if (!settings.contains("bReindexSpark")) {
+        if (settings.contains("bReindexLelantus"))
+            settings.setValue("bReindexSpark", settings.value("bReindexLelantus"));
+        else
+            settings.setValue("bReindexSpark", DEFAULT_ZAP_WALLET);
+    }
+    bool reindexSpark = settings.value("bReindexSpark").toBool();
+    if (reindexSpark) {
+        if (!SoftSetBoolArg("-zapwalletmints", true))
+            addOverriddenOption("-zapwalletmints");
+        if (!SoftSetBoolArg("-reindex", true))
+            addOverriddenOption("-reindex");
+        if (!SoftSetArg("-zapwallettxes", std::string("1")))
+            addOverriddenOption("-zapwallettxes");
+    }
+    settings.setValue("bReindexSpark", false);
 
 #endif
 
@@ -262,6 +287,12 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return fAutoAnonymize;
         case Split:
             return fSplit;
+#ifdef ENABLE_WALLET
+        case ReindexSpark:
+            return settings.value("bReindexSpark");
+#endif
+        case SparkPage:
+            return fSparkPage;
         case DatabaseCache:
             return settings.value("nDatabaseCache");
         case ThreadsScriptVerif:
@@ -407,6 +438,19 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         case Split:
             fSplit = value.toBool();
             settings.setValue("fSplit", fSplit);
+            break;
+#ifdef ENABLE_WALLET
+        case ReindexSpark:
+            if (settings.value("bReindexSpark") != value) {
+                settings.setValue("bReindexSpark", value);
+                setRestartRequired(true);
+            }
+            break;
+#endif
+        case SparkPage:
+            fSparkPage = value.toBool();
+            settings.setValue("fSparkPage", fSparkPage);
+            Q_EMIT sparkPageChanged(fSparkPage);
             break;
         case DatabaseCache:
             if (settings.value("nDatabaseCache") != value) {
