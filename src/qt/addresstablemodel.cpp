@@ -18,6 +18,7 @@
 
 #include <QFont>
 #include <QDebug>
+#include <QMetaObject>
 
 const QString AddressTableModel::Send = "S";
 const QString AddressTableModel::Receive = "R";
@@ -104,14 +105,20 @@ public:
     CCriticalSection cs_pendingSparkNameChanges;
 
 private:
+    void queueProcessPendingSparkNameChanges() {
+        QMetaObject::invokeMethod(parent, "ProcessPendingSparkNameChanges", Qt::QueuedConnection);
+    }
+
     void sparkNameAdded(const CSparkNameBlockIndexData &sparkNameData) {
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_NEW, sparkNameData});
+        queueProcessPendingSparkNameChanges();
     }
 
     void sparkNameRemoved(const CSparkNameBlockIndexData &sparkNameData) {
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_DELETED, sparkNameData});
+        queueProcessPendingSparkNameChanges();
     }
 
 public:

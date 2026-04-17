@@ -91,7 +91,7 @@ public:
     PcodeAddressTableModel * getPcodeAddressTableModel();
 
     bool IsSparkAllowed();
-    void ProcessPendingSparkNameChanges();
+    Q_INVOKABLE void ProcessPendingSparkNameChanges();
 
     WalletModel *getWalletModel() const { return walletModel; }
 protected:

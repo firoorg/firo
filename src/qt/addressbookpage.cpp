@@ -412,7 +412,8 @@ void AddressBookPage::chooseAddressType(int idx)
     if(!proxyModel)
         return;
 
-    if (idx == 2) {
+    const int selectedType = ui->addressType->itemData(idx).toInt();
+    if (selectedType == (int)SparkName || selectedType == (int)SparkNameMine) {
         model->ProcessPendingSparkNameChanges();
         ui->deleteAddress->setEnabled(false);
         deleteAction->setEnabled(false);
@@ -421,8 +422,7 @@ void AddressBookPage::chooseAddressType(int idx)
         selectionChanged();
     }
     
-    fproxyModel->setTypeFilter(
-        ui->addressType->itemData(idx).toInt());
+    fproxyModel->setTypeFilter(selectedType);
 }
 
 AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :
