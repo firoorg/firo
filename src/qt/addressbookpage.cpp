@@ -213,14 +213,15 @@ void AddressBookPage::onCopyLabelAction()
 void AddressBookPage::onEditAction()
 {
     QModelIndexList indexes;
+    const int selectedType = ui->addressType->currentData().toInt();
 
-    if (ui->addressType->currentText() == AddressTableModel::SparkName)
+    if (selectedType == (int)SparkName || selectedType == (int)SparkNameMine)
         return;
 
     EditAddressDialog::Mode mode;
     AddressTableModel * pmodel;
     pmodel = model;
-    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
+    if (selectedType == (int)Transparent) {
         mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
     } else {
         mode = tab == SendingTab ? EditAddressDialog::EditSparkSendingAddress : EditAddressDialog::EditSparkReceivingAddress;
@@ -246,7 +247,8 @@ void AddressBookPage::on_newAddress_clicked()
     if(!model)
         return;
 
-    if (ui->addressType->currentText() == AddressTableModel::SparkName) {
+    const int selectedType = ui->addressType->currentData().toInt();
+    if (selectedType == (int)SparkName || selectedType == (int)SparkNameMine) {
         CreateSparkNamePage *dialog = new CreateSparkNamePage(platformStyle, this);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->setModel(model->getWalletModel());
@@ -257,7 +259,7 @@ void AddressBookPage::on_newAddress_clicked()
     AddressTableModel *pmodel;
     EditAddressDialog::Mode mode;
     pmodel = model;
-    if (ui->addressType->currentText() == AddressTableModel::Spark) {
+    if (selectedType == (int)Spark) {
         mode = tab == SendingTab ? EditAddressDialog::NewSparkSendingAddress : EditAddressDialog::NewSparkReceivingAddress;
     } else {
         mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
@@ -275,8 +277,9 @@ void AddressBookPage::on_deleteAddress_clicked()
 {
     QTableView *table;
     table = ui->tableView;
+    const int selectedType = ui->addressType->currentData().toInt();
 
-    if(!table->selectionModel() || ui->addressType->currentText() == AddressTableModel::SparkName)
+    if(!table->selectionModel() || selectedType == (int)SparkName || selectedType == (int)SparkNameMine)
         return;
 
     QModelIndexList indexes = table->selectionModel()->selectedRows();
@@ -298,7 +301,8 @@ void AddressBookPage::selectionChanged()
 
     if(table->selectionModel()->hasSelection())
     {
-        bool fSparkNames = ui->addressType->currentText() == AddressTableModel::SparkName;
+        const int selectedType = ui->addressType->currentData().toInt();
+        bool fSparkNames = selectedType == (int)SparkName || selectedType == (int)SparkNameMine;
         switch(tab)
         {
         case SendingTab:
@@ -363,7 +367,8 @@ void AddressBookPage::on_exportButton_clicked()
 
     FIRO_UNUSED QTableView *table;
     writer.setModel(proxyModel);
-    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
+    const int selectedType = ui->addressType->currentData().toInt();
+    if (selectedType == (int)Transparent) {
         writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
         writer.addColumn("Transparent Address", AddressTableModel::Address, Qt::EditRole);
         writer.addColumn("Address Type", AddressTableModel::AddressType, Qt::EditRole);
