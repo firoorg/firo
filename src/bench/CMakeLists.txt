@@ -27,6 +27,8 @@ target_link_libraries(bench_firo
   core_interface
   firo_node
   Boost::headers
+  Boost::filesystem
+  secp256k1pp
 )
 
 if(ENABLE_WALLET)
