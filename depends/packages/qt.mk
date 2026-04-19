@@ -242,6 +242,11 @@ $(package)_cmake_opts += -DQT_FEATURE_xcb=ON
 $(package)_cmake_opts += -DWaylandScanner_EXECUTABLE=$(build_prefix)/bin/wayland-scanner
 endif
 
+ifeq ($(host_os),freebsd)
+$(package)_cmake_opts += -DQT_FEATURE_xcb=ON
+$(package)_cmake_opts += -DWaylandScanner_EXECUTABLE=$(build_prefix)/bin/wayland-scanner
+endif
+
 ifdef GUIX_ENVIRONMENT
 export QT_MAC_SDK_NO_VERSION_CHECK=1
 ifneq ($(host_os),darwin)

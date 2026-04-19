@@ -6,9 +6,6 @@ $(package)_sha256_hash := fdf395391d95f270528dbff6ce2ee54c186753d286ad62e0da5f62
 $(package)_patches := fix-typeof-gcc14.patch
 
 define $(package)_set_vars
-  $(package)_config_opts := --enable-option-checking --disable-dependency-tracking
-  $(package)_config_opts += --enable-shared --disable-static
-  $(package)_config_opts += --disable-x11 --disable-gles1
 endef
 
 define $(package)_preprocess_cmds
