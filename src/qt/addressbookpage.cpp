@@ -298,7 +298,8 @@ void AddressBookPage::selectionChanged()
 
     if(table->selectionModel()->hasSelection())
     {
-        bool fSparkNames = ui->addressType->currentText() == AddressTableModel::SparkName;
+        bool fSparkNames = ui->addressType->currentText() == AddressTableModel::SparkName
+                        || ui->addressType->currentText() == AddressTableModel::SparkNameMine;
         switch(tab)
         {
         case SendingTab:

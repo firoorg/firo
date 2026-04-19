@@ -26,6 +26,7 @@ const QString AddressTableModel::Transparent = "Transparent";
 const QString AddressTableModel::Spark = "Spark";
 const QString AddressTableModel::RAP = "RAP";
 const QString AddressTableModel::SparkName = "Spark names";
+const QString AddressTableModel::SparkNameMine = "My own spark names";
 
 struct AddressTableEntry
 {
