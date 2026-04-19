@@ -303,7 +303,7 @@ void AddressBookPage::selectionChanged()
         {
         case SendingTab:
             // In sending tab, allow deletion of selection
-            ui->deleteAddress->setEnabled(true);
+            ui->deleteAddress->setEnabled(!fSparkNames);
             ui->deleteAddress->setVisible(!fSparkNames);
             deleteAction->setEnabled(!fSparkNames);
             break;
