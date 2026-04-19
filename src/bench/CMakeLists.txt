@@ -46,3 +46,88 @@ add_test(NAME bench_sanity_check_high_priority
 install(TARGETS bench_firo
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# Spark/Lelantus benchmarking framework
+option(BUILD_BENCH_SPARK "Build Spark/Lelantus benchmarks" OFF)
+
+if(BUILD_BENCH_SPARK)
+  message(STATUS "Building Spark benchmarks")
+  
+  # Generic benchmarking framework library
+  add_library(firo_benchmark STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/benchmark.cpp
+  )
+  
+  target_include_directories(firo_benchmark PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  
+  # Optional: Enable Linux perf counters (requires explicit opt-in)
+  option(ENABLE_BENCH_PERF_COUNTERS "Enable Linux perf counters in benchmarks (Linux only)" OFF)
+  
+  if(ENABLE_BENCH_PERF_COUNTERS)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+      target_compile_definitions(firo_benchmark PUBLIC BENCH_PERF_COUNTERS)
+      message(STATUS "  Linux perf counters: ENABLED")
+    else()
+      message(WARNING "  ENABLE_BENCH_PERF_COUNTERS is only supported on Linux, ignoring")
+    endif()
+  else()
+    message(STATUS "  Linux perf counters: DISABLED (use -DENABLE_BENCH_PERF_COUNTERS=ON to enable)")
+  endif()
+  
+  # Grootle proof benchmarks
+  add_executable(bench_spark_grootle
+    ${CMAKE_CURRENT_SOURCE_DIR}/spark_grootle.cpp
+  )
+  
+  target_link_libraries(bench_spark_grootle
+    firo_benchmark
+    firo_node
+    Boost::filesystem
+    secp256k1pp
+  )
+  
+  # BPPlus (Bulletproofs+) benchmarks
+  add_executable(bench_spark_bpplus
+    ${CMAKE_CURRENT_SOURCE_DIR}/spark_bpplus.cpp
+  )
+  
+  target_link_libraries(bench_spark_bpplus
+    firo_benchmark
+    firo_node
+    Boost::filesystem
+    secp256k1pp
+  )
+  
+  # Chaum proof benchmarks
+  add_executable(bench_spark_chaum
+    ${CMAKE_CURRENT_SOURCE_DIR}/spark_chaum.cpp
+  )
+  
+  target_link_libraries(bench_spark_chaum
+    firo_benchmark
+    firo_node
+    Boost::filesystem
+    secp256k1pp
+  )
+  
+  # Schnorr signature benchmarks
+  add_executable(bench_spark_schnorr
+    ${CMAKE_CURRENT_SOURCE_DIR}/spark_schnorr.cpp
+  )
+  
+  target_link_libraries(bench_spark_schnorr
+    firo_benchmark
+    firo_node
+    Boost::filesystem
+    secp256k1pp
+  )
+  
+  # Install benchmark executables
+  install(TARGETS bench_spark_grootle bench_spark_bpplus bench_spark_chaum bench_spark_schnorr
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+  
+  message(STATUS "  Benchmarks: bench_spark_grootle, bench_spark_bpplus, bench_spark_chaum, bench_spark_schnorr")
+endif()
