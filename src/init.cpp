@@ -276,9 +276,13 @@ void Shutdown()
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
 
-    // Stop the Tor control thread before tearing down CConnman: TorController's
-    // auth_cb may call into g_connman (e.g. to bind the dedicated onion
-    // listener), so the thread must be fully joined before g_connman.reset().
+    // Stop the Tor control thread before tearing down CConnman. The current
+    // auth_cb only touches global state (SetProxy, mapLocalHost via AddLocal,
+    // GetArg/GetListenPort) and does not dereference g_connman, so strictly
+    // speaking the order is not required today. Kept as defense-in-depth in
+    // case a future TorController callback needs to query live peers or
+    // listeners (the dedicated onion listener is now bound at init time
+    // instead of from auth_cb, so that particular path no longer applies).
     StopTorControl();
     // Note: there is intentionally no matching StopTorEnabled() call here
     // for the -torsetup embedded Tor thread. RunTor() invokes tor_main()
