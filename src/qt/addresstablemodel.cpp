@@ -101,23 +101,32 @@ public:
         CSparkNameBlockIndexData sparkNameData;
     };
     QList<PendingSparkNameChange> pendingSparkNameChanges;
+    bool pendingSparkNameDrainScheduled = false;
 
     CCriticalSection cs_pendingSparkNameChanges;
 
 private:
     void queueProcessPendingSparkNameChanges() {
-        if (!parent->AutoProcessPendingSparkNameChanges())
+        // Caller must hold cs_pendingSparkNameChanges. Coalesce bursts into a
+        // single queued drain so a block full of spark-name mutations doesn't
+        // flood the Qt event loop.
+        if (pendingSparkNameDrainScheduled)
             return;
+        pendingSparkNameDrainScheduled = true;
         QMetaObject::invokeMethod(parent, "ProcessPendingSparkNameChanges", Qt::QueuedConnection);
     }
 
     void sparkNameAdded(const CSparkNameBlockIndexData &sparkNameData) {
+        if (!parent->AutoProcessPendingSparkNameChanges())
+            return;
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_NEW, sparkNameData});
         queueProcessPendingSparkNameChanges();
     }
 
     void sparkNameRemoved(const CSparkNameBlockIndexData &sparkNameData) {
+        if (!parent->AutoProcessPendingSparkNameChanges())
+            return;
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_DELETED, sparkNameData});
         queueProcessPendingSparkNameChanges();
@@ -330,6 +339,7 @@ public:
             LOCK(cs_pendingSparkNameChanges);
             pendingChanges = pendingSparkNameChanges;
             pendingSparkNameChanges.clear();
+            pendingSparkNameDrainScheduled = false;
         }
 
         LOCK(wallet->cs_wallet);
