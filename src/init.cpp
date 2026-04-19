@@ -1739,13 +1739,15 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
-    // This check is similar to Bitcoin Core's approach to provide a helpful error message.
+    // Matches Bitcoin Core: if -listenonion is enabled we will connect to the
+    // Tor control port later from the torcontrol thread and auth_cb will
+    // configure the onion proxy automatically, so that path is also accepted.
     if (fOnlyNet) {
         if (onlyNetNets.count(NET_ONION)) {
             proxyType onionProxy;
             bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
-            if (!haveOnionProxy && !torEnabled) {
-                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but no proxy for reaching the Tor network is provided. Use -proxy, -onion, or -torsetup to configure a Tor proxy."));
+            if (!haveOnionProxy && !torEnabled && !listenOnion) {
+                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is not provided: none of -proxy, -onion, -torsetup or -listenonion is given."));
             }
         }
     }
