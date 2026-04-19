@@ -1742,12 +1742,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Matches Bitcoin Core: if -listenonion is enabled we will connect to the
     // Tor control port later from the torcontrol thread and auth_cb will
     // configure the onion proxy automatically, so that path is also accepted.
+    // The -listenonion bypass only helps when -torcontrol is actually usable;
+    // treat an empty or "0" value (including -notorcontrol) as disabled so we
+    // don't let init succeed into a state with no working onion path.
     if (fOnlyNet) {
         if (onlyNetNets.count(NET_ONION)) {
             proxyType onionProxy;
             bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
-            if (!haveOnionProxy && !torEnabled && !listenOnion) {
-                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is not provided: none of -proxy, -onion, -torsetup or -listenonion is given."));
+            const std::string torControlAddr = GetArg("-torcontrol", DEFAULT_TOR_CONTROL);
+            const bool torControlUsable = !torControlAddr.empty() && torControlAddr != "0";
+            const bool canAutoConfigureOnion = listenOnion && torControlUsable;
+            if (!haveOnionProxy && !torEnabled && !canAutoConfigureOnion) {
+                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is not provided: none of -proxy, -onion, -torsetup or -listenonion (with a usable -torcontrol) is given."));
             }
         }
     }
