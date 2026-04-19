@@ -550,6 +550,8 @@ endif()
 
 if(BUILD_BENCH)
   add_subdirectory(bench)
+elseif(BUILD_BENCH_SPARK)
+  message(FATAL_ERROR "BUILD_BENCH_SPARK requires BUILD_BENCH=ON. Please add -DBUILD_BENCH=ON to your CMake command.")
 endif()
 
 if(BUILD_TESTS)
