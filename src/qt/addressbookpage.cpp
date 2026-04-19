@@ -464,30 +464,46 @@ void AddressBookPage::chooseAddressType(int idx)
     if(!proxyModel)
         return;
 
-    switch (idx)
+    int addrType = ui->addressType->itemData(idx).toInt();
+
+    switch (addrType)
     {
-       case 3:
+       case SparkNameMine:
             ui->newAddress->setVisible(false);
             ui->extendAddress->setVisible(true);
             // fallthrough
-        case 2:
+        case SparkName:
             model->ProcessPendingSparkNameChanges();
             ui->deleteAddress->setEnabled(false);
             deleteAction->setEnabled(false);
+            // Remove TypeRole filter so spark names (stored as Send) are visible
+            proxyModel->setFilterRole(0);
+            proxyModel->setFilterFixedString(QString());
             break;
 
         default:
+            // Restore TypeRole filter for non-spark-name types
+            switch(tab)
+            {
+            case ReceivingTab:
+                proxyModel->setFilterRole(AddressTableModel::TypeRole);
+                proxyModel->setFilterFixedString(AddressTableModel::Receive);
+                break;
+            case SendingTab:
+                proxyModel->setFilterRole(AddressTableModel::TypeRole);
+                proxyModel->setFilterFixedString(AddressTableModel::Send);
+                break;
+            }
             selectionChanged();
             break;
     }
 
-    if (idx != 3) {
+    if (addrType != SparkNameMine) {
         ui->extendAddress->setVisible(false);
         ui->newAddress->setVisible(true);
     }
     
-    fproxyModel->setTypeFilter(
-        ui->addressType->itemData(idx).toInt());
+    fproxyModel->setTypeFilter(addrType);
 }
 
 AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :

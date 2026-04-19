@@ -372,6 +372,22 @@ bool CScript::IsSparkNameFee() const {
     // Byte after OP_CHECKSIG must be OP_SPARKNAMEID
     if ((*this)[25] != OP_SPARKNAMEID)
         return false;
+    // Validate the full tail: <push name> OP_DROP <push addr> OP_DROP and nothing more
+    const_iterator pc = begin() + 26;
+    opcodetype opcode;
+    std::vector<unsigned char> data;
+    if (!GetOp(pc, opcode, data) || data.empty())
+        return false;
+    if (pc >= end() || *pc != OP_DROP)
+        return false;
+    ++pc;
+    if (!GetOp(pc, opcode, data) || data.empty())
+        return false;
+    if (pc >= end() || *pc != OP_DROP)
+        return false;
+    ++pc;
+    if (pc != end())
+        return false;
     return true;
 }
 

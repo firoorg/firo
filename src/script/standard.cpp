@@ -420,6 +420,9 @@ bool ExtractSparkNameFromScript(const CScript& scriptPubKey, std::string& sparkN
         return false;
     if (pc >= scriptPubKey.end() || *pc != OP_DROP)
         return false;
+    ++pc; // skip OP_DROP
+    if (pc != scriptPubKey.end())
+        return false;
 
     sparkName.assign(nameData.begin(), nameData.end());
     sparkAddress.assign(addrData.begin(), addrData.end());

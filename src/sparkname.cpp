@@ -205,8 +205,8 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
             return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
     }
     else {
-        if (validityBlocks > nBlockPerYear * 15)
-            return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
+        if (validityBlocks > nBlockPerYear * 10)
+            return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
     }
 
     // fee is based on the new time being purchased, not including leftover time from a previous registration
@@ -362,7 +362,7 @@ CScript CSparkNameManager::GetSparkNameFeeScript(const std::string &feeAddress, 
     int nHeight;
     {
         LOCK(cs_main);
-        nHeight = chainActive.Height();
+        nHeight = chainActive.Height() + 1;
     }
     if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock)
         return GetScriptForSparkNameFee(dest, sparkName, sparkAddress);
@@ -375,7 +375,7 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     int nHeight;
     {
         LOCK(cs_main);
-        nHeight = chainActive.Height();
+        nHeight = chainActive.Height() + 1;
     }
     LOCK(cs_spark_name);
     if (!IsSparkNameValid(sparkNameData.name))
@@ -384,8 +384,11 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     else if (sparkNameData.additionalInfo.size() > 1024)
         errorDescription = "additional info is too long";
 
-    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
+    else if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
         errorDescription = "transaction can't be valid for more than 15 years";
+
+    else if (nHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
+        errorDescription = "transaction can't be valid for more than 10 years";
 
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
                 sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
