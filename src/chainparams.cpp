@@ -504,7 +504,7 @@ public:
         consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
-        consensus.nSparkNamesV21StartBlock = INT_MAX;
+        consensus.nSparkNamesV21StartBlock = SPARK_NAME_V21_MAINNET_START_BLOCK;
     }
     virtual bool SkipUndoForBlock(int nHeight) const override
     {
@@ -821,7 +821,7 @@ public:
         consensus.nSparkNamesStartBlock = 174000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
-        consensus.nSparkNamesV21StartBlock = INT_MAX;
+        consensus.nSparkNamesV21StartBlock = 200000;
     }
 };
 
