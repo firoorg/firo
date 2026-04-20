@@ -487,6 +487,69 @@ UniValue verifymessage(const JSONRPCRequest& request)
     return (pubkey.GetID() == keyID);
 }
 
+UniValue verifymessagewithsparkaddress(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 3)
+        throw std::runtime_error(
+            "verifymessagewithsparkaddress \"sparkaddress\" \"signature\" \"message\"\n"
+            "\nVerify a message signature produced by signmessagewithsparkaddress.\n"
+            "\nArguments:\n"
+            "1. \"sparkaddress\"   (string, required) The Spark address that was used to sign.\n"
+            "2. \"signature\"      (string, required) The ownership proof signature as a hex string.\n"
+            "3. \"message\"        (string, required) The message that was signed.\n"
+            "\nResult:\n"
+            "true|false   (boolean) Whether the signature is valid for the given address and message.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("verifymessagewithsparkaddress", "\"sm1...\" \"signature\" \"my message\"") +
+            "\nAs json rpc\n"
+            + HelpExampleRpc("verifymessagewithsparkaddress", "\"sm1...\", \"signature\", \"my message\"")
+        );
+
+    std::string strAddress  = request.params[0].get_str();
+    std::string strSign     = request.params[1].get_str();
+    std::string strMessage  = request.params[2].get_str();
+
+    const spark::Params* params = spark::Params::get_default();
+    unsigned char network = spark::GetNetworkType();
+    spark::Address address(params);
+    unsigned char coinNetwork;
+    try {
+        coinNetwork = address.decode(strAddress);
+    } catch (const std::exception&) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Spark address");
+    }
+    if (coinNetwork != network)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address is for a different network");
+
+    // Decode the hex signature into an OwnershipProof
+    if (!IsHex(strSign))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Signature must be a hex string");
+
+    std::vector<unsigned char> proofData = ParseHex(strSign);
+    CDataStream proofStream(proofData, SER_NETWORK, PROTOCOL_VERSION);
+    spark::OwnershipProof proof;
+    try {
+        proofStream >> proof;
+    } catch (const std::exception&) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Malformed ownership proof");
+    }
+
+    // Hash the message the same way as signmessage / signmessagewithsparkaddress
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << strMessage;
+    uint256 msgHash = ss.GetHash();
+
+    spark::Scalar m;
+    m.SetHex(msgHash.GetHex());
+
+    try {
+        return address.verify_own(m, proof);
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
 UniValue signmessagewithprivkey(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
@@ -1598,11 +1661,18 @@ UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
         tags = sparkState->GetSpendsMobile();
         ltagTxhash = sparkState->GetSpendTxIds();
     }
+
+    // Handle edge cases: negative startNumber or too large.
+    size_t skip = 0;
+    if (startNumber > 0) {
+        skip = static_cast<size_t>(startNumber);
+        if (skip > tags.size()) {
+            skip = tags.size();
+        }
+    }
+
     UniValue serializedTagsTxIds(UniValue::VARR);
-    int i = 0;
-    for ( auto it = tags.begin(); it != tags.end(); ++it, ++i) {
-        if (cmp::less((tags.size() - i - 1), startNumber))
-            continue;
+    for (auto it = tags.begin() + skip; it != tags.end(); ++it) {
         std::vector<unsigned char> serialized;
         serialized.resize(34);
         it->first.serialize(serialized.data());
@@ -2247,6 +2317,7 @@ static const CRPCCommand commands[] =
     { "util",               "validateaddress",        &validateaddress,        true,        {"address"} }, /* uses wallet if enabled */
     { "util",               "createmultisig",         &createmultisig,         true,        {"nrequired","keys"} },
     { "util",               "verifymessage",          &verifymessage,          true,        {"address","signature","message"} },
+    { "util",               "verifymessagewithsparkaddress", &verifymessagewithsparkaddress, true, {"sparkaddress","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true,        {"privkey","message"} },
 
         /* Address index */
@@ -2255,6 +2326,7 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false,        {} },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false,        {} },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false,        {} },
+    { "addressindex",       "getspentinfo",           &getspentinfo,           false,        {} },
 
     /* Znode features */
     { "firo",              "znsync",                 &mnsync,                 true,           {} },

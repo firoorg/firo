@@ -1,5 +1,6 @@
 #include "keys.h"
 #include "../hash.h"
+#include "../support/cleanse.h"
 #include "transcript.h"
 
 namespace spark {
@@ -212,7 +213,10 @@ unsigned char Address::decode(const std::string& str) {
 		throw std::invalid_argument("Bad address encoding");
 	}
 
-	// Check the encoding prefix
+	// Check the hrp length and encoding prefix
+	if (decoded.hrp.size() < 2) {
+		throw std::invalid_argument("Bad address format");
+	}
 	if (decoded.hrp[0] != ADDRESS_ENCODING_PREFIX) {
 		throw std::invalid_argument("Bad address prefix");
 	}

@@ -1193,14 +1193,17 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     uint256 dandelionServiceDiscoveryHash;
                     dandelionServiceDiscoveryHash.SetHex(
                             "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-                    if (txinfo.tx && !CNode::isDandelionInbound(pfrom) &&
-                            pfrom->setDandelionInventoryKnown.count(inv.hash) != 0) {                                
-                        connman.PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::DANDELIONTX, *txinfo.tx));
-                        push = true;
-                    } else if (inv.hash == dandelionServiceDiscoveryHash &&
-                               pfrom->setDandelionInventoryKnown.count(inv.hash) != 0) {
-                        pfrom->fSupportsDandelion = true;
-                        push = true;
+                    {
+                        LOCK(pfrom->cs_inventory);
+                        if (txinfo.tx && !CNode::isDandelionInbound(pfrom) &&
+                                pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
+                            connman.PushMessage(pfrom, msgMaker.Make(nSendFlags, NetMsgType::DANDELIONTX, *txinfo.tx));
+                            push = true;
+                        } else if (inv.hash == dandelionServiceDiscoveryHash &&
+                                   pfrom->filterDandelionInventoryKnown.contains(inv.hash)) {
+                            pfrom->fSupportsDandelion = true;
+                            push = true;
+                        }
                     }
                 }
                 if (!push) {
@@ -1910,8 +1913,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             }
 
             else if (inv.type == MSG_DANDELION_TX) {
-                auto result = pfrom->setDandelionInventoryKnown.insert(inv.hash);
-                fAlreadyHave = !result.second;
+                {
+                    LOCK(pfrom->cs_inventory);
+                    fAlreadyHave = pfrom->filterDandelionInventoryKnown.contains(inv.hash);
+                    pfrom->filterDandelionInventoryKnown.insert(inv.hash);
+                }
                 uint256 dandelionServiceDiscoveryHash;
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -3167,6 +3173,9 @@ static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman& connman)
         else if (pnode->fAddnode)
             LogPrintf("Warning: not punishing addnoded peer %s!\n", pnode->addr.ToString());
         else {
+            if (llmq::quorumSigSharesManager) {
+                llmq::quorumSigSharesManager->MarkNodeBanned(pnode->GetId());
+            }
             pnode->fDisconnect = true;
             if (pnode->addr.IsLocal())
                 LogPrintf("Warning: not banning local peer %s!\n", pnode->addr.ToString());
@@ -3611,10 +3620,10 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 
             // Add Dandelion transactions
             for (const uint256& hash : pto->vInventoryDandelionTxToSend) {
-                pto->setDandelionInventoryKnown.insert(hash);
+                pto->filterDandelionInventoryKnown.insert(hash);
                 uint256 dandelionServiceDiscoveryHash;
                 dandelionServiceDiscoveryHash.SetHex(
-                    "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+                        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
                 if (!pto->fSupportsDandelion && hash != dandelionServiceDiscoveryHash) {
                     //LogPrintf("Pushing transaction MSG_TX %s to %s.",
                     //          hash.ToString(), pto->addr.ToString());
@@ -3705,8 +3714,9 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                     uint256 hash = *it;
                     // Remove it from the to-be-sent set
                     pto->setInventoryTxToSend.erase(it);
-                    // Check if not in the filter already
-                    if (pto->filterInventoryKnown.contains(hash)) {
+                    bool fForcedRelay = pto->setInventoryForcedToSend.erase(hash) > 0;
+                    // Check if not in the filter already (skip for forced rebroadcasts)
+                    if (!fForcedRelay && pto->filterInventoryKnown.contains(hash)) {
                         continue;
                     }
                     // Not in the mempool anymore? don't bother sending it.
@@ -3744,7 +3754,8 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
 
             // Send non-tx/non-block inventory items
             for (const auto& inv : pto->vInventoryOtherToSend) {
-                if (pto->filterInventoryKnown.contains(inv.hash)) {
+                bool fForcedRelay = pto->setInventoryForcedToSend.erase(inv.hash) > 0;
+                if (!fForcedRelay && pto->filterInventoryKnown.contains(inv.hash)) {
                     continue;
                 }
                 vInv.push_back(inv);
@@ -3868,6 +3879,31 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
         }
     }
     return true;
+}
+
+void RebroadcastISLockedMempool(CConnman& connman)
+{
+    // Don't relay during initial sync
+    if (fReindex || fImporting || IsInitialBlockDownload())
+        return;
+
+    if (!llmq::quorumInstantSendManager)
+        return;
+
+    std::vector<uint256> vtxid;
+    mempool.queryHashes(vtxid);
+
+    int nRelayed = 0;
+    for (const uint256& hash : vtxid) {
+        if (llmq::quorumInstantSendManager->IsLocked(hash)) {
+            CInv inv(MSG_TX, hash);
+            connman.RelayInv(inv, MIN_PEER_PROTO_VERSION, true);
+            nRelayed++;
+        }
+    }
+
+    if (nRelayed > 0)
+        LogPrint("net", "Rebroadcast %d InstantSend-locked mempool transactions\n", nRelayed);
 }
 
 class CNetProcessingCleanup

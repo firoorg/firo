@@ -172,6 +172,12 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (sparkNameData.nVersion >= 2 && nHeight < consensusParams.nSparkNamesV2StartBlock)
         return state.DoS(100, error("CheckSparkNameTx: spark name tx v2 is not allowed yet"));
 
+    if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+        return state.DoS(100, error("CheckSparkNameTx: invalid operation type"));
+
+    if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opUnregister)
+        return state.DoS(100, error("CheckSparkNameTx: unregister operation is not supported yet"));
+
     if (outSparkNameData)
         *outSparkNameData = sparkNameData;
 
@@ -197,6 +203,9 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
     int validityBlocks = sparkNameData.sparkNameValidityBlocks;
+    if (validityBlocks == 0)
+        return state.DoS(100, error("CheckSparkNameTx: validity period must be at least 1 block"));
+  
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
         if (existingExpirationHeight != -1)
             validityBlocks = std::max(validityBlocks, existingExpirationHeight - nHeight + validityBlocks);
@@ -386,9 +395,15 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
 
     else if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
         errorDescription = "transaction can't be valid for more than 15 years";
-
+  
     else if (nHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
         errorDescription = "transaction can't be valid for more than 10 years";
+  
+    else if (sparkNameData.sparkNameValidityBlocks == 0)
+        errorDescription = "validity period must be at least 1 block";
+  
+    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+        errorDescription = "invalid operation type";
 
     else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
                 sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&

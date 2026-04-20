@@ -237,6 +237,14 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
         return;
     }
 
+    {
+        LOCK(cs);
+        auto it = nodeStates.find(pfrom->id);
+        if (it != nodeStates.end() && it->second.banned) {
+            return;
+        }
+    }
+
     if (strCommand == NetMsgType::QSIGSESANN) {
         std::vector<CSigSesAnn> msgs;
         vRecv >> msgs;
@@ -323,7 +331,11 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
     FIRO_UNUSED auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it != nodeStates.end() && it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it != nodeStates.end() ? it->second : nodeStates[pfrom->id];
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.sessionId);
@@ -371,7 +383,11 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(CNode* pfrom, const CSigShare
     }
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it == nodeStates.end() || it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it->second;
     auto session = nodeState.GetSessionByRecvId(inv.sessionId);
     if (!session) {
         return true;
@@ -401,7 +417,11 @@ bool CSigSharesManager::ProcessMessageGetSigShares(CNode* pfrom, const CSigShare
             sessionInfo.signHash.ToString(), inv.ToString(), pfrom->id);
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it == nodeStates.end() || it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it->second;
     auto session = nodeState.GetSessionByRecvId(inv.sessionId);
     if (!session) {
         return true;
@@ -428,7 +448,11 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(CNode* pfrom, const CBatc
 
     {
         LOCK(cs);
-        auto& nodeState = nodeStates[pfrom->id];
+        auto it = nodeStates.find(pfrom->id);
+        if (it == nodeStates.end() || it->second.banned) {
+            return true;
+        }
+        auto& nodeState = it->second;
 
         for (size_t i = 0; i < batchedSigShares.sigShares.size(); i++) {
             CSigShare sigShare = RebuildSigShare(sessionInfo, batchedSigShares, i);
@@ -459,7 +483,11 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(CNode* pfrom, const CBatc
     }
 
     LOCK(cs);
-    auto& nodeState = nodeStates[pfrom->id];
+    auto it = nodeStates.find(pfrom->id);
+    if (it == nodeStates.end() || it->second.banned) {
+        return true;
+    }
+    auto& nodeState = it->second;
     for (auto& s : sigShares) {
         nodeState.pendingIncomingSigShares.Add(s.GetKey(), s);
     }
@@ -529,6 +557,10 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
         CLLMQUtils::IterateNodesRandom(nodeStates, [&]() {
             return uniqueSignHashes.size() < maxUniqueSessions;
         }, [&](NodeId nodeId, CSigSharesNodeState& ns) {
+            if (ns.banned) {
+                ns.pendingIncomingSigShares.Clear();
+                return false;
+            }
             if (ns.pendingIncomingSigShares.Empty()) {
                 return false;
             }
@@ -1291,21 +1323,58 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
 
 void CSigSharesManager::RemoveBannedNodeStates()
 {
-    // Called regularly to cleanup local node states for banned nodes
+    // Called regularly to cleanup local node states for banned peers after MarkNodeBanned already removed the
+    // request/session state which affects correctness. Keep markers for still-connected peers so they stay ignored.
 
-    LOCK2(cs_main, cs);
-    std::unordered_set<NodeId> toRemove;
-    for (auto it = nodeStates.begin(); it != nodeStates.end();) {
-        if (IsBanned(it->first)) {
-            // re-request sigshares from other nodes
-            it->second.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
-                sigSharesRequested.Erase(k);
-            });
-            it = nodeStates.erase(it);
-        } else {
-            ++it;
+    std::unordered_set<NodeId> nodeStatesToDelete;
+    {
+        LOCK(cs);
+        for (const auto& p : nodeStates) {
+            if (p.second.banned) {
+                nodeStatesToDelete.emplace(p.first);
+            }
         }
     }
+
+    g_connman->ForEachNode([&](CNode* pnode) {
+        if (!pnode->fDisconnect) {
+            nodeStatesToDelete.erase(pnode->id);
+        }
+    });
+
+    LOCK(cs);
+    for (auto nodeId : nodeStatesToDelete) {
+        auto it = nodeStates.find(nodeId);
+        if (it != nodeStates.end() && it->second.banned) {
+            nodeStates.erase(it);
+        }
+    }
+}
+
+void CSigSharesManager::MarkNodeBanned(NodeId nodeId)
+{
+    if (nodeId == -1) {
+        return;
+    }
+
+    LOCK(cs);
+    auto it = nodeStates.find(nodeId);
+    if (it == nodeStates.end()) {
+        return;
+    }
+    auto& nodeState = it->second;
+
+    // Whatever we requested from him, let's request it from someone else now.
+    nodeState.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
+        sigSharesRequested.Erase(k);
+    });
+    nodeState.requestedSigShares.Clear();
+
+    // Drop all cached sessions and pending work from banned peers immediately.
+    nodeState.pendingIncomingSigShares.Clear();
+    nodeState.sessions.clear();
+    nodeState.sessionByRecvId.clear();
+    nodeState.banned = true;
 }
 
 void CSigSharesManager::BanNode(NodeId nodeId)
@@ -1319,25 +1388,13 @@ void CSigSharesManager::BanNode(NodeId nodeId)
         Misbehaving(nodeId, 100);
     }
 
-    LOCK(cs);
-    auto it = nodeStates.find(nodeId);
-    if (it == nodeStates.end()) {
-        return;
-    }
-    auto& nodeState = it->second;
-
-    // Whatever we requested from him, let's request it from someone else now
-    nodeState.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
-        sigSharesRequested.Erase(k);
-    });
-    nodeState.requestedSigShares.Clear();
-
-    nodeState.banned = true;
+    MarkNodeBanned(nodeId);
 }
 
 void CSigSharesManager::WorkThreadMain()
 {
     int64_t lastSendTime = 0;
+    int64_t lastRemoveBannedNodeStatesTime = 0;
 
     while (!workInterrupt) {
         if (!quorumSigningManager || !g_connman) {
@@ -1349,7 +1406,13 @@ void CSigSharesManager::WorkThreadMain()
 
         bool didWork = false;
 
-        RemoveBannedNodeStates();
+        // MarkNodeBanned handles the correctness-sensitive cleanup immediately, so this periodic pass only reclaims the
+        // remaining per-node state for banned peers.
+        if (GetTimeMillis() - lastRemoveBannedNodeStatesTime > 30000 /* 30s */) {
+            RemoveBannedNodeStates();
+            lastRemoveBannedNodeStatesTime = GetTimeMillis();
+        }
+
         didWork |= quorumSigningManager->ProcessPendingRecoveredSigs(*g_connman);
         didWork |= ProcessPendingSigShares(*g_connman);
         didWork |= SignPendingSigShares();
@@ -1364,7 +1427,7 @@ void CSigSharesManager::WorkThreadMain()
 
         // TODO Wakeup when pending signing is needed?
         if (!didWork) {
-            if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+            if (!workInterrupt.sleep_for(std::chrono::milliseconds(250))) {
                 return;
             }
         }

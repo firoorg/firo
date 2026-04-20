@@ -707,7 +707,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification&
 
     std::set<size_t> contributionsSet;
     for (const auto& p : qj.contributions) {
-        if (p.first > members.size()) {
+        if (p.first >= members.size()) {
             logger.Batch("invalid contribution index");
             retBan = true;
             return false;

@@ -41,6 +41,9 @@
 #include "evo/providertx.h"
 #include "lelantus.h"
 
+// Forward declaration with default parameter for calls within this file
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock = true);
+
 namespace {
     template<class Tx>
     void ExtraPayloadToJson(const CTransaction& tx, const char * jsonId, UniValue & entry) {
@@ -87,7 +90,7 @@ namespace {
     }
 }
 
-void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock)
 {
     uint256 txid = tx.GetHash();
     entry.push_back(Pair("txid", txid.GetHex()));
@@ -212,7 +215,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     }
     bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);
     entry.push_back(Pair("instantlock", fLLMQLocked));
-    entry.push_back(Pair("chainlock", chainLock));
+    if (includeChainlock) {
+        entry.push_back(Pair("chainlock", chainLock));
+    }
 
     if (tx.nVersion >= 3) {
         switch(tx.nType){

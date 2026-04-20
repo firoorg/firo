@@ -37,6 +37,11 @@ SpendTransaction::SpendTransaction(
 	this->f = f; // fee
     this->vout = vout; // transparent output value
 
+	// Defense-in-depth: guard against uint64_t overflow of fee + vout (Schnorr proof also constrains this)
+	if (vout > 0 && f > std::numeric_limits<uint64_t>::max() - vout) {
+		throw std::invalid_argument("fee + vout overflow");
+	}
+
 	// Prepare Chaum vectors
 	std::vector<Scalar> chaum_x, chaum_y, chaum_z;
 
@@ -265,6 +270,11 @@ bool SpendTransaction::verify(
 		const std::size_t w = tx.cover_set_ids.size(); // number of consumed coins
 		const std::size_t t = tx.out_coins.size(); // number of generated coins
 		const std::size_t N = (std::size_t) std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
+
+		// Defense-in-depth: reject attacker-controlled fee + vout that would overflow (balance proof would fail anyway)
+		if (tx.vout > 0 && tx.f > std::numeric_limits<uint64_t>::max() - tx.vout) {
+			return false;
+		}
 
 		// Consumed coin semantics
 		if (tx.S1.size() != w ||

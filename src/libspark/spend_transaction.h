@@ -1,5 +1,6 @@
 #ifndef FIRO_SPARK_SPEND_TRANSACTION_H
 #define FIRO_SPARK_SPEND_TRANSACTION_H
+#include <limits>
 #include "keys.h"
 #include "coin.h"
 #include "schnorr.h"
@@ -104,6 +105,10 @@ public:
     }
 
     void setVout(const uint64_t& vout_) {
+        // Defense-in-depth: guard against uint64_t overflow of fee + vout
+        if (vout_ > 0 && this->f > std::numeric_limits<uint64_t>::max() - vout_) {
+            throw std::invalid_argument("fee + vout overflow");
+        }
         this->vout = vout_;
     }
 
