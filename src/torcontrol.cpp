@@ -48,6 +48,8 @@ static const float RECONNECT_TIMEOUT_EXP = 1.5;
  * this is belt-and-suspenders sanity limit to prevent memory exhaustion.
  */
 static const int MAX_LINE_LENGTH = 100000;
+/** Default Tor SOCKS port */
+static const int DEFAULT_TOR_SOCKS_PORT = 9050;
 
 /****** Low-level TorControlConnection ********/
 
@@ -386,6 +388,8 @@ private:
 
     /** Callback for ADD_ONION result */
     void add_onion_cb(TorControlConnection& conn, const TorControlReply& reply);
+    /** Callback for GETINFO net/listeners/socks result */
+    void get_socks_cb(TorControlConnection& conn, const TorControlReply& reply);
     /** Callback for AUTHENTICATE result */
     void auth_cb(TorControlConnection& conn, const TorControlReply& reply);
     /** Callback for AUTHCHALLENGE result */
@@ -466,14 +470,12 @@ void TorController::auth_cb(TorControlConnection& _conn, const TorControlReply& 
     if (reply.code == 250) {
         LogPrint("tor", "tor: Authentication successful\n");
 
-        // Now that we know Tor is running setup the proxy for onion addresses
-        // if -onion isn't set to something else.
+        // Now that we know Tor is running, discover its actual SOCKS port and
+        // set up the onion proxy, unless -onion is already set to something else.
+        // Querying the control port avoids hardcoding 9050 (Bitcoin Core pattern).
         if (GetArg("-onion", "") == "") {
-            CService resolved(LookupNumeric("127.0.0.1", 9050));
-            proxyType addrOnion = proxyType(resolved, true);
-            SetProxy(NET_ONION, addrOnion);
-            if (!IsNetworkExplicitlyLimited(NET_ONION))
-                SetLimited(NET_ONION, false);
+            _conn.Command("GETINFO net/listeners/socks",
+                boost::bind(&TorController::get_socks_cb, this, _1, _2));
         }
 
         // Finally - now create the service
@@ -499,6 +501,64 @@ void TorController::auth_cb(TorControlConnection& _conn, const TorControlReply& 
     } else {
         LogPrintf("tor: Authentication failed\n");
     }
+}
+
+void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlReply& reply)
+{
+    // NOTE: We can only get here if -onion is unset
+    std::string socks_location;
+    if (reply.code == 250) {
+        static const std::string kSocksPrefix{"net/listeners/socks="};
+        for (const std::string& line : reply.lines) {
+            if (line.starts_with(kSocksPrefix)) {
+                const std::string port_list_str = line.substr(kSocksPrefix.size());
+                std::vector<std::string> port_list;
+                boost::split(port_list, port_list_str, boost::is_any_of(" "));
+                for (auto& portstr : port_list) {
+                    if (portstr.empty()) continue;
+                    // Strip surrounding quotes if present
+                    if ((portstr.front() == '"' || portstr.front() == '\'') &&
+                            portstr.size() >= 2 && portstr.back() == portstr.front()) {
+                        portstr = portstr.substr(1, portstr.size() - 2);
+                        if (portstr.empty()) continue;
+                    }
+                    socks_location = portstr;
+                    if (portstr.starts_with("127.0.0.1:"))
+                        break; // prefer localhost over other interfaces
+                }
+            }
+        }
+        if (!socks_location.empty()) {
+            LogPrint("tor", "tor: Get SOCKS port yielded %s\n", socks_location);
+        } else {
+            LogPrintf("tor: Get SOCKS port command returned nothing\n");
+        }
+    } else if (reply.code == 510) { // 510 Unrecognized command
+        LogPrintf("tor: Get SOCKS port command failed with unrecognized command (You probably need to upgrade Tor)\n");
+    } else {
+        LogPrintf("tor: Get SOCKS port command failed; error code %d\n", reply.code);
+    }
+
+    CService resolved;
+    if (!socks_location.empty()) {
+        resolved = LookupNumeric(socks_location.c_str(), DEFAULT_TOR_SOCKS_PORT);
+    }
+    if (!resolved.IsValid()) {
+        // No usable port from Tor; fall back to the conventional default.
+        resolved = LookupNumeric("127.0.0.1", DEFAULT_TOR_SOCKS_PORT);
+    }
+
+    LogPrint("tor", "tor: Configuring onion proxy for %s\n", resolved.ToString());
+    proxyType addrOnion = proxyType(resolved, true);
+    SetProxy(NET_ONION, addrOnion);
+    if (!IsNetworkExplicitlyLimited(NET_ONION))
+        SetLimited(NET_ONION, false);
+    // When clearnet is unreachable (e.g. -onlynet=onion) and no name proxy
+    // is configured, route name lookups through Tor so hostname resolution
+    // doesn't leak over clearnet. Mirrors the explicit -onion=<addr> path
+    // in init.cpp.
+    if (!HaveNameProxy() && !IsReachable(NET_IPV4) && !IsReachable(NET_IPV6))
+        SetNameProxy(addrOnion);
 }
 
 /** Compute Tor SAFECOOKIE response.
