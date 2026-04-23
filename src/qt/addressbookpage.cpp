@@ -276,7 +276,13 @@ void AddressBookPage::on_deleteAddress_clicked()
     QTableView *table;
     table = ui->tableView;
 
-    if(!table->selectionModel() || ui->addressType->currentText() == AddressTableModel::SparkName)
+    // Refuse deletion on both spark-name tabs ("Spark names" and "My own spark
+    // names"). Spark-name entries are protocol-managed, not wallet address-book
+    // rows; calling removeRow() here would only strip the display-side label.
+    const QString currentType = ui->addressType->currentText();
+    if(!table->selectionModel() ||
+       currentType == AddressTableModel::SparkName ||
+       currentType == AddressTableModel::SparkNameMine)
         return;
 
     QModelIndexList indexes = table->selectionModel()->selectedRows();
@@ -298,12 +304,16 @@ void AddressBookPage::selectionChanged()
 
     if(table->selectionModel()->hasSelection())
     {
-        bool fSparkNames = ui->addressType->currentText() == AddressTableModel::SparkName;
+        const QString currentType = ui->addressType->currentText();
+        bool fSparkNames = currentType == AddressTableModel::SparkName ||
+                           currentType == AddressTableModel::SparkNameMine;
         switch(tab)
         {
         case SendingTab:
-            // In sending tab, allow deletion of selection
-            ui->deleteAddress->setEnabled(true);
+            // In sending tab, allow deletion of selection for everything
+            // except the spark-name tabs (deletion there has no effect on
+            // the protocol-managed entries).
+            ui->deleteAddress->setEnabled(!fSparkNames);
             ui->deleteAddress->setVisible(!fSparkNames);
             deleteAction->setEnabled(!fSparkNames);
             break;

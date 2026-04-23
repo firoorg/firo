@@ -58,6 +58,7 @@ public:
     static const QString Transparent;
     static const QString Spark;
     static const QString SparkName;
+    static const QString SparkNameMine;
     static const QString RAP;
 
     /** @name Methods overridden from QAbstractTableModel
