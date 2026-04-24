@@ -508,10 +508,10 @@ void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlRe
     // NOTE: We can only get here if -onion is unset
     std::string socks_location;
     if (reply.code == 250) {
-        static const std::string kSocksPrefix{"net/listeners/socks="};
+        static const std::string SOCKS_PREFIX{"net/listeners/socks="};
         for (const std::string& line : reply.lines) {
-            if (line.starts_with(kSocksPrefix)) {
-                const std::string port_list_str = line.substr(kSocksPrefix.size());
+            if (line.starts_with(SOCKS_PREFIX)) {
+                const std::string port_list_str = line.substr(SOCKS_PREFIX.size());
                 std::vector<std::string> port_list;
                 boost::split(port_list, port_list_str, boost::is_any_of(" "));
                 for (auto& portstr : port_list) {
@@ -522,6 +522,11 @@ void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlRe
                         portstr = portstr.substr(1, portstr.size() - 2);
                         if (portstr.empty()) continue;
                     }
+                    // Skip entries Tor may report that we can't use as a TCP
+                    // proxy (e.g. "unix:/path/to/socket"), so they don't
+                    // overwrite a usable TCP listener seen earlier.
+                    const CService candidate = LookupNumeric(portstr.c_str(), DEFAULT_TOR_SOCKS_PORT);
+                    if (!candidate.IsValid()) continue;
                     socks_location = portstr;
                     if (portstr.starts_with("127.0.0.1:"))
                         break; // prefer localhost over other interfaces
