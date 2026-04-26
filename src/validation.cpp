@@ -3081,19 +3081,19 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // evo spork handling
     // back up spork state if fJustCheck is true
-    auto sporkSetBackup = pindex->activeDisablingSporks;
+    auto sporkSetBackup = pindex->privacyData().activeDisablingSporks;
     CSporkManager *sporkManager = CSporkManager::GetSporkManager();
 
     if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
                 pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
         if (!sporkManager->BlockConnected(block, pindex)) {
-            pindex->activeDisablingSporks = sporkSetBackup;
+            pindex->ensurePrivacyData().activeDisablingSporks = sporkSetBackup;
             return false;
         }
 
         // check if transaction is allowed under spork rules
         for (CTransactionRef tx: block.vtx) {
-            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex->privacyData().activeDisablingSporks, state))
                 return false;
         }
     }
@@ -3107,7 +3107,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     if (fJustCheck) {
         // roll back spork set if needed
-        pindex->activeDisablingSporks = sporkSetBackup;
+        pindex->ensurePrivacyData().activeDisablingSporks = sporkSetBackup;
         return true;
     }
 

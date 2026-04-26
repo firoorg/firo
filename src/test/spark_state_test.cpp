@@ -283,7 +283,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto index3 = GenerateBlock({});
     auto block3 = GetCBlock(index3);
     PopulateSparkTxInfo(block3, {}, {{lTag1, 1}, {lTag2, 1}});
-    index3->spentLTags = block3.sparkTxInfo->spentLTags;
+    index3->ensurePrivacyData().spentLTags = block3.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index3);
 
@@ -300,7 +300,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto block4 = GetCBlock(index4);
     PopulateSparkTxInfo(block4, {pwalletMain->sparkWallet->getCoinFromMeta(mint3)}, {{lTag3, 1}});
     sparkState->AddMintsToStateAndBlockIndex(index4, &block4);
-    index4->spentLTags = block4.sparkTxInfo->spentLTags;
+    index4->ensurePrivacyData().spentLTags = block4.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index4);
 
@@ -363,7 +363,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     auto sparkState = new spark::CSparkState(maxSize, startCoin);
 
     auto addMintsToState = [&](CBlockIndex* index, CBlock const& block) {
-        index->sparkMintedCoins.clear();
+        if (index->hasPrivacyData()) index->ensurePrivacyData().sparkMintedCoins.clear();
         sparkState->AddMintsToStateAndBlockIndex(index, &block);
     };
 

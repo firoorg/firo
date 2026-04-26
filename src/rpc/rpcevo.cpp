@@ -1288,7 +1288,7 @@ UniValue spork(const JSONRPCRequest& request)
         LOCK(cs_main);
         LOCK(mempool.cs);
 
-        result.pushKV("blockchain", spork_listToJSON(chainActive.Tip()->activeDisablingSporks));
+        result.pushKV("blockchain", spork_listToJSON(chainActive.Tip()->privacyData().activeDisablingSporks));
         result.pushKV("mempool", spork_listToJSON(mempool.GetActiveSporks()));
 
         return result;

@@ -61,8 +61,9 @@ static bool CheckLelantusSpendSerial(
  * Util funtions
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
-    return index->lelantusMintedPubCoins.count(id) > 0
-        ? index->lelantusMintedPubCoins[id].size() : 0;
+    const auto& pd = index->privacyData();
+    auto it = pd.lelantusMintedPubCoins.find(id);
+    return it != pd.lelantusMintedPubCoins.end() ? it->second.size() : 0;
 }
 
 std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
@@ -76,8 +77,10 @@ std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id,
         return out_hash;
 
     while (index != coinGroup.firstBlock) {
-        if (index->anonymitySetHash.count(group_id) > 0) {
-            out_hash = index->anonymitySetHash[group_id];
+        const auto& pd = index->privacyData();
+        auto it = pd.anonymitySetHash.find(group_id);
+        if (it != pd.anonymitySetHash.end()) {
+            out_hash = it->second;
             break;
         }
         index = index->pprev;
@@ -506,10 +509,9 @@ bool CheckLelantusJoinSplitTransaction(
                     id = idAndHash.first - 1;
                 }
                 if (id) {
-                    if(index->lelantusMintedPubCoins.count(id) > 0) {
-                        BOOST_FOREACH(
-                        const auto& pubCoinValue,
-                        index->lelantusMintedPubCoins[id]) {
+                    auto lit = index->privacyData().lelantusMintedPubCoins.find(id);
+                    if (lit != index->privacyData().lelantusMintedPubCoins.end()) {
+                        for (const auto& pubCoinValue : lit->second) {
                             // skip mints from blacklist if nLelantusFixesStartBlock is passed
                             if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
                                 if (::Params().GetConsensus().lelantusBlacklist.count(pubCoinValue.first.getValue()) > 0) {
@@ -869,9 +871,10 @@ bool ConnectBlockLelantus(
     // Add lelantus transaction information to index
     if (pblock && pblock->lelantusTxInfo) {
         if (!fJustCheck) {
-            pindexNew->lelantusMintedPubCoins.clear();
-            pindexNew->lelantusSpentSerials.clear();
-            pindexNew->anonymitySetHash.clear();
+            auto& pd = pindexNew->ensurePrivacyData();
+            pd.lelantusMintedPubCoins.clear();
+            pd.lelantusSpentSerials.clear();
+            pd.anonymitySetHash.clear();
         }
 
         if (!CheckLelantusBlock(state, *pblock)) {
@@ -891,8 +894,9 @@ bool ConnectBlockLelantus(
         }
 
         if (!fJustCheck) {
+            auto& pd = pindexNew->ensurePrivacyData();
             BOOST_FOREACH(auto& serial, pblock->lelantusTxInfo->spentSerials) {
-                pindexNew->lelantusSpentSerials.insert(serial);
+                pd.lelantusSpentSerials.insert(serial);
                 lelantusState.AddSpend(serial.first, serial.second);
             }
         }
@@ -938,7 +942,7 @@ bool ConnectBlockLelantus(
                     }
                 }
 
-                for (auto &coin : pindexNew->lelantusMintedPubCoins[latestCoinId]) {
+                for (auto &coin : pindexNew->ensurePrivacyData().lelantusMintedPubCoins[latestCoinId]) {
                     coin.first.getValue().serialize(data.data());
                     hash.Write(data.data(), data.size());
                 }
@@ -949,7 +953,7 @@ bool ConnectBlockLelantus(
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
             hash.Finalize(hash_result);
-            auto &out_hash = pindexNew->anonymitySetHash[lelantusState.GetLatestCoinID()];
+            auto &out_hash = pindexNew->ensurePrivacyData().anonymitySetHash[lelantusState.GetLatestCoinID()];
             out_hash.clear();
             out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
         }
@@ -1259,10 +1263,11 @@ void CLelantusState::AddMintsToStateAndBlockIndex(
         containers.AddMint(mint.first, CMintedCoinInfo::make(latestCoinId, index->nHeight), mint.second);
 
         LogPrintf("AddMintsToStateAndBlockIndex: Lelantus mint added id=%d\n", latestCoinId);
-        index->lelantusMintedPubCoins[latestCoinId].push_back(mint);
+        auto& pd = index->ensurePrivacyData();
+        pd.lelantusMintedPubCoins[latestCoinId].push_back(mint);
 
         if (GetBoolArg("-mobile", false)) {
-            index->lelantusMintData[mint.first.getValue()] = lelantusMintData[mint.first.getValue()];
+            pd.lelantusMintData[mint.first.getValue()] = lelantusMintData[mint.first.getValue()];
         }
     }
 }
@@ -1272,7 +1277,8 @@ void CLelantusState::AddSpend(const Scalar &serial, int coinGroupId) {
 }
 
 void CLelantusState::AddBlock(CBlockIndex *index) {
-    for (auto const &pubCoins : index->lelantusMintedPubCoins) {
+    const auto& pd = index->privacyData();
+    for (auto const &pubCoins : pd.lelantusMintedPubCoins) {
 
         if (pubCoins.second.empty())
             continue;
@@ -1299,14 +1305,15 @@ void CLelantusState::AddBlock(CBlockIndex *index) {
         }
     }
 
-    for (auto const &serial : index->lelantusSpentSerials) {
+    for (auto const &serial : pd.lelantusSpentSerials) {
         AddSpend(serial.first, serial.second);
     }
 }
 
 void CLelantusState::RemoveBlock(CBlockIndex *index) {
     // roll back coin group updates
-    for (auto &coins : index->lelantusMintedPubCoins)
+    const auto& pd = index->privacyData();
+    for (auto &coins : pd.lelantusMintedPubCoins)
     {
         if (coinGroups.count(coins.first) == 0)
             continue;
@@ -1351,12 +1358,12 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
             do {
                 assert(coinGroup.lastBlock != coinGroup.firstBlock);
                 coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-            } while (coinGroup.lastBlock->lelantusMintedPubCoins.count(coins.first) == 0);
+            } while (coinGroup.lastBlock->privacyData().lelantusMintedPubCoins.count(coins.first) == 0);
         }
     }
 
     // roll back mints
-    for (auto const &pubCoins : index->lelantusMintedPubCoins) {
+    for (auto const &pubCoins : pd.lelantusMintedPubCoins) {
         for (auto const &coin : pubCoins.second) {
             auto coins = containers.GetMints().equal_range(coin.first);
             auto coinIt = find_if(
@@ -1370,7 +1377,7 @@ void CLelantusState::RemoveBlock(CBlockIndex *index) {
     }
 
     // roll back spends
-    for (auto const &serial : index->lelantusSpentSerials) {
+    for (auto const &serial : pd.lelantusSpentSerials) {
         containers.RemoveSpend(serial.first);
     }
 }
@@ -1467,17 +1474,21 @@ int CLelantusState::GetCoinSetForSpend(
                 blockHash_out = block->GetBlockHash();
                 setHash_out =  GetAnonymitySetHash(block, id);
             }
-            numberOfCoins += block->lelantusMintedPubCoins[id].size();
-            if (block->lelantusMintedPubCoins.count(id) > 0) {
-                for (const auto &coin : block->lelantusMintedPubCoins[id]) {
-                    LOCK(cs_main);
-                    // skip mints from blacklist if nLelantusFixesStartBlock is passed
-                    if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
-                        if (::Params().GetConsensus().lelantusBlacklist.count(coin.first.getValue()) > 0) {
-                            continue;
+            {
+                const auto& bpd = block->privacyData();
+                auto it = bpd.lelantusMintedPubCoins.find(id);
+                if (it != bpd.lelantusMintedPubCoins.end()) {
+                    numberOfCoins += it->second.size();
+                    for (const auto &coin : it->second) {
+                        LOCK(cs_main);
+                        // skip mints from blacklist if nLelantusFixesStartBlock is passed
+                        if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
+                            if (::Params().GetConsensus().lelantusBlacklist.count(coin.first.getValue()) > 0) {
+                                continue;
+                            }
                         }
+                        coins_out.push_back(coin.first);
                     }
-                    coins_out.push_back(coin.first);
                 }
             }
         }
@@ -1533,9 +1544,11 @@ void CLelantusState::GetCoinsForRecovery(
                 setHash_out =  GetAnonymitySetHash(block, id);
             }
 
-            numberOfCoins += block->lelantusMintedPubCoins[id].size();
-            if (block->lelantusMintedPubCoins.count(id) > 0) {
-                for (const auto &coin : block->lelantusMintedPubCoins[id]) {
+            const auto& bpd = block->privacyData();
+            auto it = bpd.lelantusMintedPubCoins.find(id);
+            if (it != bpd.lelantusMintedPubCoins.end()) {
+                numberOfCoins += it->second.size();
+                for (const auto &coin : it->second) {
                     LOCK(cs_main);
                     // skip mints from blacklist if nLelantusFixesStartBlock is passed
                     if (chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
@@ -1545,10 +1558,10 @@ void CLelantusState::GetCoinsForRecovery(
                     }
 
                     lelantus::MintValueData lelantusMintData;
-                    if (block->lelantusMintData.count(coin.first.getValue()))
-                        lelantusMintData = block->lelantusMintData[coin.first.getValue()];
+                    auto mdit = bpd.lelantusMintData.find(coin.first.getValue());
+                    if (mdit != bpd.lelantusMintData.end())
+                        lelantusMintData = mdit->second;
                     coins.push_back(std::make_pair(coin.first, std::make_pair(lelantusMintData, coin.second)));
-
                 }
             }
         }
@@ -1592,8 +1605,9 @@ void CLelantusState::GetAnonymitySet(
         }
 
         if (id) {
-            if(block->lelantusMintedPubCoins.count(id) > 0) {
-                for (const auto &coin : block->lelantusMintedPubCoins[id]) {
+            auto it = block->privacyData().lelantusMintedPubCoins.find(id);
+            if (it != block->privacyData().lelantusMintedPubCoins.end()) {
+                for (const auto &coin : it->second) {
                     if (fStartLelantusBlacklist &&
                         chainActive.Height() >= ::Params().GetConsensus().nLelantusFixesStartBlock) {
                         std::vector<unsigned char> vch = coin.first.getValue().getvch();
@@ -1716,8 +1730,9 @@ size_t CLelantusState::CountLastNCoins(int groupId, size_t required, CBlockIndex
             ; block = block->pprev) {
 
             size_t inBlock;
-            if (block->lelantusMintedPubCoins.count(groupId)
-                && (inBlock = block->lelantusMintedPubCoins[groupId].size())) {
+            auto it = block->privacyData().lelantusMintedPubCoins.find(groupId);
+            if (it != block->privacyData().lelantusMintedPubCoins.end()
+                && (inBlock = it->second.size())) {
 
                 coins += inBlock;
                 first = block;

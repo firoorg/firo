@@ -105,8 +105,9 @@ unsigned char GetNetworkType() {
  * Util funtions
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
-    return index->sparkMintedCoins.count(id) > 0
-           ? index->sparkMintedCoins[id].size() : 0;
+    const auto& pd = index->privacyData();
+    auto it = pd.sparkMintedCoins.find(id);
+    return it != pd.sparkMintedCoins.end() ? it->second.size() : 0;
 }
 
 std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
@@ -120,8 +121,10 @@ std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id,
         return out_hash;
 
     while (index != coinGroup.firstBlock) {
-        if (index->sparkSetHash.count(group_id) > 0) {
-            out_hash = index->sparkSetHash[group_id];
+        const auto& pd = index->privacyData();
+        auto it = pd.sparkSetHash.find(group_id);
+        if (it != pd.sparkSetHash.end()) {
+            out_hash = it->second;
             break;
         }
         index = index->pprev;
@@ -269,9 +272,10 @@ bool ConnectBlockSpark(
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
         if (!fJustCheck) {
-            pindexNew->sparkMintedCoins.clear();
-            pindexNew->spentLTags.clear();
-            pindexNew->sparkSetHash.clear();
+            auto& pd = pindexNew->ensurePrivacyData();
+            pd.sparkMintedCoins.clear();
+            pd.spentLTags.clear();
+            pd.sparkSetHash.clear();
         }
 
         if (!CheckSparkBlock(state, *pblock)) {
@@ -291,13 +295,14 @@ bool ConnectBlockSpark(
         }
 
         if (!fJustCheck) {
+            auto& pd = pindexNew->ensurePrivacyData();
             BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
-                pindexNew->spentLTags.insert(lTag);
+                pd.spentLTags.insert(lTag);
                 sparkState.AddSpend(lTag.first, lTag.second);
             }
             if (GetBoolArg("-mobile", false)) {
                 BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
-                    pindexNew->ltagTxhash.insert(lTag);
+                    pd.ltagTxhash.insert(lTag);
                     sparkState.AddLTagTxHash(lTag.first, lTag.second);
                 }
             }
@@ -326,7 +331,7 @@ bool ConnectBlockSpark(
                 }
             }
 
-            for (auto &coin : pindexNew->sparkMintedCoins[latestCoinId]) {
+            for (auto &coin : pindexNew->ensurePrivacyData().sparkMintedCoins[latestCoinId]) {
                 CDataStream serializedCoin(SER_NETWORK, 0);
                 serializedCoin << coin;
                 std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
@@ -343,7 +348,7 @@ bool ConnectBlockSpark(
                                                     sparkName.second.operationType : CSparkNameTxData::opRegister;
                     switch (opType) {
                         case CSparkNameTxData::opRegister:
-                            pindexNew->addedSparkNames[sparkName.first] =
+                            pindexNew->ensurePrivacyData().addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
                                     pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
@@ -352,13 +357,13 @@ bool ConnectBlockSpark(
 
                         case CSparkNameTxData::opTransfer:
                             // old name data goes to removed list
-                            pindexNew->removedSparkNames[sparkName.first] = 
+                            pindexNew->ensurePrivacyData().removedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.oldSparkAddress,
                                     sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
                                     sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
 
-                            pindexNew->addedSparkNames[sparkName.first] =
+                            pindexNew->ensurePrivacyData().addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
                                     pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
@@ -367,7 +372,7 @@ bool ConnectBlockSpark(
                             break;
 
                         case CSparkNameTxData::opUnregister:
-                            pindexNew->removedSparkNames[sparkName.first] =
+                            pindexNew->ensurePrivacyData().removedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
                                     sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
@@ -393,7 +398,7 @@ bool ConnectBlockSpark(
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
             hash.Finalize(hash_result);
-            auto &out_hash = pindexNew->sparkSetHash[sparkState.GetLatestCoinID()];
+            auto &out_hash = pindexNew->ensurePrivacyData().sparkSetHash[sparkState.GetLatestCoinID()];
             out_hash.clear();
             out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
         }
@@ -406,7 +411,7 @@ bool ConnectBlockSpark(
 
     auto removedNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
     for (const auto &name: removedNames)
-        pindexNew->removedSparkNames[name.first] = name.second;
+        pindexNew->ensurePrivacyData().removedSparkNames[name.first] = name.second;
     
     sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
 
@@ -732,10 +737,9 @@ bool CheckSparkSpendTransaction(
                 id = idAndHash.first - 1;
             }
             if (id) {
-                if (index->sparkMintedCoins.count(id) > 0) {
-                    BOOST_FOREACH(
-                    const auto& coin,
-                    index->sparkMintedCoins[id]) {
+                auto sit = index->privacyData().sparkMintedCoins.find(id);
+                if (sit != index->privacyData().sparkMintedCoins.end()) {
+                    for (const auto& coin : sit->second) {
                         set_size++;
                         if (!useBatching)
                             cover_set.push_back(coin);
@@ -1264,7 +1268,8 @@ void CSparkState::AddMintsToStateAndBlockIndex(
     for (const auto& mint : blockMints) {
         AddMint(mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
         LogPrintf("AddMintsToStateAndBlockIndex: Spark mint added id=%d\n", latestCoinId);
-        index->sparkMintedCoins[latestCoinId].push_back(mint);
+        auto& pd = index->ensurePrivacyData();
+        pd.sparkMintedCoins[latestCoinId].push_back(mint);
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
             GetOutPointFromBlock(outPoint, mint, *pblock);
@@ -1273,7 +1278,7 @@ void CSparkState::AddMintsToStateAndBlockIndex(
                 if (outPoint.hash == itr->GetHash())
                     tx = itr;
             }
-            index->sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
+            pd.sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
         }
     }
 }
@@ -1309,7 +1314,8 @@ void CSparkState::RemoveSpend(const GroupElement& lTag) {
 }
 
 void CSparkState::AddBlock(CBlockIndex *index) {
-    for (auto const& coins : index->sparkMintedCoins) {
+    const auto& pd = index->privacyData();
+    for (auto const& coins : pd.sparkMintedCoins) {
         if (coins.second.empty())
             continue;
 
@@ -1333,11 +1339,11 @@ void CSparkState::AddBlock(CBlockIndex *index) {
         }
     }
 
-    for (auto const &lTags : index->spentLTags) {
+    for (auto const &lTags : pd.spentLTags) {
         AddSpend(lTags.first, lTags.second);
     }
     if (GetBoolArg("-mobile", false)) {
-        for (auto const &elem : index->ltagTxhash) {
+        for (auto const &elem : pd.ltagTxhash) {
             AddLTagTxHash(elem.first, elem.second);
         }
     }
@@ -1345,7 +1351,8 @@ void CSparkState::AddBlock(CBlockIndex *index) {
 
 void CSparkState::RemoveBlock(CBlockIndex *index) {
     // roll back coin group updates
-    for (auto &coins : index->sparkMintedCoins)
+    const auto& pd = index->privacyData();
+    for (auto &coins : pd.sparkMintedCoins)
     {
         if (coinGroups.count(coins.first) == 0)
             continue;
@@ -1388,12 +1395,12 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
             do {
                 assert(coinGroup.lastBlock != coinGroup.firstBlock);
                 coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-            } while (coinGroup.lastBlock->sparkMintedCoins.count(coins.first) == 0);
+            } while (coinGroup.lastBlock->privacyData().sparkMintedCoins.count(coins.first) == 0);
         }
     }
 
     // roll back mints
-    for (auto const&coins : index->sparkMintedCoins) {
+    for (auto const&coins : pd.sparkMintedCoins) {
         for (auto const& coin : coins.second) {
             auto mintCoins = GetMints().equal_range(coin);
             auto coinIt = find_if(
@@ -1407,7 +1414,7 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     }
 
     // roll back spends
-    for (auto const& lTag : index->spentLTags) {
+    for (auto const& lTag : pd.spentLTags) {
         RemoveSpend(lTag.first);
     }
 }
@@ -1511,11 +1518,12 @@ int CSparkState::GetCoinSetForSpend(
                 blockHash_out = block->GetBlockHash();
                 setHash_out =  GetAnonymitySetHash(block, id);
             }
-            numberOfCoins += block->sparkMintedCoins[id].size();
-            if (block->sparkMintedCoins.count(id) > 0) {
-                for (const auto &coin : block->sparkMintedCoins[id]) {
+            const auto& bpd = block->privacyData();
+            auto it = bpd.sparkMintedCoins.find(id);
+            if (it != bpd.sparkMintedCoins.end()) {
+                numberOfCoins += it->second.size();
+                for (const auto &coin : it->second)
                     coins_out.push_back(coin);
-                }
             }
         }
 
@@ -1563,12 +1571,15 @@ void CSparkState::GetCoinsForRecovery(
                 blockHash_out = block->GetBlockHash();
                 setHash_out =  GetAnonymitySetHash(block, id);
             }
-            numberOfCoins += block->sparkMintedCoins[id].size();
-            if (block->sparkMintedCoins.count(id) > 0) {
-                for (const auto &coin : block->sparkMintedCoins[id]) {
+            const auto& bpd = block->privacyData();
+            auto it = bpd.sparkMintedCoins.find(id);
+            if (it != bpd.sparkMintedCoins.end()) {
+                numberOfCoins += it->second.size();
+                for (const auto &coin : it->second) {
                     std::pair<uint256, std::vector<unsigned char>> txHashContext;
-                    if (block->sparkTxHashContext.count(coin.S))
-                        txHashContext = block->sparkTxHashContext[coin.S];
+                    auto ctx = bpd.sparkTxHashContext.find(coin.S);
+                    if (ctx != bpd.sparkTxHashContext.end())
+                        txHashContext = ctx->second;
                     coins.push_back({coin, txHashContext});
                 }
             }
@@ -1606,7 +1617,9 @@ void CSparkState::GetAnonSetMetaData(
                 blockHash_out = block->GetBlockHash();
                 setHash_out =  GetAnonymitySetHash(block, id);
             }
-            size += block->sparkMintedCoins[id].size();
+            auto it = block->privacyData().sparkMintedCoins.find(id);
+            if (it != block->privacyData().sparkMintedCoins.end())
+                size += it->second.size();
         }
         if (block == coinGroup.firstBlock) {
             break ;
@@ -1650,8 +1663,10 @@ void CSparkState::GetCoinsForRecovery(
             id = coinGroupID - 1;
         }
         if (id) {
-            if (block->sparkMintedCoins.count(id) > 0) {
-                for (const auto &coin : block->sparkMintedCoins[id]) {
+            const auto& bpd = block->privacyData();
+            auto it = bpd.sparkMintedCoins.find(id);
+            if (it != bpd.sparkMintedCoins.end()) {
+                for (const auto &coin : it->second) {
                     if (cmp::less(counter, startIndex)) {
                         ++counter;
                         continue;
@@ -1660,8 +1675,9 @@ void CSparkState::GetCoinsForRecovery(
                         break;
                     }
                     std::pair<uint256, std::vector<unsigned char>> txHashContext;
-                    if (block->sparkTxHashContext.count(coin.S))
-                        txHashContext = block->sparkTxHashContext[coin.S];
+                    auto ctx = bpd.sparkTxHashContext.find(coin.S);
+                    if (ctx != bpd.sparkTxHashContext.end())
+                        txHashContext = ctx->second;
                     coins.push_back({coin, txHashContext});
                     ++counter;
                 }
@@ -1710,8 +1726,9 @@ size_t CSparkState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &
                 ; block = block->pprev) {
 
             size_t inBlock;
-            if (block->sparkMintedCoins.count(groupId)
-                && (inBlock = block->sparkMintedCoins[groupId].size())) {
+            auto it = block->privacyData().sparkMintedCoins.find(groupId);
+            if (it != block->privacyData().sparkMintedCoins.end()
+                && (inBlock = it->second.size())) {
 
                 coins += inBlock;
                 first = block;

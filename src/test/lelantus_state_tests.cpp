@@ -86,7 +86,7 @@ public:
                 Scalar serial;
                 serial.randomize();
 
-                index->lelantusSpentSerials[serial] = s.first;
+                index->ensurePrivacyData().lelantusSpentSerials[serial] = s.first;
             }
         }
 
@@ -280,7 +280,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto index3 = GenerateBlock({});
     auto block3 = GetCBlock(index3);
     PopulateLelantusTxInfo(block3, {}, {{serial1, 1}, {serial2, 1}});
-    index3->lelantusSpentSerials = block3.lelantusTxInfo->spentSerials;
+    index3->ensurePrivacyData().lelantusSpentSerials = block3.lelantusTxInfo->spentSerials;
 
     lelantusState->AddBlock(index3);
 
@@ -298,7 +298,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto block4 = GetCBlock(index4);
     PopulateLelantusTxInfo(block4, {{mint3, {1, uint256()}}}, {{serial3, 1}});
     lelantusState->AddMintsToStateAndBlockIndex(index4, &block4);
-    index4->lelantusSpentSerials = block4.lelantusTxInfo->spentSerials;
+    index4->ensurePrivacyData().lelantusSpentSerials = block4.lelantusTxInfo->spentSerials;
 
     lelantusState->AddBlock(index4);
 
@@ -360,7 +360,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     auto lelantusState = new CLelantusState(maxSize, startCoin);
 
     auto addMintsToState = [&](CBlockIndex *index, CBlock const &block) {
-        index->lelantusMintedPubCoins.clear();
+        if (index->hasPrivacyData()) index->ensurePrivacyData().lelantusMintedPubCoins.clear();
         lelantusState->AddMintsToStateAndBlockIndex(index, &block);
     };
 

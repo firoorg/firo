@@ -974,7 +974,7 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             sporkTxRefs.push_back(sporkTx->GetSharedTx());
     }
     CSporkManager *sporkManager = CSporkManager::GetSporkManager();
-    ActiveSporkMap prevSporkMap = chainActive.Tip()->activeDisablingSporks;
+    ActiveSporkMap prevSporkMap = chainActive.Tip()->privacyData().activeDisablingSporks;
     ActiveSporkMap sporkMap;
     sporkManager->UpdateActiveSporkMap(sporkMap, prevSporkMap, chainActive.Tip()->nHeight+1, sporkTxRefs);
 
