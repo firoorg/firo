@@ -80,6 +80,9 @@ private:
     QAction *deleteAction; // to be able to explicitly disable it
     QString newAddressToSelect;
     bool isReused;
+    void populateAddressTypes(bool sparkAllowed);
+    int currentAddressType() const;
+    static bool isSparkNameType(int type);
 
 private Q_SLOTS:
     /** Delete currently selected address entry */

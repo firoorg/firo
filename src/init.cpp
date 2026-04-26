@@ -219,6 +219,10 @@ static CCoinsViewDB *pcoinsdbview = NULL;
 static CCoinsViewErrorCatcher *pcoinscatcher = NULL;
 static std::unique_ptr<ECCVerifyHandle> globalVerifyHandle;
 
+// Forward declaration: definition is further down alongside the -torsetup
+// embedded Tor helpers. File-local because no other TU calls it.
+static void InterruptTorEnabled();
+
 void Interrupt(boost::thread_group& threadGroup)
 {
     InterruptHTTPServer();
@@ -226,6 +230,13 @@ void Interrupt(boost::thread_group& threadGroup)
     InterruptRPC();
     InterruptREST();
     InterruptTorControl();
+    // Best-effort interrupt for the -torsetup embedded Tor thread. tor_main()
+    // runs its own blocking event loop inside TorEnabledThread, so this only
+    // primes our wrapping event_base to exit once tor_main eventually returns
+    // (on process signal). We cannot cleanly stop embedded Tor from outside
+    // because no control port is configured; that's why Shutdown() does not
+    // call StopTorEnabled() -- joining the thread would deadlock.
+    InterruptTorEnabled();
     llmq::InterruptLLMQSystem();
     if (g_connman)
         g_connman->Interrupt();
@@ -264,9 +275,24 @@ void Shutdown()
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
-    g_connman.reset();
 
+    // Stop the Tor control thread before tearing down CConnman. The current
+    // auth_cb only touches global state (SetProxy, mapLocalHost via AddLocal,
+    // GetArg/GetListenPort) and does not dereference g_connman, so strictly
+    // speaking the order is not required today. Kept as defense-in-depth in
+    // case a future TorController callback needs to query live peers or
+    // listeners (the dedicated onion listener is now bound at init time
+    // instead of from auth_cb, so that particular path no longer applies).
     StopTorControl();
+    // Note: there is intentionally no matching StopTorEnabled() call here
+    // for the -torsetup embedded Tor thread. RunTor() invokes tor_main()
+    // which runs Tor's own blocking event loop and does not return until
+    // the whole process is signaled; we don't configure a control port on
+    // the embedded Tor, so there is no in-band way to stop it. Joining
+    // torEnabledThread would deadlock Shutdown(). InterruptTorEnabled() in
+    // Interrupt() primes our wrapping event_base for post-tor_main
+    // cleanup; the embedded Tor itself is torn down by process exit.
+    g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
     if (fDumpMempoolLater)
         DumpMempool();
@@ -465,7 +491,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-maxsendbuffer=<n>", strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"), DEFAULT_MAXSENDBUFFER));
     strUsage += HelpMessageOpt("-maxtimeadjustment", strprintf(_("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)"), DEFAULT_MAX_TIME_ADJUSTMENT));
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
-    strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"));
+    strUsage += HelpMessageOpt("-onlynet=<net>", _("Make automatic outbound connections only to network <net> (ipv4, ipv6 or onion). Can be specified multiple times to allow multiple networks."));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), Params(CBaseChainParams::MAIN).GetDefaultPort(), Params(CBaseChainParams::TESTNET).GetDefaultPort()));
@@ -969,7 +995,7 @@ static std::string ResolveErrMsg(const char *const optname, const std::string &s
     return strprintf(_("Cannot resolve -%s address: '%s'"), optname, strBind);
 }
 
-void RunTor(){
+void RunTor(unsigned short onion_local_port){
 	printf("TOR thread started.\n");
 
 	boost::optional < std::string > clientTransportPlugin;
@@ -997,7 +1023,17 @@ void RunTor(){
 	argv.push_back("--HiddenServiceDir");
 	argv.push_back((tor_dir / "onion").string());
 	argv.push_back("--HiddenServicePort");
-	argv.push_back("8168");
+	// When a dedicated onion listener was bound at init time, point the
+	// hidden service at it so inbound traffic is accepted on a socket
+	// flagged is_onion_listener (and therefore classified as NET_ONION).
+	// Otherwise fall back to the single-port form, which Tor interprets
+	// as VIRTPORT -> localhost:VIRTPORT and lands inbound peers on the
+	// main listener (same as pre-fix behavior).
+	if (onion_local_port != 0) {
+		argv.push_back(strprintf("8168 127.0.0.1:%u", onion_local_port));
+	} else {
+		argv.push_back("8168");
+	}
 
 	if (clientTransportPlugin) {
 		printf("Using OBFS4.\n");
@@ -1018,15 +1054,20 @@ void RunTor(){
 
 struct event_base *baseTor;
 boost::thread torEnabledThread;
+/** Port for the dedicated onion-forwarded local listener, captured by
+ *  StartTorEnabled() and consumed by TorEnabledThread() when it launches
+ *  the embedded Tor. 0 means no dedicated listener was bound. */
+static unsigned short g_tor_enabled_onion_local_port = 0;
 
 static void TorEnabledThread()
 {
-	RunTor();
+	RunTor(g_tor_enabled_onion_local_port);
     event_base_dispatch(baseTor);
 }
 
 
-void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
+void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler,
+                     unsigned short onion_local_port = 0)
 {
     assert(!baseTor);
 #ifdef WIN32
@@ -1040,10 +1081,18 @@ void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
         return;
     }
 
+    g_tor_enabled_onion_local_port = onion_local_port;
     torEnabledThread = boost::thread(boost::bind(&TraceThread<void (*)()>, "torcontrol", &TorEnabledThread));
 }
 
-void InterruptTorEnabled()
+// Best-effort interrupt of the embedded Tor wrapper event_base. This does
+// NOT stop tor_main() itself -- Tor runs its own event loop inside
+// TorEnabledThread, and without a control port there is no in-band way to
+// request shutdown. Calling this only makes the wrapping event_base_dispatch
+// that follows tor_main() return immediately once tor_main does return on
+// process exit. Safe to call even while tor_main is still running.
+// File-local (forward-declared near Interrupt()).
+static void InterruptTorEnabled()
 {
     if (baseTor) {
         LogPrintf("tor: Thread interrupt\n");
@@ -1051,6 +1100,14 @@ void InterruptTorEnabled()
     }
 }
 
+// WARNING: this will deadlock if called while tor_main() is still running
+// inside TorEnabledThread (the common case at shutdown), because
+// torEnabledThread.join() blocks until tor_main returns and embedded Tor
+// has no in-band shutdown path. Intentionally not called from Shutdown();
+// the embedded Tor thread is left to be torn down by process exit. Kept
+// as a no-op-ish symbol in case a future change adds a control port (e.g.
+// via tor_api_run_main + tor_shutdown_event_loop_for_controller_()) that
+// makes clean shutdown possible.
 void StopTorEnabled()
 {
     if (baseTor) {
@@ -1529,18 +1586,33 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
-    if (mapMultiArgs.count("-onlynet")) {
-        std::set<enum Network> nets;
+    bool fOnlyNet = mapMultiArgs.count("-onlynet");
+    std::set<enum Network> onlyNetNets;
+    if (fOnlyNet) {
         BOOST_FOREACH(const std::string& snet, mapMultiArgs.at("-onlynet")) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
-            nets.insert(net);
+            onlyNetNets.insert(net);
         }
-        for (int n = 0; n < NET_MAX; n++) {
-            enum Network net = (enum Network)n;
-            if (!nets.count(net))
+        // Intentional narrowing relative to Bitcoin Core: Firo only enforces
+        // -onlynet over the user-selectable networks (ipv4, ipv6, onion).
+        // NET_I2P / NET_CJDNS aren't supported as -onlynet targets (they have
+        // no proxy/transport plumbing in Firo, ParseNetwork() doesn't accept
+        // them, and getnetworkinfo doesn't surface them). If Firo adds
+        // support for either, extend this list, GetNetworksInfo() in
+        // src/rpc/net.cpp, and the qa/rpc-tests/proxy_test.py expected set.
+        for (const auto net : {NET_IPV4, NET_IPV6, NET_ONION}) {
+            if (!onlyNetNets.count(net)) {
                 SetLimited(net);
+            }
+        }
+        // The "explicitly limited" flag is consulted by background setup paths
+        // that may try to (re)mark a network reachable after init finishes
+        // (today only TorController::auth_cb for NET_ONION). Other networks
+        // have no such async setup, so flagging them here would be dead.
+        if (!onlyNetNets.count(NET_ONION)) {
+            SetNetworkExplicitlyLimited(NET_ONION);
         }
     }
 
@@ -1556,28 +1628,73 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // start tor
     bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    bool listenOnion = GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION);
+
+    // Bind a dedicated 127.0.0.1:<ephemeral> listener used only to receive
+    // traffic forwarded by Tor from our hidden service. Doing this once at
+    // init (mirroring Bitcoin Core's pattern, ref bitcoin#16702) means:
+    //   * the Tor control thread never has to call BindListenPort at
+    //     runtime (it just receives the resolved port); and
+    //   * -torsetup's embedded Tor can point its --HiddenServicePort target
+    //     at this socket too, so both paths classify inbound peers as
+    //     NET_ONION instead of IPv4 127.0.0.1.
+    // The listener is flagged is_onion_listener so AcceptConnection tags
+    // accepted peers accordingly.
+    //
+    // Note on -listen=0 interaction: -listen=0 soft-forces -listenonion=0
+    // (see the parameter-interaction block above), but does *not* force
+    // -torsetup=0. So with "-listen=0 -torsetup=1" we still bind this
+    // dedicated local listener and the embedded Tor's hidden service will
+    // route inbound traffic to it. This differs from pre-PR behavior where
+    // -listen=0 + -torsetup=1 effectively disabled inbound onion (the
+    // embedded Tor forwarded to 127.0.0.1:8168 where nothing was
+    // listening). The new behavior is closer to user intent ("-torsetup=1
+    // implies I want inbound via onion") while still honoring -listen=0
+    // for clearnet listeners.
+    unsigned short onion_local_port = 0;
+    if (torEnabled || listenOnion) {
+        std::string strBindError;
+        CService onionBindAddr(LookupNumeric("127.0.0.1", 0));
+        if (!connman.BindListenPort(onionBindAddr, strBindError,
+                                    /*fWhitelisted=*/false,
+                                    /*is_onion_listener=*/true,
+                                    &onion_local_port) || onion_local_port == 0) {
+            LogPrintf("Warning: failed to bind dedicated local listener for Tor hidden service (%s); "
+                      "inbound onion peers will appear as IPv4 127.0.0.1\n", strBindError);
+            onion_local_port = 0;
+        }
+    }
+
     if(torEnabled){
-    	StartTorEnabled(threadGroup, scheduler);
-        SetLimited(NET_ONION);
-        SetLimited(NET_IPV4);
-        SetLimited(NET_IPV6);
+    	StartTorEnabled(threadGroup, scheduler, onion_local_port);
         proxyType addrProxy = proxyType(LookupNumeric("127.0.0.1", 9050),
                         true);
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
         SetProxy(NET_ONION, addrProxy);
-        SetLimited(NET_IPV4, false);
-        SetLimited(NET_IPV6, false);
-        SetLimited(NET_ONION, false);
+        SetNameProxy(addrProxy);
+        if (!fOnlyNet || onlyNetNets.count(NET_IPV4))
+            SetLimited(NET_IPV4, false);
+        if (!fOnlyNet || onlyNetNets.count(NET_IPV6))
+            SetLimited(NET_IPV6, false);
+        if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+            SetLimited(NET_ONION, false);
     }
 
     bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
-    // Only set NET_ONION as limited by default if -onlynet was not specified.
-    // If -onlynet was specified, the network limitations have already been set correctly above.
-    if (!mapMultiArgs.count("-onlynet")) {
+    // Default NET_ONION to limited unless -onlynet already set the limits
+    // explicitly above OR -torsetup=1 has already configured the embedded
+    // Tor SOCKS proxy (and unlimited NET_ONION) in the torEnabled block.
+    // Without the !torEnabled guard, -torsetup=1 alone would end up with
+    // NET_ONION limited because this block runs after the torEnabled
+    // unlimit -- and post-PR that limit is actually enforced in
+    // OpenNetworkConnection / the masternode filter, blocking every
+    // outbound onion connection. -proxy and -onion below still get their
+    // chance to limit/unlimit explicitly.
+    if (!fOnlyNet && !torEnabled) {
         SetLimited(NET_ONION);
     }
     if (proxyArg != "" && proxyArg != "0") {
@@ -1590,7 +1707,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         SetProxy(NET_IPV6, addrProxy);
         SetProxy(NET_ONION, addrProxy);
         SetNameProxy(addrProxy);
-        SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
+        if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+            SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
     }
 
     // -onion can be used to set only a proxy for .onion, or override normal proxy for .onion addresses
@@ -1599,6 +1717,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string onionArg = GetArg("-onion", "");
     if (onionArg != "") {
         if (onionArg == "0") { // Handle -noonion/-onion=0
+            if (onlyNetNets.count(NET_ONION)) {
+                return InitError(
+                    _("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is explicitly forbidden: -onion=0"));
+            }
             SetLimited(NET_ONION); // set onions as unreachable
         } else {
             CService resolved(LookupNumeric(onionArg.c_str(), 9050));
@@ -1606,25 +1728,32 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             if (!addrOnion.IsValid())
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
             SetProxy(NET_ONION, addrOnion);
-            SetLimited(NET_ONION, false);
+            if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+                SetLimited(NET_ONION, false);
+            // When onlynet=onion and a dedicated -onion proxy is set (but no -proxy),
+            // also set it as the name proxy so DNS resolution goes through Tor
+            // and doesn't leak over clearnet.
+            if (fOnlyNet && onlyNetNets.count(NET_ONION) && !HaveNameProxy())
+                SetNameProxy(addrOnion);
         }
     }
 
     // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
-    // This check is similar to Bitcoin Core's approach to provide a helpful error message.
-    if (mapMultiArgs.count("-onlynet")) {
-        bool onlynetIncludesOnion = false;
-        for (const std::string& snet : mapMultiArgs.at("-onlynet")) {
-            if (ParseNetwork(snet) == NET_ONION) {
-                onlynetIncludesOnion = true;
-                break;
-            }
-        }
-        if (onlynetIncludesOnion) {
+    // Matches Bitcoin Core: if -listenonion is enabled we will connect to the
+    // Tor control port later from the torcontrol thread and auth_cb will
+    // configure the onion proxy automatically, so that path is also accepted.
+    // The -listenonion bypass only helps when -torcontrol is actually usable;
+    // treat an empty or "0" value (including -notorcontrol) as disabled so we
+    // don't let init succeed into a state with no working onion path.
+    if (fOnlyNet) {
+        if (onlyNetNets.count(NET_ONION)) {
             proxyType onionProxy;
             bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
-            if (!haveOnionProxy && !torEnabled) {
-                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but no proxy for reaching the Tor network is provided. Use -proxy, -onion, or -torsetup to configure a Tor proxy."));
+            const std::string torControlAddr = GetArg("-torcontrol", DEFAULT_TOR_CONTROL);
+            const bool torControlUsable = !torControlAddr.empty() && torControlAddr != "0";
+            const bool canAutoConfigureOnion = listenOnion && torControlUsable;
+            if (!haveOnionProxy && !torEnabled && !canAutoConfigureOnion) {
+                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is not provided: none of -proxy, -onion, -torsetup or -listenonion (with a usable -torcontrol) is given."));
             }
         }
     }
@@ -2105,8 +2234,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
     LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
-        StartTorControl(threadGroup, scheduler);
+    if (listenOnion) {
+        // The dedicated onion listener (if any) was bound earlier, shared
+        // with the -torsetup path; reuse its port here.
+        StartTorControl(threadGroup, scheduler, onion_local_port);
+    }
 
     Discover(threadGroup);
 

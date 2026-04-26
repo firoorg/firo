@@ -55,8 +55,9 @@ public:
     enum ColumnIndex {
         NetNodeId = 0,
         Address = 1,
-        Subversion = 2,
-        Ping = 3
+        Network = 2,
+        Subversion = 3,
+        Ping = 4
     };
 
     /** @name Methods overridden from QAbstractTableModel

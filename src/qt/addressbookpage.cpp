@@ -117,18 +117,16 @@ AddressBookPage::~AddressBookPage()
     delete ui;
 }
 
-void AddressBookPage::setModel(AddressTableModel *_model)
+void AddressBookPage::populateAddressTypes(bool sparkAllowed)
 {
-    this->model = _model;
-    if(!_model)
-        return;
-    bool spark = this->model->IsSparkAllowed();
+    ui->addressType->clear();
+    ui->addressType->show();
 
     if (tab == SendingTab || (tab == ReceivingTab && !this->isReused)) {
-        if (spark)
+        if (sparkAllowed)
             ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);     
-        if (spark) {
+        ui->addressType->addItem(tr("Transparent"), Transparent);
+        if (sparkAllowed) {
             ui->addressType->addItem(tr("Spark names"), SparkName);
             ui->addressType->addItem(tr("My own spark names"), SparkNameMine);
         }
@@ -137,6 +135,24 @@ void AddressBookPage::setModel(AddressTableModel *_model)
         ui->addressType->addItem(tr("Transparent"), Transparent);
         ui->addressType->hide();
     }
+}
+
+int AddressBookPage::currentAddressType() const
+{
+    return ui->addressType->currentData().toInt();
+}
+
+bool AddressBookPage::isSparkNameType(int type)
+{
+    return type == (int)SparkName || type == (int)SparkNameMine;
+}
+
+void AddressBookPage::setModel(AddressTableModel *_model)
+{
+    this->model = _model;
+    if(!_model)
+        return;
+    populateAddressTypes(this->model->IsSparkAllowed());
 
     proxyModel = new QSortFilterProxyModel(this);
     fproxyModel = new AddressBookFilterProxy(this);
@@ -201,18 +217,7 @@ void AddressBookPage::setModel(AddressTableModel *_model)
 }
 
 void AddressBookPage::updateSpark() {
-    ui->addressType->clear();
-    if (tab == SendingTab) {
-        ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-    } else if(tab == ReceivingTab && !this->isReused) {
-        ui->addressType->addItem(tr("Spark"), Spark);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-    } else {
-        ui->addressType->addItem(tr(""), Transparent);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
-        ui->addressType->hide();
-    }
+    populateAddressTypes(model && model->IsSparkAllowed());
 
     chooseAddressType(0);
 }
@@ -234,14 +239,15 @@ void AddressBookPage::onCopyLabelAction()
 void AddressBookPage::onEditAction()
 {
     QModelIndexList indexes;
+    const int selectedType = currentAddressType();
 
-    if (ui->addressType->currentText() == AddressTableModel::SparkName)
+    if (isSparkNameType(selectedType))
         return;
 
     EditAddressDialog::Mode mode;
     AddressTableModel * pmodel;
     pmodel = model;
-    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
+    if (selectedType == (int)Transparent) {
         mode = tab == SendingTab ? EditAddressDialog::EditSendingAddress : EditAddressDialog::EditReceivingAddress;
     } else {
         mode = tab == SendingTab ? EditAddressDialog::EditSparkSendingAddress : EditAddressDialog::EditSparkReceivingAddress;
@@ -267,7 +273,8 @@ void AddressBookPage::on_newAddress_clicked()
     if(!model)
         return;
 
-    if (ui->addressType->currentData() == SparkName || ui->addressType->currentData() == SparkNameMine) {
+    const int selectedType = currentAddressType();
+    if (isSparkNameType(selectedType)) {
         CreateSparkNamePage *dialog = new CreateSparkNamePage(platformStyle, this);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         dialog->setModel(model->getWalletModel());
@@ -278,7 +285,7 @@ void AddressBookPage::on_newAddress_clicked()
     AddressTableModel *pmodel;
     EditAddressDialog::Mode mode;
     pmodel = model;
-    if (ui->addressType->currentData() == Spark) {
+    if (selectedType == (int)Spark) {
         mode = tab == SendingTab ? EditAddressDialog::NewSparkSendingAddress : EditAddressDialog::NewSparkReceivingAddress;
     } else {
         mode = tab == SendingTab ? EditAddressDialog::NewSendingAddress : EditAddressDialog::NewReceivingAddress;
@@ -296,8 +303,9 @@ void AddressBookPage::on_deleteAddress_clicked()
 {
     QTableView *table;
     table = ui->tableView;
+    const int selectedType = currentAddressType();
 
-    if(!table->selectionModel() || ui->addressType->currentText() == AddressTableModel::SparkName)
+    if(!table->selectionModel() || isSparkNameType(selectedType))
         return;
 
     QModelIndexList indexes = table->selectionModel()->selectedRows();
@@ -342,7 +350,7 @@ void AddressBookPage::selectionChanged()
 
     if(table->selectionModel()->hasSelection())
     {
-        bool fSparkNames = ui->addressType->currentData() == SparkName || ui->addressType->currentData() == SparkNameMine;
+        bool fSparkNames = isSparkNameType(currentAddressType());
         switch(tab)
         {
         case SendingTab:
@@ -415,7 +423,8 @@ void AddressBookPage::on_exportButton_clicked()
 
     FIRO_UNUSED QTableView *table;
     writer.setModel(proxyModel);
-    if (ui->addressType->currentText() == AddressTableModel::Transparent) {
+    const int selectedType = currentAddressType();
+    if (selectedType == (int)Transparent) {
         writer.addColumn("Label", AddressTableModel::Label, Qt::EditRole);
         writer.addColumn("Transparent Address", AddressTableModel::Address, Qt::EditRole);
         writer.addColumn("Address Type", AddressTableModel::AddressType, Qt::EditRole);
@@ -464,11 +473,11 @@ void AddressBookPage::chooseAddressType(int idx)
     if(!proxyModel)
         return;
 
-    int addrType = ui->addressType->itemData(idx).toInt();
+    const int selectedType = ui->addressType->itemData(idx).toInt();
 
-    switch (addrType)
+    switch (selectedType)
     {
-       case SparkNameMine:
+        case SparkNameMine:
             ui->newAddress->setVisible(false);
             ui->extendAddress->setVisible(true);
             // fallthrough
@@ -498,12 +507,12 @@ void AddressBookPage::chooseAddressType(int idx)
             break;
     }
 
-    if (addrType != SparkNameMine) {
+    if (selectedType != SparkNameMine) {
         ui->extendAddress->setVisible(false);
         ui->newAddress->setVisible(true);
     }
-    
-    fproxyModel->setTypeFilter(addrType);
+
+    fproxyModel->setTypeFilter(selectedType);
 }
 
 AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :

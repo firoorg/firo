@@ -109,6 +109,7 @@ bool fRelayTxes = true;
 CCriticalSection cs_mapLocalHost;
 std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
 static bool vfLimited[NET_MAX] = {};
+static bool vfExplicitlyLimited[NET_MAX] = {};
 std::string strSubVersion;
 
 limitedmap<uint256, int64_t> mapAlreadyAskedFor(MAX_INV_SZ);
@@ -287,6 +288,22 @@ bool IsLimited(enum Network net)
 bool IsLimited(const CNetAddr &addr)
 {
     return IsLimited(addr.GetNetwork());
+}
+
+void SetNetworkExplicitlyLimited(enum Network net, bool fLimited)
+{
+    if (net == NET_UNROUTABLE || net >= NET_MAX)
+        return;
+    LOCK(cs_mapLocalHost);
+    vfExplicitlyLimited[net] = fLimited;
+}
+
+bool IsNetworkExplicitlyLimited(enum Network net)
+{
+    if (net == NET_UNROUTABLE || net >= NET_MAX)
+        return false;
+    LOCK(cs_mapLocalHost);
+    return vfExplicitlyLimited[net];
 }
 
 /** vote for a local address */
@@ -684,6 +701,7 @@ void CNode::copyStats(CNodeStats &stats)
         X(cleanSubVer);
     }
     X(fInbound);
+    X(m_inbound_onion);
     X(fAddnode);
     X(nStartingHeight);
     {
@@ -1250,12 +1268,13 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
 
-    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, "", true);
+    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, "", true, hListenSocket.is_onion_listener);
     pnode->AddRef();
     pnode->fWhitelisted = whitelisted;
     GetNodeSignals().InitializeNode(pnode, *this);
 
-    LogPrint("net", "connection from %s accepted\n", addr.ToString());
+    LogPrint("net", "connection from %s accepted%s\n", addr.ToString(),
+        hListenSocket.is_onion_listener ? " (inbound via onion)" : "");
 
     {
         LOCK(cs_vNodes);
@@ -1440,7 +1459,17 @@ void CConnman::ThreadSocketHandler()
         SOCKET hSocketMax = 0;
         bool have_fds = false;
 
-        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocket) {
+        // Snapshot the listen sockets under the lock, then work with the
+        // copy. In the current call graph vhListenSocket is only mutated at
+        // init (before this thread starts) and in Stop() (after this thread
+        // joins), so this is defense-in-depth against a future runtime
+        // BindListenPort caller invalidating iterators mid-loop.
+        std::vector<ListenSocket> vhListenSocketSnapshot;
+        {
+            LOCK(cs_vhListenSocket);
+            vhListenSocketSnapshot = vhListenSocket;
+        }
+        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocketSnapshot) {
             FD_SET(hListenSocket.socket, &fdsetRecv);
             hSocketMax = std::max(hSocketMax, hListenSocket.socket);
             have_fds = true;
@@ -1509,7 +1538,7 @@ void CConnman::ThreadSocketHandler()
         //
         // Accept new connections
         //
-        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocket)
+        BOOST_FOREACH(const ListenSocket& hListenSocket, vhListenSocketSnapshot)
         {
             if (hListenSocket.socket != INVALID_SOCKET && FD_ISSET(hListenSocket.socket, &fdsetRecv))
             {
@@ -1832,12 +1861,30 @@ void CConnman::ThreadDNSAddressSeed()
 
     LogPrintf("Loading addresses from DNS seeds (could take a while)\n");
 
+    // Skip the direct DNS seed lookup only when *all* clearnet networks are
+    // unreachable, i.e. the user has restricted us to Tor/onion. In that case
+    // a DNS query would leak over clearnet and any resolved A/AAAA addresses
+    // would be on limited networks anyway. In mixed configurations where at
+    // least one of IPv4/IPv6 is still reachable (e.g. -onlynet=ipv6), keep
+    // doing the direct lookup -- getaddrinfo() returns both A and AAAA
+    // records and the unreachable-family addresses are filtered out later at
+    // connect time, so the lookup still produces useful peers.
+    //   * If we have a name proxy, route the seed through it via AddOneShot
+    //     regardless, so resolution happens privately.
+    //   * If we have no name proxy and no clearnet reachability, skip the
+    //     seed rather than fall back to system DNS.
+    const bool fSkipDNSLookup = !IsReachable(NET_IPV4) && !IsReachable(NET_IPV6);
+
     BOOST_FOREACH(const CDNSSeedData &seed, vSeeds) {
         if (interruptNet) {
             return;
         }
         if (HaveNameProxy()) {
             AddOneShot(seed.host);
+        } else if (fSkipDNSLookup) {
+            LogPrintf("Skipping DNS seed %s: no clearnet network reachable and no name proxy "
+                      "configured (would leak DNS resolution over clearnet)\n", seed.host);
+            continue;
         } else {
             std::vector<CNetAddr> vIPs;
             std::vector<CAddress> vAdd;
@@ -2240,6 +2287,12 @@ void CConnman::ThreadOpenMasternodeConnections()
                 }
             }
 
+            // Respect -onlynet: filter out masternodes on limited networks
+            // before selecting, so we don't waste the iteration or lose
+            // dequeued vPendingMasternodes entries.
+            pending.erase(std::remove_if(pending.begin(), pending.end(),
+                [](const CService& s) { return IsLimited(s); }), pending.end());
+
             if (pending.empty()) {
                 // nothing to do, keep waiting
                 continue;
@@ -2271,6 +2324,10 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         return false;
     }
     if (!fNetworkActive) {
+        return false;
+    }
+    // Respect -onlynet: don't connect to addresses on limited networks
+    if (!pszDest && addrConnect.IsValid() && IsLimited(addrConnect)) {
         return false;
     }
     bool fAllowLocal = fMasternodeMode;
@@ -2384,7 +2441,8 @@ void CConnman::ThreadMessageHandler()
 
 
 
-bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, bool fWhitelisted)
+bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, bool fWhitelisted,
+                              bool is_onion_listener, unsigned short* out_port)
 {
     strError = "";
     int nOne = 1;
@@ -2463,7 +2521,25 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         CloseSocket(hListenSocket);
         return false;
     }
-    LogPrintf("Bound to %s\n", addrBind.ToString());
+
+    // Resolve the actual bound address via getsockname. The input addrBind
+    // may have used port 0 (e.g. the dedicated Tor onion listener requests
+    // an ephemeral port), in which case the kernel has just assigned a real
+    // port and addrBind.ToString() would misleadingly show ":0". Use the
+    // resolved address for the log line below and for the optional out_port
+    // result. getsockname is best-effort for logging; only a hard failure
+    // when the caller actually needs out_port rejects the bind.
+    CService resolvedBind;
+    bool haveResolved = false;
+    {
+        struct sockaddr_storage boundAddr;
+        socklen_t boundLen = sizeof(boundAddr);
+        if (getsockname(hListenSocket, (struct sockaddr*)&boundAddr, &boundLen) == 0 &&
+            resolvedBind.SetSockAddr((const struct sockaddr*)&boundAddr)) {
+            haveResolved = true;
+        }
+    }
+    LogPrintf("Bound to %s\n", haveResolved ? resolvedBind.ToString() : addrBind.ToString());
 
     // Listen for incoming connections
     if (listen(hListenSocket, SOMAXCONN) == SOCKET_ERROR)
@@ -2474,9 +2550,29 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         return false;
     }
 
-    vhListenSocket.push_back(ListenSocket(hListenSocket, fWhitelisted));
+    // If the caller needs the resolved port (e.g. to tell Tor where to
+    // forward hidden-service traffic), failing to resolve is fatal -- we
+    // must not publish a listener whose port the caller can't address.
+    if (out_port != nullptr) {
+        if (!haveResolved) {
+            strError = strprintf("BindListenPort: could not resolve bound address for %s",
+                                 addrBind.ToString());
+            LogPrintf("%s\n", strError);
+            CloseSocket(hListenSocket);
+            return false;
+        }
+        *out_port = resolvedBind.GetPort();
+    }
 
-    if (addrBind.IsRoutable() && fDiscover && !fWhitelisted)
+    {
+        LOCK(cs_vhListenSocket);
+        vhListenSocket.push_back(ListenSocket(hListenSocket, fWhitelisted, is_onion_listener));
+    }
+
+    // The dedicated local listener used to receive Tor-forwarded hidden
+    // service traffic is bound to 127.0.0.1; we must not advertise it as a
+    // local reachable address.
+    if (addrBind.IsRoutable() && fDiscover && !fWhitelisted && !is_onion_listener)
         AddLocal(addrBind, LOCAL_BIND);
 
     return true;
@@ -2844,10 +2940,17 @@ void CConnman::Stop()
     // Close sockets
     BOOST_FOREACH(CNode* pnode, vNodes)
         pnode->CloseSocketDisconnect();
-    BOOST_FOREACH(ListenSocket& hListenSocket, vhListenSocket)
-        if (hListenSocket.socket != INVALID_SOCKET)
-            if (!CloseSocket(hListenSocket.socket))
-                LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
+    {
+        // Match BindListenPort's locking as defense-in-depth. In the current
+        // call graph all BindListenPort calls happen at init, so nothing
+        // else is mutating vhListenSocket here; this keeps the invariant
+        // stable if a runtime caller is reintroduced.
+        LOCK(cs_vhListenSocket);
+        BOOST_FOREACH(ListenSocket& hListenSocket, vhListenSocket)
+            if (hListenSocket.socket != INVALID_SOCKET)
+                if (!CloseSocket(hListenSocket.socket))
+                    LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
+    }
 
     // clean up some globals (to help leak detection)
     BOOST_FOREACH(CNode *pnode, vNodes) {
@@ -2858,7 +2961,10 @@ void CConnman::Stop()
     }
     vNodes.clear();
     vNodesDisconnected.clear();
-    vhListenSocket.clear();
+    {
+        LOCK(cs_vhListenSocket);
+        vhListenSocket.clear();
+    }
     delete semOutbound;
     semOutbound = NULL;
     delete semAddnode;
@@ -3361,12 +3467,13 @@ int CConnman::GetBestHeight() const
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 unsigned int CConnman::GetSendBufferSize() const{ return nSendBufferMaxSize; }
 
-CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const std::string& addrNameIn, bool fInboundIn) :
+CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const std::string& addrNameIn, bool fInboundIn, bool inbound_onion) :
     nTimeConnected(GetSystemTimeInSeconds()),
     nTimeFirstMessageReceived(0),
     fFirstMessageIsMNAUTH(false),
     addr(addrIn),
     fInbound(fInboundIn),
+    m_inbound_onion(inbound_onion),
     id(idIn),
     nKeyedNetGroup(nKeyedNetGroupIn),
     addrKnown(5000, 0.001),
