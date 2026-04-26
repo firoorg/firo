@@ -435,36 +435,45 @@ jobs:
           export ARCH=x86_64-linux
           export BASE=https://ftp.gnu.org/gnu/guix
           export TAR="guix-binary-${VER}.${ARCH}.tar.xz"
-          # Trust anchor: fingerprint of Ludovic Courtès' key, the official
-          # Guix release-signing key (https://guix.gnu.org/manual/en/html_node/Binary-Installation.html).
-          export GUIX_KEY_FPR=3CE464558A84FDC69DB40CFB090B11993D9AEBB5
+          # Trust anchors: the three Guix release-signing fingerprints
+          # declared upstream in etc/guix-install.sh's GPG_SIGNING_KEYS:
+          #   civodul (Ludovic Courtès), apteryx (Maxim Cournoyer),
+          #   efraim  (Efraim Flashner).
+          # Any one of them is sufficient to sign a release tarball
+          # (v1.5.0 was signed by efraim).
+          export GUIX_KEY_FPRS=(
+            3CE464558A84FDC69DB40CFB090B11993D9AEBB5
+            27D586A4F8900854329FF09F1260E46482E63562
+            A28BF40C3E551372662D14F741AAE7DCCA3D8351
+          )
+          export GUIX_FPR_REGEX="$(IFS='|'; echo "${GUIX_KEY_FPRS[*]}")"
 
           cd /tmp
 
-          # 1. Fetch the Guix maintainer key into an isolated keyring. Try
+          # 1. Fetch the Guix maintainer keys into an isolated keyring. Try
           #    multiple keyservers so a single one being unreachable doesn't
-          #    abort the build, then require the imported fingerprint to
-          #    match the pinned value (blocking).
-          echo "::group::Import Guix maintainer key"
+          #    abort the build, then require every pinned fingerprint to
+          #    end up present in the keyring (blocking).
+          echo "::group::Import Guix maintainer keys"
           export GNUPGHOME=$(mktemp -d)
           chmod 700 "${GNUPGHOME}"
-          imported=0
-          for ks in hkps://keys.openpgp.org hkps://keyserver.ubuntu.com hkps://pgp.mit.edu; do
-            if gpg --batch --keyserver "${ks}" --recv-keys "${GUIX_KEY_FPR}"; then
-              imported=1
-              break
+          for fpr in "${GUIX_KEY_FPRS[@]}"; do
+            imported=0
+            for ks in hkps://keys.openpgp.org hkps://keyserver.ubuntu.com hkps://pgp.mit.edu; do
+              if gpg --batch --keyserver "${ks}" --recv-keys "${fpr}"; then
+                imported=1
+                break
+              fi
+              echo "Keyserver ${ks} failed for ${fpr}, trying next..."
+            done
+            if [ "${imported}" -ne 1 ]; then
+              echo "All keyservers failed for ${fpr}"
+              exit 1
             fi
-            echo "Keyserver ${ks} failed, trying next..."
+            # Confirm the pinned fingerprint is present in the keyring.
+            gpg --list-keys --with-colons "${fpr}" \
+              | awk -F: '$1=="fpr"{print $10}' | grep -qx "${fpr}"
           done
-          if [ "${imported}" -ne 1 ]; then
-            echo "All keyservers failed; falling back to Savannah viewgpg.php"
-            wget --tries=5 --timeout=30 --waitretry=10 \
-              "https://sv.gnu.org/people/viewgpg.php?user_id=15145" -O guix-key.asc
-            gpg --batch --import guix-key.asc
-          fi
-          # Confirm the pinned fingerprint is present in the keyring.
-          gpg --list-keys --with-colons "${GUIX_KEY_FPR}" \
-            | awk -F: '$1=="fpr"{print $10}' | grep -qx "${GUIX_KEY_FPR}"
           echo "::endgroup::"
 
           # 2. Download the binary tarball and its detached signature.
@@ -473,12 +482,15 @@ jobs:
           wget --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}.sig" -O "${TAR}.sig"
           echo "::endgroup::"
 
-          # 3. Verify the tarball signature against the pinned key (blocking).
-          #    Match the VALIDSIG status line so a signature from an unrelated
-          #    key cannot pass.
+          # 3. Verify the tarball signature against the pinned keys (blocking).
+          #    The keyring contains ONLY the three pinned trust anchors, so a
+          #    valid signature must come from one of them; the explicit
+          #    VALIDSIG fingerprint match is a belt-and-suspenders check that
+          #    also documents which key signed this release.
           echo "::group::Verify tarball signature"
           gpg --status-fd 1 --verify "${TAR}.sig" "${TAR}" > gpg-status.txt
-          grep -qE "^\[GNUPG:\] VALIDSIG ${GUIX_KEY_FPR} " gpg-status.txt
+          cat gpg-status.txt
+          grep -qE "^\[GNUPG:\] VALIDSIG (${GUIX_FPR_REGEX}) " gpg-status.txt
           echo "::endgroup::"
 
           # 4. Fetch the Guix installer pinned to the v${VER} release tag.
