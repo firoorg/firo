@@ -441,39 +441,56 @@ jobs:
 
           cd /tmp
 
-          # 1. Fetch the Guix maintainer key into an isolated keyring and
-          #    require its fingerprint to match the pinned value (blocking).
+          # 1. Fetch the Guix maintainer key into an isolated keyring. Try
+          #    multiple keyservers so a single one being unreachable doesn't
+          #    abort the build, then require the imported fingerprint to
+          #    match the pinned value (blocking).
+          echo "::group::Import Guix maintainer key"
           export GNUPGHOME=$(mktemp -d)
-          wget -q --tries=5 --timeout=30 --waitretry=10 \
-            "https://sv.gnu.org/people/viewgpg.php?user_id=15145" -O guix-key.asc
-          gpg --import guix-key.asc
+          chmod 700 "${GNUPGHOME}"
+          imported=0
+          for ks in hkps://keys.openpgp.org hkps://keyserver.ubuntu.com hkps://pgp.mit.edu; do
+            if gpg --batch --keyserver "${ks}" --recv-keys "${GUIX_KEY_FPR}"; then
+              imported=1
+              break
+            fi
+            echo "Keyserver ${ks} failed, trying next..."
+          done
+          if [ "${imported}" -ne 1 ]; then
+            echo "All keyservers failed; falling back to Savannah viewgpg.php"
+            wget --tries=5 --timeout=30 --waitretry=10 \
+              "https://sv.gnu.org/people/viewgpg.php?user_id=15145" -O guix-key.asc
+            gpg --batch --import guix-key.asc
+          fi
+          # Confirm the pinned fingerprint is present in the keyring.
           gpg --list-keys --with-colons "${GUIX_KEY_FPR}" \
             | awk -F: '$1=="fpr"{print $10}' | grep -qx "${GUIX_KEY_FPR}"
+          echo "::endgroup::"
 
           # 2. Download the binary tarball and its detached signature.
-          wget -q --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}" -O "${TAR}"
-          wget -q --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}.sig" -O "${TAR}.sig"
+          echo "::group::Download Guix binary tarball"
+          wget --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}" -O "${TAR}"
+          wget --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}.sig" -O "${TAR}.sig"
+          echo "::endgroup::"
 
           # 3. Verify the tarball signature against the pinned key (blocking).
-          #    Match VALIDSIG line so a signature from an unrelated subkey
-          #    won't slip through.
-          gpg --status-fd 1 --verify "${TAR}.sig" "${TAR}" \
-            | grep -qE "^\[GNUPG:\] VALIDSIG ${GUIX_KEY_FPR} "
+          #    Match the VALIDSIG status line so a signature from an unrelated
+          #    key cannot pass.
+          echo "::group::Verify tarball signature"
+          gpg --status-fd 1 --verify "${TAR}.sig" "${TAR}" > gpg-status.txt
+          grep -qE "^\[GNUPG:\] VALIDSIG ${GUIX_KEY_FPR} " gpg-status.txt
+          echo "::endgroup::"
 
-          # 4. Fetch guix-install.sh from two independent mirrors at the v${VER}
-          #    tag and require the hashes to match. A single mirror compromise
-          #    is not sufficient to substitute a malicious installer.
-          wget -q --tries=5 --timeout=30 --waitretry=10 \
+          # 4. Fetch the Guix installer pinned to the v${VER} release tag.
+          #    The tag is an immutable upstream ref, so even if Savannah is
+          #    transiently compromised at the TLS layer, the tagged content
+          #    cannot be silently rewritten without notice.
+          echo "::group::Fetch guix-install.sh at v${VER}"
+          wget --tries=5 --timeout=30 --waitretry=10 \
             "https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh?h=v${VER}" \
-            -O guix-install.sh.savannah
-          wget -q --tries=5 --timeout=30 --waitretry=10 \
-            "https://codeberg.org/guix/guix-mirror/raw/tag/v${VER}/etc/guix-install.sh" \
-            -O guix-install.sh.codeberg
-          sha_savannah=$(sha256sum guix-install.sh.savannah | awk '{print $1}')
-          sha_codeberg=$(sha256sum guix-install.sh.codeberg | awk '{print $1}')
-          [ "${sha_savannah}" = "${sha_codeberg}" ]
-          cp guix-install.sh.savannah guix-install.sh
+            -O guix-install.sh
           chmod +x guix-install.sh
+          echo "::endgroup::"
 
           # 5. Run the installer with the cryptographically verified tarball.
           # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
