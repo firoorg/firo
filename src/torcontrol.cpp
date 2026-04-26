@@ -390,6 +390,8 @@ private:
     void add_onion_cb(TorControlConnection& conn, const TorControlReply& reply);
     /** Callback for GETINFO net/listeners/socks result */
     void get_socks_cb(TorControlConnection& conn, const TorControlReply& reply);
+    /** Apply the discovered (or fallback) Tor SOCKS endpoint as the onion proxy. */
+    void ConfigureOnionProxy(const CService& resolved);
     /** Callback for AUTHENTICATE result */
     void auth_cb(TorControlConnection& conn, const TorControlReply& reply);
     /** Callback for AUTHCHALLENGE result */
@@ -474,8 +476,16 @@ void TorController::auth_cb(TorControlConnection& _conn, const TorControlReply& 
         // set up the onion proxy, unless -onion is already set to something else.
         // Querying the control port avoids hardcoding 9050 (Bitcoin Core pattern).
         if (GetArg("-onion", "") == "") {
-            _conn.Command("GETINFO net/listeners/socks",
-                boost::bind(&TorController::get_socks_cb, this, _1, _2));
+            if (!_conn.Command("GETINFO net/listeners/socks",
+                    boost::bind(&TorController::get_socks_cb, this, _1, _2))) {
+                // Queueing the command failed (e.g. control connection lost),
+                // so get_socks_cb will never run. Apply the conventional
+                // default synchronously so onion outbound is still configured,
+                // matching the pre-discovery behaviour.
+                LogPrintf("tor: Error sending GETINFO net/listeners/socks; falling back to 127.0.0.1:%d\n",
+                          DEFAULT_TOR_SOCKS_PORT);
+                ConfigureOnionProxy(LookupNumeric("127.0.0.1", DEFAULT_TOR_SOCKS_PORT));
+            }
         }
 
         // Finally - now create the service
@@ -553,6 +563,15 @@ void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlRe
         resolved = LookupNumeric("127.0.0.1", DEFAULT_TOR_SOCKS_PORT);
     }
 
+    ConfigureOnionProxy(resolved);
+}
+
+void TorController::ConfigureOnionProxy(const CService& resolved)
+{
+    if (!resolved.IsValid()) {
+        LogPrintf("tor: Refusing to configure onion proxy: invalid SOCKS address\n");
+        return;
+    }
     LogPrint("tor", "tor: Configuring onion proxy for %s\n", resolved.ToString());
     proxyType addrOnion = proxyType(resolved, true);
     SetProxy(NET_ONION, addrOnion);
