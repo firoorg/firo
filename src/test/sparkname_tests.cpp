@@ -721,4 +721,33 @@ BOOST_AUTO_TEST_CASE(extension_max_validity)
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected - total exceeds 15 years
 }
 
+BOOST_AUTO_TEST_CASE(tagged_fee_output_must_pay_fee)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    Initialize(2700);
+
+    std::string addr = GenerateSparkAddress();
+    CMutableTransaction tx = CreateSparkNameTx("tagfee", addr, nBlockPerYear, "", false);
+    CAmount nameFee = consensus.nSparkNamesFee[std::string("tagfee").size()] * COIN;
+
+    bool modifiedFeeOutput = false;
+    for (size_t i = 0; i < tx.vout.size(); ++i) {
+        if (tx.vout[i].scriptPubKey.IsSparkNameFee()) {
+            CScript baseScript = GetBaseScriptFromSparkNameFee(tx.vout[i].scriptPubKey);
+            tx.vout[i].nValue = 0;
+            tx.vout.push_back(CTxOut(nameFee, baseScript));
+            modifiedFeeOutput = true;
+            break;
+        }
+    }
+    BOOST_REQUIRE(modifiedFeeOutput);
+    ModifySparkNameTx(tx, [](CSparkNameTxData &) {}, true);
+
+    int oldHeight = chainActive.Height();
+    GenerateBlock({tx});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+    BOOST_CHECK(!IsSparkNamePresent("tagfee"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

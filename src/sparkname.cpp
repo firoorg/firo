@@ -225,20 +225,11 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
 
-    bool payoutFound = false;
-    // Up until stage 4.1, the fee is paid to the development fund address. Afterwards, it is paid to the community fund address.
-    // Graceful period allows to register spark names with the old address for the payment
-    if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
-        payoutFound = CheckPaymentToTransparentAddress(tx, consensusParams.stage3DevelopmentFundAddress, nameFee);
-    if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
-        payoutFound = payoutFound || CheckPaymentToTransparentAddress(tx, consensusParams.stage3CommunityFundAddress, nameFee);
-
-    if (!payoutFound)
-        return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
-
-    // After v2.1, the fee output must carry the spark name and address, and they must match the tx data
+    // After v2.1, the fee output itself must carry the spark name and address.
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
-        bool fFoundTaggedFeeOutput = false;
+        const CScript developmentFundScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
+        const CScript communityFundScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
+        bool payoutFound = false;
         for (const CTxOut &txout : tx.vout) {
             if (txout.scriptPubKey.IsSparkNameFee()) {
                 std::string embeddedName, embeddedAddress;
@@ -248,11 +239,30 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
                     return state.DoS(100, error("CheckSparkNameTx: spark name in fee output does not match transaction data"));
                 if (embeddedAddress != sparkNameData.sparkAddress)
                     return state.DoS(100, error("CheckSparkNameTx: spark address in fee output does not match transaction data"));
-                fFoundTaggedFeeOutput = true;
+
+                CScript baseScript = GetBaseScriptFromSparkNameFee(txout.scriptPubKey);
+                bool validPayoutAddress = false;
+                if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
+                    validPayoutAddress = baseScript == developmentFundScript;
+                if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
+                    validPayoutAddress = validPayoutAddress || baseScript == communityFundScript;
+                if (validPayoutAddress && txout.nValue >= nameFee)
+                    payoutFound = true;
             }
         }
-        if (!fFoundTaggedFeeOutput)
+        if (!payoutFound)
             return state.DoS(100, error("CheckSparkNameTx: spark name fee output with name/address tag is required after v2.1"));
+    } else {
+        bool payoutFound = false;
+        // Up until stage 4.1, the fee is paid to the development fund address. Afterwards, it is paid to the community fund address.
+        // Graceful period allows to register spark names with the old address for the payment
+        if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
+            payoutFound = CheckPaymentToTransparentAddress(tx, consensusParams.stage3DevelopmentFundAddress, nameFee);
+        if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
+            payoutFound = payoutFound || CheckPaymentToTransparentAddress(tx, consensusParams.stage3CommunityFundAddress, nameFee);
+
+        if (!payoutFound)
+            return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
     }
 
     if (sparkNameData.additionalInfo.size() > 1024)
