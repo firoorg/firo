@@ -391,7 +391,12 @@ CScript GetScriptForDestination(const CTxDestination& dest)
 
 CScript GetScriptForSparkNameFee(const CTxDestination& dest, const std::string& sparkName, const std::string& sparkAddress)
 {
-    CScript script = GetScriptForDestination(dest);
+    const CKeyID* keyID = boost::get<CKeyID>(&dest);
+    if (!keyID)
+        return CScript();
+
+    CScript script;
+    script << OP_DUP << OP_HASH160 << ToByteVector(*keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
     script << OP_SPARKNAMEID;
     script << std::vector<unsigned char>(sparkName.begin(), sparkName.end());
     script << OP_DROP;
