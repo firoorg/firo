@@ -424,9 +424,11 @@ void AddressBookPage::chooseAddressType(int idx)
     if (isSparkNameType(selectedType)) {
         model->ProcessPendingSparkNameChanges();
         ui->deleteAddress->setEnabled(false);
+        ui->deleteAddress->setVisible(false);
         deleteAction->setEnabled(false);
     }
     else {
+        ui->deleteAddress->setVisible(tab == SendingTab);
         selectionChanged();
     }
     
