@@ -27,6 +27,7 @@
 AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),
+    platformStyle(platformStyle),
     model(0),
     mode(_mode),
     tab(_tab)
@@ -310,7 +311,7 @@ void AddressBookPage::selectionChanged()
         {
         case SendingTab:
             // In sending tab, allow deletion of selection
-            ui->deleteAddress->setEnabled(true);
+            ui->deleteAddress->setEnabled(!fSparkNames);
             ui->deleteAddress->setVisible(!fSparkNames);
             deleteAction->setEnabled(!fSparkNames);
             break;
