@@ -187,17 +187,19 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     int existingExpirationHeight = -1;
     bool fUpdateExistingRecord = false;
     bool fSparkNameTransfer = sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer;
+    const std::string normalizedName = ToUpper(sparkNameData.name);
 
     {
         LOCK(cs_spark_name);
-        if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
+        auto sparkNameIt = sparkNames.find(normalizedName);
+        if (sparkNameIt != sparkNames.end()) {
             // it's possible to change any metadata of the existing name but if the spark address is being
             // tranferred, new name shouldn't be already registered
-            if (!fSparkNameTransfer && sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
+            if (!fSparkNameTransfer && sparkNameIt->second.sparkAddress != sparkNameData.sparkAddress)
                 return state.DoS(100, error("CheckSparkNameTx: name already exists"));
 
             fUpdateExistingRecord = true;
-            existingExpirationHeight = sparkNames[ToUpper(sparkNameData.name)].sparkNameValidityHeight;
+            existingExpirationHeight = sparkNameIt->second.sparkNameValidityHeight;
         }
     }
 
@@ -387,6 +389,9 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
         nHeight = chainActive.Height() + 1;
     }
     LOCK(cs_spark_name);
+    const std::string normalizedName = ToUpper(sparkNameData.name);
+    auto sparkNameIt = sparkNames.find(normalizedName);
+    auto sparkNameAddressIt = sparkNameAddresses.find(sparkNameData.sparkAddress);
     if (!IsSparkNameValid(sparkNameData.name))
         errorDescription = "invalid spark name";
 
@@ -405,13 +410,13 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
         errorDescription = "invalid operation type";
 
-    else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
-                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
+    else if (sparkNameIt != sparkNames.end() &&
+                sparkNameIt->second.sparkAddress != sparkNameData.sparkAddress &&
                 (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
         errorDescription = "name already exists with another spark address as a destination";
 
-    else if (sparkNameAddresses.count(sparkNameData.sparkAddress) > 0 &&
-                sparkNameAddresses[sparkNameData.sparkAddress] != ToUpper(sparkNameData.name))
+    else if (sparkNameAddressIt != sparkNameAddresses.end() &&
+                sparkNameAddressIt->second != normalizedName)
         errorDescription = "spark address is already used for another name";
 
     else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
@@ -423,17 +428,16 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
 
     else {
         LOCK(mempool.cs);
-        if (mempool.sparkNames.count(ToUpper(sparkNameData.name)) > 0)
+        if (mempool.sparkNames.count(normalizedName) > 0)
             errorDescription = "spark name transaction with that name is already in the mempool";
     }
 
     // After V2.1, check that total validity (including remaining time from existing registration) doesn't exceed 15 years
     if (errorDescription.empty() && nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
-        auto it = sparkNames.find(ToUpper(sparkNameData.name));
-        if (it != sparkNames.end()) {
+        if (sparkNameIt != sparkNames.end()) {
             constexpr int nBlockPerYear = 365*24*24;
             int validityBlocks = sparkNameData.sparkNameValidityBlocks;
-            int remainingBlocks = it->second.sparkNameValidityHeight - nHeight;
+            int remainingBlocks = sparkNameIt->second.sparkNameValidityHeight - nHeight;
             if (remainingBlocks > 0)
                 validityBlocks += remainingBlocks;
             if (validityBlocks > nBlockPerYear * 15)
