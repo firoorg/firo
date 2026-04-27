@@ -750,4 +750,26 @@ BOOST_AUTO_TEST_CASE(tagged_fee_output_must_pay_fee)
     BOOST_CHECK(!IsSparkNamePresent("tagfee"));
 }
 
+BOOST_AUTO_TEST_CASE(extension_mempool_uses_next_block_height)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    Initialize(2700);
+
+    std::string addr = GenerateSparkAddress();
+    CMutableTransaction txReg = CreateSparkNameTx("nextheight", addr, nBlockPerYear * 15, "", false);
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txReg});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+
+    uint64_t originalExpiration = sparkNameManager->GetSparkNameBlockHeight("nextheight");
+    CMutableTransaction txExt = CreateSparkNameTx("nextheight", addr, 1, "one-block-extension", true);
+    BOOST_CHECK(lastState.IsValid());
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({txExt});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+    BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("nextheight"), originalExpiration + 1);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

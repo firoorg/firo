@@ -984,10 +984,10 @@ bool CheckSparkTransaction(
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
         int nRealHeight = nHeight;
-        if (nRealHeight == INT_MAX)  // if height is not set, use chainActive height
+        if (nRealHeight == INT_MAX)  // mempool validation checks the next block height
         {
             LOCK(cs_main);
-            nRealHeight = chainActive.Height();
+            nRealHeight = chainActive.Height() + 1;
         }
         if (GetSpendTransparentAmount(tx) > consensus.GetMaxValueSparkSpendPerTransaction(nRealHeight)) {
             return state.DoS(100, false,

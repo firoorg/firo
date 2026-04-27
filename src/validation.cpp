@@ -1007,7 +1007,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
+            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height() + 1, state, &sparkNameData))
                 return false;
 
             if (!sparkNameData.name.empty() &&
