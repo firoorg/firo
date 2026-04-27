@@ -385,6 +385,8 @@ private:
     std::vector<uint8_t> cookie;
     /** ClientNonce for SAFECOOKIE auth */
     std::vector<uint8_t> clientNonce;
+    /** Whether this controller auto-configured name resolution via Tor. */
+    bool name_proxy_configured;
 
     /** Callback for ADD_ONION result */
     void add_onion_cb(TorControlConnection& conn, const TorControlReply& reply);
@@ -410,7 +412,7 @@ private:
 TorController::TorController(struct event_base* _base, const std::string& _target, unsigned short _onion_local_port):
     base(_base),
     target(_target), conn(base), onion_local_port(_onion_local_port), reconnect(true), reconnect_ev(0),
-    reconnect_timeout(RECONNECT_TIMEOUT_START)
+    reconnect_timeout(RECONNECT_TIMEOUT_START), name_proxy_configured(false)
 {
     reconnect_ev = event_new(base, -1, 0, reconnect_cb, this);
     if (!reconnect_ev)
@@ -513,10 +515,30 @@ void TorController::auth_cb(TorControlConnection& _conn, const TorControlReply& 
     }
 }
 
+static CService LookupTorSocksListener(const std::string& listener)
+{
+    CService candidate;
+    if (!Lookup(listener.c_str(), candidate, DEFAULT_TOR_SOCKS_PORT, false)) {
+        return CService();
+    }
+    if (candidate.IsValid()) {
+        return candidate;
+    }
+    if (!candidate.IsBindAny()) {
+        return CService();
+    }
+
+    // Tor may report wildcard SocksPort listeners such as 0.0.0.0:9050 or
+    // [::]:9050. They are not valid proxy destinations, but they mean the
+    // SOCKS listener is reachable locally on the same port.
+    return LookupNumeric(candidate.IsIPv6() ? "::1" : "127.0.0.1", candidate.GetPort());
+}
+
 void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlReply& reply)
 {
     // NOTE: We can only get here if -onion is unset
     std::string socks_location;
+    CService resolved;
     if (reply.code == 250) {
         static const std::string SOCKS_PREFIX{"net/listeners/socks="};
         for (const std::string& line : reply.lines) {
@@ -535,12 +557,17 @@ void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlRe
                     // Skip entries Tor may report that we can't use as a TCP
                     // proxy (e.g. "unix:/path/to/socket"), so they don't
                     // overwrite a usable TCP listener seen earlier.
-                    const CService candidate = LookupNumeric(portstr.c_str(), DEFAULT_TOR_SOCKS_PORT);
+                    const CService candidate = LookupTorSocksListener(portstr);
                     if (!candidate.IsValid()) continue;
-                    socks_location = portstr;
-                    if (portstr.starts_with("127.0.0.1:"))
+                    if (!resolved.IsValid() || candidate.IsLocal()) {
+                        socks_location = portstr;
+                        resolved = candidate;
+                    }
+                    if (candidate.IsLocal())
                         break; // prefer localhost over other interfaces
                 }
+                if (resolved.IsValid() && resolved.IsLocal())
+                    break;
             }
         }
         if (!socks_location.empty()) {
@@ -554,10 +581,6 @@ void TorController::get_socks_cb(TorControlConnection& _conn, const TorControlRe
         LogPrintf("tor: Get SOCKS port command failed; error code %d\n", reply.code);
     }
 
-    CService resolved;
-    if (!socks_location.empty()) {
-        resolved = LookupNumeric(socks_location.c_str(), DEFAULT_TOR_SOCKS_PORT);
-    }
     if (!resolved.IsValid()) {
         // No usable port from Tor; fall back to the conventional default.
         resolved = LookupNumeric("127.0.0.1", DEFAULT_TOR_SOCKS_PORT);
@@ -577,12 +600,14 @@ void TorController::ConfigureOnionProxy(const CService& resolved)
     SetProxy(NET_ONION, addrOnion);
     if (!IsNetworkExplicitlyLimited(NET_ONION))
         SetLimited(NET_ONION, false);
-    // When clearnet is unreachable (e.g. -onlynet=onion) and no name proxy
-    // is configured, route name lookups through Tor so hostname resolution
-    // doesn't leak over clearnet. Mirrors the explicit -onion=<addr> path
-    // in init.cpp.
-    if (!HaveNameProxy() && !IsReachable(NET_IPV4) && !IsReachable(NET_IPV6))
-        SetNameProxy(addrOnion);
+    // When clearnet is unreachable (e.g. -onlynet=onion), route name lookups
+    // through Tor so hostname resolution doesn't leak over clearnet. Refresh
+    // only the name proxy that this controller auto-configured, preserving
+    // explicit -proxy/-onion/-torsetup name proxies.
+    if (!IsReachable(NET_IPV4) && !IsReachable(NET_IPV6) &&
+            (!HaveNameProxy() || name_proxy_configured)) {
+        name_proxy_configured = SetNameProxy(addrOnion);
+    }
 }
 
 /** Compute Tor SAFECOOKIE response.
