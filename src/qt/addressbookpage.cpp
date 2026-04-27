@@ -24,9 +24,10 @@
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
 
-AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
+AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),
+    platformStyle(_platformStyle),
     model(0),
     mode(_mode),
     tab(_tab),
@@ -35,18 +36,18 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode _mode,
     ui->setupUi(this);
     this->isReused = isReused;
 
-    if (!platformStyle->getImagesOnButtons()) {
+    if (!_platformStyle->getImagesOnButtons()) {
         ui->newAddress->setIcon(QIcon());
         ui->extendAddress->setIcon(QIcon());
         ui->copyAddress->setIcon(QIcon());
         ui->deleteAddress->setIcon(QIcon());
         ui->exportButton->setIcon(QIcon());
     } else {
-        ui->newAddress->setIcon(platformStyle->SingleColorIcon(":/icons/add"));
-        ui->extendAddress->setIcon(platformStyle->SingleColorIcon(":/icons/plus"));
-        ui->copyAddress->setIcon(platformStyle->SingleColorIcon(":/icons/editcopy"));
-        ui->deleteAddress->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-        ui->exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
+        ui->newAddress->setIcon(_platformStyle->SingleColorIcon(":/icons/add"));
+        ui->extendAddress->setIcon(_platformStyle->SingleColorIcon(":/icons/plus"));
+        ui->copyAddress->setIcon(_platformStyle->SingleColorIcon(":/icons/editcopy"));
+        ui->deleteAddress->setIcon(_platformStyle->SingleColorIcon(":/icons/remove"));
+        ui->exportButton->setIcon(_platformStyle->SingleColorIcon(":/icons/export"));
     }
     ui->extendAddress->setVisible(false); // hide extend address button for now
 
