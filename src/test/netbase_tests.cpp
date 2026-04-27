@@ -38,6 +38,27 @@ BOOST_AUTO_TEST_CASE(netbase_networks)
 
 }
 
+BOOST_AUTO_TEST_CASE(netbase_parse_network)
+{
+    BOOST_CHECK_EQUAL(ParseNetwork("ipv4"), NET_IPV4);
+    BOOST_CHECK_EQUAL(ParseNetwork("ipv6"), NET_IPV6);
+    BOOST_CHECK_EQUAL(ParseNetwork("onion"), NET_ONION);
+    BOOST_CHECK_EQUAL(ParseNetwork("tor"), NET_ONION);
+    BOOST_CHECK_EQUAL(ParseNetwork("Tor"), NET_ONION);
+    BOOST_CHECK_EQUAL(ParseNetwork("bogus"), NET_UNROUTABLE);
+
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_UNROUTABLE), "not_publicly_routable");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_IPV4), "ipv4");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_IPV6), "ipv6");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_ONION), "onion");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_I2P), "i2p");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_CJDNS), "cjdns");
+    BOOST_CHECK_EQUAL(GetNetworkName(NET_INTERNAL), "internal");
+#ifdef NDEBUG
+    BOOST_CHECK_EQUAL(GetNetworkName(static_cast<Network>(NET_MAX)), "unknown");
+#endif
+}
+
 BOOST_AUTO_TEST_CASE(netbase_properties)
 {
 

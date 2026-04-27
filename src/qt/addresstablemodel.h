@@ -58,7 +58,6 @@ public:
     static const QString Transparent;
     static const QString Spark;
     static const QString SparkName;
-    static const QString SparkNameMine;
     static const QString RAP;
 
     /** @name Methods overridden from QAbstractTableModel
@@ -92,7 +91,8 @@ public:
     PcodeAddressTableModel * getPcodeAddressTableModel();
 
     bool IsSparkAllowed();
-    void ProcessPendingSparkNameChanges();
+    Q_INVOKABLE void ProcessPendingSparkNameChanges();
+    virtual bool AutoProcessPendingSparkNameChanges() const { return true; }
 
     WalletModel *getWalletModel() const { return walletModel; }
 protected:
@@ -141,6 +141,7 @@ public:
     /*@}*/
 
     QString addRow(const QString &type, const QString &label, const QString &address, const QString &addressType) override;
+    bool AutoProcessPendingSparkNameChanges() const override { return false; }
 
     AddressTableModel::EditStatus getEditStatus() const { return editStatus; }
 

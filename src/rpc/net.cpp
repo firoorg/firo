@@ -94,6 +94,7 @@ UniValue getpeerinfo(const JSONRPCRequest& request)
             "    \"version\": v,              (numeric) The peer version, such as 7001\n"
             "    \"subver\": \"/Satoshi:0.8.5/\",  (string) The string version\n"
             "    \"inbound\": true|false,     (boolean) Inbound (true) or Outbound (false)\n"
+            "    \"network\": \"xxx\",          (string) The network the peer is connected through (ipv4, ipv6, onion). For inbound peers reaching us via our Tor hidden service, \"onion\" is reported even though \"addr\" is 127.0.0.1.\n"
             "    \"addnode\": true|false,     (boolean) Whether connection was due to addnode and is using an addnode slot\n"
             "    \"startingheight\": n,       (numeric) The starting height (block) of the peer\n"
             "    \"banscore\": n,             (numeric) The ban score\n"
@@ -161,6 +162,11 @@ UniValue getpeerinfo(const JSONRPCRequest& request)
         // their ver message.
         obj.push_back(Pair("subver", stats.cleanSubVer));
         obj.push_back(Pair("inbound", stats.fInbound));
+        // Report "onion" for peers that reached us via our Tor hidden service,
+        // even though the socket-level address is 127.0.0.1. Otherwise fall
+        // back to the network class derived from the peer's address.
+        const Network peerNet = stats.m_inbound_onion ? NET_ONION : stats.addr.GetNetwork();
+        obj.push_back(Pair("network", GetNetworkName(peerNet)));
         obj.push_back(Pair("addnode", stats.fAddnode));
         obj.push_back(Pair("startingheight", stats.nStartingHeight));
         if (fStateStats) {
@@ -384,7 +390,14 @@ static UniValue GetNetworksInfo()
     for(int n=0; n<NET_MAX; ++n)
     {
         enum Network network = static_cast<enum Network>(n);
-        if(network == NET_UNROUTABLE)
+        // Intentional narrowing relative to Bitcoin Core: Firo only supports
+        // ipv4/ipv6/onion as user-selectable networks (see -onlynet handling
+        // in init.cpp and ParseNetwork() in netbase.cpp). NET_I2P, NET_CJDNS
+        // and NET_INTERNAL are skipped here because they have no proxy
+        // configuration path and the qa/rpc-tests/proxy_test.py harness
+        // asserts the exact set ['ipv4','ipv6','onion']. If/when Firo adds
+        // I2P or CJDNS support, this filter and the test must be updated.
+        if (network != NET_IPV4 && network != NET_IPV6 && network != NET_ONION)
             continue;
         proxyType proxy;
         UniValue obj(UniValue::VOBJ);
