@@ -574,6 +574,7 @@ void RPCConsole::setClientModel(ClientModel *model)
         ui->peerWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
         ui->peerWidget->setContextMenuPolicy(Qt::CustomContextMenu);
         ui->peerWidget->setColumnWidth(PeerTableModel::Address, ADDRESS_COLUMN_WIDTH);
+        ui->peerWidget->setColumnWidth(PeerTableModel::Network, NETWORK_COLUMN_WIDTH);
         ui->peerWidget->setColumnWidth(PeerTableModel::Subversion, SUBVERSION_COLUMN_WIDTH);
         ui->peerWidget->setColumnWidth(PeerTableModel::Ping, PING_COLUMN_WIDTH);
         ui->peerWidget->horizontalHeader()->setStretchLastSection(true);
@@ -1042,6 +1043,8 @@ void RPCConsole::updateNodeDetail(const CNodeCombinedStats *stats)
 {
     // update the detail ui with latest node information
     QString peerAddrDetails(QString::fromStdString(stats->nodeStats.addrName) + " ");
+    if (stats->nodeStats.m_inbound_onion)
+        peerAddrDetails += tr("(inbound onion)") + " ";
     peerAddrDetails += tr("(node id: %1)").arg(QString::number(stats->nodeStats.nodeid));
     if (!stats->nodeStats.addrLocal.empty())
         peerAddrDetails += "<br />" + tr("via %1").arg(QString::fromStdString(stats->nodeStats.addrLocal));
