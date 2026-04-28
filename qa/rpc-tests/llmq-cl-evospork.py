@@ -58,7 +58,8 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
         ##### Disable chainlocks for 10 blocks
 
         self.nodes[0].importprivkey(self.sporkprivkey)
-        self.disable_chainlocks(self.nodes[0].getblockcount() + 10)
+        reenable_height = self.nodes[0].getblockcount() + 10
+        self.disable_chainlocks(reenable_height)
         self.nodes[0].generate(1)
         assert(False == self.nodes[0].getblock(self.nodes[0].getbestblockhash())["chainlock"])
 
@@ -70,14 +71,19 @@ class LLMQChainLocksTest(EvoZnodeTestFramework):
 
         ##### Enable chainlocks
 
-        self.nodes[0].generate(10)
-        self.nodes[0].spork('list')
         connected_nodes = [n for n in self.nodes if n != self.nodes[5]]
+
+        # Mine up to the re-enable height, then use the next block for
+        # chainlock assertions to avoid the reactivation transition edge.
+        self.nodes[0].generate(reenable_height - self.nodes[0].getblockcount())
         sync_blocks(connected_nodes, timeout=120)
-        self.wait_for_chainlock_tip(connected_nodes, self.nodes[0].getbestblockhash(), timeout=90)
         sporks = self.nodes[0].spork("list")
         assert(not sporks["blockchain"])
         assert(not sporks["mempool"])
+
+        self.nodes[0].generate(1)
+        sync_blocks(connected_nodes, timeout=120)
+        self.wait_for_chainlock_tip(connected_nodes, self.nodes[0].getbestblockhash(), timeout=90)
         assert(True == self.nodes[0].getblock(self.nodes[0].getbestblockhash())["chainlock"])
         chainlocked_tip = self.nodes[0].getbestblockhash()
 
