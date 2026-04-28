@@ -101,19 +101,19 @@ jobs:
       run: |
         set -exo pipefail
         sudo apt-get update
-        sudo apt-get install -y python3-zmq cmake build-essential ninja-build ccache
+        sudo apt-get install -y python3-zmq cmake build-essential ninja-build meson ccache
     - name: Install Required Packages (Windows)
       if: matrix.is_windows
       run: |
         set -exo pipefail
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip ninja-build ccache
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip ninja-build meson ccache
     - name: Install Required Packages (Mac)
       if: matrix.is_mac
       run: |
         set -exo pipefail
         brew uninstall --force cmake
-        brew install --force automake coreutils python-setuptools cmake make pkg-config ninja ccache
+        brew install --force automake coreutils python-setuptools cmake make pkg-config ninja meson ccache
     - name: Install setuptools
       if: matrix.is_mac
       run: |
@@ -175,9 +175,11 @@ jobs:
           depends-${{ matrix.platform }}-${{ steps.depends-host-triplet.outputs.value }}-
           depends-${{ matrix.platform }}-
     - name: Download Dependencies
-      if: steps.cache-depends.outputs.cache-hit != 'true'
       run: |
         set -exo pipefail
+        # Clear download stamps to ensure new/changed extra sources are fetched
+        # even when restoring from a stale cache (partial restore-key match).
+        rm -rf depends/sources/download-stamps
         attempt=1
         max=5
         until make -C depends download; do
