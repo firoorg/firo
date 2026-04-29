@@ -16,6 +16,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
+#include <algorithm>
 #include <atomic>
 
 #ifndef WIN32
@@ -585,7 +586,7 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout, b
         return ConnectSocketDirectly(addrDest, hSocketRet, nTimeout);
 }
 
-bool ConnectSocketByName(CService &addr, SOCKET& hSocketRet, const char *pszDest, int portDefault, int nTimeout, bool *outProxyConnectionFailed)
+bool ConnectSocketByName(CService& addr, SOCKET& hSocketRet, const char* pszDest, int portDefault, int nTimeout, bool* outProxyConnectionFailed, const std::function<bool(const CNetAddr&)>& isLimited)
 {
     std::string strDest;
     int port = portDefault;
@@ -599,11 +600,17 @@ bool ConnectSocketByName(CService &addr, SOCKET& hSocketRet, const char *pszDest
     GetNameProxy(proxy);
 
     std::vector<CService> addrResolved;
-    if (Lookup(strDest.c_str(), addrResolved, port, fNameLookup && !HaveNameProxy(), 256)) {
+    const bool fResolved = Lookup(strDest.c_str(), addrResolved, port, fNameLookup && !HaveNameProxy(), 256);
+    if (fResolved) {
+        if (isLimited) {
+            addrResolved.erase(std::remove_if(addrResolved.begin(), addrResolved.end(),
+                [&isLimited](const CService& service) { return isLimited(service); }), addrResolved.end());
+        }
         if (addrResolved.size() > 0) {
             addr = addrResolved[GetRand(addrResolved.size())];
             return ConnectSocket(addr, hSocketRet, nTimeout);
         }
+        return false;
     }
 
     addr = CService();

@@ -7,6 +7,7 @@
 #include "protocol.h"
 #include "utilstrencodings.h"
 
+#include <functional>
 #include <string>
 
 #include <boost/assign/list_of.hpp>
@@ -127,6 +128,17 @@ BOOST_AUTO_TEST_CASE(netbase_lookupnumeric)
     BOOST_CHECK(TestParse("[::]:8333", "[::]:8333"));
     BOOST_CHECK(TestParse("[127.0.0.1]", "127.0.0.1:65535"));
     BOOST_CHECK(TestParse(":::", "[::]:0"));
+}
+
+BOOST_AUTO_TEST_CASE(netbase_connectsocketbyname_rejects_limited_numeric_addresses)
+{
+    CService addr;
+    SOCKET hSocket = INVALID_SOCKET;
+    const auto reject_ipv4 = [](const CNetAddr& addr) { return addr.GetNetwork() == NET_IPV4; };
+
+    BOOST_CHECK(!ConnectSocketByName(addr, hSocket, "8.8.8.8", 8333, 0, nullptr, reject_ipv4));
+    BOOST_CHECK(!addr.IsValid());
+    BOOST_CHECK_EQUAL(hSocket, INVALID_SOCKET);
 }
 
 BOOST_AUTO_TEST_CASE(onioncat_test)
