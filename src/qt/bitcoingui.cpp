@@ -973,6 +973,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkZnodeVisibility(count);
+    if (walletFrame && count == ::Params().GetConsensus().nSparkStartBlock)
+        walletFrame->updateAddressbook();
 #endif // ENABLE_WALLET
 }
 
