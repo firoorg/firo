@@ -29,16 +29,16 @@ SpendKey::SpendKey(const Params* params, const Scalar& r_) {
     hash256.Finalize(&result[0]);
     this->s1.memberFromSeed(&result[0]);
 
-    data.clear();
-    result.clear();
+    memory_cleanse(data.data(), data.size());
+    memory_cleanse(result.data(), result.size());
     hash256.Reset();
     s1.serialize(data.data());
 
     std::string prefix2 = "s2_generation";
     hash256.Write(reinterpret_cast<const unsigned char*>(prefix2.c_str()), prefix2.size());
     hash256.Write(data.data(), data.size());
-    hash256.Finalize(&result[0]);
-    this->s2.memberFromSeed(&result[0]);
+    hash256.Finalize(result.data());
+    this->s2.memberFromSeed(result.data());
 }
 
 const Params* SpendKey::get_params() const {

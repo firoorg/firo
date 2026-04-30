@@ -105,6 +105,25 @@ BOOST_AUTO_TEST_CASE(bad_proofs)
     BOOST_CHECK(!address.verify_own(m, evil_proof4));
 }
 
+BOOST_AUTO_TEST_CASE(deterministic_spend_key)
+{
+    const Params* params = Params::get_test();
+
+    Scalar r;
+    r.SetHex("0000000000000000000000000000000000000000000000000000000000000001");
+
+    SpendKey spend_key(params, r);
+
+    BOOST_CHECK_EQUAL(spend_key.get_r().GetHex(), r.GetHex());
+    BOOST_CHECK(!spend_key.get_s1().isZero());
+    BOOST_CHECK(!spend_key.get_s2().isZero());
+    BOOST_CHECK(spend_key.get_s1().isMember());
+    BOOST_CHECK(spend_key.get_s2().isMember());
+
+    SpendKey same_spend_key(params, r);
+    BOOST_CHECK(spend_key == same_spend_key);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }
