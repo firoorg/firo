@@ -5,9 +5,8 @@
 #ifndef BITCOIN_QT_WALLETMODEL_H
 #define BITCOIN_QT_WALLETMODEL_H
 
-#include "walletmodeltransaction.h"
-
 #include "support/allocators/secure.h"
+#include "walletmodeltransaction.h"
 #ifdef ENABLE_WALLET
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
@@ -35,6 +34,8 @@ class COutput;
 class CPubKey;
 class CWallet;
 class uint256;
+class CSparkNameTxData;
+class CValidationState;
 
 QT_BEGIN_NAMESPACE
 class QTimer;
