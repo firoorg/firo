@@ -73,6 +73,9 @@ Q_IMPORT_PLUGIN(QXcbIntegrationPlugin);
 #ifdef HAVE_WAYLAND
 Q_IMPORT_PLUGIN(QWaylandIntegrationPlugin);
 Q_IMPORT_PLUGIN(QWaylandEglPlatformIntegrationPlugin);
+Q_IMPORT_PLUGIN(QWaylandXdgShellIntegrationPlugin);
+Q_IMPORT_PLUGIN(QWaylandEglClientBufferPlugin);
+Q_IMPORT_PLUGIN(QWaylandBradientDecorationPlugin);
 #endif
 #elif defined(QT_QPA_PLATFORM_WINDOWS)
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin);
