@@ -1816,10 +1816,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     CBlockIndex *tip = chainActive.Tip();
                     if (tip) {
                         int lastBlockIndexVersion = pblocktree->GetBlockIndexVersion(*tip->phashBlock);
-                        bool lelantusReindex = false;
                         bool evoReindex = (tip->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
                                 lastBlockIndexVersion < EVOSPORK_MIN_VERSION);
-                        if (lelantusReindex || evoReindex) {
+                        if (evoReindex) {
                             strLoadError = _(
                                     "Block index is outdated, reindex required\n");
                             break;
