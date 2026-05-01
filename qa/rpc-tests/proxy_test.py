@@ -215,7 +215,7 @@ class ProxyTest(BitcoinTestFramework):
             assert_equal(n3['onion']['reachable'], False)
 
         self.log.info("Check -listen=0 -torsetup=1 does not bind an inbound onion listener")
-        onion_bind_pattern = re.compile(r"Bound to 127\.0\.0\.1:(?!%d\\b)\\d+" % p2p_port(4))
+        onion_bind_pattern = re.compile(r"Bound to 127\.0\.0\.1:(?!%d\b)\d+" % p2p_port(4))
         self.nodes.append(start_node(4, self.options.tmpdir, [
             '-listen=0',
             '-listenonion=0',
