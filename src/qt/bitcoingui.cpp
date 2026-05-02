@@ -132,6 +132,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     modalOverlay(0),
     prevBlocks(0),
     spinnerFrame(0),
+#ifdef ENABLE_WALLET
+    sparkAddressbookUpdated(false),
+#endif
     platformStyle(_platformStyle)
 {
     // load stylesheet
@@ -973,8 +976,10 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkZnodeVisibility(count);
-    if (walletFrame && count == ::Params().GetConsensus().nSparkStartBlock)
+    if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
         walletFrame->updateAddressbook();
+        sparkAddressbookUpdated = true;
+    }
 #endif // ENABLE_WALLET
 }
 
