@@ -495,6 +495,7 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
     }
 
     if (tx.nType == isutils::INSTANTSEND_ADAPTED_TX) {
+        LOCK(cs_main);
         for (CTxIn const & in : tx.vin) {
             if (in.scriptSig.empty())
                 return false;
