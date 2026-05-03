@@ -53,6 +53,7 @@ bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 std::set<std::string> CSparkNameManager::GetSparkNames()
 {
     std::set<std::string> result;
+    LOCK(cs_spark_name);
     for (const auto &entry : sparkNames)
         result.insert(entry.second.name);
 
@@ -62,6 +63,7 @@ std::set<std::string> CSparkNameManager::GetSparkNames()
 std::vector<CSparkNameBlockIndexData> CSparkNameManager::DumpSparkNameData()
 {
     std::vector<CSparkNameBlockIndexData> result;
+    LOCK(cs_spark_name);
     result.reserve(sparkNames.size());
     for (const auto &entry : sparkNames)
         result.push_back(entry.second);
@@ -71,6 +73,7 @@ std::vector<CSparkNameBlockIndexData> CSparkNameManager::DumpSparkNameData()
 
 bool CSparkNameManager::GetSparkAddress(const std::string &name, std::string &address)
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it != sparkNames.end()) {
         address = it->second.sparkAddress;
@@ -83,6 +86,7 @@ bool CSparkNameManager::GetSparkAddress(const std::string &name, std::string &ad
 
 uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) const
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it == sparkNames.end())
        throw std::runtime_error("Spark name not found: " + name);
@@ -93,6 +97,7 @@ uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) con
 
 std::string CSparkNameManager::GetSparkNameAdditionalData(const std::string &name) const
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it == sparkNames.end())
         throw std::runtime_error("Spark name not found: " + name);
@@ -207,18 +212,20 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     bool fUpdateExistingRecord = false;
     bool fSparkNameTransfer = sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer;
-
-    if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
-        // it's possible to change any metadata of the existing name but if the spark address is being
-        // tranferred, new name shouldn't be already registered
-        if (!fSparkNameTransfer && sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
-            return state.DoS(100, error("CheckSparkNameTx: name already exists"));
-
-        fUpdateExistingRecord = true;
-    }
+    const std::string upperName = ToUpper(sparkNameData.name);
 
     {
         LOCK(cs_spark_name);
+        auto nameIt = sparkNames.find(upperName);
+        if (nameIt != sparkNames.end()) {
+            // it's possible to change any metadata of the existing name but if the spark address is being
+            // tranferred, new name shouldn't be already registered
+            if (!fSparkNameTransfer && nameIt->second.sparkAddress != sparkNameData.sparkAddress)
+                return state.DoS(100, error("CheckSparkNameTx: name already exists"));
+
+            fUpdateExistingRecord = true;
+        }
+
         if ((fSparkNameTransfer || !fUpdateExistingRecord) && sparkNameAddresses.count(sparkNameData.sparkAddress) > 0)
             return state.DoS(100, error("CheckSparkNameTx: spark address is already used for another name"));
     }
@@ -276,9 +283,12 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
 
         // check if the old spark address is the one currently associated with the spark name
-        if (sparkNameAddresses.count(sparkNameData.oldSparkAddress) == 0 ||
-            sparkNameAddresses[sparkNameData.oldSparkAddress] != ToUpper(sparkNameData.name))
-            return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+        {
+            LOCK(cs_spark_name);
+            auto oldAddressIt = sparkNameAddresses.find(sparkNameData.oldSparkAddress);
+            if (oldAddressIt == sparkNameAddresses.end() || oldAddressIt->second != upperName)
+                return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+        }
 
         spark::OwnershipProof transferOwnershipProof;
         try {
@@ -329,41 +339,47 @@ bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::s
 bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription)
 {
     errorDescription.clear();
-    LOCK(cs_spark_name);
-    if (!IsSparkNameValid(sparkNameData.name))
-        errorDescription = "invalid spark name";
+    const std::string upperName = ToUpper(sparkNameData.name);
 
-    else if (sparkNameData.additionalInfo.size() > 1024)
-        errorDescription = "additional info is too long";
+    {
+        LOCK(cs_spark_name);
+        auto nameIt = sparkNames.find(upperName);
+        auto addressIt = sparkNameAddresses.find(sparkNameData.sparkAddress);
 
-    else if (sparkNameData.sparkNameValidityBlocks == 0)
-        errorDescription = "validity period must be at least 1 block";
+        if (!IsSparkNameValid(sparkNameData.name))
+            errorDescription = "invalid spark name";
 
-    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
-        errorDescription = "transaction can't be valid for more than 10 years";
+        else if (sparkNameData.additionalInfo.size() > 1024)
+            errorDescription = "additional info is too long";
 
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
-        errorDescription = "invalid operation type";
+        else if (sparkNameData.sparkNameValidityBlocks == 0)
+            errorDescription = "validity period must be at least 1 block";
 
-    else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
-                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
-                (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
-        errorDescription = "name already exists with another spark address as a destination";
+        else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
+            errorDescription = "transaction can't be valid for more than 10 years";
 
-    else if (sparkNameAddresses.count(sparkNameData.sparkAddress) > 0 &&
-                sparkNameAddresses[sparkNameData.sparkAddress] != ToUpper(sparkNameData.name))
-        errorDescription = "spark address is already used for another name";
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+            errorDescription = "invalid operation type";
 
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
-                sparkNameData.oldSparkAddress.empty())
-        errorDescription = "old spark address is required for transfer operation";
+        else if (nameIt != sparkNames.end() &&
+                    nameIt->second.sparkAddress != sparkNameData.sparkAddress &&
+                    (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
+            errorDescription = "name already exists with another spark address as a destination";
 
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
-        errorDescription = "unregister operation is not supported yet";
+        else if (addressIt != sparkNameAddresses.end() && addressIt->second != upperName)
+            errorDescription = "spark address is already used for another name";
 
-    else {
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
+                    sparkNameData.oldSparkAddress.empty())
+            errorDescription = "old spark address is required for transfer operation";
+
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
+            errorDescription = "unregister operation is not supported yet";
+    }
+
+    if (errorDescription.empty()) {
         LOCK(mempool.cs);
-        if (mempool.sparkNames.count(ToUpper(sparkNameData.name)) > 0)
+        if (mempool.sparkNames.count(upperName) > 0)
             errorDescription = "spark name transaction with that name is already in the mempool";
     }
 
