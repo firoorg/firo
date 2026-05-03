@@ -8,6 +8,7 @@ $(package)_dependencies=libxcb libxcb_util
 define $(package)_set_vars
 $(package)_config_opts=--disable-devel-docs --without-doxygen
 $(package)_config_opts+= --disable-dependency-tracking --enable-option-checking
+$(package)_config_opts+= --disable-shared
 endef
 
 define $(package)_preprocess_cmds
@@ -27,5 +28,5 @@ define $(package)_stage_cmds
 endef
 
 define $(package)_postprocess_cmds
-  rm -rf share/man share/doc lib/*.la
+  rm -rf share/man share/doc lib/*.la && sed -i '/^Requires:/a Requires.private: xcb-util' lib/pkgconfig/xcb-image.pc
 endef

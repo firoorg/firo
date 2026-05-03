@@ -17,6 +17,16 @@ if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$" AND TARGET Qt6::QWaylandIntegra
   set(HAVE_WAYLAND TRUE)
 endif()
 
+if(qt_lib_type STREQUAL "STATIC_LIBRARY" AND HAVE_WAYLAND)
+  find_library(WAYLAND_FFI_LIBRARY NAMES ffi)
+  if(NOT WAYLAND_FFI_LIBRARY)
+    message(FATAL_ERROR "Static Qt Wayland plugins require libffi, but it was not found")
+  endif()
+  if(TARGET Wayland::Client)
+    set_property(TARGET Wayland::Client APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${WAYLAND_FFI_LIBRARY}")
+  endif()
+endif()
+
 function(import_plugins target)
   if(qt_lib_type STREQUAL "STATIC_LIBRARY")
     set(plugins Qt6::QMinimalIntegrationPlugin)

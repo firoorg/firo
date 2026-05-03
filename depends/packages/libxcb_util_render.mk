@@ -8,6 +8,7 @@ $(package)_dependencies=libxcb
 define $(package)_set_vars
 $(package)_config_opts=--disable-devel-docs --without-doxygen
 $(package)_config_opts += --disable-dependency-tracking --enable-option-checking
+$(package)_config_opts += --disable-shared
 endef
 
 define $(package)_preprocess_cmds
