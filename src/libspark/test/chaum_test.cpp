@@ -175,6 +175,23 @@ BOOST_AUTO_TEST_CASE(bad_proofs)
     BOOST_CHECK(!(chaum.verify(mu, S, T, evil_proof)));
 }
 
+BOOST_AUTO_TEST_CASE(empty_input_vectors_rejected)
+{
+    GroupElement F, G, H, U;
+    F.randomize();
+    G.randomize();
+    H.randomize();
+    U.randomize();
+    Scalar mu;
+    mu.randomize();
+    std::vector<GroupElement> S;
+    std::vector<GroupElement> T;
+    ChaumProof proof;
+    Chaum chaum(F, G, H, U);
+    BOOST_CHECK_THROW(chaum.verify(mu, S, T, proof), std::invalid_argument);
+ }
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 }
