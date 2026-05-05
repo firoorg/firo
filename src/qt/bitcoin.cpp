@@ -76,9 +76,15 @@ Q_IMPORT_PLUGIN(QXcbIntegrationPlugin);
 #ifdef HAVE_WAYLAND
 Q_IMPORT_PLUGIN(QWaylandIntegrationPlugin);
 Q_IMPORT_PLUGIN(QWaylandEglPlatformIntegrationPlugin);
+#ifdef HAVE_QT_WAYLAND_XDG_SHELL_INTEGRATION_PLUGIN
 Q_IMPORT_PLUGIN(QWaylandXdgShellIntegrationPlugin);
+#endif
+#ifdef HAVE_QT_WAYLAND_EGL_CLIENT_BUFFER_PLUGIN
 Q_IMPORT_PLUGIN(QWaylandEglClientBufferPlugin);
+#endif
+#ifdef HAVE_QT_WAYLAND_BRADIENT_DECORATION_PLUGIN
 Q_IMPORT_PLUGIN(QWaylandBradientDecorationPlugin);
+#endif
 #endif
 #elif defined(QT_QPA_PLATFORM_WINDOWS)
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin);

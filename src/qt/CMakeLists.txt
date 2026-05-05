@@ -175,6 +175,9 @@ target_compile_definitions(firoqt
     QT_NO_KEYWORDS
     QT_USE_QSTRINGBUILDER
     $<$<BOOL:${HAVE_WAYLAND}>:HAVE_WAYLAND>
+    $<$<TARGET_EXISTS:Qt6::QWaylandXdgShellIntegrationPlugin>:HAVE_QT_WAYLAND_XDG_SHELL_INTEGRATION_PLUGIN>
+    $<$<TARGET_EXISTS:Qt6::QWaylandEglClientBufferPlugin>:HAVE_QT_WAYLAND_EGL_CLIENT_BUFFER_PLUGIN>
+    $<$<TARGET_EXISTS:Qt6::QWaylandBradientDecorationPlugin>:HAVE_QT_WAYLAND_BRADIENT_DECORATION_PLUGIN>
 )
 target_include_directories(firoqt
   PUBLIC

@@ -28,5 +28,5 @@ define $(package)_stage_cmds
 endef
 
 define $(package)_postprocess_cmds
-  rm -rf share/man share/doc lib/*.la && sed -i '/^Requires:/a Requires.private: xcb-util' lib/pkgconfig/xcb-image.pc
+  rm -rf share/man share/doc lib/*.la && mkdir -p _util && (cd _util && ar x $(host_prefix)/lib/libxcb-util.a) && ar qc lib/libxcb-image.a _util/*.o && ranlib lib/libxcb-image.a && rm -rf _util
 endef
