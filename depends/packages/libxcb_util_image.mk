@@ -28,5 +28,5 @@ define $(package)_stage_cmds
 endef
 
 define $(package)_postprocess_cmds
-  rm -rf share/man share/doc lib/*.la && mkdir -p _util && (cd _util && ar x $(host_prefix)/lib/libxcb-util.a) && ar qc lib/libxcb-image.a _util/*.o && ranlib lib/libxcb-image.a && rm -rf _util
+  rm -rf share/man share/doc lib/*.la && rm -rf _util && mkdir _util && (cd _util && ar x $(host_prefix)/lib/libxcb-util.a) && ar rc lib/libxcb-image.a _util/*.o && ranlib lib/libxcb-image.a && rm -rf _util
 endef

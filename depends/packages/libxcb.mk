@@ -38,5 +38,5 @@ define $(package)_stage_cmds
 endef
 
 define $(package)_postprocess_cmds
-  rm -rf share lib/*.la && mkdir -p _xau _xdmcp && (cd _xau && ar x $(host_prefix)/lib/libXau.a) && (cd _xdmcp && ar x $(host_prefix)/lib/libXdmcp.a) && ar qc lib/libxcb.a _xau/*.o _xdmcp/*.o && ranlib lib/libxcb.a && rm -rf _xau _xdmcp && python3 -c "c=open('lib/pkgconfig/xcb.pc').read();n=c.replace(' -lxcb\n',' -lxcb -lXau -lXdmcp\n');assert n!=c,'xcb.pc patch failed: -lxcb not found at end of Libs line';open('lib/pkgconfig/xcb.pc','w').write(n)"
+  rm -rf share lib/*.la && mkdir -p _xau _xdmcp && (cd _xau && ar x $(host_prefix)/lib/libXau.a) && (cd _xdmcp && ar x $(host_prefix)/lib/libXdmcp.a) && ar rc lib/libxcb.a _xau/*.o _xdmcp/*.o && ranlib lib/libxcb.a && rm -rf _xau _xdmcp && python3 -c "c=open('lib/pkgconfig/xcb.pc').read();n=c.replace(' -lxcb\n',' -lxcb -lXau -lXdmcp\n');assert n!=c,'xcb.pc patch failed: -lxcb not found at end of Libs line';open('lib/pkgconfig/xcb.pc','w').write(n)"
 endef
