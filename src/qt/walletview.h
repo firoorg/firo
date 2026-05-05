@@ -129,7 +129,7 @@ public Q_SLOTS:
     /** Show used sending addresses */
     void usedSendingAddresses();
 
-    void updateAddressbook();
+    bool updateAddressbook();
 
     /** Show used receiving addresses */
     void usedReceivingAddresses();

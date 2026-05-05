@@ -56,7 +56,7 @@ public:
     void setModel(AddressTableModel *model);
     const QString &getReturnValue() const { return returnValue; }
 
-    void updateSpark();
+    bool updateSpark();
 
 public Q_SLOTS:
     void done(int retval) override;

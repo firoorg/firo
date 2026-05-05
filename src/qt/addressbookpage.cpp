@@ -199,10 +199,13 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     connect(ui->addressType, qOverload<int>(&QComboBox::activated), this, &AddressBookPage::chooseAddressType);
 }
 
-void AddressBookPage::updateSpark() {
-    populateAddressTypes(model && model->IsSparkAllowed());
+bool AddressBookPage::updateSpark()
+{
+    const bool sparkAllowed = model && model->IsSparkAllowed();
+    populateAddressTypes(sparkAllowed);
 
     chooseAddressType(0);
+    return sparkAllowed;
 }
 
 void AddressBookPage::on_copyAddress_clicked()

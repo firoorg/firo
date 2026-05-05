@@ -623,7 +623,7 @@ bool BitcoinGUI::addWallet(const QString& name, WalletModel *walletModel)
         return false;
     setWalletActionsEnabled(true);
     const bool walletAdded = walletFrame->addWallet(name, walletModel);
-    if (walletAdded && clientModel && !sparkAddressbookUpdated && clientModel->getNumBlocks() >= ::Params().GetConsensus().nSparkStartBlock) {
+    if (walletAdded && clientModel && !sparkAddressbookUpdated) {
         sparkAddressbookUpdated = walletFrame->updateAddressbook();
     }
     return walletAdded;
@@ -634,7 +634,7 @@ bool BitcoinGUI::setCurrentWallet(const QString& name)
     if(!walletFrame)
         return false;
     const bool walletSelected = walletFrame->setCurrentWallet(name);
-    if (walletSelected && clientModel && !sparkAddressbookUpdated && clientModel->getNumBlocks() >= ::Params().GetConsensus().nSparkStartBlock) {
+    if (walletSelected && clientModel && !sparkAddressbookUpdated) {
         sparkAddressbookUpdated = walletFrame->updateAddressbook();
     }
     return walletSelected;
