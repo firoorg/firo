@@ -53,6 +53,7 @@ bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 std::set<std::string> CSparkNameManager::GetSparkNames()
 {
     std::set<std::string> result;
+    LOCK(cs_spark_name);
     for (const auto &entry : sparkNames)
         result.insert(entry.second.name);
 
@@ -62,6 +63,7 @@ std::set<std::string> CSparkNameManager::GetSparkNames()
 std::vector<CSparkNameBlockIndexData> CSparkNameManager::DumpSparkNameData()
 {
     std::vector<CSparkNameBlockIndexData> result;
+    LOCK(cs_spark_name);
     result.reserve(sparkNames.size());
     for (const auto &entry : sparkNames)
         result.push_back(entry.second);
@@ -71,6 +73,7 @@ std::vector<CSparkNameBlockIndexData> CSparkNameManager::DumpSparkNameData()
 
 bool CSparkNameManager::GetSparkAddress(const std::string &name, std::string &address)
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it != sparkNames.end()) {
         address = it->second.sparkAddress;
@@ -83,6 +86,7 @@ bool CSparkNameManager::GetSparkAddress(const std::string &name, std::string &ad
 
 uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) const
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it == sparkNames.end())
        throw std::runtime_error("Spark name not found: " + name);
@@ -93,6 +97,7 @@ uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) con
 
 std::string CSparkNameManager::GetSparkNameAdditionalData(const std::string &name) const
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it == sparkNames.end())
         throw std::runtime_error("Spark name not found: " + name);
@@ -327,9 +332,12 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
 
         // check if the old spark address is the one currently associated with the spark name
-        if (sparkNameAddresses.count(sparkNameData.oldSparkAddress) == 0 ||
-            sparkNameAddresses[sparkNameData.oldSparkAddress] != ToUpper(sparkNameData.name))
-            return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+        {
+            LOCK(cs_spark_name);
+            auto oldAddressIt = sparkNameAddresses.find(sparkNameData.oldSparkAddress);
+            if (oldAddressIt == sparkNameAddresses.end() || oldAddressIt->second != normalizedName)
+                return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+        }
 
         spark::OwnershipProof transferOwnershipProof;
         try {
@@ -398,45 +406,52 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
         LOCK(cs_main);
         nHeight = chainActive.Height() + 1;
     }
-    LOCK(cs_spark_name);
     const std::string normalizedName = ToUpper(sparkNameData.name);
-    auto sparkNameIt = sparkNames.find(normalizedName);
-    auto sparkNameAddressIt = sparkNameAddresses.find(sparkNameData.sparkAddress);
-    if (!IsSparkNameValid(sparkNameData.name))
-        errorDescription = "invalid spark name";
 
-    else if (sparkNameData.additionalInfo.size() > 1024)
-        errorDescription = "additional info is too long";
+    int existingExpirationHeight = -1;
+    {
+        LOCK(cs_spark_name);
+        auto sparkNameIt = sparkNames.find(normalizedName);
+        auto sparkNameAddressIt = sparkNameAddresses.find(sparkNameData.sparkAddress);
+        if (sparkNameIt != sparkNames.end())
+            existingExpirationHeight = sparkNameIt->second.sparkNameValidityHeight;
 
-    else if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
-        errorDescription = "transaction can't be valid for more than 15 years";
-  
-    else if (nHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
-        errorDescription = "transaction can't be valid for more than 10 years";
-  
-    else if (sparkNameData.sparkNameValidityBlocks == 0)
-        errorDescription = "validity period must be at least 1 block";
-  
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
-        errorDescription = "invalid operation type";
+        if (!IsSparkNameValid(sparkNameData.name))
+            errorDescription = "invalid spark name";
 
-    else if (sparkNameIt != sparkNames.end() &&
-                sparkNameIt->second.sparkAddress != sparkNameData.sparkAddress &&
-                (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
-        errorDescription = "name already exists with another spark address as a destination";
+        else if (sparkNameData.additionalInfo.size() > 1024)
+            errorDescription = "additional info is too long";
 
-    else if (sparkNameAddressIt != sparkNameAddresses.end() &&
-                sparkNameAddressIt->second != normalizedName)
-        errorDescription = "spark address is already used for another name";
+        else if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
+            errorDescription = "transaction can't be valid for more than 15 years";
 
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
-                sparkNameData.oldSparkAddress.empty())
-        errorDescription = "old spark address is required for transfer operation";
+        else if (nHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
+            errorDescription = "transaction can't be valid for more than 10 years";
 
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
-        errorDescription = "unregister operation is not supported yet";
+        else if (sparkNameData.sparkNameValidityBlocks == 0)
+            errorDescription = "validity period must be at least 1 block";
 
-    else {
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+            errorDescription = "invalid operation type";
+
+        else if (sparkNameIt != sparkNames.end() &&
+                    sparkNameIt->second.sparkAddress != sparkNameData.sparkAddress &&
+                    (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
+            errorDescription = "name already exists with another spark address as a destination";
+
+        else if (sparkNameAddressIt != sparkNameAddresses.end() &&
+                    sparkNameAddressIt->second != normalizedName)
+            errorDescription = "spark address is already used for another name";
+
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
+                    sparkNameData.oldSparkAddress.empty())
+            errorDescription = "old spark address is required for transfer operation";
+
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
+            errorDescription = "unregister operation is not supported yet";
+    }
+
+    if (errorDescription.empty()) {
         LOCK(mempool.cs);
         if (mempool.sparkNames.count(normalizedName) > 0)
             errorDescription = "spark name transaction with that name is already in the mempool";
@@ -444,10 +459,10 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
 
     // After V2.1, check that total validity (including remaining time from existing registration) doesn't exceed 15 years
     if (errorDescription.empty() && nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
-        if (sparkNameIt != sparkNames.end()) {
+        if (existingExpirationHeight != -1) {
             constexpr int nBlockPerYear = 365*24*24;
             int validityBlocks = sparkNameData.sparkNameValidityBlocks;
-            int remainingBlocks = sparkNameIt->second.sparkNameValidityHeight - nHeight;
+            int remainingBlocks = existingExpirationHeight - nHeight;
             if (remainingBlocks > 0)
                 validityBlocks += remainingBlocks;
             if (validityBlocks > nBlockPerYear * 15)
