@@ -109,9 +109,9 @@ Bootstrappable builds can [be achieved with Guix.](contrib/guix/README.md)
 
 ```sh
 sudo apt-get update
-sudo apt-get install python git curl build-essential cmake pkg-config
+sudo apt-get install python git curl build-essential cmake pkg-config ccache
 # Also needed for GUI wallet only:
-sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
+sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison ninja-build meson libx11-dev
 ```
 
 If you use a later version of Ubuntu, you may need to replace `python` with `python3`.
