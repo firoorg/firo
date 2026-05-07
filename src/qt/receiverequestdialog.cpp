@@ -90,7 +90,8 @@ void QRImageWidget::contextMenuEvent(QContextMenuEvent *event)
 ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ReceiveRequestDialog),
-    model(0)
+    model(0),
+    walletModel(0)
 {
     ui->setupUi(this);
 
@@ -107,12 +108,13 @@ ReceiveRequestDialog::~ReceiveRequestDialog()
     delete ui;
 }
 
-void ReceiveRequestDialog::setModel(OptionsModel *_model)
+void ReceiveRequestDialog::setModel(WalletModel *_model)
 {
-    this->model = _model;
+    this->walletModel = _model;
+    this->model = _model ? _model->getOptionsModel() : 0;
 
-    if (_model)
-        connect(_model, &OptionsModel::displayUnitChanged, this, &ReceiveRequestDialog::update);
+    if (this->model)
+        connect(this->model, &OptionsModel::displayUnitChanged, this, &ReceiveRequestDialog::update);
 
     // update the display unit if necessary
     update();
@@ -126,7 +128,7 @@ void ReceiveRequestDialog::setInfo(const SendCoinsRecipient &_info)
 
 void ReceiveRequestDialog::update()
 {
-    if(!model)
+    if(!model || !walletModel)
         return;
     resize(width(), 600);
     QString target = info.label;
