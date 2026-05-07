@@ -208,6 +208,10 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
                     QMessageBox::critical(this, tr("Error"), tr("Spark name \"%1\" not found or expired.").arg(sparkName));
                     return;
                 }
+                if (!model->isSparkAddressMine(address)) {
+                    QMessageBox::critical(this, tr("Error"), tr("Spark name \"%1\" does not belong to this wallet.").arg(sparkName));
+                    return;
+                }
             } else {
                 address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
             }
@@ -521,6 +525,12 @@ void ReceiveCoinsDialog::mySparkNames() {
         if (!label.isEmpty()) {
             if (!label.startsWith("@"))
                 label = "@" + label;
+            QString sparkName = label.mid(1);
+            QString resolvedAddress = model->getSparkNameAddress(sparkName);
+            if (resolvedAddress.isEmpty() || !model->isSparkAddressMine(resolvedAddress)) {
+                QMessageBox::critical(this, tr("Error"), tr("Selected spark name \"%1\" does not belong to this wallet.").arg(sparkName));
+                return;
+            }
             ui->reqLabel->setText(label);
         }
     }

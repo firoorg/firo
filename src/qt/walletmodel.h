@@ -153,6 +153,7 @@ public:
     bool validateAddress(const QString &address);
     bool validateExchangeAddress(const QString &address);
     bool validateSparkAddress(const QString &address);
+    bool isSparkAddressMine(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
 
     // Generate spark address
