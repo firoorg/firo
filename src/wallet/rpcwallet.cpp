@@ -4897,22 +4897,15 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_WALLET_ERROR, std::string("Spark name registration failed: ") + x.what());
     }
 
-    // commit
-    try {
+    {
         CValidationState state;
         CReserveKey reserveKey(pwallet);
-        if (!pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state))
-            throw JSONRPCError(RPC_WALLET_ERROR, "CommitTransaction failed: " + FormatStateMessage(state));
-    }
-    catch (const std::exception &) {
-        auto error = _(
-                "Error: The transaction was rejected! This might happen if some of "
-                "the coins in your wallet were already spent, such as if you used "
-                "a copy of wallet.dat and coins were spent in the copy but not "
-                "marked as spent here."
-        );
-
-        std::throw_with_nested(std::runtime_error(error));
+        if (!pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state, true)) {
+            std::string rejectReason = FormatStateMessage(state);
+            throw JSONRPCError(RPC_WALLET_ERROR,
+                "Spark name transaction was rejected" +
+                (rejectReason.empty() ? std::string() : ": " + rejectReason));
+        }
     }
 
     return wtx.GetHash().GetHex();
