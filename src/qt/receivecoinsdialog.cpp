@@ -52,7 +52,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui->addressTypeCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeCombobox->addItem(tr("Transparent"), Transparent);
 
-    if(ui->addressTypeCombobox->currentText() == "Spark"){
+    if(ui->addressTypeCombobox->currentData().toInt() == Spark){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
         ui->mySparkNamesButton->setVisible(true);
@@ -180,7 +180,8 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
     QString address;
     QString label = ui->reqLabel->text();
     QString addressType = ui->addressTypeCombobox->currentText();
-    if(ui->reuseAddress->isChecked() && ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent)
+    const int selectedAddressType = ui->addressTypeCombobox->currentData().toInt();
+    if(ui->reuseAddress->isChecked() && selectedAddressType == Transparent)
     {
         /* Choose existing receiving address */
         AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
@@ -197,9 +198,9 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         }
     } else {
         /* Generate new receiving address */
-        if(ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent) {
+        if(selectedAddressType == Transparent) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
-        } else if(ui->addressTypeCombobox->currentText() == AddressTableModel::Spark) {
+        } else if(selectedAddressType == Spark) {
             // Check if label is a @name reference to a spark name
             if (label.startsWith("@") && label.size() > 1 && label.size() <= (int)CSparkNameManager::maximumSparkNameLength + 1) {
                 QString sparkName = label.mid(1);
@@ -217,6 +218,9 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
             }
         }
     }
+    if(address.isEmpty())
+        return;
+
     SendCoinsRecipient info(address, addressType, label,
         ui->reqAmount->value(), ui->reqMessage->text());
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
@@ -353,7 +357,7 @@ void ReceiveCoinsDialog::copyAmount()
 
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
-    if(ui->addressTypeCombobox->currentText() == tr("Spark")){
+    if(ui->addressTypeCombobox->itemData(idx).toInt() == Spark){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
         ui->mySparkNamesButton->setVisible(true);
