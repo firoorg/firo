@@ -2,6 +2,7 @@
 #include "../script/standard.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
+#include "../spark/state.h"
 #include "../wallet/wallet.h"
 #include "../net.h"
 
@@ -805,7 +806,7 @@ BOOST_AUTO_TEST_CASE(checktransactionspats)
     minted.memo = "";
 	minted.a = Scalar(uint64_t(2));
 	minted.iota = Scalar(uint64_t(1));
-    wtx = pwalletMain->MintAndStoreSpats({minted ,address});
+    wtx = pwalletMain->MintAndStoreSpats(minted);
 
     CMutableTransaction mintTx(wtx);
     BOOST_CHECK(CheckSparkTransaction(

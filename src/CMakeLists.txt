@@ -58,9 +58,7 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/support/lockedpool.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sync.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spats/modification.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/util.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/utils/string.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/utilmoneystr.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/utilstrencodings.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/utiltime.cpp
@@ -353,10 +351,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/primitives.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/state.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spats/manager.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spats/modification.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spats/registry.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spats/spark_asset.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spark/assetstate.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/timedata.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/torcontrol.cpp

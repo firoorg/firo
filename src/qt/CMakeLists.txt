@@ -103,7 +103,6 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/manualmintdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/masternodelist.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/modaloverlay.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/myownspats.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/networkstyle.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/notificator.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/notifymnemonic.cpp
@@ -124,15 +123,8 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcconsole.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sendconfirmationdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spatssenddialog.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetspage.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spatsmintdialog.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/spatsuserconfirmationdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/splashscreen.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/trafficgraphwidget.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/transactiondesc.cpp
@@ -213,7 +205,6 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/editaddressdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/exportviewkeydialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/manualmintdialog.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/myownspats.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/openuridialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/overviewpage.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/paymentserver.cpp
@@ -222,13 +213,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/recentrequeststablemodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/sendconfirmationdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetdialog.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/spatssenddialog.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/spatsburndialog.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/spatsmintdialog.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/spatsuserconfirmationdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transactiondesc.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transactiondescdialog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transactionfilterproxy.cpp
@@ -242,7 +227,6 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/walletview.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/automintmodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/sparkassetspage.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/createsparknamepage.cpp
   )
   target_link_libraries(firoqt

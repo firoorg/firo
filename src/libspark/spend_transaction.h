@@ -51,6 +51,7 @@ public:
     virtual const std::map<uint64_t, uint256>& getBlockHashes() = 0;
     virtual const std::vector<uint64_t>& getCoinGroupIds() = 0;
     virtual void setBurn(const uint64_t& burn_) = 0;
+    virtual void setExtraDataHash(const uint256& extraDataHash_) = 0;
 };
 
 class SpendTransaction : public BaseSpendTransaction {
@@ -135,6 +136,9 @@ public:
     void setBlockHashes(const std::map<uint64_t, uint256>& idAndHashes);
 
     const std::map<uint64_t, uint256>& getBlockHashes() override;
+
+    void setExtraDataHash(const uint256& extraDataHash_) override {}
+
 private:
     const Params* params;
     // We need to construct and pass this data before running verification

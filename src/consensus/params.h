@@ -279,6 +279,9 @@ struct Params {
     // The block number introducing spats (spark assets)
     int nSpatsStartBlock;
 
+    /** Spats asset registration fee by symbol length (indexes 0..20), same units as nSparkNamesFee (FIRO * COIN on use). */
+    std::array<int, 21> nSpatsRegFee;
+
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
     std::array<int,21> nSparkNamesFee;

@@ -11,8 +11,8 @@
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
 #include "../libspark/spats/spend_transaction.h"
-#include "../spats/manager.hpp"
 
+#include "assetstate.h"
 #include "primitives.h"
 #include "sparkname.h"
 
@@ -36,8 +36,6 @@ public:
     // spark names
     std::map<std::string, CSparkNameTxData> sparkNames;
 
-    spats::Actions spats_actions;
-
     // information about transactions in the block is complete
     bool fInfoIsComplete = false;
 
@@ -56,7 +54,7 @@ unsigned char GetNetworkType();
 
 // Pass Scripts form mint transaction and get spark MintTransaction object
 void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransaction& mintTransaction);
-void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof);
+void ParseSpatsMintTransaction(const CScript& script, MintTransaction& mintTransaction, spark::OwnershipProof& ownershipProof, bool* pfMintOnlyWithoutSparkProof = nullptr);
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
@@ -112,7 +110,9 @@ private:
     // linking tags of spends currently in the mempool mapped to tx hashes
     std::unordered_map<GroupElement, uint256, spark::CLTagHash> mempoolLTags;
 
-  // TODO collect all spats actions here and validate that the new ones doesn't conflict with already existing ones
+    // asset state in mempool
+    CAssetState asset_state_;
+
 
 public:
     // Check if there is a conflicting tx in the blockchain or mempool
@@ -133,6 +133,8 @@ public:
     uint256 GetMempoolConflictingTxHash(const GroupElement& lTag);
 
     std::unordered_map<GroupElement, uint256, spark::CLTagHash> const & GetMempoolLTags() const { return mempoolLTags; }
+
+    const CAssetState& GetAssetState() const noexcept { return asset_state_; }
 
     void Reset();
 };
@@ -263,9 +265,7 @@ public:
 
     std::size_t GetTotalCoins() const { return mintedCoins.size(); }
 
-    spats::Manager& GetSpatsManager() noexcept { return spats_manager_; }
-
-    void AddSpatsActions(const spats::Actions& actions, int block_height, const std::optional<uint256>& block_hash);
+    const CAssetState& GetAssetState() const noexcept { return asset_state_; }
 
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
@@ -293,13 +293,12 @@ private:
     typedef std::map<int, size_t> metainfo_container_t;
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
-    spats::Manager spats_manager_;
+
+    CAssetState asset_state_;
 
     friend struct spark_mintspend::spark_mintspend_test;
 };
 
-std::pair<spats::MintAction, spark::Coin> ExtractSpatsMintAction(const CTransaction &tx);
-spats::BurnAction<> ExtractSpatsBurnAction(const CTransaction& tx);
 
 } // namespace spark
 

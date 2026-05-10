@@ -11,7 +11,6 @@
 #include <QMessageBox>
 #include <QString>
 #include <QTimer>
-#include "sendconfirmationdialog.h"
 
 class ClientModel;
 class OptionsModel;
@@ -50,7 +49,7 @@ public:
     SendCoinsEntry *entry;
 
 public Q_SLOTS:
-            void clear();
+    void clear();
     void reject() override;
     void accept() override;
     SendCoinsEntry *addEntry();
@@ -58,7 +57,7 @@ public Q_SLOTS:
     void updateTabsAndLabels();
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
-                    const spats::Wallet::asset_balances_t& spats_balances, const CAmount& anonymizableBalance);
+                    const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance);
 
 private:
     Ui::SendCoinsDialog *ui;
@@ -79,10 +78,9 @@ private:
     void updateFeeMinimizedLabel();
     void setAnonymizeMode(bool enableAnonymizeMode);
     void removeUnmatchedOutput(CCoinControl &coinControl);
-    void addShadow(QWidget* w);
 
 private Q_SLOTS:
-            void on_sendButton_clicked();
+    void on_sendButton_clicked();
     void on_switchFundButton_clicked();
     void on_buttonChooseFee_clicked();
     void on_buttonMinimizeFee_clicked();
@@ -106,9 +104,30 @@ private Q_SLOTS:
     void updateSmartFeeLabel();
     void updateGlobalFeeVariables();
 
-    Q_SIGNALS:
-            // Fired when a message should be reported to the user
-            void message(const QString &title, const QString &message, unsigned int style);
+Q_SIGNALS:
+    // Fired when a message should be reported to the user
+    void message(const QString &title, const QString &message, unsigned int style);
+};
+
+
+
+class SendConfirmationDialog : public QMessageBox
+{
+    Q_OBJECT
+
+public:
+    SendConfirmationDialog(const QString &title, const QString &text, int secDelay = 0, QWidget *parent = 0);
+    int exec() override;
+
+private Q_SLOTS:
+    void countDown();
+    void updateYesButton();
+
+private:
+    QAbstractButton *yesButton;
+    QTimer countDownTimer;
+    int secDelay;
+
 };
 
 #endif // BITCOIN_QT_SENDCOINSDIALOG_H

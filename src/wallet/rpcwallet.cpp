@@ -3749,7 +3749,7 @@ UniValue mintspats(const JSONRPCRequest& request)
             "mintspats \"address\":{amount,memo...}\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
                                                  "\nArguments:\n"
-                                                 " \"address\"   (string) The Spark address\n"
+                                                 " \"address\"   (string) Spark address (in-wallet) for Spark mint, or a transparent Firo address (in-wallet, spendable) to mint via transparent inputs + mint-only vout\n"
                                                  " \"memo\"   (string) memo\n"
                                                  " \"amount\"   (numeric) amount to mint\n"
                                                  " \"a\"   (numeric)\n"
@@ -3774,13 +3774,6 @@ UniValue mintspats(const JSONRPCRequest& request)
     std::string str_addr = request.params[0].get_str();
     const spark::Params* params = spark::Params::get_default();
     unsigned char network = spark::GetNetworkType();
-    spark::Address address(params);
-    unsigned char coinNetwork;
-    try {
-        coinNetwork = address.decode(str_addr);
-    } catch (const std::exception &) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Spark address: ")+str_addr);
-    }
 
     UniValue data = request.params[1].get_obj();
     spark::MintedCoinData output;
@@ -3798,7 +3791,6 @@ UniValue mintspats(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
     LogPrintf("rpcWallet.mintspats() nAmount = %d \n", nAmount);
 
-    output.address = address;
     output.memo = memo;
     output.v = nAmount;
 
@@ -3812,15 +3804,84 @@ UniValue mintspats(const JSONRPCRequest& request)
     else
         throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("iota is not specified"));
 
+    bool sparkInitiator = false;
+    spark::Address sparkAddr(params);
+    try {
+        if (sparkAddr.decode(str_addr) != network)
+            throw std::runtime_error("wrong network");
+        sparkInitiator = true;
+    } catch (const std::exception&) {
+    }
+
+    if (!sparkInitiator) {
+        CBitcoinAddress ba(str_addr);
+        if (!ba.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid address: ") + str_addr);
+        if (!pwallet->sparkWallet)
+            throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet not available");
+        CTxOut probe(0, GetScriptForDestination(ba.Get()));
+        if (pwallet->IsMine(probe) != ISMINE_SPENDABLE)
+            throw JSONRPCError(RPC_WALLET_ERROR, "Transparent address not in wallet");
+        output.address = pwallet->sparkWallet->getDefaultAddress();
+    }
 
     CWalletTx wtx;
     try {
-        wtx = pwallet->MintAndStoreSpats({output, address});
-    } catch (const std::exception &) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spats creation failed.");
+        wtx = pwallet->MintAndStoreSpats(output, nullptr);
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Spats mint failed: %s", e.what()));
     }
 
     return wtx.GetHash().GetHex();
+}
+
+UniValue createsparkasset(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+            "createsparkasset"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+                                                 "\nArguments:\n"
+                                                 " \"symbol\"   (string)\n"
+                                                 " \"memo\"   (string) memo\n"
+                                                 " \"amount\"   (numeric) amount to mint\n"
+                                                 " \"a\"   (numeric)\n"
+                                                 " \"iota\"   (numeric)\n"
+                                                 "\nResult:\n"
+                                                 "\"txid\" (string) The transaction id for the send. Only 1 transaction is created.\n"
+                                                "\nExamples:\n"
+                                                "\nSend two amounts to two different spark addresses:\n"
+            + HelpExampleCli("createsparkasset", "\"\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"a\\\":1,\\\"iota\\\":1,\\\"memo\\\":\\\"test_memo\\\"}\"")
+            + HelpExampleRpc("createsparkasset", "\"\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":1, \\\"a\\\":1,\\\"iota\\\":1,}\"")
+        );
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    spark::CSparkAssetTxData assetData;
+    CAmount txFee;
+
+    assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opRegister);
+
+
+    CWalletTx wtx;
+    try {
+       wtx = pwallet->CreateAndStoreAsset(assetData, txFee);
+    } catch (const std::exception& e) {
+       throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset create failed: %s", e.what()));
+    }
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue modifysparkasset(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
 }
 
 UniValue automintspark(const JSONRPCRequest& request) {
@@ -4113,23 +4174,7 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_WALLET_ERROR, std::string("Spark name registration failed: ") + x.what());
     }
 
-    // commit
-    try {
-        CValidationState state;
-        CReserveKey reserveKey(pwallet);
-        if (!pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state))
-            throw JSONRPCError(RPC_WALLET_ERROR, "CommitTransaction failed: " + FormatStateMessage(state));
-    }
-    catch (const std::exception &) {
-        auto error = _(
-                "Error: The transaction was rejected! This might happen if some of "
-                "the coins in your wallet were already spent, such as if you used "
-                "a copy of wallet.dat and coins were spent in the copy but not "
-                "marked as spent here."
-        );
-
-        std::throw_with_nested(std::runtime_error(error));
-    }
+    pwallet->CommitWalletTransaction(wtx);
 
     return wtx.GetHash().GetHex();
 }
@@ -5575,6 +5620,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "setsparkmintstatus",     &setsparkmintstatus,     false, {} },
     { "wallet",             "mintspark",              &mintspark,              true,  {} },
     { "wallet",             "mintspats",              &mintspats,              false },
+    { "wallet",             "createsparkasset",       &createsparkasset,       false, {} },
+    { "wallet",             "modifysparkasset",       &modifysparkasset,       false, {} },
     { "wallet",             "automintspark",          &automintspark,          false, {} },
     { "wallet",             "spendspark",             &spendspark,             false, {} },
     { "wallet",             "lelantustospark",        &lelantustospark,        false, {} },

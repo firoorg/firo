@@ -26,8 +26,6 @@
 
 #include <vector>
 
-#include "spats/actions.hpp"
-
 class CBlockFileInfo
 {
 public:
@@ -275,8 +273,6 @@ public:
     //! List of spark names that were removed in this block because of expiration, unregistration or transfer. Map of spark name to <address, expiration block height, additional info>
     std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
 
-    spats::Actions spats_actions;
-
     void SetNull()
     {
         phashBlock = NULL;
@@ -321,7 +317,6 @@ public:
         activeDisablingSporks.clear();
         addedSparkNames.clear();
         removedSparkNames.clear();
-        spats_actions.clear();
     }
 
     CBlockIndex()
@@ -594,11 +589,6 @@ public:
                     nHeight < params.nEvoSporkStopBlockPrevious + params.nEvoSporkStopBlockExtensionGracefulPeriod))
 
                 READWRITE(activeDisablingSporks);
-        }
-
-        // TODO Not sure about this SER_GETHASH type. Should Spats actions really be ignored in that case, or processed somehow?
-        if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSpatsStartBlock) {
-            READWRITE(spats_actions);
         }
 
         nDiskBlockVersion = nVersion;

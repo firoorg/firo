@@ -10,8 +10,10 @@
 #include "../coin.h"
 #include "../spend_transaction.h"
 #include "type.h"
+#include "../mint_transaction.h"
 #include "util.h"
 #include <algorithm>
+#include <optional>
 
 
 namespace spats
@@ -39,7 +41,8 @@ public:
         uint64_t f,
         uint64_t vout,
         uint64_t burn,
-        const std::vector<spark::OutputCoinData>& outputs); //should be sorted, base coins at the beginning, otherwise you will get a failure
+        const std::vector<spark::OutputCoinData>& outputs,
+        const uint256& extraDataHash = uint256());
 
     ~SpendTransaction();
 
@@ -50,6 +53,9 @@ public:
 
     static bool verify(const spark::Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
     static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<spark::Coin> >& cover_sets);
+
+//    /** Digest over (nValue, OP_SPATSMINT||serialized mint) — must match on-chain SPATSMINT vout when binding is active. */
+//    static std::vector<unsigned char> ComputeSpatsMintBindDigest(int64_t nValue, const std::vector<unsigned char>& script_prefix_no_ownership);
 
     static std::vector<unsigned char> hash_bind_inner(
         const std::map<uint64_t, std::vector<unsigned char> >& cover_set_representations,
@@ -68,7 +74,8 @@ public:
         const std::vector<unsigned char>& hash_bind_inner,
         const std::vector<spark::Coin>& out_coins,
         uint64_t f_,
-        uint64_t burn
+        uint64_t burn,
+        const uint256& extraDataHash
         );
 
     ADD_SERIALIZE_METHODS;
@@ -129,6 +136,8 @@ public:
 
     const std::map<uint64_t, uint256>& getBlockHashes() override;
 
+    void setExtraDataHash(const uint256& extraDataHash_) override;
+
 private:
     const spark::Params* params;
     // We need to construct and pass this data before running verification
@@ -140,6 +149,7 @@ private:
     Scalar burn_asset_type = Scalar((uint64_t)0);
     Scalar burn_identifier = Scalar((uint64_t)0);
     bool burn_asset_id_set = false;
+    uint256 extraDataHash = uint256();
 
     // All this data we need to serialize
     std::map<uint64_t, uint256> set_id_blockHash;

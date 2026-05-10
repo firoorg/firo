@@ -1,10 +1,15 @@
 #include "spend_transaction.h"
+#include "../hash.h"
 
 namespace spats
 {
 
 // Useful scalar constants
 const Scalar ZERO = Scalar((uint64_t)0);
+
+namespace {
+static const unsigned char OP_SPATSMINT_BYTE = 0xd7;
+}
 
 // Generate a spend transaction that consumes existing coins and generates new ones
 SpendTransaction::SpendTransaction(
@@ -24,7 +29,8 @@ SpendTransaction::SpendTransaction(
     const uint64_t f,
     const uint64_t vout,
     const uint64_t burn,
-    const std::vector<spark::OutputCoinData>& outputs)
+    const std::vector<spark::OutputCoinData>& outputs,
+    const uint256& extraDataHash)
 {
     this->params = params;
 
@@ -326,7 +332,8 @@ SpendTransaction::SpendTransaction(
             has_asset_coins),
         this->out_coins,
         this->f + vout,
-        this->burn
+        this->burn,
+        this->extraDataHash
         );
 
     // Compute the authorizing Chaum proof
@@ -469,7 +476,8 @@ bool SpendTransaction::verify(
                 has_asset_coins),
             tx.out_coins,
             tx.f + tx.vout,
-            tx.burn
+            tx.burn,
+            tx.extraDataHash
             );
 
         // Verify the authorizing Chaum-Pedersen proof
@@ -688,7 +696,8 @@ Scalar SpendTransaction::hash_bind(
     const std::vector<unsigned char>& hash_bind_inner,
     const std::vector<spark::Coin>& out_coins,
     const uint64_t f_,
-    const uint64_t burn)
+    const uint64_t burn,
+    const uint256& extraDataHash)
 {
     spark::Hash hash(spark::LABEL_HASH_BIND);
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
@@ -696,6 +705,7 @@ Scalar SpendTransaction::hash_bind(
     stream << out_coins;
     stream << f_;
     stream << burn;
+    stream << extraDataHash;
     hash.include(stream);
 
     return hash.finalize_scalar();
@@ -709,6 +719,11 @@ void SpendTransaction::setBlockHashes(const std::map<uint64_t, uint256>& idAndHa
 const std::map<uint64_t, uint256>& SpendTransaction::getBlockHashes()
 {
     return set_id_blockHash;
+}
+
+void SpendTransaction::setExtraDataHash(const uint256& extraDataHash_)
+{
+    extraDataHash = extraDataHash_;
 }
 
 } // namespace spats

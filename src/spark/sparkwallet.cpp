@@ -11,13 +11,15 @@
 #include "state.h"
 #include "../libspark/spats/spend_transaction.h"
 #include "sparkname.h"
+#include "sparkasset.h"
+#include "streams.h"
 #include "../chain.h"
 #include <boost/format.hpp>
+#include <memory>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
 CSparkWallet::CSparkWallet(const std::string& strWalletFile)
-   : spats_wallet_(*this)
 {
 
     CWalletDB walletdb(strWalletFile);
@@ -159,14 +161,6 @@ CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address
     const auto& d = address.get_d();
     VisitUnusedCoinMetasWhere([&d](const CSparkMintMeta& meta) { return meta.IsUnconfirmed() && meta.d == d && !meta.IsSpats(); }, [&result] (const CSparkMintMeta& meta) { result += meta.GetValue(); });
     return result;
-}
-
-spats::Wallet::asset_balances_t CSparkWallet::getAssetBalances() const
-{
-    auto ret = spats_wallet_.get_asset_balances();
-    if (spark::IsSparkAllowed())
-        ret[spats::base::universal_id] = std::pair(getAvailableBalance(), getUnconfirmedBalance());
-    return ret;
 }
 
 spark::Address CSparkWallet::generateNextAddress() {
@@ -368,7 +362,6 @@ void CSparkWallet::clearAllMints(CWalletDB& walletdb) {
     }
 
     coinMeta.clear();
-    notifyCoinMetasChanged();
     lastDiversifier = 0;
     walletdb.writeDiversifier(lastDiversifier);
 }
@@ -380,7 +373,6 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     walletdb.EraseSparkMint(hash);
     if (it != coinMeta.end()) {
         coinMeta.erase(it);
-        notifyCoinMetasChanged(is_spats);
     }
 }
 
@@ -397,7 +389,6 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
         assert(it->second.IsSpats() == mint.IsSpats());
 
     coinMeta[lTagHash] = mint;
-    notifyCoinMetasChanged(mint.IsSpats());
     walletdb.WriteSparkMint(lTagHash, mint);
 }
 
@@ -428,7 +419,6 @@ void CSparkWallet::updateMintInMemory(const CSparkMintMeta& mint) {
         if (itr.second == mint) {
             assert(itr.second.IsSpats() == mint.IsSpats());
             itr.second = mint;
-            notifyCoinMetasChanged(mint.IsSpats());
             break;
         }
     }
@@ -1273,7 +1263,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         CAmount &fee,
         const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
         const CCoinControl *coinControl,
-        std::size_t additionalTxSize) {
+        std::size_t additionalTxSize,
+        const uint256& extraDataHash) {
 
     // if additionalTxSize is not 0 that means we are creating spats mint transaction // TODO GV #Review: not necessarily, it could be a spark name creation too
     if (recipients.empty() && privateRecipients.empty() && spatsRecipients.empty() && !additionalTxSize && burnAsset.first <= 0) {
@@ -1336,20 +1327,21 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
     const auto& burn_asset_type = burnAsset.second.first;
     if (burnAsset.first > 0) {
-        if (!spats::is_fungible_asset_type(spats::asset_type_t{std::stoull(burn_asset_type.tostring())}))
-            throw std::runtime_error(_("Burning is allowed only for fungible assets."));
-        if (!burnAsset.second.second.isZero())
-            throw std::domain_error("Cannot burn an asset which has an identifier (NFT ID).");
-        if (spatsMintVOut > 0) {
-            if (burnAsset.second != identifier)
-                throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
-        } else {
-            assert(identifier.first.isZero());
-            assert(identifier.second.isZero());
-            identifier = burnAsset.second;
-        }
-        spatsMintVOut += burnAsset.first;
-        additionalTxSize += 2 * Scalar::memoryRequired();
+        //TODO levon
+//        if (!spats::is_fungible_asset_type(spats::asset_type_t{std::stoull(burn_asset_type.tostring())}))
+//            throw std::runtime_error(_("Burning is allowed only for fungible assets."));
+//        if (!burnAsset.second.second.isZero())
+//            throw std::domain_error("Cannot burn an asset which has an identifier (NFT ID).");
+//        if (spatsMintVOut > 0) {
+//            if (burnAsset.second != identifier)
+//                throw std::runtime_error(_("Not allowed to mix assets in one spend transaction."));
+//        } else {
+//            assert(identifier.first.isZero());
+//            assert(identifier.second.isZero());
+//            identifier = burnAsset.second;
+//        }
+//        spatsMintVOut += burnAsset.first;
+//        additionalTxSize += 2 * Scalar::memoryRequired();
     }
 
     int nHeight;
@@ -1451,16 +1443,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         {
             const spark::Params* params = spark::Params::get_default();
             spark::CSparkState *sparkState = spark::CSparkState::GetState();
-            spark::SpendKey spendKey(params);
-            try {
-                spendKey = std::move(generateSpendKey(params));
-            } catch (std::exception& e) {
-                throw std::runtime_error(_("Unable to generate spend key."));
-            }
-
-            if (spendKey == spark::SpendKey(params))
-                throw std::runtime_error(_("Unable to generate spend key, looks wallet locked."));
-
+            spark::SpendKey spendKey= ensureSpendKey();
 
             tx.vin.clear();
             tx.vout.clear();
@@ -1571,7 +1554,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             if(!spark::IsSpatsStarted()) {
             	script << OP_SPARKSPEND;
             } else
-                script << OP_SPATSSPEND;    // TODO question for Levon: any benefit of making all spend txs spats, even when spatsRecipients is empty? This way old nodes and tools will have a problem with all spark spends, not just spats
+                script << OP_SPATSSPEND;
             tx.vin.emplace_back(COutPoint(), script, sequence);
 
             // clear vExtraPayload to calculate metadata hash correctly
@@ -1655,6 +1638,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
             CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
             std::vector<spark::Coin> outCoins;
+            std::unique_ptr<spats::SpendTransaction> spatsSpendForMint;
 
             if(!spark::IsSpatsStarted()) {
                 spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, cover_sets, fee, transparentOut, privOutputs);
@@ -1662,10 +1646,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 serialized << spendTransaction;
                 outCoins = spendTransaction.getOutCoins();
             } else {
-                spats::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, cover_sets, fee, transparentOut, burnAsset.first, privOutputs);
-                spendTransaction.setBlockHashes(idAndBlockHashes);
-                serialized << spendTransaction;
-                outCoins = spendTransaction.getOutCoins();
+                spatsSpendForMint = std::make_unique<spats::SpendTransaction>(
+                    params, fullViewKey, spendKey, inputs, cover_set_data, cover_sets, fee, transparentOut, burnAsset.first, privOutputs, extraDataHash);
+                spatsSpendForMint->setBlockHashes(idAndBlockHashes);
+                serialized << *spatsSpendForMint;
+                outCoins = spatsSpendForMint->getOutCoins();
             }
             tx.vExtraPayload.assign(serialized.begin(), serialized.end());
 
@@ -1678,7 +1663,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
                 serialized << outCoin;
                 CScript script;
-                script << OP_SPARKSMINT;    // TODO question for Levon: what if outCoin is spats, doesn't the loop body need to change to adapt for that possibility?
+                script << OP_SPARKSMINT;
                 script.insert(script.end(), serialized.begin(), serialized.end());
                 CWalletDB walletdb(strWalletFile);
                 CSparkOutputTx output;
@@ -1756,6 +1741,10 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
     const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
     const spark::SpendKey& spendKey)
 {
+    if (!isAddressMine(spatsRecipient.second))
+        throw std::runtime_error(_("Spark asset public address is not mine"));
+
+
     std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
 
     const spark::Params* params = spark::Params::get_default();
@@ -1769,7 +1758,6 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 
     tx.vout.push_back(CTxOut(spatsRecipient.first.v, script));
 
-    assert(isAddressMine(spatsRecipient.second));
     Scalar m = spark::GetSpatsMintM(tx);
     spark::OwnershipProof ownershipProof;
     spatsRecipient.second.prove_own(m, spendKey, viewKey, ownershipProof);
@@ -1778,6 +1766,17 @@ void CSparkWallet::AppendSpatsMintTxData(CMutableTransaction& tx,
 
     auto& scriptRef = tx.vout.back().scriptPubKey;
     scriptRef.insert(scriptRef.end(), serializedOwn.begin(), serializedOwn.end());
+}
+
+uint256 getSpatsMintExtraDataHash(const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient) {
+    CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+    hashStream << spark::LABEL_SPATS_MINT_SPEND_BIND;
+    hashStream << spatsRecipient.first.v;
+    hashStream << spatsRecipient.first.a;
+    hashStream << spatsRecipient.first.iota;
+    unsigned char network = spark::GetNetworkType();
+    hashStream << spatsRecipient.second.encode(network);
+    return hashStream.GetHash();
 }
 
 CWalletTx CSparkWallet::CreateSpatsMintTransaction(
@@ -1789,13 +1788,12 @@ CWalletTx CSparkWallet::CreateSpatsMintTransaction(
     if (spatsRecipient.first.a == Scalar(uint64_t(0)) || spatsRecipient.first.iota == Scalar(uint64_t(0)))
         throw std::runtime_error(_("Invalid assed type and identifier, please use spark mint creation."));
     // TODO levon also check type and identifier against spark asset registry
-    const spats::asset_type_t a{std::stoull(spatsRecipient.first.a.tostring())};
-    if (!is_fungible_asset_type(a)) [[unlikely]]
-                throw std::invalid_argument(_("NFTs can never have their total supply changed by any means, including minting"));
+    //TODO levon check value agains state, if able to mint
 
     CAmount additionalTxSize = spark::OwnershipProof::memoryRequired() + spark::Coin::memoryRequired() + 8;
     std::pair<CAmount, std::pair<Scalar, Scalar>>  emptyBurn;
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, emptyBurn, coinControl, additionalTxSize);
+
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({}, {}, {}, fee, emptyBurn, coinControl, additionalTxSize, getSpatsMintExtraDataHash(spatsRecipient));
 
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
     AppendSpatsMintTxData(tx, spatsRecipient, ensureSpendKey());
@@ -1825,16 +1823,7 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, {}, coinConrol,
         sparkNameManager->GetSparkNameTxDataSize(nameData) + 20 /* add a little bit to the fee to be on the safe side */);
 
-    const spark::Params* params = spark::Params::get_default();
-    spark::SpendKey spendKey(params);
-    try {
-        spendKey = std::move(generateSpendKey(params));
-    } catch (std::exception& e) {
-        throw std::runtime_error(_("Unable to generate spend key."));
-    }
-
-    if (spendKey == spark::SpendKey(params))
-        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
+    spark::SpendKey spendKey = ensureSpendKey();
 
     spark::Address  address(spark::Params::get_default());
     try {
@@ -1849,6 +1838,71 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
     sparkNameManager->AppendSparkNameTxData(tx, nameData, spendKey, fullViewKey);
 
+    wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
+    return wtxSparkSpend;
+}
+
+uint256 getSpatsCreateExtraHash(const spark::CSparkAssetTxData& assetData) {
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+        hashStream << spark::LABEL_SPATS_ASSET_BIND;
+        hashStream << assetData;
+        return hashStream.GetHash();
+}
+
+CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& assetData, CAmount &txFee, const CCoinControl *coinConrol) {
+    if (!assetData.Verify())
+        throw std::runtime_error(_("Invalid spark asset data"));
+
+    if (!assetData.isValidSparkAddress())
+        throw std::runtime_error(_("Invalid spark address"));
+
+    if (!isAddressMine(assetData.getAdminPublicAddress()))
+        throw std::runtime_error(_("Spark asset public address is not mine"));
+
+
+    const auto &consensusParams = Params().GetConsensus();
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+    }
+
+    if (nHeight < consensusParams.nSpatsStartBlock)
+        throw std::runtime_error(_("Spark asset transactions are not yet active"));
+
+    spark::CSparkState* sparkState = spark::CSparkState::GetState();
+
+    std::string payoutAddress = consensusParams.stage3CommunityFundAddress;
+    CAmount sparkAssetFee = consensusParams.nSparkNamesFee[assetData.getSymbol().size()] * COIN;
+    if (assetData.getOperationType() == (uint8_t)spark::CSparkAssetTxData::opRegister) {
+        if (!sparkState->GetAssetState().CanRegister(assetData))
+            throw std::runtime_error(_("Unable to register, state conflict"));
+    }
+    if (assetData.getOperationType() == (uint8_t)spark::CSparkAssetTxData::opModify) {
+        if (!sparkState->GetAssetState().CanModify(assetData))
+            throw std::runtime_error(_("Unable to modify, state conflict"));
+    }
+
+    CRecipient devPayout;
+    devPayout.nAmount = sparkAssetFee;
+    devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(payoutAddress).Get());
+    devPayout.fSubtractFeeFromAmount = false;
+
+    const size_t assetPayloadSize = GetSerializeSize(assetData, SER_NETWORK, PROTOCOL_VERSION)
+        + 20 /* add a little bit to the fee to be on the safe side */;
+    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, {}, coinConrol, assetPayloadSize, getSpatsCreateExtraHash(assetData));
+
+
+    Scalar m = spark::GetSpatsRegistreM(assetData);
+    spark::OwnershipProof ownershipProof;
+     spark::SpendKey spendKey = ensureSpendKey();
+    assetData.getAdminSparkAddress().prove_own(m, spendKey, viewKey, ownershipProof);
+    assetData.setOwnershipProof(ownershipProof);
+
+    CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
+    CDataStream serializedAsset(SER_NETWORK, PROTOCOL_VERSION);
+    serializedAsset << assetData;
+    tx.vExtraPayload.insert(tx.vExtraPayload.end(), serializedAsset.begin(), serializedAsset.end());
     wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
     return wtxSparkSpend;
 }
@@ -2085,12 +2139,4 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
     });
 
     return coins;
-}
-
-void CSparkWallet::notifyCoinMetasChanged(bool potential_spats_coin_change)
-{
-    // TODO Performance: clear some atomic flag in this class too, that will be used to update various caches built off of coins,
-    //                   to avoid needlessly recalculating those each time they are requested
-    if (potential_spats_coin_change)
-        spats_wallet_.notify_coins_changed();
 }

@@ -454,8 +454,6 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->ltagTxhash         = diskindex.ltagTxhash;
 
                 pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
-                pindexNew->spats_actions = std::move(diskindex.spats_actions);    // TODO Performance: move() everything else above where that would boost efficiency
-
                 pindexNew->addedSparkNames = diskindex.addedSparkNames;
                 pindexNew->removedSparkNames = diskindex.removedSparkNames;
 

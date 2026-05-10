@@ -9,10 +9,11 @@
 #include "../libspark/keys.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
+#include <optional>
 #include "../wallet/walletdb.h"
 #include "../sync.h"
 #include "../sparkname.h"
-#include "../spats/wallet.hpp"
+#include "sparkasset.h"
 #include "../chain.h"
 
 struct CRecipient;
@@ -28,8 +29,6 @@ class CSparkWallet {
 public:
     explicit CSparkWallet(const std::string& strWalletFile);
     ~CSparkWallet();
-
-    spats::Wallet& getSpatsWallet() noexcept { return spats_wallet_; }
 
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
@@ -86,8 +85,6 @@ public:
     CAmount getAddressFullBalance(const spark::Address& address) const;
     CAmount getAddressAvailableBalance(const spark::Address& address) const;
     CAmount getAddressUnconfirmedBalance(const spark::Address& address) const;
-
-    spats::Wallet::asset_balances_t getAssetBalances() const;
 
     // function to be used for zap wallet
     void clearAllMints(CWalletDB& walletdb);
@@ -158,16 +155,17 @@ public:
             CAmount &fee,
             const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
             const CCoinControl *coinControl = nullptr,
-            std::size_t additionalTxSize = 0);
+            std::size_t additionalTxSize = 0,
+            const uint256& extraDataHash = uint256());
 
     void AppendSpatsMintTxData(CMutableTransaction& tx,
-            const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient, // .second is the initiator's (i.e. admin's) address
-            const spark::SpendKey& spendKey);
+        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
+        const spark::SpendKey& spendKey);
 
     CWalletTx CreateSpatsMintTransaction(
-            const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
-            CAmount &fee,
-            const CCoinControl *coinControl = nullptr);
+        const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
+        CAmount &fee,
+        const CCoinControl *coinControl = nullptr);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
         CAmount required,
@@ -201,6 +199,12 @@ public:
             CAmount sparkNamefee,
             CAmount &txFee,
             const CCoinControl *coinControl = nullptr);
+
+    // used to create asset registration and modification transactions
+    CWalletTx CreateSparkAssetTransaction(
+        spark::CSparkAssetTxData &assetData,
+        CAmount &txFee,
+        const CCoinControl *coinControl = nullptr);
 
     // Filters coins by identifier, returns all available coins for a specific asset
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const std::pair<Scalar, Scalar>& identifier, const CCoinControl *coinControl = nullptr) const;
@@ -245,10 +249,6 @@ private:
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
 
     void* threadPool;
-
-    spats::Wallet spats_wallet_;
-
-    void notifyCoinMetasChanged(bool potential_spats_coin_change = true);
 };
 
 #endif //FIRO_SPARK_WALLET_H

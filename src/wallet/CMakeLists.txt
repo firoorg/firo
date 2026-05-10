@@ -15,7 +15,8 @@ add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/../spark/state.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../spark/sparkwallet.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../spark/primitives.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../spats/wallet.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../spark/sparkasset.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../spark/assetstate.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../policy/rbf.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../bip47/account.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../bip47/paymentchannel.cpp

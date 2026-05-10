@@ -7,6 +7,7 @@
 #define BITCOIN_WALLET_WALLET_H
 
 #include <functional>
+#include <optional>
 #include "amount.h"
 #include "../liblelantus/coin.h"
 #include "libspark/keys.h"
@@ -993,7 +994,14 @@ public:
      * @note passing nChangePosInOut as -1 will result in setting a random position
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = nullptr, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false);
+                           std::string& strFailReason, const CCoinControl *coinControl = nullptr, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false,
+                           const spark::MintedCoinData* pSpatsMintTransparent = nullptr);
+
+    /** Transparent inputs/outputs plus one OP_SPATSMINT||mint vout (no Spark spend; ECDSA on inputs authorizes the tx). */
+    CWalletTx CreateSpatsMintTransparentTransaction(
+            const spark::MintedCoinData& mintData,
+            CAmount& feeRet,
+            const CCoinControl* coinControl = nullptr);
 
     /**
      * Add Mint and Spend functions
@@ -1006,7 +1014,7 @@ public:
                                         std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
 
     std::pair<CAmount, CAmount> GetSparkBalance();
-    spats::Wallet::asset_balances_t GetSpatsBalances() const;
+
     bool IsSparkAddressMine(const std::string& address);
 
     bool CreateSparkMintTransactions(
@@ -1051,9 +1059,10 @@ public:
             bool fAskFee = false,
             const CCoinControl *coinControl = nullptr);
 
+    /** SPATSMINT: Spark path if \p initiatorAddress is Spark and in-wallet; else transparent tx + mint-only vout. For transparent initiator, set \p mintData.address (e.g. default Spark destination for the minted coin). */
     CWalletTx MintAndStoreSpats(
-            const std::pair<spark::MintedCoinData, spark::Address>& spatsRecipient,
-            const CCoinControl *coinControl = NULL);
+            const spark::MintedCoinData& mintData,
+            const CCoinControl* coinControl = nullptr);
 
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
@@ -1061,7 +1070,8 @@ public:
             const std::vector<spark::OutputCoinData>& spatsRecipients,
             CAmount &fee,
             const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
-            const CCoinControl *coinControl = nullptr);
+            const CCoinControl *coinControl = nullptr,
+            const std::optional<std::pair<spark::MintedCoinData, spark::Address>>& spatsMintRecipient = std::nullopt);
 
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &sparkNameData,
@@ -1077,15 +1087,15 @@ public:
             const std::pair<CAmount, std::pair<Scalar, Scalar>> &burnAsset,
             const CCoinControl *coinControl = nullptr);
 
-    // nullopt return means the tx was aborted due to user_confirmation_callback() returning false
-    std::optional<CWalletTx> CreateNewSparkAsset(const spats::SparkAsset& a, const spats::public_address_t& destination_public_address = {},
-        const std::function<bool(const spats::CreateAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
-    std::optional<CWalletTx> UnregisterSparkAsset(spats::asset_type_t asset_type, std::optional<spats::identifier_t> identifier,
-        const std::function<bool(const spats::UnregisterAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
-    std::optional<CWalletTx> ModifySparkAsset(const spats::SparkAsset& old_asset, const spats::SparkAsset& new_asset,
-        const std::function<bool(const spats::ModifyAssetAction& action, CAmount standard_fee, std::int64_t txsize)>& user_confirmation_callback = {});
-    std::optional<CWalletTx> BurnSparkAssetSupply(spats::asset_type_t asset_type, const spats::asset_symbol_t &asset_symbol, spats::supply_amount_t burn_amount,
-        const spats::BurnActionUserConfirmationCallback& user_confirmation_callback = {});
+    CWalletTx CreateAndStoreAsset(
+        spark::CSparkAssetTxData &assetData,
+        CAmount &txFee,
+        const CCoinControl *coinControl = nullptr);
+
+    CWalletTx CreateOrModifyAsset(
+        spark::CSparkAssetTxData &assetData,
+        CAmount &txFee,
+        const CCoinControl *coinControl = nullptr);
 
     bool LelantusToSpark(std::string& strFailReason);
 
@@ -1096,6 +1106,10 @@ public:
     bool GetMint(const uint256& hashSerial, CLelantusEntry& mint, bool forEstimation = false) const;
 
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state);
+
+    /** Commit and broadcast; on failure wraps nested exception (default message or \p rejectMessage). */
+    void CommitWalletTransaction(CWalletTx& wtx);
+    void CommitWalletTransaction(CWalletTx& wtx, const std::string& rejectMessage);
 
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);

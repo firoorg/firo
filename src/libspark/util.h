@@ -63,6 +63,8 @@ const std::string LABEL_HASH_SER1 = "SER1";
 const std::string LABEL_HASH_VAL1 = "VAL1";
 const std::string LABEL_HASH_BIND_INNER = "BIND_INNER";
 const std::string LABEL_HASH_BIND = "BIND";
+const std::string LABEL_SPATS_MINT_SPEND_BIND = "SPATS_MINT_SPEND_BIND_V1";
+const std::string LABEL_SPATS_ASSET_BIND = "SPATS_ASSET_BIND_V1";
 const std::string LABEL_F4GRUMBLE_G = "SPARK_F4GRUMBLE_G";
 const std::string LABEL_F4GRUMBLE_H = "SPARK_F4GRUMBLE_H";
 
@@ -79,6 +81,9 @@ const int AEAD_COMMIT_SIZE = 32; // byte length of the key commitment
 
 // Address encoding prefix
 const unsigned char ADDRESS_ENCODING_PREFIX = 's';
+
+// Maximum encoded Spark address string length (bech32m): HRP(2) + '1' + ceil((2*GroupElement::serialize_size + AES_BLOCKSIZE)*8/5) + 6 checksum = 144
+constexpr std::size_t SPARK_ADDRESS_ENCODED_BYTES = 144;
 
 // Address encoding network identifiers
 const unsigned char ADDRESS_NETWORK_MAINNET = 'm';

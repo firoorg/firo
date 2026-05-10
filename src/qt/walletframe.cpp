@@ -139,21 +139,6 @@ void WalletFrame::gotoMasternodePage()
         i.value()->gotoMasternodePage();
 }
 
-void WalletFrame::gotoMyOwnSpatsPage()
-{
-    QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoMyOwnSpatsPage();
-}
-
-void WalletFrame::gotoSparkAssetsPage()
-{
-    WalletView *view = currentWalletView();
-    if (!view)
-        return;
-    view->gotoSparkAssetsPage();
-}
-
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;

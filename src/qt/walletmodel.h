@@ -5,11 +5,6 @@
 #ifndef BITCOIN_QT_WALLETMODEL_H
 #define BITCOIN_QT_WALLETMODEL_H
 
-#include <map>
-#include <vector>
-
-#include <QObject>
-
 #include "walletmodeltransaction.h"
 
 #include "support/allocators/secure.h"
@@ -18,7 +13,11 @@
 #include "wallet/wallet.h"
 #endif // ENABLE_WALLET
 #include "wallet/coincontrol.h"
-#include "spats/wallet.hpp"
+
+#include <map>
+#include <vector>
+
+#include <QObject>
 
 class AddressTableModel;
 class PcodeAddressTableModel;
@@ -129,7 +128,6 @@ public:
     };
 
     OptionsModel *getOptionsModel();
-    const OptionsModel *getOptionsModel() const noexcept;
     AddressTableModel *getAddressTableModel();
     PcodeAddressTableModel *getPcodeAddressTableModel();
     SparkModel *getSparkModel();
@@ -156,7 +154,6 @@ public:
     bool validateExchangeAddress(const QString &address);
     bool validateSparkAddress(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
-    spats::Wallet::asset_balances_t getSpatsBalances();
 
     // Generate spark address
     QString generateSparkAddress();
@@ -205,13 +202,13 @@ public:
         CSparkNameTxData &sparkNameData,
         CAmount sparkNameFee,
         const CCoinControl *coinControl);
-        
+
     SendCoinsReturn mintSparkCoins(
         std::vector<WalletModelTransaction> &transactions,
         std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
         std::list<CReserveKey> &reserveKeys
         );
-    
+
     bool migrateLelantusToSpark();
 
     bool getAvailableLelantusCoins();
@@ -313,7 +310,8 @@ private:
     CAmount cachedWatchUnconfBalance;
     CAmount cachedWatchImmatureBalance;
     CAmount cachedAnonymizableBalance;
-    spats::Wallet::asset_balances_t cachedSpatsBalances_;
+    CAmount cachedPrivateBalance;
+    CAmount cachedUnconfirmedPrivateBalance;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
@@ -328,7 +326,7 @@ Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                         const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
-                        const spats::Wallet::asset_balances_t& spats_balances,
+                        const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance,
                         const CAmount& anonymizableBalance);
 
     void updateMintable();

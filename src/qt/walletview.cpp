@@ -22,7 +22,6 @@
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
-#include "sparkassetspage.h"
 
 
 #include <QAction>
@@ -53,8 +52,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
 
     sendCoinsPage = new QWidget(this);
     masternodeListPage = new MasternodeList(platformStyle);
-    myOwnSpatsPage = new MyOwnSpats(platformStyle);
-    sparkAssetsPage = new spats::SparkAssetsPage(platformStyle, this);
 
     automintSparkNotification = new AutomintSparkNotification(this);
     automintSparkNotification->setWindowModality(Qt::NonModal);
@@ -67,13 +64,9 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(masternodeListPage);
-    addWidget(myOwnSpatsPage);
-    addWidget(sparkAssetsPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::focusBitcoinHistoryTab);
-    connect(overviewPage, &OverviewPage::gotoSendCoinsPage, this, QOverload<>::of(&WalletView::gotoSendCoinsPage));
-    connect(overviewPage, &OverviewPage::gotoReceiveCoinsPage, this, QOverload<>::of(&WalletView::gotoReceiveCoinsPage));
 }
 
 WalletView::~WalletView()
@@ -163,7 +156,6 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
-    myOwnSpatsPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)
@@ -174,13 +166,11 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
-    sparkAssetsPage->setWalletModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
     masternodeListPage->setWalletModel(_walletModel);
-    myOwnSpatsPage->setWalletModel(_walletModel);
     sendFiroView->setModel(_walletModel);
     automintSparkNotification->setModel(_walletModel);
 
@@ -266,29 +256,12 @@ void WalletView::gotoMasternodePage()
     setCurrentWidget(masternodeListPage);
 }
 
-void WalletView::gotoMyOwnSpatsPage()
-{
-    setCurrentWidget(myOwnSpatsPage);
-}
-
-void WalletView::gotoSparkAssetsPage()
-{
-    setCurrentWidget(sparkAssetsPage);
-}
-
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
-    Q_EMIT signalShowReceiveTab();
 }
 
-void WalletView::gotoSendCoinsPage()
-{
-    setCurrentWidget(sendCoinsPage);
-    Q_EMIT signalShowSendTab();
-}
-
-void WalletView::gotoSendCoinsPage(const QString &addr)
+void WalletView::gotoSendCoinsPage(QString addr)
 {
     setCurrentWidget(sendCoinsPage);
 
@@ -449,7 +422,8 @@ void WalletView::requestedSyncWarningInfo()
 void WalletView::showAutomintSparkNotification()
 {
     auto sparkModel = walletModel->getSparkModel();
-    if (!sparkModel) {
+    auto wallet = walletModel->getWallet();
+   if (!sparkModel || !wallet || !wallet->sparkWallet) {
         return;
     }
 
@@ -491,7 +465,7 @@ void WalletView::repositionAutomintSparkNotification()
     }
 }
 
-void WalletView::checkMintableSparkAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, const spats::Wallet::asset_balances_t &, CAmount anonymizableBalance)
+void WalletView::checkMintableSparkAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
 {
     if (automintSparkNotification->isVisible() && anonymizableBalance == 0) {
         // hide if notification is showing but there no any fund to anonymize

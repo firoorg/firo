@@ -13,8 +13,6 @@
 #include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
-#include "myownspats.h"
-#include "sparkassetspage.h"
 
 #include <QStackedWidget>
 
@@ -85,8 +83,6 @@ private:
     TransactionView *firoTransactionList;
     QWidget *firoTransactionsView;
     MasternodeList *masternodeListPage;
-    MyOwnSpats *myOwnSpatsPage;
-    spats::SparkAssetsPage* sparkAssetsPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -104,15 +100,10 @@ public Q_SLOTS:
     void focusBitcoinHistoryTab(const QModelIndex &idx);
     /** Switch to masternode page */
     void gotoMasternodePage();
-    /** Switch to myownspats page */
-    void gotoMyOwnSpatsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
-    void gotoSendCoinsPage();
-    void gotoSendCoinsPage(const QString &addr);
-
-    void gotoSparkAssetsPage();
+    void gotoSendCoinsPage(QString addr = "");
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -160,7 +151,7 @@ public Q_SLOTS:
 
     /** Check mintable amount to close automint notification */
     void checkMintableSparkAmount(
-        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, const spats::Wallet::asset_balances_t &, CAmount anonymizableBalance);
+        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
 
     /** Close automint notification */
     void closeAutomintSparkNotification();
@@ -181,8 +172,6 @@ Q_SIGNALS:
     void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label);
     /** Notify that the out of sync warning icon has been pressed */
     void outOfSyncWarningClicked();
-    void signalShowSendTab();
-    void signalShowReceiveTab();
 };
 
 #endif // BITCOIN_QT_WALLETVIEW_H
