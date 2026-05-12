@@ -193,7 +193,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define SPARK_NAME_TRANSFER_TESTNET_START_BLOCK     189800
 #define SPARK_NAME_TRANSFER_DEVNET_START_BLOCK      3900
 
-#define SPARK_NAME_V21_MAINNET_START_BLOCK          1317400     // Approx June 2 2026
+#define SPARK_NAME_V21_MAINNET_START_BLOCK          1329000     // Approx June 22 2026
 
 // Versions of zerocoin mint/spend transactions
 #define ZEROCOIN_TX_VERSION_3               30
