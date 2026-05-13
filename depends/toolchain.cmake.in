@@ -105,6 +105,13 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+
+# Qt6Core depends on WrapRt::WrapRt which uses find_library(LIBRT rt).
+# Since CMAKE_FIND_ROOT_PATH_MODE_LIBRARY is ONLY, librt (a system library)
+# cannot be found. Set it directly so the linker resolves it normally.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(LIBRT "-lrt" CACHE STRING "" FORCE)
+endif()
 set(QT_TRANSLATIONS_DIR "${CMAKE_CURRENT_LIST_DIR}/translations")
 
 # Make sure we only append once, as this file may be called repeatedly.
@@ -143,6 +150,9 @@ if("@qt_packages@" MATCHES "^[ ]*$")
 else()
   set(BUILD_GUI ON CACHE BOOL "")
   set(Qt6_ROOT "${CMAKE_CURRENT_LIST_DIR}" CACHE PATH "")
+  if("@host_os@" MATCHES "^(linux|freebsd)$")
+    set(WaylandScanner_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/native/bin/wayland-scanner" CACHE FILEPATH "" FORCE)
+  endif()
 endif()
 
 if("@qrencode_packages@" MATCHES "^[ ]*$")

@@ -16,7 +16,9 @@ RUN apt-get update && apt-get install -y \
     make \
     pkg-config \
     rsync \
-    patch
+    patch \
+    ninja-build \
+    meson
 
 # Build Firo
 COPY . /tmp/firo/

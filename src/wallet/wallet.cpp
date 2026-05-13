@@ -3748,11 +3748,19 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 /**
  * Call after CreateTransaction unless you want to abort
  */
-bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state)
+bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction)
 {
     {
         LOCK2(cs_main, cs_wallet);
         LogPrintf("CommitTransaction:\n%s", wtxNew.tx->ToString());
+
+        // When fCheckTransaction is set, validate against the mempool before touching
+        // the wallet. If rejected, return false immediately without adding the transaction.
+        if (fCheckTransaction && !wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
+            LogPrintf("CommitTransaction(): Transaction rejected: %s\n", state.GetRejectReason());
+            return false;
+        }
+
         {
             // Take key pair from key pool so it won't be used again
             reservekey.KeepKey();
@@ -3777,15 +3785,18 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         // Track how many getdata requests our transaction gets
         mapRequestCount[wtxNew.GetHash()] = 0;
 
-        if (fBroadcastTransactions)
-        {
-            // Broadcast
-            if (!wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
-                LogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", state.GetRejectReason());
-                // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
-            } else {
+        if (fBroadcastTransactions) {
+            // When fCheckTransaction is true the tx is already in the mempool; just relay.
+            // Otherwise attempt mempool acceptance now and relay on success.
+            if (fCheckTransaction || wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
                 wtxNew.RelayWalletTransaction(connman);
+            } else {
+                LogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", state.GetRejectReason());
             }
+        } else if (fCheckTransaction) {
+            // The tx was explicitly validated and accepted; relay it regardless of
+            // the fBroadcastTransactions flag.
+            wtxNew.RelayWalletTransaction(connman);
         }
     }
     return true;

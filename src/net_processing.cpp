@@ -3173,6 +3173,9 @@ static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman& connman)
         else if (pnode->fAddnode)
             LogPrintf("Warning: not punishing addnoded peer %s!\n", pnode->addr.ToString());
         else {
+            if (llmq::quorumSigSharesManager) {
+                llmq::quorumSigSharesManager->MarkNodeBanned(pnode->GetId());
+            }
             pnode->fDisconnect = true;
             if (pnode->addr.IsLocal())
                 LogPrintf("Warning: not banning local peer %s!\n", pnode->addr.ToString());

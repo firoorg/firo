@@ -278,6 +278,7 @@ struct Params {
 
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
+    int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers
     std::array<int,21> nSparkNamesFee;
 
     int nLelantusGracefulPeriod;
