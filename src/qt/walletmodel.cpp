@@ -1076,6 +1076,11 @@ bool WalletModel::validateSparkAddress(const QString& address)
     return network == coinNetwork;
 }
 
+bool WalletModel::isSparkAddressMine(const QString& address)
+{
+    return wallet->IsSparkAddressMine(address.toStdString());
+}
+
 QString WalletModel::generateSparkAddress()
 {
     const spark::Params* params = spark::Params::get_default();

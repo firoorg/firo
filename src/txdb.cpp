@@ -575,7 +575,7 @@ std::pair<AddressType, uint160> classifyAddress(txnouttype type, std::vector<std
     } else if(type == TX_SCRIPTHASH) {
         result.first = AddressType::payToScriptHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
-    } else if(type == TX_PUBKEYHASH) {
+    } else if(type == TX_PUBKEYHASH || type == TX_SPARKNAMEFEE) {
         result.first = AddressType::payToPubKeyHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
     } else if(type == TX_EXCHANGEADDRESS) {
