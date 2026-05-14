@@ -727,6 +727,23 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     if (hasExchangeUTXOs && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
         return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
 
+    // Spark name fee outputs (with OP_SPARKNAMEID) are only allowed after nSparkNamesV21StartBlock
+    for (const auto &vout : tx.vout) {
+        if (vout.scriptPubKey.IsSparkNameFee()) {
+            if (!isVerifyDB && nTxHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-sparkname-fee-output");
+            break;
+        }
+    }
+
+    // After Spark Names v2.1, Spark SMint (OP_SPARKSMINT) outputs must have nValue zero — value is committed only in the script.
+    if (nTxHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
+        for (const auto &vout : tx.vout) {
+            if (vout.scriptPubKey.IsSparkSMint() && vout.nValue != 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-spark-smint-nvalue");
+        }
+    }
+
     if (tx.IsCoinBase())
     {
         size_t minCbSize = 2;
@@ -990,7 +1007,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
+            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height() + 1, state, &sparkNameData))
                 return false;
 
             if (!sparkNameData.name.empty() &&
@@ -2551,7 +2568,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         }
         else if (tx.IsSparkSpend()) {
             try {
-                nFees = spark::ParseSparkSpend(tx).getFee();
+                nFees += spark::ParseSparkSpend(tx).getFee();
             }
             catch (const std::exception &) {
                 // do nothing
@@ -2958,6 +2975,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize spark spend");
                 }
             }
+
+            if (!MoneyRange(nFees))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
 
             // Check transaction against signa/lelantus state
             if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.lelantusTxInfo.get(), block.sparkTxInfo.get()))
@@ -4404,6 +4424,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
         uint256 final_hash;
         if (block.IsProgPow())
         {
+            if (block.mix_hash.IsNull())
+                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash cannot be null");
             // If we use GetProgPowHashFull user may experience very slow header sync
             // We use simplified function for header check and then will use full check in ConnectBlock()
             // This won't make sync faster but it will give user a better experience

@@ -53,6 +53,7 @@ bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 std::set<std::string> CSparkNameManager::GetSparkNames()
 {
     std::set<std::string> result;
+    LOCK(cs_spark_name);
     for (const auto &entry : sparkNames)
         result.insert(entry.second.name);
 
@@ -62,6 +63,7 @@ std::set<std::string> CSparkNameManager::GetSparkNames()
 std::vector<CSparkNameBlockIndexData> CSparkNameManager::DumpSparkNameData()
 {
     std::vector<CSparkNameBlockIndexData> result;
+    LOCK(cs_spark_name);
     result.reserve(sparkNames.size());
     for (const auto &entry : sparkNames)
         result.push_back(entry.second);
@@ -71,6 +73,7 @@ std::vector<CSparkNameBlockIndexData> CSparkNameManager::DumpSparkNameData()
 
 bool CSparkNameManager::GetSparkAddress(const std::string &name, std::string &address)
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it != sparkNames.end()) {
         address = it->second.sparkAddress;
@@ -83,6 +86,7 @@ bool CSparkNameManager::GetSparkAddress(const std::string &name, std::string &ad
 
 uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) const
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it == sparkNames.end())
        throw std::runtime_error("Spark name not found: " + name);
@@ -93,6 +97,7 @@ uint64_t CSparkNameManager::GetSparkNameBlockHeight(const std::string &name) con
 
 std::string CSparkNameManager::GetSparkNameAdditionalData(const std::string &name) const
 {
+    LOCK(cs_spark_name);
     auto it = sparkNames.find(ToUpper(name));
     if (it == sparkNames.end())
         throw std::runtime_error("Spark name not found: " + name);
@@ -126,9 +131,13 @@ bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::Spen
 
 bool CSparkNameManager::CheckPaymentToTransparentAddress(const CTransaction &tx, const std::string &address, CAmount amount) const
 {
+    CScript expectedScript = GetScriptForDestination(CBitcoinAddress(address).Get());
     for (const CTxOut &txout : tx.vout)
     {
-        if (txout.scriptPubKey == GetScriptForDestination(CBitcoinAddress(address).Get()) && txout.nValue >= amount)
+        CScript baseScript = txout.scriptPubKey.IsSparkNameFee()
+            ? GetBaseScriptFromSparkNameFee(txout.scriptPubKey)
+            : txout.scriptPubKey;
+        if (baseScript == expectedScript && txout.nValue >= amount)
             return true;
     }
     return false;
@@ -168,45 +177,101 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (sparkNameData.nVersion >= 2 && nHeight < consensusParams.nSparkNamesV2StartBlock)
         return state.DoS(100, error("CheckSparkNameTx: spark name tx v2 is not allowed yet"));
 
+    if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+        return state.DoS(100, error("CheckSparkNameTx: invalid operation type"));
+
+    if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opUnregister)
+        return state.DoS(100, error("CheckSparkNameTx: unregister operation is not supported yet"));
+
     if (outSparkNameData)
         *outSparkNameData = sparkNameData;
 
     if (!IsSparkNameValid(sparkNameData.name))
         return state.DoS(100, error("CheckSparkNameTx: invalid name"));
 
-    constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
-    int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
+    int existingExpirationHeight = -1;
+    bool fUpdateExistingRecord = false;
+    bool fSparkNameTransfer = sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer;
+    const std::string normalizedName = ToUpper(sparkNameData.name);
 
-    if (sparkNameData.sparkNameValidityBlocks > nBlockPerYear * 10)
-        return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
+    {
+        LOCK(cs_spark_name);
+        auto sparkNameIt = sparkNames.find(normalizedName);
+        if (sparkNameIt != sparkNames.end()) {
+            // it's possible to change any metadata of the existing name but if the spark address is being
+            // tranferred, new name shouldn't be already registered
+            if (!fSparkNameTransfer && sparkNameIt->second.sparkAddress != sparkNameData.sparkAddress)
+                return state.DoS(100, error("CheckSparkNameTx: name already exists"));
+
+            fUpdateExistingRecord = true;
+            existingExpirationHeight = sparkNameIt->second.sparkNameValidityHeight;
+        }
+    }
+
+    constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
+    int validityBlocks = sparkNameData.sparkNameValidityBlocks;
+    if (validityBlocks == 0)
+        return state.DoS(100, error("CheckSparkNameTx: validity period must be at least 1 block"));
+  
+    if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+        if (existingExpirationHeight != -1)
+            validityBlocks = std::max(validityBlocks, existingExpirationHeight - nHeight + validityBlocks);
+        // after nSparkNamesV21StartBlock, max validity is 15 years
+        if (validityBlocks > nBlockPerYear * 15)
+            return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
+    }
+    else {
+        if (validityBlocks > nBlockPerYear * 10)
+            return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
+    }
+
+    // fee is based on the new time being purchased, not including leftover time from a previous registration
+    int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
 
     CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
 
-    bool payoutFound = false;
-    // Up until stage 4.1, the fee is paid to the development fund address. Afterwards, it is paid to the community fund address.
-    // Graceful period allows to register spark names with the old address for the payment
-    if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
-        payoutFound = CheckPaymentToTransparentAddress(tx, consensusParams.stage3DevelopmentFundAddress, nameFee);
-    if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
-        payoutFound = payoutFound || CheckPaymentToTransparentAddress(tx, consensusParams.stage3CommunityFundAddress, nameFee);
+    // After v2.1, the fee output itself must carry the spark name and address.
+    if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+        const CScript developmentFundScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
+        const CScript communityFundScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
+        bool payoutFound = false;
+        for (const CTxOut &txout : tx.vout) {
+            if (txout.scriptPubKey.IsSparkNameFee()) {
+                std::string embeddedName, embeddedAddress;
+                if (!ExtractSparkNameFromScript(txout.scriptPubKey, embeddedName, embeddedAddress))
+                    return state.DoS(100, error("CheckSparkNameTx: malformed spark name fee output"));
+                if (embeddedName != sparkNameData.name)
+                    return state.DoS(100, error("CheckSparkNameTx: spark name in fee output does not match transaction data"));
+                if (embeddedAddress != sparkNameData.sparkAddress)
+                    return state.DoS(100, error("CheckSparkNameTx: spark address in fee output does not match transaction data"));
 
-    if (!payoutFound)
-        return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
+                CScript baseScript = GetBaseScriptFromSparkNameFee(txout.scriptPubKey);
+                bool validPayoutAddress = false;
+                if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
+                    validPayoutAddress = baseScript == developmentFundScript;
+                if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
+                    validPayoutAddress = validPayoutAddress || baseScript == communityFundScript;
+                if (validPayoutAddress && txout.nValue >= nameFee)
+                    payoutFound = true;
+            }
+        }
+        if (!payoutFound)
+            return state.DoS(100, error("CheckSparkNameTx: spark name fee output with name/address tag is required after v2.1"));
+    } else {
+        bool payoutFound = false;
+        // Up until stage 4.1, the fee is paid to the development fund address. Afterwards, it is paid to the community fund address.
+        // Graceful period allows to register spark names with the old address for the payment
+        if (nHeight < consensusParams.stage41StartBlockDevFundAddressChange + consensusParams.stage41SparkNamesGracefulPeriod)
+            payoutFound = CheckPaymentToTransparentAddress(tx, consensusParams.stage3DevelopmentFundAddress, nameFee);
+        if (nHeight >= consensusParams.stage41StartBlockDevFundAddressChange)
+            payoutFound = payoutFound || CheckPaymentToTransparentAddress(tx, consensusParams.stage3CommunityFundAddress, nameFee);
+
+        if (!payoutFound)
+            return state.DoS(100, error("CheckSparkNameTx: name fee is either missing or insufficient"));
+    }
 
     if (sparkNameData.additionalInfo.size() > 1024)
         return state.DoS(100, error("CheckSparkNameTx: additional info is too long"));
-
-    bool fUpdateExistingRecord = false;
-    bool fSparkNameTransfer = sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer;
-
-    if (sparkNames.count(ToUpper(sparkNameData.name)) > 0) {
-        // it's possible to change any metadata of the existing name but if the spark address is being
-        // tranferred, new name shouldn't be already registered
-        if (!fSparkNameTransfer && sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress)
-            return state.DoS(100, error("CheckSparkNameTx: name already exists"));
-
-        fUpdateExistingRecord = true;
-    }
 
     {
         LOCK(cs_spark_name);
@@ -267,9 +332,12 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
 
         // check if the old spark address is the one currently associated with the spark name
-        if (sparkNameAddresses.count(sparkNameData.oldSparkAddress) == 0 ||
-            sparkNameAddresses[sparkNameData.oldSparkAddress] != ToUpper(sparkNameData.name))
-            return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+        {
+            LOCK(cs_spark_name);
+            auto oldAddressIt = sparkNameAddresses.find(sparkNameData.oldSparkAddress);
+            if (oldAddressIt == sparkNameAddresses.end() || oldAddressIt->second != normalizedName)
+                return state.DoS(100, error("CheckSparkNameTx: old spark address is not associated with the spark name"));
+        }
 
         spark::OwnershipProof transferOwnershipProof;
         try {
@@ -317,39 +385,89 @@ bool CSparkNameManager::GetSparkNameByAddress(const std::string& address, std::s
     return false;
 }
 
+CScript CSparkNameManager::GetSparkNameFeeScript(const std::string &feeAddress, const std::string &sparkName, const std::string &sparkAddress)
+{
+    CTxDestination dest = CBitcoinAddress(feeAddress).Get();
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height() + 1;
+    }
+    if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock)
+        return GetScriptForSparkNameFee(dest, sparkName, sparkAddress);
+    return GetScriptForDestination(dest);
+}
+
 bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameData, std::string &errorDescription)
 {
     errorDescription.clear();
-    LOCK(cs_spark_name);
-    if (!IsSparkNameValid(sparkNameData.name))
-        errorDescription = "invalid spark name";
+    int nHeight;
+    {
+        LOCK(cs_main);
+        nHeight = chainActive.Height() + 1;
+    }
+    const std::string normalizedName = ToUpper(sparkNameData.name);
 
-    else if (sparkNameData.additionalInfo.size() > 1024)
-        errorDescription = "additional info is too long";
+    int existingExpirationHeight = -1;
+    {
+        LOCK(cs_spark_name);
+        auto sparkNameIt = sparkNames.find(normalizedName);
+        auto sparkNameAddressIt = sparkNameAddresses.find(sparkNameData.sparkAddress);
+        if (sparkNameIt != sparkNames.end())
+            existingExpirationHeight = sparkNameIt->second.sparkNameValidityHeight;
 
-    else if (sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
-        errorDescription = "transaction can't be valid for more than 10 years";
+        if (!IsSparkNameValid(sparkNameData.name))
+            errorDescription = "invalid spark name";
 
-    else if (sparkNames.count(ToUpper(sparkNameData.name)) > 0 &&
-                sparkNames[ToUpper(sparkNameData.name)].sparkAddress != sparkNameData.sparkAddress &&
-                (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
-        errorDescription = "name already exists with another spark address as a destination";
+        else if (sparkNameData.additionalInfo.size() > 1024)
+            errorDescription = "additional info is too long";
 
-    else if (sparkNameAddresses.count(sparkNameData.sparkAddress) > 0 &&
-                sparkNameAddresses[sparkNameData.sparkAddress] != ToUpper(sparkNameData.name))
-        errorDescription = "spark address is already used for another name";
+        else if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
+            errorDescription = "transaction can't be valid for more than 15 years";
 
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
-                sparkNameData.oldSparkAddress.empty())
-        errorDescription = "old spark address is required for transfer operation";
+        else if (nHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
+            errorDescription = "transaction can't be valid for more than 10 years";
 
-    else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
-        errorDescription = "unregister operation is not supported yet";
+        else if (sparkNameData.sparkNameValidityBlocks == 0)
+            errorDescription = "validity period must be at least 1 block";
 
-    else {
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType >= (uint8_t)CSparkNameTxData::opMaximumValue)
+            errorDescription = "invalid operation type";
+
+        else if (sparkNameIt != sparkNames.end() &&
+                    sparkNameIt->second.sparkAddress != sparkNameData.sparkAddress &&
+                    (sparkNameData.nVersion < 2 || sparkNameData.operationType == CSparkNameTxData::opRegister))
+            errorDescription = "name already exists with another spark address as a destination";
+
+        else if (sparkNameAddressIt != sparkNameAddresses.end() &&
+                    sparkNameAddressIt->second != normalizedName)
+            errorDescription = "spark address is already used for another name";
+
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opTransfer &&
+                    sparkNameData.oldSparkAddress.empty())
+            errorDescription = "old spark address is required for transfer operation";
+
+        else if (sparkNameData.nVersion >= 2 && sparkNameData.operationType == CSparkNameTxData::opUnregister)
+            errorDescription = "unregister operation is not supported yet";
+    }
+
+    if (errorDescription.empty()) {
         LOCK(mempool.cs);
-        if (mempool.sparkNames.count(ToUpper(sparkNameData.name)) > 0)
+        if (mempool.sparkNames.count(normalizedName) > 0)
             errorDescription = "spark name transaction with that name is already in the mempool";
+    }
+
+    // After V2.1, check that total validity (including remaining time from existing registration) doesn't exceed 15 years
+    if (errorDescription.empty() && nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
+        if (existingExpirationHeight != -1) {
+            constexpr int nBlockPerYear = 365*24*24;
+            int validityBlocks = sparkNameData.sparkNameValidityBlocks;
+            int remainingBlocks = existingExpirationHeight - nHeight;
+            if (remainingBlocks > 0)
+                validityBlocks += remainingBlocks;
+            if (validityBlocks > nBlockPerYear * 15)
+                errorDescription = "total validity including remaining time can't exceed 15 years";
+        }
     }
 
     return errorDescription.empty();

@@ -159,7 +159,7 @@ libevent_packages_$(NO_LIBEVENT) = $(libevent_packages)
 qrencode_packages_$(NO_QR) = $(qrencode_packages)
 
 qt_packages_$(NO_QT) = $(qt_packages) $(qt_$(host_os)_packages) $(qt_$(host_arch)_$(host_os)_packages) $(qrencode_packages_)
-qt_native_packages_$(NO_QT) = $(qt_native_packages)
+qt_native_packages_$(NO_QT) = $(qt_native_packages) $(qt_$(host_os)_native_packages) $(qt_$(host_arch)_$(host_os)_native_packages)
 
 bdb_packages_$(NO_BDB) = $(bdb_packages)
 sqlite_packages_$(NO_SQLITE) = $(sqlite_packages)
@@ -240,6 +240,7 @@ $(host_prefix)/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(fina
             -e 's|@usdt_packages@|$(usdt_packages_)|' \
             -e 's|@no_harden@|$(NO_HARDEN)|' \
             -e 's|@multiprocess@|$(MULTIPROCESS)|' \
+            -e 's|@host_os@|$(host_os)|' \
             $< > $@
 	touch $@
 

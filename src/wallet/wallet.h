@@ -1077,7 +1077,7 @@ public:
 
     bool GetMint(const uint256& hashSerial, CLelantusEntry& mint, bool forEstimation = false) const;
 
-    bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state);
+    bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction = false);
 
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);

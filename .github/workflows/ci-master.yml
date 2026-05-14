@@ -19,7 +19,7 @@ env:
 jobs:
   get-commit-hash:
     name: Get Commit Hash String
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       short_sha: ${{ steps.short-sha.outputs.sha }}
     steps:
@@ -101,19 +101,19 @@ jobs:
       run: |
         set -exo pipefail
         sudo apt-get update
-        sudo apt-get install -y python3-zmq cmake build-essential ninja-build ccache
+        sudo apt-get install -y python3-zmq cmake build-essential ninja-build meson ccache
     - name: Install Required Packages (Windows)
       if: matrix.is_windows
       run: |
         set -exo pipefail
         sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip ninja-build ccache
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip ninja-build meson ccache
     - name: Install Required Packages (Mac)
       if: matrix.is_mac
       run: |
         set -exo pipefail
         brew uninstall --force cmake
-        brew install --force automake coreutils python-setuptools cmake make pkg-config ninja ccache
+        brew install --force automake coreutils python-setuptools cmake make pkg-config ninja meson ccache
     - name: Install setuptools
       if: matrix.is_mac
       run: |
@@ -175,9 +175,11 @@ jobs:
           depends-${{ matrix.platform }}-${{ steps.depends-host-triplet.outputs.value }}-
           depends-${{ matrix.platform }}-
     - name: Download Dependencies
-      if: steps.cache-depends.outputs.cache-hit != 'true'
       run: |
         set -exo pipefail
+        # Clear download stamps to ensure new/changed extra sources are fetched
+        # even when restoring from a stale cache (partial restore-key match).
+        rm -rf depends/sources/download-stamps
         attempt=1
         max=5
         until make -C depends download; do
@@ -301,7 +303,7 @@ jobs:
         mkdir -p $ARTIFACT_DIR
         mv build/bin/firo-cli${{ matrix.bin_ext }} build/bin/firo-tx${{ matrix.bin_ext }} build/bin/firod${{ matrix.bin_ext }} build/bin/firo-qt${{ matrix.bin_ext }} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ matrix.platform }}-cmake-${{ matrix.build_type }}-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
@@ -323,7 +325,7 @@ jobs:
         fi
     - name: Upload Test Logs Artifact
       if: failure() && matrix.is_linux
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: test-${{ matrix.platform }}-cmake-${{ matrix.build_type }}-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
@@ -430,26 +432,90 @@ jobs:
           sudo aa-complain unprivileged_userns || true
           # Remove apparmor_parser so Guix installer skips AppArmor setup
           sudo apt-get remove -y apparmor || true
-          # Pre-import Guix signing keys into root's keyring (installer runs as sudo), sometimes guix script fail to fetch keys from ftpmirror.gnu.org
+
           export VER=1.5.0
           export ARCH=x86_64-linux
           export BASE=https://ftp.gnu.org/gnu/guix
           export TAR="guix-binary-${VER}.${ARCH}.tar.xz"
-          # --- verify the signature, but never abort the job ---
-          if gpg --verify "${TAR}.sig" "${TAR}" &> /dev/null
-          then
-              echo "GPG verification succeeded."
-          else
-              echo "GPG verification failed – continuing anyway."
-          fi
+          export GUIX_INSTALLER_SHA256=7f544e48c9082baf489207ac506acd78bf251355bbafffd744498e658880879d
+          export GUIX_TAR_SHA256=aa41025489c5061543e9c48873eaa829b900b2da75d40f9648913622f5f47817
+
+          # Keep these trust anchors explicit and reviewed. This set matches
+          # the release-signing keys trusted by the Guix 1.5.0 installer, so
+          # the release can be signed by a different Guix maintainer without
+          # letting a downloaded script decide our trust policy.
+          GUIX_KEY_FPRS=(
+            3CE464558A84FDC69DB40CFB090B11993D9AEBB5
+            27D586A4F8900854329FF09F1260E46482E63562
+            A28BF40C3E551372662D14F741AAE7DCCA3D8351
+          )
+          GUIX_FPR_REGEX="$(IFS='|'; echo "${GUIX_KEY_FPRS[*]}")"
+
           cd /tmp
-          wget -q "${BASE}/${TAR}" -O "${TAR}"
-          wget -q "${BASE}/${TAR}.sig" -O "${TAR}.sig"
-          wget -q https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh -O guix-install.sh
+
+          # 1. Download and pin-check all unsigned inputs before use.
+          echo "::group::Download Guix installer and binary tarball"
+          wget --tries=5 --timeout=30 --waitretry=10 \
+            "https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh?h=v${VER}" \
+            -O guix-install.sh
+          echo "${GUIX_INSTALLER_SHA256}  guix-install.sh" | sha256sum -c -
           chmod +x guix-install.sh
+
+          wget --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}" -O "${TAR}"
+          echo "${GUIX_TAR_SHA256}  ${TAR}" | sha256sum -c -
+          wget --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}.sig" -O "${TAR}.sig"
+          echo "::endgroup::"
+
+          # 2. Best-effort import each trusted key into an isolated keyring.
+          #    Some maintainers may not have published their key to every
+          #    keyserver (or to any keyserver at all), so we don't fail on
+          #    individual misses. We only fail later if NONE of the imported
+          #    keys can verify the actual tarball signature. The trust set
+          #    is still bounded by the pinned list: VALIDSIG must
+          #    name a fingerprint from GUIX_FPR_REGEX, regardless of which
+          #    keys were imported.
+          echo "::group::Import trusted Guix maintainer keys"
+          export GNUPGHOME=$(mktemp -d)
+          chmod 700 "${GNUPGHOME}"
+          imported_count=0
+          for fpr in "${GUIX_KEY_FPRS[@]}"; do
+            for ks in hkps://keys.openpgp.org hkps://keyserver.ubuntu.com hkps://pgp.mit.edu; do
+              if gpg --batch --keyserver "${ks}" --recv-keys "${fpr}"; then
+                # Confirm the imported key actually has the expected fingerprint.
+                if gpg --list-keys --with-colons "${fpr}" \
+                    | awk -F: '$1=="fpr"{print $10}' | grep -qx "${fpr}"; then
+                  imported_count=$((imported_count + 1))
+                  break
+                fi
+              fi
+              echo "Keyserver ${ks} failed for ${fpr}, trying next..."
+            done
+          done
+          if [ "${imported_count}" -eq 0 ]; then
+            echo "Could not import any trusted Guix signing key from any keyserver"
+            exit 1
+          fi
+          echo "Imported ${imported_count}/${#GUIX_KEY_FPRS[@]} trusted keys"
+          echo "::endgroup::"
+
+          # 3. Verify the tarball signature against the trusted keys (blocking).
+          #    The keyring contains ONLY the pinned trust anchors, so a valid
+          #    signature must come from one of them; the explicit VALIDSIG
+          #    fingerprint match also documents which key signed this release.
+          echo "::group::Verify tarball signature"
+          gpg --status-fd 1 --verify "${TAR}.sig" "${TAR}" > gpg-status.txt
+          cat gpg-status.txt
+          awk -v allowed="${GUIX_FPR_REGEX}" '
+            $1 == "[GNUPG:]" && $2 == "VALIDSIG" &&
+              ($3 ~ "^(" allowed ")$" || $NF ~ "^(" allowed ")$") { found=1 }
+            END { exit found ? 0 : 1 }
+          ' gpg-status.txt
+          echo "::endgroup::"
+
+          # 4. Run the pinned installer with the cryptographically verified tarball.
           # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
           set +o pipefail
-          yes '' 2>/dev/null | sudo env GUIX_BINARY_FILE_NAME="/tmp/${TAR}" ./guix-install.sh # Tell installer to use your already-verified tarball
+          yes '' 2>/dev/null | sudo env GUIX_BINARY_FILE_NAME="/tmp/${TAR}" ./guix-install.sh
           set -o pipefail
           echo "Guix install script completed"
           source /etc/profile.d/zzz-guix.sh
@@ -543,14 +609,14 @@ jobs:
           mv share/man . || true
       - name: Upload Release Binaries (Linux)
         if: ${{ !matrix.is_darwin && !matrix.is_windows }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-release-binaries-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-release-binaries.tar.gz
           compression-level: 0
       - name: Upload Debug Binaries (Linux)
         if: ${{ !matrix.is_darwin && !matrix.is_windows }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-debug-binaries-${{ env.COMMIT_HASH }}
           path: |
@@ -562,56 +628,56 @@ jobs:
           compression-level: 6
       - name: Upload Debug Symbols (Linux)
         if: ${{ !matrix.is_darwin && !matrix.is_windows }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-debug-symbols-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-debug-symbols.tar.gz
           compression-level: 0
       - name: Upload Check Sums (Linux)
         if: ${{ !matrix.is_darwin && !matrix.is_windows }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-checksums-sha256
           compression-level: 0
       - name: Upload Windows Release Binaries
         if: matrix.is_windows
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-release-binaries-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-release-binaries.zip
           compression-level: 0
       - name: Upload Windows Debug Symbols
         if: matrix.is_windows
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-debug-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-debug-symbols.zip
           compression-level: 0
       - name: Upload Windows Installer (Unsigned)
         if: matrix.is_windows
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-installer-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-installer-unsigned.exe
           compression-level: 0
       - name: Upload Windows Setup Sign Bundle
         if: matrix.is_windows
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-setup-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-setup-sign-bundle.tar.gz
           compression-level: 0
       - name: Upload Windows Checksums
         if: matrix.is_windows
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-checksums-sha256
           compression-level: 0
       - name: Upload MacOS Release Binaries
         if: matrix.is_darwin
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-release-binaries-${{ env.COMMIT_HASH }}
           path: |
@@ -624,21 +690,21 @@ jobs:
           compression-level: 6
       - name: Upload MacOS Sign Bundle
         if: matrix.is_darwin
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-sign-bundle.tar.gz
           compression-level: 0
       - name: Upload MacOS App Image
         if: matrix.is_darwin
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-app-image-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-app-image.tar.gz
           compression-level: 0
       - name: Upload Check Sums (Darwin)
         if: matrix.is_darwin
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_prefix }}-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-checksums-sha256

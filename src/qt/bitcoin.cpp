@@ -46,10 +46,13 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QMessageBox>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QThread>
 #include <QTimer>
 #include <QTranslator>
@@ -70,6 +73,19 @@ Q_IMPORT_PLUGIN(AccessibleFactory)
 #endif
 #if defined(QT_QPA_PLATFORM_XCB)
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin);
+#ifdef HAVE_WAYLAND
+Q_IMPORT_PLUGIN(QWaylandIntegrationPlugin);
+Q_IMPORT_PLUGIN(QWaylandEglPlatformIntegrationPlugin);
+#ifdef HAVE_QT_WAYLAND_XDG_SHELL_INTEGRATION_PLUGIN
+Q_IMPORT_PLUGIN(QWaylandXdgShellIntegrationPlugin);
+#endif
+#ifdef HAVE_QT_WAYLAND_EGL_CLIENT_BUFFER_PLUGIN
+Q_IMPORT_PLUGIN(QWaylandEglClientBufferPlugin);
+#endif
+#ifdef HAVE_QT_WAYLAND_BRADIENT_DECORATION_PLUGIN
+Q_IMPORT_PLUGIN(QWaylandBradientDecorationPlugin);
+#endif
+#endif
 #elif defined(QT_QPA_PLATFORM_WINDOWS)
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin);
 #elif defined(QT_QPA_PLATFORM_COCOA)
@@ -674,6 +690,37 @@ void BitcoinApplication::migrateToFiro()
     }
 }
 
+#if defined(Q_OS_LINUX)
+// Write the app icon and desktop file to the user's XDG data directory so the
+// Wayland compositor can find them without a system-wide installation.
+static void RegisterXdgResources()
+{
+    const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+
+    const QString iconDir = dataDir + "/icons/hicolor/scalable/apps";
+    QDir().mkpath(iconDir);
+    const QString iconDst = iconDir + "/firo-qt.svg";
+    // Always overwrite so the icon stays in sync with the running binary version.
+    QFile::remove(iconDst);
+    QFile::copy(":/icons/firo_svg", iconDst);
+
+    const QString appDir = dataDir + "/applications";
+    QDir().mkpath(appDir);
+    QFile desktopFile(appDir + "/firo-qt.desktop");
+    if (desktopFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&desktopFile);
+        out << "[Desktop Entry]\n"
+            << "Name=Firo\n"
+            << "Comment=Connect to Firo\n"
+            << "Exec=" << QCoreApplication::applicationFilePath() << " %u\n"
+            << "Terminal=false\n"
+            << "Type=Application\n"
+            << "Icon=firo-qt\n"
+            << "Categories=Office;Finance;\n";
+    }
+}
+#endif
+
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -712,6 +759,10 @@ int main(int argc, char *argv[])
 
     BitcoinApplication app(argc, argv);
 
+#if defined(Q_OS_LINUX)
+    RegisterXdgResources();
+#endif
+
     // Register meta types used for QMetaObject::invokeMethod
     qRegisterMetaType< bool* >();
     //   Need to pass name here as CAmount is a typedef (see http://qt-project.org/doc/qt-5/qmetatype.html#qRegisterMetaType)
@@ -725,6 +776,9 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName(QAPP_ORG_NAME);
     QApplication::setOrganizationDomain(QAPP_ORG_DOMAIN);
     QApplication::setApplicationName(QAPP_APP_NAME_DEFAULT);
+    // Required on Wayland: compositor uses the desktop file name to look up the
+    // application icon from the XDG icon theme instead of the runtime-set window icon.
+    QGuiApplication::setDesktopFileName("firo-qt");
 
     // GUIUtil::SubstituteFonts(GetLangTerritory()); // use inlcuded fonts below
     // load included fonts

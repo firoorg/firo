@@ -39,6 +39,7 @@
 #endif // __linux__
 
 #include <algorithm>
+#include <climits> // for INT_MAX
 #include <fcntl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -776,6 +777,10 @@ int RaiseFileDescriptorLimit(int nMinFD) {
             setrlimit(RLIMIT_NOFILE, &limitFD);
             getrlimit(RLIMIT_NOFILE, &limitFD);
         }
+        // Clamp to INT_MAX to prevent truncation when rlim_cur is
+        // RLIM_INFINITY or any value exceeding the int return type.
+        if (limitFD.rlim_cur > (rlim_t)INT_MAX)
+            return INT_MAX;
         return limitFD.rlim_cur;
     }
     return nMinFD; // getrlimit failed, assume it's fine

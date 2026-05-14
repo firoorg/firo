@@ -1,0 +1,14 @@
+--- a/qtwayland/CMakeLists.txt
++++ b/qtwayland/CMakeLists.txt
+@@ -41,7 +41,10 @@
+ #endif()
+ # special case end
+ if(NOT TARGET Qt::Gui)
+-    message(NOTICE "Skipping the build as the condition \"TARGET Qt::Gui\" is not met.")
++    message(NOTICE "Qt::Gui not available, building qtwaylandscanner tool only.")
++    qt_build_repo_begin()
++    add_subdirectory(src/qtwaylandscanner)
++    qt_build_repo_end()
+     return()
+ endif()
+ qt_build_repo()

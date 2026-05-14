@@ -312,6 +312,10 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t maxCount)
 {
+    if (!pindexStart) {
+        return {};
+    }
+
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     auto cacheKey = std::make_pair(llmqType, pindexStart->GetBlockHash());

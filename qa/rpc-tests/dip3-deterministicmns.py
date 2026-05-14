@@ -296,14 +296,23 @@ class DIP3Test(BitcoinTestFramework):
         for node in self.nodes:
             self.assert_mnlist(node, mns)
 
-    def assert_mnlist(self, node, mns):
-        if not self.compare_mnlist(node, mns):
-            expected = []
-            for mn in mns:
-                expected.append('%s, %d' % (mn.collateral_txid, mn.collateral_vout))
-            self.log.error('mnlist: ' + str(node.evoznode('list', 'status')))
-            self.log.error('expected: ' + str(expected))
-            raise AssertionError("mnlists does not match provided mns")
+    def assert_mnlist(self, node, mns, timeout=10):
+        # Poll briefly so we don't race state propagation (e.g. right after
+        # invalidateblock, where the masternode manager's tip/cache may not
+        # yet reflect the new active tip on a slow debug build).
+        deadline = time.time() + timeout
+        while True:
+            if self.compare_mnlist(node, mns):
+                return
+            if time.time() >= deadline:
+                break
+            time.sleep(0.1)
+        expected = []
+        for mn in mns:
+            expected.append('%s, %d' % (mn.collateral_txid, mn.collateral_vout))
+        self.log.error('mnlist: ' + str(node.evoznode('list', 'status')))
+        self.log.error('expected: ' + str(expected))
+        raise AssertionError("mnlists does not match provided mns")
 
     def wait_for_sporks(self, timeout=30):
         st = time.time()

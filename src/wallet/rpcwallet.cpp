@@ -712,6 +712,9 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 }
                 
                 return wtx.GetHash().GetHex();
+            } catch (const WalletLocked&) {
+                LogPrintf("Exception when sending to Spark address (simple format): wallet is locked\n");
+                throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Failed to send to Spark address: wallet is locked");
             } catch (const std::exception &e) {
                 LogPrintf("Exception when sending to Spark address (simple format): %s\n", e.what());
                 throw JSONRPCError(RPC_WALLET_ERROR, 
@@ -1058,6 +1061,9 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                     
                     txids.push_back(wtx.GetHash().GetHex());
                 }
+            } catch (const WalletLocked&) {
+                LogPrintf("Exception when sending to Spark address (JSON format): wallet is locked\n");
+                throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Failed to send to Spark address: wallet is locked");
             } catch (const std::exception &e) {
                 LogPrintf("Exception when sending to Spark address (JSON format): %s\n", e.what());
                 throw JSONRPCError(RPC_WALLET_ERROR, 
@@ -1432,12 +1438,11 @@ UniValue signmessagewithsparkaddress(const JSONRPCRequest& request)
     spark::SpendKey spendKey(params);
     try {
         spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
+    } catch (const WalletLocked&) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
     } catch (const std::exception&) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Unable to generate spend key");
     }
-
-    if (spendKey == spark::SpendKey(params))
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
 
     spark::OwnershipProof proof;
     spark::FullViewKey fullViewKey(spendKey);
@@ -4851,7 +4856,7 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     std::string additionalData;
 
     int numberOfYears = request.params[2].get_int();
-    if (numberOfYears < 1 || numberOfYears > 10)
+    if (numberOfYears < 1 || numberOfYears > 15)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
 
     std::size_t additionalDataIndex = fTransfer ? 5 : 3;
@@ -4892,22 +4897,15 @@ UniValue registersparkname(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_WALLET_ERROR, std::string("Spark name registration failed: ") + x.what());
     }
 
-    // commit
-    try {
+    {
         CValidationState state;
         CReserveKey reserveKey(pwallet);
-        if (!pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state))
-            throw JSONRPCError(RPC_WALLET_ERROR, "CommitTransaction failed: " + FormatStateMessage(state));
-    }
-    catch (const std::exception &) {
-        auto error = _(
-                "Error: The transaction was rejected! This might happen if some of "
-                "the coins in your wallet were already spent, such as if you used "
-                "a copy of wallet.dat and coins were spent in the copy but not "
-                "marked as spent here."
-        );
-
-        std::throw_with_nested(std::runtime_error(error));
+        if (!pwallet->CommitTransaction(wtx, reserveKey, g_connman.get(), state, true)) {
+            std::string rejectReason = FormatStateMessage(state);
+            throw JSONRPCError(RPC_WALLET_ERROR,
+                "Spark name transaction was rejected" +
+                (rejectReason.empty() ? std::string() : ": " + rejectReason));
+        }
     }
 
     return wtx.GetHash().GetHex();
@@ -4939,7 +4937,7 @@ UniValue requestsparknametransfer(const JSONRPCRequest &request) {
     std::string additionalData;
 
     int numberOfYears = request.params[3].get_int();
-    if (numberOfYears < 1 || numberOfYears > 10)
+    if (numberOfYears < 1 || numberOfYears > 15)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
 
     if (request.params.size() >= 5)
@@ -4987,12 +4985,11 @@ UniValue transfersparkname(const JSONRPCRequest &request) {
     spark::SpendKey spendKey(params);
     try {
         spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
-    } catch (std::exception& e) {
+    } catch (const WalletLocked&) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
+    } catch (const std::exception&) {
         throw std::runtime_error(_("Unable to generate spend key."));
     }
-
-    if (spendKey == spark::SpendKey(params))
-        throw std::runtime_error(_("Unable to generate spend key, looks the wallet is locked."));
 
     std::string oldSparkAddress = request.params[0].get_str();
     std::string requestHash = request.params[1].get_str();

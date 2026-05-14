@@ -3,12 +3,13 @@ $(package)_version=1.14
 $(package)_download_path=https://xcb.freedesktop.org/dist
 $(package)_file_name=$(package)-$($(package)_version).tar.xz
 $(package)_sha256_hash=a55ed6db98d43469801262d81dc2572ed124edc3db31059d4e9916eb9f844c34
-$(package)_dependencies=xcb_proto libXau
+$(package)_dependencies=xcb_proto libXau libXdmcp
 $(package)_patches = remove_pthread_stubs.patch
 
 define $(package)_set_vars
 $(package)_config_opts=--disable-devel-docs --without-doxygen --without-launchd
 $(package)_config_opts += --disable-dependency-tracking --enable-option-checking
+$(package)_config_opts += --disable-shared
 # Disable unneeded extensions.
 # More info is available from: https://doc.qt.io/qt-5.15/linux-requirements.html
 $(package)_config_opts += --disable-composite --disable-damage --disable-dpms
@@ -37,5 +38,5 @@ define $(package)_stage_cmds
 endef
 
 define $(package)_postprocess_cmds
-  rm -rf share lib/*.la
+  rm -rf share lib/*.la && mkdir -p _xau _xdmcp && (cd _xau && ar x $(host_prefix)/lib/libXau.a) && (cd _xdmcp && ar x $(host_prefix)/lib/libXdmcp.a) && ar rc lib/libxcb.a _xau/*.o _xdmcp/*.o && ranlib lib/libxcb.a && rm -rf _xau _xdmcp && python3 -c "c=open('lib/pkgconfig/xcb.pc').read();n=c.replace(' -lxcb\n',' -lxcb -lXau -lXdmcp\n');assert n!=c,'xcb.pc patch failed: -lxcb not found at end of Libs line';open('lib/pkgconfig/xcb.pc','w').write(n)"
 endef
