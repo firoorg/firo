@@ -4914,7 +4914,7 @@ UniValue registersparkname(const JSONRPCRequest& request) {
 UniValue requestsparknametransfer(const JSONRPCRequest &request) {
     if (request.fHelp || request.params.size() < 4 || request.params.size() > 5) {
         throw std::runtime_error(
-            "requestsparknametransfer \"name\" \"sparkaddress\" \"oldsparkaddress\" years [\"additionalData\"]\n"
+            "requestsparknametransfer \"name\" \"newsparkaddress\" years \"oldsparkaddress\" [\"additionalData\"]\n"
         );
     }
 
@@ -4933,12 +4933,13 @@ UniValue requestsparknametransfer(const JSONRPCRequest &request) {
 
     std::string sparkName = request.params[0].get_str();
     std::string sparkAddress = request.params[1].get_str();
-    std::string oldSparkAddress = request.params[2].get_str();
     std::string additionalData;
 
-    int numberOfYears = request.params[3].get_int();
+    int numberOfYears = request.params[2].get_int();
     if (numberOfYears < 1 || numberOfYears > 15)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of years");
+
+    std::string oldSparkAddress = request.params[3].get_str();
 
     if (request.params.size() >= 5)
         additionalData = request.params[4].get_str();
