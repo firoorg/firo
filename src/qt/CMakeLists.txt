@@ -17,6 +17,16 @@ if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$" AND TARGET Qt6::QWaylandIntegra
   set(HAVE_WAYLAND TRUE)
 endif()
 
+if(qt_lib_type STREQUAL "STATIC_LIBRARY" AND HAVE_WAYLAND)
+  find_library(WAYLAND_FFI_LIBRARY NAMES ffi)
+  if(NOT WAYLAND_FFI_LIBRARY)
+    message(FATAL_ERROR "Static Qt Wayland plugins require libffi, but it was not found")
+  endif()
+  if(TARGET Wayland::Client)
+    set_property(TARGET Wayland::Client APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${WAYLAND_FFI_LIBRARY}")
+  endif()
+endif()
+
 function(import_plugins target)
   if(qt_lib_type STREQUAL "STATIC_LIBRARY")
     set(plugins Qt6::QMinimalIntegrationPlugin)
@@ -25,6 +35,15 @@ function(import_plugins target)
       if(TARGET Qt6::QWaylandIntegrationPlugin)
         list(APPEND plugins Qt6::QWaylandIntegrationPlugin)
         list(APPEND plugins Qt6::QWaylandEglPlatformIntegrationPlugin)
+        if(TARGET Qt6::QWaylandXdgShellIntegrationPlugin)
+          list(APPEND plugins Qt6::QWaylandXdgShellIntegrationPlugin)
+        endif()
+        if(TARGET Qt6::QWaylandEglClientBufferPlugin)
+          list(APPEND plugins Qt6::QWaylandEglClientBufferPlugin)
+        endif()
+        if(TARGET Qt6::QWaylandBradientDecorationPlugin)
+          list(APPEND plugins Qt6::QWaylandBradientDecorationPlugin)
+        endif()
       endif()
     elseif(WIN32)
       list(APPEND plugins Qt6::QWindowsIntegrationPlugin Qt6::QModernWindowsStylePlugin)
@@ -156,6 +175,9 @@ target_compile_definitions(firoqt
     QT_NO_KEYWORDS
     QT_USE_QSTRINGBUILDER
     $<$<BOOL:${HAVE_WAYLAND}>:HAVE_WAYLAND>
+    $<$<TARGET_EXISTS:Qt6::QWaylandXdgShellIntegrationPlugin>:HAVE_QT_WAYLAND_XDG_SHELL_INTEGRATION_PLUGIN>
+    $<$<TARGET_EXISTS:Qt6::QWaylandEglClientBufferPlugin>:HAVE_QT_WAYLAND_EGL_CLIENT_BUFFER_PLUGIN>
+    $<$<TARGET_EXISTS:Qt6::QWaylandBradientDecorationPlugin>:HAVE_QT_WAYLAND_BRADIENT_DECORATION_PLUGIN>
 )
 target_include_directories(firoqt
   PUBLIC

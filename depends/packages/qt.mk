@@ -17,8 +17,11 @@ $(package)_patches += qtbase_avoid_qmain.patch
 $(package)_patches += qtbase_platformsupport.patch
 $(package)_patches += qtbase_plugins_cocoa.patch
 $(package)_patches += qtbase_skip_tools.patch
+$(package)_patches += qtbase_findxcb_image_aux.patch
 $(package)_patches += rcc_hardcode_timestamp.patch
 $(package)_patches += qttools_skip_dependencies.patch
+$(package)_patches += qtwayland_decoration_no_egl_gate.patch
+$(package)_patches += qtbase_fix_qyieldcpu_apple_arm.patch
 
 $(package)_qttranslations_file_name=$(qt_details_qttranslations_file_name)
 $(package)_qttranslations_sha256_hash=$(qt_details_qttranslations_sha256_hash)
@@ -351,7 +354,10 @@ define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/qtbase_platformsupport.patch && \
   patch -p1 -i $($(package)_patch_dir)/qtbase_plugins_cocoa.patch && \
   patch -p1 -i $($(package)_patch_dir)/qtbase_skip_tools.patch && \
-  patch -p1 -i $($(package)_patch_dir)/rcc_hardcode_timestamp.patch
+  patch -p1 -i $($(package)_patch_dir)/qtbase_findxcb_image_aux.patch && \
+  patch -p1 -i $($(package)_patch_dir)/rcc_hardcode_timestamp.patch && \
+  patch -p1 -i $($(package)_patch_dir)/qtwayland_decoration_no_egl_gate.patch && \
+  patch -p1 -i $($(package)_patch_dir)/qtbase_fix_qyieldcpu_apple_arm.patch
 endef
 ifeq ($(host),$(build))
   $(package)_preprocess_cmds += && patch -p1 -i $($(package)_patch_dir)/qttools_skip_dependencies.patch

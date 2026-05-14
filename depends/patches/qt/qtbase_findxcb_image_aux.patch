@@ -1,0 +1,24 @@
+qtbase: model xcb-image's AUX dependency for static XCB builds
+
+Qt's vendored FindXCB module hardcodes XCB_IMAGE as depending only on XCB
+and SHM. That is enough for shared builds, but the static xcb-image archive
+also calls xcb_aux_create_gc() from xcb-util. When Qt serializes XCB target
+dependencies into libQt6XcbQpa.prl, the missing AUX edge drops libxcb-util.a
+from downstream link lines and native tools like qdbusviewer fail to link.
+
+Teach FindXCB that IMAGE also depends on AUX so static consumers inherit
+libxcb-util.a transitively.
+
+diff --git a/qtbase/cmake/3rdparty/extra-cmake-modules/find-modules/FindXCB.cmake b/qtbase/cmake/3rdparty/extra-cmake-modules/find-modules/FindXCB.cmake
+--- a/qtbase/cmake/3rdparty/extra-cmake-modules/find-modules/FindXCB.cmake
++++ b/qtbase/cmake/3rdparty/extra-cmake-modules/find-modules/FindXCB.cmake
+@@ -145,7 +145,7 @@ endforeach()
+ # exceptions
+ set(XCB_XCB_component_deps)
+ set(XCB_COMPOSITE_component_deps XCB XFIXES)
+ set(XCB_DAMAGE_component_deps XCB XFIXES)
+-set(XCB_IMAGE_component_deps XCB SHM)
++set(XCB_IMAGE_component_deps XCB SHM AUX)
+ set(XCB_RENDERUTIL_component_deps XCB RENDER)
+ set(XCB_XFIXES_component_deps XCB RENDER SHAPE)
+ set(XCB_XVMC_component_deps XCB XV)

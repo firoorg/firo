@@ -4424,6 +4424,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
         uint256 final_hash;
         if (block.IsProgPow())
         {
+            if (block.mix_hash.IsNull())
+                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash cannot be null");
             // If we use GetProgPowHashFull user may experience very slow header sync
             // We use simplified function for header check and then will use full check in ConnectBlock()
             // This won't make sync faster but it will give user a better experience

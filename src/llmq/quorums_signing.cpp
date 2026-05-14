@@ -870,10 +870,13 @@ std::vector<CQuorumCPtr> CSigningManager::GetActiveQuorumSet(Consensus::LLMQType
     {
         LOCK(cs_main);
         int startBlockHeight = signHeight - SIGN_HEIGHT_OFFSET;
-        if (startBlockHeight > chainActive.Height()) {
+        if (startBlockHeight < 0 || startBlockHeight > chainActive.Height()) {
             return {};
         }
         pindexStart = chainActive[startBlockHeight];
+        if (!pindexStart) {
+            return {};
+        }
     }
 
     return quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);

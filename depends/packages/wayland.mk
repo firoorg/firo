@@ -50,6 +50,7 @@ define $(package)_config_cmds
   meson setup build --prefix=$(host_prefix) \
     $$$$cross_arg \
     --libdir=lib \
+    --default-library=static \
     -Dlibraries=true \
     -Dscanner=false \
     -Ddocumentation=false \

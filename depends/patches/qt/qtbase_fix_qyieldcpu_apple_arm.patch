@@ -1,0 +1,19 @@
+Fix __yield implicit declaration error on Apple ARM (darwin25+)
+
+On newer Apple Clang (Xcode 16+), __has_builtin(__yield) returns true but
+calling __yield() produces an "implicitly declaring library function" error
+because the declaration requires <arm_acle.h> which is not included here.
+Exclude Apple platforms from this path so the code falls through to the
+__builtin_arm_yield() branch, which is properly supported on Apple Silicon.
+
+--- a/qtbase/src/corelib/thread/qyieldcpu.h
++++ b/qtbase/src/corelib/thread/qyieldcpu.h
+@@ -31,7 +31,7 @@ void qYieldCpu(void)
+     noexcept
+ #endif
+ {
+-#if __has_builtin(__yield)
++#if __has_builtin(__yield) && !defined(__APPLE__)
+     __yield();              // Generic
+ #elif defined(_YIELD_PROCESSOR) && defined(Q_CC_MSVC)
+     _YIELD_PROCESSOR();     // Generic; MSVC's <atomic>

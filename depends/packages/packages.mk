@@ -3,7 +3,7 @@ darwin_packages:=zeromq
 linux_packages:=zeromq
 native_packages :=
 
-qt_linux_packages:=qt expat libxcb xcb_proto libXau xproto freetype fontconfig libxkbcommon libxcb_util libxcb_util_cursor libxcb_util_render libxcb_util_keysyms libxcb_util_image libxcb_util_wm libffi wayland libglvnd
+qt_linux_packages:=qt expat libxcb xcb_proto libXau libXdmcp xproto freetype fontconfig libxkbcommon libxcb_util libxcb_util_cursor libxcb_util_render libxcb_util_keysyms libxcb_util_image libxcb_util_wm libffi wayland libglvnd
 qt_linux_native_packages := native_expat native_wayland_scanner
 qt_freebsd_packages:=$(qt_linux_packages)
 qt_freebsd_native_packages := $(qt_linux_native_packages)
