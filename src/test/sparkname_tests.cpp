@@ -11,6 +11,7 @@
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
+#include <limits>
 #include <boost/test/unit_test.hpp>
 
 namespace spark {
@@ -684,7 +685,20 @@ BOOST_AUTO_TEST_CASE(extension_max_validity)
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected
     BOOST_CHECK(!IsSparkNamePresent("maxval2"));
 
-    // --- Test 3: Register for 10 years, extend by 5 years -> total ~15 years -> should succeed ---
+    // --- Test 3: Wrapped uint32 validity must not bypass the 15-year cap ---
+    // Values near UINT32_MAX used to become negative when converted to int in
+    // V2.1 validation and could wrap the stored expiration far into the future.
+    std::string addrWrapped = GenerateSparkAddress();
+    const uint32_t wrappedValidity = std::numeric_limits<uint32_t>::max() - 10000;
+    CMutableTransaction txWrapped = CreateSparkNameTx("maxvalwrap", addrWrapped, wrappedValidity, "", false);
+    txWrapped.vout.push_back(CTxOut(0, CSparkNameManager::GetSparkNameFeeScript(consensus.stage3CommunityFundAddress, "maxvalwrap", addrWrapped)));
+    ModifySparkNameTx(txWrapped, [](CSparkNameTxData &) {}, true);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txWrapped});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected
+    BOOST_CHECK(!IsSparkNamePresent("maxvalwrap"));
+
+    // --- Test 4: Register for 10 years, extend by 5 years -> total ~15 years -> should succeed ---
     std::string addr3 = GenerateSparkAddress();
     CMutableTransaction txReg10a = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 10, "", false);
     oldHeight = chainActive.Height();
@@ -707,7 +721,7 @@ BOOST_AUTO_TEST_CASE(extension_max_validity)
     BOOST_CHECK(expExt > (uint64_t)(extHeight + nBlockPerYear * 14));
     BOOST_CHECK(expExt <= (uint64_t)(extHeight + nBlockPerYear * 15));
 
-    // --- Test 4: Register for 10 years, try extending by 6 years -> total > 15 years -> should fail ---
+    // --- Test 5: Register for 10 years, try extending by 6 years -> total > 15 years -> should fail ---
     std::string addr4 = GenerateSparkAddress();
     CMutableTransaction txReg10b = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 10, "", false);
     oldHeight = chainActive.Height();

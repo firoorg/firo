@@ -5,6 +5,7 @@
 #include "../validation.h"
 #include "../batchproof_container.h"
 
+#include <limits>
 #include <set>
 
 namespace spark {
@@ -342,25 +343,29 @@ bool ConnectBlockSpark(
                     uint8_t opType = sparkName.second.nVersion >= 2 ?
                                                     sparkName.second.operationType : CSparkNameTxData::opRegister;
                     // For V2.1+, renewals and transfers preserve remaining validity
-                    int validityBlocks = sparkName.second.sparkNameValidityBlocks;
+                    int64_t validityBlocks = sparkName.second.sparkNameValidityBlocks;
                     const auto& consensusParams = ::Params().GetConsensus();
                     if (pindexNew->nHeight >= consensusParams.nSparkNamesV21StartBlock) {
                         try {
-                            int existingExpirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
-                            int remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
+                            int64_t existingExpirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
+                            int64_t remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
                             if (remainingBlocks > 0)
                                 validityBlocks += remainingBlocks;
                         } catch (const std::runtime_error&) {
                             // name doesn't exist yet, no adjustment needed
                         }
                     }
+                    int64_t expirationHeight = static_cast<int64_t>(pindexNew->nHeight) + validityBlocks;
+                    if (expirationHeight < 0 || expirationHeight > std::numeric_limits<uint32_t>::max())
+                        return state.DoS(100, error("ConnectBlockSpark: spark name expiration height out of range"));
+                    uint32_t boundedExpirationHeight = static_cast<uint32_t>(expirationHeight);
 
                     switch (opType) {
                         case CSparkNameTxData::opRegister:
                             pindexNew->addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + validityBlocks,
+                                    boundedExpirationHeight,
                                     sparkName.second.additionalInfo);
                             break;
 
@@ -375,7 +380,7 @@ bool ConnectBlockSpark(
                             pindexNew->addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + validityBlocks,
+                                    boundedExpirationHeight,
                                     sparkName.second.additionalInfo);
 
                             break;
