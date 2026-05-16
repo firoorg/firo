@@ -208,25 +208,29 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
     }
 
-    constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
-    int validityBlocks = sparkNameData.sparkNameValidityBlocks;
-    if (validityBlocks == 0)
+    constexpr int64_t nBlockPerYear = 365*24*24; // 24 blocks per hour
+    const int64_t purchasedValidityBlocks = sparkNameData.sparkNameValidityBlocks;
+    int64_t totalValidityBlocks = purchasedValidityBlocks;
+    if (purchasedValidityBlocks == 0)
         return state.DoS(100, error("CheckSparkNameTx: validity period must be at least 1 block"));
   
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
-        if (existingExpirationHeight != -1)
-            validityBlocks = std::max(validityBlocks, existingExpirationHeight - nHeight + validityBlocks);
+        if (existingExpirationHeight != -1) {
+            int64_t remainingBlocks = static_cast<int64_t>(existingExpirationHeight) - nHeight;
+            if (remainingBlocks > 0)
+                totalValidityBlocks += remainingBlocks;
+        }
         // after nSparkNamesV21StartBlock, max validity is 15 years
-        if (validityBlocks > nBlockPerYear * 15)
+        if (totalValidityBlocks > nBlockPerYear * 15)
             return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
     }
     else {
-        if (validityBlocks > nBlockPerYear * 10)
+        if (purchasedValidityBlocks > nBlockPerYear * 10)
             return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
     }
 
     // fee is based on the new time being purchased, not including leftover time from a previous registration
-    int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
+    int64_t nYears = (purchasedValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
 
     CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
 
