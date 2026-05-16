@@ -509,7 +509,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         nQuantity++;
 
         // Amount
-        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
+        if(out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
             nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
         } else {
             nAmount += out.tx->tx->vout[out.i].nValue;
@@ -733,7 +733,7 @@ void CoinControlDialog::updateView()
         int nChildren = 0;
         BOOST_FOREACH(const COutput& out, coins.second) {
             CAmount amount;
-            if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
+            if(out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
                 amount = model->GetJMintCredit(out.tx->tx->vout[out.i]);
             } else {
                 amount = out.tx->tx->vout[out.i].nValue;

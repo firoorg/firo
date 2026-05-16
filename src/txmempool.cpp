@@ -583,39 +583,6 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         sporkManager.RemovedFromMemoryPool(it->GetTx());
     }
 
-    else if (it->GetTx().IsLelantusTransaction()) {
-        // Remove mints and spend serials from lelantus mempool state
-        const CTransaction &tx = it->GetTx();
-        if (tx.IsLelantusJoinSplit()) {
-            std::vector<Scalar> serials;
-            try {
-                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
-                for (const Scalar &serial: serials)
-                    lelantusState.RemoveSpendFromMempool(serial);
-            }
-            catch (CBadTxIn&) {
-            }
-        }
-
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    if (txout.scriptPubKey.IsLelantusMint()) {
-                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                    } else {
-                        std::vector<unsigned char> encryptedValue;
-                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                    }
-                    lelantusState.RemoveMintFromMempool(pubCoinValue);
-                }
-                catch (std::invalid_argument&) {
-                }
-            }
-        }
-    }
-
     else if (it->GetTx().IsSparkTransaction()) {
         // Remove mints and spends from spark mempool state
         const CTransaction &tx = it->GetTx();
@@ -1132,7 +1099,6 @@ void CTxMemPool::_clear()
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
-    lelantusState.Reset();
     sparkState.Reset();
     ++nTransactionsUpdated;
 }

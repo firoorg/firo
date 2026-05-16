@@ -1,10 +1,11 @@
-#include "../liblelantus/threadpool.h"
+#include "threadpool.h"
 #include "state.h"
 #include "compat_layer.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 
+#include <memory>
 #include <set>
 
 namespace spark {
@@ -102,7 +103,7 @@ unsigned char GetNetworkType() {
 }
 
 /*
- * Util funtions
+ * Util functions
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
     return index->sparkMintedCoins.count(id) > 0
@@ -274,7 +275,7 @@ bool ConnectBlockSpark(
             pindexNew->sparkSetHash.clear();
         }
 
-        if (!CheckSparkBlock(state, *pblock)) {
+        if (!CheckSparkBlock(state, *pblock, pindexNew->nHeight)) {
             return false;
         }
 
@@ -489,22 +490,22 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
     RemoveSpendReferencingBlock(txpools.getStemTxPool(), pindexDelete);
 }
 
-bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
+bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight) {
     auto& consensus = ::Params().GetConsensus();
 
-    size_t blockSpendsValue = 0;
+    CAmount blockSpendsValue = 0;
 
     for (const auto& tx : block.vtx) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
 
-        if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(block.nHeight)) {
+        if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(nBlockHeight)) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-spend-invalid");
         }
         blockSpendsValue += txSpendsValue;
     }
 
-    if (cmp::greater(blockSpendsValue, consensus.GetMaxValueSparkSpendPerBlock(block.nHeight))) {
+    if (cmp::greater(blockSpendsValue, consensus.GetMaxValueSparkSpendPerBlock(nBlockHeight))) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }
@@ -860,7 +861,7 @@ bool CheckSparkSpendTransaction(
                 }
             }
             while (fRecheckNeeded);
-    
+
             if (fChecked) {
                 // if we are here, then the proof was already checked and it passed
                 passVerify = true;
@@ -902,7 +903,7 @@ bool CheckSparkSpendTransaction(
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
             for (size_t i = 0; i < lTags.size(); ++i) {
                     if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
-                        LogPrintf("CheckSparkSpendTransaction: lTAg check failed, ltag=%s\n", lTags[i]);
+                        LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
             }

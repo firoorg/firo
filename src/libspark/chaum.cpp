@@ -90,7 +90,7 @@ bool Chaum::verify(
 ) {
     // Check proof semantics
     std::size_t n = S.size();
-    if (!(T.size() == n && proof.A2.size() == n && proof.t1.size() == n)) {
+    if (n == 0 || !(T.size() == n && proof.A2.size() == n && proof.t1.size() == n)) {
         throw std::invalid_argument("Bad Chaum semantics!");
     }
     for (std::size_t i = 0; i < n; i++) {
