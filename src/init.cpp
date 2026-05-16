@@ -1630,6 +1630,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
     bool listenOnion = GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION);
 
+    const bool fListenRequested = GetBoolArg("-listen", DEFAULT_LISTEN);
     // Bind a dedicated 127.0.0.1:<ephemeral> listener used only to receive
     // traffic forwarded by Tor from our hidden service. Doing this once at
     // init (mirroring Bitcoin Core's pattern, ref bitcoin#16702) means:
@@ -1640,19 +1641,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     //     NET_ONION instead of IPv4 127.0.0.1.
     // The listener is flagged is_onion_listener so AcceptConnection tags
     // accepted peers accordingly.
-    //
-    // Note on -listen=0 interaction: -listen=0 soft-forces -listenonion=0
-    // (see the parameter-interaction block above), but does *not* force
-    // -torsetup=0. So with "-listen=0 -torsetup=1" we still bind this
-    // dedicated local listener and the embedded Tor's hidden service will
-    // route inbound traffic to it. This differs from pre-PR behavior where
-    // -listen=0 + -torsetup=1 effectively disabled inbound onion (the
-    // embedded Tor forwarded to 127.0.0.1:8168 where nothing was
-    // listening). The new behavior is closer to user intent ("-torsetup=1
-    // implies I want inbound via onion") while still honoring -listen=0
-    // for clearnet listeners.
     unsigned short onion_local_port = 0;
-    if (torEnabled || listenOnion) {
+    if ((torEnabled && fListenRequested) || listenOnion) {
         std::string strBindError;
         CService onionBindAddr(LookupNumeric("127.0.0.1", 0));
         if (!connman.BindListenPort(onionBindAddr, strBindError,
@@ -1759,7 +1749,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // see Step 2: parameter interactions for more information about these
-    fListen = GetBoolArg("-listen", DEFAULT_LISTEN);
+    fListen = fListenRequested;
     fDiscover = GetBoolArg("-discover", true);
     fNameLookup = GetBoolArg("-dns", DEFAULT_NAME_LOOKUP);
     fRelayTxes = !GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY);
