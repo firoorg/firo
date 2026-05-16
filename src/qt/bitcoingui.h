@@ -137,6 +137,9 @@ private:
     /** Keep track of previous number of blocks, to detect progress */
     int prevBlocks;
     int spinnerFrame;
+#ifdef ENABLE_WALLET
+    bool sparkAddressbookUpdated;
+#endif
 
     const PlatformStyle *platformStyle;
 

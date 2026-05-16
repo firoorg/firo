@@ -132,6 +132,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     modalOverlay(0),
     prevBlocks(0),
     spinnerFrame(0),
+#ifdef ENABLE_WALLET
+    sparkAddressbookUpdated(false),
+#endif
     platformStyle(_platformStyle)
 {
     // load stylesheet
@@ -619,14 +622,22 @@ bool BitcoinGUI::addWallet(const QString& name, WalletModel *walletModel)
     if(!walletFrame)
         return false;
     setWalletActionsEnabled(true);
-    return walletFrame->addWallet(name, walletModel);
+    const bool walletAdded = walletFrame->addWallet(name, walletModel);
+    if (walletAdded && clientModel && !sparkAddressbookUpdated) {
+        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+    }
+    return walletAdded;
 }
 
 bool BitcoinGUI::setCurrentWallet(const QString& name)
 {
     if(!walletFrame)
         return false;
-    return walletFrame->setCurrentWallet(name);
+    const bool walletSelected = walletFrame->setCurrentWallet(name);
+    if (walletSelected && clientModel && !sparkAddressbookUpdated) {
+        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+    }
+    return walletSelected;
 }
 
 void BitcoinGUI::removeAllWallets()
@@ -973,8 +984,9 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkZnodeVisibility(count);
-    if (walletFrame && count == ::Params().GetConsensus().nSparkStartBlock)
-        walletFrame->updateAddressbook();
+    if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
+        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+    }
 #endif // ENABLE_WALLET
 }
 
