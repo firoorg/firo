@@ -9,6 +9,19 @@
 #include "validation.h"
 #include "ui_interface.h"
 
+namespace
+{
+constexpr uint64_t SPARK_NAME_BLOCKS_PER_YEAR = 365ULL * 24 * 24;
+
+uint64_t GetTotalValidityBlocks(uint32_t purchasedValidityBlocks, int nHeight, int64_t existingExpirationHeight)
+{
+    uint64_t validityBlocks = purchasedValidityBlocks;
+    if (existingExpirationHeight > nHeight)
+        validityBlocks += static_cast<uint64_t>(existingExpirationHeight - nHeight);
+    return validityBlocks;
+}
+} // namespace
+
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
 bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
@@ -189,7 +202,7 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     if (!IsSparkNameValid(sparkNameData.name))
         return state.DoS(100, error("CheckSparkNameTx: invalid name"));
 
-    int existingExpirationHeight = -1;
+    int64_t existingExpirationHeight = -1;
     bool fUpdateExistingRecord = false;
     bool fSparkNameTransfer = sparkNameData.nVersion >= 2 && sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer;
     const std::string normalizedName = ToUpper(sparkNameData.name);
@@ -208,27 +221,24 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         }
     }
 
-    constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
-    int validityBlocks = sparkNameData.sparkNameValidityBlocks;
+    const uint64_t validityBlocks = sparkNameData.sparkNameValidityBlocks;
     if (validityBlocks == 0)
         return state.DoS(100, error("CheckSparkNameTx: validity period must be at least 1 block"));
   
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
-        if (existingExpirationHeight != -1)
-            validityBlocks = std::max(validityBlocks, existingExpirationHeight - nHeight + validityBlocks);
         // after nSparkNamesV21StartBlock, max validity is 15 years
-        if (validityBlocks > nBlockPerYear * 15)
+        if (GetTotalValidityBlocks(sparkNameData.sparkNameValidityBlocks, nHeight, existingExpirationHeight) > SPARK_NAME_BLOCKS_PER_YEAR * 15)
             return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
     }
     else {
-        if (validityBlocks > nBlockPerYear * 10)
+        if (validityBlocks > SPARK_NAME_BLOCKS_PER_YEAR * 10)
             return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 10 years"));
     }
 
     // fee is based on the new time being purchased, not including leftover time from a previous registration
-    int nYears = (sparkNameData.sparkNameValidityBlocks + nBlockPerYear-1) / nBlockPerYear;
+    const uint64_t nYears = (validityBlocks + SPARK_NAME_BLOCKS_PER_YEAR - 1) / SPARK_NAME_BLOCKS_PER_YEAR;
 
-    CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * nYears;
+    CAmount nameFee = consensusParams.nSparkNamesFee[sparkNameData.name.size()] * COIN * static_cast<CAmount>(nYears);
 
     // After v2.1, the fee output itself must carry the spark name and address.
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
@@ -408,7 +418,7 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     }
     const std::string normalizedName = ToUpper(sparkNameData.name);
 
-    int existingExpirationHeight = -1;
+    int64_t existingExpirationHeight = -1;
     {
         LOCK(cs_spark_name);
         auto sparkNameIt = sparkNames.find(normalizedName);
@@ -422,10 +432,10 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
         else if (sparkNameData.additionalInfo.size() > 1024)
             errorDescription = "additional info is too long";
 
-        else if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*15)
+        else if (nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock && static_cast<uint64_t>(sparkNameData.sparkNameValidityBlocks) > SPARK_NAME_BLOCKS_PER_YEAR * 15)
             errorDescription = "transaction can't be valid for more than 15 years";
 
-        else if (nHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock && sparkNameData.sparkNameValidityBlocks > 365*24*24*10)
+        else if (nHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock && static_cast<uint64_t>(sparkNameData.sparkNameValidityBlocks) > SPARK_NAME_BLOCKS_PER_YEAR * 10)
             errorDescription = "transaction can't be valid for more than 10 years";
 
         else if (sparkNameData.sparkNameValidityBlocks == 0)
@@ -460,12 +470,8 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     // After V2.1, check that total validity (including remaining time from existing registration) doesn't exceed 15 years
     if (errorDescription.empty() && nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
         if (existingExpirationHeight != -1) {
-            constexpr int nBlockPerYear = 365*24*24;
-            int validityBlocks = sparkNameData.sparkNameValidityBlocks;
-            int remainingBlocks = existingExpirationHeight - nHeight;
-            if (remainingBlocks > 0)
-                validityBlocks += remainingBlocks;
-            if (validityBlocks > nBlockPerYear * 15)
+            const uint64_t validityBlocks = GetTotalValidityBlocks(sparkNameData.sparkNameValidityBlocks, nHeight, existingExpirationHeight);
+            if (validityBlocks > SPARK_NAME_BLOCKS_PER_YEAR * 15)
                 errorDescription = "total validity including remaining time can't exceed 15 years";
         }
     }
