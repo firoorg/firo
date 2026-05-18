@@ -11,6 +11,7 @@
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
+#include <limits>
 #include <boost/test/unit_test.hpp>
 
 namespace spark {
@@ -321,6 +322,27 @@ BOOST_AUTO_TEST_CASE(general)
     oldHeight = chainActive.Height();
     GenerateBlock({tx8});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+}
+
+BOOST_AUTO_TEST_CASE(reject_wrapped_validity)
+{
+    Initialize(consensus.nSparkNamesV21StartBlock);
+
+    CSparkNameTxData sparkNameData;
+    sparkNameData.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    sparkNameData.name = "wrapvalidity";
+    sparkNameData.sparkAddress = GenerateSparkAddress();
+    sparkNameData.sparkNameValidityBlocks = std::numeric_limits<uint32_t>::max() - 10000;
+    sparkNameData.additionalInfo = "x";
+    sparkNameData.operationType = (uint8_t)CSparkNameTxData::opRegister;
+
+    CMutableTransaction tx = CreateSparkNameTx(sparkNameData, true, 1 * COIN);
+    BOOST_CHECK(!lastState.IsValid());
+
+    int oldHeight = chainActive.Height();
+    GenerateBlock({tx});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+    BOOST_CHECK(!IsSparkNamePresent("wrapvalidity"));
 }
 
 BOOST_AUTO_TEST_CASE(hfblocknumber)

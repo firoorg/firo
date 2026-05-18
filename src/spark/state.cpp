@@ -342,14 +342,13 @@ bool ConnectBlockSpark(
                     uint8_t opType = sparkName.second.nVersion >= 2 ?
                                                     sparkName.second.operationType : CSparkNameTxData::opRegister;
                     // For V2.1+, renewals and transfers preserve remaining validity
-                    int validityBlocks = sparkName.second.sparkNameValidityBlocks;
+                    uint64_t validityBlocks = sparkName.second.sparkNameValidityBlocks;
                     const auto& consensusParams = ::Params().GetConsensus();
                     if (pindexNew->nHeight >= consensusParams.nSparkNamesV21StartBlock) {
                         try {
-                            int existingExpirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
-                            int remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
-                            if (remainingBlocks > 0)
-                                validityBlocks += remainingBlocks;
+                            uint64_t existingExpirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
+                            if (existingExpirationHeight > static_cast<uint64_t>(pindexNew->nHeight))
+                                validityBlocks += existingExpirationHeight - pindexNew->nHeight;
                         } catch (const std::runtime_error&) {
                             // name doesn't exist yet, no adjustment needed
                         }
