@@ -11,6 +11,7 @@
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
+#include <limits>
 #include <boost/test/unit_test.hpp>
 
 namespace spark {
@@ -719,6 +720,19 @@ BOOST_AUTO_TEST_CASE(extension_max_validity)
     oldHeight = chainActive.Height();
     GenerateBlock({txExt6});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected - total exceeds 15 years
+}
+
+BOOST_AUTO_TEST_CASE(reject_wrapped_validity)
+{
+    Initialize(2700);
+
+    std::string addr = GenerateSparkAddress();
+    CMutableTransaction tx = CreateSparkNameTx("wrapvalid", addr, std::numeric_limits<uint32_t>::max(), "", false);
+
+    int oldHeight = chainActive.Height();
+    GenerateBlock({tx});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+    BOOST_CHECK(!IsSparkNamePresent("wrapvalid"));
 }
 
 BOOST_AUTO_TEST_CASE(tagged_fee_output_must_pay_fee)
