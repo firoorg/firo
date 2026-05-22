@@ -617,6 +617,7 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
     CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
 
     size_t verifyCount = 0;
+    std::unordered_set<NodeId> invalidLazySigSources;
     for (auto& p : sigSharesByNodes) {
         auto nodeId = p.first;
         auto& v = p.second;
@@ -629,6 +630,7 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
             // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
             // deserialization in the message thread
             if (!sigShare.sigShare.Get().IsValid()) {
+                invalidLazySigSources.emplace(nodeId);
                 BanNode(nodeId);
                 // don't process any additional shares from this node
                 break;
@@ -658,6 +660,12 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
     for (auto& p : sigSharesByNodes) {
         auto nodeId = p.first;
         auto& v = p.second;
+
+        if (invalidLazySigSources.count(nodeId)) {
+            LogPrintf("CSigSharesManager::%s -- invalid sig shares from other node, banning peer=%d\n",
+                     __func__, nodeId);
+            continue;
+        }
 
         if (batchVerifier.badSources.count(nodeId)) {
             LogPrintf("CSigSharesManager::%s -- invalid sig shares from other node, banning peer=%d\n",
@@ -1345,9 +1353,7 @@ void CSigSharesManager::RemoveBannedNodeStates()
     }
 
     g_connman->ForEachNode([&](CNode* pnode) {
-        if (!pnode->fDisconnect) {
-            nodeStatesToDelete.erase(pnode->id);
-        }
+        nodeStatesToDelete.erase(pnode->id);
     });
 
     LOCK(cs);
