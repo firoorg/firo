@@ -772,4 +772,61 @@ BOOST_AUTO_TEST_CASE(extension_mempool_uses_next_block_height)
     BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("nextheight"), originalExpiration + 1);
 }
 
+BOOST_AUTO_TEST_CASE(validity_overflow_protection)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    // Initialize past V2.1 (regtest V2.1 starts at 2700)
+    Initialize(2700);
+
+    std::string addr1 = GenerateSparkAddress();
+
+    // Register "overtest" with 1 year to have an existing name available for renewal
+    CMutableTransaction txReg = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg});
+    BOOST_CHECK(IsSparkNamePresent("overtest"));
+
+    // sparkNameValidityBlocks is uint32_t. Without the explicit uint32_t check, a value
+    // above INT_MAX narrows to a negative int, causing the 15-year cap comparison to
+    // silently pass. The tests below verify this is now rejected.
+
+    const uint32_t overflowBlocks = (uint32_t)INT_MAX + 1u; // minimal case that triggers the bug
+
+    // --- Fresh registration with sparkNameValidityBlocks = INT_MAX + 1 ---
+    std::string addr2 = GenerateSparkAddress();
+    CMutableTransaction txNewOverflow = CreateSparkNameTx("newname1", addr2, nBlockPerYear, "", false);
+    ModifySparkNameTx(txNewOverflow, [overflowBlocks](CSparkNameTxData &data) {
+        data.sparkNameValidityBlocks = overflowBlocks;
+    });
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txNewOverflow});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block must be rejected
+
+    // --- Renewal of existing name with sparkNameValidityBlocks = INT_MAX + 1 ---
+    CMutableTransaction txUpdateOverflow = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "", false);
+    ModifySparkNameTx(txUpdateOverflow, [overflowBlocks](CSparkNameTxData &data) {
+        data.sparkNameValidityBlocks = overflowBlocks;
+    });
+    oldHeight = chainActive.Height();
+    GenerateBlock({txUpdateOverflow});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block must be rejected
+
+    // --- UINT32_MAX variant ---
+    CMutableTransaction txMaxOverflow = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "", false);
+    ModifySparkNameTx(txMaxOverflow, [](CSparkNameTxData &data) {
+        data.sparkNameValidityBlocks = UINT32_MAX;
+    });
+    oldHeight = chainActive.Height();
+    GenerateBlock({txMaxOverflow});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block must be rejected
+
+    // Sanity: a valid 1-year renewal still goes through after all the failed attempts
+    CMutableTransaction txValid = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "ok", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txValid});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1); // block must be accepted
+    BOOST_CHECK(IsSparkNamePresent("overtest"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

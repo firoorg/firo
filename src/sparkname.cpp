@@ -209,10 +209,13 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     }
 
     constexpr int nBlockPerYear = 365*24*24; // 24 blocks per hour
-    int validityBlocks = sparkNameData.sparkNameValidityBlocks;
-    if (validityBlocks == 0)
+    if (sparkNameData.sparkNameValidityBlocks == 0)
         return state.DoS(100, error("CheckSparkNameTx: validity period must be at least 1 block"));
-  
+    // Explicit uint32_t check before narrowing to int to prevent integer overflow in the update path
+    if (sparkNameData.sparkNameValidityBlocks > (uint32_t)(nBlockPerYear * 15))
+        return state.DoS(100, error("CheckSparkNameTx: can't be valid for more than 15 years"));
+    int validityBlocks = (int)sparkNameData.sparkNameValidityBlocks;
+
     if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
         if (existingExpirationHeight != -1)
             validityBlocks = std::max(validityBlocks, existingExpirationHeight - nHeight + validityBlocks);
@@ -461,12 +464,17 @@ bool CSparkNameManager::ValidateSparkNameData(const CSparkNameTxData &sparkNameD
     if (errorDescription.empty() && nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
         if (existingExpirationHeight != -1) {
             constexpr int nBlockPerYear = 365*24*24;
-            int validityBlocks = sparkNameData.sparkNameValidityBlocks;
-            int remainingBlocks = existingExpirationHeight - nHeight;
-            if (remainingBlocks > 0)
-                validityBlocks += remainingBlocks;
-            if (validityBlocks > nBlockPerYear * 15)
-                errorDescription = "total validity including remaining time can't exceed 15 years";
+            // Explicit uint32_t check before narrowing to int to prevent integer overflow in the update path
+            if (sparkNameData.sparkNameValidityBlocks > (uint32_t)(nBlockPerYear * 15)) {
+                errorDescription = "validity blocks in sparkNameData exceed 15 years limit";
+            } else {
+                int validityBlocks = (int)sparkNameData.sparkNameValidityBlocks;
+                int remainingBlocks = existingExpirationHeight - nHeight;
+                if (remainingBlocks > 0)
+                    validityBlocks += remainingBlocks;
+                if (validityBlocks > nBlockPerYear * 15)
+                    errorDescription = "total validity including remaining time can't exceed 15 years";
+            }
         }
     }
 
