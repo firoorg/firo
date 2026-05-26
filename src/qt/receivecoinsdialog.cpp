@@ -27,6 +27,9 @@
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QScreen>
+#include <QVector>
+
+#include <algorithm>
 
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -225,7 +228,7 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         ui->reqAmount->value(), ui->reqMessage->text());
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setModel(model->getOptionsModel());
+    dialog->setModel(model);
     dialog->setInfo(info);
     dialog->show();
     clear();
@@ -239,7 +242,7 @@ void ReceiveCoinsDialog::on_recentRequestsView_doubleClicked(const QModelIndex &
     QModelIndex targetIdx = recentRequestsProxyModel->mapToSource(index);
     const RecentRequestsTableModel *submodel = model->getRecentRequestsTableModel();
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
-    dialog->setModel(model->getOptionsModel());
+    dialog->setModel(model);
     dialog->setInfo(submodel->entry(targetIdx.row()).recipient);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
@@ -266,15 +269,27 @@ void ReceiveCoinsDialog::on_showRequestButton_clicked()
 
 void ReceiveCoinsDialog::on_removeRequestButton_clicked()
 {
-    if(!model || !model->getRecentRequestsTableModel() || !ui->recentRequestsView->selectionModel())
+    if(!model || !model->getRecentRequestsTableModel() || !recentRequestsProxyModel || !ui->recentRequestsView->selectionModel())
         return;
     QModelIndexList selection = ui->recentRequestsView->selectionModel()->selectedRows();
     if(selection.empty())
         return;
-    // correct for selection mode ContiguousSelection
-    QModelIndex index = selection.at(0);
-    QModelIndex firstIndex = recentRequestsProxyModel->mapToSource(index);
-    model->getRecentRequestsTableModel()->removeRows(firstIndex.row(), selection.length(), firstIndex.parent());
+
+    QVector<int> sourceRows;
+    sourceRows.reserve(selection.size());
+    for (const QModelIndex& index : selection) {
+        QModelIndex sourceIndex = recentRequestsProxyModel->mapToSource(index);
+        if (sourceIndex.isValid())
+            sourceRows.append(sourceIndex.row());
+    }
+
+    std::sort(sourceRows.begin(), sourceRows.end(), [](int left, int right) {
+        return left > right;
+    });
+
+    for (int row : sourceRows) {
+        model->getRecentRequestsTableModel()->removeRows(row, 1);
+    }
 }
 
 void ReceiveCoinsDialog::keyPressEvent(QKeyEvent *event)
@@ -295,14 +310,13 @@ void ReceiveCoinsDialog::keyPressEvent(QKeyEvent *event)
 
 QModelIndex ReceiveCoinsDialog::selectedRow()
 {
-    if(!model || !model->getRecentRequestsTableModel() || !ui->recentRequestsView->selectionModel())
+    if(!model || !model->getRecentRequestsTableModel() || !recentRequestsProxyModel || !ui->recentRequestsView->selectionModel())
         return QModelIndex();
     QModelIndexList selection = ui->recentRequestsView->selectionModel()->selectedRows();
     if(selection.empty())
         return QModelIndex();
-    // correct for selection mode ContiguousSelection
     QModelIndex firstIndex = selection.at(0);
-    return firstIndex;
+    return recentRequestsProxyModel->mapToSource(firstIndex);
 }
 
 // copy column of selected row to clipboard
