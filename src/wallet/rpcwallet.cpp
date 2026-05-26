@@ -4956,6 +4956,22 @@ UniValue requestsparknametransfer(const JSONRPCRequest &request) {
     sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
     sparkNameData.operationType = CSparkNameTxData::opTransfer;
 
+    // V2.1+: bind inputsHash to the name's current expiration height so the proof
+    // is specific to this registration cycle and cannot be replayed after the name
+    // expires and is re-registered at the same address.
+    if (chainHeight >= consensusParams.nSparkNamesV21StartBlock) {
+        CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+        try {
+            uint64_t expirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+            CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
+            hw << expirationHeight;
+            sparkNameData.inputsHash = hw.GetHash();
+        } catch (const std::exception &x) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                std::string("Spark name not found or not active: ") + x.what());
+        }
+    }
+
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     ss << sparkNameData;
 
