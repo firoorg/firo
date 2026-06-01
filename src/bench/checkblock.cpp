@@ -47,8 +47,10 @@ static void DeserializeAndCheckBlockTest(benchmark::State& state)
         bool rewound = stream.Rewind(benchmark::data::block413567.size());
         assert(rewound);
 
+        // block413567.raw is a Bitcoin Core benchmark vector; keep the
+        // full-block structural checks, but do not require Firo PoW validity.
         CValidationState validationState;
-        assert(CheckBlock(block, validationState, params));
+        assert(CheckBlock(block, validationState, params, false, true, 0));
     }
 }
 

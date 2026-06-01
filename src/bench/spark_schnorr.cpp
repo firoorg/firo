@@ -1,30 +1,36 @@
-// Copyright (c) 2025 The Firo Core developers
+// Copyright (c) 2026 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "benchmark.h"
+#include "bench.h"
+
+#include "../libspark/params.h"
 #include "../libspark/schnorr.h"
-#include <iostream>
 
-using namespace spark;
-using namespace benchmark;
+#include <cstdlib>
+#include <cstddef>
+#include <vector>
 
-// Helper to generate test data for Schnorr signatures
+namespace {
+
+using secp_primitives::GroupElement;
+using secp_primitives::Scalar;
+
 struct SchnorrTestData {
     std::size_t n; // number of keys
-    
+
     GroupElement G;
     std::vector<Scalar> y;
     std::vector<GroupElement> Y;
-    
-    SchnorrTestData(std::size_t n_) : n(n_) {
-        // Generate generator
-        G.randomize();
-        
-        // Generate key pairs
+
+    explicit SchnorrTestData(const std::size_t n_)
+        : n(n_)
+    {
+        G = spark::Params::get_default()->get_H();
+
         y.resize(n);
         Y.resize(n);
-        
+
         for (std::size_t i = 0; i < n; ++i) {
             y[i].randomize();
             Y[i] = G * y[i];
@@ -32,140 +38,94 @@ struct SchnorrTestData {
     }
 };
 
-// Benchmark Schnorr signature generation (single key)
-void bench_schnorr_prove_1key() {
-    SchnorrTestData data(1);
-    Schnorr schnorr(data.G);
-    
-    BenchRunner runner("Schnorr_Sign_1Key", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        SchnorrProof proof;
+void RequireValid(const bool result)
+{
+    if (!result) {
+        std::abort();
+    }
+}
+
+void SchnorrProveKeys(benchmark::State& state, const std::size_t keys)
+{
+    SchnorrTestData data(keys);
+    spark::Schnorr schnorr(data.G);
+
+    while (state.KeepRunning()) {
+        spark::SchnorrProof proof;
+        if (keys == 1) {
+            schnorr.prove(data.y[0], data.Y[0], proof);
+        } else {
+            schnorr.prove(data.y, data.Y, proof);
+        }
+    }
+}
+
+void SchnorrVerifyKeys(benchmark::State& state, const std::size_t keys)
+{
+    SchnorrTestData data(keys);
+    spark::Schnorr schnorr(data.G);
+    spark::SchnorrProof proof;
+
+    if (keys == 1) {
         schnorr.prove(data.y[0], data.Y[0], proof);
-    });
-    metrics.print();
-}
-
-// Benchmark Schnorr signature generation (multiple keys)
-void bench_schnorr_prove_2keys() {
-    SchnorrTestData data(2);
-    Schnorr schnorr(data.G);
-    
-    BenchRunner runner("Schnorr_Sign_2Keys", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        SchnorrProof proof;
+        while (state.KeepRunning()) {
+            RequireValid(schnorr.verify(data.Y[0], proof));
+        }
+    } else {
         schnorr.prove(data.y, data.Y, proof);
-    });
-    metrics.print();
-}
-
-void bench_schnorr_prove_4keys() {
-    SchnorrTestData data(4);
-    Schnorr schnorr(data.G);
-    
-    BenchRunner runner("Schnorr_Sign_4Keys", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        SchnorrProof proof;
-        schnorr.prove(data.y, data.Y, proof);
-    });
-    metrics.print();
-}
-
-void bench_schnorr_prove_8keys() {
-    SchnorrTestData data(8);
-    Schnorr schnorr(data.G);
-    
-    BenchRunner runner("Schnorr_Sign_8Keys", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        SchnorrProof proof;
-        schnorr.prove(data.y, data.Y, proof);
-    });
-    metrics.print();
-}
-
-// Benchmark Schnorr signature verification (single key)
-void bench_schnorr_verify_1key() {
-    SchnorrTestData data(1);
-    Schnorr schnorr(data.G);
-    
-    SchnorrProof proof;
-    schnorr.prove(data.y[0], data.Y[0], proof);
-    
-    BenchRunner runner("Schnorr_Verify_1Key", 1000, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = schnorr.verify(data.Y[0], proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
+        while (state.KeepRunning()) {
+            RequireValid(schnorr.verify(data.Y, proof));
         }
-    });
-    metrics.print();
+    }
 }
 
-// Benchmark Schnorr signature verification (multiple keys)
-void bench_schnorr_verify_2keys() {
-    SchnorrTestData data(2);
-    Schnorr schnorr(data.G);
-    
-    SchnorrProof proof;
-    schnorr.prove(data.y, data.Y, proof);
-    
-    BenchRunner runner("Schnorr_Verify_2Keys", 1000, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = schnorr.verify(data.Y, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
+void SparkSchnorrProve1Key(benchmark::State& state)
+{
+    SchnorrProveKeys(state, 1);
 }
 
-void bench_schnorr_verify_4keys() {
-    SchnorrTestData data(4);
-    Schnorr schnorr(data.G);
-    
-    SchnorrProof proof;
-    schnorr.prove(data.y, data.Y, proof);
-    
-    BenchRunner runner("Schnorr_Verify_4Keys", 1000, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = schnorr.verify(data.Y, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
+void SparkSchnorrProve2Keys(benchmark::State& state)
+{
+    SchnorrProveKeys(state, 2);
 }
 
-void bench_schnorr_verify_8keys() {
-    SchnorrTestData data(8);
-    Schnorr schnorr(data.G);
-    
-    SchnorrProof proof;
-    schnorr.prove(data.y, data.Y, proof);
-    
-    BenchRunner runner("Schnorr_Verify_8Keys", 1000, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = schnorr.verify(data.Y, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
+void SparkSchnorrProve4Keys(benchmark::State& state)
+{
+    SchnorrProveKeys(state, 4);
 }
 
-int main() {
-    std::cout << "=== Spark Schnorr Signature Benchmarks ===\n\n";
-    
-    std::cout << "--- Signature Generation ---\n";
-    bench_schnorr_prove_1key();
-    bench_schnorr_prove_2keys();
-    bench_schnorr_prove_4keys();
-    bench_schnorr_prove_8keys();
-    
-    std::cout << "\n--- Signature Verification ---\n";
-    bench_schnorr_verify_1key();
-    bench_schnorr_verify_2keys();
-    bench_schnorr_verify_4keys();
-    bench_schnorr_verify_8keys();
-    
-    return 0;
+void SparkSchnorrProve8Keys(benchmark::State& state)
+{
+    SchnorrProveKeys(state, 8);
 }
+
+void SparkSchnorrVerify1Key(benchmark::State& state)
+{
+    SchnorrVerifyKeys(state, 1);
+}
+
+void SparkSchnorrVerify2Keys(benchmark::State& state)
+{
+    SchnorrVerifyKeys(state, 2);
+}
+
+void SparkSchnorrVerify4Keys(benchmark::State& state)
+{
+    SchnorrVerifyKeys(state, 4);
+}
+
+void SparkSchnorrVerify8Keys(benchmark::State& state)
+{
+    SchnorrVerifyKeys(state, 8);
+}
+
+} // namespace
+
+BENCHMARK(SparkSchnorrProve1Key);
+BENCHMARK(SparkSchnorrProve2Keys);
+BENCHMARK(SparkSchnorrProve4Keys);
+BENCHMARK(SparkSchnorrProve8Keys);
+BENCHMARK(SparkSchnorrVerify1Key);
+BENCHMARK(SparkSchnorrVerify2Keys);
+BENCHMARK(SparkSchnorrVerify4Keys);
+BENCHMARK(SparkSchnorrVerify8Keys);

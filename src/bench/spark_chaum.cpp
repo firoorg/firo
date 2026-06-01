@@ -1,190 +1,141 @@
-// Copyright (c) 2025 The Firo Core developers
+// Copyright (c) 2026 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "benchmark.h"
+#include "bench.h"
+
 #include "../libspark/chaum.h"
-#include <iostream>
+#include "../libspark/params.h"
 
-using namespace spark;
-using namespace benchmark;
+#include <cstdlib>
+#include <cstddef>
+#include <vector>
 
-// Helper to generate test data for Chaum proofs
+namespace {
+
+using secp_primitives::GroupElement;
+using secp_primitives::Scalar;
+
+void RequireValid(const bool result)
+{
+    if (!result) {
+        std::abort();
+    }
+}
+
 struct ChaumTestData {
-    std::size_t n; // number of commitments
-    
-    GroupElement F, G, H, U;
+    std::size_t n;
+
+    GroupElement F;
+    GroupElement G;
+    GroupElement H;
+    GroupElement U;
     Scalar mu;
-    
-    std::vector<Scalar> x, y, z;
-    std::vector<GroupElement> S, T;
-    
-    ChaumTestData(std::size_t n_) : n(n_) {
-        // Generate generators
-        F.randomize();
-        G.randomize();
-        H.randomize();
-        U.randomize();
-        
-        // Generate scalar mu
+
+    std::vector<Scalar> x;
+    std::vector<Scalar> y;
+    std::vector<Scalar> z;
+    std::vector<GroupElement> S;
+    std::vector<GroupElement> T;
+
+    explicit ChaumTestData(const std::size_t n_)
+        : n(n_)
+    {
+        const spark::Params* params = spark::Params::get_default();
+        F = params->get_F();
+        G = params->get_G();
+        H = params->get_H();
+        U = params->get_U();
         mu.randomize();
-        
-        // Generate witness scalars
+
         x.resize(n);
         y.resize(n);
         z.resize(n);
-        
+        S.resize(n);
+        T.resize(n);
+
         for (std::size_t i = 0; i < n; ++i) {
             x[i].randomize();
             y[i].randomize();
             z[i].randomize();
-        }
-        
-        // Generate commitments S and T
-        // S[i] = F^x[i] * G^y[i] * H^z[i]
-        // T[i] = U^x[i] * G^(mu*y[i])
-        S.resize(n);
-        T.resize(n);
-        
-        for (std::size_t i = 0; i < n; ++i) {
+
             S[i] = F * x[i] + G * y[i] + H * z[i];
             T[i] = (U + G * y[i].negate()) * x[i].inverse();
         }
     }
 };
 
-// Benchmark Chaum proof generation with different commitment counts
-void bench_chaum_prove_1commitment() {
-    ChaumTestData data(1);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    BenchRunner runner("Chaum_Prove_1Commitment", 100, 1.0);
-    auto metrics = runner.run([&]() {
-        ChaumProof proof;
+void ChaumProve(benchmark::State& state, const std::size_t commitments)
+{
+    ChaumTestData data(commitments);
+    spark::Chaum chaum(data.F, data.G, data.H, data.U);
+
+    while (state.KeepRunning()) {
+        spark::ChaumProof proof;
         chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    });
-    metrics.print();
+    }
 }
 
-void bench_chaum_prove_2commitments() {
-    ChaumTestData data(2);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    BenchRunner runner("Chaum_Prove_2Commitments", 100, 1.0);
-    auto metrics = runner.run([&]() {
-        ChaumProof proof;
-        chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    });
-    metrics.print();
-}
+void ChaumVerify(benchmark::State& state, const std::size_t commitments)
+{
+    ChaumTestData data(commitments);
+    spark::Chaum chaum(data.F, data.G, data.H, data.U);
 
-void bench_chaum_prove_4commitments() {
-    ChaumTestData data(4);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    BenchRunner runner("Chaum_Prove_4Commitments", 100, 1.0);
-    auto metrics = runner.run([&]() {
-        ChaumProof proof;
-        chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    });
-    metrics.print();
-}
-
-void bench_chaum_prove_8commitments() {
-    ChaumTestData data(8);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    BenchRunner runner("Chaum_Prove_8Commitments", 50, 1.0);
-    auto metrics = runner.run([&]() {
-        ChaumProof proof;
-        chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    });
-    metrics.print();
-}
-
-// Benchmark Chaum proof verification
-void bench_chaum_verify_1commitment() {
-    ChaumTestData data(1);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    ChaumProof proof;
+    spark::ChaumProof proof;
     chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    
-    BenchRunner runner("Chaum_Verify_1Commitment", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = chaum.verify(data.mu, data.S, data.T, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
+
+    while (state.KeepRunning()) {
+        RequireValid(chaum.verify(data.mu, data.S, data.T, proof));
+    }
 }
 
-void bench_chaum_verify_2commitments() {
-    ChaumTestData data(2);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    ChaumProof proof;
-    chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    
-    BenchRunner runner("Chaum_Verify_2Commitments", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = chaum.verify(data.mu, data.S, data.T, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
+void SparkChaumProve1Commitment(benchmark::State& state)
+{
+    ChaumProve(state, 1);
 }
 
-void bench_chaum_verify_4commitments() {
-    ChaumTestData data(4);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    ChaumProof proof;
-    chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    
-    BenchRunner runner("Chaum_Verify_4Commitments", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = chaum.verify(data.mu, data.S, data.T, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
+void SparkChaumProve2Commitments(benchmark::State& state)
+{
+    ChaumProve(state, 2);
 }
 
-void bench_chaum_verify_8commitments() {
-    ChaumTestData data(8);
-    Chaum chaum(data.F, data.G, data.H, data.U);
-    
-    ChaumProof proof;
-    chaum.prove(data.mu, data.x, data.y, data.z, data.S, data.T, proof);
-    
-    BenchRunner runner("Chaum_Verify_8Commitments", 500, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = chaum.verify(data.mu, data.S, data.T, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
+void SparkChaumProve4Commitments(benchmark::State& state)
+{
+    ChaumProve(state, 4);
 }
 
-int main() {
-    std::cout << "=== Spark Chaum Proof Benchmarks ===\n\n";
-    
-    std::cout << "--- Proof Generation ---\n";
-    bench_chaum_prove_1commitment();
-    bench_chaum_prove_2commitments();
-    bench_chaum_prove_4commitments();
-    bench_chaum_prove_8commitments();
-    
-    std::cout << "\n--- Proof Verification ---\n";
-    bench_chaum_verify_1commitment();
-    bench_chaum_verify_2commitments();
-    bench_chaum_verify_4commitments();
-    bench_chaum_verify_8commitments();
-    
-    return 0;
+void SparkChaumProve8Commitments(benchmark::State& state)
+{
+    ChaumProve(state, 8);
 }
+
+void SparkChaumVerify1Commitment(benchmark::State& state)
+{
+    ChaumVerify(state, 1);
+}
+
+void SparkChaumVerify2Commitments(benchmark::State& state)
+{
+    ChaumVerify(state, 2);
+}
+
+void SparkChaumVerify4Commitments(benchmark::State& state)
+{
+    ChaumVerify(state, 4);
+}
+
+void SparkChaumVerify8Commitments(benchmark::State& state)
+{
+    ChaumVerify(state, 8);
+}
+
+} // namespace
+
+BENCHMARK(SparkChaumProve1Commitment);
+BENCHMARK(SparkChaumProve2Commitments);
+BENCHMARK(SparkChaumProve4Commitments);
+BENCHMARK(SparkChaumProve8Commitments);
+BENCHMARK(SparkChaumVerify1Commitment);
+BENCHMARK(SparkChaumVerify2Commitments);
+BENCHMARK(SparkChaumVerify4Commitments);
+BENCHMARK(SparkChaumVerify8Commitments);

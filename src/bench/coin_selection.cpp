@@ -3,10 +3,41 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "bench.h"
+
+#include "dbwrapper.h"
+#include "llmq/quorums_instantsend.h"
 #include "wallet/wallet.h"
 
 #include <boost/foreach.hpp>
 #include <set>
+
+namespace {
+
+class ScopedInstantSendManager
+{
+public:
+    ScopedInstantSendManager()
+        : db("", 1 << 20, true, true)
+        , manager(db)
+        , previous(llmq::quorumInstantSendManager)
+    {
+        if (previous == nullptr) {
+            llmq::quorumInstantSendManager = &manager;
+        }
+    }
+
+    ~ScopedInstantSendManager()
+    {
+        if (previous == nullptr) {
+            llmq::quorumInstantSendManager = nullptr;
+        }
+    }
+
+private:
+    CDBWrapper db;
+    llmq::CInstantSendManager manager;
+    llmq::CInstantSendManager* const previous;
+};
 
 static void addCoin(const CAmount& nValue, const CWallet& wallet, std::vector<COutput>& vCoins)
 {
@@ -33,6 +64,7 @@ static void addCoin(const CAmount& nValue, const CWallet& wallet, std::vector<CO
 // (https://github.com/bitcoin/bitcoin/issues/7883#issuecomment-224807484)
 static void CoinSelection(benchmark::State& state)
 {
+    ScopedInstantSendManager instant_send;
     const CWallet wallet;
     std::vector<COutput> vCoins;
     LOCK(wallet.cs_wallet);
@@ -56,5 +88,7 @@ static void CoinSelection(benchmark::State& state)
         assert(setCoinsRet.size() == 2);
     }
 }
+
+} // namespace
 
 BENCHMARK(CoinSelection);

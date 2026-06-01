@@ -4,10 +4,14 @@
 
 #include "bench.h"
 
+#include "chainparams.h"
 #include "key.h"
+#include "pubkey.h"
 #include "stacktraces.h"
 #include "validation.h"
 #include "util.h"
+
+#include <string>
 
 int
 main(int argc, char** argv)
@@ -17,10 +21,22 @@ main(int argc, char** argv)
     RegisterPrettyTerminateHander();
 #endif
     ECC_Start();
-    SetupEnvironment();
-    fPrintToDebugLog = false; // don't want to write to debug.log file
+    {
+        ECCVerifyHandle globalVerifyHandle;
 
-    benchmark::BenchRunner::RunAll();
+        SetupEnvironment();
+        SelectParams(CBaseChainParams::MAIN);
+        fPrintToDebugLog = false; // don't want to write to debug.log file
+
+        double elapsed_time_for_one = 1.0;
+        for (int i = 1; i < argc; ++i) {
+            if (std::string(argv[i]) == "-sanity-check") {
+                elapsed_time_for_one = 0.001;
+            }
+        }
+
+        benchmark::BenchRunner::RunAll(elapsed_time_for_one);
+    }
 
     ECC_Stop();
 }

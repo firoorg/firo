@@ -11,6 +11,9 @@ string(REGEX REPLACE "[^\n][^\n]" "std::byte{0x\\0}, " formatted_bytes "${format
 string(LENGTH "${hex_content}" content_length)
 math(EXPR array_size "${content_length} / 2")
 
+cmake_path(GET HEADER_PATH PARENT_PATH header_dir)
+file(MAKE_DIRECTORY "${header_dir}")
+
 set(header_content
 "#include <array>
 #include <cstddef>

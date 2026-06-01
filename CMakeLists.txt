@@ -283,6 +283,7 @@ if(BUILD_GUI)
 endif()
 
 option(BUILD_BENCH "Build bench_firo executable." OFF)
+option(BUILD_BENCH_SPARK "Build Spark benchmarks into bench_firo." OFF)
 option(BUILD_FUZZ_BINARY "Build fuzz binary." OFF)
 option(BUILD_FOR_FUZZING "Build for fuzzing. Enabling this will disable all other targets and override BUILD_FUZZ_BINARY." OFF)
 
@@ -339,6 +340,7 @@ if(BUILD_FOR_FUZZING)
   set(BUILD_TESTS OFF)
   set(BUILD_GUI_TESTS OFF)
   set(BUILD_BENCH OFF)
+  set(BUILD_BENCH_SPARK OFF)
   set(BUILD_FUZZ_BINARY ON)
 
   target_compile_definitions(core_interface INTERFACE
@@ -853,7 +855,7 @@ if(DEFINED ENV{LDFLAGS})
   deduplicate_flags(CMAKE_EXE_LINKER_FLAGS)
 endif()
 
-if(BUILD_TESTS)
+if(BUILD_TESTS OR BUILD_BENCH)
   enable_testing()
 endif()
 
@@ -956,6 +958,7 @@ message("Tests:")
 message("  test_firo ........................ ${BUILD_TESTS}")
 message("  test_firo-qt ..................... ${BUILD_GUI_TESTS}")
 message("  bench_firo ....................... ${BUILD_BENCH}")
+message("  Spark benchmarks ................. ${BUILD_BENCH_SPARK}")
 message("  fuzz binary ......................... ${BUILD_FUZZ_BINARY}")
 message("")
 if(CMAKE_CROSSCOMPILING)

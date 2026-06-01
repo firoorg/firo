@@ -1,298 +1,215 @@
-// Copyright (c) 2025 The Firo Core developers
+// Copyright (c) 2026 The Firo Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "benchmark.h"
+#include "bench.h"
+
 #include "../libspark/bpplus.h"
 #include "../libspark/params.h"
-#include <iostream>
 
-using namespace spark;
-using namespace benchmark;
+#include <cstdlib>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
 
-// Helper to generate test data for BPPlus range proofs
+namespace {
+
+using secp_primitives::GroupElement;
+using secp_primitives::Scalar;
+
+std::size_t NextPowerOfTwo(const std::size_t n)
+{
+    if (spark::is_nonzero_power_of_2(n)) {
+        return n;
+    }
+
+    return std::size_t{1} << (spark::log2(n) + 1);
+}
+
+void RequireValid(const bool result)
+{
+    if (!result) {
+        std::abort();
+    }
+}
+
 struct BPPlusTestData {
-    std::size_t N; // bit length
+    std::size_t N;
     std::size_t num_outputs;
-    
-    GroupElement G, H;
-    std::vector<GroupElement> Gi, Hi;
-    
-    std::vector<Scalar> v; // values
-    std::vector<Scalar> r; // randomness
-    std::vector<GroupElement> C; // commitments
-    
-    BPPlusTestData(std::size_t N_, std::size_t num_outputs_) : N(N_), num_outputs(num_outputs_) {
-        // Generate generators
-        G.randomize();
-        H.randomize();
-        
-        // Pad num_outputs to next power of 2 if needed
-        std::size_t M = num_outputs;
-        if ((M & (M - 1)) != 0) {
-            M = 1 << (64 - __builtin_clzll(M));
+
+    GroupElement G;
+    GroupElement H;
+    std::vector<GroupElement> Gi;
+    std::vector<GroupElement> Hi;
+
+    std::vector<Scalar> v;
+    std::vector<Scalar> r;
+    std::vector<GroupElement> C;
+
+    BPPlusTestData(const std::size_t N_, const std::size_t num_outputs_)
+        : N(N_)
+        , num_outputs(num_outputs_)
+    {
+        const spark::Params* params = spark::Params::get_default();
+        G = params->get_G();
+        H = params->get_H();
+
+        const std::size_t padded_outputs = NextPowerOfTwo(num_outputs);
+        const std::size_t required_generators = N * padded_outputs;
+        const std::vector<GroupElement>& default_Gi = params->get_G_range();
+        const std::vector<GroupElement>& default_Hi = params->get_H_range();
+        if (required_generators > default_Gi.size() || required_generators > default_Hi.size()) {
+            throw std::invalid_argument("BPPlus benchmark exceeds default Spark range generators");
         }
-        
-        Gi.resize(N * M);
-        Hi.resize(N * M);
-        for (std::size_t i = 0; i < N * M; ++i) {
-            Gi[i].randomize();
-            Hi[i].randomize();
-        }
-        
-        // Generate values and commitments
+        Gi.assign(default_Gi.begin(), default_Gi.begin() + required_generators);
+        Hi.assign(default_Hi.begin(), default_Hi.begin() + required_generators);
+
         v.resize(num_outputs);
         r.resize(num_outputs);
         C.resize(num_outputs);
-        
         for (std::size_t i = 0; i < num_outputs; ++i) {
-            // Generate random value within range
-            uint64_t val = rand() % (1ULL << std::min(N, 32UL));
-            v[i] = Scalar(val);
+            v[i] = Scalar(static_cast<uint64_t>(i + 1));
             r[i].randomize();
-            
-            // Commitment: C = vG + rH
             C[i] = G * v[i] + H * r[i];
         }
     }
 };
 
-// Benchmark BPPlus proof generation with different output counts
-void bench_bpplus_prove_1output() {
-    BPPlusTestData data(64, 1);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BenchRunner runner("BPPlus_Prove_1Output_64bit", 10, 1.0);
-    auto metrics = runner.run([&]() {
-        BPPlusProof proof;
-        bpplus.prove(data.v, data.r, data.C, proof);
-    });
-    metrics.print();
-}
+struct BPPlusBatchData {
+    BPPlusTestData params;
+    std::vector<spark::BPPlusProof> proofs;
+    std::vector<std::vector<GroupElement>> commitments;
 
-void bench_bpplus_prove_2outputs() {
-    BPPlusTestData data(64, 2);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BenchRunner runner("BPPlus_Prove_2Outputs_64bit", 10, 1.0);
-    auto metrics = runner.run([&]() {
-        BPPlusProof proof;
-        bpplus.prove(data.v, data.r, data.C, proof);
-    });
-    metrics.print();
-}
+    BPPlusBatchData(const std::size_t num_proofs, const std::size_t outputs_per_proof)
+        : params(64, outputs_per_proof)
+    {
+        spark::BPPlus bpplus(params.G, params.H, params.Gi, params.Hi, params.N);
 
-void bench_bpplus_prove_4outputs() {
-    BPPlusTestData data(64, 4);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BenchRunner runner("BPPlus_Prove_4Outputs_64bit", 10, 1.0);
-    auto metrics = runner.run([&]() {
-        BPPlusProof proof;
-        bpplus.prove(data.v, data.r, data.C, proof);
-    });
-    metrics.print();
-}
+        proofs.resize(num_proofs);
+        commitments.reserve(num_proofs);
+        for (std::size_t i = 0; i < num_proofs; ++i) {
+            std::vector<Scalar> v(outputs_per_proof);
+            std::vector<Scalar> r(outputs_per_proof);
+            std::vector<GroupElement> C(outputs_per_proof);
 
-void bench_bpplus_prove_8outputs() {
-    BPPlusTestData data(64, 8);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BenchRunner runner("BPPlus_Prove_8Outputs_64bit", 5, 1.0);
-    auto metrics = runner.run([&]() {
-        BPPlusProof proof;
-        bpplus.prove(data.v, data.r, data.C, proof);
-    });
-    metrics.print();
-}
+            for (std::size_t j = 0; j < outputs_per_proof; ++j) {
+                v[j] = Scalar(static_cast<uint64_t>((i + 1) * (j + 1)));
+                r[j].randomize();
+                C[j] = params.G * v[j] + params.H * r[j];
+            }
 
-// Benchmark with different bit lengths
-void bench_bpplus_prove_32bit() {
-    BPPlusTestData data(32, 2);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BenchRunner runner("BPPlus_Prove_2Outputs_32bit", 10, 1.0);
-    auto metrics = runner.run([&]() {
-        BPPlusProof proof;
-        bpplus.prove(data.v, data.r, data.C, proof);
-    });
-    metrics.print();
-}
-
-void bench_bpplus_prove_128bit() {
-    BPPlusTestData data(128, 2);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BenchRunner runner("BPPlus_Prove_2Outputs_128bit", 5, 1.0);
-    auto metrics = runner.run([&]() {
-        BPPlusProof proof;
-        bpplus.prove(data.v, data.r, data.C, proof);
-    });
-    metrics.print();
-}
-
-// Benchmark BPPlus proof verification
-void bench_bpplus_verify_1output() {
-    BPPlusTestData data(64, 1);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BPPlusProof proof;
-    bpplus.prove(data.v, data.r, data.C, proof);
-    
-    BenchRunner runner("BPPlus_Verify_1Output_64bit", 50, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = bpplus.verify(data.C, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
+            bpplus.prove(v, r, C, proofs[i]);
+            commitments.emplace_back(C);
         }
-    });
-    metrics.print();
-}
-
-void bench_bpplus_verify_2outputs() {
-    BPPlusTestData data(64, 2);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BPPlusProof proof;
-    bpplus.prove(data.v, data.r, data.C, proof);
-    
-    BenchRunner runner("BPPlus_Verify_2Outputs_64bit", 50, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = bpplus.verify(data.C, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
-}
-
-void bench_bpplus_verify_4outputs() {
-    BPPlusTestData data(64, 4);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BPPlusProof proof;
-    bpplus.prove(data.v, data.r, data.C, proof);
-    
-    BenchRunner runner("BPPlus_Verify_4Outputs_64bit", 50, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = bpplus.verify(data.C, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
-}
-
-void bench_bpplus_verify_8outputs() {
-    BPPlusTestData data(64, 8);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    BPPlusProof proof;
-    bpplus.prove(data.v, data.r, data.C, proof);
-    
-    BenchRunner runner("BPPlus_Verify_8Outputs_64bit", 30, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = bpplus.verify(data.C, proof);
-        if (!result) {
-            std::cerr << "Verification failed!\n";
-        }
-    });
-    metrics.print();
-}
-
-// Benchmark batch verification
-void bench_bpplus_batch_verify_10proofs() {
-    const size_t num_proofs = 10;
-    BPPlusTestData data(64, 2);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    // Generate multiple proofs
-    std::vector<BPPlusProof> proofs;
-    std::vector<std::vector<GroupElement>> C_vec;
-
-    for (size_t i = 0; i < num_proofs; ++i) {
-        // Generate independent values and commitments for each proof
-        std::vector<Scalar> v_i(2), r_i(2);
-        std::vector<GroupElement> C_i(2);
-        for (size_t j = 0; j < 2; ++j) {
-            uint64_t val = rand() % (1ULL << 32);
-            v_i[j] = Scalar(val);
-            r_i[j].randomize();
-            C_i[j] = data.G * v_i[j] + data.H * r_i[j];
-        }
-        BPPlusProof proof;
-        bpplus.prove(v_i, r_i, C_i, proof);
-        proofs.push_back(proof);
-        C_vec.push_back(C_i);
     }
+};
 
-    BenchRunner runner("BPPlus_BatchVerify_10Proofs_2Outputs", 20, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = bpplus.verify(C_vec, proofs);
-        if (!result) {
-            std::cerr << "Batch verification failed!\n";
-        }
-    });
-    metrics.print();
-}
+void BPPlusProve(benchmark::State& state, const std::size_t bit_length, const std::size_t outputs)
+{
+    BPPlusTestData data(bit_length, outputs);
+    spark::BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
 
-void bench_bpplus_batch_verify_50proofs() {
-    const size_t num_proofs = 50;
-    BPPlusTestData data(64, 2);
-    BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
-    
-    // Generate multiple proofs
-    std::vector<BPPlusProof> proofs;
-    std::vector<std::vector<GroupElement>> C_vec;
-
-    for (size_t i = 0; i < num_proofs; ++i) {
-        // Generate independent values and commitments for each proof
-        std::vector<Scalar> v_i(2), r_i(2);
-        std::vector<GroupElement> C_i(2);
-        for (size_t j = 0; j < 2; ++j) {
-            uint64_t val = rand() % (1ULL << 32);
-            v_i[j] = Scalar(val);
-            r_i[j].randomize();
-            C_i[j] = data.G * v_i[j] + data.H * r_i[j];
-        }
-        BPPlusProof proof;
-        bpplus.prove(v_i, r_i, C_i, proof);
-        proofs.push_back(proof);
-        C_vec.push_back(C_i);
+    while (state.KeepRunning()) {
+        spark::BPPlusProof proof;
+        bpplus.prove(data.v, data.r, data.C, proof);
     }
-    
-    BenchRunner runner("BPPlus_BatchVerify_50Proofs_2Outputs", 10, 1.0);
-    auto metrics = runner.run([&]() {
-        bool result = bpplus.verify(C_vec, proofs);
-        if (!result) {
-            std::cerr << "Batch verification failed!\n";
-        }
-    });
-    metrics.print();
 }
 
-int main() {
-    std::cout << "=== Spark BPPlus (Bulletproofs+) Benchmarks ===\n\n";
-    
-    std::cout << "--- Proof Generation (varying output count) ---\n";
-    bench_bpplus_prove_1output();
-    bench_bpplus_prove_2outputs();
-    bench_bpplus_prove_4outputs();
-    bench_bpplus_prove_8outputs();
-    
-    std::cout << "\n--- Proof Generation (varying bit length) ---\n";
-    bench_bpplus_prove_32bit();
-    bench_bpplus_prove_128bit();
-    
-    std::cout << "\n--- Proof Verification ---\n";
-    bench_bpplus_verify_1output();
-    bench_bpplus_verify_2outputs();
-    bench_bpplus_verify_4outputs();
-    bench_bpplus_verify_8outputs();
-    
-    std::cout << "\n--- Batch Verification ---\n";
-    bench_bpplus_batch_verify_10proofs();
-    bench_bpplus_batch_verify_50proofs();
-    
-    return 0;
+void BPPlusVerify(benchmark::State& state, const std::size_t bit_length, const std::size_t outputs)
+{
+    BPPlusTestData data(bit_length, outputs);
+    spark::BPPlus bpplus(data.G, data.H, data.Gi, data.Hi, data.N);
+
+    spark::BPPlusProof proof;
+    bpplus.prove(data.v, data.r, data.C, proof);
+
+    while (state.KeepRunning()) {
+        RequireValid(bpplus.verify(data.C, proof));
+    }
 }
+
+void BPPlusBatchVerify(benchmark::State& state, const std::size_t num_proofs)
+{
+    BPPlusBatchData data(num_proofs, 2);
+    spark::BPPlus bpplus(data.params.G, data.params.H, data.params.Gi, data.params.Hi, data.params.N);
+
+    while (state.KeepRunning()) {
+        RequireValid(bpplus.verify(data.commitments, data.proofs));
+    }
+}
+
+void SparkBPPlusProve1Output64Bit(benchmark::State& state)
+{
+    BPPlusProve(state, 64, 1);
+}
+
+void SparkBPPlusProve2Outputs64Bit(benchmark::State& state)
+{
+    BPPlusProve(state, 64, 2);
+}
+
+void SparkBPPlusProve4Outputs64Bit(benchmark::State& state)
+{
+    BPPlusProve(state, 64, 4);
+}
+
+void SparkBPPlusProve8Outputs64Bit(benchmark::State& state)
+{
+    BPPlusProve(state, 64, 8);
+}
+
+void SparkBPPlusProve2Outputs32Bit(benchmark::State& state)
+{
+    BPPlusProve(state, 32, 2);
+}
+
+void SparkBPPlusProve2Outputs128Bit(benchmark::State& state)
+{
+    BPPlusProve(state, 128, 2);
+}
+
+void SparkBPPlusVerify1Output64Bit(benchmark::State& state)
+{
+    BPPlusVerify(state, 64, 1);
+}
+
+void SparkBPPlusVerify2Outputs64Bit(benchmark::State& state)
+{
+    BPPlusVerify(state, 64, 2);
+}
+
+void SparkBPPlusVerify4Outputs64Bit(benchmark::State& state)
+{
+    BPPlusVerify(state, 64, 4);
+}
+
+void SparkBPPlusVerify8Outputs64Bit(benchmark::State& state)
+{
+    BPPlusVerify(state, 64, 8);
+}
+
+void SparkBPPlusBatchVerify10Proofs(benchmark::State& state)
+{
+    BPPlusBatchVerify(state, 10);
+}
+
+void SparkBPPlusBatchVerify50Proofs(benchmark::State& state)
+{
+    BPPlusBatchVerify(state, 50);
+}
+
+} // namespace
+
+BENCHMARK(SparkBPPlusProve1Output64Bit);
+BENCHMARK(SparkBPPlusProve2Outputs64Bit);
+BENCHMARK(SparkBPPlusProve4Outputs64Bit);
+BENCHMARK(SparkBPPlusProve8Outputs64Bit);
+BENCHMARK(SparkBPPlusProve2Outputs32Bit);
+BENCHMARK(SparkBPPlusProve2Outputs128Bit);
+BENCHMARK(SparkBPPlusVerify1Output64Bit);
+BENCHMARK(SparkBPPlusVerify2Outputs64Bit);
+BENCHMARK(SparkBPPlusVerify4Outputs64Bit);
+BENCHMARK(SparkBPPlusVerify8Outputs64Bit);
+BENCHMARK(SparkBPPlusBatchVerify10Proofs);
+BENCHMARK(SparkBPPlusBatchVerify50Proofs);

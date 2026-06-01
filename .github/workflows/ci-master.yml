@@ -240,6 +240,7 @@ jobs:
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
         -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON \
+        -DBUILD_BENCH=ON -DBUILD_BENCH_SPARK=ON \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         $CMAKE_EXTRA_FLAGS \
         -S$(realpath .) -B$(realpath build)
@@ -260,6 +261,7 @@ jobs:
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
         -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON \
+        -DBUILD_BENCH=ON -DBUILD_BENCH_SPARK=ON \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         $CMAKE_EXTRA_FLAGS \
         -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
@@ -280,6 +282,7 @@ jobs:
         env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
         -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON \
+        -DBUILD_BENCH=ON -DBUILD_BENCH_SPARK=ON \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         $CMAKE_EXTRA_FLAGS \
         -S$(pwd) -B$(pwd)/build
@@ -297,6 +300,11 @@ jobs:
         set -exo pipefail
         cp -rf build/bin/* build/src/
         qa/pull-tester/rpc-tests.py -extended
+    - name: Run Benchmarks
+      if: matrix.is_linux
+      run: |
+        set -exo pipefail
+        build/bin/bench_firo
     - name: Prepare Files for Artifact
       run: |
         set -exo pipefail

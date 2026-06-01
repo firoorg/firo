@@ -71,6 +71,7 @@ target_link_libraries(bitcoin_util
     bitcoin_crypto
     Boost::thread
     Boost::chrono
+    Boost::program_options
     univalue
     secp256k1
     leveldb
@@ -357,8 +358,8 @@ target_link_libraries(firo_node
     OpenSSL::SSL
     ${MINIUPNP_LIBRARY}
     ${ZLIB_LIBRARY}
-    $<TARGET_NAME_IF_EXISTS:libevent::core>
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<BOOL:${WIN32}>:windows_system>
