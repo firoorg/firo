@@ -3,17 +3,15 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_raises_message, JSONRPCException
 
 class SparkMintTest(BitcoinTestFramework):
-    def __init__(self):
-        super().__init__()
+    def set_test_params(self):
         self.num_nodes = 1
-        self.setup_clean_chain = False
+        self.setup_clean_chain = True
 
     def run_test(self):
         assert_raises_message(
             JSONRPCException,
             "Spark is not activated yet",
             self.nodes[0].mintspark, 1)
-
         self.nodes[0].generate(501)
 
         # generate coins

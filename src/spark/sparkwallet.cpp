@@ -1,5 +1,5 @@
-#include "../liblelantus/threadpool.h"
 #include "sparkwallet.h"
+#include "threadpool.h"
 #include "state.h"
 #include "../wallet/wallet.h"
 #include "../wallet/coincontrol.h"
@@ -13,6 +13,7 @@
 #include "../chain.h"
 #include <boost/format.hpp>
 #include <string>
+#include <thread>
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
@@ -83,7 +84,9 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         }
 
     }
-    threadPool = new ParallelOpThreadPool<void>(boost::thread::hardware_concurrency());
+
+    unsigned nThreads = std::thread::hardware_concurrency();
+    threadPool = new ParallelOpThreadPool<void>(static_cast<std::size_t>(nThreads));
 
     if (fWalletJustUnlocked)
         pwalletMain->Lock();
@@ -91,10 +94,13 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
 CSparkWallet::~CSparkWallet() {
     delete (ParallelOpThreadPool<void>*)threadPool;
+    threadPool = nullptr;
 }
 
 void CSparkWallet::FinishTasks() {
-    ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
+    if (threadPool) {
+        ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
+    }
     spark::ShutdownSparkState();
 }
 
@@ -526,10 +532,10 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 }
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
-    const auto& transactions = block.vtx;
+    std::vector<CTransactionRef> vtxCopy = block.vtx;
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() {
         LOCK(cs_spark_wallet);
-        for (const auto& tx : transactions) {
+        for (const auto& tx : vtxCopy) {
             if (tx->IsSparkSpend()) {
                 try {
                     spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
@@ -670,14 +676,13 @@ void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& co
 }
 
 void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
-    const auto& transactions = block.vtx;
-
-    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=] () mutable {
+    std::vector<CTransactionRef> vtxCopy = block.vtx;
+    ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=]() mutable {
         LOCK(cs_spark_wallet);
         CWalletDB walletdb(strWalletFile);
-        for (const auto& tx : transactions) {
+        for (const auto& tx : vtxCopy) {
             if (tx->IsSparkTransaction()) {
-                auto coins =  spark::GetSparkMintCoins(*tx);
+                auto coins = spark::GetSparkMintCoins(*tx);
                 uint256 txHash = tx->GetHash();
                 UpdateMintState(coins, txHash, walletdb);
             }

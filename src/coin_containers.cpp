@@ -4,7 +4,7 @@
 #include <vector>
 
 namespace lelantus {
-std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
+std::size_t CScalarHash::operator ()(const secp_primitives::Scalar& bn) const noexcept {
     std::vector<unsigned char> bnData(bn.memoryRequired());
     bn.serialize(&bnData[0]);
 
@@ -18,7 +18,7 @@ std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
 }
 
 std::size_t CPublicCoinHash::operator ()(const lelantus::PublicCoin& coin) const noexcept {
-    uint256 hash = coin.getValueHash();
+    ::uint256 hash = coin.getValueHash();
 
     std::size_t result;
     std::memcpy(&result, hash.begin(), sizeof(std::size_t));

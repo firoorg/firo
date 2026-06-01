@@ -1,4 +1,3 @@
-#include "../lelantus.h"
 #include "../validation.h"
 
 #include "automintmodel.h"

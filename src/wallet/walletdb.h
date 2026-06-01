@@ -14,8 +14,6 @@
 #include "streams.h"
 #include "key.h"
 
-#include "hdmint/hdmint.h"
-#include "hdmint/mintpool.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 #include "../libspark/keys.h"
@@ -238,12 +236,6 @@ public:
     CAmount GetAccountCreditDebit(const std::string& strAccount);
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
-    void ListLelantusSpendSerial(std::list<CLelantusSpendEntry>& listLelantusSpendSerial);
-    bool WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
-    bool ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend);
-    bool HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial);
-    bool EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend);
-
     bool ReadCalculatedZCBlock(int& height);
     bool WriteCalculatedZCBlock(int height);
 
@@ -252,7 +244,6 @@ public:
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
-    DBErrors ZapLelantusMints(CWallet *pwallet);
     DBErrors ZapSparkMints(CWallet *pwallet);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
@@ -269,19 +260,10 @@ public:
     bool readFullViewKey(spark::FullViewKey& viewKey);
     bool writeFullViewKey(const spark::FullViewKey& viewKey);
 
-    bool ArchiveDeterministicOrphan(const CHDMint& dMint);
-    bool UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
-
-    bool WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus);
-    bool ReadHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint);
-    bool EraseHDMint(const CHDMint& dMint);
-    bool HasHDMint(const secp_primitives::GroupElement& pub);
-
     bool WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash);
     bool ReadPubcoinHashes(const uint256& fullHash, uint256& reducedHash);
     bool ErasePubcoinHashes(const uint256& fullHash);
 
-    std::list<CHDMint> ListHDMints(bool isLelantus);
     bool WritePubcoin(const uint256& hashSerial, const GroupElement& hashPubcoin);
     bool ReadPubcoin(const uint256& hashSerial, GroupElement& hashPubcoin);
     bool ErasePubcoin(const uint256& hashSerial);
@@ -289,7 +271,6 @@ public:
     bool EraseMintPoolPair(const uint256& hashPubcoin);
     bool WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool);
     bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
-    std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();
 
     std::unordered_map<uint256, CSparkMintMeta> ListSparkMints();
     bool WriteSparkOutputTx(const CScript& scriptPubKey, const CSparkOutputTx& output);

@@ -60,7 +60,6 @@
         <file alias="tools">res/icons/tools.png</file>
         <file alias="exchange">res/icons/exchange.png</file>
         <file alias="balances">res/icons/balances.png</file>
-        <file alias="lelantus">res/icons/lelantus.png</file>
         <file alias="paymentcode">res/icons/paymentcode.png</file>
         <file alias="ext_add">res/icons/ext_add.png</file>
         <file alias="ext_add_light">res/icons/ext_add_light.png</file>

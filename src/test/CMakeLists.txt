@@ -47,9 +47,6 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/hash_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/key_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/dbwrapper_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_mintspend_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/lelantus_state_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/limitedmap_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/main_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring_tests.cpp
@@ -98,20 +95,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/progpow_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bls_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../hdmint/test/lelantus_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/challenge_generator_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/coin_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/inner_product_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/joinsplit_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/lelantus_primitives_tests.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/lelantus_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/lelantus_test_fixture.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/lelantus_test_fixture.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/range_proof_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/schnorr_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/ownership_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/serialize_test.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../liblelantus/test/sigma_extended_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/transcript_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/schnorr_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/chaum_test.cpp

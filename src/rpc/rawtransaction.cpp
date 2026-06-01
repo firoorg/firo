@@ -39,7 +39,6 @@
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
 #include "evo/providertx.h"
-#include "lelantus.h"
 
 // Forward declaration with default parameter for calls within this file
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock = true);
@@ -107,22 +106,6 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsLelantusJoinSplit()) {
-            in.push_back("joinsplit");
-            fillStdFields(in, txin);
-            std::unique_ptr <lelantus::JoinSplit> jsplit;
-            try {
-                jsplit = lelantus::ParseLelantusJoinSplit(tx);
-            }
-            catch (const std::exception &) {
-                continue;
-            }
-            in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));
-            UniValue serials(UniValue::VARR);
-            for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
-                serials.push_back(serial.GetHex());
-            }
-            in.push_back(Pair("serials", serials));
         } else if (tx.IsSparkSpend()) {
             in.push_back("sparkSpend");
             fillStdFields(in, txin);

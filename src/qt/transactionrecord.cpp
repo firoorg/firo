@@ -8,7 +8,6 @@
 
 #include "base58.h"
 #include "consensus/consensus.h"
-#include "lelantus.h"
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
@@ -51,20 +50,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         isAllSigmaSpendFromMe = (wallet->IsMine(wtx.tx->vin[0], *wtx.tx) & ISMINE_SPENDABLE);
     }
 
-    bool isAllJoinSplitFromMe = false;
-    if (wtx.tx->vin[0].IsLelantusJoinSplit()) {
-        isAllJoinSplitFromMe = (wallet->IsMine(wtx.tx->vin[0], *wtx.tx) & ISMINE_SPENDABLE);
-    }
-
-    if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe || isAllJoinSplitFromMe) {
+    if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe) {
         CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
-        if (isAllJoinSplitFromMe && wtx.tx->vin.size() > 0) {
-            try {
-                nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
-            } catch (const std::exception &) {
-                // do nothing
-            }
-        }
 
         bool first = true;
 

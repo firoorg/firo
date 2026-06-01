@@ -122,7 +122,6 @@ private:
     QAction *openRPCConsoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
-    QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *logoAction;
     QToolBar *toolbar;

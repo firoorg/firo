@@ -1,29 +1,29 @@
+// Copyright (c) The Firo Core Developers
+// Thread pool for Spark wallet background tasks (same implementation as historical liblelantus/threadpool.h).
+
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <queue>
 #include <list>
 #include <vector>
-//#include <algorithm>
 
 #define BOOST_THREAD_PROVIDES_FUTURE
 
+#include <boost/thread/thread.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/future.hpp>
 #include <boost/chrono.hpp>
 
-
-// our code currently relies on boost disable_interruption. This will go away with core upgrade
-//#include <boost/thread.hpp>
-
 // Number of seconds before thread shuts down if idle
 constexpr static int secondsBeforeThreadShutdown = 60;
 
-// Simple thread pool class for using multiple cores effeciently
+// Simple thread pool class for using multiple cores efficiently
 
 template <typename Result>
 class ParallelOpThreadPool {
@@ -64,11 +64,11 @@ private:
     }
 
     void StartThreads() {
-        // should be called with mutex aquired
+        // should be called with mutex acquired
         // start missing threads
         while (threads.size() < number_of_threads)
             threads.emplace_back(std::bind(&ParallelOpThreadPool::ThreadProc, this));
-        }
+    }
 
 public:
     ParallelOpThreadPool(std::size_t thread_number) : shutdown(false), number_of_threads(thread_number) {}

@@ -477,8 +477,6 @@ UniValue importwallet(const JSONRPCRequest& request)
 
     bool fGood = true;
 
-    bool fMintUpdate = false;
-
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
 
@@ -554,14 +552,6 @@ UniValue importwallet(const JSONRPCRequest& request)
             fGood = false;
             continue;
         }
-
-        if(!masterKeyID.IsNull() && fHd){
-            // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-            if(pwallet->mapKeyMetadata[keyid].nChange.first==2){
-                pwallet->zwallet->RegenerateMintPoolEntry(walletdb, hdMasterKeyID, keyid, pwallet->mapKeyMetadata[keyid].nChild.first);
-                fMintUpdate = true;
-            }
-        }
         if (fLabel)
             pwallet->SetAddressBook(keyid, strLabel, "receive");
         nTimeBegin = std::min(nTimeBegin, nTime);
@@ -575,11 +565,6 @@ UniValue importwallet(const JSONRPCRequest& request)
     LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
     pwallet->ScanForWalletTransactions(pindex);
     pwallet->MarkDirty();
-
-    if(fMintUpdate){
-        pwallet->zwallet->SyncWithChain();
-        pwallet->zwallet->GetTracker().ListLelantusMints(false, false);
-    }
 
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");
