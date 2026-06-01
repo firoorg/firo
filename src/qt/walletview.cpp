@@ -375,10 +375,11 @@ void WalletView::usedSendingAddresses()
     usedSendingAddressesPage->activateWindow();
 }
 
-void WalletView::updateAddressbook()
+bool WalletView::updateAddressbook()
 {
-    usedReceivingAddressesPage->updateSpark();
-    usedSendingAddressesPage->updateSpark();
+    const bool receivingUpdated = usedReceivingAddressesPage->updateSpark();
+    const bool sendingUpdated = usedSendingAddressesPage->updateSpark();
+    return receivingUpdated || sendingUpdated;
 }
 
 void WalletView::usedReceivingAddresses()

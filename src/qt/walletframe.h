@@ -102,7 +102,7 @@ public Q_SLOTS:
     /** Pass on signal over requested out-of-sync-warning information */
     void outOfSyncWarningClicked();
 
-    void updateAddressbook();
+    bool updateAddressbook();
 };
 
 #endif // BITCOIN_QT_WALLETFRAME_H

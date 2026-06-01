@@ -59,7 +59,7 @@ public:
 
     void setInitialAddressType(AddressTypeEnum type);
 
-    void updateSpark();
+    bool updateSpark();
 
 public Q_SLOTS:
     void done(int retval) override;

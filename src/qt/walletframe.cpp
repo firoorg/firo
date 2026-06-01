@@ -226,9 +226,15 @@ void WalletFrame::outOfSyncWarningClicked()
     Q_EMIT requestedSyncWarningInfo();
 }
 
-void WalletFrame::updateAddressbook() {
-    WalletView *walletView = currentWalletView();
+bool WalletFrame::updateAddressbook()
+{
+    bool updated = false;
 
-    if (walletView)
-        walletView->updateAddressbook();
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i) {
+        if (i.value()->updateAddressbook())
+            updated = true;
+    }
+
+    return updated;
 }
