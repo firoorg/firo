@@ -176,7 +176,7 @@ public:
     size_t GetSparkNameTxDataSize(const CSparkNameTxData &sparkNameData);
 
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
-    void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey);
+    void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, int nHeight);
 
     // Build a fee output scriptPubKey tagged with spark name and address (for v2.1+).
     // Falls back to a plain P2PKH script if the current height is before nSparkNamesV21StartBlock.

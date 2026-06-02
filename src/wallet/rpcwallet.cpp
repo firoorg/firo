@@ -4736,10 +4736,13 @@ UniValue requestsparknametransfer(const JSONRPCRequest &request) {
     if (request.params.size() < 4 || request.params.size() > 5)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
 
+    // Use the next-block height: the resulting transfer transaction will be validated at
+    // chainActive.Height() + 1, so the v2.1 inputsHash decision must be made against that
+    // height (matching GetSparkNameFeeScript) to stay valid across the activation boundary.
     int chainHeight;
     {
         LOCK(cs_main);
-        chainHeight = chainActive.Height();
+        chainHeight = chainActive.Height() + 1;
     }
     const auto &consensusParams = Params().GetConsensus();
     if (chainHeight < consensusParams.nSparkNamesV2StartBlock) {
@@ -4770,6 +4773,22 @@ UniValue requestsparknametransfer(const JSONRPCRequest &request) {
     sparkNameData.additionalInfo = additionalData;
     sparkNameData.sparkNameValidityBlocks = numberOfYears * 365*24*24;
     sparkNameData.operationType = CSparkNameTxData::opTransfer;
+
+    // V2.1+: bind inputsHash to the name's current expiration height so the proof
+    // is specific to this registration cycle and cannot be replayed after the name
+    // expires and is re-registered at the same address.
+    if (chainHeight >= consensusParams.nSparkNamesV21StartBlock) {
+        CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+        try {
+            uint64_t expirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+            CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
+            hw << expirationHeight;
+            sparkNameData.inputsHash = hw.GetHash();
+        } catch (const std::exception &x) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                std::string("Spark name not found or not active: ") + x.what());
+        }
+    }
 
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     ss << sparkNameData;

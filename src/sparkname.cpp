@@ -326,6 +326,21 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     // check the transfer ownership proof (if present)
     if (fSparkNameTransfer) {
+        // V2.1+: inputsHash must commit to the name's current expiration height, which is
+        // unique per registration cycle and known by all parties without tx coordination.
+        if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+            CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
+            hw << (uint64_t)existingExpirationHeight;
+            // Grace period: pre-v2.1 transfers were built without an inputsHash. Those that were
+            // already signed/broadcast before activation can still be sitting in the mempool when
+            // the fork takes effect, so accept the legacy (null inputsHash) form for a short window
+            // after activation to avoid dropping in-flight transfers.
+            bool fInGracePeriod = nHeight < consensusParams.nSparkNamesV21StartBlock + consensusParams.stage41SparkNamesGracefulPeriod;
+            bool fLegacyTransfer = fInGracePeriod && sparkNameData.inputsHash.IsNull();
+            if (sparkNameData.inputsHash != hw.GetHash() && !fLegacyTransfer)
+                return state.DoS(100, error("CheckSparkNameTx: bad transfer proof inputs hash"));
+        }
+
         spark::Address oldSparkAddress(spark::Params::get_default());
         try {
             oldSparkAddress.decode(sparkNameData.oldSparkAddress);
@@ -499,8 +514,20 @@ size_t CSparkNameManager::GetSparkNameTxDataSize(const CSparkNameTxData &sparkNa
     return sparkNameDataStream.size();
 }
 
-void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey)
+void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, int nHeight)
 {
+    if (sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer &&
+        nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
+        try {
+            uint64_t expirationHeight = GetSparkNameBlockHeight(sparkNameData.name);
+            CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
+            hw << expirationHeight;
+            sparkNameData.inputsHash = hw.GetHash();
+        } catch (const std::exception &) {
+            // Name not found; inputsHash stays zero and CheckSparkNameTx will reject the tx.
+        }
+    }
+
     for (uint32_t n=0; ; n++) {
         sparkNameData.addressOwnershipProof.clear();
         sparkNameData.hashFailsafe = n;
