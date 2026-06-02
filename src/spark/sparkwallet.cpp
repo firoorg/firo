@@ -1669,10 +1669,13 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
     const auto &consensusParams = Params().GetConsensus();
+    // Use the next-block height: this transaction will be validated at chainActive.Height() + 1,
+    // so all height-gated decisions (fee script, inputsHash) must match that height to avoid
+    // building a transaction the mempool immediately rejects on the activation boundary.
     int nHeight;
     {
         LOCK(cs_main);
-        nHeight = chainActive.Height();
+        nHeight = chainActive.Height() + 1;
     }
     std::string payoutAddress = nHeight >= consensusParams.stage41StartBlockDevFundAddressChange
         ? consensusParams.stage3CommunityFundAddress

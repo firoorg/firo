@@ -4921,10 +4921,13 @@ UniValue requestsparknametransfer(const JSONRPCRequest &request) {
     if (request.params.size() < 4 || request.params.size() > 5)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameters");
 
+    // Use the next-block height: the resulting transfer transaction will be validated at
+    // chainActive.Height() + 1, so the v2.1 inputsHash decision must be made against that
+    // height (matching GetSparkNameFeeScript) to stay valid across the activation boundary.
     int chainHeight;
     {
         LOCK(cs_main);
-        chainHeight = chainActive.Height();
+        chainHeight = chainActive.Height() + 1;
     }
     const auto &consensusParams = Params().GetConsensus();
     if (chainHeight < consensusParams.nSparkNamesV2StartBlock) {

@@ -331,7 +331,13 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         if (nHeight >= consensusParams.nSparkNamesV21StartBlock) {
             CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
             hw << (uint64_t)existingExpirationHeight;
-            if (sparkNameData.inputsHash != hw.GetHash())
+            // Grace period: pre-v2.1 transfers were built without an inputsHash. Those that were
+            // already signed/broadcast before activation can still be sitting in the mempool when
+            // the fork takes effect, so accept the legacy (null inputsHash) form for a short window
+            // after activation to avoid dropping in-flight transfers.
+            bool fInGracePeriod = nHeight < consensusParams.nSparkNamesV21StartBlock + consensusParams.stage41SparkNamesGracefulPeriod;
+            bool fLegacyTransfer = fInGracePeriod && sparkNameData.inputsHash.IsNull();
+            if (sparkNameData.inputsHash != hw.GetHash() && !fLegacyTransfer)
                 return state.DoS(100, error("CheckSparkNameTx: bad transfer proof inputs hash"));
         }
 
