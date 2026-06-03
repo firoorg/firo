@@ -93,9 +93,14 @@ void OptionsModel::Init(bool resetSettings)
         if (settings.contains("fLelantusPage"))
             settings.setValue("fSparkPage", settings.value("fLelantusPage"));
         else
-            settings.setValue("fSparkPage", false);
+            settings.setValue("fSparkPage", true);
     }
-    fSparkPage = settings.value("fSparkPage", false).toBool();
+    if (!settings.contains("fSparkOverviewAnonymizeDefaultFix")) {
+        if (!settings.value("fSparkPage").toBool())
+            settings.setValue("fSparkPage", true);
+        settings.setValue("fSparkOverviewAnonymizeDefaultFix", true);
+    }
+    fSparkPage = settings.value("fSparkPage", true).toBool();
 
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.
