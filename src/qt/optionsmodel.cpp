@@ -89,23 +89,9 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fSplit", true);
     fSplit = settings.value("fSplit", true).toBool();
 
-    if (!settings.contains("fSparkPage")) {
-        if (settings.contains("fLelantusPage"))
-            settings.setValue("fSparkPage", settings.value("fLelantusPage"));
-        else
-            settings.setValue("fSparkPage", true);
-    }
-    if (!settings.contains("fSparkOverviewAnonymizeDefaultFix")) {
-        if (!settings.value("fSparkPage").toBool())
-            settings.setValue("fSparkPage", true);
-        settings.setValue("fSparkOverviewAnonymizeDefaultFix", true);
-    }
+    if (!settings.contains("fSparkPage"))
+        settings.setValue("fSparkPage", true);
     fSparkPage = settings.value("fSparkPage", true).toBool();
-
-    // These are shared with the core or have a command-line parameter
-    // and we want command-line parameters to overwrite the GUI settings.
-    //
-    // If setting doesn't exist create it with defaults.
     //
     // If SoftSetArg() or SoftSetBoolArg() return false we were overridden
     // by command-line and show this in the UI.
