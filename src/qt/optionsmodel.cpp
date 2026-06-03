@@ -89,13 +89,9 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fSplit", true);
     fSplit = settings.value("fSplit", true).toBool();
 
-    if (!settings.contains("fSparkPage")) {
-        if (settings.contains("fLelantusPage"))
-            settings.setValue("fSparkPage", settings.value("fLelantusPage"));
-        else
-            settings.setValue("fSparkPage", false);
-    }
-    fSparkPage = settings.value("fSparkPage", false).toBool();
+    if (!settings.contains("fSparkPage"))
+        settings.setValue("fSparkPage", true);
+    fSparkPage = settings.value("fSparkPage", true).toBool();
 
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.
