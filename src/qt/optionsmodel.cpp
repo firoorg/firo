@@ -92,6 +92,11 @@ void OptionsModel::Init(bool resetSettings)
     if (!settings.contains("fSparkPage"))
         settings.setValue("fSparkPage", true);
     fSparkPage = settings.value("fSparkPage", true).toBool();
+
+    // These are shared with the core or have a command-line parameter
+    // and we want command-line parameters to overwrite the GUI settings.
+    //
+    // If setting doesn't exist create it with defaults.
     //
     // If SoftSetArg() or SoftSetBoolArg() return false we were overridden
     // by command-line and show this in the UI.
