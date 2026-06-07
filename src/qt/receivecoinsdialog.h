@@ -85,6 +85,7 @@ private Q_SLOTS:
     void on_showRequestButton_clicked();
     void on_removeRequestButton_clicked();
     void createSparkName();
+    void mySparkNames();
     void on_recentRequestsView_doubleClicked(const QModelIndex &index);
     void recentRequestsView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void updateDisplayUnit();

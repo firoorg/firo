@@ -278,6 +278,7 @@ struct Params {
 
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
+    int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers
     std::array<int,21> nSparkNamesFee;
 
     int nLelantusGracefulPeriod;
@@ -429,9 +430,6 @@ struct Params {
     int nMaxReorgDepth;
     /** block to start reorg depth enforcement */
     int nMaxReorgDepthEnforcementBlock;
-
-    /** move lelantus data to v3 payload since this block */
-    int nLelantusV3PayloadStartBlock;
 
     /** whitelisted transactions */
     std::set<uint256> txidWhitelist;

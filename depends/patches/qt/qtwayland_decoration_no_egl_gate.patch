@@ -1,0 +1,38 @@
+qtwayland: do not gate window decorations on a working EGL/client buffer integration
+
+QWaylandDisplay::supportsWindowDecoration() refuses to enable client-side
+decorations unless a client buffer integration (typically wayland-egl) is
+present and reports supportsWindowDecoration()==true. On environments
+without a working EGL — most commonly WSLg, where Wayland clients render
+through SHM only — wayland-egl fails to initialize and the function then
+returns false, short-circuiting QWaylandWindow::createDecoration() before
+the decoration plugin factory is ever consulted. The result is that
+statically linked Qt6 widget apps (such as firo-qt) appear without title
+bar or borders even though the bradient plugin is registered and ready.
+
+Software-rendered Wayland apps do not need EGL to draw their own frames,
+so always allow decorations unless the user has explicitly opted out via
+QT_WAYLAND_DISABLE_WINDOWDECORATION.
+
+diff --git a/qtwayland/src/client/qwaylanddisplay.cpp b/qtwayland/src/client/qwaylanddisplay.cpp
+--- a/qtwayland/src/client/qwaylanddisplay.cpp
++++ b/qtwayland/src/client/qwaylanddisplay.cpp
+@@ -859,13 +859,14 @@ void QWaylandDisplay::forceRoundTrip()
+ bool QWaylandDisplay::supportsWindowDecoration() const
+ {
+     static bool disabled = qgetenv("QT_WAYLAND_DISABLE_WINDOWDECORATION").toInt();
+-    // Stop early when disabled via the environment. Do not try to load the integration in
+-    // order to play nice with SHM-only, buffer integration-less systems.
++    // Stop early when disabled via the environment.
+     if (disabled)
+         return false;
+
+-    static bool integrationSupport = clientBufferIntegration() && clientBufferIntegration()->supportsWindowDecoration();
+-    return integrationSupport;
++    // Allow client-side decorations even when no client buffer integration is
++    // available. Gating on EGL excluded SHM-only setups (e.g. WSLg) where
++    // software-rendered Wayland windows still need to draw their own frames.
++    return true;
+ }
+
+ QWaylandWindow *QWaylandDisplay::lastInputWindow() const

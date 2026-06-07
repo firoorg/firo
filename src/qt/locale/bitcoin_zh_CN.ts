@@ -855,10 +855,6 @@ Once this fee is paid, all future sends to this RAP address do not incur any add
         <translation>发送到 RAP 地址</translation>
     </message>
     <message>
-        <source>Lelantus balance</source>
-        <translation>Lelantus 余额</translation>
-    </message>
-    <message>
         <source>Status</source>
         <translation>状态</translation>
     </message>
@@ -880,7 +876,7 @@ Notification transactions use Lelantus facilities to enhance privacy.
 After the notification transaction is received by the RAP address issuer, funds can be privately sent to the RAP secret addresses.
 </source>
         <translation>向 RAP 地址发送资金需要付款人在第一次付款前发送通知交易。
-通知交易使用 Lelantus 功能来增强隐私。
+通知交易使用隐私功能来增强隐私。
 在 RAP 地址发布者收到通知交易后，资金可以被私下发送到 RAP 秘密地址。</translation>
     </message>
     <message>
@@ -1446,20 +1442,8 @@ After the notification transaction is received by the RAP address issuer, funds 
         <translation>启用自动匿名化功能</translation>
     </message>
     <message>
-        <source>Enable &amp;lelantus manual-anonymize page</source>
-        <translation>启用 Lelantus 手动匿名化界面</translation>
-    </message>
-    <message>
         <source>&amp;Spend unconfirmed change</source>
         <translation>使用未经确认的零钱(&amp;S)</translation>
-    </message>
-    <message>
-        <source>&amp;Reindex Lelantus</source>
-        <translation>重新索引 Lelantus(&amp;R)</translation>
-    </message>
-    <message>
-        <source>Restore all Lelantus transactions following a reindex.</source>
-        <translation>在重新索引后恢复所有 Lelantus 交易。</translation>
     </message>
     <message>
         <source>Automatically open the Firo client port on the router. This only works when your router supports UPnP and it is enabled.</source>
@@ -1600,10 +1584,6 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>The supplied proxy address is invalid.</source>
         <translation>提供的代理服务器地址无效。</translation>
-    </message>
-    <message>
-        <source>Confirm Reindex Lelantus</source>
-        <translation>确认重新索引 Lelantus</translation>
     </message>
     <message>
         <source>Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore the list from the seed in your wallet. This will likely take a few hours. Are you sure?</source>
@@ -1828,10 +1808,6 @@ After the notification transaction is received by the RAP address issuer, funds 
         <message numerus="yes">
         <source>%n block(s)</source>
         <translation><numerusform>%n 个区块</numerusform></translation>
-    </message>
-    <message>
-        <source>Global Lelantus Pool:</source>
-        <translation>整个 Lelantus 池</translation>
     </message>
     <message>
         <source>Total:</source>

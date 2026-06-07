@@ -91,6 +91,7 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey, bool& 
     }
     case TX_PUBKEYHASH:
     case TX_EXCHANGEADDRESS:
+    case TX_SPARKNAMEFEE:
         keyID = CKeyID(uint160(vSolutions[0]));
         if (sigversion != SIGVERSION_BASE) {
             CPubKey pubkey;

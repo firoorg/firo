@@ -33,7 +33,6 @@
 
 #include "chainparams.h"
 #include "init.h"
-#include "lelantus.h"
 #include "util.h"
 
 #include "evo/deterministicmns.h"
@@ -121,7 +120,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
-    lelantusAction(0),
     masternodeAction(0),
     logoAction(0),
     trayIcon(0),
@@ -132,6 +130,9 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     modalOverlay(0),
     prevBlocks(0),
     spinnerFrame(0),
+#ifdef ENABLE_WALLET
+    sparkAddressbookUpdated(false),
+#endif
     platformStyle(_platformStyle)
 {
     // load stylesheet
@@ -344,14 +345,6 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(historyAction);
 
 #ifdef ENABLE_WALLET
-    lelantusAction = new QAction(tr("&Lelantus"), this);
-    lelantusAction->setStatusTip(tr("Anonymize your coins"));
-    lelantusAction->setToolTip(lelantusAction->statusTip());
-    lelantusAction->setCheckable(true);
-    lelantusAction->setShortcut(QKeySequence(QString("Alt+%1").arg(key++)));
-    tabGroup->addAction(lelantusAction);
-    lelantusAction->setVisible(false);
-
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
     masternodeAction = new QAction(tr("&Masternodes"), this);
@@ -524,7 +517,6 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
-        toolbar->addAction(lelantusAction);
         toolbar->addAction(masternodeAction);
 
         logoLabel = new QLabel();
@@ -619,14 +611,22 @@ bool BitcoinGUI::addWallet(const QString& name, WalletModel *walletModel)
     if(!walletFrame)
         return false;
     setWalletActionsEnabled(true);
-    return walletFrame->addWallet(name, walletModel);
+    const bool walletAdded = walletFrame->addWallet(name, walletModel);
+    if (walletAdded && clientModel && !sparkAddressbookUpdated) {
+        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+    }
+    return walletAdded;
 }
 
 bool BitcoinGUI::setCurrentWallet(const QString& name)
 {
     if(!walletFrame)
         return false;
-    return walletFrame->setCurrentWallet(name);
+    const bool walletSelected = walletFrame->setCurrentWallet(name);
+    if (walletSelected && clientModel && !sparkAddressbookUpdated) {
+        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+    }
+    return walletSelected;
 }
 
 void BitcoinGUI::removeAllWallets()
@@ -646,7 +646,6 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
-    lelantusAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -973,6 +972,9 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkZnodeVisibility(count);
+    if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
+        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+    }
 #endif // ENABLE_WALLET
 }
 

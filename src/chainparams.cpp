@@ -485,9 +485,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 222400;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 401580;
-        
         // ProgPow
         consensus.nPPSwitchTime = 1635228000;           // Tue Oct 26 2021 06:00:00 GMT+0000
         consensus.nPPBlockNumber = 419264;
@@ -504,6 +501,7 @@ public:
         consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = SPARK_NAME_V21_MAINNET_START_BLOCK;
     }
     virtual bool SkipUndoForBlock(int nHeight) const override
     {
@@ -746,7 +744,6 @@ public:
 
         consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
-
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
@@ -802,9 +799,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 1;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 35000;
-        
         // ProgPow
         consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
         consensus.nPPBlockNumber = 37305;
@@ -820,6 +814,7 @@ public:
         consensus.nSparkNamesStartBlock = 174000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = 200000;
     }
 };
 
@@ -1060,9 +1055,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 1;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 1;
-
         // ProgPow
         consensus.nPPSwitchTime = 1631261566;           // immediately after network start
         consensus.nPPBlockNumber = 1;
@@ -1078,6 +1070,7 @@ public:
         consensus.nSparkNamesStartBlock = 3500;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK + 200;
     }
 };
 
@@ -1271,9 +1264,9 @@ public:
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 1;
-        consensus.nLelantusStartBlock = 100;
-        consensus.nLelantusFixesStartBlock = 100;
-        consensus.nSparkStartBlock = 400;
+        consensus.nLelantusStartBlock = 1;
+        consensus.nLelantusFixesStartBlock = 1;
+        consensus.nSparkStartBlock = 100;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
@@ -1317,9 +1310,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 0;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 800;
-        
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
         consensus.nPPSwitchTime = INT_MAX;
@@ -1333,6 +1323,7 @@ public:
         consensus.nSparkNamesStartBlock = 2000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = 2500;
+        consensus.nSparkNamesV21StartBlock = 2700;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

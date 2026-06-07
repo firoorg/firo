@@ -42,11 +42,12 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
         return llmq::CheckLLMQCommitment(tx, pindexPrev, state);
     case TRANSACTION_SPORK:
         return CheckSporkTx(tx, pindexPrev, state);
+    case TRANSACTION_LELANTUS:
+        return true;
     case TRANSACTION_SPARK:
         // spark transaction checks are done in other places
         return true;
-    case TRANSACTION_LELANTUS:
-        // lelantus transaction checks are done in other places
+    case TRANSACTION_ALIAS:
         return true;
     }
 
@@ -75,6 +76,8 @@ bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
         return true;
     case TRANSACTION_SPARK:
         return true;
+    case TRANSACTION_ALIAS:
+        return true;
     }
 
     return state.DoS(100, false, REJECT_INVALID, "bad-tx-type-proc");
@@ -101,6 +104,8 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     case TRANSACTION_LELANTUS:
         return true;
     case TRANSACTION_SPARK:
+        return true;
+    case TRANSACTION_ALIAS:
         return true;
     }
 

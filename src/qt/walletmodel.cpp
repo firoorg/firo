@@ -24,7 +24,6 @@
 #include "wallet/walletexcept.h"
 #include "txmempool.h"
 #include "consensus/validation.h"
-#include "lelantus.h"
 #include "bip47/account.h"
 #include "bip47/bip47utils.h"
 #include "cancelpassworddialog.h"
@@ -1076,6 +1075,11 @@ bool WalletModel::validateSparkAddress(const QString& address)
     return network == coinNetwork;
 }
 
+bool WalletModel::isSparkAddressMine(const QString& address)
+{
+    return wallet->IsSparkAddressMine(address.toStdString());
+}
+
 QString WalletModel::generateSparkAddress()
 {
     const spark::Params* params = spark::Params::get_default();
@@ -1095,30 +1099,6 @@ std::pair<CAmount, CAmount> WalletModel::getSparkBalance()
 {
     LOCK(wallet->cs_wallet);
     return wallet->GetSparkBalance();
-}
-
-bool WalletModel::getAvailableLelantusCoins()
-{
-    if (!pwalletMain->zwallet)
-        return false;
-
-    std::list<CLelantusEntry> coins = wallet->GetAvailableLelantusCoins();
-    if (coins.size() > 0) {
-        return true;
-    }
-
-    return false;
-}
-
-bool WalletModel::migrateLelantusToSpark()
-{
-    std::string strFailReason;
-    bool res = wallet->LelantusToSpark(strFailReason);
-    if (!res) {
-        Q_EMIT message(tr("Lelantus To Spark"), QString::fromStdString(strFailReason),
-            CClientUIInterface::MSG_ERROR);
-    }
-    return res;
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vector<WalletModelTransaction> &transactions, QList<SendCoinsRecipient> recipients, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFees, std::list<CReserveKey>& reservekeys, const CCoinControl* coinControl)

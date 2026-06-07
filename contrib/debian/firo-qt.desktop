@@ -5,5 +5,5 @@ Comment=Connect to Firo
 Exec=firo-qt %u
 Terminal=false
 Type=Application
-Icon=/app/share/icons/hicolor/scalable/apps/org.firo.firo-qt.svg
+Icon=firo-qt
 Categories=Office;Finance;

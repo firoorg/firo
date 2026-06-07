@@ -17,8 +17,10 @@ namespace spark {
 
 class SparkNameTests : public SparkTestingSetup
 {
-private:
+public:
     Consensus::Params &mutableConsensus;
+
+private:
     Consensus::Params oldConsensus;
 
 public:
@@ -29,9 +31,11 @@ public:
           consensus(::Params().GetConsensus()),
           sparkNameManager(CSparkNameManager::GetInstance()) {
         oldConsensus = mutableConsensus;
+        mempool.clear();
     }
 
     ~SparkNameTests() {
+       mempool.clear();
        sparkState->Reset();
        sparkNameManager->Reset();
        mutableConsensus = oldConsensus;
@@ -323,6 +327,10 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
 {
     Initialize(1000);   // stay below HF block number for a time being
 
+    // Push V2.1 activation past the end of the graceful period so fee-tag
+    // requirements don't interfere with the address-transition test below.
+    mutableConsensus.nSparkNamesV21StartBlock = INT_MAX;
+
     int oldHeight =  chainActive.Height();
 
     std::string txaddress = GenerateSparkAddress();
@@ -403,6 +411,684 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
     oldHeight = chainActive.Height();
     GenerateBlock({txesNewAddress[1]});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
+}
+
+BOOST_AUTO_TEST_CASE(transfer)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    // regtest: nSparkNamesV2StartBlock = 2500, need to be past it for transfers
+    Initialize(2500);
+
+    // --- Register "xfername" with address A ---
+    std::string addrA = GenerateSparkAddress();
+    CMutableTransaction txReg = CreateSparkNameTx("xfername", addrA, nBlockPerYear * 5, "original", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg});
+    BOOST_CHECK(IsSparkNamePresent("xfername"));
+
+    std::string resolvedAddr;
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("xfername", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrA);
+
+    GenerateBlocks(5);
+
+    // --- Transfer "xfername" from address A to address B ---
+    std::string addrB = GenerateSparkAddress();
+
+    CSparkNameTxData transferData;
+    transferData.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    transferData.name = "xfername";
+    transferData.sparkAddress = addrB;
+    transferData.oldSparkAddress = addrA;
+    transferData.sparkNameValidityBlocks = nBlockPerYear;
+    transferData.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+    transferData.additionalInfo = "transferred";
+
+    // Compute transfer request hash (mirrors requestsparknametransfer RPC)
+    {
+        CHashWriter nameHash(SER_GETHASH, PROTOCOL_VERSION);
+        nameHash << transferData;
+
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+        hashStream << "SparkNameTransferProof";
+        hashStream << transferData.oldSparkAddress << transferData.sparkAddress;
+        hashStream << nameHash.GetHash();
+
+        // Create transfer ownership proof using spend key (mirrors transfersparkname RPC)
+        const spark::Params *sparkParams = spark::Params::get_default();
+        spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(sparkParams);
+
+        spark::Address oldAddress(sparkParams);
+        oldAddress.decode(addrA);
+
+        spark::Scalar mTransfer;
+        mTransfer.SetHex(hashStream.GetHash().ToString());
+
+        spark::OwnershipProof transferProof;
+        oldAddress.prove_own(mTransfer, spendKey, spark::FullViewKey(spendKey), transferProof);
+
+        CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+        proofStream << transferProof;
+        transferData.transferOwnershipProof.assign(proofStream.begin(), proofStream.end());
+    }
+
+    CMutableTransaction txTransfer = CreateSparkNameTx(transferData, true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txTransfer});
+
+    // Verify name is now at address B
+    BOOST_CHECK(IsSparkNamePresent("xfername"));
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("xfername", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+    BOOST_CHECK_EQUAL(GetSparkNameAdditionalData("xfername"), "transferred");
+
+    // Verify old address A is freed and new address B is associated
+    std::string nameByAddr;
+    BOOST_CHECK(!sparkNameManager->GetSparkNameByAddress(addrA, nameByAddr));
+    BOOST_CHECK(sparkNameManager->GetSparkNameByAddress(addrB, nameByAddr));
+    BOOST_CHECK_EQUAL(nameByAddr, "xfername");
+
+    // --- Test rollback reverting the transfer ---
+    DisconnectBlocks(1);
+
+    BOOST_CHECK(IsSparkNamePresent("xfername"));
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("xfername", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrA);
+    BOOST_CHECK_EQUAL(GetSparkNameAdditionalData("xfername"), "original");
+
+    BOOST_CHECK(sparkNameManager->GetSparkNameByAddress(addrA, nameByAddr));
+    BOOST_CHECK(!sparkNameManager->GetSparkNameByAddress(addrB, nameByAddr));
+
+    // Re-apply the block and verify transfer is restored
+    ReprocessBlocks(1);
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("xfername", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+    BOOST_CHECK_EQUAL(GetSparkNameAdditionalData("xfername"), "transferred");
+
+    // --- Test that invalid transfer proof is rejected ---
+    GenerateBlocks(5);
+    std::string addrC = GenerateSparkAddress();
+
+    CSparkNameTxData badTransferData;
+    badTransferData.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    badTransferData.name = "xfername";
+    badTransferData.sparkAddress = addrC;
+    badTransferData.oldSparkAddress = addrB;
+    badTransferData.sparkNameValidityBlocks = nBlockPerYear;
+    badTransferData.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+    badTransferData.additionalInfo = "bad";
+    // Use wrong proof (from previous transfer, bound to a different hash)
+    badTransferData.transferOwnershipProof = transferData.transferOwnershipProof;
+
+    CMutableTransaction txBadTransfer = CreateSparkNameTx(badTransferData, false);
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txBadTransfer});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    // Name should still be at address B
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("xfername", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+
+    // --- Test that transfer with wrong old address is rejected ---
+    CSparkNameTxData wrongOldAddrData;
+    wrongOldAddrData.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    wrongOldAddrData.name = "xfername";
+    wrongOldAddrData.sparkAddress = addrC;
+    wrongOldAddrData.oldSparkAddress = addrA;  // addrA no longer owns the name
+    wrongOldAddrData.sparkNameValidityBlocks = nBlockPerYear;
+    wrongOldAddrData.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+    wrongOldAddrData.additionalInfo = "wrong old addr";
+
+    // Create a valid-looking proof for addrA (but addrA doesn't own the name anymore)
+    {
+        CHashWriter nameHash(SER_GETHASH, PROTOCOL_VERSION);
+        nameHash << wrongOldAddrData;
+
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+        hashStream << "SparkNameTransferProof";
+        hashStream << wrongOldAddrData.oldSparkAddress << wrongOldAddrData.sparkAddress;
+        hashStream << nameHash.GetHash();
+
+        const spark::Params *sparkParams = spark::Params::get_default();
+        spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(sparkParams);
+
+        spark::Address addrAObj(sparkParams);
+        addrAObj.decode(addrA);
+
+        spark::Scalar mTransfer;
+        mTransfer.SetHex(hashStream.GetHash().ToString());
+
+        spark::OwnershipProof wrongProof;
+        addrAObj.prove_own(mTransfer, spendKey, spark::FullViewKey(spendKey), wrongProof);
+
+        CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+        proofStream << wrongProof;
+        wrongOldAddrData.transferOwnershipProof.assign(proofStream.begin(), proofStream.end());
+    }
+
+    CMutableTransaction txWrongOldAddr = CreateSparkNameTx(wrongOldAddrData, false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txWrongOldAddr});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    // Name should still be at address B
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("xfername", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+}
+
+BOOST_AUTO_TEST_CASE(extension_v21)
+{
+    // regtest: spark names start at 2000, V2.1 starts at 2700
+    constexpr int nBlockPerYear = 365*24*24;
+
+    Initialize();
+    // we're now at block ~2001
+
+    std::string addr1 = GenerateSparkAddress();
+
+    // Register "exttest" with 1 year validity
+    CMutableTransaction txReg = CreateSparkNameTx("exttest", addr1, nBlockPerYear, "initial", true);
+    GenerateBlock({txReg});
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+
+    int registrationHeight = chainActive.Height();
+    uint64_t originalExpiration = sparkNameManager->GetSparkNameBlockHeight("exttest");
+    BOOST_CHECK_EQUAL(originalExpiration, registrationHeight + nBlockPerYear);
+
+    // --- Pre-V2.1: extend the name by 1 year ---
+    // Advance some blocks so there's meaningful remaining validity
+    GenerateBlocks(100);
+    int preV21Height = chainActive.Height();
+    BOOST_CHECK(preV21Height < consensus.nSparkNamesV21StartBlock);
+    int remainingBeforeExtend = (int)originalExpiration - preV21Height;
+    BOOST_CHECK(remainingBeforeExtend > 0);
+
+    CMutableTransaction txExtPre = CreateSparkNameTx("exttest", addr1, nBlockPerYear, "extended-pre", true);
+    GenerateBlock({txExtPre});
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+
+    int extendHeightPre = chainActive.Height();
+    uint64_t expirationAfterPreV21Extend = sparkNameManager->GetSparkNameBlockHeight("exttest");
+
+    // Before V2.1, remaining validity is NOT preserved — new expiration = extendHeight + newBlocks
+    BOOST_CHECK_EQUAL(expirationAfterPreV21Extend, extendHeightPre + nBlockPerYear);
+    // The remaining blocks from original registration are lost
+    BOOST_CHECK(expirationAfterPreV21Extend < (uint64_t)(extendHeightPre + nBlockPerYear + remainingBeforeExtend));
+
+    // --- Advance to V2.1 ---
+    int blocksToV21 = consensus.nSparkNamesV21StartBlock - chainActive.Height();
+    BOOST_CHECK(blocksToV21 > 0);
+    GenerateBlocks(blocksToV21);
+    BOOST_CHECK(chainActive.Height() >= consensus.nSparkNamesV21StartBlock);
+
+    // Name should still be valid (we registered for 1 year = 210240 blocks and only advanced ~700 blocks)
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+    uint64_t expirationBeforeV21Extend = sparkNameManager->GetSparkNameBlockHeight("exttest");
+    int preV21ExtendHeight = chainActive.Height();
+    int remainingBeforeV21Extend = (int)expirationBeforeV21Extend - preV21ExtendHeight;
+    BOOST_CHECK(remainingBeforeV21Extend > 0);
+
+    // --- Post-V2.1: extend the name by 1 year ---
+    CMutableTransaction txExtPost = CreateSparkNameTx("exttest", addr1, nBlockPerYear, "extended-post", true);
+    GenerateBlock({txExtPost});
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+
+    int extendHeightPost = chainActive.Height();
+    uint64_t expirationAfterV21Extend = sparkNameManager->GetSparkNameBlockHeight("exttest");
+
+    // After V2.1, remaining validity IS preserved — new expiration = extendHeight + newBlocks + remaining
+    int expectedRemaining = (int)expirationBeforeV21Extend - extendHeightPost;
+    BOOST_CHECK(expectedRemaining > 0);
+    BOOST_CHECK_EQUAL(expirationAfterV21Extend, (uint64_t)(extendHeightPost + nBlockPerYear + expectedRemaining));
+
+    // Verify rollback restores old expiration
+    DisconnectBlocks(1);
+    BOOST_CHECK(IsSparkNamePresent("exttest"));
+    BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("exttest"), expirationBeforeV21Extend);
+
+    // Reprocess and verify extension is restored
+    ReprocessBlocks(1);
+    BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("exttest"), expirationAfterV21Extend);
+    BOOST_CHECK_EQUAL(GetSparkNameAdditionalData("exttest"), "extended-post");
+}
+
+BOOST_AUTO_TEST_CASE(extension_max_validity)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    // Initialize past V2.1 (regtest V2.1 starts at block 2700)
+    Initialize(2700);
+
+    // --- Test 1: Register for exactly 15 years - should succeed ---
+    std::string addr1 = GenerateSparkAddress();
+    CMutableTransaction txReg15 = CreateSparkNameTx("maxval1", addr1, nBlockPerYear * 15, "", false);
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txReg15});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+    BOOST_CHECK(IsSparkNamePresent("maxval1"));
+    int regHeight = chainActive.Height();
+    uint64_t exp15 = sparkNameManager->GetSparkNameBlockHeight("maxval1");
+    BOOST_CHECK_EQUAL(exp15, (uint64_t)(regHeight + nBlockPerYear * 15));
+
+    // --- Test 2: Try to include a 16-year registration in a block - should be rejected ---
+    std::string addr2 = GenerateSparkAddress();
+    CMutableTransaction txReg16 = CreateSparkNameTx("maxval2", addr2, nBlockPerYear * 16, "", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txReg16});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected
+    BOOST_CHECK(!IsSparkNamePresent("maxval2"));
+
+    // --- Test 3: Register for 10 years, extend by 5 years -> total ~15 years -> should succeed ---
+    std::string addr3 = GenerateSparkAddress();
+    CMutableTransaction txReg10a = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 10, "", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txReg10a});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+    BOOST_CHECK(IsSparkNamePresent("maxval3"));
+
+    GenerateBlocks(5);
+
+    CMutableTransaction txExt5 = CreateSparkNameTx("maxval3", addr3, nBlockPerYear * 5, "ext5", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txExt5});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+    BOOST_CHECK(IsSparkNamePresent("maxval3"));
+
+    // Verify extended expiration preserves remaining time (post-V21 behavior)
+    int extHeight = chainActive.Height();
+    uint64_t expExt = sparkNameManager->GetSparkNameBlockHeight("maxval3");
+    // Total from extend height should be close to 15 years (minus the few blocks advanced)
+    BOOST_CHECK(expExt > (uint64_t)(extHeight + nBlockPerYear * 14));
+    BOOST_CHECK(expExt <= (uint64_t)(extHeight + nBlockPerYear * 15));
+
+    // --- Test 4: Register for 10 years, try extending by 6 years -> total > 15 years -> should fail ---
+    std::string addr4 = GenerateSparkAddress();
+    CMutableTransaction txReg10b = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 10, "", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txReg10b});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+    BOOST_CHECK(IsSparkNamePresent("maxval4"));
+
+    CMutableTransaction txExt6 = CreateSparkNameTx("maxval4", addr4, nBlockPerYear * 6, "ext6", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txExt6});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected - total exceeds 15 years
+}
+
+BOOST_AUTO_TEST_CASE(tagged_fee_output_must_pay_fee)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    Initialize(2700);
+
+    std::string addr = GenerateSparkAddress();
+    CMutableTransaction tx = CreateSparkNameTx("tagfee", addr, nBlockPerYear, "", false);
+    CAmount nameFee = consensus.nSparkNamesFee[std::string("tagfee").size()] * COIN;
+
+    bool modifiedFeeOutput = false;
+    for (size_t i = 0; i < tx.vout.size(); ++i) {
+        if (tx.vout[i].scriptPubKey.IsSparkNameFee()) {
+            CScript baseScript = GetBaseScriptFromSparkNameFee(tx.vout[i].scriptPubKey);
+            tx.vout[i].nValue = 0;
+            tx.vout.push_back(CTxOut(nameFee, baseScript));
+            modifiedFeeOutput = true;
+            break;
+        }
+    }
+    BOOST_REQUIRE(modifiedFeeOutput);
+    ModifySparkNameTx(tx, [](CSparkNameTxData &) {}, true);
+
+    int oldHeight = chainActive.Height();
+    GenerateBlock({tx});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+    BOOST_CHECK(!IsSparkNamePresent("tagfee"));
+}
+
+BOOST_AUTO_TEST_CASE(extension_mempool_uses_next_block_height)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    Initialize(2700);
+
+    std::string addr = GenerateSparkAddress();
+    CMutableTransaction txReg = CreateSparkNameTx("nextheight", addr, nBlockPerYear * 15, "", false);
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txReg});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+
+    uint64_t originalExpiration = sparkNameManager->GetSparkNameBlockHeight("nextheight");
+    CMutableTransaction txExt = CreateSparkNameTx("nextheight", addr, 1, "one-block-extension", true);
+    BOOST_CHECK(lastState.IsValid());
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({txExt});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+    BOOST_CHECK_EQUAL(sparkNameManager->GetSparkNameBlockHeight("nextheight"), originalExpiration + 1);
+}
+
+BOOST_AUTO_TEST_CASE(validity_overflow_protection)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    // Initialize past V2.1 (regtest V2.1 starts at 2700)
+    Initialize(2700);
+
+    std::string addr1 = GenerateSparkAddress();
+
+    // Register "overtest" with 1 year to have an existing name available for renewal
+    CMutableTransaction txReg = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg});
+    BOOST_CHECK(IsSparkNamePresent("overtest"));
+
+    // sparkNameValidityBlocks is uint32_t. Without the explicit uint32_t check, a value
+    // above INT_MAX narrows to a negative int, causing the 15-year cap comparison to
+    // silently pass. The tests below verify this is now rejected.
+
+    const uint32_t overflowBlocks = (uint32_t)INT_MAX + 1u; // minimal case that triggers the bug
+
+    // --- Fresh registration with sparkNameValidityBlocks = INT_MAX + 1 ---
+    std::string addr2 = GenerateSparkAddress();
+    CMutableTransaction txNewOverflow = CreateSparkNameTx("newname1", addr2, nBlockPerYear, "", false);
+    ModifySparkNameTx(txNewOverflow, [overflowBlocks](CSparkNameTxData &data) {
+        data.sparkNameValidityBlocks = overflowBlocks;
+    });
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txNewOverflow});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block must be rejected
+
+    // --- Renewal of existing name with sparkNameValidityBlocks = INT_MAX + 1 ---
+    CMutableTransaction txUpdateOverflow = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "", false);
+    ModifySparkNameTx(txUpdateOverflow, [overflowBlocks](CSparkNameTxData &data) {
+        data.sparkNameValidityBlocks = overflowBlocks;
+    });
+    oldHeight = chainActive.Height();
+    GenerateBlock({txUpdateOverflow});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block must be rejected
+
+    // --- UINT32_MAX variant ---
+    CMutableTransaction txMaxOverflow = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "", false);
+    ModifySparkNameTx(txMaxOverflow, [](CSparkNameTxData &data) {
+        data.sparkNameValidityBlocks = UINT32_MAX;
+    });
+    oldHeight = chainActive.Height();
+    GenerateBlock({txMaxOverflow});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block must be rejected
+
+    // Sanity: a valid 1-year renewal still goes through after all the failed attempts
+    CMutableTransaction txValid = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "ok", false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txValid});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1); // block must be accepted
+    BOOST_CHECK(IsSparkNamePresent("overtest"));
+}
+
+BOOST_AUTO_TEST_CASE(transfer_replay_protection_v21)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    // regtest: V2.1 starts at block 2700. Past it, every transfer must carry an
+    // inputsHash committing to the name's current expiration height. The expiration
+    // height is unique per registration cycle, so a transfer proof captured in one
+    // cycle becomes unusable once the name's expiration height changes.
+    Initialize(2700);
+    BOOST_CHECK(chainActive.Height() >= consensus.nSparkNamesV21StartBlock);
+
+    auto inputsHashFor = [](uint64_t expirationHeight) {
+        CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
+        hw << expirationHeight;
+        return hw.GetHash();
+    };
+
+    // Sign a transfer ownership proof for `addrFrom` over `data`. This mirrors the
+    // message construction in CheckSparkNameTx (both ownership proofs cleared, then
+    // "SparkNameTransferProof" || oldAddr || newAddr || hash(data)). Because the
+    // message commits to inputsHash, callers must set inputsHash before signing.
+    auto signTransfer = [&](CSparkNameTxData &data, const std::string &addrFrom) {
+        CSparkNameTxData copy = data;
+        copy.addressOwnershipProof.clear();
+        copy.transferOwnershipProof.clear();
+
+        CHashWriter nameHash(SER_GETHASH, PROTOCOL_VERSION);
+        nameHash << copy;
+
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+        hashStream << "SparkNameTransferProof";
+        hashStream << data.oldSparkAddress << data.sparkAddress;
+        hashStream << nameHash.GetHash();
+
+        const spark::Params *sparkParams = spark::Params::get_default();
+        spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(sparkParams);
+
+        spark::Address from(sparkParams);
+        from.decode(addrFrom);
+
+        spark::Scalar m;
+        m.SetHex(hashStream.GetHash().ToString());
+
+        spark::OwnershipProof proof;
+        from.prove_own(m, spendKey, spark::FullViewKey(spendKey), proof);
+
+        CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+        proofStream << proof;
+        data.transferOwnershipProof.assign(proofStream.begin(), proofStream.end());
+    };
+
+    // --- Register "replayname" at address A ---
+    std::string addrA = GenerateSparkAddress();
+    CMutableTransaction txReg = CreateSparkNameTx("replayname", addrA, nBlockPerYear, "original", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg});
+    BOOST_CHECK(IsSparkNamePresent("replayname"));
+
+    uint64_t expirationA = sparkNameManager->GetSparkNameBlockHeight("replayname");
+
+    // --- Valid transfer A -> B with inputsHash bound to the current expiration height ---
+    std::string addrB = GenerateSparkAddress();
+
+    CSparkNameTxData xfer;
+    xfer.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    xfer.name = "replayname";
+    xfer.sparkAddress = addrB;
+    xfer.oldSparkAddress = addrA;
+    xfer.sparkNameValidityBlocks = nBlockPerYear;
+    xfer.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+    xfer.additionalInfo = "transferred";
+    xfer.inputsHash = inputsHashFor(expirationA);
+    signTransfer(xfer, addrA);
+
+    CMutableTransaction txXfer = CreateSparkNameTx(xfer, true);
+    BOOST_CHECK(lastState.IsValid());
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txXfer});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);
+
+    std::string resolvedAddr;
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("replayname", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+
+    uint64_t expirationB = sparkNameManager->GetSparkNameBlockHeight("replayname");
+    std::string addrC = GenerateSparkAddress();
+
+    // Template for a transfer B -> C. Built via the wallet, which fills in inputsHash
+    // (bound to the current expiration height) and the destination ownership proof.
+    CSparkNameTxData xfer2;
+    xfer2.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    xfer2.name = "replayname";
+    xfer2.sparkAddress = addrC;
+    xfer2.oldSparkAddress = addrB;
+    xfer2.sparkNameValidityBlocks = nBlockPerYear;
+    xfer2.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+    xfer2.additionalInfo = "second";
+    xfer2.inputsHash = inputsHashFor(expirationB);
+    signTransfer(xfer2, addrB);
+
+    // --- A transfer proof bound to a different registration cycle must be rejected ---
+    // Build a transfer that is internally consistent (its transfer ownership proof is
+    // re-signed over its own inputsHash) but whose inputsHash commits to a *different*
+    // expiration height than the name's current one — exactly what a proof captured
+    // from another registration cycle would look like. Without the inputsHash check
+    // this would be accepted, allowing the replay; with it, it is rejected.
+    CMutableTransaction txReplay = CreateSparkNameTx(xfer2, false);
+    ModifySparkNameTx(txReplay, [&](CSparkNameTxData &data) {
+        data.inputsHash = inputsHashFor(expirationB + 1);   // wrong cycle
+        signTransfer(data, data.oldSparkAddress);           // keep the proof consistent
+    }, true);
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({txReplay});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight); // block rejected
+    // name must still be at B
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("replayname", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+
+    // --- Sanity: the same transfer with inputsHash bound to the current cycle passes ---
+    // Confirms the wrong-cycle inputsHash above was the sole reason for rejection.
+    CMutableTransaction txValid = CreateSparkNameTx(xfer2, false);
+    oldHeight = chainActive.Height();
+    GenerateBlock({txValid});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1); // block accepted
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("replayname", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrC);
+}
+
+BOOST_AUTO_TEST_CASE(transfer_replay_grace_period_v21)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    // regtest: V2.1 starts at block 2700 with a 100-block grace period (stage41SparkNamesGracefulPeriod).
+    // Transfers built before activation carry no inputsHash; if they were broadcast just before the fork
+    // they can still be sitting in the mempool when it activates. During [2700, 2800) such legacy (null
+    // inputsHash) transfers remain acceptable so they aren't dropped; from 2800 on, inputsHash is mandatory.
+    // The fixture starts at height 100 (TestChain100Setup), so Initialize(2600) lands exactly on the V2.1
+    // activation height (2700), at the start of the grace window.
+    Initialize(2600);
+    BOOST_CHECK(chainActive.Height() >= consensus.nSparkNamesV21StartBlock);
+    BOOST_CHECK(chainActive.Height() < consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod);
+
+    auto inputsHashFor = [](uint64_t expirationHeight) {
+        CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
+        hw << expirationHeight;
+        return hw.GetHash();
+    };
+
+    // Re-sign the transfer ownership proof for `addrFrom` over `data` (see transfer_replay_protection_v21).
+    // Because the message commits to inputsHash, this must run after inputsHash has been set on `data`.
+    auto signTransfer = [&](CSparkNameTxData &data, const std::string &addrFrom) {
+        CSparkNameTxData copy = data;
+        copy.addressOwnershipProof.clear();
+        copy.transferOwnershipProof.clear();
+
+        CHashWriter nameHash(SER_GETHASH, PROTOCOL_VERSION);
+        nameHash << copy;
+
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+        hashStream << "SparkNameTransferProof";
+        hashStream << data.oldSparkAddress << data.sparkAddress;
+        hashStream << nameHash.GetHash();
+
+        const spark::Params *sparkParams = spark::Params::get_default();
+        spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(sparkParams);
+
+        spark::Address from(sparkParams);
+        from.decode(addrFrom);
+
+        spark::Scalar m;
+        m.SetHex(hashStream.GetHash().ToString());
+
+        spark::OwnershipProof proof;
+        from.prove_own(m, spendKey, spark::FullViewKey(spendKey), proof);
+
+        CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+        proofStream << proof;
+        data.transferOwnershipProof.assign(proofStream.begin(), proofStream.end());
+    };
+
+    // Build a legacy (pre-v2.1) transfer of `name` from `addrFrom` to `addrTo`: the wallet would normally
+    // fill in inputsHash for v2.1+, so we null it out and re-sign to reproduce a transfer created before
+    // the fork.
+    auto buildLegacyTransfer = [&](const std::string &name, const std::string &addrFrom, const std::string &addrTo, const std::string &info) {
+        CSparkNameTxData data;
+        data.nVersion = CSparkNameTxData::CURRENT_VERSION;
+        data.name = name;
+        data.sparkAddress = addrTo;
+        data.oldSparkAddress = addrFrom;
+        data.sparkNameValidityBlocks = nBlockPerYear;
+        data.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+        data.additionalInfo = info;
+
+        CMutableTransaction tx = CreateSparkNameTx(data, false);
+        ModifySparkNameTx(tx, [&](CSparkNameTxData &d) {
+            d.inputsHash.SetNull();                 // pre-v2.1: no inputsHash
+            signTransfer(d, d.oldSparkAddress);     // keep the transfer proof consistent
+        }, true);
+        return tx;
+    };
+
+    // --- Register "graced" at address A ---
+    std::string addrA = GenerateSparkAddress();
+    CMutableTransaction txReg = CreateSparkNameTx("graced", addrA, nBlockPerYear, "original", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg});
+    BOOST_CHECK(IsSparkNamePresent("graced"));
+
+    // --- Legacy transfer A -> B (null inputsHash) is accepted while inside the grace period ---
+    std::string addrB = GenerateSparkAddress();
+    CMutableTransaction txLegacy = buildLegacyTransfer("graced", addrA, addrB, "legacy");
+
+    BOOST_CHECK(chainActive.Height() < consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod);
+    int oldHeight = chainActive.Height();
+    GenerateBlock({txLegacy});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1);  // accepted during grace
+
+    std::string resolvedAddr;
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("graced", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+
+    // --- Advance past the grace period; a legacy (null inputsHash) transfer must now be rejected ---
+    GenerateBlocks(consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod - chainActive.Height());
+    BOOST_CHECK(chainActive.Height() >= consensus.nSparkNamesV21StartBlock + consensus.stage41SparkNamesGracefulPeriod);
+
+    std::string addrC = GenerateSparkAddress();
+    CMutableTransaction txLegacyLate = buildLegacyTransfer("graced", addrB, addrC, "legacy-late");
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({txLegacyLate});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);     // rejected after grace
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("graced", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);                 // name unchanged, still at B
+
+    // --- Sanity: a proper v2.1 transfer (inputsHash bound to the current expiration height) is still
+    // accepted after grace. inputsHash must be set before signing the transfer proof, and matches the
+    // value the wallet recomputes in AppendSparkNameTxData. ---
+    uint64_t expirationB = sparkNameManager->GetSparkNameBlockHeight("graced");
+    CSparkNameTxData xferValid;
+    xferValid.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    xferValid.name = "graced";
+    xferValid.sparkAddress = addrC;
+    xferValid.oldSparkAddress = addrB;
+    xferValid.sparkNameValidityBlocks = nBlockPerYear;
+    xferValid.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+    xferValid.additionalInfo = "valid";
+    xferValid.inputsHash = inputsHashFor(expirationB);
+    signTransfer(xferValid, addrB);
+    CMutableTransaction txValid = CreateSparkNameTx(xferValid, false);
+
+    oldHeight = chainActive.Height();
+    GenerateBlock({txValid});
+    BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1); // accepted after grace
+    resolvedAddr.clear();
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("graced", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrC);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1215,41 +1215,6 @@ QDialog#Intro QPushButton#ellipsisButton {
     min-width: 10px;
 }
 
-/* lelantus */
-
-QDialog#LelantusDialog QLabel#labelTotalAnonymizedCoinsText,
-QDialog#LelantusDialog QLabel#labelLatestGroupText,
-QDialog#LelantusDialog QLabel#labelUnspentText,
-QDialog#LelantusDialog QLabel#spendableText,
-QDialog#LelantusDialog QLabel#unconfirmedText,
-QDialog#LelantusDialog QLabel#totalText {
-    qproperty-alignment: 'AlignVCenter | AlignRight';
-    min-width: 100px;
-    margin-right: 5px;
-    padding-right: 5px;
-}
-
-QDialog#LelantusDialog QLabel#labelGlobalLelantusPoolText,
-QDialog#LelantusDialog QLabel#labelYourAnoymizedCoinsText {
-    margin-top: 0;
-    margin-right: 5px;
-}
-
-QDialog#LelantusDialog QLabel#fallbackFeeWarningLabel,
-QDialog#LelantusDialog QLabel#labelFeeHeadline {
-    qproperty-alignment: 'AlignVCenter';
-    height: 28px;
-    font-weight: bold;
-}
-
-QDialog#LelantusDialog QRadioButton#radioSmartFee {
-    margin-top: 2.5px;
-}
-
-QDialog#LelantusDialog QRadioButton#radioCustomFee {
-    margin-top: 7px;
-}
-
 /* ManualMintDialog */
 
 QDialog#ManualMintDialog QLabel#availableAmount,
@@ -1664,7 +1629,6 @@ QDialog#SendCoinsDialog QLabel#labelCoinControlLowOutputText,
 QDialog#SendCoinsDialog QLabel#labelCoinControlFeeText,
 QDialog#SendCoinsDialog QLabel#labelCoinControlAfterFeeText,
 QDialog#SendCoinsDialog QLabel#labelCoinControlChangeText,
-QDialog#SendCoinsDialog QLabel#labelGlobalLelantusPoolText,
 QDialog#SendCoinsDialog QLabel#labelYourAnoymizedCoinsText,
 QDialog#SendCoinsDialog QLabel#labelFeeHeadline,
 QDialog#SendCoinsDialog QLabel#fallbackFeeWarningLabel {

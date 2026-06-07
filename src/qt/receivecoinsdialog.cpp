@@ -15,6 +15,7 @@
 #include "recentrequeststablemodel.h"
 #include "walletmodel.h"
 #include "createsparknamepage.h"
+#include "sparkname.h"
 
 #include <QAction>
 #include <QCursor>
@@ -26,6 +27,9 @@
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QScreen>
+#include <QVector>
+
+#include <algorithm>
 
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -51,12 +55,14 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui->addressTypeCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeCombobox->addItem(tr("Transparent"), Transparent);
 
-    if(ui->addressTypeCombobox->currentText() == "Spark"){
+    if(ui->addressTypeCombobox->currentData().toInt() == Spark){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
+        ui->mySparkNamesButton->setVisible(true);
     } else {
         ui->reuseAddress->show();
         ui->createSparkNameButton->setVisible(false);
+        ui->mySparkNamesButton->setVisible(false);
     }
 
     ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
@@ -88,6 +94,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
 
     connect(ui->createSparkNameButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::createSparkName);
+    connect(ui->mySparkNamesButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::mySparkNames);
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -127,6 +134,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             ui->addressTypeCombobox->removeItem(0);
             ui->reuseAddress->show();
             ui->createSparkNameButton->setVisible(false);
+            ui->mySparkNamesButton->setVisible(false);
         }
 
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
@@ -175,7 +183,8 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
     QString address;
     QString label = ui->reqLabel->text();
     QString addressType = ui->addressTypeCombobox->currentText();
-    if(ui->reuseAddress->isChecked() && ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent)
+    const int selectedAddressType = ui->addressTypeCombobox->currentData().toInt();
+    if(ui->reuseAddress->isChecked() && selectedAddressType == Transparent)
     {
         /* Choose existing receiving address */
         AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
@@ -192,17 +201,34 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         }
     } else {
         /* Generate new receiving address */
-        if(ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent) {
+        if(selectedAddressType == Transparent) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
-        } else if(ui->addressTypeCombobox->currentText() == AddressTableModel::Spark) {
-            address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+        } else if(selectedAddressType == Spark) {
+            // Check if label is a @name reference to a spark name
+            if (label.startsWith("@") && label.size() > 1 && label.size() <= (int)CSparkNameManager::maximumSparkNameLength + 1) {
+                QString sparkName = label.mid(1);
+                address = model->getSparkNameAddress(sparkName);
+                if (address.isEmpty()) {
+                    QMessageBox::critical(this, tr("Error"), tr("Spark name \"%1\" not found or expired.").arg(sparkName));
+                    return;
+                }
+                if (!model->isSparkAddressMine(address)) {
+                    QMessageBox::critical(this, tr("Error"), tr("Spark name \"%1\" does not belong to this wallet.").arg(sparkName));
+                    return;
+                }
+            } else {
+                address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            }
         }
     }
+    if(address.isEmpty())
+        return;
+
     SendCoinsRecipient info(address, addressType, label,
         ui->reqAmount->value(), ui->reqMessage->text());
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setModel(model->getOptionsModel());
+    dialog->setModel(model);
     dialog->setInfo(info);
     dialog->show();
     clear();
@@ -216,7 +242,7 @@ void ReceiveCoinsDialog::on_recentRequestsView_doubleClicked(const QModelIndex &
     QModelIndex targetIdx = recentRequestsProxyModel->mapToSource(index);
     const RecentRequestsTableModel *submodel = model->getRecentRequestsTableModel();
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
-    dialog->setModel(model->getOptionsModel());
+    dialog->setModel(model);
     dialog->setInfo(submodel->entry(targetIdx.row()).recipient);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
@@ -243,15 +269,27 @@ void ReceiveCoinsDialog::on_showRequestButton_clicked()
 
 void ReceiveCoinsDialog::on_removeRequestButton_clicked()
 {
-    if(!model || !model->getRecentRequestsTableModel() || !ui->recentRequestsView->selectionModel())
+    if(!model || !model->getRecentRequestsTableModel() || !recentRequestsProxyModel || !ui->recentRequestsView->selectionModel())
         return;
     QModelIndexList selection = ui->recentRequestsView->selectionModel()->selectedRows();
     if(selection.empty())
         return;
-    // correct for selection mode ContiguousSelection
-    QModelIndex index = selection.at(0);
-    QModelIndex firstIndex = recentRequestsProxyModel->mapToSource(index);
-    model->getRecentRequestsTableModel()->removeRows(firstIndex.row(), selection.length(), firstIndex.parent());
+
+    QVector<int> sourceRows;
+    sourceRows.reserve(selection.size());
+    for (const QModelIndex& index : selection) {
+        QModelIndex sourceIndex = recentRequestsProxyModel->mapToSource(index);
+        if (sourceIndex.isValid())
+            sourceRows.append(sourceIndex.row());
+    }
+
+    std::sort(sourceRows.begin(), sourceRows.end(), [](int left, int right) {
+        return left > right;
+    });
+
+    for (int row : sourceRows) {
+        model->getRecentRequestsTableModel()->removeRows(row, 1);
+    }
 }
 
 void ReceiveCoinsDialog::keyPressEvent(QKeyEvent *event)
@@ -272,14 +310,13 @@ void ReceiveCoinsDialog::keyPressEvent(QKeyEvent *event)
 
 QModelIndex ReceiveCoinsDialog::selectedRow()
 {
-    if(!model || !model->getRecentRequestsTableModel() || !ui->recentRequestsView->selectionModel())
+    if(!model || !model->getRecentRequestsTableModel() || !recentRequestsProxyModel || !ui->recentRequestsView->selectionModel())
         return QModelIndex();
     QModelIndexList selection = ui->recentRequestsView->selectionModel()->selectedRows();
     if(selection.empty())
         return QModelIndex();
-    // correct for selection mode ContiguousSelection
     QModelIndex firstIndex = selection.at(0);
-    return firstIndex;
+    return recentRequestsProxyModel->mapToSource(firstIndex);
 }
 
 // copy column of selected row to clipboard
@@ -334,12 +371,14 @@ void ReceiveCoinsDialog::copyAmount()
 
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
-    if(ui->addressTypeCombobox->currentText() == tr("Spark")){
+    if(ui->addressTypeCombobox->itemData(idx).toInt() == Spark){
         ui->reuseAddress->hide();
         ui->createSparkNameButton->setVisible(true);
+        ui->mySparkNamesButton->setVisible(true);
     } else {
         ui->reuseAddress->show();
         ui->createSparkNameButton->setVisible(false);
+        ui->mySparkNamesButton->setVisible(false);
     }
 }
 
@@ -432,6 +471,16 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     ui->removeRequestButton->setMinimumHeight(buttonMinHeight);
     ui->removeRequestButton->setMaximumHeight(buttonMaxHeight);
 
+    ui->mySparkNamesButton->setMinimumWidth(buttonMinWidth);
+    ui->mySparkNamesButton->setMaximumWidth(buttonMaxWidth);
+    ui->mySparkNamesButton->setMinimumHeight(buttonMinHeight);
+    ui->mySparkNamesButton->setMaximumHeight(buttonMaxHeight);
+
+    ui->createSparkNameButton->setMinimumWidth(buttonMinWidth);
+    ui->createSparkNameButton->setMaximumWidth(buttonMaxWidth);
+    ui->createSparkNameButton->setMinimumHeight(buttonMinHeight);
+    ui->createSparkNameButton->setMaximumHeight(buttonMaxHeight);
+
     // Adjust column widths proportionally
     int dateColumnWidth = newWidth * 0.25;
     int labelColumnWidth = newWidth * 0.25;
@@ -465,6 +514,8 @@ void ReceiveCoinsDialog::adjustTextSize(int width,int height){
     ui->clearButton->setFont(font);
     ui->showRequestButton->setFont(font);
     ui->removeRequestButton->setFont(font);
+    ui->mySparkNamesButton->setFont(font);
+    ui->createSparkNameButton->setFont(font);
     ui->addressTypeCombobox->setFont(font);
     ui->addressTypeHistoryCombobox->setFont(font);
     ui->recentRequestsView->setFont(font);
@@ -477,4 +528,28 @@ void ReceiveCoinsDialog::createSparkName() {
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModel(model);
     dialog->show();
+}
+
+void ReceiveCoinsDialog::mySparkNames() {
+    if (!model || !model->getAddressTableModel())
+        return;
+
+    AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this, false);
+    dlg.setInitialAddressType(AddressBookPage::SparkNameMine);
+    dlg.setModel(model->getAddressTableModel());
+    if (dlg.exec()) {
+        QString label = dlg.getReturnLabel();
+        // Ensure the label is in @name notation
+        if (!label.isEmpty()) {
+            if (!label.startsWith("@"))
+                label = "@" + label;
+            QString sparkName = label.mid(1);
+            QString resolvedAddress = model->getSparkNameAddress(sparkName);
+            if (resolvedAddress.isEmpty() || !model->isSparkAddressMine(resolvedAddress)) {
+                QMessageBox::critical(this, tr("Error"), tr("Selected spark name \"%1\" does not belong to this wallet.").arg(sparkName));
+                return;
+            }
+            ui->reqLabel->setText(label);
+        }
+    }
 }

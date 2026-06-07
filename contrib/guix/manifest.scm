@@ -15,12 +15,14 @@
              (gnu packages llvm)
              (gnu packages mingw)
              (gnu packages ninja)
+             ((gnu packages build-tools) #:select (meson))
              (gnu packages pkg-config)
              ((gnu packages python) #:select (python-minimal))
              ((gnu packages python-build) #:select (python-tomli python-poetry-core))
              ((gnu packages python-crypto) #:select (python-asn1crypto))
              ((gnu packages tls) #:select (openssl))
              (gnu packages perl)
+             (gnu packages xml)
              ((gnu packages version-control) #:select (git-minimal))
              (guix build-system cmake)
              (guix build-system gnu)
@@ -264,10 +266,12 @@ chain for " target " development."))
         cmake-minimal
         gnu-make
         ninja
+        meson
         libtool
         automake
         autoconf-2.71
         pkg-config
+        expat
         ;; Scripting
         python-minimal ;; (3.10)
         perl

@@ -122,7 +122,6 @@ private:
     QAction *openRPCConsoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
-    QAction *lelantusAction;
     QAction *masternodeAction;
     QAction *logoAction;
     QToolBar *toolbar;
@@ -137,6 +136,9 @@ private:
     /** Keep track of previous number of blocks, to detect progress */
     int prevBlocks;
     int spinnerFrame;
+#ifdef ENABLE_WALLET
+    bool sparkAddressbookUpdated;
+#endif
 
     const PlatformStyle *platformStyle;
 

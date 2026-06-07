@@ -164,12 +164,12 @@
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="reindexLelantus">
+           <widget class="QCheckBox" name="reindexSpark">
             <property name="toolTip">
-             <string>Restore all Lelantus transactions following a reindex.</string>
+             <string>Restore Spark and wallet transaction data following a full reindex (deletes Spark mint records from the wallet, then reindexes the chain and reapplies wallet transactions). This can take several hours.</string>
             </property>
             <property name="text">
-             <string>&amp;Reindex Lelantus</string>
+             <string>&amp;Reindex Spark wallet data</string>
             </property>
            </widget>
           </item>
@@ -177,13 +177,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="lelantusGroupBox">
+        <widget class="QGroupBox" name="sparkGroupBox">
          <property name="title">
-          <string>Lelantus</string>
+          <string>Spark</string>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <layout class="QVBoxLayout" name="verticalLayout_Spark">
           <item>
            <widget class="QCheckBox" name="autoAnonymize">
+            <property name="toolTip">
+             <string>When enabled, the wallet can prompt to anonymize transparent funds using Spark.</string>
+            </property>
             <property name="text">
              <string>Enable &amp;auto-anonymize features</string>
             </property>
@@ -191,15 +194,21 @@
           </item>
           <item>
            <widget class="QCheckBox" name="fSplit">
+            <property name="toolTip">
+             <string>Split outputs when minting to Spark for better privacy.</string>
+            </property>
             <property name="text">
              <string>Enable &amp;splitting when minting</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="lelantusPage">
+           <widget class="QCheckBox" name="sparkPage">
+            <property name="toolTip">
+             <string>Show the Spark manual anonymize controls in the overview.</string>
+            </property>
             <property name="text">
-             <string>Enable &amp;lelantus manual-anonymize page</string>
+             <string>Enable Spark &amp;manual-anonymize page</string>
             </property>
            </widget>
           </item>

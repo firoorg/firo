@@ -1,9 +1,11 @@
 #ifndef FIRO_LIBSPARK_GROOTLE_H
 #define FIRO_LIBSPARK_GROOTLE_H
 
+// Include standard library first to avoid macro conflicts with system headers (e.g. <random>)
+#include <random>
+
 #include "grootle_proof.h"
 #include <secp256k1/include/MultiExponent.h>
-#include <random>
 #include "util.h"
 
 namespace spark {

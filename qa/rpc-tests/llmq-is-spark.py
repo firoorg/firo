@@ -18,7 +18,7 @@ llmq-is-spark.py
 Testing Instantsend for Spark transactions
 '''
 
-class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
+class LLMQ_IS_Spark(EvoZnodeTestFramework):
     def __init__(self):
         super().__init__(6, 5, extra_args=[['-debug=instantsend']] * 6 )
         self.sporkprivkey = "cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ"
@@ -55,4 +55,4 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
         assert(self.wait_for_instantlock(spendTxid, self.nodes[0]))
 
 if __name__ == '__main__':
-    LLMQ_IS_Lelantus().main()
+    LLMQ_IS_Spark().main()

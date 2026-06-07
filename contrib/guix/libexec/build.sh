@@ -95,6 +95,11 @@ prepend_to_search_env_var() {
     export "${1}=${2}${!1:+:}${!1}"
 }
 
+# Native tools built in depends may need the GCC runtime when executed.
+if [ -n "${LIBRARY_PATH}" ]; then
+    prepend_to_search_env_var LD_LIBRARY_PATH "${LIBRARY_PATH}"
+fi
+
 # Set environment variables to point the CROSS toolchain to the right
 # includes/libs for $HOST
 case "$HOST" in

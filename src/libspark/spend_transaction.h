@@ -1,6 +1,11 @@
 #ifndef FIRO_SPARK_SPEND_TRANSACTION_H
 #define FIRO_SPARK_SPEND_TRANSACTION_H
+
+
 #include <limits>
+#include <random>
+
+#include "grootle_proof.h"
 #include "keys.h"
 #include "coin.h"
 #include "schnorr.h"

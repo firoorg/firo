@@ -18,7 +18,6 @@
 
 #include "base58.h"
 #include "chainparams.h"
-#include "lelantus.h"
 #include "wallet/coincontrol.h"
 #include "validation.h" // mempool and minRelayTxFee
 #include "txmempool.h"
@@ -367,17 +366,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
-    if (model->getWallet() &&
-        model->getWallet()->GetPrivateBalance().first > 0 &&
-        spark::IsSparkAllowed() &&
-        chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
-        MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
-        bool clickedButton = migrateLelantusToSpark.getClickedButton();
-        if(!clickedButton) {
-            fNewRecipientAllowed = true;
-            return;
-        }
-    }
+
     if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
         prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {

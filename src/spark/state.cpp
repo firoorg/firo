@@ -1,10 +1,11 @@
-#include "../liblelantus/threadpool.h"
+#include "threadpool.h"
 #include "state.h"
 #include "compat_layer.h"
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 
+#include <memory>
 #include <set>
 
 namespace spark {
@@ -102,7 +103,7 @@ unsigned char GetNetworkType() {
 }
 
 /*
- * Util funtions
+ * Util functions
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
     const auto& pd = index->privacyData();
@@ -278,7 +279,7 @@ bool ConnectBlockSpark(
             pd.sparkSetHash.clear();
         }
 
-        if (!CheckSparkBlock(state, *pblock)) {
+        if (!CheckSparkBlock(state, *pblock, pindexNew->nHeight)) {
             return false;
         }
 
@@ -346,12 +347,26 @@ bool ConnectBlockSpark(
                 for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
                     uint8_t opType = sparkName.second.nVersion >= 2 ?
                                                     sparkName.second.operationType : CSparkNameTxData::opRegister;
+                    // For V2.1+, renewals and transfers preserve remaining validity
+                    int validityBlocks = sparkName.second.sparkNameValidityBlocks;
+                    const auto& consensusParams = ::Params().GetConsensus();
+                    if (pindexNew->nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+                        try {
+                            int existingExpirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
+                            int remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
+                            if (remainingBlocks > 0)
+                                validityBlocks += remainingBlocks;
+                        } catch (const std::runtime_error&) {
+                            // name doesn't exist yet, no adjustment needed
+                        }
+                    }
+
                     switch (opType) {
                         case CSparkNameTxData::opRegister:
                             pindexNew->ensurePrivacyData().addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    pindexNew->nHeight + validityBlocks,
                                     sparkName.second.additionalInfo);
                             break;
 
@@ -366,7 +381,7 @@ bool ConnectBlockSpark(
                             pindexNew->ensurePrivacyData().addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    pindexNew->nHeight + validityBlocks,
                                     sparkName.second.additionalInfo);
 
                             break;
@@ -480,22 +495,22 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
     RemoveSpendReferencingBlock(txpools.getStemTxPool(), pindexDelete);
 }
 
-bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
+bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight) {
     auto& consensus = ::Params().GetConsensus();
 
-    size_t blockSpendsValue = 0;
+    CAmount blockSpendsValue = 0;
 
     for (const auto& tx : block.vtx) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
 
-        if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(block.nHeight)) {
+        if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(nBlockHeight)) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-spend-invalid");
         }
         blockSpendsValue += txSpendsValue;
     }
 
-    if (cmp::greater(blockSpendsValue, consensus.GetMaxValueSparkSpendPerBlock(block.nHeight))) {
+    if (cmp::greater(blockSpendsValue, consensus.GetMaxValueSparkSpendPerBlock(nBlockHeight))) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }
@@ -850,7 +865,7 @@ bool CheckSparkSpendTransaction(
                 }
             }
             while (fRecheckNeeded);
-    
+
             if (fChecked) {
                 // if we are here, then the proof was already checked and it passed
                 passVerify = true;
@@ -892,7 +907,7 @@ bool CheckSparkSpendTransaction(
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
             for (size_t i = 0; i < lTags.size(); ++i) {
                     if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
-                        LogPrintf("CheckSparkSpendTransaction: lTAg check failed, ltag=%s\n", lTags[i]);
+                        LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
             }
@@ -974,10 +989,10 @@ bool CheckSparkTransaction(
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
         int nRealHeight = nHeight;
-        if (nRealHeight == INT_MAX)  // if height is not set, use chainActive height
+        if (nRealHeight == INT_MAX)  // mempool validation checks the next block height
         {
             LOCK(cs_main);
-            nRealHeight = chainActive.Height();
+            nRealHeight = chainActive.Height() + 1;
         }
         if (GetSpendTransparentAmount(tx) > consensus.GetMaxValueSparkSpendPerTransaction(nRealHeight)) {
             return state.DoS(100, false,

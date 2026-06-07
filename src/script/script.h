@@ -209,7 +209,10 @@ enum opcodetype
     OP_SPARKSPEND = 0xd3,
 
     // basically NOP but identifies that sunsequent txout script contains super transparent address
-    OP_EXCHANGEADDR = 0xe0
+    OP_EXCHANGEADDR = 0xe0,
+
+    // NOP suffix that tags a P2PKH output with spark name and spark address data
+    OP_SPARKNAMEID = 0xe1
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -688,6 +691,9 @@ public:
     bool IsSparkSMint() const;
 
     bool IsSparkSpend() const;
+
+    // Returns true if this script is a P2PKH tagged with spark name data
+    bool IsSparkNameFee() const;
 
     bool IsZerocoinRemint() const;
 

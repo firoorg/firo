@@ -7,7 +7,7 @@ $(package)_sha256_hash=$(qt_details_qtbase_sha256_hash)
 ifneq ($(host),$(build))
 $(package)_dependencies := native_$(package)
 endif
-$(package)_linux_dependencies := freetype fontconfig libxcb libxkbcommon libxcb_util libxcb_util_cursor libxcb_util_render libxcb_util_keysyms libxcb_util_image libxcb_util_wm
+$(package)_linux_dependencies := freetype fontconfig libxcb libxkbcommon libxcb_util libxcb_util_cursor libxcb_util_render libxcb_util_keysyms libxcb_util_image libxcb_util_wm wayland libglvnd
 $(package)_freebsd_dependencies := $($(package)_linux_dependencies)
 $(package)_patches_path := $(qt_details_patches_path)
 $(package)_patches := dont_hardcode_pwd.patch
@@ -17,8 +17,11 @@ $(package)_patches += qtbase_avoid_qmain.patch
 $(package)_patches += qtbase_platformsupport.patch
 $(package)_patches += qtbase_plugins_cocoa.patch
 $(package)_patches += qtbase_skip_tools.patch
+$(package)_patches += qtbase_findxcb_image_aux.patch
 $(package)_patches += rcc_hardcode_timestamp.patch
 $(package)_patches += qttools_skip_dependencies.patch
+$(package)_patches += qtwayland_decoration_no_egl_gate.patch
+$(package)_patches += qtbase_fix_qyieldcpu_apple_arm.patch
 
 $(package)_qttranslations_file_name=$(qt_details_qttranslations_file_name)
 $(package)_qttranslations_sha256_hash=$(qt_details_qttranslations_sha256_hash)
@@ -26,8 +29,12 @@ $(package)_qttranslations_sha256_hash=$(qt_details_qttranslations_sha256_hash)
 $(package)_qttools_file_name=$(qt_details_qttools_file_name)
 $(package)_qttools_sha256_hash=$(qt_details_qttools_sha256_hash)
 
+$(package)_qtwayland_file_name=$(qt_details_qtwayland_file_name)
+$(package)_qtwayland_sha256_hash=$(qt_details_qtwayland_sha256_hash)
+
 $(package)_extra_sources := $($(package)_qttranslations_file_name)
 $(package)_extra_sources += $($(package)_qttools_file_name)
+$(package)_extra_sources += $($(package)_qtwayland_file_name)
 
 $(package)_top_download_path=$(qt_details_top_download_path)
 $(package)_top_cmakelists_file_name=$(qt_details_top_cmakelists_file_name)
@@ -49,13 +56,11 @@ define $(package)_set_vars
 $(package)_config_env = QT_MAC_SDK_NO_VERSION_CHECK=1
 $(package)_config_opts_release = -release
 $(package)_config_opts_debug = -debug
-$(package)_config_opts = -no-egl
 $(package)_config_opts_debug += -optimized-tools
 $(package)_config_opts += -bindir $(build_prefix)/bin
 $(package)_config_opts += -c++std c++20
 $(package)_config_opts += -confirm-license
 $(package)_config_opts += -no-cups
-$(package)_config_opts += -no-egl
 $(package)_config_opts += -no-eglfs
 $(package)_config_opts += -no-evdev
 $(package)_config_opts += -no-gif
@@ -69,7 +74,6 @@ $(package)_config_opts += -no-libjpeg
 $(package)_config_opts += -no-libproxy
 $(package)_config_opts += -no-libudev
 $(package)_config_opts += -no-mtdev
-$(package)_config_opts += -no-opengl
 $(package)_config_opts += -no-openssl
 $(package)_config_opts += -no-openvg
 $(package)_config_opts += -no-reduce-relocations
@@ -162,6 +166,7 @@ endif
 
 $(package)_config_opts_darwin := -no-dbus
 $(package)_config_opts_darwin += -no-opengl
+$(package)_config_opts_darwin += -no-egl
 $(package)_config_opts_darwin += -pch
 $(package)_config_opts_darwin += -no-feature-printsupport
 $(package)_config_opts_darwin += -no-freetype
@@ -175,16 +180,18 @@ $(package)_config_opts_linux += -no-xcb-xlib
 $(package)_config_opts_linux += -pkg-config
 $(package)_config_opts_linux += -system-freetype
 $(package)_config_opts_linux += -fontconfig
-$(package)_config_opts_linux += -no-opengl
 $(package)_config_opts_linux += -no-feature-vulkan
 $(package)_config_opts_linux += -dbus-runtime
 $(package)_config_opts_linux += -feature-xcb
+
 ifneq ($(LTO),)
 $(package)_config_opts_linux += -ltcg
 endif
 $(package)_config_opts_freebsd := $$($(package)_config_opts_linux)
 
 $(package)_config_opts_mingw32 := -no-dbus
+$(package)_config_opts_mingw32 += -no-opengl
+$(package)_config_opts_mingw32 += -no-egl
 $(package)_config_opts_mingw32 += -no-freetype
 $(package)_config_opts_mingw32 += -no-pkg-config
 
@@ -235,6 +242,12 @@ endif
 
 ifeq ($(host_os),linux)
 $(package)_cmake_opts += -DQT_FEATURE_xcb=ON
+$(package)_cmake_opts += -DWaylandScanner_EXECUTABLE=$(build_prefix)/bin/wayland-scanner
+endif
+
+ifeq ($(host_os),freebsd)
+$(package)_cmake_opts += -DQT_FEATURE_xcb=ON
+$(package)_cmake_opts += -DWaylandScanner_EXECUTABLE=$(build_prefix)/bin/wayland-scanner
 endif
 
 ifdef GUIX_ENVIRONMENT
@@ -277,6 +290,7 @@ define $(package)_fetch_cmds
 $(call fetch_file,$(package),$($(package)_download_path),$($(package)_download_file),$($(package)_file_name),$($(package)_sha256_hash)) && \
 $(call fetch_file,$(package),$($(package)_download_path),$($(package)_qttranslations_file_name),$($(package)_qttranslations_file_name),$($(package)_qttranslations_sha256_hash)) && \
 $(call fetch_file,$(package),$($(package)_download_path),$($(package)_qttools_file_name),$($(package)_qttools_file_name),$($(package)_qttools_sha256_hash)) && \
+$(call fetch_file,$(package),$($(package)_download_path),$($(package)_qtwayland_file_name),$($(package)_qtwayland_file_name),$($(package)_qtwayland_sha256_hash)) && \
 $(call fetch_file,$(package),$($(package)_top_download_path),$($(package)_top_cmakelists_download_file),$($(package)_top_cmakelists_file_name)-$($(package)_version),$($(package)_top_cmakelists_sha256_hash)) && \
 $(call fetch_file,$(package),$($(package)_top_cmake_download_path),$($(package)_top_cmake_ecmoptionaladdsubdirectory_download_file),$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version),$($(package)_top_cmake_ecmoptionaladdsubdirectory_sha256_hash)) && \
 $(call fetch_file,$(package),$($(package)_top_cmake_download_path),$($(package)_top_cmake_qttoplevelhelpers_download_file),$($(package)_top_cmake_qttoplevelhelpers_file_name)-$($(package)_version),$($(package)_top_cmake_qttoplevelhelpers_sha256_hash))
@@ -288,6 +302,7 @@ define $(package)_extract_cmds
   echo "$($(package)_sha256_hash)  $($(package)_source)" > $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_qttranslations_sha256_hash)  $($(package)_source_dir)/$($(package)_qttranslations_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_qttools_sha256_hash)  $($(package)_source_dir)/$($(package)_qttools_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
+  echo "$($(package)_qtwayland_sha256_hash)  $($(package)_source_dir)/$($(package)_qtwayland_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmakelists_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmakelists_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmake_ecmoptionaladdsubdirectory_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmake_qttoplevelhelpers_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmake_qttoplevelhelpers_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
@@ -298,6 +313,8 @@ define $(package)_extract_cmds
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttranslations_file_name) -C qttranslations && \
   mkdir qttools && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qttools_file_name) -C qttools && \
+  mkdir qtwayland && \
+  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qtwayland_file_name) -C qtwayland && \
   cp $($(package)_source_dir)/$($(package)_top_cmakelists_file_name)-$($(package)_version) ./$($(package)_top_cmakelists_file_name) && \
   mkdir cmake && \
   cp $($(package)_source_dir)/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version) cmake/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name) && \
@@ -310,12 +327,15 @@ else
 define $(package)_extract_cmds
   mkdir -p $($(package)_extract_dir) && \
   echo "$($(package)_sha256_hash)  $($(package)_source)" > $($(package)_extract_dir)/.$($(package)_file_name).hash && \
+  echo "$($(package)_qtwayland_sha256_hash)  $($(package)_source_dir)/$($(package)_qtwayland_file_name)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmakelists_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmakelists_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmake_ecmoptionaladdsubdirectory_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   echo "$($(package)_top_cmake_qttoplevelhelpers_sha256_hash)  $($(package)_source_dir)/$($(package)_top_cmake_qttoplevelhelpers_file_name)-$($(package)_version)" >> $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   $(build_SHA256SUM) -c $($(package)_extract_dir)/.$($(package)_file_name).hash && \
   mkdir qtbase && \
   $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source) -C qtbase && \
+  mkdir qtwayland && \
+  $(build_TAR) --no-same-owner --strip-components=1 -xf $($(package)_source_dir)/$($(package)_qtwayland_file_name) -C qtwayland && \
   cp $($(package)_source_dir)/$($(package)_top_cmakelists_file_name)-$($(package)_version) ./$($(package)_top_cmakelists_file_name) && \
   mkdir cmake && \
   cp $($(package)_source_dir)/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name)-$($(package)_version) cmake/$($(package)_top_cmake_ecmoptionaladdsubdirectory_file_name) && \
@@ -334,7 +354,10 @@ define $(package)_preprocess_cmds
   patch -p1 -i $($(package)_patch_dir)/qtbase_platformsupport.patch && \
   patch -p1 -i $($(package)_patch_dir)/qtbase_plugins_cocoa.patch && \
   patch -p1 -i $($(package)_patch_dir)/qtbase_skip_tools.patch && \
-  patch -p1 -i $($(package)_patch_dir)/rcc_hardcode_timestamp.patch
+  patch -p1 -i $($(package)_patch_dir)/qtbase_findxcb_image_aux.patch && \
+  patch -p1 -i $($(package)_patch_dir)/rcc_hardcode_timestamp.patch && \
+  patch -p1 -i $($(package)_patch_dir)/qtwayland_decoration_no_egl_gate.patch && \
+  patch -p1 -i $($(package)_patch_dir)/qtbase_fix_qyieldcpu_apple_arm.patch
 endef
 ifeq ($(host),$(build))
   $(package)_preprocess_cmds += && patch -p1 -i $($(package)_patch_dir)/qttools_skip_dependencies.patch

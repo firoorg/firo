@@ -583,39 +583,6 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         sporkManager.RemovedFromMemoryPool(it->GetTx());
     }
 
-    else if (it->GetTx().IsLelantusTransaction()) {
-        // Remove mints and spend serials from lelantus mempool state
-        const CTransaction &tx = it->GetTx();
-        if (tx.IsLelantusJoinSplit()) {
-            std::vector<Scalar> serials;
-            try {
-                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
-                for (const Scalar &serial: serials)
-                    lelantusState.RemoveSpendFromMempool(serial);
-            }
-            catch (CBadTxIn&) {
-            }
-        }
-
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    if (txout.scriptPubKey.IsLelantusMint()) {
-                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                    } else {
-                        std::vector<unsigned char> encryptedValue;
-                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                    }
-                    lelantusState.RemoveMintFromMempool(pubCoinValue);
-                }
-                catch (std::invalid_argument&) {
-                }
-            }
-        }
-    }
-
     else if (it->GetTx().IsSparkTransaction()) {
         // Remove mints and spends from spark mempool state
         const CTransaction &tx = it->GetTx();
@@ -684,7 +651,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
             CMempoolAddressDelta delta(entry.GetTime(), prevout.nValue * -1, input.prevout.hash, input.prevout.n);
             mapAddress.insert(std::make_pair(key, delta));
             inserted.push_back(key);
-        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
+        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash() || prevout.scriptPubKey.IsSparkNameFee()) {
             std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23);
             CMempoolAddressDeltaKey key(AddressType::payToPubKeyHash, uint160(hashBytes), txhash, j, 1);
             CMempoolAddressDelta delta(entry.GetTime(), prevout.nValue * -1, input.prevout.hash, input.prevout.n);
@@ -706,7 +673,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
             CMempoolAddressDeltaKey key(AddressType::payToScriptHash, uint160(hashBytes), txhash, k, 0);
             mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entry.GetTime(), out.nValue)));
             inserted.push_back(key);
-        } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
+        } else if (out.scriptPubKey.IsPayToPublicKeyHash() || out.scriptPubKey.IsSparkNameFee()) {
             std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
             std::pair<addressDeltaMap::iterator,bool> ret;
             CMempoolAddressDeltaKey key(AddressType::payToPubKeyHash, uint160(hashBytes), txhash, k, 0);
@@ -775,7 +742,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             addressHash = uint160(std::vector<unsigned char> (prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
             addressType = AddressType::payToScriptHash;
-        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
+        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash() || prevout.scriptPubKey.IsSparkNameFee()) {
             addressHash = uint160(std::vector<unsigned char> (prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
             addressType = AddressType::payToPubKeyHash;
         } else if (prevout.scriptPubKey.IsPayToExchangeAddress()) {
@@ -1132,7 +1099,6 @@ void CTxMemPool::_clear()
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
-    lelantusState.Reset();
     sparkState.Reset();
     ++nTransactionsUpdated;
 }

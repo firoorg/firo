@@ -19,6 +19,7 @@
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h" // for CWallet::GetRequiredFee()
+#include "spark/state.h"
 #endif
 
 #include <boost/thread.hpp>
@@ -164,7 +165,9 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->threadsScriptVerif, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     /* Wallet */
     connect(ui->spendZeroConfChange, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
-    connect(ui->reindexLelantus, &QCheckBox::clicked, this, &OptionsDialog::handleEnabledZapChanged);
+#ifdef ENABLE_WALLET
+    connect(ui->reindexSpark, &QCheckBox::clicked, this, &OptionsDialog::handleEnabledZapChanged);
+#endif
     /* Network */
     connect(ui->allowIncoming, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
@@ -183,17 +186,20 @@ void OptionsDialog::setMapper()
 
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
-    mapper->addMapping(ui->reindexLelantus, OptionsModel::ReindexLelantus);
+#ifdef ENABLE_WALLET
+    mapper->addMapping(ui->reindexSpark, OptionsModel::ReindexSpark);
+#endif
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
-
-    /* Lelantus */
     mapper->addMapping(ui->autoAnonymize, OptionsModel::AutoAnonymize);
     mapper->addMapping(ui->fSplit, OptionsModel::Split);
-    if (!lelantus::IsLelantusAllowed()) {
-        ui->lelantusPage->setVisible(false);
+    mapper->addMapping(ui->sparkPage, OptionsModel::SparkPage);
+#ifdef ENABLE_WALLET
+    if (!spark::IsSparkAllowed()) {
+        ui->sparkGroupBox->setVisible(false);
     }
-    mapper->addMapping(ui->lelantusPage, OptionsModel::LelantusPage);
-
+#else
+    ui->sparkGroupBox->setVisible(false);
+#endif
     /* Network */
     mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
     mapper->addMapping(ui->allowIncoming, OptionsModel::Listen);
@@ -266,20 +272,22 @@ void OptionsDialog::on_hideTrayIcon_stateChanged(int fState)
         ui->minimizeToTray->setEnabled(true);
     }
 }
-void OptionsDialog::handleEnabledZapChanged(){
-	QMessageBox msgBox;
-
-	if(ui->reindexLelantus->isChecked()){
-        QMessageBox::StandardButton retval = QMessageBox::warning(this, tr("Confirm Reindex Lelantus"),
-                     tr("Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore the list from the seed in your wallet. This will likely take a few hours. Are you sure?"),
-                     QMessageBox::Yes|QMessageBox::Cancel,
-                     QMessageBox::Cancel);
-        if(retval == QMessageBox::Cancel) {
-            ui->reindexLelantus->setChecked(false);
-        }else {
+void OptionsDialog::handleEnabledZapChanged()
+{
+#ifdef ENABLE_WALLET
+    if (ui->reindexSpark->isChecked()) {
+        QMessageBox::StandardButton retval = QMessageBox::warning(this, tr("Confirm Spark reindex"),
+            tr("Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore wallet data from your seed. Spark mint records are cleared and rebuilt from the chain. This will likely take a few hours. Are you sure?"),
+            QMessageBox::Yes | QMessageBox::Cancel,
+            QMessageBox::Cancel);
+        if (retval == QMessageBox::Cancel) {
+            ui->reindexSpark->setChecked(false);
+        } else {
             showRestartWarning();
         }
-    }else {
+    } else
+#endif
+    {
         clearStatusLabel();
     }
 }
