@@ -743,9 +743,8 @@ bool CheckSparkSpendTransaction(
 
     const bool fRequireProofInputs = fStatefulSigmaCheck || isVerifyDB;
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    const bool fMustVerifyBeforeStateUpdate = fStatefulSigmaCheck;
+    // ConnectBlock completes this batch before persistent block/Spark state updates.
     bool useBatching = batchProofContainer->fCollectProofs &&
-        !fMustVerifyBeforeStateUpdate &&
         !isVerifyDB &&
         !isCheckWallet &&
         sparkTxInfo &&
