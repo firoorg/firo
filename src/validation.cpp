@@ -4225,7 +4225,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (!spark::CheckSparkBlock(state, block, nHeight))
         return false;
 
-    if (fCheckPOW && fCheckMerkleRoot && fVerifySparkSpendProof && !fHasSparkSpend)
+    if (fCheckPOW && fCheckMerkleRoot && (!fHasSparkSpend || fVerifySparkSpendProof))
         block.fChecked = true;
 
     return true;
