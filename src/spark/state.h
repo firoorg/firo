@@ -81,7 +81,8 @@ bool CheckSparkTransaction(
         int nHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo);
+        CSparkTxInfo* sparkTxInfo,
+        bool fVerifySparkSpendProof = true);
 
 // call this on shutdown
 void ShutdownSparkState();

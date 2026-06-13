@@ -1,4 +1,5 @@
 #include "../chainparams.h"
+#include "../batchproof_container.h"
 #include "../script/standard.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
@@ -541,6 +542,60 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     info.spTransactions.clear();
     BOOST_CHECK(!CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+
+    CMutableTransaction tamperedSpendTx(spendTx);
+    tamperedSpendTx.vout[0].nValue += CENT;
+    CTransaction tamperedSpend(tamperedSpendTx);
+
+    CValidationState deferredState;
+    BOOST_CHECK(CheckSparkTransaction(
+            tamperedSpend, deferredState, tamperedSpend.GetHash(), false, chainActive.Height(), false, false, NULL, false));
+
+    CValidationState walletLoadState;
+    BOOST_CHECK(CheckTransaction(
+            tamperedSpend, walletLoadState, true, tamperedSpend.GetHash(), true, INT_MAX, false, false, NULL, false));
+
+    CSparkTxInfo statefulDeferredInfo;
+    CValidationState statefulDeferredState;
+    BOOST_CHECK(!CheckSparkTransaction(
+            tamperedSpend, statefulDeferredState, tamperedSpend.GetHash(), false, chainActive.Height(), false, true, &statefulDeferredInfo, false));
+
+    CValidationState nonStatefulVerifiedState;
+    BOOST_CHECK(!CheckSparkTransaction(
+            tamperedSpend, nonStatefulVerifiedState, tamperedSpend.GetHash(), false, chainActive.Height(), false, false, NULL));
+
+    CBlock tamperedBlock = CreateBlock({tamperedSpendTx}, script);
+    CValidationState deferredBlockState;
+    BOOST_CHECK(CheckBlock(
+            tamperedBlock, deferredBlockState, consensus, true, true, chainActive.Height() + 1, false, true));
+    BOOST_CHECK(!tamperedBlock.fChecked);
+
+    CValidationState verifiedBlockState;
+    BOOST_CHECK(!CheckBlock(
+            tamperedBlock, verifiedBlockState, consensus, true, true, chainActive.Height() + 1, false));
+    BOOST_CHECK(!tamperedBlock.fChecked);
+
+    CValidationState verifyDBBlockState;
+    BOOST_CHECK(!CheckBlock(
+            tamperedBlock, verifyDBBlockState, consensus, true, true, chainActive.Height() + 1, true, true));
+    BOOST_CHECK(!tamperedBlock.fChecked);
+
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    batchProofContainer->fCollectProofs = true;
+    batchProofContainer->init();
+
+    CSparkTxInfo batchedTamperedInfo;
+    CValidationState batchedVerifiedState;
+    BOOST_CHECK(!CheckSparkTransaction(
+            tamperedSpend, batchedVerifiedState, tamperedSpend.GetHash(), false, chainActive.Height(), false, true, &batchedTamperedInfo));
+
+    batchProofContainer->fCollectProofs = false;
+    batchProofContainer->init();
+
+    CSparkTxInfo tamperedInfo;
+    CValidationState verifiedState;
+    BOOST_CHECK(!CheckSparkTransaction(
+            tamperedSpend, verifiedState, tamperedSpend.GetHash(), false, chainActive.Height(), false, true, &tamperedInfo));
 
     mempool.clear();
     sparkState->Reset();

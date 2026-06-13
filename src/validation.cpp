@@ -573,7 +573,7 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo)
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo, bool fVerifySparkSpendProof)
 {
     LogPrintf("CheckTransaction nHeight=%d, isVerifyDB=%d, isCheckWallet=%d, txHash=%s\n", nHeight, (int)isVerifyDB, (int)isCheckWallet, tx.GetHash().ToString());
 
@@ -699,7 +699,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         if (tx.IsSparkTransaction()) {
             if (hasExchangeUTXOs)
                 return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo))
+            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo, fVerifySparkSpendProof))
                 return false;
         }
 
@@ -2512,7 +2512,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     //btzc: update nHeight, isVerifyDB
     // Check it again in case a previous version let a bad block in
     LogPrintf("ConnectBlock nHeight=%d, hash=%s\n", pindex->nHeight, block.GetHash().ToString());
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, false)) {
+    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, false, true)) {
         LogPrintf("--> failed\n");
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     }
@@ -4142,7 +4142,7 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
     return true;
 }
 
-bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, int nHeight, bool isVerifyDB) {
+bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, int nHeight, bool isVerifyDB, bool fDeferSparkSpendProofVerification) {
     // CheckBlock not only checks the block, but also fills up sparkTxInfo.
     if (!block.sparkTxInfo)
         block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
@@ -4200,9 +4200,16 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         nHeight = GetNHeight(block.GetBlockHeader());
     LogPrintf("CheckBlock() nHeight=%d, blockHash=%s, isVerifyDB=%d\n", nHeight, block.GetHash().ToString(), isVerifyDB);
 
+    // Only callers that immediately run stateful Spark checks may defer this expensive proof.
+    // VerifyDB keeps its explicit proof-verification request.
+    const bool fVerifySparkSpendProof = isVerifyDB || !fDeferSparkSpendProofVerification;
+    bool fHasSparkSpend = false;
     for (CTransactionRef tx : block.vtx) {
+        if (tx->IsSparkSpend())
+            fHasSparkSpend = true;
+
         // We don't check transactions against sigma/lelantus state here, we'll check it again later in ConnectBlock
-        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL))
+        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, fVerifySparkSpendProof))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
@@ -4218,7 +4225,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (!spark::CheckSparkBlock(state, block, nHeight))
         return false;
 
-    if (fCheckPOW && fCheckMerkleRoot)
+    if (fCheckPOW && fCheckMerkleRoot && fVerifySparkSpendProof && !fHasSparkSpend)
         block.fChecked = true;
 
     return true;
@@ -4629,7 +4636,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     }
     if (fNewBlock) *fNewBlock = true;
 
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false) ||
+    if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false, false) ||
         !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
