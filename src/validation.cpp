@@ -2234,6 +2234,17 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
+{
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    if (!batchProofContainer->verify_pending()) {
+        return AbortNode(state,
+                         strprintf("Spark batch verification failed before %s", reason),
+                         _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
+    }
+    return true;
+}
+
 enum DisconnectResult
 {
     DISCONNECT_OK,      // All good.
@@ -3084,6 +3095,8 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     bool fPeriodicFlush = mode == FLUSH_STATE_PERIODIC && nNow > nLastFlush + (int64_t)DATABASE_FLUSH_INTERVAL * 1000000;
     // Combine all conditions that result in a full cache flush.
     bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush || fFlushForPrune;
+    if ((fDoFullFlush || fPeriodicWrite) && !VerifyPendingSparkBatch(state, "flushing block index or chainstate"))
+        return false;
     // Write blocks and block index to disk.
     if (fDoFullFlush || fPeriodicWrite) {
         // Depend on nMinDiskSpace to ensure we can write block index
@@ -3798,7 +3811,11 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
         // Do batch verification if we reach 1 day old block,
         BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
         batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-        batchProofContainer->verify();
+        if (!batchProofContainer->verify()) {
+            return AbortNode(state,
+                             "Spark batch verification failed",
+                             _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
+        }
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 

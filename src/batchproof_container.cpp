@@ -20,15 +20,23 @@ void BatchProofContainer::init() {
 void BatchProofContainer::finalize() {
     if (fCollectProofs) {
         sparkTransactions.insert(sparkTransactions.end(), tempSparkTransactions.begin(), tempSparkTransactions.end());
+        tempSparkTransactions.clear();
     }
     fCollectProofs = false;
 }
 
-void BatchProofContainer::verify() {
-    if (!fCollectProofs) {
-        batch_spark();
+bool BatchProofContainer::verify() {
+    if (fCollectProofs) {
+        fCollectProofs = false;
+        return true;
     }
-    fCollectProofs = false;
+
+    return batch_spark();
+}
+
+bool BatchProofContainer::verify_pending() {
+    finalize();
+    return batch_spark();
 }
 
 void BatchProofContainer::add(const spark::SpendTransaction& tx) {
@@ -42,12 +50,12 @@ void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
                             sparkTransactions.end());
 }
 
-void BatchProofContainer::batch_spark() {
+bool BatchProofContainer::batch_spark() {
     if (!sparkTransactions.empty()){
         LogPrintf("Spark batch verification started.\n");
         uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
     } else {
-        return;
+        return true;
     }
 
     std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
@@ -75,10 +83,11 @@ void BatchProofContainer::batch_spark() {
 
     if (!passed) {
         LogPrintf("Spark batch verification failed.");
-        throw std::invalid_argument("Spark batch verification failed, please run Firo with -reindex -batching=0");
+        return false;
     }
 
     if (!sparkTransactions.empty())
         LogPrintf("Spark batch verification finished successfully.\n");
     sparkTransactions.clear();
+    return true;
 }

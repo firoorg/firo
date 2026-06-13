@@ -15,11 +15,12 @@ public:
 
     void finalize();
 
-    void verify();
+    bool verify();
+    bool verify_pending();
 
     void add(const spark::SpendTransaction& tx);
     void remove(const spark::SpendTransaction& tx);
-    void batch_spark();
+    bool batch_spark();
 public:
     bool fCollectProofs = 0;
 

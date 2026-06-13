@@ -41,7 +41,6 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
-#include "batchproof_container.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -264,8 +263,9 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    BatchProofContainer::get_instance()->finalize();
-    BatchProofContainer::get_instance()->verify();
+    CValidationState sparkBatchState;
+    if (!VerifyPendingSparkBatch(sparkBatchState, "shutdown"))
+        LogPrintf("Shutdown continuing after Spark batch verification failure: %s\n", FormatStateMessage(sparkBatchState));
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -760,6 +760,11 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
+        }
+        CValidationState state;
+        if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+            return;
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
