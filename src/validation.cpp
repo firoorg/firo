@@ -2806,6 +2806,21 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     block.sparkTxInfo->Complete();
 
+    // Batched Spark proofs must finish before any persistent block, index, or
+    // Spark state is updated below.
+    if (batchProofContainer->fCollectProofs) {
+        try {
+            batchProofContainer->finalize();
+            batchProofContainer->verify();
+        }
+        catch (const std::exception& e) {
+            batchProofContainer->clear();
+            return state.DoS(100,
+                             error("ConnectBlock(): Spark batch verification failed: %s", e.what()),
+                             REJECT_INVALID, "bad-txns-sparkproof");
+        }
+    }
+
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
 
@@ -2955,9 +2970,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
-
-    // do batch verification if remains a day or collect proofs
-    batchProofContainer->finalize();
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);
@@ -4203,10 +4215,12 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     // Only callers that immediately run stateful Spark checks may defer this expensive proof.
     // VerifyDB keeps its explicit proof-verification request.
     const bool fVerifySparkSpendProof = isVerifyDB || !fDeferSparkSpendProofVerification;
-    bool fHasSparkSpend = false;
+    // CheckBlock passes no Spark tx info, so verified Spark spend proofs complete
+    // synchronously here; deferred import blocks are deliberately not cached.
+    bool fSparkSpendProofsComplete = true;
     for (CTransactionRef tx : block.vtx) {
         if (tx->IsSparkSpend())
-            fHasSparkSpend = true;
+            fSparkSpendProofsComplete = fSparkSpendProofsComplete && fVerifySparkSpendProof;
 
         // We don't check transactions against sigma/lelantus state here, we'll check it again later in ConnectBlock
         if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, fVerifySparkSpendProof))
@@ -4225,7 +4239,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (!spark::CheckSparkBlock(state, block, nHeight))
         return false;
 
-    if (fCheckPOW && fCheckMerkleRoot && (!fHasSparkSpend || fVerifySparkSpendProof))
+    if (fCheckPOW && fCheckMerkleRoot && fSparkSpendProofsComplete)
         block.fChecked = true;
 
     return true;

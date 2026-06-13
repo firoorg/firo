@@ -17,9 +17,16 @@ void BatchProofContainer::init() {
     tempSparkTransactions.clear();
 }
 
+void BatchProofContainer::clear() {
+    tempSparkTransactions.clear();
+    sparkTransactions.clear();
+    fCollectProofs = false;
+}
+
 void BatchProofContainer::finalize() {
     if (fCollectProofs) {
         sparkTransactions.insert(sparkTransactions.end(), tempSparkTransactions.begin(), tempSparkTransactions.end());
+        tempSparkTransactions.clear();
     }
     fCollectProofs = false;
 }

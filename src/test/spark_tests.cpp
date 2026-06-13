@@ -9,6 +9,7 @@
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
+#include <stdexcept>
 #include <boost/test/unit_test.hpp>
 
 namespace spark {
@@ -564,6 +565,18 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     BOOST_CHECK(!CheckSparkTransaction(
             tamperedSpend, nonStatefulVerifiedState, tamperedSpend.GetHash(), false, chainActive.Height(), false, false, NULL));
 
+    CBlock deferredValidBlock = CreateBlock({spendTx}, script);
+    CValidationState deferredValidBlockState;
+    BOOST_CHECK(CheckBlock(
+            deferredValidBlock, deferredValidBlockState, consensus, true, true, chainActive.Height() + 1, false, true));
+    BOOST_CHECK(!deferredValidBlock.fChecked);
+
+    CBlock verifiedValidBlock = CreateBlock({spendTx}, script);
+    CValidationState verifiedValidBlockState;
+    BOOST_CHECK(CheckBlock(
+            verifiedValidBlock, verifiedValidBlockState, consensus, true, true, chainActive.Height() + 1, false));
+    BOOST_CHECK(verifiedValidBlock.fChecked);
+
     CBlock tamperedBlock = CreateBlock({tamperedSpendTx}, script);
     CValidationState deferredBlockState;
     BOOST_CHECK(CheckBlock(
@@ -586,8 +599,11 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     CSparkTxInfo batchedTamperedInfo;
     CValidationState batchedVerifiedState;
-    BOOST_CHECK(!CheckSparkTransaction(
+    BOOST_CHECK(CheckSparkTransaction(
             tamperedSpend, batchedVerifiedState, tamperedSpend.GetHash(), false, chainActive.Height(), false, true, &batchedTamperedInfo));
+    batchProofContainer->finalize();
+    BOOST_CHECK_THROW(batchProofContainer->verify(), std::invalid_argument);
+    batchProofContainer->clear();
 
     batchProofContainer->fCollectProofs = false;
     batchProofContainer->init();
