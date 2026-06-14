@@ -4218,9 +4218,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
     // Only callers that immediately run stateful Spark checks may defer this expensive proof.
     const bool fVerifySparkSpendProof = isVerifyDB || !fDeferSparkSpendProofVerification;
-    // CheckBlock passes no Spark tx info, so non-deferred proof checks complete
-    // synchronously here; deferred import blocks are deliberately not cached.
+    // CheckBlock passes no Spark tx info. Spark spend blocks are not cached here:
+    // non-stateful Spark checks can soft-pass on missing historical proof inputs,
+    // and ConnectBlock performs the final stateful validation before state updates.
     bool fSparkSpendProofsComplete = true;
+    bool fContainsSparkSpend = false;
     for (CTransactionRef tx : block.vtx) {
         spark::SparkSpendProofVerificationResult sparkSpendProofResult = spark::SparkSpendProofVerificationResult::NotApplicable;
 
@@ -4229,9 +4231,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
-        if (tx->IsSparkSpend())
+        if (tx->IsSparkSpend()) {
+            fContainsSparkSpend = true;
             fSparkSpendProofsComplete = fSparkSpendProofsComplete &&
                     sparkSpendProofResult == spark::SparkSpendProofVerificationResult::Verified;
+        }
 
     }
     unsigned int nSigOps = 0;
@@ -4245,7 +4249,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (!spark::CheckSparkBlock(state, block, nHeight))
         return false;
 
-    if (fCheckPOW && fCheckMerkleRoot && fSparkSpendProofsComplete)
+    if (fCheckPOW && fCheckMerkleRoot && fSparkSpendProofsComplete && !fContainsSparkSpend)
         block.fChecked = true;
 
     return true;
