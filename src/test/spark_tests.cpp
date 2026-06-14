@@ -559,6 +559,13 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     BOOST_CHECK(CheckTransaction(
             tamperedSpend, walletLoadState, true, tamperedSpend.GetHash(), true, INT_MAX, true, false, NULL, false));
 
+    CMutableTransaction walletLoadMalformedSpendTx(spendTx);
+    walletLoadMalformedSpendTx.vout.push_back(CTxOut(0, CScript() << OP_SPARKMINT));
+    CTransaction walletLoadMalformedSpend(walletLoadMalformedSpendTx);
+    CValidationState walletLoadMalformedState;
+    BOOST_CHECK(!CheckTransaction(
+            walletLoadMalformedSpend, walletLoadMalformedState, true, walletLoadMalformedSpend.GetHash(), true, INT_MAX, true, false, NULL, false));
+
     CValidationState directVerifyDBState;
     BOOST_CHECK(!CheckTransaction(
             tamperedSpend, directVerifyDBState, true, tamperedSpend.GetHash(), true, INT_MAX, false, false, NULL, false));
@@ -582,7 +589,16 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CValidationState verifiedValidBlockState;
     BOOST_CHECK(CheckBlock(
             verifiedValidBlock, verifiedValidBlockState, consensus, true, true, chainActive.Height() + 1, false));
-    BOOST_CHECK(verifiedValidBlock.fChecked);
+    BOOST_CHECK(!verifiedValidBlock.fChecked);
+
+    sparkState->Reset();
+
+    CValidationState verifiedValidBlockVerifyDBState;
+    BOOST_CHECK(!CheckBlock(
+            verifiedValidBlock, verifiedValidBlockVerifyDBState, consensus, true, true, chainActive.Height() + 1, true));
+    BOOST_CHECK(!verifiedValidBlock.fChecked);
+
+    BOOST_CHECK(BuildSparkStateFromIndex(&chainActive));
 
     CBlock tamperedBlock = CreateBlock({tamperedSpendTx}, script);
     CValidationState deferredBlockState;
@@ -673,6 +689,22 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     for (const auto& lTag : spend.getUsedLTags()) {
         BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
     }
+
+    batchProofContainer->fCollectProofs = true;
+    batchProofContainer->init();
+
+    CBlock batchedTamperedDeferredBlock = CreateBlock({batchedTamperedSpendTx}, script);
+    CValidationState batchedTamperedDeferredBlockState;
+    BOOST_CHECK(CheckBlock(
+            batchedTamperedDeferredBlock, batchedTamperedDeferredBlockState, consensus, true, true, chainActive.Height() + 1, false, true));
+    BOOST_CHECK(!batchedTamperedDeferredBlock.fChecked);
+
+    CBlock batchedTamperedVerifiedBlock = CreateBlock({batchedTamperedSpendTx}, script);
+    CValidationState batchedTamperedVerifiedBlockState;
+    BOOST_CHECK(!CheckBlock(
+            batchedTamperedVerifiedBlock, batchedTamperedVerifiedBlockState, consensus, true, true, chainActive.Height() + 1, false));
+    BOOST_CHECK(!batchedTamperedVerifiedBlock.fChecked);
+    batchProofContainer->clear();
 
     batchProofContainer->fCollectProofs = false;
     batchProofContainer->init();
