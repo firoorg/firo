@@ -5,12 +5,58 @@
 #include "test/test_bitcoin.h"
 
 #include "bls/bls.h"
+#include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
 #include "netbase.h"
+#include "script/script.h"
 
 #include <boost/test/unit_test.hpp>
 
+#include <functional>
+
 BOOST_FIXTURE_TEST_SUITE(evo_simplifiedmns_tests, BasicTestingSetup)
+
+static CBLSPublicKey MakeTestBLSPublicKey(unsigned char value)
+{
+    std::vector<unsigned char> bytes{value};
+    bytes.resize(CBLSSecretKey::SerSize);
+    return CBLSSecretKey(bytes).GetPublicKey();
+}
+
+static CService MakeTestService(uint16_t port)
+{
+    CService service;
+    BOOST_REQUIRE(Lookup("127.0.0.1", service, port, false));
+    return service;
+}
+
+static CDeterministicMNState MakeTestMNState()
+{
+    CDeterministicMNState state;
+    state.nRegisteredHeight = 1;
+    state.nLastPaidHeight = 2;
+    state.nPoSePenalty = 3;
+    state.nPoSeRevivedHeight = 4;
+    state.nPoSeBanHeight = -1;
+    state.nRevocationReason = 5;
+    state.confirmedHash.SetHex(strprintf("%064x", 6));
+    state.confirmedHashWithProRegTxHash.SetHex(strprintf("%064x", 7));
+    state.keyIDOwner.SetHex(strprintf("%040x", 8));
+    state.pubKeyOperator.Set(MakeTestBLSPublicKey(9));
+    state.keyIDVoting.SetHex(strprintf("%040x", 10));
+    state.addr = MakeTestService(11000);
+    state.scriptPayout = CScript() << OP_1;
+    state.scriptOperatorPayout = CScript() << OP_2;
+    return state;
+}
+
+static CDeterministicMN MakeTestMN(const CDeterministicMNState& state)
+{
+    CDeterministicMN dmn;
+    dmn.proTxHash.SetHex(strprintf("%064x", 1));
+    dmn.pdmnState = std::make_shared<CDeterministicMNState>(state);
+    return dmn;
+}
 
 BOOST_AUTO_TEST_CASE(simplifiedmns_merkleroots)
 {
@@ -66,5 +112,51 @@ BOOST_AUTO_TEST_CASE(simplifiedmns_merkleroots)
     //printf("merkleRoot=\"%s\",\n", calculatedMerkleRoot.c_str());
 
     BOOST_CHECK(expectedMerkleRoot == calculatedMerkleRoot);
+}
+
+BOOST_AUTO_TEST_CASE(deterministicmn_diff_cbtx_merkle_relevance)
+{
+    CDeterministicMNListDiff diff;
+    BOOST_CHECK(!diff.HasCbTxMerkleRootChanges());
+
+    auto checkUpdatedField = [](uint32_t field, const std::function<void(CDeterministicMNState&)>& update) {
+        CDeterministicMNState oldState = MakeTestMNState();
+        CDeterministicMNState newState = oldState;
+        update(newState);
+
+        const CDeterministicMN oldDmn = MakeTestMN(oldState);
+        const CDeterministicMN newDmn = MakeTestMN(newState);
+        const bool changesMerkleEntry = CSimplifiedMNListEntry(oldDmn) != CSimplifiedMNListEntry(newDmn);
+
+        CDeterministicMNListDiff diff;
+        CDeterministicMNStateDiff stateDiff(oldState, newState);
+        BOOST_CHECK_EQUAL(stateDiff.fields, field);
+        diff.updatedMNs.emplace(1, stateDiff);
+        BOOST_CHECK_EQUAL(diff.HasCbTxMerkleRootChanges(), changesMerkleEntry);
+    };
+
+    checkUpdatedField(CDeterministicMNStateDiff::Field_nRegisteredHeight, [](auto& state) { state.nRegisteredHeight = 11; });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_nLastPaidHeight, [](auto& state) { state.nLastPaidHeight = 12; });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_nPoSePenalty, [](auto& state) { state.nPoSePenalty = 13; });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_nPoSeRevivedHeight, [](auto& state) { state.nPoSeRevivedHeight = 14; });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_nRevocationReason, [](auto& state) { state.nRevocationReason = 15; });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_confirmedHashWithProRegTxHash, [](auto& state) { state.confirmedHashWithProRegTxHash.SetHex(strprintf("%064x", 16)); });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_keyIDOwner, [](auto& state) { state.keyIDOwner.SetHex(strprintf("%040x", 17)); });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_scriptPayout, [](auto& state) { state.scriptPayout = CScript() << OP_3; });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_scriptOperatorPayout, [](auto& state) { state.scriptOperatorPayout = CScript() << OP_4; });
+
+    checkUpdatedField(CDeterministicMNStateDiff::Field_nPoSeBanHeight, [](auto& state) { state.nPoSeBanHeight = 18; });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_confirmedHash, [](auto& state) { state.confirmedHash.SetHex(strprintf("%064x", 19)); });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_pubKeyOperator, [](auto& state) { state.pubKeyOperator.Set(MakeTestBLSPublicKey(20)); });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_keyIDVoting, [](auto& state) { state.keyIDVoting.SetHex(strprintf("%040x", 21)); });
+    checkUpdatedField(CDeterministicMNStateDiff::Field_addr, [](auto& state) { state.addr = MakeTestService(12000); });
+
+    diff.updatedMNs.clear();
+    diff.addedMNs.emplace_back();
+    BOOST_CHECK(diff.HasCbTxMerkleRootChanges());
+
+    diff.addedMNs.clear();
+    diff.removedMns.emplace(1);
+    BOOST_CHECK(diff.HasCbTxMerkleRootChanges());
 }
 BOOST_AUTO_TEST_SUITE_END()

@@ -179,7 +179,7 @@ class DIP3Test(BitcoinTestFramework):
         for i in range(spend_mns_count):
             self.nodes[0].invalidateblock(self.nodes[0].getbestblockhash())
             mns_tmp.append(mns[spend_mns_count - 1 - i])
-            self.assert_mnlist(self.nodes[0], mns_tmp)
+            self.assert_mnlist_now(self.nodes[0], mns_tmp)
 
         # self.log.info("cause a reorg with a double spend and check that mnlists are still correct on all nodes")
         # self.mine_double_spend(self.nodes[0], dummy_txins, self.nodes[0].getnewaddress(), use_mnmerkleroot_from_tip=True)
@@ -307,6 +307,16 @@ class DIP3Test(BitcoinTestFramework):
             if time.time() >= deadline:
                 break
             time.sleep(0.1)
+        expected = []
+        for mn in mns:
+            expected.append('%s, %d' % (mn.collateral_txid, mn.collateral_vout))
+        self.log.error('mnlist: ' + str(node.evoznode('list', 'status')))
+        self.log.error('expected: ' + str(expected))
+        raise AssertionError("mnlists does not match provided mns")
+
+    def assert_mnlist_now(self, node, mns):
+        if self.compare_mnlist(node, mns):
+            return
         expected = []
         for mn in mns:
             expected.append('%s, %d' % (mn.collateral_txid, mn.collateral_vout))
