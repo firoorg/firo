@@ -12,12 +12,16 @@
 #include "netbase.h"
 #include "messagesigner.h"
 #include "keystore.h"
+#include "validationinterface.h"
 
+#include "dsnotificationinterface.h"
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 
+#include <atomic>
 #include <boost/test/unit_test.hpp>
+#include <boost/thread.hpp>
 
 static const CBitcoinAddress payoutAddress  ("TTJW6FsYqLbSiF3ZUwMXRghgQuXK7XTodR");
 //static const std::string payoutKey          ("cV3qrPWzDcnhzRMV4MqtTH4LhNPqPo26ZntGvfJhc8nqCi8Ae5xR");
@@ -197,6 +201,118 @@ static CScript GenerateRandomAddress()
     CKey key;
     key.MakeNewKey(false);
     return GetScriptForDestination(key.GetPubKey().GetID());
+}
+
+static CScript GetCoinbaseKeyScript(const CKey& coinbaseKey)
+{
+    return GetScriptForDestination(coinbaseKey.GetPubKey().GetID());
+}
+
+static CMutableTransaction CreateCollateralSpendTx(const COutPoint& collateralOutpoint, const CScript& scriptPayout, const CKey& coinbaseKey)
+{
+    CMutableTransaction tx;
+    tx.vin.emplace_back(CTxIn(collateralOutpoint));
+    tx.vout.emplace_back(CTxOut(999 * COIN, scriptPayout));
+    SignTransaction(tx, coinbaseKey);
+
+    return tx;
+}
+
+static void ProcessBlockAndUpdateMNManager(TestChain100Setup& setup, const std::vector<CMutableTransaction>& txns, const CKey& coinbaseKey)
+{
+    bool processed = false;
+    setup.CreateAndProcessBlock(txns, coinbaseKey, &processed);
+    BOOST_REQUIRE(processed);
+    deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
+}
+
+static void InvalidateBlockAndUpdateMNManager(const uint256& blockHash)
+{
+    CValidationState state;
+    LOCK(cs_main);
+
+    auto it = mapBlockIndex.find(blockHash);
+    BOOST_REQUIRE(it != mapBlockIndex.end());
+    BOOST_REQUIRE(InvalidateBlock(state, Params(), it->second));
+    BOOST_REQUIRE(state.IsValid());
+    deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
+}
+
+static void InvalidateBlockUsingValidationSignals(const uint256& blockHash)
+{
+    CValidationState state;
+    LOCK(cs_main);
+
+    auto it = mapBlockIndex.find(blockHash);
+    BOOST_REQUIRE(it != mapBlockIndex.end());
+    BOOST_REQUIRE(InvalidateBlock(state, Params(), it->second));
+    BOOST_REQUIRE(state.IsValid());
+}
+
+class DeterministicMNManagerTipSignalBridge : public CValidationInterface
+{
+protected:
+    void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex*, bool) override
+    {
+        deterministicMNManager->UpdatedBlockTip(pindexNew);
+    }
+};
+
+class ExposedDSNotificationInterface : public CDSNotificationInterface
+{
+public:
+    using CDSNotificationInterface::CDSNotificationInterface;
+
+    void UpdatedBlockTipForTest(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload)
+    {
+        CDSNotificationInterface::UpdatedBlockTip(pindexNew, pindexFork, fInitialDownload);
+    }
+};
+
+class ScopedValidationInterfaceRegistration
+{
+public:
+    explicit ScopedValidationInterfaceRegistration(CValidationInterface& validationInterface) :
+        validationInterface(validationInterface)
+    {
+        RegisterValidationInterface(&validationInterface);
+    }
+
+    ~ScopedValidationInterfaceRegistration()
+    {
+        UnregisterValidationInterface(&validationInterface);
+    }
+
+private:
+    CValidationInterface& validationInterface;
+};
+
+static std::vector<uint256> RegisterDeterministicMNs(TestChain100Setup& setup, SimpleUTXOMap& utxos, size_t count, int& port, const CScript& payoutScript)
+{
+    std::vector<uint256> dmnHashes;
+    dmnHashes.reserve(count);
+
+    for (size_t i = 0; i < count; ++i) {
+        CKey ownerKey;
+        CBLSSecretKey operatorKey;
+        auto tx = CreateProRegTx(utxos, port++, payoutScript, setup.coinbaseKey, ownerKey, operatorKey);
+        auto proTxHash = tx.GetHash();
+        ProcessBlockAndUpdateMNManager(setup, {tx}, setup.coinbaseKey);
+
+        BOOST_REQUIRE(deterministicMNManager->GetListAtChainTip().HasMN(proTxHash));
+        dmnHashes.emplace_back(proTxHash);
+    }
+
+    return dmnHashes;
+}
+
+static void AssertTipMNSet(const std::vector<uint256>& expectedDmnHashes)
+{
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    BOOST_REQUIRE_EQUAL(mnList.GetAllMNsCount(), expectedDmnHashes.size());
+    for (const auto& proTxHash : expectedDmnHashes) {
+        BOOST_CHECK(mnList.HasMN(proTxHash));
+    }
 }
 
 static CDeterministicMNCPtr FindPayoutDmn(const CBlock& block)
@@ -406,5 +522,179 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
     BOOST_ASSERT(foundRevived);
 
     const_cast<Consensus::Params&>(Params().GetConsensus()).DIP0003EnforcementHeight = DIP0003EnforcementHeightBackup;
+}
+
+BOOST_FIXTURE_TEST_CASE(dip3_invalidate_restores_single_collateral_spend_immediately, TestChainDIP3Setup)
+{
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 10000;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 3, port, payoutScript);
+    AssertTipMNSet(dmnHashes);
+
+    auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[0], 0), payoutScript, coinbaseKey);
+    ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+
+    std::vector<uint256> afterSpend{dmnHashes.begin() + 1, dmnHashes.end()};
+    AssertTipMNSet(afterSpend);
+
+    auto removedTipHash = chainActive.Tip()->GetBlockHash();
+    InvalidateBlockAndUpdateMNManager(removedTipHash);
+
+    AssertTipMNSet(dmnHashes);
+}
+
+BOOST_FIXTURE_TEST_CASE(dip3_invalidate_restores_multiple_collateral_spends_immediately, TestChainDIP3Setup)
+{
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 11000;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 5, port, payoutScript);
+    AssertTipMNSet(dmnHashes);
+
+    uint256 firstRemovalBlockHash;
+    std::vector<uint256> expectedAfterSpends = dmnHashes;
+    for (size_t i = 0; i < 3; ++i) {
+        auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[i], 0), payoutScript, coinbaseKey);
+        ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+        if (i == 0) {
+            firstRemovalBlockHash = chainActive.Tip()->GetBlockHash();
+        }
+        expectedAfterSpends.erase(expectedAfterSpends.begin());
+        AssertTipMNSet(expectedAfterSpends);
+    }
+
+    InvalidateBlockAndUpdateMNManager(firstRemovalBlockHash);
+
+    AssertTipMNSet(dmnHashes);
+}
+
+BOOST_FIXTURE_TEST_CASE(dip3_invalidate_does_not_reuse_cached_descendant_mn_list, TestChainDIP3Setup)
+{
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 12000;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 4, port, payoutScript);
+    AssertTipMNSet(dmnHashes);
+
+    auto preRemovalTip = chainActive.Tip();
+    auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[0], 0), payoutScript, coinbaseKey);
+    ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+    auto descendantTip = chainActive.Tip();
+
+    std::vector<uint256> afterSpend{dmnHashes.begin() + 1, dmnHashes.end()};
+    AssertTipMNSet(afterSpend);
+
+    // Populate manager caches for both sides of the rollback boundary before
+    // invalidating, then assert the active tip list cannot be served from the
+    // stale descendant entry after disconnect.
+    BOOST_CHECK_EQUAL(deterministicMNManager->GetListForBlock(preRemovalTip).GetAllMNsCount(), dmnHashes.size());
+    BOOST_CHECK_EQUAL(deterministicMNManager->GetListForBlock(descendantTip).GetAllMNsCount(), afterSpend.size());
+
+    InvalidateBlockAndUpdateMNManager(descendantTip->GetBlockHash());
+
+    BOOST_CHECK_EQUAL(chainActive.Tip()->GetBlockHash().ToString(), preRemovalTip->GetBlockHash().ToString());
+    AssertTipMNSet(dmnHashes);
+    BOOST_CHECK_EQUAL(deterministicMNManager->GetListForBlock(chainActive.Tip()).GetAllMNsCount(), dmnHashes.size());
+}
+
+BOOST_FIXTURE_TEST_CASE(dip3_invalidate_pure_disconnect_notification_updates_tip_list, TestChainDIP3Setup)
+{
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 13000;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 3, port, payoutScript);
+    AssertTipMNSet(dmnHashes);
+
+    auto preRemovalTip = chainActive.Tip();
+    auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[0], 0), payoutScript, coinbaseKey);
+    ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+
+    std::vector<uint256> afterSpend{dmnHashes.begin() + 1, dmnHashes.end()};
+    AssertTipMNSet(afterSpend);
+
+    ExposedDSNotificationInterface notificationInterface(*connman);
+    notificationInterface.UpdatedBlockTipForTest(preRemovalTip, preRemovalTip, false);
+    AssertTipMNSet(dmnHashes);
+}
+
+BOOST_FIXTURE_TEST_CASE(dip3_repeated_invalidate_signal_restores_each_intermediate_tip, TestChainDIP3Setup)
+{
+    DeterministicMNManagerTipSignalBridge tipSignalBridge;
+    ScopedValidationInterfaceRegistration bridgeRegistration(tipSignalBridge);
+
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 14000;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 5, port, payoutScript);
+    AssertTipMNSet(dmnHashes);
+
+    std::vector<std::vector<uint256>> expectedAfterDisconnect;
+    std::vector<uint256> expectedAfterSpends = dmnHashes;
+
+    for (size_t i = 0; i < 3; ++i) {
+        auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[i], 0), payoutScript, coinbaseKey);
+        ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+        expectedAfterSpends.erase(expectedAfterSpends.begin());
+        AssertTipMNSet(expectedAfterSpends);
+
+        std::vector<uint256> restored{dmnHashes.begin() + i, dmnHashes.end()};
+        expectedAfterDisconnect.emplace(expectedAfterDisconnect.begin(), std::move(restored));
+    }
+
+    for (size_t i = 0; i < expectedAfterDisconnect.size(); ++i) {
+        InvalidateBlockUsingValidationSignals(chainActive.Tip()->GetBlockHash());
+        AssertTipMNSet(expectedAfterDisconnect[i]);
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(dip3_invalidate_tip_list_remains_consistent_for_parallel_readers, TestChainDIP3Setup)
+{
+    DeterministicMNManagerTipSignalBridge tipSignalBridge;
+    ScopedValidationInterfaceRegistration bridgeRegistration(tipSignalBridge);
+
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 15000;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 6, port, payoutScript);
+    AssertTipMNSet(dmnHashes);
+
+    for (size_t i = 0; i < 3; ++i) {
+        auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[i], 0), payoutScript, coinbaseKey);
+        ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+    }
+
+    InvalidateBlockUsingValidationSignals(chainActive.Tip()->GetBlockHash());
+    std::vector<uint256> expectedAfterOneDisconnect{dmnHashes.begin() + 2, dmnHashes.end()};
+    AssertTipMNSet(expectedAfterOneDisconnect);
+
+    std::atomic<bool> failed{false};
+    boost::thread_group readers;
+    for (size_t i = 0; i < 8; ++i) {
+        readers.create_thread([&]() {
+            for (size_t j = 0; j < 100; ++j) {
+                auto mnList = deterministicMNManager->GetListAtChainTip();
+                if (mnList.GetAllMNsCount() != expectedAfterOneDisconnect.size()) {
+                    failed = true;
+                    return;
+                }
+                for (const auto& proTxHash : expectedAfterOneDisconnect) {
+                    if (!mnList.HasMN(proTxHash)) {
+                        failed = true;
+                        return;
+                    }
+                }
+            }
+        });
+    }
+    readers.join_all();
+
+    BOOST_CHECK(!failed);
 }
 BOOST_AUTO_TEST_SUITE_END()
