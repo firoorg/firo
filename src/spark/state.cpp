@@ -739,7 +739,7 @@ bool CheckSparkSpendTransaction(
     spend->setOutCoins(out_coins);
     spend->setVout(Vout);
 
-    const bool fVerifyProofNow = fVerifySparkSpendProof || fStatefulSigmaCheck;
+    const bool fVerifyProofNow = fVerifySparkSpendProof || fStatefulSigmaCheck || (isVerifyDB && !isCheckWallet);
     if (!fVerifyProofNow) {
         setProofResult(SparkSpendProofVerificationResult::Deferred);
         return true;

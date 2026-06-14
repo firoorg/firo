@@ -557,7 +557,11 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     CValidationState walletLoadState;
     BOOST_CHECK(CheckTransaction(
-            tamperedSpend, walletLoadState, true, tamperedSpend.GetHash(), true, INT_MAX, false, false, NULL, false));
+            tamperedSpend, walletLoadState, true, tamperedSpend.GetHash(), true, INT_MAX, true, false, NULL, false));
+
+    CValidationState directVerifyDBState;
+    BOOST_CHECK(!CheckTransaction(
+            tamperedSpend, directVerifyDBState, true, tamperedSpend.GetHash(), true, INT_MAX, false, false, NULL, false));
 
     CSparkTxInfo statefulDeferredInfo;
     CValidationState statefulDeferredState;
