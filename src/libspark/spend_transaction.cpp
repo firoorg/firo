@@ -391,10 +391,12 @@ bool SpendTransaction::verify(
             if (!cover_sets.count(cover_set_id))
                 throw std::invalid_argument("Cover set missing");
 			// Because we assume all proofs in this list share a monotonic cover set, the largest such set is the one to use for verification
-            if (!tx.cover_set_sizes.count(cover_set_id))
-                throw std::invalid_argument("Cover set size missing");
+			if (!tx.cover_set_sizes.count(cover_set_id))
+				throw std::invalid_argument("Cover set size missing");
 
 			std::size_t this_cover_set_size = tx.cover_set_sizes.at(cover_set_id);
+            if (this_cover_set_size == 0 || this_cover_set_size > full_cover_set_size)
+                throw std::invalid_argument("Bad cover set size");
 
 			// We always use the other elements
 			S1.emplace_back(tx.S1[proof_index.second]);

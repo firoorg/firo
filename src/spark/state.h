@@ -42,6 +42,13 @@ public:
     void Complete();
 };
 
+enum class SparkSpendProofVerificationResult {
+    NotApplicable,
+    Verified,
+    Deferred,
+    Batched
+};
+
 // check if spark activation block is passed
 bool IsSparkAllowed();
 bool IsSparkAllowed(int height);
@@ -82,7 +89,8 @@ bool CheckSparkTransaction(
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo,
-        bool fVerifySparkSpendProof = true);
+        bool fVerifySparkSpendProof = true,
+        SparkSpendProofVerificationResult* sparkSpendProofResult = nullptr);
 
 // call this on shutdown
 void ShutdownSparkState();
