@@ -30,6 +30,7 @@
 #include "script/script.h"
 #include "script/sigcache.h"
 #include "script/standard.h"
+#include "spark/state.h"
 #include "timedata.h"
 #include "tinyformat.h"
 #include "txdb.h"
@@ -573,8 +574,11 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo, bool fVerifySparkSpendProof)
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo, bool fVerifySparkSpendProof, spark::SparkSpendProofVerificationResult* sparkSpendProofResult)
 {
+    if (sparkSpendProofResult)
+        *sparkSpendProofResult = spark::SparkSpendProofVerificationResult::NotApplicable;
+
     LogPrintf("CheckTransaction nHeight=%d, isVerifyDB=%d, isCheckWallet=%d, txHash=%s\n", nHeight, (int)isVerifyDB, (int)isCheckWallet, tx.GetHash().ToString());
 
     bool allowEmptyTxInOut = false;
@@ -699,7 +703,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         if (tx.IsSparkTransaction()) {
             if (hasExchangeUTXOs)
                 return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo, fVerifySparkSpendProof))
+            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo, fVerifySparkSpendProof, sparkSpendProofResult))
                 return false;
         }
 
@@ -4213,19 +4217,21 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     LogPrintf("CheckBlock() nHeight=%d, blockHash=%s, isVerifyDB=%d\n", nHeight, block.GetHash().ToString(), isVerifyDB);
 
     // Only callers that immediately run stateful Spark checks may defer this expensive proof.
-    // VerifyDB keeps its explicit proof-verification request.
     const bool fVerifySparkSpendProof = isVerifyDB || !fDeferSparkSpendProofVerification;
-    // CheckBlock passes no Spark tx info, so verified Spark spend proofs complete
+    // CheckBlock passes no Spark tx info, so non-deferred proof checks complete
     // synchronously here; deferred import blocks are deliberately not cached.
     bool fSparkSpendProofsComplete = true;
     for (CTransactionRef tx : block.vtx) {
-        if (tx->IsSparkSpend())
-            fSparkSpendProofsComplete = fSparkSpendProofsComplete && fVerifySparkSpendProof;
+        spark::SparkSpendProofVerificationResult sparkSpendProofResult = spark::SparkSpendProofVerificationResult::NotApplicable;
 
         // We don't check transactions against sigma/lelantus state here, we'll check it again later in ConnectBlock
-        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, fVerifySparkSpendProof))
+        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, fVerifySparkSpendProof, &sparkSpendProofResult))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
+
+        if (tx->IsSparkSpend())
+            fSparkSpendProofsComplete = fSparkSpendProofsComplete &&
+                    sparkSpendProofResult == spark::SparkSpendProofVerificationResult::Verified;
 
     }
     unsigned int nSigOps = 0;

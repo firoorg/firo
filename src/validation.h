@@ -52,6 +52,10 @@ struct ChainTxData;
 
 struct PrecomputedTransactionData;
 struct LockPoints;
+namespace spark {
+class CSparkTxInfo;
+enum class SparkSpendProofVerificationResult;
+} // namespace spark
 
 /** btzc: update Firo config */
 /** Default for DEFAULT_WHITELISTRELAY. */
@@ -418,7 +422,7 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 /** Transaction validation functions */
 
 /** Context-independent validity checks */
-bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, spark::CSparkTxInfo* sparkTxInfo = NULL, bool fVerifySparkSpendProof = true);
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, spark::CSparkTxInfo* sparkTxInfo = NULL, bool fVerifySparkSpendProof = true, spark::SparkSpendProofVerificationResult* sparkSpendProofResult = NULL);
 
 namespace Consensus {
 

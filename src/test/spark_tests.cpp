@@ -1,6 +1,7 @@
 #include "../chainparams.h"
 #include "../batchproof_container.h"
 #include "../script/standard.h"
+#include "../utiltime.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
 #include "../wallet/wallet.h"
@@ -548,9 +549,11 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     tamperedSpendTx.vout[0].nValue += CENT;
     CTransaction tamperedSpend(tamperedSpendTx);
 
+    SparkSpendProofVerificationResult deferredProofResult;
     CValidationState deferredState;
     BOOST_CHECK(CheckSparkTransaction(
-            tamperedSpend, deferredState, tamperedSpend.GetHash(), false, chainActive.Height(), false, false, NULL, false));
+            tamperedSpend, deferredState, tamperedSpend.GetHash(), false, chainActive.Height(), false, false, NULL, false, &deferredProofResult));
+    BOOST_CHECK(deferredProofResult == SparkSpendProofVerificationResult::Deferred);
 
     CValidationState walletLoadState;
     BOOST_CHECK(CheckTransaction(
@@ -593,17 +596,79 @@ BOOST_AUTO_TEST_CASE(checktransaction)
             tamperedBlock, verifyDBBlockState, consensus, true, true, chainActive.Height() + 1, true, true));
     BOOST_CHECK(!tamperedBlock.fChecked);
 
+    CBlock missingSparkStateBlock = CreateBlock({spendTx}, script);
+    CBlock missingSparkStateVerifyDBBlock = CreateBlock({spendTx}, script);
+
+    sparkState->Reset();
+
+    CValidationState missingSparkStateBlockState;
+    BOOST_CHECK(CheckBlock(
+            missingSparkStateBlock, missingSparkStateBlockState, consensus, true, true, chainActive.Height() + 1, false));
+    BOOST_CHECK(!missingSparkStateBlock.fChecked);
+
+    CValidationState missingSparkStateVerifyDBBlockState;
+    BOOST_CHECK(!CheckBlock(
+            missingSparkStateVerifyDBBlock, missingSparkStateVerifyDBBlockState, consensus, true, true, chainActive.Height() + 1, true));
+    BOOST_CHECK(!missingSparkStateVerifyDBBlock.fChecked);
+
+    BOOST_CHECK(BuildSparkStateFromIndex(&chainActive));
+
+    std::vector<CMutableTransaction> laterMintTxs;
+    GenerateMints({2 * COIN, 3 * COIN}, laterMintTxs);
+    mempool.clear();
+    BOOST_CHECK(GenerateBlock(laterMintTxs));
+
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+
     batchProofContainer->fCollectProofs = true;
     batchProofContainer->init();
 
+    SparkSpendProofVerificationResult batchedValidProofResult;
+    CSparkTxInfo batchedValidInfo;
+    CValidationState batchedValidState;
+    BOOST_CHECK(CheckSparkTransaction(
+            spendTx, batchedValidState, spendTx.GetHash(), false, chainActive.Height(), false, true, &batchedValidInfo, true, &batchedValidProofResult));
+    BOOST_CHECK(batchedValidProofResult == SparkSpendProofVerificationResult::Batched);
+    batchProofContainer->finalize();
+    BOOST_CHECK_NO_THROW(batchProofContainer->verify());
+    batchProofContainer->clear();
+
+    batchProofContainer->fCollectProofs = true;
+    batchProofContainer->init();
+
+    CMutableTransaction batchedTamperedSpendTx(spendTx);
+    batchedTamperedSpendTx.vout[0].nValue += 2 * CENT;
+    CTransaction batchedTamperedSpend(batchedTamperedSpendTx);
+
+    SparkSpendProofVerificationResult batchedProofResult;
     CSparkTxInfo batchedTamperedInfo;
     CValidationState batchedVerifiedState;
     BOOST_CHECK(CheckSparkTransaction(
-            tamperedSpend, batchedVerifiedState, tamperedSpend.GetHash(), false, chainActive.Height(), false, true, &batchedTamperedInfo));
+            batchedTamperedSpend, batchedVerifiedState, batchedTamperedSpend.GetHash(), false, chainActive.Height(), false, true, &batchedTamperedInfo, true, &batchedProofResult));
+    BOOST_CHECK(batchedProofResult == SparkSpendProofVerificationResult::Batched);
     batchProofContainer->finalize();
     BOOST_CHECK_THROW(batchProofContainer->verify(), std::invalid_argument);
     batchProofContainer->clear();
+
+    CBlock connectTamperedBlock = CreateBlock({batchedTamperedSpendTx}, script);
+    CBlockIndex connectTamperedIndex(connectTamperedBlock);
+    connectTamperedIndex.pprev = chainActive.Tip();
+    connectTamperedIndex.nHeight = chainActive.Height() + 1;
+    connectTamperedIndex.nTime = GetSystemTimeInSeconds() - 2 * 86400;
+
+    CCoinsViewCache connectTamperedView(pcoinsTip);
+    CValidationState connectTamperedState;
+    BOOST_CHECK(!ConnectBlock(
+            connectTamperedBlock,
+            connectTamperedState,
+            &connectTamperedIndex,
+            connectTamperedView,
+            ::Params(),
+            true));
+    BOOST_CHECK(!connectTamperedState.IsValid());
+    for (const auto& lTag : spend.getUsedLTags()) {
+        BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
+    }
 
     batchProofContainer->fCollectProofs = false;
     batchProofContainer->init();

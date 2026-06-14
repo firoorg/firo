@@ -651,7 +651,13 @@ bool CheckSparkSpendTransaction(
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo,
-        bool fVerifySparkSpendProof) {
+        bool fVerifySparkSpendProof,
+        SparkSpendProofVerificationResult* sparkSpendProofResult) {
+
+    auto setProofResult = [sparkSpendProofResult](SparkSpendProofVerificationResult result) {
+        if (sparkSpendProofResult)
+            *sparkSpendProofResult = result;
+    };
 
     std::unordered_set<GroupElement, spark::CLTagHash> txLTags;
 
@@ -734,8 +740,10 @@ bool CheckSparkSpendTransaction(
     spend->setVout(Vout);
 
     const bool fVerifyProofNow = fVerifySparkSpendProof || fStatefulSigmaCheck;
-    if (!fVerifyProofNow)
+    if (!fVerifyProofNow) {
+        setProofResult(SparkSpendProofVerificationResult::Deferred);
         return true;
+    }
 
     std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
@@ -743,12 +751,14 @@ bool CheckSparkSpendTransaction(
 
     const bool fRequireProofInputs = fStatefulSigmaCheck || isVerifyDB;
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    // ConnectBlock completes this batch before persistent block/Spark state updates.
+    // ConnectBlock finalizes and verifies this batch before persistent block,
+    // index, or Spark state updates.
     bool useBatching = batchProofContainer->fCollectProofs &&
         !isVerifyDB &&
         !isCheckWallet &&
         sparkTxInfo &&
         !sparkTxInfo->fInfoIsComplete;
+    const bool fNeedFullCoverSets = !useBatching;
 
     for (const auto& idAndHash : idAndBlockHashes) {
         CSparkState::SparkCoinGroupInfo coinGroup;
@@ -756,9 +766,11 @@ bool CheckSparkSpendTransaction(
             if (fRequireProofInputs)
                 return state.DoS(100, false, NO_MINT_ZEROCOIN,
                                  "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
-            else
+            else {
                 // soft error, will check the proof later
+                setProofResult(SparkSpendProofVerificationResult::Deferred);
                 return true;
+            }
         }
 
         CBlockIndex *index = coinGroup.lastBlock;
@@ -766,10 +778,12 @@ bool CheckSparkSpendTransaction(
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
-        if (index->GetBlockHash() != idAndHash.second && !fRequireProofInputs)
+        if (index->GetBlockHash() != idAndHash.second && !fRequireProofInputs) {
             // if fStatefulSigmaCheck is false, we are in the mempool acceptance code, it's a soft error
             // just return true. If fStatefulSigmaCheck is true, use coinGroup.firstBlock as a reference block
+            setProofResult(SparkSpendProofVerificationResult::Deferred);
             return true;
+        }
 
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
@@ -793,7 +807,7 @@ bool CheckSparkSpendTransaction(
                     const auto& coin,
                     index->sparkMintedCoins[id]) {
                         set_size++;
-                        if (!useBatching)
+                        if (fNeedFullCoverSets)
                             cover_set.push_back(coin);
                     }
                 }
@@ -817,64 +831,62 @@ bool CheckSparkSpendTransaction(
 
     const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {
-        if (!cover_sets.count(id) || !cover_set_data.count(id))
+        if (!cover_sets.count(id) || !cover_set_data.count(id)) {
+            setProofResult(SparkSpendProofVerificationResult::Deferred);
             return fRequireProofInputs ? state.DoS(100,
                              error("CheckSparkSpendTransaction: No cover set found.")) : true;
+        }
     }
 
     const uint256 proofInputHash = GetSparkSpendProofInputHash(hashTx, idAndBlockHashes, cover_set_data, cover_sets);
     
-    // if we are collecting proofs, skip verification and collect proofs
-    // add proofs into container
-    if (useBatching) {
-        passVerify = true;
-        batchProofContainer->add(*spend);
-    } else {
-        bool fChecked = false;
+    bool fChecked = false;
 
-        try {
-            {
-                LOCK(cs_checkedSparkSpendTransactions);
-                auto it = gCheckedSparkSpendTransactions.find(hashTx);
-                if (it != gCheckedSparkSpendTransactions.end()) {
-                    auto& checkState = it->second;
-                    if (checkState.fChecked) {
-                        if (checkState.proofInputHash != proofInputHash) {
-                            LogPrintf("CheckSparkSpendTransaction: cached proof inputs changed for tx %s\n", hashTx.ToString());
-                            gCheckedSparkSpendTransactions.erase(it);
-                        } else if (!checkState.fResult) {
-                            return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
-                        } else {
-                            LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
-                            fChecked = true;
-                        }
-                    }
+    try {
+        {
+            LOCK(cs_checkedSparkSpendTransactions);
+            auto it = gCheckedSparkSpendTransactions.find(hashTx);
+            if (it != gCheckedSparkSpendTransactions.end()) {
+                auto& checkState = it->second;
+                if (checkState.proofInputHash != proofInputHash) {
+                    LogPrintf("CheckSparkSpendTransaction: cached proof inputs changed for tx %s\n", hashTx.ToString());
+                    gCheckedSparkSpendTransactions.erase(it);
+                } else if (checkState.fChecked) {
+                    if (!checkState.fResult)
+                        return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
+
+                    LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
+                    fChecked = true;
                 }
             }
-
-            if (fChecked) {
-                // if we are here, then the proof was already checked and it passed
-                passVerify = true;
-            }
-            else {
-                passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
-            }
-        }
-        catch (const std::exception &) {
-            passVerify = false;
         }
 
-        if (passVerify) {
-            LOCK(cs_checkedSparkSpendTransactions);
-            if (gCheckedSparkSpendTransactions.size() >= MAX_CACHED_SPARK_SPEND_PROOFS)
-                gCheckedSparkSpendTransactions.clear();
-
-            auto& checkState = gCheckedSparkSpendTransactions[hashTx];
-            checkState.fChecked = true;
-            checkState.fResult = true;
-            checkState.proofInputHash = proofInputHash;
+        if (fChecked) {
+            passVerify = true;
+            setProofResult(SparkSpendProofVerificationResult::Verified);
+        } else if (useBatching) {
+            passVerify = true;
+            batchProofContainer->add(*spend);
+            setProofResult(SparkSpendProofVerificationResult::Batched);
+        } else {
+            passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+            if (passVerify)
+                setProofResult(SparkSpendProofVerificationResult::Verified);
         }
+    }
+    catch (const std::exception &) {
+        passVerify = false;
+    }
 
+    if (passVerify && !useBatching) {
+        LOCK(cs_checkedSparkSpendTransactions);
+        if (gCheckedSparkSpendTransactions.size() >= MAX_CACHED_SPARK_SPEND_PROOFS)
+            gCheckedSparkSpendTransactions.clear();
+
+        auto& checkState = gCheckedSparkSpendTransactions[hashTx];
+        checkState.fChecked = true;
+        checkState.fResult = true;
+        checkState.proofInputHash = proofInputHash;
     }
 
     if (!fStatefulSigmaCheck)
@@ -941,8 +953,12 @@ bool CheckSparkTransaction(
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo,
-        bool fVerifySparkSpendProof)
+        bool fVerifySparkSpendProof,
+        SparkSpendProofVerificationResult* sparkSpendProofResult)
 {
+    if (sparkSpendProofResult)
+        *sparkSpendProofResult = SparkSpendProofVerificationResult::NotApplicable;
+
     Consensus::Params const & consensus = ::Params().GetConsensus();
 
     bool const allowSpark = IsSparkAllowed();
@@ -989,7 +1005,8 @@ bool CheckSparkTransaction(
         try {
             if (!CheckSparkSpendTransaction(
                     tx, state, hashTx, isVerifyDB, nHeight,
-                    isCheckWallet, fStatefulSigmaCheck, sparkTxInfo, fVerifySparkSpendProof)) {
+                    isCheckWallet, fStatefulSigmaCheck, sparkTxInfo, fVerifySparkSpendProof,
+                    sparkSpendProofResult)) {
                 return false;
             }
 
