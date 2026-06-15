@@ -12,6 +12,8 @@
 #include "../src/scratch_impl.h"
 #include "../src/ecmult_impl.h"
 
+#include <stdexcept>
+
 
 typedef struct {
     secp256k1_scalar *sc;
@@ -74,7 +76,14 @@ GroupElement MultiExponent::get_multiple() {
 
     secp256k1_ecmult_context ctx;
 
-    secp256k1_ecmult_multi_var(&ctx, scratch, &r, NULL, ecmult_multi_callback, &data, n_points);
+    if (scratch == NULL) {
+        throw std::runtime_error("MultiExponent scratch allocation failed");
+    }
+
+    if (!secp256k1_ecmult_multi_var(&ctx, scratch, &r, NULL, ecmult_multi_callback, &data, n_points)) {
+        secp256k1_scratch_destroy(scratch);
+        throw std::runtime_error("MultiExponent computation failed");
+    }
 
     secp256k1_scratch_destroy(scratch);
 
