@@ -764,6 +764,15 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
+        CValidationState activateState;
+        if (!ActivateBestChain(activateState, chainparams)) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(activateState));
+            return;
+        }
+        if (ShutdownRequested()) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: shutdown requested\n");
+            return;
+        }
         {
             LOCK(cs_main);
             CValidationState state;

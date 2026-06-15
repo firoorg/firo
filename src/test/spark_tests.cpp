@@ -87,6 +87,21 @@ BOOST_AUTO_TEST_CASE(is_spark_allowed)
     BOOST_CHECK(IsSparkAllowed(start + 1));
 }
 
+BOOST_AUTO_TEST_CASE(import_spark_proof_deferral_policy)
+{
+    CDiskBlockPos diskPos(0, 0);
+    CBlockIndex activeParent;
+    CBlockIndex sideParent;
+
+    BOOST_CHECK(CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, &activeParent, true, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, &activeParent, false, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, &activeParent, true, true));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(nullptr, &activeParent, &activeParent, true, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, nullptr, nullptr, true, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, nullptr, true, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &sideParent, &activeParent, true, false));
+}
+
 BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
 {
     auto params = Params::get_default();

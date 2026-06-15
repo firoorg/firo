@@ -4295,6 +4295,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     return true;
 }
 
+bool CanDeferSparkSpendProofVerificationOnImport(const CDiskBlockPos* dbp, const CBlockIndex* pindexPrev, const CBlockIndex* activeTip, bool fAllowSparkSpendProofDeferral, bool fShutdownRequested)
+{
+    return fAllowSparkSpendProofDeferral && !fShutdownRequested && dbp != nullptr && pindexPrev != nullptr && pindexPrev == activeTip;
+}
+
 static bool CheckIndexAgainstCheckpoint(const CBlockIndex* pindexPrev, CValidationState& state, const CChainParams& chainparams, const uint256& hash)
 {
     if (*pindexPrev->phashBlock == chainparams.GetConsensus().hashGenesisBlock)
@@ -4659,7 +4664,7 @@ bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, CValidatio
 }
 
 /** Store block on disk. If dbp is non-NULL, the file is known to already reside on disk */
-static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock)
+static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const CDiskBlockPos* dbp, bool* fNewBlock, bool fAllowSparkSpendProofDeferral = true)
 {
     const CBlock& block = *pblock;
 
@@ -4704,7 +4709,10 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     // stateful ConnectBlock check that runs immediately before chain state is
     // updated. Do not defer side-chain or out-of-order imported blocks: they can
     // remain stored without being connected, so AcceptBlock must verify them.
-    const bool fDeferSparkSpendProofVerification = dbp != NULL && pindex->pprev == chainActive.Tip();
+    // Also do not defer during shutdown: ActivateBestChain can exit without
+    // connecting the just-accepted block.
+    const bool fDeferSparkSpendProofVerification = CanDeferSparkSpendProofVerificationOnImport(
+            dbp, pindex->pprev, chainActive.Tip(), fAllowSparkSpendProofDeferral, ShutdownRequested());
     if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false, fDeferSparkSpendProofVerification) ||
         !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
@@ -5542,7 +5550,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                                     head.ToString());
                             LOCK(cs_main);
                             CValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, chainparams, NULL, true, &it->second, NULL))
+                            if (AcceptBlock(pblockrecursive, dummy, chainparams, NULL, true, &it->second, NULL, false))
                             {
                                 nLoaded++;
                                 queue.push_back(pblockrecursive->GetHash());

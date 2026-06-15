@@ -540,6 +540,7 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 /** Context-independent validity checks */
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true);
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true, int nHeight = INT_MAX, bool isVerifyDB = false, bool fDeferSparkSpendProofVerification = false);
+bool CanDeferSparkSpendProofVerificationOnImport(const CDiskBlockPos* dbp, const CBlockIndex* pindexPrev, const CBlockIndex* activeTip, bool fAllowSparkSpendProofDeferral, bool fShutdownRequested);
 
 bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransactionRef & tx);
 bool IsTransactionInChain(const uint256& txId, int& nHeightTx);
