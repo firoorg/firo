@@ -503,6 +503,22 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 {
 }
 
+CDeterministicMNManager::ScopedCacheRestorer::ScopedCacheRestorer(CDeterministicMNManager& manager) :
+    manager(manager)
+{
+    LOCK(manager.cs);
+    savedMnListsCache = manager.mnListsCache;
+    ++manager.scopedCacheRestorerDepth;
+}
+
+CDeterministicMNManager::ScopedCacheRestorer::~ScopedCacheRestorer()
+{
+    LOCK(manager.cs);
+    assert(manager.scopedCacheRestorerDepth > 0);
+    --manager.scopedCacheRestorerDepth;
+    manager.mnListsCache = savedMnListsCache;
+}
+
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck, CDeterministicMNList* newListRet, bool* cbTxMerkleRootMNListChangedRet)
 {
     AssertLockHeld(cs_main);
@@ -537,6 +553,9 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         if (fJustCheck) {
             if (newListRet) {
                 *newListRet = newList;
+            }
+            if (scopedCacheRestorerDepth > 0) {
+                mnListsCache[block.GetHash()] = newList;
             }
             return true;
         }

@@ -665,9 +665,24 @@ private:
     CEvoDB& evoDb;
 
     std::map<uint256, CDeterministicMNList> mnListsCache;
+    int scopedCacheRestorerDepth{0};
     const CBlockIndex* tipIndex{nullptr};
 
 public:
+    class ScopedCacheRestorer
+    {
+    public:
+        explicit ScopedCacheRestorer(CDeterministicMNManager& manager);
+        ~ScopedCacheRestorer();
+
+        ScopedCacheRestorer(const ScopedCacheRestorer&) = delete;
+        ScopedCacheRestorer& operator=(const ScopedCacheRestorer&) = delete;
+
+    private:
+        CDeterministicMNManager& manager;
+        std::map<uint256, CDeterministicMNList> savedMnListsCache;
+    };
+
     CDeterministicMNManager(CEvoDB& _evoDb);
 
     bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck, CDeterministicMNList* newListRet = nullptr, bool* cbTxMerkleRootMNListChangedRet = nullptr);

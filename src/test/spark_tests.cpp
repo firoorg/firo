@@ -652,29 +652,54 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CMutableTransaction missingReferenceSpendTx = replaceSparkSpendBlockHashes(spendTx, uint256());
     CTransaction missingReferenceSpend(missingReferenceSpendTx);
 
-    SparkSpendProofVerificationResult missingReferenceDirectProofResult;
+    SparkSpendProofVerificationResult missingReferenceDirectProofResult = SparkSpendProofVerificationResult::NotApplicable;
     CSparkTxInfo missingReferenceDirectInfo;
     CValidationState missingReferenceDirectState;
-    BOOST_CHECK(CheckSparkTransaction(
+    BOOST_CHECK(!CheckSparkTransaction(
             missingReferenceSpend, missingReferenceDirectState, missingReferenceSpend.GetHash(),
             false, chainActive.Height(), false, true, &missingReferenceDirectInfo,
             true, &missingReferenceDirectProofResult));
-    BOOST_CHECK(missingReferenceDirectProofResult == SparkSpendProofVerificationResult::Verified);
+    BOOST_CHECK(missingReferenceDirectProofResult != SparkSpendProofVerificationResult::Verified);
+
+    SparkSpendProofVerificationResult missingReferenceNonStatefulProofResult = SparkSpendProofVerificationResult::NotApplicable;
+    CValidationState missingReferenceNonStatefulState;
+    BOOST_CHECK(!CheckSparkTransaction(
+            missingReferenceSpend, missingReferenceNonStatefulState, missingReferenceSpend.GetHash(),
+            false, chainActive.Height(), false, false, NULL,
+            true, &missingReferenceNonStatefulProofResult));
+    BOOST_CHECK(missingReferenceNonStatefulProofResult != SparkSpendProofVerificationResult::Deferred);
+
+    CBlock missingReferenceDeferredBlock = CreateBlock({missingReferenceSpendTx}, script);
+    CValidationState missingReferenceDeferredBlockState;
+    BOOST_CHECK(CheckBlock(
+            missingReferenceDeferredBlock, missingReferenceDeferredBlockState, consensus, true, true, chainActive.Height() + 1, false, true));
+    BOOST_CHECK(!missingReferenceDeferredBlock.fChecked);
+
+    CBlock missingReferenceVerifiedBlock = CreateBlock({missingReferenceSpendTx}, script);
+    CValidationState missingReferenceVerifiedBlockState;
+    BOOST_CHECK(!CheckBlock(
+            missingReferenceVerifiedBlock, missingReferenceVerifiedBlockState, consensus, true, true, chainActive.Height() + 1, false));
+    BOOST_CHECK(!missingReferenceVerifiedBlock.fChecked);
 
     batchProofContainer->clear();
     batchProofContainer->fCollectProofs = true;
     batchProofContainer->init();
 
-    SparkSpendProofVerificationResult missingReferenceBatchedProofResult;
+    SparkSpendProofVerificationResult missingReferenceBatchedProofResult = SparkSpendProofVerificationResult::NotApplicable;
     CSparkTxInfo missingReferenceBatchedInfo;
     CValidationState missingReferenceBatchedState;
-    BOOST_CHECK(CheckSparkTransaction(
+    BOOST_CHECK(!CheckSparkTransaction(
             missingReferenceSpend, missingReferenceBatchedState, missingReferenceSpend.GetHash(),
             false, chainActive.Height(), false, true, &missingReferenceBatchedInfo,
             true, &missingReferenceBatchedProofResult));
-    BOOST_CHECK(missingReferenceBatchedProofResult == SparkSpendProofVerificationResult::Batched);
+    BOOST_CHECK(missingReferenceBatchedProofResult != SparkSpendProofVerificationResult::Batched);
+    batchProofContainer->clear();
+
+    batchProofContainer->fCollectProofs = true;
+    batchProofContainer->init();
+    batchProofContainer->add(ParseSparkSpend(missingReferenceSpend));
     batchProofContainer->finalize();
-    BOOST_CHECK_NO_THROW(batchProofContainer->verify());
+    BOOST_CHECK_THROW(batchProofContainer->verify(), std::invalid_argument);
     batchProofContainer->clear();
 
     std::vector<CMutableTransaction> laterMintTxs;

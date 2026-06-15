@@ -601,6 +601,31 @@ BOOST_FIXTURE_TEST_CASE(dip3_invalidate_does_not_reuse_cached_descendant_mn_list
     BOOST_CHECK_EQUAL(deterministicMNManager->GetListForBlock(chainActive.Tip()).GetAllMNsCount(), dmnHashes.size());
 }
 
+BOOST_FIXTURE_TEST_CASE(dip3_verifydb_level4_reconnect_keeps_mn_cache_consistent, TestChainDIP3Setup)
+{
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 12500;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 6, port, payoutScript);
+    AssertTipMNSet(dmnHashes);
+
+    std::vector<uint256> expectedAfterSpends = dmnHashes;
+    for (size_t i = 0; i < 3; ++i) {
+        auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[i], 0), payoutScript, coinbaseKey);
+        ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+        expectedAfterSpends.erase(expectedAfterSpends.begin());
+        AssertTipMNSet(expectedAfterSpends);
+    }
+
+    auto tipBeforeVerifyDB = chainActive.Tip();
+    BOOST_REQUIRE(CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 3));
+
+    BOOST_CHECK_EQUAL(chainActive.Tip()->GetBlockHash().ToString(), tipBeforeVerifyDB->GetBlockHash().ToString());
+    AssertTipMNSet(expectedAfterSpends);
+    BOOST_CHECK_EQUAL(deterministicMNManager->GetListForBlock(chainActive.Tip()).GetAllMNsCount(), expectedAfterSpends.size());
+}
+
 BOOST_FIXTURE_TEST_CASE(dip3_invalidate_pure_disconnect_notification_updates_tip_list, TestChainDIP3Setup)
 {
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);

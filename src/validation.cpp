@@ -5161,6 +5161,10 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
 
+    // VerifyDB mutates EvoDB through a rollback-only transaction. Keep
+    // deterministic MN cache mutations scoped to the same speculative check.
+    CDeterministicMNManager::ScopedCacheRestorer dmnCacheRestorer(*deterministicMNManager);
+
     // begin tx and let it rollback
     auto dbTx = evoDb->BeginTransaction();
 

@@ -91,7 +91,7 @@ void BatchProofContainer::batch_spark() {
                 throw std::invalid_argument("Spark batch verification missing cover set ancestry");
 
             if (index->GetBlockHash() != idAndHash.second)
-                index = coinGroup.firstBlock;
+                throw std::invalid_argument("Spark batch verification missing cover set block");
 
             auto& selection = cover_set_selections[idAndHash.first];
             if (index->nHeight > selection.maxHeight)

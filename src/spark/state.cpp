@@ -881,15 +881,12 @@ bool CheckSparkSpendTransaction(
         }
 
         CBlockIndex *index = coinGroup.lastBlock;
-        // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
-        while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
+        while (index && index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
-        if (index->GetBlockHash() != idAndHash.second && !fRequireProofInputs) {
-            // if fStatefulSigmaCheck is false, we are in the mempool acceptance code, it's a soft error
-            // just return true. If fStatefulSigmaCheck is true, use coinGroup.firstBlock as a reference block
-            setProofResult(SparkSpendProofVerificationResult::Deferred);
-            return true;
+        if (!index || index->GetBlockHash() != idAndHash.second) {
+            return state.DoS(100, false, REJECT_INVALID,
+                             "CheckSparkSpendTransaction: referenced cover set block not found");
         }
 
         // take the hash from last block of anonymity set
