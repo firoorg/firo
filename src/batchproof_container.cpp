@@ -81,16 +81,20 @@ void BatchProofContainer::batch_spark() {
             spark::CSparkState::SparkCoinGroupInfo coinGroup;
             if (!sparkState->GetCoinGroupInfo(cover_set_id, coinGroup))
                 throw std::invalid_argument("Spark batch verification missing cover set");
+            if (!coinGroup.firstBlock || !coinGroup.lastBlock)
+                throw std::invalid_argument("Spark batch verification invalid cover set index");
 
             CBlockIndex* index = coinGroup.lastBlock;
-            while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
+            while (index && index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
                 index = index->pprev;
+            if (!index)
+                throw std::invalid_argument("Spark batch verification missing cover set ancestry");
 
-            if (!index || index->GetBlockHash() != idAndHash.second)
-                throw std::invalid_argument("Spark batch verification missing cover set block");
+            if (index->GetBlockHash() != idAndHash.second)
+                index = coinGroup.firstBlock;
 
             auto& selection = cover_set_selections[idAndHash.first];
-            if (index && index->nHeight > selection.maxHeight)
+            if (index->nHeight > selection.maxHeight)
                 selection.maxHeight = index->nHeight;
         }
     }

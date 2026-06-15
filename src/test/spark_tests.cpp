@@ -1,6 +1,7 @@
 #include "../chainparams.h"
 #include "../batchproof_container.h"
 #include "../script/standard.h"
+#include "../util.h"
 #include "../utiltime.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
@@ -517,6 +518,19 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     CMutableTransaction spendTx(wtx);
     auto spend = ParseSparkSpend(spendTx);
+    auto replaceSparkSpendBlockHashes = [](CMutableTransaction tx, const uint256& blockHash) {
+        spark::SpendTransaction sparkSpend = ParseSparkSpend(tx);
+        std::map<uint64_t, uint256> idAndBlockHashes;
+        for (const auto& idAndHash : sparkSpend.getBlockHashes()) {
+            idAndBlockHashes[idAndHash.first] = blockHash;
+        }
+        sparkSpend.setBlockHashes(idAndBlockHashes);
+
+        CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+        serialized << sparkSpend;
+        tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+        return tx;
+    };
 
     // test get join split amounts
     BOOST_CHECK_EQUAL(1, GetSpendInputs(spendTx));
@@ -633,12 +647,40 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     BOOST_CHECK(BuildSparkStateFromIndex(&chainActive));
 
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+
+    CMutableTransaction missingReferenceSpendTx = replaceSparkSpendBlockHashes(spendTx, uint256());
+    CTransaction missingReferenceSpend(missingReferenceSpendTx);
+
+    SparkSpendProofVerificationResult missingReferenceDirectProofResult;
+    CSparkTxInfo missingReferenceDirectInfo;
+    CValidationState missingReferenceDirectState;
+    BOOST_CHECK(CheckSparkTransaction(
+            missingReferenceSpend, missingReferenceDirectState, missingReferenceSpend.GetHash(),
+            false, chainActive.Height(), false, true, &missingReferenceDirectInfo,
+            true, &missingReferenceDirectProofResult));
+    BOOST_CHECK(missingReferenceDirectProofResult == SparkSpendProofVerificationResult::Verified);
+
+    batchProofContainer->clear();
+    batchProofContainer->fCollectProofs = true;
+    batchProofContainer->init();
+
+    SparkSpendProofVerificationResult missingReferenceBatchedProofResult;
+    CSparkTxInfo missingReferenceBatchedInfo;
+    CValidationState missingReferenceBatchedState;
+    BOOST_CHECK(CheckSparkTransaction(
+            missingReferenceSpend, missingReferenceBatchedState, missingReferenceSpend.GetHash(),
+            false, chainActive.Height(), false, true, &missingReferenceBatchedInfo,
+            true, &missingReferenceBatchedProofResult));
+    BOOST_CHECK(missingReferenceBatchedProofResult == SparkSpendProofVerificationResult::Batched);
+    batchProofContainer->finalize();
+    BOOST_CHECK_NO_THROW(batchProofContainer->verify());
+    batchProofContainer->clear();
+
     std::vector<CMutableTransaction> laterMintTxs;
     GenerateMints({2 * COIN, 3 * COIN}, laterMintTxs);
     mempool.clear();
     BOOST_CHECK(GenerateBlock(laterMintTxs));
-
-    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
 
     batchProofContainer->fCollectProofs = true;
     batchProofContainer->init();
@@ -690,6 +732,29 @@ BOOST_AUTO_TEST_CASE(checktransaction)
         BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
     }
 
+    CMutableTransaction missingInputTx;
+    missingInputTx.vin.push_back(CTxIn(COutPoint(uint256S("1"), 0)));
+    missingInputTx.vout.push_back(CTxOut(CENT, script));
+
+    CBlock connectEarlyFailureBlock = CreateBlock({batchedTamperedSpendTx, missingInputTx}, script);
+    CBlockIndex connectEarlyFailureIndex(connectEarlyFailureBlock);
+    connectEarlyFailureIndex.pprev = chainActive.Tip();
+    connectEarlyFailureIndex.nHeight = chainActive.Height() + 1;
+    connectEarlyFailureIndex.nTime = GetSystemTimeInSeconds() - 2 * 86400;
+
+    CCoinsViewCache connectEarlyFailureView(pcoinsTip);
+    CValidationState connectEarlyFailureState;
+    BOOST_CHECK(!ConnectBlock(
+            connectEarlyFailureBlock,
+            connectEarlyFailureState,
+            &connectEarlyFailureIndex,
+            connectEarlyFailureView,
+            ::Params(),
+            true));
+    batchProofContainer->finalize();
+    BOOST_CHECK_NO_THROW(batchProofContainer->verify());
+    batchProofContainer->clear();
+
     batchProofContainer->fCollectProofs = true;
     batchProofContainer->init();
 
@@ -713,6 +778,82 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     CValidationState verifiedState;
     BOOST_CHECK(!CheckSparkTransaction(
             tamperedSpend, verifiedState, tamperedSpend.GetHash(), false, chainActive.Height(), false, true, &tamperedInfo));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(verifydb_level4_connected_spark_spend_preserves_spark_state)
+{
+    struct MobileArgGuard {
+        MobileArgGuard() { ForceSetArg("-mobile", "1"); }
+        ~MobileArgGuard() { ForceSetArg("-mobile", "0"); }
+    } mobileArgGuard;
+
+    auto coinGroupSnapshot = [this]() {
+        std::map<int, std::pair<int, std::pair<int, int>>> snapshot;
+        for (const auto& group : sparkState->GetCoinGroups()) {
+            const int firstHeight = group.second.firstBlock ? group.second.firstBlock->nHeight : -1;
+            const int lastHeight = group.second.lastBlock ? group.second.lastBlock->nHeight : -1;
+            snapshot[group.first] = std::make_pair(firstHeight, std::make_pair(lastHeight, group.second.nCoins));
+        }
+        return snapshot;
+    };
+
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTxs;
+    GenerateMints({10 * COIN, 1 * COIN}, mintTxs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTxs));
+    GenerateBlocks(10);
+
+    CAmount fee;
+    CWalletTx wtx = pwalletMain->SpendAndStoreSpark({{script, 1 * COIN, false}}, {}, fee);
+    CMutableTransaction spendTx(wtx);
+    spark::SpendTransaction spend = ParseSparkSpend(spendTx);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({spendTx}));
+    CBlockIndex* spendIndex = chainActive.Tip();
+
+    std::vector<CMutableTransaction> metadataMintTxs;
+    GenerateMints({2 * COIN}, metadataMintTxs);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(metadataMintTxs));
+    CBlockIndex* metadataMintIndex = chainActive.Tip();
+
+    for (const auto& lTag : spend.getUsedLTags()) {
+        BOOST_CHECK(sparkState->IsUsedLTag(lTag));
+    }
+
+    const auto spendsBefore = sparkState->GetSpends();
+    const auto mobileSpendsBefore = sparkState->GetSpendsMobile();
+    const auto coinGroupsBefore = coinGroupSnapshot();
+    const auto mintCountBefore = sparkState->GetMints().size();
+
+    BOOST_CHECK(CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+
+    const auto spentLTags = spendIndex->spentLTags;
+    BOOST_REQUIRE(!spentLTags.empty());
+    spendIndex->spentLTags.clear();
+    BOOST_CHECK(!CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+    BOOST_CHECK(spendIndex->spentLTags.empty());
+    spendIndex->spentLTags = spentLTags;
+    BOOST_CHECK(CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+
+    const auto sparkMintedCoins = metadataMintIndex->sparkMintedCoins;
+    BOOST_REQUIRE(!sparkMintedCoins.empty());
+    metadataMintIndex->sparkMintedCoins.clear();
+    BOOST_CHECK(!CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+    BOOST_CHECK(metadataMintIndex->sparkMintedCoins.empty());
+    metadataMintIndex->sparkMintedCoins = sparkMintedCoins;
+    BOOST_CHECK(CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+
+    BOOST_CHECK(spendsBefore == sparkState->GetSpends());
+    BOOST_CHECK(mobileSpendsBefore == sparkState->GetSpendsMobile());
+    BOOST_CHECK(coinGroupsBefore == coinGroupSnapshot());
+    BOOST_CHECK_EQUAL(mintCountBefore, sparkState->GetMints().size());
 
     mempool.clear();
     sparkState->Reset();

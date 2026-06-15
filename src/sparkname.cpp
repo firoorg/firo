@@ -11,13 +11,14 @@
 
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
-bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
+bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries, bool fNotify)
 {
     LOCK(cs_spark_name);
     for (const auto &entry : pindex->removedSparkNames) {
         sparkNameAddresses.erase(entry.second.sparkAddress);
         sparkNames.erase(ToUpper(entry.first));
-        uiInterface.NotifySparkNameRemoved(entry.second);
+        if (fNotify)
+            uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
     for (const auto &entry : pindex->addedSparkNames) {
@@ -26,25 +27,28 @@ bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntri
             pindex->removedSparkNames[upperName] = sparkNames[upperName];
         sparkNames[upperName] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = upperName;
-        uiInterface.NotifySparkNameAdded(entry.second);
+        if (fNotify)
+            uiInterface.NotifySparkNameAdded(entry.second);
     }
 
     return true;
 }
 
-bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
+bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex, bool fNotify)
 {
     LOCK(cs_spark_name);
     for (const auto &entry : pindex->addedSparkNames) {
         sparkNames.erase(ToUpper(entry.first));
         sparkNameAddresses.erase(entry.second.sparkAddress);
-        uiInterface.NotifySparkNameRemoved(entry.second);
+        if (fNotify)
+            uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
     for (const auto &entry : pindex->removedSparkNames) {
         sparkNames[ToUpper(entry.first)] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = ToUpper(entry.first);
-        uiInterface.NotifySparkNameAdded(entry.second);
+        if (fNotify)
+            uiInterface.NotifySparkNameAdded(entry.second);
     }
 
     return true;

@@ -574,7 +574,7 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo, bool fVerifySparkSpendProof, spark::SparkSpendProofVerificationResult* sparkSpendProofResult)
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo, bool fVerifySparkSpendProof, spark::SparkSpendProofVerificationResult* sparkSpendProofResult, spark::CSparkValidationContext* sparkValidationContext)
 {
     if (sparkSpendProofResult)
         *sparkSpendProofResult = spark::SparkSpendProofVerificationResult::NotApplicable;
@@ -703,7 +703,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         if (tx.IsSparkTransaction()) {
             if (hasExchangeUTXOs)
                 return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo, fVerifySparkSpendProof, sparkSpendProofResult))
+            if (!CheckSparkTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sparkTxInfo, fVerifySparkSpendProof, sparkSpendProofResult, sparkValidationContext))
                 return false;
         }
 
@@ -2238,6 +2238,22 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
+{
+    AssertLockHeld(cs_main);
+
+    try {
+        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+        batchProofContainer->finalize();
+        batchProofContainer->verify();
+        return true;
+    } catch (const std::exception& e) {
+        return AbortNode(state,
+                         strprintf("Spark batch verification failed before %s: %s", reason, e.what()),
+                         _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
+    }
+}
+
 enum DisconnectResult
 {
     DISCONNECT_OK,      // All good.
@@ -2508,7 +2524,7 @@ static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex,
-                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck)
+                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck, bool fVerifyDB, spark::CSparkValidationContext* sparkValidationContext)
 {
     AssertLockHeld(cs_main);
 
@@ -2516,7 +2532,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     //btzc: update nHeight, isVerifyDB
     // Check it again in case a previous version let a bad block in
     LogPrint("validation", "ConnectBlock nHeight=%d, hash=%s\n", pindex->nHeight, block.GetHash().ToString());
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, false, true)) {
+    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, fVerifyDB, true)) {
         LogPrintf("--> failed\n");
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     }
@@ -2692,6 +2708,21 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
     batchProofContainer->init();
+    struct SparkBatchCleanup {
+        BatchProofContainer* batchProofContainer;
+        bool enabled;
+
+        ~SparkBatchCleanup()
+        {
+            if (enabled)
+                batchProofContainer->clear();
+        }
+
+        void dismiss()
+        {
+            enabled = false;
+        }
+    } sparkBatchCleanup{batchProofContainer, batchProofContainer->fCollectProofs};
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -2763,7 +2794,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
 
             // Check transaction against signa/lelantus state
-            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.sparkTxInfo.get(), true))
+            if (!CheckTransaction(tx, state, false, txHash, fVerifyDB, pindex->nHeight, false, true, block.sparkTxInfo.get(), true, nullptr, sparkValidationContext))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -2816,6 +2847,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         try {
             batchProofContainer->finalize();
             batchProofContainer->verify();
+            sparkBatchCleanup.dismiss();
         }
         catch (const std::exception& e) {
             batchProofContainer->clear();
@@ -2919,13 +2951,20 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck))
+    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck, fVerifyDB, sparkValidationContext))
         return false;
 
     if (!sporkManager->IsBlockAllowed(block, pindex, state))
         return false;
 
     if (fJustCheck) {
+        // VerifyDB reconnects multiple blocks into a temporary view. The coins
+        // are already updated above, so the view's best-block marker must move
+        // with them even though no indexes or undo data are written.
+        view.SetBestBlock(block.GetHash());
+        if (fVerifyDB)
+            evoDb->WriteBestBlock(block.GetHash());
+
         // roll back spork set if needed
         pindex->activeDisablingSporks = sporkSetBackup;
         return true;
@@ -3100,6 +3139,8 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     bool fPeriodicFlush = mode == FLUSH_STATE_PERIODIC && nNow > nLastFlush + (int64_t)DATABASE_FLUSH_INTERVAL * 1000000;
     // Combine all conditions that result in a full cache flush.
     bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush || fFlushForPrune;
+    if ((fDoFullFlush || fPeriodicWrite) && !VerifyPendingSparkBatch(state, "flushing block index or chainstate"))
+        return false;
     // Write blocks and block index to disk.
     if (fDoFullFlush || fPeriodicWrite) {
         // Depend on nMinDiskSpace to ensure we can write block index
@@ -3810,11 +3851,10 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                 for (unsigned int i = 0; i < block.vtx.size(); i++)
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
+
+            if (!VerifyPendingSparkBatch(state, "activating best chain"))
+                return false;
         }
-        // Do batch verification if we reach 1 day old block,
-        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-        batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-        batchProofContainer->verify();
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
@@ -4660,9 +4700,11 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     }
     if (fNewBlock) *fNewBlock = true;
 
-    // During import/reindex, defer Spark spend proof verification to the
-    // stateful ConnectBlock check that runs before chain state is updated.
-    const bool fDeferSparkSpendProofVerification = dbp != NULL;
+    // During linear import/reindex, defer Spark spend proof verification to the
+    // stateful ConnectBlock check that runs immediately before chain state is
+    // updated. Do not defer side-chain or out-of-order imported blocks: they can
+    // remain stored without being connected, so AcceptBlock must verify them.
+    const bool fDeferSparkSpendProofVerification = dbp != NULL && pindex->pprev == chainActive.Tip();
     if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false, fDeferSparkSpendProofVerification) ||
         !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
@@ -5194,6 +5236,22 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
 
     // check level 4: try reconnecting blocks
     if (nCheckLevel >= 4) {
+        spark::CSparkState verifyDBSparkState(
+                ZC_SPARK_MAX_MINT_NUM,
+                ZC_SPARK_SET_START_SIZE,
+                false);
+        CSparkNameManager verifyDBSparkNameManager;
+        spark::CSparkValidationContext verifyDBSparkContext(
+                &verifyDBSparkState,
+                &verifyDBSparkNameManager);
+
+        for (CBlockIndex* pindex = chainActive.Genesis(); pindex; pindex = chainActive.Next(pindex)) {
+            verifyDBSparkState.AddBlock(pindex);
+            verifyDBSparkNameManager.AddBlock(pindex, false, false);
+            if (pindex == pindexState)
+                break;
+        }
+
         CBlockIndex *pindex = pindexState;
         while (pindex != chainActive.Tip()) {
             boost::this_thread::interruption_point();
@@ -5202,7 +5260,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-            if (!ConnectBlock(block, state, pindex, coins, chainparams))
+            if (!ConnectBlock(block, state, pindex, coins, chainparams, true, true, &verifyDBSparkContext))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
     }
