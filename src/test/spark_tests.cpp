@@ -94,12 +94,12 @@ BOOST_AUTO_TEST_CASE(import_spark_proof_deferral_policy)
     CBlockIndex sideParent;
 
     BOOST_CHECK(CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, &activeParent, true, false));
+    BOOST_CHECK(CanDeferSparkSpendProofVerificationOnImport(&diskPos, &sideParent, &activeParent, true, false));
+    BOOST_CHECK(CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, nullptr, true, false));
     BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, &activeParent, false, false));
     BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, &activeParent, true, true));
     BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(nullptr, &activeParent, &activeParent, true, false));
     BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, nullptr, nullptr, true, false));
-    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, nullptr, true, false));
-    BOOST_CHECK(!CanDeferSparkSpendProofVerificationOnImport(&diskPos, &sideParent, &activeParent, true, false));
 }
 
 BOOST_AUTO_TEST_CASE(parse_spark_mintscript)

@@ -4297,7 +4297,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 
 bool CanDeferSparkSpendProofVerificationOnImport(const CDiskBlockPos* dbp, const CBlockIndex* pindexPrev, const CBlockIndex* activeTip, bool fAllowSparkSpendProofDeferral, bool fShutdownRequested)
 {
-    return fAllowSparkSpendProofDeferral && !fShutdownRequested && dbp != nullptr && pindexPrev != nullptr && pindexPrev == activeTip;
+    return fAllowSparkSpendProofDeferral && !fShutdownRequested && dbp != nullptr && pindexPrev != nullptr;
 }
 
 static bool CheckIndexAgainstCheckpoint(const CBlockIndex* pindexPrev, CValidationState& state, const CChainParams& chainparams, const uint256& hash)
@@ -4705,12 +4705,13 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     }
     if (fNewBlock) *fNewBlock = true;
 
-    // During linear import/reindex, defer Spark spend proof verification to the
-    // stateful ConnectBlock check that runs immediately before chain state is
-    // updated. Do not defer side-chain or out-of-order imported blocks: they can
-    // remain stored without being connected, so AcceptBlock must verify them.
-    // Also do not defer during shutdown: ActivateBestChain can exit without
-    // connecting the just-accepted block.
+    // During raw block-file import/reindex, defer Spark spend proof verification
+    // to the stateful ConnectBlock check that runs immediately before chain
+    // state is updated. Imported side-chain or out-of-order blocks can reference
+    // Spark cover-set state that is not active yet; CheckBlock never caches
+    // Spark-spend blocks as fully checked, so they are verified if later
+    // connected. Do not defer during shutdown: ActivateBestChain can exit
+    // without connecting the just-accepted block.
     const bool fDeferSparkSpendProofVerification = CanDeferSparkSpendProofVerificationOnImport(
             dbp, pindex->pprev, chainActive.Tip(), fAllowSparkSpendProofDeferral, ShutdownRequested());
     if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false, fDeferSparkSpendProofVerification) ||
@@ -5550,7 +5551,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                                     head.ToString());
                             LOCK(cs_main);
                             CValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, chainparams, NULL, true, &it->second, NULL, false))
+                            if (AcceptBlock(pblockrecursive, dummy, chainparams, NULL, true, &it->second, NULL))
                             {
                                 nLoaded++;
                                 queue.push_back(pblockrecursive->GetHash());
