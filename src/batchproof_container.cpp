@@ -61,7 +61,7 @@ void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
 
 void BatchProofContainer::batch_spark() {
     if (!sparkTransactions.empty()){
-        LogPrintf("Spark batch verification started.\n");
+        LogPrint("validation", "Spark batch verification started.\n");
         uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
     } else {
         return;
@@ -134,6 +134,6 @@ void BatchProofContainer::batch_spark() {
     }
 
     if (!sparkTransactions.empty())
-        LogPrintf("Spark batch verification finished successfully.\n");
+        LogPrint("validation", "Spark batch verification finished successfully.\n");
     sparkTransactions.clear();
 }

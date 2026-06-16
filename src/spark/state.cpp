@@ -655,7 +655,7 @@ bool CheckSparkMintTransaction(
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo) {
 
-    LogPrintf("CheckSparkMintTransaction txHash = %s\n", hashTx.GetHex());
+    LogPrint("validation", "CheckSparkMintTransaction txHash = %s\n", hashTx.GetHex());
     const spark::Params* params = spark::Params::get_default();
     std::vector<CScript> scripts;
     for (const auto& txOut : txOuts) {
@@ -721,7 +721,7 @@ bool CheckSparkSMintTransaction(
         std::vector<Coin>& out_coins,
         CSparkTxInfo* sparkTxInfo) {
 
-    LogPrintf("CheckSparkSMintTransaction txHash = %s\n", hashTx.ToString());
+    LogPrint("validation", "CheckSparkSMintTransaction txHash = %s\n", hashTx.ToString());
     for (const auto& out : vout) {
         const auto& script = out.scriptPubKey;
         if (script.IsSparkSMint()) {
@@ -816,7 +816,7 @@ bool CheckSparkSpendTransaction(
     }
     txHashForMetadata = txTemp.GetHash();
 
-    LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
+    LogPrint("validation", "CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
 
     bool passVerify = false;
 
@@ -953,13 +953,13 @@ bool CheckSparkSpendTransaction(
             if (it != gCheckedSparkSpendTransactions.end()) {
                 auto& checkState = it->second;
                 if (checkState.proofInputHash != proofInputHash) {
-                    LogPrintf("CheckSparkSpendTransaction: cached proof inputs changed for tx %s\n", hashTx.ToString());
+                    LogPrint("validation", "CheckSparkSpendTransaction: cached proof inputs changed for tx %s\n", hashTx.ToString());
                     gCheckedSparkSpendTransactions.erase(it);
                 } else if (checkState.fChecked) {
                     if (!checkState.fResult)
                         return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
 
-                    LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
+                    LogPrint("validation", "CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
                     fChecked = true;
                 }
             }
