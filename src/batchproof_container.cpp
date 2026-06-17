@@ -50,10 +50,15 @@ void BatchProofContainer::finalize() {
 }
 
 void BatchProofContainer::verify() {
-    if (!fCollectProofs) {
-        batch_spark();
+    try {
+        if (!fCollectProofs) {
+            batch_spark();
+        }
+        fCollectProofs = false;
+    } catch (...) {
+        clear();
+        throw;
     }
-    fCollectProofs = false;
 }
 
 void BatchProofContainer::add(const spark::SpendTransaction& tx) {
