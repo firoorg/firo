@@ -760,13 +760,16 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     CCoinsViewCache connectTamperedView(pcoinsTip);
     CValidationState connectTamperedState;
-    BOOST_CHECK(!ConnectBlock(
-            connectTamperedBlock,
-            connectTamperedState,
-            &connectTamperedIndex,
-            connectTamperedView,
-            ::Params(),
-            true));
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!ConnectBlock(
+                connectTamperedBlock,
+                connectTamperedState,
+                &connectTamperedIndex,
+                connectTamperedView,
+                ::Params(),
+                true));
+    }
     BOOST_CHECK(!connectTamperedState.IsValid());
     for (const auto& lTag : spend.getUsedLTags()) {
         BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
@@ -784,13 +787,16 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     CCoinsViewCache connectEarlyFailureView(pcoinsTip);
     CValidationState connectEarlyFailureState;
-    BOOST_CHECK(!ConnectBlock(
-            connectEarlyFailureBlock,
-            connectEarlyFailureState,
-            &connectEarlyFailureIndex,
-            connectEarlyFailureView,
-            ::Params(),
-            true));
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!ConnectBlock(
+                connectEarlyFailureBlock,
+                connectEarlyFailureState,
+                &connectEarlyFailureIndex,
+                connectEarlyFailureView,
+                ::Params(),
+                true));
+    }
     batchProofContainer->finalize();
     BOOST_CHECK_NO_THROW(batchProofContainer->verify());
     batchProofContainer->clear();
