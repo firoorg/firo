@@ -15,12 +15,12 @@ public:
 
     void finalize();
 
-    bool verify();
-    bool verify_pending();
+    bool verify(int nChainHeight = -1);
+    bool verify_pending(int nChainHeight = -1);
 
     void add(const spark::SpendTransaction& tx);
     void remove(const spark::SpendTransaction& tx);
-    bool batch_spark();
+    bool batch_spark(int nChainHeight = -1);
 public:
     bool fCollectProofs = 0;
 

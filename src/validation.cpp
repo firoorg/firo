@@ -2234,10 +2234,21 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
-bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
+static int GetSparkBatchVerificationHeight()
+{
+    AssertLockHeld(cs_main);
+
+    BlockMap::const_iterator it = mapBlockIndex.find(pcoinsTip->GetBestBlock());
+    if (it != mapBlockIndex.end())
+        return it->second->nHeight;
+
+    return chainActive.Height();
+}
+
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason, int nChainHeight)
 {
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    if (!batchProofContainer->verify_pending()) {
+    if (!batchProofContainer->verify_pending(nChainHeight)) {
         return AbortNode(state,
                          strprintf("Spark batch verification failed before %s", reason),
                          _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
@@ -3049,6 +3060,7 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     int64_t nMempoolUsage = mempool.DynamicMemoryUsage();
     const CChainParams& chainparams = Params();
     LOCK2(cs_main, cs_LastBlockFile);
+    const int nSparkBatchVerificationHeight = GetSparkBatchVerificationHeight();
     static int64_t nLastWrite = 0;
     static int64_t nLastFlush = 0;
     static int64_t nLastSetChain = 0;
@@ -3064,6 +3076,8 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
         }
         if (!setFilesToPrune.empty()) {
             fFlushForPrune = true;
+            if (!VerifyPendingSparkBatch(state, "writing pruned block file flag", nSparkBatchVerificationHeight))
+                return false;
             if (!fHavePruned) {
                 pblocktree->WriteFlag("prunedblockfiles", true);
                 fHavePruned = true;
@@ -3095,7 +3109,7 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     bool fPeriodicFlush = mode == FLUSH_STATE_PERIODIC && nNow > nLastFlush + (int64_t)DATABASE_FLUSH_INTERVAL * 1000000;
     // Combine all conditions that result in a full cache flush.
     bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush || fFlushForPrune;
-    if ((fDoFullFlush || fPeriodicWrite) && !VerifyPendingSparkBatch(state, "flushing block index or chainstate"))
+    if ((fDoFullFlush || fPeriodicWrite) && !VerifyPendingSparkBatch(state, "flushing block index or chainstate", nSparkBatchVerificationHeight))
         return false;
     // Write blocks and block index to disk.
     if (fDoFullFlush || fPeriodicWrite) {
@@ -3796,22 +3810,12 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
             pindexFork = chainActive.FindFork(pindexOldTip);
             fInitialDownload = IsInitialBlockDownload();
 
-            // throw all transactions though the signal-interface
-
             } // MemPoolConflictRemovalTracker destroyed and conflict evictions are notified
-
-            // Transactions in the connnected block are notified
-            for (const auto& pair : connectTrace.blocksConnected) {
-                assert(pair.second);
-                const CBlock& block = *(pair.second);
-                for (unsigned int i = 0; i < block.vtx.size(); i++)
-                    GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
-            }
         }
         // Do batch verification if we reach 1 day old block,
         BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
         batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-        if (!batchProofContainer->verify()) {
+        if (!batchProofContainer->verify(pindexNewTip->nHeight)) {
             return AbortNode(state,
                              "Spark batch verification failed",
                              _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
@@ -3820,6 +3824,14 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         // Notifications/callbacks that can run without cs_main
+
+        // Transactions in the connnected block are notified
+        for (const auto& pair : connectTrace.blocksConnected) {
+            assert(pair.second);
+            const CBlock& block = *(pair.second);
+            for (unsigned int i = 0; i < block.vtx.size(); i++)
+                GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
+        }
 
         // Notify external listeners about the new tip.
         GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);
