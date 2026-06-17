@@ -85,6 +85,10 @@ public:
 class CSigSharesInv
 {
 public:
+    // One inventory bit is stored for each quorum member. The largest quorum
+    // configured on any current network has 400 members.
+    static constexpr uint64_t MAX_INV_SIZE = 400;
+
     uint32_t sessionId{(uint32_t)-1};
     std::vector<bool> inv;
 
@@ -98,6 +102,9 @@ public:
 
         READWRITE(VARINT(sessionId));
         READWRITE(COMPACTSIZE(invSize));
+        if (invSize > MAX_INV_SIZE) {
+            throw std::ios_base::failure("CSigSharesInv::inv size exceeds maximum quorum size");
+        }
         READWRITE(AUTOBITSET(inv, (size_t)invSize));
     }
 

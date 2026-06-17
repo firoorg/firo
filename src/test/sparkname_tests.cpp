@@ -1092,3 +1092,22 @@ BOOST_AUTO_TEST_CASE(transfer_replay_grace_period_v21)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE(sparkname_static, BasicTestingSetup)
+
+BOOST_AUTO_TEST_CASE(ascii_validation)
+{
+    BOOST_CHECK(CSparkNameManager::IsSparkNameValid("Name-01.test"));
+    BOOST_CHECK_EQUAL(CSparkNameManager::ToUpper("Name-01.test"), "NAME-01.TEST");
+
+    const std::string high_byte_name = std::string("spark") + static_cast<char>(0xff);
+    BOOST_CHECK(!CSparkNameManager::IsSparkNameValid(high_byte_name));
+
+    const std::string mixed_bytes = std::string("a") + static_cast<char>(0xff) + "z";
+    const std::string upper = CSparkNameManager::ToUpper(mixed_bytes);
+    BOOST_CHECK_EQUAL(upper[0], 'A');
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(upper[1]), 0xff);
+    BOOST_CHECK_EQUAL(upper[2], 'Z');
+}
+
+BOOST_AUTO_TEST_SUITE_END()
