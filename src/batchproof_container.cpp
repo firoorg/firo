@@ -2,6 +2,7 @@
 #include "ui_interface.h"
 #include "spark/state.h"
 
+#include <limits>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -12,6 +13,13 @@ namespace
 struct SparkBatchCoverSetSelection {
     int maxHeight = -1;
 };
+
+int ToSparkCoinGroupId(uint64_t groupId)
+{
+    if (groupId > static_cast<uint64_t>(std::numeric_limits<int>::max()))
+        throw std::invalid_argument("Spark batch verification cover set id out of range");
+    return static_cast<int>(groupId);
+}
 } // namespace
 
 BatchProofContainer* BatchProofContainer::get_instance() {
@@ -77,7 +85,7 @@ void BatchProofContainer::batch_spark() {
     for (auto& itr : sparkTransactions) {
         auto& idAndBlockHashes = itr.getBlockHashes();
         for (const auto& idAndHash : idAndBlockHashes) {
-            int cover_set_id = idAndHash.first;
+            const int cover_set_id = ToSparkCoinGroupId(idAndHash.first);
             spark::CSparkState::SparkCoinGroupInfo coinGroup;
             if (!sparkState->GetCoinGroupInfo(cover_set_id, coinGroup))
                 throw std::invalid_argument("Spark batch verification missing cover set");
@@ -106,10 +114,11 @@ void BatchProofContainer::batch_spark() {
         uint256 blockHash;
         std::vector<unsigned char> setHash;
         std::vector<spark::Coin> cover_set;
+        const int cover_set_id = ToSparkCoinGroupId(selection.first);
         const int nCoins = sparkState->GetCoinSetForSpend(
                 &chainActive,
                 selection.second.maxHeight,
-                static_cast<int>(selection.first),
+                cover_set_id,
                 blockHash,
                 cover_set,
                 setHash);

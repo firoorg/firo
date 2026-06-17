@@ -5,6 +5,7 @@
 #include "../batchproof_container.h"
 #include "../hash.h"
 
+#include <limits>
 #include <memory>
 #include <set>
 
@@ -42,6 +43,15 @@ static CSparkNameManager* GetValidationSparkNameManager(CSparkValidationContext*
     if (sparkValidationContext && sparkValidationContext->sparkNameManager)
         return sparkValidationContext->sparkNameManager;
     return CSparkNameManager::GetInstance();
+}
+
+static bool TryGetSparkCoinGroupId(uint64_t groupId, int& result)
+{
+    if (groupId > static_cast<uint64_t>(std::numeric_limits<int>::max()))
+        return false;
+
+    result = static_cast<int>(groupId);
+    return true;
 }
 
 static bool SparkNameBlockIndexDataEqual(const CSparkNameBlockIndexData& a, const CSparkNameBlockIndexData& b)
@@ -868,8 +878,13 @@ bool CheckSparkSpendTransaction(
     const bool fNeedFullCoverSets = !useBatching;
 
     for (const auto& idAndHash : idAndBlockHashes) {
+        int coverSetId = 0;
+        if (!TryGetSparkCoinGroupId(idAndHash.first, coverSetId))
+            return state.DoS(100, false, REJECT_INVALID,
+                             "CheckSparkSpendTransaction: cover set id out of range");
+
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!GetValidationSparkState(sparkValidationContext).GetCoinGroupInfo(idAndHash.first, coinGroup)) {
+        if (!GetValidationSparkState(sparkValidationContext).GetCoinGroupInfo(coverSetId, coinGroup)) {
             if (fRequireProofInputs)
                 return state.DoS(100, false, NO_MINT_ZEROCOIN,
                                  "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
@@ -890,7 +905,7 @@ bool CheckSparkSpendTransaction(
         }
 
         // take the hash from last block of anonymity set
-        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first, false, sparkValidationContext);
+        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, coverSetId, false, sparkValidationContext);
 
         std::vector<Coin> cover_set;
         cover_set.reserve(coinGroup.nCoins);
@@ -900,10 +915,10 @@ bool CheckSparkSpendTransaction(
         // This list of public coins is required by function "Verify" of spend.
         while (true) {
             int id = 0;
-            if (CountCoinInBlock(index, idAndHash.first)) {
-                id = idAndHash.first;
-            } else if (CountCoinInBlock(index, idAndHash.first - 1)) {
-                id = idAndHash.first - 1;
+            if (CountCoinInBlock(index, coverSetId)) {
+                id = coverSetId;
+            } else if (coverSetId > 0 && CountCoinInBlock(index, coverSetId - 1)) {
+                id = coverSetId - 1;
             }
             if (id) {
                 if (index->sparkMintedCoins.count(id) > 0) {
