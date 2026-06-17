@@ -264,8 +264,10 @@ void Shutdown()
     llmq::StopLLMQSystem();
 
     CValidationState sparkBatchState;
-    if (!VerifyPendingSparkBatch(sparkBatchState, "shutdown"))
-        LogPrintf("Shutdown continuing after Spark batch verification failure: %s\n", FormatStateMessage(sparkBatchState));
+    if (!VerifyPendingSparkBatch(sparkBatchState, "shutdown")) {
+        LogPrintf("Shutdown stopped before persistence after Spark batch verification failure: %s\n", FormatStateMessage(sparkBatchState));
+        return;
+    }
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)

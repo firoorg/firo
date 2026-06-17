@@ -3665,6 +3665,9 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
 
         // Connect new blocks.
         BOOST_REVERSE_FOREACH(CBlockIndex *pindexConnect, vpindexToConnect) {
+            const bool fCollectProofs = ((GetSystemTimeInSeconds() - pindexConnect->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+            if (!fCollectProofs && !VerifyPendingSparkBatch(state, "connecting non-batched Spark block", chainActive.Height()))
+                return false;
             if (!ConnectTip(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace)) {
                 if (state.IsInvalid()) {
                     // The block violates a consensus rule.
@@ -3812,15 +3815,6 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
 
             } // MemPoolConflictRemovalTracker destroyed and conflict evictions are notified
         }
-        // Do batch verification if we reach 1 day old block,
-        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-        batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-        if (!batchProofContainer->verify(pindexNewTip->nHeight)) {
-            return AbortNode(state,
-                             "Spark batch verification failed",
-                             _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
-        }
-
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         // Notifications/callbacks that can run without cs_main
@@ -3829,7 +3823,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
         for (const auto& pair : connectTrace.blocksConnected) {
             assert(pair.second);
             const CBlock& block = *(pair.second);
-            for (unsigned int i = 0; i < block.vtx.size(); i++)
+            for (unsigned int i = 0; i < block.vtx.size(); ++i)
                 GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
         }
 
