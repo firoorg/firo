@@ -195,6 +195,14 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 
 #define SPARK_NAME_V21_MAINNET_START_BLOCK          1329000     // Approx June 22 2026
 
+// Hard fork enforcing that the serialized spark::Coin type matches the output
+// opcode (OP_SPARKMINT => COIN_TYPE_MINT, OP_SPARKSMINT => COIN_TYPE_SPEND).
+// Fixes a consensus soundness bug where a mint output could embed a spend-type
+// coin, causing validation to read an unserialized value field.
+#define SPARK_COIN_TYPE_FIX_MAINNET_START_BLOCK     1340000     // Approx July 30 2026
+#define SPARK_COIN_TYPE_FIX_TESTNET_START_BLOCK     215000
+#define SPARK_COIN_TYPE_FIX_DEVNET_START_BLOCK      5000
+
 // Versions of zerocoin mint/spend transactions
 #define ZEROCOIN_TX_VERSION_3               30
 #define ZEROCOIN_TX_VERSION_3_1             31

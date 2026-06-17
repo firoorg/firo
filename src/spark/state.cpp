@@ -519,10 +519,18 @@ bool CheckSparkMintTransaction(
         CValidationState &state,
         uint256 hashTx,
         bool fStatefulSigmaCheck,
+        int nHeight,
         CSparkTxInfo* sparkTxInfo) {
 
     LogPrintf("CheckSparkMintTransaction txHash = %s\n", hashTx.GetHex());
     const spark::Params* params = spark::Params::get_default();
+
+    int nRealHeight = nHeight;
+    if (nRealHeight == INT_MAX) {
+        LOCK(cs_main);
+        nRealHeight = chainActive.Height() + 1;
+    }
+    bool const fCheckCoinType = nRealHeight >= ::Params().GetConsensus().nSparkCoinTypeFixStartBlock;
     std::vector<CScript> scripts;
     for (const auto& txOut : txOuts) {
         scripts.push_back(txOut.scriptPubKey);
@@ -557,6 +565,15 @@ bool CheckSparkMintTransaction(
 
     for (size_t i = 0; i < coins.size(); i++) {
         auto& coin = coins[i];
+        // A mint output (OP_SPARKMINT) must embed a mint-type coin. Reject
+        // spend-type coins, whose serialization does not include the public
+        // value field that consensus reads below.
+        if (fCheckCoinType && coin.type != COIN_TYPE_MINT)
+            return state.DoS(100,
+                             false,
+                             PUBCOIN_NOT_VALIDATE,
+                             "CheckSparkMintTransaction : mintTransaction failed, wrong coin type");
+
         if (cmp::not_equal(coin.v, txOuts[i].nValue))
             return state.DoS(100,
                              false,
@@ -584,16 +601,28 @@ bool CheckSparkSMintTransaction(
         CValidationState &state,
         uint256 hashTx,
         bool fStatefulSigmaCheck,
+        int nHeight,
         std::vector<Coin>& out_coins,
         CSparkTxInfo* sparkTxInfo) {
 
     LogPrintf("CheckSparkSMintTransaction txHash = %s\n", hashTx.ToString());
+
+    int nRealHeight = nHeight;
+    if (nRealHeight == INT_MAX) {
+        LOCK(cs_main);
+        nRealHeight = chainActive.Height() + 1;
+    }
+    bool const fCheckCoinType = nRealHeight >= ::Params().GetConsensus().nSparkCoinTypeFixStartBlock;
+
     for (const auto& out : vout) {
         const auto& script = out.scriptPubKey;
         if (script.IsSparkSMint()) {
             try {
                 spark::Coin coin(Params::get_default());
                 ParseSparkMintCoin(script, coin);
+                // A spend output (OP_SPARKSMINT) must embed a spend-type coin.
+                if (fCheckCoinType && coin.type != COIN_TYPE_SPEND)
+                    throw std::invalid_argument("Spark spend output has wrong coin type");
                 out_coins.emplace_back(coin);
             } catch (const std::exception &) {
                 return state.DoS(100,
@@ -699,7 +728,7 @@ bool CheckSparkSpendTransaction(
 
     std::vector<Coin> out_coins;
     out_coins.reserve(private_num);
-    if (!CheckSparkSMintTransaction(tx.vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
+    if (!CheckSparkSMintTransaction(tx.vout, state, hashTx, fStatefulSigmaCheck, height, out_coins, sparkTxInfo))
         return false;
     spend->setOutCoins(out_coins);
     std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
@@ -967,7 +996,7 @@ bool CheckSparkTransaction(
         }
         if (!txOuts.empty()) {
             try {
-                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, nHeight, sparkTxInfo)) {
                     LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
                     return false;
                 }

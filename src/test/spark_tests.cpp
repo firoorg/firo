@@ -5,6 +5,9 @@
 #include "../wallet/wallet.h"
 #include "../net.h"
 
+#include "../libspark/schnorr.h"
+#include "../libspark/util.h"
+
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
@@ -543,6 +546,75 @@ BOOST_AUTO_TEST_CASE(checktransaction)
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
     mempool.clear();
+    sparkState->Reset();
+}
+
+// Build an OP_SPARKMINT output that embeds a single coin of the given type,
+// together with a value proof that is valid for value 0. This lets us reach the
+// coin-type consistency check inside CheckSparkMintTransaction.
+static CScript MakeSparkMintScript(const spark::Params* params, char coinType, const spark::Address& address, const std::string& memo)
+{
+    Scalar k;
+    k.randomize();
+
+    // Value is 0 so that a single-witness Schnorr value proof verifies for both
+    // mint-type (which deserializes v == 0) and spend-type (which never reads v,
+    // and is now deterministically 0) coins.
+    spark::Coin coin(params, coinType, k, address, 0, memo, random_char_vector());
+
+    Schnorr schnorr(params->get_H());
+    std::vector<GroupElement> value_statement;
+    std::vector<Scalar> value_witness;
+    value_statement.emplace_back(coin.C + params->get_G().inverse() * Scalar(uint64_t(0)));
+    value_witness.emplace_back(SparkUtils::hash_val(k));
+    SchnorrProof value_proof;
+    schnorr.prove(value_witness, value_statement, value_proof);
+
+    CDataStream serialized(SER_NETWORK, 0);
+    serialized << coin;
+    serialized << value_proof;
+
+    CScript script;
+    script << OP_SPARKMINT;
+    script.insert(script.end(), serialized.begin(), serialized.end());
+    return script;
+}
+
+BOOST_AUTO_TEST_CASE(mint_coin_type_consistency)
+{
+    auto params = Params::get_default();
+    const int activation = consensus.nSparkCoinTypeFixStartBlock;
+
+    const SpendKey spend_key(params);
+    const FullViewKey full_view_key(spend_key);
+    const IncomingViewKey incoming_view_key(full_view_key);
+    const Address address(incoming_view_key, 12345);
+
+    // A well-formed mint output carries a mint-type coin: accepted on both sides
+    // of the activation height.
+    {
+        std::vector<CTxOut> txOuts{CTxOut(0, MakeSparkMintScript(params, COIN_TYPE_MINT, address, "ok"))};
+
+        CValidationState state;
+        CSparkTxInfo info;
+        BOOST_CHECK(CheckSparkMintTransaction(txOuts, state, uint256(), false, activation, &info));
+    }
+
+    // A mint output carrying a spend-type coin: rejected once the fix activates.
+    {
+        std::vector<CTxOut> txOuts{CTxOut(0, MakeSparkMintScript(params, COIN_TYPE_SPEND, address, "bad"))};
+
+        CValidationState stateAfter;
+        CSparkTxInfo infoAfter;
+        BOOST_CHECK(!CheckSparkMintTransaction(txOuts, stateAfter, uint256(), false, activation, &infoAfter));
+
+        // Before activation the legacy (buggy) behavior is preserved so that
+        // already-synced history is not retroactively invalidated.
+        CValidationState stateBefore;
+        CSparkTxInfo infoBefore;
+        BOOST_CHECK(CheckSparkMintTransaction(txOuts, stateBefore, uint256(), false, activation - 1, &infoBefore));
+    }
+
     sparkState->Reset();
 }
 

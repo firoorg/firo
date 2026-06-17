@@ -502,6 +502,8 @@ public:
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
         consensus.nSparkNamesV21StartBlock = SPARK_NAME_V21_MAINNET_START_BLOCK;
+
+        consensus.nSparkCoinTypeFixStartBlock = SPARK_COIN_TYPE_FIX_MAINNET_START_BLOCK;
     }
     virtual bool SkipUndoForBlock(int nHeight) const override
     {
@@ -815,6 +817,8 @@ public:
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
         consensus.nSparkNamesV21StartBlock = 200000;
+
+        consensus.nSparkCoinTypeFixStartBlock = SPARK_COIN_TYPE_FIX_TESTNET_START_BLOCK;
     }
 };
 
@@ -1071,6 +1075,8 @@ public:
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
         consensus.nSparkNamesV21StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK + 200;
+
+        consensus.nSparkCoinTypeFixStartBlock = SPARK_COIN_TYPE_FIX_DEVNET_START_BLOCK;
     }
 };
 
@@ -1324,6 +1330,9 @@ public:
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = 2500;
         consensus.nSparkNamesV21StartBlock = 2700;
+
+        // Active early on regtest so functional tests can exercise the rule.
+        consensus.nSparkCoinTypeFixStartBlock = 1000;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

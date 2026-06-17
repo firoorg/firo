@@ -83,6 +83,15 @@ bool CheckSparkTransaction(
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo);
 
+// Validate the OP_SPARKMINT outputs of a transaction. Exposed for testing.
+bool CheckSparkMintTransaction(
+        const std::vector<CTxOut>& txOuts,
+        CValidationState &state,
+        uint256 hashTx,
+        bool fStatefulSigmaCheck,
+        int nHeight,
+        CSparkTxInfo* sparkTxInfo);
+
 // call this on shutdown
 void ShutdownSparkState();
 

@@ -281,6 +281,11 @@ struct Params {
     int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers
     std::array<int,21> nSparkNamesFee;
 
+    // The block number after which the serialized spark coin type must match the
+    // output opcode (mint outputs must carry COIN_TYPE_MINT, spend outputs must
+    // carry COIN_TYPE_SPEND).
+    int nSparkCoinTypeFixStartBlock;
+
     int nLelantusGracefulPeriod;
 
     int nSigmaEndBlock;
