@@ -432,13 +432,6 @@ bool Grootle::verify(
         bind_weight.randomize();
     }
 
-    // Bind the commitment lists
-    std::vector<GroupElement> commits;
-    commits.reserve(S.size());
-    for (std::size_t i = 0; i < S.size(); i++) {
-        commits.emplace_back(S[i] + V[i]*bind_weight);
-    }
-
     // Final batch multiscalar multiplication
     Scalar H_scalar;
     std::vector<Scalar> Gi_scalars;
@@ -446,25 +439,17 @@ bool Grootle::verify(
     std::vector<Scalar> commit_scalars;
     Gi_scalars.resize(n*m);
     Hi_scalars.resize(n*m);
-    commit_scalars.resize(commits.size());
+    commit_scalars.resize(S.size());
 
     // Set up the final batch elements
     std::vector<GroupElement> points;
     std::vector<Scalar> scalars;
-    std::size_t final_size = 1 + 2*m*n + commits.size(); // F, (Gi), (Hi), (commits)
+    std::size_t final_size = 1 + 2*m*n + 2*S.size(); // F, (Gi), (Hi), (S), (V)
     for (std::size_t t = 0; t < M; t++) {
         final_size += 2 + proofs[t].X.size() + proofs[t].X1.size(); // A, B, (Gs), (Gv)
     }
     points.reserve(final_size);
     scalars.reserve(final_size);
-
-    // Index decomposition, which is common among all proofs
-    std::vector<std::vector<std::size_t> > I_;
-    I_.reserve(commits.size());
-    I_.resize(commits.size());
-    for (std::size_t i = 0; i < commits.size(); i++) {
-        I_[i] = decompose(i, n, m);
-    }
 
     // Process all proofs
     for (std::size_t t = 0; t < M; t++) {
@@ -500,6 +485,11 @@ bool Grootle::verify(
 
         // Effective set size
         const std::size_t size = sizes[t];
+        if (size == 0 || size > S.size()) {
+            LogPrintf("Invalid effective set size");
+            return false;
+        }
+        const std::vector<std::size_t> I_last = decompose(size - 1, n, m);
 
         // A, B (and associated commitments)
         points.emplace_back(proof.A);
@@ -518,27 +508,27 @@ bool Grootle::verify(
 
         Scalar f_sum;
         Scalar f_i(uint64_t(1));
-        std::vector<Scalar>::iterator ptr = commit_scalars.begin() + commits.size() - size;
+        std::vector<Scalar>::iterator ptr = commit_scalars.begin() + S.size() - size;
         compute_batch_fis(f_sum, f_i, m, f_, w2, ptr, ptr, ptr + size - 1, n);
 
         Scalar pow(uint64_t(1));
         std::vector<Scalar> f_part_product;
         for (std::ptrdiff_t j = m - 1; j >= 0; j--) {
             f_part_product.push_back(pow);
-            pow *= f_[j*n + I_[size - 1][j]];
+            pow *= f_[j*n + I_last[j]];
         }
 
         Scalar x_powers(uint64_t(1));
         for (std::size_t j = 0; j < m; j++) {
             Scalar fi_sum(uint64_t(0));
-            for (std::size_t i = I_[size - 1][j] + 1; i < n; i++)
+            for (std::size_t i = I_last[j] + 1; i < n; i++)
                 fi_sum += f_[j*n + i];
             pow += fi_sum * x_powers * f_part_product[m - j - 1];
             x_powers *= x;
         }
 
         f_sum += pow;
-        commit_scalars[commits.size() - 1] += pow * w2;
+        commit_scalars[S.size() - 1] += pow * w2;
 
         // S1, V1
         points.emplace_back(S1[t] + V1[t] * bind_weight);
@@ -566,9 +556,11 @@ bool Grootle::verify(
         points.emplace_back(Hi[i]);
         scalars.emplace_back(Hi_scalars[i]);
     }
-    for (std::size_t i = 0; i < commits.size(); i++) {
-        points.emplace_back(commits[i]);
+    for (std::size_t i = 0; i < S.size(); i++) {
+        points.emplace_back(S[i]);
         scalars.emplace_back(commit_scalars[i]);
+        points.emplace_back(V[i]);
+        scalars.emplace_back(commit_scalars[i] * bind_weight);
     }
 
     // Verify the batch

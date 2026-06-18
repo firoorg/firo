@@ -503,9 +503,29 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 {
 }
 
-bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck)
+CDeterministicMNManager::ScopedCacheRestorer::ScopedCacheRestorer(CDeterministicMNManager& manager) :
+    manager(manager)
+{
+    LOCK(manager.cs);
+    savedMnListsCache = manager.mnListsCache;
+    ++manager.scopedCacheRestorerDepth;
+}
+
+CDeterministicMNManager::ScopedCacheRestorer::~ScopedCacheRestorer()
+{
+    LOCK(manager.cs);
+    assert(manager.scopedCacheRestorerDepth > 0);
+    --manager.scopedCacheRestorerDepth;
+    manager.mnListsCache = savedMnListsCache;
+}
+
+bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck, CDeterministicMNList* newListRet, bool* cbTxMerkleRootMNListChangedRet)
 {
     AssertLockHeld(cs_main);
+
+    if (cbTxMerkleRootMNListChangedRet) {
+        *cbTxMerkleRootMNListChangedRet = true;
+    }
 
     const auto& consensusParams = Params().GetConsensus();
     bool fDIP0003Active = pindex->nHeight >= consensusParams.DIP0003Height;
@@ -525,18 +545,30 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
             return false;
         }
 
-        if (fJustCheck) {
-            return true;
-        }
-
         if (newList.GetHeight() == -1) {
             newList.SetHeight(nHeight);
         }
-
         newList.SetBlockHash(block.GetHash());
+
+        if (fJustCheck) {
+            if (newListRet) {
+                *newListRet = newList;
+            }
+            if (scopedCacheRestorerDepth > 0) {
+                mnListsCache[block.GetHash()] = newList;
+            }
+            return true;
+        }
+
+        if (newListRet) {
+            *newListRet = newList;
+        }
 
         oldList = GetListForBlock(pindex->pprev);
         diff = oldList.BuildDiff(newList);
+        if (cbTxMerkleRootMNListChangedRet) {
+            *cbTxMerkleRootMNListChangedRet = diff.HasCbTxMerkleRootChanges();
+        }
 
         evoDb.Write(std::make_pair(DB_LIST_DIFF, newList.GetBlockHash()), diff);
         if ((nHeight % SNAPSHOT_LIST_PERIOD) == 0 || oldList.GetHeight() == -1) {

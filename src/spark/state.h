@@ -17,6 +17,16 @@ namespace spark_mintspend { struct spark_mintspend_test; }
 
 namespace spark {
 
+class CSparkState;
+
+struct CSparkValidationContext {
+    CSparkState* sparkState;
+    CSparkNameManager* sparkNameManager;
+
+    CSparkValidationContext(CSparkState* sparkStateIn = nullptr, CSparkNameManager* sparkNameManagerIn = nullptr)
+        : sparkState(sparkStateIn), sparkNameManager(sparkNameManagerIn) {}
+};
+
 // Spark transaction info, added to the CBlock to ensure spark mint/spend transactions got their info stored into index
 class CSparkTxInfo {
 public:
@@ -40,6 +50,13 @@ public:
 
     // finalize everything
     void Complete();
+};
+
+enum class SparkSpendProofVerificationResult {
+    NotApplicable,
+    Verified,
+    Deferred,
+    Batched
 };
 
 // check if spark activation block is passed
@@ -68,7 +85,9 @@ bool ConnectBlockSpark(
         const CChainParams& chainparams,
         CBlockIndex* pindexNew,
         const CBlock *pblock,
-        bool fJustCheck=false);
+        bool fJustCheck=false,
+        bool fVerifyDB=false,
+        CSparkValidationContext* sparkValidationContext=nullptr);
 
 void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
 
@@ -81,7 +100,10 @@ bool CheckSparkTransaction(
         int nHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo);
+        CSparkTxInfo* sparkTxInfo,
+        bool fVerifySparkSpendProof = true,
+        SparkSpendProofVerificationResult* sparkSpendProofResult = nullptr,
+        CSparkValidationContext* sparkValidationContext = nullptr);
 
 // call this on shutdown
 void ShutdownSparkState();
@@ -142,10 +164,11 @@ public:
 public:
     CSparkState(
             size_t maxCoinInGroup = ZC_SPARK_MAX_MINT_NUM,
-            size_t startGroupSize = ZC_SPARK_SET_START_SIZE);
+            size_t startGroupSize = ZC_SPARK_SET_START_SIZE,
+            bool fShutdownWalletOnReset = true);
 
     // Reset to initial values
-    void Reset();
+    void Reset(bool fShutdownWallet = true);
 
     // Query if the coin linking tag was previously used
     bool IsUsedLTag(const GroupElement& lTag);

@@ -199,7 +199,10 @@ ReadStatus PartiallyDownloadedBlock::FillBlock(CBlock& block, const std::vector<
         return READ_STATUS_INVALID;
 
     CValidationState state;
-    if (!CheckBlock(block, state, Params().GetConsensus())) {
+    // This is a preliminary compact-block reconstruction check. Spark spend
+    // proofs are verified before connection, where side-chain cover-set state is
+    // available.
+    if (!CheckBlock(block, state, Params().GetConsensus(), true, true, INT_MAX, false, true)) {
         // TODO: We really want to just check merkle tree manually here,
         // but that is expensive, and CheckBlock caches a block's
         // "checked-status" (in the CBlock?). CBlock should be able to

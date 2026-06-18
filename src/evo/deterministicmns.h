@@ -336,6 +336,11 @@ public:
         return mnMap.size();
     }
 
+    bool HasSameMNMap(const CDeterministicMNList& other) const
+    {
+        return mnMap.identity() == other.mnMap.identity();
+    }
+
     size_t GetValidMNsCount() const
     {
         size_t count = 0;
@@ -591,6 +596,30 @@ public:
     {
         return !addedMNs.empty() || !updatedMNs.empty() || !removedMns.empty();
     }
+
+    bool HasCbTxMerkleRootChanges() const
+    {
+        if (!addedMNs.empty() || !removedMns.empty()) {
+            return true;
+        }
+
+        // Keep this in sync with the CDeterministicMNState fields serialized by
+        // CSimplifiedMNListEntry, which defines cbTx.merkleRootMNList leaves.
+        static constexpr uint32_t relevantFields =
+            CDeterministicMNStateDiff::Field_nPoSeBanHeight |
+            CDeterministicMNStateDiff::Field_confirmedHash |
+            CDeterministicMNStateDiff::Field_pubKeyOperator |
+            CDeterministicMNStateDiff::Field_keyIDVoting |
+            CDeterministicMNStateDiff::Field_addr;
+
+        for (const auto& p : updatedMNs) {
+            if (p.second.fields & relevantFields) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 };
 
 // TODO can be removed in a future version
@@ -636,12 +665,27 @@ private:
     CEvoDB& evoDb;
 
     std::map<uint256, CDeterministicMNList> mnListsCache;
+    int scopedCacheRestorerDepth{0};
     const CBlockIndex* tipIndex{nullptr};
 
 public:
+    class ScopedCacheRestorer
+    {
+    public:
+        explicit ScopedCacheRestorer(CDeterministicMNManager& manager);
+        ~ScopedCacheRestorer();
+
+        ScopedCacheRestorer(const ScopedCacheRestorer&) = delete;
+        ScopedCacheRestorer& operator=(const ScopedCacheRestorer&) = delete;
+
+    private:
+        CDeterministicMNManager& manager;
+        std::map<uint256, CDeterministicMNList> savedMnListsCache;
+    };
+
     CDeterministicMNManager(CEvoDB& _evoDb);
 
-    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck);
+    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck, CDeterministicMNList* newListRet = nullptr, bool* cbTxMerkleRootMNListChangedRet = nullptr);
     bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
 
     void UpdatedBlockTip(const CBlockIndex* pindex);

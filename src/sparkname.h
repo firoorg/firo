@@ -194,8 +194,8 @@ public:
 
     std::map<std::string, CSparkNameBlockIndexData> RemoveSparkNamesLosingValidity(int nHeight);
 
-    bool AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries = false);
-    bool RemoveBlock(CBlockIndex *pindex);
+    bool AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries = false, bool fNotify = true);
+    bool RemoveBlock(CBlockIndex *pindex, bool fNotify = true);
 
     static std::string ToUpper(const std::string &sparkName);
 

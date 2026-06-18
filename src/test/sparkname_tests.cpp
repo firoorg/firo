@@ -10,6 +10,7 @@
 #include "compat_layer.h"
 #include "test_bitcoin.h"
 #include "fixtures.h"
+#include <algorithm>
 #include <iostream>
 #include <boost/test/unit_test.hpp>
 
@@ -827,6 +828,93 @@ BOOST_AUTO_TEST_CASE(validity_overflow_protection)
     GenerateBlock({txValid});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight + 1); // block must be accepted
     BOOST_CHECK(IsSparkNamePresent("overtest"));
+}
+
+BOOST_AUTO_TEST_CASE(verifydb_level4_spark_name_transfer_uses_readonly_mode)
+{
+    constexpr int nBlockPerYear = 365*24*24;
+
+    Initialize(2500);
+
+    std::string addrA = GenerateSparkAddress();
+    CMutableTransaction txReg = CreateSparkNameTx("verifyxfer", addrA, nBlockPerYear * 5, "original", true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txReg});
+
+    std::string addrB = GenerateSparkAddress();
+    CSparkNameTxData transferData;
+    transferData.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    transferData.name = "verifyxfer";
+    transferData.sparkAddress = addrB;
+    transferData.oldSparkAddress = addrA;
+    transferData.sparkNameValidityBlocks = nBlockPerYear;
+    transferData.operationType = (uint8_t)CSparkNameTxData::opTransfer;
+    transferData.additionalInfo = "transferred";
+
+    {
+        CHashWriter nameHash(SER_GETHASH, PROTOCOL_VERSION);
+        nameHash << transferData;
+
+        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+        hashStream << "SparkNameTransferProof";
+        hashStream << transferData.oldSparkAddress << transferData.sparkAddress;
+        hashStream << nameHash.GetHash();
+
+        const spark::Params *sparkParams = spark::Params::get_default();
+        spark::SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(sparkParams);
+
+        spark::Address oldAddress(sparkParams);
+        oldAddress.decode(addrA);
+
+        spark::Scalar mTransfer;
+        mTransfer.SetHex(hashStream.GetHash().ToString());
+
+        spark::OwnershipProof transferProof;
+        oldAddress.prove_own(mTransfer, spendKey, spark::FullViewKey(spendKey), transferProof);
+
+        CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+        proofStream << transferProof;
+        transferData.transferOwnershipProof.assign(proofStream.begin(), proofStream.end());
+    }
+
+    CMutableTransaction txTransfer = CreateSparkNameTx(transferData, true);
+    BOOST_CHECK(lastState.IsValid());
+    GenerateBlock({txTransfer});
+    CBlockIndex* transferIndex = chainActive.Tip();
+
+    std::string resolvedAddr;
+    BOOST_CHECK(sparkNameManager->GetSparkAddress("verifyxfer", resolvedAddr));
+    BOOST_CHECK_EQUAL(resolvedAddr, addrB);
+    FlushStateToDisk();
+
+    auto sparkNameSnapshot = [this]() {
+        std::vector<std::string> snapshot;
+        for (const auto& item : sparkNameManager->DumpSparkNameData()) {
+            snapshot.push_back(
+                    item.name + "|" +
+                    item.sparkAddress + "|" +
+                    std::to_string(item.sparkNameValidityHeight) + "|" +
+                    item.additionalInfo);
+        }
+        std::sort(snapshot.begin(), snapshot.end());
+        return snapshot;
+    };
+
+    const auto sparkNamesBefore = sparkNameSnapshot();
+    BOOST_CHECK(CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+
+    const auto addedSparkNames = transferIndex->addedSparkNames;
+    BOOST_REQUIRE(!addedSparkNames.empty());
+    transferIndex->addedSparkNames.clear();
+    BOOST_CHECK(!CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+    BOOST_CHECK(transferIndex->addedSparkNames.empty());
+    transferIndex->addedSparkNames = addedSparkNames;
+    BOOST_CHECK(CVerifyDB().VerifyDB(::Params(), pcoinsTip, 4, 1));
+
+    const auto sparkNamesAfter = sparkNameSnapshot();
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+            sparkNamesBefore.begin(), sparkNamesBefore.end(),
+            sparkNamesAfter.begin(), sparkNamesAfter.end());
 }
 
 BOOST_AUTO_TEST_CASE(transfer_replay_protection_v21)

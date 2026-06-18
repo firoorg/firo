@@ -36,10 +36,10 @@ void CDSNotificationInterface::NotifyHeaderTip(const CBlockIndex *pindexNew, boo
 
 void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload)
 {
+    deterministicMNManager->UpdatedBlockTip(pindexNew);
+
     if (pindexNew == pindexFork) // blocks were disconnected without any new ones
         return;
-
-    deterministicMNManager->UpdatedBlockTip(pindexNew);
 
     masternodeSync.UpdatedBlockTip(pindexNew, fInitialDownload, connman);
 

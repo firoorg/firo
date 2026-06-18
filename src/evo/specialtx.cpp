@@ -141,14 +141,18 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     int64_t nTime3 = GetTimeMicros(); nTimeQuorum += nTime3 - nTime2;
     LogPrint("bench", "        - quorumBlockProcessor: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeQuorum * 0.000001);
 
-    if (!deterministicMNManager->ProcessBlock(block, pindex, state, fJustCheck)) {
+    CDeterministicMNList newMNList;
+    CDeterministicMNList* newMNListRet = fCheckCbTxMerleRoots ? &newMNList : nullptr;
+    bool cbTxMerkleRootMNListChanged = true;
+    bool* cbTxMerkleRootMNListChangedRet = fCheckCbTxMerleRoots ? &cbTxMerkleRootMNListChanged : nullptr;
+    if (!deterministicMNManager->ProcessBlock(block, pindex, state, fJustCheck, newMNListRet, cbTxMerkleRootMNListChangedRet)) {
         return false;
     }
 
     int64_t nTime4 = GetTimeMicros(); nTimeDMN += nTime4 - nTime3;
     LogPrint("bench", "        - deterministicMNManager: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeDMN * 0.000001);
 
-    if (fCheckCbTxMerleRoots && !CheckCbTxMerkleRoots(block, pindex, state)) {
+    if (fCheckCbTxMerleRoots && !CheckCbTxMerkleRoots(block, pindex, state, newMNListRet, cbTxMerkleRootMNListChanged)) {
         return false;
     }
 

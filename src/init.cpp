@@ -41,7 +41,6 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
-#include "batchproof_container.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -264,8 +263,12 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    BatchProofContainer::get_instance()->finalize();
-    BatchProofContainer::get_instance()->verify();
+    {
+        LOCK(cs_main);
+        CValidationState sparkBatchState;
+        if (!VerifyPendingSparkBatch(sparkBatchState, "shutdown"))
+            LogPrintf("Shutdown continuing after Spark batch verification failure: %s\n", FormatStateMessage(sparkBatchState));
+    }
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -665,8 +668,18 @@ static void BlockNotifyCallback(bool initialSync, const CBlockIndex *pBlockIndex
 }
 
 static bool fHaveGenesis = false;
+static bool fGenesisWaitFailed = false;
 static boost::mutex cs_GenesisWait;
 static CConditionVariable condvar_GenesisWait;
+
+static void NotifyGenesisWaitFailure()
+{
+    {
+        boost::unique_lock<boost::mutex> lock_GenesisWait(cs_GenesisWait);
+        fGenesisWaitFailed = true;
+    }
+    condvar_GenesisWait.notify_all();
+}
 
 static void BlockNotifyGenesisWait(bool, const CBlockIndex *pBlockIndex)
 {
@@ -761,8 +774,32 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
-        pblocktree->WriteReindexing(false);
-        fReindex = false;
+        CValidationState activateState;
+        if (!ActivateBestChain(activateState, chainparams)) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(activateState));
+            NotifyGenesisWaitFailure();
+            return;
+        }
+        if (ShutdownRequested()) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: shutdown requested\n");
+            NotifyGenesisWaitFailure();
+            return;
+        }
+        {
+            LOCK(cs_main);
+            CValidationState state;
+            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+                NotifyGenesisWaitFailure();
+                return;
+            }
+            if (!pblocktree->WriteReindexing(false)) {
+                LogPrintf("Reindexing stopped because clearing reindex flag failed\n");
+                NotifyGenesisWaitFailure();
+                return;
+            }
+            fReindex = false;
+        }
         LogPrintf("Reindexing finished\n");
         // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
         InitBlockIndex(chainparams);
@@ -797,6 +834,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     CValidationState state;
     if (!ActivateBestChain(state, chainparams)) {
         LogPrintf("Failed to connect best block");
+        NotifyGenesisWaitFailure();
         StartShutdown();
     }
 
@@ -1924,7 +1962,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 llmq::InitLLMQSystem(*evoDb, &scheduler, false, fReindex || fReindexChainState);
 
                 if (fReindex) {
-                    pblocktree->WriteReindexing(true);
+                    if (!pblocktree->WriteReindexing(true)) {
+                        strLoadError = _("Error writing reindexing flag to block database");
+                        break;
+                    }
                     //If we're reindexing in prune mode, wipe away unusable block files and all undo data files
                     if (fPruneMode)
                         CleanupBlockRevFiles();
@@ -2185,11 +2226,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return false;
 
     // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
-    // No locking, as this happens before any background thread is started.
-    if (chainActive.Tip() == NULL) {
+    const bool fWaitForGenesis = chainActive.Tip() == NULL;
+    {
+        boost::unique_lock<boost::mutex> lock_GenesisWait(cs_GenesisWait);
+        fHaveGenesis = !fWaitForGenesis;
+        fGenesisWaitFailed = false;
+    }
+    if (fWaitForGenesis) {
         uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
-    } else {
-        fHaveGenesis = true;
     }
 
     if (IsArgSet("-blocknotify"))
@@ -2205,12 +2249,19 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
 
     // Wait for genesis block to be processed
+    bool fGenesisProcessed = false;
     {
         boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
-        while (!fHaveGenesis) {
+        while (!fHaveGenesis && !fGenesisWaitFailed) {
             condvar_GenesisWait.wait(lock);
         }
+        fGenesisProcessed = fHaveGenesis;
         uiInterface.NotifyBlockTip.disconnect(&BlockNotifyGenesisWait);
+    }
+    if (!fGenesisProcessed) {
+        if (ShutdownRequested())
+            return false;
+        return InitError(_("Block import failed before the genesis block was processed"));
     }
 
     // ********************************************************* Step 12: start node
