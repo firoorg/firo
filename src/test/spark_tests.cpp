@@ -93,6 +93,12 @@ BOOST_AUTO_TEST_CASE(import_spark_proof_deferral_policy)
     CBlockIndex activeParent;
     CBlockIndex sideParent;
 
+    BOOST_CHECK(CanDeferSparkSpendProofVerificationBeforeConnect(&activeParent, true, false));
+    BOOST_CHECK(CanDeferSparkSpendProofVerificationBeforeConnect(&sideParent, true, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationBeforeConnect(nullptr, true, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationBeforeConnect(&activeParent, false, false));
+    BOOST_CHECK(!CanDeferSparkSpendProofVerificationBeforeConnect(&activeParent, true, true));
+
     BOOST_CHECK(CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, &activeParent, true, false));
     BOOST_CHECK(CanDeferSparkSpendProofVerificationOnImport(&diskPos, &sideParent, &activeParent, true, false));
     BOOST_CHECK(CanDeferSparkSpendProofVerificationOnImport(&diskPos, &activeParent, nullptr, true, false));

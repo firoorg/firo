@@ -1,11 +1,20 @@
 #ifndef SECP_MULTIEXPONENT_H
 #define SECP_MULTIEXPONENT_H
 
+#include <stdexcept>
 #include <vector>
 #include "../include/GroupElement.h"
 #include "../include/Scalar.h"
 
 namespace secp_primitives {
+
+class MultiExponentRuntimeError : public std::runtime_error {
+public:
+    explicit MultiExponentRuntimeError(const std::string& what_arg)
+        : std::runtime_error(what_arg)
+    {
+    }
+};
 
 class MultiExponent {
 public:

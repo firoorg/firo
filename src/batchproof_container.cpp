@@ -2,6 +2,8 @@
 #include "ui_interface.h"
 #include "spark/state.h"
 
+#include <secp256k1/include/MultiExponent.h>
+
 #include <limits>
 #include <stdexcept>
 #include <unordered_map>
@@ -138,6 +140,8 @@ void BatchProofContainer::batch_spark() {
     bool passed;
     try {
         passed = spark::SpendTransaction::verify(params, sparkTransactions, cover_sets);
+    } catch (const secp_primitives::MultiExponentRuntimeError&) {
+        throw;
     } catch (const std::exception &) {
         passed = false;
     }

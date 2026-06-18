@@ -5,6 +5,8 @@
 #include "../batchproof_container.h"
 #include "../hash.h"
 
+#include <secp256k1/include/MultiExponent.h>
+
 #include <limits>
 #include <memory>
 #include <set>
@@ -992,6 +994,9 @@ bool CheckSparkSpendTransaction(
             if (passVerify)
                 setProofResult(SparkSpendProofVerificationResult::Verified);
         }
+    }
+    catch (const secp_primitives::MultiExponentRuntimeError&) {
+        throw;
     }
     catch (const std::exception &) {
         passVerify = false;

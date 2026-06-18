@@ -31,6 +31,7 @@
 #include "script/sigcache.h"
 #include "script/standard.h"
 #include "spark/state.h"
+#include <secp256k1/include/MultiExponent.h>
 #include "timedata.h"
 #include "tinyformat.h"
 #include "txdb.h"
@@ -2849,6 +2850,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             batchProofContainer->verify();
             sparkBatchCleanup.dismiss();
         }
+        catch (const secp_primitives::MultiExponentRuntimeError& e) {
+            batchProofContainer->clear();
+            return state.Error(strprintf("ConnectBlock(): Spark batch verification runtime failure: %s", e.what()));
+        }
         catch (const std::exception& e) {
             batchProofContainer->clear();
             return state.DoS(100,
@@ -4295,9 +4300,15 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     return true;
 }
 
+bool CanDeferSparkSpendProofVerificationBeforeConnect(const CBlockIndex* pindexPrev, bool fAllowSparkSpendProofDeferral, bool fShutdownRequested)
+{
+    return fAllowSparkSpendProofDeferral && !fShutdownRequested && pindexPrev != nullptr;
+}
+
 bool CanDeferSparkSpendProofVerificationOnImport(const CDiskBlockPos* dbp, const CBlockIndex* pindexPrev, const CBlockIndex* activeTip, bool fAllowSparkSpendProofDeferral, bool fShutdownRequested)
 {
-    return fAllowSparkSpendProofDeferral && !fShutdownRequested && dbp != nullptr && pindexPrev != nullptr;
+    return dbp != nullptr && CanDeferSparkSpendProofVerificationBeforeConnect(
+            pindexPrev, fAllowSparkSpendProofDeferral, fShutdownRequested);
 }
 
 static bool CheckIndexAgainstCheckpoint(const CBlockIndex* pindexPrev, CValidationState& state, const CChainParams& chainparams, const uint256& hash)
@@ -4705,15 +4716,14 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     }
     if (fNewBlock) *fNewBlock = true;
 
-    // During raw block-file import/reindex, defer Spark spend proof verification
-    // to the stateful ConnectBlock check that runs immediately before chain
-    // state is updated. Imported side-chain or out-of-order blocks can reference
-    // Spark cover-set state that is not active yet; CheckBlock never caches
-    // Spark-spend blocks as fully checked, so they are verified if later
-    // connected. Do not defer during shutdown: ActivateBestChain can exit
-    // without connecting the just-accepted block.
-    const bool fDeferSparkSpendProofVerification = CanDeferSparkSpendProofVerificationOnImport(
-            dbp, pindex->pprev, chainActive.Tip(), fAllowSparkSpendProofDeferral, ShutdownRequested());
+    // Defer Spark spend proof verification to the stateful ConnectBlock check
+    // that runs immediately before chain state is updated. Side-chain and
+    // out-of-order blocks can reference cover-set state that is not active yet.
+    // CheckBlock never caches Spark-spend blocks as fully checked, so they are
+    // verified if later connected. Do not defer during shutdown: ActivateBestChain
+    // can exit without connecting the just-accepted block.
+    const bool fDeferSparkSpendProofVerification = CanDeferSparkSpendProofVerificationBeforeConnect(
+            pindex->pprev, fAllowSparkSpendProofDeferral, ShutdownRequested());
     if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false, fDeferSparkSpendProofVerification) ||
         !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
@@ -4764,8 +4774,9 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         LOCK(cs_main);
 
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
-        // belt-and-suspenders.
-        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
+        // belt-and-suspenders. Spark spend proofs are checked in AcceptBlock's
+        // stateful connect path, where side-chain cover-set state is available.
+        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus(), true, true, INT_MAX, false, !ShutdownRequested());
 
         if (ret) {
             // Store to disk

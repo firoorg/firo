@@ -77,12 +77,12 @@ GroupElement MultiExponent::get_multiple() {
     secp256k1_ecmult_context ctx;
 
     if (scratch == NULL) {
-        throw std::runtime_error("MultiExponent scratch allocation failed");
+        throw MultiExponentRuntimeError("MultiExponent scratch allocation failed");
     }
 
     if (!secp256k1_ecmult_multi_var(&ctx, scratch, &r, NULL, ecmult_multi_callback, &data, n_points)) {
         secp256k1_scratch_destroy(scratch);
-        throw std::runtime_error("MultiExponent computation failed");
+        throw MultiExponentRuntimeError("MultiExponent computation failed");
     }
 
     secp256k1_scratch_destroy(scratch);
