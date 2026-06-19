@@ -30,6 +30,8 @@ public:
     std::unordered_map<GroupElement, int> spentLTags;
     std::unordered_map<uint256, uint256> ltagTxhash;
 
+    std::unordered_set<uint256> mintCoinHashes;
+
     // spark names
     std::map<std::string, CSparkNameTxData> sparkNames;
 

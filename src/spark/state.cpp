@@ -587,8 +587,16 @@ bool CheckSparkMintTransaction(
 //                             "CTransaction::CheckTransaction() : Spark Mint is out of limit.");
 
         if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
+            uint256 coinhash = coin.getHash();
+            if (fCheckCoinType && sparkTxInfo->mintCoinHashes.count(coinhash))
+                return state.DoS(100,
+                                false,
+                                PUBCOIN_NOT_VALIDATE,
+                                "CheckSparkMintTransaction : mintTransaction failed, coin already on block");
+
             // Update coin list in the info
             sparkTxInfo->mints.push_back(coin);
+            sparkTxInfo->mintCoinHashes.insert(coinhash);
             sparkTxInfo->spTransactions.insert(hashTx);
         }
     }
