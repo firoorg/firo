@@ -22,6 +22,9 @@
 #include "utilitydialog.h"
 #include "winshutdownmonitor.h"
 #include "askpassphrasedialog.h"
+#ifdef Q_OS_MAC
+#include "macnapinhibitor.h"
+#endif
 #ifdef ENABLE_WALLET
 #include "paymentserver.h"
 #include "walletmodel.h"
@@ -755,6 +758,9 @@ int main(int argc, char *argv[])
 #endif
 #ifdef Q_OS_MAC
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
+    // Prevent macOS App Nap from throttling background threads (e.g. block
+    // reindex/resync) once the wallet window loses focus or is hidden.
+    MacNapInhibitor::disableAppNap();
 #endif
 
     BitcoinApplication app(argc, argv);
@@ -924,6 +930,9 @@ int main(int argc, char *argv[])
         PrintExceptionContinue(std::current_exception(), "Runaway exception");
         app.handleRunawayException(QString::fromStdString(GetWarnings("gui")));
     }
+#ifdef Q_OS_MAC
+    MacNapInhibitor::enableAppNap();
+#endif
     return app.getReturnValue();
 }
 #endif // BITCOIN_QT_TEST
