@@ -98,10 +98,7 @@ CSparkWallet::~CSparkWallet() {
 }
 
 void CSparkWallet::FinishTasks() {
-    if (threadPool) {
-        ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
-    }
-    spark::ShutdownSparkState();
+    ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
 }
 
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
