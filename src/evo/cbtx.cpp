@@ -15,6 +15,21 @@
 #include "univalue.h"
 #include "validation.h"
 
+static bool SimplifiedMNListsEqual(const CSimplifiedMNList& a, const CSimplifiedMNList& b)
+{
+    if (a.mnList.size() != b.mnList.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < a.mnList.size(); ++i) {
+        if (*a.mnList[i] != *b.mnList[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     if (tx.nType != TRANSACTION_COINBASE) {
@@ -49,7 +64,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidatio
 }
 
 // This can only be done after the block has been fully processed, as otherwise we won't have the finished MN list
-bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state)
+bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CDeterministicMNList* deterministicMNList, bool cbTxMerkleRootMNListChanged)
 {
     if (block.vtx[0]->nType != TRANSACTION_COINBASE) {
         return true;
@@ -71,8 +86,21 @@ bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValid
 
     if (pindex) {
         uint256 calculatedMerkleRoot;
-        if (!CalcCbTxMerkleRootMNList(block, pindex->pprev, calculatedMerkleRoot, state)) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-mnmerkleroot");
+        const CDeterministicMNList* mnListForMerkleRoot = nullptr;
+        if (deterministicMNList && deterministicMNList->GetHeight() == pindex->nHeight) {
+            if (deterministicMNList->GetBlockHash() == block.GetHash()) {
+                mnListForMerkleRoot = deterministicMNList;
+            }
+        }
+
+        if (mnListForMerkleRoot) {
+            if (!CalcCbTxMerkleRootMNList(*mnListForMerkleRoot, calculatedMerkleRoot, pindex->pprev, cbTxMerkleRootMNListChanged)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-mnmerkleroot");
+            }
+        } else {
+            if (!CalcCbTxMerkleRootMNList(block, pindex->pprev, calculatedMerkleRoot, state)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-mnmerkleroot");
+            }
         }
         if (calculatedMerkleRoot != cbTx.merkleRootMNList) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-mnmerkleroot");
@@ -103,8 +131,6 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
     LOCK(deterministicMNManager->cs);
 
     static int64_t nTimeDMN = 0;
-    static int64_t nTimeSMNL = 0;
-    static int64_t nTimeMerkle = 0;
 
     int64_t nTime1 = GetTimeMicros();
 
@@ -116,16 +142,43 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
     int64_t nTime2 = GetTimeMicros(); nTimeDMN += nTime2 - nTime1;
     LogPrint("bench", "            - BuildNewListFromBlock: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeDMN * 0.000001);
 
-    CSimplifiedMNList sml(tmpMNList);
+    return CalcCbTxMerkleRootMNList(tmpMNList, merkleRootRet);
+}
 
-    int64_t nTime3 = GetTimeMicros(); nTimeSMNL += nTime3 - nTime2;
-    LogPrint("bench", "            - CSimplifiedMNList: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeSMNL * 0.000001);
+bool CalcCbTxMerkleRootMNList(const CDeterministicMNList& deterministicMNList, uint256& merkleRootRet, const CBlockIndex* pindexPrev, bool cbTxMerkleRootMNListChanged)
+{
+    LOCK(deterministicMNManager->cs);
 
-    static CSimplifiedMNList smlCached;
+    static int64_t nTimeSMNL = 0;
+    static int64_t nTimeMerkle = 0;
+    static CDeterministicMNList deterministicMNListCached;
     static uint256 merkleRootCached;
     static bool mutatedCached{false};
+    static bool hasCached{false};
 
-    if (sml.mnList == smlCached.mnList) {
+    if (!cbTxMerkleRootMNListChanged && pindexPrev && hasCached && deterministicMNListCached.GetBlockHash() == pindexPrev->GetBlockHash()) {
+        deterministicMNListCached = deterministicMNList;
+        merkleRootRet = merkleRootCached;
+        return !mutatedCached;
+    }
+
+    if (hasCached && deterministicMNList.HasSameMNMap(deterministicMNListCached)) {
+        merkleRootRet = merkleRootCached;
+        return !mutatedCached;
+    }
+
+    int64_t nTime1 = GetTimeMicros();
+
+    CSimplifiedMNList sml(deterministicMNList);
+
+    int64_t nTime2 = GetTimeMicros(); nTimeSMNL += nTime2 - nTime1;
+    LogPrint("bench", "            - CSimplifiedMNList: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeSMNL * 0.000001);
+
+    static CSimplifiedMNList smlCached;
+
+    if (SimplifiedMNListsEqual(sml, smlCached)) {
+        deterministicMNListCached = deterministicMNList;
+        hasCached = true;
         merkleRootRet = merkleRootCached;
         return !mutatedCached;
     }
@@ -133,12 +186,14 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
     bool mutated = false;
     merkleRootRet = sml.CalcMerkleRoot(&mutated);
 
-    int64_t nTime4 = GetTimeMicros(); nTimeMerkle += nTime4 - nTime3;
-    LogPrint("bench", "            - CalcMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeMerkle * 0.000001);
+    int64_t nTime3 = GetTimeMicros(); nTimeMerkle += nTime3 - nTime2;
+    LogPrint("bench", "            - CalcMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeMerkle * 0.000001);
 
     smlCached = std::move(sml);
+    deterministicMNListCached = deterministicMNList;
     merkleRootCached = merkleRootRet;
     mutatedCached = mutated;
+    hasCached = true;
 
     return !mutated;
 }
