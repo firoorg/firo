@@ -136,7 +136,7 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 
 		// Check that the memo length is valid
 		unsigned char memo_length = r.padded_memo[0];
-		if (memo_length > this->params->get_memo_bytes()) {
+		if (memo_length > this->params->get_memo_bytes() || memo_length > (r.padded_memo.size() - 1)) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 
@@ -154,10 +154,10 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 		} catch (const std::exception &) {
 			throw std::runtime_error("Unable to identify coin");
 		}
-			
+
 		// Check that the memo length is valid
 		unsigned char memo_length = r.padded_memo[0];
-		if (memo_length > this->params->get_memo_bytes()) {
+		if (memo_length > this->params->get_memo_bytes() || memo_length > (r.padded_memo.size() - 1)) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 
