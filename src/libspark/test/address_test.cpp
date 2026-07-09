@@ -1,13 +1,50 @@
 #include "../keys.h"
 
+#include "../../hash.h"
 #include "../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
+
+#include <array>
 
 namespace spark {
 
 using namespace secp_primitives;
 
 BOOST_FIXTURE_TEST_SUITE(spark_address_tests, BasicTestingSetup)
+
+BOOST_AUTO_TEST_CASE(spend_key_from_r)
+{
+    const Params* params = Params::get_test();
+
+    Scalar r(42);
+    SpendKey spend_key(params, r);
+    SpendKey same_spend_key(params, r);
+    std::array<unsigned char, Scalar::memoryRequired()> data;
+    std::array<unsigned char, CHash256::OUTPUT_SIZE> result;
+
+    CHash256 hash256;
+    std::string prefix1 = "s1_generation";
+    r.serialize(data.data());
+    hash256.Write(reinterpret_cast<const unsigned char*>(prefix1.c_str()), prefix1.size());
+    hash256.Write(data.data(), data.size());
+    hash256.Finalize(result.data());
+    Scalar expected_s1;
+    expected_s1.memberFromSeed(result.data());
+
+    std::string prefix2 = "s2_generation";
+    hash256.Reset();
+    hash256.Write(reinterpret_cast<const unsigned char*>(prefix2.c_str()), prefix2.size());
+    hash256.Finalize(result.data());
+    Scalar expected_s2;
+    expected_s2.memberFromSeed(result.data());
+
+    BOOST_CHECK(spend_key == same_spend_key);
+    BOOST_CHECK(spend_key.get_r() == r);
+    BOOST_CHECK(spend_key.get_s1() == expected_s1);
+    BOOST_CHECK(spend_key.get_s2() == expected_s2);
+    BOOST_CHECK(spend_key.get_s1().isMember());
+    BOOST_CHECK(spend_key.get_s2().isMember());
+}
 
 // Check that correct encoding and decoding succeed
 BOOST_AUTO_TEST_CASE(correctness)

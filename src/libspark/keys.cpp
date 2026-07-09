@@ -3,6 +3,8 @@
 #include "../support/cleanse.h"
 #include "transcript.h"
 
+#include <array>
+
 namespace spark {
 
 using namespace secp_primitives;
@@ -17,28 +19,22 @@ SpendKey::SpendKey(const Params* params) {
 SpendKey::SpendKey(const Params* params, const Scalar& r_) {
     this->params = params;
     this->r = r_;
-    std::vector<unsigned char> data;
-    data.resize(32);
+    std::array<unsigned char, Scalar::memoryRequired()> data;
     r.serialize(data.data());
-    std::vector<unsigned char> result(CSHA256().OUTPUT_SIZE);
+    std::array<unsigned char, CHash256::OUTPUT_SIZE> result;
 
     CHash256 hash256;
     std::string prefix1 = "s1_generation";
     hash256.Write(reinterpret_cast<const unsigned char*>(prefix1.c_str()), prefix1.size());
     hash256.Write(data.data(), data.size());
-    hash256.Finalize(&result[0]);
-    this->s1.memberFromSeed(&result[0]);
-
-    data.clear();
-    result.clear();
-    hash256.Reset();
-    s1.serialize(data.data());
+    hash256.Finalize(result.data());
+    this->s1.memberFromSeed(result.data());
 
     std::string prefix2 = "s2_generation";
+    hash256.Reset();
     hash256.Write(reinterpret_cast<const unsigned char*>(prefix2.c_str()), prefix2.size());
-    hash256.Write(data.data(), data.size());
-    hash256.Finalize(&result[0]);
-    this->s2.memberFromSeed(&result[0]);
+    hash256.Finalize(result.data());
+    this->s2.memberFromSeed(result.data());
 }
 
 const Params* SpendKey::get_params() const {
