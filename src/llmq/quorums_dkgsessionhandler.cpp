@@ -295,6 +295,14 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
             continue;
         }
 
+        if (!msg.sig.IsValid()) {
+            // An invalid signature cannot be aggregated (CBLSSignature::AggregateInsecure
+            // asserts that its operands are valid, which would abort the process). Fall back
+            // to single verification, which safely identifies and bans the offending node(s).
+            revertToSingleVerification = true;
+            break;
+        }
+
         if (first) {
             aggSig = msg.sig;
         } else {
