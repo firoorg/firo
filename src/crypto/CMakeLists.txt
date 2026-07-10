@@ -42,6 +42,6 @@ target_link_libraries(bitcoin_crypto
 )
 
 target_include_directories(bitcoin_crypto
-  PUBLIC
+  SYSTEM PUBLIC
   ${Boost_INCLUDE_DIR}
 )
