@@ -502,6 +502,7 @@ size_t CSparkNameManager::GetSparkNameTxDataSize(const CSparkNameTxData &sparkNa
     spark::OwnershipProof ownershipProof;   // just an empty proof
 
     CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+    ownershipProofStream.reserve(spark::OwnershipProof::memoryRequired());
     ownershipProofStream << ownershipProof;
 
     sparkNameDataCopy.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
@@ -555,6 +556,7 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
         sparkAddress.prove_own(m, spendKey, incomingViewKey, ownershipProof);
 
         CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+        ownershipProofStream.reserve(spark::OwnershipProof::memoryRequired());
         ownershipProofStream << ownershipProof;
 
         sparkNameData.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
