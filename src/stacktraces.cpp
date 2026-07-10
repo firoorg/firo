@@ -179,6 +179,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
 {
     // We can't use libbacktrace for stack unwinding on Windows as it returns invalid addresses (like 0x1 or 0xffffffff)
     static BOOL symInitialized = SymInitialize(GetCurrentProcess(), nullptr, TRUE);
+    (void)symInitialized;
 
     // dbghelp is not thread safe
     static std::mutex m;
@@ -208,6 +209,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
     stackframe.AddrFrame.Mode = AddrModeFlat;
     stackframe.AddrStack.Offset = context.Esp;
     stackframe.AddrStack.Mode = AddrModeFlat;
+    const size_t skip_frames = skip;
 #elif __x86_64__
     image = IMAGE_FILE_MACHINE_AMD64;
     stackframe.AddrPC.Offset = context.Rip;
@@ -216,9 +218,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
     stackframe.AddrFrame.Mode = AddrModeFlat;
     stackframe.AddrStack.Offset = context.Rsp;
     stackframe.AddrStack.Mode = AddrModeFlat;
-    if (!pContext) {
-        skip++; // skip this method
-    }
+    const size_t skip_frames = pContext ? skip : skip + 1; // skip this method
 #else
 #error unsupported architecture
 #endif
@@ -235,7 +235,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
         if (!result) {
             break;
         }
-        if (i >= skip) {
+        if (i >= skip_frames) {
             uint64_t pc = ConvertAddress(stackframe.AddrPC.Offset);
             if (pc == 0) {
                 pc = stackframe.AddrPC.Offset;

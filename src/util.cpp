@@ -156,11 +156,6 @@ public:
         // that the config appears to have been loaded and there are no modules/engines available.
         OPENSSL_no_config();
 
-#ifdef WIN32
-        // Seed OpenSSL PRNG with current contents of the screen
-        RAND_screen();
-#endif
-
         // Seed OpenSSL PRNG with performance counter
         RandAddSeed();
     }
@@ -903,7 +898,7 @@ void RenameThread(const char* name)
 
 std::string GetThreadName()
 {
-    char name[16];
+    char name[16] = {};
 #if defined(PR_GET_NAME)
     // Only the first 15 characters are used (16 - NUL terminator)
     ::prctl(PR_GET_NAME, name, 0, 0, 0);
