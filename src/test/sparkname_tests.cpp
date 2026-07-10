@@ -365,7 +365,6 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
     };
     mempool.clear();
 
-    const auto &params = Params().GetConsensus();
     GenerateBlocks(consensus.stage41StartBlockDevFundAddressChange - chainActive.Height());
 
     CMutableTransaction txesNewAddress[2] = {
@@ -796,7 +795,7 @@ BOOST_AUTO_TEST_CASE(validity_overflow_protection)
     // --- Fresh registration with sparkNameValidityBlocks = INT_MAX + 1 ---
     std::string addr2 = GenerateSparkAddress();
     CMutableTransaction txNewOverflow = CreateSparkNameTx("newname1", addr2, nBlockPerYear, "", false);
-    ModifySparkNameTx(txNewOverflow, [overflowBlocks](CSparkNameTxData &data) {
+    ModifySparkNameTx(txNewOverflow, [](CSparkNameTxData &data) {
         data.sparkNameValidityBlocks = overflowBlocks;
     });
     int oldHeight = chainActive.Height();
@@ -805,7 +804,7 @@ BOOST_AUTO_TEST_CASE(validity_overflow_protection)
 
     // --- Renewal of existing name with sparkNameValidityBlocks = INT_MAX + 1 ---
     CMutableTransaction txUpdateOverflow = CreateSparkNameTx("overtest", addr1, nBlockPerYear, "", false);
-    ModifySparkNameTx(txUpdateOverflow, [overflowBlocks](CSparkNameTxData &data) {
+    ModifySparkNameTx(txUpdateOverflow, [](CSparkNameTxData &data) {
         data.sparkNameValidityBlocks = overflowBlocks;
     });
     oldHeight = chainActive.Height();
