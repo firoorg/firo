@@ -23,7 +23,7 @@
 
 #include <cxxabi.h>
 
-#if WIN32
+#if defined(WIN32)
 #include <windows.h>
 #include <dbghelp.h>
 #else
@@ -32,14 +32,14 @@
 #include <signal.h>
 #endif
 
-#if !WIN32
+#if !defined(WIN32)
 #include <dlfcn.h>
-#if !__APPLE__
+#if !defined(__APPLE__)
 #include <link.h>
 #endif
 #endif
 
-#if __APPLE__
+#if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #include <mach/mach_init.h>
 #include <sys/sysctl.h>
@@ -51,7 +51,7 @@
 
 std::string DemangleSymbol(const std::string& name)
 {
-#if __GNUC__ || __clang__
+#if defined(__GNUC__) || defined(__clang__)
     int status = -4; // some arbitrary value to eliminate the compiler warning
     char* str = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
     if (status != 0) {
@@ -73,7 +73,7 @@ static std::atomic<bool> skipAbortSignal(false);
 
 static ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
 {
-#if WIN32
+#if defined(WIN32)
     std::vector<TCHAR> tmp(bufSize);
     DWORD len = GetModuleFileName(nullptr, tmp.data(), bufSize);
     if (len >= bufSize) {
@@ -83,7 +83,7 @@ static ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
         buf[i] = (char)tmp[i];
     }
     return len;
-#elif __APPLE__
+#elif defined(__APPLE__)
     uint32_t bufSize2 = (uint32_t)bufSize;
     if (_NSGetExecutablePath(buf, &bufSize2) != 0) {
         // it's not entirely clear if the value returned by _NSGetExecutablePath includes the null character
@@ -108,7 +108,7 @@ static std::string GetExeFileName()
         if (len < 0) {
             return "";
         }
-        if (len < buf.size()) {
+        if (static_cast<size_t>(len) < buf.size()) {
             return std::string(buf.begin(), buf.begin() + len);
         }
         buf.resize(buf.size() * 2);
@@ -127,7 +127,7 @@ static void my_backtrace_error_callback (void *data, const char *msg, int errnum
 
 static backtrace_state* GetLibBacktraceState()
 {
-#if WIN32
+#if defined(WIN32)
     static std::string debugFileName = g_exeFileName + ".dbg";
     static const char* exeFileNamePtr = fs::exists(debugFileName) ? debugFileName.c_str() : g_exeFileName.c_str();
 #else
@@ -144,7 +144,7 @@ static backtrace_state* GetLibBacktraceState()
     return st;
 }
 
-#if WIN32
+#if defined(WIN32)
 static uint64_t GetBaseAddress()
 {
     return 0;
@@ -249,7 +249,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
 }
 #else
 
-#if __APPLE__
+#if defined(__APPLE__)
 static uint64_t GetBaseAddress()
 {
     mach_port_name_t target_task;
@@ -556,12 +556,12 @@ static std::map<void*, std::shared_ptr<std::vector<uint64_t>>> g_stacktraces;
 // It only works on GCC
 extern "C" void* __real___cxa_allocate_exception(size_t thrown_size);
 extern "C" void __real___cxa_free_exception(void * thrown_exception);
-#if __clang__ && defined(WIN32)
+#if defined(__clang__) && defined(WIN32)
 #error not supported on WIN32 (no dlsym support)
-#elif WIN32
+#elif defined(WIN32)
 extern "C" void __real__assert(const char *assertion, const char *file, unsigned int line);
 extern "C" void __real__wassert(const wchar_t *assertion, const wchar_t *file, unsigned int line);
-#elif __APPLE__
+#elif defined(__APPLE__)
 extern "C" void __real___assert_rtn(const char *function, const char *file, int line, const char *assertion);
 #else
 extern "C" void __real___assert_fail(const char *assertion, const char *file, unsigned int line, const char *function);
@@ -585,7 +585,7 @@ extern "C" void __attribute__((noreturn)) __real___assert_rtn(const char *functi
     static auto f = (void(__attribute__((noreturn)) *) (const char*, const char*, int, const char*))dlsym(RTLD_NEXT, "__assert_rtn");
     f(function, file, line, assertion);
 }
-#elif WIN32
+#elif defined(WIN32)
 #error not supported on WIN32 (no dlsym support)
 #else
 extern "C" void __real___assert_fail(const char *assertion, const char *file, unsigned int line, const char *function)
@@ -652,7 +652,7 @@ extern "C" void __attribute__((noinline)) WRAPPED_NAME(__assert_rtn)(const char 
     skipAbortSignal = true;
     __real___assert_rtn(function, file, line, assertion);
 }
-#elif WIN32
+#elif defined(WIN32)
 extern "C" void __attribute__((noinline)) WRAPPED_NAME(_assert)(const char *assertion, const char *file, unsigned int line)
 {
     auto ci = GetCrashInfoFromAssertion(assertion, file, line, nullptr);
@@ -782,7 +782,7 @@ void RegisterPrettyTerminateHander()
     std::set_terminate(stacktraces_terminate_handler);
 }
 
-#if !WIN32
+#if !defined(WIN32)
 static void HandlePosixSignal(int s)
 {
     if (s == SIGABRT && skipAbortSignal) {
@@ -859,7 +859,7 @@ LONG WINAPI HandleWindowsException(EXCEPTION_POINTERS * ExceptionInfo)
 
 void RegisterPrettySignalHandlers()
 {
-#if WIN32
+#if defined(WIN32)
     SetUnhandledExceptionFilter(HandleWindowsException);
 #else
     const std::vector<int> posix_signals = {
@@ -875,7 +875,7 @@ void RegisterPrettySignalHandlers()
             SIGTRAP,    // Trace/breakpoint trap
             SIGXCPU,    // CPU time limit exceeded (4.2BSD)
             SIGXFSZ,    // File size limit exceeded (4.2BSD)
-#if __APPLE__
+#if defined(__APPLE__)
             SIGEMT,     // emulation instruction executed
 #endif
     };
