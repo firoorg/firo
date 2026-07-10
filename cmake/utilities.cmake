@@ -4,9 +4,8 @@
 
 function(apply_wrapped_exception_flags target_name)
   if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
-    # We need to wrap exceptions to catch them in the crash handler
-    # We need to pass both compile flags and link flags to ensure that the wrapped exceptions are used in all cases
-    target_compile_options(${target_name} PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
+    # Wraps are linker options; passing them to compilation only produces unused
+    # argument warnings and does not affect symbol wrapping.
     # Apple linker does not support -Wl,--wrap=
     if(NOT APPLE)
       target_link_options(${target_name} PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
