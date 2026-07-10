@@ -36,6 +36,8 @@ target_link_libraries(firo_wallet
     secp256k1
     Boost::headers
     leveldb
+  PRIVATE
+    warn_interface
 )
 
 # Firo only supports BDB for wallet storage.
