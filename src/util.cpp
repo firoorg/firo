@@ -72,12 +72,22 @@
 #include <shlobj.h>
 #endif
 
-#ifdef HAVE_SYS_PRCTL_H
+#if defined(__has_include)
+#if __has_include(<sys/prctl.h>)
+#include <sys/prctl.h>
+#endif
+#elif defined(HAVE_SYS_PRCTL_H) && HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>
 #endif
 
-#ifdef HAVE_MALLOPT_ARENA_MAX
+#if defined(HAVE_MALLOPT_ARENA_MAX) && HAVE_MALLOPT_ARENA_MAX
+#if defined(__has_include)
+#if __has_include(<malloc.h>)
 #include <malloc.h>
+#endif
+#else
+#include <malloc.h>
+#endif
 #endif
 
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
@@ -951,7 +961,7 @@ void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName)
 
 void SetupEnvironment()
 {
-#ifdef HAVE_MALLOPT_ARENA_MAX
+#if defined(HAVE_MALLOPT_ARENA_MAX) && HAVE_MALLOPT_ARENA_MAX && defined(M_ARENA_MAX)
     // glibc-specific: On 32-bit systems set the number of arenas to 1.
     // By default, since glibc 2.10, the C library will create up to two heap
     // arenas per core. This is known to cause excessive virtual address space
