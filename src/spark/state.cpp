@@ -676,6 +676,9 @@ bool CheckSparkSpendTransaction(
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
 
+    if (!fStatefulSigmaCheck)
+        return true;
+    bool isMempoolAcceptance = (!sparkTxInfo);
     bool passVerify = false;
 
     uint64_t Vout = 0;
@@ -711,23 +714,17 @@ bool CheckSparkSpendTransaction(
 
     for (const auto& idAndHash : idAndBlockHashes) {
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup)) {
-            if (fStatefulSigmaCheck)
-                return state.DoS(100, false, NO_MINT_ZEROCOIN,
-                                 "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
-            else
-                // soft error, will check the proof later
-                return true;
-        }
+        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup))
+            return state.DoS(100, false, NO_MINT_ZEROCOIN, "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
 
         CBlockIndex *index = coinGroup.lastBlock;
         // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
-        if (index->GetBlockHash() != idAndHash.second && !fStatefulSigmaCheck)
-            // if fStatefulSigmaCheck is false, we are in the mempool acceptance code, it's a soft error
-            // just return true. If fStatefulSigmaCheck is true, use coinGroup.firstBlock as a reference block
+        if (index->GetBlockHash() != idAndHash.second && isMempoolAcceptance)
+            //we are in the mempool acceptance code, it's a soft error
+            // just return true. If isMempoolAcceptance is false, use coinGroup.firstBlock as a reference block
             return true;
 
         // take the hash from last block of anonymity set
@@ -778,8 +775,8 @@ bool CheckSparkSpendTransaction(
     const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {
         if (!cover_sets.count(id) || !cover_set_data.count(id))
-            return fStatefulSigmaCheck ? state.DoS(100,
-                             error("CheckSparkSpendTransaction: No cover set found.")) : true;
+            return state.DoS(100,
+                             error("CheckSparkSpendTransaction: No cover set found."));
     }
     
     // if we are collecting proofs, skip verification and collect proofs
@@ -808,7 +805,7 @@ bool CheckSparkSpendTransaction(
                         }
                     }
                     // If the check is in progress and we are doing a stateful check, we need to wait
-                    else if (checkState.checkInProgress && fStatefulSigmaCheck) {
+                    else if (checkState.checkInProgress && !isMempoolAcceptance) {
                         // wait for the check to complete
                         auto future = checkState.checkInProgress;
                         cs_checkedSparkSpendTransactions.unlock();
@@ -838,7 +835,7 @@ bool CheckSparkSpendTransaction(
                             fChecked = true;
                     }
                 }
-                else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
+                else if (isMempoolAcceptance && !gCheckProofThreadPool.IsPoolShutdown()) {
                     // not an urgent check, put the proof into the thread pool for verification
                     // don't post a request if there are too many tasks already
                     if (gCheckProofThreadPool.GetPendingTaskCount() < (std::size_t)gCheckProofThreadPool.GetNumberOfThreads()/2) {
@@ -867,7 +864,7 @@ bool CheckSparkSpendTransaction(
                 passVerify = true;
             }
             else {
-                if (fStatefulSigmaCheck) {
+                if (!isMempoolAcceptance) {
                     // we need the answer now, so verify and execute
                     passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
                 }
@@ -887,9 +884,6 @@ bool CheckSparkSpendTransaction(
         }
 
     }
-
-    if (!fStatefulSigmaCheck)
-        return passVerify;
 
     if (passVerify) {
         const std::vector<GroupElement>& lTags = spend->getUsedLTags();
