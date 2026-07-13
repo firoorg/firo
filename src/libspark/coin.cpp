@@ -1,6 +1,29 @@
 #include "coin.h"
 #include "../hash.h"
 
+namespace {
+
+	std::string DecodeMemoOrThrow(const std::string& padded_memo, const spark::Params* params)
+	{
+		const std::size_t max_memo = params->get_memo_bytes();
+
+		// Strong format invariant: one encoded length byte + fixed padded memo bytes.
+		if (padded_memo.size() != max_memo + 1) {
+			throw std::runtime_error("Unable to identify coin");
+		}
+
+		const std::size_t memo_length =
+			static_cast<unsigned char>(padded_memo[0]);
+
+		if (memo_length > max_memo) {
+			throw std::runtime_error("Unable to identify coin");
+		}
+
+		return padded_memo.substr(1, memo_length);
+	}
+
+} // namespace
+
 namespace spark {
 
 using namespace secp_primitives;
@@ -134,16 +157,10 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 
-		// Check that the memo length is valid
-		unsigned char memo_length = r.padded_memo[0];
-		if (memo_length > this->params->get_memo_bytes() || memo_length > (r.padded_memo.size() - 1)) {
-			throw std::runtime_error("Unable to identify coin");
-		}
-
 		data.d = r.d;
 		data.v = this->v;
 		data.k = r.k;
-		data.memo = std::string(r.padded_memo.begin() + 1, r.padded_memo.begin() + 1 + memo_length); // remove the encoded length and padding
+		data.memo = DecodeMemoOrThrow(r.padded_memo, this->params);
 	} else {
 		SpendCoinRecipientData r;
 
@@ -155,16 +172,10 @@ IdentifiedCoinData Coin::identify(const IncomingViewKey& incoming_view_key) {
 			throw std::runtime_error("Unable to identify coin");
 		}
 
-		// Check that the memo length is valid
-		unsigned char memo_length = r.padded_memo[0];
-		if (memo_length > this->params->get_memo_bytes() || memo_length > (r.padded_memo.size() - 1)) {
-			throw std::runtime_error("Unable to identify coin");
-		}
-
 		data.d = r.d;
 		data.v = r.v;
 		data.k = r.k;
-		data.memo = std::string(r.padded_memo.begin() + 1, r.padded_memo.begin() + 1 + memo_length); // remove the encoded length and padding
+		data.memo = DecodeMemoOrThrow(r.padded_memo, this->params);
 	}
 
 	// Validate the coin
