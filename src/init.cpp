@@ -549,9 +549,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-limitdescendantsize=<n>", strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end", "Use given start/end times for specified BIP9 deployment (regtest-only)");
     }
-    std::string debugCategories = "addrman, alert, bench, cmpctblock, coindb, db, http, libevent, lock, mempool, mempoolrej, net, proxy, prune, rand, reindex, rpc, selectcoins, tor, zmq, chainlocks, instantsend"; // Don't translate these and qt below
-    if (mode == HMM_BITCOIN_QT)
-        debugCategories += ", qt";
+    const std::string debugCategories = LogInstance().LogCategoriesString(); // Don't translate category names.
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
         _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".");
     if (showDebug)
@@ -562,6 +560,10 @@ std::string HelpMessage(HelpMessageMode mode)
     if (showDebug)
     {
         strUsage += HelpMessageOpt("-logtimemicros", strprintf("Add microsecond precision to debug timestamps (default: %u)", DEFAULT_LOGTIMEMICROS));
+        strUsage += HelpMessageOpt("-logthreadnames", strprintf("Prepend debug output with the name of the originating thread (default: %u)", DEFAULT_LOGTHREADNAMES));
+        strUsage += HelpMessageOpt("-logsourcelocations", strprintf("Prepend debug output with source file, line, and function information (default: %u)", DEFAULT_LOGSOURCELOCATIONS));
+        strUsage += HelpMessageOpt("-loglevel=<level>|<category>:<level>", "Set the global or category-specific logging level. Valid levels are: " + LogInstance().LogLevelsString() + ".");
+        strUsage += HelpMessageOpt("-loglevelalways", strprintf("Always include the category and level in modern log output (default: %u)", DEFAULT_LOGLEVELALWAYS));
         strUsage += HelpMessageOpt("-mocktime=<n>", "Replace actual time with <n> seconds since epoch (default: 0)");
         strUsage += HelpMessageOpt("-limitfreerelay=<n>", strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", DEFAULT_LIMITFREERELAY));
         strUsage += HelpMessageOpt("-relaypriority", strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", DEFAULT_RELAYPRIORITY));
@@ -1108,6 +1110,9 @@ void InitLogging() {
     fLogTimestamps = GetBoolArg("-logtimestamps", DEFAULT_LOGTIMESTAMPS);
     fLogTimeMicros = GetBoolArg("-logtimemicros", DEFAULT_LOGTIMEMICROS);
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
+    LogInstance().m_log_threadnames = GetBoolArg("-logthreadnames", DEFAULT_LOGTHREADNAMES);
+    LogInstance().m_log_sourcelocations = GetBoolArg("-logsourcelocations", DEFAULT_LOGSOURCELOCATIONS);
+    LogInstance().m_always_print_category_level = GetBoolArg("-loglevelalways", DEFAULT_LOGLEVELALWAYS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     LogPrintf("Firo version %s\n", FormatFullVersion());
@@ -1229,6 +1234,12 @@ bool AppInitParameterInteraction()
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 
+    auto& logger = LogInstance();
+    logger.DisableCategory(BCLog::ALL);
+    logger.ClearLegacyCategories();
+    logger.SetLogLevel(BCLog::DEFAULT_LOG_LEVEL);
+    logger.SetCategoryLogLevel({});
+
     fDebug = mapMultiArgs.count("-debug");
     // Special-case: if -debug=0/-nodebug is set, turn off debugging messages
     if (fDebug) {
@@ -1236,6 +1247,28 @@ bool AppInitParameterInteraction()
         if (GetBoolArg("-nodebug", false) || find(categories.begin(), categories.end(), std::string("0")) != categories.end()) {
             fDebug = false;
             fNoDebug = true;
+        } else {
+            for (const auto& category : categories) {
+                if (!logger.EnableCategory(category)) {
+                    // Preserve support for third-party and out-of-tree legacy
+                    // categories while all in-tree categories use typed flags.
+                    logger.EnableLegacyCategory(category);
+                }
+            }
+        }
+    }
+
+    const auto log_levels = mapMultiArgs.find("-loglevel");
+    if (log_levels != mapMultiArgs.end()) {
+        for (const auto& value : log_levels->second) {
+            const auto separator = value.find(':');
+            const bool valid = separator == std::string::npos
+                ? logger.SetLogLevel(value)
+                : logger.SetCategoryLogLevel(value.substr(0, separator), value.substr(separator + 1));
+            if (!valid) {
+                return InitError(strprintf(_("Unsupported logging level or category %s. Valid levels are: %s. Valid categories are: %s."),
+                                           value, logger.LogLevelsString(), logger.LogCategoriesString()));
+            }
         }
     }
 
