@@ -5,7 +5,7 @@
 
 /**
  * Server/client environment: argument handling, config file parsing,
- * logging, thread wrappers
+ * thread wrappers
  */
 #ifndef BITCOIN_UTIL_H
 #define BITCOIN_UTIL_H
@@ -17,6 +17,7 @@
 
 #include "compat.h"
 #include "compat_layer.h"
+#include "logging.h"
 #include "tinyformat.h"
 #include "utiltime.h"
 
@@ -38,10 +39,6 @@
 namespace boost { namespace placeholders {}}
 using namespace boost::placeholders;
 
-static const bool DEFAULT_LOGTIMEMICROS = false;
-static const bool DEFAULT_LOGIPS        = false;
-static const bool DEFAULT_LOGTIMESTAMPS = true;
-
 /** Signals for translation. */
 class CTranslationInterface
 {
@@ -54,15 +51,6 @@ extern bool fLiteMode;
 extern int nWalletBackups;
 
 extern const std::map<std::string, std::vector<std::string> >& mapMultiArgs;
-extern bool fDebug;
-extern bool fPrintToConsole;
-extern bool fPrintToDebugLog;
-extern bool fNoDebug;
-
-extern bool fLogTimestamps;
-extern bool fLogTimeMicros;
-extern bool fLogIPs;
-extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
 
 extern const char * const BITCOIN_CONF_FILENAME;
@@ -92,21 +80,6 @@ inline int64_t roundint64(double d)
 
 void SetupEnvironment();
 bool SetupNetworking();
-
-/** Return true if log accepts specified category */
-bool LogAcceptCategory(const char* category);
-/** Send a string to the log output */
-int LogPrintStr(const std::string &str);
-
-#define LogPrint(category, ...) do { \
-    if (LogAcceptCategory((category))) { \
-        LogPrintStr(tfm::format(__VA_ARGS__)); \
-    } \
-} while(0)
-
-#define LogPrintf(...) do { \
-    LogPrintStr(tfm::format(__VA_ARGS__)); \
-} while(0)
 
 template<typename... Args>
 bool error(const char* fmt, const Args&... args)
@@ -138,8 +111,6 @@ void ReadConfigFile(const std::string& confPath);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
-void OpenDebugLog();
-void ShrinkDebugFile();
 void runCommand(const std::string& strCommand);
 
 inline bool IsSwitchChar(char c)
