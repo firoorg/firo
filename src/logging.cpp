@@ -645,6 +645,7 @@ bool Logger::SetLogLevel(std::string_view level)
 
 void Logger::EnableCategory(LogFlags flag)
 {
+    if (flag == ALL) m_legacy_all_categories = true;
     m_categories.fetch_or(static_cast<CategoryMask>(flag));
 }
 
@@ -658,6 +659,7 @@ bool Logger::EnableCategory(std::string_view category)
 
 void Logger::DisableCategory(LogFlags flag)
 {
+    if (flag == ALL) m_legacy_all_categories = false;
     m_categories.fetch_and(~static_cast<CategoryMask>(flag));
 }
 
@@ -695,7 +697,7 @@ bool Logger::LegacyCategoryEnabled(std::string_view category) const
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_legacy_excluded_categories.count(std::string(category)) != 0) return false;
-    if (m_categories.load(std::memory_order_relaxed) == static_cast<CategoryMask>(ALL)) return true;
+    if (m_legacy_all_categories.load(std::memory_order_relaxed)) return true;
     return m_legacy_categories.count(std::string(category)) != 0;
 }
 
@@ -705,7 +707,7 @@ bool Logger::WillLogLegacyCategoryLevel(std::string_view category, Level level) 
     std::lock_guard<std::mutex> lock(m_mutex);
     const std::string category_string{category};
     if (m_legacy_excluded_categories.count(category_string) != 0) return false;
-    if (m_categories.load(std::memory_order_relaxed) != static_cast<CategoryMask>(ALL) &&
+    if (!m_legacy_all_categories.load(std::memory_order_relaxed) &&
         m_legacy_categories.count(category_string) == 0) {
         return false;
     }

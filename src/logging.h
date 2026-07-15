@@ -144,6 +144,7 @@ private:
     std::unordered_map<std::string, Level> m_legacy_category_log_levels;
     std::atomic<Level> m_log_level{DEFAULT_LOG_LEVEL};
     std::atomic<CategoryMask> m_categories{NONE};
+    std::atomic<bool> m_legacy_all_categories{false};
     std::unordered_set<std::string> m_legacy_categories;
     std::unordered_set<std::string> m_legacy_excluded_categories;
 
