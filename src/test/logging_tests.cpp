@@ -244,6 +244,7 @@ BOOST_AUTO_TEST_CASE(legacy_levels_context_and_raw_sink)
     BOOST_CHECK_EQUAL(messages.size(), 1U);
 
     BOOST_REQUIRE(logger.SetCategoryLogLevel("net", "debug"));
+    BOOST_REQUIRE(logger.SetCategoryLogLevel("plugin-category", "debug"));
     messages.clear();
     const std::string previous_thread_name = GetThreadName();
     RenameThread("logging-test");
@@ -252,17 +253,20 @@ BOOST_AUTO_TEST_CASE(legacy_levels_context_and_raw_sink)
     logger.m_always_print_category_level = true;
 
     LogPrint("net", "categorized\n");
+    LogPrint("plugin-category", "plugin categorized\n");
     LogPrintf("unconditional\n");
     LogPrintStr("raw compatibility sink\n");
 
     RenameThread(previous_thread_name.c_str());
-    BOOST_REQUIRE_EQUAL(messages.size(), 3U);
+    BOOST_REQUIRE_EQUAL(messages.size(), 4U);
     BOOST_CHECK(messages[0].find("[logging-test] [") == 0);
     BOOST_CHECK(messages[0].find("logging_tests.cpp:") != std::string::npos);
     BOOST_CHECK(messages[0].find("[test_method] [net:debug] categorized\n") != std::string::npos);
     BOOST_CHECK(messages[1].find("[logging-test] [") == 0);
-    BOOST_CHECK(messages[1].find("[test_method] [all:info] unconditional\n") != std::string::npos);
-    BOOST_CHECK_EQUAL(messages[2], "raw compatibility sink\n");
+    BOOST_CHECK(messages[1].find("[test_method] [plugin-category:debug] plugin categorized\n") != std::string::npos);
+    BOOST_CHECK(messages[2].find("[logging-test] [") == 0);
+    BOOST_CHECK(messages[2].find("[test_method] [all:info] unconditional\n") != std::string::npos);
+    BOOST_CHECK_EQUAL(messages[3], "raw compatibility sink\n");
 }
 
 BOOST_AUTO_TEST_CASE(debug_category_precedence)
@@ -281,6 +285,10 @@ BOOST_AUTO_TEST_CASE(debug_category_precedence)
     BOOST_CHECK(LogAcceptCategory("rpc"));
     BOOST_CHECK(!LogAcceptCategory("net"));
     BOOST_CHECK(!LogAcceptCategory("plugin-category"));
+
+    ConfigureLegacyLogCategories({"plugin-category"}, {"all"});
+    BOOST_CHECK(!LogAcceptCategory("plugin-category"));
+    BOOST_CHECK(!LogAcceptCategory("net"));
 
     ConfigureLegacyLogCategories({"none"}, {});
     BOOST_CHECK(!fDebug);
@@ -317,6 +325,32 @@ BOOST_AUTO_TEST_CASE(start_logging_open_failure_and_buffered_flush)
     BOOST_REQUIRE(logger.StartLogging());
     logger.DisconnectTestLogger();
     BOOST_CHECK(ReadFile(valid_log).find("buffered before failed open\n") != std::string::npos);
+
+    fs::remove_all(temp_dir);
+}
+
+BOOST_AUTO_TEST_CASE(legacy_early_logging_buffer_is_bounded)
+{
+    const fs::path temp_dir = fs::temp_directory_path() / fs::unique_path("firo-logbuffer-%%%%-%%%%");
+    const fs::path log_path = temp_dir / "debug.log";
+    fs::create_directories(temp_dir);
+
+    logger.DisconnectTestLogger();
+    logger.m_print_to_console = false;
+    logger.m_print_to_file = true;
+    logger.m_file_path = log_path;
+    logger.m_log_timestamps = false;
+
+    LogPrintf("discarded marker\n");
+    LogPrintf("%s\n", std::string(BCLog::DEFAULT_MAX_LOG_BUFFER, 'x'));
+    LogPrintf("retained marker\n");
+    BOOST_REQUIRE(logger.StartLogging());
+    logger.DisconnectTestLogger();
+
+    const std::string contents = ReadFile(log_path);
+    BOOST_CHECK(contents.find("Early logging buffer overflowed, 2 log lines discarded.") != std::string::npos);
+    BOOST_CHECK(contents.find("discarded marker") == std::string::npos);
+    BOOST_CHECK(contents.find("retained marker") != std::string::npos);
 
     fs::remove_all(temp_dir);
 }
@@ -392,6 +426,11 @@ BOOST_AUTO_TEST_CASE(logging_argument_parsing)
     BOOST_CHECK(!LogAcceptCategory("rpc"));
     BOOST_CHECK(fDebug);
     BOOST_CHECK(!fNoDebug);
+
+    ParseArgs({"-debuglogfile"});
+    InitLogging();
+    BOOST_CHECK(fPrintToDebugLog);
+    BOOST_CHECK_EQUAL(logger.m_file_path, GetDataDir() / DEFAULT_DEBUGLOGFILE);
 
     ParseArgs({});
 }
