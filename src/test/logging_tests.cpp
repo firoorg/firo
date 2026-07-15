@@ -283,6 +283,7 @@ BOOST_AUTO_TEST_CASE(debug_category_precedence)
 
     ConfigureLegacyLogCategories({"all"}, {"net", "plugin-category"});
     BOOST_CHECK(LogAcceptCategory("rpc"));
+    BOOST_CHECK(LogAcceptCategory("other-plugin-category"));
     BOOST_CHECK(!LogAcceptCategory("net"));
     BOOST_CHECK(!LogAcceptCategory("plugin-category"));
 
@@ -325,6 +326,42 @@ BOOST_AUTO_TEST_CASE(start_logging_open_failure_and_buffered_flush)
     BOOST_REQUIRE(logger.StartLogging());
     logger.DisconnectTestLogger();
     BOOST_CHECK(ReadFile(valid_log).find("buffered before failed open\n") != std::string::npos);
+
+    fs::remove_all(temp_dir);
+}
+
+BOOST_AUTO_TEST_CASE(reopen_debug_log)
+{
+    const fs::path temp_dir = fs::temp_directory_path() / fs::unique_path("firo-logreopen-%%%%-%%%%");
+    const fs::path original_log = temp_dir / "original.log";
+    const fs::path invalid_log = temp_dir / "invalid.log";
+    const fs::path reopened_log = temp_dir / "reopened.log";
+    fs::create_directories(invalid_log);
+
+    logger.DisconnectTestLogger();
+    logger.m_print_to_console = false;
+    logger.m_print_to_file = true;
+    logger.m_file_path = original_log;
+    logger.m_log_timestamps = false;
+    BOOST_REQUIRE(logger.StartLogging());
+
+    LogPrintf("before reopen\n");
+    logger.m_file_path = invalid_log;
+    logger.m_reopen_file = true;
+    LogPrintf("after failed reopen\n");
+    BOOST_CHECK(!logger.m_reopen_file);
+
+    logger.m_file_path = reopened_log;
+    logger.m_reopen_file = true;
+    LogPrintf("after successful reopen\n");
+    BOOST_CHECK(!logger.m_reopen_file);
+    logger.DisconnectTestLogger();
+
+    const std::string original_contents = ReadFile(original_log);
+    BOOST_CHECK(original_contents.find("before reopen\n") != std::string::npos);
+    BOOST_CHECK(original_contents.find("after failed reopen\n") != std::string::npos);
+    BOOST_CHECK(original_contents.find("after successful reopen\n") == std::string::npos);
+    BOOST_CHECK(ReadFile(reopened_log).find("after successful reopen\n") != std::string::npos);
 
     fs::remove_all(temp_dir);
 }
@@ -431,6 +468,26 @@ BOOST_AUTO_TEST_CASE(logging_argument_parsing)
     InitLogging();
     BOOST_CHECK(fPrintToDebugLog);
     BOOST_CHECK_EQUAL(logger.m_file_path, GetDataDir() / DEFAULT_DEBUGLOGFILE);
+
+    ParseArgs({"-nodebuglogfile=0"});
+    InitLogging();
+    BOOST_CHECK(fPrintToDebugLog);
+    BOOST_CHECK_EQUAL(logger.m_file_path, GetDataDir() / DEFAULT_DEBUGLOGFILE);
+
+    ParseArgs({"-nodebug"});
+    BOOST_REQUIRE_EQUAL(mapMultiArgs.at("-debug").size(), 1U);
+    BOOST_CHECK_EQUAL(mapMultiArgs.at("-debug").front(), "0");
+    ConfigureLegacyLogCategories(mapMultiArgs.at("-debug"), {});
+    BOOST_CHECK(!fDebug);
+    BOOST_CHECK(fNoDebug);
+
+    ParseArgs({"-nodebug=0"});
+    BOOST_REQUIRE_EQUAL(mapMultiArgs.at("-debug").size(), 1U);
+    BOOST_CHECK_EQUAL(mapMultiArgs.at("-debug").front(), "1");
+    ConfigureLegacyLogCategories(mapMultiArgs.at("-debug"), {});
+    BOOST_CHECK(fDebug);
+    BOOST_CHECK(!fNoDebug);
+    BOOST_CHECK(LogAcceptCategory("net"));
 
     ParseArgs({});
 }
