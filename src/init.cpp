@@ -65,7 +65,11 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <cassert>
+#include <chrono>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #ifndef WIN32
 #include <string.h>
@@ -551,7 +555,9 @@ std::string HelpMessage(HelpMessageMode mode)
     }
     const std::string debugCategories = LogInstance().LogCategoriesString(); // Don't translate category names.
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
-        _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".");
+        _("If <category> is not supplied or is 1 or all, output all debugging information. The value none resets categories specified before it. The value 0 retains Firo's historical behavior and disables all logging except errors.") + _("<category> can be:") + " " + debugCategories + ".");
+    strUsage += HelpMessageOpt("-debugexclude=<category>", "Exclude a debug category after processing -debug options. This option can be specified multiple times and takes priority over -debug.");
+    strUsage += HelpMessageOpt("-debuglogfile=<file>", strprintf("Specify the debug log file (default: %s). Relative paths are prefixed by the network data directory. Use -nodebuglogfile to disable file logging.", DEFAULT_DEBUGLOGFILE));
     if (showDebug)
         strUsage += HelpMessageOpt("-nodebug", "Turn off debugging messages, same as -debug=0");
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
@@ -563,7 +569,8 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-logthreadnames", strprintf("Prepend debug output with the name of the originating thread (default: %u)", DEFAULT_LOGTHREADNAMES));
         strUsage += HelpMessageOpt("-logsourcelocations", strprintf("Prepend debug output with source file, line, and function information (default: %u)", DEFAULT_LOGSOURCELOCATIONS));
         strUsage += HelpMessageOpt("-loglevel=<level>|<category>:<level>", "Set the global or category-specific logging level. Valid levels are: " + LogInstance().LogLevelsString() + ".");
-        strUsage += HelpMessageOpt("-loglevelalways", strprintf("Always include the category and level in modern log output (default: %u)", DEFAULT_LOGLEVELALWAYS));
+        strUsage += HelpMessageOpt("-loglevelalways", strprintf("Always include the category and level in log output with source context (default: %u)", DEFAULT_LOGLEVELALWAYS));
+        strUsage += HelpMessageOpt("-logratelimit", strprintf("Apply rate limiting to unconditional file logging to mitigate disk-filling attacks (default: %u)", BCLog::DEFAULT_LOGRATELIMIT));
         strUsage += HelpMessageOpt("-mocktime=<n>", "Replace actual time with <n> seconds since epoch (default: 0)");
         strUsage += HelpMessageOpt("-limitfreerelay=<n>", strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", DEFAULT_LIMITFREERELAY));
         strUsage += HelpMessageOpt("-relaypriority", strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", DEFAULT_RELAYPRIORITY));
@@ -1106,13 +1113,23 @@ void StopTorEnabled()
 }
 
 void InitLogging() {
+    auto& logger = LogInstance();
     fPrintToConsole = GetBoolArg("-printtoconsole", false);
+    const std::string debug_log_arg = GetArg("-debuglogfile", DEFAULT_DEBUGLOGFILE);
+    fPrintToDebugLog = debug_log_arg != "0";
+    const std::string debug_log_name = (!fPrintToDebugLog || debug_log_arg == "1")
+        ? DEFAULT_DEBUGLOGFILE
+        : debug_log_arg;
+    const fs::path debug_log_path{debug_log_name};
+    logger.m_file_path = debug_log_path.is_absolute()
+        ? debug_log_path
+        : GetDataDir() / debug_log_path;
     fLogTimestamps = GetBoolArg("-logtimestamps", DEFAULT_LOGTIMESTAMPS);
     fLogTimeMicros = GetBoolArg("-logtimemicros", DEFAULT_LOGTIMEMICROS);
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
-    LogInstance().m_log_threadnames = GetBoolArg("-logthreadnames", DEFAULT_LOGTHREADNAMES);
-    LogInstance().m_log_sourcelocations = GetBoolArg("-logsourcelocations", DEFAULT_LOGSOURCELOCATIONS);
-    LogInstance().m_always_print_category_level = GetBoolArg("-loglevelalways", DEFAULT_LOGLEVELALWAYS);
+    logger.m_log_threadnames = GetBoolArg("-logthreadnames", DEFAULT_LOGTHREADNAMES);
+    logger.m_log_sourcelocations = GetBoolArg("-logsourcelocations", DEFAULT_LOGSOURCELOCATIONS);
+    logger.m_always_print_category_level = GetBoolArg("-loglevelalways", DEFAULT_LOGLEVELALWAYS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     LogPrintf("Firo version %s\n", FormatFullVersion());
@@ -1235,28 +1252,20 @@ bool AppInitParameterInteraction()
     // ********************************************************* Step 3: parameter-to-internal-flags
 
     auto& logger = LogInstance();
-    logger.DisableCategory(BCLog::ALL);
-    logger.ClearLegacyCategories();
     logger.SetLogLevel(BCLog::DEFAULT_LOG_LEVEL);
     logger.SetCategoryLogLevel({});
 
-    fDebug = mapMultiArgs.count("-debug");
-    // Special-case: if -debug=0/-nodebug is set, turn off debugging messages
-    if (fDebug) {
-        const std::vector<std::string>& categories = mapMultiArgs.at("-debug");
-        if (GetBoolArg("-nodebug", false) || find(categories.begin(), categories.end(), std::string("0")) != categories.end()) {
-            fDebug = false;
-            fNoDebug = true;
-        } else {
-            for (const auto& category : categories) {
-                if (!logger.EnableCategory(category)) {
-                    // Preserve support for third-party and out-of-tree legacy
-                    // categories while all in-tree categories use typed flags.
-                    logger.EnableLegacyCategory(category);
-                }
-            }
-        }
+    std::vector<std::string> debug_categories;
+    if (const auto it = mapMultiArgs.find("-debug"); it != mapMultiArgs.end()) {
+        debug_categories = it->second;
     }
+    if (GetBoolArg("-nodebug", false)) debug_categories.emplace_back("0");
+
+    std::vector<std::string> excluded_categories;
+    if (const auto it = mapMultiArgs.find("-debugexclude"); it != mapMultiArgs.end()) {
+        excluded_categories = it->second;
+    }
+    ConfigureLegacyLogCategories(debug_categories, excluded_categories);
 
     const auto log_levels = mapMultiArgs.find("-loglevel");
     if (log_levels != mapMultiArgs.end()) {
@@ -1528,14 +1537,16 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 #ifndef WIN32
     CreatePidFile(GetPidFile(), getpid());
 #endif
-    if (GetBoolArg("-shrinkdebugfile", !fDebug)) {
+    if (fPrintToDebugLog && GetBoolArg("-shrinkdebugfile", !fDebug)) {
         // Do this first since it both loads a bunch of debug.log into memory,
         // and because this needs to happen before any other debug.log printing
         ShrinkDebugFile();
     }
 
-    if (fPrintToDebugLog)
-        OpenDebugLog();
+    if (!OpenDebugLog()) {
+        return InitError(strprintf(_("Could not open debug log file %s"),
+                                   LogInstance().m_file_path.string()));
+    }
 
     if (!fLogTimestamps)
         LogPrintf("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
@@ -1555,6 +1566,20 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Start the lightweight task scheduler thread
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);
     threadGroup.create_thread(boost::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
+
+    if (GetBoolArg("-logratelimit", BCLog::DEFAULT_LOGRATELIMIT)) {
+        LogInstance().SetRateLimiting(BCLog::LogRateLimiter::Create(
+            [&scheduler](auto func, auto window) {
+                const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(window);
+                assert(seconds.count() > 0);
+                scheduler.scheduleEvery(std::move(func), seconds.count());
+            },
+            BCLog::RATELIMIT_MAX_BYTES,
+            BCLog::RATELIMIT_WINDOW));
+    } else {
+        LogInstance().SetRateLimiting(nullptr);
+        LogPrintf("Log rate limiting disabled\n");
+    }
 
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections
