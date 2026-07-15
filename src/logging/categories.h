@@ -8,15 +8,6 @@
 
 #include <cstdint>
 
-// relic exposes its benchmark iteration count as a generic BENCH macro. It is
-// not part of Firo's public API and collides with Bitcoin Core's category name.
-#ifdef BENCH
-#undef BENCH
-#endif
-#ifdef RAND
-#undef RAND
-#endif
-
 namespace BCLog {
 
 using CategoryMask = uint64_t;

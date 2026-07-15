@@ -13,8 +13,8 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <map>
 #include <optional>
+#include <type_traits>
 #include <utility>
 
 const char* const DEFAULT_DEBUGLOGFILE = "debug.log";
@@ -32,8 +32,13 @@ namespace {
 
 constexpr auto MAX_USER_SETABLE_SEVERITY_LEVEL{BCLog::Level::Info};
 
-/** Canonical category names. This is the source for help and category output. */
-const std::map<std::string, BCLog::LogFlags, std::less<>> LOG_CATEGORIES_BY_STR{
+using CategoryMapping = std::pair<std::string_view, BCLog::LogFlags>;
+
+/**
+ * Canonical category names. The constexpr table has no destruction-time
+ * dependency, so categorized logging remains safe from static destructors.
+ */
+constexpr std::array<CategoryMapping, 42> LOG_CATEGORIES_BY_STR{{
     {"CDbIndexHelper", BCLog::DBINDEX},
     {"addrman", BCLog::ADDRMAN},
     {"alert", BCLog::ALERT},
@@ -76,21 +81,29 @@ const std::map<std::string, BCLog::LogFlags, std::less<>> LOG_CATEGORIES_BY_STR{
     {"validation", BCLog::VALIDATION},
     {"walletdb", BCLog::WALLETDB},
     {"zmq", BCLog::ZMQ},
-};
+}};
 
 /** Historical spellings accepted as aliases of first-class categories. */
-const std::map<std::string, BCLog::LogFlags, std::less<>> LOG_CATEGORY_ALIASES{
+constexpr std::array<CategoryMapping, 1> LOG_CATEGORY_ALIASES{{
     {"mempool-reject", BCLog::MEMPOOLREJ},
-};
+}};
 
-const std::map<BCLog::LogFlags, std::string> LOG_CATEGORIES_BY_FLAG = [] {
-    std::map<BCLog::LogFlags, std::string> result;
-    for (const auto& [name, flag] : LOG_CATEGORIES_BY_STR) {
-        const bool inserted = result.emplace(flag, name).second;
-        assert(inserted);
+constexpr bool CategoryMappingsAreUnique()
+{
+    for (size_t i = 0; i < LOG_CATEGORIES_BY_STR.size(); ++i) {
+        for (size_t j = i + 1; j < LOG_CATEGORIES_BY_STR.size(); ++j) {
+            if (LOG_CATEGORIES_BY_STR[i].first == LOG_CATEGORIES_BY_STR[j].first ||
+                LOG_CATEGORIES_BY_STR[i].second == LOG_CATEGORIES_BY_STR[j].second) {
+                return false;
+            }
+        }
     }
-    return result;
-}();
+    return true;
+}
+
+static_assert(CategoryMappingsAreUnique());
+static_assert(std::is_trivially_destructible_v<decltype(LOG_CATEGORIES_BY_STR)>);
+static_assert(std::is_trivially_destructible_v<decltype(LOG_CATEGORY_ALIASES)>);
 
 int FileWriteStr(std::string_view str, FILE* file)
 {
@@ -116,9 +129,12 @@ std::optional<BCLog::Level> GetLogLevel(std::string_view level)
 std::string LogCategoryToStr(BCLog::LogFlags category)
 {
     if (category == BCLog::ALL) return "all";
-    const auto it = LOG_CATEGORIES_BY_FLAG.find(category);
-    assert(it != LOG_CATEGORIES_BY_FLAG.end());
-    return it == LOG_CATEGORIES_BY_FLAG.end() ? "unknown" : it->second;
+    const auto it = std::find_if(LOG_CATEGORIES_BY_STR.begin(), LOG_CATEGORIES_BY_STR.end(),
+                                 [category](const CategoryMapping& item) {
+                                     return item.second == category;
+                                 });
+    assert(it != LOG_CATEGORIES_BY_STR.end());
+    return it == LOG_CATEGORIES_BY_STR.end() ? "unknown" : std::string(it->first);
 }
 
 std::string RemoveLocalPrefix(std::string_view file)
@@ -143,18 +159,52 @@ bool GetLogCategory(BCLog::LogFlags& flag, std::string_view category)
         return true;
     }
 
-    auto it = LOG_CATEGORIES_BY_STR.find(category);
-    if (it != LOG_CATEGORIES_BY_STR.end()) {
-        flag = it->second;
-        return true;
+    for (const auto& [name, category_flag] : LOG_CATEGORIES_BY_STR) {
+        if (name == category) {
+            flag = category_flag;
+            return true;
+        }
     }
-
-    it = LOG_CATEGORY_ALIASES.find(category);
-    if (it != LOG_CATEGORY_ALIASES.end()) {
-        flag = it->second;
-        return true;
+    for (const auto& [name, category_flag] : LOG_CATEGORY_ALIASES) {
+        if (name == category) {
+            flag = category_flag;
+            return true;
+        }
     }
     return false;
+}
+
+void ConfigureLegacyLogCategories(const std::vector<std::string>& categories,
+                                  const std::vector<std::string>& excluded_categories)
+{
+    auto& logger = LogInstance();
+    logger.DisableCategory(BCLog::ALL);
+    logger.ClearLegacyCategories();
+    fDebug = false;
+    fNoDebug = false;
+
+    // Firo historically treats -debug=0/-nodebug as an absolute override,
+    // including when other -debug values are present.
+    if (std::find(categories.begin(), categories.end(), "0") != categories.end()) {
+        fNoDebug = true;
+        return;
+    }
+
+    // Bitcoin v31.1 processes only values after the last -debug=none.
+    auto first = categories.begin();
+    const auto last_none = std::find(categories.rbegin(), categories.rend(), "none");
+    if (last_none != categories.rend()) first = last_none.base();
+
+    for (auto it = first; it != categories.end(); ++it) {
+        fDebug = true;
+        if (!logger.EnableCategory(*it)) logger.EnableLegacyCategory(*it);
+    }
+
+    // Exclusions always take precedence over enabled categories. Unknown
+    // strings are retained for out-of-tree legacy callers.
+    for (const auto& category : excluded_categories) {
+        if (!logger.DisableCategory(category)) logger.DisableLegacyCategory(category);
+    }
 }
 
 namespace BCLog {
@@ -305,12 +355,38 @@ void Logger::FormatLogStrInPlace(std::string& str, LogFlags category, Level leve
     str.insert(0, LogTimestampStr(time_micros));
 }
 
-void Logger::FormatLegacyLogStrInPlace(std::string& str, int64_t time_micros)
+void Logger::FormatLegacyLogStrInPlace(std::string& str, int64_t time_micros,
+                                       const SourceLocation* source_loc,
+                                       LogFlags category, std::string_view category_name,
+                                       Level level, bool contextual)
 {
     // This intentionally mirrors Firo's original partial-line timestamp behavior.
-    if (!m_log_timestamps) return;
+    const bool modern_prefix = contextual &&
+        (m_log_threadnames || m_log_sourcelocations || m_always_print_category_level);
+    if (!m_log_timestamps && !modern_prefix) return;
 
-    if (m_legacy_started_new_line) str.insert(0, LogTimestampStr(time_micros));
+    if (m_legacy_started_new_line) {
+        std::string prefix = LogTimestampStr(time_micros);
+        if (contextual && m_log_threadnames) {
+            const std::string threadname = GetThreadName();
+            prefix += strprintf("[%s] ", threadname.empty() ? "unknown" : threadname);
+        }
+        if (contextual && m_log_sourcelocations && source_loc) {
+            prefix += strprintf("[%s:%d] [%s] ", RemoveLocalPrefix(source_loc->file_name()),
+                                source_loc->line(),
+                                std::string(source_loc->function_name_short()));
+        }
+        if (contextual && m_always_print_category_level) {
+            if (!category_name.empty() && category != ALL) {
+                prefix += strprintf("[%s:%s] ", std::string(category_name),
+                                    LogLevelToStr(level));
+            } else {
+                prefix += GetLogPrefix(category, level);
+            }
+        }
+        str.insert(0, prefix);
+    }
+
     m_legacy_started_new_line = !str.empty() && str.back() == '\n';
 }
 
@@ -435,9 +511,25 @@ void Logger::LogPrintStr_(std::string_view str, SourceLocation&& source_loc,
 
     FormatLogStrInPlace(escaped, category, level, source_loc, GetThreadName(), GetLogTimeMicros());
 
+    const bool suppress_file = ApplyRateLimiting(escaped, source_loc, should_ratelimit);
+
+    if (m_print_to_console) {
+        fwrite(escaped.data(), 1, escaped.size(), stdout);
+        fflush(stdout);
+    }
+    for (const auto& callback : m_print_callbacks) callback(escaped);
+    if (m_print_to_file && !suppress_file && m_fileout) {
+        ReopenFile();
+        if (m_fileout) FileWriteStr(escaped, m_fileout);
+    }
+}
+
+bool Logger::ApplyRateLimiting(std::string& str, const SourceLocation& source_loc,
+                               bool should_ratelimit)
+{
     bool suppress_file = false;
     if (should_ratelimit && m_limiter) {
-        const auto status = m_limiter->Consume(source_loc, escaped);
+        const auto status = m_limiter->Consume(source_loc, str);
         if (status == LogRateLimiter::Status::NEWLY_SUPPRESSED) {
             LogPrintStr_(
                 strprintf("Excessive logging detected from %s:%d (%s): >%d bytes logged during "
@@ -453,29 +545,25 @@ void Logger::LogPrintStr_(std::string_view str, SourceLocation&& source_loc,
         }
     }
 
-    if (m_limiter && m_limiter->SuppressionsActive()) escaped.insert(0, "[*] ");
-
-    if (m_print_to_console) {
-        fwrite(escaped.data(), 1, escaped.size(), stdout);
-        fflush(stdout);
-    }
-    for (const auto& callback : m_print_callbacks) callback(escaped);
-    if (m_print_to_file && !suppress_file && m_fileout) {
-        ReopenFile();
-        if (m_fileout) FileWriteStr(escaped, m_fileout);
-    }
+    if (m_limiter && m_limiter->SuppressionsActive()) str.insert(0, "[*] ");
+    return suppress_file;
 }
 
-int Logger::LogPrintLegacy(const std::string& str)
+int Logger::LogPrintLegacy(const std::string& str, const SourceLocation* source_loc,
+                           LogFlags category, std::string_view category_name,
+                           Level level, bool should_ratelimit)
 {
     if (fNoDebug && !std::string_view(str).starts_with("ERROR:")) return 0;
 
     std::lock_guard<std::mutex> lock(m_mutex);
     std::string formatted = str;
-    FormatLegacyLogStrInPlace(formatted, GetLogTimeMicros());
+    const bool contextual = source_loc != nullptr;
+    FormatLegacyLogStrInPlace(formatted, GetLogTimeMicros(), source_loc, category,
+                              category_name, level, contextual);
 
     int result = 0;
     if (m_print_to_console) {
+        if (source_loc) ApplyRateLimiting(formatted, *source_loc, false);
         result = FileWriteStr(formatted, stdout);
         fflush(stdout);
         for (const auto& callback : m_print_callbacks) callback(formatted);
@@ -486,11 +574,18 @@ int Logger::LogPrintLegacy(const std::string& str)
                 GetLogTimeMicros(), std::move(formatted), {}, SourceLocation{__func__},
                 ALL, Level::Info, true});
         } else if (m_fileout) {
-            ReopenFile();
-            if (m_fileout) result = FileWriteStr(formatted, m_fileout);
+            const SourceLocation direct_source{__func__};
+            const SourceLocation& rate_source = source_loc ? *source_loc : direct_source;
+            const bool suppress_file = ApplyRateLimiting(
+                formatted, rate_source, contextual && should_ratelimit);
+            if (!suppress_file) {
+                ReopenFile();
+                if (m_fileout) result = FileWriteStr(formatted, m_fileout);
+            }
             for (const auto& callback : m_print_callbacks) callback(formatted);
         }
     } else if (!m_buffering) {
+        if (source_loc) ApplyRateLimiting(formatted, *source_loc, false);
         for (const auto& callback : m_print_callbacks) callback(formatted);
     }
     return result;
@@ -512,6 +607,7 @@ void Logger::SetCategoryLogLevel(const std::unordered_map<LogFlags, Level>& leve
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_category_log_levels = levels;
+    m_legacy_category_log_levels.clear();
 }
 
 void Logger::AddCategoryLogLevel(LogFlags category, Level level)
@@ -524,11 +620,15 @@ bool Logger::SetCategoryLogLevel(std::string_view category, std::string_view lev
 {
     LogFlags flag;
     const auto parsed_level = GetLogLevel(level);
-    if (!GetLogCategory(flag, category) || !parsed_level ||
-        *parsed_level > MAX_USER_SETABLE_SEVERITY_LEVEL) {
+    if (!parsed_level || *parsed_level > MAX_USER_SETABLE_SEVERITY_LEVEL) {
         return false;
     }
-    AddCategoryLogLevel(flag, *parsed_level);
+    if (GetLogCategory(flag, category)) {
+        AddCategoryLogLevel(flag, *parsed_level);
+    } else {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_legacy_category_log_levels[std::string(category)] = *parsed_level;
+    }
     return true;
 }
 
@@ -569,20 +669,45 @@ bool Logger::DisableCategory(std::string_view category)
 void Logger::EnableLegacyCategory(std::string_view category)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+    m_legacy_excluded_categories.erase(std::string(category));
     m_legacy_categories.emplace(category);
+}
+
+void Logger::DisableLegacyCategory(std::string_view category)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_legacy_categories.erase(std::string(category));
+    m_legacy_excluded_categories.emplace(category);
 }
 
 void Logger::ClearLegacyCategories()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_legacy_categories.clear();
+    m_legacy_excluded_categories.clear();
+    m_legacy_category_log_levels.clear();
 }
 
 bool Logger::LegacyCategoryEnabled(std::string_view category) const
 {
-    if (m_categories.load(std::memory_order_relaxed) == static_cast<CategoryMask>(ALL)) return true;
     std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_legacy_excluded_categories.count(std::string(category)) != 0) return false;
+    if (m_categories.load(std::memory_order_relaxed) == static_cast<CategoryMask>(ALL)) return true;
     return m_legacy_categories.count(std::string(category)) != 0;
+}
+
+bool Logger::WillLogLegacyCategoryLevel(std::string_view category, Level level) const
+{
+    if (level >= Level::Info) return true;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const std::string category_string{category};
+    if (m_legacy_excluded_categories.count(category_string) != 0) return false;
+    if (m_categories.load(std::memory_order_relaxed) != static_cast<CategoryMask>(ALL) &&
+        m_legacy_categories.count(category_string) == 0) {
+        return false;
+    }
+    const auto it = m_legacy_category_log_levels.find(category_string);
+    return level >= (it == m_legacy_category_log_levels.end() ? LogLevel() : it->second);
 }
 
 bool Logger::WillLogCategory(LogFlags category) const
@@ -605,7 +730,7 @@ std::vector<LogCategory> Logger::LogCategoriesList() const
     std::vector<LogCategory> result;
     result.reserve(LOG_CATEGORIES_BY_STR.size());
     for (const auto& [category, flag] : LOG_CATEGORIES_BY_STR) {
-        result.push_back(LogCategory{category, WillLogCategory(flag)});
+        result.push_back(LogCategory{std::string(category), WillLogCategory(flag)});
     }
     return result;
 }
@@ -677,14 +802,14 @@ void Logger::ShrinkDebugFile()
 
 } // namespace BCLog
 
-bool LogAcceptCategory(const char* category)
+bool LogAcceptCategory(const char* category, BCLog::Level level)
 {
     if (category == nullptr) return true;
     if (!fDebug) return false;
 
     BCLog::LogFlags flag;
-    if (GetLogCategory(flag, category)) return LogInstance().WillLogCategory(flag);
-    return LogInstance().LegacyCategoryEnabled(category);
+    if (GetLogCategory(flag, category)) return LogInstance().WillLogCategoryLevel(flag, level);
+    return LogInstance().WillLogLegacyCategoryLevel(category, level);
 }
 
 int LogPrintStr(const std::string& str)
@@ -692,17 +817,40 @@ int LogPrintStr(const std::string& str)
     return LogInstance().LogPrintLegacy(str);
 }
 
-void OpenDebugLog()
+int LogPrintCategory(const char* category, const std::string& str,
+                     SourceLocation&& source_loc)
+{
+    BCLog::LogFlags flag{BCLog::ALL};
+    const std::string_view category_name = category ? std::string_view(category) : std::string_view{};
+    GetLogCategory(flag, category_name);
+    return LogInstance().LogPrintLegacy(str, &source_loc, flag, category_name,
+                                        BCLog::Level::Debug, false);
+}
+
+int LogPrintCategory(BCLog::LogFlags category, const std::string& str,
+                     SourceLocation&& source_loc)
+{
+    return LogInstance().LogPrintLegacy(str, &source_loc, category, {},
+                                        BCLog::Level::Debug, false);
+}
+
+int LogPrintfCompat(const std::string& str, SourceLocation&& source_loc)
+{
+    return LogInstance().LogPrintLegacy(str, &source_loc, BCLog::ALL, {},
+                                        BCLog::Level::Info, true);
+}
+
+bool OpenDebugLog()
 {
     auto& logger = LogInstance();
-    logger.m_file_path = GetDataDir() / DEFAULT_DEBUGLOGFILE;
-    logger.StartLogging();
+    if (logger.m_file_path.empty()) logger.m_file_path = GetDataDir() / DEFAULT_DEBUGLOGFILE;
+    return logger.StartLogging();
 }
 
 void ShrinkDebugFile()
 {
     auto& logger = LogInstance();
-    logger.m_file_path = GetDataDir() / DEFAULT_DEBUGLOGFILE;
+    if (logger.m_file_path.empty()) logger.m_file_path = GetDataDir() / DEFAULT_DEBUGLOGFILE;
     logger.ShrinkDebugFile();
 }
 

@@ -23,6 +23,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 static constexpr bool DEFAULT_LOGTIMEMICROS = false;
@@ -140,20 +141,27 @@ private:
 
     std::shared_ptr<LogRateLimiter> m_limiter;
     std::unordered_map<LogFlags, Level> m_category_log_levels;
+    std::unordered_map<std::string, Level> m_legacy_category_log_levels;
     std::atomic<Level> m_log_level{DEFAULT_LOG_LEVEL};
     std::atomic<CategoryMask> m_categories{NONE};
     std::unordered_set<std::string> m_legacy_categories;
+    std::unordered_set<std::string> m_legacy_excluded_categories;
 
     std::list<std::function<void(const std::string&)>> m_print_callbacks;
 
     void FormatLogStrInPlace(std::string& str, LogFlags category, Level level,
                              const SourceLocation& source_loc,
                              std::string_view threadname, int64_t time_micros) const;
-    void FormatLegacyLogStrInPlace(std::string& str, int64_t time_micros);
+    void FormatLegacyLogStrInPlace(std::string& str, int64_t time_micros,
+                                   const SourceLocation* source_loc,
+                                   LogFlags category, std::string_view category_name,
+                                   Level level, bool contextual);
     std::string LogTimestampStr(int64_t time_micros) const;
     std::string GetLogPrefix(LogFlags category, Level level) const;
     void LogPrintStr_(std::string_view str, SourceLocation&& source_loc,
                       LogFlags category, Level level, bool should_ratelimit);
+    bool ApplyRateLimiting(std::string& str, const SourceLocation& source_loc,
+                           bool should_ratelimit);
     bool ReopenFile();
 
 public:
@@ -170,7 +178,9 @@ public:
 
     void LogPrintStr(std::string_view str, SourceLocation&& source_loc,
                      LogFlags category, Level level, bool should_ratelimit);
-    int LogPrintLegacy(const std::string& str);
+    int LogPrintLegacy(const std::string& str, const SourceLocation* source_loc = nullptr,
+                       LogFlags category = ALL, std::string_view category_name = {},
+                       Level level = Level::Info, bool should_ratelimit = false);
 
     bool Enabled() const;
     std::list<std::function<void(const std::string&)>>::iterator
@@ -199,8 +209,10 @@ public:
     void DisableCategory(LogFlags flag);
     bool DisableCategory(std::string_view category);
     void EnableLegacyCategory(std::string_view category);
+    void DisableLegacyCategory(std::string_view category);
     void ClearLegacyCategories();
     bool LegacyCategoryEnabled(std::string_view category) const;
+    bool WillLogLegacyCategoryLevel(std::string_view category, Level level) const;
 
     bool WillLogCategory(LogFlags category) const;
     bool WillLogCategoryLevel(LogFlags category, Level level) const;
@@ -216,6 +228,10 @@ public:
 
 BCLog::Logger& LogInstance();
 
+/** Apply ordered legacy -debug and -debugexclude values to the logger. */
+void ConfigureLegacyLogCategories(const std::vector<std::string>& categories,
+                                  const std::vector<std::string>& excluded_categories);
+
 inline bool LogAcceptCategory(BCLog::LogFlags category,
                               BCLog::Level level = BCLog::Level::Debug)
 {
@@ -223,24 +239,43 @@ inline bool LogAcceptCategory(BCLog::LogFlags category,
 }
 
 /** Legacy string-category compatibility. A null category logs unconditionally. */
-bool LogAcceptCategory(const char* category);
+bool LogAcceptCategory(const char* category,
+                       BCLog::Level level = BCLog::Level::Debug);
 bool GetLogCategory(BCLog::LogFlags& flag, std::string_view category);
 
-/** Legacy output APIs retained for existing Firo call sites. */
+/**
+ * Raw legacy output API retained for callers without source/category context.
+ * This sink preserves historical formatting and intentionally does not apply
+ * per-source rate limiting because all such calls would share the sink's own
+ * source location.
+ */
 int LogPrintStr(const std::string& str);
-void OpenDebugLog();
+int LogPrintCategory(const char* category, const std::string& str,
+                     SourceLocation&& source_loc);
+int LogPrintCategory(BCLog::LogFlags category, const std::string& str,
+                     SourceLocation&& source_loc);
+int LogPrintfCompat(const std::string& str, SourceLocation&& source_loc);
+bool OpenDebugLog();
 void ShrinkDebugFile();
 
-#define LogPrint(category, ...)                 \
-    do {                                        \
-        if (LogAcceptCategory((category))) {    \
-            LogPrintStr(tfm::format(__VA_ARGS__)); \
-        }                                       \
+template <typename Category, typename Formatter>
+inline void LogPrintCategoryCompat(Category category, Formatter&& formatter,
+                                   SourceLocation&& source_loc)
+{
+    if (LogAcceptCategory(category, BCLog::Level::Debug)) {
+        LogPrintCategory(category, formatter(), std::move(source_loc));
+    }
+}
+
+#define LogPrint(category, ...)                                                    \
+    do {                                                                           \
+        LogPrintCategoryCompat((category), [&] { return tfm::format(__VA_ARGS__); }, \
+                               SourceLocation{__func__});                           \
     } while (0)
 
-#define LogPrintf(...)                          \
-    do {                                        \
-        LogPrintStr(tfm::format(__VA_ARGS__));  \
+#define LogPrintf(...)                                                             \
+    do {                                                                           \
+        LogPrintfCompat(tfm::format(__VA_ARGS__), SourceLocation{__func__});        \
     } while (0)
 
 #endif // BITCOIN_LOGGING_H
