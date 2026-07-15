@@ -112,7 +112,6 @@ int FileWriteStr(std::string_view str, FILE* file)
 
 size_t BufferedLogUsage(const BCLog::Logger::BufferedLog& entry)
 {
-    if (entry.legacy) return 0; // Preserve Firo's unbounded legacy startup buffer.
     return sizeof(entry) + entry.str.capacity() + entry.threadname.capacity();
 }
 
@@ -203,7 +202,12 @@ void ConfigureLegacyLogCategories(const std::vector<std::string>& categories,
     // Exclusions always take precedence over enabled categories. Unknown
     // strings are retained for out-of-tree legacy callers.
     for (const auto& category : excluded_categories) {
-        if (!logger.DisableCategory(category)) logger.DisableLegacyCategory(category);
+        if (category == "all") {
+            logger.DisableCategory(BCLog::ALL);
+            logger.ClearLegacyCategories();
+        } else if (!logger.DisableCategory(category)) {
+            logger.DisableLegacyCategory(category);
+        }
     }
 }
 
@@ -377,7 +381,7 @@ void Logger::FormatLegacyLogStrInPlace(std::string& str, int64_t time_micros,
                                 std::string(source_loc->function_name_short()));
         }
         if (contextual && m_always_print_category_level) {
-            if (!category_name.empty() && category != ALL) {
+            if (!category_name.empty()) {
                 prefix += strprintf("[%s:%s] ", std::string(category_name),
                                     LogLevelToStr(level));
             } else {
@@ -493,17 +497,8 @@ void Logger::LogPrintStr_(std::string_view str, SourceLocation&& source_loc,
         m_msgs_before_open.push_back(std::move(entry));
         while (m_cur_buffer_memusage > m_max_buffer_memusage && !m_msgs_before_open.empty()) {
             const size_t usage = BufferedLogUsage(m_msgs_before_open.front());
-            if (usage == 0) {
-                // Never discard a legacy compatibility message.
-                auto first_modern = std::find_if(m_msgs_before_open.begin(), m_msgs_before_open.end(),
-                                                 [](const BufferedLog& item) { return !item.legacy; });
-                if (first_modern == m_msgs_before_open.end()) break;
-                m_cur_buffer_memusage -= std::min(m_cur_buffer_memusage, BufferedLogUsage(*first_modern));
-                m_msgs_before_open.erase(first_modern);
-            } else {
-                m_cur_buffer_memusage -= std::min(m_cur_buffer_memusage, usage);
-                m_msgs_before_open.pop_front();
-            }
+            m_cur_buffer_memusage -= std::min(m_cur_buffer_memusage, usage);
+            m_msgs_before_open.pop_front();
             ++m_buffer_lines_discarded;
         }
         return;
@@ -570,9 +565,17 @@ int Logger::LogPrintLegacy(const std::string& str, const SourceLocation* source_
     } else if (m_print_to_file) {
         if (m_buffering) {
             result = formatted.size();
-            m_msgs_before_open.push_back(BufferedLog{
+            BufferedLog entry{
                 GetLogTimeMicros(), std::move(formatted), {}, SourceLocation{__func__},
-                ALL, Level::Info, true});
+                ALL, Level::Info, true};
+            m_cur_buffer_memusage += BufferedLogUsage(entry);
+            m_msgs_before_open.push_back(std::move(entry));
+            while (m_cur_buffer_memusage > m_max_buffer_memusage && !m_msgs_before_open.empty()) {
+                m_cur_buffer_memusage -= std::min(
+                    m_cur_buffer_memusage, BufferedLogUsage(m_msgs_before_open.front()));
+                m_msgs_before_open.pop_front();
+                ++m_buffer_lines_discarded;
+            }
         } else if (m_fileout) {
             const SourceLocation direct_source{__func__};
             const SourceLocation& rate_source = source_loc ? *source_loc : direct_source;
