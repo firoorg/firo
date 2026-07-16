@@ -51,7 +51,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
 #endif
 
     // normal Firo address field
-    GUIUtil::setupAddressWidget(ui->payTo, this);
+    GUIUtil::setupAddressWidget(ui->payTo, this, true);
     // just a label for displaying Firo address(es)
     ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
 
@@ -126,7 +126,7 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
     if (!applyingRecipient && address.startsWith(QStringLiteral("firo:"), Qt::CaseInsensitive) &&
-        address.contains(QLatin1Char('?')) && applyPaymentURI(address)) {
+        applyPaymentURI(address)) {
         return;
     }
     if (!applyingRecipient && !recipient.opReturnData.empty()) {

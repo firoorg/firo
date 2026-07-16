@@ -14,6 +14,7 @@ class URITests : public QObject
 
 private Q_SLOTS:
     void uriTests();
+    void uriEntryValidatorTests();
     void rosenUriTests();
     void rosenMetadataTests();
     void rosenScriptTests();

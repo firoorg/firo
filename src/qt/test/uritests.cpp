@@ -6,6 +6,7 @@
 
 #include "amount.h"
 #include "base58.h"
+#include "bitcoinaddressvalidator.h"
 #include "guiutil.h"
 #include "key.h"
 #include "paymentserver.h"
@@ -118,6 +119,37 @@ void URITests::uriTests()
     QVERIFY(GUIUtil::parseBitcoinURI(QStringLiteral("firo://%1?amount=1").arg(FIRO_ADDRESS), &rv));
     QCOMPARE(rv.address, FIRO_ADDRESS);
     QCOMPARE(rv.amount, COIN);
+}
+
+void URITests::uriEntryValidatorTests()
+{
+    BitcoinAddressEntryValidator addressOnly(nullptr);
+    BitcoinAddressEntryValidator uriEnabled(nullptr, true);
+    int pos = 0;
+
+    QString address = FIRO_ADDRESS;
+    QCOMPARE(addressOnly.validate(address, pos), QValidator::Acceptable);
+    QCOMPARE(uriEnabled.validate(address, pos), QValidator::Acceptable);
+
+    QString uri = RosenUri(QStringLiteral("1.25"), RosenData(40));
+    QString rejectedUri = uri;
+    QCOMPARE(addressOnly.validate(rejectedUri, pos), QValidator::Invalid);
+    QCOMPARE(uriEnabled.validate(uri, pos), QValidator::Intermediate);
+
+    SendCoinsRecipient recipient;
+    QVERIFY(GUIUtil::parseBitcoinURI(uri, &recipient));
+    QCOMPARE(recipient.address, FIRO_ADDRESS);
+    QCOMPARE(recipient.amount, CAmount{125000000});
+    QVERIFY(recipient.opReturnData == RosenData(40));
+
+    QString querylessUri = QStringLiteral("firo:%1").arg(FIRO_ADDRESS);
+    QCOMPARE(uriEnabled.validate(querylessUri, pos), QValidator::Intermediate);
+    QVERIFY(GUIUtil::parseBitcoinURI(querylessUri, &recipient));
+    QCOMPARE(recipient.address, FIRO_ADDRESS);
+
+    QString malformed = QStringLiteral("firo:%1?amount=1&op_return=zz").arg(FIRO_ADDRESS);
+    QCOMPARE(uriEnabled.validate(malformed, pos), QValidator::Intermediate);
+    QVERIFY(!GUIUtil::parseBitcoinURI(malformed, &recipient));
 }
 
 void URITests::rosenUriTests()
