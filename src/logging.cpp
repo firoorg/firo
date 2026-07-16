@@ -202,10 +202,11 @@ void ConfigureLegacyLogCategories(const std::vector<std::string>& categories,
     // Exclusions always take precedence over enabled categories. Unknown
     // strings are retained for out-of-tree legacy callers.
     for (const auto& category : excluded_categories) {
-        if (category == "all") {
-            logger.DisableCategory(BCLog::ALL);
-            logger.ClearLegacyCategories();
-        } else if (!logger.DisableCategory(category)) {
+        BCLog::LogFlags flag;
+        if (GetLogCategory(flag, category)) {
+            logger.DisableCategory(flag);
+            if (flag == BCLog::ALL) logger.ClearLegacyCategories();
+        } else {
             logger.DisableLegacyCategory(category);
         }
     }

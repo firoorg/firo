@@ -291,6 +291,14 @@ BOOST_AUTO_TEST_CASE(debug_category_precedence)
     BOOST_CHECK(!LogAcceptCategory("plugin-category"));
     BOOST_CHECK(!LogAcceptCategory("net"));
 
+    for (const std::string wildcard : {"", "1", "all"}) {
+        ConfigureLegacyLogCategories({"all"}, {wildcard});
+        BOOST_TEST_CONTEXT("wildcard exclusion " << wildcard) {
+            BOOST_CHECK(!LogAcceptCategory("net"));
+            BOOST_CHECK(!LogAcceptCategory("other-plugin-category"));
+        }
+    }
+
     ConfigureLegacyLogCategories({"none"}, {});
     BOOST_CHECK(!fDebug);
     BOOST_CHECK(!fNoDebug);
