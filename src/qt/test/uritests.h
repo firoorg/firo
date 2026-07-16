@@ -14,6 +14,10 @@ class URITests : public QObject
 
 private Q_SLOTS:
     void uriTests();
+    void rosenUriTests();
+    void rosenMetadataTests();
+    void rosenScriptTests();
+    void paymentServerRosenUriTests();
 };
 
 #endif // BITCOIN_QT_TEST_URITESTS_H

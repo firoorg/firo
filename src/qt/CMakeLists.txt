@@ -146,6 +146,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/recentrequeststablemodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/recover.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcconsole.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rosenbridge.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp

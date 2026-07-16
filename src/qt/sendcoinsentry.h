@@ -35,6 +35,7 @@ public:
 
     /** Return whether the entry is still empty and unedited */
     bool isClear();
+    bool hasRosenBridgeData() const;
     /** Needs validate() to be called before calling isPayToPcode()*/
     bool isPayToPcode() const;
 
@@ -59,6 +60,7 @@ Q_SIGNALS:
     void removeEntry(SendCoinsEntry *entry);
     void payAmountChanged();
     void subtractFeeFromAmountChanged();
+    void rosenBridgeChanged();
 
 private Q_SLOTS:
     void deleteClicked();
@@ -75,7 +77,11 @@ private:
     const PlatformStyle *platformStyle;
     bool isPcodeEntry;
     bool fAnonymousMode = false;
+    bool applyingRecipient = false;
     bool updateLabel(const QString &address);
+    bool applyPaymentURI(const QString& uri);
+    void clearRosenBridgeData();
+    void updateRosenBridgeDisplay();
     void resizeEvent(QResizeEvent* event) override;
     void adjustTextSize(int width, int height);
     

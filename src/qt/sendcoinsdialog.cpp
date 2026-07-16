@@ -13,6 +13,7 @@
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "rosenbridge.h"
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
 
@@ -255,6 +256,27 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if(!valid || recipients.isEmpty())
     {
+        return;
+    }
+
+    int rosenMetadataCount = 0;
+    bool subtractFeeRequested = false;
+    for (const auto& recipient : recipients) {
+        if (!recipient.opReturnData.empty()) {
+            ++rosenMetadataCount;
+            if (!RosenBridge::Parse(recipient.opReturnData)) {
+                processSendCoinsReturn(WalletModel::InvalidRosenBridgeData);
+                return;
+            }
+        }
+        subtractFeeRequested |= recipient.fSubtractFeeFromAmount;
+    }
+    if (rosenMetadataCount > 1 || (rosenMetadataCount > 0 && subtractFeeRequested)) {
+        processSendCoinsReturn(WalletModel::InvalidRosenBridgeData);
+        return;
+    }
+    if (rosenMetadataCount > 0 && fAnonymousMode) {
+        processSendCoinsReturn(WalletModel::RosenBridgeRequiresTransparent);
         return;
     }
 
@@ -512,6 +534,23 @@ void SendCoinsDialog::on_sendButton_clicked()
             "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(transparentAddress));
     }
 
+    for (const auto& recipient : realRecipients) {
+        if (recipient.opReturnData.empty()) {
+            continue;
+        }
+        RosenBridge::Metadata metadata;
+        if (!RosenBridge::Parse(recipient.opReturnData, &metadata)) {
+            continue;
+        }
+        QString details = QString("<br /><b>%1</b>").arg(tr("Rosen Bridge metadata"));
+        details += QString("<br />%1: %2").arg(tr("Destination chain"), GUIUtil::HtmlEscape(metadata.chainName));
+        details += QString("<br />%1: %2").arg(tr("Bridge fee (atomic units)"), QString::number(static_cast<qulonglong>(metadata.bridgeFee)));
+        details += QString("<br />%1: %2").arg(tr("Network fee (atomic units)"), QString::number(static_cast<qulonglong>(metadata.networkFee)));
+        details += QString("<br />%1: %2").arg(tr("Destination address (hex)"), GUIUtil::HtmlEscape(RosenBridge::HexStr(metadata.address)));
+        details += QString("<br />%1: %2").arg(tr("Raw data"), GUIUtil::HtmlEscape(RosenBridge::HexStr(recipient.opReturnData)));
+        formatted.append(details);
+    }
+
     QString questionString = tr("Are you sure you want to send?");
     questionString.append(warningMessage);
     questionString.append("<br /><br />%1");
@@ -677,18 +716,6 @@ void SendCoinsDialog::on_sendButton_clicked()
 void SendCoinsDialog::on_switchFundButton_clicked()
 {
     setAnonymizeMode(!fAnonymousMode);
-
-    // Update all entries, not just the last one
-    for(int i = 0; i < ui->entries->count(); ++i)
-    {
-        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-        if(entry)
-        {
-            entry->setfAnonymousMode(fAnonymousMode);
-            entry->setWarning(fAnonymousMode);
-        }
-    }
-
     coinControlUpdateLabels();
 }
 
@@ -725,6 +752,8 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
     connect(entry, &SendCoinsEntry::removeEntry, this, &SendCoinsDialog::removeEntry);
     connect(entry, &SendCoinsEntry::payAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
     connect(entry, &SendCoinsEntry::subtractFeeFromAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
+    connect(entry, &SendCoinsEntry::rosenBridgeChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
+    connect(entry, &SendCoinsEntry::rosenBridgeChanged, this, &SendCoinsDialog::updateRosenBridgeState);
 
     // Focus the field, so that entry can start immediately
     entry->clear();
@@ -736,6 +765,7 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
         bar->setSliderPosition(bar->maximum());
 
     updateTabsAndLabels();
+    updateRosenBridgeState();
     return entry;
 }
 
@@ -778,6 +808,25 @@ void SendCoinsDialog::removeEntry(SendCoinsEntry* entry)
     entry->deleteLater();
 
     updateTabsAndLabels();
+    updateRosenBridgeState();
+}
+
+void SendCoinsDialog::updateRosenBridgeState()
+{
+    bool hasRosenBridgeData = false;
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry && !entry->isHidden() && entry->hasRosenBridgeData()) {
+            hasRosenBridgeData = true;
+            break;
+        }
+    }
+
+    const bool requiresTransparentBalance = fAnonymousMode && hasRosenBridgeData;
+    ui->sendButton->setEnabled(!requiresTransparentBalance);
+    ui->sendButton->setToolTip(requiresTransparentBalance
+        ? tr("Switch to Transparent Balance to send this Rosen Bridge transfer.")
+        : tr("Confirm the send action"));
 }
 
 QWidget *SendCoinsDialog::setupTabChain(QWidget *prev)
@@ -923,6 +972,13 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         msgParams.first = tr("Payment request expired.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
+    case WalletModel::InvalidRosenBridgeData:
+        msgParams.first = tr("The Rosen Bridge metadata is invalid, duplicated, or incompatible with fee subtraction.");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case WalletModel::RosenBridgeRequiresTransparent:
+        msgParams.first = tr("Rosen Bridge transfers must be sent from the transparent balance.");
+        break;
     // included to prevent a compiler warning.
     case WalletModel::OK:
     default:
@@ -1016,6 +1072,14 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 {
     fAnonymousMode = enableAnonymizeMode;
 
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry) {
+            entry->setfAnonymousMode(fAnonymousMode);
+            entry->setWarning(fAnonymousMode);
+        }
+    }
+
     if (fAnonymousMode) {
         ui->switchFundButton->setText(QString(tr("Use Transparent Balance")));
         ui->labelBalanceText->setText(QString(tr("Private Balance")));
@@ -1038,6 +1102,8 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
         auto privateBalance = model->getSparkBalance();
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     }
+
+    updateRosenBridgeState();
 }
 
 void SendCoinsDialog::removeUnmatchedOutput(CCoinControl &coinControl)
@@ -1263,6 +1329,7 @@ void SendCoinsDialog::coinControlUpdateLabels()
     // set pay amounts
     CoinControlDialog::payAmounts.clear();
     CoinControlDialog::fSubtractFeeFromAmount = false;
+    CoinControlDialog::extraOutputBytes = 0;
     for(int i = 0; i < ui->entries->count(); ++i)
     {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -1272,6 +1339,8 @@ void SendCoinsDialog::coinControlUpdateLabels()
             CoinControlDialog::payAmounts.append(rcp.amount);
             if (rcp.fSubtractFeeFromAmount)
                 CoinControlDialog::fSubtractFeeFromAmount = true;
+            if (!rcp.opReturnData.empty())
+                CoinControlDialog::extraOutputBytes += RosenBridge::SerializedOutputSize(rcp.opReturnData);
         }
     }
 

@@ -7,8 +7,10 @@
 #include "bitcoinaddressvalidator.h"
 #include "bitcoinunits.h"
 #include "qvalidatedlineedit.h"
+#include "rosenbridge.h"
 #include "walletmodel.h"
 
+#include "amount.h"
 #include "primitives/transaction.h"
 #include "init.h"
 #include "logging.h"
@@ -161,7 +163,7 @@ void setupAmountWidget(QLineEdit *widget, QWidget *parent)
 bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
 {
     // return if URI is not valid or is no firo: URI
-    if(!uri.isValid() || uri.scheme() != QString("firo"))
+    if(!uri.isValid() || uri.scheme().compare(QStringLiteral("firo"), Qt::CaseInsensitive) != 0)
         return false;
 
     SendCoinsRecipient rv;
@@ -178,39 +180,62 @@ bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
     QUrlQuery uriQuery(uri);
     QList<QPair<QString, QString> > items = uriQuery.queryItems();
 #endif
-    for (QList<QPair<QString, QString> >::iterator i = items.begin(); i != items.end(); i++)
+    static const QRegularExpression DECIMAL_AMOUNT(QStringLiteral("\\A[0-9]+(?:\\.[0-9]{1,8})?\\z"));
+    QList<QString> amounts;
+    bool opReturnSeen = false;
+    for (const auto& item : items)
     {
+        QString key = item.first;
         bool fShouldReturnFalse = false;
-        if (i->first.startsWith("req-"))
+        if (key.startsWith("req-"))
         {
-            i->first.remove(0, 4);
+            key.remove(0, 4);
             fShouldReturnFalse = true;
         }
 
-        if (i->first == "label")
+        if (key == "label")
         {
-            rv.label = i->second;
+            rv.label = item.second;
             fShouldReturnFalse = false;
         }
-        if (i->first == "message")
+        else if (key == "message")
         {
-            rv.message = i->second;
+            rv.message = item.second;
             fShouldReturnFalse = false;
         }
-        else if (i->first == "amount")
+        else if (key == "amount")
         {
-            if(!i->second.isEmpty())
-            {
-                if(!BitcoinUnits::parse(BitcoinUnits::BTC, i->second, &rv.amount))
-                {
-                    return false;
-                }
+            amounts.append(item.second);
+            fShouldReturnFalse = false;
+        }
+        else if (key == "op_return")
+        {
+            if (opReturnSeen || !RosenBridge::ParseHex(item.second, &rv.opReturnData)) {
+                return false;
             }
+            opReturnSeen = true;
             fShouldReturnFalse = false;
         }
 
         if (fShouldReturnFalse)
             return false;
+    }
+
+    if (opReturnSeen) {
+        // Rosen emits decimal FIRO. Parse exactly once to avoid treating its
+        // decimal value as an atomic-unit amount a second time.
+        if (amounts.size() != 1 || !DECIMAL_AMOUNT.match(amounts.front()).hasMatch() ||
+            !BitcoinUnits::parse(BitcoinUnits::BTC, amounts.front(), &rv.amount) ||
+            !MoneyRange(rv.amount) || rv.amount <= 0) {
+            return false;
+        }
+    } else {
+        // Preserve the historical behavior of ordinary Firo payment URIs.
+        for (const QString& amount : amounts) {
+            if (!amount.isEmpty() && !BitcoinUnits::parse(BitcoinUnits::BTC, amount, &rv.amount)) {
+                return false;
+            }
+        }
     }
     if(out)
     {
@@ -227,7 +252,7 @@ bool parseBitcoinURI(QString uri, SendCoinsRecipient *out)
     //    which will lower-case it (and thus invalidate the address).
     if(uri.startsWith("firo://", Qt::CaseInsensitive))
     {
-        uri.replace(0, 10, "firo:");
+        uri.replace(0, 7, "firo:");
     }
     QUrl uriInstance(uri);
     return parseBitcoinURI(uriInstance, out);
@@ -256,6 +281,11 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
         QString msg(QUrl::toPercentEncoding(info.message));
         ret += QString("%1message=%2").arg(paramCount == 0 ? "?" : "&").arg(msg);
         paramCount++;
+    }
+
+    if (!info.opReturnData.empty())
+    {
+        ret += QString("%1op_return=%2").arg(paramCount == 0 ? "?" : "&", RosenBridge::HexStr(info.opReturnData));
     }
 
     return ret;
