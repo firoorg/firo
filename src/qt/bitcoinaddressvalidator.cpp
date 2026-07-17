@@ -16,9 +16,9 @@
   - All lower-case letters except for 'l'
 */
 
-BitcoinAddressEntryValidator::BitcoinAddressEntryValidator(QObject *parent, bool allowPaymentURI) :
+BitcoinAddressEntryValidator::BitcoinAddressEntryValidator(QObject *parent, bool _allowPaymentURI) :
     QValidator(parent),
-    allowPaymentURI(allowPaymentURI)
+    allowPaymentURI(_allowPaymentURI)
 {
 }
 

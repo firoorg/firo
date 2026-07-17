@@ -21,7 +21,7 @@ class BitcoinAddressEntryValidator : public QValidator
     Q_OBJECT
 
 public:
-    explicit BitcoinAddressEntryValidator(QObject *parent, bool allowPaymentURI = false);
+    explicit BitcoinAddressEntryValidator(QObject *parent, bool _allowPaymentURI = false);
 
     State validate(QString &input, int &pos) const override;
 
