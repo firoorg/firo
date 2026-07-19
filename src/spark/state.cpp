@@ -12,10 +12,10 @@ namespace spark {
 
 struct ProofCheckState {
     // if this is true, then the proof was already checked, no need to check again
-    bool fChecked;
+    bool fChecked = false;
 
     // result of the check (if fChecked is true)
-    bool fResult;
+    bool fResult = false;
 };
 
 // map from transaction hash to the state of checking its proofs

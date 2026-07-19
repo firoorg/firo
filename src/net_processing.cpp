@@ -1214,7 +1214,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             {
                 // Send stream from relay memory
                 bool pushed = false;
-                {
+                if (inv.type == MSG_TX || inv.type == MSG_DANDELION_TX) {
                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                     auto mi = mapRelay.find(inv.hash);
                     if (mi != mapRelay.end()) {
