@@ -184,6 +184,10 @@ public:
                        Level level = Level::Info, bool should_ratelimit = false);
 
     bool Enabled() const;
+    /**
+     * Callbacks run synchronously while the logger mutex is held. They must not
+     * log or call Logger methods that lock the logger mutex.
+     */
     std::list<std::function<void(const std::string&)>>::iterator
     PushBackCallback(std::function<void(const std::string&)> callback);
     void DeleteCallback(std::list<std::function<void(const std::string&)>>::iterator it);
