@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(logging_argument_parsing)
     ParseArgs({"-nodebuglogfile", "-logratelimit=0"});
     InitLogging();
     BOOST_CHECK(!fPrintToDebugLog);
-    BOOST_CHECK_EQUAL(logger.m_file_path.filename().string(), DEFAULT_DEBUGLOGFILE);
+    BOOST_CHECK_EQUAL(logger.m_file_path, fs::path{DEFAULT_DEBUGLOGFILE});
     BOOST_CHECK(!GetBoolArg("-logratelimit", BCLog::DEFAULT_LOGRATELIMIT));
 
     ParseArgs({"-debuglogfile=first.log", "-nodebuglogfile", "-debuglogfile=final.log",
@@ -468,7 +468,7 @@ BOOST_AUTO_TEST_CASE(logging_argument_parsing)
                "-debug=rpc", "-debugexclude=rpc"});
     InitLogging();
     BOOST_CHECK(fPrintToDebugLog);
-    BOOST_CHECK_EQUAL(logger.m_file_path, GetDataDir() / "final.log");
+    BOOST_CHECK_EQUAL(logger.m_file_path, fs::path{"final.log"});
     BOOST_CHECK(GetBoolArg("-logratelimit", BCLog::DEFAULT_LOGRATELIMIT));
     BOOST_REQUIRE_EQUAL(mapMultiArgs.at("-debugexclude").size(), 1U);
     ConfigureLegacyLogCategories(mapMultiArgs.at("-debug"), mapMultiArgs.at("-debugexclude"));
@@ -480,12 +480,12 @@ BOOST_AUTO_TEST_CASE(logging_argument_parsing)
     ParseArgs({"-debuglogfile"});
     InitLogging();
     BOOST_CHECK(fPrintToDebugLog);
-    BOOST_CHECK_EQUAL(logger.m_file_path, GetDataDir() / DEFAULT_DEBUGLOGFILE);
+    BOOST_CHECK_EQUAL(logger.m_file_path, fs::path{DEFAULT_DEBUGLOGFILE});
 
     ParseArgs({"-nodebuglogfile=0"});
     InitLogging();
     BOOST_CHECK(fPrintToDebugLog);
-    BOOST_CHECK_EQUAL(logger.m_file_path, GetDataDir() / DEFAULT_DEBUGLOGFILE);
+    BOOST_CHECK_EQUAL(logger.m_file_path, fs::path{DEFAULT_DEBUGLOGFILE});
 
     ParseArgs({"-nodebug"});
     BOOST_REQUIRE_EQUAL(mapMultiArgs.at("-debug").size(), 1U);
@@ -503,6 +503,26 @@ BOOST_AUTO_TEST_CASE(logging_argument_parsing)
     BOOST_CHECK(LogAcceptCategory("net"));
 
     ParseArgs({});
+}
+
+BOOST_AUTO_TEST_CASE(debug_log_path_resolution)
+{
+    const fs::path temp_dir = fs::temp_directory_path() / fs::unique_path("firo-logpath-%%%%-%%%%");
+    fs::create_directories(temp_dir);
+    ParseArgs({"-datadir=" + temp_dir.string(), "-nodebuglogfile"});
+    ClearDatadirCache();
+
+    InitLogging();
+    BOOST_CHECK(logger.m_file_path.is_relative());
+
+    logger.DisconnectTestLogger();
+    BOOST_REQUIRE(OpenDebugLog());
+    BOOST_CHECK_EQUAL(logger.m_file_path, GetDataDir() / DEFAULT_DEBUGLOGFILE);
+
+    logger.DisconnectTestLogger();
+    ParseArgs({});
+    ClearDatadirCache();
+    fs::remove_all(temp_dir);
 }
 
 BOOST_AUTO_TEST_CASE(compatibility_globals_alias_logger_settings)

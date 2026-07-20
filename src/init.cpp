@@ -1120,10 +1120,7 @@ void InitLogging() {
     const std::string debug_log_name = (!fPrintToDebugLog || debug_log_arg.empty() || debug_log_arg == "1")
         ? DEFAULT_DEBUGLOGFILE
         : debug_log_arg;
-    const fs::path debug_log_path{debug_log_name};
-    logger.m_file_path = debug_log_path.is_absolute()
-        ? debug_log_path
-        : GetDataDir() / debug_log_path;
+    logger.m_file_path = debug_log_name;
     fLogTimestamps = GetBoolArg("-logtimestamps", DEFAULT_LOGTIMESTAMPS);
     fLogTimeMicros = GetBoolArg("-logtimemicros", DEFAULT_LOGTIMEMICROS);
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);

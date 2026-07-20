@@ -846,17 +846,27 @@ int LogPrintfCompat(const std::string& str, SourceLocation&& source_loc)
                                         BCLog::Level::Info, true);
 }
 
+namespace {
+
+void ResolveDebugLogPath(BCLog::Logger& logger)
+{
+    if (logger.m_file_path.empty()) logger.m_file_path = DEFAULT_DEBUGLOGFILE;
+    if (logger.m_file_path.is_relative()) logger.m_file_path = GetDataDir() / logger.m_file_path;
+}
+
+} // namespace
+
 bool OpenDebugLog()
 {
     auto& logger = LogInstance();
-    if (logger.m_file_path.empty()) logger.m_file_path = GetDataDir() / DEFAULT_DEBUGLOGFILE;
+    ResolveDebugLogPath(logger);
     return logger.StartLogging();
 }
 
 void ShrinkDebugFile()
 {
     auto& logger = LogInstance();
-    if (logger.m_file_path.empty()) logger.m_file_path = GetDataDir() / DEFAULT_DEBUGLOGFILE;
+    ResolveDebugLogPath(logger);
     logger.ShrinkDebugFile();
 }
 
