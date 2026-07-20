@@ -1116,7 +1116,7 @@ void InitLogging() {
     auto& logger = LogInstance();
     fPrintToConsole = GetBoolArg("-printtoconsole", false);
     const std::string debug_log_arg = GetArg("-debuglogfile", DEFAULT_DEBUGLOGFILE);
-    fPrintToDebugLog = debug_log_arg != "0";
+    fPrintToDebugLog = !fPrintToConsole && debug_log_arg != "0";
     const std::string debug_log_name = (!fPrintToDebugLog || debug_log_arg.empty() || debug_log_arg == "1")
         ? DEFAULT_DEBUGLOGFILE
         : debug_log_arg;

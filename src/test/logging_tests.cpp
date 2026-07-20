@@ -452,6 +452,11 @@ BOOST_AUTO_TEST_CASE(legacy_log_rate_limiting)
 
 BOOST_AUTO_TEST_CASE(logging_argument_parsing)
 {
+    ParseArgs({"-printtoconsole", "-debuglogfile=console.log"});
+    InitLogging();
+    BOOST_CHECK(fPrintToConsole);
+    BOOST_CHECK(!fPrintToDebugLog);
+
     ParseArgs({"-nodebuglogfile", "-logratelimit=0"});
     InitLogging();
     BOOST_CHECK(!fPrintToDebugLog);
