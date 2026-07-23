@@ -244,6 +244,12 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGContribution& 
         return false;
     }
 
+    if (!qc.sig.IsValid()) {
+        logger.Batch("invalid signature");
+        retBan = true;
+        return false;
+    }
+
     if (member->contributions.size() >= 2) {
         // don't do any further processing if we got more than 1 valid contributions already
         // this is a DoS protection against members sending multiple contributions with valid signatures to us
@@ -513,6 +519,12 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGComplaint& qc,
         return false;
     }
 
+    if (!qc.sig.IsValid()) {
+        logger.Batch("invalid signature");
+        retBan = true;
+        return false;
+    }
+
     if (member->complaints.size() >= 2) {
         // don't do any further processing if we got more than 1 valid complaints already
         // this is a DoS protection against members sending multiple complaints with valid signatures to us
@@ -725,6 +737,12 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification&
             retBan = true;
             return false;
         }
+    }
+
+    if (!qj.sig.IsValid()) {
+        logger.Batch("invalid signature");
+        retBan = true;
+        return false;
     }
 
     if (member->justifications.size() >= 2) {
