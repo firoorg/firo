@@ -35,6 +35,7 @@ add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_crypto
   PRIVATE
     core_interface
+    warn_interface
     ${Boost_LIBRARIES}
   PUBLIC 
     ethash
