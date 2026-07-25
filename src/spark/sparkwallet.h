@@ -174,7 +174,7 @@ private:
     std::unordered_map<int32_t, spark::Address> addresses GUARDED_BY(cs_spark_wallet);
 
     // map lTagHash to coin meta
-    std::unordered_map<uint256, CSparkMintMeta> coinMeta;
+    std::unordered_map<uint256, CSparkMintMeta> coinMeta GUARDED_BY(cs_spark_wallet);
 
     void* threadPool;
 };

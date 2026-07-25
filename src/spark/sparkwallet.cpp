@@ -495,6 +495,7 @@ bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
 }
 
 void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint) {
+    LOCK(cs_spark_wallet);
     if (coinMeta.count(lTagHash)) {
         auto mintMeta = coinMeta[lTagHash];
 
