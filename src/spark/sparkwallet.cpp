@@ -1,5 +1,6 @@
 #include "sparkwallet.h"
 #include "threadpool.h"
+#include "sparkmessage.h"
 #include "state.h"
 #include "../wallet/wallet.h"
 #include "../wallet/coincontrol.h"
@@ -8,6 +9,7 @@
 #include "../validation.h"
 #include "../policy/policy.h"
 #include "../script/sign.h"
+#include "../utilstrencodings.h"
 #include "state.h"
 #include "sparkname.h"
 #include "../chain.h"
@@ -330,6 +332,31 @@ bool CSparkWallet::isAddressMine(const spark::Address& address) {
 
 bool CSparkWallet::isChangeAddress(const uint64_t& i) const {
     return i == SPARK_CHANGE_D;
+}
+
+std::string CSparkWallet::SignMessage(const spark::Address& address, const std::string& message) {
+    if (!isAddressMine(address))
+        throw std::runtime_error("Spark address does not belong to this wallet");
+
+    const spark::Params* params = spark::Params::get_default();
+
+    spark::SpendKey spendKey(params);
+    try {
+        spendKey = std::move(generateSpendKey(params));
+    } catch (const WalletLocked&) {
+        throw;
+    } catch (const std::exception&) {
+        throw std::runtime_error("Unable to generate spend key");
+    }
+
+    spark::OwnershipProof proof;
+    spark::FullViewKey fullViewKey(spendKey);
+    address.prove_own(spark::MessageScalar(message), spendKey, fullViewKey, proof);
+
+    CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
+    proofStream << proof;
+
+    return HexStr(proofStream.begin(), proofStream.end());
 }
 
 std::vector<CSparkMintMeta> CSparkWallet::ListSparkMints(bool fUnusedOnly, bool fMatureOnly) const {

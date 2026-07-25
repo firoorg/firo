@@ -1414,35 +1414,13 @@ UniValue signmessagewithsparkaddress(const JSONRPCRequest& request)
     if (coinNetwork != spark::GetNetworkType())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address is for a different network");
 
-    if (!pwallet->sparkWallet->isAddressMine(address))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark address does not belong to this wallet");
-
-    // Hash the message the same way as signmessage
-    CHashWriter ss(SER_GETHASH, 0);
-    ss << strMessageMagic;
-    ss << strMessage;
-    uint256 msgHash = ss.GetHash();
-
-    spark::Scalar m;
-    m.SetHex(msgHash.ToString());
-
-    spark::SpendKey spendKey(params);
     try {
-        spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
+        return pwallet->sparkWallet->SignMessage(address, strMessage);
     } catch (const WalletLocked&) {
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
-    } catch (const std::exception&) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Unable to generate spend key");
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
     }
-
-    spark::OwnershipProof proof;
-    spark::FullViewKey fullViewKey(spendKey);
-    address.prove_own(m, spendKey, fullViewKey, proof);
-
-    CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
-    proofStream << proof;
-
-    return HexStr(proofStream.begin(), proofStream.end());
 }
 
 UniValue getreceivedbyaddress(const JSONRPCRequest& request)

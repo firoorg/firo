@@ -1,0 +1,103 @@
+#include "../chainparams.h"
+#include "../spark/sparkmessage.h"
+#include "../spark/state.h"
+#include "../utilstrencodings.h"
+#include "../validation.h"
+#include "../wallet/wallet.h"
+#include "../wallet/walletexcept.h"
+
+#include "test_bitcoin.h"
+#include "fixtures.h"
+
+#include <boost/test/unit_test.hpp>
+
+namespace spark {
+
+class SparkMessageTests : public SparkTestingSetup
+{
+public:
+    // An address belonging to the test wallet, in its encoded form.
+    std::string MyAddress()
+    {
+        LOCK(pwalletMain->cs_wallet);
+        return pwalletMain->sparkWallet->generateNewAddress().encode(GetNetworkType());
+    }
+
+    std::string Sign(const std::string &encodedAddress, const std::string &message)
+    {
+        Address address(params);
+        address.decode(encodedAddress);
+        LOCK(pwalletMain->cs_wallet);
+        return pwalletMain->sparkWallet->SignMessage(address, message);
+    }
+};
+
+BOOST_FIXTURE_TEST_SUITE(sparkmessage, spark::SparkMessageTests)
+
+BOOST_AUTO_TEST_CASE(sign_then_verify_round_trip)
+{
+    std::string addr = MyAddress();
+    std::string message = "firo-forum-spark-name/v1|example|round trip";
+
+    std::string signature = Sign(addr, message);
+    BOOST_CHECK(!signature.empty());
+    BOOST_CHECK(IsHex(signature));
+
+    BOOST_CHECK(VerifyMessage(addr, signature, message) == VerifyResult::Ok);
+}
+
+BOOST_AUTO_TEST_CASE(verify_rejects_tampered_message)
+{
+    std::string addr = MyAddress();
+    std::string signature = Sign(addr, "the original message");
+
+    BOOST_CHECK(VerifyMessage(addr, signature, "the original message ") == VerifyResult::Mismatch);
+    BOOST_CHECK(VerifyMessage(addr, signature, "a different message") == VerifyResult::Mismatch);
+    BOOST_CHECK(VerifyMessage(addr, signature, "") == VerifyResult::Mismatch);
+}
+
+BOOST_AUTO_TEST_CASE(verify_rejects_a_proof_made_for_another_address)
+{
+    std::string message = "same message, two addresses";
+    std::string addrA = MyAddress();
+    std::string addrB = MyAddress();
+    BOOST_REQUIRE(addrA != addrB);
+
+    BOOST_CHECK(VerifyMessage(addrB, Sign(addrA, message), message) == VerifyResult::Mismatch);
+}
+
+BOOST_AUTO_TEST_CASE(verify_reports_malformed_input)
+{
+    std::string addr = MyAddress();
+    std::string signature = Sign(addr, "a message");
+
+    // Not hex at all.
+    BOOST_CHECK(VerifyMessage(addr, "not a hex string", "a message") == VerifyResult::NotHex);
+    // Hex, but far too short to deserialize into an ownership proof.
+    BOOST_CHECK(VerifyMessage(addr, "abcd", "a message") == VerifyResult::MalformedProof);
+    // A truncated proof still fails to deserialize rather than being treated as a mismatch.
+    BOOST_CHECK(VerifyMessage(addr, signature.substr(0, signature.size() / 2), "a message")
+                == VerifyResult::MalformedProof);
+
+    BOOST_CHECK(VerifyMessage("not an address", signature, "a message") == VerifyResult::InvalidAddress);
+    BOOST_CHECK(VerifyMessage("", signature, "a message") == VerifyResult::InvalidAddress);
+}
+
+BOOST_AUTO_TEST_CASE(sign_rejects_an_address_we_do_not_own)
+{
+    // A well formed address derived from a spend key that is not the wallet's.
+    SpendKey foreignSpendKey(params);
+    IncomingViewKey foreignViewKey(FullViewKey{foreignSpendKey});
+    Address foreign(foreignViewKey, 0);
+
+    BOOST_CHECK_THROW(
+        {
+            LOCK(pwalletMain->cs_wallet);
+            pwalletMain->sparkWallet->SignMessage(foreign, "a message");
+        },
+        std::runtime_error);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+} // namespace spark
