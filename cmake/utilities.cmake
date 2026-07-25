@@ -4,12 +4,17 @@
 
 function(apply_wrapped_exception_flags target_name)
   if(ENABLE_CRASH_HOOKS AND CRASH_HOOKS_WRAPPED_CXX_ABI)
-    # We need to wrap exceptions to catch them in the crash handler
-    # We need to pass both compile flags and link flags to ensure that the wrapped exceptions are used in all cases
-    target_compile_options(${target_name} PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
-    # Apple linker does not support -Wl,--wrap=
+    get_target_property(target_type ${target_name} TYPE)
+    if(target_type STREQUAL "STATIC_LIBRARY")
+      set(wrap_scope INTERFACE)
+    else()
+      set(wrap_scope PRIVATE)
+    endif()
+
+    # The wrappers are resolved by the final executable link step. Static
+    # libraries therefore propagate the requirement to their consumers.
     if(NOT APPLE)
-      target_link_options(${target_name} PRIVATE ${LDFLAGS_WRAP_EXCEPTIONS})
+      target_link_options(${target_name} ${wrap_scope} ${LDFLAGS_WRAP_EXCEPTIONS})
     endif()
   endif()
 endfunction()

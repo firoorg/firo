@@ -9,9 +9,7 @@
 #include "streams.h"
 #include "consensus/validation.h"
 
-namespace block_bench {
 #include "bench/data/block413567.raw.h"
-}
 
 // These are the two major time-sinks which happen after we have fully received
 // a block off the wire, but before we can relay the block on to peers using
@@ -19,8 +17,8 @@ namespace block_bench {
 
 static void DeserializeBlockTest(benchmark::State& state)
 {
-    CDataStream stream((const char*)block_bench::block413567,
-            (const char*)&block_bench::block413567[sizeof(block_bench::block413567)],
+    CDataStream stream((const char*)benchmark::data::block413567.data(),
+            (const char*)benchmark::data::block413567.data() + benchmark::data::block413567.size(),
             SER_NETWORK, PROTOCOL_VERSION);
     char a;
     stream.write(&a, 1); // Prevent compaction
@@ -28,14 +26,15 @@ static void DeserializeBlockTest(benchmark::State& state)
     while (state.KeepRunning()) {
         CBlock block;
         stream >> block;
-        assert(stream.Rewind(sizeof(block_bench::block413567)));
+        bool rewound = stream.Rewind(benchmark::data::block413567.size());
+        assert(rewound);
     }
 }
 
 static void DeserializeAndCheckBlockTest(benchmark::State& state)
 {
-    CDataStream stream((const char*)block_bench::block413567,
-            (const char*)&block_bench::block413567[sizeof(block_bench::block413567)],
+    CDataStream stream((const char*)benchmark::data::block413567.data(),
+            (const char*)benchmark::data::block413567.data() + benchmark::data::block413567.size(),
             SER_NETWORK, PROTOCOL_VERSION);
     char a;
     stream.write(&a, 1); // Prevent compaction
@@ -45,10 +44,13 @@ static void DeserializeAndCheckBlockTest(benchmark::State& state)
     while (state.KeepRunning()) {
         CBlock block; // Note that CBlock caches its checked state, so we need to recreate it here
         stream >> block;
-        assert(stream.Rewind(sizeof(block_bench::block413567)));
+        bool rewound = stream.Rewind(benchmark::data::block413567.size());
+        assert(rewound);
 
+        // block413567.raw is a Bitcoin Core benchmark vector; keep the
+        // full-block structural checks, but do not require Firo PoW validity.
         CValidationState validationState;
-        assert(CheckBlock(block, validationState, params));
+        assert(CheckBlock(block, validationState, params, false, true, 0));
     }
 }
 

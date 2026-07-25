@@ -27,6 +27,8 @@ target_link_libraries(bench_firo
   core_interface
   firo_node
   Boost::headers
+  Boost::filesystem
+  secp256k1pp
 )
 
 if(ENABLE_WALLET)
@@ -44,3 +46,13 @@ add_test(NAME bench_sanity_check_high_priority
 install(TARGETS bench_firo
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+if(BUILD_BENCH_SPARK)
+  target_sources(bench_firo
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/spark_bpplus.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/spark_chaum.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/spark_grootle.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/spark_schnorr.cpp
+  )
+endif()

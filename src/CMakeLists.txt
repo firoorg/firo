@@ -71,6 +71,7 @@ target_link_libraries(bitcoin_util
     bitcoin_crypto
     Boost::thread
     Boost::chrono
+    Boost::program_options
     univalue
     secp256k1
     leveldb
@@ -357,8 +358,8 @@ target_link_libraries(firo_node
     OpenSSL::SSL
     ${MINIUPNP_LIBRARY}
     ${ZLIB_LIBRARY}
-    $<TARGET_NAME_IF_EXISTS:libevent::core>
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
+    $<TARGET_NAME_IF_EXISTS:libevent::core>
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<BOOL:${WIN32}>:windows_system>
@@ -533,6 +534,8 @@ endif()
 
 if(BUILD_BENCH)
   add_subdirectory(bench)
+elseif(BUILD_BENCH_SPARK)
+  message(FATAL_ERROR "BUILD_BENCH_SPARK requires BUILD_BENCH=ON. Please add -DBUILD_BENCH=ON to your CMake command.")
 endif()
 
 if(BUILD_TESTS)
