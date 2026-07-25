@@ -212,6 +212,8 @@ int GetNumCores();
 void SetThreadPriority(int nPriority);
 
 void RenameThread(const char* name);
+//! Set the internal name used for logging without changing the OS-level thread name.
+void SetInternalThreadName(const char* name);
 std::string GetThreadName();
 
 namespace ctpl {

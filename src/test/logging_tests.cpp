@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(legacy_levels_context_and_raw_sink)
     BOOST_REQUIRE(logger.SetCategoryLogLevel("plugin-category", "debug"));
     messages.clear();
     const std::string previous_thread_name = GetThreadName();
-    RenameThread("logging-test");
+    SetInternalThreadName("logging-test");
     logger.m_log_threadnames = true;
     logger.m_log_sourcelocations = true;
     logger.m_always_print_category_level = true;
@@ -257,7 +257,7 @@ BOOST_AUTO_TEST_CASE(legacy_levels_context_and_raw_sink)
     LogPrintf("unconditional\n");
     LogPrintStr("raw compatibility sink\n");
 
-    RenameThread(previous_thread_name.c_str());
+    SetInternalThreadName(previous_thread_name.c_str());
     BOOST_REQUIRE_EQUAL(messages.size(), 4U);
     BOOST_CHECK(messages[0].find("[logging-test] [") == 0);
     BOOST_CHECK(messages[0].find("logging_tests.cpp:") != std::string::npos);

@@ -19,10 +19,15 @@
 #include "utilstrencodings.h"
 #include "utiltime.h"
 #include "warnings.h"
+#include <algorithm>
+#include <cstring>
 #include <stdarg.h>
 
-#if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
 #include <pthread.h>
+#endif
+
+#if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
 #include <pthread_np.h>
 #endif
 
@@ -38,7 +43,6 @@
 
 #endif // __linux__
 
-#include <algorithm>
 #include <climits> // for INT_MAX
 #include <fcntl.h>
 #include <sys/resource.h>
@@ -688,15 +692,15 @@ void runCommand(const std::string& strCommand)
         LogPrintf("runCommand error: system(%s) returned %d\n", strCommand, nErr);
 }
 
-void RenameThread(const char* name)
+//! Set the thread's name at the process level. Does not affect the internal name.
+static void SetThreadName(const char* name)
 {
 #if defined(PR_SET_NAME)
     // Only the first 15 characters are used (16 - NUL terminator)
     ::prctl(PR_SET_NAME, name, 0, 0, 0);
 #elif (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
     pthread_set_name_np(pthread_self(), name);
-
-#elif defined(MAC_OSX)
+#elif defined(__APPLE__)
     pthread_setname_np(name);
 #else
     // Prevent warnings for unused parameters...
@@ -704,19 +708,30 @@ void RenameThread(const char* name)
 #endif
 }
 
+/**
+ * The name of the thread. We use a char array instead of std::string to avoid
+ * complications with running a destructor when the thread exits. Avoid adding
+ * other thread_local variables.
+ * @see https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=278701
+ */
+static thread_local char g_thread_name[128]{'\0'};
+
+void SetInternalThreadName(const char* name)
+{
+    const size_t copy_bytes{std::min(sizeof(g_thread_name) - 1, std::strlen(name))};
+    std::memcpy(g_thread_name, name, copy_bytes);
+    g_thread_name[copy_bytes] = '\0';
+}
+
+void RenameThread(const char* name)
+{
+    SetThreadName(name);
+    SetInternalThreadName(name);
+}
+
 std::string GetThreadName()
 {
-    char name[16] = {};
-#if defined(PR_GET_NAME)
-    // Only the first 15 characters are used (16 - NUL terminator)
-    ::prctl(PR_GET_NAME, name, 0, 0, 0);
-#elif defined(MAC_OSX)
-    pthread_getname_np(pthread_self(), name, 16);
-// #elif (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
-// #else
-    // no get_name here
-#endif
-    return std::string(name);
+    return g_thread_name;
 }
 
 void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName)
