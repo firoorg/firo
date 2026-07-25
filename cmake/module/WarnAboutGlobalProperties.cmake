@@ -8,14 +8,14 @@ include_guard(GLOBAL)
 # Instead, prefer the target-specific target_compile_definitions() one.
 get_directory_property(global_compile_definitions COMPILE_DEFINITIONS)
 if(global_compile_definitions)
-  message(AUTHOR_WARNING "The directory's COMPILE_DEFINITIONS property is not empty: ${global_compile_definitions}")
+  message(STATUS "Notice: directory-level COMPILE_DEFINITIONS are set: ${global_compile_definitions}")
 endif()
 
 # Avoid the directory-wide add_compile_options() command.
 # Instead, prefer the target-specific target_compile_options() one.
 get_directory_property(global_compile_options COMPILE_OPTIONS)
 if(global_compile_options)
-  message(AUTHOR_WARNING "The directory's COMPILE_OPTIONS property is not empty: ${global_compile_options}")
+  message(STATUS "Notice: directory-level COMPILE_OPTIONS are set: ${global_compile_options}")
 endif()
 
 # Avoid the directory-wide add_link_options() command.

@@ -335,7 +335,7 @@ bool ConnectBlockSpark(
             try {
                 for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
                     uint8_t opType = sparkName.second.nVersion >= 2 ?
-                                                    sparkName.second.operationType : CSparkNameTxData::opRegister;
+                                                    sparkName.second.operationType : static_cast<uint8_t>(CSparkNameTxData::opRegister);
                     // For V2.1+, renewals and transfers preserve remaining validity
                     int validityBlocks = sparkName.second.sparkNameValidityBlocks;
                     const auto& consensusParams = ::Params().GetConsensus();

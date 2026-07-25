@@ -656,9 +656,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 
                 // Set up for transaction creation
                 std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-                CAmount totalFee = 0;
                 std::list<CReserveKey> reservekeys;
-                int nChangePosRet = -1;
                 std::string strError;
                 
                 // Configure coin control to ensure transparent funds
@@ -999,9 +997,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
                 
                 // Create a mint transaction using transparent funds
                 std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-                CAmount totalFee = 0;
                 std::list<CReserveKey> reservekeys;
-                int nChangePosRet = -1;
                 std::string strError;
 
                 // Debug logging

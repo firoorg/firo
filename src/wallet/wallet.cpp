@@ -3814,16 +3814,15 @@ bool CWallet::EraseFromWallet(uint256 hash) {
 }
 
 /**
- * @brief CWallet::CreateMintTransaction Create a new mint transaction (coin generation transaction)
- * @param vecSend         Vector of recipients containing amounts and scripts to send
- * @param[out] wtxNew     Reference to store the new wallet transaction
- * @param reservekey      Key reserve used for change address generation
- * @param[out] nFeeRet    Reference to store the calculated transaction fee
- * @param[in,out] nChangePosInOut Requested/calculated position of change output (-1 for random)
- * @param[out] strFailReason Reference to store failure description if unsuccessful
+ * @brief CWallet::MintAndStoreSpark Create and commit Spark mint transactions.
+ * @param outputs         Spark mint outputs to create
+ * @param[out] wtxAndFee  Created wallet transactions and their fees
+ * @param subtractFeeFromAmount Whether to subtract fees from output amounts
+ * @param fSplit          Whether to split outputs
+ * @param autoMintAll     Whether this is an automatic mint-all request
+ * @param fAskFee         Whether to ask the user before paying the fee
  * @param coinControl     Optional coin selection control parameters
- * @param sign            Whether to sign the transaction immediately
- * @return true if transaction creation succeeded, false otherwise
+ * @return empty string if successful, otherwise an error description
  */
 
 std::string CWallet::MintAndStoreSpark(

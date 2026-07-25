@@ -400,7 +400,7 @@ class CNetAddr
             uint8_t bip155_net;
             s >> bip155_net;
 
-            uint64_t address_size;
+            uint64_t address_size = 0;
             s >> COMPACTSIZE(address_size);
 
             if (address_size > MAX_ADDRV2_SIZE) {

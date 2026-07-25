@@ -37,9 +37,8 @@
 #include <boost/foreach.hpp>
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
-    QObject(parent), wallet(_wallet), optionsModel(_optionsModel), addressTableModel(0), pcodeAddressTableModel(0),
-    sparkModel(0),
-    _client_model(0),
+    QObject(parent), wallet(_wallet), optionsModel(_optionsModel), _client_model(0),
+    addressTableModel(0), pcodeAddressTableModel(0), sparkModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),

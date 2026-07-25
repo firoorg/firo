@@ -115,6 +115,7 @@ add_executable(test_firo
 
 target_link_libraries(test_firo
   core_interface
+  warn_interface
   firo_cli
   firo_node
   bitcoin_consensus
@@ -144,6 +145,7 @@ if(WITH_MULTIPROCESS)
   target_link_libraries(bitcoin_ipc_test
     PRIVATE
       core_interface
+      warn_interface
       univalue
   )
 

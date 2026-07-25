@@ -35,6 +35,7 @@ add_library(bitcoin_crypto STATIC EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_crypto
   PRIVATE
     core_interface
+    warn_interface
     ${Boost_LIBRARIES}
   PUBLIC 
     ethash
@@ -42,6 +43,6 @@ target_link_libraries(bitcoin_crypto
 )
 
 target_include_directories(bitcoin_crypto
-  PUBLIC
+  SYSTEM PUBLIC
   ${Boost_INCLUDE_DIR}
 )

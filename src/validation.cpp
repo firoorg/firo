@@ -817,8 +817,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                               bool fOverrideMempoolLimit, const CAmount& nAbsurdFee, std::vector<COutPoint>& coins_to_uncache,
                               bool isCheckWalletTransaction, bool markFiroSpendTransactionSerial)
 {
-    bool fTestNet = Params().GetConsensus().IsTestnet();
-
     const CTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
     AssertLockHeld(cs_main);

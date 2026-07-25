@@ -365,7 +365,6 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
     };
     mempool.clear();
 
-    const auto &params = Params().GetConsensus();
     GenerateBlocks(consensus.stage41StartBlockDevFundAddressChange - chainActive.Height());
 
     CMutableTransaction txesNewAddress[2] = {
