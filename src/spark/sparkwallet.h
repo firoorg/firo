@@ -157,13 +157,13 @@ public:
     void FinishTasks();
 
 public:
-    // to protect coinMeta
+    // Protects lastDiversifier, addresses, and coinMeta.
     mutable CCriticalSection cs_spark_wallet;
 
 private:
     std::string strWalletFile;
     // this is latest used diversifier
-    int32_t lastDiversifier;
+    int32_t lastDiversifier GUARDED_BY(cs_spark_wallet);
 
     // this is full view key, which is saved into db
     spark::FullViewKey fullViewKey;
@@ -171,7 +171,7 @@ private:
     spark::IncomingViewKey viewKey;
 
     // map diversifier to address.
-    std::unordered_map<int32_t, spark::Address> addresses;
+    std::unordered_map<int32_t, spark::Address> addresses GUARDED_BY(cs_spark_wallet);
 
     // map lTagHash to coin meta
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
