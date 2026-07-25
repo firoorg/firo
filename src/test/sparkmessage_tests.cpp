@@ -76,7 +76,10 @@ BOOST_AUTO_TEST_CASE(verify_reports_malformed_input)
     // Hex, but far too short to deserialize into an ownership proof.
     BOOST_CHECK(VerifyMessage(addr, "abcd", "a message") == VerifyResult::MalformedProof);
     // A truncated proof still fails to deserialize rather than being treated as a mismatch.
-    BOOST_CHECK(VerifyMessage(addr, signature.substr(0, signature.size() / 2), "a message")
+    // Drop one whole byte so the input stays valid hex and the failure is the truncation
+    // rather than an odd digit count.
+    BOOST_REQUIRE(signature.size() > 2);
+    BOOST_CHECK(VerifyMessage(addr, signature.substr(0, signature.size() - 2), "a message")
                 == VerifyResult::MalformedProof);
 
     BOOST_CHECK(VerifyMessage("not an address", signature, "a message") == VerifyResult::InvalidAddress);

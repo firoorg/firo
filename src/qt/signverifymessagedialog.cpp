@@ -155,7 +155,9 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
         if (signature.isEmpty())
         {
             ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
-            ui->statusLabel_SM->setText(QString("<nobr>") + error + QString("</nobr>"));
+            /* Plain text: the label is Qt::AutoText, and this string comes from a lower
+               layer rather than being a literal wrapped in markup like the ones below. */
+            ui->statusLabel_SM->setText(error);
             return;
         }
 

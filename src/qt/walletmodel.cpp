@@ -1082,7 +1082,9 @@ bool WalletModel::isSparkAddressMine(const QString& address)
 
 QString WalletModel::signSparkMessage(const QString& sparkAddress, const QString& message, QString& error)
 {
-    LOCK2(cs_main, wallet->cs_wallet);
+    // Signing touches no chain state, so cs_wallet alone is enough; taking cs_main here
+    // would block the GUI thread whenever a block is being connected.
+    LOCK(wallet->cs_wallet);
 
     if (!wallet->sparkWallet) {
         error = tr("Spark wallet is not available.");
