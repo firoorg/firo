@@ -9,6 +9,7 @@
 
 #include "fs.h"
 #include "logging/categories.h"
+#include "sync.h"
 #include "util/log.h"
 
 #include <atomic>
@@ -276,6 +277,14 @@ inline void LogPrintCategoryCompat(Category category, Formatter&& formatter,
     do {                                                                           \
         LogPrintCategoryCompat((category), [&] { return tfm::format(__VA_ARGS__); }, \
                                SourceLocation{__func__});                           \
+    } while (0)
+
+#define LogPrintWithLock(lock, category, ...)                                      \
+    do {                                                                           \
+        LogPrintCategoryCompat((category), [&] {                                   \
+            AssertLockHeldAnnotated(#lock, __FILE__, __LINE__, &(lock));            \
+            return tfm::format(__VA_ARGS__);                                        \
+        }, SourceLocation{__func__});                                               \
     } while (0)
 
 #define LogPrintf(...)                                                             \

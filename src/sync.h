@@ -84,6 +84,13 @@ void static inline AssertLockHeldInternal(const char* pszName, const char* pszFi
 void static inline AssertLockNotHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs) {}
 void static inline DeleteLock(void* cs) {}
 #endif
+
+template <typename Mutex>
+void AssertLockHeldAnnotated(const char* pszName, const char* pszFile, int nLine, Mutex* cs) ASSERT_EXCLUSIVE_LOCK(*cs)
+{
+    AssertLockHeldInternal(pszName, pszFile, nLine, static_cast<void*>(cs));
+}
+
 #define AssertLockHeld(cs) AssertLockHeldInternal(#cs, __FILE__, __LINE__, &cs)
 #define AssertLockNotHeld(cs) AssertLockNotHeldInternal(#cs, __FILE__, __LINE__, &cs)
 
