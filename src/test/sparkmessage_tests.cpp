@@ -83,6 +83,39 @@ BOOST_AUTO_TEST_CASE(verify_reports_malformed_input)
     BOOST_CHECK(VerifyMessage("", signature, "a message") == VerifyResult::InvalidAddress);
 }
 
+BOOST_AUTO_TEST_CASE(verify_requires_a_canonical_proof)
+{
+    std::string addr = MyAddress();
+    std::string message = "a message";
+    std::string signature = Sign(addr, message);
+
+    BOOST_REQUIRE(VerifyMessage(addr, signature, message) == VerifyResult::Ok);
+
+    // Deserialization stops as soon as the proof is complete, so trailing bytes have to be
+    // rejected explicitly or a valid signature stays valid with junk appended.
+    BOOST_CHECK(VerifyMessage(addr, signature + "00", message) == VerifyResult::MalformedProof);
+    BOOST_CHECK(VerifyMessage(addr, signature + "deadbeef", message) == VerifyResult::MalformedProof);
+}
+
+BOOST_AUTO_TEST_CASE(verify_rejects_an_address_from_another_network)
+{
+    Address address(params);
+    {
+        LOCK(pwalletMain->cs_wallet);
+        address = pwalletMain->sparkWallet->generateNewAddress();
+    }
+
+    // Encode the very same address for a different network: it decodes cleanly, so it has
+    // to be turned away on the network byte rather than as an invalid address.
+    unsigned char foreignNetwork = GetNetworkType() == ADDRESS_NETWORK_MAINNET
+                                       ? ADDRESS_NETWORK_TESTNET
+                                       : ADDRESS_NETWORK_MAINNET;
+    std::string signature = Sign(address.encode(GetNetworkType()), "a message");
+
+    BOOST_CHECK(VerifyMessage(address.encode(foreignNetwork), signature, "a message")
+                == VerifyResult::WrongNetwork);
+}
+
 BOOST_AUTO_TEST_CASE(sign_rejects_an_address_we_do_not_own)
 {
     // A well formed address derived from a spend key that is not the wallet's.

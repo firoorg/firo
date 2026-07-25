@@ -51,6 +51,12 @@ VerifyResult VerifyMessage(const std::string& encodedAddress,
         return VerifyResult::MalformedProof;
     }
 
+    // Require the encoding to be canonical. Deserializing stops as soon as the proof is
+    // complete, so without this a valid signature with arbitrary bytes appended would
+    // still verify.
+    if (!proofStream.empty())
+        return VerifyResult::MalformedProof;
+
     try {
         return address.verify_own(MessageScalar(message), proof) ? VerifyResult::Ok
                                                                  : VerifyResult::Mismatch;
