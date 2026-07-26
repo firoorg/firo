@@ -195,9 +195,19 @@ void WalletModel::checkBalanceChanged()
         return;
     }
 
-    CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
-    std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
-            getSparkBalance();
+    // getSparkBalance() takes cs_spark_wallet, which can also be held by
+    // Spark wallet background tasks that do not hold cs_main, so it has to be
+    // try-locked as well.
+    CAmount newPrivateBalance = 0, newUnconfirmedPrivateBalance = 0;
+    if (wallet->sparkWallet) {
+        TRY_LOCK(wallet->sparkWallet->cs_spark_wallet, lockSpark);
+        if (!lockSpark) {
+            fForceCheckBalanceChanged = true;
+            return;
+        }
+        std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
+                getSparkBalance();
+    }
 
     if (haveWatchOnly())
     {

@@ -253,8 +253,19 @@ WalletModel::SendCoinsReturn runWalletOperation(std::function<WalletModel::SendC
         QMetaObject::invokeMethod(&waitLoop, &QEventLoop::quit, Qt::QueuedConnection);
     });
     QApplication::setOverrideCursor(Qt::WaitCursor);
+    // Restore the cursor and join the worker even if an exception escapes the
+    // nested event loop: destroying a joinable std::thread would call
+    // std::terminate().
+    struct Cleanup {
+        std::thread& worker;
+        ~Cleanup()
+        {
+            if (worker.joinable())
+                worker.join();
+            QApplication::restoreOverrideCursor();
+        }
+    } cleanup{worker};
     waitLoop.exec(QEventLoop::ExcludeUserInputEvents);
-    QApplication::restoreOverrideCursor();
     worker.join();
     if (exception)
         std::rethrow_exception(exception);
@@ -417,6 +428,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             });
         else {
             processSendCoinsReturn(WalletModel::InvalidAddress);
+            fNewRecipientAllowed = true;
             return;
         }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
