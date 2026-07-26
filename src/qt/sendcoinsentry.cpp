@@ -253,7 +253,8 @@ void SendCoinsEntry::deleteClicked()
 void SendCoinsEntry::setWarning(bool fAnonymousMode) {
     const QString address = ui->payTo->text();
     const QString warningText = generateWarningText(address, fAnonymousMode);
-    const bool hasValidAddress = model->validateAddress(address) || model->validateSparkAddress(address);
+    const bool hasValidAddress = model &&
+        (model->validateAddress(address) || model->validateSparkAddress(address));
     ui->textWarning->setText(warningText);
     ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
     ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
