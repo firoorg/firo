@@ -33,6 +33,9 @@ class SparkBatchingTest(BitcoinTestFramework):
         blockcount = self.nodes[0].getblockcount()
         besthash = self.nodes[0].getbestblockhash()
         stop_nodes(self.nodes)
+        # Start from an empty debug.log so the batch verification marker can
+        # only come from this reindex run, not from earlier node activity.
+        open(os.path.join(self.options.tmpdir, "node0", "regtest", "debug.log"), "w").close()
         extra_args = [["-reindex", "-batching=" + ("1" if batching else "0")]]
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, extra_args)
         # The tip can reach the target height while the final deferred batch
@@ -60,7 +63,10 @@ class SparkBatchingTest(BitcoinTestFramework):
 
         self.nodes[0].generate(501)
         spark_address = self.nodes[0].getsparkdefaultaddress()[0]
+        # A Spark spend needs an anonymity set of at least two coins, so
+        # mint two coins before spending.
         self.nodes[0].mintspark({spark_address: {"amount": 10, "memo": "batch test"}})
+        self.nodes[0].mintspark({spark_address: {"amount": 5, "memo": "batch test"}})
         self.nodes[0].generate(6)
 
         # Two Spark spends in separate blocks.

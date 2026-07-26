@@ -29,7 +29,7 @@ void BatchProofContainer::finalize() {
 }
 
 bool BatchProofContainer::verify_pending() {
-    tempSparkTransactions.clear();
+    init();
     fCollectProofs = false;
     return batch_spark();
 }
