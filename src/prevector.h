@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include <iterator>
+#include <type_traits>
 
 #pragma pack(push, 1)
 /** Implements a drop-in replacement for std::vector<T> which stores up to N
@@ -388,10 +389,14 @@ public:
     iterator erase(iterator first, iterator last) {
         iterator p = first;
         char* endp = (char*)&(*end());
-        while (p != last) {
-            (*p).~T();
-            _size--;
-            ++p;
+        if (!std::is_trivially_destructible<T>::value) {
+            while (p != last) {
+                (*p).~T();
+                _size--;
+                ++p;
+            }
+        } else {
+            _size -= last - p;
         }
         memmove(&(*first), &(*last), endp - ((char*)(&(*last))));
         return first;
@@ -427,25 +432,14 @@ public:
     }
 
     void swap(prevector<N, T, Size, Diff>& other) {
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#pragma GCC diagnostic ignored "-Wuninitialized"
-#endif
-        // GCC can report the inactive bytes of direct_or_indirect as maybe
-        // uninitialized when this swap is inlined. This is intentional: _size
-        // is the discriminator for the active representation, and the union is
-        // swapped as raw storage so direct prevector buffers stay uninitialized
-        // until elements are explicitly constructed or copied into them.
         std::swap(_union, other._union);
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
         std::swap(_size, other._size);
     }
 
     ~prevector() {
-        clear();
+        if (!std::is_trivially_destructible<T>::value) {
+            clear();
+        }
         if (!is_direct()) {
             free(_union.data.indirect);
             _union.data.indirect = NULL;
