@@ -165,6 +165,23 @@ void WalletModel::setClientModel(ClientModel* client_model)
 
 void WalletModel::checkBalanceChanged()
 {
+    // Get the required locks upfront with try-semantics. Balance computation
+    // (including the Spark balance) needs cs_main/cs_wallet/cs_spark_wallet,
+    // which are held for long stretches while a block or transaction is being
+    // processed (Spark proof verification, trial decryption of incoming
+    // coins). Blocking here would freeze the GUI for that whole time, so give
+    // up and retry on the next poll instead.
+    TRY_LOCK(cs_main, lockMain);
+    if (!lockMain) {
+        fForceCheckBalanceChanged = true; // retry on next pollBalanceChanged
+        return;
+    }
+    TRY_LOCK(wallet->cs_wallet, lockWallet);
+    if (!lockWallet) {
+        fForceCheckBalanceChanged = true;
+        return;
+    }
+
     CAmount newBalance = cachedBalance;
     CAmount newUnconfirmedBalance = cachedUnconfirmedBalance;
     CAmount newImmatureBalance = cachedImmatureBalance;
@@ -173,9 +190,10 @@ void WalletModel::checkBalanceChanged()
     CAmount newWatchImmatureBalance = 0;
     CAmount newAnonymizableBalance = cachedAnonymizableBalance;
 
-    if (!wallet->TryGetBalances(newBalance, newUnconfirmedBalance, newImmatureBalance, newAnonymizableBalance))
+    if (!wallet->TryGetBalances(newBalance, newUnconfirmedBalance, newImmatureBalance, newAnonymizableBalance)) {
+        fForceCheckBalanceChanged = true;
         return;
-
+    }
 
     CAmount newPrivateBalance, newUnconfirmedPrivateBalance;
     std::tie(newPrivateBalance, newUnconfirmedPrivateBalance) =
@@ -410,7 +428,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
         }
         Q_EMIT coinsSent(wallet, rcp, transaction_array);
     }
-    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+    // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits.
+    // Queued so that it runs on the GUI thread even when sendCoins is called from a worker thread.
+    QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
 
     return SendCoinsReturn(OK);
 }
@@ -1454,8 +1474,10 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
         }
     }
 
-    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
-    
+    // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits.
+    // Queued so that it runs on the GUI thread even when mintSparkCoins is called from a worker thread.
+    QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
+
     return SendCoinsReturn(OK);
 }
 
@@ -1508,7 +1530,9 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
         }
     }
 
-    checkBalanceChanged(); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+    // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits.
+    // Queued so that it runs on the GUI thread even when spendSparkCoins is called from a worker thread.
+    QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
 
     return SendCoinsReturn(OK);
 }
