@@ -103,6 +103,7 @@ if ENABLE_ZMQ:
 testScripts = [
     'spark_mint.py',
     'spark_mintspend.py',
+    'spark_batching.py',
     'spark_spend_gettransaction.py',
     'spark_setmintstatus_validation.py',
     'mempool_doublesend_oneblock.py',

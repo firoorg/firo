@@ -111,6 +111,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_state_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_mintspend_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_batch_test.cpp
 )
 
 target_link_libraries(test_firo
