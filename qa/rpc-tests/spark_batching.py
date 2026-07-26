@@ -17,6 +17,8 @@ from test_framework.util import (
     stop_nodes,
 )
 
+BATCH_SUCCESS_LOG = "Spark batch verification finished successfully."
+
 
 class SparkBatchingTest(BitcoinTestFramework):
     def __init__(self):
@@ -33,8 +35,14 @@ class SparkBatchingTest(BitcoinTestFramework):
         stop_nodes(self.nodes)
         extra_args = [["-reindex", "-batching=" + ("1" if batching else "0")]]
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, extra_args)
+        # The tip can reach the target height while the final deferred batch
+        # is still pending, so a batched reindex is only complete once the
+        # batch verification success marker is in the log as well.
         deadline = time.time() + 300
-        while self.nodes[0].getblockcount() < blockcount:
+        while True:
+            if self.nodes[0].getblockcount() >= blockcount and \
+                    (not batching or BATCH_SUCCESS_LOG in self.read_debug_log()):
+                break
             assert time.time() < deadline, "reindex did not complete in time"
             time.sleep(0.1)
         assert_equal(self.nodes[0].getblockcount(), blockcount)
@@ -67,7 +75,7 @@ class SparkBatchingTest(BitcoinTestFramework):
         # before reindexing is allowed to complete.
         self.reindex(batching=True)
         log = self.read_debug_log()
-        assert "Spark batch verification finished successfully." in log, \
+        assert BATCH_SUCCESS_LOG in log, \
             "batched reindex did not batch verify Spark proofs"
         assert "Spark batch verification failed." not in log
         assert_equal(self.nodes[0].getsparkbalance(), spark_balance)
