@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     collectSpend();
     container->fCollectProofs = true;
     container->init();
-    container->add(invalidSpend);
+    container->add(invalidSpend, spendTxB.GetHash());
     container->finalize();
 
     // A batch holding a valid and an invalid proof fails and latches.

@@ -2243,9 +2243,14 @@ static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
 bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
 {
     if (!BatchProofContainer::get_instance()->verify_pending()) {
+        // Remember the failure so the next start disables batching and the
+        // invalid spend is rejected through the normal block-by-block path.
+        if (pblocktree) {
+            pblocktree->WriteFlag("sparkbatchfailed", true);
+        }
         return AbortNode(state,
                          strprintf("Spark batch verification failed before %s", reason),
-                         _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
+                         _("Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node to re-verify Spark proofs block by block (batching is disabled automatically for the next run)."));
     }
     return true;
 }
@@ -5063,6 +5068,17 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
     // Check whether we have a spent index
     pblocktree->ReadFlag("spentindex", fSpentIndex);
     LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
+
+    // If the previous run aborted on a failed Spark batch verification, verify
+    // Spark proofs block by block for this run so the invalid spend is
+    // identified and rejected through the normal consensus path.
+    bool fSparkBatchFailed = false;
+    pblocktree->ReadFlag("sparkbatchfailed", fSparkBatchFailed);
+    if (fSparkBatchFailed) {
+        LogPrintf("%s: previous run failed Spark batch verification, disabling -batching for this run\n", __func__);
+        ForceSetArg("-batching", "0");
+        pblocktree->WriteFlag("sparkbatchfailed", false);
+    }
 
 
     // Load pointer to end of best chain

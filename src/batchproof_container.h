@@ -24,7 +24,7 @@ public:
      */
     bool verify_pending();
 
-    void add(const spark::SpendTransaction& tx);
+    void add(const spark::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);
 public:
     bool fCollectProofs = 0;
@@ -35,11 +35,13 @@ private:
     static std::unique_ptr<BatchProofContainer> instance;
     // a pending batch failed verification; fail fast until the batch changes
     bool fBatchFailed = false;
-    // temp spark transaction proofs
+    // temp spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> tempSparkTransactions;
+    std::vector<uint256> tempSparkTxIds;
 
-    // spark transaction proofs
+    // spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> sparkTransactions;
+    std::vector<uint256> sparkTxIds;
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H

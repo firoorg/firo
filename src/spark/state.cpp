@@ -786,7 +786,7 @@ bool CheckSparkSpendTransaction(
     // add proofs into container
     if (useBatching) {
         passVerify = true;
-        batchProofContainer->add(*spend);
+        batchProofContainer->add(*spend, hashTx);
     } else {
         bool fChecked = false;
         bool scheduledAsync = false;
