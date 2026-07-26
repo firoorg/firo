@@ -19,7 +19,9 @@
 #include <string>
 #include <vector>
 
+#include <QAbstractTextDocumentLayout>
 #include <QClipboard>
+#include <QtMath>
 
 SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -44,12 +46,31 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
     ui->addressIn_SM->installEventFilter(this);
     ui->messageIn_SM->installEventFilter(this);
     ui->signatureOut_SM->installEventFilter(this);
+    ui->signatureOut_SM->viewport()->installEventFilter(this);
     ui->addressIn_VM->installEventFilter(this);
     ui->messageIn_VM->installEventFilter(this);
     ui->signatureIn_VM->installEventFilter(this);
 
     ui->signatureOut_SM->setFont(GUIUtil::fixedPitchFont());
     ui->signatureIn_VM->setFont(GUIUtil::fixedPitchFont());
+
+    /* A transparent signature is ~88 characters but a Spark ownership proof is several
+       hundred, so let the field grow with its content. Empty it is one line tall, keeping
+       the dialog's familiar layout. documentSizeChanged also fires on reflow, so the
+       height tracks dialog resizes too. */
+    connect(ui->signatureOut_SM->document()->documentLayout(), &QAbstractTextDocumentLayout::documentSizeChanged,
+            this, &SignVerifyMessageDialog::adjustSignatureOutHeight);
+    adjustSignatureOutHeight();
+}
+
+void SignVerifyMessageDialog::adjustSignatureOutHeight()
+{
+    QPlainTextEdit* sigOut = ui->signatureOut_SM;
+    const int lines = qBound(1, qCeil(sigOut->document()->size().height()), 4);
+    const int chrome = 2 * sigOut->frameWidth() + qRound(2 * sigOut->document()->documentMargin());
+    const int height = lines * sigOut->fontMetrics().lineSpacing() + chrome;
+    if (sigOut->height() != height)
+        sigOut->setFixedHeight(height);
 }
 
 SignVerifyMessageDialog::~SignVerifyMessageDialog()
@@ -164,7 +185,7 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
         ui->statusLabel_SM->setStyleSheet("QLabel { color: green; }");
         ui->statusLabel_SM->setText(QString("<nobr>") + tr("Message signed.") + QString("</nobr>"));
 
-        ui->signatureOut_SM->setText(signature);
+        ui->signatureOut_SM->setPlainText(signature);
         return;
     }
 
@@ -215,12 +236,12 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
     ui->statusLabel_SM->setStyleSheet("QLabel { color: green; }");
     ui->statusLabel_SM->setText(QString("<nobr>") + tr("Message signed.") + QString("</nobr>"));
 
-    ui->signatureOut_SM->setText(QString::fromStdString(EncodeBase64(&vchSig[0], vchSig.size())));
+    ui->signatureOut_SM->setPlainText(QString::fromStdString(EncodeBase64(&vchSig[0], vchSig.size())));
 }
 
 void SignVerifyMessageDialog::on_copySignatureButton_SM_clicked()
 {
-    GUIUtil::setClipboard(ui->signatureOut_SM->text());
+    GUIUtil::setClipboard(ui->signatureOut_SM->toPlainText());
 }
 
 void SignVerifyMessageDialog::on_clearButton_SM_clicked()
@@ -363,7 +384,7 @@ bool SignVerifyMessageDialog::eventFilter(QObject *object, QEvent *event)
             ui->statusLabel_SM->clear();
 
             /* Select generated signature */
-            if (object == ui->signatureOut_SM)
+            if (object == ui->signatureOut_SM || object == ui->signatureOut_SM->viewport())
             {
                 ui->signatureOut_SM->selectAll();
                 return true;

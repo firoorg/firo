@@ -117,11 +117,14 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLineEdit" name="signatureOut_SM">
+          <widget class="QPlainTextEdit" name="signatureOut_SM">
            <property name="font">
             <font>
              <italic>true</italic>
             </font>
+           </property>
+           <property name="tabChangesFocus">
+            <bool>true</bool>
            </property>
            <property name="readOnly">
             <bool>true</bool>
