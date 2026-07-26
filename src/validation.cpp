@@ -2234,21 +2234,15 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
-static int GetSparkBatchVerificationHeight()
+static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
 {
-    AssertLockHeld(cs_main);
-
-    BlockMap::const_iterator it = mapBlockIndex.find(pcoinsTip->GetBestBlock());
-    if (it != mapBlockIndex.end())
-        return it->second->nHeight;
-
-    return chainActive.Height();
+    // Defer Spark proof verification for blocks older than a day, which means we are syncing or reindexing
+    return ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
 }
 
-bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason, int nChainHeight)
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
 {
-    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    if (!batchProofContainer->verify_pending(nChainHeight)) {
+    if (!BatchProofContainer::get_instance()->verify_pending()) {
         return AbortNode(state,
                          strprintf("Spark batch verification failed before %s", reason),
                          _("Spark batch verification failed. Please restart with -reindex -batching=0 to identify the invalid Spark spend."));
@@ -2708,7 +2702,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+    batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindex);
     batchProofContainer->init();
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
@@ -3060,7 +3054,6 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     int64_t nMempoolUsage = mempool.DynamicMemoryUsage();
     const CChainParams& chainparams = Params();
     LOCK2(cs_main, cs_LastBlockFile);
-    const int nSparkBatchVerificationHeight = GetSparkBatchVerificationHeight();
     static int64_t nLastWrite = 0;
     static int64_t nLastFlush = 0;
     static int64_t nLastSetChain = 0;
@@ -3076,7 +3069,7 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
         }
         if (!setFilesToPrune.empty()) {
             fFlushForPrune = true;
-            if (!VerifyPendingSparkBatch(state, "writing pruned block file flag", nSparkBatchVerificationHeight))
+            if (!VerifyPendingSparkBatch(state, "writing pruned block file flag"))
                 return false;
             if (!fHavePruned) {
                 pblocktree->WriteFlag("prunedblockfiles", true);
@@ -3109,7 +3102,7 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     bool fPeriodicFlush = mode == FLUSH_STATE_PERIODIC && nNow > nLastFlush + (int64_t)DATABASE_FLUSH_INTERVAL * 1000000;
     // Combine all conditions that result in a full cache flush.
     bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush || fFlushForPrune;
-    if ((fDoFullFlush || fPeriodicWrite) && !VerifyPendingSparkBatch(state, "flushing block index or chainstate", nSparkBatchVerificationHeight))
+    if ((fDoFullFlush || fPeriodicWrite) && !VerifyPendingSparkBatch(state, "flushing block index or chainstate"))
         return false;
     // Write blocks and block index to disk.
     if (fDoFullFlush || fPeriodicWrite) {
@@ -3665,8 +3658,7 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
 
         // Connect new blocks.
         BOOST_REVERSE_FOREACH(CBlockIndex *pindexConnect, vpindexToConnect) {
-            const bool fCollectProofs = ((GetSystemTimeInSeconds() - pindexConnect->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-            if (!fCollectProofs && !VerifyPendingSparkBatch(state, "connecting non-batched Spark block", chainActive.Height()))
+            if (!ShouldBatchSparkProofs(pindexConnect) && !VerifyPendingSparkBatch(state, "connecting non-batched Spark block"))
                 return false;
             if (!ConnectTip(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace)) {
                 if (state.IsInvalid()) {
@@ -3813,19 +3805,21 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
             pindexFork = chainActive.FindFork(pindexOldTip);
             fInitialDownload = IsInitialBlockDownload();
 
+            // throw all transactions though the signal-interface
+
             } // MemPoolConflictRemovalTracker destroyed and conflict evictions are notified
+
+            // Transactions in the connnected block are notified
+            for (const auto& pair : connectTrace.blocksConnected) {
+                assert(pair.second);
+                const CBlock& block = *(pair.second);
+                for (unsigned int i = 0; i < block.vtx.size(); i++)
+                    GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
+            }
         }
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         // Notifications/callbacks that can run without cs_main
-
-        // Transactions in the connnected block are notified
-        for (const auto& pair : connectTrace.blocksConnected) {
-            assert(pair.second);
-            const CBlock& block = *(pair.second);
-            for (unsigned int i = 0; i < block.vtx.size(); ++i)
-                GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
-        }
 
         // Notify external listeners about the new tip.
         GetMainSignals().UpdatedBlockTip(pindexNewTip, pindexFork, fInitialDownload);

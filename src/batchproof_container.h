@@ -16,36 +16,25 @@ public:
     void finalize();
 
     /**
-     * Verify finalized Spark proofs unless proof collection is still active.
+     * Discard any in-progress per-block collection and verify the finalized
+     * pending Spark batch.
      *
-     * @param nChainHeight Chain height for rebuilding cover sets; -1 uses the active tip.
-     * @return true if collection is still active, no batch is pending, or the batch verifies; false on verification failure.
+     * @return true if no batch is pending or the batch verifies; false on
+     *         verification failure, in which case the pending proofs are kept.
      */
-    bool verify(int nChainHeight = -1);
-
-    /**
-     * Clear in-progress block proofs and verify already-finalized pending proofs.
-     *
-     * @param nChainHeight Chain height for rebuilding cover sets; -1 uses the active tip.
-     * @return true if no finalized batch is pending or the batch verifies; false on verification failure.
-     */
-    bool verify_pending(int nChainHeight = -1);
+    bool verify_pending();
 
     void add(const spark::SpendTransaction& tx);
     void remove(const spark::SpendTransaction& tx);
-
-    /**
-     * Run batch verification over finalized Spark spend transactions.
-     *
-     * @param nChainHeight Chain height for rebuilding cover sets; -1 uses the active tip.
-     * @return true if the batch is empty or verifies; false on verification failure.
-     */
-    bool batch_spark(int nChainHeight = -1);
 public:
     bool fCollectProofs = 0;
 
 private:
+    bool batch_spark();
+
     static std::unique_ptr<BatchProofContainer> instance;
+    // a pending batch failed verification; fail fast until the batch changes
+    bool fBatchFailed = false;
     // temp spark transaction proofs
     std::vector<spark::SpendTransaction> tempSparkTransactions;
 

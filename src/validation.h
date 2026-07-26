@@ -306,13 +306,11 @@ bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams,
 /**
  * Verify finalized deferred Spark proofs before crossing a durable validation boundary.
  *
- * @param state Validation state to mutate if verification fails.
+ * @param state Validation state to mutate if verification fails (the node is aborted).
  * @param reason Text included in the abort message to identify the boundary being protected.
- * @param nChainHeight Chain height to use when rebuilding Spark cover sets, or -1 for the active tip.
  * @return true when there is no pending batch or the pending batch verifies successfully.
- * @pre The Spark state must already include the finalized proofs being verified.
  */
-bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason, int nChainHeight = -1);
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason);
 CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params& consensusParams, bool fMTP, bool fShorterBlockDistance);
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams, int nTime = 1475020800);
 CAmount GetMasternodePayment(int nHeight, int nTime, CAmount blockValue);

@@ -1,5 +1,4 @@
 #include "batchproof_container.h"
-#include "firo_params.h"
 #include "ui_interface.h"
 #include "spark/state.h"
 
@@ -21,26 +20,15 @@ void BatchProofContainer::init() {
 void BatchProofContainer::finalize() {
     if (fCollectProofs) {
         sparkTransactions.insert(sparkTransactions.end(), tempSparkTransactions.begin(), tempSparkTransactions.end());
-        tempSparkTransactions.clear();
     }
-    fCollectProofs = false;
-}
-
-bool BatchProofContainer::verify(int nChainHeight) {
-    if (fCollectProofs) {
-        // Proof collection is still active, so only finalized proofs are pending.
-        fCollectProofs = false;
-        tempSparkTransactions.clear();
-        return true;
-    }
-
-    return batch_spark(nChainHeight);
-}
-
-bool BatchProofContainer::verify_pending(int nChainHeight) {
     tempSparkTransactions.clear();
     fCollectProofs = false;
-    return batch_spark(nChainHeight);
+}
+
+bool BatchProofContainer::verify_pending() {
+    tempSparkTransactions.clear();
+    fCollectProofs = false;
+    return batch_spark();
 }
 
 void BatchProofContainer::add(const spark::SpendTransaction& tx) {
@@ -54,13 +42,14 @@ void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
                             sparkTransactions.end());
 }
 
-bool BatchProofContainer::batch_spark(int nChainHeight) {
-    if (!sparkTransactions.empty()){
-        LogPrintf("Spark batch verification started.\n");
-        uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
-    } else {
+bool BatchProofContainer::batch_spark() {
+    if (sparkTransactions.empty())
         return true;
-    }
+    if (fBatchFailed)
+        return false;
+
+    LogPrintf("Spark batch verification started.\n");
+    uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
 
     std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
     spark::CSparkState* sparkState = spark::CSparkState::GetState();
@@ -71,13 +60,7 @@ bool BatchProofContainer::batch_spark(int nChainHeight) {
             int cover_set_id = idAndHash.first;
             if (!cover_sets.count(cover_set_id)) {
                 std::vector<spark::Coin> cover_set;
-                if (nChainHeight >= 0) {
-                    uint256 blockHash;
-                    std::vector<unsigned char> setHash;
-                    sparkState->GetCoinSetForSpend(&chainActive, nChainHeight - (ZC_MINT_CONFIRMATIONS - 1), cover_set_id, blockHash, cover_set, setHash);
-                } else {
-                    sparkState->GetCoinSet(cover_set_id, cover_set);
-                }
+                sparkState->GetCoinSet(cover_set_id, cover_set);
                 cover_sets[cover_set_id] = cover_set;
             }
         }
@@ -93,11 +76,11 @@ bool BatchProofContainer::batch_spark(int nChainHeight) {
 
     if (!passed) {
         LogPrintf("Spark batch verification failed.\n");
+        fBatchFailed = true;
         return false;
     }
 
-    if (!sparkTransactions.empty())
-        LogPrintf("Spark batch verification finished successfully.\n");
+    LogPrintf("Spark batch verification finished successfully.\n");
     sparkTransactions.clear();
     return true;
 }

@@ -263,11 +263,8 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    CValidationState sparkBatchState;
-    if (!VerifyPendingSparkBatch(sparkBatchState, "shutdown")) {
-        LogPrintf("Shutdown stopped before persistence after Spark batch verification failure: %s\n", FormatStateMessage(sparkBatchState));
-        return;
-    }
+    // Any pending Spark batch is verified by the final FlushStateToDisk() below,
+    // which refuses to persist validation state if verification fails.
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -763,10 +760,13 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
-        CValidationState state;
-        if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
-            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
-            return;
+        {
+            LOCK(cs_main);
+            CValidationState state;
+            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+                return;
+            }
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
