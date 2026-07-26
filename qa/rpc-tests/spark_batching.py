@@ -56,6 +56,14 @@ class SparkBatchingTest(BitcoinTestFramework):
         with open(path, encoding="utf8", errors="replace") as f:
             return f.read()
 
+    def wait_spark_balance(self, expected):
+        # After a reindex the wallet catches up with the chain asynchronously,
+        # so poll until the balance settles instead of asserting a snapshot.
+        deadline = time.time() + 60
+        while self.nodes[0].getsparkbalance() != expected and time.time() < deadline:
+            time.sleep(0.5)
+        assert_equal(self.nodes[0].getsparkbalance(), expected)
+
     def run_test(self):
         # Mine everything with old timestamps so a later reindex treats the
         # whole chain as old blocks and defers Spark proof verification.
@@ -84,11 +92,11 @@ class SparkBatchingTest(BitcoinTestFramework):
         assert BATCH_SUCCESS_LOG in log, \
             "batched reindex did not batch verify Spark proofs"
         assert "Spark batch verification failed." not in log
-        assert_equal(self.nodes[0].getsparkbalance(), spark_balance)
+        self.wait_spark_balance(spark_balance)
 
         # Control: block-by-block verification reaches the same chain.
         self.reindex(batching=False)
-        assert_equal(self.nodes[0].getsparkbalance(), spark_balance)
+        self.wait_spark_balance(spark_balance)
 
         print("Success")
 
