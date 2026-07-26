@@ -37,6 +37,10 @@ private:
     WalletModel *model;
     const PlatformStyle *platformStyle;
 
+    /* Resolve "@name" Spark name notation in place to the address it points at. Input not
+       using that notation is left alone. Returns false if the name is not registered. */
+    bool resolveSparkAddress(QString &address) const;
+
 private Q_SLOTS:
     /* sign message */
     void on_addressBookButton_SM_clicked();

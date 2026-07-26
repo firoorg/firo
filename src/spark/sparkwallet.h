@@ -48,6 +48,12 @@ public:
     bool isAddressMine(const spark::Address& address);
     bool isChangeAddress(const uint64_t& i) const;
 
+    // Sign a message with one of our addresses, returning the ownership proof as hex.
+    // Throws WalletLocked if the spend key cannot be generated because the wallet is
+    // locked, or std::runtime_error if the address is not ours or the key generation
+    // fails for any other reason.
+    std::string SignMessage(const spark::Address& address, const std::string& message);
+
     // list spark mint, mint metadata in memory and in db should be the same at this moment, so get from memory
     std::vector<CSparkMintMeta> ListSparkMints(bool fUnusedOnly = false, bool fMatureOnly = false) const;
     std::list<CSparkSpendEntry> ListSparkSpends() const;

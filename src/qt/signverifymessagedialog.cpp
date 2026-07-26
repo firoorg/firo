@@ -12,6 +12,7 @@
 
 #include "base58.h"
 #include "init.h"
+#include "spark/sparkmessage.h"
 #include "validation.h" // For strMessageMagic
 #include "wallet/wallet.h"
 
@@ -105,6 +106,21 @@ void SignVerifyMessageDialog::on_pasteButton_SM_clicked()
     setAddress_SM(QApplication::clipboard()->text());
 }
 
+bool SignVerifyMessageDialog::resolveSparkAddress(QString &address) const
+{
+    /* The address entry validator accepts "@name" Spark name notation, so resolve it here
+       rather than letting the handlers reject input the field was happy to take. */
+    if (!address.startsWith('@') || !model)
+        return true;
+
+    QString resolved = model->getSparkNameAddress(address.mid(1));
+    if (resolved.isEmpty())
+        return false;
+
+    address = resolved;
+    return true;
+}
+
 void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
 {
     if (!model)
@@ -113,7 +129,46 @@ void SignVerifyMessageDialog::on_signMessageButton_SM_clicked()
     /* Clear old signature to ensure users don't get confused on error with an old signature displayed */
     ui->signatureOut_SM->clear();
 
-    CBitcoinAddress addr(ui->addressIn_SM->text().toStdString());
+    QString addressIn = ui->addressIn_SM->text();
+    if (!resolveSparkAddress(addressIn))
+    {
+        ui->addressIn_SM->setValid(false);
+        ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
+        ui->statusLabel_SM->setText(tr("The entered Spark name is not registered.") + QString(" ") + tr("Please check the address and try again."));
+        return;
+    }
+
+    /* Spark addresses are signed with an ownership proof rather than a compact ECDSA
+       signature, so branch here and leave the transparent path below untouched. */
+    if (model->validateSparkAddress(addressIn))
+    {
+        WalletModel::UnlockContext ctx(model->requestUnlock());
+        if (!ctx.isValid())
+        {
+            ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
+            ui->statusLabel_SM->setText(tr("Wallet unlock was cancelled."));
+            return;
+        }
+
+        QString error;
+        QString signature = model->signSparkMessage(addressIn, ui->messageIn_SM->document()->toPlainText(), error);
+        if (signature.isEmpty())
+        {
+            ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
+            /* Plain text: the label is Qt::AutoText, and this string comes from a lower
+               layer rather than being a literal wrapped in markup like the ones below. */
+            ui->statusLabel_SM->setText(error);
+            return;
+        }
+
+        ui->statusLabel_SM->setStyleSheet("QLabel { color: green; }");
+        ui->statusLabel_SM->setText(QString("<nobr>") + tr("Message signed.") + QString("</nobr>"));
+
+        ui->signatureOut_SM->setText(signature);
+        return;
+    }
+
+    CBitcoinAddress addr(addressIn.toStdString());
     if (!addr.IsValid())
     {
         ui->statusLabel_SM->setStyleSheet("QLabel { color: red; }");
@@ -193,7 +248,51 @@ void SignVerifyMessageDialog::on_addressBookButton_VM_clicked()
 
 void SignVerifyMessageDialog::on_verifyMessageButton_VM_clicked()
 {
-    CBitcoinAddress addr(ui->addressIn_VM->text().toStdString());
+    QString addressIn = ui->addressIn_VM->text();
+    if (!resolveSparkAddress(addressIn))
+    {
+        ui->addressIn_VM->setValid(false);
+        ui->statusLabel_VM->setStyleSheet("QLabel { color: red; }");
+        ui->statusLabel_VM->setText(tr("The entered Spark name is not registered.") + QString(" ") + tr("Please check the address and try again."));
+        return;
+    }
+
+    /* Spark signatures are hex encoded ownership proofs rather than base64 compact
+       signatures, so they need a different check. InvalidAddress means the input did not
+       decode as a Spark address at all, which is the signal to fall through to the
+       transparent path below; that path is left untouched. */
+    spark::VerifyResult sparkResult = spark::VerifyMessage(
+        addressIn.toStdString(),
+        ui->signatureIn_VM->text().toStdString(),
+        ui->messageIn_VM->document()->toPlainText().toStdString());
+
+    if (sparkResult != spark::VerifyResult::InvalidAddress)
+    {
+        switch (sparkResult)
+        {
+        case spark::VerifyResult::Ok:
+            ui->statusLabel_VM->setStyleSheet("QLabel { color: green; }");
+            ui->statusLabel_VM->setText(QString("<nobr>") + tr("Message verified.") + QString("</nobr>"));
+            return;
+        case spark::VerifyResult::WrongNetwork:
+            ui->addressIn_VM->setValid(false);
+            ui->statusLabel_VM->setStyleSheet("QLabel { color: red; }");
+            ui->statusLabel_VM->setText(tr("The entered address is for a different network.") + QString(" ") + tr("Please check the address and try again."));
+            return;
+        case spark::VerifyResult::NotHex:
+        case spark::VerifyResult::MalformedProof:
+            ui->signatureIn_VM->setValid(false);
+            ui->statusLabel_VM->setStyleSheet("QLabel { color: red; }");
+            ui->statusLabel_VM->setText(tr("The signature could not be decoded.") + QString(" ") + tr("Please check the signature and try again."));
+            return;
+        default:
+            ui->statusLabel_VM->setStyleSheet("QLabel { color: red; }");
+            ui->statusLabel_VM->setText(QString("<nobr>") + tr("Message verification failed.") + QString("</nobr>"));
+            return;
+        }
+    }
+
+    CBitcoinAddress addr(addressIn.toStdString());
     if (!addr.IsValid())
     {
         ui->statusLabel_VM->setStyleSheet("QLabel { color: red; }");

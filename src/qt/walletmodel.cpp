@@ -1079,6 +1079,41 @@ bool WalletModel::isSparkAddressMine(const QString& address)
     return wallet->IsSparkAddressMine(address.toStdString());
 }
 
+QString WalletModel::signSparkMessage(const QString& sparkAddress, const QString& message, QString& error)
+{
+    // Signing touches no chain state, so cs_wallet alone is enough; taking cs_main here
+    // would block the GUI thread whenever a block is being connected.
+    LOCK(wallet->cs_wallet);
+
+    if (!wallet->sparkWallet) {
+        error = tr("Spark wallet is not available.");
+        return QString();
+    }
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::Address address(params);
+    try {
+        address.decode(sparkAddress.toStdString());
+    } catch (const std::exception&) {
+        error = tr("The entered address is invalid.");
+        return QString();
+    }
+
+    if (!wallet->sparkWallet->isAddressMine(address)) {
+        error = tr("The entered address does not belong to this wallet.");
+        return QString();
+    }
+
+    try {
+        return QString::fromStdString(wallet->sparkWallet->SignMessage(address, message.toStdString()));
+    } catch (const std::exception& e) {
+        // Remaining failures are internal (spend key generation), so surface them verbatim
+        // rather than guessing at a friendlier wording.
+        error = QString::fromStdString(e.what());
+        return QString();
+    }
+}
+
 QString WalletModel::generateSparkAddress()
 {
     const spark::Params* params = spark::Params::get_default();
