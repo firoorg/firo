@@ -36,10 +36,14 @@ void BatchProofContainer::add(const spark::SpendTransaction& tx) {
 }
 
 void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
-    sparkTransactions.erase(std::remove_if(sparkTransactions.begin(),
-                                           sparkTransactions.end(),
-                                  [tx](spark::SpendTransaction& transaction){return transaction.getUsedLTags() == tx.getUsedLTags();}),
-                            sparkTransactions.end());
+    auto pendingEnd = std::remove_if(sparkTransactions.begin(),
+                                     sparkTransactions.end(),
+                                     [tx](spark::SpendTransaction& transaction){return transaction.getUsedLTags() == tx.getUsedLTags();});
+    if (pendingEnd != sparkTransactions.end()) {
+        sparkTransactions.erase(pendingEnd, sparkTransactions.end());
+        // the pending batch changed, so a previous failure verdict no longer applies
+        fBatchFailed = false;
+    }
 }
 
 bool BatchProofContainer::batch_spark() {
