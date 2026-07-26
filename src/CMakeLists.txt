@@ -50,6 +50,10 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/compat/strnlen.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/crypto/scrypt.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/fs.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging/categories.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging/timer.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/policy/rbf.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/primitives/block.cpp
@@ -60,6 +64,7 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/sync.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/util.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/util/log.h
   ${CMAKE_CURRENT_SOURCE_DIR}/utilmoneystr.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/utilstrencodings.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/utiltime.cpp
@@ -437,6 +442,7 @@ endif()
 
 
 add_library(firo_cli STATIC EXCLUDE_FROM_ALL
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpc/client.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpc/protocol.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/util.cpp

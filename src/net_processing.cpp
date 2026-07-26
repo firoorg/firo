@@ -655,8 +655,8 @@ bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRE
 
     AddToCompactExtraTransactions(tx);
 
-    LogPrint("mempool", "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
-             mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
+    LogPrintWithLock(cs_main, "mempool", "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
+                     mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
     return true;
 }
 

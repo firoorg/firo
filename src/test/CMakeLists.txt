@@ -48,6 +48,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/key_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/dbwrapper_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/limitedmap_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/main_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mempool_tests.cpp

@@ -13,6 +13,9 @@
 #include "test/test_random.h"
 
 #include <stdint.h>
+#include <mutex>
+#include <set>
+#include <thread>
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
@@ -20,6 +23,32 @@
 extern std::map<std::string, std::string> mapArgs;
 
 BOOST_FIXTURE_TEST_SUITE(util_tests, BasicTestingSetup)
+
+BOOST_AUTO_TEST_CASE(util_thread_names)
+{
+    constexpr int num_threads = 100;
+    std::vector<std::thread> threads;
+    std::set<std::string> names;
+    std::mutex mutex;
+
+    threads.reserve(num_threads);
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([&, i] {
+            RenameThread(strprintf("test_thread.%d", i).c_str());
+            std::lock_guard<std::mutex> lock(mutex);
+            names.insert(GetThreadName());
+        });
+    }
+
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+
+    BOOST_CHECK_EQUAL(names.size(), num_threads);
+    for (int i = 0; i < num_threads; ++i) {
+        BOOST_CHECK(names.count(strprintf("test_thread.%d", i)));
+    }
+}
 
 BOOST_AUTO_TEST_CASE(util_criticalsection)
 {

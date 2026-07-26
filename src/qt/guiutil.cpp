@@ -11,6 +11,7 @@
 
 #include "primitives/transaction.h"
 #include "init.h"
+#include "logging.h"
 #include "policy/policy.h"
 #include "protocol.h"
 #include "script/script.h"
@@ -420,7 +421,7 @@ bool isObscured(QWidget *w)
 
 void openDebugLogfile()
 {
-    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
+    const boost::filesystem::path pathDebug = LogInstance().m_file_path;
 
     /* Open debug.log with the associated application */
     if (boost::filesystem::exists(pathDebug))

@@ -313,6 +313,7 @@ void BitcoinCore::initialize()
 {
     try
     {
+        RenameThread("firo-qt-init");
         qDebug() << __func__ << ": Running AppInit2 in thread";
         if (!AppInitBasicSetup())
         {
@@ -739,6 +740,7 @@ int main(int argc, char *argv[])
     RegisterPrettySignalHandlers();
 #endif    
     SetupEnvironment();
+    SetInternalThreadName("main");
 
     /// 1. Parse command-line options. These take precedence over anything else.
     // Command-line options take precedence:
