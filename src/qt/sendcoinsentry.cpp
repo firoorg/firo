@@ -382,7 +382,6 @@ void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
     applyingRecipient = false;
     updateRosenBridgeDisplay();
     Q_EMIT rosenBridgeChanged();
-    Q_EMIT payAmountChanged();
 }
 
 void SendCoinsEntry::setAddress(const QString &address)

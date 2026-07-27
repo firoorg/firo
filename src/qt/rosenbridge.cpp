@@ -4,6 +4,7 @@
 
 #include "rosenbridge.h"
 
+#include "crypto/common.h"
 #include "script/script.h"
 
 #include <array>
@@ -41,15 +42,6 @@ bool SetError(QString* error, const QString& message)
     return false;
 }
 
-uint64_t ReadUint64BE(const std::vector<unsigned char>& data, std::size_t offset)
-{
-    uint64_t value = 0;
-    for (std::size_t i = 0; i < 8; ++i) {
-        value = (value << 8) | data[offset + i];
-    }
-    return value;
-}
-
 } // namespace
 
 bool Parse(const std::vector<unsigned char>& data, Metadata* metadata, QString* error)
@@ -77,8 +69,8 @@ bool Parse(const std::vector<unsigned char>& data, Metadata* metadata, QString* 
     if (metadata) {
         metadata->toChain = toChain;
         metadata->chainName = QString::fromLatin1(CHAIN_NAMES[toChain]);
-        metadata->bridgeFee = ReadUint64BE(data, 1);
-        metadata->networkFee = ReadUint64BE(data, 9);
+        metadata->bridgeFee = ReadBE64(data.data() + 1);
+        metadata->networkFee = ReadBE64(data.data() + 9);
         metadata->address.assign(data.begin() + HEADER_SIZE, data.end());
     }
     return true;
