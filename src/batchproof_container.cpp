@@ -89,6 +89,7 @@ bool BatchProofContainer::batch_spark() {
     if (!passed) {
         // Re-verify the retained proofs individually so the operator can see
         // exactly which spends are invalid without a diagnostic reindex.
+        bool fAnyProofFailed = false;
         for (std::size_t i = 0; i < sparkTransactions.size(); ++i) {
             bool fProofValid;
             try {
@@ -97,8 +98,15 @@ bool BatchProofContainer::batch_spark() {
                 fProofValid = false;
             }
             if (!fProofValid) {
+                fAnyProofFailed = true;
                 LogPrintf("Spark batch verification failed for spend transaction %s.\n", sparkTxIds[i].ToString());
             }
+        }
+        if (!fAnyProofFailed) {
+            // No single proof is at fault, so the failure is at the aggregation
+            // level (or the batch result was a false negative); either way the
+            // block-by-block re-verification on the next start will resolve it.
+            LogPrintf("Spark batch verification failed in aggregate, but every batched proof verified individually.\n");
         }
         LogPrintf("Spark batch verification failed.\n");
         fBatchFailed = true;
