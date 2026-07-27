@@ -988,7 +988,8 @@ bool WalletModel::rebroadcastTransaction(uint256 hash, CValidationState &state)
     return true;
 }
 
-CAmount WalletModel::GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const {
+CAmount WalletModel::GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const
+{
     return wallet->GetCredit(txout, tx, ISMINE_SPENDABLE);
 }
 

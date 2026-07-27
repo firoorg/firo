@@ -765,18 +765,7 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
         } else if (pwalletMain && (script.IsLelantusMint() || script.IsLelantusJMint())) {
            return true;
         } else if (pwalletMain && pwalletMain->sparkWallet && (script.IsSparkMint() || script.IsSparkSMint())) {
-            std::vector<unsigned char> serialContext;
-            for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
-                const CWalletTx *pcoin = &(*it).second;
-                for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
-                    if (tx->tx->vout[n] == pcoin->tx->vout[i]) {
-                        serialContext = spark::getSerialContext(*pcoin->tx);
-                        break;
-                    }
-                }
-                if (!serialContext.empty())
-                    break;
-            }
+            std::vector<unsigned char> serialContext = spark::getSerialContext(*tx->tx);
 
             spark::Coin coin(spark::Params::get_default());
             try {
@@ -1617,7 +1606,7 @@ isminetype CWallet::IsMine(const CTxOut &txout) const
         // without it in hand, locate the output in the wallet first.
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
-            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+            for (unsigned int i = 0; i < pcoin->tx->vout.size(); ++i) {
                 if (txout == pcoin->tx->vout[i])
                     return IsMine(txout, *pcoin->tx);
             }
@@ -1662,11 +1651,12 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
     if (txout.scriptPubKey.IsSparkSMint()) {
         if (!(filter & ISMINE_SPENDABLE))
             return 0;
+        LOCK(cs_wallet);
         // The Spark serial context is derived from the containing transaction;
         // without it in hand, locate the output in the wallet first.
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
-            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+            for (unsigned int i = 0; i < pcoin->tx->vout.size(); ++i) {
                 if (txout == pcoin->tx->vout[i])
                     return GetCredit(txout, *pcoin->tx, filter);
             }
