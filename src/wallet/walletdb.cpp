@@ -729,7 +729,8 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
 
             // Try to be tolerant of single corrupt records:
             std::string strType, strErr;
-            if (!ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr))
+            bool fReadOK = ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr);
+            if (!fReadOK)
             {
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
@@ -748,7 +749,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
                 LogPrintf("%s\n", strErr);
 
             // Keep the splash screen alive while large wallets load
-            if (strType == "tx" && ++nLoadedTxs % 1000 == 0)
+            if (fReadOK && strType == "tx" && ++nLoadedTxs % 1000 == 0)
                 uiInterface.InitMessage(strprintf(_("Loading wallet... (%d transactions)"), nLoadedTxs));
         }
         pcursor->close();
