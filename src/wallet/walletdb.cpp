@@ -693,6 +693,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     CWalletScanState wss;
     bool fNoncriticalErrors = false;
     DBErrors result = DB_LOAD_OK;
+    unsigned int nLoadedTxs = 0;
 
     LOCK2(cs_main, pwallet->cs_wallet);
     try {
@@ -745,6 +746,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             }
             if (!strErr.empty())
                 LogPrintf("%s\n", strErr);
+
+            // Keep the splash screen alive while large wallets load
+            if (strType == "tx" && ++nLoadedTxs % 1000 == 0)
+                uiInterface.InitMessage(strprintf(_("Loading wallet... (%d transactions)"), nLoadedTxs));
         }
         pcursor->close();
     }

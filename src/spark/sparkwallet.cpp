@@ -18,6 +18,8 @@ const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
 CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
+    uiInterface.InitMessage(_("Loading Spark wallet..."));
+
     CWalletDB walletdb(strWalletFile);
     this->strWalletFile = strWalletFile;
 
@@ -78,7 +80,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
             for (auto& coin : coinMeta) {
                 coin.second.coin.setParams(params);
                 coin.second.coin.setSerialContext(coin.second.serial_context);
-
+                addToLookups(coin.first, coin.second);
             }
         }
 
@@ -393,6 +395,8 @@ void CSparkWallet::clearAllMints(CWalletDB& walletdb) {
     }
 
     coinMeta.clear();
+    coinLookup.clear();
+    nonceLookup.clear();
     lastDiversifier = 0;
     walletdb.writeDiversifier(lastDiversifier);
 }
@@ -400,7 +404,11 @@ void CSparkWallet::clearAllMints(CWalletDB& walletdb) {
 void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
     walletdb.EraseSparkMint(hash);
-    coinMeta.erase(hash);
+    auto it = coinMeta.find(hash);
+    if (it != coinMeta.end()) {
+        removeFromLookups(it->second);
+        coinMeta.erase(it);
+    }
 }
 
 void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lTagHash, CWalletDB& walletdb) {
@@ -410,7 +418,11 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
         lastDiversifier = mint.i;
         walletdb.writeDiversifier(lastDiversifier);
     }
+    auto it = coinMeta.find(lTagHash);
+    if (it != coinMeta.end())
+        removeFromLookups(it->second);
     coinMeta[lTagHash] = mint;
+    addToLookups(lTagHash, mint);
     walletdb.WriteSparkMint(lTagHash, mint);
 }
 
@@ -439,10 +451,42 @@ void CSparkWallet::updateMintInMemory(const CSparkMintMeta& mint) {
     LOCK(cs_spark_wallet);
     for (auto& itr : coinMeta) {
         if (itr.second == mint) {
+            removeFromLookups(itr.second);
             coinMeta[itr.first] = mint;
+            addToLookups(itr.first, mint);
             break;
         }
     }
+}
+
+void CSparkWallet::addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint) {
+    if (mint.coin != spark::Coin())
+        coinLookup[primitives::GetSparkCoinHash(mint.coin)] = lTagHash;
+    nonceLookup[mint.GetNonceHash()] = lTagHash;
+}
+
+void CSparkWallet::removeFromLookups(const CSparkMintMeta& mint) {
+    if (mint.coin != spark::Coin())
+        coinLookup.erase(primitives::GetSparkCoinHash(mint.coin));
+    nonceLookup.erase(mint.GetNonceHash());
+}
+
+const CSparkMintMeta* CSparkWallet::findMintMeta(const spark::Coin& coin) const {
+    auto it = coinLookup.find(primitives::GetSparkCoinHash(coin));
+    if (it == coinLookup.end())
+        return nullptr;
+
+    auto metaIt = coinMeta.find(it->second);
+    if (metaIt == coinMeta.end())
+        return nullptr;
+
+    const CSparkMintMeta& meta = metaIt->second;
+    // Coin equality does not cover the serial context, but identification
+    // depends on it; require both so a hit answers exactly as identify would.
+    if (meta.coin != coin || meta.serial_context != coin.serial_context)
+        return nullptr;
+
+    return &meta;
 }
 
 CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
@@ -454,15 +498,25 @@ CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
 
 CSparkMintMeta CSparkWallet::getMintMeta(const secp_primitives::Scalar& nonce) {
     LOCK(cs_spark_wallet);
-    for (const auto& meta : coinMeta) {
-        if (meta.second.k == nonce)
-            return meta.second;
+    auto it = nonceLookup.find(primitives::GetNonceHash(nonce));
+    if (it != nonceLookup.end()) {
+        auto metaIt = coinMeta.find(it->second);
+        if (metaIt != coinMeta.end() && metaIt->second.k == nonce)
+            return metaIt->second;
     }
 
     return CSparkMintMeta();
 }
 
 bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
+    {
+        LOCK(cs_spark_wallet);
+        const CSparkMintMeta* meta = findMintMeta(coin);
+        if (meta) {
+            mintMeta = *meta;
+            return true;
+        }
+    }
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
@@ -476,6 +530,14 @@ bool CSparkWallet::getMintMeta(spark::Coin coin, CSparkMintMeta& mintMeta) {
 }
 
 bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
+    {
+        LOCK(cs_spark_wallet);
+        const CSparkMintMeta* meta = findMintMeta(coin);
+        if (meta) {
+            amount = meta->v;
+            return true;
+        }
+    }
     spark::IdentifiedCoinData identifiedCoinData;
     try {
         identifiedCoinData = coin.identify(this->viewKey);
@@ -551,6 +613,11 @@ void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
 }
 
 bool CSparkWallet::isMine(spark::Coin coin) const {
+    {
+        LOCK(cs_spark_wallet);
+        if (findMintMeta(coin))
+            return true;
+    }
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
     } catch (const std::exception &) {
@@ -573,6 +640,12 @@ bool CSparkWallet::isMine(const std::vector<GroupElement>& lTags) const {
 }
 
 CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
+    {
+        LOCK(cs_spark_wallet);
+        const CSparkMintMeta* meta = findMintMeta(coin);
+        if (meta)
+            return meta->v;
+    }
     CAmount v(0);
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
@@ -584,6 +657,12 @@ CAmount CSparkWallet::getMyCoinV(spark::Coin coin) const {
 }
 
 bool CSparkWallet::getMyCoinIsChange(spark::Coin coin) const {
+    {
+        LOCK(cs_spark_wallet);
+        const CSparkMintMeta* meta = findMintMeta(coin);
+        if (meta)
+            return isChangeAddress(meta->i);
+    }
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
         return isChangeAddress(identifiedCoinData.i);
@@ -593,6 +672,12 @@ bool CSparkWallet::getMyCoinIsChange(spark::Coin coin) const {
 }
 
 spark::Address CSparkWallet::getMyCoinAddress(spark::Coin coin) {
+    {
+        LOCK(cs_spark_wallet);
+        const CSparkMintMeta* meta = findMintMeta(coin);
+        if (meta)
+            return getAddress(int32_t(meta->i));
+    }
     spark::Address address;
     try {
         spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);

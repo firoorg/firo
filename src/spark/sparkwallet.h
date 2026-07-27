@@ -176,6 +176,23 @@ private:
     // map lTagHash to coin meta
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
 
+    // Lookup indexes into coinMeta (values are its lTagHash keys), so that
+    // wallet-known coins are resolved by hash lookup instead of trial
+    // decryption or a linear scan. Guarded by cs_spark_wallet and maintained
+    // wherever coinMeta is mutated.
+    std::unordered_map<uint256, uint256> coinLookup;  // GetSparkCoinHash(meta.coin) -> lTagHash
+    std::unordered_map<uint256, uint256> nonceLookup; // GetNonceHash(meta.k) -> lTagHash
+
+    void addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
+    void removeFromLookups(const CSparkMintMeta& mint);
+    /**
+     * Return the recorded meta for a wallet-known coin, or nullptr.
+     * A non-null result requires full coin equality plus an equal serial
+     * context, so the answer matches what identification would produce.
+     * @pre cs_spark_wallet is held; the pointer is valid only under it
+     */
+    const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const;
+
     void* threadPool;
 };
 
