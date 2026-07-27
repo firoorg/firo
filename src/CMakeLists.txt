@@ -27,6 +27,7 @@ add_library(bitcoin_clientversion OBJECT EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_clientversion
   PRIVATE
     core_interface
+    warn_interface
 )
 add_dependencies(bitcoin_clientversion generate_build_info)
 target_include_directories(bitcoin_clientversion PRIVATE ${PROJECT_BINARY_DIR}/src)
@@ -49,6 +50,10 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/compat/strnlen.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/crypto/scrypt.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/fs.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging/categories.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging/timer.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/policy/rbf.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/primitives/block.cpp
@@ -59,6 +64,7 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/sync.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/util.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/util/log.h
   ${CMAKE_CURRENT_SOURCE_DIR}/utilmoneystr.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/utilstrencodings.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/utiltime.cpp
@@ -67,6 +73,7 @@ add_library(bitcoin_util STATIC EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_util
   PRIVATE
     core_interface
+    warn_interface
     bitcoin_clientversion
     bitcoin_crypto
     Boost::thread
@@ -174,6 +181,7 @@ add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
 target_link_libraries(bitcoin_consensus
   PRIVATE
     core_interface
+    warn_interface
     secp256k1
     leveldb
     univalue
@@ -230,6 +238,8 @@ target_link_libraries(bitcoin_common
     $<$<BOOL:${WITH_ZMQ}>:firo_zmq>
     $<TARGET_NAME_IF_EXISTS:USDT::headers>
     $<$<BOOL:${WIN32}>:windows_system>
+  PRIVATE
+    warn_interface
 )
 
 apply_wrapped_exception_flags(bitcoin_common)
@@ -344,6 +354,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
 target_link_libraries(firo_node
   PRIVATE
     core_interface
+    warn_interface
     bitcoin_common
     bitcoin_util
     secp256k1
@@ -372,6 +383,7 @@ if(BUILD_DAEMON)
   add_windows_resources(firod bitcoind-res.rc)
   target_link_libraries(firod
     core_interface
+    warn_interface
     univalue
     Boost::thread
     firo_node
@@ -404,6 +416,7 @@ if(WITH_MULTIPROCESS)
   )
   target_link_libraries(bitcoin-node
     core_interface
+    warn_interface
     firo_node
     bitcoin_ipc
     $<TARGET_NAME_IF_EXISTS:firo_wallet>
@@ -429,6 +442,7 @@ endif()
 
 
 add_library(firo_cli STATIC EXCLUDE_FROM_ALL
+  ${CMAKE_CURRENT_SOURCE_DIR}/logging.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpc/client.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpc/protocol.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/util.cpp
@@ -448,6 +462,8 @@ target_link_libraries(firo_cli
     $<TARGET_NAME_IF_EXISTS:firo_wallet>
     ${TOR_LIBRARY}
     $<$<BOOL:${WIN32}>:windows_system>
+  PRIVATE
+    warn_interface
 )
 target_include_directories(firo_cli
   PUBLIC
@@ -459,6 +475,7 @@ if(BUILD_CLI)
   add_windows_resources(firo-cli bitcoin-cli-res.rc)
   target_link_libraries(firo-cli
     core_interface
+    warn_interface
     univalue
     firo_node
     $<TARGET_NAME_IF_EXISTS:libevent::pthreads>
@@ -484,6 +501,7 @@ if(BUILD_TX)
   add_windows_resources(firo-tx bitcoin-tx-res.rc)
   target_link_libraries(firo-tx
     core_interface
+    warn_interface
     bitcoin_crypto    
     firo_cli
     bitcoin_common
@@ -526,6 +544,7 @@ if(BUILD_UTIL_CHAINSTATE)
   target_link_libraries(bitcoin-chainstate
     PRIVATE
       core_interface
+      warn_interface
       bitcoinkernel
   )
 endif()

@@ -10,6 +10,7 @@
 
 class CBlock;
 class CBlockIndex;
+class CDeterministicMNList;
 class UniValue;
 
 // coinbase transaction
@@ -45,8 +46,9 @@ public:
 
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 
-bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state);
+bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CDeterministicMNList* deterministicMNList = nullptr, bool cbTxMerkleRootMNListChanged = true);
 bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state);
+bool CalcCbTxMerkleRootMNList(const CDeterministicMNList& deterministicMNList, uint256& merkleRootRet, const CBlockIndex* pindexPrev = nullptr, bool cbTxMerkleRootMNListChanged = true);
 bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state);
 
 bool CbtxToJson(const CTransaction& tx, UniValue& obj);

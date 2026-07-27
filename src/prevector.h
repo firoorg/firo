@@ -151,7 +151,7 @@ private:
             size_type capacity;
             char* indirect;
         } data;
-    } _union;
+    } _union = {};
 
     T* direct_ptr(difference_type pos) { return reinterpret_cast<T*>(_union.direct) + pos; }
     const T* direct_ptr(difference_type pos) const { return reinterpret_cast<const T*>(_union.direct) + pos; }
@@ -427,7 +427,20 @@ public:
     }
 
     void swap(prevector<N, T, Size, Diff>& other) {
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
+        // GCC can report the inactive bytes of direct_or_indirect as maybe
+        // uninitialized when this swap is inlined. This is intentional: _size
+        // is the discriminator for the active representation, and the union is
+        // swapped as raw storage so direct prevector buffers stay uninitialized
+        // until elements are explicitly constructed or copied into them.
         std::swap(_union, other._union);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
         std::swap(_size, other._size);
     }
 

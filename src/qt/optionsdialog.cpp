@@ -94,7 +94,11 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         {
 #if QT_VERSION >= 0x040800
             /** display language strings as "native language - native country (locale name)", e.g. "Deutsch - Deutschland (de)" */
+#if QT_VERSION >= 0x060000
+            ui->lang->addItem(locale.nativeLanguageName() + QString(" - ") + locale.nativeTerritoryName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
+#else
             ui->lang->addItem(locale.nativeLanguageName() + QString(" - ") + locale.nativeCountryName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
+#endif
 #else
             /** display language strings as "language - country (locale name)", e.g. "German - Germany (de)" */
             ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" - ") + QLocale::countryToString(locale.country()) + QString(" (") + langStr + QString(")"), QVariant(langStr));

@@ -23,6 +23,11 @@
 #include <bls-dash/schemes.hpp>
 #include <bls-dash/threshold.hpp>
 #undef DOUBLE
+// relic's generic configuration macros collide with BCLog category names.
+// They are only needed while parsing relic headers and must not leak into
+// Firo translation units.
+#undef BENCH
+#undef RAND
 
 #include <array>
 #include <mutex>

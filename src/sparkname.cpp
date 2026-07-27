@@ -9,6 +9,23 @@
 #include "validation.h"
 #include "ui_interface.h"
 
+namespace {
+bool IsSparkNameAsciiAlphaNumeric(unsigned char c)
+{
+    return (c >= '0' && c <= '9') ||
+           (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z');
+}
+
+char ToUpperAscii(unsigned char c)
+{
+    if (c >= 'a' && c <= 'z') {
+        return static_cast<char>(c - ('a' - 'A'));
+    }
+    return static_cast<char>(c);
+}
+} // namespace
+
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
 bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
@@ -504,6 +521,7 @@ size_t CSparkNameManager::GetSparkNameTxDataSize(const CSparkNameTxData &sparkNa
     spark::OwnershipProof ownershipProof;   // just an empty proof
 
     CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+    ownershipProofStream.reserve(spark::OwnershipProof::memoryRequired());
     ownershipProofStream << ownershipProof;
 
     sparkNameDataCopy.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
@@ -557,6 +575,7 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
         sparkAddress.prove_own(m, spendKey, incomingViewKey, ownershipProof);
 
         CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
+        ownershipProofStream.reserve(spark::OwnershipProof::memoryRequired());
         ownershipProofStream << ownershipProof;
 
         sparkNameData.addressOwnershipProof.assign(ownershipProofStream.begin(), ownershipProofStream.end());
@@ -573,7 +592,9 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
 std::string CSparkNameManager::ToUpper(const std::string &str)
 {
     std::string result = str;
-    std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+    for (char& c : result) {
+        c = ToUpperAscii(static_cast<unsigned char>(c));
+    }
     return result;
 }
 
@@ -630,9 +651,11 @@ bool CSparkNameManager::IsSparkNameValid(const std::string &name)
     if (name.size() < 1 || name.size() > maximumSparkNameLength)
         return false;
 
-    for (char c: name)
-        if (!isalnum(c) && c != '-' && c != '.')
+    for (char c: name) {
+        const unsigned char byte = static_cast<unsigned char>(c);
+        if (!IsSparkNameAsciiAlphaNumeric(byte) && byte != '-' && byte != '.')
             return false;
+    }
 
     return true;
 }

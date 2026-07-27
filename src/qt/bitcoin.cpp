@@ -156,11 +156,21 @@ static void initTranslations(QTranslator &qtTranslatorBase, QTranslator &qtTrans
     // - Then load the more specific locale translator
 
     // Load e.g. qt_de.qm
-    if (qtTranslatorBase.load("qt_" + lang, QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+    if (qtTranslatorBase.load("qt_" + lang,
+#if QT_VERSION >= 0x060000
+                              QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+#else
+                              QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+#endif
         QApplication::installTranslator(&qtTranslatorBase);
 
     // Load e.g. qt_de_DE.qm
-    if (qtTranslator.load("qt_" + lang_territory, QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+    if (qtTranslator.load("qt_" + lang_territory,
+#if QT_VERSION >= 0x060000
+                          QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+#else
+                          QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+#endif
         QApplication::installTranslator(&qtTranslator);
 
     // Load e.g. bitcoin_de.qm (shortcut "de" needs to be defined in bitcoin.qrc)
@@ -303,6 +313,7 @@ void BitcoinCore::initialize()
 {
     try
     {
+        RenameThread("firo-qt-init");
         qDebug() << __func__ << ": Running AppInit2 in thread";
         if (!AppInitBasicSetup())
         {
@@ -729,6 +740,7 @@ int main(int argc, char *argv[])
     RegisterPrettySignalHandlers();
 #endif    
     SetupEnvironment();
+    SetInternalThreadName("main");
 
     /// 1. Parse command-line options. These take precedence over anything else.
     // Command-line options take precedence:
@@ -746,11 +758,11 @@ int main(int argc, char *argv[])
     Q_INIT_RESOURCE(bitcoin);
     Q_INIT_RESOURCE(bitcoin_locale);
 
-#if QT_VERSION > 0x050100
+#if QT_VERSION > 0x050100 && QT_VERSION < 0x060000
     // Generate high-dpi pixmaps
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 #endif
-#if QT_VERSION >= 0x050600
+#if QT_VERSION >= 0x050600 && QT_VERSION < 0x060000
     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
 #ifdef Q_OS_MAC

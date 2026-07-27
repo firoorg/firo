@@ -342,7 +342,7 @@ public:
             // ADDRv2 format (BIP155) - use CompactSize for services
             // Note: range_check=false because service flags are a bitmask, not a size
             if (ser_action.ForRead()) {
-                uint64_t nServicesInt;
+                uint64_t nServicesInt = 0;
                 READWRITE(COMPACTSIZE_NO_RANGECHECK(nServicesInt));
                 nServices = (ServiceFlags)nServicesInt;
             } else {

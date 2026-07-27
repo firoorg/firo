@@ -30,6 +30,7 @@
 #define LOCKS_EXCLUDED(...) __attribute__((locks_excluded(__VA_ARGS__)))
 #define EXCLUSIVE_LOCKS_REQUIRED(...) __attribute__((exclusive_locks_required(__VA_ARGS__)))
 #define SHARED_LOCKS_REQUIRED(...) __attribute__((shared_locks_required(__VA_ARGS__)))
+#define ASSERT_EXCLUSIVE_LOCK(...) __attribute__((assert_capability(__VA_ARGS__)))
 #define NO_THREAD_SAFETY_ANALYSIS __attribute__((no_thread_safety_analysis))
 #else
 #define LOCKABLE
@@ -49,6 +50,7 @@
 #define LOCKS_EXCLUDED(...)
 #define EXCLUSIVE_LOCKS_REQUIRED(...)
 #define SHARED_LOCKS_REQUIRED(...)
+#define ASSERT_EXCLUSIVE_LOCK(...)
 #define NO_THREAD_SAFETY_ANALYSIS
 #endif // __GNUC__
 

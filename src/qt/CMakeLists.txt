@@ -204,6 +204,7 @@ target_link_libraries(firoqt
     Qt6::Network
   PRIVATE
     core_interface
+    warn_interface
     firo_cli
     firo_node
     Boost::headers   
@@ -315,6 +316,8 @@ target_link_libraries(firo-qt
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
     $<TARGET_NAME_IF_EXISTS:libevent::core>
     ${TOR_LIBRARY}
+  PRIVATE
+    warn_interface
 )
 
 # Add macOS-specific frameworks
@@ -362,6 +365,7 @@ if(WITH_MULTIPROCESS)
   )
   target_link_libraries(bitcoin-gui
     core_interface
+    warn_interface
     firoqt
     firo_node
     bitcoin_ipc

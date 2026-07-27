@@ -11,6 +11,7 @@
 
 #include "primitives/transaction.h"
 #include "init.h"
+#include "logging.h"
 #include "policy/policy.h"
 #include "protocol.h"
 #include "script/script.h"
@@ -420,7 +421,7 @@ bool isObscured(QWidget *w)
 
 void openDebugLogfile()
 {
-    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
+    const boost::filesystem::path pathDebug = LogInstance().m_file_path;
 
     /* Open debug.log with the associated application */
     if (boost::filesystem::exists(pathDebug))
@@ -811,7 +812,7 @@ QString formatServicesStr(quint64 mask)
 
 QString formatPingTime(double dPingTime)
 {
-    return (dPingTime == std::numeric_limits<int64_t>::max()/1e6 || dPingTime == 0) ? QObject::tr("N/A") : QString(QObject::tr("%1 ms")).arg(QString::number((int)(dPingTime * 1000), 10));
+    return (dPingTime == static_cast<double>(std::numeric_limits<int64_t>::max())/1e6 || dPingTime == 0) ? QObject::tr("N/A") : QString(QObject::tr("%1 ms")).arg(QString::number((int)(dPingTime * 1000), 10));
 }
 
 QString formatTimeOffset(int64_t nTimeOffset)
