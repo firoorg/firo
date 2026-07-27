@@ -809,7 +809,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
             if (!isMint) continue;
         }
 
-        if (outpoint.n < out.tx->tx->vout.size() && wallet->IsMine(out.tx->tx->vout[outpoint.n]) == ISMINE_SPENDABLE)
+        if (outpoint.n < out.tx->tx->vout.size() && wallet->IsMine(out.tx->tx->vout[outpoint.n], *out.tx->tx) == ISMINE_SPENDABLE)
             vCoins.push_back(out);
     }
 
@@ -988,8 +988,8 @@ bool WalletModel::rebroadcastTransaction(uint256 hash, CValidationState &state)
     return true;
 }
 
-CAmount WalletModel::GetJMintCredit(const CTxOut& txout) const {
-    return wallet->GetCredit(txout, ISMINE_SPENDABLE);
+CAmount WalletModel::GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const {
+    return wallet->GetCredit(txout, tx, ISMINE_SPENDABLE);
 }
 
 bool WalletModel::isWalletEnabled()
