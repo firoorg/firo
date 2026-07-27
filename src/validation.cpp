@@ -2887,7 +2887,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
                 pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
         if (!sporkManager->BlockConnected(block, pindex)) {
-            pindex->ensurePrivacyData().activeDisablingSporks = sporkSetBackup;
+            pindex->SetActiveDisablingSporks(sporkSetBackup);
             return false;
         }
 
@@ -2906,7 +2906,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     if (fJustCheck) {
         // roll back spork set if needed
-        pindex->ensurePrivacyData().activeDisablingSporks = sporkSetBackup;
+        pindex->SetActiveDisablingSporks(sporkSetBackup);
         return true;
     }
 

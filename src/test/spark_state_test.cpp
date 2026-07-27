@@ -503,4 +503,20 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     sparkState->Reset();
 }
 
+// Blocks carrying no privacy transactions must not allocate CBlockIndexPrivacyData.
+// The block index keeps every entry alive for the lifetime of the process, so a
+// stray unconditional ensurePrivacyData() on the connect path costs hundreds of
+// megabytes over a full chain.
+BOOST_AUTO_TEST_CASE(no_privacy_data_for_empty_blocks)
+{
+    size_t allocated = 0;
+    for (int i = 0; i < 50; i++) {
+        if (GenerateBlock({})->hasPrivacyData())
+            ++allocated;
+    }
+
+    BOOST_CHECK_EQUAL(allocated, 0u);
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_SUITE_END()

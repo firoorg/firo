@@ -288,6 +288,17 @@ public:
 
     bool hasPrivacyData() const { return bool(m_privacyData); }
 
+    //! Assign the active disabling spork map without forcing allocation of the
+    //! privacy data structure for an empty map.  Almost every block in the evo
+    //! spork range ends up with no active sporks, so assigning through
+    //! ensurePrivacyData() would allocate for all of them.
+    void SetActiveDisablingSporks(ActiveSporkMap sporkMap) {
+        if (!sporkMap.empty())
+            ensurePrivacyData().activeDisablingSporks = std::move(sporkMap);
+        else if (m_privacyData)
+            m_privacyData->activeDisablingSporks.clear();
+    }
+
 private:
     std::unique_ptr<CBlockIndexPrivacyData> m_privacyData;
 

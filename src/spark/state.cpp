@@ -266,7 +266,8 @@ bool ConnectBlockSpark(
     
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
-        if (!fJustCheck) {
+        // nothing to clear if no privacy data was allocated for this block yet
+        if (!fJustCheck && pindexNew->hasPrivacyData()) {
             auto& pd = pindexNew->ensurePrivacyData();
             pd.sparkMintedCoins.clear();
             pd.spentLTags.clear();
@@ -290,14 +291,14 @@ bool ConnectBlockSpark(
         }
 
         if (!fJustCheck) {
-            auto& pd = pindexNew->ensurePrivacyData();
+            // allocate privacy data only if this block actually has something to store
             BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
-                pd.spentLTags.insert(lTag);
+                pindexNew->ensurePrivacyData().spentLTags.insert(lTag);
                 sparkState.AddSpend(lTag.first, lTag.second);
             }
             if (GetBoolArg("-mobile", false)) {
                 BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
-                    pd.ltagTxhash.insert(lTag);
+                    pindexNew->ensurePrivacyData().ltagTxhash.insert(lTag);
                     sparkState.AddLTagTxHash(lTag.first, lTag.second);
                 }
             }
