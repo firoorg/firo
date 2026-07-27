@@ -403,7 +403,8 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_legacy_disconnect)
     sparkState->AddMintsToStateAndBlockIndex(&duplicateIndex, &duplicateBlock);
 
     BOOST_REQUIRE_EQUAL(sparkState->GetTotalCoins(), 1U);
-    BOOST_REQUIRE_EQUAL(duplicateIndex.sparkMintedCoins.at(1).size(), 2U);
+    BOOST_REQUIRE_EQUAL(
+        duplicateIndex.privacyData().sparkMintedCoins.at(1).size(), 2U);
 
     sparkState->RemoveBlock(&duplicateIndex);
 
@@ -434,10 +435,13 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_legacy_disconnect)
 
     // A later duplicate can also be indexed in a different anonymity-set
     // group. Disconnecting that group must still preserve the earlier mint.
-    firstIndex.sparkMintedCoins.clear();
-    duplicateIndex.sparkMintedCoins.clear();
-    firstIndex.sparkMintedCoins[1].push_back(mint);
-    duplicateIndex.sparkMintedCoins[2].push_back(mint);
+    auto& firstMints = firstIndex.ensurePrivacyData().sparkMintedCoins;
+    auto& duplicateMints =
+        duplicateIndex.ensurePrivacyData().sparkMintedCoins;
+    firstMints.clear();
+    duplicateMints.clear();
+    firstMints[1].push_back(mint);
+    duplicateMints[2].push_back(mint);
     sparkState->AddBlock(&firstIndex);
     sparkState->AddBlock(&duplicateIndex);
     BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
@@ -501,7 +505,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto index3 = GenerateBlock({});
     auto block3 = GetCBlock(index3);
     PopulateSparkTxInfo(block3, {}, {{lTag1, 1}, {lTag2, 1}});
-    index3->spentLTags = block3.sparkTxInfo->spentLTags;
+    index3->ensurePrivacyData().spentLTags = block3.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index3);
 
@@ -518,7 +522,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto block4 = GetCBlock(index4);
     PopulateSparkTxInfo(block4, {pwalletMain->sparkWallet->getCoinFromMeta(mint3)}, {{lTag3, 1}});
     sparkState->AddMintsToStateAndBlockIndex(index4, &block4);
-    index4->spentLTags = block4.sparkTxInfo->spentLTags;
+    index4->ensurePrivacyData().spentLTags = block4.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index4);
 
@@ -570,7 +574,9 @@ BOOST_AUTO_TEST_CASE(remove_block_preserves_legacy_duplicate_mint)
 
         BOOST_REQUIRE_EQUAL(state.GetTotalCoins(), 1U);
         BOOST_REQUIRE_EQUAL(
-            duplicateIndex.sparkMintedCoins.at(duplicateGroupId).size(), 1U);
+            duplicateIndex.privacyData().sparkMintedCoins
+                .at(duplicateGroupId).size(),
+            1U);
 
         state.RemoveBlock(&duplicateIndex);
         BOOST_CHECK(
@@ -624,7 +630,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     auto sparkState = new spark::CSparkState(maxSize, startCoin);
 
     auto addMintsToState = [&](CBlockIndex* index, CBlock const& block) {
-        index->sparkMintedCoins.clear();
+        if (index->hasPrivacyData()) index->ensurePrivacyData().sparkMintedCoins.clear();
         sparkState->AddMintsToStateAndBlockIndex(index, &block);
     };
 

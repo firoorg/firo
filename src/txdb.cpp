@@ -439,24 +439,11 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                     pindexNew->reserved[1] = diskindex.reserved[1];
                 }
 
-                pindexNew->sigmaMintedPubCoins   = diskindex.sigmaMintedPubCoins;
-                pindexNew->sigmaSpentSerials     = diskindex.sigmaSpentSerials;
-
-                pindexNew->lelantusMintedPubCoins   = diskindex.lelantusMintedPubCoins;
-                pindexNew->lelantusMintData         = diskindex.lelantusMintData;
-                pindexNew->lelantusSpentSerials     = diskindex.lelantusSpentSerials;
-                pindexNew->anonymitySetHash         = diskindex.anonymitySetHash;
-
-                pindexNew->sparkMintedCoins   = diskindex.sparkMintedCoins;
-                pindexNew->sparkSetHash       = diskindex.sparkSetHash;
-                pindexNew->spentLTags         = diskindex.spentLTags;
-                pindexNew->sparkTxHashContext = diskindex.sparkTxHashContext;
-                pindexNew->ltagTxhash         = diskindex.ltagTxhash;
-
-                pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
-
-                pindexNew->addedSparkNames = diskindex.addedSparkNames;
-                pindexNew->removedSparkNames = diskindex.removedSparkNames;
+                {
+                    const auto& dpd = diskindex.privacyData();
+                    if (!dpd.IsEmpty())
+                        pindexNew->ensurePrivacyData() = dpd;
+                }
 
                 if (fCheckPoWForAllBlocks) {
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))

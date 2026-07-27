@@ -2005,9 +2005,10 @@ BOOST_AUTO_TEST_CASE(first_block_cover_set_hash_after_chaum_v2)
     BOOST_REQUIRE(sparkState->GetCoinGroupInfo(groupId, group));
     BOOST_REQUIRE(group.firstBlock);
     BOOST_REQUIRE_EQUAL(group.firstBlock, group.lastBlock);
-    BOOST_REQUIRE(group.firstBlock->sparkSetHash.count(groupId));
+    BOOST_REQUIRE(
+        group.firstBlock->privacyData().sparkSetHash.count(groupId));
     const std::vector<unsigned char> firstBlockHash =
-        group.firstBlock->sparkSetHash.at(groupId);
+        group.firstBlock->privacyData().sparkSetHash.at(groupId);
     BOOST_REQUIRE_EQUAL(firstBlockHash.size(), 32U);
 
     uint256 blockHash;
@@ -2035,11 +2036,14 @@ BOOST_AUTO_TEST_CASE(first_block_cover_set_hash_after_chaum_v2)
 
     BOOST_REQUIRE(sparkState->GetCoinGroupInfo(groupId, group));
     BOOST_REQUIRE(group.lastBlock != group.firstBlock);
-    BOOST_CHECK(group.firstBlock->sparkSetHash.at(groupId) == firstBlockHash);
+    BOOST_CHECK(
+        group.firstBlock->privacyData().sparkSetHash.at(groupId) ==
+        firstBlockHash);
 
     CHash256 hasher;
     hasher.Write(firstBlockHash.data(), firstBlockHash.size());
-    for (const auto& coin : group.lastBlock->sparkMintedCoins.at(groupId)) {
+    for (const auto& coin :
+            group.lastBlock->privacyData().sparkMintedCoins.at(groupId)) {
         CDataStream serializedCoin(SER_NETWORK, 0);
         serializedCoin << coin;
         std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
@@ -2049,7 +2053,9 @@ BOOST_AUTO_TEST_CASE(first_block_cover_set_hash_after_chaum_v2)
     hasher.Finalize(expected);
     const std::vector<unsigned char> expectedHash(
         expected, expected + CSHA256::OUTPUT_SIZE);
-    BOOST_CHECK(group.lastBlock->sparkSetHash.at(groupId) == expectedHash);
+    BOOST_CHECK(
+        group.lastBlock->privacyData().sparkSetHash.at(groupId) ==
+        expectedHash);
 
     BOOST_REQUIRE_GE(sparkState->GetCoinSetForSpend(
         &chainActive,
@@ -2088,9 +2094,11 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
     const auto blockIt = mapBlockIndex.find(references.begin()->second);
     BOOST_REQUIRE(blockIt != mapBlockIndex.end());
     CBlockIndex* referencedBlock = blockIt->second;
-    BOOST_REQUIRE(referencedBlock->sparkSetHash.count(groupId));
+    auto& referencedSetHashes =
+        referencedBlock->ensurePrivacyData().sparkSetHash;
+    BOOST_REQUIRE(referencedSetHashes.count(groupId));
     const std::vector<unsigned char> storedHash =
-        referencedBlock->sparkSetHash.at(groupId);
+        referencedSetHashes.at(groupId);
     BOOST_REQUIRE_EQUAL(storedHash.size(), 32U);
 
     struct RestoreSetHash {
@@ -2099,10 +2107,10 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
         std::vector<unsigned char> hash;
         ~RestoreSetHash()
         {
-            block->sparkSetHash[groupId] = hash;
+            block->ensurePrivacyData().sparkSetHash[groupId] = hash;
         }
     } restoreSetHash{referencedBlock, groupId, storedHash};
-    referencedBlock->sparkSetHash.erase(groupId);
+    referencedSetHashes.erase(groupId);
 
     BatchProofContainer* batch = BatchProofContainer::get_instance();
     batch->init();
@@ -2156,8 +2164,8 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
     batch->finalize();
     BOOST_CHECK(batch->verify_pending());
 
-    referencedBlock->sparkSetHash[groupId] = storedHash;
-    referencedBlock->sparkSetHash[groupId].resize(8);
+    referencedSetHashes[groupId] = storedHash;
+    referencedSetHashes[groupId].resize(8);
     CValidationState truncatedState;
     CSparkTxInfo truncatedInfo;
     BOOST_CHECK(!CheckSparkTransaction(
@@ -2235,7 +2243,8 @@ BOOST_AUTO_TEST_CASE(spark_cover_set_hash_binding_activates_with_h2)
         0,
         firstBlock->nHeight,
         true);
-    BOOST_REQUIRE_EQUAL(firstBlock->sparkSetHash.count(1), 1U);
+    BOOST_REQUIRE_EQUAL(
+        firstBlock->privacyData().sparkSetHash.count(1), 1U);
 
     CBlockIndex* rolloverReference = GenerateBlock({mintTransactions[2]});
     BOOST_REQUIRE(rolloverReference);
@@ -2266,7 +2275,8 @@ BOOST_AUTO_TEST_CASE(spark_cover_set_hash_binding_activates_with_h2)
     const auto& references = parsedRolloverSpend.getBlockHashes();
     BOOST_REQUIRE_EQUAL(references.size(), 1U);
     BOOST_CHECK_EQUAL(references.begin()->first, 2U);
-    BOOST_CHECK_EQUAL(rolloverReference->sparkSetHash.count(2), 0U);
+    BOOST_CHECK_EQUAL(
+        rolloverReference->privacyData().sparkSetHash.count(2), 0U);
 
     const int nextHeight = chainActive.Height() + 1;
     const int initialH2Height = nextHeight + 11;
@@ -3449,7 +3459,7 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
     CBlockIndex firstSpendIndex;
     firstSpendIndex.pprev = chainActive.Tip();
     firstSpendIndex.nHeight = chainActive.Height() + 1;
-    firstSpendIndex.spentLTags = firstInfo.spentLTags;
+    firstSpendIndex.ensurePrivacyData().spentLTags = firstInfo.spentLTags;
     verifyContext.AddBlock(&firstSpendIndex);
 
     CSparkTxInfo duplicateInfo;

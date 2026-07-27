@@ -3031,15 +3031,15 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     struct SporkSetRollback
     {
         CBlockIndex* index;
-        decltype(pindex->activeDisablingSporks) backup;
+        ActiveSporkMap backup;
         bool enabled;
         ~SporkSetRollback()
         {
             if (enabled)
-                index->activeDisablingSporks.swap(backup);
+                index->ensurePrivacyData().activeDisablingSporks.swap(backup);
         }
     } sporkSetRollback{
-        pindex, pindex->activeDisablingSporks, true};
+        pindex, pindex->privacyData().activeDisablingSporks, true};
     CSporkManager *sporkManager = CSporkManager::GetSporkManager();
 
     if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
@@ -3050,7 +3050,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         // check if transaction is allowed under spork rules
         for (CTransactionRef tx: block.vtx) {
-            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex->privacyData().activeDisablingSporks, state))
                 return false;
         }
     }

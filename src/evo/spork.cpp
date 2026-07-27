@@ -113,7 +113,7 @@ CSporkManager *CSporkManager::sharedSporkManager = new CSporkManager();
 
 bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
 {
-    return UpdateActiveSporkMap(pindex->activeDisablingSporks, pindex->pprev->activeDisablingSporks, pindex->nHeight, block.vtx);
+    return UpdateActiveSporkMap(pindex->ensurePrivacyData().activeDisablingSporks, pindex->pprev->privacyData().activeDisablingSporks, pindex->nHeight, block.vtx);
 }
 
 bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveSporkMap &previousSporkMap, int nHeight, const std::vector<CTransactionRef> &sporkTransactions)
@@ -158,7 +158,7 @@ bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveS
 
 bool CSporkManager::IsFeatureEnabled(const std::string &featureName, const CBlockIndex *pindex)
 {
-    return pindex->activeDisablingSporks.count(featureName) == 0;
+    return pindex->privacyData().activeDisablingSporks.count(featureName) == 0;
 }
 
 bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &sporkMap, CValidationState &state)
@@ -167,8 +167,9 @@ bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const ActiveSpo
 }
 
 bool CSporkManager::IsBlockAllowed(const CBlock &block, const CBlockIndex *pindex, CValidationState &state) {
-    if (pindex->activeDisablingSporks.count(CSporkAction::featureSparkTransparentLimit) > 0) {
-        int64_t limit = pindex->activeDisablingSporks.at(CSporkAction::featureSparkTransparentLimit).second;
+    const auto& pd = pindex->privacyData();
+    if (pd.activeDisablingSporks.count(CSporkAction::featureSparkTransparentLimit) > 0) {
+        int64_t limit = pd.activeDisablingSporks.at(CSporkAction::featureSparkTransparentLimit).second;
         CAmount totalTransparentOutput = 0;
 
         for (const auto &tx: block.vtx) {
@@ -249,5 +250,5 @@ bool CMempoolSporkManager::IsTransactionAllowed(const CTransaction &tx, CValidat
     if (!chainTip)
         return true;
 
-    return ::IsTransactionAllowed(tx, chainTip->activeDisablingSporks, state);
+    return ::IsTransactionAllowed(tx, chainTip->privacyData().activeDisablingSporks, state);
 }
