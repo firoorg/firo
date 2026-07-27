@@ -1068,7 +1068,20 @@ public:
      */
     CAmount GetDebit(const CTxIn& txin, const CTransaction&tx, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
+    /**
+     * Variant taking the transaction containing txout. For Spark outputs this
+     * derives the serial context directly from tx instead of scanning the
+     * whole wallet for the containing transaction; prefer it whenever the
+     * containing transaction is known.
+     * @pre txout must be an output of tx
+     */
+    isminetype IsMine(const CTxOut& txout, const CTransaction& tx) const;
     CAmount GetCredit(const CTxOut& txout, const isminefilter& filter) const;
+    /**
+     * Variant taking the transaction containing txout, see IsMine above.
+     * @pre txout must be an output of tx
+     */
+    CAmount GetCredit(const CTxOut& txout, const CTransaction& tx, const isminefilter& filter) const;
     bool IsChange(const uint256& tx, const CTxOut& txout) const;
     CAmount GetChange(const uint256& tx, const CTxOut& txout) const;
     bool IsMine(const CTransaction& tx) const;

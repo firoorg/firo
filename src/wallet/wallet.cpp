@@ -1169,7 +1169,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 
         auto mnList = deterministicMNManager->GetListAtChainTip();
         for(unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
-            if (IsMine(wtx.tx->vout[i]) && !IsSpent(hash, i)) {
+            if (IsMine(wtx.tx->vout[i], *wtx.tx) && !IsSpent(hash, i)) {
                 setWalletUTXO.insert(COutPoint(hash, i));
                 if (deterministicMNManager->IsProTxWithCollateral(wtx.tx, i) || mnList.HasMNByCollateral(COutPoint(hash, i))) {
                     LockCoin(COutPoint(hash, i));
@@ -1558,7 +1558,7 @@ isminetype CWallet::IsMine(const CTxIn &txin, const CTransaction& tx) const
         {
             const CWalletTx& prev = (*mi).second;
             if (txin.prevout.n < prev.tx->vout.size())
-                return IsMine(prev.tx->vout[txin.prevout.n]);
+                return IsMine(prev.tx->vout[txin.prevout.n], *prev.tx);
         }
     }
 
@@ -1599,7 +1599,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const CTransaction& tx, const ismin
         {
             const CWalletTx& prev = (*mi).second;
             if (txin.prevout.n < prev.tx->vout.size())
-                if (IsMine(prev.tx->vout[txin.prevout.n]) & filter)
+                if (IsMine(prev.tx->vout[txin.prevout.n], *prev.tx) & filter)
                     return prev.tx->vout[txin.prevout.n].nValue;
         }
     }
@@ -1608,40 +1608,80 @@ end:
     return 0;
 }
 
+// Fallback for callers that don't know the transaction containing txout: scan
+// the wallet for it and compute the Spark serial context from it. Empty result
+// if no wallet transaction contains txout.
+static std::vector<unsigned char> FindSparkSerialContext(const std::map<uint256, CWalletTx>& mapWallet, const CTxOut& txout)
+{
+    std::vector<unsigned char> serialContext;
+    for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx *pcoin = &(*it).second;
+        for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
+            if (txout == pcoin->tx->vout[i]) {
+                serialContext = spark::getSerialContext(*pcoin->tx);
+                break;
+            }
+        }
+
+        if (!serialContext.empty())
+            break;
+    }
+    return serialContext;
+}
+
+static isminetype SparkOutputIsMine(const CSparkWallet* sparkWallet, const CTxOut& txout, const std::vector<unsigned char>& serialContext)
+{
+    if (serialContext.empty())
+        return ISMINE_NO;
+
+    spark::Coin coin(spark::Params::get_default());
+    try {
+        spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+    } catch (std::invalid_argument &) {
+        return ISMINE_NO;
+    }
+
+    coin.setSerialContext(serialContext);
+
+    if (!sparkWallet)
+        return ISMINE_NO;
+    return sparkWallet->isMine(coin) ? ISMINE_SPENDABLE : ISMINE_NO;
+}
+
+static CAmount SparkOutputCredit(const CSparkWallet* sparkWallet, const CTxOut& txout, const std::vector<unsigned char>& serialContext)
+{
+    if (serialContext.empty())
+        return 0;
+
+    spark::Coin coin(spark::Params::get_default());
+    try {
+        spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
+    } catch (std::invalid_argument &) {
+        return 0;
+    }
+    coin.setSerialContext(serialContext);
+    if (!sparkWallet)
+        return 0;
+    return sparkWallet->getMyCoinV(coin);
+}
+
 isminetype CWallet::IsMine(const CTxOut &txout) const
 {
     LOCK(cs_wallet);
 
     if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
-        std::vector<unsigned char> serialContext;
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
-            const CWalletTx *pcoin = &(*it).second;
-            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
-                if (txout == pcoin->tx->vout[i]) {
-                    serialContext = spark::getSerialContext(*pcoin->tx);
-                    break;
-                }
-            }
+        return SparkOutputIsMine(sparkWallet.get(), txout, FindSparkSerialContext(mapWallet, txout));
+    } else {
+        return ::IsMine(*this, txout.scriptPubKey);
+    }
+}
 
-            if (!serialContext.empty())
-                break;
-        }
+isminetype CWallet::IsMine(const CTxOut &txout, const CTransaction& tx) const
+{
+    LOCK(cs_wallet);
 
-        if (serialContext.empty())
-            return ISMINE_NO;
-
-        spark::Coin coin(spark::Params::get_default());
-        try {
-            spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
-        } catch (std::invalid_argument &) {
-            return ISMINE_NO;
-        }
-
-        coin.setSerialContext(serialContext);
-
-        if (!sparkWallet)
-            return ISMINE_NO;
-        return sparkWallet->isMine(coin) ? ISMINE_SPENDABLE : ISMINE_NO;
+    if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+        return SparkOutputIsMine(sparkWallet.get(), txout, spark::getSerialContext(tx));
     } else {
         return ::IsMine(*this, txout.scriptPubKey);
     }
@@ -1655,36 +1695,24 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
     if (txout.scriptPubKey.IsSparkSMint()) {
         if (!(filter & ISMINE_SPENDABLE))
             return 0;
-        std::vector<unsigned char> serialContext;
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
-            const CWalletTx *pcoin = &(*it).second;
-            for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
-                if (txout == pcoin->tx->vout[i]) {
-                    serialContext = spark::getSerialContext(*pcoin->tx);
-                    break;
-                }
-            }
-
-            if (!serialContext.empty())
-                break;
-        }
-
-        if (serialContext.empty())
-            return 0;
-
-        spark::Coin coin(spark::Params::get_default());
-        try {
-            spark::ParseSparkMintCoin(txout.scriptPubKey, coin);
-        } catch (std::invalid_argument &) {
-            return 0;
-        }
-        coin.setSerialContext(serialContext);
-        if (!sparkWallet)
-            return 0;
-        return sparkWallet->getMyCoinV(coin);
+        return SparkOutputCredit(sparkWallet.get(), txout, FindSparkSerialContext(mapWallet, txout));
     }
 
     return ((IsMine(txout) & filter) ? txout.nValue : 0);
+}
+
+CAmount CWallet::GetCredit(const CTxOut& txout, const CTransaction& tx, const isminefilter& filter) const
+{
+    if (!MoneyRange(txout.nValue))
+        throw std::runtime_error(std::string(__func__) + ": value out of range");
+
+    if (txout.scriptPubKey.IsSparkSMint()) {
+        if (!(filter & ISMINE_SPENDABLE))
+            return 0;
+        return SparkOutputCredit(sparkWallet.get(), txout, spark::getSerialContext(tx));
+    }
+
+    return ((IsMine(txout, tx) & filter) ? txout.nValue : 0);
 }
 
 bool CWallet::IsChange(const uint256& tx, const CTxOut &txout) const
@@ -1736,14 +1764,14 @@ bool CWallet::IsMine(const CTransaction& tx) const
                 coin.setSerialContext(serialContext);
                 if(sparkWallet->isMine(coin))
                     return true;
-            } else if (IsMine(txout))
+            } else if (IsMine(txout, tx))
                 return true;
         }
         return false;
     }
 
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
-        if (IsMine(txout))
+        if (IsMine(txout, tx))
             return true;
     return false;
 }
@@ -1780,7 +1808,7 @@ bool CWallet::IsAllFromMe(const CTransaction& tx, const isminefilter& filter) co
         if (txin.prevout.n >= prev.tx->vout.size())
             return false; // invalid input!
 
-        if (!(IsMine(prev.tx->vout[txin.prevout.n]) & filter))
+        if (!(IsMine(prev.tx->vout[txin.prevout.n], *prev.tx) & filter))
             return false;
     }
     return true;
@@ -1791,7 +1819,7 @@ CAmount CWallet::GetCredit(const CTransaction& tx, const isminefilter& filter) c
     CAmount nCredit = 0;
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
     {
-        nCredit += GetCredit(txout, filter);
+        nCredit += GetCredit(txout, tx, filter);
         if (!MoneyRange(nCredit))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
     }
@@ -2081,7 +2109,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
     for (unsigned int i = 0; i < tx->vout.size(); ++i)
     {
         const CTxOut& txout = tx->vout[i];
-        isminetype fIsMine = pwallet->IsMine(txout);
+        isminetype fIsMine = pwallet->IsMine(txout, *tx);
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
@@ -2113,7 +2141,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
         CAmount nValue;
         if(txout.scriptPubKey.IsSparkSMint()) {
             LOCK(pwalletMain->cs_wallet);
-            nValue = pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+            nValue = pwallet->GetCredit(txout, *tx, ISMINE_SPENDABLE);
         } else {
             nValue = txout.nValue;
         }
@@ -2427,7 +2455,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
 
         if (!pwallet->IsSpent(hashTx, i))
         {
-            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
+            nCredit += pwallet->GetCredit(txout, *tx, ISMINE_SPENDABLE);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
@@ -2474,7 +2502,7 @@ CAmount CWalletTx::GetAvailableWatchOnlyCredit(const bool& fUseCache) const
         if (!pwallet->IsSpent(GetHash(), i))
         {
             const CTxOut &txout = tx->vout[i];
-            nCredit += pwallet->GetCredit(txout, ISMINE_WATCH_ONLY);
+            nCredit += pwallet->GetCredit(txout, *tx, ISMINE_WATCH_ONLY);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
         }
@@ -2964,12 +2992,12 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
                 }
                 if (!found) continue;
 
-                isminetype mine = IsMine(pcoin->tx->vout[i]);
+                isminetype mine = IsMine(pcoin->tx->vout[i], *pcoin->tx);
 
 
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
                     (!IsLockedCoin((*it).first, i) || nCoinType == CoinType::ONLY_1000) &&
-                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || ((pcoin->tx->vout[i].scriptPubKey.IsSparkSMint()) && GetCredit(pcoin->tx->vout[i], ISMINE_SPENDABLE) > 0)) &&
+                    (pcoin->tx->vout[i].nValue > 0 || fIncludeZeroValue || ((pcoin->tx->vout[i].scriptPubKey.IsSparkSMint()) && GetCredit(pcoin->tx->vout[i], *pcoin->tx, ISMINE_SPENDABLE) > 0)) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i)))) {
                         vCoins.push_back(COutput(pcoin, i, nDepth,
                                                  ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
@@ -4366,7 +4394,7 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances()
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++)
             {
                 CTxDestination addr;
-                if (!IsMine(pcoin->tx->vout[i]))
+                if (!IsMine(pcoin->tx->vout[i], *pcoin->tx))
                     continue;
                 if(!ExtractDestination(pcoin->tx->vout[i].scriptPubKey, addr))
                     continue;
@@ -4430,7 +4458,7 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings()
 
         // group lone addrs by themselves
         for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++)
-            if (IsMine(pcoin->tx->vout[i]))
+            if (IsMine(pcoin->tx->vout[i], *pcoin->tx))
             {
                 CTxDestination address;
                 if(!ExtractDestination(pcoin->tx->vout[i].scriptPubKey, address))
@@ -5080,7 +5108,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
                 const auto& txout = (*it).second.tx->vout[i];
                 if(txout.scriptPubKey.IsMint() || (*it).second.changes.count(i))
                     continue;
-                if (!walletInstance->IsMine(txout))
+                if (!walletInstance->IsMine(txout, *(*it).second.tx))
                     continue;
                 CTxDestination addr;
                 if(!ExtractDestination(txout.scriptPubKey, addr))

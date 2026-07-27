@@ -808,7 +808,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
             if (!isMint) continue;
         }
 
-        if (outpoint.n < out.tx->tx->vout.size() && wallet->IsMine(out.tx->tx->vout[outpoint.n]) == ISMINE_SPENDABLE)
+        if (outpoint.n < out.tx->tx->vout.size() && wallet->IsMine(out.tx->tx->vout[outpoint.n], *out.tx->tx) == ISMINE_SPENDABLE)
             vCoins.push_back(out);
     }
 
