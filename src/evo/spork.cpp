@@ -113,7 +113,17 @@ CSporkManager *CSporkManager::sharedSporkManager = new CSporkManager();
 
 bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
 {
-    return UpdateActiveSporkMap(pindex->ensurePrivacyData().activeDisablingSporks, pindex->pprev->privacyData().activeDisablingSporks, pindex->nHeight, block.vtx);
+    // Build the map in a temporary and commit it through SetActiveDisablingSporks:
+    // updating the block index in place would allocate privacy data for every block
+    // in the evo spork range, including the vast majority that have no active sporks.
+    // Seeding from the current value keeps the out-of-range early return in
+    // UpdateActiveSporkMap a no-op, as it leaves the map untouched.
+    ActiveSporkMap sporkMap = pindex->privacyData().activeDisablingSporks;
+    if (!UpdateActiveSporkMap(sporkMap, pindex->pprev->privacyData().activeDisablingSporks, pindex->nHeight, block.vtx))
+        return false;
+
+    pindex->SetActiveDisablingSporks(std::move(sporkMap));
+    return true;
 }
 
 bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveSporkMap &previousSporkMap, int nHeight, const std::vector<CTransactionRef> &sporkTransactions)

@@ -3036,7 +3036,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         ~SporkSetRollback()
         {
             if (enabled)
-                index->ensurePrivacyData().activeDisablingSporks.swap(backup);
+                index->SetActiveDisablingSporks(std::move(backup));
         }
     } sporkSetRollback{
         pindex, pindex->privacyData().activeDisablingSporks, true};
