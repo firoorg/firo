@@ -184,7 +184,7 @@ private:
     std::unordered_map<uint256, uint256> nonceLookup; // GetNonceHash(meta.k) -> lTagHash
 
     void addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
-    void removeFromLookups(const CSparkMintMeta& mint);
+    void removeFromLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
     /**
      * Return the recorded meta for a wallet-known coin, or nullptr.
      * A non-null result requires full coin equality plus an equal serial

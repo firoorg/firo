@@ -406,7 +406,7 @@ void CSparkWallet::eraseMint(const uint256& hash, CWalletDB& walletdb) {
     walletdb.EraseSparkMint(hash);
     auto it = coinMeta.find(hash);
     if (it != coinMeta.end()) {
-        removeFromLookups(it->second);
+        removeFromLookups(hash, it->second);
         coinMeta.erase(it);
     }
 }
@@ -420,7 +420,7 @@ void CSparkWallet::addOrUpdateMint(const CSparkMintMeta& mint, const uint256& lT
     }
     auto it = coinMeta.find(lTagHash);
     if (it != coinMeta.end())
-        removeFromLookups(it->second);
+        removeFromLookups(lTagHash, it->second);
     coinMeta[lTagHash] = mint;
     addToLookups(lTagHash, mint);
     walletdb.WriteSparkMint(lTagHash, mint);
@@ -451,7 +451,7 @@ void CSparkWallet::updateMintInMemory(const CSparkMintMeta& mint) {
     LOCK(cs_spark_wallet);
     for (auto& itr : coinMeta) {
         if (itr.second == mint) {
-            removeFromLookups(itr.second);
+            removeFromLookups(itr.first, itr.second);
             coinMeta[itr.first] = mint;
             addToLookups(itr.first, mint);
             break;
@@ -465,10 +465,17 @@ void CSparkWallet::addToLookups(const uint256& lTagHash, const CSparkMintMeta& m
     nonceLookup[mint.GetNonceHash()] = lTagHash;
 }
 
-void CSparkWallet::removeFromLookups(const CSparkMintMeta& mint) {
-    if (mint.coin != spark::Coin())
-        coinLookup.erase(primitives::GetSparkCoinHash(mint.coin));
-    nonceLookup.erase(mint.GetNonceHash());
+void CSparkWallet::removeFromLookups(const uint256& lTagHash, const CSparkMintMeta& mint) {
+    // Only drop entries still owned by this mint, so a colliding entry that
+    // points at a surviving mint is left intact.
+    if (mint.coin != spark::Coin()) {
+        auto coinIt = coinLookup.find(primitives::GetSparkCoinHash(mint.coin));
+        if (coinIt != coinLookup.end() && coinIt->second == lTagHash)
+            coinLookup.erase(coinIt);
+    }
+    auto nonceIt = nonceLookup.find(mint.GetNonceHash());
+    if (nonceIt != nonceLookup.end() && nonceIt->second == lTagHash)
+        nonceLookup.erase(nonceIt);
 }
 
 const CSparkMintMeta* CSparkWallet::findMintMeta(const spark::Coin& coin) const {
