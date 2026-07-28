@@ -24,12 +24,18 @@
 #include "wallet/wallet.h"
 #include "overviewpage.h"
 
+#include <QApplication>
+#include <QEventLoop>
 #include <QFontMetrics>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
+
+#include <exception>
+#include <functional>
+#include <thread>
 
 #define SEND_CONFIRM_DELAY   3
 
@@ -223,6 +229,50 @@ SendCoinsDialog::~SendCoinsDialog()
     delete ui;
 }
 
+namespace {
+/** Run a slow wallet operation on a worker thread while keeping the GUI event
+ * loop spinning, and return its result. Creating a transaction can take
+ * several seconds: Spark spends generate zero-knowledge proofs, and both
+ * creation and commit wait on cs_main/cs_wallet, which are contended while
+ * incoming blocks and transactions are processed. Doing that work directly in
+ * a slot freezes the whole GUI for its duration.
+ *
+ * User input is excluded from event processing while the operation runs, so
+ * the calling code path behaves as if it were synchronous. */
+WalletModel::SendCoinsReturn runWalletOperation(std::function<WalletModel::SendCoinsReturn()> operation)
+{
+    WalletModel::SendCoinsReturn result;
+    std::exception_ptr exception;
+    QEventLoop waitLoop;
+    std::thread worker([&] {
+        try {
+            result = operation();
+        } catch (...) {
+            exception = std::current_exception();
+        }
+        QMetaObject::invokeMethod(&waitLoop, &QEventLoop::quit, Qt::QueuedConnection);
+    });
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    // Restore the cursor and join the worker even if an exception escapes the
+    // nested event loop: destroying a joinable std::thread would call
+    // std::terminate().
+    struct Cleanup {
+        std::thread& worker;
+        ~Cleanup()
+        {
+            if (worker.joinable())
+                worker.join();
+            QApplication::restoreOverrideCursor();
+        }
+    } cleanup{worker};
+    waitLoop.exec(QEventLoop::ExcludeUserInputEvents);
+    worker.join();
+    if (exception)
+        std::rethrow_exception(exception);
+    return result;
+}
+}
+
 void SendCoinsDialog::on_sendButton_clicked()
 {
     updateGlobalFeeVariables();
@@ -368,16 +418,23 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount totalAmount = 0;
 
     if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
+        prepareStatus = runWalletOperation([&] {
+            return model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
+        });
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
         if (spark::IsSparkAllowed())
-            prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
+            prepareStatus = runWalletOperation([&] {
+                return model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
+            });
         else {
             processSendCoinsReturn(WalletModel::InvalidAddress);
+            fNewRecipientAllowed = true;
             return;
         }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
-        prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
+        prepareStatus = runWalletOperation([&] {
+            return model->prepareTransaction(currentTransaction, &ctrl);
+        });
     } else {
         fNewRecipientAllowed = true;
         return;
@@ -602,11 +659,17 @@ void SendCoinsDialog::on_sendButton_clicked()
     WalletModel::SendCoinsReturn sendStatus;
 
     if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        sendStatus = model->spendSparkCoins(currentTransaction);
+        sendStatus = runWalletOperation([&] {
+            return model->spendSparkCoins(currentTransaction);
+        });
     } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
-        sendStatus = model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
+        sendStatus = runWalletOperation([&] {
+            return model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
+        });
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
-        sendStatus = model->sendCoins(currentTransaction);
+        sendStatus = runWalletOperation([&] {
+            return model->sendCoins(currentTransaction);
+        });
     } else {
         return;
     }
@@ -655,7 +718,9 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         WalletModelTransaction  secondTransaction(exchangeRecipients);
 
-        prepareStatus = model->prepareTransaction(secondTransaction, &ctrl);
+        prepareStatus = runWalletOperation([&] {
+            return model->prepareTransaction(secondTransaction, &ctrl);
+        });
 
         // process prepareStatus and on error generate message shown to user
         processSendCoinsReturn(prepareStatus,
@@ -666,7 +731,9 @@ void SendCoinsDialog::on_sendButton_clicked()
             return;
         }
 
-        sendStatus = model->sendCoins(secondTransaction);
+        sendStatus = runWalletOperation([&] {
+            return model->sendCoins(secondTransaction);
+        });
         // process sendStatus and on error generate message shown to user
         processSendCoinsReturn(sendStatus);
     }

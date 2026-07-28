@@ -6,6 +6,7 @@
 #define BITCOIN_QT_ADDRESSTABLEMODEL_H
 
 #include <QAbstractTableModel>
+#include <QHash>
 #include <QStringList>
 
 class AddressTablePriv;
@@ -103,6 +104,11 @@ protected:
 
 private:
     AddressTablePriv *priv;
+
+    /** Cache of address -> label lookups, used to answer labelForAddress()
+     * without blocking when cs_wallet is held by another thread. Only
+     * accessed from the GUI thread. */
+    mutable QHash<QString, QString> labelCache;
 
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);
