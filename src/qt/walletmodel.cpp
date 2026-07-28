@@ -1092,10 +1092,18 @@ QString WalletModel::signSparkMessage(const QString& sparkAddress, const QString
 
     const spark::Params* params = spark::Params::get_default();
     spark::Address address(params);
+    unsigned char coinNetwork;
     try {
-        address.decode(sparkAddress.toStdString());
+        coinNetwork = address.decode(sparkAddress.toStdString());
     } catch (const std::exception&) {
         error = tr("The entered address is invalid.");
+        return QString();
+    }
+
+    // Match the RPC signing path and spark::VerifyMessage, which both reject
+    // addresses encoded for a different network.
+    if (coinNetwork != spark::GetNetworkType()) {
+        error = tr("The entered address is for a different network.");
         return QString();
     }
 
