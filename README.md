@@ -196,6 +196,7 @@ If the build succeeded, binaries will be generated in `build/bin/`: `firod`, `fi
 | `BUILD_GUI` | Build `firo-qt` GUI client | `ON` |
 | `BUILD_CLI` | Build `firo-tx` and other command-line tools | `ON` |
 | `ENABLE_WALLET` | Enable wallet functionality | `ON` |
+| `ENABLE_SQLITE_WALLET` | Enable SQLite wallet support | `ON` |
 | `BUILD_TESTS` | Build test suite | `OFF` |
 | `BUILD_TX` | Build `firo-tx` transaction tool | Subset of `BUILD_CLI` |
 | `ENABLE_CRASH_HOOKS` | Enable crash reporting/stack traces | `OFF` |

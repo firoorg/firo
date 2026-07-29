@@ -37,13 +37,14 @@ The following can be set when running make: make FOO=bar
     FALLBACK_DOWNLOAD_PATH: If a source file can't be fetched, try here before giving up
     NO_QT: Don't download/build/cache qt and its dependencies
     NO_WALLET: Don't download/build/cache libs needed to enable the wallet
+    NO_SQLITE: Don't download/build/cache SQLite wallet support
     NO_UPNP: Don't download/build/cache packages needed for enabling upnp
     DEBUG: disable some optimizations and enable more runtime checking
     HOST_ID_SALT: Optional salt to use when generating host package ids
     BUILD_ID_SALT: Optional salt to use when generating build package ids
 
-If some packages are not built, for example `make NO_WALLET=1`, the appropriate
-options will be passed to bitcoin's configure. In this case, `--disable-wallet`.
+If packages are omitted, the generated toolchain sets the corresponding CMake
+cache options. For example, `NO_WALLET=1` sets `ENABLE_WALLET=OFF`.
 
 Additional targets:
 
