@@ -729,6 +729,17 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
+    /*
+     * Serializes the walletpassphrase RPC for this wallet, so that unlocking
+     * the wallet and scheduling the matching relock timer happen atomically
+     * with respect to other walletpassphrase calls.
+     *
+     * This must never be acquired while cs_wallet is held: it is held across
+     * RPCRunLater(), which blocks until a running relock callback has returned,
+     * and that callback acquires cs_wallet.
+     */
+    CCriticalSection cs_unlock;
+
     const std::string strWalletFile;
 
     void LoadKeyPool(int nIndex, const CKeyPool &keypool)

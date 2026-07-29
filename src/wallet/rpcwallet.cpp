@@ -3035,6 +3035,18 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
         );
     }
 
+    // Prevent concurrent walletpassphrase calls for the same wallet. Without
+    // this, two overlapping calls can update nRelockTime and schedule the
+    // relock timer in opposite orders, so the slower call installs the last
+    // timer while the faster call owns nRelockTime. The stale callback then
+    // does nothing (see LockWallet) and no timer is left, i.e. the wallet stays
+    // unlocked past the requested timeout.
+    //
+    // This has to be a separate lock rather than cs_wallet, because it is held
+    // across RPCRunLater() below, which blocks on the relock callback, which in
+    // turn takes cs_wallet.
+    LOCK(pwallet->cs_unlock);
+
     int64_t nSleepTime;
     int64_t nRelockTime;
     {
@@ -3071,14 +3083,15 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
         nRelockTime = pwallet->nRelockTime;
     }
 
-    // Schedule the relock *after* releasing cs_wallet. RPCRunLater() erases any
-    // previously scheduled lockwallet timer, and destroying a libevent timer
-    // blocks until that timer's callback has finished executing. When the
-    // callback (LockWallet) happens to be running at that moment it is itself
-    // waiting for cs_wallet, so holding the lock across this call deadlocks the
-    // RPC worker against the HTTP event loop thread. Because the RPC worker also
-    // holds cs_main, every other thread that needs cs_main then piles up behind
-    // it and the whole node stops making progress.
+    // Schedule the relock *after* releasing cs_wallet, but still under cs_unlock.
+    // RPCRunLater() erases any previously scheduled lockwallet timer, and
+    // destroying a libevent timer blocks until that timer's callback has finished
+    // executing. When the callback (LockWallet) happens to be running at that
+    // moment it is itself waiting for cs_wallet, so holding the lock across this
+    // call deadlocks the RPC worker against the HTTP event loop thread. Because
+    // the RPC worker also holds cs_main, every other thread that needs cs_main
+    // then piles up behind it and the whole node stops making progress.
+    AssertLockNotHeld(pwallet->cs_wallet);
     RPCRunLater(strprintf("lockwallet(%s)", pwallet->strWalletFile), boost::bind(LockWallet, pwallet, nRelockTime), nSleepTime);
 
     return NullUniValue;
