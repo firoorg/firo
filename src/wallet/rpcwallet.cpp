@@ -2995,9 +2995,14 @@ UniValue keypoolrefill(const JSONRPCRequest& request)
 }
 
 
-static void LockWallet(CWallet* pWallet)
+static void LockWallet(CWallet* pWallet, int64_t nRelockTime)
 {
     LOCK(pWallet->cs_wallet);
+    // Skip if this is not the most recent relock callback. walletpassphrase()
+    // may have been called again in the meantime (extending the timeout), or
+    // walletlock() may have already locked the wallet and reset nRelockTime.
+    if (pWallet->nRelockTime != nRelockTime)
+        return;
     pWallet->nRelockTime = 0;
     pWallet->Lock();
 }
@@ -3030,37 +3035,51 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
         );
     }
 
-    LOCK2(cs_main, pwallet->cs_wallet);
-
-    if (request.fHelp)
-        return true;
-    if (!pwallet->IsCrypted()) {
-        throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrase was called.");
-    }
-
-    // Note that the walletpassphrase is stored in request.params[0] which is not mlock()ed
-    SecureString strWalletPass;
-    strWalletPass.reserve(100);
-    // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
-    // Alternately, find a way to make request.params[0] mlock()'d to begin with.
-    strWalletPass = request.params[0].get_str().c_str();
-
-    if (strWalletPass.length() > 0)
+    int64_t nSleepTime;
+    int64_t nRelockTime;
     {
-        if (!pwallet->Unlock(strWalletPass)) {
-            throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+        LOCK2(cs_main, pwallet->cs_wallet);
+
+        if (request.fHelp)
+            return true;
+        if (!pwallet->IsCrypted()) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrase was called.");
         }
+
+        // Note that the walletpassphrase is stored in request.params[0] which is not mlock()ed
+        SecureString strWalletPass;
+        strWalletPass.reserve(100);
+        // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
+        // Alternately, find a way to make request.params[0] mlock()'d to begin with.
+        strWalletPass = request.params[0].get_str().c_str();
+
+        if (strWalletPass.length() > 0)
+        {
+            if (!pwallet->Unlock(strWalletPass)) {
+                throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+            }
+        }
+        else
+            throw std::runtime_error(
+                "walletpassphrase <passphrase> <timeout>\n"
+                "Stores the wallet decryption key in memory for <timeout> seconds.");
+
+        pwallet->TopUpKeyPool();
+
+        nSleepTime = request.params[1].get_int64();
+        pwallet->nRelockTime = GetTime() + nSleepTime;
+        nRelockTime = pwallet->nRelockTime;
     }
-    else
-        throw std::runtime_error(
-            "walletpassphrase <passphrase> <timeout>\n"
-            "Stores the wallet decryption key in memory for <timeout> seconds.");
 
-    pwallet->TopUpKeyPool();
-
-    int64_t nSleepTime = request.params[1].get_int64();
-    pwallet->nRelockTime = GetTime() + nSleepTime;
-    RPCRunLater(strprintf("lockwallet(%s)", pwallet->strWalletFile), boost::bind(LockWallet, pwallet), nSleepTime);
+    // Schedule the relock *after* releasing cs_wallet. RPCRunLater() erases any
+    // previously scheduled lockwallet timer, and destroying a libevent timer
+    // blocks until that timer's callback has finished executing. When the
+    // callback (LockWallet) happens to be running at that moment it is itself
+    // waiting for cs_wallet, so holding the lock across this call deadlocks the
+    // RPC worker against the HTTP event loop thread. Because the RPC worker also
+    // holds cs_main, every other thread that needs cs_main then piles up behind
+    // it and the whole node stops making progress.
+    RPCRunLater(strprintf("lockwallet(%s)", pwallet->strWalletFile), boost::bind(LockWallet, pwallet, nRelockTime), nSleepTime);
 
     return NullUniValue;
 }
