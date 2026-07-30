@@ -688,6 +688,87 @@ BOOST_AUTO_TEST_CASE(coingroup)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
+{
+    auto params = Params::get_default();
+    CSparkWallet* wallet = pwalletMain->sparkWallet.get();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    // Build a meta for a coin generated from foreign keys: trial decryption
+    // with the wallet's view key can never identify it, so any positive
+    // answer below must come from the lookup indexes, not the EC fallback.
+    const SpendKey spendKey(params);
+    const FullViewKey fullViewKey(spendKey);
+    const IncomingViewKey incomingViewKey(fullViewKey);
+    const Address address(incomingViewKey, 1);
+
+    CSparkMintMeta meta;
+    meta.nHeight = 1;
+    meta.nId = 1;
+    meta.isUsed = false;
+    meta.txid = uint256();
+    meta.i = 1;
+    meta.d = address.get_d();
+    meta.v = 7 * COIN;
+    meta.k.randomize();
+    meta.memo = "lookup test";
+    meta.serial_context = random_char_vector();
+    meta.type = COIN_TYPE_MINT;
+    meta.coin = Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context);
+
+    const uint256 lTagHash = uint256S("0x1");
+
+    // Unknown coin: both the coin index and identification miss
+    BOOST_CHECK(!wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+
+    wallet->addOrUpdateMint(meta, lTagHash, walletdb);
+
+    // Coin index hits
+    BOOST_CHECK(wallet->isMine(meta.coin));
+    BOOST_CHECK_EQUAL(wallet->getMyCoinV(meta.coin), CAmount(meta.v));
+    CAmount amount(0);
+    BOOST_CHECK(wallet->getMintAmount(meta.coin, amount));
+    BOOST_CHECK_EQUAL(amount, CAmount(meta.v));
+    CSparkMintMeta byCoin;
+    BOOST_CHECK(wallet->getMintMeta(meta.coin, byCoin));
+    BOOST_CHECK(byCoin == meta);
+
+    // Nonce index hits
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == meta);
+    BOOST_CHECK_EQUAL(wallet->getMintMeta(meta.k).v, meta.v);
+    BOOST_CHECK(wallet->getMintMeta(meta.k).serial_context == meta.serial_context);
+    Scalar otherNonce;
+    otherNonce.randomize();
+    BOOST_CHECK(wallet->getMintMeta(otherNonce) == CSparkMintMeta());
+
+    // Same coin under a different serial context must not hit: coin equality
+    // does not cover the serial context, but identification depends on it
+    Coin altered = meta.coin;
+    altered.setSerialContext(random_char_vector());
+    BOOST_CHECK(!wallet->isMine(altered));
+
+    // Indexes follow an in-memory update
+    CSparkMintMeta updated = meta;
+    updated.isUsed = true;
+    wallet->updateMintInMemory(updated);
+    BOOST_CHECK(wallet->getMintMeta(meta.k).isUsed);
+    BOOST_CHECK(wallet->isMine(meta.coin));
+
+    // Indexes drop the entry on erase
+    wallet->eraseMint(lTagHash, walletdb);
+    BOOST_CHECK(!wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+    BOOST_CHECK(!wallet->getMintAmount(meta.coin, amount));
+
+    // Re-add, then clearAllMints empties the indexes
+    wallet->addOrUpdateMint(meta, lTagHash, walletdb);
+    BOOST_CHECK(wallet->isMine(meta.coin));
+    wallet->clearAllMints(walletdb);
+    BOOST_CHECK(!wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+}
+
 } // end of namespace spark
 
 BOOST_AUTO_TEST_SUITE_END()
