@@ -701,55 +701,30 @@ bool CWallet::Verify()
     if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return true;
 
-    LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
 
-    LogPrintf("Using wallet %s\n", walletFile);
     uiInterface.InitMessage(_("Verifying wallet..."));
 
-    // Wallet file must be a plain filename without a directory
-    if (walletFile != boost::filesystem::path(walletFile).stem().string() + boost::filesystem::path(walletFile).extension().string())
-        return InitError(strprintf(_("Wallet %s resides outside data directory %s"), walletFile, GetDataDir().string()));
-
-    if (!bitdb.Open(GetDataDir()))
-    {
-        // try moving the database env out of the way
-        boost::filesystem::path pathDatabase = GetDataDir() / "database";
-        boost::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%d.bak", GetTime());
-        try {
-            boost::filesystem::rename(pathDatabase, pathDatabaseBak);
-            LogPrintf("Moved old %s to %s. Retrying.\n", pathDatabase.string(), pathDatabaseBak.string());
-        } catch (const boost::filesystem::filesystem_error&) {
-            // failure is ok (well, not really, but it's not worse than what we started with)
-        }
-
-        // try again
-        if (!bitdb.Open(GetDataDir())) {
-            // if it still fails, it probably means we can't even create the database env
-            return InitError(strprintf(_("Error initializing wallet database environment %s!"), GetDataDir()));
-        }
+    DatabaseOptions options;
+    options.salvage = GetBoolArg("-salvagewallet", false);
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(walletFile, options, status, error);
+    if (!database) {
+        return InitError(error);
     }
 
-    if (GetBoolArg("-salvagewallet", false))
-    {
-        // Recover readable keypairs:
-        if (!CWalletDB::Recover(bitdb, walletFile, true))
-            return false;
+    LogPrintf("Using wallet %s\n", walletFile);
+    if (database->Format() == DatabaseFormat::BERKELEY) {
+        LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
     }
 
-    if (boost::filesystem::exists(GetDataDir() / walletFile))
-    {
-        CDBEnv::VerifyResult r = bitdb.Verify(walletFile, CWalletDB::Recover);
-        if (r == CDBEnv::RECOVER_OK)
-        {
-            InitWarning(strprintf(_("Warning: Wallet file corrupt, data salvaged!"
-                                         " Original %s saved as %s in %s; if"
-                                         " your balance or transactions are incorrect you should"
-                                         " restore from a backup."),
-                walletFile, "wallet.{timestamp}.bak", GetDataDir()));
-        }
-        if (r == CDBEnv::RECOVER_FAIL)
-            return InitError(strprintf(_("%s corrupt, salvage failed"), walletFile));
+    if (status == DatabaseStatus::SUCCESS_RECOVERED) {
+        InitWarning(strprintf(_("Warning: Wallet file corrupt, data salvaged!"
+                                " Original %s saved as %s in %s; if"
+                                " your balance or transactions are incorrect you should"
+                                " restore from a backup."),
+            walletFile, "wallet.{timestamp}.bak", GetDataDir()));
     }
 
     return true;
@@ -5377,10 +5352,26 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
 
 CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 {
+    auto makeDatabase = [&walletFile]() {
+        DatabaseOptions options;
+        options.verify = false;
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(walletFile, options, status, error);
+        if (!database) {
+            InitError(error);
+        }
+        return database;
+    };
+
     if (GetBoolArg("-zapwalletmints", false) || GetBoolArg("-reindex", false)) {
         uiInterface.InitMessage(_("Zapping all Sigma mints from wallet..."));
 
-        auto tempWallet = std::make_unique<CWallet>(MakeBerkeleyDatabase(bitdb, walletFile));
+        std::unique_ptr<WalletDatabase> database = makeDatabase();
+        if (!database) {
+            return nullptr;
+        }
+        auto tempWallet = std::make_unique<CWallet>(std::move(database));
         DBErrors nZapSparkMintRet = tempWallet->ZapSparkMints();
         if (nZapSparkMintRet != DB_LOAD_OK) {
             InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
@@ -5394,7 +5385,11 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     if (GetBoolArg("-zapwallettxes", false)) {
         uiInterface.InitMessage(_("Zapping all transactions from wallet..."));
 
-        auto tempWallet = std::make_unique<CWallet>(MakeBerkeleyDatabase(bitdb, walletFile));
+        std::unique_ptr<WalletDatabase> database = makeDatabase();
+        if (!database) {
+            return nullptr;
+        }
+        auto tempWallet = std::make_unique<CWallet>(std::move(database));
         DBErrors nZapWalletRet = tempWallet->ZapWalletTx(vWtx);
         if (nZapWalletRet != DB_LOAD_OK) {
             InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
@@ -5407,7 +5402,11 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
     bool fRecoverMnemonic = false;
-    auto walletInstance = std::make_unique<CWallet>(MakeBerkeleyDatabase(bitdb, walletFile));
+    std::unique_ptr<WalletDatabase> database = makeDatabase();
+    if (!database) {
+        return nullptr;
+    }
+    auto walletInstance = std::make_unique<CWallet>(std::move(database));
     boost::signals2::scoped_connection progressConnection(
         walletInstance->ShowProgress.connect([](const std::string& title, int progress) {
             uiInterface.ShowProgress(title, progress);
@@ -5651,12 +5650,6 @@ bool CWallet::InitLoadWallet()
     }
 
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
-
-    if (walletFile.find_first_of("/\\") != std::string::npos) {
-        return InitError(_("-wallet parameter must only specify a filename (not a path)"));
-    } else if (SanitizeString(walletFile, SAFE_CHARS_FILENAME) != walletFile) {
-        return InitError(_("Invalid characters in -wallet filename"));
-    }
 
     CWallet * const pwallet = CreateWalletFromFile(walletFile);
     if (!pwallet) {

@@ -11,6 +11,8 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
+#include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <stdint.h>
@@ -20,6 +22,7 @@
 #endif
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <boost/thread.hpp>
 #include <boost/version.hpp>
 
@@ -460,6 +463,34 @@ std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(CDBEnv& env, std::string fi
 std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase()
 {
     return std::make_unique<BerkeleyDatabase>();
+}
+
+bool IsBerkeleyDatabase(const fs::path& path)
+{
+    boost::system::error_code error;
+    const uintmax_t size = fs::file_size(path, error);
+    if (error) {
+        throw std::runtime_error(strprintf("cannot determine file size: %s", error.message()));
+    }
+    if (size < 4096) {
+        return false;
+    }
+
+    fs::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("cannot open file");
+    }
+
+    std::array<unsigned char, 16> header{};
+    file.read(reinterpret_cast<char*>(header.data()), header.size());
+    if (file.gcount() != static_cast<std::streamsize>(header.size())) {
+        throw std::runtime_error("cannot read file header");
+    }
+
+    static constexpr std::array<unsigned char, 4> BIG_ENDIAN_MAGIC{{0x00, 0x05, 0x31, 0x62}};
+    static constexpr std::array<unsigned char, 4> LITTLE_ENDIAN_MAGIC{{0x62, 0x31, 0x05, 0x00}};
+    return std::equal(BIG_ENDIAN_MAGIC.begin(), BIG_ENDIAN_MAGIC.end(), header.begin() + 12) ||
+           std::equal(LITTLE_ENDIAN_MAGIC.begin(), LITTLE_ENDIAN_MAGIC.end(), header.begin() + 12);
 }
 
 bool CDB::ReadRaw(CDataStream&& key, CDataStream& value)

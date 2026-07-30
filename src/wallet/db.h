@@ -120,6 +120,7 @@ public:
     ~BerkeleyDatabase() override = default;
 
     const std::string& Filename() const override { return m_filename; }
+    DatabaseFormat Format() const override { return DatabaseFormat::BERKELEY; }
 
     std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) override;
     bool Rewrite(const char* skip = nullptr) override;
@@ -172,5 +173,7 @@ public:
 
 std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(CDBEnv& env, std::string filename);
 std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase();
+/** Return whether path has BDB B-tree magic; throw if it cannot be inspected. */
+bool IsBerkeleyDatabase(const fs::path& path);
 
 #endif // BITCOIN_WALLET_DB_H

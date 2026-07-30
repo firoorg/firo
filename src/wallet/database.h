@@ -8,10 +8,12 @@
 #define FIRO_WALLET_DATABASE_H
 
 #include "clientversion.h"
+#include "fs.h"
 #include "streams.h"
 
 #include <exception>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -142,6 +144,33 @@ struct DatabaseBatchOptions {
     bool flush_on_close{true};
 };
 
+enum class DatabaseFormat {
+    BERKELEY,
+    SQLITE,
+};
+
+struct DatabaseOptions {
+    bool require_existing{false};
+    bool require_create{false};
+    std::optional<DatabaseFormat> require_format;
+    bool verify{true};
+    bool salvage{false};
+};
+
+enum class DatabaseStatus {
+    SUCCESS,
+    SUCCESS_RECOVERED,
+    SUCCESS_SALVAGED,
+    FAILED_INVALID_OPTIONS,
+    FAILED_BAD_PATH,
+    FAILED_BAD_FORMAT,
+    FAILED_UNSUPPORTED,
+    FAILED_ALREADY_EXISTS,
+    FAILED_NOT_FOUND,
+    FAILED_LOAD,
+    FAILED_VERIFY,
+};
+
 /** Persistent identity and lifecycle operations for one wallet database. */
 class WalletDatabase
 {
@@ -153,11 +182,25 @@ public:
     WalletDatabase& operator=(const WalletDatabase&) = delete;
 
     virtual const std::string& Filename() const = 0;
+    virtual DatabaseFormat Format() const = 0;
     virtual std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) = 0;
     virtual bool Rewrite(const char* skip = nullptr) = 0;
     virtual bool Backup(const std::string& destination) = 0;
     virtual bool PeriodicFlush() = 0;
     virtual void Flush(bool shutdown) = 0;
 };
+
+/** Resolve a safe flat wallet filename inside the network data directory. */
+bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::string& error);
+
+/** Check whether a wallet path entry exists without following symlinks. */
+bool WalletDatabasePathExists(const fs::path& path, bool& exists, std::string& error);
+
+/** Select, verify, and construct the wallet database owner for filename. */
+std::unique_ptr<WalletDatabase> MakeWalletDatabase(
+    const std::string& filename,
+    const DatabaseOptions& options,
+    DatabaseStatus& status,
+    std::string& error);
 
 #endif // FIRO_WALLET_DATABASE_H

@@ -19,6 +19,7 @@ add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/../primitives/mint_spend.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/crypter.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bip39.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/database.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mnemoniccontainer.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/db.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcdump.cpp

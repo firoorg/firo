@@ -7,6 +7,7 @@
 #include "util.h"
 
 #ifdef ENABLE_WALLET
+#include "../wallet/database.h"
 #include "../wallet/wallet.h"
 #endif // ENABLE_WALLET
 #include "../wallet/bip39.h"
@@ -234,10 +235,15 @@ bool Recover::askRecover(bool& newWallet)
 {
 #ifdef ENABLE_WALLET
     namespace fs = boost::filesystem;
-    fs::path walletFile = GetDataDir(true) / GetArg("-wallet", DEFAULT_WALLET_DAT);
+    fs::path walletFile;
+    std::string walletError;
+    if (!GetWalletDatabasePath(GetArg("-wallet", DEFAULT_WALLET_DAT), walletFile, walletError)) {
+        // Shared startup verification will report the actionable path error.
+        return true;
+    }
 
-    if (!fs::exists(walletFile))
-    {
+    bool walletPathExists;
+    if (WalletDatabasePathExists(walletFile, walletPathExists, walletError) && !walletPathExists) {
         newWallet = true;
         Recover recover;
         recover.setWindowIcon(QIcon(":icons/firo"));
