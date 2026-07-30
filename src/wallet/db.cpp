@@ -11,6 +11,8 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
+#include <cstdlib>
+#include <cstring>
 #include <stdint.h>
 
 #ifndef WIN32
@@ -27,6 +29,136 @@
 //
 
 CDBEnv bitdb;
+
+namespace
+{
+void CleanseStream(CDataStream& stream)
+{
+    if (!stream.empty()) {
+        memory_cleanse(stream.data(), stream.size());
+    }
+}
+
+class BerkeleyMallocDbt final
+{
+private:
+    Dbt m_data;
+    const void* m_borrowed;
+
+public:
+    BerkeleyMallocDbt()
+        : BerkeleyMallocDbt(nullptr)
+    {
+    }
+
+    explicit BerkeleyMallocDbt(CDataStream* input)
+        : m_borrowed(input ? input->data() : nullptr)
+    {
+        if (input) {
+            m_data.set_data(input->data());
+            m_data.set_size(input->size());
+        }
+        m_data.set_flags(DB_DBT_MALLOC);
+    }
+
+    ~BerkeleyMallocDbt()
+    {
+        void* const raw = m_data.get_data();
+        if (raw && raw != m_borrowed) {
+            memory_cleanse(raw, m_data.get_size());
+            free(raw);
+        }
+    }
+
+    BerkeleyMallocDbt(const BerkeleyMallocDbt&) = delete;
+    BerkeleyMallocDbt& operator=(const BerkeleyMallocDbt&) = delete;
+
+    Dbt* Get() { return &m_data; }
+    void* Data() const { return m_data.get_data(); }
+    size_t Size() const { return m_data.get_size(); }
+};
+
+struct BerkeleyCursorCloser {
+    void operator()(Dbc* cursor) const noexcept
+    {
+        if (cursor) {
+            cursor->close();
+        }
+    }
+};
+
+using BerkeleyCursorHandle = std::unique_ptr<Dbc, BerkeleyCursorCloser>;
+
+class BerkeleyCursor final : public DatabaseCursor
+{
+private:
+    BerkeleyCursorHandle m_cursor;
+    CDataStream m_start_key;
+    bool m_seek;
+
+public:
+    explicit BerkeleyCursor(BerkeleyCursorHandle cursor)
+        : m_cursor(std::move(cursor)),
+          m_start_key(SER_DISK, CLIENT_VERSION),
+          m_seek(false)
+    {
+    }
+
+    BerkeleyCursor(BerkeleyCursorHandle cursor, const CDataStream& start_key)
+        : m_cursor(std::move(cursor)),
+          m_start_key(start_key),
+          m_seek(true)
+    {
+    }
+
+    ~BerkeleyCursor() override
+    {
+        CleanseStream(m_start_key);
+    }
+
+    Status Next(CDataStream& key, CDataStream& value) override
+    {
+        BerkeleyMallocDbt db_key(m_seek ? &m_start_key : nullptr);
+        unsigned int flags = DB_NEXT;
+        if (m_seek) {
+            flags = DB_SET_RANGE;
+        }
+
+        BerkeleyMallocDbt db_value;
+        const int result = m_cursor->get(db_key.Get(), db_value.Get(), flags);
+        m_seek = false;
+
+        if (result != 0) {
+            CleanseStream(m_start_key);
+            m_start_key.clear();
+            return result == DB_NOTFOUND ? Status::DONE : Status::FAIL;
+        }
+
+        if ((db_key.Size() != 0 && db_key.Data() == nullptr) ||
+            (db_value.Size() != 0 && db_value.Data() == nullptr)) {
+            CleanseStream(m_start_key);
+            m_start_key.clear();
+            return Status::FAIL;
+        }
+
+        key.SetType(SER_DISK);
+        key.clear();
+        if (db_key.Size() != 0) {
+            key.write(static_cast<const char*>(db_key.Data()), db_key.Size());
+        }
+
+        value.SetType(SER_DISK);
+        value.clear();
+        if (db_value.Size() != 0) {
+            value.write(static_cast<const char*>(db_value.Data()), db_value.Size());
+        }
+
+        CleanseStream(m_start_key);
+        m_start_key.clear();
+        return Status::MORE;
+    }
+};
+} // namespace
 
 void CDBEnv::EnvShutdown()
 {
@@ -294,6 +426,75 @@ CDB::CDB(const std::string& strFilename, const char* pszMode, bool fFlushOnClose
     }
 }
 
+bool CDB::ReadRaw(CDataStream&& key, CDataStream& value)
+{
+    if (!pdb) {
+        return false;
+    }
+
+    Dbt db_key(key.data(), key.size());
+    BerkeleyMallocDbt db_value;
+    const int result = pdb->get(activeTxn, &db_key, db_value.Get(), 0);
+    CleanseStream(key);
+
+    if (result != 0 ||
+        (db_value.Size() != 0 && db_value.Data() == nullptr)) {
+        return false;
+    }
+
+    value.SetType(SER_DISK);
+    value.clear();
+    if (db_value.Size() != 0) {
+        value.write(static_cast<const char*>(db_value.Data()), db_value.Size());
+    }
+    return true;
+}
+
+bool CDB::WriteRaw(CDataStream&& key, CDataStream&& value, bool overwrite)
+{
+    if (!pdb) {
+        return false;
+    }
+    if (fReadOnly) {
+        assert(!"Write called on database in read-only mode");
+    }
+
+    Dbt db_key(key.data(), key.size());
+    Dbt db_value(value.data(), value.size());
+    const int result = pdb->put(activeTxn, &db_key, &db_value, overwrite ? 0 : DB_NOOVERWRITE);
+
+    CleanseStream(key);
+    CleanseStream(value);
+    return result == 0;
+}
+
+bool CDB::EraseRaw(CDataStream&& key)
+{
+    if (!pdb) {
+        return false;
+    }
+    if (fReadOnly) {
+        assert(!"Erase called on database in read-only mode");
+    }
+
+    Dbt db_key(key.data(), key.size());
+    const int result = pdb->del(activeTxn, &db_key, 0);
+    CleanseStream(key);
+    return result == 0 || result == DB_NOTFOUND;
+}
+
+bool CDB::HasRaw(CDataStream&& key)
+{
+    if (!pdb) {
+        return false;
+    }
+
+    Dbt db_key(key.data(), key.size());
+    const int result = pdb->exists(activeTxn, &db_key, 0);
+    CleanseStream(key);
+    return result == 0;
+}
+
 void CDB::Flush()
 {
     if (activeTxn)
@@ -325,6 +526,68 @@ void CDB::Close()
     }
 }
 
+std::unique_ptr<DatabaseCursor> CDB::GetCursor()
+{
+    if (!pdb) {
+        return nullptr;
+    }
+
+    Dbc* cursor = nullptr;
+    if (pdb->cursor(nullptr, &cursor, 0) != 0) {
+        return nullptr;
+    }
+    return std::make_unique<BerkeleyCursor>(BerkeleyCursorHandle(cursor));
+}
+
+std::unique_ptr<DatabaseCursor> CDB::GetCursor(const CDataStream& start_key)
+{
+    if (!pdb) {
+        return nullptr;
+    }
+
+    Dbc* cursor = nullptr;
+    if (pdb->cursor(nullptr, &cursor, 0) != 0) {
+        return nullptr;
+    }
+    return std::make_unique<BerkeleyCursor>(BerkeleyCursorHandle(cursor), start_key);
+}
+
+bool CDB::TxnBegin()
+{
+    if (!pdb || activeTxn) {
+        return false;
+    }
+
+    DbTxn* transaction = bitdb.TxnBegin();
+    if (!transaction) {
+        return false;
+    }
+    activeTxn = transaction;
+    return true;
+}
+
+bool CDB::TxnCommit()
+{
+    if (!pdb || !activeTxn) {
+        return false;
+    }
+
+    const int result = activeTxn->commit(0);
+    activeTxn = nullptr;
+    return result == 0;
+}
+
+bool CDB::TxnAbort()
+{
+    if (!pdb || !activeTxn) {
+        return false;
+    }
+
+    const int result = activeTxn->abort();
+    activeTxn = nullptr;
+    return result == 0;
+}
+
 void CDBEnv::CloseDb(const std::string& strFile)
 {
     {
@@ -350,6 +613,11 @@ bool CDBEnv::RemoveDb(const std::string& strFile)
 
 bool CDB::Rewrite(const std::string& strFile, const char* pszSkip)
 {
+    return RewriteInternal(strFile, pszSkip, false);
+}
+
+bool CDB::RewriteInternal(const std::string& strFile, const char* pszSkip, bool failBeforeRename)
+{
     while (true) {
         {
             LOCK(bitdb.cs_db);
@@ -364,62 +632,75 @@ bool CDB::Rewrite(const std::string& strFile, const char* pszSkip)
                 std::string strFileRes = strFile + ".rewrite";
                 { // surround usage of db with extra {}
                     CDB db(strFile.c_str(), "r");
-                    Db* pdbCopy = new Db(bitdb.dbenv, 0);
+                    auto pdbCopy = std::make_unique<Db>(bitdb.dbenv, 0);
 
-                    int ret = pdbCopy->open(NULL,               // Txn pointer
-                                            strFileRes.c_str(), // Filename
-                                            "main",             // Logical db name
-                                            DB_BTREE,           // Database type
-                                            DB_CREATE,          // Flags
-                                            0);
-                    if (ret > 0) {
+                    int ret = pdbCopy->open(NULL, // Txn pointer
+                        strFileRes.c_str(),       // Filename
+                        "main",                   // Logical db name
+                        DB_BTREE,                 // Database type
+                        DB_CREATE | DB_EXCL,      // Flags
+                        0);
+                    const bool copyOpen = ret == 0;
+                    if (!copyOpen) {
                         LogPrintf("CDB::Rewrite: Can't create database file %s\n", strFileRes);
                         fSuccess = false;
                     }
 
-                    Dbc* pcursor = db.GetCursor();
-                    if (pcursor)
-                        while (fSuccess) {
-                            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-                            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-                            int ret1 = db.ReadAtCursor(pcursor, ssKey, ssValue);
-                            if (ret1 == DB_NOTFOUND) {
-                                pcursor->close();
-                                break;
-                            } else if (ret1 != 0) {
-                                pcursor->close();
-                                fSuccess = false;
-                                break;
-                            }
-                            if (pszSkip &&
-                                strncmp(ssKey.data(), pszSkip, std::min(ssKey.size(), strlen(pszSkip))) == 0)
-                                continue;
-                            if (strncmp(ssKey.data(), "\x07version", 8) == 0) {
-                                // Update version:
-                                ssValue.clear();
-                                ssValue << CLIENT_VERSION;
-                            }
-                            Dbt datKey(ssKey.data(), ssKey.size());
-                            Dbt datValue(ssValue.data(), ssValue.size());
-                            int ret2 = pdbCopy->put(NULL, &datKey, &datValue, DB_NOOVERWRITE);
-                            if (ret2 > 0)
-                                fSuccess = false;
+                    auto cursor = db.GetCursor();
+                    if (!cursor) {
+                        fSuccess = false;
+                    }
+                    while (fSuccess) {
+                        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+                        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+                        const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+                        if (status == DatabaseCursor::Status::DONE) {
+                            break;
                         }
-                    if (fSuccess) {
-                        db.Close();
-                        bitdb.CloseDb(strFile);
-                        if (pdbCopy->close(0))
+                        if (status == DatabaseCursor::Status::FAIL) {
                             fSuccess = false;
-                        delete pdbCopy;
+                            break;
+                        }
+
+                        const size_t skipSize = pszSkip ? strlen(pszSkip) : 0;
+                        if (skipSize != 0 && ssKey.size() >= skipSize &&
+                            memcmp(ssKey.data(), pszSkip, skipSize) == 0) {
+                            continue;
+                        }
+
+                        static const char serializedVersion[] = "\x07version";
+                        if (ssKey.size() == sizeof(serializedVersion) - 1 &&
+                            memcmp(ssKey.data(), serializedVersion, sizeof(serializedVersion) - 1) == 0) {
+                            ssValue.clear();
+                            ssValue << CLIENT_VERSION;
+                        }
+
+                        Dbt datKey(ssKey.data(), ssKey.size());
+                        Dbt datValue(ssValue.data(), ssValue.size());
+                        if (pdbCopy->put(NULL, &datKey, &datValue, DB_NOOVERWRITE) != 0) {
+                            fSuccess = false;
+                        }
+                    }
+
+                    cursor.reset();
+                    db.Close();
+                    bitdb.CloseDb(strFile);
+                    if (copyOpen && pdbCopy->close(0) != 0) {
+                        fSuccess = false;
                     }
                 }
                 if (fSuccess) {
-                    Db dbA(bitdb.dbenv, 0);
-                    if (dbA.remove(strFile.c_str(), NULL, 0))
+                    DbTxn* publishTxn = bitdb.TxnBegin(0);
+                    if (!publishTxn) {
                         fSuccess = false;
-                    Db dbB(bitdb.dbenv, 0);
-                    if (dbB.rename(strFileRes.c_str(), NULL, strFile.c_str(), 0))
+                    } else if (bitdb.dbenv->dbremove(publishTxn, strFile.c_str(), nullptr, 0) != 0 ||
+                               failBeforeRename ||
+                               bitdb.dbenv->dbrename(publishTxn, strFileRes.c_str(), nullptr, strFile.c_str(), 0) != 0) {
+                        publishTxn->abort();
                         fSuccess = false;
+                    } else {
+                        fSuccess = publishTxn->commit(DB_TXN_SYNC) == 0;
+                    }
                 }
                 if (!fSuccess)
                     LogPrintf("CDB::Rewrite: Failed to rewrite database file %s\n", strFileRes);

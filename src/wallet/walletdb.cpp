@@ -232,24 +232,19 @@ void CWalletDB::ListAccountCreditDebit(const std::string& strAccount, std::list<
 {
     bool fAllAccounts = (strAccount == "*");
 
-    Dbc* pcursor = GetCursor();
-    if (!pcursor)
+    CDataStream startKey(SER_DISK, CLIENT_VERSION);
+    startKey << std::make_pair(std::string("acentry"), std::make_pair((fAllAccounts ? std::string("") : strAccount), uint64_t(0)));
+    auto cursor = GetCursor(startKey);
+    if (!cursor)
         throw std::runtime_error(std::string(__func__) + ": cannot create DB cursor");
-    bool setRange = true;
-    while (true)
-    {
-        // Read next record
+
+    while (true) {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("acentry"), std::make_pair((fAllAccounts ? std::string("") : strAccount), uint64_t(0)));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
+        const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+        if (status == DatabaseCursor::Status::DONE)
             break;
-        else if (ret != 0)
-        {
-            pcursor->close();
+        else if (status == DatabaseCursor::Status::FAIL) {
             throw std::runtime_error(std::string(__func__) + ": error scanning DB");
         }
 
@@ -267,8 +262,6 @@ void CWalletDB::ListAccountCreditDebit(const std::string& strAccount, std::list<
         ssKey >> acentry.nEntryNo;
         entries.push_back(acentry);
     }
-
-    pcursor->close();
 }
 
 bool CWalletDB::WriteCalculatedZCBlock(int height) {
@@ -706,9 +699,8 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
         }
 
         // Get cursor
-        Dbc* pcursor = GetCursor();
-        if (!pcursor)
-        {
+        auto cursor = GetCursor();
+        if (!cursor) {
             LogPrintf("Error getting wallet database cursor\n");
             return DB_CORRUPT;
         }
@@ -718,11 +710,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(pcursor, ssKey, ssValue);
-            if (ret == DB_NOTFOUND)
+            const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+            if (status == DatabaseCursor::Status::DONE)
                 break;
-            else if (ret != 0)
-            {
+            else if (status == DatabaseCursor::Status::FAIL) {
                 LogPrintf("Error reading next record from wallet database\n");
                 return DB_CORRUPT;
             }
@@ -752,7 +743,6 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             if (fReadOK && strType == "tx" && ++nLoadedTxs % 1000 == 0)
                 uiInterface.InitMessage(strprintf(_("Loading wallet... (%d transactions)"), nLoadedTxs));
         }
-        pcursor->close();
     }
     catch (const boost::thread_interrupted&) {
         throw;
@@ -821,9 +811,8 @@ DBErrors CWalletDB::FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash
         }
 
         // Get cursor
-        Dbc* pcursor = GetCursor();
-        if (!pcursor)
-        {
+        auto cursor = GetCursor();
+        if (!cursor) {
             LogPrintf("Error getting wallet database cursor\n");
             return DB_CORRUPT;
         }
@@ -833,11 +822,10 @@ DBErrors CWalletDB::FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash
             // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(pcursor, ssKey, ssValue);
-            if (ret == DB_NOTFOUND)
+            const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+            if (status == DatabaseCursor::Status::DONE)
                 break;
-            else if (ret != 0)
-            {
+            else if (status == DatabaseCursor::Status::FAIL) {
                 LogPrintf("Error reading next record from wallet database\n");
                 return DB_CORRUPT;
             }
@@ -855,7 +843,6 @@ DBErrors CWalletDB::FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash
                 vWtx.push_back(wtx);
             }
         }
-        pcursor->close();
     }
     catch (const boost::thread_interrupted&) {
         throw;
@@ -1304,24 +1291,19 @@ bool CWalletDB::ErasePubcoin(const uint256& hashSerial)
 std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListSerialPubcoinPairs()
 {
     std::vector<std::pair<uint256, GroupElement>> listSerialPubcoin;
-    Dbc* pcursor = GetCursor();
-    if (!pcursor)
+    CDataStream startKey(SER_DISK, CLIENT_VERSION);
+    startKey << std::make_pair(std::string("pubcoin"), ArithToUint256(arith_uint256(0)));
+    auto cursor = GetCursor(startKey);
+    if (!cursor)
         throw std::runtime_error(std::string(__func__)+" : cannot create DB cursor");
-    bool setRange = true;
-    for (;;)
-    {
-        // Read next record
+
+    for (;;) {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("pubcoin"), ArithToUint256(arith_uint256(0)));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
+        const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+        if (status == DatabaseCursor::Status::DONE)
             break;
-        else if (ret != 0)
-        {
-            pcursor->close();
+        else if (status == DatabaseCursor::Status::FAIL) {
             throw std::runtime_error(std::string(__func__)+" : error scanning DB");
         }
 
@@ -1339,8 +1321,6 @@ std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListSerialPubcoinPairs(
 
         listSerialPubcoin.push_back(std::make_pair(hashSerial, pubcoin));
     }
-
-    pcursor->close();
 
     return listSerialPubcoin;
 
@@ -1380,25 +1360,20 @@ unsigned int CWalletDB::GetUpdateCounter()
 std::unordered_map<uint256, CSparkMintMeta> CWalletDB::ListSparkMints()
 {
     std::unordered_map<uint256, CSparkMintMeta> listMints;
-    Dbc* pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error(std::string(__func__)+" : cannot create DB cursor");
     std::string mintName = "sparkMint";
-    bool setRange = true;
-    for (;;)
-    {
-        // Read next record
+    CDataStream startKey(SER_DISK, CLIENT_VERSION);
+    startKey << std::make_pair(mintName, ArithToUint256(arith_uint256(0)));
+    auto cursor = GetCursor(startKey);
+    if (!cursor)
+        throw std::runtime_error(std::string(__func__) + " : cannot create DB cursor");
+
+    for (;;) {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(mintName, ArithToUint256(arith_uint256(0)));
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
+        const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+        if (status == DatabaseCursor::Status::DONE)
             break;
-        else if (ret != 0)
-        {
-            pcursor->close();
+        else if (status == DatabaseCursor::Status::FAIL) {
             throw std::runtime_error(std::string(__func__)+" : error scanning DB");
         }
 
@@ -1417,7 +1392,6 @@ std::unordered_map<uint256, CSparkMintMeta> CWalletDB::ListSparkMints()
         listMints[lTagHash] = mint;
     }
 
-    pcursor->close();
     return listMints;
 }
 
@@ -1453,22 +1427,19 @@ bool CWalletDB::EraseSparkMint(const uint256& lTagHash)
 
 void CWalletDB::ListSparkSpends(std::list<CSparkSpendEntry>& listSparkSpends)
 {
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
+    CDataStream startKey(SER_DISK, CLIENT_VERSION);
+    startKey << std::make_pair(std::string("spark_spend"), secp_primitives::GroupElement());
+    auto cursor = GetCursor(startKey);
+    if (!cursor)
         throw std::runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
-    bool setRange = true;
+
     while (true) {
-        // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("spark_spend"), secp_primitives::GroupElement());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
+        const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+        if (status == DatabaseCursor::Status::DONE)
             break;
-        else if (ret != 0) {
-            pcursor->close();
+        else if (status == DatabaseCursor::Status::FAIL) {
             throw std::runtime_error("CWalletDB::ListSparkSpends() : error scanning DB");
         }
 
@@ -1483,8 +1454,6 @@ void CWalletDB::ListSparkSpends(std::list<CSparkSpendEntry>& listSparkSpends)
         ssValue >> sparkSpendItem;
         listSparkSpends.push_back(sparkSpendItem);
     }
-
-    pcursor->close();
 }
 
 bool CWalletDB::WriteSparkSpendEntry(const CSparkSpendEntry& sparkSpend) {

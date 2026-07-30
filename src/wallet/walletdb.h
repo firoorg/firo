@@ -303,28 +303,20 @@ private:
     template<typename K, typename V, typename InsertF>
     void ListEntries(std::string const &prefix, InsertF insertF)
     {
-        auto cursor = GetCursor();
+        CDataStream startKey(SER_DISK, CLIENT_VERSION);
+        startKey << std::make_pair(prefix, K());
+        auto cursor = GetCursor(startKey);
         if (!cursor) {
             throw std::runtime_error(std::string(__func__) + " : cannot create DB cursor");
         }
 
-        bool setRange = true;
         while (true) {
-
-            // Read next record
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-            if (setRange) {
-                ssKey << std::make_pair(prefix, K());
-            }
-
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            int ret = ReadAtCursor(cursor, ssKey, ssValue, setRange);
-
-            setRange = false;
-            if (ret == DB_NOTFOUND) {
+            const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+            if (status == DatabaseCursor::Status::DONE) {
                 break;
-            } else if (ret != 0) {
-                cursor->close();
+            } else if (status == DatabaseCursor::Status::FAIL) {
                 throw std::runtime_error(std::string(__func__)+" : error scanning DB");
             }
 
@@ -343,8 +335,6 @@ private:
 
             insertF(key, value);
         }
-
-        cursor->close();
     }
 };
 
