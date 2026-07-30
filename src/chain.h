@@ -165,9 +165,15 @@ enum BlockStatus: uint32_t {
  * Privacy-protocol data attached to a block index entry.
  *
  * Most blocks contain no privacy transactions, so this struct is heap-allocated
- * on demand (see CBlockIndex::ensurePrivacyData / privacyData).  Only blocks
- * that actually carry sigma/lelantus/spark coins or spork/spark-name records
- * ever allocate it, which keeps the common-case block index entry small.
+ * on demand (see CBlockIndex::ensurePrivacyData / privacyData).  In the live
+ * block index only blocks that actually carry sigma/lelantus/spark coins or
+ * spork/spark-name records allocate it, which keeps the common-case entry small.
+ *
+ * This does not hold for CDiskBlockIndex: its SerializationOp allocates
+ * unconditionally for any block at or past the relevant protocol start height,
+ * on both read and write.  Those objects are short-lived temporaries, and
+ * LoadBlockIndexGuts drops empty privacy data rather than copying it into the
+ * live index, so the saving is preserved.
  */
 struct CBlockIndexPrivacyData {
     // Sigma
@@ -525,8 +531,9 @@ public:
     uint256 hashPrev;
     int nDiskBlockVersion;
 
-    // Zerocoin legacy fields — only meaningful in the disk format; not loaded
-    // into the live in-memory block index (see txdb.cpp LoadBlockIndex).
+    // Zerocoin legacy fields - only meaningful in the disk format; not loaded
+    // into the live in-memory block index (see CBlockTreeDB::LoadBlockIndexGuts
+    // in txdb.cpp, which has never copied these across).
     std::map<std::pair<int,int>, std::vector<CBigNum>> mintedPubCoins;
     std::map<std::pair<int,int>, std::pair<CBigNum,int>> accumulatorChanges;
     std::set<CBigNum> spentSerials;
