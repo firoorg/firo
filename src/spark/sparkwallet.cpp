@@ -103,10 +103,12 @@ void CSparkWallet::FinishTasks() {
 }
 
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
+    LOCK(cs_spark_wallet);
     walletdb.readDiversifier(lastDiversifier);
 }
 
 void CSparkWallet::updatetDiversifierInDB(CWalletDB& walletdb) {
+    LOCK(cs_spark_wallet);
     walletdb.writeDiversifier(lastDiversifier);
 }
 
@@ -219,11 +221,13 @@ CAmount CSparkWallet::getAddressUnconfirmedBalance(const spark::Address& address
 }
 
 spark::Address CSparkWallet::generateNextAddress() {
+    LOCK(cs_spark_wallet);
     lastDiversifier++;
     return spark::Address(viewKey, lastDiversifier);
 }
 
 spark::Address CSparkWallet::generateNewAddress() {
+    LOCK(cs_spark_wallet);
     lastDiversifier++;
     spark::Address address(viewKey, lastDiversifier);
 
@@ -234,6 +238,7 @@ spark::Address CSparkWallet::generateNewAddress() {
 }
 
 spark::Address CSparkWallet::getDefaultAddress() {
+    LOCK(cs_spark_wallet);
     if (addresses.count(0))
         return addresses[0];
     lastDiversifier = 0;
@@ -283,10 +288,12 @@ spark::IncomingViewKey CSparkWallet::generateIncomingViewKey(const spark::FullVi
 }
 
 std::unordered_map<int32_t, spark::Address> CSparkWallet::getAllAddresses() {
+    LOCK(cs_spark_wallet);
     return addresses;
 }
 
 spark::Address CSparkWallet::getAddress(const int32_t& i) {
+    LOCK(cs_spark_wallet);
     if (lastDiversifier < i || addresses.count(i) == 0)
         return spark::Address(viewKey, i);
 
@@ -306,6 +313,7 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
 }
 
 bool CSparkWallet::isAddressMine(const spark::Address& address) {
+    LOCK(cs_spark_wallet);
     for (const auto& itr : addresses) {
         if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
             return true;
@@ -487,6 +495,7 @@ bool CSparkWallet::getMintAmount(spark::Coin coin, CAmount& amount) {
 }
 
 void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& lTagHash, const uint256& txHash, bool fUpdateMint) {
+    LOCK(cs_spark_wallet);
     if (coinMeta.count(lTagHash)) {
         auto mintMeta = coinMeta[lTagHash];
 
