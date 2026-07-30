@@ -113,7 +113,10 @@ void SignVerifyMessageDialog::on_addressBookButton_SM_clicked()
 {
     if (model && model->getAddressTableModel())
     {
-        AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
+        /* isReused=false shows the address type selector, so a Spark address can be picked
+           here as well; pin it to Transparent so the default stays what it was. */
+        AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this, false);
+        dlg.setInitialAddressType(AddressBookPage::Transparent);
         dlg.setModel(model->getAddressTableModel());
         if (dlg.exec())
         {
