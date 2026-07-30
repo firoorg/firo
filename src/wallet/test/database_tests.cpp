@@ -69,33 +69,39 @@ BOOST_FIXTURE_TEST_SUITE(wallet_database_tests, WalletTestingSetup)
 
 BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
 {
-    BerkeleyDatabase dummy;
+    auto dummy = MakeDummyWalletDatabase();
     {
-        BerkeleyBatchForTest batch(dummy, "r+");
-        BOOST_CHECK(!batch.Write(std::string("key"), std::string("value")));
-        batch.Flush();
-        batch.Close();
-        batch.Close();
+        auto batch = dummy->MakeBatch();
+        BOOST_REQUIRE(batch);
+        BOOST_CHECK(!batch->Write(std::string("key"), std::string("value")));
+        batch->Flush();
+        batch->Close();
+        batch->Close();
     }
-    BOOST_CHECK(!dummy.Backup("unused"));
-    BOOST_CHECK(!dummy.PeriodicFlush());
-    BOOST_CHECK(dummy.Rewrite());
-    dummy.Flush(false);
+    BOOST_CHECK(dummy->Filename().empty());
+    BOOST_CHECK(!dummy->Backup("unused"));
+    BOOST_CHECK(!dummy->PeriodicFlush());
+    BOOST_CHECK(dummy->Rewrite());
+    dummy->Flush(false);
     {
         LOCK(bitdb.cs_db);
         BOOST_CHECK(bitdb.mapFileUseCount.count("") == 0);
     }
 
     const std::string filename{"database_owner_test.dat"};
-    BerkeleyDatabase database(bitdb, filename);
+    auto database = MakeBerkeleyDatabase(bitdb, filename);
     {
         LOCK(bitdb.cs_db);
         BOOST_CHECK(bitdb.mapFileUseCount.count(filename) == 0);
     }
 
-    auto first = std::make_unique<BerkeleyBatchForTest>(database, "cr+");
+    BOOST_CHECK_THROW(database->MakeBatch(), std::runtime_error);
+
+    auto first = database->MakeBatch({DatabaseBatchMode::READ_WRITE_CREATE});
+    BOOST_REQUIRE(first);
     BOOST_CHECK(first->Write(std::string("shared"), std::string("visible")));
-    auto second = std::make_unique<BerkeleyBatchForTest>(database, "r+");
+    auto second = database->MakeBatch();
+    BOOST_REQUIRE(second);
     std::string value;
     BOOST_CHECK(second->Read(std::string("shared"), value));
     BOOST_CHECK_EQUAL(value, "visible");
@@ -104,7 +110,7 @@ BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
         BOOST_REQUIRE(bitdb.mapFileUseCount.count(filename) == 1);
         BOOST_CHECK_EQUAL(bitdb.mapFileUseCount.at(filename), 2);
     }
-    BOOST_CHECK(!database.PeriodicFlush());
+    BOOST_CHECK(!database->PeriodicFlush());
 
     first->Close();
     first->Close();
@@ -123,18 +129,19 @@ BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
         LOCK(bitdb.cs_db);
         BOOST_CHECK_EQUAL(bitdb.mapFileUseCount.at(filename), 0);
     }
-    BOOST_CHECK(database.PeriodicFlush());
+    BOOST_CHECK(database->PeriodicFlush());
     {
         LOCK(bitdb.cs_db);
         BOOST_CHECK(bitdb.mapFileUseCount.count(filename) == 0);
     }
 
     {
-        BerkeleyBatchForTest reopened(database, "r+");
-        BOOST_CHECK(reopened.Read(std::string("shared"), value));
+        auto reopened = database->MakeBatch({DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(reopened);
+        BOOST_CHECK(reopened->Read(std::string("shared"), value));
         BOOST_CHECK_EQUAL(value, "visible");
     }
-    BOOST_CHECK(database.PeriodicFlush());
+    BOOST_CHECK(database->PeriodicFlush());
     BOOST_CHECK(bitdb.RemoveDb(filename));
 }
 
@@ -346,7 +353,7 @@ BOOST_AUTO_TEST_CASE(wallet_mnemonic_encryption_persists)
     SecureVector expectedSeed;
 
     {
-        CWallet wallet(std::make_unique<BerkeleyDatabase>(bitdb, filename));
+        CWallet wallet(MakeBerkeleyDatabase(bitdb, filename));
         bool firstRun;
         BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
         BOOST_REQUIRE(firstRun);
@@ -371,7 +378,7 @@ BOOST_AUTO_TEST_CASE(wallet_mnemonic_encryption_persists)
     }
 
     {
-        CWallet wallet(std::make_unique<BerkeleyDatabase>(bitdb, filename));
+        CWallet wallet(MakeBerkeleyDatabase(bitdb, filename));
         bool firstRun;
         BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
         BOOST_CHECK(!firstRun);
@@ -398,7 +405,7 @@ BOOST_AUTO_TEST_CASE(wallet_mnemonic_encryption_persists)
     }
 
     {
-        CWallet wallet(std::make_unique<BerkeleyDatabase>(bitdb, filename));
+        CWallet wallet(MakeBerkeleyDatabase(bitdb, filename));
         bool firstRun;
         BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
         BOOST_CHECK(!firstRun);

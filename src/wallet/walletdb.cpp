@@ -2,18 +2,19 @@
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
+#include "wallet/walletdb.h"
 
 #include "base58.h"
 #include "consensus/validation.h"
-#include "validation.h" // For CheckTransaction
 #include "protocol.h"
 #include "serialize.h"
+#include "spark/sparkwallet.h"
 #include "sync.h"
 #include "util.h"
 #include "utiltime.h"
+#include "validation.h" // For CheckTransaction
+#include "wallet/db.h"
 #include "wallet/wallet.h"
-#include "spark/sparkwallet.h"
 
 #include "bip47/account.h"
 

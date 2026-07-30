@@ -94,7 +94,7 @@ extern CDBEnv bitdb;
  * Batches borrow this object, so it must outlive every CDB constructed from
  * it.
  */
-class BerkeleyDatabase final
+class BerkeleyDatabase final : public WalletDatabase
 {
     friend class CDB;
 
@@ -117,19 +117,23 @@ public:
 
     BerkeleyDatabase(const BerkeleyDatabase&) = delete;
     BerkeleyDatabase& operator=(const BerkeleyDatabase&) = delete;
+    ~BerkeleyDatabase() override = default;
 
-    const std::string& Filename() const { return m_filename; }
+    const std::string& Filename() const override { return m_filename; }
 
-    bool Rewrite(const char* skip = nullptr);
-    bool Backup(const std::string& destination);
-    bool PeriodicFlush();
-    void Flush(bool shutdown);
+    std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) override;
+    bool Rewrite(const char* skip = nullptr) override;
+    bool Backup(const std::string& destination) override;
+    bool PeriodicFlush() override;
+    void Flush(bool shutdown) override;
 };
 
 
 /** Berkeley DB implementation of a wallet database batch. */
 class CDB : public DatabaseBatch
 {
+    friend class BerkeleyDatabase;
+
 protected:
     BerkeleyDatabase& m_database;
     Db* pdb;
@@ -165,5 +169,8 @@ public:
 
     static bool Rewrite(BerkeleyDatabase& database, const char* pszSkip = NULL);
 };
+
+std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(CDBEnv& env, std::string filename);
+std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase();
 
 #endif // BITCOIN_WALLET_DB_H

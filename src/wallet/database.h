@@ -130,4 +130,34 @@ public:
     }
 };
 
+/** Access mode and close behavior for one wallet database batch. */
+enum class DatabaseBatchMode {
+    READ_ONLY,
+    READ_WRITE,
+    READ_WRITE_CREATE,
+};
+
+struct DatabaseBatchOptions {
+    DatabaseBatchMode mode{DatabaseBatchMode::READ_WRITE};
+    bool flush_on_close{true};
+};
+
+/** Persistent identity and lifecycle operations for one wallet database. */
+class WalletDatabase
+{
+public:
+    WalletDatabase() = default;
+    virtual ~WalletDatabase() = default;
+
+    WalletDatabase(const WalletDatabase&) = delete;
+    WalletDatabase& operator=(const WalletDatabase&) = delete;
+
+    virtual const std::string& Filename() const = 0;
+    virtual std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) = 0;
+    virtual bool Rewrite(const char* skip = nullptr) = 0;
+    virtual bool Backup(const std::string& destination) = 0;
+    virtual bool PeriodicFlush() = 0;
+    virtual void Flush(bool shutdown) = 0;
+};
+
 #endif // FIRO_WALLET_DATABASE_H

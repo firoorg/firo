@@ -241,7 +241,7 @@ private:
     void RecordMint(IdentifiedMint mint, CWalletDB& walletdb);
 
     CWallet& m_wallet;
-    BerkeleyDatabase& m_database;
+    WalletDatabase& m_database;
     // this is latest used diversifier
     int32_t lastDiversifier GUARDED_BY(cs_spark_wallet);
 

@@ -431,6 +431,37 @@ CDB::CDB(BerkeleyDatabase& database, const char* pszMode, bool fFlushOnCloseIn)
     }
 }
 
+std::unique_ptr<DatabaseBatch> BerkeleyDatabase::MakeBatch(const DatabaseBatchOptions& options)
+{
+    const char* mode = nullptr;
+    switch (options.mode) {
+    case DatabaseBatchMode::READ_ONLY:
+        mode = "r";
+        break;
+    case DatabaseBatchMode::READ_WRITE:
+        mode = "r+";
+        break;
+    case DatabaseBatchMode::READ_WRITE_CREATE:
+        mode = "cr+";
+        break;
+    }
+
+    if (!mode) {
+        throw std::invalid_argument("Unknown wallet database batch mode");
+    }
+    return std::unique_ptr<DatabaseBatch>(new CDB(*this, mode, options.flush_on_close));
+}
+
+std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(CDBEnv& env, std::string filename)
+{
+    return std::make_unique<BerkeleyDatabase>(env, std::move(filename));
+}
+
+std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase()
+{
+    return std::make_unique<BerkeleyDatabase>();
+}
+
 bool CDB::ReadRaw(CDataStream&& key, CDataStream& value)
 {
     if (!pdb) {

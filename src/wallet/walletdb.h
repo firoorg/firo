@@ -7,12 +7,12 @@
 #define BITCOIN_WALLET_WALLETDB_H
 
 #include "amount.h"
-#include "primitives/transaction.h"
-#include "primitives/mint_spend.h"
-#include "wallet/db.h"
-#include "mnemoniccontainer.h"
-#include "streams.h"
 #include "key.h"
+#include "mnemoniccontainer.h"
+#include "primitives/mint_spend.h"
+#include "primitives/transaction.h"
+#include "streams.h"
+#include "wallet/database.h"
 
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
@@ -20,6 +20,7 @@
 #include "../spark/primitives.h"
 
 #include <list>
+#include <stdexcept>
 #include <stdint.h>
 #include <string>
 #include <utility>
@@ -37,6 +38,7 @@ static const uint32_t BIP44_KEYPATH_SIZE = 0x6;    // m/44'/<1/136>'/0'/<c>/<n> 
 class CAccount;
 class CAccountingEntry;
 struct CBlockLocator;
+class CDBEnv;
 class CKeyPool;
 class CMasterKey;
 class CScript;
@@ -180,12 +182,15 @@ public:
 };
 
 /** Access to the wallet database */
-class CWalletDB : public CDB
+class CWalletDB
 {
 public:
-    CWalletDB(BerkeleyDatabase& database, const char* pszMode = "r+", bool fFlushOnCloseParam = true)
-        : CDB(database, pszMode, fFlushOnCloseParam)
+    explicit CWalletDB(WalletDatabase& database, const DatabaseBatchOptions& options = {})
+        : m_batch(database.MakeBatch(options))
     {
+        if (!m_batch) {
+            throw std::runtime_error("Wallet database returned no batch");
+        }
     }
 
     bool WriteKV(const std::string& key, const std::string& value);
@@ -291,15 +296,64 @@ public:
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     static void IncrementUpdateCounter();
-    static unsigned int GetUpdateCounter();    
+    static unsigned int GetUpdateCounter();
+
+    bool TxnBegin() { return m_batch->TxnBegin(); }
+    bool TxnCommit() { return m_batch->TxnCommit(); }
+    bool TxnAbort() { return m_batch->TxnAbort(); }
+    bool HasActiveTxn() const { return m_batch->HasActiveTxn(); }
 
     //bip47 data
     bool WriteBip47Account(bip47::CAccountReceiver const & account);
     bool WriteBip47Account(bip47::CAccountSender const & account);
     void LoadBip47Accounts(bip47::CWallet & wallet);
+
 private:
-    CWalletDB(const CWalletDB&);
-    void operator=(const CWalletDB&);
+    std::unique_ptr<DatabaseBatch> m_batch;
+
+    CWalletDB(const CWalletDB&) = delete;
+    CWalletDB& operator=(const CWalletDB&) = delete;
+    CWalletDB(CWalletDB&&) = delete;
+    CWalletDB& operator=(CWalletDB&&) = delete;
+
+    template <typename K, typename T>
+    bool Read(const K& key, T& value)
+    {
+        return m_batch->Read(key, value);
+    }
+
+    template <typename K, typename T>
+    bool Write(const K& key, const T& value, bool overwrite = true)
+    {
+        return m_batch->Write(key, value, overwrite);
+    }
+
+    template <typename K>
+    bool Erase(const K& key)
+    {
+        return m_batch->Erase(key);
+    }
+
+    template <typename K>
+    bool Exists(const K& key)
+    {
+        return m_batch->Exists(key);
+    }
+
+    std::unique_ptr<DatabaseCursor> GetCursor()
+    {
+        return m_batch->GetCursor();
+    }
+
+    std::unique_ptr<DatabaseCursor> GetCursor(const CDataStream& startKey)
+    {
+        return m_batch->GetCursor(startKey);
+    }
+
+    bool WriteVersion(int version)
+    {
+        return m_batch->WriteVersion(version);
+    }
 
     template<typename K, typename V, typename InsertF>
     void ListEntries(std::string const &prefix, InsertF insertF)

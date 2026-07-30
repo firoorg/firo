@@ -672,7 +672,7 @@ private:
 
     static std::atomic<bool> fFlushThreadRunning;
 
-    std::unique_ptr<BerkeleyDatabase> m_database;
+    std::unique_ptr<WalletDatabase> m_database;
 
     /**
      * Select a set of coins such that nValueRet >= nTargetValue and at least
@@ -763,13 +763,13 @@ public:
 
     const std::string strWalletFile;
 
-    BerkeleyDatabase& GetDatabase()
+    WalletDatabase& GetDatabase()
     {
         assert(m_database);
         return *m_database;
     }
 
-    BerkeleyDatabase& GetDatabase() const
+    WalletDatabase& GetDatabase() const
     {
         assert(m_database);
         return *m_database;
@@ -802,14 +802,9 @@ public:
 
     std::atomic<bool> fUnlockRequested;
 
-    CWallet()
-        : m_database(std::make_unique<BerkeleyDatabase>()),
-          strWalletFile("")
-    {
-        SetNull();
-    }
+    CWallet();
 
-    explicit CWallet(std::unique_ptr<BerkeleyDatabase> database)
+    explicit CWallet(std::unique_ptr<WalletDatabase> database)
         : m_database(std::move(database)),
           strWalletFile(m_database ? m_database->Filename() : std::string())
     {
