@@ -774,15 +774,36 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
 // The block index keeps every entry alive for the lifetime of the process, so a
 // stray unconditional ensurePrivacyData() on the connect path costs hundreds of
 // megabytes over a full chain.
+//
+// The chain is generated past nSparkStartBlock and into the evo spork range so
+// that the spark and spork connect paths are actually exercised; below those
+// heights only the sigma/lelantus paths run and the check is nearly vacuous.
+// nSparkNamesStartBlock is far too high to reach in a unit test, so the spark
+// name path is not covered here.
 BOOST_AUTO_TEST_CASE(no_privacy_data_for_empty_blocks)
 {
-    size_t allocated = 0;
-    for (int i = 0; i < 50; i++) {
-        if (GenerateBlock({})->hasPrivacyData())
-            ++allocated;
+    const Consensus::Params &consensus = ::Params().GetConsensus();
+
+    // one block past the start of the evo spork range, which is the last of the
+    // protocol activations this test can reach
+    const int targetHeight = consensus.nEvoSporkStartBlock + 1;
+    BOOST_REQUIRE(targetHeight > consensus.nSparkStartBlock);
+    BOOST_REQUIRE(targetHeight < consensus.nEvoSporkStopBlock);
+
+    std::vector<int> allocatedAt;
+    while (chainActive.Height() < targetHeight) {
+        CBlockIndex *index = GenerateBlock({});
+        BOOST_REQUIRE(index != nullptr);
+        if (index->hasPrivacyData())
+            allocatedAt.push_back(index->nHeight);
     }
 
-    BOOST_CHECK_EQUAL(allocated, 0u);
+    // report the offending heights rather than just a count, so a regression
+    // points straight at the activation that started allocating
+    BOOST_CHECK_MESSAGE(allocatedAt.empty(),
+        "privacy data allocated for " << allocatedAt.size() << " empty block(s), first at height "
+        << (allocatedAt.empty() ? 0 : allocatedAt.front()));
+
     sparkState->Reset();
 }
 

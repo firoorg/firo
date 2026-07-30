@@ -2201,10 +2201,10 @@ size_t CSparkState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &
                 ; coins < required && block
                 ; block = block->pprev) {
 
-            size_t inBlock;
-            auto it = block->privacyData().sparkMintedCoins.find(groupId);
-            if (it != block->privacyData().sparkMintedCoins.end()
-                && (inBlock = it->second.size())) {
+            size_t inBlock = 0;
+            const auto& mintedCoins = block->privacyData().sparkMintedCoins;
+            auto it = mintedCoins.find(groupId);
+            if (it != mintedCoins.end() && (inBlock = it->second.size())) {
 
                 coins += inBlock;
                 first = block;
