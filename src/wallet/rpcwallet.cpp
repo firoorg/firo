@@ -3065,6 +3065,18 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
         // Alternately, find a way to make request.params[0] mlock()'d to begin with.
         strWalletPass = request.params[0].get_str().c_str();
 
+        nSleepTime = request.params[1].get_int64();
+        // Timeout cannot be negative, otherwise it will relock immediately
+        if (nSleepTime < 0) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Timeout cannot be negative.");
+        }
+        // Clamp the timeout so GetTime() + nSleepTime cannot overflow
+        // nRelockTime (same bound as upstream Bitcoin Core's MAX_SLEEP_TIME)
+        constexpr int64_t MAX_SLEEP_TIME = 100000000;
+        if (nSleepTime > MAX_SLEEP_TIME) {
+            nSleepTime = MAX_SLEEP_TIME;
+        }
+
         if (strWalletPass.length() > 0)
         {
             if (!pwallet->Unlock(strWalletPass)) {
@@ -3078,7 +3090,6 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
 
         pwallet->TopUpKeyPool();
 
-        nSleepTime = request.params[1].get_int64();
         pwallet->nRelockTime = GetTime() + nSleepTime;
         nRelockTime = pwallet->nRelockTime;
     }
