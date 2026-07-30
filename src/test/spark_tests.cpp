@@ -721,8 +721,10 @@ BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
     // Unknown coin: both the coin index and identification miss
     BOOST_CHECK(!wallet->isMine(meta.coin));
     BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+    BOOST_CHECK(wallet->validateLookupIndexes());
 
     wallet->addOrUpdateMint(meta, lTagHash, walletdb);
+    BOOST_CHECK(wallet->validateLookupIndexes());
 
     // Coin index hits
     BOOST_CHECK(wallet->isMine(meta.coin));
@@ -754,12 +756,14 @@ BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
     wallet->updateMintInMemory(updated);
     BOOST_CHECK(wallet->getMintMeta(meta.k).isUsed);
     BOOST_CHECK(wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->validateLookupIndexes());
 
     // Indexes drop the entry on erase
     wallet->eraseMint(lTagHash, walletdb);
     BOOST_CHECK(!wallet->isMine(meta.coin));
     BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
     BOOST_CHECK(!wallet->getMintAmount(meta.coin, amount));
+    BOOST_CHECK(wallet->validateLookupIndexes());
 
     // Re-add, then clearAllMints empties the indexes
     wallet->addOrUpdateMint(meta, lTagHash, walletdb);
@@ -767,6 +771,76 @@ BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
     wallet->clearAllMints(walletdb);
     BOOST_CHECK(!wallet->isMine(meta.coin));
     BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+    BOOST_CHECK(wallet->validateLookupIndexes());
+}
+
+BOOST_AUTO_TEST_CASE(wallet_cache_verification)
+{
+    auto params = Params::get_default();
+    CSparkWallet* wallet = pwalletMain->sparkWallet.get();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    // A record whose coin was built from the wallet's own keys, so
+    // identification confirms it
+    const uint64_t goodI = 5;
+    const Address goodAddress = wallet->getAddress(int32_t(goodI));
+    CSparkMintMeta good;
+    good.nHeight = 1;
+    good.nId = 1;
+    good.isUsed = false;
+    good.txid = uint256();
+    good.i = goodI;
+    good.d = goodAddress.get_d();
+    good.v = 3 * COIN;
+    good.k.randomize();
+    good.memo = "good";
+    good.serial_context = random_char_vector();
+    good.type = COIN_TYPE_MINT;
+    good.coin = Coin(params, good.type, good.k, goodAddress, good.v, good.memo, good.serial_context);
+    const uint256 goodTag = uint256S("0x10");
+
+    // A record whose coin was built from foreign keys, standing in for a
+    // corrupt or tampered wallet record that identification rejects
+    const SpendKey foreignSpend(params);
+    const FullViewKey foreignFull(foreignSpend);
+    const IncomingViewKey foreignView(foreignFull);
+    const Address foreignAddress(foreignView, 1);
+    CSparkMintMeta bad;
+    bad.nHeight = 1;
+    bad.nId = 1;
+    bad.isUsed = false;
+    bad.txid = uint256();
+    bad.i = 1;
+    bad.d = foreignAddress.get_d();
+    bad.v = 9 * COIN;
+    bad.k.randomize();
+    bad.memo = "bad";
+    bad.serial_context = random_char_vector();
+    bad.type = COIN_TYPE_MINT;
+    bad.coin = Coin(params, bad.type, bad.k, foreignAddress, bad.v, bad.memo, bad.serial_context);
+    const uint256 badTag = uint256S("0x20");
+
+    wallet->addOrUpdateMint(good, goodTag, walletdb);
+    wallet->addOrUpdateMint(bad, badTag, walletdb);
+    BOOST_CHECK(wallet->isMine(good.coin));
+    BOOST_CHECK(wallet->isMine(bad.coin));
+    BOOST_CHECK(wallet->validateLookupIndexes());
+
+    // The sweep confirms the good record and evicts only the bad one
+    BOOST_CHECK_EQUAL(wallet->verifyCachedCoins(), 1u);
+    BOOST_CHECK(wallet->isMine(good.coin));
+    BOOST_CHECK(wallet->getMintMeta(good.k) == good);
+    BOOST_CHECK(!wallet->isMine(bad.coin));
+    BOOST_CHECK(wallet->getMintMeta(bad.k) == CSparkMintMeta());
+
+    // Only the fast path was evicted; the record itself remains
+    BOOST_CHECK(wallet->getMintMeta(badTag) == bad);
+
+    // A second sweep has nothing left to evict
+    BOOST_CHECK_EQUAL(wallet->verifyCachedCoins(), 0u);
+
+    wallet->clearAllMints(walletdb);
+    BOOST_CHECK(wallet->validateLookupIndexes());
 }
 
 } // end of namespace spark

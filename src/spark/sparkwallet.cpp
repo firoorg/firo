@@ -10,7 +10,9 @@
 #include "state.h"
 #include "sparkname.h"
 #include "../chain.h"
+#include "../init.h"
 #include <boost/format.hpp>
+#include <algorithm>
 #include <string>
 #include <thread>
 
@@ -88,6 +90,19 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 
     unsigned nThreads = std::thread::hardware_concurrency();
     threadPool = new ParallelOpThreadPool<void>(static_cast<std::size_t>(nThreads));
+
+    fCacheAudit = GetBoolArg("-sparkcacheverify", false);
+
+    // The lookup indexes answer ownership and value queries from the recorded
+    // metadata without re-running identification, so verify the records in
+    // the background and evict the fast-path entries of any that fail.
+    bool fHaveCachedCoins;
+    {
+        LOCK(cs_spark_wallet);
+        fHaveCachedCoins = !coinMeta.empty();
+    }
+    if (fHaveCachedCoins)
+        ((ParallelOpThreadPool<void>*)threadPool)->PostTask([this]() { verifyCachedCoins(); });
 
     if (fWalletJustUnlocked)
         pwalletMain->Lock();
@@ -493,7 +508,102 @@ const CSparkMintMeta* CSparkWallet::findMintMeta(const spark::Coin& coin) const 
     if (meta.coin != coin || meta.serial_context != coin.serial_context)
         return nullptr;
 
+    if (fCacheAudit) {
+        // Audit mode: reject the hit unless identification confirms the record
+        try {
+            spark::Coin coinCopy = coin;
+            spark::IdentifiedCoinData data = coinCopy.identify(viewKey);
+            if (data.k != meta.k || data.v != meta.v || data.i != meta.i || data.d != meta.d) {
+                LogPrintf("CSparkWallet::%s: audit: cached mint %s diverges from identification\n", __func__, it->second.GetHex());
+                return nullptr;
+            }
+        } catch (const std::exception&) {
+            LogPrintf("CSparkWallet::%s: audit: cached mint %s failed identification\n", __func__, it->second.GetHex());
+            return nullptr;
+        }
+    }
+
     return &meta;
+}
+
+size_t CSparkWallet::verifyCachedCoins() {
+    std::vector<std::pair<uint256, CSparkMintMeta>> snapshot;
+    {
+        LOCK(cs_spark_wallet);
+        snapshot.reserve(coinMeta.size());
+        for (const auto& it : coinMeta) {
+            if (it.second.coin == spark::Coin())
+                continue;
+            // only records that still hold a fast-path entry need verifying
+            auto coinIt = coinLookup.find(primitives::GetSparkCoinHash(it.second.coin));
+            bool fIndexed = coinIt != coinLookup.end() && coinIt->second == it.first;
+            if (!fIndexed) {
+                auto nonceIt = nonceLookup.find(it.second.GetNonceHash());
+                fIndexed = nonceIt != nonceLookup.end() && nonceIt->second == it.first;
+            }
+            if (fIndexed)
+                snapshot.push_back(it);
+        }
+    }
+    // records that unspent balances display are the ones to confirm first
+    std::stable_partition(snapshot.begin(), snapshot.end(),
+                          [](const std::pair<uint256, CSparkMintMeta>& entry) { return !entry.second.isUsed; });
+
+    size_t evicted = 0;
+    for (const auto& entry : snapshot) {
+        if (ShutdownRequested() || (threadPool && ((ParallelOpThreadPool<void>*)threadPool)->IsPoolShutdown()))
+            break;
+
+        const CSparkMintMeta& meta = entry.second;
+        bool fValid = false;
+        try {
+            spark::Coin coin = meta.coin;
+            spark::IdentifiedCoinData data = coin.identify(viewKey);
+            fValid = data.k == meta.k && data.v == meta.v && data.i == meta.i && data.d == meta.d;
+        } catch (const std::exception&) {
+            fValid = false;
+        }
+
+        if (!fValid) {
+            LOCK(cs_spark_wallet);
+            auto it = coinMeta.find(entry.first);
+            // evict only if the record has not changed since the snapshot
+            if (it != coinMeta.end() && it->second == meta && it->second.coin == meta.coin) {
+                removeFromLookups(entry.first, it->second);
+                ++evicted;
+                LogPrintf("CSparkWallet::%s: cached mint %s failed identification, lookup entries evicted\n", __func__, entry.first.GetHex());
+            }
+        }
+    }
+
+    if (evicted > 0)
+        LogPrintf("CSparkWallet::%s: verified %d cached mints, evicted %d from lookup indexes\n", __func__, snapshot.size(), evicted);
+    return evicted;
+}
+
+bool CSparkWallet::validateLookupIndexes() const {
+    LOCK(cs_spark_wallet);
+    for (const auto& entry : coinLookup) {
+        auto it = coinMeta.find(entry.second);
+        if (it == coinMeta.end())
+            return false;
+        if (primitives::GetSparkCoinHash(it->second.coin) != entry.first)
+            return false;
+    }
+    for (const auto& entry : nonceLookup) {
+        auto it = coinMeta.find(entry.second);
+        if (it == coinMeta.end())
+            return false;
+        if (it->second.GetNonceHash() != entry.first)
+            return false;
+    }
+    for (const auto& entry : coinMeta) {
+        if (entry.second.coin != spark::Coin() && !coinLookup.count(primitives::GetSparkCoinHash(entry.second.coin)))
+            return false;
+        if (!nonceLookup.count(entry.second.GetNonceHash()))
+            return false;
+    }
+    return true;
 }
 
 CSparkMintMeta CSparkWallet::getMintMeta(const uint256& hash) {
