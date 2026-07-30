@@ -4,11 +4,13 @@
 
 #include "wallet/db.h"
 #include "wallet/test/wallet_test_fixture.h"
+#include "wallet/wallet.h"
 
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,16 +22,16 @@ using RawRecord = std::pair<std::string, std::string>;
 class BerkeleyBatchForTest final : public CDB
 {
 public:
-    BerkeleyBatchForTest(const std::string& filename, const char* mode)
-        : CDB(filename, mode)
+    BerkeleyBatchForTest(BerkeleyDatabase& database, const char* mode)
+        : CDB(database, mode)
     {
     }
 
     ~BerkeleyBatchForTest() override = default;
 
-    static bool RewriteWithRenameFailure(const std::string& filename)
+    static bool RewriteWithRenameFailure(BerkeleyDatabase& database)
     {
-        return RewriteInternal(filename, nullptr, true);
+        return RewriteInternal(database, nullptr, true);
     }
 };
 
@@ -65,14 +67,86 @@ std::vector<RawRecord> ReadRawRecords(DatabaseBatch& batch)
 
 BOOST_FIXTURE_TEST_SUITE(wallet_database_tests, WalletTestingSetup)
 
+BOOST_AUTO_TEST_CASE(berkeley_owner_contract)
+{
+    BerkeleyDatabase dummy;
+    {
+        BerkeleyBatchForTest batch(dummy, "r+");
+        BOOST_CHECK(!batch.Write(std::string("key"), std::string("value")));
+        batch.Flush();
+        batch.Close();
+        batch.Close();
+    }
+    BOOST_CHECK(!dummy.Backup("unused"));
+    BOOST_CHECK(!dummy.PeriodicFlush());
+    BOOST_CHECK(dummy.Rewrite());
+    dummy.Flush(false);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK(bitdb.mapFileUseCount.count("") == 0);
+    }
+
+    const std::string filename{"database_owner_test.dat"};
+    BerkeleyDatabase database(bitdb, filename);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK(bitdb.mapFileUseCount.count(filename) == 0);
+    }
+
+    auto first = std::make_unique<BerkeleyBatchForTest>(database, "cr+");
+    BOOST_CHECK(first->Write(std::string("shared"), std::string("visible")));
+    auto second = std::make_unique<BerkeleyBatchForTest>(database, "r+");
+    std::string value;
+    BOOST_CHECK(second->Read(std::string("shared"), value));
+    BOOST_CHECK_EQUAL(value, "visible");
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE(bitdb.mapFileUseCount.count(filename) == 1);
+        BOOST_CHECK_EQUAL(bitdb.mapFileUseCount.at(filename), 2);
+    }
+    BOOST_CHECK(!database.PeriodicFlush());
+
+    first->Close();
+    first->Close();
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK_EQUAL(bitdb.mapFileUseCount.at(filename), 1);
+    }
+    first.reset();
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK_EQUAL(bitdb.mapFileUseCount.at(filename), 1);
+    }
+
+    second.reset();
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK_EQUAL(bitdb.mapFileUseCount.at(filename), 0);
+    }
+    BOOST_CHECK(database.PeriodicFlush());
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK(bitdb.mapFileUseCount.count(filename) == 0);
+    }
+
+    {
+        BerkeleyBatchForTest reopened(database, "r+");
+        BOOST_CHECK(reopened.Read(std::string("shared"), value));
+        BOOST_CHECK_EQUAL(value, "visible");
+    }
+    BOOST_CHECK(database.PeriodicFlush());
+    BOOST_CHECK(bitdb.RemoveDb(filename));
+}
+
 BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
 {
     const std::string filename{"database_batch_test.dat"};
     const std::string binaryKey{"key\0\xff", 5};
     const std::string binaryValue{"value\0\xff", 7};
+    BerkeleyDatabase database(bitdb, filename);
 
     {
-        BerkeleyBatchForTest batch(filename, "cr+");
+        BerkeleyBatchForTest batch(database, "cr+");
         BOOST_CHECK(batch.Write(binaryKey, binaryValue, false));
         BOOST_CHECK(!batch.Write(binaryKey, std::string("replacement"), false));
 
@@ -176,7 +250,7 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
     }
 
     {
-        BerkeleyBatchForTest batch(filename, "r+");
+        BerkeleyBatchForTest batch(database, "r+");
         std::string value;
         BOOST_CHECK(batch.Read(std::string("committed"), value));
         BOOST_CHECK_EQUAL(value, "visible");
@@ -188,32 +262,33 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
     }
 
     {
-        BerkeleyBatchForTest batch(filename, "r+");
+        BerkeleyBatchForTest batch(database, "r+");
         BOOST_CHECK(!batch.Exists(std::string("destructor-abort")));
     }
 
     std::vector<RawRecord> expectedRecords;
     {
-        BerkeleyBatchForTest batch(filename, "r+");
+        BerkeleyBatchForTest batch(database, "r+");
         expectedRecords = ReadRawRecords(batch);
     }
 
     const std::string staleRewriteFilename = filename + ".rewrite";
     {
-        BerkeleyBatchForTest staleRewrite(staleRewriteFilename, "cr+");
+        BerkeleyDatabase staleDatabase(bitdb, staleRewriteFilename);
+        BerkeleyBatchForTest staleRewrite(staleDatabase, "cr+");
         BOOST_CHECK(staleRewrite.Write(std::string("stale"), std::string("candidate")));
     }
     bitdb.CloseDb(staleRewriteFilename);
-    BOOST_CHECK(!CDB::Rewrite(filename));
+    BOOST_CHECK(!database.Rewrite());
     {
-        BerkeleyBatchForTest batch(filename, "r+");
+        BerkeleyBatchForTest batch(database, "r+");
         BOOST_CHECK(ReadRawRecords(batch) == expectedRecords);
     }
     BOOST_CHECK(bitdb.RemoveDb(staleRewriteFilename));
 
-    BOOST_CHECK(!BerkeleyBatchForTest::RewriteWithRenameFailure(filename));
+    BOOST_CHECK(!BerkeleyBatchForTest::RewriteWithRenameFailure(database));
     {
-        BerkeleyBatchForTest batch(filename, "r+");
+        BerkeleyBatchForTest batch(database, "r+");
         BOOST_CHECK(ReadRawRecords(batch) == expectedRecords);
     }
     BOOST_CHECK(bitdb.RemoveDb(staleRewriteFilename));
@@ -225,10 +300,10 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
     BOOST_REQUIRE(versionRecord != expectedRecords.end());
     versionRecord->second = SerializeToString(CLIENT_VERSION);
 
-    BOOST_CHECK(CDB::Rewrite(filename));
+    BOOST_CHECK(database.Rewrite());
 
     {
-        BerkeleyBatchForTest batch(filename, "r+");
+        BerkeleyBatchForTest batch(database, "r+");
         BOOST_CHECK(ReadRawRecords(batch) == expectedRecords);
 
         std::string value;
@@ -249,12 +324,95 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
                record.first.compare(0, poolPrefix.size(), poolPrefix) == 0;
     }),
         expectedRecords.end());
-    BOOST_CHECK(CDB::Rewrite(filename, poolPrefix.c_str()));
+    BOOST_CHECK(database.Rewrite(poolPrefix.c_str()));
 
     {
-        BerkeleyBatchForTest batch(filename, "r+");
+        BerkeleyBatchForTest batch(database, "r+");
         BOOST_CHECK(ReadRawRecords(batch) == expectedRecords);
         BOOST_CHECK(!batch.Exists(std::make_pair(std::string("pool"), int64_t{1})));
+    }
+
+    BOOST_CHECK(bitdb.RemoveDb(filename));
+}
+
+BOOST_AUTO_TEST_CASE(wallet_mnemonic_encryption_persists)
+{
+    const std::string filename{"wallet_mnemonic_encryption_test.dat"};
+    const SecureString passphrase{"test passphrase"};
+    const SecureString newPassphrase{"new test passphrase"};
+    const SecureString finalPassphrase{"final test passphrase"};
+    const SecureString wrongPassphrase{"wrong test passphrase"};
+    SecureString expectedMnemonic;
+    SecureVector expectedSeed;
+
+    {
+        CWallet wallet(std::make_unique<BerkeleyDatabase>(bitdb, filename));
+        bool firstRun;
+        BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
+        BOOST_REQUIRE(firstRun);
+
+        wallet.GenerateNewMnemonic();
+        CPubKey defaultKey;
+        {
+            LOCK(wallet.cs_wallet);
+            defaultKey = wallet.GenerateNewKey();
+        }
+        BOOST_REQUIRE(wallet.SetDefaultKey(defaultKey));
+
+        const MnemonicContainer& mnemonic = wallet.GetMnemonicContainer();
+        BOOST_REQUIRE(mnemonic.GetMnemonic(expectedMnemonic));
+        expectedSeed = mnemonic.GetSeed();
+        BOOST_REQUIRE(!expectedMnemonic.empty());
+        BOOST_REQUIRE(!expectedSeed.empty());
+
+        BOOST_REQUIRE(wallet.EncryptWallet(passphrase));
+        BOOST_CHECK(wallet.GetMnemonicContainer().IsCrypted());
+        BOOST_REQUIRE(wallet.GetDatabase().PeriodicFlush());
+    }
+
+    {
+        CWallet wallet(std::make_unique<BerkeleyDatabase>(bitdb, filename));
+        bool firstRun;
+        BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
+        BOOST_CHECK(!firstRun);
+        BOOST_CHECK(wallet.GetVersion() >= FEATURE_HD);
+        BOOST_REQUIRE(wallet.GetMnemonicContainer().IsCrypted());
+        BOOST_REQUIRE(wallet.Unlock(passphrase));
+
+        MnemonicContainer decrypted;
+        BOOST_REQUIRE(wallet.DecryptMnemonicContainer(decrypted));
+        SecureString actualMnemonic;
+        BOOST_REQUIRE(decrypted.GetMnemonic(actualMnemonic));
+        BOOST_CHECK(actualMnemonic == expectedMnemonic);
+        BOOST_CHECK(decrypted.GetSeed() == expectedSeed);
+
+        BOOST_CHECK(!wallet.IsLocked());
+        BOOST_CHECK(!wallet.ChangeWalletPassphrase(wrongPassphrase, newPassphrase));
+        BOOST_CHECK(!wallet.IsLocked());
+        BOOST_REQUIRE(wallet.ChangeWalletPassphrase(passphrase, newPassphrase));
+        BOOST_CHECK(!wallet.IsLocked());
+        BOOST_REQUIRE(wallet.Lock());
+        BOOST_REQUIRE(wallet.ChangeWalletPassphrase(newPassphrase, finalPassphrase));
+        BOOST_CHECK(wallet.IsLocked());
+        BOOST_REQUIRE(wallet.GetDatabase().PeriodicFlush());
+    }
+
+    {
+        CWallet wallet(std::make_unique<BerkeleyDatabase>(bitdb, filename));
+        bool firstRun;
+        BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
+        BOOST_CHECK(!firstRun);
+        BOOST_CHECK(!wallet.Unlock(passphrase));
+        BOOST_CHECK(!wallet.Unlock(newPassphrase));
+        BOOST_REQUIRE(wallet.Unlock(finalPassphrase));
+
+        MnemonicContainer decrypted;
+        BOOST_REQUIRE(wallet.DecryptMnemonicContainer(decrypted));
+        SecureString actualMnemonic;
+        BOOST_REQUIRE(decrypted.GetMnemonic(actualMnemonic));
+        BOOST_CHECK(actualMnemonic == expectedMnemonic);
+        BOOST_CHECK(decrypted.GetSeed() == expectedSeed);
+        BOOST_REQUIRE(wallet.GetDatabase().PeriodicFlush());
     }
 
     BOOST_CHECK(bitdb.RemoveDb(filename));

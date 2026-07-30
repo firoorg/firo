@@ -148,8 +148,18 @@ void AskPassphraseDialog::accept()
                 }
                 else
                 {
-                    QMessageBox::critical(this, tr("Wallet encryption failed"),
-                                         tr("Wallet encryption failed due to an internal error. Your wallet was not encrypted."));
+                    if (model->getEncryptionStatus() != WalletModel::Unencrypted) {
+                        QMessageBox::critical(
+                            this,
+                            tr("Wallet encryption incomplete"),
+                            tr("Wallet encryption did not complete cleanly, but encrypted wallet data may already have been written. "
+                               "Keep the new passphrase; it may be required after restart. %1 will close now.")
+                                .arg(tr(PACKAGE_NAME)));
+                        QApplication::quit();
+                    } else {
+                        QMessageBox::critical(this, tr("Wallet encryption failed"),
+                            tr("Wallet encryption failed due to an internal error. Your wallet was not encrypted."));
+                    }
                 }
                 QDialog::accept(); // Success
             }

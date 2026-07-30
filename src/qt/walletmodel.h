@@ -103,7 +103,12 @@ class WalletModel : public QObject
     Q_OBJECT
 
 public:
-    explicit WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent = 0);
+    enum class Initialization {
+        FULL,
+        UNLOCK_ONLY,
+    };
+
+    explicit WalletModel(const PlatformStyle* platformStyle, CWallet* wallet, OptionsModel* optionsModel, QObject* parent = 0, Initialization initialization = Initialization::FULL);
     ~WalletModel();
 
     enum StatusCode // Returned by sendCoins
@@ -366,6 +371,7 @@ private:
     QTimer *pollTimer;
 
     int cachedNumISLocks;
+    bool subscribedToCoreSignals;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();

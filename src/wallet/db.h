@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <boost/filesystem/path.hpp>
@@ -87,20 +88,59 @@ public:
 
 extern CDBEnv bitdb;
 
+/**
+ * Persistent identity and lifecycle operations for one Berkeley DB wallet.
+ *
+ * Batches borrow this object, so it must outlive every CDB constructed from
+ * it.
+ */
+class BerkeleyDatabase final
+{
+    friend class CDB;
+
+private:
+    CDBEnv* const m_env;
+    const std::string m_filename;
+
+public:
+    /** Construct an inert database identity for a memory-only wallet. */
+    BerkeleyDatabase()
+        : m_env(nullptr)
+    {
+    }
+
+    BerkeleyDatabase(CDBEnv& env, std::string filename)
+        : m_env(&env),
+          m_filename(std::move(filename))
+    {
+    }
+
+    BerkeleyDatabase(const BerkeleyDatabase&) = delete;
+    BerkeleyDatabase& operator=(const BerkeleyDatabase&) = delete;
+
+    const std::string& Filename() const { return m_filename; }
+
+    bool Rewrite(const char* skip = nullptr);
+    bool Backup(const std::string& destination);
+    bool PeriodicFlush();
+    void Flush(bool shutdown);
+};
+
 
 /** Berkeley DB implementation of a wallet database batch. */
 class CDB : public DatabaseBatch
 {
 protected:
+    BerkeleyDatabase& m_database;
     Db* pdb;
     std::string strFile;
     DbTxn* activeTxn;
     bool fReadOnly;
     bool fFlushOnClose;
 
-    explicit CDB(const std::string& strFilename, const char* pszMode = "r+", bool fFlushOnCloseIn=true);
+    explicit CDB(BerkeleyDatabase& database, const char* pszMode = "r+", bool fFlushOnCloseIn = true);
     ~CDB() override { Close(); }
-    static bool RewriteInternal(const std::string& strFile, const char* pszSkip, bool failBeforeRename);
+    static bool RewriteInternal(BerkeleyDatabase& database, const char* pszSkip, bool failBeforeRename);
 
 private:
     bool ReadRaw(CDataStream&& key, CDataStream& value) override;
@@ -123,7 +163,7 @@ public:
     bool TxnAbort() override;
     bool HasActiveTxn() const override { return activeTxn != nullptr; }
 
-    bool static Rewrite(const std::string& strFile, const char* pszSkip = NULL);
+    static bool Rewrite(BerkeleyDatabase& database, const char* pszSkip = NULL);
 };
 
 #endif // BITCOIN_WALLET_DB_H

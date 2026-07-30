@@ -89,7 +89,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
         llmq::InitLLMQSystem(*evoDb, nullptr, true);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
-        pwalletMain = new CWallet(std::string("wallet_test.dat"));
+        pwalletMain = new CWallet(std::make_unique<BerkeleyDatabase>(bitdb, "wallet_test.dat"));
         static bool fFirstRun = true;
         pwalletMain->LoadWallet(fFirstRun);
 
@@ -120,7 +120,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 
         pwalletMain->SetBestChain(chainActive.GetLocator());
 
-        pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+        pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(*pwalletMain);
 }
 
 TestingSetup::~TestingSetup()

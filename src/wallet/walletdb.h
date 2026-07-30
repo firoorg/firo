@@ -183,7 +183,8 @@ public:
 class CWalletDB : public CDB
 {
 public:
-    CWalletDB(const std::string& strFilename, const char* pszMode = "r+", bool fFlushOnCloseParam = true) : CDB(strFilename, pszMode, fFlushOnCloseParam)
+    CWalletDB(BerkeleyDatabase& database, const char* pszMode = "r+", bool fFlushOnCloseParam = true)
+        : CDB(database, pszMode, fFlushOnCloseParam)
     {
     }
 

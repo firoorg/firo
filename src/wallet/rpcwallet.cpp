@@ -3299,26 +3299,34 @@ UniValue encryptwallet(const JSONRPCRequest& request)
         );
     }
 
-    LOCK2(cs_main, pwallet->cs_wallet);
-
-    if (request.fHelp)
-        return true;
-    if (pwallet->IsCrypted()) {
-        throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
-    }
-
     // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
     // Alternately, find a way to make request.params[0] mlock()'d to begin with.
     SecureString strWalletPass;
-    strWalletPass.reserve(100);
-    strWalletPass = request.params[0].get_str().c_str();
+    {
+        LOCK2(cs_main, pwallet->cs_wallet);
 
-    if (strWalletPass.length() < 1)
-        throw std::runtime_error(
-            "encryptwallet <passphrase>\n"
-            "Encrypts the wallet with <passphrase>.");
+        if (request.fHelp)
+            return true;
+        if (pwallet->IsCrypted()) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+        }
+
+        strWalletPass.reserve(100);
+        strWalletPass = request.params[0].get_str().c_str();
+
+        if (strWalletPass.length() < 1)
+            throw std::runtime_error(
+                "encryptwallet <passphrase>\n"
+                "Encrypts the wallet with <passphrase>.");
+    }
 
     if (!pwallet->EncryptWallet(strWalletPass)) {
+        if (pwallet->IsCrypted()) {
+            throw JSONRPCError(
+                RPC_WALLET_ENCRYPTION_FAILED,
+                "Error: Wallet encryption did not complete cleanly, but encrypted wallet data may already have been written. "
+                "Retain the new passphrase; it may be required after restart. Firo server is stopping.");
+        }
         throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
     }
 
@@ -4167,7 +4175,7 @@ UniValue resetsparkmints(const JSONRPCRequest& request) {
     EnsureSparkWalletIsAvailable();
 
     std::vector<CSparkMintMeta> listMints;
-    CWalletDB walletdb(pwallet->strWalletFile);
+    CWalletDB walletdb(pwallet->GetDatabase());
     listMints = pwallet->sparkWallet->ListSparkMints();
 
     BOOST_FOREACH(CSparkMintMeta& mint, listMints) {
@@ -4200,7 +4208,7 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
 
     EnsureWalletIsUnlocked(pwallet);
     pwallet->sparkWallet->WaitForPendingTasks();
-    CWalletDB walletdb(pwallet->strWalletFile);
+    CWalletDB walletdb(pwallet->GetDatabase());
     CSparkMintMeta coinMeta = pwallet->sparkWallet->getMintMeta(lTagHash);
 
     if (coinMeta != CSparkMintMeta()) {
@@ -5156,7 +5164,7 @@ UniValue identifysparkcoins(const JSONRPCRequest& request)
     if (!GetTransaction(txHash, tx,  Params().GetConsensus(), hashBlock))
         throw std::runtime_error(
                 "Transaction is not found by the given txHash.");
-    CWalletDB walletdb(pwallet->strWalletFile);
+    CWalletDB walletdb(pwallet->GetDatabase());
 
     UniValue results(UniValue::VOBJ);
     results.push_back(Pair("Old availableBalance",pwallet->sparkWallet->getAvailableBalance()));

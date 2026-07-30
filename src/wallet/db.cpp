@@ -367,12 +367,16 @@ void CDBEnv::CheckpointLSN(const std::string& strFile)
 }
 
 
-CDB::CDB(const std::string& strFilename, const char* pszMode, bool fFlushOnCloseIn) : pdb(NULL), activeTxn(NULL)
+CDB::CDB(BerkeleyDatabase& database, const char* pszMode, bool fFlushOnCloseIn)
+    : m_database(database),
+      pdb(NULL),
+      activeTxn(NULL)
 {
+    const std::string& strFilename = database.m_filename;
     int ret;
     fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
     fFlushOnClose = fFlushOnCloseIn;
-    if (strFilename.empty())
+    if (!database.m_env || strFilename.empty())
         return;
 
     bool fCreate = strchr(pszMode, 'c') != NULL;
@@ -380,18 +384,19 @@ CDB::CDB(const std::string& strFilename, const char* pszMode, bool fFlushOnClose
     if (fCreate)
         nFlags |= DB_CREATE;
 
+    CDBEnv& env = *m_database.m_env;
     {
-        LOCK(bitdb.cs_db);
-        if (!bitdb.Open(GetDataDir()))
+        LOCK(env.cs_db);
+        if (!env.Open(GetDataDir()))
             throw std::runtime_error("CDB: Failed to open database environment.");
 
         strFile = strFilename;
-        ++bitdb.mapFileUseCount[strFile];
-        pdb = bitdb.mapDb[strFile];
+        ++env.mapFileUseCount[strFile];
+        pdb = env.mapDb[strFile];
         if (pdb == NULL) {
-            pdb = new Db(bitdb.dbenv, 0);
+            pdb = new Db(env.dbenv, 0);
 
-            bool fMockDb = bitdb.IsMock();
+            bool fMockDb = env.IsMock();
             if (fMockDb) {
                 DbMpoolFile* mpf = pdb->get_mpf();
                 ret = mpf->set_flags(DB_MPOOL_NOFILE, 1);
@@ -409,7 +414,7 @@ CDB::CDB(const std::string& strFilename, const char* pszMode, bool fFlushOnClose
             if (ret != 0) {
                 delete pdb;
                 pdb = NULL;
-                --bitdb.mapFileUseCount[strFile];
+                --env.mapFileUseCount[strFile];
                 strFile = "";
                 throw std::runtime_error(strprintf("CDB: Error %d, can't open database %s", ret, strFilename));
             }
@@ -421,7 +426,7 @@ CDB::CDB(const std::string& strFilename, const char* pszMode, bool fFlushOnClose
                 fReadOnly = fTmp;
             }
 
-            bitdb.mapDb[strFile] = pdb;
+            env.mapDb[strFile] = pdb;
         }
     }
 }
@@ -497,7 +502,7 @@ bool CDB::HasRaw(CDataStream&& key)
 
 void CDB::Flush()
 {
-    if (activeTxn)
+    if (!m_database.m_env || m_database.m_filename.empty() || activeTxn)
         return;
 
     // Flush database activity from memory pool to disk log
@@ -505,7 +510,7 @@ void CDB::Flush()
     if (fReadOnly)
         nMinutes = 1;
 
-    bitdb.dbenv->txn_checkpoint(nMinutes ? GetArg("-dblogsize", DEFAULT_WALLET_DBLOGSIZE) * 1024 : 0, nMinutes, 0);
+    m_database.m_env->dbenv->txn_checkpoint(nMinutes ? GetArg("-dblogsize", DEFAULT_WALLET_DBLOGSIZE) * 1024 : 0, nMinutes, 0);
 }
 
 void CDB::Close()
@@ -521,8 +526,8 @@ void CDB::Close()
         Flush();
 
     {
-        LOCK(bitdb.cs_db);
-        --bitdb.mapFileUseCount[strFile];
+        LOCK(m_database.m_env->cs_db);
+        --m_database.m_env->mapFileUseCount[strFile];
     }
 }
 
@@ -558,7 +563,7 @@ bool CDB::TxnBegin()
         return false;
     }
 
-    DbTxn* transaction = bitdb.TxnBegin();
+    DbTxn* transaction = m_database.m_env->TxnBegin();
     if (!transaction) {
         return false;
     }
@@ -611,28 +616,33 @@ bool CDBEnv::RemoveDb(const std::string& strFile)
     return (rc == 0);
 }
 
-bool CDB::Rewrite(const std::string& strFile, const char* pszSkip)
+bool CDB::Rewrite(BerkeleyDatabase& database, const char* pszSkip)
 {
-    return RewriteInternal(strFile, pszSkip, false);
+    return RewriteInternal(database, pszSkip, false);
 }
 
-bool CDB::RewriteInternal(const std::string& strFile, const char* pszSkip, bool failBeforeRename)
+bool CDB::RewriteInternal(BerkeleyDatabase& database, const char* pszSkip, bool failBeforeRename)
 {
+    if (!database.m_env || database.m_filename.empty()) {
+        return true;
+    }
+    CDBEnv& env = *database.m_env;
+    const std::string& strFile = database.m_filename;
     while (true) {
         {
-            LOCK(bitdb.cs_db);
-            if (!bitdb.mapFileUseCount.count(strFile) || bitdb.mapFileUseCount[strFile] == 0) {
+            LOCK(env.cs_db);
+            if (!env.mapFileUseCount.count(strFile) || env.mapFileUseCount[strFile] == 0) {
                 // Flush log data to the dat file
-                bitdb.CloseDb(strFile);
-                bitdb.CheckpointLSN(strFile);
-                bitdb.mapFileUseCount.erase(strFile);
+                env.CloseDb(strFile);
+                env.CheckpointLSN(strFile);
+                env.mapFileUseCount.erase(strFile);
 
                 bool fSuccess = true;
                 LogPrintf("CDB::Rewrite: Rewriting %s...\n", strFile);
                 std::string strFileRes = strFile + ".rewrite";
                 { // surround usage of db with extra {}
-                    CDB db(strFile.c_str(), "r");
-                    auto pdbCopy = std::make_unique<Db>(bitdb.dbenv, 0);
+                    CDB db(database, "r");
+                    auto pdbCopy = std::make_unique<Db>(env.dbenv, 0);
 
                     int ret = pdbCopy->open(NULL, // Txn pointer
                         strFileRes.c_str(),       // Filename
@@ -684,18 +694,18 @@ bool CDB::RewriteInternal(const std::string& strFile, const char* pszSkip, bool 
 
                     cursor.reset();
                     db.Close();
-                    bitdb.CloseDb(strFile);
+                    env.CloseDb(strFile);
                     if (copyOpen && pdbCopy->close(0) != 0) {
                         fSuccess = false;
                     }
                 }
                 if (fSuccess) {
-                    DbTxn* publishTxn = bitdb.TxnBegin(0);
+                    DbTxn* publishTxn = env.TxnBegin(0);
                     if (!publishTxn) {
                         fSuccess = false;
-                    } else if (bitdb.dbenv->dbremove(publishTxn, strFile.c_str(), nullptr, 0) != 0 ||
+                    } else if (env.dbenv->dbremove(publishTxn, strFile.c_str(), nullptr, 0) != 0 ||
                                failBeforeRename ||
-                               bitdb.dbenv->dbrename(publishTxn, strFileRes.c_str(), nullptr, strFile.c_str(), 0) != 0) {
+                               env.dbenv->dbrename(publishTxn, strFileRes.c_str(), nullptr, strFile.c_str(), 0) != 0) {
                         publishTxn->abort();
                         fSuccess = false;
                     } else {
@@ -712,6 +722,88 @@ bool CDB::RewriteInternal(const std::string& strFile, const char* pszSkip, bool 
     return false;
 }
 
+bool BerkeleyDatabase::Rewrite(const char* skip)
+{
+    return CDB::Rewrite(*this, skip);
+}
+
+bool BerkeleyDatabase::Backup(const std::string& destination)
+{
+    if (!m_env || m_filename.empty()) {
+        return false;
+    }
+    while (true) {
+        {
+            LOCK(m_env->cs_db);
+            if (!m_env->mapFileUseCount.count(m_filename) || m_env->mapFileUseCount[m_filename] == 0) {
+                m_env->CloseDb(m_filename);
+                m_env->CheckpointLSN(m_filename);
+                m_env->mapFileUseCount.erase(m_filename);
+
+                boost::filesystem::path source = GetDataDir() / m_filename;
+                boost::filesystem::path target(destination);
+                if (boost::filesystem::is_directory(target)) {
+                    target /= m_filename;
+                }
+
+                try {
+#if BOOST_VERSION >= 104000
+                    const auto copyOptions = boost::filesystem::copy_options::overwrite_existing;
+                    boost::filesystem::copy(source, target, copyOptions);
+#else
+                    boost::filesystem::copy_file(source, target);
+#endif
+                    LogPrintf("copied %s to %s\n", m_filename, target.string());
+                    return true;
+                } catch (const boost::filesystem::filesystem_error& error) {
+                    LogPrintf("error copying %s to %s - %s\n", m_filename, target.string(), error.what());
+                    return false;
+                }
+            }
+        }
+        MilliSleep(100);
+    }
+}
+
+bool BerkeleyDatabase::PeriodicFlush()
+{
+    if (!m_env || m_filename.empty()) {
+        return false;
+    }
+    TRY_LOCK(m_env->cs_db, lockDb);
+    if (!lockDb) {
+        return false;
+    }
+
+    int refCount = 0;
+    for (const auto& entry : m_env->mapFileUseCount) {
+        refCount += entry.second;
+    }
+    if (refCount != 0) {
+        return false;
+    }
+
+    boost::this_thread::interruption_point();
+    auto file = m_env->mapFileUseCount.find(m_filename);
+    if (file == m_env->mapFileUseCount.end()) {
+        return false;
+    }
+
+    LogPrint("db", "Flushing %s\n", m_filename);
+    const int64_t start = GetTimeMillis();
+    m_env->CloseDb(m_filename);
+    m_env->CheckpointLSN(m_filename);
+    m_env->mapFileUseCount.erase(file);
+    LogPrint("db", "Flushed %s %dms\n", m_filename, GetTimeMillis() - start);
+    return true;
+}
+
+void BerkeleyDatabase::Flush(bool shutdown)
+{
+    if (m_env && !m_filename.empty()) {
+        m_env->Flush(shutdown);
+    }
+}
 
 void CDBEnv::Flush(bool fShutdown)
 {

@@ -16,6 +16,7 @@
 struct CRecipient;
 class CReserveKey;
 class CCoinControl;
+class CWallet;
 extern CChain chainActive;
 
 const uint32_t BIP44_SPARK_INDEX = 0x6;
@@ -23,7 +24,7 @@ const uint32_t SPARK_CHANGE_D = 0x270F;
 
 class CSparkWallet  {
 public:
-    CSparkWallet(const std::string& strWalletFile);
+    explicit CSparkWallet(CWallet& wallet);
     ~CSparkWallet();
     // increment diversifier and generate address for that
     spark::Address generateNextAddress();
@@ -239,7 +240,8 @@ private:
     IdentifiedMint IdentifyMint(spark::Coin coin, const uint256& txHash) const;
     void RecordMint(IdentifiedMint mint, CWalletDB& walletdb);
 
-    std::string strWalletFile;
+    CWallet& m_wallet;
+    BerkeleyDatabase& m_database;
     // this is latest used diversifier
     int32_t lastDiversifier GUARDED_BY(cs_spark_wallet);
 

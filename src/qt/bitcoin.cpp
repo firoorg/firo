@@ -431,13 +431,12 @@ void BitcoinApplication::unlockWallet_(void * wallet)
 
     QString info = tr("You need to unlock to allow Spark wallet be created.");
 
-    walletModel = new WalletModel(platformStyle, wallet_, optionsModel);
+    WalletModel transientWalletModel(platformStyle, wallet_, optionsModel, nullptr, WalletModel::Initialization::UNLOCK_ONLY);
 
     // Unlock wallet when requested by wallet model
-    if (walletModel->getEncryptionStatus() == WalletModel::Locked)
-    {
+    if (transientWalletModel.getEncryptionStatus() == WalletModel::Locked) {
         AskPassphraseDialog dlg(AskPassphraseDialog::Unlock, this->window, info);
-        dlg.setModel(walletModel);
+        dlg.setModel(&transientWalletModel);
         dlg.exec();
     }
 }
