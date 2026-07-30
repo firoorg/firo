@@ -183,17 +183,17 @@ void SetSQLiteUnavailableError(
     status = DatabaseStatus::FAILED_UNSUPPORTED;
 #ifdef USE_SQLITE
     error = exists ? strprintf(
-                         "SQLite wallet database '%s' is recognized, but SQLite wallet storage is not implemented yet.",
+                         "SQLite wallet database '%s' is recognized, but production SQLite wallet loading is not enabled yet.",
                          path.string()) :
                      strprintf(
-                         "Cannot create SQLite wallet database '%s': SQLite wallet storage is not implemented yet.",
+                         "Cannot create SQLite wallet database '%s': production SQLite wallet creation is not enabled yet.",
                          path.string());
 #else
     error = exists ? strprintf(
-                         "SQLite wallet database '%s' is not supported by this build; SQLite wallet storage is not implemented in this version.",
+                         "SQLite wallet database '%s' is not supported by this build because SQLite wallet support is disabled.",
                          path.string()) :
                      strprintf(
-                         "Cannot create SQLite wallet database '%s': this build has SQLite wallet support disabled, and SQLite wallet storage is not implemented in this version.",
+                         "Cannot create SQLite wallet database '%s': this build has SQLite wallet support disabled.",
                          path.string());
 #endif
 }

@@ -45,5 +45,8 @@ target_link_libraries(firo_wallet
 
 target_link_libraries(firo_wallet PUBLIC BerkeleyDB::BerkeleyDB)
 if(ENABLE_SQLITE_WALLET)
+  target_sources(firo_wallet PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/sqlite.cpp
+  )
   target_link_libraries(firo_wallet PRIVATE SQLite3::SQLite3)
 endif()

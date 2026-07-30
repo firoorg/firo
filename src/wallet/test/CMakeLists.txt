@@ -16,3 +16,6 @@ target_sources(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/wallet_tests.cpp
 )
 target_link_libraries(test_firo firo_wallet)
+if(ENABLE_SQLITE_WALLET)
+  target_link_libraries(test_firo SQLite3::SQLite3)
+endif()

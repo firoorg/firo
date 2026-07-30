@@ -17,7 +17,15 @@
 #include <string>
 #include <utility>
 
-/** RAII interface for iterating serialized wallet database records. */
+/**
+ * RAII interface for iterating serialized wallet database records.
+ *
+ * A cursor may outlive the batch that created it, but not the database owner.
+ * It can retain backend read ownership, so callers must destroy it before
+ * invoking another operation on the same database from the same thread. A
+ * cursor is thread-affine: call Next() and destroy it on the thread that
+ * created it.
+ */
 class DatabaseCursor
 {
 public:
@@ -36,7 +44,13 @@ public:
     virtual Status Next(CDataStream& key, CDataStream& value) = 0;
 };
 
-/** Backend-neutral access to one batch of serialized wallet records. */
+/**
+ * Backend-neutral access to one batch of serialized wallet records.
+ *
+ * Operations autocommit unless this batch starts a transaction. Transactions
+ * are batch-local and non-nested. Close and destruction abort an active
+ * transaction, and the database owner must outlive the batch.
+ */
 class DatabaseBatch
 {
 private:
@@ -107,6 +121,7 @@ public:
     }
 
     virtual void Flush() = 0;
+    /** Close the batch, aborting any transaction it still owns. */
     virtual void Close() = 0;
 
     /** Iterate every record in serialized-key order. */
@@ -171,7 +186,13 @@ enum class DatabaseStatus {
     FAILED_VERIFY,
 };
 
-/** Persistent identity and lifecycle operations for one wallet database. */
+/**
+ * Persistent identity and lifecycle operations for one wallet database.
+ *
+ * The owner must outlive every batch and cursor made from it. Implementations
+ * support nested and parallel batches and coordinate lifecycle operations
+ * with concurrent writers.
+ */
 class WalletDatabase
 {
 public:
@@ -184,7 +205,12 @@ public:
     virtual const std::string& Filename() const = 0;
     virtual DatabaseFormat Format() const = 0;
     virtual std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) = 0;
+    /**
+     * Compact the database, update its singleton version record, and omit raw
+     * serialized keys beginning with skip when it is non-null.
+     */
     virtual bool Rewrite(const char* skip = nullptr) = 0;
+    /** Write a consistent live snapshot to destination. */
     virtual bool Backup(const std::string& destination) = 0;
     virtual bool PeriodicFlush() = 0;
     virtual void Flush(bool shutdown) = 0;
