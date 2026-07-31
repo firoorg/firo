@@ -5,6 +5,7 @@
 #include "../wallet/coincontrol.h"
 #include "../wallet/walletexcept.h"
 #include "../hash.h"
+#include "../init.h"
 #include "../validation.h"
 #include "../policy/policy.h"
 #include "../script/sign.h"
@@ -19,6 +20,57 @@
 
 const uint32_t DEFAULT_SPARK_NCOUNT = 1;
 
+namespace
+{
+class RelockWalletGuard
+{
+private:
+    CWallet& m_wallet;
+    bool m_armed{false};
+
+public:
+    explicit RelockWalletGuard(CWallet& wallet)
+        : m_wallet(wallet)
+    {
+    }
+
+    ~RelockWalletGuard() noexcept
+    {
+        if (!m_armed) {
+            return;
+        }
+        try {
+            if (!m_wallet.Lock()) {
+                StartShutdown();
+            }
+        } catch (...) {
+            StartShutdown();
+        }
+    }
+
+    void Arm() noexcept
+    {
+        m_armed = true;
+    }
+};
+
+bool AbortSparkInitialization(CWalletDB& walletdb) noexcept
+{
+    try {
+        if (!walletdb.HasActiveTxn()) {
+            return true;
+        }
+        if (walletdb.TxnAbort() &&
+            !walletdb.HasActiveTxn()) {
+            return true;
+        }
+    } catch (...) {
+    }
+    StartShutdown();
+    return false;
+}
+} // namespace
+
 CSparkWallet::CSparkWallet(CWallet& wallet)
     : m_wallet(wallet),
       m_database(wallet.GetDatabase())
@@ -29,6 +81,111 @@ CSparkWallet::CSparkWallet(CWallet& wallet)
 
     fullViewKey = spark::FullViewKey(params);
     viewKey = spark::IncomingViewKey(params);
+
+    if (m_database.Format() == DatabaseFormat::SQLITE) {
+        RelockWalletGuard relockGuard(m_wallet);
+        spark::FullViewKey storedFullViewKey(params);
+        int32_t storedDiversifier = 0;
+        DatabaseReadStatus fullViewKeyStatus;
+        DatabaseReadStatus diversifierStatus;
+        {
+            CWalletDB walletdb(m_database);
+            fullViewKeyStatus =
+                walletdb.readFullViewKeyWithStatus(storedFullViewKey);
+            diversifierStatus =
+                walletdb.readDiversifierWithStatus(storedDiversifier);
+        }
+
+        if (fullViewKeyStatus == DatabaseReadStatus::NOT_FOUND &&
+            diversifierStatus == DatabaseReadStatus::NOT_FOUND) {
+            if (m_wallet.IsLocked()) {
+                m_wallet.RequestUnlock();
+                if (m_wallet.WaitForUnlock()) {
+                    relockGuard.Arm();
+                } else {
+                    throw std::runtime_error("Spark wallet creation FAILED, wallet could not be unlocked\n");
+                }
+            }
+
+            spark::SpendKey spendKey(params);
+            try {
+                spendKey = std::move(generateSpendKey(params));
+            } catch (const WalletLocked&) {
+                throw std::runtime_error("Spark wallet creation FAILED, wallet is locked\n");
+            } catch (const std::exception&) {
+                throw std::runtime_error("Spark wallet creation FAILED, unable to generate spend key\n");
+            }
+            spark::FullViewKey generatedFullViewKey =
+                generateFullViewKey(spendKey);
+            spark::IncomingViewKey generatedViewKey(generatedFullViewKey);
+            spark::Address defaultAddress(generatedViewKey, 0);
+
+            CWalletDB walletdb(m_database);
+            if (!walletdb.TxnBegin()) {
+                if (!AbortSparkInitialization(walletdb)) {
+                    throw std::runtime_error("Spark wallet initialization FAILED, database rollback could not be certified\n");
+                }
+                throw std::runtime_error("Spark wallet initialization FAILED, database transaction could not be started\n");
+            }
+            try {
+                spark::FullViewKey concurrentFullViewKey(params);
+                int32_t concurrentDiversifier = 0;
+                const DatabaseReadStatus concurrentFullViewKeyStatus =
+                    walletdb.readFullViewKeyWithStatus(concurrentFullViewKey);
+                const DatabaseReadStatus concurrentDiversifierStatus =
+                    walletdb.readDiversifierWithStatus(concurrentDiversifier);
+                if (concurrentFullViewKeyStatus !=
+                        DatabaseReadStatus::NOT_FOUND ||
+                    concurrentDiversifierStatus !=
+                        DatabaseReadStatus::NOT_FOUND) {
+                    throw std::runtime_error("Spark wallet initialization FAILED, database state changed concurrently\n");
+                }
+                if (!walletdb.writeFullViewKey(generatedFullViewKey) ||
+                    !walletdb.writeDiversifier(0)) {
+                    throw std::runtime_error("Spark wallet initialization FAILED, database state could not be written\n");
+                }
+                if (!walletdb.TxnCommit()) {
+                    throw std::runtime_error("Spark wallet initialization FAILED, database transaction could not be committed\n");
+                }
+            } catch (...) {
+                if (!AbortSparkInitialization(walletdb)) {
+                    throw std::runtime_error("Spark wallet initialization FAILED, database rollback could not be certified\n");
+                }
+                throw;
+            }
+
+            fullViewKey = std::move(generatedFullViewKey);
+            viewKey = std::move(generatedViewKey);
+            lastDiversifier = 0;
+            addresses.emplace(lastDiversifier, std::move(defaultAddress));
+        } else if (
+            fullViewKeyStatus == DatabaseReadStatus::SUCCESS &&
+            diversifierStatus == DatabaseReadStatus::SUCCESS) {
+            fullViewKey = std::move(storedFullViewKey);
+            viewKey = generateIncomingViewKey(fullViewKey);
+            lastDiversifier = -1;
+
+            while (lastDiversifier < storedDiversifier) {
+                addresses[lastDiversifier] = generateNextAddress();
+            }
+
+            CWalletDB walletdb(m_database);
+            {
+                LOCK(cs_spark_wallet);
+                coinMeta = walletdb.ListSparkMints();
+                for (auto& coin : coinMeta) {
+                    coin.second.coin.setParams(params);
+                    coin.second.coin.setSerialContext(coin.second.serial_context);
+                }
+            }
+        } else {
+            throw std::runtime_error("Spark wallet initialization FAILED, database state is incomplete or unreadable\n");
+        }
+
+        unsigned nThreads = std::thread::hardware_concurrency();
+        threadPool = new ParallelOpThreadPool<void>(static_cast<std::size_t>(nThreads));
+        return;
+    }
 
     bool fWalletJustUnlocked = false;
     bool hasFullViewKey;
@@ -286,6 +443,18 @@ spark::Address CSparkWallet::generateNextAddress() {
 
 spark::Address CSparkWallet::generateNewAddress() {
     LOCK(cs_spark_wallet);
+    if (m_database.Format() == DatabaseFormat::SQLITE) {
+        const int32_t nextDiversifier = lastDiversifier + 1;
+        spark::Address address(viewKey, nextDiversifier);
+        CWalletDB walletdb(m_database);
+        if (!walletdb.writeDiversifier(nextDiversifier)) {
+            throw std::runtime_error("Spark address generation FAILED, diversifier could not be persisted\n");
+        }
+        addresses.emplace(nextDiversifier, address);
+        lastDiversifier = nextDiversifier;
+        return address;
+    }
+
     lastDiversifier++;
     spark::Address address(viewKey, lastDiversifier);
 

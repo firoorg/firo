@@ -11,6 +11,7 @@
 
 #include "chainparams.h"
 #include "crypto/common.h"
+#include "init.h"
 #include "support/cleanse.h"
 #include "util.h"
 
@@ -52,6 +53,30 @@ namespace
 {
 constexpr int SQLITE_BUSY_TIMEOUT_MILLISECONDS = 5000;
 constexpr int32_t WALLET_SCHEMA_VERSION = 0;
+constexpr unsigned char LOGICAL_CREATION_MARKER[]{
+    'f', 'i', 'r', 'o', '.', 's', 'q', 'l', 'i', 't', 'e', '.',
+    'l', 'o', 'g', 'i', 'c', 'a', 'l', '-', 'c', 'r', 'e', 'a',
+    't', 'i', 'o', 'n', '.', 'i', 'n', 'c', 'o', 'm', 'p', 'l',
+    'e', 't', 'e', '.', 'v', '1'};
+
+enum class SQLiteCreationMarkerState {
+    ABSENT,
+    PRESENT,
+    INVALID,
+    FAILED,
+};
+
+enum class SQLiteCreationState {
+    NONE,
+    PENDING,
+    INDETERMINATE,
+};
+
+enum class SQLiteCreationMarkerPolicy {
+    REQUIRE_ABSENT,
+    REQUIRE_PRESENT,
+    ALLOW_EITHER,
+};
 
 std::mutex g_sqlite_mutex;
 size_t g_sqlite_owner_count{0};
@@ -61,6 +86,7 @@ sqlite3* g_sqlite_first_abandoned_connection{nullptr};
 size_t g_sqlite_abandoned_connection_count{0};
 std::atomic<bool> g_fail_post_publish_once{false};
 std::atomic<bool> g_report_publish_error_after_rename_once{false};
+std::atomic<bool> g_report_rewrite_commit_error_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
 
 bool ConsumePostPublishFailure()
@@ -71,6 +97,11 @@ bool ConsumePostPublishFailure()
 bool ConsumePublishErrorAfterRename()
 {
     return g_report_publish_error_after_rename_once.exchange(false);
+}
+
+bool ConsumeRewriteCommitError()
+{
+    return g_report_rewrite_commit_error_once.exchange(false);
 }
 
 bool ConsumeCloseFailure()
@@ -221,6 +252,66 @@ public:
     }
 };
 
+class SQLiteConnectionMutex final
+{
+private:
+    sqlite3_mutex* const m_mutex;
+
+public:
+    explicit SQLiteConnectionMutex(sqlite3* database)
+        : m_mutex(sqlite3_db_mutex(database))
+    {
+        if (m_mutex) {
+            sqlite3_mutex_enter(m_mutex);
+        }
+    }
+
+    ~SQLiteConnectionMutex()
+    {
+        if (m_mutex) {
+            sqlite3_mutex_leave(m_mutex);
+        }
+    }
+
+    SQLiteConnectionMutex(const SQLiteConnectionMutex&) = delete;
+    SQLiteConnectionMutex& operator=(const SQLiteConnectionMutex&) = delete;
+};
+
+bool ReadBlobColumn(
+    SQLiteColumnReader& reader,
+    sqlite3* database,
+    sqlite3_stmt* statement,
+    int column,
+    const void*& data,
+    int& size,
+    const char* context)
+{
+    SQLiteConnectionMutex sqlite_lock(database);
+
+    data = reader.Blob(statement, column);
+    if (!data) {
+        const int result = reader.ErrorCode(database);
+        if ((result & 0xff) == SQLITE_NOMEM) {
+            LogSQLiteError(context, database, result);
+            return false;
+        }
+    }
+
+    size = reader.Bytes(statement, column);
+    if (size == 0) {
+        const int result = reader.ErrorCode(database);
+        if ((result & 0xff) == SQLITE_NOMEM) {
+            LogSQLiteError(context, database, result);
+            return false;
+        }
+    }
+    if (size < 0 || (size > 0 && !data)) {
+        LogPrintf("%s: SQLite returned an invalid BLOB.\n", context);
+        return false;
+    }
+    return true;
+}
+
 bool PrepareStatement(
     sqlite3* database,
     const char* sql,
@@ -293,6 +384,181 @@ bool ExecuteSQL(sqlite3* database, const char* statement, std::string* error = n
     return false;
 }
 
+SQLiteCreationMarkerState ReadLogicalCreationMarker(
+    sqlite3* database,
+    std::string& error)
+{
+    SQLiteStatement statement;
+    if (!PrepareStatement(
+            database,
+            "SELECT value FROM main WHERE key = ?",
+            statement,
+            "Failed to inspect SQLite logical-creation marker",
+            &error) ||
+        !BindBlob(
+            statement.Get(),
+            1,
+            nullptr,
+            0,
+            "logical-creation marker key")) {
+        if (error.empty()) {
+            error = "Failed to bind SQLite logical-creation marker key.";
+        }
+        return SQLiteCreationMarkerState::FAILED;
+    }
+
+    const int result = sqlite3_step(statement.Get());
+    if (result == SQLITE_DONE) {
+        return SQLiteCreationMarkerState::ABSENT;
+    }
+    if (result != SQLITE_ROW) {
+        error = strprintf(
+            "Failed to inspect SQLite logical-creation marker: %s",
+            sqlite3_errmsg(database));
+        return SQLiteCreationMarkerState::FAILED;
+    }
+    if (sqlite3_column_type(statement.Get(), 0) != SQLITE_BLOB) {
+        error = "SQLite wallet contains invalid reserved creation metadata.";
+        return SQLiteCreationMarkerState::INVALID;
+    }
+
+    SQLiteColumnReader reader;
+    const void* data = nullptr;
+    int size = 0;
+    if (!ReadBlobColumn(
+            reader,
+            database,
+            statement.Get(),
+            0,
+            data,
+            size,
+            "Failed to read SQLite logical-creation marker")) {
+        error = "Failed to read SQLite logical-creation marker.";
+        return SQLiteCreationMarkerState::FAILED;
+    }
+    if (size != static_cast<int>(sizeof(LOGICAL_CREATION_MARKER)) ||
+        std::memcmp(
+            data,
+            LOGICAL_CREATION_MARKER,
+            sizeof(LOGICAL_CREATION_MARKER)) != 0) {
+        error = "SQLite wallet contains invalid reserved creation metadata.";
+        return SQLiteCreationMarkerState::INVALID;
+    }
+    return SQLiteCreationMarkerState::PRESENT;
+}
+
+bool ValidateLogicalCreationMarker(
+    sqlite3* database,
+    const fs::path& path,
+    SQLiteCreationMarkerPolicy policy,
+    std::string& error)
+{
+    const SQLiteCreationMarkerState state =
+        ReadLogicalCreationMarker(database, error);
+    if (state == SQLiteCreationMarkerState::FAILED ||
+        state == SQLiteCreationMarkerState::INVALID) {
+        error = strprintf(
+            "Failed to validate reserved metadata in SQLite wallet '%s'%s%s",
+            path.string(),
+            error.empty() ? "." : ": ",
+            error);
+        return false;
+    }
+    if (state == SQLiteCreationMarkerState::PRESENT &&
+        policy == SQLiteCreationMarkerPolicy::REQUIRE_ABSENT) {
+        error = strprintf(
+            "SQLite wallet '%s' is incomplete because its logical creation did not finish.",
+            path.string());
+        return false;
+    }
+    if (state == SQLiteCreationMarkerState::ABSENT &&
+        policy == SQLiteCreationMarkerPolicy::REQUIRE_PRESENT) {
+        error = strprintf(
+            "SQLite wallet '%s' lost its logical-creation marker before initialization completed.",
+            path.string());
+        return false;
+    }
+    return true;
+}
+
+bool InsertLogicalCreationMarker(
+    sqlite3* database,
+    std::string& error)
+{
+    SQLiteStatement statement;
+    if (!PrepareStatement(
+            database,
+            "INSERT INTO main(key, value) VALUES(?, ?)",
+            statement,
+            "Failed to prepare SQLite logical-creation marker",
+            &error) ||
+        !BindBlob(
+            statement.Get(),
+            1,
+            nullptr,
+            0,
+            "logical-creation marker key") ||
+        !BindBlob(
+            statement.Get(),
+            2,
+            LOGICAL_CREATION_MARKER,
+            sizeof(LOGICAL_CREATION_MARKER),
+            "logical-creation marker value")) {
+        if (error.empty()) {
+            error = "Failed to bind SQLite logical-creation marker.";
+        }
+        return false;
+    }
+    const int result = sqlite3_step(statement.Get());
+    if (result != SQLITE_DONE) {
+        error = strprintf(
+            "Failed to insert SQLite logical-creation marker: %s",
+            sqlite3_errmsg(database));
+        return false;
+    }
+    return true;
+}
+
+bool DeleteLogicalCreationMarker(
+    sqlite3* database,
+    std::string& error)
+{
+    SQLiteStatement statement;
+    if (!PrepareStatement(
+            database,
+            "DELETE FROM main WHERE key = ? AND value = ?",
+            statement,
+            "Failed to prepare SQLite logical-creation completion",
+            &error) ||
+        !BindBlob(
+            statement.Get(),
+            1,
+            nullptr,
+            0,
+            "logical-creation marker key") ||
+        !BindBlob(
+            statement.Get(),
+            2,
+            LOGICAL_CREATION_MARKER,
+            sizeof(LOGICAL_CREATION_MARKER),
+            "logical-creation marker value")) {
+        if (error.empty()) {
+            error = "Failed to bind SQLite logical-creation completion marker.";
+        }
+        return false;
+    }
+    const int result = sqlite3_step(statement.Get());
+    if (result != SQLITE_DONE || sqlite3_changes(database) != 1) {
+        error = result == SQLITE_DONE ?
+                    "SQLite logical-creation marker was not removed exactly once." :
+                    strprintf(
+                        "Failed to remove SQLite logical-creation marker: %s",
+                        sqlite3_errmsg(database));
+        return false;
+    }
+    return true;
+}
+
 std::optional<int64_t> ReadPragmaInteger(
     sqlite3* database,
     const char* statement,
@@ -346,6 +612,22 @@ struct SQLiteFileIdentity {
 #endif
     bool valid{false};
 };
+
+bool SameSQLiteFileIdentity(
+    const SQLiteFileIdentity& first,
+    const SQLiteFileIdentity& second) noexcept
+{
+#ifdef WIN32
+    (void)first;
+    (void)second;
+    return false;
+#else
+    return first.valid &&
+           second.valid &&
+           first.device == second.device &&
+           first.inode == second.inode;
+#endif
+}
 
 bool PathIdentityMatches(
     const fs::path& path,
@@ -842,7 +1124,10 @@ bool CloseOrAbandonSQLiteConnection(
     return false;
 }
 
-bool CreateSchema(sqlite3* database, std::string& error)
+bool CreateSchema(
+    sqlite3* database,
+    bool logical_wallet_create,
+    std::string& error)
 {
     if (!ExecuteSQL(database, "BEGIN IMMEDIATE TRANSACTION", &error)) {
         return false;
@@ -859,7 +1144,9 @@ bool CreateSchema(sqlite3* database, std::string& error)
             "CREATE TABLE main(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)",
             &error) &&
         ExecuteSQL(database, application_statement.c_str(), &error) &&
-        ExecuteSQL(database, version_statement.c_str(), &error);
+        ExecuteSQL(database, version_statement.c_str(), &error) &&
+        (!logical_wallet_create ||
+            InsertLogicalCreationMarker(database, error));
     if (!created) {
         ExecuteSQL(database, "ROLLBACK TRANSACTION");
         return false;
@@ -1557,15 +1844,18 @@ class SQLiteCursor final : public DatabaseCursor
 private:
     std::shared_lock<std::shared_mutex> m_connection_lock;
     sqlite3_stmt* m_statement{nullptr};
+    std::shared_ptr<SQLiteColumnReader> m_column_reader;
     std::vector<unsigned char> m_start_key;
 
 public:
     SQLiteCursor(
         std::shared_lock<std::shared_mutex> connection_lock,
         sqlite3_stmt* statement,
+        std::shared_ptr<SQLiteColumnReader> column_reader,
         std::vector<unsigned char> start_key) noexcept
         : m_connection_lock(std::move(connection_lock)),
           m_statement(statement),
+          m_column_reader(std::move(column_reader)),
           m_start_key(std::move(start_key))
     {
     }
@@ -1601,26 +1891,64 @@ public:
             return Status::FAIL;
         }
 
+        sqlite3* const database = sqlite3_db_handle(m_statement);
+        if (!database || !m_column_reader) {
+            return Status::FAIL;
+        }
+
         key.SetType(SER_DISK);
         key.clear();
-        const int key_size = sqlite3_column_bytes(m_statement, 0);
-        const void* const key_data = sqlite3_column_blob(m_statement, 0);
-        if (key_size > 0) {
-            if (!key_data) {
-                return Status::FAIL;
-            }
-            key.write(static_cast<const char*>(key_data), key_size);
+        const void* key_data = nullptr;
+        int key_size = 0;
+        if (!ReadBlobColumn(
+                *m_column_reader,
+                database,
+                m_statement,
+                0,
+                key_data,
+                key_size,
+                "SQLiteCursor: Failed to extract record key") ||
+            key_size == 0) {
+            return Status::FAIL;
+        }
+        try {
+            key.write(
+                static_cast<const char*>(key_data),
+                key_size);
+        } catch (...) {
+            CleanseStream(key);
+            key.clear();
+            return Status::FAIL;
         }
 
         value.SetType(SER_DISK);
         value.clear();
-        const int value_size = sqlite3_column_bytes(m_statement, 1);
-        const void* const value_data = sqlite3_column_blob(m_statement, 1);
+        const void* value_data = nullptr;
+        int value_size = 0;
+        if (!ReadBlobColumn(
+                *m_column_reader,
+                database,
+                m_statement,
+                1,
+                value_data,
+                value_size,
+                "SQLiteCursor: Failed to extract record value")) {
+            CleanseStream(key);
+            key.clear();
+            return Status::FAIL;
+        }
         if (value_size > 0) {
-            if (!value_data) {
+            try {
+                value.write(
+                    static_cast<const char*>(value_data),
+                    value_size);
+            } catch (...) {
+                CleanseStream(key);
+                CleanseStream(value);
+                key.clear();
+                value.clear();
                 return Status::FAIL;
             }
-            value.write(static_cast<const char*>(value_data), value_size);
         }
         return Status::MORE;
     }
@@ -1640,6 +1968,11 @@ private:
     SQLiteFileIdentity m_identity;
     bool m_sqlite_acquired{false};
     bool* m_failed_creation_cleanup_allowed{nullptr};
+    SQLiteCreationState m_creation_state{
+        SQLiteCreationState::NONE};
+    bool m_creation_cleanup_allowed{false};
+    std::unique_ptr<SQLiteStatementExecutor> m_creation_executor{
+        std::make_unique<SQLiteStatementExecutor>()};
     std::atomic<bool> m_usable{true};
     std::atomic<bool> m_poisoned{false};
 
@@ -1657,7 +1990,8 @@ private:
 
     bool OpenExistingLocked(
         std::string& error,
-        bool* cleanup_allowed = nullptr)
+        bool* cleanup_allowed = nullptr,
+        std::optional<SQLiteCreationMarkerPolicy> marker_policy = std::nullopt)
     {
         if (m_poisoned.load() || m_database) {
             error = strprintf(
@@ -1666,6 +2000,11 @@ private:
             Poison();
             return false;
         }
+        const SQLiteCreationMarkerPolicy required_marker =
+            marker_policy.value_or(
+                m_creation_state == SQLiteCreationState::PENDING ?
+                    SQLiteCreationMarkerPolicy::REQUIRE_PRESENT :
+                    SQLiteCreationMarkerPolicy::REQUIRE_ABSENT);
         SQLiteFileIdentity identity;
         if (m_identity_descriptor < 0) {
             int descriptor = -1;
@@ -1706,7 +2045,12 @@ private:
             Poison();
             return false;
         }
-        if (!VerifyDatabase(m_database, error)) {
+        if (!VerifyDatabase(m_database, error) ||
+            !ValidateLogicalCreationMarker(
+                m_database,
+                m_path,
+                required_marker,
+                error)) {
             error = strprintf(
                 "Failed to verify SQLite wallet '%s': %s",
                 m_path.string(),
@@ -1729,7 +2073,12 @@ private:
                 m_path,
                 m_identity,
                 error) ||
-            !VerifyDatabase(m_database, error)) {
+            !VerifyDatabase(m_database, error) ||
+            !ValidateLogicalCreationMarker(
+                m_database,
+                m_path,
+                required_marker,
+                error)) {
             error = strprintf(
                 "Failed to verify locked SQLite wallet '%s': %s",
                 m_path.string(),
@@ -1746,6 +2095,7 @@ private:
 
     bool CreateLocked(
         OwnedCandidate& candidate,
+        bool logical_wallet_create,
         PublishResult& publish_result,
         std::string& error)
     {
@@ -1761,7 +2111,10 @@ private:
                 candidate.path,
                 candidate.identity,
                 error) ||
-            !CreateSchema(m_database, error) ||
+            !CreateSchema(
+                m_database,
+                logical_wallet_create,
+                error) ||
             !VerifyDatabase(m_database, error)) {
             CloseOrAbandonSQLiteConnection(
                 m_database,
@@ -1816,7 +2169,10 @@ private:
         m_identity = candidate.identity;
         if (!OpenExistingLocked(
                 error,
-                &candidate.cleanup_allowed)) {
+                &candidate.cleanup_allowed,
+                logical_wallet_create ?
+                    SQLiteCreationMarkerPolicy::REQUIRE_PRESENT :
+                    SQLiteCreationMarkerPolicy::REQUIRE_ABSENT)) {
             Poison();
             return false;
         }
@@ -1828,8 +2184,106 @@ private:
             Poison();
             return false;
         }
+        if (logical_wallet_create) {
+            m_creation_state = SQLiteCreationState::PENDING;
+            m_creation_cleanup_allowed =
+                candidate.cleanup_allowed;
+        }
         m_usable.store(true);
         return true;
+    }
+
+    bool PreparePendingCleanupLocked(std::string& error)
+    {
+        if (m_creation_state != SQLiteCreationState::PENDING ||
+            !m_creation_cleanup_allowed) {
+            return false;
+        }
+        {
+            std::lock_guard<std::mutex> state_lock(m_state_mutex);
+            if (m_batch_count != 0) {
+                error =
+                    "active wallet database batches still exist";
+                return false;
+            }
+        }
+        if (!m_database ||
+            m_poisoned.load() ||
+            !m_usable.load()) {
+            error =
+                "the SQLite connection is not healthy";
+            return false;
+        }
+        std::string marker_error;
+        if (ReadLogicalCreationMarker(
+                m_database,
+                marker_error) !=
+            SQLiteCreationMarkerState::PRESENT) {
+            error = marker_error.empty() ?
+                        "the exact incomplete-creation marker is not present" :
+                        marker_error;
+            return false;
+        }
+        return true;
+    }
+
+    void RemovePendingCreationLocked()
+    {
+        if (m_creation_state != SQLiteCreationState::PENDING ||
+            !m_creation_cleanup_allowed ||
+            m_database) {
+            return;
+        }
+
+        std::string error;
+        SQLiteFileIdentity verified_identity;
+        if (!DescriptorIdentityMatches(
+                m_identity_descriptor,
+                m_identity) ||
+            !VerifySQLiteHeaderDescriptor(
+                m_identity_descriptor,
+                m_path,
+                verified_identity,
+                error) ||
+            !SameSQLiteFileIdentity(
+                verified_identity,
+                m_identity) ||
+            !PathIdentityMatches(m_path, m_identity)) {
+            LogPrintf(
+                "SQLiteDatabase: Leaving incomplete wallet '%s' because its retained identity could not be verified: %s\n",
+                m_filename,
+                error.empty() ? "identity mismatch" : error);
+            m_creation_cleanup_allowed = false;
+            return;
+        }
+        if (!CheckAuxiliaryFiles(m_path, false, error)) {
+            LogPrintf(
+                "SQLiteDatabase: Leaving incomplete wallet '%s' because auxiliary state exists: %s\n",
+                m_filename,
+                error);
+            m_creation_cleanup_allowed = false;
+            return;
+        }
+        if (!RemoveOwnedPath(m_path, m_identity, error)) {
+            LogPrintf(
+                "SQLiteDatabase: Failed to remove incomplete wallet '%s': %s\n",
+                m_filename,
+                error);
+            m_creation_cleanup_allowed = false;
+            return;
+        }
+
+        const fs::path parent =
+            m_path.parent_path().empty() ?
+                fs::path(".") :
+                m_path.parent_path();
+        if (!SyncDirectory(parent, error)) {
+            LogPrintf(
+                "SQLiteDatabase: Failed to synchronize incomplete wallet cleanup for '%s': %s\n",
+                m_filename,
+                error);
+        }
+        m_creation_cleanup_allowed = false;
     }
 
     bool ResetAfterFailedRollback()
@@ -1869,6 +2323,233 @@ private:
         }
     }
 
+    DatabaseCreationResult MarkCreationIndeterminate(
+        std::string& error,
+        const std::string& reason)
+    {
+        m_creation_state =
+            SQLiteCreationState::INDETERMINATE;
+        m_creation_cleanup_allowed = false;
+        {
+            std::lock_guard<std::mutex> state_lock(m_state_mutex);
+            m_open = false;
+        }
+        Poison();
+        StartShutdown();
+        try {
+            error = strprintf(
+                "SQLite wallet '%s' creation outcome is indeterminate: %s",
+                m_filename,
+                reason);
+        } catch (...) {
+        }
+        LogPrintf(
+            "SQLiteDatabase: Logical creation outcome for '%s' is indeterminate; retaining the wallet and shutting down.\n",
+            m_filename);
+        return DatabaseCreationResult::INDETERMINATE;
+    }
+
+    bool ValidateOwnedConnectionLocked(std::string& error)
+    {
+        SQLiteFileIdentity verified_identity;
+        if (m_identity_descriptor < 0 ||
+            !DescriptorIdentityMatches(
+                m_identity_descriptor,
+                m_identity) ||
+            !VerifySQLiteHeaderDescriptor(
+                m_identity_descriptor,
+                m_path,
+                verified_identity,
+                error) ||
+            !SameSQLiteFileIdentity(
+                verified_identity,
+                m_identity) ||
+            !PathIdentityMatches(m_path, m_identity) ||
+            !m_database ||
+            !ConnectionIdentityMatches(
+                m_database,
+                m_path,
+                m_identity,
+                error)) {
+            if (error.empty()) {
+                error =
+                    "retained SQLite wallet identity changed";
+            }
+            return false;
+        }
+        return true;
+    }
+
+    bool SynchronizeReconciledCreationStateLocked(
+        SQLiteCreationMarkerState& marker,
+        std::string& error)
+    {
+        marker = ReadLogicalCreationMarker(
+            m_database,
+            error);
+        if (marker != SQLiteCreationMarkerState::ABSENT &&
+            marker != SQLiteCreationMarkerState::PRESENT) {
+            return false;
+        }
+        const int flush_result =
+            sqlite3_db_cacheflush(m_database);
+        if (flush_result != SQLITE_OK) {
+            error = strprintf(
+                "failed to flush reconciled SQLite state: %s",
+                sqlite3_errmsg(m_database));
+            return false;
+        }
+        if (!ValidateOwnedConnectionLocked(error)) {
+            return false;
+        }
+#ifdef WIN32
+        if (_commit(m_identity_descriptor) != 0) {
+#else
+        if (fsync(m_identity_descriptor) != 0) {
+#endif
+            error = strprintf(
+                "failed to synchronize retained SQLite wallet identity: %s",
+                std::strerror(errno));
+            return false;
+        }
+        if (!CheckAuxiliaryFiles(m_path, false, error)) {
+            return false;
+        }
+        const fs::path parent =
+            m_path.parent_path().empty() ?
+                fs::path(".") :
+                m_path.parent_path();
+        if (!SyncDirectory(parent, error)) {
+            return false;
+        }
+
+        std::string second_error;
+        const SQLiteCreationMarkerState second =
+            ReadLogicalCreationMarker(
+                m_database,
+                second_error);
+        if (second != marker) {
+            error = second_error.empty() ?
+                        "SQLite logical-creation marker changed during reconciliation" :
+                        second_error;
+            return false;
+        }
+        return ValidateOwnedConnectionLocked(error);
+    }
+
+    DatabaseCreationResult ReconcileCreationCompletionLocked(
+        std::string& error)
+    {
+        {
+            std::lock_guard<std::mutex> state_lock(m_state_mutex);
+            m_open = false;
+        }
+        m_usable.store(false);
+        if (!CloseOrAbandonSQLiteConnection(
+                m_database,
+                &m_creation_cleanup_allowed)) {
+            return MarkCreationIndeterminate(
+                error,
+                "the post-commit connection could not be closed");
+        }
+
+        SQLiteFileIdentity verified_identity;
+        std::string identity_error;
+        if (!DescriptorIdentityMatches(
+                m_identity_descriptor,
+                m_identity) ||
+            !VerifySQLiteHeaderDescriptor(
+                m_identity_descriptor,
+                m_path,
+                verified_identity,
+                identity_error) ||
+            !SameSQLiteFileIdentity(
+                verified_identity,
+                m_identity) ||
+            !PathIdentityMatches(m_path, m_identity)) {
+            return MarkCreationIndeterminate(
+                error,
+                identity_error.empty() ?
+                    "the retained wallet identity changed" :
+                    identity_error);
+        }
+
+        std::string reopen_error;
+        if (!OpenExistingLocked(
+                reopen_error,
+                &m_creation_cleanup_allowed,
+                SQLiteCreationMarkerPolicy::ALLOW_EITHER)) {
+            return MarkCreationIndeterminate(
+                error,
+                reopen_error.empty() ?
+                    "the wallet could not be reopened for reconciliation" :
+                    reopen_error);
+        }
+        {
+            std::lock_guard<std::mutex> state_lock(m_state_mutex);
+            m_open = true;
+        }
+
+        SQLiteCreationMarkerState marker{
+            SQLiteCreationMarkerState::FAILED};
+        std::string sync_error;
+        if (!SynchronizeReconciledCreationStateLocked(
+                marker,
+                sync_error)) {
+            return MarkCreationIndeterminate(
+                error,
+                sync_error.empty() ?
+                    "the durable marker postcondition could not be verified" :
+                    sync_error);
+        }
+        if (marker == SQLiteCreationMarkerState::ABSENT) {
+            m_creation_state = SQLiteCreationState::NONE;
+            m_creation_cleanup_allowed = false;
+            m_usable.store(true);
+            error.clear();
+            return DatabaseCreationResult::COMPLETE;
+        }
+        if (marker == SQLiteCreationMarkerState::PRESENT) {
+            m_creation_state =
+                SQLiteCreationState::PENDING;
+            m_usable.store(true);
+            error = strprintf(
+                "SQLite wallet '%s' logical creation did not complete; the incomplete marker remains.",
+                m_filename);
+            return DatabaseCreationResult::FAILED;
+        }
+        return MarkCreationIndeterminate(
+            error,
+            "the durable marker has an invalid state");
+    }
+
+    DatabaseCreationResult RollBackCreationCompletionLocked(
+        std::string& error)
+    {
+        int result;
+        try {
+            result = m_creation_executor->Execute(
+                m_database,
+                "ROLLBACK TRANSACTION");
+        } catch (...) {
+            result = SQLITE_ABORT;
+        }
+        if (result == SQLITE_OK &&
+            sqlite3_get_autocommit(m_database) != 0) {
+            std::string marker_error;
+            if (ReadLogicalCreationMarker(
+                    m_database,
+                    marker_error) ==
+                SQLiteCreationMarkerState::PRESENT) {
+                error = strprintf(
+                    "SQLite wallet '%s' logical creation did not complete; its transaction was rolled back.",
+                    m_filename);
+                return DatabaseCreationResult::FAILED;
+            }
+        }
+        return ReconcileCreationCompletionLocked(error);
+    }
+
 public:
     SQLiteDatabase(std::string filename, fs::path path)
         : m_filename(std::move(filename)),
@@ -1886,9 +2567,34 @@ public:
         try {
             std::unique_lock<std::mutex> writer_lock(m_writer_mutex);
             std::unique_lock<std::shared_mutex> connection_lock(m_connection_mutex);
-            CloseOrAbandonSQLiteConnection(
+            bool pending_cleanup_ready = false;
+            if (m_creation_state == SQLiteCreationState::PENDING) {
+                std::string cleanup_error;
+                pending_cleanup_ready =
+                    PreparePendingCleanupLocked(cleanup_error);
+                if (!pending_cleanup_ready) {
+                    m_creation_cleanup_allowed = false;
+                    LogPrintf(
+                        "SQLiteDatabase: Leaving incomplete wallet '%s' because safe cleanup could not be certified: %s\n",
+                        m_filename,
+                        cleanup_error.empty() ?
+                            "unknown lifecycle state" :
+                            cleanup_error);
+                }
+            }
+            bool* const cleanup_allowed =
+                m_failed_creation_cleanup_allowed ?
+                    m_failed_creation_cleanup_allowed :
+                m_creation_state ==
+                        SQLiteCreationState::PENDING ?
+                    &m_creation_cleanup_allowed :
+                    nullptr;
+            const bool closed = CloseOrAbandonSQLiteConnection(
                 m_database,
-                m_failed_creation_cleanup_allowed);
+                cleanup_allowed);
+            if (pending_cleanup_ready && closed) {
+                RemovePendingCreationLocked();
+            }
             if (m_identity_descriptor >= 0) {
 #ifdef WIN32
                 _close(m_identity_descriptor);
@@ -1901,6 +2607,7 @@ public:
             if (m_failed_creation_cleanup_allowed) {
                 *m_failed_creation_cleanup_allowed = false;
             }
+            m_creation_cleanup_allowed = false;
             if (m_database) {
                 AbandonSQLiteConnection(m_database);
             } else {
@@ -1911,6 +2618,7 @@ public:
             if (m_failed_creation_cleanup_allowed) {
                 *m_failed_creation_cleanup_allowed = false;
             }
+            m_creation_cleanup_allowed = false;
             if (m_database) {
                 AbandonSQLiteConnection(m_database);
             } else {
@@ -1934,6 +2642,7 @@ public:
 
     bool InitializeCreated(
         OwnedCandidate& candidate,
+        bool logical_wallet_create,
         PublishResult& publish_result,
         std::string& error)
     {
@@ -1941,7 +2650,11 @@ public:
             &candidate.cleanup_allowed;
         std::unique_lock<std::shared_mutex> lock(m_connection_mutex);
         const bool initialized =
-            CreateLocked(candidate, publish_result, error);
+            CreateLocked(
+                candidate,
+                logical_wallet_create,
+                publish_result,
+                error);
         if (initialized) {
             m_failed_creation_cleanup_allowed = nullptr;
         }
@@ -1953,16 +2666,30 @@ public:
     const std::string& Filename() const override { return m_filename; }
     DatabaseFormat Format() const override { return DatabaseFormat::SQLITE; }
     std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options) override;
+    DatabaseCreationResult CompleteCreation(std::string& error) override;
     bool Rewrite(const char* skip) override;
     bool Backup(const std::string& destination) override;
     bool PeriodicFlush() override;
     void Flush(bool shutdown) override;
+
+    bool SetCreationExecutor(
+        std::unique_ptr<SQLiteStatementExecutor> executor)
+    {
+        if (!executor ||
+            m_creation_state !=
+                SQLiteCreationState::PENDING) {
+            return false;
+        }
+        m_creation_executor = std::move(executor);
+        return true;
+    }
 };
 
 enum class SQLiteTransactionState {
     NONE,
     ACTIVE,
     AUTO_ROLLED_BACK,
+    COMMIT_INDETERMINATE,
 };
 
 class SQLiteBatch final : public DatabaseBatch
@@ -1973,6 +2700,8 @@ private:
     const bool m_flush_on_close;
     std::unique_ptr<SQLiteStatementExecutor> m_executor{
         std::make_unique<SQLiteStatementExecutor>()};
+    std::shared_ptr<SQLiteColumnReader> m_column_reader{
+        std::make_shared<SQLiteColumnReader>()};
     std::unique_lock<std::mutex> m_transaction_writer;
     std::unique_lock<std::shared_mutex> m_transaction_connection;
     std::atomic<SQLiteTransactionState> m_transaction{
@@ -1986,8 +2715,15 @@ private:
 
     bool IsQuarantined() const
     {
+        const SQLiteTransactionState state = m_transaction.load();
+        return state == SQLiteTransactionState::AUTO_ROLLED_BACK ||
+               state == SQLiteTransactionState::COMMIT_INDETERMINATE;
+    }
+
+    bool IsCommitIndeterminate() const
+    {
         return m_transaction.load() ==
-               SQLiteTransactionState::AUTO_ROLLED_BACK;
+               SQLiteTransactionState::COMMIT_INDETERMINATE;
     }
 
     void ReleaseTransactionGates() noexcept
@@ -2043,6 +2779,30 @@ private:
         return false;
     }
 
+    void MarkCommitIndeterminate(const char* operation) noexcept
+    {
+        m_transaction.store(
+            SQLiteTransactionState::COMMIT_INDETERMINATE);
+        m_database.Poison();
+        StartShutdown();
+        LogPrintf(
+            "SQLiteBatch: %s outcome is indeterminate; quarantining the database and shutting down.\n",
+            operation);
+    }
+
+    bool HandleCommitExecutorException() noexcept
+    {
+        if (m_database.m_database &&
+            sqlite3_get_autocommit(m_database.m_database) == 0) {
+            LogPrintf(
+                "SQLiteBatch: Statement executor threw while committing; the transaction remains active.\n");
+            return false;
+        }
+        MarkCommitIndeterminate("wallet transaction commit");
+        ReleaseTransactionGates();
+        return false;
+    }
+
     class TransactionGateReleaser final
     {
     private:
@@ -2069,11 +2829,79 @@ private:
                !m_database.m_poisoned.load();
     }
 
-    bool ReadRaw(CDataStream&& key, CDataStream& value) override
+    bool RecoverFailedWriteTransaction() noexcept
+    {
+        try {
+            return HasActiveTxn() &&
+                   TxnAbort() &&
+                   !HasActiveTxn();
+        } catch (...) {
+            return false;
+        }
+    }
+
+    [[noreturn]] void ThrowIndeterminateWrite(
+        const char* operation)
+    {
+        m_database.Poison();
+        StartShutdown();
+        LogPrintf(
+            "SQLiteBatch: %s outcome is indeterminate; quarantining the database and shutting down.\n",
+            operation);
+        throw std::runtime_error(strprintf(
+            "SQLite %s outcome is indeterminate.",
+            operation));
+    }
+
+    template <typename Operation>
+    bool ExecuteCheckedWrite(
+        const char* operation,
+        Operation&& execute)
+    {
+        if (IsActive()) {
+            return execute();
+        }
+
+        if (!TxnBegin()) {
+            if (HasActiveTxn() &&
+                !RecoverFailedWriteTransaction()) {
+                ThrowIndeterminateWrite(operation);
+            }
+            return false;
+        }
+
+        bool wrote;
+        try {
+            wrote = execute();
+        } catch (...) {
+            if (!RecoverFailedWriteTransaction()) {
+                m_database.Poison();
+                StartShutdown();
+            }
+            throw;
+        }
+        if (!wrote) {
+            if (!RecoverFailedWriteTransaction()) {
+                ThrowIndeterminateWrite(operation);
+            }
+            return false;
+        }
+
+        if (TxnCommit()) {
+            return true;
+        }
+        if (HasActiveTxn() &&
+            RecoverFailedWriteTransaction()) {
+            return false;
+        }
+        ThrowIndeterminateWrite(operation);
+    }
+
+    DatabaseReadStatus ReadRaw(CDataStream&& key, CDataStream& value) override
     {
         StreamCleanser key_cleanser(key);
         if (m_closed.load() || IsQuarantined()) {
-            return false;
+            return DatabaseReadStatus::FAILED;
         }
 
         std::shared_lock<std::shared_mutex> connection_lock;
@@ -2083,7 +2911,7 @@ private:
         }
         TransactionGateReleaser gate_releaser(*this);
         if (!CanUseConnection()) {
-            return false;
+            return DatabaseReadStatus::FAILED;
         }
 
         SQLiteStatement statement;
@@ -2094,34 +2922,53 @@ private:
                 "SQLiteBatch: Failed to prepare read") ||
             !BindBlob(statement.Get(), 1, key, "key")) {
             ReconcileAfterError();
-            return false;
+            return DatabaseReadStatus::FAILED;
         }
 
         const int result = sqlite3_step(statement.Get());
         if (result == SQLITE_DONE) {
-            return false;
+            return DatabaseReadStatus::NOT_FOUND;
         }
-        if (result != SQLITE_ROW ||
-            sqlite3_column_type(statement.Get(), 0) != SQLITE_BLOB) {
+        if (result != SQLITE_ROW) {
             ReconcileAfterError();
             LogSQLiteError(
                 "SQLiteBatch: Failed to read record",
                 m_database.m_database,
                 result);
-            return false;
+            return DatabaseReadStatus::FAILED;
+        }
+        if (sqlite3_column_type(statement.Get(), 0) != SQLITE_BLOB) {
+            LogPrintf("SQLiteBatch: Wallet record has a non-BLOB value.\n");
+            return DatabaseReadStatus::CORRUPT;
+        }
+
+        const void* data = nullptr;
+        int size = 0;
+        if (!ReadBlobColumn(
+                *m_column_reader,
+                m_database.m_database,
+                statement.Get(),
+                0,
+                data,
+                size,
+                "SQLiteBatch: Failed to extract record value")) {
+            ReconcileAfterError();
+            return DatabaseReadStatus::FAILED;
         }
 
         value.SetType(SER_DISK);
         value.clear();
-        const int size = sqlite3_column_bytes(statement.Get(), 0);
-        const void* const data = sqlite3_column_blob(statement.Get(), 0);
         if (size > 0) {
-            if (!data) {
-                return false;
+            try {
+                value.write(
+                    static_cast<const char*>(data),
+                    size);
+            } catch (...) {
+                value.clear();
+                return DatabaseReadStatus::FAILED;
             }
-            value.write(static_cast<const char*>(data), size);
         }
-        return true;
+        return DatabaseReadStatus::SUCCESS;
     }
 
     bool WriteRaw(CDataStream&& key, CDataStream&& value, bool overwrite) override
@@ -2132,46 +2979,42 @@ private:
             return false;
         }
 
-        std::unique_lock<std::mutex> writer_lock;
-        std::unique_lock<std::shared_mutex> connection_lock;
-        if (!IsActive()) {
-            writer_lock = std::unique_lock<std::mutex>(m_database.m_writer_mutex);
-            connection_lock =
-                std::unique_lock<std::shared_mutex>(m_database.m_connection_mutex);
-        }
-        TransactionGateReleaser gate_releaser(*this);
-        if (!CanUseConnection()) {
-            return false;
-        }
+        return ExecuteCheckedWrite(
+            "wallet record write",
+            [&] {
+                if (!CanUseConnection()) {
+                    return false;
+                }
 
-        SQLiteStatement statement;
-        const char* const sql = overwrite ?
-                                    "INSERT INTO main(key, value) VALUES(?, ?) "
-                                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value" :
-                                    "INSERT INTO main(key, value) VALUES(?, ?)";
-        if (!PrepareStatement(
-                m_database.m_database,
-                sql,
-                statement,
-                "SQLiteBatch: Failed to prepare write") ||
-            !BindBlob(statement.Get(), 1, key, "key") ||
-            !BindBlob(statement.Get(), 2, value, "value")) {
-            ReconcileAfterError();
-            return false;
-        }
+                SQLiteStatement statement;
+                const char* const sql = overwrite ?
+                                            "INSERT INTO main(key, value) VALUES(?, ?) "
+                                            "ON CONFLICT(key) DO UPDATE SET value = excluded.value" :
+                                            "INSERT INTO main(key, value) VALUES(?, ?)";
+                if (!PrepareStatement(
+                        m_database.m_database,
+                        sql,
+                        statement,
+                        "SQLiteBatch: Failed to prepare write") ||
+                    !BindBlob(statement.Get(), 1, key, "key") ||
+                    !BindBlob(statement.Get(), 2, value, "value")) {
+                    ReconcileAfterError();
+                    return false;
+                }
 
-        const int result = sqlite3_step(statement.Get());
-        if (result != SQLITE_DONE) {
-            ReconcileAfterError();
-            if ((result & 0xff) != SQLITE_CONSTRAINT) {
-                LogSQLiteError(
-                    "SQLiteBatch: Failed to write record",
-                    m_database.m_database,
-                    result);
-            }
-            return false;
-        }
-        return true;
+                const int result = sqlite3_step(statement.Get());
+                if (result != SQLITE_DONE) {
+                    ReconcileAfterError();
+                    if ((result & 0xff) != SQLITE_CONSTRAINT) {
+                        LogSQLiteError(
+                            "SQLiteBatch: Failed to write record",
+                            m_database.m_database,
+                            result);
+                    }
+                    return false;
+                }
+                return true;
+            });
     }
 
     bool EraseRaw(CDataStream&& key) override
@@ -2181,45 +3024,41 @@ private:
             return false;
         }
 
-        std::unique_lock<std::mutex> writer_lock;
-        std::unique_lock<std::shared_mutex> connection_lock;
-        if (!IsActive()) {
-            writer_lock = std::unique_lock<std::mutex>(m_database.m_writer_mutex);
-            connection_lock =
-                std::unique_lock<std::shared_mutex>(m_database.m_connection_mutex);
-        }
-        TransactionGateReleaser gate_releaser(*this);
-        if (!CanUseConnection()) {
-            return false;
-        }
+        return ExecuteCheckedWrite(
+            "wallet record erase",
+            [&] {
+                if (!CanUseConnection()) {
+                    return false;
+                }
 
-        SQLiteStatement statement;
-        if (!PrepareStatement(
-                m_database.m_database,
-                "DELETE FROM main WHERE key = ?",
-                statement,
-                "SQLiteBatch: Failed to prepare erase") ||
-            !BindBlob(statement.Get(), 1, key, "key")) {
-            ReconcileAfterError();
-            return false;
-        }
-        const int result = sqlite3_step(statement.Get());
-        if (result != SQLITE_DONE) {
-            ReconcileAfterError();
-            LogSQLiteError(
-                "SQLiteBatch: Failed to erase record",
-                m_database.m_database,
-                result);
-            return false;
-        }
-        return true;
+                SQLiteStatement statement;
+                if (!PrepareStatement(
+                        m_database.m_database,
+                        "DELETE FROM main WHERE key = ?",
+                        statement,
+                        "SQLiteBatch: Failed to prepare erase") ||
+                    !BindBlob(statement.Get(), 1, key, "key")) {
+                    ReconcileAfterError();
+                    return false;
+                }
+                const int result = sqlite3_step(statement.Get());
+                if (result != SQLITE_DONE) {
+                    ReconcileAfterError();
+                    LogSQLiteError(
+                        "SQLiteBatch: Failed to erase record",
+                        m_database.m_database,
+                        result);
+                    return false;
+                }
+                return true;
+            });
     }
 
-    bool HasRaw(CDataStream&& key) override
+    DatabaseReadStatus HasRaw(CDataStream&& key) override
     {
         StreamCleanser key_cleanser(key);
         if (m_closed.load() || IsQuarantined()) {
-            return false;
+            return DatabaseReadStatus::FAILED;
         }
 
         std::shared_lock<std::shared_mutex> connection_lock;
@@ -2229,7 +3068,7 @@ private:
         }
         TransactionGateReleaser gate_releaser(*this);
         if (!CanUseConnection()) {
-            return false;
+            return DatabaseReadStatus::FAILED;
         }
 
         SQLiteStatement statement;
@@ -2240,20 +3079,21 @@ private:
                 "SQLiteBatch: Failed to prepare existence query") ||
             !BindBlob(statement.Get(), 1, key, "key")) {
             ReconcileAfterError();
-            return false;
+            return DatabaseReadStatus::FAILED;
         }
         const int result = sqlite3_step(statement.Get());
         if (result == SQLITE_ROW) {
-            return true;
+            return DatabaseReadStatus::SUCCESS;
         }
-        if (result != SQLITE_DONE) {
-            ReconcileAfterError();
-            LogSQLiteError(
-                "SQLiteBatch: Failed to query record existence",
-                m_database.m_database,
-                result);
+        if (result == SQLITE_DONE) {
+            return DatabaseReadStatus::NOT_FOUND;
         }
-        return false;
+        ReconcileAfterError();
+        LogSQLiteError(
+            "SQLiteBatch: Failed to query record existence",
+            m_database.m_database,
+            result);
+        return DatabaseReadStatus::FAILED;
     }
 
 public:
@@ -2281,32 +3121,36 @@ public:
         StreamCleanser key_cleanser(key);
         StreamCleanser value_cleanser(value);
 
-        std::unique_lock<std::mutex> writer_lock(m_database.m_writer_mutex);
-        std::unique_lock<std::shared_mutex> connection_lock(m_database.m_connection_mutex);
-        if (!CanUseConnection()) {
-            return false;
-        }
+        return ExecuteCheckedWrite(
+            "wallet version initialization",
+            [&] {
+                if (!CanUseConnection()) {
+                    return false;
+                }
 
-        SQLiteStatement statement;
-        if (!PrepareStatement(
-                m_database.m_database,
-                "INSERT INTO main(key, value) VALUES(?, ?) "
-                "ON CONFLICT(key) DO NOTHING",
-                statement,
-                "SQLiteBatch: Failed to prepare wallet version initialization") ||
-            !BindBlob(statement.Get(), 1, key, "version key") ||
-            !BindBlob(statement.Get(), 2, value, "version value")) {
-            return false;
-        }
-        const int result = sqlite3_step(statement.Get());
-        if (result != SQLITE_DONE) {
-            LogSQLiteError(
-                "SQLiteBatch: Failed to initialize wallet version",
-                m_database.m_database,
-                result);
-            return false;
-        }
-        return true;
+                SQLiteStatement statement;
+                if (!PrepareStatement(
+                        m_database.m_database,
+                        "INSERT INTO main(key, value) VALUES(?, ?) "
+                        "ON CONFLICT(key) DO NOTHING",
+                        statement,
+                        "SQLiteBatch: Failed to prepare wallet version initialization") ||
+                    !BindBlob(statement.Get(), 1, key, "version key") ||
+                    !BindBlob(statement.Get(), 2, value, "version value")) {
+                    ReconcileAfterError();
+                    return false;
+                }
+                const int result = sqlite3_step(statement.Get());
+                if (result != SQLITE_DONE) {
+                    ReconcileAfterError();
+                    LogSQLiteError(
+                        "SQLiteBatch: Failed to initialize wallet version",
+                        m_database.m_database,
+                        result);
+                    return false;
+                }
+                return true;
+            });
     }
 
     bool SetExecutor(std::unique_ptr<SQLiteStatementExecutor> executor)
@@ -2315,6 +3159,17 @@ public:
             return false;
         }
         m_executor = std::move(executor);
+        return true;
+    }
+
+    bool SetColumnReader(std::unique_ptr<SQLiteColumnReader> reader)
+    {
+        if (!reader || m_closed.load()) {
+            return false;
+        }
+        m_column_reader =
+            std::shared_ptr<SQLiteColumnReader>(
+                std::move(reader));
         return true;
     }
 
@@ -2463,7 +3318,8 @@ public:
         SQLiteStatement statement;
         const int result = sqlite3_prepare_v2(
             m_database.m_database,
-            "SELECT key, value FROM main ORDER BY key",
+            "SELECT key, value FROM main "
+            "WHERE length(key) != 0 ORDER BY key",
             -1,
             statement.Address(),
             nullptr);
@@ -2478,6 +3334,7 @@ public:
             std::make_unique<SQLiteCursor>(
                 std::move(connection_lock),
                 statement.Get(),
+                m_column_reader,
                 std::vector<unsigned char>{});
         statement.Release();
         return cursor;
@@ -2503,7 +3360,8 @@ public:
         SQLiteStatement statement;
         int result = sqlite3_prepare_v2(
             m_database.m_database,
-            "SELECT key, value FROM main WHERE key >= ? ORDER BY key",
+            "SELECT key, value FROM main "
+            "WHERE length(key) != 0 AND key >= ? ORDER BY key",
             -1,
             statement.Address(),
             nullptr);
@@ -2526,6 +3384,7 @@ public:
             std::make_unique<SQLiteCursor>(
                 std::move(connection_lock),
                 statement.Get(),
+                m_column_reader,
                 std::move(start));
         statement.Release();
         start_cleanser.Release();
@@ -2589,11 +3448,13 @@ public:
                 m_database.m_database,
                 "COMMIT TRANSACTION");
         } catch (...) {
-            return HandleIndeterminateExecutorException(
-                "committing a transaction");
+            return HandleCommitExecutorException();
         }
         if (result != SQLITE_OK) {
-            ReconcileAfterError();
+            if (m_database.m_database &&
+                sqlite3_get_autocommit(m_database.m_database) != 0) {
+                MarkCommitIndeterminate("wallet transaction commit");
+            }
             LogSQLiteError(
                 "SQLiteBatch: Failed to commit transaction",
                 m_database.m_database,
@@ -2602,6 +3463,11 @@ public:
             return false;
         }
 
+        if (sqlite3_get_autocommit(m_database.m_database) == 0) {
+            LogPrintf(
+                "SQLiteBatch: Commit reported success while retaining an active transaction.\n");
+            return false;
+        }
         m_transaction.store(SQLiteTransactionState::NONE);
         ReleaseTransactionGates();
         return true;
@@ -2609,7 +3475,12 @@ public:
 
     bool TxnAbort() override
     {
+        if (IsCommitIndeterminate()) {
+            ReleaseTransactionGates();
+            return false;
+        }
         if (IsQuarantined()) {
+            ReleaseTransactionGates();
             m_transaction_writer =
                 std::unique_lock<std::mutex>(m_database.m_writer_mutex);
             m_transaction_connection =
@@ -2660,9 +3531,123 @@ public:
 
     bool HasActiveTxn() const override
     {
-        return m_transaction.load() != SQLiteTransactionState::NONE;
+        const SQLiteTransactionState state = m_transaction.load();
+        return state == SQLiteTransactionState::ACTIVE ||
+               state == SQLiteTransactionState::AUTO_ROLLED_BACK;
     }
 };
+
+DatabaseCreationResult SQLiteDatabase::CompleteCreation(
+    std::string& error)
+{
+    error.clear();
+    std::unique_lock<std::mutex> writer_lock(
+        m_writer_mutex);
+    std::unique_lock<std::shared_mutex> connection_lock(
+        m_connection_mutex);
+
+    if (m_creation_state == SQLiteCreationState::NONE) {
+        return DatabaseCreationResult::COMPLETE;
+    }
+    if (m_creation_state ==
+        SQLiteCreationState::INDETERMINATE) {
+        return MarkCreationIndeterminate(
+            error,
+            "the owner was already indeterminate");
+    }
+
+    bool has_batches;
+    {
+        std::lock_guard<std::mutex> state_lock(
+            m_state_mutex);
+        has_batches = m_batch_count != 0;
+    }
+    if (has_batches) {
+        return MarkCreationIndeterminate(
+            error,
+            "active database batches remain");
+    }
+    if (m_poisoned.load() ||
+        !m_usable.load() ||
+        !ValidateOwnedConnectionLocked(error)) {
+        return MarkCreationIndeterminate(
+            error,
+            error.empty() ?
+                "the owned database connection is not healthy" :
+                error);
+    }
+    if (sqlite3_get_autocommit(m_database) == 0) {
+        return MarkCreationIndeterminate(
+            error,
+            "an unrelated transaction is active");
+    }
+
+    std::string marker_error;
+    if (ReadLogicalCreationMarker(
+            m_database,
+            marker_error) !=
+        SQLiteCreationMarkerState::PRESENT) {
+        return MarkCreationIndeterminate(
+            error,
+            marker_error.empty() ?
+                "the exact incomplete-creation marker is missing" :
+                marker_error);
+    }
+
+    int result;
+    try {
+        result = m_creation_executor->Execute(
+            m_database,
+            "BEGIN IMMEDIATE TRANSACTION");
+    } catch (...) {
+        result = SQLITE_ABORT;
+    }
+    if (result != SQLITE_OK) {
+        if (m_database &&
+            sqlite3_get_autocommit(m_database) == 0) {
+            return RollBackCreationCompletionLocked(error);
+        }
+        return ReconcileCreationCompletionLocked(error);
+    }
+    if (sqlite3_get_autocommit(m_database) != 0) {
+        return ReconcileCreationCompletionLocked(error);
+    }
+
+    if (!DeleteLogicalCreationMarker(
+            m_database,
+            error)) {
+        if (sqlite3_get_autocommit(m_database) == 0) {
+            return RollBackCreationCompletionLocked(error);
+        }
+        return ReconcileCreationCompletionLocked(error);
+    }
+
+    try {
+        result = m_creation_executor->Execute(
+            m_database,
+            "COMMIT TRANSACTION");
+    } catch (...) {
+        result = SQLITE_ABORT;
+    }
+    if (result == SQLITE_OK &&
+        sqlite3_get_autocommit(m_database) != 0) {
+        std::string completed_error;
+        if (ReadLogicalCreationMarker(
+                m_database,
+                completed_error) ==
+            SQLiteCreationMarkerState::ABSENT) {
+            m_creation_state = SQLiteCreationState::NONE;
+            m_creation_cleanup_allowed = false;
+            error.clear();
+            return DatabaseCreationResult::COMPLETE;
+        }
+        return ReconcileCreationCompletionLocked(error);
+    }
+    if (sqlite3_get_autocommit(m_database) == 0) {
+        return RollBackCreationCompletionLocked(error);
+    }
+    return ReconcileCreationCompletionLocked(error);
+}
 
 std::unique_ptr<DatabaseBatch> SQLiteDatabase::MakeBatch(
     const DatabaseBatchOptions& options)
@@ -2828,7 +3813,25 @@ bool SQLiteDatabase::Rewrite(const char* skip)
     if (!success) {
         return fail_transaction();
     }
-    if (!ExecuteSQL(m_database, "COMMIT TRANSACTION")) {
+    bool committed = ExecuteSQL(
+        m_database,
+        "COMMIT TRANSACTION");
+    if (committed &&
+        ConsumeRewriteCommitError()) {
+        committed = false;
+    }
+    if (!committed) {
+        if (m_database &&
+            sqlite3_get_autocommit(m_database) != 0) {
+            Poison();
+            StartShutdown();
+            LogPrintf(
+                "SQLiteDatabase: Rewrite commit outcome is indeterminate; quarantining the database and shutting down.\n");
+            return false;
+        }
+        return fail_transaction();
+    }
+    if (sqlite3_get_autocommit(m_database) == 0) {
         return fail_transaction();
     }
     return true;
@@ -3156,6 +4159,25 @@ int SQLiteStatementExecutor::Execute(
     return sqlite3_exec(database, statement, nullptr, nullptr, nullptr);
 }
 
+const void* SQLiteColumnReader::Blob(
+    sqlite3_stmt* statement,
+    int column)
+{
+    return sqlite3_column_blob(statement, column);
+}
+
+int SQLiteColumnReader::Bytes(
+    sqlite3_stmt* statement,
+    int column)
+{
+    return sqlite3_column_bytes(statement, column);
+}
+
+int SQLiteColumnReader::ErrorCode(sqlite3* database)
+{
+    return sqlite3_errcode(database);
+}
+
 std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
     const std::string& filename,
     const DatabaseOptions& options,
@@ -3165,7 +4187,9 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
     status = DatabaseStatus::FAILED_LOAD;
     error.clear();
 
-    if ((options.require_existing && options.require_create)) {
+    if ((options.require_existing && options.require_create) ||
+        (options.logical_wallet_create &&
+            !options.require_create)) {
         status = DatabaseStatus::FAILED_INVALID_OPTIONS;
         error = "Invalid SQLite wallet database options.";
         return nullptr;
@@ -3260,7 +4284,11 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
         const bool initialized =
             exists ?
                 database->InitializeExisting(error) :
-                database->InitializeCreated(candidate, publish_result, error);
+                database->InitializeCreated(
+                    candidate,
+                    options.logical_wallet_create,
+                    publish_result,
+                    error);
         if (!initialized) {
             database.reset();
             if (!exists) {
@@ -3300,6 +4328,26 @@ bool SetSQLiteStatementExecutorForTesting(
     return sqlite_batch && sqlite_batch->SetExecutor(std::move(executor));
 }
 
+bool SetSQLiteColumnReaderForTesting(
+    DatabaseBatch& batch,
+    std::unique_ptr<SQLiteColumnReader> reader)
+{
+    SQLiteBatch* const sqlite_batch = dynamic_cast<SQLiteBatch*>(&batch);
+    return sqlite_batch &&
+           sqlite_batch->SetColumnReader(std::move(reader));
+}
+
+bool SetSQLiteCreationStatementExecutorForTesting(
+    WalletDatabase& database,
+    std::unique_ptr<SQLiteStatementExecutor> executor)
+{
+    SQLiteDatabase* const sqlite_database =
+        dynamic_cast<SQLiteDatabase*>(&database);
+    return sqlite_database &&
+           sqlite_database->SetCreationExecutor(
+               std::move(executor));
+}
+
 bool GetSQLiteSynchronousModeForTesting(
     DatabaseBatch& batch,
     int64_t& mode)
@@ -3316,6 +4364,11 @@ void InjectSQLitePostPublishFailureForTesting()
 void InjectSQLiteAmbiguousPublishFailureForTesting()
 {
     g_report_publish_error_after_rename_once.store(true);
+}
+
+void InjectSQLiteRewriteCommitFailureForTesting()
+{
+    g_report_rewrite_commit_error_once.store(true);
 }
 
 void InjectSQLiteCloseFailureForTesting(

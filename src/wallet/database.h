@@ -13,6 +13,7 @@
 
 #include <exception>
 #include <memory>
+#include <new>
 #include <optional>
 #include <string>
 #include <utility>
@@ -44,6 +45,19 @@ public:
     virtual Status Next(CDataStream& key, CDataStream& value) = 0;
 };
 
+enum class DatabaseReadStatus {
+    SUCCESS,
+    NOT_FOUND,
+    CORRUPT,
+    FAILED,
+};
+
+enum class DatabaseCreationResult {
+    COMPLETE,
+    FAILED,
+    INDETERMINATE,
+};
+
 /**
  * Backend-neutral access to one batch of serialized wallet records.
  *
@@ -54,10 +68,10 @@ public:
 class DatabaseBatch
 {
 private:
-    virtual bool ReadRaw(CDataStream&& key, CDataStream& value) = 0;
+    virtual DatabaseReadStatus ReadRaw(CDataStream&& key, CDataStream& value) = 0;
     virtual bool WriteRaw(CDataStream&& key, CDataStream&& value, bool overwrite) = 0;
     virtual bool EraseRaw(CDataStream&& key) = 0;
-    virtual bool HasRaw(CDataStream&& key) = 0;
+    virtual DatabaseReadStatus HasRaw(CDataStream&& key) = 0;
 
 public:
     DatabaseBatch() = default;
@@ -67,23 +81,32 @@ public:
     DatabaseBatch& operator=(const DatabaseBatch&) = delete;
 
     template <typename K, typename T>
-    bool Read(const K& key, T& value)
+    DatabaseReadStatus ReadWithStatus(const K& key, T& value)
     {
         CDataStream key_stream(SER_DISK, CLIENT_VERSION);
         key_stream.reserve(1000);
         key_stream << key;
 
         CDataStream value_stream(SER_DISK, CLIENT_VERSION);
-        if (!ReadRaw(std::move(key_stream), value_stream)) {
-            return false;
+        const DatabaseReadStatus status = ReadRaw(std::move(key_stream), value_stream);
+        if (status != DatabaseReadStatus::SUCCESS) {
+            return status;
         }
 
         try {
             value_stream >> value;
-            return true;
+            return DatabaseReadStatus::SUCCESS;
+        } catch (const std::bad_alloc&) {
+            return DatabaseReadStatus::FAILED;
         } catch (const std::exception&) {
-            return false;
+            return DatabaseReadStatus::CORRUPT;
         }
+    }
+
+    template <typename K, typename T>
+    bool Read(const K& key, T& value)
+    {
+        return ReadWithStatus(key, value) == DatabaseReadStatus::SUCCESS;
     }
 
     template <typename K, typename T>
@@ -111,13 +134,19 @@ public:
     }
 
     template <typename K>
-    bool Exists(const K& key)
+    DatabaseReadStatus ExistsWithStatus(const K& key)
     {
         CDataStream key_stream(SER_DISK, CLIENT_VERSION);
         key_stream.reserve(1000);
         key_stream << key;
 
         return HasRaw(std::move(key_stream));
+    }
+
+    template <typename K>
+    bool Exists(const K& key)
+    {
+        return ExistsWithStatus(key) == DatabaseReadStatus::SUCCESS;
     }
 
     virtual void Flush() = 0;
@@ -164,12 +193,17 @@ enum class DatabaseFormat {
     SQLITE,
 };
 
+/** Stable user-facing name for a wallet database format. */
+const char* DatabaseFormatName(DatabaseFormat format);
+
 struct DatabaseOptions {
     bool require_existing{false};
     bool require_create{false};
     std::optional<DatabaseFormat> require_format;
     bool verify{true};
     bool salvage{false};
+    /** Mark a production wallet candidate incomplete until logical initialization finishes. */
+    bool logical_wallet_create{false};
 };
 
 enum class DatabaseStatus {
@@ -205,6 +239,12 @@ public:
     virtual const std::string& Filename() const = 0;
     virtual DatabaseFormat Format() const = 0;
     virtual std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) = 0;
+    /** Complete a pending production wallet creation. */
+    virtual DatabaseCreationResult CompleteCreation(std::string& error)
+    {
+        error.clear();
+        return DatabaseCreationResult::COMPLETE;
+    }
     /**
      * Compact the database, update its singleton version record, and omit raw
      * serialized keys beginning with skip when it is non-null.

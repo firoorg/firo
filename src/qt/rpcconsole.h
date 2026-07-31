@@ -16,6 +16,7 @@
 #include <QThread>
 
 class ClientModel;
+class CWallet;
 class PlatformStyle;
 class RPCTimerInterface;
 
@@ -43,6 +44,9 @@ public:
     }
 
     void setClientModel(ClientModel *model);
+#ifdef ENABLE_WALLET
+    void setWalletDatabaseInfo(const CWallet* wallet);
+#endif
 
     enum MessageClass {
         MC_ERROR,

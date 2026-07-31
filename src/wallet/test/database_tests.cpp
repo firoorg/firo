@@ -12,6 +12,7 @@
 #ifdef USE_SQLITE
 #include "chainparams.h"
 #include "crypto/common.h"
+#include "init.h"
 #include "wallet/sqlite.h"
 
 #include <sqlite3.h>
@@ -29,6 +30,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <future>
@@ -41,6 +43,10 @@
 #include <vector>
 
 #include <boost/filesystem/fstream.hpp>
+
+#ifdef USE_SQLITE
+extern std::atomic<bool> fRequestShutdown;
+#endif
 
 namespace
 {
@@ -230,18 +236,165 @@ public:
     }
 };
 
-class RollbackThenFailSQLiteStatementExecutor final : public SQLiteStatementExecutor
+class CommitThenFailSQLiteStatementExecutor final : public SQLiteStatementExecutor
 {
 public:
     int Execute(sqlite3* database, const char* statement) override
     {
-        if (std::string(statement) != "COMMIT TRANSACTION") {
-            return SQLiteStatementExecutor::Execute(database, statement);
+        const int result =
+            SQLiteStatementExecutor::Execute(database, statement);
+        if (result == SQLITE_OK &&
+            std::string(statement) == "COMMIT TRANSACTION") {
+            return SQLITE_IOERR;
         }
-        const int rollbackResult =
-            SQLiteStatementExecutor::Execute(database, "ROLLBACK TRANSACTION");
-        return rollbackResult == SQLITE_OK ? SQLITE_IOERR : rollbackResult;
+        return result;
     }
+};
+
+class RollbackCommitSQLiteStatementExecutor final : public SQLiteStatementExecutor
+{
+public:
+    int Execute(sqlite3* database, const char* statement) override
+    {
+        if (std::string(statement) == "COMMIT TRANSACTION") {
+            const int result =
+                SQLiteStatementExecutor::Execute(
+                    database,
+                    "ROLLBACK TRANSACTION");
+            return result == SQLITE_OK ?
+                       SQLITE_IOERR :
+                       result;
+        }
+        return SQLiteStatementExecutor::Execute(
+            database,
+            statement);
+    }
+};
+
+class RollbackWriteSQLiteStatementExecutor final : public SQLiteStatementExecutor
+{
+private:
+    bool m_trigger_created{false};
+
+public:
+    int Execute(sqlite3* database, const char* statement) override
+    {
+        const int result =
+            SQLiteStatementExecutor::Execute(database, statement);
+        if (result != SQLITE_OK ||
+            m_trigger_created ||
+            std::string(statement) != "BEGIN TRANSACTION") {
+            return result;
+        }
+
+        const int trigger_result =
+            SQLiteStatementExecutor::Execute(
+                database,
+                "CREATE TEMP TRIGGER injected_write_rollback "
+                "BEFORE INSERT ON main BEGIN "
+                "SELECT RAISE(ROLLBACK, 'injected rollback'); "
+                "END");
+        if (trigger_result == SQLITE_OK) {
+            m_trigger_created = true;
+        }
+        return trigger_result;
+    }
+};
+
+class NonBlobSQLiteStatementExecutor final : public SQLiteStatementExecutor
+{
+public:
+    int Execute(sqlite3* database, const char* statement) override
+    {
+        const int result =
+            SQLiteStatementExecutor::Execute(database, statement);
+        if (result != SQLITE_OK ||
+            std::string(statement) != "BEGIN TRANSACTION") {
+            return result;
+        }
+        return SQLiteStatementExecutor::Execute(
+            database,
+            "UPDATE main SET value = CAST(value AS TEXT)");
+    }
+};
+
+enum class SQLiteColumnFailure {
+    BLOB,
+    BYTES,
+};
+
+class FailingSQLiteColumnReader final : public SQLiteColumnReader
+{
+private:
+    const SQLiteColumnFailure m_failure;
+    const bool m_rollback;
+    bool m_blob_seen{false};
+    bool m_order_valid{true};
+    bool m_failed{false};
+    bool m_error_pending{false};
+    int m_rollback_result{SQLITE_OK};
+
+    void Fail(sqlite3_stmt* statement)
+    {
+        if (m_rollback) {
+            m_rollback_result = sqlite3_exec(
+                sqlite3_db_handle(statement),
+                "ROLLBACK TRANSACTION",
+                nullptr,
+                nullptr,
+                nullptr);
+        }
+        m_failed = true;
+        m_error_pending = true;
+    }
+
+public:
+    FailingSQLiteColumnReader(
+        SQLiteColumnFailure failure,
+        bool rollback)
+        : m_failure(failure),
+          m_rollback(rollback)
+    {
+    }
+
+    const void* Blob(
+        sqlite3_stmt* statement,
+        int column) override
+    {
+        m_blob_seen = true;
+        if (!m_failed &&
+            m_failure == SQLiteColumnFailure::BLOB) {
+            Fail(statement);
+            return nullptr;
+        }
+        return SQLiteColumnReader::Blob(statement, column);
+    }
+
+    int Bytes(
+        sqlite3_stmt* statement,
+        int column) override
+    {
+        m_order_valid = m_order_valid && m_blob_seen;
+        if (!m_failed &&
+            m_failure == SQLiteColumnFailure::BYTES) {
+            Fail(statement);
+            return 0;
+        }
+        return SQLiteColumnReader::Bytes(statement, column);
+    }
+
+    int ErrorCode(sqlite3* database) override
+    {
+        if (m_error_pending) {
+            m_error_pending = false;
+            return SQLITE_NOMEM;
+        }
+        return SQLiteColumnReader::ErrorCode(database);
+    }
+
+    bool Failed() const { return m_failed; }
+    bool OrderValid() const { return m_order_valid; }
+    int RollbackResult() const { return m_rollback_result; }
 };
 
 class ExecuteThenThrowSQLiteStatementExecutor final : public SQLiteStatementExecutor
@@ -263,6 +416,23 @@ public:
             throw std::runtime_error("injected SQLite executor exception");
         }
         return result;
+    }
+};
+
+class ShutdownRequestReset
+{
+private:
+    const bool m_previous;
+
+public:
+    ShutdownRequestReset()
+        : m_previous(fRequestShutdown.exchange(false))
+    {
+    }
+
+    ~ShutdownRequestReset()
+    {
+        fRequestShutdown.store(m_previous);
     }
 };
 
@@ -367,7 +537,11 @@ BOOST_FIXTURE_TEST_CASE(wallet_database_factory_preopen_policy, WalletDatabasePa
     const fs::path truncatedSQLitePath = GetDataDir() / truncatedSQLiteFilename;
     const std::string truncatedSQLiteContents(SQLITE_MAGIC.begin(), SQLITE_MAGIC.end());
     WriteFile(truncatedSQLitePath, truncatedSQLiteContents);
+#ifdef USE_SQLITE
+    expectFailure(truncatedSQLiteFilename, defaults, DatabaseStatus::FAILED_VERIFY);
+#else
     expectFailure(truncatedSQLiteFilename, defaults, DatabaseStatus::FAILED_UNSUPPORTED);
+#endif
     BOOST_CHECK_EQUAL(ReadFile(truncatedSQLitePath), truncatedSQLiteContents);
 
     DatabaseOptions salvage;
@@ -519,27 +693,63 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     BOOST_CHECK(status == DatabaseStatus::FAILED_NOT_FOUND);
     BOOST_CHECK(!fs::exists(missingPath));
 
-    DatabaseOptions requireCreate;
-    requireCreate.require_create = true;
-    std::unique_ptr<WalletDatabase> missingDatabase = makeDatabase(missingFilename, requireCreate, status, error);
+    DatabaseOptions requireBerkeleyCreate;
+    requireBerkeleyCreate.require_create = true;
+    requireBerkeleyCreate.require_format = DatabaseFormat::BERKELEY;
+    std::unique_ptr<WalletDatabase> missingDatabase = makeDatabase(
+        missingFilename,
+        requireBerkeleyCreate,
+        status,
+        error);
     BOOST_REQUIRE(missingDatabase);
     BOOST_CHECK(status == DatabaseStatus::SUCCESS);
     BOOST_CHECK(missingDatabase->Format() == DatabaseFormat::BERKELEY);
     BOOST_CHECK(!fs::exists(missingPath));
     missingDatabase.reset();
 
+    const std::string explicitSQLiteFilename{"factory_explicit_sqlite_test.dat"};
+    const fs::path explicitSQLitePath = GetDataDir() / explicitSQLiteFilename;
     DatabaseOptions requireSQLite;
     requireSQLite.require_create = true;
     requireSQLite.require_format = DatabaseFormat::SQLITE;
-    BOOST_CHECK(!makeDatabase(missingFilename, requireSQLite, status, error));
+#ifdef USE_SQLITE
+    std::unique_ptr<WalletDatabase> explicitSQLite = makeDatabase(
+        explicitSQLiteFilename,
+        requireSQLite,
+        status,
+        error);
+    BOOST_REQUIRE(explicitSQLite);
+    BOOST_CHECK(status == DatabaseStatus::SUCCESS);
+    BOOST_CHECK(explicitSQLite->Format() == DatabaseFormat::SQLITE);
+    BOOST_CHECK(fs::exists(explicitSQLitePath));
+    explicitSQLite.reset();
+
+    DatabaseOptions requireExistingBerkeley;
+    requireExistingBerkeley.require_existing = true;
+    requireExistingBerkeley.require_format = DatabaseFormat::BERKELEY;
+    BOOST_CHECK(!makeDatabase(
+        explicitSQLiteFilename,
+        requireExistingBerkeley,
+        status,
+        error));
+    BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_FORMAT);
+    RemoveSQLiteTestFiles(explicitSQLiteFilename);
+#else
+    BOOST_CHECK(!makeDatabase(explicitSQLiteFilename, requireSQLite, status, error));
     BOOST_CHECK(status == DatabaseStatus::FAILED_UNSUPPORTED);
-    BOOST_CHECK(!fs::exists(missingPath));
+    BOOST_CHECK(!fs::exists(explicitSQLitePath));
+#endif
 
     std::unique_ptr<WalletDatabase> defaultDatabase = makeDatabase(missingFilename, defaults, status, error);
     BOOST_REQUIRE(defaultDatabase);
     BOOST_CHECK(status == DatabaseStatus::SUCCESS);
+#ifdef USE_SQLITE
+    BOOST_CHECK(defaultDatabase->Format() == DatabaseFormat::SQLITE);
+    BOOST_CHECK(fs::exists(missingPath));
+#else
     BOOST_CHECK(defaultDatabase->Format() == DatabaseFormat::BERKELEY);
     BOOST_CHECK(!fs::exists(missingPath));
+#endif
     {
         std::unique_ptr<DatabaseBatch> batch = defaultDatabase->MakeBatch({DatabaseBatchMode::READ_WRITE_CREATE});
         BOOST_REQUIRE(batch);
@@ -550,6 +760,11 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
 
     std::unique_ptr<WalletDatabase> defaultReopened = makeDatabase(missingFilename, requireExisting, status, error);
     BOOST_REQUIRE(defaultReopened);
+#ifdef USE_SQLITE
+    BOOST_CHECK(defaultReopened->Format() == DatabaseFormat::SQLITE);
+#else
+    BOOST_CHECK(defaultReopened->Format() == DatabaseFormat::BERKELEY);
+#endif
     {
         std::unique_ptr<DatabaseBatch> batch = defaultReopened->MakeBatch({DatabaseBatchMode::READ_ONLY});
         BOOST_REQUIRE(batch);
@@ -559,7 +774,11 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     }
     BOOST_REQUIRE(defaultReopened->PeriodicFlush());
     defaultReopened.reset();
+#ifdef USE_SQLITE
+    RemoveSQLiteTestFiles(missingFilename);
+#else
     BOOST_CHECK(bitdb.RemoveDb(missingFilename));
+#endif
 
     const std::string unknownFilename{"factory_unknown_test.dat"};
     const fs::path unknownPath = GetDataDir() / unknownFilename;
@@ -618,7 +837,11 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     std::copy(SQLITE_MAGIC.begin(), SQLITE_MAGIC.end(), sqliteContents.begin());
     WriteFile(sqlitePath, sqliteContents);
     BOOST_CHECK(!makeDatabase(sqliteFilename, defaults, status, error));
+#ifdef USE_SQLITE
+    BOOST_CHECK(status == DatabaseStatus::FAILED_VERIFY);
+#else
     BOOST_CHECK(status == DatabaseStatus::FAILED_UNSUPPORTED);
+#endif
     BOOST_CHECK_EQUAL(ReadFile(sqlitePath), sqliteContents);
 
     DatabaseOptions requireBerkeley;
@@ -639,7 +862,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     BOOST_REQUIRE(created->PeriodicFlush());
     BOOST_REQUIRE(fs::exists(berkeleyPath));
 
-    BOOST_CHECK(!makeDatabase(berkeleyFilename, requireCreate, status, error));
+    BOOST_CHECK(!makeDatabase(berkeleyFilename, requireBerkeleyCreate, status, error));
     BOOST_CHECK(status == DatabaseStatus::FAILED_ALREADY_EXISTS);
 
     std::unique_ptr<WalletDatabase> reopened = makeDatabase(berkeleyFilename, requireExisting, status, error);
@@ -657,6 +880,260 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     reopened.reset();
     created.reset();
     BOOST_CHECK(bitdb.RemoveDb(berkeleyFilename));
+}
+
+BOOST_AUTO_TEST_CASE(berkeley_factory_first_open_policy)
+{
+    DatabaseStatus status;
+    std::string error;
+    DatabaseOptions requireCreate;
+    requireCreate.require_create = true;
+    requireCreate.require_format = DatabaseFormat::BERKELEY;
+
+    const std::string appearedFilename{
+        "factory_bdb_appeared_before_open.dat"};
+    const fs::path appearedPath = GetDataDir() / appearedFilename;
+    std::unique_ptr<WalletDatabase> createOwner =
+        MakeWalletDatabase(
+            appearedFilename,
+            requireCreate,
+            status,
+            error);
+    BOOST_REQUIRE(createOwner);
+    BOOST_CHECK(!fs::exists(appearedPath));
+
+    std::unique_ptr<WalletDatabase> racedDatabase =
+        MakeBerkeleyDatabase(bitdb, appearedFilename);
+    std::unique_ptr<DatabaseBatch> racedBatch =
+        racedDatabase->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE});
+    BOOST_REQUIRE(racedBatch);
+    BOOST_REQUIRE(racedBatch->Write(
+        std::string("raced-record"),
+        std::string("must-remain")));
+    BOOST_CHECK_THROW(
+        createOwner->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE}),
+        std::runtime_error);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE(
+            bitdb.mapFileUseCount.count(appearedFilename) == 1);
+        BOOST_CHECK_EQUAL(
+            bitdb.mapFileUseCount.at(appearedFilename),
+            1);
+    }
+    racedBatch.reset();
+    BOOST_REQUIRE(racedDatabase->PeriodicFlush());
+    BOOST_CHECK_THROW(
+        createOwner->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE}),
+        std::runtime_error);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK(
+            bitdb.mapFileUseCount.count(appearedFilename) == 0);
+    }
+    {
+        std::unique_ptr<DatabaseBatch> racedBatch =
+            racedDatabase->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(racedBatch);
+        std::string value;
+        BOOST_REQUIRE(racedBatch->Read(
+            std::string("raced-record"),
+            value));
+        BOOST_CHECK_EQUAL(value, "must-remain");
+    }
+    BOOST_REQUIRE(racedDatabase->PeriodicFlush());
+    racedDatabase.reset();
+    createOwner.reset();
+    BOOST_REQUIRE(bitdb.RemoveDb(appearedFilename));
+
+    const std::string disappearedFilename{
+        "factory_bdb_disappeared_before_open.dat"};
+    const fs::path disappearedPath =
+        GetDataDir() / disappearedFilename;
+    std::unique_ptr<WalletDatabase> existingDatabase =
+        MakeBerkeleyDatabase(bitdb, disappearedFilename);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            existingDatabase->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("existing-record"),
+            std::string("existing")));
+    }
+    BOOST_REQUIRE(existingDatabase->PeriodicFlush());
+    existingDatabase.reset();
+
+    DatabaseOptions requireExisting;
+    requireExisting.require_existing = true;
+    requireExisting.require_format = DatabaseFormat::BERKELEY;
+    std::unique_ptr<WalletDatabase> existingOwner =
+        MakeWalletDatabase(
+            disappearedFilename,
+            requireExisting,
+            status,
+            error);
+    BOOST_REQUIRE(existingOwner);
+    BOOST_REQUIRE(bitdb.RemoveDb(disappearedFilename));
+    BOOST_REQUIRE(!fs::exists(disappearedPath));
+    BOOST_CHECK_THROW(
+        existingOwner->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE}),
+        std::runtime_error);
+    BOOST_CHECK(!fs::exists(disappearedPath));
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_CHECK(
+            bitdb.mapFileUseCount.count(disappearedFilename) == 0);
+    }
+    existingOwner.reset();
+
+#ifndef WIN32
+    const std::string retainedFilename{
+        "factory_bdb_retained_identity.dat"};
+    const std::string substituteFilename{
+        "factory_bdb_substitute_identity.dat"};
+    const std::string displacedFilename{
+        "factory_bdb_displaced_identity.dat"};
+    const fs::path retainedPath =
+        GetDataDir() / retainedFilename;
+    const fs::path substitutePath =
+        GetDataDir() / substituteFilename;
+    const fs::path displacedPath =
+        GetDataDir() / displacedFilename;
+    auto createIdentityWallet = [](const std::string& filename,
+                                    const std::string& value) {
+        std::unique_ptr<WalletDatabase> database =
+            MakeBerkeleyDatabase(bitdb, filename);
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                database->MakeBatch(
+                    {DatabaseBatchMode::READ_WRITE_CREATE});
+            BOOST_REQUIRE(batch);
+            BOOST_REQUIRE(batch->Write(
+                std::string("identity-record"),
+                value));
+        }
+        BOOST_REQUIRE(database->PeriodicFlush());
+    };
+    createIdentityWallet(retainedFilename, "retained");
+    createIdentityWallet(substituteFilename, "substitute");
+
+    DatabaseOptions retainedOptions = requireExisting;
+    retainedOptions.verify = false;
+    std::unique_ptr<WalletDatabase> retainedOwner =
+        MakeWalletDatabase(
+            retainedFilename,
+            retainedOptions,
+            status,
+            error);
+    BOOST_REQUIRE(retainedOwner);
+    fs::rename(retainedPath, displacedPath);
+    fs::rename(substitutePath, retainedPath);
+    BOOST_CHECK_THROW(
+        retainedOwner->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE}),
+        std::runtime_error);
+    retainedOwner.reset();
+    fs::rename(retainedPath, substitutePath);
+    fs::rename(displacedPath, retainedPath);
+
+    auto checkIdentityWallet = [](const std::string& filename,
+                                   const std::string& expected) {
+        std::unique_ptr<WalletDatabase> database =
+            MakeBerkeleyDatabase(bitdb, filename);
+        std::unique_ptr<DatabaseBatch> batch =
+            database->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("identity-record"),
+            value));
+        BOOST_CHECK_EQUAL(value, expected);
+        batch.reset();
+        BOOST_REQUIRE(database->PeriodicFlush());
+    };
+    checkIdentityWallet(retainedFilename, "retained");
+    checkIdentityWallet(substituteFilename, "substitute");
+    BOOST_REQUIRE(bitdb.RemoveDb(retainedFilename));
+    BOOST_REQUIRE(bitdb.RemoveDb(substituteFilename));
+#endif
+
+    const std::string cachedFilename{
+        "factory_bdb_cached_before_open.dat"};
+    std::unique_ptr<WalletDatabase> cachedDatabase =
+        MakeBerkeleyDatabase(bitdb, cachedFilename);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            cachedDatabase->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("cached-record"),
+            std::string("preserved")));
+    }
+    DatabaseOptions cachedExistingOptions =
+        requireExisting;
+    cachedExistingOptions.verify = false;
+    std::unique_ptr<WalletDatabase> cachedExistingOwner =
+        MakeWalletDatabase(
+            cachedFilename,
+            cachedExistingOptions,
+            status,
+            error);
+    BOOST_REQUIRE(cachedExistingOwner);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            cachedExistingOwner->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("cached-record"),
+            value));
+        BOOST_CHECK_EQUAL(value, "preserved");
+    }
+    BOOST_REQUIRE(cachedExistingOwner->PeriodicFlush());
+    cachedExistingOwner.reset();
+    cachedDatabase.reset();
+    BOOST_REQUIRE(bitdb.RemoveDb(cachedFilename));
+
+    const std::string consumedFilename{
+        "factory_bdb_first_open_consumed.dat"};
+    std::unique_ptr<WalletDatabase> consumedOwner =
+        MakeWalletDatabase(
+            consumedFilename,
+            requireCreate,
+            status,
+            error);
+    BOOST_REQUIRE(consumedOwner);
+    std::unique_ptr<DatabaseBatch> firstBatch =
+        consumedOwner->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE});
+    BOOST_REQUIRE(firstBatch);
+    BOOST_REQUIRE(firstBatch->Write(
+        std::string("first"),
+        std::string("created")));
+    std::unique_ptr<DatabaseBatch> secondBatch =
+        consumedOwner->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE});
+    BOOST_REQUIRE(secondBatch);
+    BOOST_REQUIRE(secondBatch->Write(
+        std::string("second"),
+        std::string("ordinary")));
+    std::string value;
+    BOOST_REQUIRE(secondBatch->Read(std::string("first"), value));
+    BOOST_CHECK_EQUAL(value, "created");
+    firstBatch.reset();
+    secondBatch.reset();
+    BOOST_REQUIRE(consumedOwner->PeriodicFlush());
+    consumedOwner.reset();
+    BOOST_REQUIRE(bitdb.RemoveDb(consumedFilename));
 }
 
 BOOST_AUTO_TEST_CASE(wallet_database_factory_salvage)
@@ -720,10 +1197,32 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         BOOST_CHECK(batch.Read(binaryKey, value));
         BOOST_CHECK_EQUAL(value, binaryValue);
         BOOST_CHECK(batch.Exists(binaryKey));
+        BOOST_CHECK(
+            batch.ReadWithStatus(binaryKey, value) ==
+            DatabaseReadStatus::SUCCESS);
+        BOOST_CHECK(
+            batch.ReadWithStatus(std::string("absent"), value) ==
+            DatabaseReadStatus::NOT_FOUND);
+        BOOST_CHECK(
+            batch.ExistsWithStatus(binaryKey) ==
+            DatabaseReadStatus::SUCCESS);
+        BOOST_CHECK(
+            batch.ExistsWithStatus(std::string("absent")) ==
+            DatabaseReadStatus::NOT_FOUND);
 
         BOOST_CHECK(batch.Write(binaryKey, std::string("replacement")));
         BOOST_CHECK(batch.Read(binaryKey, value));
         BOOST_CHECK_EQUAL(value, "replacement");
+        BOOST_REQUIRE(batch.Write(
+            std::string("malformed-value"),
+            uint8_t{1}));
+        uint64_t malformedValue{0};
+        BOOST_CHECK(
+            batch.ReadWithStatus(
+                std::string("malformed-value"),
+                malformedValue) ==
+            DatabaseReadStatus::CORRUPT);
+        BOOST_REQUIRE(batch.Erase(std::string("malformed-value")));
 
         BOOST_CHECK(batch.Write(std::string("erase-me"), std::string("temporary")));
         BOOST_CHECK(batch.Exists(std::string("erase-me")));
@@ -813,6 +1312,14 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         BOOST_CHECK(!batch.Write(binaryKey, std::string("duplicate"), false));
         BOOST_CHECK(batch.TxnAbort());
         BOOST_CHECK(!batch.Exists(std::string("rolled-back")));
+        batch.Close();
+        std::string closedValue;
+        BOOST_CHECK(
+            batch.ReadWithStatus(binaryKey, closedValue) ==
+            DatabaseReadStatus::FAILED);
+        BOOST_CHECK(
+            batch.ExistsWithStatus(binaryKey) ==
+            DatabaseReadStatus::FAILED);
     }
 
     {
@@ -970,9 +1477,42 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     BOOST_CHECK(batch->Read(binaryKey, value));
     BOOST_CHECK_EQUAL(value, binaryValue);
     BOOST_CHECK(batch->Exists(binaryKey));
+    BOOST_CHECK(
+        batch->ReadWithStatus(binaryKey, value) ==
+        DatabaseReadStatus::SUCCESS);
+    BOOST_CHECK(
+        batch->ReadWithStatus(std::string("absent"), value) ==
+        DatabaseReadStatus::NOT_FOUND);
+    BOOST_CHECK(
+        batch->ExistsWithStatus(binaryKey) ==
+        DatabaseReadStatus::SUCCESS);
+    BOOST_CHECK(
+        batch->ExistsWithStatus(std::string("absent")) ==
+        DatabaseReadStatus::NOT_FOUND);
     BOOST_CHECK(batch->Write(binaryKey, std::string("replacement")));
     BOOST_CHECK(batch->Read(binaryKey, value));
     BOOST_CHECK_EQUAL(value, "replacement");
+    BOOST_REQUIRE(batch->Write(
+        std::string("malformed-value"),
+        uint8_t{1}));
+    uint64_t malformedValue{0};
+    BOOST_CHECK(
+        batch->ReadWithStatus(
+            std::string("malformed-value"),
+            malformedValue) ==
+        DatabaseReadStatus::CORRUPT);
+    BOOST_REQUIRE(batch->Erase(std::string("malformed-value")));
+    BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+        *batch,
+        std::make_unique<NonBlobSQLiteStatementExecutor>()));
+    BOOST_REQUIRE(batch->TxnBegin());
+    BOOST_CHECK(
+        batch->ReadWithStatus(binaryKey, value) ==
+        DatabaseReadStatus::CORRUPT);
+    BOOST_REQUIRE(batch->TxnAbort());
+    BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+        *batch,
+        std::make_unique<SQLiteStatementExecutor>()));
 
     BOOST_CHECK(batch->Write(std::string("erase-me"), std::string("temporary")));
     BOOST_CHECK(batch->Erase(std::string("erase-me")));
@@ -1058,23 +1598,6 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     BOOST_REQUIRE(batch->TxnAbort());
     BOOST_CHECK(!batch->HasActiveTxn());
     BOOST_CHECK(!batch->Exists(std::string("committed")));
-
-    BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
-        *batch,
-        std::make_unique<RollbackThenFailSQLiteStatementExecutor>()));
-    BOOST_REQUIRE(batch->TxnBegin());
-    BOOST_REQUIRE(batch->Write(
-        std::string("auto-rollback"),
-        std::string("must-stay-hidden")));
-    BOOST_CHECK(!batch->TxnCommit());
-    BOOST_CHECK(batch->HasActiveTxn());
-    BOOST_CHECK(!batch->Write(
-        std::string("must-not-autocommit"),
-        std::string("rejected")));
-    BOOST_REQUIRE(batch->TxnAbort());
-    BOOST_CHECK(!batch->HasActiveTxn());
-    BOOST_CHECK(!batch->Exists(std::string("auto-rollback")));
-    BOOST_CHECK(!batch->Exists(std::string("must-not-autocommit")));
 
     BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
         *batch,
@@ -1239,6 +1762,15 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     closedBatch->Close();
     BOOST_CHECK(!closedBatch->Read(std::string("transaction-one"), value));
     BOOST_CHECK(!closedBatch->Exists(std::string("transaction-one")));
+    BOOST_CHECK(
+        closedBatch->ReadWithStatus(
+            std::string("transaction-one"),
+            value) ==
+        DatabaseReadStatus::FAILED);
+    BOOST_CHECK(
+        closedBatch->ExistsWithStatus(
+            std::string("transaction-one")) ==
+        DatabaseReadStatus::FAILED);
     BOOST_CHECK(!closedBatch->Write(
         std::string("closed-write"),
         std::string("rejected")));
@@ -1347,21 +1879,11 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
         {"INSERT INTO main(key, value) VALUES(X'', X'')"}));
     error = "unchanged";
     database = MakeSQLiteDatabase(filename, existingOptions, status, error);
-    BOOST_REQUIRE(database);
-    BOOST_CHECK(status == DatabaseStatus::SUCCESS);
-    BOOST_CHECK(error.empty());
-    batch = database->MakeBatch();
-    BOOST_REQUIRE(batch);
-    cursor = batch->GetCursor();
-    BOOST_REQUIRE(cursor);
-    CDataStream emptyKey(SER_DISK, CLIENT_VERSION);
-    CDataStream emptyValue(SER_DISK, CLIENT_VERSION);
-    BOOST_CHECK(cursor->Next(emptyKey, emptyValue) == DatabaseCursor::Status::MORE);
-    BOOST_CHECK(emptyKey.empty());
-    BOOST_CHECK(emptyValue.empty());
-    cursor.reset();
-    batch.reset();
-    database.reset();
+    BOOST_CHECK(!database);
+    BOOST_CHECK(status == DatabaseStatus::FAILED_VERIFY);
+    BOOST_CHECK(!error.empty());
+    BOOST_CHECK_NE(error, "unchanged");
+    BOOST_CHECK(fs::is_regular_file(path));
 
     std::unique_ptr<WalletDatabase> backup =
         MakeSQLiteDatabase(backupFilename, existingOptions, status, error);
@@ -1379,8 +1901,122 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     fs::remove_all(backupDirectory);
 }
 
+BOOST_AUTO_TEST_CASE(sqlite_column_failures_are_fail_closed)
+{
+    const std::string filename{"sqlite_column_failure.dat"};
+    RemoveSQLiteTestFiles(filename);
+
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format = DatabaseFormat::SQLITE;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> database =
+        MakeSQLiteDatabase(filename, createOptions, status, error);
+    BOOST_REQUIRE(database);
+    std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+    BOOST_REQUIRE(batch);
+    BOOST_REQUIRE(batch->Write(
+        std::string("column-failure"),
+        std::string("preserved")));
+
+    auto blobFailure =
+        std::make_unique<FailingSQLiteColumnReader>(
+            SQLiteColumnFailure::BLOB,
+            true);
+    FailingSQLiteColumnReader* const blobFailureView =
+        blobFailure.get();
+    BOOST_REQUIRE(SetSQLiteColumnReaderForTesting(
+        *batch,
+        std::move(blobFailure)));
+    BOOST_REQUIRE(batch->TxnBegin());
+    std::string value{"unchanged"};
+    BOOST_CHECK(
+        batch->ReadWithStatus(
+            std::string("column-failure"),
+            value) ==
+        DatabaseReadStatus::FAILED);
+    BOOST_CHECK_EQUAL(value, "unchanged");
+    BOOST_CHECK(blobFailureView->Failed());
+    BOOST_CHECK(blobFailureView->OrderValid());
+    BOOST_CHECK_EQUAL(
+        blobFailureView->RollbackResult(),
+        SQLITE_OK);
+    BOOST_CHECK(batch->HasActiveTxn());
+    BOOST_CHECK(!batch->Write(
+        std::string("must-not-autocommit"),
+        std::string("rejected")));
+    BOOST_REQUIRE(batch->TxnAbort());
+    BOOST_CHECK(!batch->HasActiveTxn());
+
+    BOOST_REQUIRE(SetSQLiteColumnReaderForTesting(
+        *batch,
+        std::make_unique<SQLiteColumnReader>()));
+    BOOST_REQUIRE(batch->Read(
+        std::string("column-failure"),
+        value));
+    BOOST_CHECK_EQUAL(value, "preserved");
+    BOOST_CHECK(!batch->Exists(
+        std::string("must-not-autocommit")));
+
+    auto bytesFailure =
+        std::make_unique<FailingSQLiteColumnReader>(
+            SQLiteColumnFailure::BYTES,
+            false);
+    FailingSQLiteColumnReader* const bytesFailureView =
+        bytesFailure.get();
+    BOOST_REQUIRE(SetSQLiteColumnReaderForTesting(
+        *batch,
+        std::move(bytesFailure)));
+    value = "unchanged";
+    BOOST_CHECK(
+        batch->ReadWithStatus(
+            std::string("column-failure"),
+            value) ==
+        DatabaseReadStatus::FAILED);
+    BOOST_CHECK_EQUAL(value, "unchanged");
+    BOOST_CHECK(bytesFailureView->Failed());
+    BOOST_CHECK(bytesFailureView->OrderValid());
+    BOOST_REQUIRE(SetSQLiteColumnReaderForTesting(
+        *batch,
+        std::make_unique<SQLiteColumnReader>()));
+    BOOST_REQUIRE(batch->Read(
+        std::string("column-failure"),
+        value));
+    BOOST_CHECK_EQUAL(value, "preserved");
+
+    auto cursorFailure =
+        std::make_unique<FailingSQLiteColumnReader>(
+            SQLiteColumnFailure::BLOB,
+            false);
+    FailingSQLiteColumnReader* const cursorFailureView =
+        cursorFailure.get();
+    BOOST_REQUIRE(SetSQLiteColumnReaderForTesting(
+        *batch,
+        std::move(cursorFailure)));
+    std::unique_ptr<DatabaseCursor> cursor =
+        batch->GetCursor();
+    BOOST_REQUIRE(cursor);
+    CDataStream cursorKey(SER_DISK, CLIENT_VERSION);
+    CDataStream cursorValue(SER_DISK, CLIENT_VERSION);
+    BOOST_CHECK(
+        cursor->Next(cursorKey, cursorValue) ==
+        DatabaseCursor::Status::FAIL);
+    BOOST_CHECK(cursorKey.empty());
+    BOOST_CHECK(cursorValue.empty());
+    BOOST_CHECK(cursorFailureView->Failed());
+    BOOST_CHECK(cursorFailureView->OrderValid());
+    cursor.reset();
+
+    batch.reset();
+    database.reset();
+    RemoveSQLiteTestFiles(filename);
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_indeterminate_executor_exception_poison)
 {
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
     const std::string filename{"sqlite_executor_exception.dat"};
     RemoveSQLiteTestFiles(filename);
 
@@ -1404,6 +2040,8 @@ BOOST_AUTO_TEST_CASE(sqlite_indeterminate_executor_exception_poison)
         std::string("committed-before-exception")));
     BOOST_CHECK(!batch->TxnCommit());
     BOOST_CHECK(!batch->HasActiveTxn());
+    BOOST_CHECK(!batch->TxnAbort());
+    BOOST_CHECK(ShutdownRequested());
     BOOST_CHECK(!batch->Write(
         std::string("after-indeterminate-commit"),
         std::string("rejected")));
@@ -1429,6 +2067,302 @@ BOOST_AUTO_TEST_CASE(sqlite_indeterminate_executor_exception_poison)
     BOOST_CHECK_EQUAL(value, "committed-before-exception");
     BOOST_CHECK(!batch->Exists(
         std::string("after-indeterminate-commit")));
+    batch.reset();
+    database.reset();
+    RemoveSQLiteTestFiles(filename);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_commit_outcomes_are_classified)
+{
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{"sqlite_recoverable_commit_error.dat"};
+        RemoveSQLiteTestFiles(filename);
+
+        DatabaseOptions createOptions;
+        createOptions.require_create = true;
+        createOptions.require_format = DatabaseFormat::SQLITE;
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(filename, createOptions, status, error);
+        BOOST_REQUIRE(database);
+        std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+            *batch,
+            std::make_unique<BlockingSQLiteStatementExecutor>(
+                std::set<std::string>{"COMMIT TRANSACTION"})));
+        BOOST_REQUIRE(batch->TxnBegin());
+        BOOST_REQUIRE(batch->Write(
+            std::string("recoverable-commit"),
+            std::string("rolled-back")));
+        BOOST_CHECK(!batch->TxnCommit());
+        BOOST_CHECK(batch->HasActiveTxn());
+        BOOST_REQUIRE(batch->TxnAbort());
+        BOOST_CHECK(!batch->HasActiveTxn());
+        BOOST_CHECK(!ShutdownRequested());
+        BOOST_CHECK(!batch->Exists(std::string("recoverable-commit")));
+        batch.reset();
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{"sqlite_applied_commit_error.dat"};
+        RemoveSQLiteTestFiles(filename);
+
+        DatabaseOptions createOptions;
+        createOptions.require_create = true;
+        createOptions.require_format = DatabaseFormat::SQLITE;
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(filename, createOptions, status, error);
+        BOOST_REQUIRE(database);
+        std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+            *batch,
+            std::make_unique<CommitThenFailSQLiteStatementExecutor>()));
+        BOOST_REQUIRE(batch->TxnBegin());
+        BOOST_REQUIRE(batch->Write(
+            std::string("applied-commit"),
+            std::string("durable-before-error")));
+        BOOST_CHECK(!batch->TxnCommit());
+        BOOST_CHECK(!batch->HasActiveTxn());
+        BOOST_CHECK(!batch->TxnAbort());
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK(!batch->Write(
+            std::string("after-applied-commit"),
+            std::string("rejected")));
+        BOOST_CHECK_THROW(database->MakeBatch(), std::runtime_error);
+        batch.reset();
+        database.reset();
+
+        DatabaseOptions existingOptions;
+        existingOptions.require_existing = true;
+        existingOptions.require_format = DatabaseFormat::SQLITE;
+        database = MakeSQLiteDatabase(
+            filename,
+            existingOptions,
+            status,
+            error);
+        BOOST_REQUIRE(database);
+        batch = database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("applied-commit"),
+            value));
+        BOOST_CHECK_EQUAL(value, "durable-before-error");
+        BOOST_CHECK(!batch->Exists(
+            std::string("after-applied-commit")));
+        batch.reset();
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_single_write_outcomes_are_classified)
+{
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{"sqlite_statement_auto_rollback.dat"};
+        RemoveSQLiteTestFiles(filename);
+
+        DatabaseOptions createOptions;
+        createOptions.require_create = true;
+        createOptions.require_format = DatabaseFormat::SQLITE;
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(filename, createOptions, status, error);
+        BOOST_REQUIRE(database);
+        std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+            *batch,
+            std::make_unique<RollbackWriteSQLiteStatementExecutor>()));
+        BOOST_CHECK(!batch->Write(
+            std::string("auto-rolled-back"),
+            std::string("not-applied")));
+        BOOST_CHECK(!batch->HasActiveTxn());
+        BOOST_CHECK(!ShutdownRequested());
+        BOOST_CHECK(!batch->Exists(std::string("auto-rolled-back")));
+        BOOST_REQUIRE(batch->Write(
+            std::string("auto-rolled-back"),
+            std::string("retry-succeeded")));
+        batch.reset();
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{"sqlite_single_write_commit_error.dat"};
+        RemoveSQLiteTestFiles(filename);
+
+        DatabaseOptions createOptions;
+        createOptions.require_create = true;
+        createOptions.require_format = DatabaseFormat::SQLITE;
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(filename, createOptions, status, error);
+        BOOST_REQUIRE(database);
+        std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+            *batch,
+            std::make_unique<BlockingSQLiteStatementExecutor>(
+                std::set<std::string>{"COMMIT TRANSACTION"})));
+        BOOST_CHECK(!batch->Write(
+            std::string("recoverable-write"),
+            std::string("rolled-back")));
+        BOOST_CHECK(!batch->HasActiveTxn());
+        BOOST_CHECK(!ShutdownRequested());
+        BOOST_CHECK(!batch->Exists(std::string("recoverable-write")));
+        BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+            *batch,
+            std::make_unique<SQLiteStatementExecutor>()));
+        BOOST_REQUIRE(batch->Write(
+            std::string("recoverable-write"),
+            std::string("retry-succeeded")));
+        batch.reset();
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    const auto checkAppliedFailure = [](bool erase) {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename =
+            erase ?
+                "sqlite_applied_erase_error.dat" :
+                "sqlite_applied_write_error.dat";
+        RemoveSQLiteTestFiles(filename);
+
+        DatabaseOptions createOptions;
+        createOptions.require_create = true;
+        createOptions.require_format = DatabaseFormat::SQLITE;
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(filename, createOptions, status, error);
+        BOOST_REQUIRE(database);
+        std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        if (erase) {
+            BOOST_REQUIRE(batch->Write(
+                std::string("applied-operation"),
+                std::string("erase-me")));
+        }
+        BOOST_REQUIRE(SetSQLiteStatementExecutorForTesting(
+            *batch,
+            std::make_unique<CommitThenFailSQLiteStatementExecutor>()));
+
+        if (erase) {
+            BOOST_CHECK_THROW(
+                batch->Erase(std::string("applied-operation")),
+                std::runtime_error);
+        } else {
+            BOOST_CHECK_THROW(
+                batch->Write(
+                    std::string("applied-operation"),
+                    std::string("durable-before-error")),
+                std::runtime_error);
+        }
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK(!batch->HasActiveTxn());
+        BOOST_CHECK(!batch->TxnAbort());
+        BOOST_CHECK_THROW(database->MakeBatch(), std::runtime_error);
+        batch.reset();
+        database.reset();
+
+        DatabaseOptions existingOptions;
+        existingOptions.require_existing = true;
+        existingOptions.require_format = DatabaseFormat::SQLITE;
+        database = MakeSQLiteDatabase(
+            filename,
+            existingOptions,
+            status,
+            error);
+        BOOST_REQUIRE(database);
+        batch = database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        std::string value;
+        if (erase) {
+            BOOST_CHECK(!batch->Exists(
+                std::string("applied-operation")));
+        } else {
+            BOOST_REQUIRE(batch->Read(
+                std::string("applied-operation"),
+                value));
+            BOOST_CHECK_EQUAL(value, "durable-before-error");
+        }
+        batch.reset();
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    };
+
+    checkAppliedFailure(false);
+    checkAppliedFailure(true);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_rewrite_commit_error_is_indeterminate)
+{
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
+    const std::string filename{"sqlite_rewrite_commit_error.dat"};
+    RemoveSQLiteTestFiles(filename);
+
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format = DatabaseFormat::SQLITE;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> database =
+        MakeSQLiteDatabase(filename, createOptions, status, error);
+    BOOST_REQUIRE(database);
+    std::unique_ptr<DatabaseBatch> batch = database->MakeBatch();
+    BOOST_REQUIRE(batch);
+    BOOST_REQUIRE(batch->Write(
+        std::make_pair(std::string("pool"), int64_t{1}),
+        std::string("remove-during-rewrite")));
+    BOOST_REQUIRE(batch->Write(
+        std::string("retained"),
+        std::string("unchanged")));
+    batch.reset();
+
+    const std::string poolPrefix{"\x04pool", 5};
+    InjectSQLiteRewriteCommitFailureForTesting();
+    BOOST_CHECK(!database->Rewrite(poolPrefix.c_str()));
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_THROW(database->MakeBatch(), std::runtime_error);
+    database.reset();
+
+    DatabaseOptions existingOptions;
+    existingOptions.require_existing = true;
+    existingOptions.require_format = DatabaseFormat::SQLITE;
+    database = MakeSQLiteDatabase(
+        filename,
+        existingOptions,
+        status,
+        error);
+    BOOST_REQUIRE(database);
+    batch = database->MakeBatch();
+    BOOST_REQUIRE(batch);
+    std::string value;
+    BOOST_CHECK(!batch->Exists(
+        std::make_pair(std::string("pool"), int64_t{1})));
+    BOOST_REQUIRE(batch->Read(std::string("retained"), value));
+    BOOST_CHECK_EQUAL(value, "unchanged");
     batch.reset();
     database.reset();
     RemoveSQLiteTestFiles(filename);
@@ -1998,6 +2932,394 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_schema_corruption_policy)
     BOOST_CHECK_EQUAL(ReadFile(existingPath), existingContents);
     RemoveSQLiteTestFiles(existingFilename);
 }
+
+BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
+{
+    auto createLogicalDatabase = [](
+                                     const std::string& filename,
+                                     DatabaseStatus& status,
+                                     std::string& error) {
+        DatabaseOptions options;
+        options.require_create = true;
+        options.require_format =
+            DatabaseFormat::SQLITE;
+        options.logical_wallet_create = true;
+        return MakeSQLiteDatabase(
+            filename,
+            options,
+            status,
+            error);
+    };
+    auto existingOptions = [] {
+        DatabaseOptions options;
+        options.require_existing = true;
+        options.require_format =
+            DatabaseFormat::SQLITE;
+        return options;
+    }();
+
+    {
+        const std::string filename{
+            "sqlite_pending_wallet_load.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            createLogicalDatabase(
+                filename,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        {
+            CWallet wallet(std::move(database));
+            bool firstRun = false;
+            BOOST_REQUIRE(
+                wallet.LoadWallet(firstRun) ==
+                DB_LOAD_OK);
+            BOOST_CHECK(firstRun);
+        }
+        BOOST_CHECK(!fs::exists(path));
+    }
+
+    {
+        const std::string filename{
+            "sqlite_completed_wallet.dat"};
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            createLogicalDatabase(
+                filename,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                database->MakeBatch();
+            BOOST_REQUIRE(batch);
+            BOOST_REQUIRE(batch->Write(
+                std::string("logical-state"),
+                std::string("preserved")));
+        }
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::COMPLETE);
+        BOOST_CHECK(error.empty());
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::COMPLETE);
+        database.reset();
+
+        database = MakeSQLiteDatabase(
+            filename,
+            existingOptions,
+            status,
+            error);
+        BOOST_REQUIRE(database);
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                database->MakeBatch();
+            BOOST_REQUIRE(batch);
+            std::string value;
+            BOOST_REQUIRE(batch->Read(
+                std::string("logical-state"),
+                value));
+            BOOST_CHECK_EQUAL(value, "preserved");
+            BOOST_CHECK(batch->Write(
+                std::string("after-completion"),
+                std::string("writable")));
+        }
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{
+            "sqlite_completion_rollback.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            createLogicalDatabase(
+                filename,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        BOOST_REQUIRE(
+            SetSQLiteCreationStatementExecutorForTesting(
+                *database,
+                std::make_unique<
+                    BlockingSQLiteStatementExecutor>(
+                    std::set<std::string>{
+                        "COMMIT TRANSACTION"})));
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::FAILED);
+        BOOST_CHECK(!error.empty());
+        BOOST_CHECK(!ShutdownRequested());
+        database.reset();
+        BOOST_CHECK(!fs::exists(path));
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{
+            "sqlite_completion_rolled_back_error.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            createLogicalDatabase(
+                filename,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        BOOST_REQUIRE(
+            SetSQLiteCreationStatementExecutorForTesting(
+                *database,
+                std::make_unique<
+                    RollbackCommitSQLiteStatementExecutor>()));
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::FAILED);
+        BOOST_CHECK(!error.empty());
+        BOOST_CHECK(!ShutdownRequested());
+        database.reset();
+        BOOST_CHECK(!fs::exists(path));
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{
+            "sqlite_completion_applied_error.dat"};
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            createLogicalDatabase(
+                filename,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        BOOST_REQUIRE(
+            SetSQLiteCreationStatementExecutorForTesting(
+                *database,
+                std::make_unique<
+                    CommitThenFailSQLiteStatementExecutor>()));
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::COMPLETE);
+        BOOST_CHECK(error.empty());
+        BOOST_CHECK(!ShutdownRequested());
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                database->MakeBatch();
+            BOOST_REQUIRE(batch);
+            BOOST_CHECK(batch->Write(
+                std::string("reconciled"),
+                std::string("writable")));
+        }
+        database.reset();
+
+        database = MakeSQLiteDatabase(
+            filename,
+            existingOptions,
+            status,
+            error);
+        BOOST_REQUIRE(database);
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{
+            "sqlite_completion_close_failure.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            createLogicalDatabase(
+                filename,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        BOOST_REQUIRE(
+            SetSQLiteCreationStatementExecutorForTesting(
+                *database,
+                std::make_unique<
+                    CommitThenFailSQLiteStatementExecutor>()));
+        InjectSQLiteCloseFailureForTesting();
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::INDETERMINATE);
+        BOOST_CHECK(ShutdownRequested());
+        database.reset();
+        BOOST_CHECK(fs::is_regular_file(path));
+        BOOST_REQUIRE(ResetSQLiteLifecycleForTesting());
+
+        database = MakeSQLiteDatabase(
+            filename,
+            existingOptions,
+            status,
+            error);
+        BOOST_REQUIRE(database);
+        database.reset();
+        RemoveSQLiteTestFiles(filename);
+    }
+}
+
+#ifndef WIN32
+BOOST_AUTO_TEST_CASE(sqlite_incomplete_creation_is_retained_safely)
+{
+    auto logicalOptions = [] {
+        DatabaseOptions options;
+        options.require_create = true;
+        options.require_format =
+            DatabaseFormat::SQLITE;
+        options.logical_wallet_create = true;
+        return options;
+    }();
+    DatabaseOptions existingOptions;
+    existingOptions.require_existing = true;
+    existingOptions.require_format =
+        DatabaseFormat::SQLITE;
+
+    {
+        const std::string filename{
+            "sqlite_crashed_creation.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        const pid_t child = fork();
+        if (child == 0) {
+            DatabaseStatus status;
+            std::string error;
+            std::unique_ptr<WalletDatabase> database =
+                MakeSQLiteDatabase(
+                    filename,
+                    logicalOptions,
+                    status,
+                    error);
+            _exit(database ? 0 : 1);
+        }
+        BOOST_REQUIRE(child > 0);
+        int childStatus = 0;
+        pid_t waited;
+        do {
+            waited = waitpid(
+                child,
+                &childStatus,
+                0);
+        } while (waited < 0 && errno == EINTR);
+        BOOST_REQUIRE_EQUAL(waited, child);
+        BOOST_REQUIRE(WIFEXITED(childStatus));
+        BOOST_REQUIRE_EQUAL(
+            WEXITSTATUS(childStatus),
+            0);
+        BOOST_REQUIRE(fs::is_regular_file(path));
+
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(
+                filename,
+                existingOptions,
+                status,
+                error);
+        BOOST_CHECK(!database);
+        BOOST_CHECK(
+            status ==
+            DatabaseStatus::FAILED_VERIFY);
+        BOOST_CHECK(
+            error.find("incomplete") !=
+            std::string::npos);
+        BOOST_CHECK(fs::is_regular_file(path));
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        const std::string filename{
+            "sqlite_pending_close_failure.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(
+                filename,
+                logicalOptions,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        InjectSQLiteCloseFailureForTesting();
+        database.reset();
+        BOOST_CHECK(fs::is_regular_file(path));
+        BOOST_REQUIRE(ResetSQLiteLifecycleForTesting());
+
+        database = MakeSQLiteDatabase(
+            filename,
+            existingOptions,
+            status,
+            error);
+        BOOST_CHECK(!database);
+        BOOST_CHECK(
+            status ==
+            DatabaseStatus::FAILED_VERIFY);
+        BOOST_CHECK(
+            error.find("incomplete") !=
+            std::string::npos);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        const std::string filename{
+            "sqlite_pending_identity_replacement.dat"};
+        const std::string movedFilename{
+            "sqlite_pending_identity_owned.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        const fs::path movedPath =
+            GetDataDir() / movedFilename;
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestFiles(movedFilename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(
+                filename,
+                logicalOptions,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+        fs::rename(path, movedPath);
+        const std::string sentinel{
+            "unrelated replacement"};
+        WriteFile(path, sentinel);
+        database.reset();
+        BOOST_CHECK_EQUAL(
+            ReadFile(path),
+            sentinel);
+        BOOST_CHECK(fs::is_regular_file(movedPath));
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestFiles(movedFilename);
+    }
+}
+#endif
 #endif
 
 BOOST_AUTO_TEST_CASE(wallet_mnemonic_encryption_persists)

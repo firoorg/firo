@@ -261,9 +261,11 @@ public:
     bool WriteMintSeedCount(const int32_t& nCount);
 
     bool readDiversifier(int32_t& nCount);
+    DatabaseReadStatus readDiversifierWithStatus(int32_t& nCount);
     bool writeDiversifier(const int32_t& nCount);
 
     bool readFullViewKey(spark::FullViewKey& viewKey);
+    DatabaseReadStatus readFullViewKeyWithStatus(spark::FullViewKey& viewKey);
     bool writeFullViewKey(const spark::FullViewKey& viewKey);
 
     bool WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash);

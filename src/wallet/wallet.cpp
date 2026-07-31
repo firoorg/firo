@@ -120,6 +120,30 @@ static void EnsureSparkWalletAvailable()
     }
 }
 
+static bool ApplyWalletCreationFormat(
+    const std::string& walletFile,
+    DatabaseOptions& options,
+    std::string& error)
+{
+    const std::string format = GetArg("-walletdbformat", "");
+    if (format.empty()) {
+        return true;
+    }
+    if (format == "bdb") {
+        options.require_format = DatabaseFormat::BERKELEY;
+        return true;
+    }
+    if (format == "sqlite") {
+        options.require_format = DatabaseFormat::SQLITE;
+        return true;
+    }
+    error = strprintf(
+        "Invalid -walletdbformat value '%s' for wallet '%s'. Use 'sqlite' or 'bdb'.",
+        format,
+        walletFile);
+    return false;
+}
+
 std::string COutput::ToString() const {
     return strprintf("COutput(%s, %d, %d) [%s]", tx->GetHash().ToString(), i, nDepth, FormatMoney(tx->tx->vout[i].nValue));
 }
@@ -707,14 +731,21 @@ bool CWallet::Verify()
 
     DatabaseOptions options;
     options.salvage = GetBoolArg("-salvagewallet", false);
+    options.require_existing = true;
     DatabaseStatus status;
     std::string error;
     std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(walletFile, options, status, error);
+    if (!database && status == DatabaseStatus::FAILED_NOT_FOUND && !options.salvage) {
+        return true;
+    }
     if (!database) {
         return InitError(error);
     }
 
-    LogPrintf("Using wallet %s\n", walletFile);
+    LogPrintf(
+        "Using %s wallet database %s\n",
+        DatabaseFormatName(database->Format()),
+        walletFile);
     if (database->Format() == DatabaseFormat::BERKELEY) {
         LogPrintf("Using BerkeleyDB version %s\n", DbEnv::version(0, 0, 0));
     }
@@ -5048,7 +5079,14 @@ spark::FullViewKey CWallet::GetSparkViewKey() {
   LOCK(cs_wallet);
   CWalletDB walletdb(GetDatabase());
   spark::FullViewKey key;
-  walletdb.readFullViewKey(key);
+  if (GetDatabase().Format() == DatabaseFormat::SQLITE) {
+      if (walletdb.readFullViewKeyWithStatus(key) !=
+          DatabaseReadStatus::SUCCESS) {
+          throw std::runtime_error("Unable to read Spark view key from SQLite wallet database");
+      }
+  } else {
+      walletdb.readFullViewKey(key);
+  }
 
   return key;
 }
@@ -5331,6 +5369,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-walletrbf", strprintf(_("Send transactions with full-RBF opt-in enabled (default: %u)"), DEFAULT_WALLET_RBF));
     strUsage += HelpMessageOpt("-upgradewallet", _("Upgrade wallet to latest format on startup"));
     strUsage += HelpMessageOpt("-wallet=<file>", _("Specify wallet file (within data directory)") + " " + strprintf(_("(default: %s)"), DEFAULT_WALLET_DAT));
+    strUsage += HelpMessageOpt("-walletdbformat=<format>", _("Database format for a newly created wallet: sqlite or bdb (default: sqlite when supported, otherwise bdb)"));
     strUsage += HelpMessageOpt("-walletbroadcast", _("Make the wallet broadcast transactions") + " " + strprintf(_("(default: %u)"), DEFAULT_WALLETBROADCAST));
     strUsage += HelpMessageOpt("-walletnotify=<cmd>", _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID, %t is replaced by transaction type: 'spark' or 'regular')"));
     strUsage += HelpMessageOpt("-zapwalletmints", _("Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup"));
@@ -5355,9 +5394,26 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     auto makeDatabase = [&walletFile]() {
         DatabaseOptions options;
         options.verify = false;
+        options.require_existing = true;
         DatabaseStatus status;
         std::string error;
         std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(walletFile, options, status, error);
+        if (database) {
+            return database;
+        }
+        if (status != DatabaseStatus::FAILED_NOT_FOUND) {
+            InitError(error);
+            return database;
+        }
+
+        options.require_existing = false;
+        options.require_create = true;
+        options.logical_wallet_create = true;
+        if (!ApplyWalletCreationFormat(walletFile, options, error)) {
+            InitError(error);
+            return database;
+        }
+        database = MakeWalletDatabase(walletFile, options, status, error);
         if (!database) {
             InitError(error);
         }
@@ -5407,6 +5463,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         return nullptr;
     }
     auto walletInstance = std::make_unique<CWallet>(std::move(database));
+    LogPrintf(
+        "Using %s wallet database %s\n",
+        DatabaseFormatName(walletInstance->GetDatabase().Format()),
+        walletFile);
     boost::signals2::scoped_connection progressConnection(
         walletInstance->ShowProgress.connect([](const std::string& title, int progress) {
             uiInterface.ShowProgress(title, progress);
@@ -5630,6 +5690,21 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         LogPrintf("mapAddressBook.size() = %u\n",  walletInstance->mapAddressBook.size());
     }
 
+    std::string creationError;
+    const DatabaseCreationResult creationResult =
+        walletInstance->GetDatabase().CompleteCreation(
+            creationError);
+    if (creationResult !=
+        DatabaseCreationResult::COMPLETE) {
+        InitError(
+            creationError.empty() ?
+                strprintf(
+                    _("Failed to complete wallet database creation for %s"),
+                    walletFile) :
+                creationError);
+        return nullptr;
+    }
+
     CWallet* result = walletInstance.get();
     try {
         RegisterValidationInterface(result);
@@ -5678,6 +5753,16 @@ bool CWallet::ParameterInteraction()
 {
     if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return true;
+
+    if (IsArgSet("-walletdbformat")) {
+        const std::string format =
+            GetArg("-walletdbformat", "");
+        if (format != "sqlite" && format != "bdb") {
+            return InitError(strprintf(
+                "Invalid -walletdbformat value '%s'. Use 'sqlite' or 'bdb'.",
+                format));
+        }
+    }
 
     if (GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY) && SoftSetBoolArg("-walletbroadcast", false)) {
         LogPrintf("%s: parameter interaction: -blocksonly=1 -> setting -walletbroadcast=0\n", __func__);

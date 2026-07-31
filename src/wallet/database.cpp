@@ -11,17 +11,29 @@
 #include "wallet/db.h"
 #include "wallet/walletdb.h"
 
+#ifdef USE_SQLITE
+#include "wallet/sqlite.h"
+#endif
+
 #include <algorithm>
 #include <array>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
 #include <optional>
 
 #include <boost/filesystem/fstream.hpp>
+
+#ifndef WIN32
+#include <sys/stat.h>
+#endif
 
 namespace
 {
 struct DatabaseFileInfo {
     bool exists{false};
     std::optional<DatabaseFormat> format;
+    std::optional<BerkeleyFileIdentity> identity;
 };
 
 bool GetWalletPathStatus(const fs::path& path, fs::file_status& status, std::string& error)
@@ -108,6 +120,28 @@ bool InspectWalletDatabaseFile(
         return false;
     }
 
+#ifndef WIN32
+    struct stat metadata{};
+    if (lstat(path.string().c_str(), &metadata) != 0) {
+        status = DatabaseStatus::FAILED_BAD_PATH;
+        error = strprintf(
+            "Failed to retain wallet database identity for '%s': %s",
+            path.string(),
+            std::strerror(errno));
+        return false;
+    }
+    if (!S_ISREG(metadata.st_mode)) {
+        status = DatabaseStatus::FAILED_BAD_PATH;
+        error = strprintf(
+            "Refusing wallet database '%s': the path changed while its identity was inspected.",
+            path.string());
+        return false;
+    }
+    info.identity = BerkeleyFileIdentity{
+        static_cast<uint64_t>(metadata.st_dev),
+        static_cast<uint64_t>(metadata.st_ino)};
+#endif
+
     if (!inspect_format) {
         return true;
     }
@@ -163,17 +197,7 @@ bool OpenBerkeleyEnvironment(std::string& error)
     return false;
 }
 
-const char* DatabaseFormatName(DatabaseFormat format)
-{
-    switch (format) {
-    case DatabaseFormat::BERKELEY:
-        return "Berkeley DB";
-    case DatabaseFormat::SQLITE:
-        return "SQLite";
-    }
-    return "unknown";
-}
-
+#ifndef USE_SQLITE
 void SetSQLiteUnavailableError(
     const fs::path& path,
     bool exists,
@@ -181,23 +205,26 @@ void SetSQLiteUnavailableError(
     std::string& error)
 {
     status = DatabaseStatus::FAILED_UNSUPPORTED;
-#ifdef USE_SQLITE
-    error = exists ? strprintf(
-                         "SQLite wallet database '%s' is recognized, but production SQLite wallet loading is not enabled yet.",
-                         path.string()) :
-                     strprintf(
-                         "Cannot create SQLite wallet database '%s': production SQLite wallet creation is not enabled yet.",
-                         path.string());
-#else
     error = exists ? strprintf(
                          "SQLite wallet database '%s' is not supported by this build because SQLite wallet support is disabled.",
                          path.string()) :
                      strprintf(
                          "Cannot create SQLite wallet database '%s': this build has SQLite wallet support disabled.",
                          path.string());
-#endif
 }
+#endif
 } // namespace
+
+const char* DatabaseFormatName(DatabaseFormat format)
+{
+    switch (format) {
+    case DatabaseFormat::BERKELEY:
+        return "bdb";
+    case DatabaseFormat::SQLITE:
+        return "sqlite";
+    }
+    return "unknown";
+}
 
 bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::string& error)
 {
@@ -243,6 +270,7 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
     error.clear();
 
     if ((options.require_existing && options.require_create) ||
+        (options.logical_wallet_create && !options.require_create) ||
         (options.salvage && !options.verify)) {
         status = DatabaseStatus::FAILED_INVALID_OPTIONS;
         error = "Invalid wallet database options.";
@@ -296,12 +324,24 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
     }
 
     if (!format) {
-        format = options.require_format.value_or(DatabaseFormat::BERKELEY);
+        if (options.require_format) {
+            format = options.require_format;
+        } else {
+#if defined(USE_SQLITE) && !defined(WIN32)
+            format = DatabaseFormat::SQLITE;
+#else
+            format = DatabaseFormat::BERKELEY;
+#endif
+        }
     }
 
     if (*format == DatabaseFormat::SQLITE) {
+#ifdef USE_SQLITE
+        return MakeSQLiteDatabase(filename, options, status, error);
+#else
         SetSQLiteUnavailableError(path, file_info.exists, status, error);
         return nullptr;
+#endif
     }
 
     if (!OpenBerkeleyEnvironment(error)) {
@@ -339,7 +379,14 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
         return nullptr;
     }
     if (opened_file_info.format == DatabaseFormat::SQLITE) {
+#ifndef USE_SQLITE
         SetSQLiteUnavailableError(path, true, status, error);
+#else
+        status = DatabaseStatus::FAILED_BAD_FORMAT;
+        error = strprintf(
+            "Failed to load wallet database '%s': its format changed from Berkeley DB to SQLite while opening.",
+            path.string());
+#endif
         return nullptr;
     }
     if (opened_file_info.exists &&
@@ -352,7 +399,6 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
         return nullptr;
     }
 
-    std::unique_ptr<WalletDatabase> database = MakeBerkeleyDatabase(bitdb, filename);
     DatabaseStatus success_status = DatabaseStatus::SUCCESS;
 
     if (options.salvage) {
@@ -376,6 +422,42 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
         }
     }
 
+    std::optional<BerkeleyFileIdentity> first_open_identity;
+    if (opened_file_info.exists || options.salvage) {
+        DatabaseFileInfo final_file_info;
+        if (!InspectWalletDatabaseFile(
+                path,
+                final_file_info,
+                true,
+                status,
+                error)) {
+            return nullptr;
+        }
+        if (!final_file_info.exists) {
+            status = DatabaseStatus::FAILED_NOT_FOUND;
+            error = strprintf(
+                "Failed to load Berkeley DB wallet '%s': the path disappeared before first open.",
+                path.string());
+            return nullptr;
+        }
+        if (final_file_info.format !=
+            DatabaseFormat::BERKELEY) {
+            status = DatabaseStatus::FAILED_BAD_FORMAT;
+            error = strprintf(
+                "Failed to load Berkeley DB wallet '%s': its format changed before first open.",
+                path.string());
+            return nullptr;
+        }
+        first_open_identity =
+            final_file_info.identity;
+    }
+
+    std::unique_ptr<WalletDatabase> database =
+        MakeBerkeleyDatabase(
+            bitdb,
+            filename,
+            options,
+            std::move(first_open_identity));
     status = success_status;
     return database;
 }

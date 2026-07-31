@@ -1231,6 +1231,11 @@ bool CWalletDB::readDiversifier(int32_t& diversifier)
 
 }
 
+DatabaseReadStatus CWalletDB::readDiversifierWithStatus(int32_t& diversifier)
+{
+    return m_batch->ReadWithStatus(std::string("div"), diversifier);
+}
+
 bool CWalletDB::writeDiversifier(const int32_t& diversifier)
 {
     return Write(std::string("div"), diversifier);
@@ -1239,6 +1244,11 @@ bool CWalletDB::writeDiversifier(const int32_t& diversifier)
 bool CWalletDB::readFullViewKey(spark::FullViewKey& fullViewKey)
 {
     return Read(std::string("fullViewKey"), fullViewKey);
+}
+
+DatabaseReadStatus CWalletDB::readFullViewKeyWithStatus(spark::FullViewKey& fullViewKey)
+{
+    return m_batch->ReadWithStatus(std::string("fullViewKey"), fullViewKey);
 }
 
 bool CWalletDB::writeFullViewKey(const spark::FullViewKey& fullViewKey)

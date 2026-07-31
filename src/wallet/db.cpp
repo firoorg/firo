@@ -92,6 +92,37 @@ struct BerkeleyCursorCloser {
 
 using BerkeleyCursorHandle = std::unique_ptr<Dbc, BerkeleyCursorCloser>;
 
+bool BerkeleyIdentityMatches(
+    Db& database,
+    const fs::path& path,
+    const std::optional<BerkeleyFileIdentity>& expected)
+{
+    if (!expected) {
+        return true;
+    }
+#ifdef WIN32
+    return false;
+#else
+    int descriptor = -1;
+    struct stat descriptor_status{};
+    struct stat path_status{};
+    return database.fd(&descriptor) == 0 &&
+           descriptor >= 0 &&
+           fstat(descriptor, &descriptor_status) == 0 &&
+           S_ISREG(descriptor_status.st_mode) &&
+           lstat(path.string().c_str(), &path_status) == 0 &&
+           S_ISREG(path_status.st_mode) &&
+           static_cast<uint64_t>(descriptor_status.st_dev) ==
+               expected->device &&
+           static_cast<uint64_t>(descriptor_status.st_ino) ==
+               expected->inode &&
+           static_cast<uint64_t>(path_status.st_dev) ==
+               expected->device &&
+           static_cast<uint64_t>(path_status.st_ino) ==
+               expected->inode;
+#endif
+}
+
 class BerkeleyCursor final : public DatabaseCursor
 {
 private:
@@ -382,10 +413,7 @@ CDB::CDB(BerkeleyDatabase& database, const char* pszMode, bool fFlushOnCloseIn)
     if (!database.m_env || strFilename.empty())
         return;
 
-    bool fCreate = strchr(pszMode, 'c') != NULL;
-    unsigned int nFlags = DB_THREAD;
-    if (fCreate)
-        nFlags |= DB_CREATE;
+    const bool fCreate = strchr(pszMode, 'c') != NULL;
 
     CDBEnv& env = *m_database.m_env;
     {
@@ -393,44 +421,96 @@ CDB::CDB(BerkeleyDatabase& database, const char* pszMode, bool fFlushOnCloseIn)
         if (!env.Open(GetDataDir()))
             throw std::runtime_error("CDB: Failed to open database environment.");
 
-        strFile = strFilename;
-        ++env.mapFileUseCount[strFile];
-        pdb = env.mapDb[strFile];
-        if (pdb == NULL) {
-            pdb = new Db(env.dbenv, 0);
-
-            bool fMockDb = env.IsMock();
-            if (fMockDb) {
-                DbMpoolFile* mpf = pdb->get_mpf();
-                ret = mpf->set_flags(DB_MPOOL_NOFILE, 1);
-                if (ret != 0)
-                    throw std::runtime_error(strprintf("CDB: Failed to configure for no temp file backing for database %s", strFile));
+        const auto cached = env.mapDb.find(strFilename);
+        Db* cached_database =
+            cached == env.mapDb.end() ? nullptr : cached->second;
+        if ((database.m_first_open_requirement !=
+                    BerkeleyDatabase::FirstOpenRequirement::NONE ||
+                database.m_first_open_identity) &&
+            cached_database) {
+            const auto use_count =
+                env.mapFileUseCount.find(strFilename);
+            if (use_count != env.mapFileUseCount.end() &&
+                use_count->second != 0) {
+                throw std::runtime_error(strprintf(
+                    "CDB: Cannot apply the required first-open policy to an in-use database %s",
+                    strFilename));
             }
-
-            ret = pdb->open(NULL,                               // Txn pointer
-                            fMockDb ? NULL : strFile.c_str(),   // Filename
-                            fMockDb ? strFile.c_str() : "main", // Logical db name
-                            DB_BTREE,                           // Database type
-                            nFlags,                             // Flags
-                            0);
-
-            if (ret != 0) {
-                delete pdb;
-                pdb = NULL;
-                --env.mapFileUseCount[strFile];
-                strFile = "";
-                throw std::runtime_error(strprintf("CDB: Error %d, can't open database %s", ret, strFilename));
-            }
-
-            if (fCreate && !Exists(std::string("version"))) {
-                bool fTmp = fReadOnly;
-                fReadOnly = false;
-                WriteVersion(CLIENT_VERSION);
-                fReadOnly = fTmp;
-            }
-
-            env.mapDb[strFile] = pdb;
+            env.CloseDb(strFilename);
+            env.mapDb.erase(strFilename);
+            env.mapFileUseCount.erase(strFilename);
+            cached_database = nullptr;
         }
+        if (cached_database) {
+            strFile = strFilename;
+            pdb = cached_database;
+            ++env.mapFileUseCount[strFile];
+            return;
+        }
+
+        unsigned int nFlags = DB_THREAD;
+        switch (database.m_first_open_requirement) {
+        case BerkeleyDatabase::FirstOpenRequirement::CREATE:
+            nFlags |= DB_CREATE | DB_EXCL;
+            break;
+        case BerkeleyDatabase::FirstOpenRequirement::EXISTING:
+            break;
+        case BerkeleyDatabase::FirstOpenRequirement::NONE:
+            if (fCreate)
+                nFlags |= DB_CREATE;
+            break;
+        }
+
+        std::unique_ptr<Db> opened = std::make_unique<Db>(env.dbenv, 0);
+        const bool fMockDb = env.IsMock();
+        if (fMockDb) {
+            DbMpoolFile* mpf = opened->get_mpf();
+            ret = mpf->set_flags(DB_MPOOL_NOFILE, 1);
+            if (ret != 0)
+                throw std::runtime_error(strprintf("CDB: Failed to configure for no temp file backing for database %s", strFilename));
+        }
+
+        ret = opened->open(NULL,                    // Txn pointer
+            fMockDb ? NULL : strFilename.c_str(),   // Filename
+            fMockDb ? strFilename.c_str() : "main", // Logical db name
+            DB_BTREE,                               // Database type
+            nFlags,                                 // Flags
+            0);
+        if (ret != 0) {
+            throw std::runtime_error(strprintf(
+                "CDB: Error %d, can't open database %s",
+                ret,
+                strFilename));
+        }
+
+        if (!fMockDb &&
+            !BerkeleyIdentityMatches(
+                *opened,
+                GetDataDir() / strFilename,
+                database.m_first_open_identity)) {
+            opened->close(0);
+            throw std::runtime_error(strprintf(
+                "CDB: Refusing database %s because its file identity changed before first open",
+                strFilename));
+        }
+
+        pdb = opened.get();
+        if ((fCreate ||
+                database.m_first_open_requirement ==
+                    BerkeleyDatabase::FirstOpenRequirement::CREATE) &&
+            !Exists(std::string("version"))) {
+            const bool fTmp = fReadOnly;
+            fReadOnly = false;
+            WriteVersion(CLIENT_VERSION);
+            fReadOnly = fTmp;
+        }
+
+        strFile = strFilename;
+        env.mapDb[strFile] = opened.release();
+        ++env.mapFileUseCount[strFile];
+        database.m_first_open_requirement =
+            BerkeleyDatabase::FirstOpenRequirement::NONE;
+        database.m_first_open_identity.reset();
     }
 }
 
@@ -455,9 +535,17 @@ std::unique_ptr<DatabaseBatch> BerkeleyDatabase::MakeBatch(const DatabaseBatchOp
     return std::unique_ptr<DatabaseBatch>(new CDB(*this, mode, options.flush_on_close));
 }
 
-std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(CDBEnv& env, std::string filename)
+std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(
+    CDBEnv& env,
+    std::string filename,
+    const DatabaseOptions& options,
+    std::optional<BerkeleyFileIdentity> first_open_identity)
 {
-    return std::make_unique<BerkeleyDatabase>(env, std::move(filename));
+    return std::make_unique<BerkeleyDatabase>(
+        env,
+        std::move(filename),
+        options,
+        std::move(first_open_identity));
 }
 
 std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase()
@@ -493,10 +581,10 @@ bool IsBerkeleyDatabase(const fs::path& path)
            std::equal(LITTLE_ENDIAN_MAGIC.begin(), LITTLE_ENDIAN_MAGIC.end(), header.begin() + 12);
 }
 
-bool CDB::ReadRaw(CDataStream&& key, CDataStream& value)
+DatabaseReadStatus CDB::ReadRaw(CDataStream&& key, CDataStream& value)
 {
     if (!pdb) {
-        return false;
+        return DatabaseReadStatus::FAILED;
     }
 
     Dbt db_key(key.data(), key.size());
@@ -504,9 +592,12 @@ bool CDB::ReadRaw(CDataStream&& key, CDataStream& value)
     const int result = pdb->get(activeTxn, &db_key, db_value.Get(), 0);
     CleanseStream(key);
 
+    if (result == DB_NOTFOUND) {
+        return DatabaseReadStatus::NOT_FOUND;
+    }
     if (result != 0 ||
         (db_value.Size() != 0 && db_value.Data() == nullptr)) {
-        return false;
+        return DatabaseReadStatus::FAILED;
     }
 
     value.SetType(SER_DISK);
@@ -514,7 +605,7 @@ bool CDB::ReadRaw(CDataStream&& key, CDataStream& value)
     if (db_value.Size() != 0) {
         value.write(static_cast<const char*>(db_value.Data()), db_value.Size());
     }
-    return true;
+    return DatabaseReadStatus::SUCCESS;
 }
 
 bool CDB::WriteRaw(CDataStream&& key, CDataStream&& value, bool overwrite)
@@ -550,16 +641,22 @@ bool CDB::EraseRaw(CDataStream&& key)
     return result == 0 || result == DB_NOTFOUND;
 }
 
-bool CDB::HasRaw(CDataStream&& key)
+DatabaseReadStatus CDB::HasRaw(CDataStream&& key)
 {
     if (!pdb) {
-        return false;
+        return DatabaseReadStatus::FAILED;
     }
 
     Dbt db_key(key.data(), key.size());
     const int result = pdb->exists(activeTxn, &db_key, 0);
     CleanseStream(key);
-    return result == 0;
+    if (result == 0) {
+        return DatabaseReadStatus::SUCCESS;
+    }
+    if (result == DB_NOTFOUND) {
+        return DatabaseReadStatus::NOT_FOUND;
+    }
+    return DatabaseReadStatus::FAILED;
 }
 
 void CDB::Flush()

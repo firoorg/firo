@@ -11,8 +11,10 @@
 #include "serialize.h"
 #include "sync.h"
 
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -88,6 +90,11 @@ public:
 
 extern CDBEnv bitdb;
 
+struct BerkeleyFileIdentity {
+    uint64_t device{0};
+    uint64_t inode{0};
+};
+
 /**
  * Persistent identity and lifecycle operations for one Berkeley DB wallet.
  *
@@ -99,8 +106,17 @@ class BerkeleyDatabase final : public WalletDatabase
     friend class CDB;
 
 private:
+    enum class FirstOpenRequirement {
+        NONE,
+        EXISTING,
+        CREATE,
+    };
+
     CDBEnv* const m_env;
     const std::string m_filename;
+    FirstOpenRequirement m_first_open_requirement{
+        FirstOpenRequirement::NONE};
+    std::optional<BerkeleyFileIdentity> m_first_open_identity;
 
 public:
     /** Construct an inert database identity for a memory-only wallet. */
@@ -112,6 +128,24 @@ public:
     BerkeleyDatabase(CDBEnv& env, std::string filename)
         : m_env(&env),
           m_filename(std::move(filename))
+    {
+    }
+
+    BerkeleyDatabase(
+        CDBEnv& env,
+        std::string filename,
+        const DatabaseOptions& options,
+        std::optional<BerkeleyFileIdentity> first_open_identity)
+        : m_env(&env),
+          m_filename(std::move(filename)),
+          m_first_open_requirement(
+              options.require_create ?
+                  FirstOpenRequirement::CREATE :
+              options.require_existing ?
+                  FirstOpenRequirement::EXISTING :
+                  FirstOpenRequirement::NONE),
+          m_first_open_identity(
+              std::move(first_open_identity))
     {
     }
 
@@ -148,10 +182,10 @@ protected:
     static bool RewriteInternal(BerkeleyDatabase& database, const char* pszSkip, bool failBeforeRename);
 
 private:
-    bool ReadRaw(CDataStream&& key, CDataStream& value) override;
+    DatabaseReadStatus ReadRaw(CDataStream&& key, CDataStream& value) override;
     bool WriteRaw(CDataStream&& key, CDataStream&& value, bool overwrite) override;
     bool EraseRaw(CDataStream&& key) override;
-    bool HasRaw(CDataStream&& key) override;
+    DatabaseReadStatus HasRaw(CDataStream&& key) override;
 
     CDB(const CDB&) = delete;
     CDB& operator=(const CDB&) = delete;
@@ -171,7 +205,12 @@ public:
     static bool Rewrite(BerkeleyDatabase& database, const char* pszSkip = NULL);
 };
 
-std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(CDBEnv& env, std::string filename);
+std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(
+    CDBEnv& env,
+    std::string filename,
+    const DatabaseOptions& options = {},
+    std::optional<BerkeleyFileIdentity> first_open_identity =
+        std::nullopt);
 std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase();
 /** Return whether path has BDB B-tree magic; throw if it cannot be inspected. */
 bool IsBerkeleyDatabase(const fs::path& path);
