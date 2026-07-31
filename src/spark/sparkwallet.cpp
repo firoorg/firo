@@ -919,12 +919,13 @@ void CSparkWallet::RemoveSparkMints(const std::vector<spark::Coin>& mints) {
 
 void CSparkWallet::RemoveSparkSpends(const std::vector<GroupElement>& lTags) {
     LOCK(cs_spark_wallet);
+    CWalletDB walletdb(strWalletFile);
     for (const auto& lTag : lTags) {
         uint256 lTagHash = primitives::GetLTagHash(lTag);
-        if (coinMeta.count(lTagHash)) {
-            auto mintMeta = coinMeta[lTagHash];
+        auto it = coinMeta.find(lTagHash);
+        if (it != coinMeta.end()) {
+            auto mintMeta = it->second;
             mintMeta.isUsed = false;
-            CWalletDB walletdb(strWalletFile);
             addOrUpdateMint(mintMeta, lTagHash, walletdb);
             walletdb.EraseSparkSpendEntry(lTag);
         }
