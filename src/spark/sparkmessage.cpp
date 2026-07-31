@@ -51,10 +51,10 @@ VerifyResult VerifyMessage(const std::string& encodedAddress,
         return VerifyResult::MalformedProof;
     }
 
-    // Require the encoding to be canonical. Deserializing stops as soon as the proof is
-    // complete, so without this a valid signature with arbitrary bytes appended would
-    // still verify.
-    if (!proofStream.empty())
+    // Require the exact canonical encoding emitted by the serializers.
+    CDataStream canonicalProof(SER_NETWORK, PROTOCOL_VERSION);
+    canonicalProof << proof;
+    if (proofData != std::vector<unsigned char>(canonicalProof.begin(), canonicalProof.end()))
         return VerifyResult::MalformedProof;
 
     try {

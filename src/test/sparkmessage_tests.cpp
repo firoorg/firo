@@ -98,6 +98,13 @@ BOOST_AUTO_TEST_CASE(verify_requires_a_canonical_proof)
     // rejected explicitly or a valid signature stays valid with junk appended.
     BOOST_CHECK(VerifyMessage(addr, signature + "00", message) == VerifyResult::MalformedProof);
     BOOST_CHECK(VerifyMessage(addr, signature + "deadbeef", message) == VerifyResult::MalformedProof);
+
+    // OwnershipProof begins with a GroupElement whose byte 32 is a y-oddness flag.
+    // Its serializer emits only 0 or 1, but its deserializer accepts other values.
+    std::string nonCanonical = signature;
+    BOOST_REQUIRE(nonCanonical.size() >= 66);
+    nonCanonical.replace(64, 2, "02");
+    BOOST_CHECK(VerifyMessage(addr, nonCanonical, message) == VerifyResult::MalformedProof);
 }
 
 BOOST_AUTO_TEST_CASE(verify_rejects_an_address_from_another_network)
