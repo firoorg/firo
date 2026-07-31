@@ -37,6 +37,14 @@ private:
     WalletModel *model;
     const PlatformStyle *platformStyle;
 
+    /* Resolve "@name" Spark name notation in place to the address it points at. Input not
+       using that notation is left alone. Returns false if the name is not registered. */
+    bool resolveSparkAddress(QString &address) const;
+
+    /* Size signatureOut_SM to its content: one line while empty, up to four for a long
+       Spark ownership proof. */
+    void adjustSignatureOutHeight();
+
 private Q_SLOTS:
     /* sign message */
     void on_addressBookButton_SM_clicked();

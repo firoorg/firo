@@ -337,6 +337,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/script/ismine.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/script/sigcache.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/primitives.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/spark/sparkmessage.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark/state.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/threadinterrupt.cpp
