@@ -415,10 +415,22 @@ void OverviewPage::on_anonymizeButton_clicked()
             sendResult = walletModel->mintSparkCoins(transactions, transactionsAndFees, reserveKeys);
         });
         if (sendResult.status != WalletModel::OK) {
-            QMessageBox::critical(
-                this,
+            // The wallet may have split the request into several transactions
+            // (e.g. with the Split option) and committed some before failing,
+            // so the message must not claim that nothing was sent.
+            QMessageBox error(
+                QMessageBox::Critical,
                 tr("Unable to Make Funds Private"),
-                errorDetails(sendResult));
+                transactionsAndFees.size() > 1
+                    ? tr("The transfer could not be fully completed. Part of it may already have been sent; check the Transactions tab before trying again.")
+                    : tr("The transfer could not be completed. No funds were moved."),
+                QMessageBox::Ok,
+                this);
+            const QString details = errorDetails(sendResult);
+            if (!details.isEmpty()) {
+                error.setDetailedText(details);
+            }
+            error.exec();
             return;
         }
 
