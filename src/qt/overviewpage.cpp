@@ -294,6 +294,11 @@ void OverviewPage::on_anonymizeButton_clicked()
     amountLayout->addWidget(amountField);
     amountLayout->addWidget(maxButton);
     form->addRow(tr("Amount"), amountLayout);
+    auto feeNoteLabel = new QLabel(
+        tr("The network fee will be deducted from this amount."), &amountDialog);
+    feeNoteLabel->setWordWrap(true);
+    feeNoteLabel->setVisible(false);
+    form->addRow(QString(), feeNoteLabel);
     form->addRow(
         tr("Available"),
         new QLabel(BitcoinUnits::formatWithUnit(unit, available), &amountDialog));
@@ -305,6 +310,11 @@ void OverviewPage::on_anonymizeButton_clicked()
 
     connect(maxButton, &QPushButton::clicked, [amountField, available] {
         amountField->setValue(available);
+    });
+    connect(amountField, &BitcoinAmountField::valueChanged, [amountField, feeNoteLabel, available] {
+        bool valid = false;
+        const CAmount amount = amountField->value(&valid);
+        feeNoteLabel->setVisible(valid && amount == available);
     });
     connect(buttons, &QDialogButtonBox::rejected, &amountDialog, &QDialog::reject);
     connect(buttons->button(QDialogButtonBox::Ok), &QPushButton::clicked, [&, available] {
@@ -364,21 +374,32 @@ void OverviewPage::on_anonymizeButton_clicked()
                 transactions, recipients, transactionsAndFees, reserveKeys, nullptr);
         });
         if (prepareResult.status != WalletModel::OK) {
+            const bool amountTooHigh =
+                prepareResult.status == WalletModel::AmountExceedsBalance ||
+                prepareResult.status == WalletModel::AmountWithFeeExceedsBalance;
             QMessageBox error(
                 QMessageBox::Warning,
                 tr("Unable to Make Funds Private"),
                 tr("Firo could not create a Spark transaction for this amount."),
                 QMessageBox::Cancel,
                 this);
-            error.setInformativeText(tr("Change the amount and try again. No funds were moved."));
+            error.setInformativeText(amountTooHigh
+                ? tr("Use Maximum fills in the highest amount that can be made private, with the network fee deducted from it. No funds were moved.")
+                : tr("Change the amount and try again. No funds were moved."));
             const QString details = errorDetails(prepareResult);
             if (!details.isEmpty()) {
                 error.setDetailedText(details);
             }
+            QPushButton* useMaxButton = nullptr;
+            if (amountTooHigh) {
+                useMaxButton = error.addButton(tr("Use Maximum"), QMessageBox::AcceptRole);
+            }
             auto changeAmountButton = error.addButton(tr("Change Amount"), QMessageBox::AcceptRole);
             error.setDefaultButton(QMessageBox::Cancel);
             error.exec();
-            if (error.clickedButton() != changeAmountButton) {
+            if (useMaxButton && error.clickedButton() == useMaxButton) {
+                amountField->setValue(available);
+            } else if (error.clickedButton() != changeAmountButton) {
                 return;
             }
             amountField->setFocus();
