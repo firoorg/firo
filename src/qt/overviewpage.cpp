@@ -317,17 +317,6 @@ void OverviewPage::on_anonymizeButton_clicked()
         amountDialog.accept();
     });
 
-    amountField->setFocus();
-    if (amountDialog.exec() != QDialog::Accepted) {
-        return;
-    }
-
-    WalletModel::UnlockContext unlockContext(walletModel->requestUnlock(tr("Make funds private")));
-    if (!unlockContext.isValid()) {
-        return;
-    }
-
-    const QString sparkAddress = walletModel->generateSparkAddress();
     auto errorDetails = [this, unit](const WalletModel::SendCoinsReturn& result) {
         switch (result.status) {
         case WalletModel::AmountExceedsBalance:
@@ -346,7 +335,17 @@ void OverviewPage::on_anonymizeButton_clicked()
         }
     };
 
-    while (true) {
+    QString sparkAddress;
+    amountField->setFocus();
+    while (amountDialog.exec() == QDialog::Accepted) {
+        WalletModel::UnlockContext unlockContext(walletModel->requestUnlock(tr("Make funds private")));
+        if (!unlockContext.isValid()) {
+            return;
+        }
+        if (sparkAddress.isEmpty()) {
+            sparkAddress = walletModel->generateSparkAddress();
+        }
+
         const CAmount amount = amountField->value();
         SendCoinsRecipient recipient;
         recipient.address = sparkAddress;
@@ -383,9 +382,6 @@ void OverviewPage::on_anonymizeButton_clicked()
                 return;
             }
             amountField->setFocus();
-            if (amountDialog.exec() != QDialog::Accepted) {
-                return;
-            }
             continue;
         }
 
