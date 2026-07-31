@@ -900,6 +900,7 @@ void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
 }
 
 void CSparkWallet::RemoveSparkMints(const std::vector<spark::Coin>& mints) {
+    LOCK(cs_spark_wallet);
     for (auto coin : mints) {
         try {
             spark::IdentifiedCoinData identifiedCoinData = coin.identify(this->viewKey);
