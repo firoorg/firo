@@ -331,10 +331,6 @@ bool CSparkWallet::isAddressMine(const std::string& encodedAddr) {
 
 bool CSparkWallet::isAddressMine(const spark::Address& address) {
     LOCK(cs_spark_wallet);
-    for (const auto& itr : addresses) {
-        if (itr.second.get_Q1() == address.get_Q1() && itr.second.get_Q2() == address.get_Q2())
-            return true;
-    }
 
     uint64_t d;
 
@@ -344,7 +340,7 @@ bool CSparkWallet::isAddressMine(const spark::Address& address) {
         return false;
     }
 
-    spark::Address newAddr = getAddress(int32_t(d));
+    const spark::Address newAddr(viewKey, int32_t(d));
     if (newAddr.get_Q1() == address.get_Q1() && newAddr.get_Q2() == address.get_Q2())
         return true;
 
