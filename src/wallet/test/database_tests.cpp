@@ -4,6 +4,12 @@
 
 #include "config/bitcoin-config.h"
 
+#include "base58.h"
+#include "hash.h"
+#include "primitives/block.h"
+#include "protocol.h"
+#include "script/standard.h"
+#include "spark/state.h"
 #include "test/testutil.h"
 #include "wallet/db.h"
 #include "wallet/test/wallet_test_fixture.h"
@@ -36,10 +42,12 @@
 #include <cstdint>
 #include <future>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -102,6 +110,51 @@ std::string SerializeToString(const T& value)
     CDataStream stream(SER_DISK, CLIENT_VERSION);
     stream << value;
     return {stream.begin(), stream.end()};
+}
+
+template <typename T>
+bool SameSerializedValue(const T& expected, const T& actual)
+{
+    return SerializeToString(expected) == SerializeToString(actual);
+}
+
+bool SameKey(const CKey& expected, const CKey& actual)
+{
+    return expected.IsCompressed() == actual.IsCompressed() &&
+           expected.GetPrivKey() == actual.GetPrivKey();
+}
+
+bool SameAccountingEntry(
+    const CAccountingEntry& expected,
+    const CAccountingEntry& actual)
+{
+    return expected.strAccount == actual.strAccount &&
+           expected.nCreditDebit == actual.nCreditDebit &&
+           expected.nTime == actual.nTime &&
+           expected.strOtherAccount == actual.strOtherAccount &&
+           expected.strComment == actual.strComment &&
+           expected.mapValue == actual.mapValue &&
+           expected.nOrderPos == actual.nOrderPos &&
+           expected.nEntryNo == actual.nEntryNo;
+}
+
+bool SameIdentifiedCoin(
+    const spark::IdentifiedCoinData& expected,
+    const spark::IdentifiedCoinData& actual)
+{
+    return expected.i == actual.i &&
+           expected.d == actual.d &&
+           expected.v == actual.v &&
+           expected.k == actual.k &&
+           expected.memo == actual.memo;
+}
+
+bool SameRecoveredCoin(
+    const spark::RecoveredCoinData& expected,
+    const spark::RecoveredCoinData& actual)
+{
+    return expected.s == actual.s &&
+           expected.T == actual.T;
 }
 
 std::vector<RawRecord> ReadRawRecords(DatabaseBatch& batch)
@@ -4047,6 +4100,675 @@ BOOST_AUTO_TEST_CASE(sqlite_incomplete_creation_is_retained_safely)
 }
 #endif
 #endif
+
+BOOST_AUTO_TEST_CASE(wallet_record_logical_parity)
+{
+    CKey destinationKey;
+    destinationKey.MakeNewKey(true);
+    const CTxDestination destination =
+        destinationKey.GetPubKey().GetID();
+    const std::string destinationAddress =
+        CBitcoinAddress(destination).ToString();
+
+    CKey legacyKey;
+    legacyKey.MakeNewKey(true);
+    const CPubKey legacyPubKey = legacyKey.GetPubKey();
+    CWalletKey legacyWalletKey;
+    legacyWalletKey.vchPrivKey = legacyKey.GetPrivKey();
+    legacyWalletKey.nTimeCreated = 1700000001;
+    legacyWalletKey.nTimeExpires = 1700001001;
+    legacyWalletKey.strComment = "record-parity-wkey";
+
+    CKey redeemKey;
+    redeemKey.MakeNewKey(true);
+    const CScript redeemScript =
+        GetScriptForDestination(redeemKey.GetPubKey().GetID());
+    CKey watchKey;
+    watchKey.MakeNewKey(true);
+    const CScript watchScript =
+        GetScriptForDestination(watchKey.GetPubKey().GetID());
+    const CKeyMetadata watchMetadata{1700000023};
+
+    CKey accountKey;
+    accountKey.MakeNewKey(true);
+    CAccount account;
+    account.vchPubKey = accountKey.GetPubKey();
+
+    CAccountingEntry debit;
+    debit.strAccount = "z-source";
+    debit.nCreditDebit = -12345;
+    debit.nTime = 1700000101;
+    debit.strOtherAccount = "a-target";
+    debit.strComment = "record-parity-debit";
+    debit.mapValue["phase"] = "4c";
+    debit.nOrderPos = 0;
+    debit.nEntryNo = 41;
+
+    CAccountingEntry credit;
+    credit.strAccount = "a-target";
+    credit.nCreditDebit = 12345;
+    credit.nTime = 1700000102;
+    credit.strOtherAccount = "z-source";
+    credit.strComment = "record-parity-credit";
+    credit.mapValue["phase"] = "4c";
+    credit.nOrderPos = 1;
+    credit.nEntryNo = 42;
+
+    const CBlockLocator blockLocator{
+        std::vector<uint256>{
+            uint256S("01"),
+            uint256S("02"),
+        }};
+
+    const int calculatedHeight = 314159;
+    const int32_t mintCount = 17;
+    const int32_t mintSeedCount = 29;
+    const uint256 fullHash = uint256S("11");
+    const uint256 reducedHash = uint256S("12");
+    const uint256 serialA = uint256S("21");
+    const uint256 serialB = uint256S("22");
+    secp_primitives::GroupElement pubcoinA;
+    pubcoinA.set_base_g();
+    pubcoinA *= secp_primitives::Scalar(7);
+    secp_primitives::GroupElement pubcoinB;
+    pubcoinB.set_base_g();
+    pubcoinB *= secp_primitives::Scalar(11);
+    const uint256 mintPoolHash = uint256S("31");
+    uint160 seedMaster;
+    seedMaster.SetHex("41");
+    CKey seedKey;
+    seedKey.MakeNewKey(true);
+    const CKeyID seedId = seedKey.GetPubKey().GetID();
+    const int32_t seedCount = 43;
+
+    const spark::Params* const sparkParams =
+        spark::Params::get_default();
+    spark::SpendKey spendKey(sparkParams);
+    spark::FullViewKey fullViewKey(spendKey);
+    spark::IncomingViewKey incomingViewKey(fullViewKey);
+    const uint64_t diversifier = 17;
+    const uint64_t sparkValue =
+        static_cast<uint64_t>(13 * COIN);
+    const std::vector<unsigned char> serialContext{
+        0x00,
+        0x01,
+        0x7f,
+        0x80,
+        0xff,
+    };
+    spark::Address sparkAddress(
+        incomingViewKey,
+        diversifier);
+    secp_primitives::Scalar nonce;
+    nonce.randomize();
+    spark::Coin coin(
+        sparkParams,
+        spark::COIN_TYPE_MINT,
+        nonce,
+        sparkAddress,
+        sparkValue,
+        "record parity mint",
+        serialContext);
+    const spark::IdentifiedCoinData identifiedCoin =
+        coin.identify(incomingViewKey);
+    const spark::RecoveredCoinData recoveredCoin =
+        coin.recover(fullViewKey, identifiedCoin);
+    const uint256 lTagHash =
+        primitives::GetLTagHash(recoveredCoin.T);
+
+    CSparkMintMeta sparkMint{};
+    sparkMint.nHeight = 123;
+    sparkMint.nId = 4;
+    sparkMint.isUsed = true;
+    sparkMint.txid = uint256S("51");
+    sparkMint.i = identifiedCoin.i;
+    sparkMint.d = identifiedCoin.d;
+    sparkMint.v = identifiedCoin.v;
+    sparkMint.k = identifiedCoin.k;
+    sparkMint.memo = identifiedCoin.memo;
+    sparkMint.serial_context = serialContext;
+    sparkMint.type = coin.type;
+    sparkMint.coin = coin;
+
+    CSparkSpendEntry sparkSpend;
+    sparkSpend.lTag = recoveredCoin.T;
+    sparkSpend.lTagHash = lTagHash;
+    sparkSpend.hashTx = uint256S("52");
+    sparkSpend.amount = sparkValue;
+
+    CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
+    serializedCoin << coin;
+    CScript sparkOutputScript;
+    sparkOutputScript << OP_SPARKSMINT;
+    sparkOutputScript.insert(
+        sparkOutputScript.end(),
+        serializedCoin.begin(),
+        serializedCoin.end());
+    CSparkOutputTx sparkOutput;
+    sparkOutput.address =
+        sparkAddress.encode(spark::GetNetworkType());
+    sparkOutput.amount = sparkValue;
+    sparkOutput.memo = "record parity output";
+
+    const std::vector<DatabaseFormat> formats{
+        DatabaseFormat::BERKELEY,
+#ifdef USE_SQLITE
+        DatabaseFormat::SQLITE,
+#endif
+    };
+
+    for (const DatabaseFormat format : formats) {
+        BOOST_TEST_CONTEXT(
+            "wallet format " << DatabaseFormatName(format))
+        {
+            const std::string filename = strprintf(
+                "wallet_record_parity_%s.dat",
+                DatabaseFormatName(format));
+            DatabaseOptions createOptions;
+            createOptions.require_create = true;
+            createOptions.require_format = format;
+            DatabaseStatus status;
+            std::string error;
+            std::unique_ptr<WalletDatabase> database =
+                MakeWalletDatabase(
+                    filename,
+                    createOptions,
+                    status,
+                    error);
+            BOOST_REQUIRE_MESSAGE(database, error);
+            BOOST_REQUIRE(
+                status == DatabaseStatus::SUCCESS);
+            BOOST_REQUIRE(
+                database->Format() == format);
+
+            CAccountingEntry debitWrite = debit;
+            CAccountingEntry creditWrite = credit;
+            {
+                CWalletDB writer(*database);
+                BOOST_REQUIRE(writer.TxnBegin());
+                BOOST_REQUIRE(writer.WriteKV(
+                    "record-parity-kv",
+                    "record-parity-value"));
+                BOOST_REQUIRE(writer.WriteDestData(
+                    destinationAddress,
+                    "record-parity-dest-key",
+                    "record-parity-dest-value"));
+                BOOST_REQUIRE(
+                    writer.WriteBestBlock(blockLocator));
+                BOOST_REQUIRE(
+                    writer.WriteAccount(
+                        "record-parity-account",
+                        account));
+                BOOST_REQUIRE(
+                    writer.WriteAccountingEntry(
+                        debit.nEntryNo,
+                        debitWrite));
+                BOOST_REQUIRE(
+                    writer.WriteAccountingEntry(
+                        credit.nEntryNo,
+                        creditWrite));
+                BOOST_REQUIRE(
+                    writer.WriteOrderPosNext(2));
+                BOOST_REQUIRE(
+                    writer.WriteCScript(
+                        Hash160(redeemScript),
+                        redeemScript));
+                BOOST_REQUIRE(
+                    writer.WriteWatchOnly(
+                        watchScript,
+                        watchMetadata));
+                BOOST_REQUIRE(
+                    writer.WriteCalculatedZCBlock(
+                        calculatedHeight));
+                BOOST_REQUIRE(
+                    writer.WriteMintCount(mintCount));
+                BOOST_REQUIRE(
+                    writer.WriteMintSeedCount(
+                        mintSeedCount));
+                BOOST_REQUIRE(
+                    writer.WritePubcoinHashes(
+                        fullHash,
+                        reducedHash));
+                BOOST_REQUIRE(
+                    writer.WritePubcoin(
+                        serialA,
+                        pubcoinA));
+                BOOST_REQUIRE(
+                    writer.WritePubcoin(
+                        serialB,
+                        pubcoinB));
+                BOOST_REQUIRE(
+                    writer.WriteMintPoolPair(
+                        mintPoolHash,
+                        std::make_tuple(
+                            seedMaster,
+                            seedId,
+                            seedCount)));
+                BOOST_REQUIRE(
+                    writer.WriteSparkMint(
+                        lTagHash,
+                        sparkMint));
+                BOOST_REQUIRE(
+                    writer.WriteSparkSpendEntry(
+                        sparkSpend));
+                BOOST_REQUIRE(
+                    writer.WriteSparkOutputTx(
+                        sparkOutputScript,
+                        sparkOutput));
+                BOOST_REQUIRE(writer.TxnCommit());
+                BOOST_CHECK(!writer.HasActiveTxn());
+            }
+
+            {
+                CDataStream rawKey(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                rawKey << std::make_pair(
+                    std::string("wkey"),
+                    legacyPubKey);
+                CDataStream rawValue(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                rawValue << legacyWalletKey;
+                std::unique_ptr<DatabaseBatch> batch =
+                    database->MakeBatch();
+                BOOST_REQUIRE(batch);
+                BOOST_REQUIRE(batch->TxnBegin());
+                BOOST_REQUIRE(
+                    batch->WriteRawRecord(
+                        std::move(rawKey),
+                        std::move(rawValue),
+                        false));
+                BOOST_REQUIRE(batch->TxnCommit());
+            }
+
+            BOOST_REQUIRE(database->PeriodicFlush());
+            database.reset();
+
+            DatabaseOptions existingOptions;
+            existingOptions.require_existing = true;
+            existingOptions.require_format = format;
+            existingOptions.recover = false;
+            database = MakeWalletDatabase(
+                filename,
+                existingOptions,
+                status,
+                error);
+            BOOST_REQUIRE_MESSAGE(database, error);
+            BOOST_REQUIRE(
+                status == DatabaseStatus::SUCCESS);
+            BOOST_REQUIRE(
+                database->Format() == format);
+
+            {
+                CWallet loaded(std::move(database));
+                {
+                    CWalletDB loader(
+                        loaded.GetDatabase(),
+                        {DatabaseBatchMode::READ_ONLY});
+                    BOOST_REQUIRE(
+                        loader.LoadWallet(
+                            &loaded,
+                            false) == DB_LOAD_OK);
+                }
+
+                {
+                    LOCK(loaded.cs_wallet);
+                    const auto custom =
+                        loaded.mapCustomKeyValues.equal_range(
+                            "record-parity-kv");
+                    BOOST_REQUIRE(
+                        custom.first != custom.second);
+                    BOOST_CHECK_EQUAL(
+                        custom.first->second,
+                        "record-parity-value");
+                    auto customEnd = custom.first;
+                    ++customEnd;
+                    BOOST_CHECK(
+                        customEnd == custom.second);
+
+                    std::string destinationValue;
+                    BOOST_REQUIRE(
+                        loaded.GetDestData(
+                            destination,
+                            "record-parity-dest-key",
+                            &destinationValue));
+                    BOOST_CHECK_EQUAL(
+                        destinationValue,
+                        "record-parity-dest-value");
+                    BOOST_CHECK_EQUAL(
+                        loaded.nOrderPosNext,
+                        2);
+
+                    const auto watchMeta =
+                        loaded.mapKeyMetadata.find(
+                            CScriptID(watchScript));
+                    BOOST_REQUIRE(
+                        watchMeta !=
+                        loaded.mapKeyMetadata.end());
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            watchMetadata,
+                            watchMeta->second));
+
+                    BOOST_REQUIRE_EQUAL(
+                        loaded.laccentries.size(),
+                        2);
+                    const auto loadedDebit =
+                        std::find_if(
+                            loaded.laccentries.begin(),
+                            loaded.laccentries.end(),
+                            [](const CAccountingEntry& entry) {
+                                return entry.strAccount ==
+                                       "z-source";
+                            });
+                    const auto loadedCredit =
+                        std::find_if(
+                            loaded.laccentries.begin(),
+                            loaded.laccentries.end(),
+                            [](const CAccountingEntry& entry) {
+                                return entry.strAccount ==
+                                       "a-target";
+                            });
+                    BOOST_REQUIRE(
+                        loadedDebit !=
+                        loaded.laccentries.end());
+                    BOOST_REQUIRE(
+                        loadedCredit !=
+                        loaded.laccentries.end());
+                    BOOST_CHECK(
+                        SameAccountingEntry(
+                            debit,
+                            *loadedDebit));
+                    BOOST_CHECK(
+                        SameAccountingEntry(
+                            credit,
+                            *loadedCredit));
+
+                    BOOST_REQUIRE_EQUAL(
+                        loaded.wtxOrdered.size(),
+                        2);
+                    auto ordered =
+                        loaded.wtxOrdered.begin();
+                    BOOST_CHECK_EQUAL(
+                        ordered->first,
+                        0);
+                    BOOST_REQUIRE(
+                        ordered->second.second);
+                    BOOST_CHECK_EQUAL(
+                        ordered->second.second->strAccount,
+                        "z-source");
+                    ++ordered;
+                    BOOST_CHECK_EQUAL(
+                        ordered->first,
+                        1);
+                    BOOST_REQUIRE(
+                        ordered->second.second);
+                    BOOST_CHECK_EQUAL(
+                        ordered->second.second->strAccount,
+                        "a-target");
+                }
+
+                CKey loadedLegacyKey;
+                BOOST_REQUIRE(
+                    loaded.GetKey(
+                        legacyPubKey.GetID(),
+                        loadedLegacyKey));
+                BOOST_CHECK(
+                    SameKey(
+                        legacyKey,
+                        loadedLegacyKey));
+                CScript loadedRedeemScript;
+                BOOST_REQUIRE(
+                    loaded.GetCScript(
+                        CScriptID(redeemScript),
+                        loadedRedeemScript));
+                BOOST_CHECK(
+                    loadedRedeemScript == redeemScript);
+                BOOST_CHECK(
+                    loaded.HaveWatchOnly(watchScript));
+
+                {
+                    std::unique_ptr<DatabaseBatch> batch =
+                        loaded.GetDatabase().MakeBatch(
+                            {DatabaseBatchMode::READ_ONLY});
+                    BOOST_REQUIRE(batch);
+                    CBlockLocator legacyLocator;
+                    BOOST_REQUIRE(
+                        batch->Read(
+                            std::string("bestblock"),
+                            legacyLocator));
+                    BOOST_CHECK(
+                        legacyLocator.vHave.empty());
+                    CBlockLocator currentLocator;
+                    BOOST_REQUIRE(
+                        batch->Read(
+                            std::string(
+                                "bestblock_nomerkle"),
+                            currentLocator));
+                    BOOST_CHECK(
+                        currentLocator.vHave ==
+                        blockLocator.vHave);
+                    int loadedCalculatedHeight = 0;
+                    BOOST_REQUIRE(
+                        batch->Read(
+                            std::string(
+                                "calculatedzcblock"),
+                            loadedCalculatedHeight));
+                    BOOST_CHECK_EQUAL(
+                        loadedCalculatedHeight,
+                        calculatedHeight);
+                }
+
+                {
+                    CWalletDB reader(
+                        loaded.GetDatabase(),
+                        {DatabaseBatchMode::READ_ONLY});
+                    CBlockLocator loadedLocator;
+                    BOOST_REQUIRE(
+                        reader.ReadBestBlock(
+                            loadedLocator));
+                    BOOST_CHECK(
+                        loadedLocator.vHave ==
+                        blockLocator.vHave);
+
+                    CAccount loadedAccount;
+                    BOOST_REQUIRE(
+                        reader.ReadAccount(
+                            "record-parity-account",
+                            loadedAccount));
+                    BOOST_CHECK(
+                        loadedAccount.vchPubKey ==
+                        account.vchPubKey);
+                    BOOST_CHECK_EQUAL(
+                        reader.GetAccountCreditDebit(
+                            "z-source"),
+                        debit.nCreditDebit);
+                    BOOST_CHECK_EQUAL(
+                        reader.GetAccountCreditDebit(
+                            "a-target"),
+                        credit.nCreditDebit);
+
+                    int32_t loadedMintCount = 0;
+                    BOOST_REQUIRE(
+                        reader.ReadMintCount(
+                            loadedMintCount));
+                    BOOST_CHECK_EQUAL(
+                        loadedMintCount,
+                        mintCount);
+                    int32_t loadedMintSeedCount = 0;
+                    BOOST_REQUIRE(
+                        reader.ReadMintSeedCount(
+                            loadedMintSeedCount));
+                    BOOST_CHECK_EQUAL(
+                        loadedMintSeedCount,
+                        mintSeedCount);
+                    uint256 loadedReducedHash;
+                    BOOST_REQUIRE(
+                        reader.ReadPubcoinHashes(
+                            fullHash,
+                            loadedReducedHash));
+                    BOOST_CHECK(
+                        loadedReducedHash ==
+                        reducedHash);
+                    secp_primitives::GroupElement
+                        loadedPubcoin;
+                    BOOST_REQUIRE(
+                        reader.ReadPubcoin(
+                            serialA,
+                            loadedPubcoin));
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            pubcoinA,
+                            loadedPubcoin));
+                    BOOST_REQUIRE(
+                        reader.ReadPubcoin(
+                            serialB,
+                            loadedPubcoin));
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            pubcoinB,
+                            loadedPubcoin));
+                    const auto serialPubcoins =
+                        reader.ListSerialPubcoinPairs();
+                    BOOST_REQUIRE_EQUAL(
+                        serialPubcoins.size(),
+                        2);
+                    const std::map<
+                        uint256,
+                        secp_primitives::GroupElement>
+                        serialPubcoinMap(
+                            serialPubcoins.begin(),
+                            serialPubcoins.end());
+                    const auto listedPubcoinA =
+                        serialPubcoinMap.find(serialA);
+                    const auto listedPubcoinB =
+                        serialPubcoinMap.find(serialB);
+                    BOOST_REQUIRE(
+                        listedPubcoinA !=
+                        serialPubcoinMap.end());
+                    BOOST_REQUIRE(
+                        listedPubcoinB !=
+                        serialPubcoinMap.end());
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            pubcoinA,
+                            listedPubcoinA->second));
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            pubcoinB,
+                            listedPubcoinB->second));
+
+                    uint160 loadedSeedMaster;
+                    CKeyID loadedSeedId;
+                    int32_t loadedSeedCount = 0;
+                    BOOST_REQUIRE(
+                        reader.ReadMintPoolPair(
+                            mintPoolHash,
+                            loadedSeedMaster,
+                            loadedSeedId,
+                            loadedSeedCount));
+                    BOOST_CHECK(
+                        loadedSeedMaster ==
+                        seedMaster);
+                    BOOST_CHECK(
+                        loadedSeedId == seedId);
+                    BOOST_CHECK_EQUAL(
+                        loadedSeedCount,
+                        seedCount);
+
+                    CSparkMintMeta loadedSparkMint{};
+                    BOOST_REQUIRE(
+                        reader.ReadSparkMint(
+                            lTagHash,
+                            loadedSparkMint));
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            sparkMint,
+                            loadedSparkMint));
+                    const auto listedSparkMints =
+                        reader.ListSparkMints();
+                    BOOST_REQUIRE_EQUAL(
+                        listedSparkMints.size(),
+                        1);
+                    const auto listedSparkMint =
+                        listedSparkMints.find(
+                            lTagHash);
+                    BOOST_REQUIRE(
+                        listedSparkMint !=
+                        listedSparkMints.end());
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            sparkMint,
+                            listedSparkMint->second));
+                    loadedSparkMint.coin.setSerialContext(
+                        loadedSparkMint.serial_context);
+                    const auto loadedIdentifiedCoin =
+                        loadedSparkMint.coin.identify(
+                            incomingViewKey);
+                    const auto loadedRecoveredCoin =
+                        loadedSparkMint.coin.recover(
+                            fullViewKey,
+                            loadedIdentifiedCoin);
+                    BOOST_CHECK(
+                        SameIdentifiedCoin(
+                            identifiedCoin,
+                            loadedIdentifiedCoin));
+                    BOOST_CHECK(
+                        SameRecoveredCoin(
+                            recoveredCoin,
+                            loadedRecoveredCoin));
+
+                    BOOST_CHECK(
+                        reader.HasSparkSpendEntry(
+                            sparkSpend.lTag));
+                    CSparkSpendEntry loadedSparkSpend;
+                    BOOST_REQUIRE(
+                        reader.ReadSparkSpendEntry(
+                            sparkSpend.lTag,
+                            loadedSparkSpend));
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            sparkSpend,
+                            loadedSparkSpend));
+                    std::list<CSparkSpendEntry>
+                        listedSparkSpends;
+                    reader.ListSparkSpends(
+                        listedSparkSpends);
+                    BOOST_REQUIRE_EQUAL(
+                        listedSparkSpends.size(),
+                        1);
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            sparkSpend,
+                            listedSparkSpends.front()));
+
+                    CSparkOutputTx loadedSparkOutput;
+                    BOOST_REQUIRE(
+                        reader.ReadSparkOutputTx(
+                            sparkOutputScript,
+                            loadedSparkOutput));
+                    BOOST_CHECK(
+                        SameSerializedValue(
+                            sparkOutput,
+                            loadedSparkOutput));
+                }
+
+                BOOST_REQUIRE(
+                    loaded.GetDatabase().PeriodicFlush());
+            }
+
+            if (format == DatabaseFormat::BERKELEY) {
+                BOOST_REQUIRE(bitdb.RemoveDb(filename));
+            }
+#ifdef USE_SQLITE
+            else {
+                RemoveSQLiteTestFiles(filename);
+            }
+#endif
+        }
+    }
+}
 
 BOOST_AUTO_TEST_CASE(wallet_mnemonic_encryption_persists)
 {
