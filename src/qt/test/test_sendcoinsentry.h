@@ -11,6 +11,7 @@ class TestSendCoinsEntry : public QObject
 
 private Q_SLOTS:
     void testGenerateWarningText();
+    void testTransactionCreationErrorDetails();
 };
 
 #endif // BITCOIN_QT_TEST_SENDCOINSENTRY_H

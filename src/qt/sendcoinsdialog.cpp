@@ -939,7 +939,9 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         msgParams.first = tr("Duplicate address found: addresses should only be used once each.");
         break;
     case WalletModel::TransactionCreationFailed:
-        msgParams.first = tr("Transaction creation failed!");
+        msgParams.first = sendCoinsReturn.reasonCommitFailed.isEmpty()
+            ? tr("Transaction creation failed!")
+            : tr("Transaction creation failed: %1").arg(sendCoinsReturn.reasonCommitFailed);
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
     case WalletModel::TransactionCommitFailed:
