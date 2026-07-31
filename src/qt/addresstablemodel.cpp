@@ -606,6 +606,7 @@ QModelIndex AddressTableModel::index(int row, int column, const QModelIndex &par
 void AddressTableModel::updateEntry(const QString &address,
         const QString &label, bool isMine, const QString &purpose, int status)
 {
+    labelCache.remove(address);
     // Update address book model from Bitcoin core
     priv->updateEntry(address, label, isMine, purpose, status);
 }
@@ -613,6 +614,7 @@ void AddressTableModel::updateEntry(const QString &address,
 //[firo] AddressTableModel.updateEntry()
 void AddressTableModel::updateEntry(const QString &pubCoin, const QString &isUsed, int status)
 {
+    labelCache.remove(pubCoin);
     // Update stealth address book model from Bitcoin core
     priv->updateEntry(pubCoin, isUsed, status);
 }
@@ -744,30 +746,40 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex &parent
  */
 QString AddressTableModel::labelForAddress(const QString &address) const
 {
+    QString label;
     {
-        LOCK(wallet->cs_wallet);
+        // This is called from the transaction list paint path for every
+        // visible row, so it must not block: cs_wallet can be held for a long
+        // time while a block or transaction is being processed. Fall back to
+        // the cached label if the lock is not available; the view repaints
+        // shortly after via updateConfirmations() and picks up fresh data.
+        TRY_LOCK(wallet->cs_wallet, lockWallet);
+        if (!lockWallet)
+            return labelCache.value(address);
+
         CBitcoinAddress address_parsed(address.toStdString());
         if(address_parsed.IsValid()) {
             std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(address_parsed.Get());
             if (mi != wallet->mapAddressBook.end())
             {
-                return QString::fromStdString(mi->second.name);
+                label = QString::fromStdString(mi->second.name);
             }
         } else if(walletModel->validateSparkAddress(address)) {
             std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(address.toStdString());
             if(mi != wallet->mapSparkAddressBook.end())
             {
-                return QString::fromStdString(mi->second.name);
+                label = QString::fromStdString(mi->second.name);
             }
         } else if(bip47::CPaymentCode::validate(address.toStdString())) {
             std::map<std::string, CAddressBookData>::iterator mi = wallet->mapRAPAddressBook.find(address.toStdString());
             if(mi != wallet->mapRAPAddressBook.end())
             {
-                return QString::fromStdString(mi->second.name);
+                label = QString::fromStdString(mi->second.name);
             }
         }
     }
-    return QString();
+    labelCache.insert(address, label);
+    return label;
 }
 
 int AddressTableModel::lookupAddress(const QString &address) const

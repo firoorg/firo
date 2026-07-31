@@ -115,6 +115,18 @@ public:
     // get the vector of mint metadata for a single address
     std::vector<CSparkMintMeta> listAddressCoins(const int32_t& i, bool fUnusedOnly = false);
 
+    /**
+     * Re-run identification on every cached mint and evict the lookup index
+     * entries of records the cryptography does not confirm, so queries on
+     * them fall back to full identification instead of trusting the record.
+     * Unspent records are verified first. Runs on the thread pool after the
+     * constructor loads a non-empty wallet; stops early on shutdown.
+     * @return number of records evicted from the lookup indexes
+     */
+    size_t verifyCachedCoins();
+    // check that the lookup indexes and coinMeta describe each other exactly
+    bool validateLookupIndexes() const;
+
 
     // generate recipient data for mint transaction,
     static std::vector<CRecipient> CreateSparkMintRecipients(
@@ -163,13 +175,13 @@ public:
     void FinishTasks();
 
 public:
-    // to protect coinMeta
+    // Protects lastDiversifier, addresses, and coinMeta.
     mutable CCriticalSection cs_spark_wallet;
 
 private:
     std::string strWalletFile;
     // this is latest used diversifier
-    int32_t lastDiversifier;
+    int32_t lastDiversifier GUARDED_BY(cs_spark_wallet);
 
     // this is full view key, which is saved into db
     spark::FullViewKey fullViewKey;
@@ -177,10 +189,31 @@ private:
     spark::IncomingViewKey viewKey;
 
     // map diversifier to address.
-    std::unordered_map<int32_t, spark::Address> addresses;
+    std::unordered_map<int32_t, spark::Address> addresses GUARDED_BY(cs_spark_wallet);
 
     // map lTagHash to coin meta
-    std::unordered_map<uint256, CSparkMintMeta> coinMeta;
+    std::unordered_map<uint256, CSparkMintMeta> coinMeta GUARDED_BY(cs_spark_wallet);
+
+    // Lookup indexes into coinMeta (values are its lTagHash keys), so that
+    // wallet-known coins are resolved by hash lookup instead of trial
+    // decryption or a linear scan. Guarded by cs_spark_wallet and maintained
+    // wherever coinMeta is mutated.
+    std::unordered_map<uint256, uint256> coinLookup;  // GetSparkCoinHash(meta.coin) -> lTagHash
+    std::unordered_map<uint256, uint256> nonceLookup; // GetNonceHash(meta.k) -> lTagHash
+
+    // when true (-sparkcacheverify), every lookup index hit is cross-checked
+    // against identification and rejected on divergence
+    bool fCacheAudit{false};
+
+    void addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
+    void removeFromLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
+    /**
+     * Return the recorded meta for a wallet-known coin, or nullptr.
+     * A non-null result requires full coin equality plus an equal serial
+     * context, so the answer matches what identification would produce.
+     * @pre cs_spark_wallet is held; the pointer is valid only under it
+     */
+    const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const;
 
     void* threadPool;
 };

@@ -61,7 +61,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         bool firstAddress = true;
 
         for (const CTxOut& txout : wtx.tx->vout) {
-            isminetype mine = wallet->IsMine(txout);
+            isminetype mine = wallet->IsMine(txout, *wtx.tx);
             if (!mine) {
                 isAllToMe = false;
                 break;
@@ -91,7 +91,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 if (wtx.IsChange(txout) || txout.scriptPubKey.IsLelantusJMint()) {
                     continue;
                 }
-                isminetype mine = wallet->IsMine(txout);
+                isminetype mine = wallet->IsMine(txout, *wtx.tx);
 
                 TransactionRecord sub(hash, nTime);
                 CTxDestination address;
@@ -146,7 +146,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         for(unsigned int i = 0; i < wtx.tx->vout.size(); i++)
         {
             const CTxOut& txout = wtx.tx->vout[i];
-            isminetype mine = wallet->IsMine(txout);
+            isminetype mine = wallet->IsMine(txout, *wtx.tx);
             if (mine)
             {
                 TransactionRecord sub(hash, nTime);
@@ -212,7 +212,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         isminetype fAllToMe = ISMINE_SPENDABLE;
         BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
         {
-            isminetype mine = wallet->IsMine(txout);
+            isminetype mine = wallet->IsMine(txout, *wtx.tx);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
             if(fAllToMe > mine) fAllToMe = mine;
         }
@@ -271,7 +271,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.involvesWatchAddress = involvesWatchAddress;
                 CSparkOutputTx output;
 
-                if(wallet->IsMine(txout))
+                if(wallet->IsMine(txout, *wtx.tx))
                 {
                     // Ignore parts sent to self, as this is usually the change
                     // from a transaction sent back to our own address.

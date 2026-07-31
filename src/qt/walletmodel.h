@@ -284,7 +284,7 @@ public:
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash, CValidationState &state);
 
-    CAmount GetJMintCredit(const CTxOut& txout) const;
+    CAmount GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const;
 
 private:
     CWallet *wallet;

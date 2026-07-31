@@ -510,7 +510,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
 
         // Amount
         if(out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
-            nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
+            nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i], *out.tx->tx);
         } else {
             nAmount += out.tx->tx->vout[out.i].nValue;
         }
@@ -734,7 +734,7 @@ void CoinControlDialog::updateView()
         BOOST_FOREACH(const COutput& out, coins.second) {
             CAmount amount;
             if(out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
-                amount = model->GetJMintCredit(out.tx->tx->vout[out.i]);
+                amount = model->GetJMintCredit(out.tx->tx->vout[out.i], *out.tx->tx);
             } else {
                 amount = out.tx->tx->vout[out.i].nValue;
             }
