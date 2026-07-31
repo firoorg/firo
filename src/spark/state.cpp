@@ -846,7 +846,7 @@ bool CheckSparkSpendTransaction(
     }
     else {
         LogPrintf("CheckSparkSpendTransaction: verification failed at block %d\n", nHeight);
-        return false;
+        return state.DoS(100, false, REJECT_INVALID, "bad-txns-spark-spend-invalid");
     }
 
     if (!isVerifyDB && !isCheckWallet) {
