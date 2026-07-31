@@ -916,16 +916,16 @@ void CSparkWallet::RemoveSparkMints(const std::vector<spark::Coin>& mints) {
 }
 
 
-void CSparkWallet::RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends) {
+void CSparkWallet::RemoveSparkSpends(const std::vector<GroupElement>& lTags) {
     LOCK(cs_spark_wallet);
-    for (const auto& spend : spends) {
-        uint256 lTagHash = primitives::GetLTagHash(spend.first);
+    for (const auto& lTag : lTags) {
+        uint256 lTagHash = primitives::GetLTagHash(lTag);
         if (coinMeta.count(lTagHash)) {
             auto mintMeta = coinMeta[lTagHash];
             mintMeta.isUsed = false;
             CWalletDB walletdb(strWalletFile);
             addOrUpdateMint(mintMeta, lTagHash, walletdb);
-            walletdb.EraseSparkSpendEntry(spend.first);
+            walletdb.EraseSparkSpendEntry(lTag);
         }
     }
 }
@@ -935,17 +935,7 @@ void CSparkWallet::AbandonSparkMints(const std::vector<spark::Coin>& mints) {
 }
 
 void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
-    LOCK(cs_spark_wallet);
-    for (const auto& spend : spends) {
-        uint256 lTagHash = primitives::GetLTagHash(spend);
-        if (coinMeta.count(lTagHash)) {
-            auto mintMeta = coinMeta[lTagHash];
-            mintMeta.isUsed = false;
-            CWalletDB walletdb(strWalletFile);
-            addOrUpdateMint(mintMeta, lTagHash, walletdb);
-            walletdb.EraseSparkSpendEntry(spend);
-        }
-    }
+    RemoveSparkSpends(spends);
 }
 
 std::vector<CSparkMintMeta> CSparkWallet::listAddressCoins(const int32_t& i, bool fUnusedOnly) {
