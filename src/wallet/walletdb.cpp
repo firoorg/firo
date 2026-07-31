@@ -682,7 +682,7 @@ static bool IsKeyType(std::string strType)
             strType == "mkey" || strType == "ckey");
 }
 
-DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
+DBErrors CWalletDB::LoadWallet(CWallet* pwallet, bool update)
 {
     pwallet->vchDefaultKey = CPubKey();
     CWalletScanState wss;
@@ -733,7 +733,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
                 {
                     // Leave other errors alone, if we try to fix them we might make things worse.
                     fNoncriticalErrors = true; // ... but do warn the user there is something wrong.
-                    if (strType == "tx")
+                    if (update && strType == "tx")
                         // Rescan if there is a bad transaction record:
                         SoftSetBoolArg("-rescan", true);
                 }
@@ -770,17 +770,19 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     if ((wss.nKeys + wss.nCKeys + wss.nWatchKeys) != wss.nKeyMeta)
         pwallet->UpdateTimeFirstKey(1);
 
-    BOOST_FOREACH(uint256 hash, wss.vWalletUpgrade)
-        WriteTx(pwallet->mapWallet[hash]);
+    if (update) {
+        BOOST_FOREACH(uint256 hash, wss.vWalletUpgrade)
+            WriteTx(pwallet->mapWallet[hash]);
+    }
 
     // Rewrite encrypted wallets of versions 0.4.0 and 0.5.0rc:
     if (wss.fIsEncrypted && (wss.nFileVersion == 40000 || wss.nFileVersion == 50000))
         return DB_NEED_REWRITE;
 
-    if (wss.nFileVersion < CLIENT_VERSION) // Update
+    if (update && wss.nFileVersion < CLIENT_VERSION) // Update
         WriteVersion(CLIENT_VERSION);
 
-    if (wss.fAnyUnordered)
+    if (update && wss.fAnyUnordered)
         result = pwallet->ReorderTransactions();
 
     pwallet->laccentries.clear();
@@ -790,7 +792,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     }
 
     // unencrypted wallets upgrading the wallet version get a new keypool here
-    if (wss.fUpgradeHDChain && !pwallet->IsLocked())
+    if (update && wss.fUpgradeHDChain && !pwallet->IsLocked())
         pwallet->NewKeyPool();
 
     return result;

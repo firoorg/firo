@@ -26,6 +26,7 @@
 
 #ifndef WIN32
 #include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 namespace
@@ -33,7 +34,7 @@ namespace
 struct DatabaseFileInfo {
     bool exists{false};
     std::optional<DatabaseFormat> format;
-    std::optional<BerkeleyFileIdentity> identity;
+    std::optional<DatabaseFileIdentity> identity;
 };
 
 bool GetWalletPathStatus(const fs::path& path, fs::file_status& status, std::string& error)
@@ -137,7 +138,7 @@ bool InspectWalletDatabaseFile(
             path.string());
         return false;
     }
-    info.identity = BerkeleyFileIdentity{
+    info.identity = DatabaseFileIdentity{
         static_cast<uint64_t>(metadata.st_dev),
         static_cast<uint64_t>(metadata.st_ino)};
 #endif
@@ -260,6 +261,116 @@ bool WalletDatabasePathExists(const fs::path& path, bool& exists, std::string& e
     return true;
 }
 
+bool ValidateWalletMigrationDirectory(
+    const fs::path& directory,
+    std::string& error)
+{
+    error.clear();
+#ifdef WIN32
+    (void)directory;
+    error =
+        "Secure wallet migration directory validation is unavailable on Windows.";
+    return false;
+#else
+    if (!directory.is_absolute()) {
+        error = strprintf(
+            "Refusing migration directory '%s': an absolute path is required.",
+            directory.string());
+        return false;
+    }
+
+    const uid_t effective_user = geteuid();
+    fs::path current = directory;
+    bool migration_directory = true;
+    while (true) {
+        struct stat current_status{};
+        if (lstat(
+                current.string().c_str(),
+                &current_status) != 0 ||
+            !S_ISDIR(current_status.st_mode)) {
+            error = strprintf(
+                "Refusing migration directory '%s': '%s' is not a non-symlink directory.",
+                directory.string(),
+                current.string());
+            return false;
+        }
+        if (migration_directory &&
+            (current_status.st_uid != effective_user ||
+                (current_status.st_mode &
+                    (S_IWGRP | S_IWOTH)) != 0)) {
+            error = strprintf(
+                "Refusing migration directory '%s': it must be effective-user-owned without group or other write access.",
+                directory.string());
+            return false;
+        }
+
+        const fs::path parent = current.parent_path();
+        if (parent.empty() || parent == current) {
+            return true;
+        }
+
+        struct stat parent_status{};
+        if (lstat(
+                parent.string().c_str(),
+                &parent_status) != 0 ||
+            !S_ISDIR(parent_status.st_mode)) {
+            error = strprintf(
+                "Refusing migration directory '%s': ancestor '%s' is not a non-symlink directory.",
+                directory.string(),
+                parent.string());
+            return false;
+        }
+        if (parent_status.st_uid != effective_user &&
+            parent_status.st_uid != 0) {
+            error = strprintf(
+                "Refusing migration directory '%s': ancestor '%s' is controlled by an untrusted user.",
+                directory.string(),
+                parent.string());
+            return false;
+        }
+        if ((parent_status.st_mode &
+                (S_IWGRP | S_IWOTH)) != 0 &&
+            ((parent_status.st_mode & S_ISVTX) == 0 ||
+                (current_status.st_uid != effective_user &&
+                    current_status.st_uid != 0))) {
+            error = strprintf(
+                "Refusing migration directory '%s': ancestor '%s' is writable by group or other without trusted sticky-directory protection.",
+                directory.string(),
+                parent.string());
+            return false;
+        }
+
+        current = parent;
+        migration_directory = false;
+    }
+#endif
+}
+
+bool ReadWalletDatabaseFormat(
+    const std::string& filename,
+    std::optional<DatabaseFormat>& format,
+    std::string& error)
+{
+    format.reset();
+    fs::path path;
+    if (!GetWalletDatabasePath(filename, path, error)) {
+        return false;
+    }
+
+    DatabaseFileInfo info;
+    DatabaseStatus status;
+    if (!InspectWalletDatabaseFile(
+            path,
+            info,
+            true,
+            status,
+            error)) {
+        return false;
+    }
+    format = info.format;
+    return true;
+}
+
 std::unique_ptr<WalletDatabase> MakeWalletDatabase(
     const std::string& filename,
     const DatabaseOptions& options,
@@ -271,7 +382,13 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
 
     if ((options.require_existing && options.require_create) ||
         (options.logical_wallet_create && !options.require_create) ||
-        (options.salvage && !options.verify)) {
+        (options.sqlite_migration_candidate &&
+            (!options.logical_wallet_create ||
+                !options.require_create ||
+                options.require_format !=
+                    DatabaseFormat::SQLITE)) ||
+        (options.salvage &&
+            (!options.verify || !options.recover))) {
         status = DatabaseStatus::FAILED_INVALID_OPTIONS;
         error = "Invalid wallet database options.";
         return nullptr;
@@ -411,7 +528,17 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
     }
 
     if (options.verify && (opened_file_info.exists || options.salvage)) {
-        const CDBEnv::VerifyResult result = bitdb.Verify(filename, CWalletDB::Recover);
+        using RecoveryFunction =
+            bool (*)(CDBEnv&, const std::string&);
+        const RecoveryFunction recoveryFunction =
+            options.recover ?
+                static_cast<RecoveryFunction>(
+                    &CWalletDB::Recover) :
+                nullptr;
+        const CDBEnv::VerifyResult result =
+            bitdb.Verify(
+                filename,
+                recoveryFunction);
         if (result == CDBEnv::RECOVER_FAIL) {
             status = DatabaseStatus::FAILED_VERIFY;
             error = strprintf("Berkeley DB wallet '%s' is corrupt and recovery failed.", path.string());
@@ -422,7 +549,7 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
         }
     }
 
-    std::optional<BerkeleyFileIdentity> first_open_identity;
+    std::optional<DatabaseFileIdentity> first_open_identity;
     if (opened_file_info.exists || options.salvage) {
         DatabaseFileInfo final_file_info;
         if (!InspectWalletDatabaseFile(

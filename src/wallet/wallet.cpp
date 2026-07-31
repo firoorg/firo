@@ -3,6 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "config/bitcoin-config.h"
+
 #include "wallet.h"
 #include "amount.h"
 #include "base58.h"
@@ -29,6 +31,7 @@
 #include "script/sign.h"
 #include "serialize.h"
 #include "support/allocators/secure.h"
+#include "support/cleanse.h"
 #include "sync.h"
 #include "timedata.h"
 #include "txmempool.h"
@@ -39,6 +42,9 @@
 #include "wallet/bip39.h"
 #include "wallet/coincontrol.h"
 #include "wallet/db.h"
+#ifdef USE_SQLITE
+#include "wallet/sqlite.h"
+#endif
 #include "walletexcept.h"
 
 #include "crypto/hmac_sha512.h"
@@ -52,6 +58,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+#include <cstring>
 #include <vector>
 
 #include "bip47/account.h"
@@ -142,6 +149,448 @@ static bool ApplyWalletCreationFormat(
         format,
         walletFile);
     return false;
+}
+
+namespace
+{
+#if defined(USE_SQLITE) && (defined(__linux__) || defined(__APPLE__))
+std::atomic<uint64_t> g_wallet_migration_path_counter{0};
+
+class MigrationRecordCleanser
+{
+private:
+    CDataStream& m_key;
+    CDataStream& m_value;
+
+public:
+    MigrationRecordCleanser(CDataStream& key, CDataStream& value)
+        : m_key(key),
+          m_value(value)
+    {
+    }
+
+    ~MigrationRecordCleanser()
+    {
+        if (!m_key.empty()) {
+            memory_cleanse(m_key.data(), m_key.size());
+        }
+        if (!m_value.empty()) {
+            memory_cleanse(m_value.data(), m_value.size());
+        }
+    }
+};
+
+std::string MigrationTemporaryFilename(
+    const char* description,
+    const char* extension)
+{
+    return strprintf(
+        ".firo-wallet-%s-%d-%d%s",
+        description,
+        GetTimeMicros(),
+        g_wallet_migration_path_counter.fetch_add(1),
+        extension);
+}
+
+bool AbortMigrationCopy(
+    DatabaseBatch& batch,
+    std::string& error)
+{
+    if (!batch.HasActiveTxn()) {
+        return true;
+    }
+    if (batch.TxnAbort()) {
+        return true;
+    }
+
+    StartShutdown();
+    error += strprintf(
+        "%sFailed to abort the SQLite migration transaction; "
+        "the candidate outcome is indeterminate and shutdown was requested.",
+        error.empty() ? "" : " ");
+    return false;
+}
+
+bool CopyMigrationRecords(
+    WalletDatabase& source,
+    WalletDatabase& candidate,
+    std::string& error)
+{
+    std::unique_ptr<DatabaseBatch> sourceBatch;
+    std::unique_ptr<DatabaseBatch> candidateBatch;
+    std::unique_ptr<DatabaseCursor> cursor;
+    try {
+        sourceBatch = source.MakeBatch(
+            {DatabaseBatchMode::READ_ONLY, false});
+        candidateBatch = candidate.MakeBatch(
+            {DatabaseBatchMode::READ_WRITE, false});
+        cursor = sourceBatch->GetCursor();
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Failed to open wallet migration record streams: %s",
+            exception.what());
+        return false;
+    }
+    if (!sourceBatch || !candidateBatch || !cursor) {
+        error =
+            "Failed to open wallet migration record streams.";
+        return false;
+    }
+    if (!candidateBatch->TxnBegin()) {
+        error =
+            "Failed to begin the SQLite migration transaction.";
+        return false;
+    }
+
+    while (true) {
+        CDataStream key(SER_DISK, CLIENT_VERSION);
+        CDataStream value(SER_DISK, CLIENT_VERSION);
+        MigrationRecordCleanser cleanser(key, value);
+        const DatabaseCursor::Status status =
+            cursor->Next(key, value);
+        if (status == DatabaseCursor::Status::DONE) {
+            break;
+        }
+        if (status != DatabaseCursor::Status::MORE) {
+            error =
+                "Failed to read every BDB wallet record during migration.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
+        if (key.empty()) {
+            error =
+                "Cannot migrate a BDB wallet containing a raw empty key "
+                "because SQLite reserves that key for creation recovery.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
+        if (!candidateBatch->WriteRawRecord(
+                std::move(key),
+                std::move(value),
+                false)) {
+            error =
+                "Failed to copy a raw wallet record into the SQLite candidate.";
+            AbortMigrationCopy(*candidateBatch, error);
+            return false;
+        }
+    }
+
+    cursor.reset();
+    sourceBatch.reset();
+    if (!candidateBatch->TxnCommit()) {
+        error =
+            "Failed to commit the SQLite migration transaction.";
+        if (!candidateBatch->HasActiveTxn()) {
+            StartShutdown();
+            error +=
+                " Its outcome is indeterminate and shutdown was requested.";
+        } else {
+            AbortMigrationCopy(*candidateBatch, error);
+        }
+        return false;
+    }
+    candidateBatch.reset();
+    return true;
+}
+
+bool MigrationStreamsEqual(
+    WalletDatabase& source,
+    WalletDatabase& candidate,
+    std::string& error)
+{
+    std::unique_ptr<DatabaseBatch> sourceBatch;
+    std::unique_ptr<DatabaseBatch> candidateBatch;
+    std::unique_ptr<DatabaseCursor> sourceCursor;
+    std::unique_ptr<DatabaseCursor> candidateCursor;
+    try {
+        sourceBatch = source.MakeBatch(
+            {DatabaseBatchMode::READ_ONLY, false});
+        candidateBatch = candidate.MakeBatch(
+            {DatabaseBatchMode::READ_ONLY, false});
+        sourceCursor = sourceBatch->GetCursor();
+        candidateCursor = candidateBatch->GetCursor();
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Failed to reopen wallet migration record streams: %s",
+            exception.what());
+        return false;
+    }
+    if (!sourceCursor || !candidateCursor) {
+        error =
+            "Failed to reopen wallet migration record streams.";
+        return false;
+    }
+
+    while (true) {
+        CDataStream sourceKey(SER_DISK, CLIENT_VERSION);
+        CDataStream sourceValue(SER_DISK, CLIENT_VERSION);
+        CDataStream candidateKey(SER_DISK, CLIENT_VERSION);
+        CDataStream candidateValue(SER_DISK, CLIENT_VERSION);
+        MigrationRecordCleanser sourceCleanser(
+            sourceKey,
+            sourceValue);
+        MigrationRecordCleanser candidateCleanser(
+            candidateKey,
+            candidateValue);
+
+        const DatabaseCursor::Status sourceStatus =
+            sourceCursor->Next(sourceKey, sourceValue);
+        const DatabaseCursor::Status candidateStatus =
+            candidateCursor->Next(
+                candidateKey,
+                candidateValue);
+        if (sourceStatus == DatabaseCursor::Status::FAIL ||
+            candidateStatus == DatabaseCursor::Status::FAIL) {
+            error =
+                "Failed to compare the migrated wallet record streams.";
+            return false;
+        }
+        if (sourceStatus == DatabaseCursor::Status::DONE ||
+            candidateStatus == DatabaseCursor::Status::DONE) {
+            if (sourceStatus == DatabaseCursor::Status::DONE &&
+                candidateStatus == DatabaseCursor::Status::DONE) {
+                return true;
+            }
+            error =
+                "The SQLite migration candidate has a different record count.";
+            return false;
+        }
+        if (sourceStatus != DatabaseCursor::Status::MORE ||
+            candidateStatus != DatabaseCursor::Status::MORE ||
+            sourceKey.size() != candidateKey.size() ||
+            sourceValue.size() != candidateValue.size() ||
+            !std::equal(
+                sourceKey.begin(),
+                sourceKey.end(),
+                candidateKey.begin()) ||
+            !std::equal(
+                sourceValue.begin(),
+                sourceValue.end(),
+                candidateValue.begin())) {
+            error =
+                "The SQLite migration candidate is not byte-identical "
+                "to the BDB wallet record stream.";
+            return false;
+        }
+    }
+}
+
+bool ValidateMigrationCandidate(
+    WalletDatabase& candidate,
+    std::string& error)
+{
+    CWallet validationWallet;
+    DBErrors loadResult;
+    try {
+        CWalletDB validationDatabase(
+            candidate,
+            {DatabaseBatchMode::READ_ONLY, true});
+        loadResult =
+            validationDatabase.LoadWallet(
+                &validationWallet,
+                false);
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Failed to validate the SQLite migration candidate through "
+            "the wallet loader: %s",
+            exception.what());
+        return false;
+    }
+    if (loadResult != DB_LOAD_OK) {
+        error = strprintf(
+            "The SQLite migration candidate failed wallet loading "
+            "with status %d.",
+            static_cast<int>(loadResult));
+        return false;
+    }
+    return true;
+}
+
+std::unique_ptr<WalletDatabase> CreateMigrationCandidate(
+    std::string& filename,
+    std::string& error)
+{
+    DatabaseOptions options;
+    options.require_create = true;
+    options.require_format = DatabaseFormat::SQLITE;
+    options.logical_wallet_create = true;
+    options.sqlite_migration_candidate = true;
+
+    for (int attempt = 0; attempt < 128; ++attempt) {
+        filename = MigrationTemporaryFilename(
+            "sqlite-migration",
+            ".tmp");
+        DatabaseStatus status;
+        std::unique_ptr<WalletDatabase> candidate =
+            MakeWalletDatabase(
+                filename,
+                options,
+                status,
+                error);
+        if (candidate) {
+            return candidate;
+        }
+        if (status !=
+            DatabaseStatus::FAILED_ALREADY_EXISTS) {
+            return nullptr;
+        }
+    }
+
+    error =
+        "Failed to allocate a collision-free SQLite migration candidate.";
+    return nullptr;
+}
+#endif
+} // namespace
+
+bool MigrateWalletDatabaseToSQLite(
+    WalletDatabase& source,
+    std::string& backupPath,
+    std::string& error)
+{
+    backupPath.clear();
+    error.clear();
+    if (source.Format() !=
+        DatabaseFormat::BERKELEY) {
+        error = strprintf(
+            "Wallet database '%s' is not a BDB wallet.",
+            source.Filename());
+        return false;
+    }
+
+#ifndef USE_SQLITE
+    error = strprintf(
+        "Cannot migrate wallet database '%s': this build has SQLite "
+        "wallet support disabled.",
+        source.Filename());
+    return false;
+#elif !defined(__linux__) && !defined(__APPLE__)
+    error = strprintf(
+        "Cannot migrate wallet database '%s': atomic SQLite migration "
+        "publication is unsupported on this platform.",
+        source.Filename());
+    return false;
+#else
+    BerkeleyDatabase* const berkeley =
+        dynamic_cast<BerkeleyDatabase*>(&source);
+    if (!berkeley) {
+        error =
+            "The selected BDB wallet does not have a Berkeley database owner.";
+        return false;
+    }
+
+    bool backupCreated = false;
+    for (int attempt = 0; attempt < 128; ++attempt) {
+        const std::string backupFilename =
+            MigrationTemporaryFilename(
+                "bdb-backup",
+                ".bak");
+        const MigrationBackupResult result =
+            berkeley->CreateMigrationBackup(
+                backupFilename,
+                error);
+        if (result == MigrationBackupResult::SUCCESS) {
+            backupPath =
+                berkeley->MigrationBackupPath().string();
+            backupCreated = true;
+            break;
+        }
+        if (result != MigrationBackupResult::EXISTS) {
+            return false;
+        }
+    }
+    if (!backupCreated) {
+        error =
+            "Failed to allocate a collision-free mandatory BDB backup.";
+        return false;
+    }
+
+    auto failAfterBackup = [&]() {
+        error += strprintf(
+            "%sBerkeley DB backup retained at '%s'.",
+            error.empty() ? "" : " ",
+            backupPath);
+        return false;
+    };
+
+    try {
+        std::string candidateFilename;
+        std::unique_ptr<WalletDatabase> candidate =
+            CreateMigrationCandidate(
+                candidateFilename,
+                error);
+        if (!candidate) {
+            return failAfterBackup();
+        }
+        if (!CopyMigrationRecords(
+                source,
+                *candidate,
+                error) ||
+            !MigrationStreamsEqual(
+                source,
+                *candidate,
+                error) ||
+            !ValidateMigrationCandidate(
+                *candidate,
+                error) ||
+            !MigrationStreamsEqual(
+                source,
+                *candidate,
+                error)) {
+            return failAfterBackup();
+        }
+        if (!berkeley->PrepareForMigrationPublication(
+                error)) {
+            return failAfterBackup();
+        }
+
+        std::string creationError;
+        const DatabaseCreationResult creationResult =
+            candidate->CompleteCreation(
+                creationError);
+        if (creationResult !=
+            DatabaseCreationResult::COMPLETE) {
+            error = creationError.empty() ?
+                        strprintf(
+                            "Failed to complete SQLite migration candidate '%s'.",
+                            candidateFilename) :
+                        creationError;
+            if (creationResult ==
+                DatabaseCreationResult::INDETERMINATE) {
+                StartShutdown();
+            }
+            return failAfterBackup();
+        }
+
+        const SQLiteMigrationPublishResult publishResult =
+            PublishSQLiteMigrationCandidate(
+                *candidate,
+                *berkeley,
+                error);
+        if (publishResult !=
+            SQLiteMigrationPublishResult::SUCCESS) {
+            if (publishResult ==
+                SQLiteMigrationPublishResult::INDETERMINATE) {
+                StartShutdown();
+            }
+            return failAfterBackup();
+        }
+
+        error.clear();
+        return true;
+    } catch (const boost::thread_interrupted&) {
+        throw;
+    } catch (const std::exception& exception) {
+        error = strprintf(
+            "Wallet database migration failed with an exception: %s",
+            exception.what());
+        return failAfterBackup();
+    } catch (...) {
+        error =
+            "Wallet database migration failed with an unknown exception.";
+        return failAfterBackup();
+    }
+#endif
 }
 
 std::string COutput::ToString() const {
@@ -726,20 +1175,113 @@ bool CWallet::Verify()
         return true;
 
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    const bool migrateDatabase =
+        GetBoolArg("-migratewalletdb", false);
+
+#ifndef USE_SQLITE
+    if (migrateDatabase) {
+        return InitError(strprintf(
+            "Cannot migrate wallet database '%s': this build has SQLite "
+            "wallet support disabled.",
+            walletFile));
+    }
+#elif !defined(__linux__) && !defined(__APPLE__)
+    if (migrateDatabase) {
+        return InitError(strprintf(
+            "Cannot migrate wallet database '%s': atomic SQLite migration "
+            "publication is unsupported on this platform.",
+            walletFile));
+    }
+#else
+    if (migrateDatabase) {
+        std::optional<DatabaseFormat> existingFormat;
+        std::string inspectionError;
+        if (!ReadWalletDatabaseFormat(
+                walletFile,
+                existingFormat,
+                inspectionError)) {
+            return InitError(inspectionError);
+        }
+        if (existingFormat ==
+            DatabaseFormat::SQLITE) {
+            return InitError(strprintf(
+                "Wallet database '%s' already uses SQLite; remove -migratewalletdb.",
+                walletFile));
+        }
+    }
+#endif
 
     uiInterface.InitMessage(_("Verifying wallet..."));
 
     DatabaseOptions options;
     options.salvage = GetBoolArg("-salvagewallet", false);
     options.require_existing = true;
+    options.recover = !migrateDatabase;
+    if (migrateDatabase) {
+        options.require_format =
+            DatabaseFormat::BERKELEY;
+    }
     DatabaseStatus status;
     std::string error;
     std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(walletFile, options, status, error);
     if (!database && status == DatabaseStatus::FAILED_NOT_FOUND && !options.salvage) {
+        if (migrateDatabase) {
+            return InitError(strprintf(
+                "Cannot migrate wallet database '%s': the BDB source does not exist.",
+                walletFile));
+        }
         return true;
     }
     if (!database) {
         return InitError(error);
+    }
+
+    std::string migrationBackup;
+    if (migrateDatabase) {
+        if (database->Format() ==
+            DatabaseFormat::SQLITE) {
+            return InitError(strprintf(
+                "Wallet database '%s' already uses SQLite; remove -migratewalletdb.",
+                walletFile));
+        }
+        if (status != DatabaseStatus::SUCCESS) {
+            return InitError(strprintf(
+                "Cannot migrate wallet database '%s': the BDB source was not "
+                "verified without recovery.",
+                walletFile));
+        }
+        if (!MigrateWalletDatabaseToSQLite(
+                *database,
+                migrationBackup,
+                error)) {
+            return InitError(error);
+        }
+
+        database.reset();
+        DatabaseOptions migratedOptions;
+        migratedOptions.require_existing = true;
+        migratedOptions.require_format =
+            DatabaseFormat::SQLITE;
+        migratedOptions.recover = false;
+        database = MakeWalletDatabase(
+            walletFile,
+            migratedOptions,
+            status,
+            error);
+        if (!database) {
+            return InitError(strprintf(
+                "Migrated wallet database '%s' could not be reopened: %s "
+                "Berkeley DB backup retained at '%s'.",
+                walletFile,
+                error,
+                migrationBackup));
+        }
+        const std::string message = strprintf(
+            "Wallet database migration succeeded for '%s'; "
+            "Berkeley DB backup retained at '%s'.",
+            walletFile,
+            migrationBackup);
+        LogPrintf("%s\n", message);
     }
 
     LogPrintf(
@@ -5366,6 +5908,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-hdseed=<hex>", _("User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)"));
     strUsage += HelpMessageOpt("-batching", _("In case of sync/reindex verifies privacy (Spark) proofs with batch verification, default: true"));
     strUsage += HelpMessageOpt("-mobile", _("Use this argument when you want to keep additional data in block index for mobile api, default: false"));
+    strUsage += HelpMessageOpt("-migratewalletdb", _("Explicitly migrate the selected existing BDB wallet database to SQLite once at startup"));
     strUsage += HelpMessageOpt("-walletrbf", strprintf(_("Send transactions with full-RBF opt-in enabled (default: %u)"), DEFAULT_WALLET_RBF));
     strUsage += HelpMessageOpt("-upgradewallet", _("Upgrade wallet to latest format on startup"));
     strUsage += HelpMessageOpt("-wallet=<file>", _("Specify wallet file (within data directory)") + " " + strprintf(_("(default: %s)"), DEFAULT_WALLET_DAT));
@@ -5751,8 +6294,15 @@ void CWallet::postInitProcess(boost::thread_group& threadGroup)
 
 bool CWallet::ParameterInteraction()
 {
-    if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
+    const bool migrateDatabase =
+        GetBoolArg("-migratewalletdb", false);
+    if (GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
+        if (migrateDatabase) {
+            return InitError(
+                "-migratewalletdb cannot be used with -disablewallet.");
+        }
         return true;
+    }
 
     if (IsArgSet("-walletdbformat")) {
         const std::string format =
@@ -5761,6 +6311,25 @@ bool CWallet::ParameterInteraction()
             return InitError(strprintf(
                 "Invalid -walletdbformat value '%s'. Use 'sqlite' or 'bdb'.",
                 format));
+        }
+    }
+    if (migrateDatabase) {
+        if (GetBoolArg("-salvagewallet", false)) {
+            return InitError(
+                "-migratewalletdb cannot be combined with -salvagewallet.");
+        }
+        if (IsArgSet("-walletdbformat")) {
+            return InitError(
+                "-migratewalletdb cannot be combined with -walletdbformat.");
+        }
+        if (GetBoolArg("-zapwalletmints", false) ||
+            GetBoolArg("-zapwallettxes", false)) {
+            return InitError(
+                "-migratewalletdb cannot be combined with wallet zap options.");
+        }
+        if (IsArgSet("-upgradewallet")) {
+            return InitError(
+                "-migratewalletdb cannot be combined with -upgradewallet.");
         }
     }
 

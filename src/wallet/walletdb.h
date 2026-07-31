@@ -246,7 +246,7 @@ public:
     bool WriteCalculatedZCBlock(int height);
 
     DBErrors ReorderTransactions(CWallet* pwallet);
-    DBErrors LoadWallet(CWallet* pwallet);
+    DBErrors LoadWallet(CWallet* pwallet, bool update = true);
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);

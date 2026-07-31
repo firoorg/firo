@@ -13,12 +13,15 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <stdint.h>
 
 #ifndef WIN32
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 #include <boost/filesystem.hpp>
@@ -95,7 +98,7 @@ using BerkeleyCursorHandle = std::unique_ptr<Dbc, BerkeleyCursorCloser>;
 bool BerkeleyIdentityMatches(
     Db& database,
     const fs::path& path,
-    const std::optional<BerkeleyFileIdentity>& expected)
+    const std::optional<DatabaseFileIdentity>& expected)
 {
     if (!expected) {
         return true;
@@ -122,6 +125,467 @@ bool BerkeleyIdentityMatches(
                expected->inode;
 #endif
 }
+
+#ifndef WIN32
+class ScopedMigrationDescriptor final
+{
+private:
+    int m_descriptor{-1};
+
+public:
+    ScopedMigrationDescriptor() = default;
+    explicit ScopedMigrationDescriptor(int descriptor)
+        : m_descriptor(descriptor)
+    {
+    }
+
+    ~ScopedMigrationDescriptor()
+    {
+        if (m_descriptor >= 0) {
+            close(m_descriptor);
+        }
+    }
+
+    ScopedMigrationDescriptor(
+        const ScopedMigrationDescriptor&) = delete;
+    ScopedMigrationDescriptor& operator=(
+        const ScopedMigrationDescriptor&) = delete;
+
+    int Get() const { return m_descriptor; }
+
+    void Reset(int descriptor)
+    {
+        if (m_descriptor >= 0) {
+            close(m_descriptor);
+        }
+        m_descriptor = descriptor;
+    }
+
+    int Release()
+    {
+        const int descriptor = m_descriptor;
+        m_descriptor = -1;
+        return descriptor;
+    }
+
+    bool Close(int& close_error)
+    {
+        close_error = 0;
+        if (m_descriptor < 0) {
+            return true;
+        }
+        const int descriptor = Release();
+        if (close(descriptor) == 0) {
+            return true;
+        }
+        close_error = errno;
+        return false;
+    }
+};
+
+struct CleansedMigrationBuffer {
+    std::array<unsigned char, 64 * 1024> bytes{};
+
+    ~CleansedMigrationBuffer()
+    {
+        memory_cleanse(bytes.data(), bytes.size());
+    }
+};
+
+bool StatMatchesMigrationIdentity(
+    const struct stat& metadata,
+    const DatabaseFileIdentity& identity,
+    bool require_single_link)
+{
+    return S_ISREG(metadata.st_mode) &&
+           (!require_single_link || metadata.st_nlink == 1) &&
+           static_cast<uint64_t>(metadata.st_dev) ==
+               identity.device &&
+           static_cast<uint64_t>(metadata.st_ino) ==
+               identity.inode;
+}
+
+bool DescriptorMatchesMigrationIdentity(
+    int descriptor,
+    const DatabaseFileIdentity& identity,
+    bool require_single_link)
+{
+    struct stat metadata{};
+    return descriptor >= 0 &&
+           fstat(descriptor, &metadata) == 0 &&
+           StatMatchesMigrationIdentity(
+               metadata,
+               identity,
+               require_single_link);
+}
+
+bool PathMatchesMigrationIdentity(
+    const fs::path& path,
+    const DatabaseFileIdentity& identity,
+    bool require_single_link)
+{
+    struct stat metadata{};
+    return lstat(path.string().c_str(), &metadata) == 0 &&
+           StatMatchesMigrationIdentity(
+               metadata,
+               identity,
+               require_single_link);
+}
+
+bool MigrationIdentityMatches(
+    int descriptor,
+    const fs::path& path,
+    const DatabaseFileIdentity& identity)
+{
+    return DescriptorMatchesMigrationIdentity(
+               descriptor,
+               identity,
+               true) &&
+           PathMatchesMigrationIdentity(
+               path,
+               identity,
+               true);
+}
+
+bool PrivateMigrationSourceMatches(
+    int descriptor,
+    const fs::path& path,
+    const DatabaseFileIdentity& identity)
+{
+    struct stat descriptor_status{};
+    struct stat path_status{};
+    return descriptor >= 0 &&
+           fstat(descriptor, &descriptor_status) == 0 &&
+           lstat(path.string().c_str(), &path_status) == 0 &&
+           StatMatchesMigrationIdentity(
+               descriptor_status,
+               identity,
+               true) &&
+           StatMatchesMigrationIdentity(
+               path_status,
+               identity,
+               true) &&
+           descriptor_status.st_uid == geteuid() &&
+           path_status.st_uid == geteuid() &&
+           (descriptor_status.st_mode &
+               (S_IWGRP | S_IWOTH)) == 0 &&
+           (path_status.st_mode &
+               (S_IWGRP | S_IWOTH)) == 0;
+}
+
+bool OwnerControlledMigrationDirectory(
+    const fs::path& directory,
+    std::string& error)
+{
+#if !defined(O_CLOEXEC) || !defined(O_NOFOLLOW)
+    error = strprintf(
+        "Cannot secure migration directory '%s': O_CLOEXEC and O_NOFOLLOW are required.",
+        directory.string());
+    return false;
+#else
+    if (!ValidateWalletMigrationDirectory(
+            directory,
+            error)) {
+        return false;
+    }
+    int flags =
+        O_RDONLY | O_CLOEXEC | O_NOFOLLOW;
+#ifdef O_DIRECTORY
+    flags |= O_DIRECTORY;
+#endif
+    ScopedMigrationDescriptor descriptor(
+        open(directory.string().c_str(), flags));
+    struct stat descriptor_status{};
+    struct stat path_status{};
+    if (descriptor.Get() < 0 ||
+        fstat(
+            descriptor.Get(),
+            &descriptor_status) != 0 ||
+        lstat(
+            directory.string().c_str(),
+            &path_status) != 0 ||
+        !S_ISDIR(descriptor_status.st_mode) ||
+        !S_ISDIR(path_status.st_mode) ||
+        descriptor_status.st_dev !=
+            path_status.st_dev ||
+        descriptor_status.st_ino !=
+            path_status.st_ino ||
+        descriptor_status.st_uid != geteuid() ||
+        path_status.st_uid != geteuid() ||
+        (descriptor_status.st_mode &
+            (S_IWGRP | S_IWOTH)) != 0 ||
+        (path_status.st_mode &
+            (S_IWGRP | S_IWOTH)) != 0) {
+        error = strprintf(
+            "Refusing migration directory '%s': it must be an effective-user-owned, non-symlink directory without group or other write access.",
+            directory.string());
+        return false;
+    }
+    return true;
+#endif
+}
+
+bool PrivateMigrationBackupMatches(
+    int descriptor,
+    const fs::path& path,
+    const DatabaseFileIdentity& identity)
+{
+    struct stat descriptor_status{};
+    struct stat path_status{};
+    const mode_t private_mode = S_IRUSR | S_IWUSR;
+    const mode_t permission_mask =
+        S_IRWXU | S_IRWXG | S_IRWXO;
+    return descriptor >= 0 &&
+           fstat(descriptor, &descriptor_status) == 0 &&
+           lstat(path.string().c_str(), &path_status) == 0 &&
+           StatMatchesMigrationIdentity(
+               descriptor_status,
+               identity,
+               true) &&
+           StatMatchesMigrationIdentity(
+               path_status,
+               identity,
+               true) &&
+           descriptor_status.st_uid == geteuid() &&
+           path_status.st_uid == geteuid() &&
+           (descriptor_status.st_mode & permission_mask) ==
+               private_mode &&
+           (path_status.st_mode & permission_mask) ==
+               private_mode;
+}
+
+bool SynchronizeMigrationDirectory(
+    const fs::path& directory,
+    std::string& error)
+{
+    if (!OwnerControlledMigrationDirectory(
+            directory,
+            error)) {
+        return false;
+    }
+    int flags = O_RDONLY;
+#ifdef O_CLOEXEC
+    flags |= O_CLOEXEC;
+#else
+    error = strprintf(
+        "Cannot synchronize migration directory '%s': O_CLOEXEC is unavailable.",
+        directory.string());
+    return false;
+#endif
+#ifdef O_DIRECTORY
+    flags |= O_DIRECTORY;
+#endif
+    ScopedMigrationDescriptor descriptor(
+        open(directory.string().c_str(), flags));
+    if (descriptor.Get() < 0) {
+        error = strprintf(
+            "Failed to open migration directory '%s': %s",
+            directory.string(),
+            std::strerror(errno));
+        return false;
+    }
+    if (fsync(descriptor.Get()) != 0) {
+        error = strprintf(
+            "Failed to synchronize migration directory '%s': %s",
+            directory.string(),
+            std::strerror(errno));
+        return false;
+    }
+    int close_error = 0;
+    if (!descriptor.Close(close_error)) {
+        error = strprintf(
+            "Failed to close migration directory '%s': %s",
+            directory.string(),
+            std::strerror(close_error));
+        return false;
+    }
+    return true;
+}
+
+bool CopyMigrationFile(
+    int source,
+    int target,
+    const fs::path& source_path,
+    const fs::path& target_path,
+    std::string& error)
+{
+    CleansedMigrationBuffer buffer;
+    while (true) {
+        ssize_t read_size;
+        do {
+            read_size = read(
+                source,
+                buffer.bytes.data(),
+                buffer.bytes.size());
+        } while (read_size < 0 && errno == EINTR);
+
+        if (read_size < 0) {
+            error = strprintf(
+                "Failed to read BDB migration source '%s': %s",
+                source_path.string(),
+                std::strerror(errno));
+            return false;
+        }
+        if (read_size == 0) {
+            return true;
+        }
+
+        ssize_t written = 0;
+        while (written < read_size) {
+            ssize_t write_size;
+            do {
+                write_size = write(
+                    target,
+                    buffer.bytes.data() + written,
+                    static_cast<size_t>(read_size - written));
+            } while (write_size < 0 && errno == EINTR);
+            if (write_size <= 0) {
+                const int write_error =
+                    write_size < 0 ? errno : EIO;
+                error = strprintf(
+                    "Failed to write BDB migration backup '%s': %s",
+                    target_path.string(),
+                    std::strerror(write_error));
+                return false;
+            }
+            written += write_size;
+        }
+    }
+}
+
+bool CloseAndCheckpointMigrationDatabase(
+    CDBEnv& environment,
+    const std::string& filename,
+    std::string& error)
+{
+    const auto users =
+        environment.mapFileUseCount.find(filename);
+    if (users != environment.mapFileUseCount.end() &&
+        users->second != 0) {
+        error = strprintf(
+            "Cannot checkpoint BDB wallet '%s' for migration while database batches remain active.",
+            filename);
+        return false;
+    }
+    environment.migrationLogPins.insert(filename);
+
+    int close_result = 0;
+    const auto cached = environment.mapDb.find(filename);
+    if (cached != environment.mapDb.end()) {
+        Db* const database = cached->second;
+        if (database) {
+            close_result = database->close(0);
+            delete database;
+        }
+        environment.mapDb.erase(cached);
+    }
+    environment.mapFileUseCount.erase(filename);
+    if (close_result != 0) {
+        error = strprintf(
+            "Failed to close BDB wallet '%s' for migration: %s",
+            filename,
+            DbEnv::strerror(close_result));
+        return false;
+    }
+
+    const int checkpoint_result =
+        environment.dbenv->txn_checkpoint(0, 0, 0);
+    if (checkpoint_result != 0) {
+        error = strprintf(
+            "Failed to checkpoint BDB wallet '%s' for migration: %s",
+            filename,
+            DbEnv::strerror(checkpoint_result));
+        return false;
+    }
+    return true;
+}
+
+bool VerifyMigrationBackup(
+    CDBEnv& environment,
+    const std::string& filename,
+    const fs::path& path,
+    std::string& error)
+{
+    if (environment.Verify(filename, nullptr) !=
+        CDBEnv::VERIFY_OK) {
+        error = strprintf(
+            "Failed to verify BDB migration backup '%s'.",
+            path.string());
+        return false;
+    }
+
+    Db reopened(environment.dbenv, 0);
+    const int open_result = reopened.open(
+        nullptr,
+        filename.c_str(),
+        "main",
+        DB_BTREE,
+        DB_RDONLY | DB_THREAD,
+        0);
+    if (open_result != 0) {
+        error = strprintf(
+            "Failed to reopen BDB migration backup '%s': %s",
+            path.string(),
+            DbEnv::strerror(open_result));
+        return false;
+    }
+    const int close_result = reopened.close(0);
+    if (close_result != 0) {
+        error = strprintf(
+            "Failed to close verified BDB migration backup '%s': %s",
+            path.string(),
+            DbEnv::strerror(close_result));
+        return false;
+    }
+    return true;
+}
+
+bool RemoveExactMigrationTarget(
+    const fs::path& path,
+    const DatabaseFileIdentity& identity,
+    int descriptor,
+    bool& removed,
+    std::string& error)
+{
+    removed = false;
+    if (!MigrationIdentityMatches(
+            descriptor,
+            path,
+            identity)) {
+        error = strprintf(
+            "Refusing to remove migration backup '%s': its exact created inode cannot be certified.",
+            path.string());
+        return false;
+    }
+    if (unlink(path.string().c_str()) != 0) {
+        error = strprintf(
+            "Failed to remove migration backup '%s': %s",
+            path.string(),
+            std::strerror(errno));
+        return false;
+    }
+    struct stat retained_status{};
+    if (fstat(
+            descriptor,
+            &retained_status) != 0 ||
+        !StatMatchesMigrationIdentity(
+            retained_status,
+            identity,
+            false) ||
+        retained_status.st_nlink != 0) {
+        error = strprintf(
+            "Migration backup pathname '%s' was removed, but the retained created inode was not proven unlinked.",
+            path.string());
+        return false;
+    }
+    removed = true;
+    const fs::path parent =
+        path.parent_path().empty() ?
+            fs::path(".") :
+            path.parent_path();
+    return SynchronizeMigrationDirectory(parent, error);
+}
+#endif // !WIN32
 
 class BerkeleyCursor final : public DatabaseCursor
 {
@@ -211,6 +675,7 @@ void CDBEnv::Reset()
 {
     delete dbenv;
     dbenv = new DbEnv(DB_CXX_NO_EXCEPTIONS);
+    migrationLogPins.clear();
     fDbEnvInit = false;
     fMockDb = false;
 }
@@ -514,6 +979,20 @@ CDB::CDB(BerkeleyDatabase& database, const char* pszMode, bool fFlushOnCloseIn)
     }
 }
 
+BerkeleyDatabase::~BerkeleyDatabase() noexcept
+{
+#ifndef WIN32
+    if (m_migration_backup_descriptor >= 0) {
+        close(m_migration_backup_descriptor);
+        m_migration_backup_descriptor = -1;
+    }
+    if (m_migration_source_descriptor >= 0) {
+        close(m_migration_source_descriptor);
+        m_migration_source_descriptor = -1;
+    }
+#endif
+}
+
 std::unique_ptr<DatabaseBatch> BerkeleyDatabase::MakeBatch(const DatabaseBatchOptions& options)
 {
     const char* mode = nullptr;
@@ -539,7 +1018,7 @@ std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(
     CDBEnv& env,
     std::string filename,
     const DatabaseOptions& options,
-    std::optional<BerkeleyFileIdentity> first_open_identity)
+    std::optional<DatabaseFileIdentity> first_open_identity)
 {
     return std::make_unique<BerkeleyDatabase>(
         env,
@@ -924,6 +1403,622 @@ bool BerkeleyDatabase::Backup(const std::string& destination)
     }
 }
 
+MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
+    const std::string& backup_filename,
+    std::string& error)
+{
+    error.clear();
+#ifdef WIN32
+    (void)backup_filename;
+    error =
+        "Secure BDB-to-SQLite migration backup is unavailable on Windows.";
+    return MigrationBackupResult::FAILED;
+#else
+#if !defined(O_CLOEXEC) || !defined(O_NOFOLLOW)
+    (void)backup_filename;
+    error =
+        "Secure BDB-to-SQLite migration backup requires O_CLOEXEC and O_NOFOLLOW.";
+    return MigrationBackupResult::FAILED;
+#else
+    if (!m_env || m_filename.empty() || m_env->IsMock()) {
+        error =
+            "Cannot create a migration backup for an inert or memory-only BDB wallet.";
+        return MigrationBackupResult::FAILED;
+    }
+    if (m_migration_source_descriptor >= 0 ||
+        m_migration_backup_descriptor >= 0 ||
+        m_migration_source_identity ||
+        m_migration_backup_identity ||
+        !m_migration_backup_path.empty()) {
+        error =
+            "A BDB migration backup identity is already retained by this wallet database.";
+        return MigrationBackupResult::FAILED;
+    }
+
+    fs::path source_path;
+    if (!GetWalletDatabasePath(
+            m_filename,
+            source_path,
+            error)) {
+        return MigrationBackupResult::FAILED;
+    }
+    fs::path target_path;
+    if (!GetWalletDatabasePath(
+            backup_filename,
+            target_path,
+            error)) {
+        return MigrationBackupResult::FAILED;
+    }
+    if (backup_filename == m_filename ||
+        target_path == source_path) {
+        error = strprintf(
+            "Refusing BDB migration backup '%s': the backup filename must differ from the source filename.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    const fs::path source_parent =
+        source_path.parent_path().empty() ?
+            fs::path(".") :
+            source_path.parent_path();
+    const fs::path target_parent =
+        target_path.parent_path().empty() ?
+            fs::path(".") :
+            target_path.parent_path();
+    if (source_parent != target_parent ||
+        !OwnerControlledMigrationDirectory(
+            source_parent,
+            error)) {
+        if (error.empty()) {
+            error =
+                "The BDB migration source and backup must use the same owner-controlled directory.";
+        }
+        return MigrationBackupResult::FAILED;
+    }
+
+    LOCK(m_env->cs_db);
+    if (!m_env->Open(GetDataDir())) {
+        error = strprintf(
+            "Failed to open the production Berkeley environment for migration backup '%s'.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+
+    const auto source_users =
+        m_env->mapFileUseCount.find(m_filename);
+    if (source_users !=
+            m_env->mapFileUseCount.end() &&
+        source_users->second != 0) {
+        error = strprintf(
+            "Cannot create BDB migration backup '%s': active source database batches still exist.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    const auto target_users =
+        m_env->mapFileUseCount.find(backup_filename);
+    if (target_users !=
+            m_env->mapFileUseCount.end() &&
+        target_users->second != 0) {
+        error = strprintf(
+            "Cannot create BDB migration backup '%s': that database name is active in the Berkeley environment.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    if (!m_first_open_identity) {
+        error = strprintf(
+            "Cannot create BDB migration backup '%s': the source first-open identity was not retained.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    const DatabaseFileIdentity source_identity =
+        *m_first_open_identity;
+    ScopedMigrationDescriptor source_descriptor(
+        open(
+            source_path.string().c_str(),
+            O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+    if (source_descriptor.Get() < 0) {
+        error = strprintf(
+            "Failed to open BDB migration source '%s' without following links: %s",
+            source_path.string(),
+            std::strerror(errno));
+        return MigrationBackupResult::FAILED;
+    }
+    if (!PrivateMigrationSourceMatches(
+            source_descriptor.Get(),
+            source_path,
+            source_identity)) {
+        error = strprintf(
+            "Refusing BDB migration source '%s': it is not the retained effective-user-owned, non-group/other-writable, single-link regular file.",
+            source_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+
+    ScopedMigrationDescriptor target_descriptor(
+        open(
+            target_path.string().c_str(),
+            O_CREAT | O_EXCL | O_RDWR |
+                O_CLOEXEC | O_NOFOLLOW,
+            S_IRUSR | S_IWUSR));
+    if (target_descriptor.Get() < 0) {
+        if (errno == EEXIST) {
+            error = strprintf(
+                "BDB migration backup '%s' already exists.",
+                target_path.string());
+            return MigrationBackupResult::EXISTS;
+        }
+        error = strprintf(
+            "Failed to exclusively create BDB migration backup '%s': %s",
+            target_path.string(),
+            std::strerror(errno));
+        return MigrationBackupResult::FAILED;
+    }
+
+    std::optional<DatabaseFileIdentity> target_identity;
+    ScopedMigrationDescriptor target_read_descriptor;
+    auto fail_created_target = [&]() {
+        bool removed = false;
+        std::string cleanup_error;
+        const int identity_descriptor =
+            target_read_descriptor.Get() >= 0 ?
+                target_read_descriptor.Get() :
+                target_descriptor.Get();
+        bool cleanup_succeeded = false;
+        if (target_identity) {
+            cleanup_succeeded =
+                RemoveExactMigrationTarget(
+                    target_path,
+                    *target_identity,
+                    identity_descriptor,
+                    removed,
+                    cleanup_error);
+        } else {
+            cleanup_error =
+                "the created target inode identity could not be read";
+        }
+
+        if (cleanup_succeeded) {
+            return MigrationBackupResult::FAILED;
+        }
+        if (removed) {
+            error = strprintf(
+                "%s The failed backup at '%s' was removed, but its parent directory could not be synchronized: %s",
+                error,
+                target_path.string(),
+                cleanup_error);
+            return MigrationBackupResult::FAILED;
+        }
+
+        m_migration_source_descriptor =
+            source_descriptor.Release();
+        m_migration_source_identity =
+            source_identity;
+        m_migration_backup_descriptor =
+            target_read_descriptor.Get() >= 0 ?
+                target_read_descriptor.Release() :
+                target_descriptor.Release();
+        m_migration_backup_identity =
+            target_identity;
+        m_migration_backup_path =
+            target_path;
+        error = strprintf(
+            "%s Safe removal could not be certified; the created backup inode is retained by descriptor and pathname '%s' is unverified: %s",
+            error,
+            target_path.string(),
+            cleanup_error);
+        return MigrationBackupResult::FAILED;
+    };
+
+    struct stat target_status{};
+    if (fstat(
+            target_descriptor.Get(),
+            &target_status) != 0) {
+        error = strprintf(
+            "Failed to inspect created BDB migration backup '%s': %s",
+            target_path.string(),
+            std::strerror(errno));
+        return fail_created_target();
+    }
+    target_identity = DatabaseFileIdentity{
+        static_cast<uint64_t>(target_status.st_dev),
+        static_cast<uint64_t>(target_status.st_ino)};
+    if (!S_ISREG(target_status.st_mode) ||
+        target_status.st_nlink != 1) {
+        error = strprintf(
+            "Refusing created BDB migration backup '%s': it is not a single-link regular file.",
+            target_path.string());
+        return fail_created_target();
+    }
+    if (fchmod(
+            target_descriptor.Get(),
+            S_IRUSR | S_IWUSR) != 0) {
+        error = strprintf(
+            "Failed to set private permissions on BDB migration backup '%s': %s",
+            target_path.string(),
+            std::strerror(errno));
+        return fail_created_target();
+    }
+    if (!PrivateMigrationBackupMatches(
+            target_descriptor.Get(),
+            target_path,
+            *target_identity)) {
+        error = strprintf(
+            "Refusing BDB migration backup '%s': its private file identity changed after creation.",
+            target_path.string());
+        return fail_created_target();
+    }
+    if (!CloseAndCheckpointMigrationDatabase(
+            *m_env,
+            m_filename,
+            error)) {
+        return fail_created_target();
+    }
+    if (!PrivateMigrationSourceMatches(
+            source_descriptor.Get(),
+            source_path,
+            source_identity)) {
+        error = strprintf(
+            "BDB migration source '%s' changed while it was checkpointed.",
+            source_path.string());
+        return fail_created_target();
+    }
+    if (!PrivateMigrationBackupMatches(
+            target_descriptor.Get(),
+            target_path,
+            *target_identity)) {
+        error = strprintf(
+            "BDB migration backup '%s' changed while the source was checkpointed.",
+            target_path.string());
+        return fail_created_target();
+    }
+    if (lseek(source_descriptor.Get(), 0, SEEK_SET) != 0) {
+        error = strprintf(
+            "Failed to rewind BDB migration source '%s': %s",
+            source_path.string(),
+            std::strerror(errno));
+        return fail_created_target();
+    }
+    if (!CopyMigrationFile(
+            source_descriptor.Get(),
+            target_descriptor.Get(),
+            source_path,
+            target_path,
+            error)) {
+        return fail_created_target();
+    }
+    if (fsync(target_descriptor.Get()) != 0) {
+        error = strprintf(
+            "Failed to synchronize BDB migration backup '%s': %s",
+            target_path.string(),
+            std::strerror(errno));
+        return fail_created_target();
+    }
+
+    target_read_descriptor.Reset(
+        open(
+            target_path.string().c_str(),
+            O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+    if (target_read_descriptor.Get() < 0) {
+        error = strprintf(
+            "Failed to retain a read descriptor for BDB migration backup '%s': %s",
+            target_path.string(),
+            std::strerror(errno));
+        return fail_created_target();
+    }
+    if (!PrivateMigrationBackupMatches(
+            target_read_descriptor.Get(),
+            target_path,
+            *target_identity)) {
+        error = strprintf(
+            "Refusing BDB migration backup '%s': its retained read descriptor does not match the created file.",
+            target_path.string());
+        return fail_created_target();
+    }
+
+    int close_error = 0;
+    if (!target_descriptor.Close(close_error)) {
+        error = strprintf(
+            "Failed to close BDB migration backup '%s' after copying: %s",
+            target_path.string(),
+            std::strerror(close_error));
+        return fail_created_target();
+    }
+    if (!SynchronizeMigrationDirectory(
+            target_path.parent_path(),
+            error)) {
+        return fail_created_target();
+    }
+
+    const int file_id_result =
+        m_env->dbenv->fileid_reset(
+            backup_filename.c_str(),
+            0);
+    if (file_id_result != 0) {
+        error = strprintf(
+            "Failed to assign an independent Berkeley file identity to migration backup '%s': %s",
+            target_path.string(),
+            DbEnv::strerror(file_id_result));
+        return fail_created_target();
+    }
+    if (fsync(target_read_descriptor.Get()) != 0) {
+        error = strprintf(
+            "Failed to synchronize the independent Berkeley identity for migration backup '%s': %s",
+            target_path.string(),
+            std::strerror(errno));
+        return fail_created_target();
+    }
+    if (!PrivateMigrationBackupMatches(
+            target_read_descriptor.Get(),
+            target_path,
+            *target_identity)) {
+        error = strprintf(
+            "BDB migration backup '%s' changed while assigning its independent Berkeley identity.",
+            target_path.string());
+        return fail_created_target();
+    }
+    const int lsn_result =
+        m_env->dbenv->lsn_reset(
+            backup_filename.c_str(),
+            0);
+    if (lsn_result != 0) {
+        error = strprintf(
+            "Failed to reset the Berkeley log sequence number in migration backup '%s': %s",
+            target_path.string(),
+            DbEnv::strerror(lsn_result));
+        return fail_created_target();
+    }
+    if (fsync(target_read_descriptor.Get()) != 0) {
+        error = strprintf(
+            "Failed to synchronize the reset Berkeley log sequence number for migration backup '%s': %s",
+            target_path.string(),
+            std::strerror(errno));
+        return fail_created_target();
+    }
+    if (!PrivateMigrationBackupMatches(
+            target_read_descriptor.Get(),
+            target_path,
+            *target_identity)) {
+        error = strprintf(
+            "BDB migration backup '%s' changed while resetting its Berkeley log sequence number.",
+            target_path.string());
+        return fail_created_target();
+    }
+
+    int cached_target_close_result = 0;
+    const auto cached_target =
+        m_env->mapDb.find(backup_filename);
+    if (cached_target != m_env->mapDb.end()) {
+        Db* const cached_database =
+            cached_target->second;
+        if (cached_database) {
+            cached_target_close_result =
+                cached_database->close(0);
+            delete cached_database;
+        }
+        m_env->mapDb.erase(cached_target);
+    }
+    m_env->mapFileUseCount.erase(backup_filename);
+    if (cached_target_close_result != 0) {
+        error = strprintf(
+            "Failed to close a stale Berkeley handle before verifying migration backup '%s': %s",
+            target_path.string(),
+            DbEnv::strerror(
+                cached_target_close_result));
+        return fail_created_target();
+    }
+    if (!VerifyMigrationBackup(
+            *m_env,
+            backup_filename,
+            target_path,
+            error)) {
+        return fail_created_target();
+    }
+    if (!PrivateMigrationSourceMatches(
+            source_descriptor.Get(),
+            source_path,
+            source_identity)) {
+        error = strprintf(
+            "BDB migration source '%s' changed while its backup was created.",
+            source_path.string());
+        return fail_created_target();
+    }
+    if (!PrivateMigrationBackupMatches(
+            target_read_descriptor.Get(),
+            target_path,
+            *target_identity)) {
+        error = strprintf(
+            "BDB migration backup '%s' changed while it was verified.",
+            target_path.string());
+        return fail_created_target();
+    }
+
+    m_migration_source_descriptor =
+        source_descriptor.Release();
+    m_migration_source_identity =
+        source_identity;
+    m_migration_backup_descriptor =
+        target_read_descriptor.Release();
+    m_migration_backup_identity =
+        *target_identity;
+    m_migration_backup_path =
+        target_path;
+    error.clear();
+    return MigrationBackupResult::SUCCESS;
+#endif
+#endif
+}
+
+bool BerkeleyDatabase::PrepareForMigrationPublication(
+    std::string& error)
+{
+    error.clear();
+#ifdef WIN32
+    error =
+        "Secure BDB-to-SQLite migration publication is unavailable on Windows.";
+    return false;
+#else
+    if (!m_env ||
+        m_filename.empty() ||
+        m_migration_source_descriptor < 0 ||
+        !m_migration_source_identity ||
+        m_migration_backup_descriptor < 0 ||
+        !m_migration_backup_identity ||
+        m_migration_backup_path.empty()) {
+        error =
+            "Cannot prepare BDB migration publication without a verified retained backup.";
+        return false;
+    }
+
+    fs::path source_path;
+    if (!GetWalletDatabasePath(
+            m_filename,
+            source_path,
+            error)) {
+        return false;
+    }
+    while (true) {
+        {
+            LOCK(m_env->cs_db);
+            const auto users =
+                m_env->mapFileUseCount.find(m_filename);
+            if (users ==
+                    m_env->mapFileUseCount.end() ||
+                users->second == 0) {
+                if (!CloseAndCheckpointMigrationDatabase(
+                        *m_env,
+                        m_filename,
+                        error)) {
+                    return false;
+                }
+                if (!PrivateMigrationSourceMatches(
+                        m_migration_source_descriptor,
+                        source_path,
+                        *m_migration_source_identity)) {
+                    error = strprintf(
+                        "Refusing BDB migration publication: source '%s' no longer matches its retained identity.",
+                        source_path.string());
+                    return false;
+                }
+                if (!PrivateMigrationBackupMatches(
+                        m_migration_backup_descriptor,
+                        m_migration_backup_path,
+                        *m_migration_backup_identity)) {
+                    error = strprintf(
+                        "Refusing BDB migration publication: backup '%s' no longer matches its retained private identity.",
+                        m_migration_backup_path.string());
+                    return false;
+                }
+                return true;
+            }
+        }
+        MilliSleep(100);
+    }
+#endif
+}
+
+bool BerkeleyDatabase::MigrationSourceMatchesPath(
+    const fs::path& path,
+    std::string& error) const
+{
+    error.clear();
+#ifdef WIN32
+    (void)path;
+    error =
+        "Retained BDB migration source identities are unavailable on Windows.";
+    return false;
+#else
+    if (m_migration_source_descriptor < 0 ||
+        !m_migration_source_identity) {
+        error =
+            "No BDB migration source identity is retained.";
+        return false;
+    }
+    if (!PrivateMigrationSourceMatches(
+            m_migration_source_descriptor,
+            path,
+            *m_migration_source_identity)) {
+        error = strprintf(
+            "BDB migration source path '%s' does not match its retained effective-user-owned, non-group/other-writable, single-link regular-file identity.",
+            path.string());
+        return false;
+    }
+    return true;
+#endif
+}
+
+bool BerkeleyDatabase::MigrationBackupMatchesPath(
+    std::string& error) const
+{
+    error.clear();
+#ifdef WIN32
+    error =
+        "Retained BDB migration backup identities are unavailable on Windows.";
+    return false;
+#else
+    if (m_migration_backup_descriptor < 0 ||
+        !m_migration_backup_identity ||
+        m_migration_backup_path.empty()) {
+        error =
+            "No BDB migration backup identity is retained.";
+        return false;
+    }
+    if (!PrivateMigrationBackupMatches(
+            m_migration_backup_descriptor,
+            m_migration_backup_path,
+            *m_migration_backup_identity)) {
+        error = strprintf(
+            "BDB migration backup path '%s' does not match its retained owner-private single-link regular-file identity.",
+            m_migration_backup_path.string());
+        return false;
+    }
+    return true;
+#endif
+}
+
+bool BerkeleyDatabase::ConfirmMigrationSourceRemoved(
+    std::string& error)
+{
+    error.clear();
+#ifdef WIN32
+    error =
+        "Retained BDB migration source identities are unavailable on Windows.";
+    return false;
+#else
+    if (!m_env ||
+        m_filename.empty() ||
+        m_migration_source_descriptor < 0 ||
+        !m_migration_source_identity) {
+        error =
+            "No BDB migration source identity is retained.";
+        return false;
+    }
+
+    struct stat metadata{};
+    if (fstat(
+            m_migration_source_descriptor,
+            &metadata) != 0 ||
+        !StatMatchesMigrationIdentity(
+            metadata,
+            *m_migration_source_identity,
+            false) ||
+        metadata.st_nlink != 0) {
+        error =
+            "The retained BDB migration source inode was not proven unlinked.";
+        return false;
+    }
+
+    LOCK(m_env->cs_db);
+    const auto pin =
+        m_env->migrationLogPins.find(m_filename);
+    if (pin ==
+        m_env->migrationLogPins.end()) {
+        error =
+            "The retained BDB migration source lost its Berkeley log pin.";
+        return false;
+    }
+    m_env->migrationLogPins.erase(pin);
+    return true;
+#endif
+}
+
 bool BerkeleyDatabase::PeriodicFlush()
 {
     if (!m_env || m_filename.empty()) {
@@ -994,7 +2089,8 @@ void CDBEnv::Flush(bool fShutdown)
         LogPrint("db", "CDBEnv::Flush: Flush(%s)%s took %15dms\n", fShutdown ? "true" : "false", fDbEnvInit ? "" : " database not started", GetTimeMillis() - nStart);
         if (fShutdown) {
             char** listp;
-            if (mapFileUseCount.empty()) {
+            if (mapFileUseCount.empty() &&
+                migrationLogPins.empty()) {
                 dbenv->log_archive(&listp, DB_ARCH_REMOVE);
                 Close();
                 if (!fMockDb)

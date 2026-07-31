@@ -14,6 +14,13 @@
 
 struct sqlite3;
 struct sqlite3_stmt;
+class BerkeleyDatabase;
+
+enum class SQLiteMigrationPublishResult {
+    SUCCESS,
+    FAILED,
+    INDETERMINATE,
+};
 
 /**
  * Narrow statement execution seam used to exercise transaction failure
@@ -43,6 +50,12 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
     DatabaseStatus& status,
     std::string& error);
 
+/** Atomically exchange a completed SQLite migration candidate with its BDB source. */
+SQLiteMigrationPublishResult PublishSQLiteMigrationCandidate(
+    WalletDatabase& candidate,
+    BerkeleyDatabase& source,
+    std::string& error);
+
 /** Replace transaction statement execution for one SQLite batch. */
 bool SetSQLiteStatementExecutorForTesting(
     DatabaseBatch& batch,
@@ -63,6 +76,9 @@ void InjectSQLitePostPublishFailureForTesting();
 
 /** Report an error after the next candidate rename has actually succeeded. */
 void InjectSQLiteAmbiguousPublishFailureForTesting();
+
+/** Report an error after the next migration exchange has actually succeeded. */
+void InjectSQLiteMigrationExchangeFailureForTesting();
 
 /** Report an error after the next rewrite commit has actually succeeded. */
 void InjectSQLiteRewriteCommitFailureForTesting();

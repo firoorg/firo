@@ -45,6 +45,8 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 
+class WalletDatabase;
+
 extern CWallet* pwalletMain;
 
 /**
@@ -1487,6 +1489,17 @@ public:
         READWRITE(vchPubKey);
     }
 };
+
+/**
+ * Explicitly migrate one quiescent Berkeley DB wallet to SQLite.
+ *
+ * The source must have been opened and verified before any CWallet owns it.
+ * On success, backupPath names the mandatory retained BDB backup.
+ */
+bool MigrateWalletDatabaseToSQLite(
+    WalletDatabase& source,
+    std::string& backupPath,
+    std::string& error);
 
 void ShutdownWallet();
 

@@ -14,6 +14,7 @@
 #include "init.h"
 #include "support/cleanse.h"
 #include "util.h"
+#include "wallet/db.h"
 
 #include <sqlite3.h>
 
@@ -42,6 +43,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #if defined(__linux__)
+#include <linux/fs.h>
 #include <sys/syscall.h>
 #elif defined(__APPLE__)
 #include <sys/stdio.h>
@@ -70,6 +72,7 @@ enum class SQLiteCreationState {
     NONE,
     PENDING,
     INDETERMINATE,
+    PUBLISHED,
 };
 
 enum class SQLiteCreationMarkerPolicy {
@@ -86,6 +89,7 @@ sqlite3* g_sqlite_first_abandoned_connection{nullptr};
 size_t g_sqlite_abandoned_connection_count{0};
 std::atomic<bool> g_fail_post_publish_once{false};
 std::atomic<bool> g_report_publish_error_after_rename_once{false};
+std::atomic<bool> g_report_migration_exchange_error_once{false};
 std::atomic<bool> g_report_rewrite_commit_error_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
 
@@ -97,6 +101,11 @@ bool ConsumePostPublishFailure()
 bool ConsumePublishErrorAfterRename()
 {
     return g_report_publish_error_after_rename_once.exchange(false);
+}
+
+bool ConsumeMigrationExchangeError()
+{
+    return g_report_migration_exchange_error_once.exchange(false);
 }
 
 bool ConsumeRewriteCommitError()
@@ -666,6 +675,58 @@ bool DescriptorIdentityMatches(
            S_ISREG(metadata.st_mode) &&
            metadata.st_dev == identity.device &&
            metadata.st_ino == identity.inode;
+#endif
+}
+
+bool DescriptorIdentityIsUnlinked(
+    int descriptor,
+    const SQLiteFileIdentity& identity) noexcept
+{
+#ifdef WIN32
+    (void)descriptor;
+    (void)identity;
+    return false;
+#else
+    if (descriptor < 0 || !identity.valid) {
+        return false;
+    }
+    struct stat metadata{};
+    return fstat(descriptor, &metadata) == 0 &&
+           S_ISREG(metadata.st_mode) &&
+           metadata.st_dev == identity.device &&
+           metadata.st_ino == identity.inode &&
+           metadata.st_nlink == 0;
+#endif
+}
+
+bool PrivateSQLiteIdentityMatches(
+    int descriptor,
+    const fs::path& path,
+    const SQLiteFileIdentity& identity) noexcept
+{
+#ifdef WIN32
+    (void)descriptor;
+    (void)path;
+    (void)identity;
+    return false;
+#else
+    struct stat descriptor_status{};
+    struct stat path_status{};
+    return descriptor >= 0 &&
+           fstat(descriptor, &descriptor_status) == 0 &&
+           lstat(path.string().c_str(), &path_status) == 0 &&
+           S_ISREG(descriptor_status.st_mode) &&
+           S_ISREG(path_status.st_mode) &&
+           descriptor_status.st_dev == identity.device &&
+           descriptor_status.st_ino == identity.inode &&
+           path_status.st_dev == identity.device &&
+           path_status.st_ino == identity.inode &&
+           descriptor_status.st_uid == geteuid() &&
+           path_status.st_uid == geteuid() &&
+           descriptor_status.st_nlink == 1 &&
+           path_status.st_nlink == 1 &&
+           (descriptor_status.st_mode & (S_IRWXG | S_IRWXO)) == 0 &&
+           (path_status.st_mode & (S_IRWXG | S_IRWXO)) == 0;
 #endif
 }
 
@@ -1517,7 +1578,10 @@ bool CandidateIdentityMatches(const OwnedCandidate& candidate) noexcept
 #endif
 }
 
-bool SyncDirectory(const fs::path& directory, std::string& error)
+bool SyncDirectory(
+    const fs::path& directory,
+    std::string& error,
+    bool require_supported = false)
 {
 #ifdef WIN32
     error = "Secure SQLite directory publication sync is unavailable on Windows.";
@@ -1540,8 +1604,9 @@ bool SyncDirectory(const fs::path& directory, std::string& error)
     }
     bool success = true;
     if (fsync(descriptor) != 0 &&
-        errno != EINVAL &&
-        errno != ENOTSUP) {
+        (require_supported ||
+            (errno != EINVAL &&
+                errno != ENOTSUP))) {
         error = strprintf(
             "Failed to synchronize SQLite publication directory '%s': %s",
             directory.string(),
@@ -1556,6 +1621,70 @@ bool SyncDirectory(const fs::path& directory, std::string& error)
         success = false;
     }
     return success;
+#endif
+}
+
+bool OwnerControlledMigrationDirectory(
+    const fs::path& directory,
+    std::string& error)
+{
+#ifdef WIN32
+    error =
+        "Secure SQLite migration directories are unavailable on Windows.";
+    return false;
+#elif !defined(O_CLOEXEC) || !defined(O_NOFOLLOW)
+    error = strprintf(
+        "Cannot secure SQLite migration directory '%s': O_CLOEXEC and O_NOFOLLOW are required.",
+        directory.string());
+    return false;
+#else
+    if (!ValidateWalletMigrationDirectory(
+            directory,
+            error)) {
+        return false;
+    }
+    int flags =
+        O_RDONLY | O_CLOEXEC | O_NOFOLLOW;
+#ifdef O_DIRECTORY
+    flags |= O_DIRECTORY;
+#endif
+    const int descriptor =
+        open(directory.string().c_str(), flags);
+    if (descriptor < 0) {
+        error = strprintf(
+            "Failed to open SQLite migration directory '%s': %s",
+            directory.string(),
+            std::strerror(errno));
+        return false;
+    }
+
+    struct stat descriptor_status{};
+    struct stat path_status{};
+    const bool controlled =
+        fstat(descriptor, &descriptor_status) == 0 &&
+        lstat(
+            directory.string().c_str(),
+            &path_status) == 0 &&
+        S_ISDIR(descriptor_status.st_mode) &&
+        S_ISDIR(path_status.st_mode) &&
+        descriptor_status.st_dev ==
+            path_status.st_dev &&
+        descriptor_status.st_ino ==
+            path_status.st_ino &&
+        descriptor_status.st_uid == geteuid() &&
+        path_status.st_uid == geteuid() &&
+        (descriptor_status.st_mode &
+            (S_IWGRP | S_IWOTH)) == 0 &&
+        (path_status.st_mode &
+            (S_IWGRP | S_IWOTH)) == 0;
+    const int close_result = close(descriptor);
+    if (!controlled || close_result != 0) {
+        error = strprintf(
+            "Refusing SQLite migration directory '%s': it must be an effective-user-owned, non-symlink directory without group or other write access.",
+            directory.string());
+        return false;
+    }
+    return true;
 #endif
 }
 
@@ -1837,6 +1966,113 @@ PublishResult PublishCandidate(
 #endif
 }
 
+bool VerifySQLiteMigrationPath(
+    const fs::path& path,
+    int retained_descriptor,
+    const SQLiteFileIdentity& identity,
+    std::string& error)
+{
+    error.clear();
+    SQLiteFileIdentity verified_identity;
+    if (!DescriptorIdentityMatches(retained_descriptor, identity) ||
+        !VerifySQLiteHeaderDescriptor(
+            retained_descriptor,
+            path,
+            verified_identity,
+            error) ||
+        !SameSQLiteFileIdentity(verified_identity, identity) ||
+        !PathIdentityMatches(path, identity)) {
+        if (error.empty()) {
+            error = strprintf(
+                "SQLite migration path '%s' does not match its retained candidate identity.",
+                path.string());
+        }
+        return false;
+    }
+    if (!CheckAuxiliaryFiles(path, false, error)) {
+        return false;
+    }
+
+    sqlite3* database = nullptr;
+    if (!OpenSQLiteConnection(
+            path,
+            database,
+            error,
+            &identity)) {
+        return false;
+    }
+
+    bool verified =
+        VerifyDatabase(database, error) &&
+        ValidateLogicalCreationMarker(
+            database,
+            path,
+            SQLiteCreationMarkerPolicy::REQUIRE_ABSENT,
+            error) &&
+        SetConnectionPragmas(database, error) &&
+        ConnectionIdentityMatches(
+            database,
+            path,
+            identity,
+            error) &&
+        VerifyDatabase(database, error) &&
+        ValidateLogicalCreationMarker(
+            database,
+            path,
+            SQLiteCreationMarkerPolicy::REQUIRE_ABSENT,
+            error);
+    if (verified) {
+        const int flush_result = sqlite3_db_cacheflush(database);
+        if (flush_result != SQLITE_OK) {
+            error = strprintf(
+                "Failed to flush verified SQLite migration path '%s': %s",
+                path.string(),
+                sqlite3_errmsg(database));
+            verified = false;
+        }
+    }
+
+    if (!CloseSQLiteConnection(database)) {
+        if (error.empty()) {
+            error = strprintf(
+                "Failed to close verified SQLite migration path '%s'.",
+                path.string());
+        } else {
+            error += strprintf(
+                " The verification connection for '%s' could not be closed.",
+                path.string());
+        }
+        AbandonSQLiteConnection(database);
+        return false;
+    }
+    if (!verified) {
+        return false;
+    }
+#ifdef WIN32
+    const int sync_result = _commit(retained_descriptor);
+#else
+    const int sync_result = fsync(retained_descriptor);
+#endif
+    if (sync_result != 0) {
+        error = strprintf(
+            "Failed to synchronize verified SQLite migration path '%s': %s",
+            path.string(),
+            std::strerror(errno));
+        return false;
+    }
+    if (!CheckAuxiliaryFiles(path, false, error) ||
+        !DescriptorIdentityMatches(retained_descriptor, identity) ||
+        !PathIdentityMatches(path, identity)) {
+        if (error.empty()) {
+            error = strprintf(
+                "Verified SQLite migration path '%s' lost its retained identity.",
+                path.string());
+        }
+        return false;
+    }
+    return true;
+}
+
 class SQLiteDatabase;
 
 class SQLiteCursor final : public DatabaseCursor
@@ -1971,6 +2207,8 @@ private:
     SQLiteCreationState m_creation_state{
         SQLiteCreationState::NONE};
     bool m_creation_cleanup_allowed{false};
+    bool m_completed_logical_creation{false};
+    const bool m_migration_candidate{false};
     std::unique_ptr<SQLiteStatementExecutor> m_creation_executor{
         std::make_unique<SQLiteStatementExecutor>()};
     std::atomic<bool> m_usable{true};
@@ -2224,6 +2462,66 @@ private:
                         marker_error;
             return false;
         }
+        return true;
+    }
+
+    bool RemoveMigrationCandidateLocked(std::string& error)
+    {
+        if (m_database && !CloseSQLiteConnection(m_database)) {
+            error = strprintf(
+                "Failed to close SQLite migration candidate '%s' before cleanup.",
+                m_path.string());
+            AbandonSQLiteConnection(m_database);
+            return false;
+        }
+        {
+            std::lock_guard<std::mutex> state_lock(m_state_mutex);
+            m_open = false;
+        }
+        Poison();
+
+        const fs::path parent =
+            m_path.parent_path().empty() ?
+                fs::path(".") :
+                m_path.parent_path();
+        if (!OwnerControlledMigrationDirectory(
+                parent,
+                error)) {
+            return false;
+        }
+        if (m_identity_descriptor < 0 ||
+            !PrivateSQLiteIdentityMatches(
+                m_identity_descriptor,
+                m_path,
+                m_identity)) {
+            if (error.empty()) {
+                error = strprintf(
+                    "SQLite migration candidate '%s' lost its retained identity.",
+                    m_path.string());
+            }
+            return false;
+        }
+        if (!CheckAuxiliaryFiles(m_path, false, error) ||
+            !RemoveOwnedPath(m_path, m_identity, error)) {
+            return false;
+        }
+        if (!DescriptorIdentityIsUnlinked(
+                m_identity_descriptor,
+                m_identity)) {
+            error = strprintf(
+                "SQLite migration candidate pathname '%s' was removed, but the retained candidate inode was not proven unlinked.",
+                m_path.string());
+            return false;
+        }
+        if (!SyncDirectory(
+                parent,
+                error,
+                true)) {
+            return false;
+        }
+        m_creation_state = SQLiteCreationState::NONE;
+        m_creation_cleanup_allowed = false;
+        m_completed_logical_creation = false;
         return true;
     }
 
@@ -2505,6 +2803,7 @@ private:
         if (marker == SQLiteCreationMarkerState::ABSENT) {
             m_creation_state = SQLiteCreationState::NONE;
             m_creation_cleanup_allowed = false;
+            m_completed_logical_creation = true;
             m_usable.store(true);
             error.clear();
             return DatabaseCreationResult::COMPLETE;
@@ -2551,9 +2850,13 @@ private:
     }
 
 public:
-    SQLiteDatabase(std::string filename, fs::path path)
+    SQLiteDatabase(
+        std::string filename,
+        fs::path path,
+        bool migration_candidate)
         : m_filename(std::move(filename)),
-          m_path(std::move(path))
+          m_path(std::move(path)),
+          m_migration_candidate(migration_candidate)
     {
         std::string error;
         if (!AcquireSQLite(error)) {
@@ -2683,6 +2986,10 @@ public:
         m_creation_executor = std::move(executor);
         return true;
     }
+
+    SQLiteMigrationPublishResult PublishMigration(
+        BerkeleyDatabase& source,
+        std::string& error);
 };
 
 enum class SQLiteTransactionState {
@@ -3550,6 +3857,12 @@ DatabaseCreationResult SQLiteDatabase::CompleteCreation(
         return DatabaseCreationResult::COMPLETE;
     }
     if (m_creation_state ==
+        SQLiteCreationState::PUBLISHED) {
+        error =
+            "The SQLite migration candidate was already published and consumed.";
+        return DatabaseCreationResult::FAILED;
+    }
+    if (m_creation_state ==
         SQLiteCreationState::INDETERMINATE) {
         return MarkCreationIndeterminate(
             error,
@@ -3638,6 +3951,7 @@ DatabaseCreationResult SQLiteDatabase::CompleteCreation(
             SQLiteCreationMarkerState::ABSENT) {
             m_creation_state = SQLiteCreationState::NONE;
             m_creation_cleanup_allowed = false;
+            m_completed_logical_creation = true;
             error.clear();
             return DatabaseCreationResult::COMPLETE;
         }
@@ -3647,6 +3961,616 @@ DatabaseCreationResult SQLiteDatabase::CompleteCreation(
         return RollBackCreationCompletionLocked(error);
     }
     return ReconcileCreationCompletionLocked(error);
+}
+
+SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
+    BerkeleyDatabase& source,
+    std::string& error)
+{
+#if !((defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__))
+    error =
+        "Atomic SQLite/BDB migration publication is unavailable on this platform.";
+    return SQLiteMigrationPublishResult::FAILED;
+#endif
+
+    fs::path source_path;
+    fs::path backup_path;
+    bool exchange_attempted = false;
+    bool candidate_cleanup_authorized = false;
+
+    auto mark_indeterminate =
+        [&](const std::string& reason) noexcept {
+            m_creation_state =
+                SQLiteCreationState::INDETERMINATE;
+            m_creation_cleanup_allowed = false;
+            m_completed_logical_creation = false;
+            try {
+                std::lock_guard<std::mutex> state_lock(
+                    m_state_mutex);
+                m_open = false;
+            } catch (...) {
+            }
+            Poison();
+            StartShutdown();
+            try {
+                error = strprintf(
+                    "SQLite migration publication is indeterminate: %s "
+                    "Migration working path: '%s'. Wallet path: '%s'. "
+                    "Backup path: '%s'. Preserve these paths and restart Firo "
+                    "only after recovery.",
+                    reason,
+                    m_path.string(),
+                    source_path.string(),
+                    backup_path.string());
+            } catch (...) {
+                try {
+                    error =
+                        "SQLite migration publication is indeterminate; "
+                        "preserve the wallet, migration, and backup paths.";
+                } catch (...) {
+                }
+            }
+            return SQLiteMigrationPublishResult::INDETERMINATE;
+        };
+
+    auto fail_from_exception =
+        [&](const char* detail) noexcept {
+            if (exchange_attempted) {
+                return mark_indeterminate(
+                    "an exception occurred after atomic exchange was attempted");
+            }
+            if (!candidate_cleanup_authorized) {
+                try {
+                    error = strprintf(
+                        "SQLite migration publication failed before atomic "
+                        "exchange without consuming the candidate: %s",
+                        detail);
+                } catch (...) {
+                }
+                return SQLiteMigrationPublishResult::FAILED;
+            }
+
+            try {
+                std::unique_lock<std::mutex> writer_lock(
+                    m_writer_mutex);
+                std::unique_lock<std::shared_mutex> connection_lock(
+                    m_connection_mutex);
+                std::string cleanup_error;
+                if (RemoveMigrationCandidateLocked(
+                        cleanup_error)) {
+                    error = strprintf(
+                        "SQLite migration publication failed before atomic "
+                        "exchange: %s The exact owned candidate '%s' was removed.",
+                        detail,
+                        m_path.string());
+                    return SQLiteMigrationPublishResult::FAILED;
+                }
+            } catch (...) {
+            }
+            return mark_indeterminate(
+                "an exception occurred before atomic exchange and candidate "
+                "cleanup could not be certified");
+        };
+
+    try {
+        error.clear();
+        std::unique_lock<std::mutex> writer_lock(
+            m_writer_mutex);
+        std::unique_lock<std::shared_mutex> connection_lock(
+            m_connection_mutex);
+
+        backup_path = source.MigrationBackupPath();
+        if (!m_migration_candidate) {
+            error =
+                "Refusing SQLite migration publication because the database "
+                "owner has no migration-candidate capability.";
+            return SQLiteMigrationPublishResult::FAILED;
+        }
+        if (m_filename.empty() ||
+            m_filename.front() != '.' ||
+            m_path.filename().string() != m_filename) {
+            error = strprintf(
+                "Refusing SQLite migration publication because '%s' is not "
+                "an owned hidden candidate path.",
+                m_path.string());
+            return SQLiteMigrationPublishResult::FAILED;
+        }
+        if (m_creation_state ==
+            SQLiteCreationState::PUBLISHED) {
+            error =
+                "The SQLite migration candidate was already published and consumed.";
+            return SQLiteMigrationPublishResult::FAILED;
+        }
+        if (m_creation_state ==
+            SQLiteCreationState::INDETERMINATE) {
+            return mark_indeterminate(
+                "the SQLite candidate owner was already indeterminate");
+        }
+        if (m_creation_state == SQLiteCreationState::NONE &&
+            !m_completed_logical_creation) {
+            error = strprintf(
+                "Refusing SQLite migration publication because '%s' is not "
+                "the completed logical-creation candidate owned by this operation.",
+                m_path.string());
+            return SQLiteMigrationPublishResult::FAILED;
+        }
+        candidate_cleanup_authorized = true;
+
+        size_t batch_count;
+        bool open;
+        {
+            std::lock_guard<std::mutex> state_lock(
+                m_state_mutex);
+            batch_count = m_batch_count;
+            open = m_open;
+            if (batch_count == 0 && open) {
+                m_open = false;
+            }
+        }
+        if (batch_count != 0) {
+            return mark_indeterminate(
+                "active SQLite candidate batches remain");
+        }
+
+        auto fail_before_exchange =
+            [&](const std::string& reason) {
+                std::string cleanup_error;
+                if (!RemoveMigrationCandidateLocked(
+                        cleanup_error)) {
+                    return mark_indeterminate(
+                        strprintf(
+                            "%s The pre-exchange candidate could not be "
+                            "removed safely: %s",
+                            reason,
+                            cleanup_error.empty() ?
+                                "unknown cleanup failure" :
+                                cleanup_error));
+                }
+                error = strprintf(
+                    "SQLite migration was not published: %s "
+                    "Removed the exact owned candidate '%s'; the BDB source "
+                    "'%s' and backup '%s' were not replaced.",
+                    reason,
+                    m_path.string(),
+                    source_path.string(),
+                    backup_path.string());
+                return SQLiteMigrationPublishResult::FAILED;
+            };
+
+        std::string path_error;
+        if (!GetWalletDatabasePath(
+                source.Filename(),
+                source_path,
+                path_error)) {
+            return fail_before_exchange(
+                path_error);
+        }
+        if (source_path == m_path ||
+            backup_path.empty() ||
+            backup_path == m_path ||
+            backup_path == source_path) {
+            return fail_before_exchange(
+                strprintf(
+                    "candidate '%s', final '%s', and backup '%s' are not "
+                    "distinct migration paths",
+                    m_path.string(),
+                    source_path.string(),
+                    backup_path.string()));
+        }
+        const fs::path parent =
+            source_path.parent_path().empty() ?
+                fs::path(".") :
+                source_path.parent_path();
+        const fs::path candidate_parent =
+            m_path.parent_path().empty() ?
+                fs::path(".") :
+                m_path.parent_path();
+        const fs::path backup_parent =
+            backup_path.parent_path().empty() ?
+                fs::path(".") :
+                backup_path.parent_path();
+        if (candidate_parent != parent ||
+            backup_parent != parent) {
+            return fail_before_exchange(
+                "the candidate, source, and backup are not in one migration directory");
+        }
+        if (!OwnerControlledMigrationDirectory(
+                parent,
+                path_error)) {
+            return mark_indeterminate(
+                path_error);
+        }
+        if (!CheckAuxiliaryFiles(
+                source_path,
+                false,
+                path_error)) {
+            return fail_before_exchange(
+                path_error);
+        }
+        if (m_creation_state != SQLiteCreationState::NONE ||
+            !m_completed_logical_creation) {
+            return fail_before_exchange(
+                "the SQLite candidate logical creation is incomplete");
+        }
+        if (!open ||
+            !m_database ||
+            m_poisoned.load() ||
+            !m_usable.load()) {
+            return fail_before_exchange(
+                "the SQLite candidate connection is not healthy");
+        }
+        if (sqlite3_get_autocommit(m_database) == 0) {
+            return fail_before_exchange(
+                "the SQLite candidate has an active transaction despite having no batches");
+        }
+
+        SQLiteFileIdentity verified_identity;
+        std::string verification_error;
+        if (!ValidateOwnedConnectionLocked(
+                verification_error) ||
+            !VerifySQLiteHeaderDescriptor(
+                m_identity_descriptor,
+                m_path,
+                verified_identity,
+                verification_error) ||
+            !SameSQLiteFileIdentity(
+                verified_identity,
+                m_identity) ||
+            !VerifyDatabase(
+                m_database,
+                verification_error) ||
+            !ValidateLogicalCreationMarker(
+                m_database,
+                m_path,
+                SQLiteCreationMarkerPolicy::REQUIRE_ABSENT,
+                verification_error)) {
+            return fail_before_exchange(
+                verification_error.empty() ?
+                    "the SQLite candidate failed pre-publication verification" :
+                    verification_error);
+        }
+
+        const int flush_result =
+            sqlite3_db_cacheflush(m_database);
+        if (flush_result != SQLITE_OK) {
+            return fail_before_exchange(
+                strprintf(
+                    "failed to flush SQLite candidate '%s': %s",
+                    m_path.string(),
+                    sqlite3_errmsg(m_database)));
+        }
+        if (!ValidateOwnedConnectionLocked(
+                verification_error) ||
+#ifdef WIN32
+            _commit(m_identity_descriptor) != 0) {
+#else
+            fsync(m_identity_descriptor) != 0) {
+#endif
+            if (verification_error.empty()) {
+                verification_error = strprintf(
+                    "failed to synchronize retained SQLite candidate '%s': %s",
+                    m_path.string(),
+                    std::strerror(errno));
+            }
+            return fail_before_exchange(
+                verification_error);
+        }
+        if (!CheckAuxiliaryFiles(
+                m_path,
+                true,
+                verification_error)) {
+            return fail_before_exchange(
+                verification_error);
+        }
+
+        if (!CloseSQLiteConnection(m_database)) {
+            AbandonSQLiteConnection(m_database);
+            return mark_indeterminate(
+                "the SQLite candidate connection could not be closed cleanly before exchange");
+        }
+        {
+            std::lock_guard<std::mutex> state_lock(
+                m_state_mutex);
+            m_open = false;
+        }
+        Poison();
+
+        if (!DescriptorIdentityMatches(
+                m_identity_descriptor,
+                m_identity) ||
+            !PathIdentityMatches(
+                m_path,
+                m_identity) ||
+            !CheckAuxiliaryFiles(
+                m_path,
+                false,
+                verification_error)) {
+            if (verification_error.empty()) {
+                verification_error =
+                    "the closed SQLite candidate lost its retained identity";
+            }
+            return mark_indeterminate(
+                verification_error);
+        }
+
+        std::string source_error;
+        if (!source.MigrationSourceMatchesPath(
+                source_path,
+                source_error) ||
+            !source.MigrationBackupMatchesPath(
+                source_error)) {
+            return fail_before_exchange(
+                source_error.empty() ?
+                    "the retained BDB source or backup identity is unavailable" :
+                    source_error);
+        }
+        if (!source.PrepareForMigrationPublication(
+                source_error)) {
+            std::string retained_error;
+            if (!source.MigrationSourceMatchesPath(
+                    source_path,
+                    retained_error) ||
+                !source.MigrationBackupMatchesPath(
+                    retained_error)) {
+                return mark_indeterminate(
+                    strprintf(
+                        "BDB publication preparation failed and its retained "
+                        "source or backup identity could not be revalidated: %s",
+                        retained_error.empty() ?
+                            source_error :
+                            retained_error));
+            }
+            return fail_before_exchange(
+                source_error.empty() ?
+                    "BDB publication preparation failed" :
+                    source_error);
+        }
+        if (!DescriptorIdentityMatches(
+                m_identity_descriptor,
+                m_identity) ||
+            !PathIdentityMatches(
+                m_path,
+                m_identity) ||
+            !CheckAuxiliaryFiles(
+                m_path,
+                false,
+                verification_error) ||
+            !source.MigrationSourceMatchesPath(
+                source_path,
+                source_error) ||
+            !source.MigrationBackupMatchesPath(
+                source_error)) {
+            return fail_before_exchange(
+                !verification_error.empty() ?
+                    verification_error :
+                source_error.empty() ?
+                    "a retained migration identity changed immediately before exchange" :
+                    source_error);
+        }
+
+        if (!CheckAuxiliaryFiles(
+                source_path,
+                false,
+                verification_error)) {
+            return fail_before_exchange(
+                verification_error);
+        }
+        if (!OwnerControlledMigrationDirectory(
+                parent,
+                verification_error) ||
+            !SyncDirectory(
+                parent,
+                verification_error,
+                true)) {
+            return mark_indeterminate(
+                verification_error);
+        }
+
+        int exchange_result;
+#if defined(__linux__) && defined(SYS_renameat2)
+        exchange_result = static_cast<int>(syscall(
+            SYS_renameat2,
+            AT_FDCWD,
+            m_path.string().c_str(),
+            AT_FDCWD,
+            source_path.string().c_str(),
+            RENAME_EXCHANGE));
+#elif defined(__APPLE__)
+        exchange_result = renameatx_np(
+            AT_FDCWD,
+            m_path.string().c_str(),
+            AT_FDCWD,
+            source_path.string().c_str(),
+            RENAME_SWAP);
+#else
+    exchange_result = -1;
+    errno = ENOTSUP;
+#endif
+        exchange_attempted = true;
+        if (exchange_result == 0 &&
+            ConsumeMigrationExchangeError()) {
+            errno = EIO;
+            exchange_result = -1;
+        }
+        const int exchange_error =
+            exchange_result == 0 ? 0 : errno;
+
+        const bool candidate_at_final =
+            PathIdentityMatches(
+                source_path,
+                m_identity);
+        const bool candidate_at_hidden =
+            PathIdentityMatches(
+                m_path,
+                m_identity);
+        std::string ignored_error;
+        const bool source_at_final =
+            source.MigrationSourceMatchesPath(
+                source_path,
+                ignored_error);
+        ignored_error.clear();
+        const bool source_at_hidden =
+            source.MigrationSourceMatchesPath(
+                m_path,
+                ignored_error);
+        ignored_error.clear();
+        const bool backup_matches =
+            source.MigrationBackupMatchesPath(
+                ignored_error);
+        const bool exchanged =
+            candidate_at_final &&
+            source_at_hidden;
+        const bool unchanged =
+            candidate_at_hidden &&
+            source_at_final;
+
+        if (exchange_result != 0) {
+            if (unchanged && backup_matches) {
+                return fail_before_exchange(
+                    strprintf(
+                        "atomic SQLite/BDB path exchange failed without "
+                        "changing either retained identity: %s",
+                        std::strerror(exchange_error)));
+            }
+            return mark_indeterminate(
+                strprintf(
+                    "atomic SQLite/BDB path exchange reported '%s'; retained "
+                    "identity reconciliation found candidate-at-final=%d, "
+                    "source-at-hidden=%d, candidate-at-hidden=%d, "
+                    "source-at-final=%d, backup-exact=%d",
+                    std::strerror(exchange_error),
+                    candidate_at_final,
+                    source_at_hidden,
+                    candidate_at_hidden,
+                    source_at_final,
+                    backup_matches));
+        }
+        if (!exchanged || !backup_matches) {
+            return mark_indeterminate(
+                strprintf(
+                    "atomic SQLite/BDB path exchange returned success but "
+                    "retained identity reconciliation found candidate-at-final=%d, "
+                    "source-at-hidden=%d, backup-exact=%d",
+                    candidate_at_final,
+                    source_at_hidden,
+                    backup_matches));
+        }
+
+        std::string published_error;
+        if (!VerifySQLiteMigrationPath(
+                source_path,
+                m_identity_descriptor,
+                m_identity,
+                published_error) ||
+            !source.MigrationSourceMatchesPath(
+                m_path,
+                source_error) ||
+            !source.MigrationBackupMatchesPath(
+                source_error)) {
+            return mark_indeterminate(
+                !published_error.empty() ?
+                    published_error :
+                source_error.empty() ?
+                    "a retained migration identity changed after exchange" :
+                    source_error);
+        }
+
+        if (!SyncDirectory(
+                parent,
+                published_error,
+                true)) {
+            return mark_indeterminate(
+                published_error);
+        }
+        if (!PathIdentityMatches(
+                source_path,
+                m_identity) ||
+            !source.MigrationSourceMatchesPath(
+                m_path,
+                source_error) ||
+            !source.MigrationBackupMatchesPath(
+                source_error)) {
+            return mark_indeterminate(
+                source_error.empty() ?
+                    "a retained migration identity changed before removing the displaced BDB source" :
+                    source_error);
+        }
+#ifdef WIN32
+        const int unlink_result =
+            _unlink(m_path.string().c_str());
+#else
+        const int unlink_result =
+            unlink(m_path.string().c_str());
+#endif
+        if (unlink_result != 0) {
+            return mark_indeterminate(
+                strprintf(
+                    "failed to remove the proven displaced BDB source '%s': %s",
+                    m_path.string(),
+                    std::strerror(errno)));
+        }
+        if (!source.ConfirmMigrationSourceRemoved(
+                source_error)) {
+            return mark_indeterminate(
+                source_error.empty() ?
+                    "the displaced BDB source inode was not proven removed" :
+                    source_error);
+        }
+        if (!SyncDirectory(
+                parent,
+                published_error,
+                true)) {
+            return mark_indeterminate(
+                published_error);
+        }
+
+        fs::file_status displaced_status;
+        if (!GetPathStatus(
+                m_path,
+                displaced_status,
+                published_error) ||
+            displaced_status.type() !=
+                fs::file_not_found) {
+            if (published_error.empty()) {
+                published_error = strprintf(
+                    "the displaced BDB path '%s' reappeared after removal",
+                    m_path.string());
+            }
+            return mark_indeterminate(
+                published_error);
+        }
+        if (!VerifySQLiteMigrationPath(
+                source_path,
+                m_identity_descriptor,
+                m_identity,
+                published_error) ||
+            !source.MigrationBackupMatchesPath(
+                source_error)) {
+            return mark_indeterminate(
+                !published_error.empty() ?
+                    published_error :
+                source_error.empty() ?
+                    "the final SQLite wallet or retained backup failed final verification" :
+                    source_error);
+        }
+
+        m_creation_state =
+            SQLiteCreationState::PUBLISHED;
+        m_creation_cleanup_allowed = false;
+        m_completed_logical_creation = false;
+        error.clear();
+        return SQLiteMigrationPublishResult::SUCCESS;
+    } catch (const boost::thread_interrupted&) {
+        fail_from_exception(
+            "thread interruption");
+        throw;
+    } catch (const std::exception& exception) {
+        return fail_from_exception(
+            exception.what());
+    } catch (...) {
+        return fail_from_exception(
+            "unknown exception");
+    }
 }
 
 std::unique_ptr<DatabaseBatch> SQLiteDatabase::MakeBatch(
@@ -4189,7 +5113,10 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
 
     if ((options.require_existing && options.require_create) ||
         (options.logical_wallet_create &&
-            !options.require_create)) {
+            !options.require_create) ||
+        (options.sqlite_migration_candidate &&
+            (!options.logical_wallet_create ||
+                !options.require_create))) {
         status = DatabaseStatus::FAILED_INVALID_OPTIONS;
         error = "Invalid SQLite wallet database options.";
         return nullptr;
@@ -4280,7 +5207,10 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
         RemoveOwnedCandidate(candidate);
     };
     try {
-        database = std::make_unique<SQLiteDatabase>(filename, path);
+        database = std::make_unique<SQLiteDatabase>(
+            filename,
+            path,
+            options.sqlite_migration_candidate);
         const bool initialized =
             exists ?
                 database->InitializeExisting(error) :
@@ -4318,6 +5248,24 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
 
     status = DatabaseStatus::SUCCESS;
     return database;
+}
+
+SQLiteMigrationPublishResult PublishSQLiteMigrationCandidate(
+    WalletDatabase& candidate,
+    BerkeleyDatabase& source,
+    std::string& error)
+{
+    SQLiteDatabase* const sqlite_candidate =
+        dynamic_cast<SQLiteDatabase*>(&candidate);
+    if (!sqlite_candidate) {
+        error =
+            "Cannot publish SQLite migration candidate: the candidate "
+            "database is not an owned SQLite backend.";
+        return SQLiteMigrationPublishResult::FAILED;
+    }
+    return sqlite_candidate->PublishMigration(
+        source,
+        error);
 }
 
 bool SetSQLiteStatementExecutorForTesting(
@@ -4366,6 +5314,11 @@ void InjectSQLiteAmbiguousPublishFailureForTesting()
     g_report_publish_error_after_rename_once.store(true);
 }
 
+void InjectSQLiteMigrationExchangeFailureForTesting()
+{
+    g_report_migration_exchange_error_once.store(true);
+}
+
 void InjectSQLiteRewriteCommitFailureForTesting()
 {
     g_report_rewrite_commit_error_once.store(true);
@@ -4396,6 +5349,7 @@ bool ResetSQLiteLifecycleForTesting()
     g_fail_close_after_successes.store(-1);
     g_fail_post_publish_once.store(false);
     g_report_publish_error_after_rename_once.store(false);
+    g_report_migration_exchange_error_once.store(false);
     if (sqlite3_close(abandoned_connection) != SQLITE_OK) {
         return false;
     }

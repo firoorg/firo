@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,6 +43,8 @@ public:
     DbEnv *dbenv;
     std::map<std::string, int> mapFileUseCount;
     std::map<std::string, Db*> mapDb;
+    /** Prevent shutdown log removal while a checkpointed migration source still needs the environment. */
+    std::set<std::string> migrationLogPins;
 
     CDBEnv();
     ~CDBEnv();
@@ -90,9 +93,10 @@ public:
 
 extern CDBEnv bitdb;
 
-struct BerkeleyFileIdentity {
-    uint64_t device{0};
-    uint64_t inode{0};
+enum class MigrationBackupResult {
+    SUCCESS,
+    EXISTS,
+    FAILED,
 };
 
 /**
@@ -116,7 +120,12 @@ private:
     const std::string m_filename;
     FirstOpenRequirement m_first_open_requirement{
         FirstOpenRequirement::NONE};
-    std::optional<BerkeleyFileIdentity> m_first_open_identity;
+    std::optional<DatabaseFileIdentity> m_first_open_identity;
+    int m_migration_source_descriptor{-1};
+    std::optional<DatabaseFileIdentity> m_migration_source_identity;
+    int m_migration_backup_descriptor{-1};
+    std::optional<DatabaseFileIdentity> m_migration_backup_identity;
+    fs::path m_migration_backup_path;
 
 public:
     /** Construct an inert database identity for a memory-only wallet. */
@@ -135,7 +144,7 @@ public:
         CDBEnv& env,
         std::string filename,
         const DatabaseOptions& options,
-        std::optional<BerkeleyFileIdentity> first_open_identity)
+        std::optional<DatabaseFileIdentity> first_open_identity)
         : m_env(&env),
           m_filename(std::move(filename)),
           m_first_open_requirement(
@@ -151,7 +160,7 @@ public:
 
     BerkeleyDatabase(const BerkeleyDatabase&) = delete;
     BerkeleyDatabase& operator=(const BerkeleyDatabase&) = delete;
-    ~BerkeleyDatabase() override = default;
+    ~BerkeleyDatabase() noexcept override;
 
     const std::string& Filename() const override { return m_filename; }
     DatabaseFormat Format() const override { return DatabaseFormat::BERKELEY; }
@@ -159,6 +168,19 @@ public:
     std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options = {}) override;
     bool Rewrite(const char* skip = nullptr) override;
     bool Backup(const std::string& destination) override;
+    MigrationBackupResult CreateMigrationBackup(
+        const std::string& backup_filename,
+        std::string& error);
+    bool PrepareForMigrationPublication(std::string& error);
+    bool MigrationSourceMatchesPath(
+        const fs::path& path,
+        std::string& error) const;
+    bool MigrationBackupMatchesPath(std::string& error) const;
+    bool ConfirmMigrationSourceRemoved(std::string& error);
+    const fs::path& MigrationBackupPath() const
+    {
+        return m_migration_backup_path;
+    }
     bool PeriodicFlush() override;
     void Flush(bool shutdown) override;
 };
@@ -209,7 +231,7 @@ std::unique_ptr<WalletDatabase> MakeBerkeleyDatabase(
     CDBEnv& env,
     std::string filename,
     const DatabaseOptions& options = {},
-    std::optional<BerkeleyFileIdentity> first_open_identity =
+    std::optional<DatabaseFileIdentity> first_open_identity =
         std::nullopt);
 std::unique_ptr<WalletDatabase> MakeDummyWalletDatabase();
 /** Return whether path has BDB B-tree magic; throw if it cannot be inspected. */

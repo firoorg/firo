@@ -3,7 +3,11 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+import hashlib
 import os
+import platform
+import re
+import stat
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -38,6 +42,58 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             "node0",
             "regtest",
             "debug.log")
+
+    def file_sha256(self, path):
+        digest = hashlib.sha256()
+        with open(path, "rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def wallet_database_state(self, wallet_name):
+        path = self.wallet_path(wallet_name)
+        state = []
+        for suffix in ("", "-journal", "-wal", "-shm"):
+            entry = path + suffix
+            if not os.path.lexists(entry):
+                state.append(None)
+                continue
+            metadata = os.lstat(entry)
+            state.append((
+                stat.S_IFMT(metadata.st_mode),
+                metadata.st_size,
+                self.file_sha256(entry)
+                if stat.S_ISREG(metadata.st_mode)
+                else None,
+            ))
+        return tuple(state)
+
+    def read_debug_log_from(self, offset):
+        with open(self.debug_log_path(), "r", encoding="utf8") as debug_log:
+            debug_log.seek(offset)
+            return debug_log.read()
+
+    def migration_backup_path(self, log, wallet_name):
+        message = (
+            "Wallet database migration succeeded for '%s'; "
+            "Berkeley DB backup retained at '" % wallet_name)
+        matches = re.findall(
+            re.escape(message) + r"([^'\r\n]+)'\.",
+            log)
+        assert_equal(len(matches), 1)
+        backup_path = matches[0]
+        assert os.path.isabs(backup_path)
+        return os.path.normpath(backup_path)
+
+    def migration_artifacts(self):
+        wallet_directory = os.path.join(
+            self.options.tmpdir,
+            "node0",
+            "regtest")
+        return sorted(
+            entry
+            for entry in os.listdir(wallet_directory)
+            if entry.startswith(".firo-wallet-"))
 
     def attempt_start(self, extra_args):
         stderr_path = os.path.join(
@@ -110,6 +166,8 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         ])
         if not started:
             if "this build has SQLite wallet support disabled" in output:
+                assert not os.path.exists(
+                    self.wallet_path("sqlite-explicit-probe.dat"))
                 self.log.info(
                     "Skipping SQLite wallet lifecycle test in BDB-only build")
                 return False
@@ -121,8 +179,52 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         return True
 
     def run_test(self):
-        if os.name != "posix" or not self.sqlite_wallet_supported():
+        if (
+            os.name != "posix"
+            or platform.system() not in ("Linux", "Darwin")
+        ):
             return
+
+        if not self.sqlite_wallet_supported():
+            bdb_only_wallet = "wallet-bdb-only-migration.dat"
+            node = self.start_wallet([
+                "-wallet=" + bdb_only_wallet,
+                "-walletdbformat=bdb",
+            ])
+            assert_equal(node.getwalletinfo()["format"], "bdb")
+            node.getnewaddress("bdb-only-preserved")
+            self.stop_wallet()
+
+            bdb_only_state = self.wallet_database_state(
+                bdb_only_wallet)
+            artifacts = self.migration_artifacts()
+            self.assert_start_fails(
+                [
+                    "-wallet=" + bdb_only_wallet,
+                    "-migratewalletdb",
+                ],
+                "this build has SQLite wallet support disabled")
+            assert_equal(
+                self.wallet_database_state(bdb_only_wallet),
+                bdb_only_state)
+            assert_equal(self.migration_artifacts(), artifacts)
+            return
+
+        missing_wallet = "wallet-migration-missing.dat"
+        missing_state = self.wallet_database_state(
+            missing_wallet)
+        assert all(entry is None for entry in missing_state)
+        artifacts = self.migration_artifacts()
+        self.assert_start_fails(
+            [
+                "-wallet=" + missing_wallet,
+                "-migratewalletdb",
+            ],
+            "the BDB source does not exist")
+        assert_equal(
+            self.wallet_database_state(missing_wallet),
+            missing_state)
+        assert_equal(self.migration_artifacts(), artifacts)
 
         sqlite_wallet = "wallet-default-sqlite.dat"
         sqlite_account = "sqlite-persisted"
@@ -155,10 +257,7 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         bdb_hd_master_key_id = node.getwalletinfo()["hdmasterkeyid"]
         self.stop_wallet()
 
-        node = self.start_wallet([
-            "-wallet=" + bdb_wallet,
-            "-walletdbformat=sqlite",
-        ])
+        node = self.start_wallet(["-wallet=" + bdb_wallet])
         self.assert_wallet_state(
             node,
             "bdb",
@@ -166,6 +265,137 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             bdb_account,
             bdb_hd_master_key_id)
         self.stop_wallet()
+
+        bdb_wallet_path = self.wallet_path(bdb_wallet)
+        bdb_wallet_state = self.wallet_database_state(
+            bdb_wallet)
+        migration_conflicts = [
+            (
+                ["-disablewallet"],
+                "-migratewalletdb cannot be used with -disablewallet."),
+            (
+                ["-salvagewallet"],
+                "-migratewalletdb cannot be combined with -salvagewallet."),
+            (
+                ["-walletdbformat=bdb"],
+                "-migratewalletdb cannot be combined with -walletdbformat."),
+            (
+                ["-zapwalletmints"],
+                "-migratewalletdb cannot be combined with wallet zap options."),
+            (
+                ["-zapwallettxes=1"],
+                "-migratewalletdb cannot be combined with wallet zap options."),
+            (
+                ["-upgradewallet"],
+                "-migratewalletdb cannot be combined with -upgradewallet."),
+        ]
+        for conflict_args, expected_error in migration_conflicts:
+            artifacts = self.migration_artifacts()
+            self.assert_start_fails(
+                [
+                    "-wallet=" + bdb_wallet,
+                    "-migratewalletdb",
+                ] + conflict_args,
+                expected_error)
+            assert_equal(
+                self.wallet_database_state(bdb_wallet),
+                bdb_wallet_state)
+            assert_equal(self.migration_artifacts(), artifacts)
+
+        unsafe_ancestor = os.path.dirname(
+            os.path.dirname(bdb_wallet_path))
+        original_ancestor_mode = stat.S_IMODE(
+            os.lstat(unsafe_ancestor).st_mode)
+        artifacts = self.migration_artifacts()
+        try:
+            os.chmod(
+                unsafe_ancestor,
+                (original_ancestor_mode | 0o022) &
+                ~stat.S_ISVTX)
+            self.assert_start_fails(
+                [
+                    "-wallet=" + bdb_wallet,
+                    "-migratewalletdb",
+                ],
+                "writable by group or other without trusted "
+                "sticky-directory protection")
+            assert_equal(
+                self.wallet_database_state(bdb_wallet),
+                bdb_wallet_state)
+            assert_equal(self.migration_artifacts(), artifacts)
+        finally:
+            os.chmod(
+                unsafe_ancestor,
+                original_ancestor_mode)
+
+        migration_log_offset = os.path.getsize(self.debug_log_path())
+        node = self.start_wallet([
+            "-wallet=" + bdb_wallet,
+            "-migratewalletdb",
+        ])
+        self.assert_wallet_state(
+            node,
+            "sqlite",
+            bdb_address,
+            bdb_account,
+            bdb_hd_master_key_id)
+        migrated_account = "bdb-migrated-write"
+        migrated_address = node.getnewaddress(migrated_account)
+        self.stop_wallet()
+
+        migration_log = self.read_debug_log_from(migration_log_offset)
+        backup_path = self.migration_backup_path(
+            migration_log,
+            bdb_wallet)
+        assert_equal(
+            os.path.dirname(backup_path),
+            os.path.dirname(bdb_wallet_path))
+        assert not os.path.samefile(backup_path, bdb_wallet_path)
+        backup_stat = os.lstat(backup_path)
+        assert stat.S_ISREG(backup_stat.st_mode)
+        assert_equal(stat.S_IMODE(backup_stat.st_mode), 0o600)
+
+        node = self.start_wallet(["-wallet=" + bdb_wallet])
+        self.assert_wallet_state(
+            node,
+            "sqlite",
+            bdb_address,
+            bdb_account,
+            bdb_hd_master_key_id)
+        self.assert_wallet_state(
+            node,
+            "sqlite",
+            migrated_address,
+            migrated_account,
+            bdb_hd_master_key_id)
+        restarted_account = "bdb-restarted-write"
+        restarted_address = node.getnewaddress(restarted_account)
+        self.stop_wallet()
+
+        node = self.start_wallet(["-wallet=" + bdb_wallet])
+        self.assert_wallet_state(
+            node,
+            "sqlite",
+            restarted_address,
+            restarted_account,
+            bdb_hd_master_key_id)
+        self.stop_wallet()
+
+        migrated_wallet_state = self.wallet_database_state(
+            bdb_wallet)
+        backup_hash = self.file_sha256(backup_path)
+        artifacts = self.migration_artifacts()
+        self.assert_start_fails(
+            [
+                "-wallet=" + bdb_wallet,
+                "-migratewalletdb",
+            ],
+            "already uses SQLite; remove -migratewalletdb")
+        assert_equal(
+            self.wallet_database_state(bdb_wallet),
+            migrated_wallet_state)
+        assert_equal(self.file_sha256(backup_path), backup_hash)
+        assert_equal(self.migration_artifacts(), artifacts)
 
         invalid_wallet = "wallet-invalid-selector.dat"
         self.assert_start_fails(

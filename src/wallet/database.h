@@ -11,6 +11,7 @@
 #include "fs.h"
 #include "streams.h"
 
+#include <cstdint>
 #include <exception>
 #include <memory>
 #include <new>
@@ -79,6 +80,18 @@ public:
 
     DatabaseBatch(const DatabaseBatch&) = delete;
     DatabaseBatch& operator=(const DatabaseBatch&) = delete;
+
+    /** Write an already serialized key/value record without changing its bytes. */
+    bool WriteRawRecord(
+        CDataStream key,
+        CDataStream value,
+        bool overwrite = false)
+    {
+        return WriteRaw(
+            std::move(key),
+            std::move(value),
+            overwrite);
+    }
 
     template <typename K, typename T>
     DatabaseReadStatus ReadWithStatus(const K& key, T& value)
@@ -193,6 +206,11 @@ enum class DatabaseFormat {
     SQLITE,
 };
 
+struct DatabaseFileIdentity {
+    uint64_t device{0};
+    uint64_t inode{0};
+};
+
 /** Stable user-facing name for a wallet database format. */
 const char* DatabaseFormatName(DatabaseFormat format);
 
@@ -201,9 +219,12 @@ struct DatabaseOptions {
     bool require_create{false};
     std::optional<DatabaseFormat> require_format;
     bool verify{true};
+    bool recover{true};
     bool salvage{false};
     /** Mark a production wallet candidate incomplete until logical initialization finishes. */
     bool logical_wallet_create{false};
+    /** Grant an owned logical SQLite candidate the one-shot migration publication capability. */
+    bool sqlite_migration_candidate{false};
 };
 
 enum class DatabaseStatus {
@@ -261,6 +282,20 @@ bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::str
 
 /** Check whether a wallet path entry exists without following symlinks. */
 bool WalletDatabasePathExists(const fs::path& path, bool& exists, std::string& error);
+
+/**
+ * Require a migration directory and every ancestor to be protected from
+ * pathname replacement by an untrusted local user.
+ */
+bool ValidateWalletMigrationDirectory(
+    const fs::path& directory,
+    std::string& error);
+
+/** Inspect an existing wallet's content-authoritative format without opening a backend. */
+bool ReadWalletDatabaseFormat(
+    const std::string& filename,
+    std::optional<DatabaseFormat>& format,
+    std::string& error);
 
 /** Select, verify, and construct the wallet database owner for filename. */
 std::unique_ptr<WalletDatabase> MakeWalletDatabase(

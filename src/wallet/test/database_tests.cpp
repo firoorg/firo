@@ -21,6 +21,7 @@
 #include <cerrno>
 #include <csignal>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -471,6 +472,37 @@ void RemoveSQLiteTestCandidates(const std::string& filename)
         }
     }
 }
+
+std::vector<fs::path> FindMigrationPaths(
+    const std::string& prefix)
+{
+    std::vector<fs::path> paths;
+    for (fs::directory_iterator entry(GetDataDir()), end;
+        entry != end;
+        ++entry) {
+        if (entry->path().filename().string().find(prefix) == 0) {
+            paths.push_back(entry->path());
+        }
+    }
+    return paths;
+}
+
+std::unique_ptr<WalletDatabase> ReopenBerkeleyForMigration(
+    const std::string& filename,
+    std::string& error)
+{
+    DatabaseOptions options;
+    options.require_existing = true;
+    options.require_format =
+        DatabaseFormat::BERKELEY;
+    options.recover = false;
+    DatabaseStatus status;
+    return MakeWalletDatabase(
+        filename,
+        options,
+        status,
+        error);
+}
 #endif
 } // namespace
 
@@ -881,6 +913,700 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     created.reset();
     BOOST_CHECK(bitdb.RemoveDb(berkeleyFilename));
 }
+
+#if defined(USE_SQLITE) && (defined(__linux__) || defined(__APPLE__))
+BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
+{
+    const std::string sourceFilename{
+        "migration_backup_source.dat"};
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE(source);
+    {
+        auto batch = source->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("migration-backup-key"),
+            std::string("migration-backup-value")));
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+
+    BerkeleyDatabase* const berkeley =
+        dynamic_cast<BerkeleyDatabase*>(
+            source.get());
+    BOOST_REQUIRE(berkeley);
+    const std::string collisionFilename{
+        "migration-backup-collision.bak"};
+    const fs::path collisionPath =
+        GetDataDir() / collisionFilename;
+    const std::string collisionContents{
+        "must not be overwritten"};
+    WriteFile(collisionPath, collisionContents);
+    BOOST_CHECK(
+        berkeley->CreateMigrationBackup(
+            collisionFilename,
+            error) ==
+        MigrationBackupResult::EXISTS);
+    BOOST_CHECK_EQUAL(
+        ReadFile(collisionPath),
+        collisionContents);
+    BOOST_REQUIRE(fs::remove(collisionPath));
+
+    const std::string backupFilename{
+        "migration-backup-private.bak"};
+    BOOST_REQUIRE(
+        berkeley->CreateMigrationBackup(
+            backupFilename,
+            error) ==
+        MigrationBackupResult::SUCCESS);
+    BOOST_CHECK(error.empty());
+    const fs::path backupPath =
+        GetDataDir() / backupFilename;
+    BOOST_CHECK_EQUAL(
+        berkeley->MigrationBackupPath().string(),
+        backupPath.string());
+    struct stat metadata{};
+    BOOST_REQUIRE(
+        lstat(
+            backupPath.string().c_str(),
+            &metadata) == 0);
+    BOOST_CHECK(S_ISREG(metadata.st_mode));
+    BOOST_CHECK_EQUAL(metadata.st_nlink, 1);
+    BOOST_CHECK_EQUAL(
+        metadata.st_mode & 0777,
+        S_IRUSR | S_IWUSR);
+    BOOST_CHECK(
+        berkeley->MigrationBackupMatchesPath(
+            error));
+    BOOST_CHECK(error.empty());
+    BOOST_CHECK(
+        berkeley->PrepareForMigrationPublication(
+            error));
+    BOOST_CHECK(error.empty());
+
+    DatabaseOptions openBackup;
+    openBackup.require_existing = true;
+    openBackup.require_format =
+        DatabaseFormat::BERKELEY;
+    std::unique_ptr<WalletDatabase> backup =
+        MakeWalletDatabase(
+            backupFilename,
+            openBackup,
+            status,
+            error);
+    BOOST_REQUIRE(backup);
+    std::string value;
+    {
+        auto batch = backup->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        BOOST_CHECK(batch->Read(
+            std::string("migration-backup-key"),
+            value));
+    }
+    BOOST_CHECK_EQUAL(
+        value,
+        "migration-backup-value");
+
+    source->Flush(true);
+    backup.reset();
+    source.reset();
+    bitdb.Close();
+    bitdb.Reset();
+
+    CDBEnv reopenedEnvironment;
+    BOOST_REQUIRE(
+        reopenedEnvironment.Open(
+            GetDataDir()));
+    struct stat sourceMetadata{};
+    BOOST_REQUIRE(
+        lstat(
+            (GetDataDir() / sourceFilename)
+                .string()
+                .c_str(),
+            &sourceMetadata) == 0);
+    std::unique_ptr<WalletDatabase> reopenedSource =
+        MakeBerkeleyDatabase(
+            reopenedEnvironment,
+            sourceFilename,
+            {},
+            DatabaseFileIdentity{
+                static_cast<uint64_t>(
+                    sourceMetadata.st_dev),
+                static_cast<uint64_t>(
+                    sourceMetadata.st_ino)});
+    {
+        auto batch = reopenedSource->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        value.clear();
+        BOOST_REQUIRE(batch->Read(
+            std::string("migration-backup-key"),
+            value));
+        BOOST_CHECK_EQUAL(
+            value,
+            "migration-backup-value");
+    }
+    reopenedSource.reset();
+    reopenedEnvironment.Flush(true);
+    BOOST_REQUIRE(bitdb.Open(GetDataDir()));
+}
+
+BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
+{
+    const std::string sourceFilename{
+        "migration_raw_source.dat"};
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE(source);
+    {
+        CWalletDB walletDatabase(*source);
+        BOOST_REQUIRE(walletDatabase.WriteKV(
+            "migration-known",
+            "known-value"));
+    }
+    {
+        auto batch = source->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("version"),
+            CLIENT_VERSION - 1));
+        CDataStream key(SER_DISK, CLIENT_VERSION);
+        key << std::make_pair(
+            std::string("future-wallet-record"),
+            uint32_t{7});
+        CDataStream value(SER_DISK, CLIENT_VERSION);
+        const std::array<unsigned char, 7> rawValue{{
+            0x00,
+            0x01,
+            0x7f,
+            0x80,
+            0xff,
+            0x00,
+            0x42,
+        }};
+        value.write(
+            reinterpret_cast<const char*>(
+                rawValue.data()),
+            rawValue.size());
+        BOOST_REQUIRE(batch->WriteRawRecord(
+            std::move(key),
+            std::move(value),
+            false));
+    }
+
+    std::vector<RawRecord> expected;
+    {
+        auto batch = source->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        expected = ReadRawRecords(*batch);
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+
+    std::string backupPath;
+    BOOST_REQUIRE_MESSAGE(
+        MigrateWalletDatabaseToSQLite(
+            *source,
+            backupPath,
+            error),
+        error);
+    BOOST_CHECK(error.empty());
+    BOOST_REQUIRE(!backupPath.empty());
+    source.reset();
+
+    const fs::path backupFilesystemPath{
+        backupPath};
+    BOOST_CHECK(
+        fs::is_regular_file(
+            backupFilesystemPath));
+    struct stat backupMetadata{};
+    BOOST_REQUIRE(
+        lstat(
+            backupFilesystemPath.string().c_str(),
+            &backupMetadata) == 0);
+    BOOST_CHECK_EQUAL(
+        backupMetadata.st_mode & 0777,
+        S_IRUSR | S_IWUSR);
+
+    DatabaseOptions openSQLite;
+    openSQLite.require_existing = true;
+    openSQLite.require_format =
+        DatabaseFormat::SQLITE;
+    std::unique_ptr<WalletDatabase> migrated =
+        MakeWalletDatabase(
+            sourceFilename,
+            openSQLite,
+            status,
+            error);
+    BOOST_REQUIRE(migrated);
+    {
+        auto batch = migrated->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        BOOST_CHECK(
+            ReadRawRecords(*batch) ==
+            expected);
+    }
+
+    DatabaseOptions openBackup;
+    openBackup.require_existing = true;
+    openBackup.require_format =
+        DatabaseFormat::BERKELEY;
+    std::unique_ptr<WalletDatabase> backup =
+        MakeWalletDatabase(
+            backupFilesystemPath.filename().string(),
+            openBackup,
+            status,
+            error);
+    BOOST_REQUIRE(backup);
+    {
+        auto batch = backup->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        BOOST_CHECK(
+            ReadRawRecords(*batch) ==
+            expected);
+    }
+
+    {
+        CWalletDB walletDatabase(*migrated);
+        BOOST_REQUIRE(walletDatabase.WriteKV(
+            "migration-post-write",
+            "post-write-value"));
+    }
+    migrated.reset();
+    migrated = MakeWalletDatabase(
+        sourceFilename,
+        openSQLite,
+        status,
+        error);
+    BOOST_REQUIRE(migrated);
+    std::string postWrite;
+    {
+        auto batch = migrated->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        BOOST_CHECK(batch->Read(
+            std::make_pair(
+                std::string("kv"),
+                std::string("migration-post-write")),
+            postWrite));
+    }
+    BOOST_CHECK_EQUAL(
+        postWrite,
+        "post-write-value");
+}
+
+BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
+{
+    auto createSource = [](
+                            const std::string& filename) {
+        DatabaseOptions options;
+        options.require_create = true;
+        options.require_format =
+            DatabaseFormat::BERKELEY;
+        DatabaseStatus status;
+        std::string error;
+        return MakeWalletDatabase(
+            filename,
+            options,
+            status,
+            error);
+    };
+
+    const std::string corruptFilename{
+        "migration_corrupt_source.dat"};
+    std::unique_ptr<WalletDatabase> corrupt =
+        createSource(corruptFilename);
+    BOOST_REQUIRE(corrupt);
+    {
+        auto batch = corrupt->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        CDataStream key(SER_DISK, CLIENT_VERSION);
+        key << std::string("key");
+        CDataStream value(SER_DISK, CLIENT_VERSION);
+        value << std::string("malformed private key record");
+        BOOST_REQUIRE(batch->WriteRawRecord(
+            std::move(key),
+            std::move(value),
+            false));
+    }
+    std::vector<RawRecord> corruptRecords;
+    {
+        auto batch = corrupt->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        corruptRecords = ReadRawRecords(*batch);
+    }
+    std::string error;
+    BOOST_REQUIRE(corrupt->PeriodicFlush());
+    corrupt.reset();
+    corrupt = ReopenBerkeleyForMigration(
+        corruptFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(corrupt, error);
+    std::string backupPath;
+    BOOST_CHECK(!MigrateWalletDatabaseToSQLite(
+        *corrupt,
+        backupPath,
+        error));
+    BOOST_CHECK(!backupPath.empty());
+    BOOST_CHECK(
+        error.find(backupPath) !=
+        std::string::npos);
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            GetDataDir() / corruptFilename));
+    {
+        auto batch = corrupt->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+        BOOST_CHECK(
+            ReadRawRecords(*batch) ==
+            corruptRecords);
+    }
+    BOOST_CHECK(
+        FindMigrationPaths(
+            ".firo-wallet-sqlite-migration-")
+            .empty());
+
+    const std::string emptyFilename{
+        "migration_empty_key_source.dat"};
+    std::unique_ptr<WalletDatabase> empty =
+        createSource(emptyFilename);
+    BOOST_REQUIRE(empty);
+    {
+        auto batch = empty->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        CDataStream key(SER_DISK, CLIENT_VERSION);
+        CDataStream value(SER_DISK, CLIENT_VERSION);
+        value << std::string("reserved");
+        BOOST_REQUIRE(batch->WriteRawRecord(
+            std::move(key),
+            std::move(value),
+            false));
+    }
+    BOOST_REQUIRE(empty->PeriodicFlush());
+    empty.reset();
+    empty = ReopenBerkeleyForMigration(
+        emptyFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(empty, error);
+    backupPath.clear();
+    error.clear();
+    BOOST_CHECK(!MigrateWalletDatabaseToSQLite(
+        *empty,
+        backupPath,
+        error));
+    BOOST_CHECK(
+        error.find("raw empty key") !=
+        std::string::npos);
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            GetDataDir() / emptyFilename));
+    BOOST_CHECK(
+        FindMigrationPaths(
+            ".firo-wallet-sqlite-migration-")
+            .empty());
+}
+
+BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
+{
+    ShutdownRequestReset shutdownReset;
+    fRequestShutdown.store(false);
+
+    const std::string sourceFilename{
+        "migration_exchange_source.dat"};
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE(source);
+    {
+        CWalletDB walletDatabase(*source);
+        BOOST_REQUIRE(walletDatabase.WriteKV(
+            "migration-exchange",
+            "preserved"));
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+
+    InjectSQLiteMigrationExchangeFailureForTesting();
+    std::string backupPath;
+    BOOST_CHECK(!MigrateWalletDatabaseToSQLite(
+        *source,
+        backupPath,
+        error));
+    BOOST_CHECK(fRequestShutdown.load());
+    BOOST_CHECK(!backupPath.empty());
+    BOOST_CHECK(
+        error.find(backupPath) !=
+        std::string::npos);
+    source.reset();
+
+    DatabaseOptions openSQLite;
+    openSQLite.require_existing = true;
+    openSQLite.require_format =
+        DatabaseFormat::SQLITE;
+    std::unique_ptr<WalletDatabase> finalDatabase =
+        MakeWalletDatabase(
+            sourceFilename,
+            openSQLite,
+            status,
+            error);
+    BOOST_REQUIRE(finalDatabase);
+
+    const std::vector<fs::path> displaced =
+        FindMigrationPaths(
+            ".firo-wallet-sqlite-migration-");
+    BOOST_REQUIRE_EQUAL(displaced.size(), 1);
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            displaced.front()));
+    DatabaseOptions openBerkeley;
+    openBerkeley.require_existing = true;
+    openBerkeley.require_format =
+        DatabaseFormat::BERKELEY;
+    std::unique_ptr<WalletDatabase> displacedDatabase =
+        MakeWalletDatabase(
+            displaced.front().filename().string(),
+            openBerkeley,
+            status,
+            error);
+    BOOST_REQUIRE(displacedDatabase);
+    std::unique_ptr<WalletDatabase> backupDatabase =
+        MakeWalletDatabase(
+            fs::path(backupPath).filename().string(),
+            openBerkeley,
+            status,
+            error);
+    BOOST_REQUIRE(backupDatabase);
+}
+
+BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
+{
+    ShutdownRequestReset shutdownReset;
+    fRequestShutdown.store(false);
+
+    const std::string sourceFilename{
+        "migration_one_shot_source.dat"};
+    DatabaseOptions createSourceOptions;
+    createSourceOptions.require_create = true;
+    createSourceOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createSourceOptions,
+            status,
+            error);
+    BOOST_REQUIRE(source);
+    {
+        auto batch = source->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("one-shot-source"),
+            std::string("preserved-in-backup")));
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+
+    BerkeleyDatabase* const berkeley =
+        dynamic_cast<BerkeleyDatabase*>(
+            source.get());
+    BOOST_REQUIRE(berkeley);
+    BOOST_REQUIRE(
+        berkeley->CreateMigrationBackup(
+            "migration-one-shot-backup.bak",
+            error) ==
+        MigrationBackupResult::SUCCESS);
+    const fs::path sourcePath =
+        GetDataDir() / sourceFilename;
+    const std::string sourceContents =
+        ReadFile(sourcePath);
+    const std::string backupContents =
+        ReadFile(
+            berkeley->MigrationBackupPath());
+
+    const std::string candidateFilename{
+        ".migration-one-shot-candidate.tmp"};
+    DatabaseOptions candidateOptions;
+    candidateOptions.require_create = true;
+    candidateOptions.require_format =
+        DatabaseFormat::SQLITE;
+    candidateOptions.logical_wallet_create = true;
+    candidateOptions.sqlite_migration_candidate = true;
+    std::unique_ptr<WalletDatabase> candidate =
+        MakeWalletDatabase(
+            candidateFilename,
+            candidateOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(candidate, error);
+    BOOST_REQUIRE(
+        candidate->CompleteCreation(error) ==
+        DatabaseCreationResult::COMPLETE);
+    BOOST_REQUIRE(error.empty());
+
+    std::unique_ptr<DatabaseBatch> blockingSourceBatch =
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY});
+    BOOST_REQUIRE(blockingSourceBatch);
+    std::promise<void> publisherStarted;
+    std::future<void> publisherReady =
+        publisherStarted.get_future();
+    std::atomic<bool> interruptionObserved{false};
+    boost::thread interruptedPublisher([&] {
+        publisherStarted.set_value();
+        try {
+            PublishSQLiteMigrationCandidate(
+                *candidate,
+                *berkeley,
+                error);
+        } catch (const boost::thread_interrupted&) {
+            interruptionObserved.store(true);
+        }
+    });
+    publisherReady.wait();
+    interruptedPublisher.interrupt();
+    interruptedPublisher.join();
+    BOOST_CHECK(interruptionObserved.load());
+    BOOST_CHECK(
+        error.find("exact owned candidate") !=
+        std::string::npos);
+    BOOST_CHECK(!fRequestShutdown.load());
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() / candidateFilename));
+    std::optional<DatabaseFormat> sourceFormat;
+    BOOST_REQUIRE(
+        ReadWalletDatabaseFormat(
+            sourceFilename,
+            sourceFormat,
+            error));
+    BOOST_REQUIRE(sourceFormat);
+    BOOST_CHECK(
+        *sourceFormat ==
+        DatabaseFormat::BERKELEY);
+    BOOST_CHECK_EQUAL(
+        ReadFile(sourcePath),
+        sourceContents);
+    BOOST_CHECK_EQUAL(
+        ReadFile(
+            berkeley->MigrationBackupPath()),
+        backupContents);
+    BOOST_CHECK(
+        berkeley->MigrationBackupMatchesPath(
+            error));
+
+    blockingSourceBatch.reset();
+    candidate.reset();
+    candidate = MakeWalletDatabase(
+        candidateFilename,
+        candidateOptions,
+        status,
+        error);
+    BOOST_REQUIRE_MESSAGE(candidate, error);
+    BOOST_REQUIRE(
+        candidate->CompleteCreation(error) ==
+        DatabaseCreationResult::COMPLETE);
+    BOOST_REQUIRE(error.empty());
+
+    BOOST_REQUIRE(
+        PublishSQLiteMigrationCandidate(
+            *candidate,
+            *berkeley,
+            error) ==
+        SQLiteMigrationPublishResult::SUCCESS);
+    BOOST_REQUIRE(error.empty());
+    std::optional<DatabaseFormat> finalFormat;
+    BOOST_REQUIRE(
+        ReadWalletDatabaseFormat(
+            sourceFilename,
+            finalFormat,
+            error));
+    BOOST_REQUIRE(finalFormat);
+    BOOST_CHECK(
+        *finalFormat ==
+        DatabaseFormat::SQLITE);
+    const std::string finalContents =
+        ReadFile(sourcePath);
+
+    BOOST_CHECK(
+        PublishSQLiteMigrationCandidate(
+            *candidate,
+            *berkeley,
+            error) ==
+        SQLiteMigrationPublishResult::FAILED);
+    BOOST_CHECK(
+        error.find("already published and consumed") !=
+        std::string::npos);
+    BOOST_CHECK(!fRequestShutdown.load());
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() / candidateFilename));
+    BOOST_CHECK_EQUAL(
+        ReadFile(sourcePath),
+        finalContents);
+    BOOST_CHECK_EQUAL(
+        ReadFile(
+            berkeley->MigrationBackupPath()),
+        backupContents);
+    BOOST_CHECK(
+        berkeley->MigrationBackupMatchesPath(
+            error));
+}
+#endif
 
 BOOST_AUTO_TEST_CASE(berkeley_factory_first_open_policy)
 {
