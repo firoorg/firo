@@ -43,6 +43,9 @@
 #endif
 #include <boost/scoped_array.hpp>
 
+#include <exception>
+#include <thread>
+
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QClipboard>
@@ -50,6 +53,7 @@
 #include <QDesktopServices>
 #include <QScreen>
 #include <QDoubleValidator>
+#include <QEventLoop>
 #include <QFileDialog>
 #include <QFont>
 #include <QLineEdit>
@@ -90,6 +94,34 @@ namespace GUIUtil {
 static QString stylesheetDirectory = ":css";
 static QString firoTheme = "firoTheme";
 static CCriticalSection cs_css;
+
+void runWalletOperation(const std::function<void()>& operation)
+{
+    std::exception_ptr exception;
+    QEventLoop waitLoop;
+    std::thread worker([&] {
+        try {
+            operation();
+        } catch (...) {
+            exception = std::current_exception();
+        }
+        QMetaObject::invokeMethod(&waitLoop, &QEventLoop::quit, Qt::QueuedConnection);
+    });
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    struct Cleanup {
+        std::thread& worker;
+        ~Cleanup()
+        {
+            if (worker.joinable())
+                worker.join();
+            QApplication::restoreOverrideCursor();
+        }
+    } cleanup{worker};
+    waitLoop.exec(QEventLoop::ExcludeUserInputEvents);
+    worker.join();
+    if (exception)
+        std::rethrow_exception(exception);
+}
 
 QString dateTimeStr(const QDateTime &date)
 {

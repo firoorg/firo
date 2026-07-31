@@ -1250,9 +1250,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
         }
         
         if (!fCreated) {
-            Q_EMIT message(tr("Mint Spark"), QString::fromStdString(strFailReason),
-                CClientUIInterface::MSG_ERROR);
-            return TransactionCreationFailed;
+            return SendCoinsReturn(TransactionCreationFailed, QString::fromStdString(strFailReason));
         }
 
         if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {

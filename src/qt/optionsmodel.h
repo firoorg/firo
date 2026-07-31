@@ -51,7 +51,7 @@ public:
         Split,                  // bool
         enableRapAddresses,     // bool
         ReindexSpark,           // bool (wallet: zap Spark mints + reindex; QSettings bReindexSpark)
-        SparkPage,              // bool (show Spark manual-anonymize UI; QSettings fSparkPage)
+        SparkPage,              // bool (show Spark privacy controls; QSettings fSparkPage)
         OptionIDRowCount,
     };
 
