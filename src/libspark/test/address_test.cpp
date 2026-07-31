@@ -9,6 +9,17 @@ using namespace secp_primitives;
 
 BOOST_FIXTURE_TEST_SUITE(spark_address_tests, BasicTestingSetup)
 
+BOOST_AUTO_TEST_CASE(spend_key_recovery)
+{
+    const Params* params = Params::get_test();
+    const SpendKey original(params);
+    const SpendKey recovered1(params, original.get_r());
+    const SpendKey recovered2(params, original.get_r());
+
+    BOOST_CHECK(recovered1.get_s1() == recovered2.get_s1());
+    BOOST_CHECK(recovered1.get_s2() == recovered2.get_s2());
+}
+
 // Check that correct encoding and decoding succeed
 BOOST_AUTO_TEST_CASE(correctness)
 {
