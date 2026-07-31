@@ -483,7 +483,7 @@
               </property>
              </widget>
             </item>
-            <item row="16" column="2">
+            <item row="16" column="3" alignment="Qt::AlignLeft">
              <widget class="QPushButton" name="anonymizeButton">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Minimum" vsizetype="Minimum">

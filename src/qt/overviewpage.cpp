@@ -661,5 +661,7 @@ void OverviewPage::updateSparkAnonymizeRowVisibility()
     const bool show = spark::IsSparkAllowed() && walletModel->getOptionsModel()->getSparkPage();
     ui->labelAnonymizableText->setVisible(show);
     ui->labelAnonymizable->setVisible(show);
-    ui->anonymizeButton->setVisible(show);
+    // Watch-only funds cannot be spent, so wallets with nothing eligible
+    // (e.g. watch-only wallets) get no dead Make Private control.
+    ui->anonymizeButton->setVisible(show && currentAnonymizableBalance > 0);
 }
