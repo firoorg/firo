@@ -5,11 +5,11 @@
 #include "overviewpage.h"
 #include "ui_overviewpage.h"
 
+#include "bitcoinamountfield.h"
 #include "bitcoinunits.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
-#include "sparkmodel.h"
 #include "spark/state.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -28,7 +28,14 @@
 #include "compat.h"
 
 #include <QAbstractItemDelegate>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QPainter>
+#include <QPushButton>
+#include <QVBoxLayout>
 
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 5
@@ -131,6 +138,9 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     currentWatchOnlyBalance(-1),
     currentWatchUnconfBalance(-1),
     currentWatchImmatureBalance(-1),
+    currentPrivateBalance(-1),
+    currentUnconfirmedPrivateBalance(-1),
+    currentAnonymizableBalance(-1),
     txdelegate(new TxViewDelegate(platformStyle, this))
 {
     ui->setupUi(this);
@@ -255,18 +265,152 @@ void OverviewPage::resizeEvent(QResizeEvent* event)
 
 void OverviewPage::on_anonymizeButton_clicked()
 {
-    if (!walletModel) {
+    auto wallet = walletModel ? walletModel->getWallet() : nullptr;
+    if (!walletModel || !walletModel->getOptionsModel() || !wallet || !wallet->sparkWallet ||
+        !spark::IsSparkAllowed() || currentAnonymizableBalance <= 0) {
         return;
     }
 
-    if (spark::IsSparkAllowed()) {
-        auto sparkModel = walletModel->getSparkModel();
-        if (!sparkModel) {
+    const int unit = walletModel->getOptionsModel()->getDisplayUnit();
+    const CAmount available = currentAnonymizableBalance;
+    QDialog amountDialog(this);
+    amountDialog.setWindowTitle(tr("Make Funds Private"));
+
+    auto layout = new QVBoxLayout(&amountDialog);
+    auto description = new QLabel(
+        tr("Move FIRO from your transparent balance into Spark, Firo's private balance."),
+        &amountDialog);
+    description->setWordWrap(true);
+    layout->addWidget(description);
+
+    auto form = new QFormLayout();
+    form->addRow(tr("From"), new QLabel(tr("Transparent balance"), &amountDialog));
+    form->addRow(tr("To"), new QLabel(tr("Private balance (Spark)"), &amountDialog));
+
+    auto amountLayout = new QHBoxLayout();
+    auto amountField = new BitcoinAmountField(&amountDialog);
+    amountField->setDisplayUnit(unit);
+    auto maxButton = new QPushButton(tr("Max"), &amountDialog);
+    amountLayout->addWidget(amountField);
+    amountLayout->addWidget(maxButton);
+    form->addRow(tr("Amount"), amountLayout);
+    form->addRow(
+        tr("Available"),
+        new QLabel(BitcoinUnits::formatWithUnit(unit, available), &amountDialog));
+    layout->addLayout(form);
+
+    auto buttons = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok, &amountDialog);
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Review"));
+    layout->addWidget(buttons);
+
+    connect(maxButton, &QPushButton::clicked, [amountField, available] {
+        amountField->setValue(available);
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &amountDialog, &QDialog::reject);
+    connect(buttons->button(QDialogButtonBox::Ok), &QPushButton::clicked, [&, available] {
+        bool valid = false;
+        const CAmount amount = amountField->value(&valid);
+        if (!valid || amount <= 0 || amount > available) {
+            amountField->setValid(false);
             return;
         }
+        amountDialog.accept();
+    });
 
-        sparkModel->mintSparkAll(AutoMintSparkMode::MintAll);
+    amountField->setFocus();
+    if (amountDialog.exec() != QDialog::Accepted) {
+        return;
     }
+
+    const CAmount amount = amountField->value();
+    WalletModel::UnlockContext unlockContext(walletModel->requestUnlock(tr("Make funds private")));
+    if (!unlockContext.isValid()) {
+        return;
+    }
+
+    SendCoinsRecipient recipient;
+    recipient.address = walletModel->generateSparkAddress();
+    recipient.amount = amount;
+    recipient.fSubtractFeeFromAmount = amount == available;
+
+    QList<SendCoinsRecipient> recipients;
+    recipients.append(recipient);
+    std::vector<WalletModelTransaction> transactions;
+    std::vector<std::pair<CWalletTx, CAmount>> transactionsAndFees;
+    std::list<CReserveKey> reserveKeys;
+
+    auto showError = [this, unit](const WalletModel::SendCoinsReturn& result) {
+        QString text;
+        switch (result.status) {
+        case WalletModel::AmountExceedsBalance:
+            text = tr("The amount exceeds your available transparent balance.");
+            break;
+        case WalletModel::AmountWithFeeExceedsBalance:
+            text = tr("The amount and transaction fee exceed your available transparent balance.");
+            break;
+        case WalletModel::AbsurdFee:
+            text = tr("The transaction fee is higher than the configured maximum of %1.")
+                .arg(BitcoinUnits::formatWithUnit(unit, maxTxFee));
+            break;
+        case WalletModel::TransactionCommitFailed:
+            text = tr("The transaction was rejected: %1").arg(result.reasonCommitFailed);
+            break;
+        default:
+            text = tr("Unable to create the Spark transaction.");
+            break;
+        }
+        QMessageBox::critical(this, tr("Unable to Make Funds Private"), text);
+    };
+
+    WalletModel::SendCoinsReturn prepareResult;
+    GUIUtil::runWalletOperation([&] {
+        prepareResult = walletModel->prepareMintSparkTransaction(
+            transactions, recipients, transactionsAndFees, reserveKeys, nullptr);
+    });
+    if (prepareResult.status != WalletModel::OK) {
+        showError(prepareResult);
+        return;
+    }
+
+    CAmount privateAmount = 0;
+    CAmount fee = 0;
+    for (auto& transaction : transactions) {
+        privateAmount += transaction.getTotalTransactionAmount();
+        fee += transaction.getTransactionFee();
+    }
+
+    QMessageBox confirmation(
+        QMessageBox::Question,
+        tr("Review Private Transfer"),
+        tr("Amount to make private: <b>%1</b><br>"
+           "Network fee: %2<br>"
+           "Total from transparent balance: %3")
+            .arg(BitcoinUnits::formatWithUnit(unit, privateAmount),
+                 BitcoinUnits::formatWithUnit(unit, fee),
+                 BitcoinUnits::formatWithUnit(unit, privateAmount + fee)),
+        QMessageBox::Cancel,
+        this);
+    auto confirmButton = confirmation.addButton(tr("Make Private"), QMessageBox::AcceptRole);
+    confirmation.setDefaultButton(QMessageBox::Cancel);
+    confirmation.exec();
+    if (confirmation.clickedButton() != confirmButton) {
+        return;
+    }
+
+    WalletModel::SendCoinsReturn sendResult;
+    GUIUtil::runWalletOperation([&] {
+        sendResult = walletModel->mintSparkCoins(transactions, transactionsAndFees, reserveKeys);
+    });
+    if (sendResult.status != WalletModel::OK) {
+        showError(sendResult);
+        return;
+    }
+
+    QMessageBox::information(
+        this,
+        tr("Funds Moving to Spark"),
+        tr("%1 is moving to your private Spark balance. It will become available after confirmation.")
+            .arg(BitcoinUnits::formatWithUnit(unit, privateAmount)));
 }
 
 void OverviewPage::setBalance(

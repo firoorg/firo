@@ -11,7 +11,7 @@ AutomintSparkNotification::AutomintSparkNotification(QWidget *parent) :
     sparkModel(nullptr)
 {
     ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Make Private"));
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Dismiss"));
 
     setWindowFlags(windowFlags() | Qt::FramelessWindowHint);

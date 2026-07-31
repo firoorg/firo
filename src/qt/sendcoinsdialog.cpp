@@ -24,8 +24,6 @@
 #include "wallet/wallet.h"
 #include "overviewpage.h"
 
-#include <QApplication>
-#include <QEventLoop>
 #include <QFontMetrics>
 #include <QMessageBox>
 #include <QScrollBar>
@@ -33,9 +31,7 @@
 #include <QTextDocument>
 #include <QTimer>
 
-#include <exception>
 #include <functional>
-#include <thread>
 
 #define SEND_CONFIRM_DELAY   3
 
@@ -230,45 +226,12 @@ SendCoinsDialog::~SendCoinsDialog()
 }
 
 namespace {
-/** Run a slow wallet operation on a worker thread while keeping the GUI event
- * loop spinning, and return its result. Creating a transaction can take
- * several seconds: Spark spends generate zero-knowledge proofs, and both
- * creation and commit wait on cs_main/cs_wallet, which are contended while
- * incoming blocks and transactions are processed. Doing that work directly in
- * a slot freezes the whole GUI for its duration.
- *
- * User input is excluded from event processing while the operation runs, so
- * the calling code path behaves as if it were synchronous. */
 WalletModel::SendCoinsReturn runWalletOperation(std::function<WalletModel::SendCoinsReturn()> operation)
 {
     WalletModel::SendCoinsReturn result;
-    std::exception_ptr exception;
-    QEventLoop waitLoop;
-    std::thread worker([&] {
-        try {
-            result = operation();
-        } catch (...) {
-            exception = std::current_exception();
-        }
-        QMetaObject::invokeMethod(&waitLoop, &QEventLoop::quit, Qt::QueuedConnection);
+    GUIUtil::runWalletOperation([&] {
+        result = operation();
     });
-    QApplication::setOverrideCursor(Qt::WaitCursor);
-    // Restore the cursor and join the worker even if an exception escapes the
-    // nested event loop: destroying a joinable std::thread would call
-    // std::terminate().
-    struct Cleanup {
-        std::thread& worker;
-        ~Cleanup()
-        {
-            if (worker.joinable())
-                worker.join();
-            QApplication::restoreOverrideCursor();
-        }
-    } cleanup{worker};
-    waitLoop.exec(QEventLoop::ExcludeUserInputEvents);
-    worker.join();
-    if (exception)
-        std::rethrow_exception(exception);
     return result;
 }
 }
