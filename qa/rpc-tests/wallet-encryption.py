@@ -48,6 +48,7 @@ class WalletEncryptionTest(BitcoinTestFramework):
         assert_equal(len(privkey), 52)
         assert_raises_jsonrpc(-15, "Error: running with an unencrypted wallet, but walletpassphrase was called", self.nodes[0].walletpassphrase, 'ff', 1)
         assert_raises_jsonrpc(-15, "Error: running with an unencrypted wallet, but walletpassphrasechange was called.", self.nodes[0].walletpassphrasechange, 'ff', 'ff')
+        self.nodes[0].generate(101)
 
         # Encrypt the wallet
         assert_raises_jsonrpc(-1, "encryptwallet <passphrase>\nEncrypts the wallet with <passphrase>.", self.nodes[0].encryptwallet, '')
@@ -96,6 +97,22 @@ class WalletEncryptionTest(BitcoinTestFramework):
         self.nodes[0].walletpassphrase(passphrase2, 10)
         otp = self.get_otp(address)
         assert_equal(privkey, self.nodes[0].dumpprivkey(address, otp))
+
+        # The changed passphrase must survive restart and authorize a spend.
+        self.stop_node(0)
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir)
+        assert_raises_jsonrpc(-14, "wallet passphrase entered was incorrect", self.nodes[0].walletpassphrase, passphrase, 10)
+        assert_raises_jsonrpc(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].sendtoaddress, address, 1)
+        self.nodes[0].walletpassphrase(passphrase2, 120)
+        txid = self.nodes[0].sendtoaddress(address, 1)
+        self.nodes[0].generate(1)
+        assert_equal(self.nodes[0].gettransaction(txid)["confirmations"], 1)
+
+        # The encrypted wallet must reload the confirmed transaction.
+        self.stop_node(0)
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir)
+        assert_raises_jsonrpc(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].sendtoaddress, address, 1)
+        assert self.nodes[0].gettransaction(txid)["confirmations"] >= 1
 
 if __name__ == '__main__':
     WalletEncryptionTest().main()

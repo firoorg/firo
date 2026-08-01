@@ -434,7 +434,18 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         assert_equal(node.getwalletinfo()["format"], "bdb")
         bdb_address = node.getnewaddress(bdb_account)
         bdb_hd_master_key_id = node.getwalletinfo()["hdmasterkeyid"]
-        self.stop_wallet()
+        bdb_spark_default_address = node.getsparkdefaultaddress()[0]
+        node.generate(101)
+        pre_migration_txid = node.sendtoaddress(bdb_address, 1)
+        node.generate(1)
+        assert_equal(
+            node.gettransaction(pre_migration_txid)["confirmations"],
+            1)
+        migration_passphrase = "bdb-migration-passphrase"
+        migration_message = "migration locked-wallet check"
+        node.encryptwallet(migration_passphrase)
+        wait_node(0)
+        self.nodes = []
 
         node = self.start_wallet(["-wallet=" + bdb_wallet])
         self.assert_wallet_state(
@@ -443,6 +454,16 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             bdb_address,
             bdb_account,
             bdb_hd_master_key_id)
+        assert_raises_jsonrpc(
+            -13,
+            "Please enter the wallet passphrase with walletpassphrase first",
+            node.signmessage,
+            bdb_address,
+            migration_message)
+        assert node.gettransaction(pre_migration_txid)["confirmations"] >= 1
+        assert_equal(
+            node.getsparkdefaultaddress()[0],
+            bdb_spark_default_address)
         self.stop_wallet()
 
         bdb_wallet_path = self.wallet_path(bdb_wallet)
@@ -518,8 +539,24 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             bdb_address,
             bdb_account,
             bdb_hd_master_key_id)
+        assert node.gettransaction(pre_migration_txid)["confirmations"] >= 1
+        assert_equal(
+            node.getsparkdefaultaddress()[0],
+            bdb_spark_default_address)
+        assert_raises_jsonrpc(
+            -13,
+            "walletpassphrase",
+            node.sendtoaddress,
+            bdb_address,
+            1)
+        node.walletpassphrase(migration_passphrase, 120)
         migrated_account = "bdb-migrated-write"
         migrated_address = node.getnewaddress(migrated_account)
+        post_migration_txid = node.sendtoaddress(migrated_address, 1)
+        node.generate(1)
+        assert_equal(
+            node.gettransaction(post_migration_txid)["confirmations"],
+            1)
         self.stop_wallet()
 
         migration_log = self.read_debug_log_from(migration_log_offset)
@@ -547,6 +584,17 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             migrated_address,
             migrated_account,
             bdb_hd_master_key_id)
+        assert_raises_jsonrpc(
+            -13,
+            "Please enter the wallet passphrase with walletpassphrase first",
+            node.signmessage,
+            bdb_address,
+            migration_message)
+        assert node.gettransaction(pre_migration_txid)["confirmations"] >= 1
+        assert node.gettransaction(post_migration_txid)["confirmations"] >= 1
+        assert_equal(
+            node.getsparkdefaultaddress()[0],
+            bdb_spark_default_address)
         restarted_account = "bdb-restarted-write"
         restarted_address = node.getnewaddress(restarted_account)
         self.stop_wallet()
@@ -558,6 +606,17 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             restarted_address,
             restarted_account,
             bdb_hd_master_key_id)
+        assert_raises_jsonrpc(
+            -13,
+            "Please enter the wallet passphrase with walletpassphrase first",
+            node.signmessage,
+            bdb_address,
+            migration_message)
+        assert node.gettransaction(pre_migration_txid)["confirmations"] >= 1
+        assert node.gettransaction(post_migration_txid)["confirmations"] >= 1
+        assert_equal(
+            node.getsparkdefaultaddress()[0],
+            bdb_spark_default_address)
         self.stop_wallet()
 
         migrated_wallet_state = self.wallet_database_state(
