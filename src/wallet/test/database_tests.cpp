@@ -5703,6 +5703,14 @@ BOOST_AUTO_TEST_CASE(wallet_record_logical_parity)
     const std::string destinationAddress =
         CBitcoinAddress(destination).ToString();
 
+    CKey metadataKey;
+    metadataKey.MakeNewKey(true);
+    const CPubKey metadataPubKey = metadataKey.GetPubKey();
+    CKeyMetadata keyMetadata{1700000042};
+    keyMetadata.hdKeypath = "m/44'/136'/0'/1/9";
+    keyMetadata.hdMasterKeyID =
+        destinationKey.GetPubKey().GetID();
+
     CKey legacyKey;
     legacyKey.MakeNewKey(true);
     const CPubKey legacyPubKey = legacyKey.GetPubKey();
@@ -5886,6 +5894,13 @@ BOOST_AUTO_TEST_CASE(wallet_record_logical_parity)
                     destinationAddress,
                     "record-parity-dest-key",
                     "record-parity-dest-value"));
+                BOOST_REQUIRE(writer.WritePurpose(
+                    destinationAddress,
+                    "receive"));
+                BOOST_REQUIRE(writer.WriteKey(
+                    metadataPubKey,
+                    metadataKey.GetPrivKey(),
+                    keyMetadata));
                 BOOST_REQUIRE(
                     writer.WriteBestBlock(blockLocator));
                 BOOST_REQUIRE(
@@ -6029,6 +6044,29 @@ BOOST_AUTO_TEST_CASE(wallet_record_logical_parity)
                     BOOST_CHECK_EQUAL(
                         destinationValue,
                         "record-parity-dest-value");
+
+                    const auto addressBook =
+                        loaded.mapAddressBook.find(
+                            destination);
+                    BOOST_REQUIRE(
+                        addressBook !=
+                        loaded.mapAddressBook.end());
+                    BOOST_CHECK_EQUAL(
+                        addressBook->second.purpose,
+                        "receive");
+
+                    const auto metadata =
+                        loaded.mapKeyMetadata.find(
+                            metadataPubKey.GetID());
+                    BOOST_REQUIRE(
+                        metadata !=
+                        loaded.mapKeyMetadata.end());
+                    const bool metadataMatches =
+                        SameSerializedValue(
+                            keyMetadata,
+                            metadata->second);
+                    BOOST_CHECK(metadataMatches);
+
                     BOOST_CHECK_EQUAL(
                         loaded.nOrderPosNext,
                         2);
@@ -6111,6 +6149,16 @@ BOOST_AUTO_TEST_CASE(wallet_record_logical_parity)
                     SameKey(
                         legacyKey,
                         loadedLegacyKey));
+                CKey loadedMetadataKey;
+                BOOST_REQUIRE(
+                    loaded.GetKey(
+                        metadataPubKey.GetID(),
+                        loadedMetadataKey));
+                const bool metadataKeyMatches =
+                    SameKey(
+                        metadataKey,
+                        loadedMetadataKey);
+                BOOST_CHECK(metadataKeyMatches);
                 CScript loadedRedeemScript;
                 BOOST_REQUIRE(
                     loaded.GetCScript(
