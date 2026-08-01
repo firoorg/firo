@@ -19,3 +19,17 @@ target_link_libraries(test_firo firo_wallet)
 if(ENABLE_SQLITE_WALLET)
   target_link_libraries(test_firo SQLite3::SQLite3)
 endif()
+
+# These cases use standalone fixtures and are not discovered by the suite-only
+# test registration in src/test/CMakeLists.txt.
+foreach(wallet_test_name IN ITEMS
+  wallet_database_factory_preopen_policy
+  wallet_mnemonic_encryption_persists
+)
+  add_test(NAME ${wallet_test_name}
+    COMMAND test_firo --run_test=${wallet_test_name} --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+  )
+  set_property(TEST ${wallet_test_name} PROPERTY
+    SKIP_REGULAR_EXPRESSION "no test cases matching filter"
+  )
+endforeach()
