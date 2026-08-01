@@ -93,6 +93,7 @@ std::atomic<bool> g_fail_post_publish_once{false};
 std::atomic<bool> g_report_publish_error_after_rename_once{false};
 std::atomic<bool> g_report_backup_collision_once{false};
 std::atomic<bool> g_fail_backup_collision_cleanup_once{false};
+std::atomic<bool> g_fail_recovery_collision_cleanup_once{false};
 std::atomic<bool> g_report_migration_exchange_error_once{false};
 std::atomic<bool> g_report_rewrite_commit_error_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
@@ -115,6 +116,11 @@ bool ConsumeBackupPublicationCollision()
 bool ConsumeBackupCollisionCleanupFailure()
 {
     return g_fail_backup_collision_cleanup_once.exchange(false);
+}
+
+bool ConsumeRecoveryCollisionCleanupFailure()
+{
+    return g_fail_recovery_collision_cleanup_once.exchange(false);
 }
 
 bool ConsumeMigrationExchangeError()
@@ -5831,19 +5837,38 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                verification_closed;
     };
 
-    auto remove_pre_exchange_candidates = [&]() noexcept {
-        if (!exchange_proven) {
-            RemoveOwnedCandidate(replacement);
-        }
-        if (!backup_published) {
-            RemoveOwnedCandidate(backup);
-        }
-    };
+    auto remove_pre_exchange_candidates =
+        [&](std::string& replacement_error,
+            std::string& backup_error) noexcept {
+            replacement_error.clear();
+            backup_error.clear();
+            bool cleanup_proven = true;
+            if (!exchange_proven &&
+                !replacement.path.empty() &&
+                !RemoveOwnedCandidate(
+                    replacement,
+                    replacement_error)) {
+                cleanup_proven = false;
+            }
+            if (!backup_published &&
+                !backup.path.empty() &&
+                !RemoveOwnedCandidate(
+                    backup,
+                    backup_error)) {
+                cleanup_proven = false;
+            }
+            return cleanup_proven;
+        };
 
     auto fail_before_exchange =
         [&](const std::string& reason) {
             const bool closed = close_connections();
-            remove_pre_exchange_candidates();
+            std::string replacement_cleanup_error;
+            std::string backup_cleanup_error;
+            const bool cleanup_proven =
+                remove_pre_exchange_candidates(
+                    replacement_cleanup_error,
+                    backup_cleanup_error);
             error = strprintf(
                 "SQLite %s for wallet '%s' failed before publication: %s%s",
                 mode == SQLiteRecoveryMode::KEY_ONLY ?
@@ -5863,7 +5888,32 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                     " A SQLite connection could not be closed; restart Firo "
                     "before retrying.";
             }
-            return SQLiteLogicalRecoveryResult::FAILED;
+            if (cleanup_proven) {
+                return SQLiteLogicalRecoveryResult::FAILED;
+            }
+
+            StartShutdown();
+            error +=
+                " SQLite recovery candidate cleanup is indeterminate.";
+            if (!replacement_cleanup_error.empty()) {
+                error += strprintf(
+                    " Cleanup could not be proven for recovery working path "
+                    "'%s': %s",
+                    replacement.path.string(),
+                    replacement_cleanup_error);
+            }
+            if (!backup_cleanup_error.empty()) {
+                error += strprintf(
+                    " Cleanup could not be proven for unpublished backup "
+                    "working path '%s': %s",
+                    backup.path.string(),
+                    backup_cleanup_error);
+            }
+            error +=
+                " No atomic recovery exchange was applied; the original "
+                "wallet path remains authoritative. Preserve all reported "
+                "artifacts and restart Firo before retrying.";
+            return SQLiteLogicalRecoveryResult::INDETERMINATE;
         };
 
     auto mark_indeterminate =
@@ -6206,6 +6256,12 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
             PathIdentityMatches(
                 backup_path,
                 backup.identity);
+        if (backup_publish_result ==
+                PublishResult::EXISTS &&
+            ConsumeRecoveryCollisionCleanupFailure()) {
+            replacement.cleanup_allowed = false;
+            backup.cleanup_allowed = false;
+        }
         if (backup_publish_result !=
                 PublishResult::SUCCESS ||
             !backup_published ||
@@ -6778,6 +6834,11 @@ void InjectSQLiteBackupCollisionCleanupFailureForTesting()
     g_fail_backup_collision_cleanup_once.store(true);
 }
 
+void InjectSQLiteRecoveryCollisionCleanupFailureForTesting()
+{
+    g_fail_recovery_collision_cleanup_once.store(true);
+}
+
 void InjectSQLiteMigrationExchangeFailureForTesting()
 {
     g_report_migration_exchange_error_once.store(true);
@@ -6815,6 +6876,7 @@ bool ResetSQLiteLifecycleForTesting()
     g_report_publish_error_after_rename_once.store(false);
     g_report_backup_collision_once.store(false);
     g_fail_backup_collision_cleanup_once.store(false);
+    g_fail_recovery_collision_cleanup_once.store(false);
     g_report_migration_exchange_error_once.store(false);
     if (sqlite3_close(abandoned_connection) != SQLITE_OK) {
         return false;

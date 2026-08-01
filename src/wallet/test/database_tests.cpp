@@ -5234,6 +5234,8 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
             backupPath.string().c_str(),
             &backupBefore),
         0);
+    const std::set<std::string> entriesBeforeCleanCollision =
+        SQLiteTestDirectoryEntries();
 
     DatabaseOptions recoveryOptions;
     recoveryOptions.require_existing = true;
@@ -5267,6 +5269,9 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
     BOOST_CHECK(!HasSQLiteTestCandidate(filename));
     BOOST_CHECK(
         !HasSQLiteTestCandidate(backupFilename));
+    BOOST_CHECK(
+        SQLiteTestDirectoryEntries() ==
+        entriesBeforeCleanCollision);
     BOOST_CHECK(!fRequestShutdown.load());
 
     struct stat sourceAfter{};
@@ -5297,6 +5302,134 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
     BOOST_CHECK_EQUAL(
         backupAfter.st_mode & 0777,
         S_IRUSR | S_IWUSR);
+
+    const std::set<std::string> entriesBeforeAmbiguousCleanup =
+        SQLiteTestDirectoryEntries();
+    InjectSQLiteRecoveryCollisionCleanupFailureForTesting();
+    status = DatabaseStatus::SUCCESS;
+    error = "unchanged";
+    database = MakeSQLiteDatabase(
+        filename,
+        recoveryOptions,
+        status,
+        error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(
+        status == DatabaseStatus::FAILED_LOAD);
+    BOOST_CHECK(
+        error.find("failed before publication") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("candidate cleanup is indeterminate") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("recovery working path") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("unpublished backup working path") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("No atomic recovery exchange was applied") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("original wallet path remains authoritative") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("Preserve all reported artifacts") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("restart Firo") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(path.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(backupPath.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("phase4d-collision-row") ==
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(std::string(64, 'a')) ==
+        std::string::npos);
+    BOOST_CHECK(fRequestShutdown.load());
+    BOOST_CHECK_MESSAGE(
+        ReadFile(path) == corruptContents,
+        "Ambiguous cleanup changed the recovery source");
+    BOOST_CHECK_MESSAGE(
+        ReadFile(backupPath) == backupContents,
+        "Ambiguous cleanup changed the existing backup");
+
+    struct stat sourceFinal{};
+    struct stat backupFinal{};
+    BOOST_REQUIRE_EQUAL(
+        lstat(path.string().c_str(), &sourceFinal),
+        0);
+    BOOST_REQUIRE_EQUAL(
+        lstat(
+            backupPath.string().c_str(),
+            &backupFinal),
+        0);
+    BOOST_CHECK_EQUAL(
+        sourceFinal.st_dev,
+        sourceBefore.st_dev);
+    BOOST_CHECK_EQUAL(
+        sourceFinal.st_ino,
+        sourceBefore.st_ino);
+    BOOST_CHECK_EQUAL(
+        backupFinal.st_dev,
+        backupBefore.st_dev);
+    BOOST_CHECK_EQUAL(
+        backupFinal.st_ino,
+        backupBefore.st_ino);
+    BOOST_CHECK_EQUAL(
+        backupFinal.st_nlink,
+        1);
+    BOOST_CHECK_EQUAL(
+        backupFinal.st_mode & 0777,
+        S_IRUSR | S_IWUSR);
+
+    const std::set<std::string> entriesAfterAmbiguousCleanup =
+        SQLiteTestDirectoryEntries();
+    std::vector<fs::path> retainedPaths;
+    for (const std::string& entry :
+        entriesAfterAmbiguousCleanup) {
+        if (entriesBeforeAmbiguousCleanup.count(entry) == 0) {
+            retainedPaths.push_back(
+                GetDataDir() / entry);
+        }
+    }
+    BOOST_REQUIRE_EQUAL(retainedPaths.size(), 2U);
+    for (const fs::path& retainedPath : retainedPaths) {
+        struct stat retainedMetadata{};
+        BOOST_REQUIRE_EQUAL(
+            lstat(
+                retainedPath.string().c_str(),
+                &retainedMetadata),
+            0);
+        BOOST_CHECK(S_ISREG(retainedMetadata.st_mode));
+        BOOST_CHECK_EQUAL(
+            retainedMetadata.st_nlink,
+            1);
+        BOOST_CHECK_EQUAL(
+            retainedMetadata.st_uid,
+            geteuid());
+        BOOST_CHECK_EQUAL(
+            retainedMetadata.st_mode & 0777,
+            S_IRUSR | S_IWUSR);
+        BOOST_CHECK(
+            error.find(retainedPath.string()) !=
+            std::string::npos);
+        for (const char* suffix :
+            {"-journal", "-wal", "-shm"}) {
+            BOOST_CHECK(!fs::exists(
+                retainedPath.string() + suffix));
+        }
+        BOOST_CHECK(fs::remove(retainedPath));
+    }
+    BOOST_CHECK(
+        SQLiteTestDirectoryEntries() ==
+        entriesBeforeAmbiguousCleanup);
 
     RemoveSQLiteTestFiles(filename);
     RemoveSQLiteTestFiles(backupFilename);

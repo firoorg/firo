@@ -83,6 +83,9 @@ void InjectSQLiteBackupPublicationCollisionForTesting();
 /** Simulate a backup publication collision whose candidate cannot be cleaned. */
 void InjectSQLiteBackupCollisionCleanupFailureForTesting();
 
+/** Simulate a recovery-backup collision whose candidates cannot be cleaned. */
+void InjectSQLiteRecoveryCollisionCleanupFailureForTesting();
+
 /** Report an error after the next migration exchange has actually succeeded. */
 void InjectSQLiteMigrationExchangeFailureForTesting();
 
