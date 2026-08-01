@@ -28,6 +28,9 @@
 #include <csignal>
 #include <fcntl.h>
 #include <sys/stat.h>
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -261,6 +264,341 @@ std::optional<int64_t> ReadRawSQLiteInteger(const fs::path& path, const char* st
     }
     return value;
 }
+
+#if (defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__)
+std::optional<std::vector<RawRecord> > ReadRawSQLiteRecordsNotIndexed(
+    const fs::path& path)
+{
+    if (sqlite3_initialize() != SQLITE_OK) {
+        return std::nullopt;
+    }
+
+    sqlite3* database = nullptr;
+    sqlite3_stmt* prepared = nullptr;
+    std::vector<RawRecord> records;
+    const int flags =
+        SQLITE_OPEN_FULLMUTEX |
+        SQLITE_OPEN_NOFOLLOW |
+        SQLITE_OPEN_READONLY;
+    bool valid =
+        sqlite3_open_v2(
+            path.string().c_str(),
+            &database,
+            flags,
+            nullptr) == SQLITE_OK &&
+        sqlite3_prepare_v2(
+            database,
+            "SELECT key, value FROM main NOT INDEXED ORDER BY rowid",
+            -1,
+            &prepared,
+            nullptr) == SQLITE_OK;
+
+    while (valid) {
+        const int result = sqlite3_step(prepared);
+        if (result == SQLITE_DONE) {
+            break;
+        }
+        if (result != SQLITE_ROW ||
+            sqlite3_column_type(prepared, 0) != SQLITE_BLOB ||
+            sqlite3_column_type(prepared, 1) != SQLITE_BLOB) {
+            valid = false;
+            break;
+        }
+
+        const int keySize = sqlite3_column_bytes(prepared, 0);
+        const int valueSize = sqlite3_column_bytes(prepared, 1);
+        const void* const key = sqlite3_column_blob(prepared, 0);
+        const void* const value = sqlite3_column_blob(prepared, 1);
+        if (keySize < 0 ||
+            valueSize < 0 ||
+            (keySize != 0 && !key) ||
+            (valueSize != 0 && !value)) {
+            valid = false;
+            break;
+        }
+        records.emplace_back(
+            keySize == 0 ?
+                std::string{} :
+                std::string(
+                    static_cast<const char*>(key),
+                    static_cast<size_t>(keySize)),
+            valueSize == 0 ?
+                std::string{} :
+                std::string(
+                    static_cast<const char*>(value),
+                    static_cast<size_t>(valueSize)));
+    }
+
+    if (prepared && sqlite3_finalize(prepared) != SQLITE_OK) {
+        valid = false;
+    }
+    if (database && sqlite3_close(database) != SQLITE_OK) {
+        valid = false;
+    }
+    if (sqlite3_shutdown() != SQLITE_OK) {
+        valid = false;
+    }
+    if (!valid) {
+        return std::nullopt;
+    }
+    return records;
+}
+
+bool CorruptSQLitePrimaryKeyIndex(const fs::path& path)
+{
+    const std::optional<int64_t> pageSize =
+        ReadRawSQLiteInteger(path, "PRAGMA page_size");
+    const std::optional<int64_t> rootPage =
+        ReadRawSQLiteInteger(
+            path,
+            "SELECT rootpage FROM sqlite_master "
+            "WHERE type='index' AND name='sqlite_autoindex_main_1'");
+    if (!pageSize ||
+        !rootPage ||
+        *pageSize <= 0 ||
+        *rootPage <= 1) {
+        return false;
+    }
+
+    const uint64_t pageOffset =
+        (static_cast<uint64_t>(*rootPage) - 1) *
+        static_cast<uint64_t>(*pageSize);
+    std::string contents = ReadFile(path);
+    if (pageOffset >= contents.size()) {
+        return false;
+    }
+
+    const unsigned char pageType =
+        static_cast<unsigned char>(contents[pageOffset]);
+    if (pageType != 0x02 && pageType != 0x0a) {
+        return false;
+    }
+    contents[pageOffset] = 0;
+    WriteFile(path, contents);
+    return true;
+}
+
+bool CreateHotJournalRestoringForeignHeader(
+    const fs::path& path)
+{
+    if (!ExecuteRawSQLite(
+            path,
+            {
+                "PRAGMA application_id = 0",
+                "PRAGMA user_version = 1",
+            })) {
+        return false;
+    }
+
+    const pid_t child = fork();
+    if (child == 0) {
+        sqlite3* database = nullptr;
+        const int flags =
+            SQLITE_OPEN_FULLMUTEX |
+            SQLITE_OPEN_NOFOLLOW |
+            SQLITE_OPEN_READWRITE;
+        bool success =
+            sqlite3_open_v2(
+                path.string().c_str(),
+                &database,
+                flags,
+                nullptr) == SQLITE_OK &&
+            sqlite3_exec(
+                database,
+                "PRAGMA journal_mode = DELETE",
+                nullptr,
+                nullptr,
+                nullptr) == SQLITE_OK &&
+            sqlite3_exec(
+                database,
+                "PRAGMA synchronous = FULL",
+                nullptr,
+                nullptr,
+                nullptr) == SQLITE_OK &&
+            sqlite3_exec(
+                database,
+                "PRAGMA cache_size = 1",
+                nullptr,
+                nullptr,
+                nullptr) == SQLITE_OK &&
+            sqlite3_exec(
+                database,
+                "PRAGMA cache_spill = ON",
+                nullptr,
+                nullptr,
+                nullptr) == SQLITE_OK &&
+            sqlite3_exec(
+                database,
+                "BEGIN IMMEDIATE TRANSACTION",
+                nullptr,
+                nullptr,
+                nullptr) == SQLITE_OK &&
+            sqlite3_exec(
+                database,
+                "INSERT INTO main(key, value) "
+                "VALUES(X'70656e64696e672d31', zeroblob(100000))",
+                nullptr,
+                nullptr,
+                nullptr) == SQLITE_OK &&
+            sqlite3_exec(
+                database,
+                "INSERT INTO main(key, value) "
+                "VALUES(X'70656e64696e672d32', zeroblob(100000))",
+                nullptr,
+                nullptr,
+                nullptr) == SQLITE_OK;
+        _exit(success ? 0 : 1);
+    }
+    if (child <= 0) {
+        return false;
+    }
+
+    int childStatus = 0;
+    pid_t waited;
+    do {
+        waited = waitpid(
+            child,
+            &childStatus,
+            0);
+    } while (waited < 0 && errno == EINTR);
+    if (waited != child ||
+        !WIFEXITED(childStatus) ||
+        WEXITSTATUS(childStatus) != 0) {
+        return false;
+    }
+
+    const fs::path journalPath =
+        path.string() + "-journal";
+    const std::string journal =
+        ReadFile(journalPath);
+    static constexpr std::array<unsigned char, 8>
+        JOURNAL_MAGIC{{
+            0xd9,
+            0xd5,
+            0x05,
+            0xf9,
+            0x20,
+            0xa1,
+            0x63,
+            0xd7,
+        }};
+    if (journal.size() <= 512 ||
+        !std::equal(
+            JOURNAL_MAGIC.begin(),
+            JOURNAL_MAGIC.end(),
+            reinterpret_cast<const unsigned char*>(
+                journal.data()))) {
+        return false;
+    }
+
+    int flags = O_RDWR;
+#ifdef O_CLOEXEC
+    flags |= O_CLOEXEC;
+#endif
+#ifdef O_NOFOLLOW
+    flags |= O_NOFOLLOW;
+#endif
+    const int descriptor =
+        open(path.string().c_str(), flags);
+    if (descriptor < 0) {
+        return false;
+    }
+
+    std::array<unsigned char, 4> schemaVersion{};
+    std::array<unsigned char, 4> applicationId{};
+    WriteBE32(
+        schemaVersion.data(),
+        0);
+    WriteBE32(
+        applicationId.data(),
+        ReadBE32(
+            Params().MessageStart()));
+    const bool patched =
+        pwrite(
+            descriptor,
+            schemaVersion.data(),
+            schemaVersion.size(),
+            60) ==
+            static_cast<ssize_t>(
+                schemaVersion.size()) &&
+        pwrite(
+            descriptor,
+            applicationId.data(),
+            applicationId.size(),
+            68) ==
+            static_cast<ssize_t>(
+                applicationId.size()) &&
+        fsync(descriptor) == 0;
+    const bool closed =
+        close(descriptor) == 0;
+    return patched && closed;
+}
+
+std::optional<std::string> RawRecordType(const RawRecord& record)
+{
+    CDataStream key(
+        record.first.data(),
+        record.first.data() + record.first.size(),
+        SER_DISK,
+        CLIENT_VERSION);
+    std::string type;
+    try {
+        key >> type;
+    } catch (...) {
+        return std::nullopt;
+    }
+    return type;
+}
+
+std::unique_ptr<WalletDatabase> CreateSQLiteTestDatabaseFromRawRecords(
+    const std::string& filename,
+    const std::vector<RawRecord>& records,
+    DatabaseStatus& status,
+    std::string& error)
+{
+    DatabaseOptions options;
+    options.require_create = true;
+    options.require_format = DatabaseFormat::SQLITE;
+    std::unique_ptr<WalletDatabase> database =
+        MakeSQLiteDatabase(
+            filename,
+            options,
+            status,
+            error);
+    if (!database) {
+        return nullptr;
+    }
+
+    std::unique_ptr<DatabaseBatch> batch =
+        database->MakeBatch();
+    if (!batch || !batch->TxnBegin()) {
+        return nullptr;
+    }
+    for (const RawRecord& record : records) {
+        CDataStream key(
+            record.first.data(),
+            record.first.data() + record.first.size(),
+            SER_DISK,
+            CLIENT_VERSION);
+        CDataStream value(
+            record.second.data(),
+            record.second.data() + record.second.size(),
+            SER_DISK,
+            CLIENT_VERSION);
+        if (!batch->WriteRawRecord(
+                std::move(key),
+                std::move(value),
+                false)) {
+            batch->TxnAbort();
+            return nullptr;
+        }
+    }
+    if (!batch->TxnCommit()) {
+        return nullptr;
+    }
+    return database;
+}
+#endif
 
 std::string ExpectedApplicationIdPragma()
 {
@@ -631,7 +969,11 @@ BOOST_FIXTURE_TEST_CASE(wallet_database_factory_preopen_policy, WalletDatabasePa
 
     DatabaseOptions salvage;
     salvage.salvage = true;
+#ifdef USE_SQLITE
+    expectFailure(truncatedSQLiteFilename, salvage, DatabaseStatus::FAILED_VERIFY);
+#else
     expectFailure(truncatedSQLiteFilename, salvage, DatabaseStatus::FAILED_UNSUPPORTED);
+#endif
     BOOST_CHECK_EQUAL(ReadFile(truncatedSQLitePath), truncatedSQLiteContents);
     BOOST_CHECK(fs::remove(truncatedSQLitePath));
 
@@ -3711,6 +4053,1020 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_schema_corruption_policy)
     BOOST_CHECK_EQUAL(ReadFile(existingPath), existingContents);
     RemoveSQLiteTestFiles(existingFilename);
 }
+
+#if (defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__)
+BOOST_AUTO_TEST_CASE(sqlite_primary_key_index_logical_recovery)
+{
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+
+    constexpr int64_t RECOVERY_TIME = 1900000100;
+    SetMockTime(RECOVERY_TIME);
+
+    const std::string filename{
+        "sqlite_primary_key_index_recovery.dat"};
+    const std::string backupFilename =
+        strprintf("wallet.%d.bak", RECOVERY_TIME);
+    const fs::path path = GetDataDir() / filename;
+    const fs::path backupPath =
+        GetDataDir() / backupFilename;
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+
+    std::vector<RawRecord> expectedRecords;
+    for (uint32_t i = 0; i < 64; ++i) {
+        expectedRecords.emplace_back(
+            SerializeToString(
+                std::make_pair(
+                    std::string("phase4d-row"),
+                    i)),
+            SerializeToString(
+                std::string(
+                    96,
+                    static_cast<char>(
+                        'A' + (i % 26)))));
+    }
+    const RawRecord embeddedUnknown{
+        SerializeToString(
+            std::make_pair(
+                std::string("phase4d-unknown"),
+                std::string(
+                    "unknown\0key",
+                    11))),
+        SerializeToString(
+            std::string(
+                "value\0payload",
+                13)),
+    };
+    expectedRecords.push_back(embeddedUnknown);
+    const RawRecord emptyValueRecord{
+        SerializeToString(
+            std::string(
+                "phase4d-empty-value")),
+        {},
+    };
+    expectedRecords.push_back(emptyValueRecord);
+    std::sort(
+        expectedRecords.begin(),
+        expectedRecords.end());
+
+    DatabaseStatus status =
+        DatabaseStatus::FAILED_LOAD;
+    std::string error{"unchanged"};
+    std::unique_ptr<WalletDatabase> database =
+        CreateSQLiteTestDatabaseFromRawRecords(
+            filename,
+            expectedRecords,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_REQUIRE(
+        status == DatabaseStatus::SUCCESS);
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    const std::optional<std::vector<RawRecord> >
+        storedRecords =
+            ReadRawSQLiteRecordsNotIndexed(path);
+    BOOST_REQUIRE(storedRecords);
+    BOOST_CHECK_MESSAGE(
+        *storedRecords == expectedRecords,
+        "The recovery fixture changed raw rows");
+    BOOST_REQUIRE_MESSAGE(
+        std::find(
+            storedRecords->begin(),
+            storedRecords->end(),
+            embeddedUnknown) !=
+            storedRecords->end(),
+        "The embedded-NUL unknown record was not stored");
+    BOOST_REQUIRE_MESSAGE(
+        std::find(
+            storedRecords->begin(),
+            storedRecords->end(),
+            emptyValueRecord) !=
+            storedRecords->end(),
+        "The empty-value record was not stored");
+
+    BOOST_REQUIRE(
+        CorruptSQLitePrimaryKeyIndex(path));
+    const std::optional<std::vector<RawRecord> >
+        corruptTableRecords =
+            ReadRawSQLiteRecordsNotIndexed(path);
+    BOOST_REQUIRE_MESSAGE(
+        corruptTableRecords,
+        "The table became unreadable after index-only corruption");
+    BOOST_CHECK_MESSAGE(
+        *corruptTableRecords == expectedRecords,
+        "The index-only corruption changed raw table rows");
+    const std::string corruptContents =
+        ReadFile(path);
+
+    DatabaseOptions existingOptions;
+    existingOptions.require_existing = true;
+    existingOptions.require_format =
+        DatabaseFormat::SQLITE;
+    existingOptions.recover = false;
+    status = DatabaseStatus::SUCCESS;
+    error = "unchanged";
+    database = MakeSQLiteDatabase(
+        filename,
+        existingOptions,
+        status,
+        error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(
+        status == DatabaseStatus::FAILED_VERIFY);
+    BOOST_CHECK(!error.empty());
+    BOOST_CHECK_NE(error, "unchanged");
+    BOOST_CHECK_MESSAGE(
+        ReadFile(path) == corruptContents,
+        "Verification without recovery changed the source");
+    BOOST_CHECK(!fs::exists(backupPath));
+    BOOST_CHECK(!HasSQLiteTestCandidate(filename));
+    BOOST_CHECK(
+        !HasSQLiteTestCandidate(backupFilename));
+
+    existingOptions.recover = true;
+    status = DatabaseStatus::FAILED_LOAD;
+    error = "unchanged";
+    database = MakeSQLiteDatabase(
+        filename,
+        existingOptions,
+        status,
+        error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_CHECK(
+        status ==
+        DatabaseStatus::SUCCESS_RECOVERED);
+    BOOST_CHECK(error.empty());
+    BOOST_CHECK_EQUAL(
+        database->RecoveryBackupPath(),
+        backupPath.string());
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            database->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        std::vector<RawRecord> recoveredRecords =
+            ReadRawRecords(*batch);
+        std::sort(
+            recoveredRecords.begin(),
+            recoveredRecords.end());
+        BOOST_CHECK_MESSAGE(
+            recoveredRecords == expectedRecords,
+            "Logical recovery did not preserve every raw row");
+    }
+    BOOST_CHECK_MESSAGE(
+        ReadFile(backupPath) == corruptContents,
+        "The recovery backup is not an exact source copy");
+    BOOST_CHECK_MESSAGE(
+        ReadFile(path) != corruptContents,
+        "Recovery did not replace the corrupt source");
+    BOOST_CHECK(!HasSQLiteTestCandidate(filename));
+    BOOST_CHECK(
+        !HasSQLiteTestCandidate(backupFilename));
+
+    struct stat sourceMetadata{};
+    struct stat backupMetadata{};
+    BOOST_REQUIRE_EQUAL(
+        lstat(path.string().c_str(), &sourceMetadata),
+        0);
+    BOOST_REQUIRE_EQUAL(
+        lstat(
+            backupPath.string().c_str(),
+            &backupMetadata),
+        0);
+    BOOST_CHECK(S_ISREG(backupMetadata.st_mode));
+    BOOST_CHECK_EQUAL(
+        backupMetadata.st_nlink,
+        1);
+    BOOST_CHECK_EQUAL(
+        backupMetadata.st_uid,
+        geteuid());
+    BOOST_CHECK_EQUAL(
+        backupMetadata.st_mode & 0777,
+        S_IRUSR | S_IWUSR);
+    BOOST_CHECK(
+        sourceMetadata.st_dev !=
+            backupMetadata.st_dev ||
+        sourceMetadata.st_ino !=
+            backupMetadata.st_ino);
+
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    existingOptions.recover = false;
+    status = DatabaseStatus::FAILED_LOAD;
+    error = "unchanged";
+    database = MakeSQLiteDatabase(
+        filename,
+        existingOptions,
+        status,
+        error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_CHECK(
+        status == DatabaseStatus::SUCCESS);
+    BOOST_CHECK(error.empty());
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            database->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        std::vector<RawRecord> reopenedRecords =
+            ReadRawRecords(*batch);
+        std::sort(
+            reopenedRecords.begin(),
+            reopenedRecords.end());
+        BOOST_CHECK_MESSAGE(
+            reopenedRecords == expectedRecords,
+            "Normally reopened recovery rows changed");
+    }
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_exact_records)
+{
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+
+    constexpr int64_t PLAIN_SALVAGE_TIME = 1900000200;
+    constexpr int64_t ENCRYPTED_SALVAGE_TIME = 1900000201;
+    constexpr int64_t MIXED_SALVAGE_TIME = 1900000202;
+    constexpr unsigned int MASTER_KEY_ID = 7;
+
+    CKey plainKey;
+    plainKey.MakeNewKey(true);
+    const CPubKey plainPublicKey =
+        plainKey.GetPubKey();
+
+    CKey legacyKey;
+    legacyKey.MakeNewKey(true);
+    const CPubKey legacyPublicKey =
+        legacyKey.GetPubKey();
+    CWalletKey legacyWalletKey;
+    legacyWalletKey.vchPrivKey =
+        legacyKey.GetPrivKey();
+    legacyWalletKey.nTimeCreated =
+        PLAIN_SALVAGE_TIME - 2;
+    legacyWalletKey.nTimeExpires = 0;
+    legacyWalletKey.strComment =
+        "phase4d-salvage-wkey";
+
+    CKey cryptedKey;
+    cryptedKey.MakeNewKey(true);
+    const CPubKey cryptedPublicKey =
+        cryptedKey.GetPubKey();
+    const std::vector<unsigned char> cryptedSecret(
+        48,
+        0x42);
+
+    CMasterKey masterKey;
+    masterKey.vchCryptedKey.assign(
+        48,
+        0x24);
+    masterKey.vchSalt.assign(
+        8,
+        0x18);
+    masterKey.nDerivationMethod = 0;
+    masterKey.nDeriveIterations = 25000;
+    masterKey.vchOtherDerivationParameters = {
+        0x00,
+        0x7f,
+        0xff,
+    };
+
+    CHDChain hdChain;
+    hdChain.masterKeyID =
+        plainPublicKey.GetID();
+    hdChain.nExternalChainCounter = 11;
+    for (size_t i = 0;
+        i < hdChain.nExternalChainCounters.size();
+        ++i) {
+        hdChain.nExternalChainCounters[i] =
+            static_cast<uint32_t>(20 + i);
+    }
+
+    const std::set<std::string> allAllowedTypes{
+        "key",
+        "wkey",
+        "mkey",
+        "ckey",
+        "hdchain",
+    };
+
+    DatabaseOptions salvageOptions;
+    salvageOptions.require_existing = true;
+    salvageOptions.require_format =
+        DatabaseFormat::SQLITE;
+    salvageOptions.salvage = true;
+
+    enum class SalvageKind {
+        PLAIN,
+        ENCRYPTED,
+        MIXED,
+    };
+    struct SalvageCase {
+        const char* filename;
+        int64_t recovery_time;
+        SalvageKind kind;
+        std::set<std::string> expected_types;
+    };
+    const std::array<SalvageCase, 3> cases{{
+        {
+            "sqlite_key_only_salvage_plain.dat",
+            PLAIN_SALVAGE_TIME,
+            SalvageKind::PLAIN,
+            {"key", "wkey", "hdchain"},
+        },
+        {
+            "sqlite_key_only_salvage_encrypted.dat",
+            ENCRYPTED_SALVAGE_TIME,
+            SalvageKind::ENCRYPTED,
+            {"mkey", "ckey"},
+        },
+        {
+            "sqlite_key_only_salvage_mixed.dat",
+            MIXED_SALVAGE_TIME,
+            SalvageKind::MIXED,
+            {"key"},
+        },
+    }};
+
+    for (const SalvageCase& test : cases) {
+        SetMockTime(test.recovery_time);
+        const std::string filename{test.filename};
+        const std::string backupFilename =
+            strprintf(
+                "wallet.%d.bak",
+                test.recovery_time);
+        const fs::path path =
+            GetDataDir() / filename;
+        const fs::path backupPath =
+            GetDataDir() / backupFilename;
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestFiles(backupFilename);
+        RemoveSQLiteTestCandidates(filename);
+        RemoveSQLiteTestCandidates(backupFilename);
+
+        DatabaseOptions createOptions;
+        createOptions.require_create = true;
+        createOptions.require_format =
+            DatabaseFormat::SQLITE;
+        DatabaseStatus status =
+            DatabaseStatus::FAILED_LOAD;
+        std::string error{"unchanged"};
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(
+                filename,
+                createOptions,
+                status,
+                error);
+        BOOST_REQUIRE_MESSAGE(database, error);
+        BOOST_REQUIRE(
+            status == DatabaseStatus::SUCCESS);
+        {
+            CWalletDB writer(*database);
+            if (test.kind ==
+                SalvageKind::ENCRYPTED) {
+                BOOST_REQUIRE(
+                    writer.WriteMasterKey(
+                        MASTER_KEY_ID,
+                        masterKey));
+                BOOST_REQUIRE(
+                    writer.WriteCryptedKey(
+                        cryptedPublicKey,
+                        cryptedSecret,
+                        CKeyMetadata(
+                            test.recovery_time - 1)));
+            } else {
+                BOOST_REQUIRE(
+                    writer.WriteKey(
+                        plainPublicKey,
+                        plainKey.GetPrivKey(),
+                        CKeyMetadata(
+                            test.recovery_time - 3)));
+                if (test.kind ==
+                    SalvageKind::PLAIN) {
+                    BOOST_REQUIRE(
+                        writer.WriteHDChain(
+                            hdChain));
+                } else {
+                    BOOST_REQUIRE(
+                        writer.WriteCryptedKey(
+                            cryptedPublicKey,
+                            cryptedSecret,
+                            CKeyMetadata(
+                                test.recovery_time - 1)));
+                }
+            }
+        }
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                database->MakeBatch();
+            BOOST_REQUIRE(batch);
+            BOOST_REQUIRE(batch->TxnBegin());
+            if (test.kind ==
+                SalvageKind::PLAIN) {
+                BOOST_REQUIRE(
+                    batch->Write(
+                        std::make_pair(
+                            std::string("wkey"),
+                            legacyPublicKey),
+                        legacyWalletKey,
+                        false));
+            }
+            BOOST_REQUIRE(
+                batch->Write(
+                    std::make_pair(
+                        std::string(
+                            "phase4d-opaque"),
+                        std::string(
+                            "opaque\0key",
+                            10)),
+                    std::string(
+                        "opaque\0value",
+                        12),
+                    false));
+            BOOST_REQUIRE(batch->TxnCommit());
+        }
+        BOOST_REQUIRE(database->PeriodicFlush());
+        database.reset();
+
+        const std::optional<std::vector<RawRecord> >
+            sourceRecords =
+                ReadRawSQLiteRecordsNotIndexed(path);
+        BOOST_REQUIRE(sourceRecords);
+        WalletKeyOnlyRecordValidator validator;
+        std::map<std::string, size_t> allowedCounts;
+        std::vector<RawRecord> expectedRecords;
+        size_t keyMetadataRecords = 0;
+        size_t opaqueRecords = 0;
+        for (const RawRecord& record : *sourceRecords) {
+            const std::optional<std::string> type =
+                RawRecordType(record);
+            BOOST_REQUIRE_MESSAGE(
+                type,
+                "A salvage source record had no decodable type");
+            if (allAllowedTypes.count(*type) != 0) {
+                CDataStream key(
+                    record.first.data(),
+                    record.first.data() +
+                        record.first.size(),
+                    SER_DISK,
+                    CLIENT_VERSION);
+                CDataStream value(
+                    record.second.data(),
+                    record.second.data() +
+                        record.second.size(),
+                    SER_DISK,
+                    CLIENT_VERSION);
+                const bool valid =
+                    validator.IsValid(key, value);
+                if (test.expected_types.count(
+                        *type) != 0) {
+                    BOOST_REQUIRE_MESSAGE(
+                        valid,
+                        "Expected salvage type " << *type
+                                                 << " was not valid in " << filename);
+                    ++allowedCounts[*type];
+                    expectedRecords.push_back(record);
+                } else {
+                    BOOST_CHECK_MESSAGE(
+                        !valid,
+                        "Incompatible salvage type " << *type
+                                                     << " was retained in " << filename);
+                }
+            } else if (*type == "keymeta") {
+                ++keyMetadataRecords;
+            } else if (*type == "phase4d-opaque") {
+                ++opaqueRecords;
+            }
+        }
+        BOOST_REQUIRE_EQUAL(
+            expectedRecords.size(),
+            test.expected_types.size());
+        for (const std::string& type :
+            test.expected_types) {
+            const auto count =
+                allowedCounts.find(type);
+            BOOST_REQUIRE(
+                count != allowedCounts.end());
+            BOOST_CHECK_EQUAL(count->second, 1U);
+        }
+        BOOST_CHECK_EQUAL(
+            keyMetadataRecords,
+            test.kind == SalvageKind::MIXED ?
+                2U :
+                1U);
+        BOOST_CHECK_EQUAL(opaqueRecords, 1U);
+        std::sort(
+            expectedRecords.begin(),
+            expectedRecords.end());
+        const std::string sourceContents =
+            ReadFile(path);
+
+        status = DatabaseStatus::FAILED_LOAD;
+        error = "unchanged";
+        database = MakeSQLiteDatabase(
+            filename,
+            salvageOptions,
+            status,
+            error);
+        BOOST_REQUIRE_MESSAGE(database, error);
+        BOOST_CHECK(
+            status ==
+            DatabaseStatus::SUCCESS_SALVAGED);
+        BOOST_CHECK(error.empty());
+        BOOST_CHECK_EQUAL(
+            database->RecoveryBackupPath(),
+            backupPath.string());
+
+        std::vector<RawRecord> salvagedRecords;
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                database->MakeBatch(
+                    {DatabaseBatchMode::READ_ONLY});
+            BOOST_REQUIRE(batch);
+            salvagedRecords =
+                ReadRawRecords(*batch);
+        }
+        std::sort(
+            salvagedRecords.begin(),
+            salvagedRecords.end());
+        BOOST_CHECK_MESSAGE(
+            salvagedRecords == expectedRecords,
+            "Key-only salvage changed or retained unexpected raw rows");
+        BOOST_CHECK_MESSAGE(
+            ReadFile(backupPath) == sourceContents,
+            "The salvage backup is not an exact source copy");
+        BOOST_CHECK(!HasSQLiteTestCandidate(filename));
+        BOOST_CHECK(
+            !HasSQLiteTestCandidate(backupFilename));
+
+        CWallet wallet(std::move(database));
+        {
+            CWalletDB loader(
+                wallet.GetDatabase(),
+                {DatabaseBatchMode::READ_ONLY});
+            BOOST_REQUIRE(
+                loader.LoadWallet(
+                    &wallet,
+                    false) == DB_LOAD_OK);
+        }
+        if (test.kind ==
+            SalvageKind::ENCRYPTED) {
+            BOOST_CHECK(wallet.IsCrypted());
+            BOOST_CHECK(
+                wallet.HaveKey(
+                    cryptedPublicKey.GetID()));
+            LOCK(wallet.cs_wallet);
+            BOOST_CHECK_EQUAL(
+                wallet.mapMasterKeys.count(
+                    MASTER_KEY_ID),
+                1U);
+        } else {
+            BOOST_CHECK(!wallet.IsCrypted());
+            BOOST_CHECK(
+                wallet.HaveKey(
+                    plainPublicKey.GetID()));
+            if (test.kind ==
+                SalvageKind::PLAIN) {
+                BOOST_CHECK(
+                    wallet.HaveKey(
+                        legacyPublicKey.GetID()));
+                LOCK(wallet.cs_wallet);
+                BOOST_CHECK(
+                    SameSerializedValue(
+                        hdChain,
+                        wallet.GetHDChain()));
+            } else {
+                BOOST_CHECK(
+                    !wallet.HaveKey(
+                        cryptedPublicKey.GetID()));
+            }
+        }
+        BOOST_REQUIRE(
+            wallet.GetDatabase().PeriodicFlush());
+
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestFiles(backupFilename);
+        RemoveSQLiteTestCandidates(filename);
+        RemoveSQLiteTestCandidates(backupFilename);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_rejects_storage_violations)
+{
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+
+    struct RejectionCase {
+        const char* filename;
+        int64_t recovery_time;
+        const char* statement;
+        const char* expected_error;
+    };
+    static constexpr std::array<RejectionCase, 2> CASES{{
+        {
+            "sqlite_salvage_non_blob.dat",
+            1900000220,
+            "INSERT INTO main(key, value) "
+            "VALUES('text-key', 'text-value')",
+            "canonical BLOB domain",
+        },
+        {
+            "sqlite_salvage_empty_key.dat",
+            1900000221,
+            "INSERT INTO main(key, value) "
+            "VALUES(X'', X'01')",
+            "empty-key creation metadata",
+        },
+    }};
+
+    CKey key;
+    key.MakeNewKey(true);
+    const CPubKey publicKey = key.GetPubKey();
+
+    for (const RejectionCase& test : CASES) {
+        SetMockTime(test.recovery_time);
+        const std::string filename{test.filename};
+        const std::string backupFilename =
+            strprintf(
+                "wallet.%d.bak",
+                test.recovery_time);
+        const fs::path path =
+            GetDataDir() / filename;
+        const fs::path backupPath =
+            GetDataDir() / backupFilename;
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestFiles(backupFilename);
+        RemoveSQLiteTestCandidates(filename);
+        RemoveSQLiteTestCandidates(backupFilename);
+
+        DatabaseOptions createOptions;
+        createOptions.require_create = true;
+        createOptions.require_format =
+            DatabaseFormat::SQLITE;
+        DatabaseStatus status =
+            DatabaseStatus::FAILED_LOAD;
+        std::string error{"unchanged"};
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(
+                filename,
+                createOptions,
+                status,
+                error);
+        BOOST_REQUIRE_MESSAGE(database, error);
+        {
+            CWalletDB writer(*database);
+            BOOST_REQUIRE(
+                writer.WriteKey(
+                    publicKey,
+                    key.GetPrivKey(),
+                    CKeyMetadata(
+                        test.recovery_time - 1)));
+        }
+        BOOST_REQUIRE(database->PeriodicFlush());
+        database.reset();
+        BOOST_REQUIRE(
+            ExecuteRawSQLite(
+                path,
+                {test.statement}));
+        const std::string sourceContents =
+            ReadFile(path);
+
+        DatabaseOptions salvageOptions;
+        salvageOptions.require_existing = true;
+        salvageOptions.require_format =
+            DatabaseFormat::SQLITE;
+        salvageOptions.salvage = true;
+        status = DatabaseStatus::SUCCESS;
+        error = "unchanged";
+        database = MakeSQLiteDatabase(
+            filename,
+            salvageOptions,
+            status,
+            error);
+        BOOST_CHECK(!database);
+        BOOST_CHECK(
+            status ==
+            DatabaseStatus::FAILED_VERIFY);
+        BOOST_CHECK(
+            error.find(test.expected_error) !=
+            std::string::npos);
+        BOOST_CHECK_MESSAGE(
+            ReadFile(path) == sourceContents,
+            "Rejected salvage changed its source");
+        BOOST_CHECK(!fs::exists(backupPath));
+        BOOST_CHECK(!HasSQLiteTestCandidate(filename));
+        BOOST_CHECK(
+            !HasSQLiteTestCandidate(backupFilename));
+
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestFiles(backupFilename);
+        RemoveSQLiteTestCandidates(filename);
+        RemoveSQLiteTestCandidates(backupFilename);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_rejects_hot_journal_identity)
+{
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+    ShutdownRequestReset shutdownReset;
+
+    constexpr int64_t SALVAGE_TIME = 1900000240;
+    SetMockTime(SALVAGE_TIME);
+    const std::string filename{
+        "sqlite_salvage_hot_journal_identity.dat"};
+    const std::string backupFilename =
+        strprintf(
+            "wallet.%d.bak",
+            SALVAGE_TIME);
+    const fs::path path =
+        GetDataDir() / filename;
+    const fs::path journalPath =
+        path.string() + "-journal";
+    const fs::path backupPath =
+        GetDataDir() / backupFilename;
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::SQLITE;
+    DatabaseStatus status =
+        DatabaseStatus::FAILED_LOAD;
+    std::string error{"unchanged"};
+    std::unique_ptr<WalletDatabase> database =
+        MakeSQLiteDatabase(
+            filename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    CKey key;
+    key.MakeNewKey(true);
+    {
+        CWalletDB writer(*database);
+        BOOST_REQUIRE(
+            writer.WriteKey(
+                key.GetPubKey(),
+                key.GetPrivKey(),
+                CKeyMetadata(
+                    SALVAGE_TIME - 1)));
+    }
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    BOOST_REQUIRE(
+        CreateHotJournalRestoringForeignHeader(
+            path));
+    BOOST_REQUIRE(fs::is_regular_file(journalPath));
+    const std::string preflightContents =
+        ReadFile(path);
+    BOOST_REQUIRE(
+        preflightContents.size() >= 72);
+    BOOST_CHECK_EQUAL(
+        ReadBE32(
+            reinterpret_cast<const unsigned char*>(
+                preflightContents.data() + 60)),
+        0U);
+    BOOST_CHECK_EQUAL(
+        ReadBE32(
+            reinterpret_cast<const unsigned char*>(
+                preflightContents.data() + 68)),
+        ReadBE32(
+            Params().MessageStart()));
+
+    DatabaseOptions salvageOptions;
+    salvageOptions.require_existing = true;
+    salvageOptions.require_format =
+        DatabaseFormat::SQLITE;
+    salvageOptions.salvage = true;
+    status = DatabaseStatus::SUCCESS;
+    error = "unchanged";
+    database = MakeSQLiteDatabase(
+        filename,
+        salvageOptions,
+        status,
+        error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(
+        status ==
+        DatabaseStatus::FAILED_VERIFY);
+    BOOST_CHECK_MESSAGE(
+        error.find("application ID 0") !=
+            std::string::npos,
+        error);
+    BOOST_CHECK(!fs::exists(journalPath));
+    BOOST_CHECK(!fs::exists(backupPath));
+    BOOST_CHECK(!HasSQLiteTestCandidate(filename));
+    BOOST_CHECK(
+        !HasSQLiteTestCandidate(backupFilename));
+    BOOST_CHECK(!fRequestShutdown.load());
+
+    const std::string recoveredContents =
+        ReadFile(path);
+    BOOST_REQUIRE(
+        recoveredContents.size() >= 72);
+    BOOST_CHECK_EQUAL(
+        ReadBE32(
+            reinterpret_cast<const unsigned char*>(
+                recoveredContents.data() + 60)),
+        1U);
+    BOOST_CHECK_EQUAL(
+        ReadBE32(
+            reinterpret_cast<const unsigned char*>(
+                recoveredContents.data() + 68)),
+        0U);
+
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
+{
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+    ShutdownRequestReset shutdownReset;
+
+    constexpr int64_t RECOVERY_TIME = 1900000300;
+    SetMockTime(RECOVERY_TIME);
+
+    const std::string filename{
+        "sqlite_recovery_backup_collision.dat"};
+    const std::string backupFilename =
+        strprintf("wallet.%d.bak", RECOVERY_TIME);
+    const fs::path path = GetDataDir() / filename;
+    const fs::path backupPath =
+        GetDataDir() / backupFilename;
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+
+    std::vector<RawRecord> sourceRecords;
+    for (uint32_t i = 0; i < 64; ++i) {
+        sourceRecords.emplace_back(
+            SerializeToString(
+                std::make_pair(
+                    std::string(
+                        "phase4d-collision-row"),
+                    i)),
+            SerializeToString(
+                std::string(
+                    64,
+                    static_cast<char>(
+                        'a' + (i % 26)))));
+    }
+    std::sort(
+        sourceRecords.begin(),
+        sourceRecords.end());
+
+    DatabaseStatus status =
+        DatabaseStatus::FAILED_LOAD;
+    std::string error{"unchanged"};
+    std::unique_ptr<WalletDatabase> database =
+        CreateSQLiteTestDatabaseFromRawRecords(
+            filename,
+            sourceRecords,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_REQUIRE(
+        status == DatabaseStatus::SUCCESS);
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    const std::optional<std::vector<RawRecord> >
+        readableRecords =
+            ReadRawSQLiteRecordsNotIndexed(path);
+    BOOST_REQUIRE(readableRecords);
+    BOOST_CHECK_MESSAGE(
+        *readableRecords == sourceRecords,
+        "The collision fixture changed raw rows");
+    BOOST_REQUIRE(
+        CorruptSQLitePrimaryKeyIndex(path));
+    const std::optional<std::vector<RawRecord> >
+        corruptRecords =
+            ReadRawSQLiteRecordsNotIndexed(path);
+    BOOST_REQUIRE_MESSAGE(
+        corruptRecords,
+        "The collision source table is not readable");
+    BOOST_CHECK_MESSAGE(
+        *corruptRecords == *readableRecords,
+        "Index corruption changed collision source rows");
+    const std::string corruptContents =
+        ReadFile(path);
+
+    const std::string backupContents{
+        "preexisting\0backup",
+        18};
+    WriteFile(backupPath, backupContents);
+    fs::permissions(
+        backupPath,
+        fs::owner_read |
+            fs::owner_write);
+
+    struct stat sourceBefore{};
+    struct stat backupBefore{};
+    BOOST_REQUIRE_EQUAL(
+        lstat(path.string().c_str(), &sourceBefore),
+        0);
+    BOOST_REQUIRE_EQUAL(
+        lstat(
+            backupPath.string().c_str(),
+            &backupBefore),
+        0);
+
+    DatabaseOptions recoveryOptions;
+    recoveryOptions.require_existing = true;
+    recoveryOptions.require_format =
+        DatabaseFormat::SQLITE;
+    recoveryOptions.recover = true;
+    status = DatabaseStatus::SUCCESS;
+    error = "unchanged";
+    database = MakeSQLiteDatabase(
+        filename,
+        recoveryOptions,
+        status,
+        error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(
+        status == DatabaseStatus::FAILED_VERIFY);
+    BOOST_CHECK(
+        error.find(
+            "Refusing to overwrite existing SQLite "
+            "recovery backup") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(backupPath.string()) !=
+        std::string::npos);
+    BOOST_CHECK_MESSAGE(
+        ReadFile(path) == corruptContents,
+        "Backup collision changed the recovery source");
+    BOOST_CHECK_MESSAGE(
+        ReadFile(backupPath) == backupContents,
+        "Backup collision changed the existing backup");
+    BOOST_CHECK(!HasSQLiteTestCandidate(filename));
+    BOOST_CHECK(
+        !HasSQLiteTestCandidate(backupFilename));
+    BOOST_CHECK(!fRequestShutdown.load());
+
+    struct stat sourceAfter{};
+    struct stat backupAfter{};
+    BOOST_REQUIRE_EQUAL(
+        lstat(path.string().c_str(), &sourceAfter),
+        0);
+    BOOST_REQUIRE_EQUAL(
+        lstat(
+            backupPath.string().c_str(),
+            &backupAfter),
+        0);
+    BOOST_CHECK_EQUAL(
+        sourceAfter.st_dev,
+        sourceBefore.st_dev);
+    BOOST_CHECK_EQUAL(
+        sourceAfter.st_ino,
+        sourceBefore.st_ino);
+    BOOST_CHECK_EQUAL(
+        backupAfter.st_dev,
+        backupBefore.st_dev);
+    BOOST_CHECK_EQUAL(
+        backupAfter.st_ino,
+        backupBefore.st_ino);
+    BOOST_CHECK_EQUAL(
+        backupAfter.st_nlink,
+        1);
+    BOOST_CHECK_EQUAL(
+        backupAfter.st_mode & 0777,
+        S_IRUSR | S_IWUSR);
+
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+}
+#endif
 
 BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
 {

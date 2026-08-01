@@ -9,6 +9,7 @@
 #include "protocol.h"
 #include "serialize.h"
 #include "spark/sparkwallet.h"
+#include "support/cleanse.h"
 #include "sync.h"
 #include "util.h"
 #include "utiltime.h"
@@ -379,9 +380,7 @@ public:
     }
 };
 
-bool
-ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
-             CWalletScanState &wss, std::string& strType, std::string& strErr)
+bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CWalletScanState& wss, std::string& strType, std::string& strErr, bool cleanseKeyHashMaterial = false)
 {
     try {
         // Unserialize
@@ -523,6 +522,21 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             {
                 // hash pubkey/privkey to accelerate wallet load
                 std::vector<unsigned char> vchKey;
+                struct KeyHashMaterialCleanser {
+                    std::vector<unsigned char>& material;
+                    bool active;
+                    ~KeyHashMaterialCleanser()
+                    {
+                        if (active && !material.empty()) {
+                            memory_cleanse(
+                                material.data(),
+                                material.size());
+                        }
+                    }
+                } keyHashMaterialCleanser{
+                    vchKey,
+                    cleanseKeyHashMaterial,
+                };
                 vchKey.reserve(vchPubKey.size() + pkey.size());
                 vchKey.insert(vchKey.end(), vchPubKey.begin(), vchPubKey.end());
                 vchKey.insert(vchKey.end(), pkey.begin(), pkey.end());
@@ -680,6 +694,53 @@ static bool IsKeyType(std::string strType)
 {
     return (strType== "key" || strType == "wkey" ||
             strType == "mkey" || strType == "ckey");
+}
+
+struct WalletKeyOnlyRecordValidator::Impl {
+    CWallet wallet;
+    CWalletScanState state;
+};
+
+WalletKeyOnlyRecordValidator::WalletKeyOnlyRecordValidator()
+    : m_impl(std::make_unique<Impl>())
+{
+}
+
+WalletKeyOnlyRecordValidator::~WalletKeyOnlyRecordValidator() = default;
+
+bool WalletKeyOnlyRecordValidator::IsValid(
+    const CDataStream& serialized_key,
+    const CDataStream& serialized_value)
+{
+    // CDataStream's CSerializeData allocator cleanses its entire backing
+    // allocation when these copies are destroyed, including bytes consumed
+    // by deserialization and removed from the stream's logical size.
+    CDataStream type_stream(serialized_key);
+    CDataStream key_stream(serialized_key);
+    CDataStream value_stream(serialized_value);
+
+    std::string type;
+    try {
+        type_stream >> type;
+    } catch (...) {
+        return false;
+    }
+    if (!IsKeyType(type) && type != "hdchain") {
+        return false;
+    }
+
+    std::string decoded_type;
+    std::string error;
+    LOCK(m_impl->wallet.cs_wallet);
+    return ReadKeyValue(
+               &m_impl->wallet,
+               key_stream,
+               value_stream,
+               m_impl->state,
+               decoded_type,
+               error,
+               true) &&
+           decoded_type == type;
 }
 
 DBErrors CWalletDB::LoadWallet(CWallet* pwallet, bool update)

@@ -15,6 +15,7 @@
 #include "support/cleanse.h"
 #include "util.h"
 #include "wallet/db.h"
+#include "wallet/walletdb.h"
 
 #include <sqlite3.h>
 
@@ -25,6 +26,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -923,8 +925,14 @@ bool VerifyBlobRecords(sqlite3* database, std::string& error)
     return false;
 }
 
-bool VerifyIntegrity(sqlite3* database, std::string& error)
+bool VerifyIntegrity(
+    sqlite3* database,
+    std::string& error,
+    bool* corruption = nullptr)
 {
+    if (corruption) {
+        *corruption = false;
+    }
     SQLiteStatement statement;
     if (!PrepareStatement(
             database,
@@ -932,6 +940,12 @@ bool VerifyIntegrity(sqlite3* database, std::string& error)
             statement,
             "Failed to prepare SQLite integrity check",
             &error)) {
+        if (corruption) {
+            const int result = sqlite3_extended_errcode(database) & 0xff;
+            *corruption =
+                result == SQLITE_CORRUPT ||
+                result == SQLITE_NOTADB;
+        }
         return false;
     }
 
@@ -943,6 +957,12 @@ bool VerifyIntegrity(sqlite3* database, std::string& error)
             break;
         }
         if (result != SQLITE_ROW) {
+            if (corruption) {
+                const int primary_result = result & 0xff;
+                *corruption =
+                    primary_result == SQLITE_CORRUPT ||
+                    primary_result == SQLITE_NOTADB;
+            }
             error = strprintf("Failed to execute SQLite integrity check: %s", sqlite3_errmsg(database));
             return false;
         }
@@ -955,13 +975,16 @@ bool VerifyIntegrity(sqlite3* database, std::string& error)
     }
 
     if (!valid || rows != 1) {
+        if (corruption) {
+            *corruption = true;
+        }
         error = "SQLite wallet failed its full integrity check.";
         return false;
     }
     return true;
 }
 
-bool VerifyDatabase(sqlite3* database, std::string& error)
+bool VerifyDatabaseIdentity(sqlite3* database, std::string& error)
 {
     const std::optional<int64_t> application_id = ReadPragmaInteger(
         database,
@@ -997,7 +1020,13 @@ bool VerifyDatabase(sqlite3* database, std::string& error)
         return false;
     }
 
-    return VerifySchema(database, error) &&
+    return true;
+}
+
+bool VerifyDatabase(sqlite3* database, std::string& error)
+{
+    return VerifyDatabaseIdentity(database, error) &&
+           VerifySchema(database, error) &&
            VerifyBlobRecords(database, error) &&
            VerifyIntegrity(database, error);
 }
@@ -1578,6 +1607,23 @@ bool CandidateIdentityMatches(const OwnedCandidate& candidate) noexcept
 #endif
 }
 
+int DurableSyncFileDescriptor(int descriptor) noexcept
+{
+    int result;
+    do {
+#ifdef WIN32
+        result = _commit(descriptor);
+#elif defined(__APPLE__) && defined(F_FULLFSYNC)
+        result = fcntl(descriptor, F_FULLFSYNC, 0);
+#else
+        result = fsync(descriptor);
+#endif
+    } while (result != 0 && errno == EINTR);
+    return result == 0 ?
+               0 :
+               (errno != 0 ? errno : EIO);
+}
+
 bool SyncDirectory(
     const fs::path& directory,
     std::string& error,
@@ -1603,14 +1649,16 @@ bool SyncDirectory(
         return false;
     }
     bool success = true;
-    if (fsync(descriptor) != 0 &&
+    const int synchronization_error =
+        DurableSyncFileDescriptor(descriptor);
+    if (synchronization_error != 0 &&
         (require_supported ||
-            (errno != EINVAL &&
-                errno != ENOTSUP))) {
+            (synchronization_error != EINVAL &&
+                synchronization_error != ENOTSUP))) {
         error = strprintf(
             "Failed to synchronize SQLite publication directory '%s': %s",
             directory.string(),
-            std::strerror(errno));
+            std::strerror(synchronization_error));
         success = false;
     }
     if (close(descriptor) != 0 && success) {
@@ -1875,8 +1923,10 @@ PublishResult PublishCandidate(
                candidate_metadata.st_nlink != 1 ||
                (candidate_metadata.st_mode & (S_IRWXG | S_IRWXO)) != 0) {
         candidate_error = EINVAL;
-    } else if (fsync(candidate.descriptor) != 0) {
-        candidate_error = errno;
+    } else {
+        candidate_error =
+            DurableSyncFileDescriptor(
+                candidate.descriptor);
     }
     if (candidate_error != 0) {
         error = strprintf(
@@ -1964,6 +2014,488 @@ PublishResult PublishCandidate(
     }
     return PublishResult::SUCCESS;
 #endif
+}
+
+bool CopyDescriptorContents(
+    int source,
+    int destination,
+    std::string& error)
+{
+#ifdef WIN32
+    (void)source;
+    (void)destination;
+    error = "Secure SQLite recovery backup copying is unavailable on Windows.";
+    return false;
+#else
+    struct stat source_status{};
+    if (source < 0 ||
+        destination < 0 ||
+        fstat(source, &source_status) != 0 ||
+        !S_ISREG(source_status.st_mode) ||
+        source_status.st_size < 0) {
+        error = "Failed to inspect SQLite recovery backup source.";
+        return false;
+    }
+    if (ftruncate(destination, 0) != 0) {
+        error = strprintf(
+            "Failed to initialize SQLite recovery backup: %s",
+            std::strerror(errno));
+        return false;
+    }
+
+    std::vector<unsigned char> buffer(64 * 1024);
+    ByteVectorCleanser buffer_cleanser(buffer);
+    off_t offset = 0;
+    while (offset < source_status.st_size) {
+        const size_t remaining = static_cast<size_t>(
+            std::min<off_t>(
+                source_status.st_size - offset,
+                static_cast<off_t>(buffer.size())));
+        ssize_t read_count;
+        do {
+            read_count = pread(
+                source,
+                buffer.data(),
+                remaining,
+                offset);
+        } while (read_count < 0 && errno == EINTR);
+        if (read_count <= 0) {
+            error = strprintf(
+                "Failed to read SQLite recovery backup source: %s",
+                read_count == 0 ?
+                    "unexpected end of file" :
+                    std::strerror(errno));
+            return false;
+        }
+
+        ssize_t written = 0;
+        while (written < read_count) {
+            ssize_t write_count;
+            do {
+                write_count = pwrite(
+                    destination,
+                    buffer.data() + written,
+                    static_cast<size_t>(read_count - written),
+                    offset + written);
+            } while (write_count < 0 && errno == EINTR);
+            if (write_count <= 0) {
+                error = strprintf(
+                    "Failed to write SQLite recovery backup: %s",
+                    write_count == 0 ?
+                        "no progress" :
+                        std::strerror(errno));
+                return false;
+            }
+            written += write_count;
+        }
+        offset += read_count;
+    }
+    int synchronization_error = 0;
+    if (ftruncate(
+            destination,
+            source_status.st_size) != 0) {
+        synchronization_error = errno;
+    } else {
+        synchronization_error =
+            DurableSyncFileDescriptor(destination);
+    }
+    if (synchronization_error != 0) {
+        error = strprintf(
+            "Failed to synchronize SQLite recovery backup: %s",
+            std::strerror(synchronization_error));
+        return false;
+    }
+    return true;
+#endif
+}
+
+bool DescriptorContentsEqual(
+    int first,
+    int second,
+    std::string& error)
+{
+#ifdef WIN32
+    (void)first;
+    (void)second;
+    error = "Secure SQLite recovery backup comparison is unavailable on Windows.";
+    return false;
+#else
+    struct stat first_status{};
+    struct stat second_status{};
+    if (first < 0 ||
+        second < 0 ||
+        fstat(first, &first_status) != 0 ||
+        fstat(second, &second_status) != 0 ||
+        !S_ISREG(first_status.st_mode) ||
+        !S_ISREG(second_status.st_mode) ||
+        first_status.st_size < 0 ||
+        first_status.st_size != second_status.st_size) {
+        error = "SQLite recovery backup size or file identity does not match its source.";
+        return false;
+    }
+
+    std::vector<unsigned char> first_buffer(64 * 1024);
+    std::vector<unsigned char> second_buffer(64 * 1024);
+    ByteVectorCleanser first_cleanser(first_buffer);
+    ByteVectorCleanser second_cleanser(second_buffer);
+    off_t offset = 0;
+    while (offset < first_status.st_size) {
+        const size_t remaining = static_cast<size_t>(
+            std::min<off_t>(
+                first_status.st_size - offset,
+                static_cast<off_t>(first_buffer.size())));
+        ssize_t first_count;
+        ssize_t second_count;
+        do {
+            first_count = pread(
+                first,
+                first_buffer.data(),
+                remaining,
+                offset);
+        } while (first_count < 0 && errno == EINTR);
+        do {
+            second_count = pread(
+                second,
+                second_buffer.data(),
+                remaining,
+                offset);
+        } while (second_count < 0 && errno == EINTR);
+        if (first_count <= 0 ||
+            second_count != first_count ||
+            !std::equal(
+                first_buffer.begin(),
+                first_buffer.begin() + first_count,
+                second_buffer.begin())) {
+            error = "SQLite recovery backup is not an exact byte copy of its source.";
+            return false;
+        }
+        offset += first_count;
+    }
+    return true;
+#endif
+}
+
+enum class SQLiteRecoveryMode {
+    FULL,
+    KEY_ONLY,
+};
+
+template <typename Callback>
+bool ForEachSQLiteRecoveryRow(
+    sqlite3* source,
+    SQLiteRecoveryMode mode,
+    Callback&& callback,
+    size_t& count,
+    std::string& error)
+{
+    count = 0;
+    SQLiteStatement rows;
+    if (!PrepareStatement(
+            source,
+            "SELECT key, value FROM main NOT INDEXED ORDER BY rowid",
+            rows,
+            "Failed to prepare SQLite recovery row scan",
+            &error)) {
+        return false;
+    }
+
+    SQLiteColumnReader reader;
+    WalletKeyOnlyRecordValidator validator;
+    while (true) {
+        const int result = sqlite3_step(rows.Get());
+        if (result == SQLITE_DONE) {
+            return true;
+        }
+        if (result != SQLITE_ROW) {
+            error = strprintf(
+                "SQLite recovery row scan did not complete: %s",
+                sqlite3_errmsg(source));
+            return false;
+        }
+        if (sqlite3_column_type(rows.Get(), 0) != SQLITE_BLOB ||
+            sqlite3_column_type(rows.Get(), 1) != SQLITE_BLOB) {
+            error =
+                "SQLite recovery found a key or value outside the canonical BLOB domain.";
+            return false;
+        }
+
+        const void* key_data = nullptr;
+        const void* value_data = nullptr;
+        int key_size = 0;
+        int value_size = 0;
+        if (!ReadBlobColumn(
+                reader,
+                source,
+                rows.Get(),
+                0,
+                key_data,
+                key_size,
+                "Failed to extract SQLite recovery key") ||
+            !ReadBlobColumn(
+                reader,
+                source,
+                rows.Get(),
+                1,
+                value_data,
+                value_size,
+                "Failed to extract SQLite recovery value")) {
+            error = "Failed to extract a SQLite recovery row.";
+            return false;
+        }
+        if (key_size == 0) {
+            error =
+                "SQLite recovery found reserved empty-key creation metadata.";
+            return false;
+        }
+
+        CDataStream key(SER_DISK, CLIENT_VERSION);
+        CDataStream value(SER_DISK, CLIENT_VERSION);
+        StreamCleanser key_cleanser(key);
+        StreamCleanser value_cleanser(value);
+        try {
+            key.write(
+                static_cast<const char*>(key_data),
+                key_size);
+            if (value_size > 0) {
+                value.write(
+                    static_cast<const char*>(value_data),
+                    value_size);
+            }
+        } catch (const std::bad_alloc&) {
+            error = "Failed to allocate a SQLite recovery row.";
+            return false;
+        } catch (const std::exception&) {
+            error = "Failed to copy a SQLite recovery row.";
+            return false;
+        }
+
+        if (mode == SQLiteRecoveryMode::KEY_ONLY &&
+            !validator.IsValid(key, value)) {
+            continue;
+        }
+        if (!callback(key, value)) {
+            if (error.empty()) {
+                error = "Failed to process a SQLite recovery row.";
+            }
+            return false;
+        }
+        ++count;
+    }
+}
+
+bool RecoveryCandidateRowCount(
+    sqlite3* candidate,
+    size_t& count,
+    std::string& error)
+{
+    SQLiteStatement statement;
+    if (!PrepareStatement(
+            candidate,
+            "SELECT count(*) FROM main NOT INDEXED",
+            statement,
+            "Failed to count SQLite recovery candidate rows",
+            &error)) {
+        return false;
+    }
+    const int result = sqlite3_step(statement.Get());
+    if (result != SQLITE_ROW ||
+        sqlite3_column_type(statement.Get(), 0) != SQLITE_INTEGER) {
+        error = strprintf(
+            "Failed to count SQLite recovery candidate rows: %s",
+            sqlite3_errmsg(candidate));
+        return false;
+    }
+    const sqlite3_int64 row_count =
+        sqlite3_column_int64(statement.Get(), 0);
+    if (row_count < 0 ||
+        static_cast<uint64_t>(row_count) >
+            std::numeric_limits<size_t>::max()) {
+        error = "SQLite recovery candidate row count is out of range.";
+        return false;
+    }
+    count = static_cast<size_t>(row_count);
+    return true;
+}
+
+bool CopySQLiteRecoveryRows(
+    sqlite3* source,
+    sqlite3* candidate,
+    SQLiteRecoveryMode mode,
+    size_t& copied,
+    std::string& error)
+{
+    copied = 0;
+    if (!ExecuteSQL(
+            candidate,
+            "BEGIN IMMEDIATE TRANSACTION",
+            &error)) {
+        return false;
+    }
+
+    SQLiteStatement insert;
+    if (!PrepareStatement(
+            candidate,
+            "INSERT INTO main(key, value) VALUES(?, ?)",
+            insert,
+            "Failed to prepare SQLite recovery insertion",
+            &error)) {
+        ExecuteSQL(candidate, "ROLLBACK TRANSACTION");
+        return false;
+    }
+
+    const bool scanned = ForEachSQLiteRecoveryRow(
+        source,
+        mode,
+        [&](const CDataStream& key, const CDataStream& value) {
+            if (!BindBlob(
+                    insert.Get(),
+                    1,
+                    key,
+                    "recovery key") ||
+                !BindBlob(
+                    insert.Get(),
+                    2,
+                    value,
+                    "recovery value")) {
+                error =
+                    "Failed to bind a SQLite recovery row.";
+                return false;
+            }
+            const int result = sqlite3_step(insert.Get());
+            const int reset_result =
+                sqlite3_reset(insert.Get());
+            const int clear_result =
+                sqlite3_clear_bindings(insert.Get());
+            if (result != SQLITE_DONE ||
+                reset_result != SQLITE_OK ||
+                clear_result != SQLITE_OK) {
+                error = strprintf(
+                    "Failed to insert a SQLite recovery row: %s",
+                    sqlite3_errmsg(candidate));
+                return false;
+            }
+            return true;
+        },
+        copied,
+        error);
+    if (!scanned || copied == 0) {
+        ExecuteSQL(candidate, "ROLLBACK TRANSACTION");
+        if (scanned && error.empty()) {
+            error =
+                "SQLite recovery found no records eligible for recovery.";
+        }
+        return false;
+    }
+    if (!ExecuteSQL(
+            candidate,
+            "COMMIT TRANSACTION",
+            &error)) {
+        if (sqlite3_get_autocommit(candidate) == 0) {
+            ExecuteSQL(candidate, "ROLLBACK TRANSACTION");
+        }
+        return false;
+    }
+    if (sqlite3_get_autocommit(candidate) == 0) {
+        ExecuteSQL(candidate, "ROLLBACK TRANSACTION");
+        error =
+            "SQLite recovery candidate remained in a transaction after commit.";
+        return false;
+    }
+    return true;
+}
+
+bool VerifySQLiteRecoveryRows(
+    sqlite3* source,
+    sqlite3* candidate,
+    SQLiteRecoveryMode mode,
+    size_t expected_count,
+    std::string& error)
+{
+    SQLiteStatement point;
+    if (!PrepareStatement(
+            candidate,
+            "SELECT value FROM main WHERE key = ?",
+            point,
+            "Failed to prepare SQLite recovery comparison",
+            &error)) {
+        return false;
+    }
+
+    SQLiteColumnReader reader;
+    size_t compared = 0;
+    const bool scanned = ForEachSQLiteRecoveryRow(
+        source,
+        mode,
+        [&](const CDataStream& key, const CDataStream& value) {
+            if (!BindBlob(
+                    point.Get(),
+                    1,
+                    key,
+                    "recovery comparison key")) {
+                error =
+                    "Failed to bind a SQLite recovery comparison key.";
+                return false;
+            }
+            const int result = sqlite3_step(point.Get());
+            const void* candidate_value = nullptr;
+            int candidate_size = 0;
+            bool equal =
+                result == SQLITE_ROW &&
+                sqlite3_column_type(
+                    point.Get(),
+                    0) == SQLITE_BLOB &&
+                ReadBlobColumn(
+                    reader,
+                    candidate,
+                    point.Get(),
+                    0,
+                    candidate_value,
+                    candidate_size,
+                    "Failed to extract SQLite recovery comparison value") &&
+                candidate_size ==
+                    static_cast<int>(value.size()) &&
+                (candidate_size == 0 ||
+                    std::memcmp(
+                        candidate_value,
+                        value.data(),
+                        value.size()) == 0);
+            const int reset_result =
+                sqlite3_reset(point.Get());
+            const int clear_result =
+                sqlite3_clear_bindings(point.Get());
+            if (!equal ||
+                reset_result != SQLITE_OK ||
+                clear_result != SQLITE_OK) {
+                error =
+                    "SQLite recovery candidate does not exactly match its source rows.";
+                return false;
+            }
+            return true;
+        },
+        compared,
+        error);
+    if (!scanned ||
+        compared != expected_count) {
+        if (scanned && error.empty()) {
+            error =
+                "SQLite recovery comparison row count changed.";
+        }
+        return false;
+    }
+
+    size_t candidate_count = 0;
+    if (!RecoveryCandidateRowCount(
+            candidate,
+            candidate_count,
+            error) ||
+        candidate_count != expected_count) {
+        if (error.empty()) {
+            error =
+                "SQLite recovery candidate contains an unexpected row count.";
+        }
+        return false;
+    }
+    return true;
 }
 
 bool VerifySQLiteMigrationPath(
@@ -2199,6 +2731,7 @@ class SQLiteDatabase final : public WalletDatabase
 private:
     const std::string m_filename;
     const fs::path m_path;
+    fs::path m_recovery_backup_path;
     sqlite3* m_database{nullptr};
     int m_identity_descriptor{-1};
     SQLiteFileIdentity m_identity;
@@ -2968,6 +3501,14 @@ public:
 
     const std::string& Filename() const override { return m_filename; }
     DatabaseFormat Format() const override { return DatabaseFormat::SQLITE; }
+    std::string RecoveryBackupPath() const override
+    {
+        return m_recovery_backup_path.string();
+    }
+    void SetRecoveryBackupPath(fs::path path)
+    {
+        m_recovery_backup_path = std::move(path);
+    }
     std::unique_ptr<DatabaseBatch> MakeBatch(const DatabaseBatchOptions& options) override;
     DatabaseCreationResult CompleteCreation(std::string& error) override;
     bool Rewrite(const char* skip) override;
@@ -5074,6 +5615,699 @@ void SQLiteDatabase::Flush(bool shutdown)
         LogPrintf("SQLiteDatabase: Unknown exception during flush.\n");
     }
 }
+
+enum class SQLiteLogicalRecoveryResult {
+    SUCCESS,
+    FAILED,
+    INDETERMINATE,
+};
+
+SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
+    const std::string& filename,
+    const fs::path& source_path,
+    SQLiteRecoveryMode mode,
+    fs::path& backup_path,
+    std::string& error)
+{
+#if !((defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__))
+    (void)filename;
+    (void)source_path;
+    (void)mode;
+    (void)backup_path;
+    error =
+        "Atomic SQLite recovery publication is unavailable on this platform.";
+    return SQLiteLogicalRecoveryResult::FAILED;
+#else
+    backup_path.clear();
+    error.clear();
+    std::string acquire_error;
+    if (!AcquireSQLite(acquire_error)) {
+        error = strprintf(
+            "Failed to initialize SQLite recovery for '%s': %s",
+            source_path.string(),
+            acquire_error);
+        return SQLiteLogicalRecoveryResult::FAILED;
+    }
+    struct SQLiteReleaseGuard {
+        ~SQLiteReleaseGuard() { ReleaseSQLite(); }
+    } sqlite_release_guard;
+
+    struct DescriptorGuard {
+        int descriptor{-1};
+        ~DescriptorGuard()
+        {
+            if (descriptor >= 0) {
+                close(descriptor);
+            }
+        }
+    } source_descriptor;
+
+    SQLiteFileIdentity source_identity;
+    OwnedCandidate replacement;
+    OwnedCandidate backup;
+    sqlite3* source_database = nullptr;
+    sqlite3* replacement_database = nullptr;
+    sqlite3* verification_database = nullptr;
+    bool backup_published = false;
+    bool exchange_attempted = false;
+    bool exchange_proven = false;
+
+    auto close_connections = [&]() noexcept {
+        const bool source_closed =
+            CloseOrAbandonSQLiteConnection(
+                source_database);
+        const bool replacement_closed =
+            CloseOrAbandonSQLiteConnection(
+                replacement_database,
+                &replacement.cleanup_allowed);
+        const bool verification_closed =
+            CloseOrAbandonSQLiteConnection(
+                verification_database,
+                &replacement.cleanup_allowed);
+        if (!source_closed ||
+            !replacement_closed ||
+            !verification_closed) {
+            StartShutdown();
+        }
+        return source_closed &&
+               replacement_closed &&
+               verification_closed;
+    };
+
+    auto remove_pre_exchange_candidates = [&]() noexcept {
+        if (!exchange_proven) {
+            RemoveOwnedCandidate(replacement);
+        }
+        if (!backup_published) {
+            RemoveOwnedCandidate(backup);
+        }
+    };
+
+    auto fail_before_exchange =
+        [&](const std::string& reason) {
+            const bool closed = close_connections();
+            remove_pre_exchange_candidates();
+            error = strprintf(
+                "SQLite %s for wallet '%s' failed before publication: %s%s",
+                mode == SQLiteRecoveryMode::KEY_ONLY ?
+                    "key-only salvage" :
+                    "logical recovery",
+                source_path.string(),
+                reason.empty() ?
+                    "unknown recovery failure" :
+                    reason,
+                backup_published ?
+                    strprintf(
+                        " Exact source backup retained at '%s'.",
+                        backup_path.string()) :
+                    "");
+            if (!closed) {
+                error +=
+                    " A SQLite connection could not be closed; restart Firo "
+                    "before retrying.";
+            }
+            return SQLiteLogicalRecoveryResult::FAILED;
+        };
+
+    auto mark_indeterminate =
+        [&](const std::string& reason) {
+            close_connections();
+            StartShutdown();
+            error = strprintf(
+                "SQLite %s publication for wallet '%s' is indeterminate: %s "
+                "Wallet path: '%s'. Recovery working path: '%s'. "
+                "Backup path: '%s'. Preserve all paths and restart Firo only "
+                "after recovery.",
+                mode == SQLiteRecoveryMode::KEY_ONLY ?
+                    "key-only salvage" :
+                    "logical recovery",
+                filename,
+                reason.empty() ?
+                    "retained file identities could not be reconciled" :
+                    reason,
+                source_path.string(),
+                replacement.path.string(),
+                backup_path.string());
+            return SQLiteLogicalRecoveryResult::INDETERMINATE;
+        };
+
+    auto verify_recovery_source =
+        [&](std::string& verification_error) {
+            SQLiteFileIdentity verified_identity;
+            if (!VerifySQLiteHeaderDescriptor(
+                    source_descriptor.descriptor,
+                    source_path,
+                    verified_identity,
+                    verification_error) ||
+                !SameSQLiteFileIdentity(
+                    verified_identity,
+                    source_identity) ||
+                !ConnectionIdentityMatches(
+                    source_database,
+                    source_path,
+                    source_identity,
+                    verification_error) ||
+                !VerifyDatabaseIdentity(
+                    source_database,
+                    verification_error) ||
+                !VerifySchema(
+                    source_database,
+                    verification_error)) {
+                return false;
+            }
+            if (mode == SQLiteRecoveryMode::KEY_ONLY) {
+                return true;
+            }
+            if (!VerifyBlobRecords(
+                    source_database,
+                    verification_error)) {
+                return false;
+            }
+
+            bool corruption = false;
+            std::string integrity_error;
+            if (VerifyIntegrity(
+                    source_database,
+                    integrity_error,
+                    &corruption)) {
+                verification_error =
+                    "The SQLite wallet passes full integrity verification; "
+                    "automatic logical recovery is not applicable.";
+                return false;
+            }
+            if (!corruption) {
+                verification_error = strprintf(
+                    "SQLite verification failed for a reason that is not "
+                    "classified as recoverable corruption: %s",
+                    integrity_error);
+                return false;
+            }
+            return true;
+        };
+
+    auto verify_owned_recovery_path =
+        [&](const fs::path& path,
+            int descriptor,
+            const SQLiteFileIdentity& identity,
+            std::string& verification_error) {
+            SQLiteFileIdentity verified_identity;
+            if (!DescriptorIdentityMatches(
+                    descriptor,
+                    identity) ||
+                !VerifySQLiteHeaderDescriptor(
+                    descriptor,
+                    path,
+                    verified_identity,
+                    verification_error) ||
+                !SameSQLiteFileIdentity(
+                    verified_identity,
+                    identity) ||
+                !PathIdentityMatches(
+                    path,
+                    identity) ||
+                !CheckAuxiliaryFiles(
+                    path,
+                    false,
+                    verification_error) ||
+                !OpenSQLiteConnection(
+                    path,
+                    verification_database,
+                    verification_error,
+                    &identity)) {
+                return false;
+            }
+
+            bool verified =
+                VerifyDatabase(
+                    verification_database,
+                    verification_error) &&
+                ValidateLogicalCreationMarker(
+                    verification_database,
+                    path,
+                    SQLiteCreationMarkerPolicy::REQUIRE_ABSENT,
+                    verification_error) &&
+                SetConnectionPragmas(
+                    verification_database,
+                    verification_error) &&
+                ConnectionIdentityMatches(
+                    verification_database,
+                    path,
+                    identity,
+                    verification_error) &&
+                VerifyDatabase(
+                    verification_database,
+                    verification_error) &&
+                ValidateLogicalCreationMarker(
+                    verification_database,
+                    path,
+                    SQLiteCreationMarkerPolicy::REQUIRE_ABSENT,
+                    verification_error);
+            if (verified) {
+                const int flush_result =
+                    sqlite3_db_cacheflush(
+                        verification_database);
+                if (flush_result != SQLITE_OK) {
+                    verification_error = strprintf(
+                        "Failed to flush verified SQLite recovery path '%s': %s",
+                        path.string(),
+                        sqlite3_errmsg(
+                            verification_database));
+                    verified = false;
+                }
+            }
+            if (!CloseSQLiteConnection(
+                    verification_database)) {
+                AbandonSQLiteConnection(
+                    verification_database);
+                replacement.cleanup_allowed = false;
+                StartShutdown();
+                if (verification_error.empty()) {
+                    verification_error = strprintf(
+                        "Failed to close SQLite recovery verification path '%s'.",
+                        path.string());
+                }
+                return false;
+            }
+            return verified &&
+                   CheckAuxiliaryFiles(
+                       path,
+                       false,
+                       verification_error);
+        };
+
+    try {
+        if (!PreflightSQLiteHeader(
+                source_path,
+                source_identity,
+                error,
+                &source_descriptor.descriptor) ||
+            !CheckAuxiliaryFiles(
+                source_path,
+                true,
+                error) ||
+            !OpenSQLiteConnection(
+                source_path,
+                source_database,
+                error,
+                &source_identity)) {
+            return fail_before_exchange(error);
+        }
+
+        std::string verification_error;
+        if (!verify_recovery_source(
+                verification_error)) {
+            return fail_before_exchange(
+                verification_error);
+        }
+        if (!SetConnectionPragmas(
+                source_database,
+                verification_error) ||
+            !verify_recovery_source(
+                verification_error)) {
+            return fail_before_exchange(
+                verification_error);
+        }
+
+        if (CreateOwnedCandidate(
+                source_path,
+                replacement,
+                error) !=
+                CandidateResult::SUCCESS ||
+            !OpenSQLiteConnection(
+                replacement.path,
+                replacement_database,
+                error,
+                &replacement.identity,
+                &replacement.cleanup_allowed) ||
+            !SetConnectionPragmas(
+                replacement_database,
+                error) ||
+            !CreateSchema(
+                replacement_database,
+                false,
+                error)) {
+            return fail_before_exchange(error);
+        }
+
+        size_t copied_rows = 0;
+        if (!CopySQLiteRecoveryRows(
+                source_database,
+                replacement_database,
+                mode,
+                copied_rows,
+                error) ||
+            !VerifyDatabase(
+                replacement_database,
+                error) ||
+            !ValidateLogicalCreationMarker(
+                replacement_database,
+                replacement.path,
+                SQLiteCreationMarkerPolicy::REQUIRE_ABSENT,
+                error) ||
+            !VerifySQLiteRecoveryRows(
+                source_database,
+                replacement_database,
+                mode,
+                copied_rows,
+                error)) {
+            return fail_before_exchange(error);
+        }
+
+        const int source_flush_result =
+            sqlite3_db_cacheflush(
+                source_database);
+        const int replacement_flush_result =
+            sqlite3_db_cacheflush(
+                replacement_database);
+        if (source_flush_result != SQLITE_OK ||
+            replacement_flush_result != SQLITE_OK) {
+            return fail_before_exchange(
+                "Failed to flush SQLite recovery source or candidate.");
+        }
+        if (!CloseSQLiteConnection(
+                replacement_database) ||
+            !CloseSQLiteConnection(
+                source_database)) {
+            if (replacement_database) {
+                replacement.cleanup_allowed = false;
+                AbandonSQLiteConnection(
+                    replacement_database);
+            }
+            if (source_database) {
+                AbandonSQLiteConnection(
+                    source_database);
+            }
+            StartShutdown();
+            return fail_before_exchange(
+                "A SQLite recovery connection could not be closed.");
+        }
+
+        if (!PrivateSQLiteIdentityMatches(
+                source_descriptor.descriptor,
+                source_path,
+                source_identity) ||
+            !PrivateSQLiteIdentityMatches(
+                replacement.descriptor,
+                replacement.path,
+                replacement.identity) ||
+            !CheckAuxiliaryFiles(
+                source_path,
+                false,
+                error) ||
+            !CheckAuxiliaryFiles(
+                replacement.path,
+                false,
+                error) ||
+            !verify_owned_recovery_path(
+                replacement.path,
+                replacement.descriptor,
+                replacement.identity,
+                error)) {
+            if (error.empty()) {
+                error =
+                    "SQLite recovery source or candidate lost its retained identity.";
+            }
+            return fail_before_exchange(error);
+        }
+
+        const fs::path parent =
+            source_path.parent_path().empty() ?
+                fs::path(".") :
+                source_path.parent_path();
+        backup_path =
+            parent /
+            strprintf(
+                "wallet.%d.bak",
+                GetTime());
+        if (backup_path == source_path ||
+            backup_path == replacement.path ||
+            !OwnerControlledMigrationDirectory(
+                parent,
+                error) ||
+            CreateOwnedCandidate(
+                backup_path,
+                backup,
+                error) !=
+                CandidateResult::SUCCESS ||
+            !CopyDescriptorContents(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error) ||
+            !DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error)) {
+            return fail_before_exchange(error);
+        }
+
+        const PublishResult backup_publish_result =
+            PublishCandidate(
+                backup,
+                backup_path,
+                error);
+        backup_published =
+            PathIdentityMatches(
+                backup_path,
+                backup.identity);
+        if (backup_publish_result !=
+                PublishResult::SUCCESS ||
+            !backup_published ||
+            !DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error)) {
+            if (backup_publish_result ==
+                PublishResult::EXISTS) {
+                error = strprintf(
+                    "Refusing to overwrite existing SQLite recovery backup '%s'.",
+                    backup_path.string());
+            }
+            return fail_before_exchange(error);
+        }
+
+        if (!PrivateSQLiteIdentityMatches(
+                source_descriptor.descriptor,
+                source_path,
+                source_identity) ||
+            !PrivateSQLiteIdentityMatches(
+                replacement.descriptor,
+                replacement.path,
+                replacement.identity) ||
+            !PrivateSQLiteIdentityMatches(
+                backup.descriptor,
+                backup_path,
+                backup.identity) ||
+            !DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error) ||
+            !CheckAuxiliaryFiles(
+                source_path,
+                false,
+                error) ||
+            !CheckAuxiliaryFiles(
+                replacement.path,
+                false,
+                error) ||
+            !CheckAuxiliaryFiles(
+                backup_path,
+                false,
+                error) ||
+            !SyncDirectory(
+                parent,
+                error,
+                true)) {
+            if (error.empty()) {
+                error =
+                    "A retained SQLite recovery identity changed before publication.";
+            }
+            return fail_before_exchange(error);
+        }
+
+        int exchange_result;
+#if defined(__linux__) && defined(SYS_renameat2)
+        exchange_result = static_cast<int>(syscall(
+            SYS_renameat2,
+            AT_FDCWD,
+            replacement.path.string().c_str(),
+            AT_FDCWD,
+            source_path.string().c_str(),
+            RENAME_EXCHANGE));
+#elif defined(__APPLE__)
+        exchange_result = renameatx_np(
+            AT_FDCWD,
+            replacement.path.string().c_str(),
+            AT_FDCWD,
+            source_path.string().c_str(),
+            RENAME_SWAP);
+#else
+        exchange_result = -1;
+        errno = ENOTSUP;
+#endif
+        exchange_attempted = true;
+        const int exchange_error =
+            exchange_result == 0 ?
+                0 :
+                errno;
+        const bool replacement_at_final =
+            PathIdentityMatches(
+                source_path,
+                replacement.identity);
+        const bool source_at_hidden =
+            PathIdentityMatches(
+                replacement.path,
+                source_identity);
+        const bool replacement_at_hidden =
+            PathIdentityMatches(
+                replacement.path,
+                replacement.identity);
+        const bool source_at_final =
+            PathIdentityMatches(
+                source_path,
+                source_identity);
+        const bool exchanged =
+            replacement_at_final &&
+            source_at_hidden;
+        const bool unchanged =
+            replacement_at_hidden &&
+            source_at_final;
+        exchange_proven = exchanged;
+
+        if (exchange_result != 0) {
+            if (unchanged) {
+                exchange_attempted = false;
+                return fail_before_exchange(
+                    strprintf(
+                        "Atomic SQLite recovery exchange failed without "
+                        "changing either retained identity: %s",
+                        std::strerror(
+                            exchange_error)));
+            }
+            return mark_indeterminate(
+                strprintf(
+                    "Atomic exchange reported '%s'; identity reconciliation "
+                    "found replacement-at-final=%d, source-at-hidden=%d, "
+                    "replacement-at-hidden=%d, source-at-final=%d",
+                    std::strerror(exchange_error),
+                    replacement_at_final,
+                    source_at_hidden,
+                    replacement_at_hidden,
+                    source_at_final));
+        }
+        if (!exchanged) {
+            return mark_indeterminate(
+                strprintf(
+                    "Atomic exchange returned success but identity "
+                    "reconciliation found replacement-at-final=%d and "
+                    "source-at-hidden=%d",
+                    replacement_at_final,
+                    source_at_hidden));
+        }
+
+        if (!DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error) ||
+            !PathIdentityMatches(
+                replacement.path,
+                source_identity) ||
+            !PrivateSQLiteIdentityMatches(
+                replacement.descriptor,
+                source_path,
+                replacement.identity) ||
+            !verify_owned_recovery_path(
+                source_path,
+                replacement.descriptor,
+                replacement.identity,
+                error) ||
+            !SyncDirectory(
+                parent,
+                error,
+                true)) {
+            return mark_indeterminate(error);
+        }
+
+        if (!CheckAuxiliaryFiles(
+                replacement.path,
+                false,
+                error) ||
+            !PrivateSQLiteIdentityMatches(
+                backup.descriptor,
+                backup_path,
+                backup.identity) ||
+            !DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error) ||
+            !RemoveOwnedPath(
+                replacement.path,
+                source_identity,
+                error) ||
+            !DescriptorIdentityIsUnlinked(
+                source_descriptor.descriptor,
+                source_identity) ||
+            !SyncDirectory(
+                parent,
+                error,
+                true) ||
+            !verify_owned_recovery_path(
+                source_path,
+                replacement.descriptor,
+                replacement.identity,
+                error) ||
+            !PathIdentityMatches(
+                backup_path,
+                backup.identity) ||
+            !DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error)) {
+            if (error.empty()) {
+                error =
+                    "SQLite recovery final identity verification failed.";
+            }
+            return mark_indeterminate(error);
+        }
+
+        LogPrintf(
+            "SQLiteDatabase: %s completed for '%s'; exact source backup "
+            "retained at '%s'.\n",
+            mode == SQLiteRecoveryMode::KEY_ONLY ?
+                "Key-only salvage" :
+                "Logical recovery",
+            source_path.string(),
+            backup_path.string());
+        error.clear();
+        return SQLiteLogicalRecoveryResult::SUCCESS;
+    } catch (const std::exception& exception) {
+        if (exchange_attempted &&
+            !exchange_proven) {
+            return mark_indeterminate(
+                strprintf(
+                    "An exception occurred after atomic exchange was attempted: %s",
+                    exception.what()));
+        }
+        if (exchange_proven) {
+            return mark_indeterminate(
+                strprintf(
+                    "An exception occurred after atomic exchange: %s",
+                    exception.what()));
+        }
+        return fail_before_exchange(
+            strprintf(
+                "Recovery raised an exception: %s",
+                exception.what()));
+    } catch (...) {
+        if (exchange_attempted ||
+            exchange_proven) {
+            return mark_indeterminate(
+                "An unknown exception occurred after atomic exchange was attempted.");
+        }
+        return fail_before_exchange(
+            "Recovery raised an unknown exception.");
+    }
+#endif
+}
 } // namespace
 
 int SQLiteStatementExecutor::Execute(
@@ -5127,11 +6361,6 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
         error = "SQLite backend factory requires SQLite format.";
         return nullptr;
     }
-    if (options.salvage) {
-        status = DatabaseStatus::FAILED_UNSUPPORTED;
-        error = "SQLite wallet salvage is not supported.";
-        return nullptr;
-    }
 #ifdef WIN32
     status = DatabaseStatus::FAILED_UNSUPPORTED;
     error =
@@ -5179,6 +6408,30 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
         return nullptr;
     }
 
+    fs::path recovery_backup_path;
+    bool recovered = false;
+    bool salvaged = false;
+    bool recovery_indeterminate = false;
+    if (exists && options.salvage) {
+        const SQLiteLogicalRecoveryResult recovery_result =
+            RecoverSQLiteDatabase(
+                filename,
+                path,
+                SQLiteRecoveryMode::KEY_ONLY,
+                recovery_backup_path,
+                error);
+        if (recovery_result !=
+            SQLiteLogicalRecoveryResult::SUCCESS) {
+            status =
+                recovery_result ==
+                        SQLiteLogicalRecoveryResult::INDETERMINATE ?
+                    DatabaseStatus::FAILED_LOAD :
+                    DatabaseStatus::FAILED_VERIFY;
+            return nullptr;
+        }
+        salvaged = true;
+    }
+
     OwnedCandidate candidate;
     if (!exists) {
         if (CreateOwnedCandidate(path, candidate, error) !=
@@ -5207,20 +6460,72 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
         RemoveOwnedCandidate(candidate);
     };
     try {
-        database = std::make_unique<SQLiteDatabase>(
-            filename,
-            path,
-            options.sqlite_migration_candidate);
-        const bool initialized =
-            exists ?
-                database->InitializeExisting(error) :
-                database->InitializeCreated(
-                    candidate,
-                    options.logical_wallet_create,
-                    publish_result,
-                    error);
+        auto initialize_database = [&]() {
+            database = std::make_unique<SQLiteDatabase>(
+                filename,
+                path,
+                options.sqlite_migration_candidate);
+            return exists ?
+                       database->InitializeExisting(error) :
+                       database->InitializeCreated(
+                           candidate,
+                           options.logical_wallet_create,
+                           publish_result,
+                           error);
+        };
+
+        bool initialized =
+            initialize_database();
+        if (!initialized &&
+            exists &&
+            !options.salvage &&
+            options.verify &&
+            options.recover) {
+            const std::string initial_error = error;
+            database.reset();
+            std::string recovery_error;
+            const SQLiteLogicalRecoveryResult recovery_result =
+                RecoverSQLiteDatabase(
+                    filename,
+                    path,
+                    SQLiteRecoveryMode::FULL,
+                    recovery_backup_path,
+                    recovery_error);
+            if (recovery_result ==
+                SQLiteLogicalRecoveryResult::SUCCESS) {
+                recovered = true;
+                error.clear();
+                initialized =
+                    initialize_database();
+                if (!initialized) {
+                    error = strprintf(
+                        "Recovered SQLite wallet '%s' could not be reopened: "
+                        "%s Exact source backup retained at '%s'.",
+                        path.string(),
+                        error,
+                        recovery_backup_path.string());
+                }
+            } else {
+                error = strprintf(
+                    "%s Logical SQLite recovery did not publish a replacement: %s",
+                    initial_error,
+                    recovery_error);
+                if (recovery_result ==
+                    SQLiteLogicalRecoveryResult::INDETERMINATE) {
+                    recovery_indeterminate = true;
+                }
+            }
+        }
         if (!initialized) {
             database.reset();
+            if (salvaged) {
+                error = strprintf(
+                    "Salvaged SQLite wallet '%s' could not be reopened: %s "
+                    "Exact source backup retained at '%s'.",
+                    path.string(),
+                    error,
+                    recovery_backup_path.string());
+            }
             if (!exists) {
                 cleanup_failed_creation();
                 if (publish_result == PublishResult::EXISTS) {
@@ -5232,7 +6537,10 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
                     status = DatabaseStatus::FAILED_LOAD;
                 }
             } else {
-                status = DatabaseStatus::FAILED_VERIFY;
+                status =
+                    recovery_indeterminate ?
+                        DatabaseStatus::FAILED_LOAD :
+                        DatabaseStatus::FAILED_VERIFY;
             }
             return nullptr;
         }
@@ -5246,7 +6554,16 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
         return nullptr;
     }
 
-    status = DatabaseStatus::SUCCESS;
+    if (recovered || salvaged) {
+        database->SetRecoveryBackupPath(
+            recovery_backup_path);
+    }
+    status =
+        salvaged ?
+            DatabaseStatus::SUCCESS_SALVAGED :
+        recovered ?
+            DatabaseStatus::SUCCESS_RECOVERED :
+            DatabaseStatus::SUCCESS;
     return database;
 }
 

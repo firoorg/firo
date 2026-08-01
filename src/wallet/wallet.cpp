@@ -1293,11 +1293,22 @@ bool CWallet::Verify()
     }
 
     if (status == DatabaseStatus::SUCCESS_RECOVERED) {
-        InitWarning(strprintf(_("Warning: Wallet file corrupt, data salvaged!"
-                                " Original %s saved as %s in %s; if"
-                                " your balance or transactions are incorrect you should"
-                                " restore from a backup."),
-            walletFile, "wallet.{timestamp}.bak", GetDataDir()));
+        const std::string recoveryBackup =
+            database->RecoveryBackupPath();
+        if (!recoveryBackup.empty()) {
+            InitWarning(strprintf(
+                _("Warning: Wallet file corrupt, data salvaged! Exact original "
+                  "%s retained at %s; if your balance or transactions are "
+                  "incorrect you should restore from that backup."),
+                walletFile,
+                recoveryBackup));
+        } else {
+            InitWarning(strprintf(_("Warning: Wallet file corrupt, data salvaged!"
+                                    " Original %s saved as %s in %s; if"
+                                    " your balance or transactions are incorrect you should"
+                                    " restore from a backup."),
+                walletFile, "wallet.{timestamp}.bak", GetDataDir()));
+        }
     }
 
     return true;

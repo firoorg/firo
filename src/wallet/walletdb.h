@@ -20,6 +20,7 @@
 #include "../spark/primitives.h"
 
 #include <list>
+#include <memory>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
@@ -66,6 +67,30 @@ enum DBErrors
 
 // {value, isHardened}
 typedef std::pair<uint32_t,bool> Component;
+
+/**
+ * Stateful validator matching the cross-record acceptance rules used by
+ * Berkeley DB key-only wallet salvage.
+ */
+class WalletKeyOnlyRecordValidator
+{
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
+
+public:
+    WalletKeyOnlyRecordValidator();
+    ~WalletKeyOnlyRecordValidator();
+
+    WalletKeyOnlyRecordValidator(
+        const WalletKeyOnlyRecordValidator&) = delete;
+    WalletKeyOnlyRecordValidator& operator=(
+        const WalletKeyOnlyRecordValidator&) = delete;
+
+    bool IsValid(
+        const CDataStream& serialized_key,
+        const CDataStream& serialized_value);
+};
 
 /* simple HD chain data model */
 class CHDChain

@@ -273,6 +273,8 @@ public:
     virtual bool Rewrite(const char* skip = nullptr) = 0;
     /** Write a consistent live snapshot to destination. */
     virtual bool Backup(const std::string& destination) = 0;
+    /** Exact retained backup path after successful automatic recovery. */
+    virtual std::string RecoveryBackupPath() const { return {}; }
     virtual bool PeriodicFlush() = 0;
     virtual void Flush(bool shutdown) = 0;
 };
