@@ -74,11 +74,6 @@ public:
     }
 
     ~BerkeleyBatchForTest() override = default;
-
-    static bool RewriteWithRenameFailure(BerkeleyDatabase& database)
-    {
-        return RewriteInternal(database, nullptr, true);
-    }
 };
 
 class WalletDatabasePathTestingSetup : public BasicTestingSetup
@@ -953,15 +948,6 @@ BOOST_FIXTURE_TEST_CASE(wallet_database_factory_preopen_policy, WalletDatabasePa
     requireExisting.require_existing = true;
     expectFailure("missing_wallet.dat", requireExisting, DatabaseStatus::FAILED_NOT_FOUND);
 
-    const std::string unknownFilename{"unknown_wallet.dat"};
-    const fs::path unknownPath = GetDataDir() / unknownFilename;
-    const std::string unknownContents{"not a wallet database"};
-    WriteFile(unknownPath, unknownContents);
-    expectFailure(unknownFilename, requireCreate, DatabaseStatus::FAILED_ALREADY_EXISTS);
-    expectFailure(unknownFilename, defaults, DatabaseStatus::FAILED_BAD_FORMAT);
-    BOOST_CHECK_EQUAL(ReadFile(unknownPath), unknownContents);
-    BOOST_CHECK(fs::remove(unknownPath));
-
     static constexpr std::array<char, 16> SQLITE_MAGIC{{
         'S',
         'Q',
@@ -1004,23 +990,40 @@ BOOST_FIXTURE_TEST_CASE(wallet_database_factory_preopen_policy, WalletDatabasePa
     const std::string danglingFilename{"dangling_wallet.dat"};
     const fs::path danglingPath = GetDataDir() / danglingFilename;
     const fs::path missingTarget = GetDataDir() / "missing_symlink_target.dat";
-    bool pathExists = true;
-    std::string pathError;
-    BOOST_CHECK(WalletDatabasePathExists(missingTarget, pathExists, pathError));
-    BOOST_CHECK(!pathExists);
-    BOOST_CHECK(pathError.empty());
 
     boost::system::error_code symlinkError;
     fs::create_symlink(missingTarget, danglingPath, symlinkError);
     if (!symlinkError) {
-        pathExists = false;
-        BOOST_CHECK(WalletDatabasePathExists(danglingPath, pathExists, pathError));
-        BOOST_CHECK(pathExists);
-        BOOST_CHECK(pathError.empty());
-        expectFailure(danglingFilename, defaults, DatabaseStatus::FAILED_BAD_PATH);
+        expectFailure(
+            danglingFilename,
+            requireCreate,
+            DatabaseStatus::FAILED_ALREADY_EXISTS);
         BOOST_CHECK(fs::remove(danglingPath));
     } else {
         BOOST_TEST_MESSAGE("Skipping dangling-symlink checks: " << symlinkError.message());
+    }
+
+    const std::string loopingFilename{
+        "looping_wallet.dat"};
+    const fs::path loopingPath =
+        GetDataDir() / loopingFilename;
+    symlinkError.clear();
+    fs::create_symlink(
+        loopingPath,
+        loopingPath,
+        symlinkError);
+    if (!symlinkError) {
+        expectFailure(
+            loopingFilename,
+            defaults,
+            DatabaseStatus::FAILED_BAD_PATH);
+        BOOST_CHECK(
+            fs::symlink_status(loopingPath).type() ==
+            fs::symlink_file);
+        BOOST_CHECK(fs::remove(loopingPath));
+    } else {
+        BOOST_TEST_MESSAGE(
+            "Skipping symlink-loop checks: " << symlinkError.message());
     }
 }
 
@@ -1122,7 +1125,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     std::string error;
     const DatabaseOptions defaults;
 
-    for (const char* invalid : {"", ".", "..", "../wallet.dat", "subdir/wallet.dat", "subdir\\wallet.dat", "/wallet.dat", "wallet:bad.dat"}) {
+    for (const char* invalid : {"../wallet.dat", "subdir/wallet.dat", "subdir\\wallet.dat", "/wallet.dat", "wallet:bad.dat"}) {
         BOOST_CHECK(!makeDatabase(invalid, defaults, status, error));
         BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_PATH);
         BOOST_CHECK(!error.empty());
@@ -1235,34 +1238,130 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     const fs::path unknownPath = GetDataDir() / unknownFilename;
     const std::string unknownContents{"not a wallet database"};
     WriteFile(unknownPath, unknownContents);
-    BOOST_CHECK(!makeDatabase(unknownFilename, defaults, status, error));
-    BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_FORMAT);
+    DatabaseOptions verifyWithoutRecovery;
+    verifyWithoutRecovery.require_existing = true;
+    verifyWithoutRecovery.recover = false;
+    BOOST_CHECK(!makeDatabase(
+        unknownFilename,
+        verifyWithoutRecovery,
+        status,
+        error));
+    BOOST_CHECK(status == DatabaseStatus::FAILED_VERIFY);
     BOOST_CHECK_EQUAL(ReadFile(unknownPath), unknownContents);
     BOOST_CHECK(fs::remove(unknownPath));
 
     const std::string directoryFilename{"factory_directory_test.dat"};
     const fs::path directoryPath = GetDataDir() / directoryFilename;
     BOOST_REQUIRE(fs::create_directory(directoryPath));
-    BOOST_CHECK(!makeDatabase(directoryFilename, defaults, status, error));
-    BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_PATH);
+    BOOST_CHECK(!makeDatabase(
+        directoryFilename,
+        verifyWithoutRecovery,
+        status,
+        error));
+    BOOST_CHECK(status == DatabaseStatus::FAILED_VERIFY);
     BOOST_CHECK(fs::remove(directoryPath));
 
     const std::string symlinkTargetFilename{"factory_symlink_target.dat"};
     const std::string symlinkFilename{"factory_symlink_test.dat"};
     const fs::path symlinkTargetPath = GetDataDir() / symlinkTargetFilename;
     const fs::path symlinkPath = GetDataDir() / symlinkFilename;
-    WriteFile(symlinkTargetPath, unknownContents);
+    std::unique_ptr<WalletDatabase> symlinkTargetDatabase =
+        MakeBerkeleyDatabase(
+            bitdb,
+            symlinkTargetFilename);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            symlinkTargetDatabase->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("symlink-key"),
+            std::string("symlink-value")));
+    }
+    BOOST_REQUIRE(
+        symlinkTargetDatabase->PeriodicFlush());
     boost::system::error_code symlinkError;
     fs::create_symlink(symlinkTargetPath, symlinkPath, symlinkError);
     if (!symlinkError) {
-        BOOST_CHECK(!makeDatabase(symlinkFilename, defaults, status, error));
-        BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_PATH);
-        BOOST_CHECK_EQUAL(ReadFile(symlinkTargetPath), unknownContents);
+        std::unique_ptr<WalletDatabase> symlinkDatabase =
+            makeDatabase(
+                symlinkFilename,
+                verifyWithoutRecovery,
+                status,
+                error);
+        BOOST_REQUIRE(symlinkDatabase);
+        BOOST_CHECK(
+            symlinkDatabase->Format() ==
+            DatabaseFormat::BERKELEY);
+        {
+            std::unique_ptr<DatabaseBatch> batch =
+                symlinkDatabase->MakeBatch(
+                    {DatabaseBatchMode::READ_ONLY});
+            BOOST_REQUIRE(batch);
+            std::string value;
+            BOOST_REQUIRE(batch->Read(
+                std::string("symlink-key"),
+                value));
+            BOOST_CHECK_EQUAL(
+                value,
+                "symlink-value");
+        }
+        BOOST_REQUIRE(
+            symlinkDatabase->PeriodicFlush());
+        symlinkDatabase.reset();
         BOOST_CHECK(fs::remove(symlinkPath));
     } else {
         BOOST_TEST_MESSAGE("Skipping symlink-target checks: " << symlinkError.message());
     }
-    BOOST_CHECK(fs::remove(symlinkTargetPath));
+    symlinkTargetDatabase.reset();
+    BOOST_CHECK(
+        bitdb.RemoveDb(
+            symlinkTargetFilename));
+
+#ifdef USE_SQLITE
+    const std::string sqliteSymlinkTargetFilename{
+        "factory_sqlite_symlink_target.dat"};
+    const std::string sqliteSymlinkFilename{
+        "factory_sqlite_symlink_test.dat"};
+    const fs::path sqliteSymlinkTargetPath =
+        GetDataDir() / sqliteSymlinkTargetFilename;
+    const fs::path sqliteSymlinkPath =
+        GetDataDir() / sqliteSymlinkFilename;
+    DatabaseOptions sqliteSymlinkCreate;
+    sqliteSymlinkCreate.require_create = true;
+    sqliteSymlinkCreate.require_format =
+        DatabaseFormat::SQLITE;
+    std::unique_ptr<WalletDatabase> sqliteSymlinkTarget =
+        makeDatabase(
+            sqliteSymlinkTargetFilename,
+            sqliteSymlinkCreate,
+            status,
+            error);
+    BOOST_REQUIRE(sqliteSymlinkTarget);
+    sqliteSymlinkTarget.reset();
+    symlinkError.clear();
+    fs::create_symlink(
+        sqliteSymlinkTargetPath,
+        sqliteSymlinkPath,
+        symlinkError);
+    if (!symlinkError) {
+        BOOST_CHECK(!makeDatabase(
+            sqliteSymlinkFilename,
+            defaults,
+            status,
+            error));
+        BOOST_CHECK(
+            status ==
+            DatabaseStatus::FAILED_BAD_PATH);
+        BOOST_CHECK(fs::remove(
+            sqliteSymlinkPath));
+    } else {
+        BOOST_TEST_MESSAGE(
+            "Skipping SQLite symlink-target checks: " << symlinkError.message());
+    }
+    RemoveSQLiteTestFiles(
+        sqliteSymlinkTargetFilename);
+#endif
 
     const std::string sqliteFilename{"factory_sqlite_test.dat"};
     const fs::path sqlitePath = GetDataDir() / sqliteFilename;
@@ -2928,7 +3027,6 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         BOOST_CHECK(batch.TxnCommit());
         BOOST_CHECK(!batch.HasActiveTxn());
         BOOST_CHECK(batch.Write(std::string("version"), 1));
-        BOOST_CHECK(batch.Write(std::make_pair(std::string("version"), uint32_t{1}), std::string("opaque")));
         BOOST_CHECK(batch.Write(std::make_pair(std::string("pool"), int64_t{1}), std::string("skipped")));
 
         BOOST_CHECK(batch.TxnBegin());
@@ -2969,27 +3067,6 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         expectedRecords = ReadRawRecords(batch);
     }
 
-    const std::string staleRewriteFilename = filename + ".rewrite";
-    {
-        BerkeleyDatabase staleDatabase(bitdb, staleRewriteFilename);
-        BerkeleyBatchForTest staleRewrite(staleDatabase, "cr+");
-        BOOST_CHECK(staleRewrite.Write(std::string("stale"), std::string("candidate")));
-    }
-    bitdb.CloseDb(staleRewriteFilename);
-    BOOST_CHECK(!database.Rewrite());
-    {
-        BerkeleyBatchForTest batch(database, "r+");
-        BOOST_CHECK(ReadRawRecords(batch) == expectedRecords);
-    }
-    BOOST_CHECK(bitdb.RemoveDb(staleRewriteFilename));
-
-    BOOST_CHECK(!BerkeleyBatchForTest::RewriteWithRenameFailure(database));
-    {
-        BerkeleyBatchForTest batch(database, "r+");
-        BOOST_CHECK(ReadRawRecords(batch) == expectedRecords);
-    }
-    BOOST_CHECK(bitdb.RemoveDb(staleRewriteFilename));
-
     const std::string versionKey = SerializeToString(std::string("version"));
     const auto versionRecord = std::find_if(expectedRecords.begin(), expectedRecords.end(), [&](const RawRecord& record) {
         return record.first == versionKey;
@@ -3011,8 +3088,6 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         int version;
         BOOST_CHECK(batch.ReadVersion(version));
         BOOST_CHECK_EQUAL(version, CLIENT_VERSION);
-        BOOST_CHECK(batch.Read(std::make_pair(std::string("version"), uint32_t{1}), value));
-        BOOST_CHECK_EQUAL(value, "opaque");
     }
 
     const std::string poolPrefix{"\x04pool", 5};

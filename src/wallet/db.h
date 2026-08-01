@@ -204,7 +204,6 @@ protected:
 
     explicit CDB(BerkeleyDatabase& database, const char* pszMode = "r+", bool fFlushOnCloseIn = true);
     ~CDB() override { Close(); }
-    static bool RewriteInternal(BerkeleyDatabase& database, const char* pszSkip, bool failBeforeRename);
 
 private:
     DatabaseReadStatus ReadRaw(CDataStream&& key, CDataStream& value) override;

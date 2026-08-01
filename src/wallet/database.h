@@ -301,9 +301,6 @@ public:
 /** Resolve a safe flat wallet filename inside the network data directory. */
 bool GetWalletDatabasePath(const std::string& filename, fs::path& path, std::string& error);
 
-/** Check whether a wallet path entry exists without following symlinks. */
-bool WalletDatabasePathExists(const fs::path& path, bool& exists, std::string& error);
-
 /**
  * Require a migration directory and every ancestor to be protected from
  * pathname replacement by an untrusted local user.

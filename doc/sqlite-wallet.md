@@ -70,6 +70,12 @@ firo-cli getwalletinfo
 
 The `format` field is `sqlite` or `bdb`.
 
+Format detection never falls back from a recognizable SQLite header to BDB.
+If corruption destroys SQLite's identifying 16-byte header, however, the
+remaining bytes are indistinguishable from a damaged BDB file and enter the
+legacy BDB verification and recovery path. Recovery cannot reconstruct a
+destroyed format identity; retain known-good backups before attempting it.
+
 ## Explicit BDB-to-SQLite migration
 
 Stop Firo cleanly, then request a one-time migration of the selected existing

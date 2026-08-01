@@ -632,8 +632,8 @@ public:
             return result == DB_NOTFOUND ? Status::DONE : Status::FAIL;
         }
 
-        if ((db_key.Size() != 0 && db_key.Data() == nullptr) ||
-            (db_value.Size() != 0 && db_value.Data() == nullptr)) {
+        if (db_key.Data() == nullptr ||
+            db_value.Data() == nullptr) {
             CleanseStream(m_start_key);
             m_start_key.clear();
             return Status::FAIL;
@@ -1256,11 +1256,6 @@ bool CDBEnv::RemoveDb(const std::string& strFile)
 
 bool CDB::Rewrite(BerkeleyDatabase& database, const char* pszSkip)
 {
-    return RewriteInternal(database, pszSkip, false);
-}
-
-bool CDB::RewriteInternal(BerkeleyDatabase& database, const char* pszSkip, bool failBeforeRename)
-{
     if (!database.m_env || database.m_filename.empty()) {
         return true;
     }
@@ -1286,68 +1281,63 @@ bool CDB::RewriteInternal(BerkeleyDatabase& database, const char* pszSkip, bool 
                         strFileRes.c_str(),       // Filename
                         "main",                   // Logical db name
                         DB_BTREE,                 // Database type
-                        DB_CREATE | DB_EXCL,      // Flags
+                        DB_CREATE,                // Flags
                         0);
-                    const bool copyOpen = ret == 0;
-                    if (!copyOpen) {
+                    if (ret > 0) {
                         LogPrintf("CDB::Rewrite: Can't create database file %s\n", strFileRes);
                         fSuccess = false;
                     }
 
                     auto cursor = db.GetCursor();
-                    if (!cursor) {
-                        fSuccess = false;
-                    }
-                    while (fSuccess) {
-                        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-                        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-                        const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
-                        if (status == DatabaseCursor::Status::DONE) {
-                            break;
-                        }
-                        if (status == DatabaseCursor::Status::FAIL) {
-                            fSuccess = false;
-                            break;
-                        }
+                    if (cursor) {
+                        while (fSuccess) {
+                            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+                            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+                            const DatabaseCursor::Status status = cursor->Next(ssKey, ssValue);
+                            if (status == DatabaseCursor::Status::DONE) {
+                                break;
+                            }
+                            if (status == DatabaseCursor::Status::FAIL) {
+                                fSuccess = false;
+                                break;
+                            }
 
-                        const size_t skipSize = pszSkip ? strlen(pszSkip) : 0;
-                        if (skipSize != 0 && ssKey.size() >= skipSize &&
-                            memcmp(ssKey.data(), pszSkip, skipSize) == 0) {
-                            continue;
-                        }
+                            if (pszSkip &&
+                                strncmp(ssKey.data(), pszSkip, std::min(ssKey.size(), strlen(pszSkip))) == 0) {
+                                continue;
+                            }
 
-                        static const char serializedVersion[] = "\x07version";
-                        if (ssKey.size() == sizeof(serializedVersion) - 1 &&
-                            memcmp(ssKey.data(), serializedVersion, sizeof(serializedVersion) - 1) == 0) {
-                            ssValue.clear();
-                            ssValue << CLIENT_VERSION;
-                        }
+                            if (strncmp(ssKey.data(), "\x07version", 8) == 0) {
+                                ssValue.clear();
+                                ssValue << CLIENT_VERSION;
+                            }
 
-                        Dbt datKey(ssKey.data(), ssKey.size());
-                        Dbt datValue(ssValue.data(), ssValue.size());
-                        if (pdbCopy->put(NULL, &datKey, &datValue, DB_NOOVERWRITE) != 0) {
-                            fSuccess = false;
+                            Dbt datKey(ssKey.data(), ssKey.size());
+                            Dbt datValue(ssValue.data(), ssValue.size());
+                            int ret2 = pdbCopy->put(NULL, &datKey, &datValue, DB_NOOVERWRITE);
+                            if (ret2 > 0) {
+                                fSuccess = false;
+                            }
                         }
                     }
 
                     cursor.reset();
-                    db.Close();
-                    env.CloseDb(strFile);
-                    if (copyOpen && pdbCopy->close(0) != 0) {
-                        fSuccess = false;
+                    if (fSuccess) {
+                        db.Close();
+                        env.CloseDb(strFile);
+                        if (pdbCopy->close(0) != 0) {
+                            fSuccess = false;
+                        }
                     }
                 }
                 if (fSuccess) {
-                    DbTxn* publishTxn = env.TxnBegin(0);
-                    if (!publishTxn) {
+                    Db dbA(env.dbenv, 0);
+                    if (dbA.remove(strFile.c_str(), NULL, 0)) {
                         fSuccess = false;
-                    } else if (env.dbenv->dbremove(publishTxn, strFile.c_str(), nullptr, 0) != 0 ||
-                               failBeforeRename ||
-                               env.dbenv->dbrename(publishTxn, strFileRes.c_str(), nullptr, strFile.c_str(), 0) != 0) {
-                        publishTxn->abort();
+                    }
+                    Db dbB(env.dbenv, 0);
+                    if (dbB.rename(strFileRes.c_str(), NULL, strFile.c_str(), 0)) {
                         fSuccess = false;
-                    } else {
-                        fSuccess = publishTxn->commit(DB_TXN_SYNC) == 0;
                     }
                 }
                 if (!fSuccess)
