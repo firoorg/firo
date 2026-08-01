@@ -5,6 +5,7 @@
 #include "config/bitcoin-config.h"
 
 #include "base58.h"
+#include "bip47/account.h"
 #include "hash.h"
 #include "primitives/block.h"
 #include "protocol.h"
@@ -1646,6 +1647,485 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
     BOOST_CHECK_EQUAL(
         postWrite,
         "post-write-value");
+}
+
+BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_bip47_accounts)
+{
+    CKey defaultKey;
+    defaultKey.MakeNewKey(true);
+    const CPubKey defaultPubKey =
+        defaultKey.GetPubKey();
+    const CKeyMetadata defaultKeyMetadata{
+        1700000470};
+
+    std::array<unsigned char, 32> receiverSeed{};
+    receiverSeed.fill(0x47);
+    CExtKey receiverAccountKey;
+    receiverAccountKey.SetMaster(
+        receiverSeed.data(),
+        receiverSeed.size());
+    const CExtPubKey receiverAccountPubKey =
+        receiverAccountKey.Neuter();
+
+    std::array<unsigned char, 32> senderSeed{};
+    senderSeed.fill(0x48);
+    CExtKey senderAccountKey;
+    senderAccountKey.SetMaster(
+        senderSeed.data(),
+        senderSeed.size());
+    const CExtPubKey senderAccountPubKey =
+        senderAccountKey.Neuter();
+
+    std::array<unsigned char, 32> peerSeed{};
+    peerSeed.fill(0x49);
+    CExtKey peerKey;
+    peerKey.SetMaster(
+        peerSeed.data(),
+        peerSeed.size());
+    const CExtPubKey peerPubKey =
+        peerKey.Neuter();
+    const bip47::CPaymentCode peerPaymentCode(
+        peerPubKey.pubkey,
+        peerPubKey.chaincode);
+
+    bip47::CPaymentChannel receiverChannel(
+        peerPaymentCode,
+        receiverAccountKey,
+        bip47::CPaymentChannel::Side::receiver);
+    BOOST_CHECK_EQUAL(
+        receiverChannel.setMyUsedAddressNumber(3),
+        3);
+    const std::vector<bip47::CPaymentChannel>
+        receiverChannels{
+            receiverChannel,
+        };
+    const uint32_t bip47Version = 1;
+    const uint32_t receiverAccountNumber = 7;
+    const boost::optional<bip47::CPaymentCode>
+        noCachedPaymentCode;
+    const std::string receiverLabel{
+        "migration-bip47-receiver"};
+    CDataStream receiverRecord(
+        SER_DISK,
+        CLIENT_VERSION);
+    receiverRecord << receiverAccountNumber
+                   << bip47Version
+                   << receiverAccountKey
+                   << receiverAccountPubKey
+                   << noCachedPaymentCode
+                   << receiverLabel
+                   << receiverChannels;
+    bip47::CAccountReceiver expectedReceiver(
+        deserialize,
+        receiverRecord);
+    BOOST_CHECK(receiverRecord.empty());
+
+    bip47::CPaymentChannel senderChannel(
+        peerPaymentCode,
+        senderAccountKey,
+        bip47::CPaymentChannel::Side::sender);
+    BOOST_CHECK_EQUAL(
+        senderChannel.setTheirUsedAddressNumber(2),
+        2);
+    const boost::optional<bip47::CPaymentChannel>
+        storedSenderChannel{
+            senderChannel,
+        };
+    const uint32_t senderAccountNumber = 11;
+    const uint256 notificationTxId =
+        uint256S("4702");
+    CDataStream senderRecord(
+        SER_DISK,
+        CLIENT_VERSION);
+    senderRecord << senderAccountNumber
+                 << bip47Version
+                 << senderAccountKey
+                 << senderAccountPubKey
+                 << noCachedPaymentCode
+                 << peerPaymentCode
+                 << storedSenderChannel
+                 << notificationTxId;
+    bip47::CAccountSender expectedSender(
+        deserialize,
+        senderRecord);
+    BOOST_CHECK(senderRecord.empty());
+
+    auto publicAddresses = [](
+                               const bip47::MyAddrContT& addresses) {
+        std::vector<CBitcoinAddress> result;
+        result.reserve(addresses.size());
+        for (const bip47::MyAddrContT::value_type& address :
+            addresses) {
+            result.push_back(address.first);
+        }
+        return result;
+    };
+
+    const uint32_t expectedReceiverAccount =
+        expectedReceiver.getAccountNum();
+    const std::string expectedReceiverLabel =
+        expectedReceiver.getLabel();
+    const bip47::CPaymentCode expectedReceiverCode =
+        expectedReceiver.getMyPcode();
+    const CBitcoinAddress expectedNotificationAddress =
+        expectedReceiver.getMyNotificationAddress();
+    BOOST_REQUIRE_EQUAL(
+        expectedReceiver.getPchannels().size(),
+        1);
+    const bip47::CPaymentCode expectedReceiverPeerCode =
+        expectedReceiver.getPchannels()
+            .front()
+            .getTheirPcode();
+    const std::vector<CBitcoinAddress>
+        expectedReceiverUsed =
+            publicAddresses(
+                expectedReceiver.getMyUsedAddresses());
+    const std::vector<CBitcoinAddress>
+        expectedReceiverNext =
+            publicAddresses(
+                expectedReceiver.getMyNextAddresses());
+
+    const uint32_t expectedSenderAccount =
+        expectedSender.getAccountNum();
+    const bip47::CPaymentCode expectedSenderCode =
+        expectedSender.getTheirPcode();
+    const bip47::CPaymentCode expectedSenderOwnCode =
+        expectedSender.getMyPcode();
+    const bip47::TheirAddrContT expectedSenderUsed =
+        expectedSender.getTheirUsedAddresses();
+    const CBitcoinAddress expectedSenderNext =
+        expectedSender.getTheirNextSecretAddress();
+    const std::vector<CBitcoinAddress>
+        expectedSenderOwnNext =
+            publicAddresses(
+                expectedSender.getMyNextAddresses());
+
+    auto checkState = [&](
+                          WalletDatabase& database) {
+        bip47::CWallet loadedWallet(
+            defaultPubKey.GetHash());
+        {
+            CWalletDB loader(
+                database,
+                {DatabaseBatchMode::READ_ONLY});
+            loader.LoadBip47Accounts(
+                loadedWallet);
+        }
+
+        size_t receiverCount = 0;
+        const bip47::CWallet& constLoadedWallet =
+            loadedWallet;
+        constLoadedWallet.enumerateReceivers(
+            [&](const bip47::CAccountReceiver& receiver) {
+                ++receiverCount;
+                BOOST_CHECK_EQUAL(
+                    receiver.getAccountNum(),
+                    expectedReceiverAccount);
+                BOOST_CHECK_EQUAL(
+                    receiver.getLabel(),
+                    expectedReceiverLabel);
+                BOOST_CHECK(
+                    receiver.getMyPcode() ==
+                    expectedReceiverCode);
+                BOOST_CHECK(
+                    receiver.getMyNotificationAddress() ==
+                    expectedNotificationAddress);
+                BOOST_REQUIRE_EQUAL(
+                    receiver.getPchannels().size(),
+                    1);
+                BOOST_CHECK(
+                    receiver.getPchannels()
+                        .front()
+                        .getTheirPcode() ==
+                    expectedReceiverPeerCode);
+                const bool usedAddressesMatch =
+                    publicAddresses(
+                        receiver.getMyUsedAddresses()) ==
+                    expectedReceiverUsed;
+                BOOST_CHECK(usedAddressesMatch);
+                const bool nextAddressesMatch =
+                    publicAddresses(
+                        receiver.getMyNextAddresses()) ==
+                    expectedReceiverNext;
+                BOOST_CHECK(nextAddressesMatch);
+                return true;
+            });
+        BOOST_CHECK_EQUAL(receiverCount, 1);
+
+        size_t senderCount = 0;
+        constLoadedWallet.enumerateSenders(
+            [&](const bip47::CAccountSender& sender) {
+                ++senderCount;
+                BOOST_CHECK_EQUAL(
+                    sender.getAccountNum(),
+                    expectedSenderAccount);
+                BOOST_CHECK(
+                    sender.getTheirPcode() ==
+                    expectedSenderCode);
+                BOOST_CHECK(
+                    sender.getMyPcode() ==
+                    expectedSenderOwnCode);
+                const bool usedAddressesMatch =
+                    sender.getTheirUsedAddresses() ==
+                    expectedSenderUsed;
+                BOOST_CHECK(usedAddressesMatch);
+                BOOST_CHECK(
+                    sender.getTheirNextSecretAddress() ==
+                    expectedSenderNext);
+                const bool ownNextAddressesMatch =
+                    publicAddresses(
+                        sender.getMyNextAddresses()) ==
+                    expectedSenderOwnNext;
+                BOOST_CHECK(ownNextAddressesMatch);
+                BOOST_CHECK(
+                    sender.getNotificationTxId() ==
+                    notificationTxId);
+                return true;
+            });
+        BOOST_CHECK_EQUAL(senderCount, 1);
+    };
+
+    const std::string sourceFilename{
+        "migration_bip47_source.dat"};
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    {
+        CWalletDB writer(*source);
+        BOOST_REQUIRE(writer.TxnBegin());
+        BOOST_REQUIRE(writer.WriteKey(
+            defaultPubKey,
+            defaultKey.GetPrivKey(),
+            defaultKeyMetadata));
+        BOOST_REQUIRE(
+            writer.WriteDefaultKey(
+                defaultPubKey));
+        BOOST_REQUIRE(
+            writer.WriteBip47Account(
+                expectedReceiver));
+        BOOST_REQUIRE(
+            writer.WriteBip47Account(
+                expectedSender));
+        BOOST_REQUIRE(writer.TxnCommit());
+    }
+    checkState(*source);
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    checkState(*source);
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+
+    std::string backupPath;
+    BOOST_REQUIRE_MESSAGE(
+        MigrateWalletDatabaseToSQLite(
+            *source,
+            backupPath,
+            error),
+        error);
+    BOOST_CHECK(error.empty());
+    BOOST_REQUIRE(!backupPath.empty());
+    source.reset();
+
+    DatabaseOptions openSQLite;
+    openSQLite.require_existing = true;
+    openSQLite.require_format =
+        DatabaseFormat::SQLITE;
+    openSQLite.recover = false;
+    std::unique_ptr<WalletDatabase> migrated =
+        MakeWalletDatabase(
+            sourceFilename,
+            openSQLite,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(migrated, error);
+    checkState(*migrated);
+
+    DatabaseOptions openBackup;
+    openBackup.require_existing = true;
+    openBackup.require_format =
+        DatabaseFormat::BERKELEY;
+    openBackup.recover = false;
+    std::unique_ptr<WalletDatabase> backup =
+        MakeWalletDatabase(
+            fs::path(backupPath)
+                .filename()
+                .string(),
+            openBackup,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(backup, error);
+    checkState(*backup);
+}
+
+BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
+{
+    const std::array<std::string, 2> recordTypes{{
+        "bip47rcv",
+        "bip47snd",
+    }};
+    for (size_t index = 0;
+        index < recordTypes.size();
+        ++index) {
+        BOOST_TEST_CONTEXT(
+            "record type " << recordTypes[index])
+        {
+            const std::string sourceFilename =
+                strprintf(
+                    "migration_malformed_bip47_%u.dat",
+                    index);
+            DatabaseOptions createOptions;
+            createOptions.require_create = true;
+            createOptions.require_format =
+                DatabaseFormat::BERKELEY;
+            DatabaseStatus status;
+            std::string error;
+            std::unique_ptr<WalletDatabase> source =
+                MakeWalletDatabase(
+                    sourceFilename,
+                    createOptions,
+                    status,
+                    error);
+            BOOST_REQUIRE_MESSAGE(source, error);
+
+            CKey defaultKey;
+            defaultKey.MakeNewKey(true);
+            const CPubKey defaultPubKey =
+                defaultKey.GetPubKey();
+            {
+                CWalletDB writer(*source);
+                BOOST_REQUIRE(writer.WriteKey(
+                    defaultPubKey,
+                    defaultKey.GetPrivKey(),
+                    CKeyMetadata{1700000471}));
+                BOOST_REQUIRE(
+                    writer.WriteDefaultKey(
+                        defaultPubKey));
+            }
+
+            const std::string privateRecordSentinel{
+                "BIP47-PRIVATE-RECORD-SENTINEL"};
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    source->MakeBatch(
+                        {DatabaseBatchMode::READ_WRITE});
+                BOOST_REQUIRE(batch);
+                CDataStream key(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                key << std::make_pair(
+                    recordTypes[index],
+                    uint32_t{0});
+                CDataStream value(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                value.write(
+                    privateRecordSentinel.data(),
+                    privateRecordSentinel.size());
+                BOOST_REQUIRE(
+                    batch->WriteRawRecord(
+                        std::move(key),
+                        std::move(value),
+                        false));
+            }
+
+            std::vector<RawRecord> expectedRecords;
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    source->MakeBatch(
+                        {DatabaseBatchMode::READ_ONLY});
+                BOOST_REQUIRE(batch);
+                expectedRecords =
+                    ReadRawRecords(*batch);
+            }
+            BOOST_REQUIRE(
+                source->PeriodicFlush());
+            source.reset();
+            source =
+                ReopenBerkeleyForMigration(
+                    sourceFilename,
+                    error);
+            BOOST_REQUIRE_MESSAGE(source, error);
+
+            std::string backupPath;
+            BOOST_CHECK(
+                !MigrateWalletDatabaseToSQLite(
+                    *source,
+                    backupPath,
+                    error));
+            BOOST_REQUIRE(!backupPath.empty());
+            BOOST_CHECK(
+                error.find(
+                    "wallet and BIP47 account loaders") !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(backupPath) !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(privateRecordSentinel) ==
+                std::string::npos);
+            BOOST_CHECK(
+                IsBerkeleyDatabase(
+                    GetDataDir() /
+                    sourceFilename));
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    source->MakeBatch(
+                        {DatabaseBatchMode::READ_ONLY});
+                BOOST_REQUIRE(batch);
+                const bool sourceRecordsMatch =
+                    ReadRawRecords(*batch) ==
+                    expectedRecords;
+                BOOST_CHECK(sourceRecordsMatch);
+            }
+
+            DatabaseOptions openBackup;
+            openBackup.require_existing = true;
+            openBackup.require_format =
+                DatabaseFormat::BERKELEY;
+            openBackup.recover = false;
+            std::unique_ptr<WalletDatabase> backup =
+                MakeWalletDatabase(
+                    fs::path(backupPath)
+                        .filename()
+                        .string(),
+                    openBackup,
+                    status,
+                    error);
+            BOOST_REQUIRE_MESSAGE(backup, error);
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    backup->MakeBatch(
+                        {DatabaseBatchMode::READ_ONLY});
+                BOOST_REQUIRE(batch);
+                const bool backupRecordsMatch =
+                    ReadRawRecords(*batch) ==
+                    expectedRecords;
+                BOOST_CHECK(backupRecordsMatch);
+            }
+            BOOST_CHECK(
+                FindMigrationPaths(
+                    ".firo-wallet-sqlite-migration-")
+                    .empty());
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)

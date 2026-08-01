@@ -162,6 +162,19 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         assert_equal(wallet_info["hdmasterkeyid"], hd_master_key_id)
         assert address in node.getaddressesbyaccount(account)
 
+    def create_rap_state(self, node, label):
+        rap_address = node.createrapaddress(label)
+        state = node.listrapaddresses(True)
+        matches = [
+            entry
+            for entry in state
+            if entry.get("MyRAPaddr") == rap_address
+        ]
+        assert_equal(len(matches), 1)
+        assert_equal(matches[0]["Label"], label)
+        assert matches[0]["NotificationAddr"]
+        return state
+
     def sqlite_wallet_supported(self):
         started, output = self.attempt_start([
             "-wallet=sqlite-explicit-probe.dat",
@@ -211,6 +224,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             node.getwalletinfo()["format"],
             wallet_format)
         address = node.getnewaddress(account)
+        rap_state = self.create_rap_state(
+            node,
+            "backup-%s-bip47" % wallet_format)
         hd_master_key_id = node.getwalletinfo()["hdmasterkeyid"]
         node.encryptwallet(passphrase)
         wait_node(0)
@@ -225,6 +241,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             address,
             account,
             hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            rap_state)
         assert_raises_jsonrpc(
             -13,
             "Please enter the wallet passphrase with walletpassphrase first",
@@ -318,6 +337,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             address,
             account,
             hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            rap_state)
         assert_raises_jsonrpc(
             -13,
             "Please enter the wallet passphrase with walletpassphrase first",
@@ -351,6 +373,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             restored_address,
             restored_account,
             hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            rap_state)
         self.stop_wallet()
 
     def run_test(self):
@@ -410,6 +435,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         node = self.start_wallet(["-wallet=" + sqlite_wallet])
         assert_equal(node.getwalletinfo()["format"], "sqlite")
         sqlite_address = node.getnewaddress(sqlite_account)
+        sqlite_rap_state = self.create_rap_state(
+            node,
+            "sqlite-bip47-persisted")
         sqlite_hd_master_key_id = node.getwalletinfo()["hdmasterkeyid"]
         self.stop_wallet()
 
@@ -423,6 +451,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             sqlite_address,
             sqlite_account,
             sqlite_hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            sqlite_rap_state)
         self.stop_wallet()
 
         bdb_wallet = "wallet-explicit-bdb.dat"
@@ -435,6 +466,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         bdb_address = node.getnewaddress(bdb_account)
         bdb_hd_master_key_id = node.getwalletinfo()["hdmasterkeyid"]
         bdb_spark_default_address = node.getsparkdefaultaddress()[0]
+        bdb_rap_state = self.create_rap_state(
+            node,
+            "bip47-before-migration")
         node.generate(101)
         pre_migration_txid = node.sendtoaddress(bdb_address, 1)
         node.generate(1)
@@ -454,6 +488,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             bdb_address,
             bdb_account,
             bdb_hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            bdb_rap_state)
         assert_raises_jsonrpc(
             -13,
             "Please enter the wallet passphrase with walletpassphrase first",
@@ -539,6 +576,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             bdb_address,
             bdb_account,
             bdb_hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            bdb_rap_state)
         assert node.gettransaction(pre_migration_txid)["confirmations"] >= 1
         assert_equal(
             node.getsparkdefaultaddress()[0],
@@ -584,6 +624,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             migrated_address,
             migrated_account,
             bdb_hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            bdb_rap_state)
         assert_raises_jsonrpc(
             -13,
             "Please enter the wallet passphrase with walletpassphrase first",
@@ -597,6 +640,10 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             bdb_spark_default_address)
         restarted_account = "bdb-restarted-write"
         restarted_address = node.getnewaddress(restarted_account)
+        node.walletpassphrase(migration_passphrase, 120)
+        migrated_rap_state = self.create_rap_state(
+            node,
+            "bip47-after-migrated-restart")
         self.stop_wallet()
 
         node = self.start_wallet(["-wallet=" + bdb_wallet])
@@ -606,6 +653,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             restarted_address,
             restarted_account,
             bdb_hd_master_key_id)
+        assert_equal(
+            node.listrapaddresses(True),
+            migrated_rap_state)
         assert_raises_jsonrpc(
             -13,
             "Please enter the wallet passphrase with walletpassphrase first",

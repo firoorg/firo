@@ -390,10 +390,16 @@ bool ValidateMigrationCandidate(
             validationDatabase.LoadWallet(
                 &validationWallet,
                 false);
+        if (loadResult == DB_LOAD_OK) {
+            bip47::CWallet validationBip47Wallet(
+                validationWallet.vchDefaultKey.GetHash());
+            validationDatabase.LoadBip47Accounts(
+                validationBip47Wallet);
+        }
     } catch (const std::exception& exception) {
         error = strprintf(
             "Failed to validate the SQLite migration candidate through "
-            "the wallet loader: %s",
+            "the wallet and BIP47 account loaders: %s",
             exception.what());
         return false;
     }
