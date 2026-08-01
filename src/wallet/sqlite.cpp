@@ -5362,6 +5362,18 @@ bool SQLiteDatabase::Rewrite(const char* skip)
 {
     std::unique_lock<std::mutex> writer_lock(m_writer_mutex);
     std::unique_lock<std::shared_mutex> connection_lock(m_connection_mutex);
+    if (!m_database && m_usable.load() && !m_poisoned.load()) {
+        std::string error;
+        if (!OpenExistingLocked(error)) {
+            LogPrintf(
+                "SQLiteDatabase: Failed to open rewrite connection for '%s': %s\n",
+                m_filename,
+                error);
+            return false;
+        }
+        std::lock_guard<std::mutex> state_lock(m_state_mutex);
+        m_open = true;
+    }
     if (!m_database || !m_usable.load() || m_poisoned.load()) {
         return false;
     }
@@ -5546,6 +5558,20 @@ bool SQLiteDatabase::Backup(
     }
 
     std::unique_lock<std::mutex> writer_lock(m_writer_mutex);
+    {
+        std::unique_lock<std::shared_mutex> connection_lock(m_connection_mutex);
+        if (!m_database && m_usable.load() && !m_poisoned.load()) {
+            if (!OpenExistingLocked(detail)) {
+                return fail(
+                    detail,
+                    "Keep the source wallet in place, restart Firo, and retry "
+                    "with a new absent destination only after the wallet "
+                    "opens cleanly.");
+            }
+            std::lock_guard<std::mutex> state_lock(m_state_mutex);
+            m_open = true;
+        }
+    }
     std::shared_lock<std::shared_mutex> connection_lock(m_connection_mutex);
     if (!m_database || !m_usable.load() || m_poisoned.load()) {
         return fail(

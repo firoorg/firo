@@ -3822,6 +3822,7 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     batch.reset();
 
     const std::string poolPrefix{"\x04pool", 5};
+    BOOST_REQUIRE(database->PeriodicFlush());
     BOOST_REQUIRE(database->Rewrite(poolPrefix.c_str()));
     batch = database->MakeBatch();
     BOOST_REQUIRE(batch);
@@ -3840,6 +3841,7 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     }
 
     std::string backupError{"unchanged"};
+    BOOST_REQUIRE(database->PeriodicFlush());
     BOOST_REQUIRE(database->Backup(
         backupPath.string(),
         backupError));
