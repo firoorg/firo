@@ -5362,7 +5362,7 @@ bool SQLiteDatabase::Backup(
         "Failed to back up SQLite wallet '%s' to '%s': secure SQLite "
         "backup is unavailable on Windows until owner-only DACL and "
         "reparse-point handling is implemented. Keep the source wallet and "
-        "use a supported Linux or macOS build to create the backup.",
+        "use a supported Linux build to create the backup.",
         m_filename,
         destination);
     LogPrintf("SQLiteDatabase: %s\n", backup_error);

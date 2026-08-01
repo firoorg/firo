@@ -37,7 +37,7 @@ The following can be set when running make: make FOO=bar
     FALLBACK_DOWNLOAD_PATH: If a source file can't be fetched, try here before giving up
     NO_QT: Don't download/build/cache qt and its dependencies
     NO_WALLET: Don't download/build/cache libs needed to enable the wallet
-    NO_SQLITE: Don't download/build/cache SQLite wallet support
+    NO_SQLITE: Don't build/install SQLite wallet support
     NO_UPNP: Don't download/build/cache packages needed for enabling upnp
     DEBUG: disable some optimizations and enable more runtime checking
     HOST_ID_SALT: Optional salt to use when generating host package ids

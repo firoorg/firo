@@ -129,6 +129,12 @@ cmake_dependent_option(BUILD_TESTS "Build tests." OFF "ENABLE_WALLET" OFF)
 option(BUILD_TX "Build ${FIRO_TX_NAME} executable." ${BUILD_CLI})
 option(WITH_BDB "Enable Berkeley DB (BDB) wallet support." OFF)
 cmake_dependent_option(ENABLE_SQLITE_WALLET "Enable SQLite wallet support." ON "ENABLE_WALLET" OFF)
+if(ENABLE_SQLITE_WALLET AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR
+    "SQLite wallet support is currently available only on Linux. "
+    "Configure ${CMAKE_SYSTEM_NAME} with -DENABLE_SQLITE_WALLET=OFF."
+  )
+endif()
 cmake_dependent_option(WARN_INCOMPATIBLE_BDB "Warn when using a Berkeley DB (BDB) version other than 4.8." ON "WITH_BDB" OFF)
 if(ENABLE_WALLET AND NOT WITH_BDB)
   message(FATAL_ERROR
@@ -973,7 +979,7 @@ message("Optional features:")
 message("  wallet support ...................... ${ENABLE_WALLET}")
 if(ENABLE_WALLET)
   message("   - legacy wallets (Berkeley DB) ..... ${WITH_BDB}")
-  message("   - SQLite wallet dependency ......... ${ENABLE_SQLITE_WALLET}")
+  message("   - SQLite wallet support ............ ${ENABLE_SQLITE_WALLET}")
 endif()
 message("  external signer ..................... ${ENABLE_EXTERNAL_SIGNER}")
 message("  ZeroMQ .............................. ${WITH_ZMQ}")

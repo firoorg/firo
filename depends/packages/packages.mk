@@ -14,7 +14,8 @@ qt_native_packages := native_qt
 endif
 
 bdb_packages=bdb
-sqlite_packages=sqlite
+sqlite_packages_linux=sqlite
+sqlite_packages=$(sqlite_packages_$(host_os))
 qrencode_packages=qrencode
 
 zmq_packages=zeromq

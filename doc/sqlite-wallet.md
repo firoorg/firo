@@ -1,13 +1,14 @@
 # SQLite wallet storage
 
-Firo supports writable Berkeley DB (BDB) and SQLite wallet databases during
-the coexistence period. BDB wallets remain supported and are never migrated
+On Linux, Firo supports writable Berkeley DB (BDB) and SQLite wallet
+databases during the coexistence period. Other supported targets use BDB-only
+wallet builds. BDB wallets remain supported and are never migrated
 automatically.
 
 ## Build configuration
 
-Wallet builds currently require BDB support. SQLite wallet support is
-controlled independently:
+Wallet builds currently require BDB support. On Linux, SQLite wallet support
+is controlled independently:
 
 ```bash
 cmake -S . -B build \
@@ -15,8 +16,9 @@ cmake -S . -B build \
   -DENABLE_SQLITE_WALLET=ON
 ```
 
-`ENABLE_SQLITE_WALLET` defaults to `ON`. The depends build supplies SQLite
-3.50.4. A supported BDB-only build uses:
+`ENABLE_SQLITE_WALLET` defaults to `ON` and is currently supported only on
+Linux. The Linux depends build supplies SQLite 3.50.4. A supported BDB-only
+build uses:
 
 ```bash
 cmake -S . -B build-bdb \
@@ -24,15 +26,22 @@ cmake -S . -B build-bdb \
   -DENABLE_SQLITE_WALLET=OFF
 ```
 
-For depends, `NO_SQLITE=1` omits the SQLite package and configures the
-resulting toolchain with SQLite wallet support disabled. A BDB-only binary
-creates BDB wallets and rejects an existing SQLite wallet before mutation.
-SQLite-only wallet builds are not supported.
+For depends, `NO_SQLITE=1` omits SQLite from the packages built and installed
+and configures the resulting toolchain with SQLite wallet support disabled.
+Depends toolchains generated for non-Linux targets do this automatically. A
+BDB-only binary creates BDB wallets and rejects an existing SQLite wallet
+before mutation. SQLite-only wallet builds are not supported.
 
-The secure SQLite file lifecycle is currently available on Linux and macOS.
-SQLite wallet creation, backup, recovery, and migration fail closed on
-Windows; use a BDB-only configuration there until the required owner-only
-DACL and reparse-safe publication support is implemented.
+A direct non-Linux configuration must pass
+`-DENABLE_SQLITE_WALLET=OFF`; leaving the option enabled fails during
+configuration with an actionable error. Windows and macOS remain supported
+with writable BDB wallets.
+
+The secure SQLite lifecycle requires Linux kernel and filesystem support for
+atomic no-replace publication, atomic exchange during migration and recovery,
+and durable file and directory synchronization. Creation, backup, recovery,
+or migration fails closed when a required operation is unavailable or cannot
+be verified.
 
 ## Creating and identifying wallets
 
