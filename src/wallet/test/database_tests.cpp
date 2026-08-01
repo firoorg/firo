@@ -3649,26 +3649,67 @@ BOOST_AUTO_TEST_CASE(sqlite_rewrite_commit_error_is_indeterminate)
 
 BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
 {
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
+    const std::string syncCreateFilename{
+        "sqlite_failed_directory_sync_create.dat"};
     const std::string createFilename{
         "sqlite_failed_publication_create.dat"};
     const std::string ambiguousFilename{
         "sqlite_ambiguous_publication_create.dat"};
     const std::string sourceFilename{
         "sqlite_failed_publication_source.dat"};
+    const std::string syncBackupFilename{
+        "sqlite_failed_directory_sync_backup.dat"};
     const std::string backupFilename{
         "sqlite_failed_publication_backup.dat"};
-    RemoveSQLiteTestFiles(createFilename);
-    RemoveSQLiteTestFiles(ambiguousFilename);
-    RemoveSQLiteTestFiles(sourceFilename);
-    RemoveSQLiteTestFiles(backupFilename);
+    const std::string indeterminateBackupFilename{
+        "sqlite_indeterminate_directory_sync_backup.dat"};
+    const std::string indeterminateFilename{
+        "sqlite_indeterminate_directory_sync_create.dat"};
+    for (const std::string& filename : {
+             syncCreateFilename,
+             createFilename,
+             ambiguousFilename,
+             sourceFilename,
+             syncBackupFilename,
+             backupFilename,
+             indeterminateBackupFilename,
+             indeterminateFilename}) {
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestCandidates(filename);
+    }
 
     DatabaseOptions createOptions;
     createOptions.require_create = true;
     createOptions.require_format = DatabaseFormat::SQLITE;
+    DatabaseOptions defaultCreateOptions;
+    defaultCreateOptions.require_create = true;
     DatabaseStatus status = DatabaseStatus::SUCCESS;
     std::string error{"unchanged"};
+
+    InjectSQLiteDirectorySyncFailureForTesting(EINVAL);
+    std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(
+        syncCreateFilename,
+        defaultCreateOptions,
+        status,
+        error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(status == DatabaseStatus::FAILED_LOAD);
+    BOOST_CHECK(
+        error.find(syncCreateFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("not proven durable") !=
+        std::string::npos);
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() / syncCreateFilename));
+    BOOST_CHECK(!HasSQLiteTestCandidate(
+        syncCreateFilename));
+    BOOST_CHECK(!ShutdownRequested());
+
     InjectSQLitePostPublishFailureForTesting();
-    std::unique_ptr<WalletDatabase> database = MakeSQLiteDatabase(
+    database = MakeSQLiteDatabase(
         createFilename,
         createOptions,
         status,
@@ -3690,6 +3731,20 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
         error);
     BOOST_CHECK(!database);
     BOOST_CHECK(status == DatabaseStatus::FAILED_LOAD);
+    BOOST_CHECK(
+        error.find(
+            (GetDataDir() /
+                ambiguousFilename)
+                .string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(
+            "." + ambiguousFilename +
+            ".sqlite-") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("neither retained path identity") !=
+        std::string::npos);
     BOOST_CHECK(!fs::exists(GetDataDir() / ambiguousFilename));
     BOOST_CHECK(!HasSQLiteTestCandidate(ambiguousFilename));
 
@@ -3706,11 +3761,46 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
         std::string("preserved")));
     batch.reset();
 
-    InjectSQLitePostPublishFailureForTesting();
+    InjectSQLiteDirectorySyncFailureForTesting(ENOTSUP);
     std::string backupError{"unchanged"};
+    BOOST_CHECK(!database->Backup(
+        (GetDataDir() / syncBackupFilename).string(),
+        backupError));
+    BOOST_CHECK(
+        backupError.find(sourceFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(syncBackupFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("not proven durable") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("preserved") ==
+        std::string::npos);
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() / syncBackupFilename));
+    BOOST_CHECK(!HasSQLiteTestCandidate(
+        syncBackupFilename));
+    BOOST_CHECK(!ShutdownRequested());
+    batch = database->MakeBatch();
+    BOOST_REQUIRE(batch);
+    std::string value;
+    BOOST_CHECK(batch->Read(
+        std::string("source"),
+        value));
+    BOOST_CHECK_EQUAL(value, "preserved");
+    batch.reset();
+
+    InjectSQLitePostPublishFailureForTesting();
+    backupError = "unchanged";
     BOOST_CHECK(!database->Backup(
         (GetDataDir() / backupFilename).string(),
         backupError));
+    BOOST_CHECK(
+        backupError.find(
+            "Injected failure after publishing SQLite backup candidate") !=
+        std::string::npos);
     BOOST_CHECK(!backupError.empty());
     BOOST_CHECK_NE(backupError, "unchanged");
     BOOST_CHECK(
@@ -3725,16 +3815,104 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     BOOST_CHECK(!HasSQLiteTestCandidate(backupFilename));
     batch = database->MakeBatch();
     BOOST_REQUIRE(batch);
-    std::string value;
     BOOST_CHECK(batch->Read(std::string("source"), value));
+    BOOST_CHECK_EQUAL(value, "preserved");
+    batch.reset();
+
+    InjectSQLiteAmbiguousPublishFailureForTesting();
+    InjectSQLiteDirectorySyncFailureForTesting(EIO);
+    backupError = "unchanged";
+    BOOST_CHECK(!database->Backup(
+        (GetDataDir() /
+            indeterminateBackupFilename)
+            .string(),
+        backupError));
+    BOOST_CHECK(
+        backupError.find(sourceFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(
+            (GetDataDir() /
+                indeterminateBackupFilename)
+                .string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(
+            "." + indeterminateBackupFilename +
+            ".sqlite-") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("may reappear after a crash") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(
+            "either that final path or its prior owned candidate path") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("all reported artifacts") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("restart Firo") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("preserved") ==
+        std::string::npos);
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() /
+        indeterminateBackupFilename));
+    BOOST_CHECK(!HasSQLiteTestCandidate(
+        indeterminateBackupFilename));
+    BOOST_CHECK(!ShutdownRequested());
+    batch = database->MakeBatch();
+    BOOST_REQUIRE(batch);
+    BOOST_CHECK(batch->Read(
+        std::string("source"),
+        value));
     BOOST_CHECK_EQUAL(value, "preserved");
     batch.reset();
     database.reset();
 
-    RemoveSQLiteTestFiles(createFilename);
-    RemoveSQLiteTestFiles(ambiguousFilename);
-    RemoveSQLiteTestFiles(sourceFilename);
-    RemoveSQLiteTestFiles(backupFilename);
+    InjectSQLitePostPublishFailureForTesting();
+    InjectSQLiteDirectorySyncFailureForTesting(EIO, 1);
+    status = DatabaseStatus::SUCCESS;
+    error = "unchanged";
+    database = MakeWalletDatabase(
+        indeterminateFilename,
+        defaultCreateOptions,
+        status,
+        error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(status == DatabaseStatus::FAILED_LOAD);
+    BOOST_CHECK(
+        error.find(indeterminateFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("may reappear after a crash") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("restart Firo") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("preserved") ==
+        std::string::npos);
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() / indeterminateFilename));
+    BOOST_CHECK(!HasSQLiteTestCandidate(
+        indeterminateFilename));
+    BOOST_CHECK(ShutdownRequested());
+
+    for (const std::string& filename : {
+             syncCreateFilename,
+             createFilename,
+             ambiguousFilename,
+             sourceFilename,
+             syncBackupFilename,
+             backupFilename,
+             indeterminateBackupFilename,
+             indeterminateFilename}) {
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestCandidates(filename);
+    }
 }
 
 #ifndef WIN32
@@ -5139,6 +5317,236 @@ BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_rejects_hot_journal_identity)
     RemoveSQLiteTestCandidates(backupFilename);
 }
 
+BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_ambiguous_publication_is_indeterminate)
+{
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+    ShutdownRequestReset shutdownReset;
+
+    constexpr int64_t RECOVERY_TIME = 1900000290;
+    SetMockTime(RECOVERY_TIME);
+
+    const std::string filename{
+        "sqlite_recovery_backup_ambiguous_publication.dat"};
+    const std::string backupFilename =
+        strprintf("wallet.%d.bak", RECOVERY_TIME);
+    const fs::path path = GetDataDir() / filename;
+    const fs::path backupPath =
+        GetDataDir() / backupFilename;
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+    const std::set<std::string> entriesBefore =
+        SQLiteTestDirectoryEntries();
+
+    const std::string sensitivePayload(64, 'A');
+    std::vector<RawRecord> sourceRecords;
+    for (uint32_t i = 0; i < 64; ++i) {
+        sourceRecords.emplace_back(
+            SerializeToString(
+                std::make_pair(
+                    std::string(
+                        "phase4l-ambiguous-recovery-row"),
+                    i)),
+            SerializeToString(
+                std::string(
+                    64,
+                    static_cast<char>(
+                        'A' + (i % 26)))));
+    }
+    std::sort(
+        sourceRecords.begin(),
+        sourceRecords.end());
+
+    DatabaseStatus status =
+        DatabaseStatus::FAILED_LOAD;
+    std::string error{"unchanged"};
+    std::unique_ptr<WalletDatabase> database =
+        CreateSQLiteTestDatabaseFromRawRecords(
+            filename,
+            sourceRecords,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_REQUIRE(
+        status == DatabaseStatus::SUCCESS);
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    BOOST_REQUIRE(
+        CorruptSQLitePrimaryKeyIndex(path));
+    const std::optional<std::vector<RawRecord> >
+        readableRecords =
+            ReadRawSQLiteRecordsNotIndexed(path);
+    BOOST_REQUIRE_MESSAGE(
+        readableRecords,
+        "The ambiguous-publication recovery source is not readable");
+    BOOST_CHECK_MESSAGE(
+        *readableRecords == sourceRecords,
+        "Index corruption changed ambiguous-publication source rows");
+    const std::string sourceContents =
+        ReadFile(path);
+
+    DatabaseOptions recoveryOptions;
+    recoveryOptions.require_existing = true;
+    recoveryOptions.require_format =
+        DatabaseFormat::SQLITE;
+    recoveryOptions.recover = true;
+    InjectSQLiteAmbiguousPublishFailureForTesting();
+    status = DatabaseStatus::SUCCESS;
+    error = "unchanged";
+    database = MakeSQLiteDatabase(
+        filename,
+        recoveryOptions,
+        status,
+        error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(
+        status == DatabaseStatus::FAILED_LOAD);
+    BOOST_CHECK(
+        error.find(
+            "SQLite recovery backup publication from working path") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(
+            "neither retained path identity could be proven") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(path.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(backupPath.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(
+            "Preserve all paths and restart Firo") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find("phase4l-ambiguous-recovery-row") ==
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(sensitivePayload) ==
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(SerializeToString(sensitivePayload)) ==
+        std::string::npos);
+    BOOST_CHECK(ShutdownRequested());
+
+    BOOST_CHECK_MESSAGE(
+        ReadFile(path) == sourceContents,
+        "Ambiguous backup publication changed the recovery source");
+    BOOST_REQUIRE(fs::is_regular_file(backupPath));
+    BOOST_CHECK_MESSAGE(
+        ReadFile(backupPath) == sourceContents,
+        "Ambiguous backup publication did not retain exact source bytes");
+    BOOST_CHECK(
+        !HasSQLiteTestCandidate(backupFilename));
+
+    const std::set<std::string> entriesAfter =
+        SQLiteTestDirectoryEntries();
+    std::vector<fs::path> retainedRecoveryPaths;
+    for (const std::string& entry : entriesAfter) {
+        if (entriesBefore.count(entry) == 0 &&
+            entry != filename &&
+            entry != backupFilename) {
+            retainedRecoveryPaths.push_back(
+                GetDataDir() / entry);
+        }
+    }
+    BOOST_REQUIRE_EQUAL(
+        retainedRecoveryPaths.size(),
+        1U);
+    const fs::path recoveryPath =
+        retainedRecoveryPaths.front();
+    BOOST_CHECK(
+        recoveryPath.filename().string().find(
+            "." + filename + ".sqlite-") == 0);
+    BOOST_CHECK(
+        error.find(recoveryPath.string()) !=
+        std::string::npos);
+
+    const std::string workingMarker{
+        "backup publication from working path '"};
+    const size_t workingStart =
+        error.find(workingMarker);
+    BOOST_REQUIRE(
+        workingStart != std::string::npos);
+    const size_t workingPathStart =
+        workingStart + workingMarker.size();
+    const std::string finalMarker =
+        "' to final path '" +
+        backupPath.string() +
+        "'";
+    const size_t workingPathEnd =
+        error.find(
+            finalMarker,
+            workingPathStart);
+    BOOST_REQUIRE(
+        workingPathEnd != std::string::npos);
+    const fs::path backupWorkingPath{
+        error.substr(
+            workingPathStart,
+            workingPathEnd -
+                workingPathStart)};
+    BOOST_CHECK(
+        backupWorkingPath.parent_path() ==
+        GetDataDir());
+    BOOST_CHECK(
+        backupWorkingPath.filename().string().find(
+            "." + backupFilename + ".sqlite-") == 0);
+    BOOST_CHECK(!fs::exists(backupWorkingPath));
+
+    for (const fs::path& artifact : {
+             path,
+             backupPath,
+             recoveryPath}) {
+        struct stat metadata{};
+        BOOST_REQUIRE_EQUAL(
+            lstat(
+                artifact.string().c_str(),
+                &metadata),
+            0);
+        BOOST_CHECK(S_ISREG(metadata.st_mode));
+        BOOST_CHECK_EQUAL(
+            metadata.st_nlink,
+            1);
+        BOOST_CHECK_EQUAL(
+            metadata.st_uid,
+            geteuid());
+        BOOST_CHECK_EQUAL(
+            metadata.st_mode & 0777,
+            S_IRUSR | S_IWUSR);
+        for (const char* suffix :
+            {"-journal", "-wal", "-shm"}) {
+            BOOST_CHECK(!fs::exists(
+                artifact.string() + suffix));
+        }
+    }
+
+    std::optional<std::vector<RawRecord> >
+        retainedRecoveryRecords =
+            ReadRawSQLiteRecordsNotIndexed(
+                recoveryPath);
+    BOOST_REQUIRE(retainedRecoveryRecords);
+    std::sort(
+        retainedRecoveryRecords->begin(),
+        retainedRecoveryRecords->end());
+    BOOST_CHECK_MESSAGE(
+        *retainedRecoveryRecords == sourceRecords,
+        "Retained ambiguous-publication recovery rows changed");
+
+    BOOST_CHECK(fs::remove(recoveryPath));
+    RemoveSQLiteTestFiles(filename);
+    RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestCandidates(filename);
+    RemoveSQLiteTestCandidates(backupFilename);
+    BOOST_CHECK(
+        SQLiteTestDirectoryEntries() ==
+        entriesBefore);
+}
+
 BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
 {
     struct MockTimeReset {
@@ -5822,6 +6230,36 @@ BOOST_AUTO_TEST_CASE(sqlite_incomplete_creation_is_retained_safely)
         BOOST_CHECK(fs::is_regular_file(movedPath));
         RemoveSQLiteTestFiles(filename);
         RemoveSQLiteTestFiles(movedFilename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
+        const std::string filename{
+            "sqlite_pending_directory_sync_failure.dat"};
+        const fs::path path =
+            GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestCandidates(filename);
+        DatabaseStatus status;
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeSQLiteDatabase(
+                filename,
+                logicalOptions,
+                status,
+                error);
+        BOOST_REQUIRE(database);
+
+        InjectSQLiteDirectorySyncFailureForTesting(EIO);
+        database.reset();
+
+        BOOST_CHECK(!fs::exists(path));
+        BOOST_CHECK(!HasSQLiteTestCandidate(filename));
+        BOOST_CHECK(ShutdownRequested());
+
+        RemoveSQLiteTestFiles(filename);
+        RemoveSQLiteTestCandidates(filename);
     }
 }
 #endif

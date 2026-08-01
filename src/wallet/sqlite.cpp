@@ -97,6 +97,8 @@ std::atomic<bool> g_fail_recovery_collision_cleanup_once{false};
 std::atomic<bool> g_report_migration_exchange_error_once{false};
 std::atomic<bool> g_report_rewrite_commit_error_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
+std::atomic<int> g_fail_directory_sync_after_successes{-1};
+std::atomic<int> g_directory_sync_failure_error{0};
 
 bool ConsumePostPublishFailure()
 {
@@ -145,6 +147,24 @@ bool ConsumeCloseFailure()
         }
     }
     return false;
+}
+
+int ConsumeDirectorySyncFailure()
+{
+    int remaining =
+        g_fail_directory_sync_after_successes.load();
+    while (remaining >= 0) {
+        const int next =
+            remaining == 0 ? -1 : remaining - 1;
+        if (g_fail_directory_sync_after_successes.compare_exchange_weak(
+                remaining,
+                next)) {
+            return remaining == 0 ?
+                       g_directory_sync_failure_error.exchange(0) :
+                       0;
+        }
+    }
+    return 0;
 }
 
 void LogSQLiteError(const char* context, sqlite3* database, int result) noexcept
@@ -1644,8 +1664,7 @@ int DurableSyncFileDescriptor(int descriptor) noexcept
 
 bool SyncDirectory(
     const fs::path& directory,
-    std::string& error,
-    bool require_supported = false)
+    std::string& error)
 {
 #ifdef WIN32
     error = "Secure SQLite directory publication sync is unavailable on Windows.";
@@ -1667,12 +1686,13 @@ bool SyncDirectory(
         return false;
     }
     bool success = true;
+    const int injected_error =
+        ConsumeDirectorySyncFailure();
     const int synchronization_error =
-        DurableSyncFileDescriptor(descriptor);
-    if (synchronization_error != 0 &&
-        (require_supported ||
-            (synchronization_error != EINVAL &&
-                synchronization_error != ENOTSUP))) {
+        injected_error != 0 ?
+            injected_error :
+            DurableSyncFileDescriptor(descriptor);
+    if (synchronization_error != 0) {
         error = strprintf(
             "Failed to synchronize SQLite publication directory '%s': %s",
             directory.string(),
@@ -1784,14 +1804,33 @@ bool RemoveOwnedPath(
 
 bool RemoveOwnedCandidate(
     const OwnedCandidate& candidate,
-    std::string& error) noexcept
+    std::string& error,
+    bool absence_was_durable = false) noexcept
 {
     error.clear();
 #ifndef WIN32
+    const fs::path parent =
+        candidate.path.parent_path().empty() ?
+            fs::path(".") :
+            candidate.path.parent_path();
     struct stat metadata{};
     if (lstat(candidate.path.string().c_str(), &metadata) != 0) {
         if (errno == ENOENT) {
-            return true;
+            if (absence_was_durable) {
+                return true;
+            }
+            std::string detail;
+            if (SyncDirectory(parent, detail)) {
+                return true;
+            }
+            error = strprintf(
+                "Owned SQLite candidate '%s' is currently absent, but failed "
+                "to synchronize its parent directory '%s'; the candidate may "
+                "reappear after a crash: %s",
+                candidate.path.string(),
+                parent.string(),
+                detail);
+            return false;
         }
         error = strprintf(
             "Failed to inspect owned SQLite candidate '%s': %s",
@@ -1833,14 +1872,11 @@ bool RemoveOwnedCandidate(
         return false;
     }
 
-    const fs::path parent =
-        candidate.path.parent_path().empty() ?
-            fs::path(".") :
-            candidate.path.parent_path();
     if (!SyncDirectory(parent, detail)) {
         error = strprintf(
             "Removed owned SQLite candidate '%s', but failed to synchronize "
-            "its parent directory '%s': %s",
+            "its parent directory '%s'; the removed path may reappear after "
+            "a crash: %s",
             candidate.path.string(),
             parent.string(),
             detail);
@@ -1849,37 +1885,57 @@ bool RemoveOwnedCandidate(
     return true;
 #else
     (void)candidate;
+    (void)absence_was_durable;
     error =
         "Secure removal of an owned SQLite candidate is unavailable on Windows.";
     return false;
 #endif
 }
 
-void RemoveOwnedCandidate(const OwnedCandidate& candidate) noexcept
-{
-    std::string error;
-    if (!RemoveOwnedCandidate(candidate, error)) {
-        LogPrintf(
-            "SQLiteDatabase: Candidate cleanup could not be proven: %s\n",
-            error);
-    }
-}
-
 bool RemovePublishedCandidate(
     const OwnedCandidate& candidate,
     const fs::path& final_path,
+    bool publication_was_durable,
     std::string& error) noexcept
 {
 #ifdef WIN32
     (void)candidate;
     (void)final_path;
+    (void)publication_was_durable;
     error = "Secure removal of a published SQLite candidate is unavailable on Windows.";
     return false;
 #else
+    const fs::path parent =
+        final_path.parent_path().empty() ?
+            fs::path(".") :
+            final_path.parent_path();
     struct stat metadata{};
     if (lstat(final_path.string().c_str(), &metadata) != 0) {
         if (errno == ENOENT) {
-            return true;
+            std::string sync_error;
+            if (SyncDirectory(parent, sync_error)) {
+                return true;
+            }
+            error =
+                publication_was_durable ?
+                    strprintf(
+                        "Published SQLite path '%s' is currently absent, but "
+                        "failed to synchronize its parent directory '%s'; the "
+                        "path may reappear after a crash: %s",
+                        final_path.string(),
+                        parent.string(),
+                        sync_error) :
+                    strprintf(
+                        "Published SQLite path '%s' is currently absent after "
+                        "unproven publication, but failed to synchronize its "
+                        "parent directory '%s'; either that final path or its "
+                        "prior owned candidate path '%s' may reappear after a "
+                        "crash: %s",
+                        final_path.string(),
+                        parent.string(),
+                        candidate.path.string(),
+                        sync_error);
+            return false;
         }
         error = strprintf(
             "Failed to inspect published SQLite path '%s': %s",
@@ -1915,13 +1971,27 @@ bool RemovePublishedCandidate(
         return false;
     }
 
-    const fs::path parent =
-        final_path.parent_path().empty() ?
-            fs::path(".") :
-            final_path.parent_path();
     std::string sync_error;
     if (!SyncDirectory(parent, sync_error)) {
-        error = sync_error;
+        error =
+            publication_was_durable ?
+                strprintf(
+                    "Removed published SQLite path '%s', but failed to "
+                    "synchronize its parent directory '%s'; the removed path "
+                    "may reappear after a crash: %s",
+                    final_path.string(),
+                    parent.string(),
+                    sync_error) :
+                strprintf(
+                    "Removed published SQLite path '%s' after its publication "
+                    "durability was unproven, but failed to synchronize its "
+                    "parent directory '%s'; either that final path or its "
+                    "prior owned candidate path '%s' may reappear after a "
+                    "crash: %s",
+                    final_path.string(),
+                    parent.string(),
+                    candidate.path.string(),
+                    sync_error);
         return false;
     }
     return true;
@@ -2000,18 +2070,22 @@ PublishResult PublishCandidate(
         "Atomic no-replace SQLite publication is unavailable on this platform.";
     return PublishResult::ERROR;
 #endif
-    if (rename_result == 0 &&
-        ConsumePublishErrorAfterRename()) {
+    const bool injected_identity_probe_failure =
+        rename_result == 0 &&
+        ConsumePublishErrorAfterRename();
+    if (injected_identity_probe_failure) {
         errno = EIO;
         rename_result = -1;
     }
     if (rename_result != 0) {
         const int rename_error = errno;
         const bool final_matches =
+            !injected_identity_probe_failure &&
             PathIdentityMatches(
                 final_path,
                 candidate.identity);
         const bool source_matches =
+            !injected_identity_probe_failure &&
             PathIdentityMatches(
                 candidate.path,
                 candidate.identity);
@@ -2025,6 +2099,15 @@ PublishResult PublishCandidate(
         }
         if (rename_error == EEXIST && source_matches) {
             return PublishResult::EXISTS;
+        }
+        if (!source_matches) {
+            error = strprintf(
+                "SQLite candidate publication from '%s' to '%s' reported an "
+                "error, and neither retained path identity could be proven: %s",
+                candidate.path.string(),
+                final_path.string(),
+                std::strerror(rename_error));
+            return PublishResult::PUBLISHED_ERROR;
         }
         error = strprintf(
             "Failed to atomically publish SQLite candidate '%s' as '%s': %s",
@@ -2050,7 +2133,13 @@ PublishResult PublishCandidate(
 
     const fs::path parent =
         final_path.parent_path().empty() ? fs::path(".") : final_path.parent_path();
-    if (!SyncDirectory(parent, error)) {
+    std::string sync_error;
+    if (!SyncDirectory(parent, sync_error)) {
+        error = strprintf(
+            "SQLite candidate was published as '%s', but its directory entry "
+            "is not proven durable: %s",
+            final_path.string(),
+            sync_error);
         return PublishResult::PUBLISHED_ERROR;
     }
     return PublishResult::SUCCESS;
@@ -3089,8 +3178,7 @@ private:
         }
         if (!SyncDirectory(
                 parent,
-                error,
-                true)) {
+                error)) {
             return false;
         }
         m_creation_state = SQLiteCreationState::NONE;
@@ -3150,9 +3238,14 @@ private:
                 fs::path(".") :
                 m_path.parent_path();
         if (!SyncDirectory(parent, error)) {
+            StartShutdown();
             LogPrintf(
-                "SQLiteDatabase: Failed to synchronize incomplete wallet cleanup for '%s': %s\n",
+                "SQLiteDatabase: Removed incomplete wallet '%s', but failed "
+                "to synchronize its parent directory. The removed path '%s' "
+                "may reappear after a crash; restart Firo and inspect the "
+                "wallet directory before continuing: %s\n",
                 m_filename,
+                m_path.string(),
                 error);
         }
         m_creation_cleanup_allowed = false;
@@ -4945,8 +5038,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                 verification_error) ||
             !SyncDirectory(
                 parent,
-                verification_error,
-                true)) {
+                verification_error)) {
             return mark_indeterminate(
                 verification_error);
         }
@@ -5062,8 +5154,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
 
         if (!SyncDirectory(
                 parent,
-                published_error,
-                true)) {
+                published_error)) {
             return mark_indeterminate(
                 published_error);
         }
@@ -5103,8 +5194,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
         }
         if (!SyncDirectory(
                 parent,
-                published_error,
-                true)) {
+                published_error)) {
             return mark_indeterminate(
                 published_error);
         }
@@ -5622,6 +5712,7 @@ bool SQLiteDatabase::Backup(
         }
     }
 
+    bool published_cleanup_proven = false;
     if (!success &&
         (publish_result == PublishResult::SUCCESS ||
             publish_result == PublishResult::PUBLISHED_ERROR)) {
@@ -5629,18 +5720,23 @@ bool SQLiteDatabase::Backup(
         if (!RemovePublishedCandidate(
                 candidate,
                 destination_path,
+                publish_result == PublishResult::SUCCESS,
                 cleanup_error)) {
             detail += strprintf(
                 "%sFailed to remove the published SQLite backup safely: %s",
                 detail.empty() ? "" : " ",
                 cleanup_error);
             restart_required = true;
+        } else {
+            published_cleanup_proven = true;
         }
     }
     std::string candidate_cleanup_error;
     if (!RemoveOwnedCandidate(
             candidate,
-            candidate_cleanup_error)) {
+            candidate_cleanup_error,
+            publish_result == PublishResult::SUCCESS ||
+                published_cleanup_proven)) {
         detail += strprintf(
             "%sSQLite could not prove cleanup of owned backup candidate "
             "'%s': %s",
@@ -6252,6 +6348,16 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                 backup,
                 backup_path,
                 error);
+        if (backup_publish_result ==
+            PublishResult::PUBLISHED_ERROR) {
+            return mark_indeterminate(
+                strprintf(
+                    "SQLite recovery backup publication from working path "
+                    "'%s' to final path '%s' could not be reconciled: %s",
+                    backup.path.string(),
+                    backup_path.string(),
+                    error));
+        }
         backup_published =
             PathIdentityMatches(
                 backup_path,
@@ -6308,8 +6414,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                 error) ||
             !SyncDirectory(
                 parent,
-                error,
-                true)) {
+                error)) {
             if (error.empty()) {
                 error =
                     "A retained SQLite recovery identity changed before publication.";
@@ -6415,8 +6520,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                 error) ||
             !SyncDirectory(
                 parent,
-                error,
-                true)) {
+                error)) {
             return mark_indeterminate(error);
         }
 
@@ -6441,8 +6545,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                 source_identity) ||
             !SyncDirectory(
                 parent,
-                error,
-                true) ||
+                error) ||
             !verify_owned_recovery_path(
                 source_path,
                 replacement.descriptor,
@@ -6636,21 +6739,51 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
 
     std::unique_ptr<SQLiteDatabase> database;
     PublishResult publish_result = PublishResult::ERROR;
+    bool cleanup_indeterminate = false;
+    auto record_cleanup_failure = [&](
+                                      const char* description,
+                                      const fs::path& cleanup_path,
+                                      const std::string& cleanup_error) {
+        cleanup_indeterminate = true;
+        error += strprintf(
+            "%sSQLite could not prove cleanup of %s '%s': %s Preserve all "
+            "reported artifacts, restart Firo, and inspect the wallet "
+            "directory before retrying.",
+            error.empty() ? "" : " ",
+            description,
+            cleanup_path.string(),
+            cleanup_error);
+        StartShutdown();
+    };
     auto cleanup_failed_creation = [&] {
+        bool published_cleanup_proven = false;
         if (publish_result == PublishResult::SUCCESS ||
             publish_result == PublishResult::PUBLISHED_ERROR) {
             std::string cleanup_error;
             if (!RemovePublishedCandidate(
                     candidate,
                     path,
+                    publish_result == PublishResult::SUCCESS,
                     cleanup_error)) {
-                error += strprintf(
-                    "%sFailed to remove the published SQLite wallet safely: %s",
-                    error.empty() ? "" : " ",
+                record_cleanup_failure(
+                    "published SQLite wallet",
+                    path,
                     cleanup_error);
+            } else {
+                published_cleanup_proven = true;
             }
         }
-        RemoveOwnedCandidate(candidate);
+        std::string candidate_cleanup_error;
+        if (!RemoveOwnedCandidate(
+                candidate,
+                candidate_cleanup_error,
+                publish_result == PublishResult::SUCCESS ||
+                    published_cleanup_proven)) {
+            record_cleanup_failure(
+                "owned SQLite candidate",
+                candidate.path,
+                candidate_cleanup_error);
+        }
     };
     try {
         auto initialize_database = [&]() {
@@ -6721,7 +6854,8 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
             }
             if (!exists) {
                 cleanup_failed_creation();
-                if (publish_result == PublishResult::EXISTS) {
+                if (publish_result == PublishResult::EXISTS &&
+                    !cleanup_indeterminate) {
                     status = DatabaseStatus::FAILED_ALREADY_EXISTS;
                     error = strprintf(
                         "Failed to create SQLite wallet '%s': the path appeared concurrently.",
@@ -6856,6 +6990,15 @@ void InjectSQLiteCloseFailureForTesting(
         successful_closes_before_failure);
 }
 
+void InjectSQLiteDirectorySyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure)
+{
+    g_directory_sync_failure_error.store(error_number);
+    g_fail_directory_sync_after_successes.store(
+        successful_syncs_before_failure);
+}
+
 bool ResetSQLiteLifecycleForTesting()
 {
     sqlite3* abandoned_connection = nullptr;
@@ -6878,6 +7021,8 @@ bool ResetSQLiteLifecycleForTesting()
     g_fail_backup_collision_cleanup_once.store(false);
     g_fail_recovery_collision_cleanup_once.store(false);
     g_report_migration_exchange_error_once.store(false);
+    g_fail_directory_sync_after_successes.store(-1);
+    g_directory_sync_failure_error.store(0);
     if (sqlite3_close(abandoned_connection) != SQLITE_OK) {
         return false;
     }

@@ -74,7 +74,7 @@ bool GetSQLiteSynchronousModeForTesting(
 /** Fail the next SQLite creation or backup after publishing its candidate. */
 void InjectSQLitePostPublishFailureForTesting();
 
-/** Report an error after the next candidate rename has actually succeeded. */
+/** Report a rename error and make its immediate identity probes inconclusive. */
 void InjectSQLiteAmbiguousPublishFailureForTesting();
 
 /** Simulate a concurrent destination collision before the next backup publish. */
@@ -100,6 +100,11 @@ bool SetSQLiteCreationStatementExecutorForTesting(
 /** Fail one close after the requested number of successful close attempts. */
 void InjectSQLiteCloseFailureForTesting(
     int successful_closes_before_failure = 0);
+
+/** Fail one directory sync after the requested number of successful syncs. */
+void InjectSQLiteDirectorySyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure = 0);
 
 /** Recover the single deliberately abandoned connection created by a test. */
 bool ResetSQLiteLifecycleForTesting();

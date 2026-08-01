@@ -655,13 +655,13 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         assert not os.path.exists(self.wallet_path(empty_wallet))
 
         failed_wallet = "wallet-failed-initialization.dat"
+        failed_start_offset = os.path.getsize(self.debug_log_path())
         self.assert_start_fails([
             "-wallet=" + failed_wallet,
             "-usemnemonic=1",
             "-mnemonicpassphrase=" + ("p" * 257),
         ])
-        with open(self.debug_log_path(), "r", encoding="utf8") as debug_log:
-            failed_start_log = debug_log.read()
+        failed_start_log = self.read_debug_log_from(failed_start_offset)
         assert (
             "Using sqlite wallet database " + failed_wallet
             in failed_start_log)
