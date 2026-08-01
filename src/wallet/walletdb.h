@@ -7,12 +7,12 @@
 #define BITCOIN_WALLET_WALLETDB_H
 
 #include "amount.h"
-#include "key.h"
-#include "mnemoniccontainer.h"
-#include "primitives/mint_spend.h"
 #include "primitives/transaction.h"
-#include "streams.h"
+#include "primitives/mint_spend.h"
 #include "wallet/database.h"
+#include "mnemoniccontainer.h"
+#include "streams.h"
+#include "key.h"
 
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
@@ -211,7 +211,8 @@ class CWalletDB
 {
 public:
     explicit CWalletDB(WalletDatabase& database, const DatabaseBatchOptions& options = {})
-        : m_batch(database.MakeBatch(options))
+        : m_format(database.Format()),
+          m_batch(database.MakeBatch(options))
     {
         if (!m_batch) {
             throw std::runtime_error("Wallet database returned no batch");
@@ -336,6 +337,7 @@ public:
     void LoadBip47Accounts(bip47::CWallet & wallet);
 
 private:
+    const DatabaseFormat m_format;
     std::unique_ptr<DatabaseBatch> m_batch;
 
     CWalletDB(const CWalletDB&) = delete;

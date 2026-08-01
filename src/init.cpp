@@ -2215,8 +2215,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         pwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
     } else {
-        if (!CWallet::InitLoadWallet())
-            return false;
+    CWallet::InitLoadWallet();
+    if (!pwalletMain)
+        return false;
     }
 #else // ENABLE_WALLET
     LogPrintf("No wallet support compiled in!\n");

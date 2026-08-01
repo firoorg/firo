@@ -148,7 +148,8 @@ void AskPassphraseDialog::accept()
                 }
                 else
                 {
-                    if (model->getEncryptionStatus() != WalletModel::Unencrypted) {
+                    if (model->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE &&
+                        model->getEncryptionStatus() != WalletModel::Unencrypted) {
                         QMessageBox::critical(
                             this,
                             tr("Wallet encryption incomplete"),
@@ -158,7 +159,7 @@ void AskPassphraseDialog::accept()
                         QApplication::quit();
                     } else {
                         QMessageBox::critical(this, tr("Wallet encryption failed"),
-                            tr("Wallet encryption failed due to an internal error. Your wallet was not encrypted."));
+                                         tr("Wallet encryption failed due to an internal error. Your wallet was not encrypted."));
                     }
                 }
                 QDialog::accept(); // Success
@@ -199,11 +200,26 @@ void AskPassphraseDialog::accept()
     case ChangePass:
         if(newpass1 == newpass2)
         {
-            if(model->changePassphrase(oldpass, newpass1))
+            bool indeterminate = false;
+            if(model->changePassphrase(
+                    oldpass,
+                    newpass1,
+                    &indeterminate))
             {
                 QMessageBox::information(this, tr("Wallet encrypted"),
                                      tr("Wallet passphrase was successfully changed."));
                 QDialog::accept(); // Success
+            }
+            else if (model->getWallet()->GetDatabase().Format() == DatabaseFormat::SQLITE &&
+                     indeterminate)
+            {
+                QMessageBox::critical(
+                    this,
+                    tr("Wallet passphrase change incomplete"),
+                    tr("The wallet passphrase change did not complete cleanly, and the new passphrase may already be required. "
+                       "Keep both the old and new passphrases. %1 will close now; restart and try both passphrases before making another change.")
+                        .arg(tr(PACKAGE_NAME)));
+                QApplication::quit();
             }
             else
             {

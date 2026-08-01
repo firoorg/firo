@@ -2,20 +2,20 @@
 // Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include "wallet/walletdb.h"
+
 
 #include "base58.h"
 #include "consensus/validation.h"
+#include "validation.h" // For CheckTransaction
 #include "protocol.h"
 #include "serialize.h"
-#include "spark/sparkwallet.h"
 #include "support/cleanse.h"
 #include "sync.h"
 #include "util.h"
 #include "utiltime.h"
-#include "validation.h" // For CheckTransaction
 #include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "spark/sparkwallet.h"
 
 #include "bip47/account.h"
 
@@ -116,8 +116,12 @@ bool CWalletDB::WriteCryptedKey(const CPubKey& vchPubKey,
         return false;
     if (fEraseUnencryptedKey)
     {
-        if (!Erase(std::make_pair(std::string("key"), vchPubKey)) ||
-            !Erase(std::make_pair(std::string("wkey"), vchPubKey)))
+        const bool keyErased =
+            Erase(std::make_pair(std::string("key"), vchPubKey));
+        const bool walletKeyErased =
+            Erase(std::make_pair(std::string("wkey"), vchPubKey));
+        if (m_format == DatabaseFormat::SQLITE &&
+            (!keyErased || !walletKeyErased))
             return false;
     }
     return true;

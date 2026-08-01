@@ -332,12 +332,14 @@ void WalletView::backupWallet()
     QString error;
     if (!walletModel->backupWallet(filename, error)) {
         if (error.isEmpty()) {
-            error = tr("There was an error trying to save the wallet data to %1.").arg(filename);
+            Q_EMIT message(tr("Backup Failed"), tr("There was an error trying to save the wallet data to %1.").arg(filename),
+                CClientUIInterface::MSG_ERROR);
+        } else {
+            Q_EMIT message(
+                tr("Backup Failed"),
+                "<qt>" + GUIUtil::HtmlEscape(error, true) + "</qt>",
+                CClientUIInterface::MSG_ERROR);
         }
-        Q_EMIT message(
-            tr("Backup Failed"),
-            "<qt>" + GUIUtil::HtmlEscape(error, true) + "</qt>",
-            CClientUIInterface::MSG_ERROR);
     } else {
         Q_EMIT message(tr("Backup Successful"), tr("The wallet data was successfully saved to %1.").arg(filename),
             CClientUIInterface::MSG_INFORMATION);

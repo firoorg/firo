@@ -240,6 +240,10 @@ private:
     IdentifiedMint IdentifyMint(spark::Coin coin, const uint256& txHash) const;
     void RecordMint(IdentifiedMint mint, CWalletDB& walletdb);
 
+    spark::SpendKey generateSpendKey(
+        const spark::Params* params,
+        CWallet& wallet);
+
     CWallet& m_wallet;
     WalletDatabase& m_database;
     // this is latest used diversifier

@@ -956,7 +956,10 @@ public:
     int64_t nRelockTime;
 
     bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
-    bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
+    bool ChangeWalletPassphrase(
+        const SecureString& strOldWalletPassphrase,
+        const SecureString& strNewWalletPassphrase,
+        bool* indeterminate = nullptr);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
     void RequestUnlock();

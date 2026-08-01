@@ -103,12 +103,7 @@ class WalletModel : public QObject
     Q_OBJECT
 
 public:
-    enum class Initialization {
-        FULL,
-        UNLOCK_ONLY,
-    };
-
-    explicit WalletModel(const PlatformStyle* platformStyle, CWallet* wallet, OptionsModel* optionsModel, QObject* parent = 0, Initialization initialization = Initialization::FULL);
+    explicit WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent = 0);
     ~WalletModel();
 
     enum StatusCode // Returned by sendCoins
@@ -273,7 +268,10 @@ public:
     // Passphrase only needed when unlocking
     bool setWalletLocked(bool locked, const SecureString &passPhrase=SecureString());
     void lockWalletDelayed(int seconds);
-    bool changePassphrase(const SecureString &oldPass, const SecureString &newPass);
+    bool changePassphrase(
+        const SecureString& oldPass,
+        const SecureString& newPass,
+        bool* indeterminate = nullptr);
     // Wallet backup
     bool backupWallet(const QString &filename);
     bool backupWallet(const QString& filename, QString& error);
@@ -372,7 +370,6 @@ private:
     QTimer *pollTimer;
 
     int cachedNumISLocks;
-    bool subscribedToCoreSignals;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();

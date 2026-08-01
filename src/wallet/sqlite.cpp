@@ -99,6 +99,8 @@ std::atomic<bool> g_report_rewrite_commit_error_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
 std::atomic<int> g_fail_directory_sync_after_successes{-1};
 std::atomic<int> g_directory_sync_failure_error{0};
+std::atomic<int> g_fail_erase_after_successes{-1};
+std::atomic<int> g_erase_attempts{0};
 
 bool ConsumePostPublishFailure()
 {
@@ -165,6 +167,21 @@ int ConsumeDirectorySyncFailure()
         }
     }
     return 0;
+}
+
+bool ConsumeEraseFailure()
+{
+    int remaining = g_fail_erase_after_successes.load();
+    while (remaining >= 0) {
+        const int next =
+            remaining == 0 ? -1 : remaining - 1;
+        if (g_fail_erase_after_successes.compare_exchange_weak(
+                remaining,
+                next)) {
+            return remaining == 0;
+        }
+    }
+    return false;
 }
 
 void LogSQLiteError(const char* context, sqlite3* database, int result) noexcept
@@ -2874,6 +2891,7 @@ private:
     const bool m_migration_candidate{false};
     std::unique_ptr<SQLiteStatementExecutor> m_creation_executor{
         std::make_unique<SQLiteStatementExecutor>()};
+    std::unique_ptr<SQLiteStatementExecutor> m_next_batch_executor;
     std::atomic<bool> m_usable{true};
     std::atomic<bool> m_poisoned{false};
 
@@ -3665,6 +3683,21 @@ public:
         return true;
     }
 
+    bool SetNextBatchExecutor(
+        std::unique_ptr<SQLiteStatementExecutor> executor)
+    {
+        if (!executor) {
+            return false;
+        }
+        std::lock_guard<std::mutex> state_lock(m_state_mutex);
+        if (m_batch_count != 0 ||
+            m_next_batch_executor) {
+            return false;
+        }
+        m_next_batch_executor = std::move(executor);
+        return true;
+    }
+
     SQLiteMigrationPublishResult PublishMigration(
         BerkeleyDatabase& source,
         std::string& error);
@@ -4024,6 +4057,12 @@ private:
                         "SQLiteBatch: Failed to prepare erase") ||
                     !BindBlob(statement.Get(), 1, key, "key")) {
                     ReconcileAfterError();
+                    return false;
+                }
+                ++g_erase_attempts;
+                if (ConsumeEraseFailure()) {
+                    LogPrintf(
+                        "SQLiteBatch: Injected wallet record erase failure.\n");
                     return false;
                 }
                 const int result = sqlite3_step(statement.Get());
@@ -5299,6 +5338,17 @@ std::unique_ptr<DatabaseBatch> SQLiteDatabase::MakeBatch(
     } catch (...) {
         BatchClosed();
         throw;
+    }
+    std::unique_ptr<SQLiteStatementExecutor> next_executor;
+    {
+        std::lock_guard<std::mutex> state_lock(m_state_mutex);
+        next_executor = std::move(m_next_batch_executor);
+    }
+    if (next_executor &&
+        !batch->SetExecutor(std::move(next_executor))) {
+        batch->Close();
+        throw std::runtime_error(
+            "Failed to install SQLite batch statement executor.");
     }
     if (options.mode == DatabaseBatchMode::READ_WRITE_CREATE &&
         !batch->EnsureVersion()) {
@@ -6920,6 +6970,17 @@ bool SetSQLiteStatementExecutorForTesting(
     return sqlite_batch && sqlite_batch->SetExecutor(std::move(executor));
 }
 
+bool SetSQLiteNextBatchStatementExecutorForTesting(
+    WalletDatabase& database,
+    std::unique_ptr<SQLiteStatementExecutor> executor)
+{
+    SQLiteDatabase* const sqlite_database =
+        dynamic_cast<SQLiteDatabase*>(&database);
+    return sqlite_database &&
+           sqlite_database->SetNextBatchExecutor(
+               std::move(executor));
+}
+
 bool SetSQLiteColumnReaderForTesting(
     DatabaseBatch& batch,
     std::unique_ptr<SQLiteColumnReader> reader)
@@ -6999,6 +7060,19 @@ void InjectSQLiteDirectorySyncFailureForTesting(
         successful_syncs_before_failure);
 }
 
+void InjectSQLiteEraseFailureForTesting(
+    int successful_erases_before_failure)
+{
+    g_erase_attempts.store(0);
+    g_fail_erase_after_successes.store(
+        successful_erases_before_failure);
+}
+
+int GetSQLiteEraseAttemptsForTesting()
+{
+    return g_erase_attempts.load();
+}
+
 bool ResetSQLiteLifecycleForTesting()
 {
     sqlite3* abandoned_connection = nullptr;
@@ -7023,6 +7097,8 @@ bool ResetSQLiteLifecycleForTesting()
     g_report_migration_exchange_error_once.store(false);
     g_fail_directory_sync_after_successes.store(-1);
     g_directory_sync_failure_error.store(0);
+    g_fail_erase_after_successes.store(-1);
+    g_erase_attempts.store(0);
     if (sqlite3_close(abandoned_connection) != SQLITE_OK) {
         return false;
     }

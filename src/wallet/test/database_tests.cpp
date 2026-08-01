@@ -2553,11 +2553,8 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         "database_batch_test.backup"};
     const fs::path backupPath =
         GetDataDir() / backupFilename;
-    std::string backupError{"unchanged"};
     BOOST_REQUIRE(database.Backup(
-        backupPath.string(),
-        backupError));
-    BOOST_CHECK(backupError.empty());
+        backupPath.string()));
     const std::string firstBackup =
         ReadFile(backupPath);
     {
@@ -2566,11 +2563,8 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
             std::string("after-first-backup"),
             std::string("overwritten-backup-value")));
     }
-    backupError = "unchanged";
     BOOST_REQUIRE(database.Backup(
-        backupPath.string(),
-        backupError));
-    BOOST_CHECK(backupError.empty());
+        backupPath.string()));
     BOOST_CHECK(
         ReadFile(backupPath) != firstBackup);
     BOOST_CHECK(
@@ -2582,11 +2576,8 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
     const fs::path directoryBackupPath =
         backupDirectory / filename;
     BOOST_REQUIRE(fs::create_directory(backupDirectory));
-    backupError = "unchanged";
     BOOST_REQUIRE(database.Backup(
-        backupDirectory.string(),
-        backupError));
-    BOOST_CHECK(backupError.empty());
+        backupDirectory.string()));
     BOOST_CHECK(
         ReadFile(directoryBackupPath) ==
         ReadFile(GetDataDir() / filename));
@@ -2596,25 +2587,8 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
     const fs::path failedBackup =
         missingParent / "database.backup";
     BOOST_CHECK(!fs::exists(missingParent));
-    backupError = "unchanged";
     BOOST_CHECK(!database.Backup(
-        failedBackup.string(),
-        backupError));
-    BOOST_CHECK(
-        backupError.find("BDB wallet") !=
-        std::string::npos);
-    BOOST_CHECK(
-        backupError.find(filename) !=
-        std::string::npos);
-    BOOST_CHECK(
-        backupError.find(failedBackup.string()) !=
-        std::string::npos);
-    BOOST_CHECK(
-        backupError.find("destination may be partial or changed") !=
-        std::string::npos);
-    BOOST_CHECK(
-        backupError.find(binaryKey) ==
-        std::string::npos);
+        failedBackup.string()));
 
     BOOST_CHECK(fs::remove(directoryBackupPath));
     BOOST_CHECK(fs::remove(backupDirectory));
@@ -7173,7 +7147,13 @@ BOOST_FIXTURE_TEST_CASE(
                     !wallet.ChangeWalletPassphrase(
                         wrongPassphrase,
                         newPassphrase));
-                BOOST_CHECK(!wallet.IsLocked());
+                if (format == DatabaseFormat::BERKELEY) {
+                    BOOST_CHECK(wallet.IsLocked());
+                    BOOST_REQUIRE(
+                        wallet.Unlock(passphrase));
+                } else {
+                    BOOST_CHECK(!wallet.IsLocked());
+                }
                 BOOST_REQUIRE(
                     wallet.ChangeWalletPassphrase(
                         passphrase,
@@ -7235,3 +7215,246 @@ BOOST_FIXTURE_TEST_CASE(
         }
     }
 }
+
+#ifdef USE_SQLITE
+BOOST_FIXTURE_TEST_CASE(
+    sqlite_wallet_encryption_failure_contract,
+    WalletDatabasePathTestingSetup)
+{
+    const SecureString passphrase{"sqlite encryption passphrase"};
+    const SecureString newPassphrase{"sqlite replacement passphrase"};
+
+    auto makeDatabase =
+        [](const std::string& filename, bool create)
+        -> std::unique_ptr<WalletDatabase> {
+        DatabaseOptions options;
+        options.require_create = create;
+        options.require_existing = !create;
+        options.require_format = DatabaseFormat::SQLITE;
+        options.recover = false;
+        DatabaseStatus status{
+            DatabaseStatus::FAILED_LOAD};
+        std::string error;
+        std::unique_ptr<WalletDatabase> database =
+            MakeWalletDatabase(
+                filename,
+                options,
+                status,
+                error);
+        BOOST_REQUIRE_MESSAGE(database, error);
+        BOOST_REQUIRE(
+            status == DatabaseStatus::SUCCESS);
+        return database;
+    };
+    auto createPlainWallet =
+        [&](const std::string& filename) {
+            RemoveSQLiteTestFiles(filename);
+            auto wallet = std::make_unique<CWallet>(
+                makeDatabase(filename, true));
+            bool firstRun = false;
+            BOOST_REQUIRE(
+                wallet->LoadWallet(firstRun) ==
+                DB_LOAD_OK);
+            BOOST_REQUIRE(firstRun);
+            CPubKey pubkey;
+            {
+                LOCK(wallet->cs_wallet);
+                pubkey = wallet->GenerateNewKey();
+            }
+            BOOST_REQUIRE(wallet->SetDefaultKey(pubkey));
+            return std::make_pair(
+                std::move(wallet),
+                pubkey);
+        };
+    auto checkPlainWallet =
+        [&](const std::string& filename,
+            const CPubKey& pubkey) {
+            std::unique_ptr<WalletDatabase> database =
+                makeDatabase(filename, false);
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    database->MakeBatch();
+                BOOST_REQUIRE(batch);
+                BOOST_CHECK(
+                    batch->ExistsWithStatus(
+                        std::make_pair(
+                            std::string("key"),
+                            pubkey)) ==
+                    DatabaseReadStatus::SUCCESS);
+                BOOST_CHECK(
+                    batch->ExistsWithStatus(
+                        std::make_pair(
+                            std::string("ckey"),
+                            pubkey)) ==
+                    DatabaseReadStatus::NOT_FOUND);
+            }
+            CWallet wallet(std::move(database));
+            bool firstRun = true;
+            BOOST_REQUIRE(
+                wallet.LoadWallet(firstRun) ==
+                DB_LOAD_OK);
+            BOOST_CHECK(!firstRun);
+            BOOST_CHECK(!wallet.IsCrypted());
+            BOOST_CHECK(wallet.HaveKey(pubkey.GetID()));
+        };
+    auto checkEncryptedWallet =
+        [&](const std::string& filename,
+            const SecureString& expectedPassphrase,
+            const SecureString* rejectedPassphrase =
+                nullptr) {
+            CWallet wallet(
+                makeDatabase(filename, false));
+            bool firstRun = true;
+            BOOST_REQUIRE(
+                wallet.LoadWallet(firstRun) ==
+                DB_LOAD_OK);
+            BOOST_CHECK(!firstRun);
+            BOOST_REQUIRE(wallet.IsCrypted());
+            BOOST_REQUIRE(wallet.IsLocked());
+            if (rejectedPassphrase) {
+                BOOST_CHECK(
+                    !wallet.Unlock(*rejectedPassphrase));
+            }
+            BOOST_REQUIRE(
+                wallet.Unlock(expectedPassphrase));
+        };
+
+    {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{
+            "sqlite_encryption_commit_failure.dat"};
+        auto walletAndKey =
+            createPlainWallet(filename);
+        BOOST_REQUIRE(
+            SetSQLiteNextBatchStatementExecutorForTesting(
+                walletAndKey.first->GetDatabase(),
+                std::make_unique<
+                    BlockingSQLiteStatementExecutor>(
+                    std::set<std::string>{
+                        "COMMIT TRANSACTION"})));
+        BOOST_CHECK(
+            !walletAndKey.first->EncryptWallet(
+                passphrase));
+        BOOST_CHECK(ShutdownRequested());
+        walletAndKey.first.reset();
+        checkPlainWallet(
+            filename,
+            walletAndKey.second);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{
+            "sqlite_encryption_erase_failure.dat"};
+        auto walletAndKey =
+            createPlainWallet(filename);
+        InjectSQLiteEraseFailureForTesting(0);
+        BOOST_CHECK(
+            !walletAndKey.first->EncryptWallet(
+                passphrase));
+        BOOST_CHECK_EQUAL(
+            GetSQLiteEraseAttemptsForTesting(),
+            2);
+        BOOST_CHECK(ShutdownRequested());
+        walletAndKey.first.reset();
+        checkPlainWallet(
+            filename,
+            walletAndKey.second);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{
+            "sqlite_encryption_applied_commit.dat"};
+        auto walletAndKey =
+            createPlainWallet(filename);
+        BOOST_REQUIRE(
+            SetSQLiteNextBatchStatementExecutorForTesting(
+                walletAndKey.first->GetDatabase(),
+                std::make_unique<
+                    CommitThenFailSQLiteStatementExecutor>()));
+        BOOST_CHECK(
+            !walletAndKey.first->EncryptWallet(
+                passphrase));
+        BOOST_CHECK(
+            walletAndKey.first->IsCrypted());
+        BOOST_CHECK(ShutdownRequested());
+        walletAndKey.first.reset();
+        checkEncryptedWallet(
+            filename,
+            passphrase);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{
+            "sqlite_passphrase_commit_failure.dat"};
+        auto walletAndKey =
+            createPlainWallet(filename);
+        BOOST_REQUIRE(
+            walletAndKey.first->EncryptWallet(
+                passphrase));
+        BOOST_REQUIRE(
+            walletAndKey.first->Unlock(
+                passphrase));
+        BOOST_REQUIRE(
+            SetSQLiteNextBatchStatementExecutorForTesting(
+                walletAndKey.first->GetDatabase(),
+                std::make_unique<
+                    BlockingSQLiteStatementExecutor>(
+                    std::set<std::string>{
+                        "COMMIT TRANSACTION"})));
+        BOOST_CHECK(
+            !walletAndKey.first->ChangeWalletPassphrase(
+                passphrase,
+                newPassphrase));
+        BOOST_CHECK(
+            !walletAndKey.first->IsLocked());
+        BOOST_CHECK(!ShutdownRequested());
+        walletAndKey.first.reset();
+        checkEncryptedWallet(
+            filename,
+            passphrase,
+            &newPassphrase);
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{
+            "sqlite_passphrase_applied_commit.dat"};
+        auto walletAndKey =
+            createPlainWallet(filename);
+        BOOST_REQUIRE(
+            walletAndKey.first->EncryptWallet(
+                passphrase));
+        BOOST_REQUIRE(
+            walletAndKey.first->Unlock(
+                passphrase));
+        BOOST_REQUIRE(
+            SetSQLiteNextBatchStatementExecutorForTesting(
+                walletAndKey.first->GetDatabase(),
+                std::make_unique<
+                    CommitThenFailSQLiteStatementExecutor>()));
+        bool indeterminate = false;
+        BOOST_CHECK(
+            !walletAndKey.first->ChangeWalletPassphrase(
+                passphrase,
+                newPassphrase,
+                &indeterminate));
+        BOOST_CHECK(indeterminate);
+        BOOST_CHECK(
+            !walletAndKey.first->IsLocked());
+        BOOST_CHECK(ShutdownRequested());
+        walletAndKey.first.reset();
+        checkEncryptedWallet(
+            filename,
+            newPassphrase,
+            &passphrase);
+        RemoveSQLiteTestFiles(filename);
+    }
+}
+#endif

@@ -61,6 +61,11 @@ bool SetSQLiteStatementExecutorForTesting(
     DatabaseBatch& batch,
     std::unique_ptr<SQLiteStatementExecutor> executor);
 
+/** Replace transaction statement execution for the next batch from one SQLite owner. */
+bool SetSQLiteNextBatchStatementExecutorForTesting(
+    WalletDatabase& database,
+    std::unique_ptr<SQLiteStatementExecutor> executor);
+
 /** Replace BLOB column access for one SQLite batch. */
 bool SetSQLiteColumnReaderForTesting(
     DatabaseBatch& batch,
@@ -105,6 +110,13 @@ void InjectSQLiteCloseFailureForTesting(
 void InjectSQLiteDirectorySyncFailureForTesting(
     int error_number,
     int successful_syncs_before_failure = 0);
+
+/** Fail one SQLite record erase after the requested number of successful erases. */
+void InjectSQLiteEraseFailureForTesting(
+    int successful_erases_before_failure = 0);
+
+/** Return SQLite erase attempts since the last erase-failure injection. */
+int GetSQLiteEraseAttemptsForTesting();
 
 /** Recover the single deliberately abandoned connection created by a test. */
 bool ResetSQLiteLifecycleForTesting();

@@ -33,3 +33,9 @@ foreach(wallet_test_name IN ITEMS
     SKIP_REGULAR_EXPRESSION "no test cases matching filter"
   )
 endforeach()
+
+if(ENABLE_SQLITE_WALLET)
+  add_test(NAME sqlite_wallet_encryption_failure_contract
+    COMMAND test_firo --run_test=sqlite_wallet_encryption_failure_contract --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+  )
+endif()

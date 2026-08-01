@@ -6,46 +6,47 @@
 #include "config/bitcoin-config.h"
 
 #include "wallet.h"
-#include "amount.h"
-#include "base58.h"
 #include "boost/filesystem/operations.hpp"
-#include "chain.h"
-#include "checkpoints.h"
 #include "wallet/sparkspendbatch.h"
-#include "consensus/consensus.h"
-#include "consensus/validation.h"
-#include "init.h"
-#include "key.h"
-#include "keystore.h"
 #include "libspark/keys.h"
-#include "llmq/quorums_chainlocks.h"
-#include "llmq/quorums_instantsend.h"
-#include "masternode-sync.h"
-#include "net.h"
-#include "policy/policy.h"
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "random.h"
-#include "rpc/protocol.h"
-#include "script/script.h"
-#include "script/sign.h"
 #include "serialize.h"
 #include "support/allocators/secure.h"
 #include "support/cleanse.h"
 #include "sync.h"
+#include "walletexcept.h"
+#include "amount.h"
+#include "base58.h"
+#include "checkpoints.h"
+#include "chain.h"
+#include "wallet/coincontrol.h"
+#include "consensus/consensus.h"
+#include "consensus/validation.h"
+#include "key.h"
+#include "keystore.h"
+#include "validation.h"
+#include "llmq/quorums_instantsend.h"
+#include "llmq/quorums_chainlocks.h"
+#include "net.h"
+#include "policy/policy.h"
+#include "primitives/block.h"
+#include "primitives/transaction.h"
+#include "script/script.h"
+#include "script/sign.h"
 #include "timedata.h"
 #include "txmempool.h"
-#include "ui_interface.h"
 #include "util.h"
+#include "ui_interface.h"
 #include "utilmoneystr.h"
 #include "validation.h"
+#include "masternode-sync.h"
+#include "random.h"
+#include "init.h"
+#include "rpc/protocol.h"
 #include "wallet/bip39.h"
-#include "wallet/coincontrol.h"
 #include "wallet/db.h"
 #ifdef USE_SQLITE
 #include "wallet/sqlite.h"
 #endif
-#include "walletexcept.h"
 
 #include "crypto/hmac_sha512.h"
 #include "crypto/aes.h"
@@ -1000,13 +1001,65 @@ bool CWallet::WaitForUnlock() {
     return true;
 }
 
-bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase)
+bool CWallet::ChangeWalletPassphrase(
+    const SecureString& strOldWalletPassphrase,
+    const SecureString& strNewWalletPassphrase,
+    bool* indeterminate)
 {
+    if (indeterminate) {
+        *indeterminate = false;
+    }
+
+    if (GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        bool fWasLocked = IsLocked();
+
+        {
+            LOCK(cs_wallet);
+            Lock();
+
+            CCrypter crypter;
+            CKeyingMaterial vMasterKey;
+            BOOST_FOREACH(MasterKeyMap::value_type& pMasterKey, mapMasterKeys)
+            {
+                if(!crypter.SetKeyFromPassphrase(strOldWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+                    return false;
+                if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
+                    return false;
+                if (CCryptoKeyStore::Unlock(vMasterKey))
+                {
+                    int64_t nStartTime = GetTimeMillis();
+                    crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
+                    pMasterKey.second.nDeriveIterations = pMasterKey.second.nDeriveIterations * (100 / ((double)(GetTimeMillis() - nStartTime)));
+
+                    nStartTime = GetTimeMillis();
+                    crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod);
+                    pMasterKey.second.nDeriveIterations = (pMasterKey.second.nDeriveIterations + pMasterKey.second.nDeriveIterations * 100 / ((double)(GetTimeMillis() - nStartTime))) / 2;
+
+                    if (pMasterKey.second.nDeriveIterations < 25000)
+                        pMasterKey.second.nDeriveIterations = 25000;
+
+                    LogPrintf("Wallet passphrase changed to an nDeriveIterations of %i\n", pMasterKey.second.nDeriveIterations);
+
+                    if (!crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+                        return false;
+                    if (!crypter.Encrypt(vMasterKey, pMasterKey.second.vchCryptedKey))
+                        return false;
+                    CWalletDB(GetDatabase()).WriteMasterKey(pMasterKey.first, pMasterKey.second);
+                    if (fWasLocked)
+                        Lock();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     LOCK(cs_wallet);
     const bool fWasLocked = IsLocked();
 
     bool success = false;
-    bool databaseUpdated = false;
+    bool databaseWriteAttempted = false;
     bool memoryUpdated = false;
     unsigned int updatedDeriveIterations = 0;
     try {
@@ -1038,10 +1091,10 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
                 }
                 if (fFileBacked) {
                     CWalletDB walletdb(GetDatabase());
+                    databaseWriteAttempted = true;
                     if (!walletdb.WriteMasterKey(pMasterKey.first, updatedMasterKey)) {
                         break;
                     }
-                    databaseUpdated = true;
                 }
 
                 updatedDeriveIterations = updatedMasterKey.nDeriveIterations;
@@ -1053,12 +1106,18 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
         }
     } catch (const std::exception& error) {
         LogPrintf("CWallet::ChangeWalletPassphrase: Exception while changing passphrase: %s\n", error.what());
-        if (databaseUpdated && !memoryUpdated) {
+        if (databaseWriteAttempted && !memoryUpdated) {
+            if (indeterminate) {
+                *indeterminate = true;
+            }
             StartShutdown();
         }
     } catch (...) {
         LogPrintf("CWallet::ChangeWalletPassphrase: Unknown exception while changing passphrase\n");
-        if (databaseUpdated && !memoryUpdated) {
+        if (databaseWriteAttempted && !memoryUpdated) {
+            if (indeterminate) {
+                *indeterminate = true;
+            }
             StartShutdown();
         }
     }
@@ -1100,6 +1159,27 @@ bool CWallet::SetMinVersion(enum WalletFeature nVersion, CWalletDB* pwalletdbIn,
     // when doing an explicit upgrade, if we pass the max version permitted, upgrade all the way
     if (fExplicit && nVersion > nWalletMaxVersion)
             nVersion = FEATURE_LATEST;
+
+    if (GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        nWalletVersion = nVersion;
+
+        if (nVersion > nWalletMaxVersion)
+            nWalletMaxVersion = nVersion;
+
+        if (fFileBacked)
+        {
+            std::unique_ptr<CWalletDB> ownedWalletDb;
+            CWalletDB* pwalletdb = pwalletdbIn;
+            if (!pwalletdb) {
+                ownedWalletDb = std::make_unique<CWalletDB>(GetDatabase());
+                pwalletdb = ownedWalletDb.get();
+            }
+            if (nWalletVersion > 40000)
+                pwalletdb->WriteMinVersion(nWalletVersion);
+        }
+
+        return true;
+    }
 
     if (fFileBacked)
     {
@@ -1367,11 +1447,11 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
 
         if (script.IsZerocoinMint()) {
             return true;
-        } else if (script.IsSigmaMint()) {
+        } else if (pwalletMain && script.IsSigmaMint()) {
             return true;
-        } else if ((script.IsLelantusMint() || script.IsLelantusJMint())) {
+        } else if (pwalletMain && (script.IsLelantusMint() || script.IsLelantusJMint())) {
            return true;
-        } else if (sparkWallet && (script.IsSparkMint() || script.IsSparkSMint())) {
+        } else if (pwalletMain && pwalletMain->sparkWallet && (script.IsSparkMint() || script.IsSparkSMint())) {
             std::vector<unsigned char> serialContext = spark::getSerialContext(*tx->tx);
 
             spark::Coin coin(spark::Params::get_default());
@@ -1381,11 +1461,11 @@ bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const
                 return false;
             }
             coin.setSerialContext(serialContext);
-            if (!sparkWallet)
+            if (!pwalletMain->sparkWallet)
                 return false;
 
             CSparkMintMeta mintMeta;
-            if (sparkWallet->getMintMeta(coin, mintMeta)) {
+            if (pwalletMain->sparkWallet->getMintMeta(coin, mintMeta)) {
                 bool fIsSpent = mintMeta.isUsed;
                 return fIsSpent;
             }
@@ -1437,6 +1517,101 @@ void CWallet::AddToSpends(const uint256& wtxid)
 
 bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
 {
+    if (GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        if (IsCrypted())
+            return false;
+
+        CKeyingMaterial vMasterKey;
+
+        vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
+        GetStrongRandBytes(&vMasterKey[0], WALLET_CRYPTO_KEY_SIZE);
+
+        CMasterKey kMasterKey;
+
+        kMasterKey.vchSalt.resize(WALLET_CRYPTO_SALT_SIZE);
+        GetStrongRandBytes(&kMasterKey.vchSalt[0], WALLET_CRYPTO_SALT_SIZE);
+
+        CCrypter crypter;
+        int64_t nStartTime = GetTimeMillis();
+        crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, 25000, kMasterKey.nDerivationMethod);
+        kMasterKey.nDeriveIterations = 2500000 / ((double)(GetTimeMillis() - nStartTime));
+
+        nStartTime = GetTimeMillis();
+        crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod);
+        kMasterKey.nDeriveIterations = (kMasterKey.nDeriveIterations + kMasterKey.nDeriveIterations * 100 / ((double)(GetTimeMillis() - nStartTime))) / 2;
+
+        if (kMasterKey.nDeriveIterations < 25000)
+            kMasterKey.nDeriveIterations = 25000;
+
+        LogPrintf("Encrypting Wallet with an nDeriveIterations of %i\n", kMasterKey.nDeriveIterations);
+
+        if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt, kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod))
+            return false;
+        if (!crypter.Encrypt(vMasterKey, kMasterKey.vchCryptedKey))
+            return false;
+
+        {
+            LOCK(cs_wallet);
+            mapMasterKeys[++nMasterKeyMaxID] = kMasterKey;
+            if (fFileBacked)
+            {
+                assert(!pwalletdbEncryption);
+                pwalletdbEncryption = std::make_unique<CWalletDB>(GetDatabase());
+                if (!pwalletdbEncryption->TxnBegin()) {
+                    pwalletdbEncryption.reset();
+                    return false;
+                }
+                pwalletdbEncryption->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
+            }
+
+            if (!EncryptKeys(vMasterKey))
+            {
+                if (fFileBacked) {
+                    pwalletdbEncryption->TxnAbort();
+                    pwalletdbEncryption.reset();
+                }
+                // We now probably have half of our keys encrypted in memory, and half not...
+                // die and let the user reload the unencrypted wallet.
+                assert(false);
+            }
+
+            // Encryption was introduced in version 0.4.0
+            SetMinVersion(FEATURE_WALLETCRYPT, pwalletdbEncryption.get(), true);
+
+            if (fFileBacked)
+            {
+                if (!pwalletdbEncryption->TxnCommit()) {
+                    pwalletdbEncryption.reset();
+                    // We now have keys encrypted in memory, but not on disk...
+                    // die to avoid confusion and let the user reload the unencrypted wallet.
+                    assert(false);
+                }
+
+                pwalletdbEncryption.reset();
+            }
+
+            Lock();
+            Unlock(strWalletPassphrase, true);
+
+            if(!mnemonicContainer.IsNull() && hdChain.nVersion >= CHDChain::VERSION_WITH_BIP39) {
+                assert(EncryptMnemonicContainer(vMasterKey));
+                SetMinVersion(FEATURE_HD);
+                assert(SetMnemonicContainer(mnemonicContainer, false));
+                TopUpKeyPool();
+            }
+
+            Lock();
+
+            // Need to completely rewrite the wallet file; if we don't, bdb might keep
+            // bits of the unencrypted private key in slack space in the database file.
+            GetDatabase().Rewrite();
+
+        }
+        NotifyStatusChanged(this);
+
+        return true;
+    }
+
     static CCriticalSection cs_encryptWallet;
     LOCK(cs_encryptWallet);
 
@@ -1672,6 +1847,8 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     }
     if (!postEncryptionSuccess) {
         StartShutdown();
+    } else {
+        NotifyStatusChanged(this);
     }
 
     return postEncryptionSuccess;
@@ -2880,7 +3057,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 
         CAmount nValue;
         if(txout.scriptPubKey.IsSparkSMint()) {
-            LOCK(pwallet->cs_wallet);
+            LOCK(pwalletMain->cs_wallet);
             nValue = pwallet->GetCredit(txout, *tx, ISMINE_SPENDABLE);
         } else {
             nValue = txout.nValue;
@@ -6017,6 +6194,23 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         return nullptr;
     }
     auto walletInstance = std::make_unique<CWallet>(std::move(database));
+    const bool isBerkeleyWallet =
+        walletInstance->GetDatabase().Format() == DatabaseFormat::BERKELEY;
+    CWallet* const previousWallet = pwalletMain;
+    pwalletMain = walletInstance.get();
+    bool validationRegistered = false;
+    auto cleanupFailedWallet =
+        [previousWallet, &validationRegistered](CWallet* wallet) {
+            if (validationRegistered) {
+                UnregisterValidationInterface(wallet);
+            }
+            if (pwalletMain == wallet) {
+                pwalletMain = previousWallet;
+            }
+        };
+    std::unique_ptr<CWallet, decltype(cleanupFailedWallet)> walletLoadGuard(
+        walletInstance.get(),
+        cleanupFailedWallet);
     LogPrintf(
         "Using %s wallet database %s\n",
         DatabaseFormatName(walletInstance->GetDatabase().Format()),
@@ -6149,6 +6343,11 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             walletInstance->GeneratePcode("Autogenerated RAP address " + std::to_string(i));
     }
 
+    if (isBerkeleyWallet) {
+        validationRegistered = true;
+        RegisterValidationInterface(walletInstance.get());
+    }
+
     // Try to top up keypool. No-op if the wallet is locked.
     walletInstance->TopUpKeyPool();
 
@@ -6260,13 +6459,12 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     }
 
     CWallet* result = walletInstance.get();
-    try {
+    if (!isBerkeleyWallet) {
+        validationRegistered = true;
         RegisterValidationInterface(result);
-        uiInterface.LoadWallet(result);
-    } catch (...) {
-        UnregisterValidationInterface(result);
-        throw;
     }
+    uiInterface.LoadWallet(result);
+    walletLoadGuard.release();
     return walletInstance.release();
 }
 
@@ -7054,7 +7252,9 @@ bool CWallet::CreateSparkMintTransactions(
 
 std::pair<CAmount, CAmount> CWallet::GetSparkBalance()
 {
-    if (!sparkWallet)
+    auto sparkWallet = pwalletMain->sparkWallet.get();
+
+    if(!sparkWallet)
         return {0, 0};
 
     return sparkWallet->getSparkBalance();

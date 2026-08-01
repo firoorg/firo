@@ -2999,8 +2999,10 @@ UniValue backupwallet(const JSONRPCRequest& request)
             "to a new absent flat wallet filename with no -journal, -wal, or -shm side files, then start with -wallet=<filename>.\n"
             "\nArguments:\n"
             "1. \"destination\"   (string) The destination directory or file\n"
-            "\nExamples:\n" +
-            HelpExampleCli("backupwallet", "\"backup.dat\"") + HelpExampleRpc("backupwallet", "\"backup.dat\""));
+            "\nExamples:\n"
+            + HelpExampleCli("backupwallet", "\"backup.dat\"")
+            + HelpExampleRpc("backupwallet", "\"backup.dat\"")
+        );
 
     // WARNING: don't lock any mutexes here before calling into pwallet->BackupWallet() due to it can cause dead
     // lock. Here is the example scenario that will cause dead lock if we lock cs_wallet before calling into
@@ -3015,6 +3017,13 @@ UniValue backupwallet(const JSONRPCRequest& request)
     // We don't need to worry about pwallet->BackupWallet() due to it already thread safe.
 
     std::string strDest = request.params[0].get_str();
+    if (pwallet->GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        if (!pwallet->BackupWallet(strDest)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Error: Wallet backup failed!");
+        }
+        return NullUniValue;
+    }
+
     std::string error;
     if (!pwallet->BackupWallet(strDest, error)) {
         throw JSONRPCError(
@@ -3225,7 +3234,18 @@ UniValue walletpassphrasechange(const JSONRPCRequest& request)
             "walletpassphrasechange <oldpassphrase> <newpassphrase>\n"
             "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
 
-    if (!pwallet->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass)) {
+    bool indeterminate = false;
+    if (!pwallet->ChangeWalletPassphrase(
+            strOldWalletPass,
+            strNewWalletPass,
+            &indeterminate)) {
+        if (pwallet->GetDatabase().Format() == DatabaseFormat::SQLITE &&
+            indeterminate) {
+            throw JSONRPCError(
+                RPC_WALLET_ERROR,
+                "Error: Wallet passphrase change did not complete cleanly, and the new passphrase may already be required. "
+                "Retain both the old and new passphrases. Firo server is stopping; restart and try both passphrases before making another change.");
+        }
         throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
     }
 
@@ -3303,6 +3323,38 @@ UniValue encryptwallet(const JSONRPCRequest& request)
             "\nAs a json rpc call\n"
             + HelpExampleRpc("encryptwallet", "\"my pass phrase\"")
         );
+    }
+
+    if (pwallet->GetDatabase().Format() == DatabaseFormat::BERKELEY) {
+        LOCK2(cs_main, pwallet->cs_wallet);
+
+        if (request.fHelp)
+            return true;
+        if (pwallet->IsCrypted()) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+        }
+
+        // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
+        // Alternately, find a way to make request.params[0] mlock()'d to begin with.
+        SecureString strWalletPass;
+        strWalletPass.reserve(100);
+        strWalletPass = request.params[0].get_str().c_str();
+
+        if (strWalletPass.length() < 1)
+            throw std::runtime_error(
+                "encryptwallet <passphrase>\n"
+                "Encrypts the wallet with <passphrase>.");
+
+        if (!pwallet->EncryptWallet(strWalletPass)) {
+            throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
+        }
+
+        // BDB seems to have a bad habit of writing old data into
+        // slack space in .dat files; that is bad if the old data is
+        // unencrypted private keys. So:
+        StartShutdown();
+
+        return "wallet encrypted; Firo server stopping, restart to run with encrypted wallet.";
     }
 
     // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
