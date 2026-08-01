@@ -4447,6 +4447,8 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
 #ifndef WIN32
 BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
 {
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
     const std::string prePublishFilename{
         "sqlite_failed_close_before_publish.dat"};
     const std::string postPublishFilename{
