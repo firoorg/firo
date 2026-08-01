@@ -376,8 +376,69 @@ bool MigrationStreamsEqual(
     }
 }
 
+bool ValidateSparkMigrationRecords(
+    CWalletDB& database,
+    const std::string& sourceFilename,
+    std::string& error)
+{
+    try {
+        const spark::Params* const params =
+            spark::Params::get_default();
+        spark::FullViewKey fullViewKey(params);
+        int32_t diversifier = 0;
+        const DatabaseReadStatus fullViewKeyStatus =
+            database.readFullViewKeyWithStatus(
+                fullViewKey);
+        const DatabaseReadStatus diversifierStatus =
+            database.readDiversifierWithStatus(
+                diversifier);
+
+        if (fullViewKeyStatus ==
+                DatabaseReadStatus::NOT_FOUND &&
+            diversifierStatus ==
+                DatabaseReadStatus::NOT_FOUND) {
+            return true;
+        }
+        if (fullViewKeyStatus !=
+                DatabaseReadStatus::SUCCESS ||
+            diversifierStatus !=
+                DatabaseReadStatus::SUCCESS) {
+            error = strprintf(
+                "Cannot migrate BDB wallet database '%s' to SQLite: "
+                "read-only Spark validation found incomplete or unreadable "
+                "full-view-key/diversifier state; both records must be "
+                "readable or both absent. No SQLite wallet was published. "
+                "Continue using the BDB wallet and repair or restore a "
+                "known-good wallet before retrying.",
+                sourceFilename);
+            return false;
+        }
+
+        std::unordered_map<uint256, CSparkMintMeta> mints =
+            database.ListSparkMints();
+        for (auto& mint : mints) {
+            mint.second.coin.setParams(params);
+            mint.second.coin.setSerialContext(
+                mint.second.serial_context);
+        }
+        return true;
+    } catch (const boost::thread_interrupted&) {
+        throw;
+    } catch (...) {
+        error = strprintf(
+            "Cannot migrate BDB wallet database '%s' to SQLite: "
+            "read-only Spark validation found malformed or unreadable "
+            "Spark mint records. No SQLite wallet was published. Continue "
+            "using the BDB wallet and repair or restore a known-good wallet "
+            "before retrying.",
+            sourceFilename);
+        return false;
+    }
+}
+
 bool ValidateMigrationCandidate(
     WalletDatabase& candidate,
+    const std::string& sourceFilename,
     std::string& error)
 {
     CWallet validationWallet;
@@ -391,6 +452,17 @@ bool ValidateMigrationCandidate(
                 &validationWallet,
                 false);
         if (loadResult == DB_LOAD_OK) {
+            const bool willLoadSpark =
+                validationWallet.IsHDSeedAvailable() ||
+                (!validationWallet.vchDefaultKey.IsValid() &&
+                    GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET));
+            if (willLoadSpark &&
+                !ValidateSparkMigrationRecords(
+                    validationDatabase,
+                    sourceFilename,
+                    error)) {
+                return false;
+            }
             bip47::CWallet validationBip47Wallet(
                 validationWallet.vchDefaultKey.GetHash());
             validationDatabase.LoadBip47Accounts(
@@ -539,6 +611,7 @@ bool MigrateWalletDatabaseToSQLite(
                 error) ||
             !ValidateMigrationCandidate(
                 *candidate,
+                source.Filename(),
                 error) ||
             !MigrationStreamsEqual(
                 source,

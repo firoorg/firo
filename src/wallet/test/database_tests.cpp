@@ -1756,6 +1756,9 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_bip47_accounts)
         defaultKey.GetPubKey();
     const CKeyMetadata defaultKeyMetadata{
         1700000470};
+    CHDChain hdChain;
+    hdChain.masterKeyID =
+        defaultPubKey.GetID();
 
     std::array<unsigned char, 32> receiverSeed{};
     receiverSeed.fill(0x47);
@@ -1982,6 +1985,21 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_bip47_accounts)
                 return true;
             });
         BOOST_CHECK_EQUAL(senderCount, 1);
+
+        CWalletDB sparkLoader(
+            database,
+            {DatabaseBatchMode::READ_ONLY});
+        spark::FullViewKey fullViewKey(
+            spark::Params::get_default());
+        int32_t diversifier = -1;
+        BOOST_CHECK(
+            sparkLoader.readFullViewKeyWithStatus(
+                fullViewKey) ==
+            DatabaseReadStatus::NOT_FOUND);
+        BOOST_CHECK(
+            sparkLoader.readDiversifierWithStatus(
+                diversifier) ==
+            DatabaseReadStatus::NOT_FOUND);
     };
 
     const std::string sourceFilename{
@@ -2009,6 +2027,9 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_bip47_accounts)
         BOOST_REQUIRE(
             writer.WriteDefaultKey(
                 defaultPubKey));
+        BOOST_REQUIRE(
+            writer.WriteHDChain(
+                hdChain));
         BOOST_REQUIRE(
             writer.WriteBip47Account(
                 expectedReceiver));
@@ -2180,6 +2201,224 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
             BOOST_CHECK(
                 error.find(privateRecordSentinel) ==
                 std::string::npos);
+            BOOST_CHECK(
+                IsBerkeleyDatabase(
+                    GetDataDir() /
+                    sourceFilename));
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    source->MakeBatch(
+                        {DatabaseBatchMode::READ_ONLY});
+                BOOST_REQUIRE(batch);
+                const bool sourceRecordsMatch =
+                    ReadRawRecords(*batch) ==
+                    expectedRecords;
+                BOOST_CHECK(sourceRecordsMatch);
+            }
+
+            DatabaseOptions openBackup;
+            openBackup.require_existing = true;
+            openBackup.require_format =
+                DatabaseFormat::BERKELEY;
+            openBackup.recover = false;
+            std::unique_ptr<WalletDatabase> backup =
+                MakeWalletDatabase(
+                    fs::path(backupPath)
+                        .filename()
+                        .string(),
+                    openBackup,
+                    status,
+                    error);
+            BOOST_REQUIRE_MESSAGE(backup, error);
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    backup->MakeBatch(
+                        {DatabaseBatchMode::READ_ONLY});
+                BOOST_REQUIRE(batch);
+                const bool backupRecordsMatch =
+                    ReadRawRecords(*batch) ==
+                    expectedRecords;
+                BOOST_CHECK(backupRecordsMatch);
+            }
+            BOOST_CHECK(
+                FindMigrationPaths(
+                    ".firo-wallet-sqlite-migration-")
+                    .empty());
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_unloadable_spark_state)
+{
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
+    const std::array<std::string, 4> states{{
+        "missing diversifier",
+        "corrupt diversifier",
+        "malformed mint",
+        "first-run missing diversifier",
+    }};
+    for (size_t index = 0;
+        index < states.size();
+        ++index) {
+        BOOST_TEST_CONTEXT(
+            "Spark state " << states[index])
+        {
+            const std::string sourceFilename =
+                strprintf(
+                    "migration_unloadable_spark_%u.dat",
+                    index);
+            DatabaseOptions createOptions;
+            createOptions.require_create = true;
+            createOptions.require_format =
+                DatabaseFormat::BERKELEY;
+            DatabaseStatus status;
+            std::string error;
+            std::unique_ptr<WalletDatabase> source =
+                MakeWalletDatabase(
+                    sourceFilename,
+                    createOptions,
+                    status,
+                    error);
+            BOOST_REQUIRE_MESSAGE(source, error);
+
+            CKey masterKey;
+            masterKey.MakeNewKey(true);
+            const CPubKey masterPubKey =
+                masterKey.GetPubKey();
+            const bool firstRun = index == 3;
+            if (firstRun) {
+                BOOST_REQUIRE(!IsArgSet("-usehd"));
+                BOOST_REQUIRE(
+                    GetBoolArg(
+                        "-usehd",
+                        DEFAULT_USE_HD_WALLET));
+            }
+            CHDChain hdChain;
+            hdChain.masterKeyID =
+                masterPubKey.GetID();
+            const spark::Params* const params =
+                spark::Params::get_default();
+            spark::SpendKey spendKey(params);
+            const spark::FullViewKey fullViewKey(
+                spendKey);
+            const std::string privateRecordSentinel{
+                "SPARK-PRIVATE-RECORD-SENTINEL"};
+            {
+                CWalletDB writer(*source);
+                BOOST_REQUIRE(writer.TxnBegin());
+                if (!firstRun) {
+                    BOOST_REQUIRE(writer.WriteKey(
+                        masterPubKey,
+                        masterKey.GetPrivKey(),
+                        CKeyMetadata{1700000472}));
+                    BOOST_REQUIRE(
+                        writer.WriteDefaultKey(
+                            masterPubKey));
+                    BOOST_REQUIRE(
+                        writer.WriteHDChain(
+                            hdChain));
+                }
+                BOOST_REQUIRE(
+                    writer.writeFullViewKey(
+                        fullViewKey));
+                if (index != 0 && !firstRun) {
+                    BOOST_REQUIRE(
+                        writer.writeDiversifier(0));
+                }
+                BOOST_REQUIRE(
+                    writer.WriteKV(
+                        "spark-private-sentinel",
+                        privateRecordSentinel));
+                BOOST_REQUIRE(writer.TxnCommit());
+            }
+
+            if (index == 1) {
+                std::unique_ptr<DatabaseBatch> batch =
+                    source->MakeBatch(
+                        {DatabaseBatchMode::READ_WRITE});
+                BOOST_REQUIRE(batch);
+                CDataStream key(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                key << std::string("div");
+                CDataStream value(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                value << uint8_t{1};
+                BOOST_REQUIRE(
+                    batch->WriteRawRecord(
+                        std::move(key),
+                        std::move(value),
+                        true));
+            } else if (index == 2) {
+                std::unique_ptr<DatabaseBatch> batch =
+                    source->MakeBatch(
+                        {DatabaseBatchMode::READ_WRITE});
+                BOOST_REQUIRE(batch);
+                CDataStream key(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                key << std::make_pair(
+                    std::string("sparkMint"),
+                    uint256S("01"));
+                CDataStream value(
+                    SER_DISK,
+                    CLIENT_VERSION);
+                value << int32_t{1};
+                value.write(
+                    privateRecordSentinel.data(),
+                    privateRecordSentinel.size());
+                BOOST_REQUIRE(
+                    batch->WriteRawRecord(
+                        std::move(key),
+                        std::move(value),
+                        false));
+            }
+
+            std::vector<RawRecord> expectedRecords;
+            {
+                std::unique_ptr<DatabaseBatch> batch =
+                    source->MakeBatch(
+                        {DatabaseBatchMode::READ_ONLY});
+                BOOST_REQUIRE(batch);
+                expectedRecords =
+                    ReadRawRecords(*batch);
+            }
+            BOOST_REQUIRE(
+                source->PeriodicFlush());
+            source.reset();
+            source =
+                ReopenBerkeleyForMigration(
+                    sourceFilename,
+                    error);
+            BOOST_REQUIRE_MESSAGE(source, error);
+
+            std::string backupPath;
+            BOOST_REQUIRE(
+                !MigrateWalletDatabaseToSQLite(
+                    *source,
+                    backupPath,
+                    error));
+            BOOST_REQUIRE(!backupPath.empty());
+            BOOST_CHECK(
+                error.find(
+                    "read-only Spark validation") !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(sourceFilename) !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(backupPath) !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(
+                    "Continue using the BDB wallet") !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(privateRecordSentinel) ==
+                std::string::npos);
+            BOOST_CHECK(!ShutdownRequested());
             BOOST_CHECK(
                 IsBerkeleyDatabase(
                     GetDataDir() /
