@@ -7,14 +7,17 @@ import hashlib
 import os
 import platform
 import re
+import shutil
 import stat
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
+    assert_raises_jsonrpc,
     bitcoind_processes,
     start_node,
     stop_node,
+    wait_node,
 )
 
 
@@ -178,6 +181,178 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         self.stop_wallet()
         return True
 
+    def exercise_backup_restore(self, wallet_format):
+        wallet_name = "wallet-backup-%s.dat" % wallet_format
+        restored_name = "wallet-backup-%s-restored.dat" % wallet_format
+        account = "backup-%s-before" % wallet_format
+        post_backup_account = "backup-%s-after" % wallet_format
+        restored_account = "backup-%s-restored-write" % wallet_format
+        passphrase = "backup-%s-passphrase" % wallet_format
+        message = "wallet backup private-key check"
+        backup_directory = os.path.join(
+            self.options.tmpdir,
+            "wallet-backup-%s" % wallet_format)
+        backup_path = os.path.join(
+            backup_directory,
+            "wallet.snapshot")
+        restored_path = self.wallet_path(restored_name)
+
+        assert not os.path.lexists(backup_directory)
+        os.mkdir(backup_directory, 0o700)
+        for path in (backup_path, restored_path):
+            for suffix in ("", "-journal", "-wal", "-shm"):
+                assert not os.path.lexists(path + suffix)
+
+        node = self.start_wallet([
+            "-wallet=" + wallet_name,
+            "-walletdbformat=" + wallet_format,
+        ])
+        assert_equal(
+            node.getwalletinfo()["format"],
+            wallet_format)
+        address = node.getnewaddress(account)
+        hd_master_key_id = node.getwalletinfo()["hdmasterkeyid"]
+        node.encryptwallet(passphrase)
+        wait_node(0)
+        self.nodes = []
+
+        node = self.start_wallet([
+            "-wallet=" + wallet_name,
+        ])
+        self.assert_wallet_state(
+            node,
+            wallet_format,
+            address,
+            account,
+            hd_master_key_id)
+        assert_raises_jsonrpc(
+            -13,
+            "Please enter the wallet passphrase with walletpassphrase first",
+            node.signmessage,
+            address,
+            message)
+        node.backupwallet(backup_path)
+
+        backup_stat = os.lstat(backup_path)
+        assert stat.S_ISREG(backup_stat.st_mode)
+        backup_hash = self.file_sha256(backup_path)
+        if wallet_format == "sqlite":
+            assert_equal(backup_stat.st_uid, os.geteuid())
+            assert_equal(backup_stat.st_nlink, 1)
+            assert_equal(
+                stat.S_IMODE(backup_stat.st_mode),
+                0o600)
+            for suffix in ("-journal", "-wal", "-shm"):
+                assert not os.path.lexists(backup_path + suffix)
+
+        node.walletpassphrase(passphrase, 120)
+        signature = node.signmessage(address, message)
+        assert node.verifymessage(
+            address,
+            signature,
+            message)
+        post_backup_address = node.getnewaddress(
+            post_backup_account)
+        node.walletlock()
+
+        if wallet_format == "sqlite":
+            entries_before_collision = set(
+                os.listdir(backup_directory))
+            expected_error = (
+                "Failed to back up SQLite wallet '%s' to '%s': "
+                "the destination path already exists. Choose a new absent "
+                "destination; SQLite wallet backups never overwrite an "
+                "existing path." % (wallet_name, backup_path))
+            assert_raises_jsonrpc(
+                -4,
+                expected_error,
+                node.backupwallet,
+                backup_path)
+            collision_stat = os.lstat(backup_path)
+            assert_equal(
+                collision_stat.st_dev,
+                backup_stat.st_dev)
+            assert_equal(
+                collision_stat.st_ino,
+                backup_stat.st_ino)
+            assert_equal(
+                collision_stat.st_nlink,
+                backup_stat.st_nlink)
+            assert_equal(
+                stat.S_IMODE(collision_stat.st_mode),
+                stat.S_IMODE(backup_stat.st_mode))
+            assert_equal(
+                self.file_sha256(backup_path),
+                backup_hash)
+            for suffix in ("-journal", "-wal", "-shm"):
+                assert not os.path.lexists(backup_path + suffix)
+            assert_equal(
+                set(os.listdir(backup_directory)),
+                entries_before_collision)
+        else:
+            node.backupwallet(backup_path)
+
+        self.stop_wallet()
+
+        shutil.copy2(backup_path, restored_path)
+        copied_stat = os.lstat(restored_path)
+        current_backup_stat = os.lstat(backup_path)
+        assert_equal(
+            stat.S_IMODE(copied_stat.st_mode),
+            stat.S_IMODE(current_backup_stat.st_mode))
+        if wallet_format == "sqlite":
+            assert_equal(copied_stat.st_uid, os.geteuid())
+            assert_equal(copied_stat.st_nlink, 1)
+            assert_equal(
+                stat.S_IMODE(copied_stat.st_mode),
+                0o600)
+        for suffix in ("-journal", "-wal", "-shm"):
+            assert not os.path.lexists(restored_path + suffix)
+
+        node = self.start_wallet([
+            "-wallet=" + restored_name,
+        ])
+        self.assert_wallet_state(
+            node,
+            wallet_format,
+            address,
+            account,
+            hd_master_key_id)
+        assert_raises_jsonrpc(
+            -13,
+            "Please enter the wallet passphrase with walletpassphrase first",
+            node.signmessage,
+            address,
+            message)
+        post_backup_addresses = node.getaddressesbyaccount(
+            post_backup_account)
+        if wallet_format == "sqlite":
+            assert post_backup_address not in post_backup_addresses
+        else:
+            assert post_backup_address in post_backup_addresses
+        node.walletpassphrase(passphrase, 120)
+        restored_signature = node.signmessage(
+            address,
+            message)
+        assert node.verifymessage(
+            address,
+            restored_signature,
+            message)
+        restored_address = node.getnewaddress(
+            restored_account)
+        self.stop_wallet()
+
+        node = self.start_wallet([
+            "-wallet=" + restored_name,
+        ])
+        self.assert_wallet_state(
+            node,
+            wallet_format,
+            restored_address,
+            restored_account,
+            hd_master_key_id)
+        self.stop_wallet()
+
     def run_test(self):
         if (
             os.name != "posix"
@@ -186,6 +361,7 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             return
 
         if not self.sqlite_wallet_supported():
+            self.exercise_backup_restore("bdb")
             bdb_only_wallet = "wallet-bdb-only-migration.dat"
             node = self.start_wallet([
                 "-wallet=" + bdb_only_wallet,
@@ -209,6 +385,9 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
                 bdb_only_state)
             assert_equal(self.migration_artifacts(), artifacts)
             return
+
+        self.exercise_backup_restore("sqlite")
+        self.exercise_backup_restore("bdb")
 
         missing_wallet = "wallet-migration-missing.dat"
         missing_state = self.wallet_database_state(

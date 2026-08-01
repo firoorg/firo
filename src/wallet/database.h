@@ -273,6 +273,25 @@ public:
     virtual bool Rewrite(const char* skip = nullptr) = 0;
     /** Write a consistent live snapshot to destination. */
     virtual bool Backup(const std::string& destination) = 0;
+    /** Write a consistent live snapshot and return an actionable failure. */
+    virtual bool Backup(
+        const std::string& destination,
+        std::string& error)
+    {
+        error.clear();
+        const bool success = Backup(destination);
+        if (!success) {
+            error =
+                "Failed to back up " +
+                std::string(DatabaseFormatName(Format())) +
+                " wallet '" + Filename() + "' to '" + destination +
+                "': the backend did not provide a specific failure. Keep "
+                "the source wallet, inspect any destination artifact, and "
+                "retry to a different path after correcting its type and "
+                "permissions.";
+        }
+        return success;
+    }
     /** Exact retained backup path after successful automatic recovery. */
     virtual std::string RecoveryBackupPath() const { return {}; }
     virtual bool PeriodicFlush() = 0;

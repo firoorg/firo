@@ -6443,9 +6443,25 @@ bool CWallet::ParameterInteraction()
 
 bool CWallet::BackupWallet(const std::string& strDest)
 {
-    if (!fFileBacked)
+    std::string error;
+    return BackupWallet(strDest, error);
+}
+
+bool CWallet::BackupWallet(
+    const std::string& strDest,
+    std::string& error)
+{
+    error.clear();
+    if (!fFileBacked) {
+        error = strprintf(
+            "Failed to back up %s wallet '%s' to '%s': the wallet is not "
+            "file-backed. Select a file-backed wallet and retry.",
+            DatabaseFormatName(GetDatabase().Format()),
+            strWalletFile,
+            strDest);
         return false;
-    return GetDatabase().Backup(strDest);
+    }
+    return GetDatabase().Backup(strDest, error);
 }
 
 bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)

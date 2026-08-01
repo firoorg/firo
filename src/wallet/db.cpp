@@ -1367,7 +1367,23 @@ bool BerkeleyDatabase::Rewrite(const char* skip)
 
 bool BerkeleyDatabase::Backup(const std::string& destination)
 {
+    std::string error;
+    return Backup(destination, error);
+}
+
+bool BerkeleyDatabase::Backup(
+    const std::string& destination,
+    std::string& error)
+{
+    error.clear();
     if (!m_env || m_filename.empty()) {
+        error = strprintf(
+            "Failed to back up BDB wallet '%s' to '%s': the database "
+            "backend is unavailable. Select an open, file-backed wallet and "
+            "retry; the source wallet was not replaced.",
+            m_filename,
+            destination);
+        LogPrintf("%s\n", error);
         return false;
     }
     while (true) {
@@ -1378,13 +1394,15 @@ bool BerkeleyDatabase::Backup(const std::string& destination)
                 m_env->CheckpointLSN(m_filename);
                 m_env->mapFileUseCount.erase(m_filename);
 
-                boost::filesystem::path source = GetDataDir() / m_filename;
-                boost::filesystem::path target(destination);
-                if (boost::filesystem::is_directory(target)) {
-                    target /= m_filename;
-                }
-
+                std::string targetDescription = destination;
                 try {
+                    const boost::filesystem::path source =
+                        GetDataDir() / m_filename;
+                    boost::filesystem::path target(destination);
+                    if (boost::filesystem::is_directory(target)) {
+                        target /= m_filename;
+                    }
+                    targetDescription = target.string();
 #if BOOST_VERSION >= 104000
                     const auto copyOptions = boost::filesystem::copy_options::overwrite_existing;
                     boost::filesystem::copy(source, target, copyOptions);
@@ -1393,8 +1411,41 @@ bool BerkeleyDatabase::Backup(const std::string& destination)
 #endif
                     LogPrintf("copied %s to %s\n", m_filename, target.string());
                     return true;
-                } catch (const boost::filesystem::filesystem_error& error) {
-                    LogPrintf("error copying %s to %s - %s\n", m_filename, target.string(), error.what());
+                } catch (const boost::filesystem::filesystem_error& exception) {
+                    error = strprintf(
+                        "Failed to back up BDB wallet '%s' to '%s': %s "
+                        "The source wallet remains authoritative, but the "
+                        "destination may be partial or changed. Retain the "
+                        "source, inspect the destination, and retry to a "
+                        "different path after correcting its permissions.",
+                        m_filename,
+                        targetDescription,
+                        exception.what());
+                    LogPrintf("%s\n", error);
+                    return false;
+                } catch (const std::exception& exception) {
+                    error = strprintf(
+                        "Failed to back up BDB wallet '%s' to '%s': %s "
+                        "The source wallet remains authoritative, but the "
+                        "destination may be partial or changed. Retain the "
+                        "source, inspect the destination, and retry to a "
+                        "different path after correcting its permissions.",
+                        m_filename,
+                        targetDescription,
+                        exception.what());
+                    LogPrintf("%s\n", error);
+                    return false;
+                } catch (...) {
+                    error = strprintf(
+                        "Failed to back up BDB wallet '%s' to '%s': an "
+                        "unknown filesystem failure occurred. The source "
+                        "wallet remains authoritative, but the destination "
+                        "may be partial or changed. Retain the source, "
+                        "inspect the destination, and retry to a different "
+                        "path after correcting its permissions.",
+                        m_filename,
+                        targetDescription);
+                    LogPrintf("%s\n", error);
                     return false;
                 }
             }

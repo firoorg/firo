@@ -91,6 +91,8 @@ sqlite3* g_sqlite_first_abandoned_connection{nullptr};
 size_t g_sqlite_abandoned_connection_count{0};
 std::atomic<bool> g_fail_post_publish_once{false};
 std::atomic<bool> g_report_publish_error_after_rename_once{false};
+std::atomic<bool> g_report_backup_collision_once{false};
+std::atomic<bool> g_fail_backup_collision_cleanup_once{false};
 std::atomic<bool> g_report_migration_exchange_error_once{false};
 std::atomic<bool> g_report_rewrite_commit_error_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
@@ -103,6 +105,16 @@ bool ConsumePostPublishFailure()
 bool ConsumePublishErrorAfterRename()
 {
     return g_report_publish_error_after_rename_once.exchange(false);
+}
+
+bool ConsumeBackupPublicationCollision()
+{
+    return g_report_backup_collision_once.exchange(false);
+}
+
+bool ConsumeBackupCollisionCleanupFailure()
+{
+    return g_fail_backup_collision_cleanup_once.exchange(false);
 }
 
 bool ConsumeMigrationExchangeError()
@@ -1764,64 +1776,87 @@ bool RemoveOwnedPath(
 #endif
 }
 
-void RemoveOwnedCandidate(const OwnedCandidate& candidate) noexcept
+bool RemoveOwnedCandidate(
+    const OwnedCandidate& candidate,
+    std::string& error) noexcept
 {
+    error.clear();
 #ifndef WIN32
-    std::string error;
     struct stat metadata{};
     if (lstat(candidate.path.string().c_str(), &metadata) != 0) {
-        if (errno != ENOENT) {
-            LogPrintf(
-                "SQLiteDatabase: Failed to inspect candidate '%s': %s\n",
-                candidate.path.string(),
-                std::strerror(errno));
+        if (errno == ENOENT) {
+            return true;
         }
-        return;
+        error = strprintf(
+            "Failed to inspect owned SQLite candidate '%s': %s",
+            candidate.path.string(),
+            std::strerror(errno));
+        return false;
     }
     if (!candidate.cleanup_allowed ||
         g_sqlite_has_abandoned_connection.load()) {
-        LogPrintf(
-            "SQLiteDatabase: Leaving candidate '%s' because a connection "
-            "lifecycle failure made cleanup unsafe.\n",
+        error = strprintf(
+            "Refusing to remove owned SQLite candidate '%s' because a "
+            "connection lifecycle failure made cleanup unsafe.",
             candidate.path.string());
-        return;
+        return false;
     }
     if (!candidate.valid ||
         !PathIdentityMatches(candidate.path, candidate.identity)) {
-        LogPrintf(
-            "SQLiteDatabase: Leaving candidate '%s' because its ownership identity changed.\n",
+        error = strprintf(
+            "Refusing to remove owned SQLite candidate '%s' because its "
+            "ownership identity changed.",
             candidate.path.string());
-        return;
+        return false;
     }
 
-    if (!CheckAuxiliaryFiles(candidate.path, false, error)) {
-        LogPrintf(
-            "SQLiteDatabase: Leaving candidate '%s' because auxiliary state "
-            "exists and its provenance cannot be proven: %s\n",
+    std::string detail;
+    if (!CheckAuxiliaryFiles(candidate.path, false, detail)) {
+        error = strprintf(
+            "Refusing to remove owned SQLite candidate '%s' because "
+            "auxiliary state exists and its provenance cannot be proven: %s",
             candidate.path.string(),
-            error);
-        return;
+            detail);
+        return false;
     }
-    if (!RemoveOwnedPath(candidate.path, candidate.identity, error)) {
-        LogPrintf(
-            "SQLiteDatabase: Failed to remove candidate '%s': %s\n",
+    if (!RemoveOwnedPath(candidate.path, candidate.identity, detail)) {
+        error = strprintf(
+            "Failed to remove owned SQLite candidate '%s': %s",
             candidate.path.string(),
-            error);
-        return;
+            detail);
+        return false;
     }
 
     const fs::path parent =
         candidate.path.parent_path().empty() ?
             fs::path(".") :
             candidate.path.parent_path();
-    if (!SyncDirectory(parent, error)) {
-        LogPrintf(
-            "SQLiteDatabase: Failed to synchronize candidate cleanup: %s\n",
-            error);
+    if (!SyncDirectory(parent, detail)) {
+        error = strprintf(
+            "Removed owned SQLite candidate '%s', but failed to synchronize "
+            "its parent directory '%s': %s",
+            candidate.path.string(),
+            parent.string(),
+            detail);
+        return false;
     }
+    return true;
 #else
     (void)candidate;
+    error =
+        "Secure removal of an owned SQLite candidate is unavailable on Windows.";
+    return false;
 #endif
+}
+
+void RemoveOwnedCandidate(const OwnedCandidate& candidate) noexcept
+{
+    std::string error;
+    if (!RemoveOwnedCandidate(candidate, error)) {
+        LogPrintf(
+            "SQLiteDatabase: Candidate cleanup could not be proven: %s\n",
+            error);
+    }
 }
 
 bool RemovePublishedCandidate(
@@ -3513,6 +3548,9 @@ public:
     DatabaseCreationResult CompleteCreation(std::string& error) override;
     bool Rewrite(const char* skip) override;
     bool Backup(const std::string& destination) override;
+    bool Backup(
+        const std::string& destination,
+        std::string& error) override;
     bool PeriodicFlush() override;
     void Flush(bool shutdown) override;
 
@@ -5304,49 +5342,105 @@ bool SQLiteDatabase::Rewrite(const char* skip)
 
 bool SQLiteDatabase::Backup(const std::string& destination)
 {
+    std::string error;
+    return Backup(destination, error);
+}
+
+bool SQLiteDatabase::Backup(
+    const std::string& destination,
+    std::string& backup_error)
+{
+    backup_error.clear();
 #ifdef WIN32
-    LogPrintf(
-        "SQLiteDatabase: Backup is disabled on Windows until secure "
-        "candidate DACL and reparse-point handling is implemented.\n");
+    backup_error = strprintf(
+        "Failed to back up SQLite wallet '%s' to '%s': secure SQLite "
+        "backup is unavailable on Windows until owner-only DACL and "
+        "reparse-point handling is implemented. Keep the source wallet and "
+        "use a supported Linux or macOS build to create the backup.",
+        m_filename,
+        destination);
+    LogPrintf("SQLiteDatabase: %s\n", backup_error);
     return false;
 #else
     fs::path destination_path(destination);
-    fs::file_status destination_status;
-    std::string error;
-    if (!GetPathStatus(destination_path, destination_status, error)) {
-        LogPrintf("SQLiteDatabase: Failed to inspect backup destination: %s\n", error);
+    auto fail = [&](const std::string& detail, const char* action) {
+        backup_error = strprintf(
+            "Failed to back up SQLite wallet '%s' to '%s': %s %s",
+            m_filename,
+            destination_path.string(),
+            detail,
+            action);
+        LogPrintf("SQLiteDatabase: %s\n", backup_error);
         return false;
+    };
+    const char* const retry_action =
+        "The source wallet was not replaced. Correct the reported condition, "
+        "inspect any destination artifact, and retry with a new absent "
+        "destination path.";
+    const char* const collision_action =
+        "Choose a new absent destination; SQLite wallet backups never "
+        "overwrite an existing path.";
+    if (destination_path.empty()) {
+        return fail(
+            "the destination path is empty.",
+            "Choose a new nonempty destination path.");
+    }
+
+    fs::file_status destination_status;
+    std::string detail;
+    if (!GetPathStatus(destination_path, destination_status, detail)) {
+        return fail(detail, retry_action);
     }
     if (destination_status.type() == fs::directory_file) {
         destination_path /= m_filename;
     } else if (destination_status.type() != fs::file_not_found) {
-        return false;
-    }
-    if (destination_path.empty()) {
-        return false;
+        return fail(
+            "the destination path already exists.",
+            collision_action);
     }
 
     std::unique_lock<std::mutex> writer_lock(m_writer_mutex);
     std::shared_lock<std::shared_mutex> connection_lock(m_connection_mutex);
     if (!m_database || !m_usable.load() || m_poisoned.load()) {
-        return false;
+        return fail(
+            "the live SQLite database is closed, unusable, or quarantined.",
+            "Keep the source wallet in place, restart Firo, and retry with a "
+            "new absent destination only after the wallet opens cleanly.");
     }
 
     fs::file_status target_status;
-    if (!GetPathStatus(destination_path, target_status, error) ||
-        target_status.type() != fs::file_not_found) {
-        return false;
+    if (!GetPathStatus(destination_path, target_status, detail)) {
+        return fail(detail, retry_action);
     }
-    if (!CheckAuxiliaryFiles(destination_path, false, error)) {
-        LogPrintf("SQLiteDatabase: Refusing backup destination: %s\n", error);
-        return false;
+    if (target_status.type() != fs::file_not_found) {
+        return fail(
+            "the destination path already exists.",
+            collision_action);
+    }
+    if (!CheckAuxiliaryFiles(destination_path, false, detail)) {
+        return fail(
+            detail,
+            "Choose a new absent destination with no -journal, -wal, or "
+            "-shm side files.");
     }
     OwnedCandidate candidate;
-    if (CreateOwnedCandidate(destination_path, candidate, error) !=
+    if (CreateOwnedCandidate(destination_path, candidate, detail) !=
         CandidateResult::SUCCESS) {
-        LogPrintf("SQLiteDatabase: Failed to create backup candidate: %s\n", error);
-        return false;
+        return fail(detail, retry_action);
     }
+    bool restart_required = false;
+    auto record_lifecycle_failure = [&]() {
+        if (restart_required) {
+            return;
+        }
+        restart_required = true;
+        detail += strprintf(
+            "%sSQLite could not prove cleanup of candidate '%s' or "
+            "destination '%s' after a connection lifecycle failure.",
+            detail.empty() ? "" : " ",
+            candidate.path.string(),
+            destination_path.string());
+    };
 
     bool success = false;
     sqlite3* backup_database = nullptr;
@@ -5378,15 +5472,15 @@ bool SQLiteDatabase::Backup(const std::string& destination)
         if (OpenSQLiteConnection(
                 candidate.path,
                 backup_database,
-                error,
+                detail,
                 &candidate.identity,
                 &candidate.cleanup_allowed) &&
-            SetConnectionPragmas(backup_database, error) &&
+            SetConnectionPragmas(backup_database, detail) &&
             ConnectionIdentityMatches(
                 backup_database,
                 candidate.path,
                 candidate.identity,
-                error)) {
+                detail)) {
             backup = sqlite3_backup_init(
                 backup_database,
                 "main",
@@ -5401,15 +5495,15 @@ bool SQLiteDatabase::Backup(const std::string& destination)
                 success =
                     step_result == SQLITE_DONE &&
                     finish_result == SQLITE_OK &&
-                    VerifyDatabase(backup_database, error);
-                if (!success && error.empty()) {
-                    error = strprintf(
+                    VerifyDatabase(backup_database, detail);
+                if (!success && detail.empty()) {
+                    detail = strprintf(
                         "Failed to copy SQLite backup (step error %d, finish error %d).",
                         step_result,
                         finish_result);
                 }
             } else {
-                error = strprintf(
+                detail = strprintf(
                     "Failed to initialize SQLite backup: %s",
                     sqlite3_errmsg(backup_database));
             }
@@ -5425,28 +5519,40 @@ bool SQLiteDatabase::Backup(const std::string& destination)
                 &candidate.cleanup_allowed);
         if (!backup_closed) {
             success = false;
-            error = "Failed to close the SQLite backup candidate connection.";
+            detail = "Failed to close the SQLite backup candidate connection.";
         }
         if (!candidate.cleanup_allowed) {
             success = false;
             Poison();
+            record_lifecycle_failure();
         }
         if (success &&
-            !CheckAuxiliaryFiles(candidate.path, false, error)) {
+            !CheckAuxiliaryFiles(candidate.path, false, detail)) {
             success = false;
         }
 
         if (success) {
-            publish_result =
-                PublishCandidate(
-                    candidate,
-                    destination_path,
-                    error);
+            if (ConsumeBackupCollisionCleanupFailure()) {
+                publish_result = PublishResult::EXISTS;
+                candidate.cleanup_allowed = false;
+            } else if (ConsumeBackupPublicationCollision()) {
+                publish_result = PublishResult::EXISTS;
+            } else {
+                publish_result =
+                    PublishCandidate(
+                        candidate,
+                        destination_path,
+                        detail);
+            }
             success =
                 publish_result == PublishResult::SUCCESS;
+            if (publish_result == PublishResult::EXISTS) {
+                detail =
+                    "the destination path appeared concurrently and was not overwritten.";
+            }
         }
         if (success && ConsumePostPublishFailure()) {
-            error =
+            detail =
                 "Injected failure after publishing SQLite backup candidate.";
             success = false;
         }
@@ -5458,7 +5564,7 @@ bool SQLiteDatabase::Backup(const std::string& destination)
                     candidate.descriptor,
                     destination_path,
                     published_identity,
-                    error) &&
+                    detail) &&
                 DescriptorIdentityMatches(
                     candidate.descriptor,
                     candidate.identity) &&
@@ -5468,39 +5574,46 @@ bool SQLiteDatabase::Backup(const std::string& destination)
                 OpenSQLiteConnection(
                     destination_path,
                     published_database,
-                    error,
+                    detail,
                     &candidate.identity,
                     &candidate.cleanup_allowed) &&
-                VerifyDatabase(published_database, error) &&
-                SetConnectionPragmas(published_database, error) &&
+                VerifyDatabase(published_database, detail) &&
+                SetConnectionPragmas(published_database, detail) &&
                 ConnectionIdentityMatches(
                     published_database,
                     destination_path,
                     candidate.identity,
-                    error) &&
-                VerifyDatabase(published_database, error);
+                    detail) &&
+                VerifyDatabase(published_database, detail);
             const bool published_closed =
                 CloseOrAbandonSQLiteConnection(
                     published_database,
                     &candidate.cleanup_allowed);
             if (!published_closed) {
                 success = false;
-                error =
+                detail =
                     "Failed to close the published SQLite backup verification connection.";
             }
             if (!candidate.cleanup_allowed) {
                 success = false;
                 Poison();
+                record_lifecycle_failure();
             }
         }
     } catch (const std::exception& exception) {
         close_after_exception();
-        error = strprintf(
+        detail = strprintf(
             "SQLite backup failed with an exception: %s",
             exception.what());
+        if (!candidate.cleanup_allowed) {
+            record_lifecycle_failure();
+        }
     } catch (...) {
         close_after_exception();
-        error = "SQLite backup failed with an unknown exception.";
+        detail = "SQLite backup failed with an unknown exception.";
+        if (!candidate.cleanup_allowed) {
+            record_lifecycle_failure();
+        }
     }
 
     if (!success &&
@@ -5511,17 +5624,41 @@ bool SQLiteDatabase::Backup(const std::string& destination)
                 candidate,
                 destination_path,
                 cleanup_error)) {
-            error += strprintf(
+            detail += strprintf(
                 "%sFailed to remove the published SQLite backup safely: %s",
-                error.empty() ? "" : " ",
+                detail.empty() ? "" : " ",
                 cleanup_error);
+            restart_required = true;
         }
     }
-    RemoveOwnedCandidate(candidate);
-    if (!success && !error.empty()) {
-        LogPrintf("SQLiteDatabase: Backup failed: %s\n", error);
+    std::string candidate_cleanup_error;
+    if (!RemoveOwnedCandidate(
+            candidate,
+            candidate_cleanup_error)) {
+        detail += strprintf(
+            "%sSQLite could not prove cleanup of owned backup candidate "
+            "'%s': %s",
+            detail.empty() ? "" : " ",
+            candidate.path.string(),
+            candidate_cleanup_error);
+        restart_required = true;
     }
-    return success;
+    if (!success) {
+        if (detail.empty()) {
+            detail = "the backend did not provide a more specific failure.";
+        }
+        return fail(
+            detail,
+            restart_required ?
+                "Keep the source wallet and all reported artifacts, restart "
+                "Firo, and retry with a new absent destination only after "
+                "the wallet opens cleanly." :
+            publish_result == PublishResult::EXISTS ?
+                collision_action :
+                retry_action);
+    }
+    backup_error.clear();
+    return true;
 #endif
 }
 
@@ -6631,6 +6768,16 @@ void InjectSQLiteAmbiguousPublishFailureForTesting()
     g_report_publish_error_after_rename_once.store(true);
 }
 
+void InjectSQLiteBackupPublicationCollisionForTesting()
+{
+    g_report_backup_collision_once.store(true);
+}
+
+void InjectSQLiteBackupCollisionCleanupFailureForTesting()
+{
+    g_fail_backup_collision_cleanup_once.store(true);
+}
+
 void InjectSQLiteMigrationExchangeFailureForTesting()
 {
     g_report_migration_exchange_error_once.store(true);
@@ -6666,6 +6813,8 @@ bool ResetSQLiteLifecycleForTesting()
     g_fail_close_after_successes.store(-1);
     g_fail_post_publish_once.store(false);
     g_report_publish_error_after_rename_once.store(false);
+    g_report_backup_collision_once.store(false);
+    g_fail_backup_collision_cleanup_once.store(false);
     g_report_migration_exchange_error_once.store(false);
     if (sqlite3_close(abandoned_connection) != SQLITE_OK) {
         return false;

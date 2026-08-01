@@ -91,6 +91,11 @@ public:
     {
         bitdb.Close();
         bitdb.Reset();
+        {
+            LOCK(bitdb.cs_db);
+            bitdb.mapDb.clear();
+            bitdb.mapFileUseCount.clear();
+        }
         ClearDatadirCache();
         m_path = GetTempPath() / strprintf("wallet_database_policy_%d_%d", GetTime(), GetRand(100000));
         fs::create_directories(m_path);
@@ -100,8 +105,14 @@ public:
 
     ~WalletDatabasePathTestingSetup()
     {
+        bitdb.Flush(true);
         bitdb.Close();
         bitdb.Reset();
+        {
+            LOCK(bitdb.cs_db);
+            bitdb.mapDb.clear();
+            bitdb.mapFileUseCount.clear();
+        }
         ClearDatadirCache();
         fs::remove_all(m_path);
     }
@@ -848,6 +859,18 @@ bool HasSQLiteTestCandidate(const std::string& filename)
         }
     }
     return false;
+}
+
+std::set<std::string> SQLiteTestDirectoryEntries()
+{
+    std::set<std::string> entries;
+    for (fs::directory_iterator entry(GetDataDir()), end;
+        entry != end;
+        ++entry) {
+        entries.insert(
+            entry->path().filename().string());
+    }
+    return entries;
 }
 
 void RemoveSQLiteTestCandidates(const std::string& filename)
@@ -2526,6 +2549,76 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
         BOOST_CHECK(!batch.Exists(std::make_pair(std::string("pool"), int64_t{1})));
     }
 
+    const std::string backupFilename{
+        "database_batch_test.backup"};
+    const fs::path backupPath =
+        GetDataDir() / backupFilename;
+    std::string backupError{"unchanged"};
+    BOOST_REQUIRE(database.Backup(
+        backupPath.string(),
+        backupError));
+    BOOST_CHECK(backupError.empty());
+    const std::string firstBackup =
+        ReadFile(backupPath);
+    {
+        BerkeleyBatchForTest batch(database, "r+");
+        BOOST_REQUIRE(batch.Write(
+            std::string("after-first-backup"),
+            std::string("overwritten-backup-value")));
+    }
+    backupError = "unchanged";
+    BOOST_REQUIRE(database.Backup(
+        backupPath.string(),
+        backupError));
+    BOOST_CHECK(backupError.empty());
+    BOOST_CHECK(
+        ReadFile(backupPath) != firstBackup);
+    BOOST_CHECK(
+        ReadFile(backupPath) ==
+        ReadFile(GetDataDir() / filename));
+
+    const fs::path backupDirectory =
+        GetDataDir() / "database-backup-directory";
+    const fs::path directoryBackupPath =
+        backupDirectory / filename;
+    BOOST_REQUIRE(fs::create_directory(backupDirectory));
+    backupError = "unchanged";
+    BOOST_REQUIRE(database.Backup(
+        backupDirectory.string(),
+        backupError));
+    BOOST_CHECK(backupError.empty());
+    BOOST_CHECK(
+        ReadFile(directoryBackupPath) ==
+        ReadFile(GetDataDir() / filename));
+
+    const fs::path missingParent =
+        GetDataDir() / "missing-backup-parent";
+    const fs::path failedBackup =
+        missingParent / "database.backup";
+    BOOST_CHECK(!fs::exists(missingParent));
+    backupError = "unchanged";
+    BOOST_CHECK(!database.Backup(
+        failedBackup.string(),
+        backupError));
+    BOOST_CHECK(
+        backupError.find("BDB wallet") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(filename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(failedBackup.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("destination may be partial or changed") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(binaryKey) ==
+        std::string::npos);
+
+    BOOST_CHECK(fs::remove(directoryBackupPath));
+    BOOST_CHECK(fs::remove(backupDirectory));
+    BOOST_CHECK(fs::remove(backupPath));
     BOOST_CHECK(bitdb.RemoveDb(filename));
 }
 
@@ -2537,12 +2630,18 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     const fs::path path = GetDataDir() / filename;
     const fs::path journalPath = path.string() + "-journal";
     const fs::path backupPath = GetDataDir() / backupFilename;
+    const std::string publicationCollisionFilename{
+        "sqlite_batch_publish_collision.backup"};
+    const fs::path publicationCollisionPath =
+        GetDataDir() / publicationCollisionFilename;
     const fs::path backupDirectory = GetDataDir() / "sqlite_backup_directory";
     const fs::path directoryBackupPath = backupDirectory / filename;
     const std::string binaryKey{"key\0\xff", 5};
     const std::string binaryValue{"value\0\xff", 7};
     RemoveSQLiteTestFiles(filename);
     RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestFiles(publicationCollisionFilename);
+    RemoveSQLiteTestCandidates(publicationCollisionFilename);
     fs::remove_all(backupDirectory);
 
     DatabaseOptions createOptions;
@@ -2972,11 +3071,68 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
         BOOST_CHECK_EQUAL(fs::file_size(journalPath), 0U);
     }
 
-    BOOST_REQUIRE(database->Backup(backupPath.string()));
+    std::string backupError{"unchanged"};
+    BOOST_REQUIRE(database->Backup(
+        backupPath.string(),
+        backupError));
+    BOOST_CHECK(backupError.empty());
     BOOST_REQUIRE(fs::is_regular_file(backupPath));
     const std::string firstBackup = ReadFile(backupPath);
-    BOOST_CHECK(!database->Backup(backupPath.string()));
+    const std::set<std::string> entriesBeforeCollision =
+        SQLiteTestDirectoryEntries();
+    backupError = "unchanged";
+    BOOST_CHECK(!database->Backup(
+        backupPath.string(),
+        backupError));
+    BOOST_CHECK(
+        backupError.find("SQLite wallet") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(filename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(backupPath.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("new absent destination") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(binaryKey) ==
+        std::string::npos);
     BOOST_CHECK_EQUAL(ReadFile(backupPath), firstBackup);
+    for (const char* suffix : {"-journal", "-wal", "-shm"}) {
+        BOOST_CHECK(!fs::exists(backupPath.string() + suffix));
+    }
+    BOOST_CHECK(
+        SQLiteTestDirectoryEntries() ==
+        entriesBeforeCollision);
+
+    const std::set<std::string> entriesBeforePublicationCollision =
+        SQLiteTestDirectoryEntries();
+    InjectSQLiteBackupPublicationCollisionForTesting();
+    backupError = "unchanged";
+    BOOST_CHECK(!database->Backup(
+        publicationCollisionPath.string(),
+        backupError));
+    const std::string expectedPublicationCollisionError =
+        strprintf(
+            "Failed to back up SQLite wallet '%s' to '%s': the destination "
+            "path appeared concurrently and was not overwritten. Choose a "
+            "new absent destination; SQLite wallet backups never overwrite "
+            "an existing path.",
+            filename,
+            publicationCollisionPath.string());
+    BOOST_CHECK_EQUAL(
+        backupError,
+        expectedPublicationCollisionError);
+    BOOST_CHECK(!fs::exists(publicationCollisionPath));
+    for (const char* suffix : {"-journal", "-wal", "-shm"}) {
+        BOOST_CHECK(!fs::exists(
+            publicationCollisionPath.string() + suffix));
+    }
+    BOOST_CHECK(
+        SQLiteTestDirectoryEntries() ==
+        entriesBeforePublicationCollision);
 #ifndef WIN32
     BOOST_CHECK_EQUAL(
         fs::status(backupPath).permissions() & (fs::group_all | fs::others_all),
@@ -3019,6 +3175,8 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
 
     RemoveSQLiteTestFiles(filename);
     RemoveSQLiteTestFiles(backupFilename);
+    RemoveSQLiteTestFiles(publicationCollisionFilename);
+    RemoveSQLiteTestCandidates(publicationCollisionFilename);
     fs::remove_all(backupDirectory);
 }
 
@@ -3549,8 +3707,18 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     batch.reset();
 
     InjectSQLitePostPublishFailureForTesting();
+    std::string backupError{"unchanged"};
     BOOST_CHECK(!database->Backup(
-        (GetDataDir() / backupFilename).string()));
+        (GetDataDir() / backupFilename).string(),
+        backupError));
+    BOOST_CHECK(!backupError.empty());
+    BOOST_CHECK_NE(backupError, "unchanged");
+    BOOST_CHECK(
+        backupError.find(sourceFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(backupFilename) !=
+        std::string::npos);
     BOOST_CHECK(!fs::exists(GetDataDir() / backupFilename));
     BOOST_CHECK(!fs::exists(
         (GetDataDir() / backupFilename).string() + "-journal"));
@@ -3580,11 +3748,14 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
         "sqlite_failed_close_backup_source.dat"};
     const std::string backupFilename{
         "sqlite_failed_close_backup.dat"};
+    const std::string collisionBackupFilename{
+        "sqlite_failed_collision_cleanup_backup.dat"};
     for (const std::string& filename : {
              prePublishFilename,
              postPublishFilename,
              sourceFilename,
-             backupFilename}) {
+             backupFilename,
+             collisionBackupFilename}) {
         RemoveSQLiteTestFiles(filename);
         RemoveSQLiteTestCandidates(filename);
     }
@@ -3636,9 +3807,74 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
             std::string("preserved")));
     }
 
-    InjectSQLiteCloseFailureForTesting(1);
+    const std::set<std::string> entriesBeforeInjectedFailure =
+        SQLiteTestDirectoryEntries();
+    InjectSQLiteBackupCollisionCleanupFailureForTesting();
+    std::string collisionError{"unchanged"};
     BOOST_CHECK(!database->Backup(
-        (GetDataDir() / backupFilename).string()));
+        (GetDataDir() / collisionBackupFilename).string(),
+        collisionError));
+    BOOST_CHECK(
+        collisionError.find(sourceFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        collisionError.find(collisionBackupFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        collisionError.find("appeared concurrently") !=
+        std::string::npos);
+    BOOST_CHECK(
+        collisionError.find("could not prove cleanup of owned backup candidate") !=
+        std::string::npos);
+    BOOST_CHECK(
+        collisionError.find("restart Firo") !=
+        std::string::npos);
+    BOOST_CHECK(
+        collisionError.find("all reported artifacts") !=
+        std::string::npos);
+    BOOST_CHECK(
+        collisionError.find("preserved") ==
+        std::string::npos);
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() / collisionBackupFilename));
+    const std::set<std::string> entriesAfterInjectedFailure =
+        SQLiteTestDirectoryEntries();
+    std::vector<std::string> retainedEntries;
+    for (const std::string& entry :
+        entriesAfterInjectedFailure) {
+        if (entriesBeforeInjectedFailure.count(entry) == 0) {
+            retainedEntries.push_back(entry);
+        }
+    }
+    BOOST_REQUIRE_EQUAL(retainedEntries.size(), 1U);
+    const fs::path retainedPath =
+        GetDataDir() / retainedEntries.front();
+    BOOST_CHECK(fs::is_regular_file(retainedPath));
+    BOOST_CHECK(
+        collisionError.find(retainedPath.string()) !=
+        std::string::npos);
+    BOOST_CHECK(fs::remove(retainedPath));
+
+    InjectSQLiteCloseFailureForTesting(1);
+    std::string backupError{"unchanged"};
+    BOOST_CHECK(!database->Backup(
+        (GetDataDir() / backupFilename).string(),
+        backupError));
+    BOOST_CHECK(
+        backupError.find(sourceFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find(backupFilename) !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("could not prove cleanup of candidate") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("restart Firo") !=
+        std::string::npos);
+    BOOST_CHECK(
+        backupError.find("preserved") ==
+        std::string::npos);
     BOOST_CHECK(fs::exists(GetDataDir() / backupFilename));
     BOOST_CHECK(!HasSQLiteTestCandidate(backupFilename));
     BOOST_CHECK_THROW(
@@ -3669,7 +3905,8 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
              prePublishFilename,
              postPublishFilename,
              sourceFilename,
-             backupFilename}) {
+             backupFilename,
+             collisionBackupFilename}) {
         RemoveSQLiteTestFiles(filename);
         RemoveSQLiteTestCandidates(filename);
     }
@@ -6126,87 +6363,256 @@ BOOST_AUTO_TEST_CASE(wallet_record_logical_parity)
     }
 }
 
-BOOST_AUTO_TEST_CASE(wallet_mnemonic_encryption_persists)
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_CASE(
+    wallet_mnemonic_encryption_persists,
+    WalletDatabasePathTestingSetup)
 {
-    const std::string filename{"wallet_mnemonic_encryption_test.dat"};
     const SecureString passphrase{"test passphrase"};
     const SecureString newPassphrase{"new test passphrase"};
     const SecureString finalPassphrase{"final test passphrase"};
     const SecureString wrongPassphrase{"wrong test passphrase"};
-    SecureString expectedMnemonic;
-    SecureVector expectedSeed;
+    const std::vector<DatabaseFormat> formats{
+        DatabaseFormat::BERKELEY,
+#ifdef USE_SQLITE
+        DatabaseFormat::SQLITE,
+#endif
+    };
 
-    {
-        CWallet wallet(MakeBerkeleyDatabase(bitdb, filename));
-        bool firstRun;
-        BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
-        BOOST_REQUIRE(firstRun);
-
-        wallet.GenerateNewMnemonic();
-        CPubKey defaultKey;
+    for (const DatabaseFormat format : formats) {
+        BOOST_TEST_CONTEXT(
+            "wallet format " << DatabaseFormatName(format))
         {
-            LOCK(wallet.cs_wallet);
-            defaultKey = wallet.GenerateNewKey();
+            const std::string filename = strprintf(
+                "wallet_mnemonic_encryption_%s.dat",
+                DatabaseFormatName(format));
+            const std::string backupFilename = strprintf(
+                "wallet_mnemonic_encryption_%s.backup",
+                DatabaseFormatName(format));
+            const fs::path backupPath =
+                GetDataDir() / backupFilename;
+            SecureString expectedMnemonic;
+            SecureVector expectedSeed;
+
+            auto makeDatabase =
+                [&](const std::string& databaseFilename, bool create)
+                -> std::unique_ptr<WalletDatabase> {
+                DatabaseOptions options;
+                options.require_create = create;
+                options.require_existing = !create;
+                options.require_format = format;
+                options.recover = false;
+                DatabaseStatus status{
+                    DatabaseStatus::FAILED_LOAD};
+                std::string error;
+                std::unique_ptr<WalletDatabase> database =
+                    MakeWalletDatabase(
+                        databaseFilename,
+                        options,
+                        status,
+                        error);
+                BOOST_REQUIRE_MESSAGE(database, error);
+                BOOST_REQUIRE(
+                    status == DatabaseStatus::SUCCESS);
+                BOOST_REQUIRE(
+                    database->Format() == format);
+                return database;
+            };
+            auto restartBerkeleyEnvironment = [&] {
+                if (format != DatabaseFormat::BERKELEY) {
+                    return;
+                }
+                bitdb.Flush(true);
+                {
+                    LOCK(bitdb.cs_db);
+                    BOOST_REQUIRE(
+                        bitdb.mapFileUseCount.empty());
+                    for (const auto& database :
+                        bitdb.mapDb) {
+                        BOOST_REQUIRE(
+                            database.second == nullptr);
+                    }
+                    BOOST_REQUIRE(
+                        bitdb.migrationLogPins.empty());
+                    bitdb.mapDb.clear();
+                }
+                bitdb.Close();
+                bitdb.Reset();
+            };
+
+            {
+                CWallet wallet(
+                    makeDatabase(filename, true));
+                bool firstRun;
+                BOOST_REQUIRE(
+                    wallet.LoadWallet(firstRun) ==
+                    DB_LOAD_OK);
+                BOOST_REQUIRE(firstRun);
+
+                wallet.GenerateNewMnemonic();
+                CPubKey defaultKey;
+                {
+                    LOCK(wallet.cs_wallet);
+                    defaultKey = wallet.GenerateNewKey();
+                }
+                BOOST_REQUIRE(
+                    wallet.SetDefaultKey(defaultKey));
+
+                const MnemonicContainer& mnemonic =
+                    wallet.GetMnemonicContainer();
+                BOOST_REQUIRE(
+                    mnemonic.GetMnemonic(
+                        expectedMnemonic));
+                expectedSeed = mnemonic.GetSeed();
+                BOOST_REQUIRE(!expectedMnemonic.empty());
+                BOOST_REQUIRE(!expectedSeed.empty());
+
+                BOOST_REQUIRE(
+                    wallet.EncryptWallet(passphrase));
+                BOOST_CHECK(
+                    wallet.GetMnemonicContainer().IsCrypted());
+                std::string backupError{"unchanged"};
+                BOOST_REQUIRE_MESSAGE(
+                    wallet.BackupWallet(
+                        backupPath.string(),
+                        backupError),
+                    backupError);
+                BOOST_CHECK(backupError.empty());
+            }
+
+            restartBerkeleyEnvironment();
+            {
+                CWallet wallet(
+                    makeDatabase(
+                        backupFilename,
+                        false));
+                bool firstRun;
+                BOOST_REQUIRE(
+                    wallet.LoadWallet(firstRun) ==
+                    DB_LOAD_OK);
+                BOOST_CHECK(!firstRun);
+                BOOST_CHECK(
+                    wallet.GetVersion() >= FEATURE_HD);
+                BOOST_REQUIRE(
+                    wallet.GetMnemonicContainer().IsCrypted());
+                BOOST_REQUIRE(wallet.IsLocked());
+                BOOST_REQUIRE(
+                    wallet.Unlock(passphrase));
+
+                MnemonicContainer decrypted;
+                BOOST_REQUIRE(
+                    wallet.DecryptMnemonicContainer(
+                        decrypted));
+                SecureString actualMnemonic;
+                BOOST_REQUIRE(
+                    decrypted.GetMnemonic(
+                        actualMnemonic));
+                const bool mnemonicMatches =
+                    actualMnemonic == expectedMnemonic;
+                const bool seedMatches =
+                    decrypted.GetSeed() == expectedSeed;
+                BOOST_CHECK(mnemonicMatches);
+                BOOST_CHECK(seedMatches);
+                BOOST_REQUIRE(
+                    wallet.GetDatabase().PeriodicFlush());
+            }
+
+            restartBerkeleyEnvironment();
+            {
+                CWallet wallet(
+                    makeDatabase(filename, false));
+                bool firstRun;
+                BOOST_REQUIRE(
+                    wallet.LoadWallet(firstRun) ==
+                    DB_LOAD_OK);
+                BOOST_CHECK(!firstRun);
+                BOOST_CHECK(
+                    wallet.GetVersion() >= FEATURE_HD);
+                BOOST_REQUIRE(
+                    wallet.GetMnemonicContainer().IsCrypted());
+                BOOST_REQUIRE(
+                    wallet.Unlock(passphrase));
+
+                MnemonicContainer decrypted;
+                BOOST_REQUIRE(
+                    wallet.DecryptMnemonicContainer(
+                        decrypted));
+                SecureString actualMnemonic;
+                BOOST_REQUIRE(
+                    decrypted.GetMnemonic(
+                        actualMnemonic));
+                const bool mnemonicMatches =
+                    actualMnemonic == expectedMnemonic;
+                const bool seedMatches =
+                    decrypted.GetSeed() == expectedSeed;
+                BOOST_CHECK(mnemonicMatches);
+                BOOST_CHECK(seedMatches);
+
+                BOOST_CHECK(!wallet.IsLocked());
+                BOOST_CHECK(
+                    !wallet.ChangeWalletPassphrase(
+                        wrongPassphrase,
+                        newPassphrase));
+                BOOST_CHECK(!wallet.IsLocked());
+                BOOST_REQUIRE(
+                    wallet.ChangeWalletPassphrase(
+                        passphrase,
+                        newPassphrase));
+                BOOST_CHECK(!wallet.IsLocked());
+                BOOST_REQUIRE(wallet.Lock());
+                BOOST_REQUIRE(
+                    wallet.ChangeWalletPassphrase(
+                        newPassphrase,
+                        finalPassphrase));
+                BOOST_CHECK(wallet.IsLocked());
+                BOOST_REQUIRE(
+                    wallet.GetDatabase().PeriodicFlush());
+            }
+
+            {
+                CWallet wallet(
+                    makeDatabase(filename, false));
+                bool firstRun;
+                BOOST_REQUIRE(
+                    wallet.LoadWallet(firstRun) ==
+                    DB_LOAD_OK);
+                BOOST_CHECK(!firstRun);
+                BOOST_CHECK(
+                    !wallet.Unlock(passphrase));
+                BOOST_CHECK(
+                    !wallet.Unlock(newPassphrase));
+                BOOST_REQUIRE(
+                    wallet.Unlock(finalPassphrase));
+
+                MnemonicContainer decrypted;
+                BOOST_REQUIRE(
+                    wallet.DecryptMnemonicContainer(
+                        decrypted));
+                SecureString actualMnemonic;
+                BOOST_REQUIRE(
+                    decrypted.GetMnemonic(
+                        actualMnemonic));
+                const bool mnemonicMatches =
+                    actualMnemonic == expectedMnemonic;
+                const bool seedMatches =
+                    decrypted.GetSeed() == expectedSeed;
+                BOOST_CHECK(mnemonicMatches);
+                BOOST_CHECK(seedMatches);
+                BOOST_REQUIRE(
+                    wallet.GetDatabase().PeriodicFlush());
+            }
+
+            if (format == DatabaseFormat::BERKELEY) {
+                BOOST_CHECK(fs::remove(backupPath));
+                BOOST_CHECK(bitdb.RemoveDb(filename));
+            }
+#ifdef USE_SQLITE
+            else {
+                RemoveSQLiteTestFiles(filename);
+                RemoveSQLiteTestFiles(backupFilename);
+            }
+#endif
         }
-        BOOST_REQUIRE(wallet.SetDefaultKey(defaultKey));
-
-        const MnemonicContainer& mnemonic = wallet.GetMnemonicContainer();
-        BOOST_REQUIRE(mnemonic.GetMnemonic(expectedMnemonic));
-        expectedSeed = mnemonic.GetSeed();
-        BOOST_REQUIRE(!expectedMnemonic.empty());
-        BOOST_REQUIRE(!expectedSeed.empty());
-
-        BOOST_REQUIRE(wallet.EncryptWallet(passphrase));
-        BOOST_CHECK(wallet.GetMnemonicContainer().IsCrypted());
-        BOOST_REQUIRE(wallet.GetDatabase().PeriodicFlush());
     }
-
-    {
-        CWallet wallet(MakeBerkeleyDatabase(bitdb, filename));
-        bool firstRun;
-        BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
-        BOOST_CHECK(!firstRun);
-        BOOST_CHECK(wallet.GetVersion() >= FEATURE_HD);
-        BOOST_REQUIRE(wallet.GetMnemonicContainer().IsCrypted());
-        BOOST_REQUIRE(wallet.Unlock(passphrase));
-
-        MnemonicContainer decrypted;
-        BOOST_REQUIRE(wallet.DecryptMnemonicContainer(decrypted));
-        SecureString actualMnemonic;
-        BOOST_REQUIRE(decrypted.GetMnemonic(actualMnemonic));
-        BOOST_CHECK(actualMnemonic == expectedMnemonic);
-        BOOST_CHECK(decrypted.GetSeed() == expectedSeed);
-
-        BOOST_CHECK(!wallet.IsLocked());
-        BOOST_CHECK(!wallet.ChangeWalletPassphrase(wrongPassphrase, newPassphrase));
-        BOOST_CHECK(!wallet.IsLocked());
-        BOOST_REQUIRE(wallet.ChangeWalletPassphrase(passphrase, newPassphrase));
-        BOOST_CHECK(!wallet.IsLocked());
-        BOOST_REQUIRE(wallet.Lock());
-        BOOST_REQUIRE(wallet.ChangeWalletPassphrase(newPassphrase, finalPassphrase));
-        BOOST_CHECK(wallet.IsLocked());
-        BOOST_REQUIRE(wallet.GetDatabase().PeriodicFlush());
-    }
-
-    {
-        CWallet wallet(MakeBerkeleyDatabase(bitdb, filename));
-        bool firstRun;
-        BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
-        BOOST_CHECK(!firstRun);
-        BOOST_CHECK(!wallet.Unlock(passphrase));
-        BOOST_CHECK(!wallet.Unlock(newPassphrase));
-        BOOST_REQUIRE(wallet.Unlock(finalPassphrase));
-
-        MnemonicContainer decrypted;
-        BOOST_REQUIRE(wallet.DecryptMnemonicContainer(decrypted));
-        SecureString actualMnemonic;
-        BOOST_REQUIRE(decrypted.GetMnemonic(actualMnemonic));
-        BOOST_CHECK(actualMnemonic == expectedMnemonic);
-        BOOST_CHECK(decrypted.GetSeed() == expectedSeed);
-        BOOST_REQUIRE(wallet.GetDatabase().PeriodicFlush());
-    }
-
-    BOOST_CHECK(bitdb.RemoveDb(filename));
 }
-
-BOOST_AUTO_TEST_SUITE_END()

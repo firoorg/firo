@@ -77,6 +77,12 @@ void InjectSQLitePostPublishFailureForTesting();
 /** Report an error after the next candidate rename has actually succeeded. */
 void InjectSQLiteAmbiguousPublishFailureForTesting();
 
+/** Simulate a concurrent destination collision before the next backup publish. */
+void InjectSQLiteBackupPublicationCollisionForTesting();
+
+/** Simulate a backup publication collision whose candidate cannot be cleaned. */
+void InjectSQLiteBackupCollisionCleanupFailureForTesting();
+
 /** Report an error after the next migration exchange has actually succeeded. */
 void InjectSQLiteMigrationExchangeFailureForTesting();
 

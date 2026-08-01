@@ -691,9 +691,23 @@ bool WalletModel::changePassphrase(const SecureString &oldPass, const SecureStri
     return retval;
 }
 
-bool WalletModel::backupWallet(const QString &filename)
+bool WalletModel::backupWallet(
+    const QString& filename)
 {
-    return wallet->BackupWallet(filename.toLocal8Bit().data());
+    QString error;
+    return backupWallet(filename, error);
+}
+
+bool WalletModel::backupWallet(
+    const QString& filename,
+    QString& error)
+{
+    std::string backupError;
+    const bool success = wallet->BackupWallet(
+        filename.toLocal8Bit().data(),
+        backupError);
+    error = QString::fromLocal8Bit(backupError.c_str());
+    return success;
 }
 
 // Handlers for core signals

@@ -1356,6 +1356,9 @@ public:
     static bool ParameterInteraction();
 
     bool BackupWallet(const std::string& strDest);
+    bool BackupWallet(
+        const std::string& strDest,
+        std::string& error);
 
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(const CHDChain& chain, bool memonly, bool& upgradeChain, bool genNewKeyPool = true);

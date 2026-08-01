@@ -80,7 +80,9 @@ Stop daemon:
 docker stop firod
 ```
 
-Backup wallet:
+The following copies the default wallet only after a clean shutdown. For
+backend-aware live backup and safe restoration under a new wallet filename,
+see [SQLite wallet storage](doc/sqlite-wallet.md).
 
 ```sh
 docker cp firod:/home/firod/.firo/wallet.dat .

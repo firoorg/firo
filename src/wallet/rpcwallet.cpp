@@ -2994,12 +2994,13 @@ UniValue backupwallet(const JSONRPCRequest& request)
         throw std::runtime_error(
             "backupwallet \"destination\"\n"
             "\nSafely copies current wallet file to destination, which can be a directory or a path with filename.\n"
+            "SQLite backups never overwrite an existing destination.\n"
+            "To restore offline, stop Firo, retain the original wallet, copy the backup with owner-only permissions\n"
+            "to a new absent flat wallet filename with no -journal, -wal, or -shm side files, then start with -wallet=<filename>.\n"
             "\nArguments:\n"
             "1. \"destination\"   (string) The destination directory or file\n"
-            "\nExamples:\n"
-            + HelpExampleCli("backupwallet", "\"backup.dat\"")
-            + HelpExampleRpc("backupwallet", "\"backup.dat\"")
-        );
+            "\nExamples:\n" +
+            HelpExampleCli("backupwallet", "\"backup.dat\"") + HelpExampleRpc("backupwallet", "\"backup.dat\""));
 
     // WARNING: don't lock any mutexes here before calling into pwallet->BackupWallet() due to it can cause dead
     // lock. Here is the example scenario that will cause dead lock if we lock cs_wallet before calling into
@@ -3014,8 +3015,13 @@ UniValue backupwallet(const JSONRPCRequest& request)
     // We don't need to worry about pwallet->BackupWallet() due to it already thread safe.
 
     std::string strDest = request.params[0].get_str();
-    if (!pwallet->BackupWallet(strDest)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Error: Wallet backup failed!");
+    std::string error;
+    if (!pwallet->BackupWallet(strDest, error)) {
+        throw JSONRPCError(
+            RPC_WALLET_ERROR,
+            error.empty() ?
+                "Error: Wallet backup failed!" :
+                error);
     }
 
     return NullUniValue;
