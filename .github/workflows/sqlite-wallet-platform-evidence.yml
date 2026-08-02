@@ -314,6 +314,7 @@ jobs:
         working-directory: wallet-tests
         run: |
           $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
           $testTemp = Join-Path $env:LOCALAPPDATA "FiroSQLiteWalletTests-$PID"
           New-Item -ItemType Directory -Path $testTemp | Out-Null
           $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
@@ -338,13 +339,46 @@ jobs:
             throw "SQLite Windows tests require NTFS"
           }
 
+          function ConvertTo-WorkflowCommandValue([string]$Value) {
+            return $Value.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+          }
+
           function Invoke-FiroTest(
             [string]$Executable,
             [string]$Filter
           ) {
-            & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=test_suite" "--" "DEBUG_LOG_OUT"
-            if ($LASTEXITCODE -ne 0) {
-              throw "$Executable failed for $Filter with exit code $LASTEXITCODE"
+            $testOutput = @(
+              & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=test_suite" "--" "DEBUG_LOG_OUT" 2>&1
+            )
+            $exitCode = $LASTEXITCODE
+            $testOutput | ForEach-Object { Write-Output $_ }
+
+            $summaryLines = @(
+              $testOutput |
+                Where-Object { "$_" -match 'Running [0-9]+ test cases|No errors detected' }
+            )
+            if ($summaryLines.Count -gt 0) {
+              $summaryText = (
+                "$Executable $Filter`n" + ($summaryLines -join "`n")
+              )
+              if ($summaryText.Length -gt 12000) {
+                $summaryText = $summaryText.Substring(0, 12000)
+              }
+              $summary = ConvertTo-WorkflowCommandValue $summaryText
+              Write-Output "::notice title=Firo wallet test summary::$summary"
+            }
+
+            if ($exitCode -ne 0) {
+              $failureText = (
+                "$Executable $Filter`n" +
+                (($testOutput | Select-Object -Last 80) -join "`n")
+              )
+              if ($failureText.Length -gt 12000) {
+                $failureText = $failureText.Substring($failureText.Length - 12000)
+              }
+              $failureTail = ConvertTo-WorkflowCommandValue $failureText
+              Write-Output "::error title=Firo wallet test failure::$failureTail"
+              throw "$Executable failed for $Filter with exit code $exitCode"
             }
           }
 
@@ -413,7 +447,11 @@ jobs:
           grep -q \
             '4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3' \
             "$SQLITE_HEADER"
-          test "$(ar -t "$SQLITE_ARCHIVE")" = "sqlite3.o"
+          SQLITE_MEMBERS=$(
+            ar -t "$SQLITE_ARCHIVE" \
+              | grep -Ev '^__\.SYMDEF( SORTED)?$'
+          )
+          test "$SQLITE_MEMBERS" = "sqlite3.o"
 
           env \
             PKG_CONFIG_PATH="$PKG_CONFIG_DIR" \
