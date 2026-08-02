@@ -99,6 +99,8 @@ std::atomic<bool> g_report_rewrite_commit_error_once{false};
 std::atomic<int> g_fail_close_after_successes{-1};
 std::atomic<int> g_fail_directory_sync_after_successes{-1};
 std::atomic<int> g_directory_sync_failure_error{0};
+std::atomic<int> g_fail_file_sync_after_successes{-1};
+std::atomic<int> g_file_sync_failure_error{0};
 std::atomic<int> g_fail_erase_after_successes{-1};
 std::atomic<int> g_erase_attempts{0};
 
@@ -163,6 +165,24 @@ int ConsumeDirectorySyncFailure()
                 next)) {
             return remaining == 0 ?
                        g_directory_sync_failure_error.exchange(0) :
+                       0;
+        }
+    }
+    return 0;
+}
+
+int ConsumeFileSyncFailure()
+{
+    int remaining =
+        g_fail_file_sync_after_successes.load();
+    while (remaining >= 0) {
+        const int next =
+            remaining == 0 ? -1 : remaining - 1;
+        if (g_fail_file_sync_after_successes.compare_exchange_weak(
+                remaining,
+                next)) {
+            return remaining == 0 ?
+                       g_file_sync_failure_error.exchange(0) :
                        0;
         }
     }
@@ -1664,6 +1684,12 @@ bool CandidateIdentityMatches(const OwnedCandidate& candidate) noexcept
 
 int DurableSyncFileDescriptor(int descriptor) noexcept
 {
+    const int injected_error =
+        ConsumeFileSyncFailure();
+    if (injected_error != 0) {
+        return injected_error;
+    }
+
     int result;
     do {
 #ifdef WIN32
@@ -1673,8 +1699,8 @@ int DurableSyncFileDescriptor(int descriptor) noexcept
 #else
         result = fsync(descriptor);
 #endif
-    } while (result != 0 && errno == EINTR);
-    return result == 0 ?
+    } while (result == -1 && errno == EINTR);
+    return result != -1 ?
                0 :
                (errno != 0 ? errno : EIO);
 }
@@ -2727,16 +2753,13 @@ bool VerifySQLiteMigrationPath(
     if (!verified) {
         return false;
     }
-#ifdef WIN32
-    const int sync_result = _commit(retained_descriptor);
-#else
-    const int sync_result = fsync(retained_descriptor);
-#endif
-    if (sync_result != 0) {
+    const int synchronization_error =
+        DurableSyncFileDescriptor(retained_descriptor);
+    if (synchronization_error != 0) {
         error = strprintf(
             "Failed to synchronize verified SQLite migration path '%s': %s",
             path.string(),
-            std::strerror(errno));
+            std::strerror(synchronization_error));
         return false;
     }
     if (!CheckAuxiliaryFiles(path, false, error) ||
@@ -3385,14 +3408,13 @@ private:
         if (!ValidateOwnedConnectionLocked(error)) {
             return false;
         }
-#ifdef WIN32
-        if (_commit(m_identity_descriptor) != 0) {
-#else
-        if (fsync(m_identity_descriptor) != 0) {
-#endif
+        const int synchronization_error =
+            DurableSyncFileDescriptor(
+                m_identity_descriptor);
+        if (synchronization_error != 0) {
             error = strprintf(
                 "failed to synchronize retained SQLite wallet identity: %s",
-                std::strerror(errno));
+                std::strerror(synchronization_error));
             return false;
         }
         if (!CheckAuxiliaryFiles(m_path, false, error)) {
@@ -4957,17 +4979,20 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                     sqlite3_errmsg(m_database)));
         }
         if (!ValidateOwnedConnectionLocked(
-                verification_error) ||
-#ifdef WIN32
-            _commit(m_identity_descriptor) != 0) {
-#else
-            fsync(m_identity_descriptor) != 0) {
-#endif
+                verification_error)) {
+            return fail_before_exchange(
+                verification_error);
+        }
+        const int synchronization_error =
+            DurableSyncFileDescriptor(
+                m_identity_descriptor);
+        if (synchronization_error != 0) {
             if (verification_error.empty()) {
                 verification_error = strprintf(
                     "failed to synchronize retained SQLite candidate '%s': %s",
                     m_path.string(),
-                    std::strerror(errno));
+                    std::strerror(
+                        synchronization_error));
             }
             return fail_before_exchange(
                 verification_error);
@@ -7086,6 +7111,15 @@ void InjectSQLiteDirectorySyncFailureForTesting(
         successful_syncs_before_failure);
 }
 
+void InjectSQLiteFileSyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure)
+{
+    g_file_sync_failure_error.store(error_number);
+    g_fail_file_sync_after_successes.store(
+        successful_syncs_before_failure);
+}
+
 void InjectSQLiteEraseFailureForTesting(
     int successful_erases_before_failure)
 {
@@ -7123,6 +7157,8 @@ bool ResetSQLiteLifecycleForTesting()
     g_report_migration_exchange_error_once.store(false);
     g_fail_directory_sync_after_successes.store(-1);
     g_directory_sync_failure_error.store(0);
+    g_fail_file_sync_after_successes.store(-1);
+    g_file_sync_failure_error.store(0);
     g_fail_erase_after_successes.store(-1);
     g_erase_attempts.store(0);
     if (sqlite3_close(abandoned_connection) != SQLITE_OK) {

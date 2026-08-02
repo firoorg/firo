@@ -111,6 +111,11 @@ void InjectSQLiteDirectorySyncFailureForTesting(
     int error_number,
     int successful_syncs_before_failure = 0);
 
+/** Fail one file sync after the requested number of successful syncs. */
+void InjectSQLiteFileSyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure = 0);
+
 /** Fail one SQLite record erase after the requested number of successful erases. */
 void InjectSQLiteEraseFailureForTesting(
     int successful_erases_before_failure = 0);

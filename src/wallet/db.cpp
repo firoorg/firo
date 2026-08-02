@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -127,6 +128,27 @@ bool BerkeleyIdentityMatches(
 }
 
 #ifndef WIN32
+std::atomic<int> g_fail_migration_sync_after_successes{-1};
+std::atomic<int> g_migration_sync_failure_error{0};
+
+int ConsumeMigrationSyncFailure()
+{
+    int remaining =
+        g_fail_migration_sync_after_successes.load();
+    while (remaining >= 0) {
+        const int next =
+            remaining == 0 ? -1 : remaining - 1;
+        if (g_fail_migration_sync_after_successes.compare_exchange_weak(
+                remaining,
+                next)) {
+            return remaining == 0 ?
+                       g_migration_sync_failure_error.exchange(0) :
+                       0;
+        }
+    }
+    return 0;
+}
+
 class ScopedMigrationDescriptor final
 {
 private:
@@ -354,6 +376,27 @@ bool PrivateMigrationBackupMatches(
                private_mode;
 }
 
+int DurableSyncMigrationDescriptor(int descriptor)
+{
+    const int injected_error =
+        ConsumeMigrationSyncFailure();
+    if (injected_error != 0) {
+        return injected_error;
+    }
+
+    int result;
+    do {
+#if defined(__APPLE__) && defined(F_FULLFSYNC)
+        result = fcntl(descriptor, F_FULLFSYNC, 0);
+#else
+        result = fsync(descriptor);
+#endif
+    } while (result == -1 && errno == EINTR);
+    return result != -1 ?
+               0 :
+               (errno != 0 ? errno : EIO);
+}
+
 bool SynchronizeMigrationDirectory(
     const fs::path& directory,
     std::string& error)
@@ -384,11 +427,14 @@ bool SynchronizeMigrationDirectory(
             std::strerror(errno));
         return false;
     }
-    if (fsync(descriptor.Get()) != 0) {
+    const int synchronization_error =
+        DurableSyncMigrationDescriptor(
+            descriptor.Get());
+    if (synchronization_error != 0) {
         error = strprintf(
             "Failed to synchronize migration directory '%s': %s",
             directory.string(),
-            std::strerror(errno));
+            std::strerror(synchronization_error));
         return false;
     }
     int close_error = 0;
@@ -657,6 +703,17 @@ public:
     }
 };
 } // namespace
+
+#ifndef WIN32
+void InjectBerkeleyMigrationSyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure)
+{
+    g_migration_sync_failure_error.store(error_number);
+    g_fail_migration_sync_after_successes.store(
+        successful_syncs_before_failure);
+}
+#endif
 
 void CDBEnv::EnvShutdown()
 {
@@ -1684,11 +1741,14 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
             error)) {
         return fail_created_target();
     }
-    if (fsync(target_descriptor.Get()) != 0) {
+    int synchronization_error =
+        DurableSyncMigrationDescriptor(
+            target_descriptor.Get());
+    if (synchronization_error != 0) {
         error = strprintf(
             "Failed to synchronize BDB migration backup '%s': %s",
             target_path.string(),
-            std::strerror(errno));
+            std::strerror(synchronization_error));
         return fail_created_target();
     }
 
@@ -1738,11 +1798,14 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
             DbEnv::strerror(file_id_result));
         return fail_created_target();
     }
-    if (fsync(target_read_descriptor.Get()) != 0) {
+    synchronization_error =
+        DurableSyncMigrationDescriptor(
+            target_read_descriptor.Get());
+    if (synchronization_error != 0) {
         error = strprintf(
             "Failed to synchronize the independent Berkeley identity for migration backup '%s': %s",
             target_path.string(),
-            std::strerror(errno));
+            std::strerror(synchronization_error));
         return fail_created_target();
     }
     if (!PrivateMigrationBackupMatches(
@@ -1765,11 +1828,14 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
             DbEnv::strerror(lsn_result));
         return fail_created_target();
     }
-    if (fsync(target_read_descriptor.Get()) != 0) {
+    synchronization_error =
+        DurableSyncMigrationDescriptor(
+            target_read_descriptor.Get());
+    if (synchronization_error != 0) {
         error = strprintf(
             "Failed to synchronize the reset Berkeley log sequence number for migration backup '%s': %s",
             target_path.string(),
-            std::strerror(errno));
+            std::strerror(synchronization_error));
         return fail_created_target();
     }
     if (!PrivateMigrationBackupMatches(

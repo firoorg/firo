@@ -279,11 +279,18 @@ jobs:
 
         env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON -DENABLE_SQLITE_WALLET=OFF \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON -DENABLE_SQLITE_WALLET=ON \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         $CMAKE_EXTRA_FLAGS \
         -S$(pwd) -B$(pwd)/build
         cd build && ninja
+    - name: Run Wallet Database Tests (Mac)
+      if: matrix.is_mac
+      run: |
+        set -exo pipefail
+        build/bin/test_firo \
+          --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
+          --catch_system_error=no --log_level=message -- DEBUG_LOG_OUT
     - name: Run Unit Tests
       if: matrix.is_linux
       run: |

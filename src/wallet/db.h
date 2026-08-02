@@ -93,6 +93,13 @@ public:
 
 extern CDBEnv bitdb;
 
+#ifndef WIN32
+/** Fail one BDB migration sync after the requested number of successful syncs. */
+void InjectBerkeleyMigrationSyncFailureForTesting(
+    int error_number,
+    int successful_syncs_before_failure = 0);
+#endif
+
 enum class MigrationBackupResult {
     SUCCESS,
     EXISTS,

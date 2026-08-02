@@ -1586,6 +1586,155 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
     BOOST_REQUIRE(bitdb.Open(GetDataDir()));
 }
 
+BOOST_AUTO_TEST_CASE(berkeley_migration_backup_sync_failure_preserves_source)
+{
+    const std::string sourceFilename{
+        "migration_backup_sync_failure_source.dat"};
+    const std::string backupFilename{
+        "migration-backup-sync-failure.bak"};
+    const fs::path sourcePath =
+        GetDataDir() / sourceFilename;
+    const fs::path backupPath =
+        GetDataDir() / backupFilename;
+
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            source->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("migration-sync-failure"),
+            std::string("source-remains-authoritative")));
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+
+    BerkeleyDatabase* const berkeley =
+        dynamic_cast<BerkeleyDatabase*>(
+            source.get());
+    BOOST_REQUIRE(berkeley);
+    InjectBerkeleyMigrationSyncFailureForTesting(EIO);
+    BOOST_CHECK(
+        berkeley->CreateMigrationBackup(
+            backupFilename,
+            error) ==
+        MigrationBackupResult::FAILED);
+    BOOST_CHECK(
+        error.find("synchronize BDB migration backup") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(backupPath.string()) !=
+        std::string::npos);
+    BOOST_CHECK(!fs::exists(backupPath));
+    BOOST_CHECK(IsBerkeleyDatabase(sourcePath));
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            source->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("migration-sync-failure"),
+            value));
+        BOOST_CHECK_EQUAL(
+            value,
+            "source-remains-authoritative");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
+{
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
+
+    const std::string sourceFilename{
+        "migration_candidate_sync_failure_source.dat"};
+    const fs::path sourcePath =
+        GetDataDir() / sourceFilename;
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            source->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("migration-sync-failure"),
+            std::string("source-remains-authoritative")));
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+
+    InjectSQLiteFileSyncFailureForTesting(EIO, 2);
+    std::string backupPath;
+    BOOST_CHECK(!MigrateWalletDatabaseToSQLite(
+        *source,
+        backupPath,
+        error));
+    BOOST_REQUIRE(!backupPath.empty());
+    BOOST_CHECK(
+        error.find(
+            "synchronize retained SQLite candidate") !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(backupPath) !=
+        std::string::npos);
+    BOOST_CHECK(IsBerkeleyDatabase(sourcePath));
+    BOOST_CHECK(!ShutdownRequested());
+    BOOST_CHECK(
+        FindMigrationPaths(
+            ".firo-wallet-sqlite-migration-")
+            .empty());
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            source->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("migration-sync-failure"),
+            value));
+        BOOST_CHECK_EQUAL(
+            value,
+            "source-remains-authoritative");
+    }
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            fs::path(backupPath)));
+}
+
 BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
 {
     const std::string sourceFilename{
