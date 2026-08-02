@@ -1,0 +1,553 @@
+name: SQLite Wallet Platform Evidence
+
+on:
+  push:
+    branches:
+      - 'dev/navidr/sqlite-wallet'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sqlite-wallet-platform-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-mingw-wallet-tests:
+    name: Build MinGW SQLite wallet tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install MinGW build tools
+        run: |
+          set -exo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            automake \
+            binutils-mingw-w64-x86-64 \
+            build-essential \
+            ccache \
+            cmake \
+            g++-mingw-w64-x86-64 \
+            gcc-mingw-w64-x86-64 \
+            libtool \
+            meson \
+            mingw-w64-common \
+            mingw-w64-x86-64-dev \
+            ninja-build \
+            pkg-config \
+            unzip \
+            wget
+
+      - name: Select POSIX MinGW runtime
+        run: |
+          set -exo pipefail
+          sudo update-alternatives --set \
+            x86_64-w64-mingw32-gcc \
+            /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set \
+            x86_64-w64-mingw32-g++ \
+            /usr/bin/x86_64-w64-mingw32-g++-posix
+
+      - name: Configure build parallelism and ccache
+        run: |
+          set -exo pipefail
+          EVIDENCE_JOBS=$(nproc)
+          if [ "$EVIDENCE_JOBS" -gt 20 ]; then
+            EVIDENCE_JOBS=20
+          fi
+          echo "EVIDENCE_JOBS=$EVIDENCE_JOBS" >> "$GITHUB_ENV"
+          ccache --set-config=max_size=5G
+          ccache --set-config=compression=true
+          echo "/usr/lib/ccache" >> "$GITHUB_PATH"
+
+      - name: Cache deterministic dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            depends/built
+            depends/sources
+            depends/work
+          key: sqlite-wallet-evidence-mingw-${{ hashFiles('depends/packages/*.mk', 'depends/patches/**', 'depends/hosts/*.mk', 'depends/builders/*.mk', 'depends/Makefile', 'depends/funcs.mk', 'depends/toolchain.cmake.in') }}
+          restore-keys: |
+            sqlite-wallet-evidence-mingw-
+            depends-windows-x86_64-w64-mingw32-
+
+      - name: Download scoped MinGW dependencies
+        run: |
+          set -exo pipefail
+          rm -rf depends/sources/download-stamps
+          attempt=1
+          max=5
+          until make -C depends download-one \
+              HOST=x86_64-w64-mingw32 \
+              NO_QT=1 \
+              NO_QR=1 \
+              NO_ZMQ=1; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "MinGW dependency download failed after $attempt attempts"
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+            attempt=$((attempt + 1))
+          done
+
+      - name: Fix MinGW headers
+        shell: bash
+        run: |
+          set -euxo pipefail
+          MINGW_INC="/usr/x86_64-w64-mingw32/include"
+          if ! grep -q \
+              "NLM_INTERNET_CONNECTIVITY_WEBHIJACK" \
+              "$MINGW_INC/netlistmgr.h"; then
+            sudo bash -c "cat >> '$MINGW_INC/netlistmgr.h' <<'EOF'
+
+          #ifndef NLM_INTERNET_CONNECTIVITY_WEBHIJACK
+          #define NLM_INTERNET_CONNECTIVITY_WEBHIJACK 0x1
+          #endif
+          EOF"
+          fi
+
+      - name: Build dual BDB and SQLite wallet tests
+        run: |
+          set -exo pipefail
+          HOST_TRIPLET=x86_64-w64-mingw32
+          make -C depends -j"$EVIDENCE_JOBS" \
+            HOST="$HOST_TRIPLET" \
+            NO_QT=1 \
+            NO_QR=1 \
+            NO_ZMQ=1
+
+          SQLITE_HEADER="depends/$HOST_TRIPLET/include/sqlite3.h"
+          SQLITE_ARCHIVE="depends/$HOST_TRIPLET/lib/libsqlite3.a"
+          test -e "$SQLITE_HEADER"
+          test -e "$SQLITE_ARCHIVE"
+          grep -Eq \
+            '^#define[[:space:]]+SQLITE_VERSION[[:space:]]+"3\.50\.4"$' \
+            "$SQLITE_HEADER"
+          grep -q '#define SQLITE_VERSION_NUMBER 3050004' "$SQLITE_HEADER"
+          grep -q \
+            '4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3' \
+            "$SQLITE_HEADER"
+          test "$(x86_64-w64-mingw32-ar -t "$SQLITE_ARCHIVE")" = "sqlite3.o"
+
+          env \
+            PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$(realpath depends/$HOST_TRIPLET/toolchain.cmake)" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=OFF \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_CRASH_HOOKS=ON \
+              -DENABLE_SQLITE_WALLET=ON \
+              -DWITH_BDB=ON \
+              -DWITH_QRENCODE=OFF \
+              -DWITH_ZMQ=OFF \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$(realpath .)" \
+              -B"$(realpath build-windows-dual)"
+
+          HEADER_AID="$PWD/src/config/bitcoin-config.h"
+          test ! -e "$HEADER_AID"
+          test ! -L "$HEADER_AID"
+          ln -s \
+            "$PWD/build-windows-dual/src/config/bitcoin-config.h" \
+            "$HEADER_AID"
+          cleanup_header_aid() {
+            if [ -L "$HEADER_AID" ]; then
+              unlink "$HEADER_AID"
+            fi
+          }
+          trap cleanup_header_aid EXIT
+          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+          cmake --build build-windows-dual \
+            --target test_firo \
+            --parallel "$EVIDENCE_JOBS"
+          cleanup_header_aid
+          trap - EXIT
+
+          DUAL_AUDIT_DIR=$(mktemp -d)
+          x86_64-w64-mingw32-ar -t \
+            build-windows-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-members"
+          x86_64-w64-mingw32-nm -C \
+            build-windows-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-symbols"
+          x86_64-w64-mingw32-objdump -p \
+            build-windows-dual/bin/test_firo.exe \
+            > "$DUAL_AUDIT_DIR/test-firo-pe"
+          grep -Eiq 'sqlite\.cpp' \
+            "$DUAL_AUDIT_DIR/wallet-members"
+          grep -Eiq 'win32_file_lifecycle' \
+            "$DUAL_AUDIT_DIR/wallet-members"
+          grep -Eq \
+            'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+            "$DUAL_AUDIT_DIR/wallet-symbols"
+          if grep -Eiq 'DLL Name:.*sqlite' \
+              "$DUAL_AUDIT_DIR/test-firo-pe"; then
+            echo "Dual Windows test executable imports SQLite dynamically"
+            exit 1
+          fi
+
+      - name: Build true BDB-only wallet tests
+        run: |
+          set -exo pipefail
+          HOST_TRIPLET=x86_64-w64-mingw32
+          make -C depends -j"$EVIDENCE_JOBS" \
+            HOST="$HOST_TRIPLET" \
+            NO_QT=1 \
+            NO_QR=1 \
+            NO_ZMQ=1 \
+            NO_SQLITE=1
+
+          test ! -e "depends/$HOST_TRIPLET/include/sqlite3.h"
+          test ! -e "depends/$HOST_TRIPLET/include/sqlite3ext.h"
+          test ! -e "depends/$HOST_TRIPLET/lib/libsqlite3.a"
+          test ! -e "depends/$HOST_TRIPLET/lib/pkgconfig/sqlite3.pc"
+
+          env \
+            PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$(realpath depends/$HOST_TRIPLET/toolchain.cmake)" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=OFF \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_CRASH_HOOKS=ON \
+              -DENABLE_SQLITE_WALLET=OFF \
+              -DWITH_BDB=ON \
+              -DWITH_QRENCODE=OFF \
+              -DWITH_ZMQ=OFF \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$(realpath .)" \
+              -B"$(realpath build-windows-bdb-only)"
+
+          HEADER_AID="$PWD/src/config/bitcoin-config.h"
+          test ! -e "$HEADER_AID"
+          test ! -L "$HEADER_AID"
+          ln -s \
+            "$PWD/build-windows-bdb-only/src/config/bitcoin-config.h" \
+            "$HEADER_AID"
+          cleanup_header_aid() {
+            if [ -L "$HEADER_AID" ]; then
+              unlink "$HEADER_AID"
+            fi
+          }
+          trap cleanup_header_aid EXIT
+          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+          cmake --build build-windows-bdb-only \
+            --target test_firo \
+            --parallel "$EVIDENCE_JOBS"
+          cleanup_header_aid
+          trap - EXIT
+
+          BDB_AUDIT_DIR=$(mktemp -d)
+          x86_64-w64-mingw32-ar -t \
+            build-windows-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-members"
+          x86_64-w64-mingw32-nm -C \
+            build-windows-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-symbols"
+          x86_64-w64-mingw32-objdump -p \
+            build-windows-bdb-only/bin/test_firo.exe \
+            > "$BDB_AUDIT_DIR/test-firo-pe"
+          if grep -Eiq 'sqlite\.cpp|win32_file_lifecycle' \
+              "$BDB_AUDIT_DIR/wallet-members"; then
+            echo "BDB-only Windows wallet archive contains a SQLite wallet object"
+            exit 1
+          fi
+          if grep -Eq \
+              'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+              "$BDB_AUDIT_DIR/wallet-symbols"; then
+            echo "BDB-only Windows wallet archive contains a SQLite wallet symbol"
+            exit 1
+          fi
+          if grep -Eiq 'DLL Name:.*sqlite' \
+              "$BDB_AUDIT_DIR/test-firo-pe"; then
+            echo "BDB-only Windows test executable imports SQLite"
+            exit 1
+          fi
+
+      - name: Stage wallet test executables
+        run: |
+          set -exo pipefail
+          mkdir -p \
+            sqlite-wallet-platform-evidence/dual \
+            sqlite-wallet-platform-evidence/bdb-only
+          cp \
+            build-windows-dual/bin/test_firo.exe \
+            sqlite-wallet-platform-evidence/dual/test_firo.exe
+          cp \
+            build-windows-bdb-only/bin/test_firo.exe \
+            sqlite-wallet-platform-evidence/bdb-only/test_firo.exe
+
+      - name: Upload wallet test executables
+        uses: actions/upload-artifact@v6
+        with:
+          name: sqlite-wallet-platform-evidence-${{ github.sha }}
+          path: sqlite-wallet-platform-evidence
+          if-no-files-found: error
+          retention-days: 1
+
+  run-native-windows-wallet-tests:
+    name: Run SQLite wallet tests on native Windows NTFS
+    needs: build-mingw-wallet-tests
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Download wallet test executables
+        uses: actions/download-artifact@v7
+        with:
+          name: sqlite-wallet-platform-evidence-${{ github.sha }}
+          path: wallet-tests
+
+      - name: Run wallet database tests
+        shell: pwsh
+        working-directory: wallet-tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $testTemp = Join-Path $env:LOCALAPPDATA "FiroSQLiteWalletTests-$PID"
+          New-Item -ItemType Directory -Path $testTemp | Out-Null
+          $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+          $inheritance = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
+          $accessRule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+            $currentSid,
+            [System.Security.AccessControl.FileSystemRights]::FullControl,
+            $inheritance,
+            [System.Security.AccessControl.PropagationFlags]::None,
+            [System.Security.AccessControl.AccessControlType]::Allow
+          )
+          $privateAcl = [System.Security.AccessControl.DirectorySecurity]::new()
+          $privateAcl.SetAccessRuleProtection($true, $false)
+          $privateAcl.SetOwner($currentSid)
+          $privateAcl.AddAccessRule($accessRule)
+          Set-Acl -LiteralPath $testTemp -AclObject $privateAcl
+          $env:TEMP = $testTemp
+          $env:TMP = $env:TEMP
+          $env:FIRO_TEST_REQUIRE_WIN32_REPARSE = '1'
+          $drive = (Get-Item $env:TEMP).PSDrive.Name
+          if ((Get-Volume -DriveLetter $drive).FileSystem -ne 'NTFS') {
+            throw "SQLite Windows tests require NTFS"
+          }
+
+          function Invoke-FiroTest(
+            [string]$Executable,
+            [string]$Filter
+          ) {
+            & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=test_suite" "--" "DEBUG_LOG_OUT"
+            if ($LASTEXITCODE -ne 0) {
+              throw "$Executable failed for $Filter with exit code $LASTEXITCODE"
+            }
+          }
+
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
+          Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
+
+  run-native-macos-wallet-tests:
+    name: Run SQLite wallet tests on native macOS
+    runs-on: macos-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode and install build tools
+        run: |
+          set -exo pipefail
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          brew install automake coreutils cmake make pkg-config ninja
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Configure build parallelism
+        run: |
+          set -exo pipefail
+          EVIDENCE_JOBS=$(($(sysctl -n hw.ncpu) / 2))
+          if [ "$EVIDENCE_JOBS" -lt 1 ]; then
+            EVIDENCE_JOBS=1
+          fi
+          if [ "$EVIDENCE_JOBS" -gt 20 ]; then
+            EVIDENCE_JOBS=20
+          fi
+          echo "EVIDENCE_JOBS=$EVIDENCE_JOBS" >> "$GITHUB_ENV"
+
+      - name: Download scoped macOS dependencies
+        run: |
+          set -exo pipefail
+          attempt=1
+          max=5
+          until make -C depends download-one NO_QT=1; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "macOS dependency download failed after $attempt attempts"
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+            attempt=$((attempt + 1))
+          done
+
+      - name: Build and test dual BDB and SQLite wallets
+        run: |
+          set -exo pipefail
+          make -C depends -j"$EVIDENCE_JOBS" NO_QT=1
+          HOST_TRIPLET=$(depends/config.guess)
+          PREFIX="$PWD/depends/$HOST_TRIPLET"
+          PKG_CONFIG_DIR="$PREFIX/lib/pkgconfig"
+          SQLITE_HEADER="$PREFIX/include/sqlite3.h"
+          SQLITE_ARCHIVE="$PREFIX/lib/libsqlite3.a"
+
+          test -e "$SQLITE_HEADER"
+          test -e "$SQLITE_ARCHIVE"
+          grep -Eq \
+            '^#define[[:space:]]+SQLITE_VERSION[[:space:]]+"3\.50\.4"$' \
+            "$SQLITE_HEADER"
+          grep -q '#define SQLITE_VERSION_NUMBER 3050004' "$SQLITE_HEADER"
+          grep -q \
+            '4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3' \
+            "$SQLITE_HEADER"
+          test "$(ar -t "$SQLITE_ARCHIVE")" = "sqlite3.o"
+
+          env \
+            PKG_CONFIG_PATH="$PKG_CONFIG_DIR" \
+            PKG_CONFIG_LIBDIR="$PKG_CONFIG_DIR" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$PREFIX/toolchain.cmake" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=OFF \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_WALLET=ON \
+              -DENABLE_SQLITE_WALLET=ON \
+              -DWITH_BDB=ON \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$PWD" \
+              -B"$PWD/build-mac-dual"
+
+          HEADER_AID="$PWD/src/config/bitcoin-config.h"
+          test ! -e "$HEADER_AID"
+          test ! -L "$HEADER_AID"
+          ln -s \
+            "$PWD/build-mac-dual/src/config/bitcoin-config.h" \
+            "$HEADER_AID"
+          cleanup_header_aid() {
+            if [ -L "$HEADER_AID" ]; then
+              unlink "$HEADER_AID"
+            fi
+          }
+          trap cleanup_header_aid EXIT
+          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+          cmake --build build-mac-dual \
+            --target test_firo \
+            --parallel "$EVIDENCE_JOBS"
+          cleanup_header_aid
+          trap - EXIT
+
+          DUAL_AUDIT_DIR=$(mktemp -d)
+          ar -t build-mac-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-members"
+          nm -C build-mac-dual/lib/libfiro_wallet.a \
+            > "$DUAL_AUDIT_DIR/wallet-symbols"
+          otool -L build-mac-dual/bin/test_firo \
+            > "$DUAL_AUDIT_DIR/test-firo-libraries"
+          grep -Eiq 'sqlite\.cpp' \
+            "$DUAL_AUDIT_DIR/wallet-members"
+          grep -Eq \
+            'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()' \
+            "$DUAL_AUDIT_DIR/wallet-symbols"
+          if grep -qi sqlite \
+              "$DUAL_AUDIT_DIR/test-firo-libraries"; then
+            echo "Dual macOS test executable links SQLite dynamically"
+            exit 1
+          fi
+
+          build-mac-dual/bin/test_firo \
+            --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
+            --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+
+      - name: Build and test true BDB-only wallets
+        run: |
+          set -exo pipefail
+          make -C depends -j"$EVIDENCE_JOBS" NO_QT=1 NO_SQLITE=1
+          HOST_TRIPLET=$(depends/config.guess)
+          PREFIX="$PWD/depends/$HOST_TRIPLET"
+          PKG_CONFIG_DIR="$PREFIX/lib/pkgconfig"
+
+          test ! -e "$PREFIX/include/sqlite3.h"
+          test ! -e "$PREFIX/include/sqlite3ext.h"
+          test ! -e "$PREFIX/lib/libsqlite3.a"
+          test ! -e "$PREFIX/lib/pkgconfig/sqlite3.pc"
+
+          env \
+            PKG_CONFIG_PATH="$PKG_CONFIG_DIR" \
+            PKG_CONFIG_LIBDIR="$PKG_CONFIG_DIR" \
+            cmake -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$PREFIX/toolchain.cmake" \
+              -DBUILD_CLI=OFF \
+              -DBUILD_DAEMON=OFF \
+              -DBUILD_GUI=OFF \
+              -DBUILD_TX=OFF \
+              -DBUILD_TESTS=ON \
+              -DENABLE_WALLET=ON \
+              -DENABLE_SQLITE_WALLET=OFF \
+              -DWITH_BDB=ON \
+              -DCLIENT_VERSION_IS_RELEASE=true \
+              -DCMAKE_BUILD_TYPE=Release \
+              -S"$PWD" \
+              -B"$PWD/build-mac-bdb-only"
+
+          HEADER_AID="$PWD/src/config/bitcoin-config.h"
+          test ! -e "$HEADER_AID"
+          test ! -L "$HEADER_AID"
+          ln -s \
+            "$PWD/build-mac-bdb-only/src/config/bitcoin-config.h" \
+            "$HEADER_AID"
+          cleanup_header_aid() {
+            if [ -L "$HEADER_AID" ]; then
+              unlink "$HEADER_AID"
+            fi
+          }
+          trap cleanup_header_aid EXIT
+          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+          cmake --build build-mac-bdb-only \
+            --target test_firo \
+            --parallel "$EVIDENCE_JOBS"
+          cleanup_header_aid
+          trap - EXIT
+
+          BDB_AUDIT_DIR=$(mktemp -d)
+          ar -t build-mac-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-members"
+          nm -C build-mac-bdb-only/lib/libfiro_wallet.a \
+            > "$BDB_AUDIT_DIR/wallet-symbols"
+          otool -L build-mac-bdb-only/bin/test_firo \
+            > "$BDB_AUDIT_DIR/test-firo-libraries"
+          if grep -Eiq 'sqlite\.cpp|win32_file_lifecycle' \
+              "$BDB_AUDIT_DIR/wallet-members"; then
+            echo "BDB-only macOS wallet archive contains a SQLite wallet object"
+            exit 1
+          fi
+          if grep -Eq \
+              'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+              "$BDB_AUDIT_DIR/wallet-symbols"; then
+            echo "BDB-only macOS wallet archive contains a SQLite wallet symbol"
+            exit 1
+          fi
+          if grep -qi sqlite \
+              "$BDB_AUDIT_DIR/test-firo-libraries"; then
+            echo "BDB-only macOS test executable links SQLite"
+            exit 1
+          fi
+
+          build-mac-bdb-only/bin/test_firo \
+            --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
+            --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
