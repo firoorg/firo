@@ -264,6 +264,50 @@ jobs:
         $CMAKE_EXTRA_FLAGS \
         -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
         cd build && ninja
+    - name: Build BDB-only Wallet Tests (Windows Release)
+      if: matrix.is_windows && matrix.build_type == 'Release'
+      run: |
+        set -exo pipefail
+        export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
+        BDB_JOBS=$(nproc)
+        if [ "$BDB_JOBS" -gt 20 ]; then
+          BDB_JOBS=20
+        fi
+
+        make -C depends -j$BDB_JOBS HOST=$HOST_TRIPLET NO_SQLITE=1
+        test ! -e "depends/$HOST_TRIPLET/include/sqlite3.h"
+        test ! -e "depends/$HOST_TRIPLET/lib/libsqlite3.a"
+
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=OFF -DBUILD_DAEMON=OFF -DBUILD_GUI=OFF -DBUILD_TESTS=ON \
+        -DENABLE_CRASH_HOOKS=ON -DENABLE_SQLITE_WALLET=OFF -DWITH_BDB=ON \
+        -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=Release \
+        -S$(realpath .) -B$(realpath build-windows-bdb-only)
+        cmake --build build-windows-bdb-only --target test_firo --parallel "$BDB_JOBS"
+
+        BDB_AUDIT_DIR=$(mktemp -d)
+        x86_64-w64-mingw32-ar -t build-windows-bdb-only/lib/libfiro_wallet.a \
+          > "$BDB_AUDIT_DIR/wallet-members"
+        x86_64-w64-mingw32-nm -C build-windows-bdb-only/lib/libfiro_wallet.a \
+          > "$BDB_AUDIT_DIR/wallet-symbols"
+        x86_64-w64-mingw32-objdump -p build-windows-bdb-only/bin/test_firo.exe \
+          > "$BDB_AUDIT_DIR/test-firo-pe"
+        if grep -Eiq 'sqlite\.cpp|win32_file_lifecycle' \
+            "$BDB_AUDIT_DIR/wallet-members"; then
+          echo "BDB-only Windows wallet archive contains a SQLite wallet object"
+          exit 1
+        fi
+        if grep -Eq 'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+            "$BDB_AUDIT_DIR/wallet-symbols"; then
+          echo "BDB-only Windows wallet archive contains a SQLite wallet symbol"
+          exit 1
+        fi
+        if grep -Eiq 'DLL Name:.*sqlite' \
+            "$BDB_AUDIT_DIR/test-firo-pe"; then
+          echo "BDB-only Windows test executable imports SQLite"
+          exit 1
+        fi
     - name: Build Firo (Mac)
       if: matrix.is_mac
       run: |
@@ -291,6 +335,53 @@ jobs:
         build/bin/test_firo \
           --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
           --catch_system_error=no --log_level=message -- DEBUG_LOG_OUT
+    - name: Run BDB-only Wallet Database Tests (Mac Release)
+      if: matrix.is_mac && matrix.build_type == 'Release'
+      run: |
+        set -exo pipefail
+        BDB_JOBS=$NJOBS
+        if [ "$BDB_JOBS" -gt 20 ]; then
+          BDB_JOBS=20
+        fi
+        make -C depends -j$BDB_JOBS NO_SQLITE=1
+        export HOST_TRIPLET=$(depends/config.guess)
+        test ! -e "depends/$HOST_TRIPLET/include/sqlite3.h"
+        test ! -e "depends/$HOST_TRIPLET/lib/libsqlite3.a"
+
+        env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
+        cmake -G Ninja \
+          -DCMAKE_TOOLCHAIN_FILE="$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake" \
+          -DBUILD_CLI=OFF -DBUILD_DAEMON=OFF -DBUILD_GUI=OFF \
+          -DBUILD_TESTS=ON -DENABLE_SQLITE_WALLET=OFF -DWITH_BDB=ON \
+          -DCLIENT_VERSION_IS_RELEASE=true -DCMAKE_BUILD_TYPE=Release \
+          -S"$(pwd)" -B"$(pwd)/build-mac-bdb-only"
+        cmake --build build-mac-bdb-only --target test_firo --parallel "$BDB_JOBS"
+
+        BDB_AUDIT_DIR=$(mktemp -d)
+        ar -t build-mac-bdb-only/lib/libfiro_wallet.a \
+          > "$BDB_AUDIT_DIR/wallet-members"
+        nm -C build-mac-bdb-only/lib/libfiro_wallet.a \
+          > "$BDB_AUDIT_DIR/wallet-symbols"
+        otool -L build-mac-bdb-only/bin/test_firo \
+          > "$BDB_AUDIT_DIR/test-firo-libraries"
+        if grep -Eiq 'sqlite\.cpp|win32_file_lifecycle' \
+            "$BDB_AUDIT_DIR/wallet-members"; then
+          echo "BDB-only macOS wallet archive contains a SQLite wallet object"
+          exit 1
+        fi
+        if grep -Eq 'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
+            "$BDB_AUDIT_DIR/wallet-symbols"; then
+          echo "BDB-only macOS wallet archive contains a SQLite wallet symbol"
+          exit 1
+        fi
+        if grep -qi sqlite "$BDB_AUDIT_DIR/test-firo-libraries"; then
+          echo "BDB-only macOS test executable links SQLite"
+          exit 1
+        fi
+
+        build-mac-bdb-only/bin/test_firo \
+          --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
+          --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
     - name: Run Unit Tests
       if: matrix.is_linux
       run: |
@@ -304,6 +395,16 @@ jobs:
         set -exo pipefail
         cp -rf build/bin/* build/src/
         qa/pull-tester/rpc-tests.py -extended
+    - name: Upload Windows SQLite Wallet Test Runtime
+      if: matrix.is_windows && matrix.build_type == 'Release'
+      uses: actions/upload-artifact@v6
+      with:
+        name: windows-sqlite-wallet-test-runtime-${{ env.COMMIT_HASH }}
+        path: |
+          build/bin/test_firo.exe
+          build-windows-bdb-only/bin/test_firo.exe
+        if-no-files-found: error
+        retention-days: 1
     - name: Prepare Files for Artifact
       run: |
         set -exo pipefail
@@ -336,6 +437,60 @@ jobs:
       with:
         name: test-${{ matrix.platform }}-cmake-${{ matrix.build_type }}-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
+
+  windows-native-sqlite-wallet-tests:
+    name: windows-native-sqlite-wallet-tests-Release
+    needs: [get-commit-hash, cmake-build]
+    if: ${{ !cancelled() && needs.get-commit-hash.result == 'success' }}
+    runs-on: windows-latest
+    steps:
+      - name: Download Windows SQLite Wallet Test Runtime
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-sqlite-wallet-test-runtime-${{ needs.get-commit-hash.outputs.short_sha }}
+          path: wallet-tests
+      - name: Run SQLite Wallet Tests on Native NTFS
+        shell: pwsh
+        working-directory: wallet-tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $testTemp = Join-Path $env:LOCALAPPDATA "FiroSQLiteWalletTests-$PID"
+          New-Item -ItemType Directory -Path $testTemp | Out-Null
+          $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+          $inheritance = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
+          $accessRule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+            $currentSid,
+            [System.Security.AccessControl.FileSystemRights]::FullControl,
+            $inheritance,
+            [System.Security.AccessControl.PropagationFlags]::None,
+            [System.Security.AccessControl.AccessControlType]::Allow
+          )
+          $privateAcl = [System.Security.AccessControl.DirectorySecurity]::new()
+          $privateAcl.SetAccessRuleProtection($true, $false)
+          $privateAcl.SetOwner($currentSid)
+          $privateAcl.AddAccessRule($accessRule)
+          Set-Acl -LiteralPath $testTemp -AclObject $privateAcl
+          $env:TEMP = $testTemp
+          $env:TMP = $env:TEMP
+          $env:FIRO_TEST_REQUIRE_WIN32_REPARSE = '1'
+          $drive = (Get-Item $env:TEMP).PSDrive.Name
+          if ((Get-Volume -DriveLetter $drive).FileSystem -ne 'NTFS') {
+            throw "SQLite Windows tests require NTFS"
+          }
+
+          function Invoke-FiroTest(
+            [string]$Executable,
+            [string]$Filter
+          ) {
+            & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=test_suite" "--" "DEBUG_LOG_OUT"
+            if ($LASTEXITCODE -ne 0) {
+              throw "$Executable failed for $Filter with exit code $LASTEXITCODE"
+            }
+          }
+
+          Invoke-FiroTest '.\build\bin\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
+          Invoke-FiroTest '.\build\bin\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
+          Invoke-FiroTest '.\build-windows-bdb-only\bin\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
 
   guix-build:
     needs: get-commit-hash

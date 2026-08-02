@@ -4338,7 +4338,11 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_reparse_point_is_rejected)
                 GetLastError();
     }
     if (!linkCreated &&
-        linkError == ERROR_PRIVILEGE_NOT_HELD) {
+        linkError == ERROR_PRIVILEGE_NOT_HELD &&
+        GetEnvironmentVariableW(
+            L"FIRO_TEST_REQUIRE_WIN32_REPARSE",
+            nullptr,
+            0) == 0) {
         BOOST_TEST_MESSAGE(
             "Skipping Win32 reparse-point rejection: symbolic-link "
             "creation privilege and Developer Mode are unavailable");
