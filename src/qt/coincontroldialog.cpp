@@ -65,6 +65,29 @@ unsigned int CoinControlDialog::estimateSparkTxBytes(
         std::numeric_limits<unsigned int>::max()));
 }
 
+unsigned int CoinControlDialog::estimateSparkTxBytes(
+    size_t selectedInputs,
+    size_t privateOutputs,
+    size_t transparentOutputs)
+{
+    if (selectedInputs == 1) {
+        return spark::EstimateSingleInputSparkSize(
+            privateOutputs,
+            transparentOutputs);
+    }
+
+    // Multi-coin Spark selections are rejected before construction. Keep an
+    // approximate display for that invalid state; the supported one-coin case
+    // above uses the batch planner's exact size.
+    const uint64_t estimatedSize = 924ULL
+        + 1803ULL * static_cast<uint64_t>(selectedInputs)
+        + 322ULL * (static_cast<uint64_t>(privateOutputs) + 1)
+        + 34ULL * static_cast<uint64_t>(transparentOutputs);
+    return static_cast<unsigned int>(std::min<uint64_t>(
+        estimatedSize,
+        std::numeric_limits<unsigned int>::max()));
+}
+
 bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
     int column = treeWidget()->sortColumn();
     if (column == CoinControlDialog::COLUMN_AMOUNT || column == CoinControlDialog::COLUMN_DATE || column == CoinControlDialog::COLUMN_CONFIRMATIONS)
