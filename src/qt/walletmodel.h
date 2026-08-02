@@ -196,6 +196,11 @@ public:
         const QList<SendCoinsRecipient> &recipients,
         const CCoinControl *coinControl);
 
+    SendCoinsReturn prepareSpendSparkTransactionsSingleInput(
+        std::vector<WalletModelTransaction> &transactions,
+        const QList<SendCoinsRecipient> &recipients,
+        const CCoinControl *coinControl);
+
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
 
