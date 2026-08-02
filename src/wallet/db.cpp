@@ -7,6 +7,7 @@
 
 #include "addrman.h"
 #include "hash.h"
+#include "init.h"
 #include "protocol.h"
 #include "util.h"
 #include "utilstrencodings.h"
@@ -30,6 +31,9 @@
 #include <boost/thread.hpp>
 #include <boost/version.hpp>
 
+#if defined(WIN32) && defined(USE_SQLITE)
+namespace win32_wallet = wallet::win32;
+#endif
 
 //
 // CDB
@@ -105,7 +109,19 @@ bool BerkeleyIdentityMatches(
         return true;
     }
 #ifdef WIN32
+#ifdef USE_SQLITE
+    (void)database;
+    std::string error;
+    return win32_wallet::InspectPathIdentity(
+               path,
+               *expected,
+               error) ==
+           win32_wallet::IdentityState::MATCH;
+#else
+    (void)database;
+    (void)path;
     return false;
+#endif
 #else
     int descriptor = -1;
     struct stat descriptor_status{};
@@ -127,7 +143,7 @@ bool BerkeleyIdentityMatches(
 #endif
 }
 
-#ifndef WIN32
+#if !defined(WIN32) || defined(USE_SQLITE)
 std::atomic<int> g_fail_migration_sync_after_successes{-1};
 std::atomic<int> g_migration_sync_failure_error{0};
 
@@ -148,7 +164,192 @@ int ConsumeMigrationSyncFailure()
     }
     return 0;
 }
+#endif
 
+#if defined(WIN32) && defined(USE_SQLITE)
+bool SameDatabaseFileIdentity(
+    const DatabaseFileIdentity& first,
+    const DatabaseFileIdentity& second)
+{
+    return first.device == second.device &&
+           first.inode == second.inode;
+}
+
+bool Win32MigrationFileMatches(
+    const win32_wallet::File& retained,
+    const fs::path& path,
+    const DatabaseFileIdentity& identity,
+    win32_wallet::SecurityPolicy policy,
+    std::string& error)
+{
+    if (win32_wallet::InspectHandleIdentity(
+            retained,
+            identity,
+            error) !=
+        win32_wallet::IdentityState::MATCH) {
+        return false;
+    }
+
+    win32_wallet::File path_pin;
+    DatabaseFileIdentity path_identity;
+    const win32_wallet::OpenResult open_result =
+        win32_wallet::OpenExistingFile(
+            path,
+            win32_wallet::FileAccess::READ_ONLY,
+            policy,
+            false,
+            path_pin,
+            path_identity,
+            error);
+    if (open_result !=
+        win32_wallet::OpenResult::OPENED) {
+        if (error.empty()) {
+            error =
+                open_result ==
+                        win32_wallet::OpenResult::ABSENT ?
+                    strprintf(
+                        "Retained wallet lifecycle path '%s' is absent.",
+                        path.string()) :
+                    strprintf(
+                        "Retained wallet lifecycle path '%s' could not be opened and validated.",
+                        path.string());
+        }
+        return false;
+    }
+    if (!SameDatabaseFileIdentity(
+            path_identity,
+            identity)) {
+        error = strprintf(
+            "Retained wallet lifecycle path '%s' names a different file identity.",
+            path.string());
+        return false;
+    }
+    return true;
+}
+
+bool Win32MoveProvesReplacement(
+    const win32_wallet::MoveResult& result)
+{
+    return result.disposition ==
+               win32_wallet::MoveDisposition::MOVED &&
+           result.write_through_confirmed &&
+           result.source_path ==
+               win32_wallet::IdentityState::ABSENT &&
+           result.destination_path ==
+               win32_wallet::IdentityState::MATCH &&
+           result.moving_handle ==
+               win32_wallet::IdentityState::MATCH &&
+           result.replaced_handle ==
+               win32_wallet::IdentityState::MATCH &&
+           result.replaced_delete_pending;
+}
+
+bool DurableSyncMigrationFile(
+    const win32_wallet::File& file,
+    std::string& error)
+{
+    const int injected_error =
+        ConsumeMigrationSyncFailure();
+    if (injected_error != 0) {
+        error = strprintf(
+            "injected synchronization failure: %s",
+            std::strerror(injected_error));
+        return false;
+    }
+    return win32_wallet::FlushFile(
+        file,
+        error);
+}
+
+bool CloseAndCheckpointMigrationDatabaseWin32(
+    CDBEnv& environment,
+    const std::string& filename,
+    std::string& error)
+{
+    const auto users =
+        environment.mapFileUseCount.find(filename);
+    if (users != environment.mapFileUseCount.end() &&
+        users->second != 0) {
+        error = strprintf(
+            "Cannot checkpoint BDB wallet '%s' for migration while database batches remain active.",
+            filename);
+        return false;
+    }
+    environment.migrationLogPins.insert(filename);
+
+    int close_result = 0;
+    const auto cached = environment.mapDb.find(filename);
+    if (cached != environment.mapDb.end()) {
+        Db* const database = cached->second;
+        if (database) {
+            close_result = database->close(0);
+            delete database;
+        }
+        environment.mapDb.erase(cached);
+    }
+    environment.mapFileUseCount.erase(filename);
+    if (close_result != 0) {
+        error = strprintf(
+            "Failed to close BDB wallet '%s' for migration: %s",
+            filename,
+            DbEnv::strerror(close_result));
+        return false;
+    }
+
+    const int checkpoint_result =
+        environment.dbenv->txn_checkpoint(0, 0, 0);
+    if (checkpoint_result != 0) {
+        error = strprintf(
+            "Failed to checkpoint BDB wallet '%s' for migration: %s",
+            filename,
+            DbEnv::strerror(checkpoint_result));
+        return false;
+    }
+    return true;
+}
+
+bool VerifyMigrationBackupWin32(
+    CDBEnv& environment,
+    const std::string& filename,
+    const fs::path& path,
+    std::string& error)
+{
+    if (environment.Verify(filename, nullptr) !=
+        CDBEnv::VERIFY_OK) {
+        error = strprintf(
+            "Failed to verify BDB migration backup '%s'.",
+            path.string());
+        return false;
+    }
+
+    Db reopened(environment.dbenv, 0);
+    const int open_result = reopened.open(
+        nullptr,
+        filename.c_str(),
+        "main",
+        DB_BTREE,
+        DB_RDONLY | DB_THREAD,
+        0);
+    if (open_result != 0) {
+        error = strprintf(
+            "Failed to reopen BDB migration backup '%s': %s",
+            path.string(),
+            DbEnv::strerror(open_result));
+        return false;
+    }
+    const int close_result = reopened.close(0);
+    if (close_result != 0) {
+        error = strprintf(
+            "Failed to close verified BDB migration backup '%s': %s",
+            path.string(),
+            DbEnv::strerror(close_result));
+        return false;
+    }
+    return true;
+}
+#endif
+
+#ifndef WIN32
 class ScopedMigrationDescriptor final
 {
 private:
@@ -704,7 +905,7 @@ public:
 };
 } // namespace
 
-#ifndef WIN32
+#if !defined(WIN32) || defined(USE_SQLITE)
 void InjectBerkeleyMigrationSyncFailureForTesting(
     int error_number,
     int successful_syncs_before_failure)
@@ -940,6 +1141,20 @@ CDB::CDB(BerkeleyDatabase& database, const char* pszMode, bool fFlushOnCloseIn)
     CDBEnv& env = *m_database.m_env;
     {
         LOCK(env.cs_db);
+#if defined(WIN32) && defined(USE_SQLITE)
+        const bool migration_read =
+            database.m_win32_migration_state ==
+                BerkeleyDatabase::Win32MigrationState::BACKUP_READY &&
+            fReadOnly &&
+            !fCreate;
+        if (database.m_win32_migration_state !=
+                BerkeleyDatabase::Win32MigrationState::NONE &&
+            !migration_read) {
+            throw std::runtime_error(strprintf(
+                "CDB: Refusing to open database %s while its Windows migration lifecycle is frozen.",
+                strFilename));
+        }
+#endif
         if (!env.Open(GetDataDir()))
             throw std::runtime_error("CDB: Failed to open database environment.");
 
@@ -992,6 +1207,32 @@ CDB::CDB(BerkeleyDatabase& database, const char* pszMode, bool fFlushOnCloseIn)
                 throw std::runtime_error(strprintf("CDB: Failed to configure for no temp file backing for database %s", strFilename));
         }
 
+#if defined(WIN32) && defined(USE_SQLITE)
+        win32_wallet::File first_open_pin;
+        if (!fMockDb &&
+            database.m_first_open_identity) {
+            DatabaseFileIdentity pinned_identity;
+            std::string pin_error;
+            if (win32_wallet::OpenExistingFile(
+                    GetDataDir() / strFilename,
+                    win32_wallet::FileAccess::READ_ONLY,
+                    win32_wallet::SecurityPolicy::DISCOVERY,
+                    false,
+                    first_open_pin,
+                    pinned_identity,
+                    pin_error) !=
+                    win32_wallet::OpenResult::OPENED ||
+                pinned_identity.device !=
+                    database.m_first_open_identity->device ||
+                pinned_identity.inode !=
+                    database.m_first_open_identity->inode) {
+                throw std::runtime_error(strprintf(
+                    "CDB: Refusing database %s because its retained pre-open identity is unavailable: %s",
+                    strFilename,
+                    pin_error));
+            }
+        }
+#endif
         ret = opened->open(NULL,                    // Txn pointer
             fMockDb ? NULL : strFilename.c_str(),   // Filename
             fMockDb ? strFilename.c_str() : "main", // Logical db name
@@ -1321,6 +1562,12 @@ bool CDB::Rewrite(BerkeleyDatabase& database, const char* pszSkip)
     while (true) {
         {
             LOCK(env.cs_db);
+#if defined(WIN32) && defined(USE_SQLITE)
+            if (database.m_win32_migration_state !=
+                BerkeleyDatabase::Win32MigrationState::NONE) {
+                return false;
+            }
+#endif
             if (!env.mapFileUseCount.count(strFile) || env.mapFileUseCount[strFile] == 0) {
                 // Flush log data to the dat file
                 env.CloseDb(strFile);
@@ -1409,6 +1656,15 @@ bool CDB::Rewrite(BerkeleyDatabase& database, const char* pszSkip)
 
 bool BerkeleyDatabase::Rewrite(const char* skip)
 {
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (m_env) {
+        LOCK(m_env->cs_db);
+        if (m_win32_migration_state !=
+            Win32MigrationState::NONE) {
+            return false;
+        }
+    }
+#endif
     return CDB::Rewrite(*this, skip);
 }
 
@@ -1420,6 +1676,12 @@ bool BerkeleyDatabase::Backup(const std::string& destination)
     while (true) {
         {
             LOCK(m_env->cs_db);
+#if defined(WIN32) && defined(USE_SQLITE)
+            if (m_win32_migration_state !=
+                Win32MigrationState::NONE) {
+                return false;
+            }
+#endif
             if (!m_env->mapFileUseCount.count(m_filename) || m_env->mapFileUseCount[m_filename] == 0) {
                 // Flush log data to the dat file
                 m_env->CloseDb(m_filename);
@@ -1465,7 +1727,499 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
     std::string& error)
 {
     error.clear();
-#ifdef WIN32
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (!m_env || m_filename.empty() || m_env->IsMock()) {
+        error =
+            "Cannot create a migration backup for an inert or memory-only BDB wallet.";
+        return MigrationBackupResult::FAILED;
+    }
+
+    fs::path source_path;
+    if (!GetWalletDatabasePath(
+            m_filename,
+            source_path,
+            error)) {
+        return MigrationBackupResult::FAILED;
+    }
+    fs::path target_path;
+    if (!GetWalletDatabasePath(
+            backup_filename,
+            target_path,
+            error)) {
+        return MigrationBackupResult::FAILED;
+    }
+    if (backup_filename == m_filename ||
+        target_path == source_path) {
+        error = strprintf(
+            "Refusing BDB migration backup '%s': the backup filename must differ from the source filename.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    const fs::path source_parent =
+        source_path.parent_path().empty() ?
+            fs::path(".") :
+            source_path.parent_path();
+    const fs::path target_parent =
+        target_path.parent_path().empty() ?
+            fs::path(".") :
+            target_path.parent_path();
+    if (source_parent != target_parent ||
+        !win32_wallet::ValidateMigrationDirectory(
+            source_parent,
+            error)) {
+        if (error.empty()) {
+            error =
+                "The BDB migration source and backup must use the same private local-NTFS directory.";
+        }
+        return MigrationBackupResult::FAILED;
+    }
+
+    win32_wallet::File existing_target;
+    DatabaseFileIdentity existing_target_identity;
+    const win32_wallet::OpenResult target_open_result =
+        win32_wallet::OpenExistingFile(
+            target_path,
+            win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::DISCOVERY,
+            false,
+            existing_target,
+            existing_target_identity,
+            error);
+    if (target_open_result ==
+        win32_wallet::OpenResult::OPENED) {
+        error = strprintf(
+            "BDB migration backup '%s' already exists.",
+            target_path.string());
+        return MigrationBackupResult::EXISTS;
+    }
+    if (target_open_result !=
+        win32_wallet::OpenResult::ABSENT) {
+        const std::string detail = error;
+        error = strprintf(
+            "Failed to prove BDB migration backup path '%s' absent: %s",
+            target_path.string(),
+            detail);
+        return MigrationBackupResult::FAILED;
+    }
+
+    LOCK(m_env->cs_db);
+    if (m_migration_source_file ||
+        m_migration_backup_file ||
+        m_migration_source_identity ||
+        m_migration_backup_identity ||
+        !m_migration_backup_path.empty() ||
+        !m_migration_backup_alternate_path.empty() ||
+        m_win32_migration_receipt ||
+        m_win32_migration_state !=
+            Win32MigrationState::NONE) {
+        error =
+            "A BDB migration backup identity is already retained by this wallet database.";
+        return MigrationBackupResult::FAILED;
+    }
+    if (!m_env->Open(GetDataDir())) {
+        error = strprintf(
+            "Failed to open the production Berkeley environment for migration backup '%s'.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    const auto source_users =
+        m_env->mapFileUseCount.find(m_filename);
+    if (source_users !=
+            m_env->mapFileUseCount.end() &&
+        source_users->second != 0) {
+        error = strprintf(
+            "Cannot create BDB migration backup '%s': active source database batches still exist.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    const auto target_users =
+        m_env->mapFileUseCount.find(backup_filename);
+    if (target_users !=
+            m_env->mapFileUseCount.end() &&
+        target_users->second != 0) {
+        error = strprintf(
+            "Cannot create BDB migration backup '%s': that database name is active in the Berkeley environment.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    if (!m_first_open_identity) {
+        error = strprintf(
+            "Cannot create BDB migration backup '%s': the source first-open identity was not retained.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+    const DatabaseFileIdentity source_identity =
+        *m_first_open_identity;
+    win32_wallet::File source_file;
+    DatabaseFileIdentity opened_source_identity;
+    if (win32_wallet::OpenExistingFile(
+            source_path,
+            win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+            true,
+            source_file,
+            opened_source_identity,
+            error) !=
+            win32_wallet::OpenResult::OPENED ||
+        !SameDatabaseFileIdentity(
+            opened_source_identity,
+            source_identity)) {
+        const std::string detail = error;
+        error = strprintf(
+            "Refusing BDB migration source '%s': it is not the retained current-user-controlled regular file: %s",
+            source_path.string(),
+            detail);
+        return MigrationBackupResult::FAILED;
+    }
+
+    static std::atomic<uint64_t> candidate_counter{0};
+    fs::path candidate_path;
+    std::string candidate_filename;
+    win32_wallet::File candidate_file;
+    DatabaseFileIdentity candidate_identity;
+    bool candidate_created = false;
+    for (int attempt = 0; attempt < 128; ++attempt) {
+        candidate_filename = strprintf(
+            ".%s.bdb-migration-%d-%d.tmp",
+            target_path.filename().string(),
+            GetTimeMicros(),
+            candidate_counter.fetch_add(1));
+        if (!GetWalletDatabasePath(
+                candidate_filename,
+                candidate_path,
+                error)) {
+            return MigrationBackupResult::FAILED;
+        }
+        const win32_wallet::CreateResult create_result =
+            win32_wallet::CreatePrivateFile(
+                candidate_path,
+                true,
+                candidate_file,
+                candidate_identity,
+                error);
+        if (create_result ==
+            win32_wallet::CreateResult::CREATED) {
+            candidate_created = true;
+            break;
+        }
+        if (create_result ==
+            win32_wallet::CreateResult::INDETERMINATE) {
+            const std::string detail = error;
+            m_migration_source_file =
+                std::move(source_file);
+            m_migration_source_identity =
+                source_identity;
+            m_migration_backup_file =
+                std::move(candidate_file);
+            if (candidate_identity.inode != 0) {
+                m_migration_backup_identity =
+                    candidate_identity;
+            }
+            m_migration_backup_path =
+                candidate_path;
+            m_migration_backup_alternate_path =
+                target_path;
+            m_win32_migration_state =
+                Win32MigrationState::INDETERMINATE;
+            StartShutdown();
+            error = strprintf(
+                "BDB migration backup candidate creation is indeterminate. "
+                "Source path: '%s'. Working path: '%s'. Requested final "
+                "backup path: '%s'. Preserve every reported path and restart "
+                "Firo before retrying: %s",
+                source_path.string(),
+                candidate_path.string(),
+                target_path.string(),
+                detail.empty() ?
+                    "the exact created file could not be removed durably" :
+                    detail);
+            return MigrationBackupResult::INDETERMINATE;
+        }
+        if (create_result !=
+            win32_wallet::CreateResult::EXISTS) {
+            return MigrationBackupResult::FAILED;
+        }
+    }
+    if (!candidate_created) {
+        error = strprintf(
+            "Failed to allocate a collision-free BDB migration backup candidate for '%s'.",
+            target_path.string());
+        return MigrationBackupResult::FAILED;
+    }
+
+    bool published = false;
+    bool cleanup_allowed = true;
+    fs::path retained_candidate_path = candidate_path;
+    fs::path alternate_candidate_path;
+    auto fail_created_candidate = [&]() {
+        std::string cleanup_error;
+        if (cleanup_allowed &&
+            !published) {
+            const win32_wallet::DeleteResult cleanup =
+                win32_wallet::MarkDeletePendingExact(
+                    candidate_path,
+                    candidate_identity,
+                    win32_wallet::SecurityPolicy::PRIVATE,
+                    &candidate_file,
+                    cleanup_error);
+            if (cleanup.disposition ==
+                    win32_wallet::DeleteDisposition::DELETE_PENDING ||
+                cleanup.disposition ==
+                    win32_wallet::DeleteDisposition::ABSENT) {
+                if (!error.empty()) {
+                    error += " ";
+                }
+                error += strprintf(
+                    "The failed private backup candidate '%s' is absent or delete-pending now, but Windows cannot prove its directory removal durable across power loss%s%s",
+                    candidate_path.string(),
+                    cleanup_error.empty() ?
+                        "." :
+                        ": ",
+                    cleanup_error);
+            } else {
+                if (!error.empty()) {
+                    error += " ";
+                }
+                error += strprintf(
+                    "Safe removal of private backup candidate '%s' could not be certified%s%s",
+                    candidate_path.string(),
+                    cleanup_error.empty() ?
+                        "." :
+                        ": ",
+                    cleanup_error);
+            }
+        } else if (!cleanup_allowed) {
+            if (!error.empty()) {
+                error += " ";
+            }
+            error += strprintf(
+                "No cleanup was attempted because publication could not be reconciled; preserve both working path '%s' and destination path '%s'.",
+                candidate_path.string(),
+                target_path.string());
+        }
+        if (!error.empty()) {
+            error += " ";
+        }
+        error += strprintf(
+            "BDB migration source path: '%s'. Requested final backup path: '%s'.",
+            source_path.string(),
+            target_path.string());
+
+        m_migration_source_file =
+            std::move(source_file);
+        m_migration_source_identity =
+            source_identity;
+        m_migration_backup_file =
+            std::move(candidate_file);
+        m_migration_backup_identity =
+            candidate_identity;
+        m_migration_backup_path =
+            retained_candidate_path;
+        m_migration_backup_alternate_path =
+            alternate_candidate_path;
+        m_win32_migration_state =
+            Win32MigrationState::INDETERMINATE;
+        StartShutdown();
+        return MigrationBackupResult::INDETERMINATE;
+    };
+
+    if (!CloseAndCheckpointMigrationDatabaseWin32(
+            *m_env,
+            m_filename,
+            error) ||
+        !Win32MigrationFileMatches(
+            source_file,
+            source_path,
+            source_identity,
+            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+            error)) {
+        if (error.empty()) {
+            error = strprintf(
+                "BDB migration source '%s' changed while it was checkpointed.",
+                source_path.string());
+        }
+        return fail_created_candidate();
+    }
+    if (!win32_wallet::CopyFileContents(
+            source_file,
+            candidate_file,
+            error) ||
+        !DurableSyncMigrationFile(
+            candidate_file,
+            error)) {
+        const std::string detail = error;
+        error = strprintf(
+            "Failed to copy or synchronize BDB migration backup candidate '%s': %s",
+            candidate_path.string(),
+            detail);
+        return fail_created_candidate();
+    }
+
+    const int file_id_result =
+        m_env->dbenv->fileid_reset(
+            candidate_filename.c_str(),
+            0);
+    if (file_id_result != 0 ||
+        !DurableSyncMigrationFile(
+            candidate_file,
+            error)) {
+        if (error.empty()) {
+            error = strprintf(
+                "Failed to assign and synchronize an independent Berkeley file identity for migration backup '%s': %s",
+                candidate_path.string(),
+                DbEnv::strerror(file_id_result));
+        }
+        return fail_created_candidate();
+    }
+    const int lsn_result =
+        m_env->dbenv->lsn_reset(
+            candidate_filename.c_str(),
+            0);
+    if (lsn_result != 0 ||
+        !DurableSyncMigrationFile(
+            candidate_file,
+            error)) {
+        if (error.empty()) {
+            error = strprintf(
+                "Failed to reset and synchronize the Berkeley log sequence number in migration backup '%s': %s",
+                candidate_path.string(),
+                DbEnv::strerror(lsn_result));
+        }
+        return fail_created_candidate();
+    }
+
+    int cached_target_close_result = 0;
+    const auto cached_target =
+        m_env->mapDb.find(candidate_filename);
+    if (cached_target != m_env->mapDb.end()) {
+        Db* const cached_database =
+            cached_target->second;
+        if (cached_database) {
+            cached_target_close_result =
+                cached_database->close(0);
+            delete cached_database;
+        }
+        m_env->mapDb.erase(cached_target);
+    }
+    m_env->mapFileUseCount.erase(
+        candidate_filename);
+    if (cached_target_close_result != 0 ||
+        !VerifyMigrationBackupWin32(
+            *m_env,
+            candidate_filename,
+            candidate_path,
+            error) ||
+        !Win32MigrationFileMatches(
+            source_file,
+            source_path,
+            source_identity,
+            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+            error) ||
+        !Win32MigrationFileMatches(
+            candidate_file,
+            candidate_path,
+            candidate_identity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            error)) {
+        if (error.empty()) {
+            error = strprintf(
+                "BDB migration source or backup candidate changed during verification for '%s'.",
+                target_path.string());
+        }
+        return fail_created_candidate();
+    }
+
+    const win32_wallet::MoveResult move_result =
+        win32_wallet::MoveFileNoReplace(
+            candidate_path,
+            candidate_file,
+            candidate_identity,
+            target_path,
+            error);
+    published =
+        move_result.disposition ==
+            win32_wallet::MoveDisposition::MOVED &&
+        move_result.write_through_confirmed;
+    if (!published) {
+        const std::string detail = error;
+        if (move_result.disposition ==
+            win32_wallet::MoveDisposition::COLLISION) {
+            error = strprintf(
+                "BDB migration backup path '%s' appeared concurrently and was not overwritten. %s",
+                target_path.string(),
+                detail);
+        } else if (move_result.disposition ==
+                   win32_wallet::MoveDisposition::NOT_MOVED) {
+            error = strprintf(
+                "BDB migration backup publication from '%s' to '%s' failed without moving the retained candidate: %s",
+                candidate_path.string(),
+                target_path.string(),
+                detail);
+        } else {
+            error = strprintf(
+                "BDB migration backup publication from '%s' to '%s' could not be proven: %s",
+                candidate_path.string(),
+                target_path.string(),
+                detail);
+            cleanup_allowed = false;
+            alternate_candidate_path =
+                target_path;
+            if (move_result.destination_path ==
+                    win32_wallet::IdentityState::MATCH &&
+                move_result.source_path ==
+                    win32_wallet::IdentityState::ABSENT) {
+                retained_candidate_path =
+                    target_path;
+                alternate_candidate_path =
+                    candidate_path;
+            }
+        }
+        return fail_created_candidate();
+    }
+    cleanup_allowed = false;
+    retained_candidate_path = target_path;
+    alternate_candidate_path = candidate_path;
+    if (!Win32MigrationFileMatches(
+            candidate_file,
+            target_path,
+            candidate_identity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            error) ||
+        !VerifyMigrationBackupWin32(
+            *m_env,
+            backup_filename,
+            target_path,
+            error) ||
+        !Win32MigrationFileMatches(
+            source_file,
+            source_path,
+            source_identity,
+            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+            error)) {
+        if (error.empty()) {
+            error = strprintf(
+                "Published BDB migration backup '%s' failed final identity verification.",
+                target_path.string());
+        }
+        return fail_created_candidate();
+    }
+
+    m_migration_source_file =
+        std::move(source_file);
+    m_migration_source_identity =
+        source_identity;
+    m_migration_backup_file =
+        std::move(candidate_file);
+    m_migration_backup_identity =
+        candidate_identity;
+    m_migration_backup_path =
+        target_path;
+    m_migration_backup_alternate_path.clear();
+    m_win32_migration_state =
+        Win32MigrationState::BACKUP_READY;
+    error.clear();
+    return MigrationBackupResult::SUCCESS;
+#elif defined(WIN32)
     (void)backup_filename;
     error =
         "Secure BDB-to-SQLite migration backup is unavailable on Windows.";
@@ -1916,7 +2670,85 @@ bool BerkeleyDatabase::PrepareForMigrationPublication(
     std::string& error)
 {
     error.clear();
-#ifdef WIN32
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (!m_env ||
+        m_filename.empty()) {
+        error =
+            "Cannot prepare BDB migration publication without a verified retained backup.";
+        return false;
+    }
+
+    fs::path source_path;
+    if (!GetWalletDatabasePath(
+            m_filename,
+            source_path,
+            error)) {
+        return false;
+    }
+    while (true) {
+        {
+            LOCK(m_env->cs_db);
+            if (!m_migration_source_file ||
+                !m_migration_source_identity ||
+                !m_migration_backup_file ||
+                !m_migration_backup_identity ||
+                m_migration_backup_path.empty() ||
+                (m_win32_migration_state !=
+                        Win32MigrationState::BACKUP_READY &&
+                    m_win32_migration_state !=
+                        Win32MigrationState::READY) ||
+                m_win32_migration_receipt) {
+                error =
+                    "Cannot prepare BDB migration publication without a verified retained backup.";
+                return false;
+            }
+            const auto users =
+                m_env->mapFileUseCount.find(m_filename);
+            if (users ==
+                    m_env->mapFileUseCount.end() ||
+                users->second == 0) {
+                if (!CloseAndCheckpointMigrationDatabaseWin32(
+                        *m_env,
+                        m_filename,
+                        error)) {
+                    return false;
+                }
+                if (!Win32MigrationFileMatches(
+                        m_migration_source_file,
+                        source_path,
+                        *m_migration_source_identity,
+                        win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+                        error)) {
+                    const std::string detail = error;
+                    error = strprintf(
+                        "Refusing BDB migration publication: source '%s' no longer matches its retained current-user-controlled identity%s%s",
+                        source_path.string(),
+                        detail.empty() ? "." : ": ",
+                        detail);
+                    return false;
+                }
+                if (!Win32MigrationFileMatches(
+                        m_migration_backup_file,
+                        m_migration_backup_path,
+                        *m_migration_backup_identity,
+                        win32_wallet::SecurityPolicy::PRIVATE,
+                        error)) {
+                    const std::string detail = error;
+                    error = strprintf(
+                        "Refusing BDB migration publication: backup '%s' no longer matches its retained private identity%s%s",
+                        m_migration_backup_path.string(),
+                        detail.empty() ? "." : ": ",
+                        detail);
+                    return false;
+                }
+                m_win32_migration_state =
+                    Win32MigrationState::READY;
+                return true;
+            }
+        }
+        MilliSleep(100);
+    }
+#elif defined(WIN32)
     error =
         "Secure BDB-to-SQLite migration publication is unavailable on Windows.";
     return false;
@@ -1985,7 +2817,35 @@ bool BerkeleyDatabase::MigrationSourceMatchesPath(
     std::string& error) const
 {
     error.clear();
-#ifdef WIN32
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (!m_env) {
+        error =
+            "No BDB migration source identity is retained.";
+        return false;
+    }
+    LOCK(m_env->cs_db);
+    if (!m_migration_source_file ||
+        !m_migration_source_identity) {
+        error =
+            "No BDB migration source identity is retained.";
+        return false;
+    }
+    if (!Win32MigrationFileMatches(
+            m_migration_source_file,
+            path,
+            *m_migration_source_identity,
+            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+            error)) {
+        const std::string detail = error;
+        error = strprintf(
+            "BDB migration source path '%s' does not match its retained current-user-controlled, single-link, non-reparse regular-file identity%s%s",
+            path.string(),
+            detail.empty() ? "." : ": ",
+            detail);
+        return false;
+    }
+    return true;
+#elif defined(WIN32)
     (void)path;
     error =
         "Retained BDB migration source identities are unavailable on Windows.";
@@ -2014,7 +2874,36 @@ bool BerkeleyDatabase::MigrationBackupMatchesPath(
     std::string& error) const
 {
     error.clear();
-#ifdef WIN32
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (!m_env) {
+        error =
+            "No BDB migration backup identity is retained.";
+        return false;
+    }
+    LOCK(m_env->cs_db);
+    if (!m_migration_backup_file ||
+        !m_migration_backup_identity ||
+        m_migration_backup_path.empty()) {
+        error =
+            "No BDB migration backup identity is retained.";
+        return false;
+    }
+    if (!Win32MigrationFileMatches(
+            m_migration_backup_file,
+            m_migration_backup_path,
+            *m_migration_backup_identity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            error)) {
+        const std::string detail = error;
+        error = strprintf(
+            "BDB migration backup path '%s' does not match its retained private, single-link, non-reparse regular-file identity%s%s",
+            m_migration_backup_path.string(),
+            detail.empty() ? "." : ": ",
+            detail);
+        return false;
+    }
+    return true;
+#elif defined(WIN32)
     error =
         "Retained BDB migration backup identities are unavailable on Windows.";
     return false;
@@ -2039,11 +2928,281 @@ bool BerkeleyDatabase::MigrationBackupMatchesPath(
 #endif
 }
 
+#if defined(WIN32) && defined(USE_SQLITE)
+win32_wallet::MoveResult
+BerkeleyDatabase::ReplaceMigrationSourceWithSQLite(
+    const fs::path& candidate_path,
+    const win32_wallet::File& candidate_file,
+    const DatabaseFileIdentity& candidate_identity,
+    const fs::path& source_path,
+    std::string& error)
+{
+    win32_wallet::MoveResult result;
+    error.clear();
+    if (!m_env ||
+        m_filename.empty()) {
+        error =
+            "Cannot replace a BDB migration source without one unused, prepared source-and-backup lifecycle receipt.";
+        return result;
+    }
+
+    LOCK(m_env->cs_db);
+    if (!m_migration_source_file ||
+        !m_migration_source_identity ||
+        !m_migration_backup_file ||
+        !m_migration_backup_identity ||
+        m_migration_backup_path.empty() ||
+        m_win32_migration_state !=
+            Win32MigrationState::READY ||
+        m_win32_migration_receipt) {
+        error =
+            "Cannot replace a BDB migration source without one unused, prepared source-and-backup lifecycle receipt.";
+        return result;
+    }
+
+    fs::path expected_source_path;
+    if (!GetWalletDatabasePath(
+            m_filename,
+            expected_source_path,
+            error) ||
+        expected_source_path != source_path) {
+        if (error.empty()) {
+            error = strprintf(
+                "Refusing BDB migration replacement: '%s' is not the retained source path '%s'.",
+                source_path.string(),
+                expected_source_path.string());
+        }
+        return result;
+    }
+    if (!Win32MigrationFileMatches(
+            m_migration_source_file,
+            source_path,
+            *m_migration_source_identity,
+            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+            error) ||
+        !Win32MigrationFileMatches(
+            m_migration_backup_file,
+            m_migration_backup_path,
+            *m_migration_backup_identity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            error)) {
+        const std::string detail = error;
+        error = strprintf(
+            "Refusing BDB migration replacement because the retained source or mandatory backup identity changed%s%s",
+            detail.empty() ? "." : ": ",
+            detail);
+        return result;
+    }
+
+    m_win32_migration_state =
+        Win32MigrationState::MOVE_ATTEMPTED;
+    result = win32_wallet::MoveFileReplace(
+        candidate_path,
+        candidate_file,
+        candidate_identity,
+        source_path,
+        m_migration_source_file,
+        *m_migration_source_identity,
+        win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+        error);
+    m_win32_migration_receipt =
+        Win32MigrationReceipt{
+            candidate_path,
+            source_path,
+            candidate_identity,
+            result};
+
+    if (result.disposition ==
+        win32_wallet::MoveDisposition::NOT_MOVED) {
+        return result;
+    }
+
+    std::string hidden_error;
+    win32_wallet::FileState source_state;
+    const bool moved_proven =
+        Win32MoveProvesReplacement(result) &&
+        win32_wallet::GetFileState(
+            m_migration_source_file,
+            source_state,
+            hidden_error) &&
+        SameDatabaseFileIdentity(
+            source_state.identity,
+            *m_migration_source_identity) &&
+        !source_state.directory &&
+        !source_state.reparse_point &&
+        source_state.delete_pending &&
+        win32_wallet::InspectPathIdentity(
+            candidate_path,
+            candidate_identity,
+            hidden_error) ==
+            win32_wallet::IdentityState::ABSENT &&
+        Win32MigrationFileMatches(
+            candidate_file,
+            source_path,
+            candidate_identity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            hidden_error) &&
+        Win32MigrationFileMatches(
+            m_migration_backup_file,
+            m_migration_backup_path,
+            *m_migration_backup_identity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            hidden_error);
+    if (moved_proven) {
+        m_win32_migration_state =
+            Win32MigrationState::MOVED_PROVEN;
+        return result;
+    }
+
+    result.disposition =
+        win32_wallet::MoveDisposition::INDETERMINATE;
+    m_win32_migration_receipt->move_result =
+        result;
+    m_win32_migration_state =
+        Win32MigrationState::INDETERMINATE;
+    StartShutdown();
+    if (error.empty()) {
+        error = hidden_error.empty() ?
+                    "Windows BDB-to-SQLite replacement did not prove the complete retained source, candidate, and mandatory-backup identity tuple." :
+                    hidden_error;
+    }
+    return result;
+}
+#endif
+
 bool BerkeleyDatabase::ConfirmMigrationSourceRemoved(
     std::string& error)
 {
     error.clear();
-#ifdef WIN32
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (!m_env ||
+        m_filename.empty()) {
+        error =
+            "No complete one-shot Windows migration replacement receipt is retained.";
+        return false;
+    }
+
+    LOCK(m_env->cs_db);
+    if (!m_migration_source_file ||
+        !m_migration_source_identity ||
+        !m_migration_backup_file ||
+        !m_migration_backup_identity ||
+        m_migration_backup_path.empty() ||
+        !m_migration_backup_alternate_path.empty() ||
+        !m_win32_migration_receipt ||
+        m_win32_migration_state !=
+            Win32MigrationState::MOVED_PROVEN ||
+        !Win32MoveProvesReplacement(
+            m_win32_migration_receipt->move_result)) {
+        error =
+            "No complete one-shot Windows migration replacement receipt is retained.";
+        return false;
+    }
+
+    auto fail_after_replacement =
+        [&](const std::string& reason) {
+            m_win32_migration_state =
+                Win32MigrationState::INDETERMINATE;
+            StartShutdown();
+            error = reason.empty() ?
+                        "The Windows migration replacement could not be finalized from its retained receipt." :
+                        reason;
+            return false;
+        };
+
+    fs::path source_path;
+    if (!GetWalletDatabasePath(
+            m_filename,
+            source_path,
+            error) ||
+        source_path !=
+            m_win32_migration_receipt->source_path) {
+        return fail_after_replacement(
+            error.empty() ?
+                "The Windows migration receipt does not name the retained BDB source path." :
+                error);
+    }
+
+    win32_wallet::FileState source_state;
+    if (!win32_wallet::GetFileState(
+            m_migration_source_file,
+            source_state,
+            error) ||
+        !SameDatabaseFileIdentity(
+            source_state.identity,
+            *m_migration_source_identity) ||
+        source_state.directory ||
+        source_state.reparse_point ||
+        !source_state.delete_pending) {
+        return fail_after_replacement(
+            error.empty() ?
+                "The retained BDB migration source was not proven delete-pending after replacement." :
+                error);
+    }
+
+    std::string hidden_error;
+    const win32_wallet::IdentityState hidden_path_state =
+        win32_wallet::InspectPathIdentity(
+            m_win32_migration_receipt->candidate_path,
+            m_win32_migration_receipt->candidate_identity,
+            hidden_error);
+    win32_wallet::File final_file;
+    DatabaseFileIdentity final_identity;
+    if (hidden_path_state !=
+            win32_wallet::IdentityState::ABSENT ||
+        win32_wallet::OpenExistingFile(
+            source_path,
+            win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            false,
+            final_file,
+            final_identity,
+            error) !=
+            win32_wallet::OpenResult::OPENED ||
+        !SameDatabaseFileIdentity(
+            final_identity,
+            m_win32_migration_receipt->candidate_identity) ||
+        win32_wallet::InspectHandleIdentity(
+            final_file,
+            m_win32_migration_receipt->candidate_identity,
+            error) !=
+            win32_wallet::IdentityState::MATCH ||
+        !Win32MigrationFileMatches(
+            m_migration_backup_file,
+            m_migration_backup_path,
+            *m_migration_backup_identity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            error)) {
+        return fail_after_replacement(
+            !hidden_error.empty() ?
+                hidden_error :
+            error.empty() ?
+                "The final SQLite candidate, hidden candidate path, or mandatory BDB backup no longer matches the replacement receipt." :
+                error);
+    }
+
+    const auto pin =
+        m_env->migrationLogPins.find(m_filename);
+    if (pin ==
+        m_env->migrationLogPins.end()) {
+        error =
+            "The retained BDB migration source lost its Berkeley log pin.";
+        return fail_after_replacement(error);
+    }
+    std::string close_error;
+    if (!m_migration_source_file.Close(
+            close_error)) {
+        return fail_after_replacement(
+            close_error.empty() ?
+                "Failed to close the proven delete-pending BDB migration source." :
+                close_error);
+    }
+    m_env->migrationLogPins.erase(pin);
+    m_win32_migration_state =
+        Win32MigrationState::FINALIZED;
+    error.clear();
+    return true;
+#elif defined(WIN32)
     error =
         "Retained BDB migration source identities are unavailable on Windows.";
     return false;
@@ -2094,6 +3253,12 @@ bool BerkeleyDatabase::PeriodicFlush()
     if (!lockDb) {
         return false;
     }
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (m_win32_migration_state !=
+        Win32MigrationState::NONE) {
+        return false;
+    }
+#endif
 
     // Don't do this if any databases are in use
     int refCount = 0;
@@ -2124,6 +3289,13 @@ bool BerkeleyDatabase::PeriodicFlush()
 void BerkeleyDatabase::Flush(bool shutdown)
 {
     if (m_env && !m_filename.empty()) {
+#if defined(WIN32) && defined(USE_SQLITE)
+        LOCK(m_env->cs_db);
+        if (m_win32_migration_state !=
+            Win32MigrationState::NONE) {
+            return;
+        }
+#endif
         m_env->Flush(shutdown);
     }
 }

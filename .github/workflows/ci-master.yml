@@ -259,7 +259,7 @@ jobs:
 
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
         cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DENABLE_SQLITE_WALLET=OFF \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DENABLE_SQLITE_WALLET=ON \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         $CMAKE_EXTRA_FLAGS \
         -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)

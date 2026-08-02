@@ -16,6 +16,9 @@
 #include "util.h"
 #include "wallet/db.h"
 #include "wallet/walletdb.h"
+#ifdef WIN32
+#include "wallet/win32_file_lifecycle.h"
+#endif
 
 #include <sqlite3.h>
 
@@ -29,6 +32,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <optional>
 #include <shared_mutex>
 #include <stdexcept>
@@ -55,6 +59,10 @@
 
 namespace
 {
+#ifdef WIN32
+namespace win32_wallet = wallet::win32;
+#endif
+
 constexpr int SQLITE_BUSY_TIMEOUT_MILLISECONDS = 5000;
 constexpr int32_t WALLET_SCHEMA_VERSION = 0;
 constexpr unsigned char LOGICAL_CREATION_MARKER[]{
@@ -103,6 +111,9 @@ std::atomic<int> g_fail_file_sync_after_successes{-1};
 std::atomic<int> g_file_sync_failure_error{0};
 std::atomic<int> g_fail_erase_after_successes{-1};
 std::atomic<int> g_erase_attempts{0};
+#ifdef WIN32
+std::atomic<bool> g_fail_candidate_revalidation_once{false};
+#endif
 
 bool ConsumePostPublishFailure()
 {
@@ -203,6 +214,13 @@ bool ConsumeEraseFailure()
     }
     return false;
 }
+
+#ifdef WIN32
+bool ConsumeCandidateRevalidationFailure()
+{
+    return g_fail_candidate_revalidation_once.exchange(false);
+}
+#endif
 
 void LogSQLiteError(const char* context, sqlite3* database, int result) noexcept
 {
@@ -691,8 +709,118 @@ uint32_t ExpectedApplicationId()
     return ReadBE32(Params().MessageStart());
 }
 
-struct SQLiteFileIdentity {
+class SQLiteFileHandle final
+{
+private:
+#ifdef WIN32
+    win32_wallet::File m_file;
+#else
+    int m_descriptor{-1};
+#endif
+
+public:
+    SQLiteFileHandle() noexcept = default;
+    ~SQLiteFileHandle()
+    {
 #ifndef WIN32
+        if (m_descriptor >= 0) {
+            close(m_descriptor);
+        }
+#endif
+    }
+
+    SQLiteFileHandle(SQLiteFileHandle&& other) noexcept
+#ifdef WIN32
+        : m_file(std::move(other.m_file))
+#else
+        : m_descriptor(other.m_descriptor)
+#endif
+    {
+#ifndef WIN32
+        other.m_descriptor = -1;
+#endif
+    }
+
+    SQLiteFileHandle& operator=(
+        SQLiteFileHandle&& other) noexcept
+    {
+        if (this != &other) {
+#ifdef WIN32
+            m_file = std::move(other.m_file);
+#else
+            Reset(other.m_descriptor);
+            other.m_descriptor = -1;
+#endif
+        }
+        return *this;
+    }
+
+    SQLiteFileHandle(const SQLiteFileHandle&) = delete;
+    SQLiteFileHandle& operator=(const SQLiteFileHandle&) = delete;
+
+    explicit operator bool() const noexcept
+    {
+#ifdef WIN32
+        return static_cast<bool>(m_file);
+#else
+        return m_descriptor >= 0;
+#endif
+    }
+
+    bool Close(std::string& error)
+    {
+        error.clear();
+#ifdef WIN32
+        return m_file.Close(error);
+#else
+        if (m_descriptor < 0) {
+            return true;
+        }
+        const int descriptor = m_descriptor;
+        m_descriptor = -1;
+        if (close(descriptor) == 0) {
+            return true;
+        }
+        error = std::strerror(errno);
+        return false;
+#endif
+    }
+
+#ifdef WIN32
+    win32_wallet::File& Native() noexcept
+    {
+        return m_file;
+    }
+
+    const win32_wallet::File& Native() const noexcept
+    {
+        return m_file;
+    }
+
+    void Reset() noexcept
+    {
+        m_file.Reset();
+    }
+#else
+    int Get() const noexcept
+    {
+        return m_descriptor;
+    }
+
+    void Reset(int descriptor = -1) noexcept
+    {
+        if (m_descriptor >= 0) {
+            close(m_descriptor);
+        }
+        m_descriptor = descriptor;
+    }
+#endif
+};
+
+struct SQLiteFileIdentity {
+#ifdef WIN32
+    DatabaseFileIdentity native{};
+#else
     dev_t device{0};
     ino_t inode{0};
 #endif
@@ -704,9 +832,12 @@ bool SameSQLiteFileIdentity(
     const SQLiteFileIdentity& second) noexcept
 {
 #ifdef WIN32
-    (void)first;
-    (void)second;
-    return false;
+    return first.valid &&
+           second.valid &&
+           first.native.device ==
+               second.native.device &&
+           first.native.inode ==
+               second.native.inode;
 #else
     return first.valid &&
            second.valid &&
@@ -720,9 +851,19 @@ bool PathIdentityMatches(
     const SQLiteFileIdentity& identity) noexcept
 {
 #ifdef WIN32
-    (void)path;
-    (void)identity;
-    return false;
+    if (!identity.valid) {
+        return false;
+    }
+    try {
+        std::string error;
+        return win32_wallet::InspectPathIdentity(
+                   path,
+                   identity.native,
+                   error) ==
+               win32_wallet::IdentityState::MATCH;
+    } catch (...) {
+        return false;
+    }
 #else
     if (!identity.valid) {
         return false;
@@ -736,19 +877,30 @@ bool PathIdentityMatches(
 }
 
 bool DescriptorIdentityMatches(
-    int descriptor,
+    const SQLiteFileHandle& descriptor,
     const SQLiteFileIdentity& identity) noexcept
 {
 #ifdef WIN32
-    (void)descriptor;
-    (void)identity;
-    return false;
+    if (!descriptor ||
+        !identity.valid) {
+        return false;
+    }
+    try {
+        std::string error;
+        return win32_wallet::InspectHandleIdentity(
+                   descriptor.Native(),
+                   identity.native,
+                   error) ==
+               win32_wallet::IdentityState::MATCH;
+    } catch (...) {
+        return false;
+    }
 #else
-    if (descriptor < 0 || !identity.valid) {
+    if (!descriptor || !identity.valid) {
         return false;
     }
     struct stat metadata{};
-    return fstat(descriptor, &metadata) == 0 &&
+    return fstat(descriptor.Get(), &metadata) == 0 &&
            S_ISREG(metadata.st_mode) &&
            metadata.st_dev == identity.device &&
            metadata.st_ino == identity.inode;
@@ -756,19 +908,37 @@ bool DescriptorIdentityMatches(
 }
 
 bool DescriptorIdentityIsUnlinked(
-    int descriptor,
+    const SQLiteFileHandle& descriptor,
     const SQLiteFileIdentity& identity) noexcept
 {
 #ifdef WIN32
-    (void)descriptor;
-    (void)identity;
-    return false;
+    if (!descriptor ||
+        !identity.valid) {
+        return false;
+    }
+    try {
+        win32_wallet::FileState state;
+        std::string error;
+        return win32_wallet::GetFileState(
+                   descriptor.Native(),
+                   state,
+                   error) &&
+               state.identity.device ==
+                   identity.native.device &&
+               state.identity.inode ==
+                   identity.native.inode &&
+               !state.directory &&
+               !state.reparse_point &&
+               state.delete_pending;
+    } catch (...) {
+        return false;
+    }
 #else
-    if (descriptor < 0 || !identity.valid) {
+    if (!descriptor || !identity.valid) {
         return false;
     }
     struct stat metadata{};
-    return fstat(descriptor, &metadata) == 0 &&
+    return fstat(descriptor.Get(), &metadata) == 0 &&
            S_ISREG(metadata.st_mode) &&
            metadata.st_dev == identity.device &&
            metadata.st_ino == identity.inode &&
@@ -777,20 +947,41 @@ bool DescriptorIdentityIsUnlinked(
 }
 
 bool PrivateSQLiteIdentityMatches(
-    int descriptor,
+    const SQLiteFileHandle& descriptor,
     const fs::path& path,
     const SQLiteFileIdentity& identity) noexcept
 {
 #ifdef WIN32
-    (void)descriptor;
-    (void)path;
-    (void)identity;
-    return false;
+    if (!DescriptorIdentityMatches(
+            descriptor,
+            identity)) {
+        return false;
+    }
+    try {
+        win32_wallet::File path_pin;
+        DatabaseFileIdentity path_identity;
+        std::string error;
+        return win32_wallet::OpenExistingFile(
+                   path,
+                   win32_wallet::FileAccess::READ_ONLY,
+                   win32_wallet::SecurityPolicy::PRIVATE,
+                   false,
+                   path_pin,
+                   path_identity,
+                   error) ==
+                   win32_wallet::OpenResult::OPENED &&
+               path_identity.device ==
+                   identity.native.device &&
+               path_identity.inode ==
+                   identity.native.inode;
+    } catch (...) {
+        return false;
+    }
 #else
     struct stat descriptor_status{};
     struct stat path_status{};
-    return descriptor >= 0 &&
-           fstat(descriptor, &descriptor_status) == 0 &&
+    return descriptor &&
+           fstat(descriptor.Get(), &descriptor_status) == 0 &&
            lstat(path.string().c_str(), &path_status) == 0 &&
            S_ISREG(descriptor_status.st_mode) &&
            S_ISREG(path_status.st_mode) &&
@@ -813,6 +1004,22 @@ bool ConnectionIdentityMatches(
     const SQLiteFileIdentity& identity,
     std::string& error)
 {
+#ifdef WIN32
+    if (!identity.valid ||
+        !PathIdentityMatches(path, identity) ||
+        !win32_wallet::SQLiteHandleIdentityMatches(
+            database,
+            identity.native,
+            error)) {
+        if (error.empty()) {
+            error = strprintf(
+                "Refusing SQLite wallet '%s': SQLite's native handle does not match the retained file identity.",
+                path.string());
+        }
+        return false;
+    }
+    return true;
+#else
     if (!PathIdentityMatches(path, identity)) {
         error = strprintf(
             "Refusing SQLite wallet '%s': its file identity changed while opening.",
@@ -835,6 +1042,7 @@ bool ConnectionIdentityMatches(
         return false;
     }
     return true;
+#endif
 }
 
 bool VerifySchema(sqlite3* database, std::string& error)
@@ -1197,7 +1405,56 @@ bool OpenSQLiteConnection(
     const int flags = SQLITE_OPEN_FULLMUTEX |
                       SQLITE_OPEN_NOFOLLOW |
                       SQLITE_OPEN_READWRITE;
-    int result = sqlite3_open_v2(path.string().c_str(), &database, flags, nullptr);
+#ifdef WIN32
+    std::string sqlite_path;
+    if (!win32_wallet::PathToUtf8(
+            path,
+            sqlite_path,
+            error)) {
+        return false;
+    }
+    win32_wallet::File open_pin;
+    if (expected_identity) {
+        if (!expected_identity->valid) {
+            error = strprintf(
+                "Cannot open SQLite wallet '%s' without a valid retained Windows file identity.",
+                path.string());
+            return false;
+        }
+        DatabaseFileIdentity pinned_identity;
+        if (win32_wallet::OpenExistingFile(
+                path,
+                win32_wallet::FileAccess::READ_WRITE,
+                win32_wallet::SecurityPolicy::PRIVATE,
+                false,
+                open_pin,
+                pinned_identity,
+                error) !=
+                win32_wallet::OpenResult::OPENED ||
+            pinned_identity.device !=
+                expected_identity->native.device ||
+            pinned_identity.inode !=
+                expected_identity->native.inode) {
+            if (error.empty()) {
+                error = strprintf(
+                    "Refusing SQLite wallet '%s': its no-delete-sharing pre-open identity changed.",
+                    path.string());
+            }
+            return false;
+        }
+    }
+    int result = sqlite3_open_v2(
+        sqlite_path.c_str(),
+        &database,
+        flags,
+        nullptr);
+#else
+    int result = sqlite3_open_v2(
+        path.string().c_str(),
+        &database,
+        flags,
+        nullptr);
+#endif
     if (result != SQLITE_OK) {
         error = strprintf(
             "Failed to open SQLite wallet '%s': %s",
@@ -1340,26 +1597,122 @@ bool GetPathStatus(
     }
 }
 
+bool VerifySQLiteHeaderBytes(
+    const std::array<unsigned char, 100>& header,
+    const fs::path& path,
+    std::string& error)
+{
+    static constexpr unsigned char SQLITE_MAGIC[]{
+        'S', 'Q', 'L', 'i', 't', 'e', ' ', 'f',
+        'o', 'r', 'm', 'a', 't', ' ', '3', '\0'};
+    if (!std::equal(
+            SQLITE_MAGIC,
+            SQLITE_MAGIC + sizeof(SQLITE_MAGIC),
+            header.begin())) {
+        error = strprintf(
+            "SQLite wallet '%s' has an invalid database header.",
+            path.string());
+        return false;
+    }
+    if (header[18] != 1 || header[19] != 1) {
+        error = strprintf(
+            "SQLite wallet '%s' uses unsupported WAL journal header bytes.",
+            path.string());
+        return false;
+    }
+
+    const uint32_t user_version =
+        ReadBE32(header.data() + 60);
+    if (user_version !=
+        static_cast<uint32_t>(
+            WALLET_SCHEMA_VERSION)) {
+        error = strprintf(
+            "SQLite wallet '%s' has schema version %u; expected %d.",
+            path.string(),
+            user_version,
+            WALLET_SCHEMA_VERSION);
+        return false;
+    }
+    const uint32_t application_id =
+        ReadBE32(header.data() + 68);
+    if (application_id != ExpectedApplicationId()) {
+        error = strprintf(
+            "SQLite wallet '%s' has application ID %u; expected %u for the active network.",
+            path.string(),
+            application_id,
+            ExpectedApplicationId());
+        return false;
+    }
+    return true;
+}
+
 bool VerifySQLiteHeaderDescriptor(
-    int descriptor,
+    const SQLiteFileHandle& descriptor,
     const fs::path& path,
     SQLiteFileIdentity& identity,
     std::string& error)
 {
 #ifdef WIN32
-    (void)descriptor;
-    (void)identity;
-    error = strprintf(
-        "Cannot verify SQLite wallet '%s' without following reparse points on Windows.",
-        path.string());
-    return false;
+    identity = {};
+    if (!descriptor) {
+        error = strprintf(
+            "Cannot verify SQLite wallet '%s' without a retained Windows file handle.",
+            path.string());
+        return false;
+    }
+    win32_wallet::FileState metadata;
+    if (!win32_wallet::GetFileState(
+            descriptor.Native(),
+            metadata,
+            error) ||
+        metadata.directory ||
+        metadata.reparse_point ||
+        metadata.delete_pending ||
+        metadata.link_count != 1 ||
+        metadata.identity.inode == 0) {
+        if (error.empty()) {
+            error = strprintf(
+                "Refusing SQLite wallet '%s': it must be one stable, non-reparse regular file.",
+                path.string());
+        }
+        return false;
+    }
+    if (metadata.size < 100) {
+        error = strprintf(
+            "SQLite wallet '%s' has a truncated database header.",
+            path.string());
+        return false;
+    }
+
+    std::array<unsigned char, 100> header{};
+    if (!win32_wallet::ReadExact(
+            descriptor.Native(),
+            0,
+            header.data(),
+            header.size(),
+            error)) {
+        error = strprintf(
+            "Failed to read SQLite wallet header '%s': %s",
+            path.string(),
+            error);
+        return false;
+    }
+    identity.native = metadata.identity;
+    identity.valid = true;
+    return VerifySQLiteHeaderBytes(
+        header,
+        path,
+        error);
 #else
     identity = {};
     std::array<unsigned char, 100> header{};
     size_t offset = 0;
     int failure = 0;
     struct stat metadata{};
-    if (fstat(descriptor, &metadata) != 0 || !S_ISREG(metadata.st_mode)) {
+    if (fstat(
+            descriptor.Get(),
+            &metadata) != 0 ||
+        !S_ISREG(metadata.st_mode)) {
         failure = errno != 0 ? errno : EINVAL;
     } else if (metadata.st_uid != geteuid() ||
                metadata.st_nlink != 1 ||
@@ -1376,7 +1729,7 @@ bool VerifySQLiteHeaderDescriptor(
     }
     while (failure == 0 && offset < header.size()) {
         const ssize_t count = pread(
-            descriptor,
+            descriptor.Get(),
             header.data() + offset,
             header.size() - offset,
             static_cast<off_t>(offset));
@@ -1402,44 +1755,10 @@ bool VerifySQLiteHeaderDescriptor(
         return false;
     }
 
-    static constexpr unsigned char SQLITE_MAGIC[]{
-        'S', 'Q', 'L', 'i', 't', 'e', ' ', 'f',
-        'o', 'r', 'm', 'a', 't', ' ', '3', '\0'};
-    if (!std::equal(
-            SQLITE_MAGIC,
-            SQLITE_MAGIC + sizeof(SQLITE_MAGIC),
-            header.begin())) {
-        error = strprintf(
-            "SQLite wallet '%s' has an invalid database header.",
-            path.string());
-        return false;
-    }
-    if (header[18] != 1 || header[19] != 1) {
-        error = strprintf(
-            "SQLite wallet '%s' uses unsupported WAL journal header bytes.",
-            path.string());
-        return false;
-    }
-
-    const uint32_t user_version = ReadBE32(header.data() + 60);
-    if (user_version != static_cast<uint32_t>(WALLET_SCHEMA_VERSION)) {
-        error = strprintf(
-            "SQLite wallet '%s' has schema version %u; expected %d.",
-            path.string(),
-            user_version,
-            WALLET_SCHEMA_VERSION);
-        return false;
-    }
-    const uint32_t application_id = ReadBE32(header.data() + 68);
-    if (application_id != ExpectedApplicationId()) {
-        error = strprintf(
-            "SQLite wallet '%s' has application ID %u; expected %u for the active network.",
-            path.string(),
-            application_id,
-            ExpectedApplicationId());
-        return false;
-    }
-    return true;
+    return VerifySQLiteHeaderBytes(
+        header,
+        path,
+        error);
 #endif
 }
 
@@ -1447,11 +1766,60 @@ bool PreflightSQLiteHeader(
     const fs::path& path,
     SQLiteFileIdentity& identity,
     std::string& error,
-    int* retained_descriptor = nullptr)
+    SQLiteFileHandle* retained_descriptor = nullptr)
 {
 #ifdef WIN32
-    (void)retained_descriptor;
-    return VerifySQLiteHeaderDescriptor(-1, path, identity, error);
+    SQLiteFileHandle opened;
+    DatabaseFileIdentity opened_identity;
+    if (win32_wallet::OpenExistingFile(
+            path,
+            retained_descriptor ?
+                win32_wallet::FileAccess::READ_WRITE :
+                win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            retained_descriptor != nullptr,
+            opened.Native(),
+            opened_identity,
+            error) !=
+        win32_wallet::OpenResult::OPENED) {
+        if (error.empty()) {
+            error = strprintf(
+                "Failed to preflight SQLite wallet '%s' without following reparse points.",
+                path.string());
+        }
+        return false;
+    }
+    if (!VerifySQLiteHeaderDescriptor(
+            opened,
+            path,
+            identity,
+            error) ||
+        identity.native.device !=
+            opened_identity.device ||
+        identity.native.inode !=
+            opened_identity.inode ||
+        !PathIdentityMatches(path, identity)) {
+        if (error.empty()) {
+            error = strprintf(
+                "Refusing SQLite wallet '%s': its retained preflight identity changed.",
+                path.string());
+        }
+        return false;
+    }
+    if (retained_descriptor) {
+        *retained_descriptor =
+            std::move(opened);
+        return true;
+    }
+    std::string close_error;
+    if (!opened.Close(close_error)) {
+        error = strprintf(
+            "Failed to close SQLite wallet preflight handle '%s': %s",
+            path.string(),
+            close_error);
+        return false;
+    }
+    return true;
 #else
     int flags = retained_descriptor ? O_RDWR : O_RDONLY;
 #ifdef O_CLOEXEC
@@ -1460,8 +1828,10 @@ bool PreflightSQLiteHeader(
 #ifdef O_NOFOLLOW
     flags |= O_NOFOLLOW;
 #endif
-    const int descriptor = open(path.string().c_str(), flags);
-    if (descriptor < 0) {
+    SQLiteFileHandle opened;
+    opened.Reset(
+        open(path.string().c_str(), flags));
+    if (!opened) {
         error = strprintf(
             "Failed to preflight SQLite wallet '%s': %s",
             path.string(),
@@ -1470,9 +1840,10 @@ bool PreflightSQLiteHeader(
     }
 
     if (retained_descriptor &&
-        flock(descriptor, LOCK_EX | LOCK_NB) != 0) {
+        flock(
+            opened.Get(),
+            LOCK_EX | LOCK_NB) != 0) {
         const int saved_errno = errno;
-        close(descriptor);
         error = strprintf(
             "Unable to claim SQLite wallet '%s'; another Firo process may "
             "already own it: %s",
@@ -1482,23 +1853,24 @@ bool PreflightSQLiteHeader(
     }
 
     if (!VerifySQLiteHeaderDescriptor(
-            descriptor,
+            opened,
             path,
             identity,
             error)) {
-        close(descriptor);
         return false;
     }
 
     if (retained_descriptor) {
-        *retained_descriptor = descriptor;
+        *retained_descriptor =
+            std::move(opened);
         return true;
     }
-    if (close(descriptor) != 0) {
+    std::string close_error;
+    if (!opened.Close(close_error)) {
         error = strprintf(
             "Failed to close SQLite wallet preflight descriptor '%s': %s",
             path.string(),
-            std::strerror(errno));
+            close_error);
         return false;
     }
     return true;
@@ -1510,6 +1882,58 @@ bool CheckAuxiliaryFiles(
     bool allow_regular_journal,
     std::string& error)
 {
+#ifdef WIN32
+    auto inspect_auxiliary =
+        [&](const fs::path& auxiliary_path,
+            const char* description,
+            bool allow_existing) {
+            win32_wallet::File auxiliary;
+            DatabaseFileIdentity identity;
+            std::string detail;
+            const win32_wallet::OpenResult result =
+                win32_wallet::OpenExistingFile(
+                    auxiliary_path,
+                    win32_wallet::FileAccess::READ_ONLY,
+                    win32_wallet::SecurityPolicy::PRIVATE,
+                    false,
+                    auxiliary,
+                    identity,
+                    detail);
+            if (result ==
+                win32_wallet::OpenResult::ABSENT) {
+                return true;
+            }
+            if (result ==
+                    win32_wallet::OpenResult::OPENED &&
+                allow_existing) {
+                return true;
+            }
+            error = strprintf(
+                "Refusing SQLite wallet '%s': its %s '%s' is not an allowed private, single-link, non-reparse regular file%s%s",
+                path.string(),
+                description,
+                auxiliary_path.string(),
+                detail.empty() ? "." : ": ",
+                detail);
+            return false;
+        };
+
+    if (!inspect_auxiliary(
+            fs::path(path.string() + "-journal"),
+            "rollback journal",
+            allow_regular_journal)) {
+        return false;
+    }
+    for (const char* suffix : {"-wal", "-shm"}) {
+        if (!inspect_auxiliary(
+                fs::path(path.string() + suffix),
+                suffix,
+                false)) {
+            return false;
+        }
+    }
+    return true;
+#else
     const fs::path journal_path(path.string() + "-journal");
     fs::file_status journal_status;
     if (!GetPathStatus(journal_path, journal_status, error)) {
@@ -1554,35 +1978,103 @@ bool CheckAuxiliaryFiles(
         }
     }
     return true;
+#endif
 }
 
 enum class CandidateResult {
     SUCCESS,
-    ERROR,
+    FAILED,
+    INDETERMINATE,
 };
 
 struct OwnedCandidate {
     fs::path path;
     SQLiteFileIdentity identity;
-    int descriptor{-1};
+    SQLiteFileHandle descriptor;
     bool valid{false};
     bool cleanup_allowed{true};
-
-    ~OwnedCandidate()
-    {
-        if (descriptor >= 0) {
-#ifdef WIN32
-            _close(descriptor);
-#else
-            close(descriptor);
-#endif
-        }
-    }
 
     OwnedCandidate() = default;
     OwnedCandidate(const OwnedCandidate&) = delete;
     OwnedCandidate& operator=(const OwnedCandidate&) = delete;
 };
+
+#ifdef WIN32
+struct RetainedIndeterminateFile {
+    SQLiteFileIdentity identity;
+    SQLiteFileHandle descriptor;
+    RetainedIndeterminateFile* next{nullptr};
+
+    RetainedIndeterminateFile(
+        SQLiteFileHandle& file,
+        const SQLiteFileIdentity& file_identity) noexcept
+        : identity(file_identity),
+          descriptor(std::move(file))
+    {
+    }
+};
+
+RetainedIndeterminateFile* g_retained_indeterminate_files{nullptr};
+bool g_retained_indeterminate_file_close_failed{false};
+
+void AppendRetentionFailure(
+    std::string& error) noexcept
+{
+    try {
+        error +=
+            " The exact Windows file handle could not be retained for the "
+            "remainder of this process; preserve every reported path.";
+    } catch (...) {
+    }
+}
+
+bool RetainIndeterminateFile(
+    SQLiteFileHandle& descriptor,
+    const SQLiteFileIdentity& identity,
+    std::string& error) noexcept
+{
+    g_sqlite_has_abandoned_connection.store(true);
+    StartShutdown();
+    if (!descriptor) {
+        return true;
+    }
+
+    auto* const retained =
+        new (std::nothrow) RetainedIndeterminateFile(
+            descriptor,
+            identity);
+    if (!retained) {
+        AppendRetentionFailure(error);
+        return false;
+    }
+    try {
+        std::lock_guard<std::mutex> lock(
+            g_sqlite_mutex);
+        retained->next =
+            g_retained_indeterminate_files;
+        g_retained_indeterminate_files =
+            retained;
+    } catch (...) {
+        descriptor =
+            std::move(retained->descriptor);
+        delete retained;
+        AppendRetentionFailure(error);
+        return false;
+    }
+    return true;
+}
+
+bool RetainIndeterminateCandidate(
+    OwnedCandidate& candidate,
+    std::string& error) noexcept
+{
+    candidate.cleanup_allowed = false;
+    return RetainIndeterminateFile(
+        candidate.descriptor,
+        candidate.identity,
+        error);
+}
+#endif
 
 CandidateResult CreateOwnedCandidate(
     const fs::path& final_path,
@@ -1590,11 +2082,88 @@ CandidateResult CreateOwnedCandidate(
     std::string& error)
 {
 #ifdef WIN32
+    static std::atomic<uint64_t> candidate_counter{0};
+    const fs::path parent =
+        final_path.parent_path().empty() ?
+            fs::path(".") :
+            final_path.parent_path();
+    for (int attempt = 0; attempt < 128; ++attempt) {
+        const std::string candidate_name = strprintf(
+            ".%s.sqlite-%d-%d.tmp",
+            final_path.filename().string(),
+            GetTimeMicros(),
+            candidate_counter.fetch_add(1));
+        candidate.path =
+            parent / candidate_name;
+
+        DatabaseFileIdentity identity;
+        const win32_wallet::CreateResult result =
+            win32_wallet::CreatePrivateFile(
+                candidate.path,
+                true,
+                candidate.descriptor.Native(),
+                identity,
+                error);
+        if (result ==
+            win32_wallet::CreateResult::EXISTS) {
+            continue;
+        }
+        if (result ==
+            win32_wallet::CreateResult::INDETERMINATE) {
+            candidate.identity.native = identity;
+            candidate.identity.valid =
+                identity.inode != 0;
+            candidate.valid =
+                candidate.identity.valid &&
+                static_cast<bool>(
+                    candidate.descriptor);
+            candidate.cleanup_allowed = false;
+            const std::string detail = error;
+            error = strprintf(
+                "Creation of SQLite working path '%s' for final path '%s' "
+                "is indeterminate. Preserve both paths and restart Firo "
+                "before retrying: %s",
+                candidate.path.string(),
+                final_path.string(),
+                detail.empty() ?
+                    "the exact created file could not be removed durably" :
+                    detail);
+            RetainIndeterminateCandidate(
+                candidate,
+                error);
+            return CandidateResult::INDETERMINATE;
+        }
+        if (result !=
+            win32_wallet::CreateResult::CREATED) {
+            return CandidateResult::FAILED;
+        }
+        candidate.identity.native = identity;
+        candidate.identity.valid = true;
+        candidate.valid = true;
+        if (ConsumeCandidateRevalidationFailure() ||
+            !PrivateSQLiteIdentityMatches(
+                candidate.descriptor,
+                candidate.path,
+                candidate.identity)) {
+            candidate.cleanup_allowed = false;
+            error = strprintf(
+                "Creation of SQLite working path '%s' for final path '%s' is "
+                "indeterminate because its retained private Windows identity "
+                "could not be revalidated. Preserve both paths and restart "
+                "Firo before retrying.",
+                candidate.path.string(),
+                final_path.string());
+            RetainIndeterminateCandidate(
+                candidate,
+                error);
+            return CandidateResult::INDETERMINATE;
+        }
+        return CandidateResult::SUCCESS;
+    }
     error = strprintf(
-        "Secure SQLite candidate creation for '%s' is unavailable on Windows: "
-        "an owner-only DACL and reparse-safe publication are required.",
+        "Failed to allocate a collision-free SQLite candidate for '%s'.",
         final_path.string());
-    return CandidateResult::ERROR;
+    return CandidateResult::FAILED;
 #else
     static std::atomic<uint64_t> candidate_counter{0};
     const fs::path parent =
@@ -1622,7 +2191,7 @@ CandidateResult CreateOwnedCandidate(
                 "Failed to create SQLite candidate '%s': %s",
                 candidate.path.string(),
                 std::strerror(errno));
-            return CandidateResult::ERROR;
+            return CandidateResult::FAILED;
         }
 
         struct stat metadata{};
@@ -1657,23 +2226,27 @@ CandidateResult CreateOwnedCandidate(
                 PathIdentityMatches(candidate.path, candidate.identity)) {
                 unlink(candidate.path.string().c_str());
             }
-            return CandidateResult::ERROR;
+            return CandidateResult::FAILED;
         }
 
-        candidate.descriptor = descriptor;
+        candidate.descriptor.Reset(descriptor);
         return CandidateResult::SUCCESS;
     }
     error = strprintf(
         "Failed to allocate a collision-free SQLite candidate for '%s'.",
         final_path.string());
-    return CandidateResult::ERROR;
+    return CandidateResult::FAILED;
 #endif
 }
 
 bool CandidateIdentityMatches(const OwnedCandidate& candidate) noexcept
 {
 #ifdef WIN32
-    return false;
+    return candidate.valid &&
+           PrivateSQLiteIdentityMatches(
+               candidate.descriptor,
+               candidate.path,
+               candidate.identity);
 #else
     if (!candidate.valid) {
         return false;
@@ -1682,7 +2255,8 @@ bool CandidateIdentityMatches(const OwnedCandidate& candidate) noexcept
 #endif
 }
 
-int DurableSyncFileDescriptor(int descriptor) noexcept
+int DurableSyncFileDescriptor(
+    const SQLiteFileHandle& descriptor) noexcept
 {
     const int injected_error =
         ConsumeFileSyncFailure();
@@ -1690,19 +2264,36 @@ int DurableSyncFileDescriptor(int descriptor) noexcept
         return injected_error;
     }
 
+#ifdef WIN32
+    if (!descriptor) {
+        return EBADF;
+    }
+    try {
+        std::string error;
+        return win32_wallet::FlushFile(
+                   descriptor.Native(),
+                   error) ?
+                   0 :
+                   EIO;
+    } catch (...) {
+        return EIO;
+    }
+#else
     int result;
     do {
-#ifdef WIN32
-        result = _commit(descriptor);
-#elif defined(__APPLE__) && defined(F_FULLFSYNC)
-        result = fcntl(descriptor, F_FULLFSYNC, 0);
+#if defined(__APPLE__) && defined(F_FULLFSYNC)
+        result = fcntl(
+            descriptor.Get(),
+            F_FULLFSYNC,
+            0);
 #else
-        result = fsync(descriptor);
+        result = fsync(descriptor.Get());
 #endif
     } while (result == -1 && errno == EINTR);
     return result != -1 ?
                0 :
                (errno != 0 ? errno : EIO);
+#endif
 }
 
 bool SyncDirectory(
@@ -1710,8 +2301,18 @@ bool SyncDirectory(
     std::string& error)
 {
 #ifdef WIN32
-    error = "Secure SQLite directory publication sync is unavailable on Windows.";
-    return false;
+    const int injected_error =
+        ConsumeDirectorySyncFailure();
+    if (injected_error != 0) {
+        error = strprintf(
+            "Injected SQLite namespace-barrier failure for '%s': %s",
+            directory.string(),
+            std::strerror(injected_error));
+        return false;
+    }
+    return win32_wallet::ValidateMigrationDirectory(
+        directory,
+        error);
 #else
     int flags = O_RDONLY;
 #ifdef O_CLOEXEC
@@ -1720,8 +2321,10 @@ bool SyncDirectory(
 #ifdef O_DIRECTORY
     flags |= O_DIRECTORY;
 #endif
-    const int descriptor = open(directory.string().c_str(), flags);
-    if (descriptor < 0) {
+    SQLiteFileHandle descriptor;
+    descriptor.Reset(
+        open(directory.string().c_str(), flags));
+    if (!descriptor) {
         error = strprintf(
             "Failed to open SQLite publication directory '%s': %s",
             directory.string(),
@@ -1742,11 +2345,13 @@ bool SyncDirectory(
             std::strerror(synchronization_error));
         success = false;
     }
-    if (close(descriptor) != 0 && success) {
+    std::string close_error;
+    if (!descriptor.Close(close_error) &&
+        success) {
         error = strprintf(
             "Failed to close SQLite publication directory '%s': %s",
             directory.string(),
-            std::strerror(errno));
+            close_error);
         success = false;
     }
     return success;
@@ -1758,9 +2363,9 @@ bool OwnerControlledMigrationDirectory(
     std::string& error)
 {
 #ifdef WIN32
-    error =
-        "Secure SQLite migration directories are unavailable on Windows.";
-    return false;
+    return win32_wallet::ValidateMigrationDirectory(
+        directory,
+        error);
 #elif !defined(O_CLOEXEC) || !defined(O_NOFOLLOW)
     error = strprintf(
         "Cannot secure SQLite migration directory '%s': O_CLOEXEC and O_NOFOLLOW are required.",
@@ -1823,10 +2428,30 @@ bool RemoveOwnedPath(
     std::string& error) noexcept
 {
 #ifdef WIN32
-    (void)path;
-    (void)identity;
-    error = "Secure removal of an owned SQLite path is unavailable on Windows.";
-    return false;
+    if (!identity.valid) {
+        error = strprintf(
+            "Refusing to remove SQLite path '%s': no valid owned identity is retained.",
+            path.string());
+        return false;
+    }
+    try {
+        const win32_wallet::DeleteResult result =
+            win32_wallet::MarkDeletePendingExact(
+                path,
+                identity.native,
+                win32_wallet::SecurityPolicy::PRIVATE,
+                nullptr,
+                error);
+        return result.disposition ==
+                   win32_wallet::DeleteDisposition::DELETE_PENDING ||
+               result.disposition ==
+                   win32_wallet::DeleteDisposition::ABSENT;
+    } catch (...) {
+        error = strprintf(
+            "Failed to remove owned SQLite path '%s' because Windows lifecycle reconciliation threw an exception.",
+            path.string());
+        return false;
+    }
 #else
     if (!PathIdentityMatches(path, identity)) {
         error = strprintf(
@@ -1927,10 +2552,71 @@ bool RemoveOwnedCandidate(
     }
     return true;
 #else
-    (void)candidate;
-    (void)absence_was_durable;
-    error =
-        "Secure removal of an owned SQLite candidate is unavailable on Windows.";
+    if (!candidate.cleanup_allowed ||
+        g_sqlite_has_abandoned_connection.load() ||
+        !candidate.valid ||
+        !candidate.identity.valid) {
+        error = strprintf(
+            "Refusing to remove owned SQLite candidate '%s' because its lifecycle or ownership state is not safe.",
+            candidate.path.string());
+        return false;
+    }
+    try {
+        std::string identity_error;
+        const win32_wallet::IdentityState path_state =
+            win32_wallet::InspectPathIdentity(
+                candidate.path,
+                candidate.identity.native,
+                identity_error);
+        if (path_state ==
+                win32_wallet::IdentityState::ABSENT &&
+            absence_was_durable) {
+            return true;
+        }
+        if (path_state !=
+                win32_wallet::IdentityState::MATCH &&
+            path_state !=
+                win32_wallet::IdentityState::ABSENT) {
+            error = strprintf(
+                "Refusing to remove owned SQLite candidate '%s': its path identity is not retained%s%s",
+                candidate.path.string(),
+                identity_error.empty() ? "." : ": ",
+                identity_error);
+            return false;
+        }
+
+        const win32_wallet::File* retained =
+            candidate.descriptor ?
+                &candidate.descriptor.Native() :
+                nullptr;
+        const win32_wallet::DeleteResult cleanup =
+            win32_wallet::MarkDeletePendingExact(
+                candidate.path,
+                candidate.identity.native,
+                win32_wallet::SecurityPolicy::PRIVATE,
+                retained,
+                identity_error);
+        if (cleanup.disposition ==
+                win32_wallet::DeleteDisposition::DELETE_PENDING ||
+            cleanup.disposition ==
+                win32_wallet::DeleteDisposition::ABSENT) {
+            error = strprintf(
+                "Owned SQLite candidate '%s' is absent or delete-pending now, but Windows cannot prove that removal durable across power loss%s%s",
+                candidate.path.string(),
+                identity_error.empty() ? "." : ": ",
+                identity_error);
+            return false;
+        }
+        error = strprintf(
+            "Safe removal of owned SQLite candidate '%s' could not be certified%s%s",
+            candidate.path.string(),
+            identity_error.empty() ? "." : ": ",
+            identity_error);
+    } catch (...) {
+        error = strprintf(
+            "Safe removal of owned SQLite candidate '%s' could not be certified after a Windows lifecycle exception.",
+            candidate.path.string());
+    }
     return false;
 #endif
 }
@@ -1942,10 +2628,50 @@ bool RemovePublishedCandidate(
     std::string& error) noexcept
 {
 #ifdef WIN32
-    (void)candidate;
-    (void)final_path;
     (void)publication_was_durable;
-    error = "Secure removal of a published SQLite candidate is unavailable on Windows.";
+    if (!candidate.cleanup_allowed ||
+        g_sqlite_has_abandoned_connection.load() ||
+        !candidate.valid ||
+        !candidate.identity.valid) {
+        error = strprintf(
+            "Refusing to remove published SQLite path '%s' because its lifecycle or ownership state is not safe.",
+            final_path.string());
+        return false;
+    }
+    try {
+        const win32_wallet::File* retained =
+            candidate.descriptor ?
+                &candidate.descriptor.Native() :
+                nullptr;
+        std::string detail;
+        const win32_wallet::DeleteResult cleanup =
+            win32_wallet::MarkDeletePendingExact(
+                final_path,
+                candidate.identity.native,
+                win32_wallet::SecurityPolicy::PRIVATE,
+                retained,
+                detail);
+        if (cleanup.disposition ==
+                win32_wallet::DeleteDisposition::DELETE_PENDING ||
+            cleanup.disposition ==
+                win32_wallet::DeleteDisposition::ABSENT) {
+            error = strprintf(
+                "Published SQLite path '%s' is absent or delete-pending now, but Windows cannot prove that removal durable across power loss%s%s",
+                final_path.string(),
+                detail.empty() ? "." : ": ",
+                detail);
+            return false;
+        }
+        error = strprintf(
+            "Safe removal of published SQLite path '%s' could not be certified%s%s",
+            final_path.string(),
+            detail.empty() ? "." : ": ",
+            detail);
+    } catch (...) {
+        error = strprintf(
+            "Safe removal of published SQLite path '%s' could not be certified after a Windows lifecycle exception.",
+            final_path.string());
+    }
     return false;
 #else
     const fs::path parent =
@@ -2044,7 +2770,7 @@ bool RemovePublishedCandidate(
 enum class PublishResult {
     SUCCESS,
     EXISTS,
-    ERROR,
+    FAILED,
     PUBLISHED_ERROR,
 };
 
@@ -2054,21 +2780,88 @@ PublishResult PublishCandidate(
     std::string& error)
 {
 #ifdef WIN32
-    error = "Secure SQLite no-replace publication is unavailable on Windows.";
-    return PublishResult::ERROR;
+    if (!CandidateIdentityMatches(candidate)) {
+        error = strprintf(
+            "Refusing to publish SQLite candidate '%s': its private retained identity changed.",
+            candidate.path.string());
+        return PublishResult::FAILED;
+    }
+    const int synchronization_error =
+        DurableSyncFileDescriptor(
+            candidate.descriptor);
+    if (synchronization_error != 0) {
+        error = strprintf(
+            "Failed to synchronize owned SQLite candidate '%s': %s",
+            candidate.path.string(),
+            std::strerror(synchronization_error));
+        return PublishResult::FAILED;
+    }
+    if (!CheckAuxiliaryFiles(
+            final_path,
+            false,
+            error)) {
+        return PublishResult::FAILED;
+    }
+
+    win32_wallet::MoveResult move_result =
+        win32_wallet::MoveFileNoReplace(
+            candidate.path,
+            candidate.descriptor.Native(),
+            candidate.identity.native,
+            final_path,
+            error);
+    if (move_result.disposition ==
+            win32_wallet::MoveDisposition::MOVED &&
+        move_result.write_through_confirmed) {
+        if (ConsumePublishErrorAfterRename()) {
+            error = strprintf(
+                "SQLite candidate publication as '%s' completed, but an injected post-move identity probe failed.",
+                final_path.string());
+            return PublishResult::PUBLISHED_ERROR;
+        }
+        const int namespace_error =
+            ConsumeDirectorySyncFailure();
+        if (namespace_error != 0) {
+            error = strprintf(
+                "SQLite candidate was published as '%s', but an injected namespace reconciliation failed: %s",
+                final_path.string(),
+                std::strerror(namespace_error));
+            return PublishResult::PUBLISHED_ERROR;
+        }
+        return PublishResult::SUCCESS;
+    }
+    if (move_result.disposition ==
+        win32_wallet::MoveDisposition::COLLISION) {
+        return PublishResult::EXISTS;
+    }
+    if (move_result.destination_path ==
+            win32_wallet::IdentityState::MATCH ||
+        move_result.disposition ==
+            win32_wallet::MoveDisposition::INDETERMINATE) {
+        if (error.empty()) {
+            error = strprintf(
+                "SQLite candidate publication from '%s' to '%s' has an indeterminate Windows namespace outcome.",
+                candidate.path.string(),
+                final_path.string());
+        }
+        return PublishResult::PUBLISHED_ERROR;
+    }
+    return PublishResult::FAILED;
 #else
     if (!CandidateIdentityMatches(candidate)) {
         error = strprintf(
             "Refusing to publish SQLite candidate '%s': its identity changed.",
             candidate.path.string());
-        return PublishResult::ERROR;
+        return PublishResult::FAILED;
     }
 
     struct stat candidate_metadata{};
     int candidate_error = 0;
-    if (candidate.descriptor < 0) {
+    if (!candidate.descriptor) {
         candidate_error = EBADF;
-    } else if (fstat(candidate.descriptor, &candidate_metadata) != 0) {
+    } else if (fstat(
+                   candidate.descriptor.Get(),
+                   &candidate_metadata) != 0) {
         candidate_error = errno;
     } else if (!S_ISREG(candidate_metadata.st_mode) ||
                candidate_metadata.st_dev != candidate.identity.device ||
@@ -2087,10 +2880,10 @@ PublishResult PublishCandidate(
             "Failed to synchronize owned SQLite candidate '%s': %s",
             candidate.path.string(),
             std::strerror(candidate_error));
-        return PublishResult::ERROR;
+        return PublishResult::FAILED;
     }
     if (!CheckAuxiliaryFiles(final_path, false, error)) {
-        return PublishResult::ERROR;
+        return PublishResult::FAILED;
     }
 
 #if defined(__linux__) && defined(SYS_renameat2)
@@ -2111,7 +2904,7 @@ PublishResult PublishCandidate(
 #else
     error =
         "Atomic no-replace SQLite publication is unavailable on this platform.";
-    return PublishResult::ERROR;
+    return PublishResult::FAILED;
 #endif
     const bool injected_identity_probe_failure =
         rename_result == 0 &&
@@ -2157,7 +2950,7 @@ PublishResult PublishCandidate(
             candidate.path.string(),
             final_path.string(),
             std::strerror(rename_error));
-        return PublishResult::ERROR;
+        return PublishResult::FAILED;
     }
 
     struct stat published{};
@@ -2190,26 +2983,39 @@ PublishResult PublishCandidate(
 }
 
 bool CopyDescriptorContents(
-    int source,
-    int destination,
+    const SQLiteFileHandle& source,
+    const SQLiteFileHandle& destination,
     std::string& error)
 {
 #ifdef WIN32
-    (void)source;
-    (void)destination;
-    error = "Secure SQLite recovery backup copying is unavailable on Windows.";
-    return false;
+    if (!source ||
+        !destination ||
+        !win32_wallet::CopyFileContents(
+            source.Native(),
+            destination.Native(),
+            error)) {
+        return false;
+    }
+    const int synchronization_error =
+        DurableSyncFileDescriptor(destination);
+    if (synchronization_error != 0) {
+        error = strprintf(
+            "Failed to synchronize SQLite recovery backup: %s",
+            std::strerror(synchronization_error));
+        return false;
+    }
+    return true;
 #else
     struct stat source_status{};
-    if (source < 0 ||
-        destination < 0 ||
-        fstat(source, &source_status) != 0 ||
+    if (!source ||
+        !destination ||
+        fstat(source.Get(), &source_status) != 0 ||
         !S_ISREG(source_status.st_mode) ||
         source_status.st_size < 0) {
         error = "Failed to inspect SQLite recovery backup source.";
         return false;
     }
-    if (ftruncate(destination, 0) != 0) {
+    if (ftruncate(destination.Get(), 0) != 0) {
         error = strprintf(
             "Failed to initialize SQLite recovery backup: %s",
             std::strerror(errno));
@@ -2227,7 +3033,7 @@ bool CopyDescriptorContents(
         ssize_t read_count;
         do {
             read_count = pread(
-                source,
+                source.Get(),
                 buffer.data(),
                 remaining,
                 offset);
@@ -2246,7 +3052,7 @@ bool CopyDescriptorContents(
             ssize_t write_count;
             do {
                 write_count = pwrite(
-                    destination,
+                    destination.Get(),
                     buffer.data() + written,
                     static_cast<size_t>(read_count - written),
                     offset + written);
@@ -2265,7 +3071,7 @@ bool CopyDescriptorContents(
     }
     int synchronization_error = 0;
     if (ftruncate(
-            destination,
+            destination.Get(),
             source_status.st_size) != 0) {
         synchronization_error = errno;
     } else {
@@ -2283,22 +3089,27 @@ bool CopyDescriptorContents(
 }
 
 bool DescriptorContentsEqual(
-    int first,
-    int second,
+    const SQLiteFileHandle& first,
+    const SQLiteFileHandle& second,
     std::string& error)
 {
 #ifdef WIN32
-    (void)first;
-    (void)second;
-    error = "Secure SQLite recovery backup comparison is unavailable on Windows.";
-    return false;
+    bool equal = false;
+    return first &&
+           second &&
+           win32_wallet::FileContentsEqual(
+               first.Native(),
+               second.Native(),
+               equal,
+               error) &&
+           equal;
 #else
     struct stat first_status{};
     struct stat second_status{};
-    if (first < 0 ||
-        second < 0 ||
-        fstat(first, &first_status) != 0 ||
-        fstat(second, &second_status) != 0 ||
+    if (!first ||
+        !second ||
+        fstat(first.Get(), &first_status) != 0 ||
+        fstat(second.Get(), &second_status) != 0 ||
         !S_ISREG(first_status.st_mode) ||
         !S_ISREG(second_status.st_mode) ||
         first_status.st_size < 0 ||
@@ -2321,14 +3132,14 @@ bool DescriptorContentsEqual(
         ssize_t second_count;
         do {
             first_count = pread(
-                first,
+                first.Get(),
                 first_buffer.data(),
                 remaining,
                 offset);
         } while (first_count < 0 && errno == EINTR);
         do {
             second_count = pread(
-                second,
+                second.Get(),
                 second_buffer.data(),
                 remaining,
                 offset);
@@ -2673,7 +3484,7 @@ bool VerifySQLiteRecoveryRows(
 
 bool VerifySQLiteMigrationPath(
     const fs::path& path,
-    int retained_descriptor,
+    const SQLiteFileHandle& retained_descriptor,
     const SQLiteFileIdentity& identity,
     std::string& error)
 {
@@ -2903,7 +3714,7 @@ private:
     const fs::path m_path;
     fs::path m_recovery_backup_path;
     sqlite3* m_database{nullptr};
-    int m_identity_descriptor{-1};
+    SQLiteFileHandle m_identity_descriptor;
     SQLiteFileIdentity m_identity;
     bool m_sqlite_acquired{false};
     bool* m_failed_creation_cleanup_allowed{nullptr};
@@ -2948,8 +3759,8 @@ private:
                     SQLiteCreationMarkerPolicy::REQUIRE_PRESENT :
                     SQLiteCreationMarkerPolicy::REQUIRE_ABSENT);
         SQLiteFileIdentity identity;
-        if (m_identity_descriptor < 0) {
-            int descriptor = -1;
+        if (!m_identity_descriptor) {
+            SQLiteFileHandle descriptor;
             if (!PreflightSQLiteHeader(
                     m_path,
                     identity,
@@ -2958,7 +3769,8 @@ private:
                 Poison();
                 return false;
             }
-            m_identity_descriptor = descriptor;
+            m_identity_descriptor =
+                std::move(descriptor);
             m_identity = identity;
         } else if (!VerifySQLiteHeaderDescriptor(
                        m_identity_descriptor,
@@ -3090,17 +3902,27 @@ private:
             return false;
         }
 #ifdef WIN32
-        m_identity_descriptor = _dup(candidate.descriptor);
-#elif defined(F_DUPFD_CLOEXEC)
         m_identity_descriptor =
-            fcntl(candidate.descriptor, F_DUPFD_CLOEXEC, 0);
+            std::move(candidate.descriptor);
+        m_identity = candidate.identity;
+        // Until the published database has been reopened and verified, retain
+        // its exact handle if initialization fails. Windows cannot otherwise
+        // prove a later delete-pending cleanup durable across power loss.
+        m_creation_state =
+            SQLiteCreationState::INDETERMINATE;
+#elif defined(F_DUPFD_CLOEXEC)
+        m_identity_descriptor.Reset(
+            fcntl(
+                candidate.descriptor.Get(),
+                F_DUPFD_CLOEXEC,
+                0));
 #else
         error =
             "Unable to retain a close-on-exec SQLite wallet identity descriptor.";
         Poison();
         return false;
 #endif
-        if (m_identity_descriptor < 0) {
+        if (!m_identity_descriptor) {
             error = strprintf(
                 "Failed to retain the published SQLite wallet identity for '%s': %s",
                 m_path.string(),
@@ -3108,7 +3930,9 @@ private:
             Poison();
             return false;
         }
+#ifndef WIN32
         m_identity = candidate.identity;
+#endif
         if (!OpenExistingLocked(
                 error,
                 &candidate.cleanup_allowed,
@@ -3130,6 +3954,10 @@ private:
             m_creation_state = SQLiteCreationState::PENDING;
             m_creation_cleanup_allowed =
                 candidate.cleanup_allowed;
+#ifdef WIN32
+        } else {
+            m_creation_state = SQLiteCreationState::NONE;
+#endif
         }
         m_usable.store(true);
         return true;
@@ -3193,7 +4021,7 @@ private:
                 error)) {
             return false;
         }
-        if (m_identity_descriptor < 0 ||
+        if (!m_identity_descriptor ||
             !PrivateSQLiteIdentityMatches(
                 m_identity_descriptor,
                 m_path,
@@ -3213,10 +4041,16 @@ private:
                 m_identity_descriptor,
                 m_identity)) {
             error = strprintf(
-                "SQLite migration candidate pathname '%s' was removed, but the retained candidate inode was not proven unlinked.",
+                "SQLite migration candidate pathname '%s' was removed, but the retained candidate identity was not proven detached from its pathname.",
                 m_path.string());
             return false;
         }
+#ifdef WIN32
+        error = strprintf(
+            "SQLite migration candidate '%s' is delete-pending now, but Windows cannot prove its namespace removal durable across power loss.",
+            m_path.string());
+        return false;
+#else
         if (!SyncDirectory(
                 parent,
                 error)) {
@@ -3226,6 +4060,7 @@ private:
         m_creation_cleanup_allowed = false;
         m_completed_logical_creation = false;
         return true;
+#endif
     }
 
     void RemovePendingCreationLocked()
@@ -3274,6 +4109,15 @@ private:
             return;
         }
 
+#ifdef WIN32
+        m_creation_state =
+            SQLiteCreationState::INDETERMINATE;
+        StartShutdown();
+        LogPrintf(
+            "SQLiteDatabase: Incomplete wallet '%s' is delete-pending, but Windows cannot prove pathname removal durable across power loss. Restart Firo and inspect '%s' before continuing.\n",
+            m_filename,
+            m_path.string());
+#else
         const fs::path parent =
             m_path.parent_path().empty() ?
                 fs::path(".") :
@@ -3289,6 +4133,7 @@ private:
                 m_path.string(),
                 error);
         }
+#endif
         m_creation_cleanup_allowed = false;
     }
 
@@ -3358,7 +4203,7 @@ private:
     bool ValidateOwnedConnectionLocked(std::string& error)
     {
         SQLiteFileIdentity verified_identity;
-        if (m_identity_descriptor < 0 ||
+        if (!m_identity_descriptor ||
             !DescriptorIdentityMatches(
                 m_identity_descriptor,
                 m_identity) ||
@@ -3519,10 +4364,17 @@ private:
             m_creation_state =
                 SQLiteCreationState::PENDING;
             m_usable.store(true);
+#ifdef WIN32
+            return MarkCreationIndeterminate(
+                error,
+                "the durable incomplete-creation marker remains and Windows "
+                "cannot prove candidate cleanup durable across power loss");
+#else
             error = strprintf(
                 "SQLite wallet '%s' logical creation did not complete; the incomplete marker remains.",
                 m_filename);
             return DatabaseCreationResult::FAILED;
+#endif
         }
         return MarkCreationIndeterminate(
             error,
@@ -3547,10 +4399,18 @@ private:
                     m_database,
                     marker_error) ==
                 SQLiteCreationMarkerState::PRESENT) {
+#ifdef WIN32
+                return MarkCreationIndeterminate(
+                    error,
+                    "the logical-creation transaction rolled back, but "
+                    "Windows cannot prove cleanup of the incomplete wallet "
+                    "durable across power loss");
+#else
                 error = strprintf(
                     "SQLite wallet '%s' logical creation did not complete; its transaction was rolled back.",
                     m_filename);
                 return DatabaseCreationResult::FAILED;
+#endif
             }
         }
         return ReconcileCreationCompletionLocked(error);
@@ -3574,6 +4434,11 @@ public:
 
     ~SQLiteDatabase() noexcept override
     {
+#ifdef WIN32
+        bool retain_identity =
+            m_creation_state ==
+            SQLiteCreationState::INDETERMINATE;
+#endif
         try {
             std::unique_lock<std::mutex> writer_lock(m_writer_mutex);
             std::unique_lock<std::shared_mutex> connection_lock(m_connection_mutex);
@@ -3584,6 +4449,12 @@ public:
                     PreparePendingCleanupLocked(cleanup_error);
                 if (!pending_cleanup_ready) {
                     m_creation_cleanup_allowed = false;
+#ifdef WIN32
+                    m_creation_state =
+                        SQLiteCreationState::INDETERMINATE;
+                    retain_identity = true;
+                    StartShutdown();
+#endif
                     LogPrintf(
                         "SQLiteDatabase: Leaving incomplete wallet '%s' because safe cleanup could not be certified: %s\n",
                         m_filename,
@@ -3605,14 +4476,17 @@ public:
             if (pending_cleanup_ready && closed) {
                 RemovePendingCreationLocked();
             }
-            if (m_identity_descriptor >= 0) {
 #ifdef WIN32
-                _close(m_identity_descriptor);
-#else
-                close(m_identity_descriptor);
-#endif
-                m_identity_descriptor = -1;
+            retain_identity =
+                retain_identity ||
+                m_creation_state ==
+                    SQLiteCreationState::INDETERMINATE;
+            if (!retain_identity) {
+                m_identity_descriptor.Reset();
             }
+#else
+            m_identity_descriptor.Reset();
+#endif
         } catch (const std::exception& exception) {
             if (m_failed_creation_cleanup_allowed) {
                 *m_failed_creation_cleanup_allowed = false;
@@ -3623,6 +4497,9 @@ public:
             } else {
                 g_sqlite_has_abandoned_connection.store(true);
             }
+#ifdef WIN32
+            retain_identity = true;
+#endif
             LogPrintf("SQLiteDatabase: Exception during destruction: %s\n", exception.what());
         } catch (...) {
             if (m_failed_creation_cleanup_allowed) {
@@ -3634,8 +4511,26 @@ public:
             } else {
                 g_sqlite_has_abandoned_connection.store(true);
             }
+#ifdef WIN32
+            retain_identity = true;
+#endif
             LogPrintf("SQLiteDatabase: Unknown exception during destruction.\n");
         }
+#ifdef WIN32
+        if (retain_identity &&
+            m_identity_descriptor) {
+            std::string retention_error;
+            if (!RetainIndeterminateFile(
+                    m_identity_descriptor,
+                    m_identity,
+                    retention_error)) {
+                LogPrintf(
+                    "SQLiteDatabase: Failed to retain the indeterminate exact file handle for '%s': %s\n",
+                    m_filename,
+                    retention_error);
+            }
+        }
+#endif
         if (m_sqlite_acquired) {
             ReleaseSQLite();
         }
@@ -3723,6 +4618,10 @@ public:
     SQLiteMigrationPublishResult PublishMigration(
         BerkeleyDatabase& source,
         std::string& error);
+#ifdef WIN32
+    SQLiteMigrationPublishResult AbortMigration(
+        std::string& error);
+#endif
 };
 
 enum class SQLiteTransactionState {
@@ -4702,11 +5601,98 @@ DatabaseCreationResult SQLiteDatabase::CompleteCreation(
     return ReconcileCreationCompletionLocked(error);
 }
 
+#ifdef WIN32
+SQLiteMigrationPublishResult SQLiteDatabase::AbortMigration(
+    std::string& error)
+{
+    error.clear();
+    std::unique_lock<std::mutex> writer_lock(
+        m_writer_mutex);
+    std::unique_lock<std::shared_mutex> connection_lock(
+        m_connection_mutex);
+
+    auto mark_indeterminate =
+        [&](const std::string& reason) {
+            m_creation_state =
+                SQLiteCreationState::INDETERMINATE;
+            m_creation_cleanup_allowed = false;
+            m_completed_logical_creation = false;
+            {
+                std::lock_guard<std::mutex> state_lock(
+                    m_state_mutex);
+                m_open = false;
+            }
+            Poison();
+            StartShutdown();
+            error = strprintf(
+                "SQLite migration candidate cleanup is indeterminate: %s "
+                "Candidate path: '%s'. Preserve this path and restart Firo "
+                "before recovery.",
+                reason.empty() ?
+                    "the exact owned candidate could not be removed safely" :
+                    reason,
+                m_path.string());
+#ifdef WIN32
+            RetainIndeterminateFile(
+                m_identity_descriptor,
+                m_identity,
+                error);
+#endif
+            return SQLiteMigrationPublishResult::INDETERMINATE;
+        };
+
+    if (!m_migration_candidate) {
+        error =
+            "Refusing to abort a SQLite database that is not an explicit migration candidate.";
+        return SQLiteMigrationPublishResult::FAILED;
+    }
+    if (m_creation_state ==
+        SQLiteCreationState::PUBLISHED) {
+        error =
+            "Refusing to abort a SQLite migration candidate after publication.";
+        return SQLiteMigrationPublishResult::FAILED;
+    }
+    if (m_creation_state ==
+        SQLiteCreationState::INDETERMINATE) {
+        return mark_indeterminate(
+            "the candidate lifecycle was already indeterminate");
+    }
+
+    size_t batch_count;
+    {
+        std::lock_guard<std::mutex> state_lock(
+            m_state_mutex);
+        batch_count = m_batch_count;
+    }
+    if (batch_count != 0) {
+        return mark_indeterminate(
+            "active SQLite candidate batches remain");
+    }
+    if (m_creation_state ==
+            SQLiteCreationState::NONE &&
+        !m_completed_logical_creation) {
+        return mark_indeterminate(
+            "the candidate does not have a retained pending or completed logical-creation state");
+    }
+
+    std::string cleanup_error;
+    if (!RemoveMigrationCandidateLocked(
+            cleanup_error)) {
+        return mark_indeterminate(
+            cleanup_error);
+    }
+    error = strprintf(
+        "Removed unpublished SQLite migration candidate '%s'.",
+        m_path.string());
+    return SQLiteMigrationPublishResult::SUCCESS;
+}
+#endif
+
 SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
     BerkeleyDatabase& source,
     std::string& error)
 {
-#if !((defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__))
+#if !((defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__) || defined(WIN32))
     error =
         "Atomic SQLite/BDB migration publication is unavailable on this platform.";
     return SQLiteMigrationPublishResult::FAILED;
@@ -4756,13 +5742,13 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
         [&](const char* detail) noexcept {
             if (exchange_attempted) {
                 return mark_indeterminate(
-                    "an exception occurred after atomic exchange was attempted");
+                    "an exception occurred after migration publication was attempted");
             }
             if (!candidate_cleanup_authorized) {
                 try {
                     error = strprintf(
-                        "SQLite migration publication failed before atomic "
-                        "exchange without consuming the candidate: %s",
+                        "SQLite migration publication failed before consuming "
+                        "the candidate: %s",
                         detail);
                 } catch (...) {
                 }
@@ -4778,8 +5764,8 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                 if (RemoveMigrationCandidateLocked(
                         cleanup_error)) {
                     error = strprintf(
-                        "SQLite migration publication failed before atomic "
-                        "exchange: %s The exact owned candidate '%s' was removed.",
+                        "SQLite migration publication failed before publication: "
+                        "%s The exact owned candidate '%s' was removed.",
                         detail,
                         m_path.string());
                     return SQLiteMigrationPublishResult::FAILED;
@@ -4787,7 +5773,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
             } catch (...) {
             }
             return mark_indeterminate(
-                "an exception occurred before atomic exchange and candidate "
+                "an exception occurred before migration publication and candidate "
                 "cleanup could not be certified");
         };
 
@@ -4858,7 +5844,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                         cleanup_error)) {
                     return mark_indeterminate(
                         strprintf(
-                            "%s The pre-exchange candidate could not be "
+                            "%s The pre-publication candidate could not be "
                             "removed safely: %s",
                             reason,
                             cleanup_error.empty() ?
@@ -5008,7 +5994,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
         if (!CloseSQLiteConnection(m_database)) {
             AbandonSQLiteConnection(m_database);
             return mark_indeterminate(
-                "the SQLite candidate connection could not be closed cleanly before exchange");
+                "the SQLite candidate connection could not be closed cleanly before migration publication");
         }
         {
             std::lock_guard<std::mutex> state_lock(
@@ -5086,7 +6072,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                 !verification_error.empty() ?
                     verification_error :
                 source_error.empty() ?
-                    "a retained migration identity changed immediately before exchange" :
+                    "a retained migration identity changed immediately before migration publication" :
                     source_error);
         }
 
@@ -5107,6 +6093,91 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                 verification_error);
         }
 
+#ifdef WIN32
+        exchange_attempted = true;
+        const win32_wallet::MoveResult move_result =
+            source.ReplaceMigrationSourceWithSQLite(
+                m_path,
+                m_identity_descriptor.Native(),
+                m_identity.native,
+                source_path,
+                verification_error);
+        if (move_result.disposition ==
+                win32_wallet::MoveDisposition::MOVED &&
+            move_result.write_through_confirmed &&
+            ConsumeMigrationExchangeError()) {
+            return mark_indeterminate(
+                "the write-through Windows migration replacement completed, but an injected post-replacement error was reported");
+        }
+
+        if (move_result.disposition ==
+            win32_wallet::MoveDisposition::NOT_MOVED) {
+            std::string unchanged_error;
+            const bool unchanged =
+                PathIdentityMatches(
+                    m_path,
+                    m_identity) &&
+                source.MigrationSourceMatchesPath(
+                    source_path,
+                    unchanged_error) &&
+                source.MigrationBackupMatchesPath(
+                    unchanged_error);
+            if (unchanged) {
+                exchange_attempted = false;
+                return fail_before_exchange(
+                    verification_error.empty() ?
+                        "the write-through Windows migration replacement failed without changing any retained identity" :
+                        verification_error);
+            }
+        }
+        if (move_result.disposition !=
+                win32_wallet::MoveDisposition::MOVED ||
+            !move_result.write_through_confirmed ||
+            move_result.source_path !=
+                win32_wallet::IdentityState::ABSENT ||
+            move_result.destination_path !=
+                win32_wallet::IdentityState::MATCH ||
+            move_result.moving_handle !=
+                win32_wallet::IdentityState::MATCH ||
+            move_result.replaced_handle !=
+                win32_wallet::IdentityState::MATCH ||
+            !move_result.replaced_delete_pending) {
+            return mark_indeterminate(
+                verification_error.empty() ?
+                    strprintf(
+                        "Windows migration replacement could not be reconciled (disposition=%d, hidden=%d, final=%d, candidate-handle=%d, source-handle=%d, source-delete-pending=%d)",
+                        static_cast<int>(move_result.disposition),
+                        static_cast<int>(move_result.source_path),
+                        static_cast<int>(move_result.destination_path),
+                        static_cast<int>(move_result.moving_handle),
+                        static_cast<int>(move_result.replaced_handle),
+                        move_result.replaced_delete_pending) :
+                    verification_error);
+        }
+
+        std::string published_error;
+        if (!VerifySQLiteMigrationPath(
+                source_path,
+                m_identity_descriptor,
+                m_identity,
+                published_error) ||
+            !source.MigrationBackupMatchesPath(
+                source_error)) {
+            return mark_indeterminate(
+                !published_error.empty() ?
+                    published_error :
+                source_error.empty() ?
+                    "the published SQLite wallet or mandatory BDB backup failed retained-identity verification" :
+                    source_error);
+        }
+        if (!source.ConfirmMigrationSourceRemoved(
+                source_error)) {
+            return mark_indeterminate(
+                source_error.empty() ?
+                    "the replaced BDB source was not proven delete-pending" :
+                    source_error);
+        }
+#else
         int exchange_result;
 #if defined(__linux__) && defined(SYS_renameat2)
         exchange_result = static_cast<int>(syscall(
@@ -5292,6 +6363,7 @@ SQLiteMigrationPublishResult SQLiteDatabase::PublishMigration(
                     "the final SQLite wallet or retained backup failed final verification" :
                     source_error);
         }
+#endif
 
         m_creation_state =
             SQLiteCreationState::PUBLISHED;
@@ -5534,17 +6606,6 @@ bool SQLiteDatabase::Backup(
     std::string& backup_error)
 {
     backup_error.clear();
-#ifdef WIN32
-    backup_error = strprintf(
-        "Failed to back up SQLite wallet '%s' to '%s': secure SQLite "
-        "backup is unavailable on Windows until owner-only DACL and "
-        "reparse-point handling is implemented. Keep the source wallet and "
-        "use a supported Linux build to create the backup.",
-        m_filename,
-        destination);
-    LogPrintf("SQLiteDatabase: %s\n", backup_error);
-    return false;
-#else
     fs::path destination_path(destination);
     auto fail = [&](const std::string& detail, const char* action) {
         backup_error = strprintf(
@@ -5621,8 +6682,22 @@ bool SQLiteDatabase::Backup(
             "-shm side files.");
     }
     OwnedCandidate candidate;
-    if (CreateOwnedCandidate(destination_path, candidate, detail) !=
+    const CandidateResult candidate_result =
+        CreateOwnedCandidate(
+            destination_path,
+            candidate,
+            detail);
+    if (candidate_result !=
         CandidateResult::SUCCESS) {
+        if (candidate_result ==
+            CandidateResult::INDETERMINATE) {
+            Poison();
+            StartShutdown();
+            return fail(
+                detail,
+                "Preserve the reported working and destination paths, stop "
+                "using this wallet, and restart Firo before recovery.");
+        }
         return fail(detail, retry_action);
     }
     bool restart_required = false;
@@ -5642,7 +6717,7 @@ bool SQLiteDatabase::Backup(
     bool success = false;
     sqlite3* backup_database = nullptr;
     sqlite3_backup* backup = nullptr;
-    PublishResult publish_result = PublishResult::ERROR;
+    PublishResult publish_result = PublishResult::FAILED;
     sqlite3* published_database = nullptr;
     auto close_after_exception = [&]() noexcept {
         if (backup) {
@@ -5850,6 +6925,15 @@ bool SQLiteDatabase::Backup(
         if (detail.empty()) {
             detail = "the backend did not provide a more specific failure.";
         }
+#ifdef WIN32
+        if (restart_required) {
+            RetainIndeterminateCandidate(
+                candidate,
+                detail);
+            Poison();
+            StartShutdown();
+        }
+#endif
         return fail(
             detail,
             restart_required ?
@@ -5862,7 +6946,6 @@ bool SQLiteDatabase::Backup(
     }
     backup_error.clear();
     return true;
-#endif
 }
 
 bool SQLiteDatabase::PeriodicFlush()
@@ -5969,7 +7052,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
     fs::path& backup_path,
     std::string& error)
 {
-#if !((defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__))
+#if !((defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__) || defined(WIN32))
     (void)filename;
     (void)source_path;
     (void)mode;
@@ -5993,13 +7076,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
     } sqlite_release_guard;
 
     struct DescriptorGuard {
-        int descriptor{-1};
-        ~DescriptorGuard()
-        {
-            if (descriptor >= 0) {
-                close(descriptor);
-            }
-        }
+        SQLiteFileHandle descriptor;
     } source_descriptor;
 
     SQLiteFileIdentity source_identity;
@@ -6107,9 +7184,21 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                     backup_cleanup_error);
             }
             error +=
-                " No atomic recovery exchange was applied; the original "
+                " No recovery replacement was applied; the original "
                 "wallet path remains authoritative. Preserve all reported "
                 "artifacts and restart Firo before retrying.";
+#ifdef WIN32
+            std::string retention_error;
+            RetainIndeterminateCandidate(
+                replacement,
+                retention_error);
+            RetainIndeterminateCandidate(
+                backup,
+                retention_error);
+            if (!retention_error.empty()) {
+                error += " " + retention_error;
+            }
+#endif
             return SQLiteLogicalRecoveryResult::INDETERMINATE;
         };
 
@@ -6117,6 +7206,26 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
         [&](const std::string& reason) {
             close_connections();
             StartShutdown();
+            std::string retained_reason =
+                reason.empty() ?
+                    "retained file identities could not be reconciled" :
+                    reason;
+#ifdef WIN32
+            std::string retention_error;
+            RetainIndeterminateFile(
+                source_descriptor.descriptor,
+                source_identity,
+                retention_error);
+            RetainIndeterminateCandidate(
+                replacement,
+                retention_error);
+            RetainIndeterminateCandidate(
+                backup,
+                retention_error);
+            if (!retention_error.empty()) {
+                retained_reason += " " + retention_error;
+            }
+#endif
             error = strprintf(
                 "SQLite %s publication for wallet '%s' is indeterminate: %s "
                 "Wallet path: '%s'. Recovery working path: '%s'. "
@@ -6126,9 +7235,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                     "key-only salvage" :
                     "logical recovery",
                 filename,
-                reason.empty() ?
-                    "retained file identities could not be reconciled" :
-                    reason,
+                retained_reason,
                 source_path.string(),
                 replacement.path.string(),
                 backup_path.string());
@@ -6191,7 +7298,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
 
     auto verify_owned_recovery_path =
         [&](const fs::path& path,
-            int descriptor,
+            const SQLiteFileHandle& descriptor,
             const SQLiteFileIdentity& identity,
             std::string& verification_error) {
             SQLiteFileIdentity verified_identity;
@@ -6312,10 +7419,16 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
                 verification_error);
         }
 
-        if (CreateOwnedCandidate(
+        const CandidateResult replacement_result =
+            CreateOwnedCandidate(
                 source_path,
                 replacement,
-                error) !=
+                error);
+        if (replacement_result ==
+            CandidateResult::INDETERMINATE) {
+            return mark_indeterminate(error);
+        }
+        if (replacement_result !=
                 CandidateResult::SUCCESS ||
             !OpenSQLiteConnection(
                 replacement.path,
@@ -6427,11 +7540,19 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
             backup_path == replacement.path ||
             !OwnerControlledMigrationDirectory(
                 parent,
-                error) ||
+                error)) {
+            return fail_before_exchange(error);
+        }
+        const CandidateResult backup_result =
             CreateOwnedCandidate(
                 backup_path,
                 backup,
-                error) !=
+                error);
+        if (backup_result ==
+            CandidateResult::INDETERMINATE) {
+            return mark_indeterminate(error);
+        }
+        if (backup_result !=
                 CandidateResult::SUCCESS ||
             !CopyDescriptorContents(
                 source_descriptor.descriptor,
@@ -6523,6 +7644,107 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
             return fail_before_exchange(error);
         }
 
+#ifdef WIN32
+        exchange_attempted = true;
+        const win32_wallet::MoveResult move_result =
+            win32_wallet::MoveFileReplace(
+                replacement.path,
+                replacement.descriptor.Native(),
+                replacement.identity.native,
+                source_path,
+                source_descriptor.descriptor.Native(),
+                source_identity.native,
+                win32_wallet::SecurityPolicy::PRIVATE,
+                error);
+        if (move_result.disposition ==
+            win32_wallet::MoveDisposition::NOT_MOVED) {
+            std::string unchanged_error;
+            const bool unchanged =
+                PathIdentityMatches(
+                    replacement.path,
+                    replacement.identity) &&
+                PathIdentityMatches(
+                    source_path,
+                    source_identity) &&
+                PathIdentityMatches(
+                    backup_path,
+                    backup.identity) &&
+                DescriptorContentsEqual(
+                    source_descriptor.descriptor,
+                    backup.descriptor,
+                    unchanged_error);
+            if (unchanged) {
+                exchange_attempted = false;
+                return fail_before_exchange(
+                    error.empty() ?
+                        "the write-through Windows recovery replacement failed without changing any retained identity" :
+                        error);
+            }
+        }
+        if (move_result.disposition !=
+                win32_wallet::MoveDisposition::MOVED ||
+            !move_result.write_through_confirmed ||
+            move_result.source_path !=
+                win32_wallet::IdentityState::ABSENT ||
+            move_result.destination_path !=
+                win32_wallet::IdentityState::MATCH ||
+            move_result.moving_handle !=
+                win32_wallet::IdentityState::MATCH ||
+            move_result.replaced_handle !=
+                win32_wallet::IdentityState::MATCH ||
+            !move_result.replaced_delete_pending) {
+            return mark_indeterminate(
+                error.empty() ?
+                    strprintf(
+                        "Windows recovery replacement could not be reconciled (disposition=%d, hidden=%d, final=%d, replacement-handle=%d, source-handle=%d, source-delete-pending=%d)",
+                        static_cast<int>(move_result.disposition),
+                        static_cast<int>(move_result.source_path),
+                        static_cast<int>(move_result.destination_path),
+                        static_cast<int>(move_result.moving_handle),
+                        static_cast<int>(move_result.replaced_handle),
+                        move_result.replaced_delete_pending) :
+                    error);
+        }
+        exchange_proven = true;
+
+        std::string hidden_error;
+        if (!DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error) ||
+            !DescriptorIdentityIsUnlinked(
+                source_descriptor.descriptor,
+                source_identity) ||
+            win32_wallet::InspectPathIdentity(
+                replacement.path,
+                replacement.identity.native,
+                hidden_error) !=
+                win32_wallet::IdentityState::ABSENT ||
+            !PrivateSQLiteIdentityMatches(
+                replacement.descriptor,
+                source_path,
+                replacement.identity) ||
+            !verify_owned_recovery_path(
+                source_path,
+                replacement.descriptor,
+                replacement.identity,
+                error) ||
+            !PrivateSQLiteIdentityMatches(
+                backup.descriptor,
+                backup_path,
+                backup.identity) ||
+            !DescriptorContentsEqual(
+                source_descriptor.descriptor,
+                backup.descriptor,
+                error)) {
+            return mark_indeterminate(
+                !hidden_error.empty() ?
+                    hidden_error :
+                error.empty() ?
+                    "the completed Windows recovery layout failed final retained-identity verification" :
+                    error);
+        }
+#else
         int exchange_result;
 #if defined(__linux__) && defined(SYS_renameat2)
         exchange_result = static_cast<int>(syscall(
@@ -6665,15 +7887,29 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
             }
             return mark_indeterminate(error);
         }
+#endif
 
-        LogPrintf(
-            "SQLiteDatabase: %s completed for '%s'; exact source backup "
-            "retained at '%s'.\n",
-            mode == SQLiteRecoveryMode::KEY_ONLY ?
-                "Key-only salvage" :
-                "Logical recovery",
-            source_path.string(),
-            backup_path.string());
+#ifdef WIN32
+        std::string source_close_error;
+        if (!source_descriptor.descriptor.Close(
+                source_close_error)) {
+            return mark_indeterminate(
+                source_close_error.empty() ?
+                    "Failed to close the proven delete-pending SQLite recovery source." :
+                    source_close_error);
+        }
+#endif
+        try {
+            LogPrintf(
+                "SQLiteDatabase: %s completed for '%s'; exact source backup "
+                "retained at '%s'.\n",
+                mode == SQLiteRecoveryMode::KEY_ONLY ?
+                    "Key-only salvage" :
+                    "Logical recovery",
+                source_path.string(),
+                backup_path.string());
+        } catch (...) {
+        }
         error.clear();
         return SQLiteLogicalRecoveryResult::SUCCESS;
     } catch (const std::exception& exception) {
@@ -6681,13 +7917,13 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
             !exchange_proven) {
             return mark_indeterminate(
                 strprintf(
-                    "An exception occurred after atomic exchange was attempted: %s",
+                    "An exception occurred after recovery publication was attempted: %s",
                     exception.what()));
         }
         if (exchange_proven) {
             return mark_indeterminate(
                 strprintf(
-                    "An exception occurred after atomic exchange: %s",
+                    "An exception occurred after recovery publication: %s",
                     exception.what()));
         }
         return fail_before_exchange(
@@ -6698,7 +7934,7 @@ SQLiteLogicalRecoveryResult RecoverSQLiteDatabase(
         if (exchange_attempted ||
             exchange_proven) {
             return mark_indeterminate(
-                "An unknown exception occurred after atomic exchange was attempted.");
+                "An unknown exception occurred after recovery publication was attempted.");
         }
         return fail_before_exchange(
             "Recovery raised an unknown exception.");
@@ -6758,15 +7994,6 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
         error = "SQLite backend factory requires SQLite format.";
         return nullptr;
     }
-#ifdef WIN32
-    status = DatabaseStatus::FAILED_UNSUPPORTED;
-    error =
-        "SQLite wallet storage is disabled on Windows until candidate files "
-        "can be created with an owner-only DACL and opened without following "
-        "reparse points.";
-    return nullptr;
-#endif
-
     fs::path path;
     if (!GetWalletDatabasePath(filename, path, error)) {
         status = DatabaseStatus::FAILED_BAD_PATH;
@@ -6831,7 +8058,12 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
 
     OwnedCandidate candidate;
     if (!exists) {
-        if (CreateOwnedCandidate(path, candidate, error) !=
+        const CandidateResult candidate_result =
+            CreateOwnedCandidate(
+                path,
+                candidate,
+                error);
+        if (candidate_result !=
             CandidateResult::SUCCESS) {
             status = DatabaseStatus::FAILED_LOAD;
             return nullptr;
@@ -6839,7 +8071,7 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
     }
 
     std::unique_ptr<SQLiteDatabase> database;
-    PublishResult publish_result = PublishResult::ERROR;
+    PublishResult publish_result = PublishResult::FAILED;
     bool cleanup_indeterminate = false;
     auto record_cleanup_failure = [&](
                                       const char* description,
@@ -6885,6 +8117,13 @@ std::unique_ptr<WalletDatabase> MakeSQLiteDatabase(
                 candidate.path,
                 candidate_cleanup_error);
         }
+#ifdef WIN32
+        if (cleanup_indeterminate) {
+            RetainIndeterminateCandidate(
+                candidate,
+                error);
+        }
+#endif
     };
     try {
         auto initialize_database = [&]() {
@@ -7013,6 +8252,24 @@ SQLiteMigrationPublishResult PublishSQLiteMigrationCandidate(
         error);
 }
 
+#ifdef WIN32
+SQLiteMigrationPublishResult AbortSQLiteMigrationCandidate(
+    WalletDatabase& candidate,
+    std::string& error)
+{
+    SQLiteDatabase* const sqlite_candidate =
+        dynamic_cast<SQLiteDatabase*>(&candidate);
+    if (!sqlite_candidate) {
+        error =
+            "Cannot abort SQLite migration candidate: the candidate database "
+            "is not an owned SQLite backend.";
+        return SQLiteMigrationPublishResult::FAILED;
+    }
+    return sqlite_candidate->AbortMigration(
+        error);
+}
+#endif
+
 bool SetSQLiteStatementExecutorForTesting(
     DatabaseBatch& batch,
     std::unique_ptr<SQLiteStatementExecutor> executor)
@@ -7128,6 +8385,13 @@ void InjectSQLiteEraseFailureForTesting(
         successful_erases_before_failure);
 }
 
+#ifdef WIN32
+void InjectSQLiteCandidateRevalidationFailureForTesting()
+{
+    g_fail_candidate_revalidation_once.store(true);
+}
+#endif
+
 int GetSQLiteEraseAttemptsForTesting()
 {
     return g_erase_attempts.load();
@@ -7136,14 +8400,36 @@ int GetSQLiteEraseAttemptsForTesting()
 bool ResetSQLiteLifecycleForTesting()
 {
     sqlite3* abandoned_connection = nullptr;
+#ifdef WIN32
+    RetainedIndeterminateFile* retained_files = nullptr;
+#endif
     {
         std::lock_guard<std::mutex> lock(g_sqlite_mutex);
+#ifdef WIN32
+        const bool connection_state_valid =
+            (g_sqlite_abandoned_connection_count == 0 &&
+                !g_sqlite_first_abandoned_connection) ||
+            (g_sqlite_abandoned_connection_count == 1 &&
+                g_sqlite_first_abandoned_connection);
+        if (g_sqlite_owner_count != 0 ||
+            !connection_state_valid ||
+            g_retained_indeterminate_file_close_failed ||
+            !g_sqlite_has_abandoned_connection.load() ||
+            (!g_sqlite_first_abandoned_connection &&
+                !g_retained_indeterminate_files)) {
+            return false;
+        }
+        retained_files =
+            g_retained_indeterminate_files;
+        g_retained_indeterminate_files = nullptr;
+#else
         if (g_sqlite_owner_count != 0 ||
             g_sqlite_abandoned_connection_count != 1 ||
             !g_sqlite_first_abandoned_connection ||
             !g_sqlite_has_abandoned_connection.load()) {
             return false;
         }
+#endif
         abandoned_connection =
             g_sqlite_first_abandoned_connection;
     }
@@ -7155,19 +8441,61 @@ bool ResetSQLiteLifecycleForTesting()
     g_fail_backup_collision_cleanup_once.store(false);
     g_fail_recovery_collision_cleanup_once.store(false);
     g_report_migration_exchange_error_once.store(false);
+    g_report_rewrite_commit_error_once.store(false);
     g_fail_directory_sync_after_successes.store(-1);
     g_directory_sync_failure_error.store(0);
     g_fail_file_sync_after_successes.store(-1);
     g_file_sync_failure_error.store(0);
     g_fail_erase_after_successes.store(-1);
     g_erase_attempts.store(0);
-    if (sqlite3_close(abandoned_connection) != SQLITE_OK) {
+#ifdef WIN32
+    g_fail_candidate_revalidation_once.store(false);
+    win32_wallet::ResetFileLifecycleForTesting();
+#endif
+
+#ifdef WIN32
+    bool retained_files_closed = true;
+    while (retained_files) {
+        RetainedIndeterminateFile* const retained =
+            retained_files;
+        retained_files = retained->next;
+        std::string close_error;
+        try {
+            if (!retained->descriptor.Close(
+                    close_error)) {
+                retained_files_closed = false;
+            }
+        } catch (...) {
+            retained_files_closed = false;
+        }
+        delete retained;
+    }
+#endif
+
+    const bool abandoned_connection_closed =
+        !abandoned_connection ||
+        sqlite3_close(abandoned_connection) == SQLITE_OK;
+    {
+        std::lock_guard<std::mutex> lock(g_sqlite_mutex);
+        if (abandoned_connection_closed) {
+            g_sqlite_first_abandoned_connection = nullptr;
+            g_sqlite_abandoned_connection_count = 0;
+        }
+#ifdef WIN32
+        if (!retained_files_closed) {
+            g_retained_indeterminate_file_close_failed = true;
+        }
+#endif
+    }
+    if (!abandoned_connection_closed
+#ifdef WIN32
+        || !retained_files_closed
+#endif
+    ) {
         return false;
     }
 
     std::lock_guard<std::mutex> lock(g_sqlite_mutex);
-    g_sqlite_first_abandoned_connection = nullptr;
-    g_sqlite_abandoned_connection_count = 0;
     const int result = sqlite3_shutdown();
     if (result != SQLITE_OK) {
         return false;

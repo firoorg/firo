@@ -16,6 +16,7 @@ endif
 bdb_packages=bdb
 sqlite_packages_linux=sqlite
 sqlite_packages_darwin=sqlite
+sqlite_packages_mingw32=sqlite
 sqlite_packages=$(sqlite_packages_$(host_os))
 qrencode_packages=qrencode
 

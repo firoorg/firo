@@ -1,14 +1,14 @@
 # SQLite wallet storage
 
-On Linux and macOS, Firo supports writable Berkeley DB (BDB) and SQLite
-wallet databases during the coexistence period. Windows currently uses a
-BDB-only wallet build. BDB wallets remain supported and are never migrated
-automatically.
+On Linux, macOS, and Windows, Firo supports writable Berkeley DB (BDB) and
+SQLite wallet databases during the coexistence period. When SQLite support is
+enabled, new wallets default to SQLite. BDB wallets remain supported and are
+never migrated automatically.
 
 ## Build configuration
 
-Wallet builds currently require BDB support. On Linux and macOS, SQLite
-wallet support is controlled independently:
+Wallet builds currently require BDB support. On Linux, macOS, and Windows,
+SQLite wallet support is controlled independently:
 
 ```bash
 cmake -S . -B build \
@@ -16,9 +16,8 @@ cmake -S . -B build \
   -DENABLE_SQLITE_WALLET=ON
 ```
 
-`ENABLE_SQLITE_WALLET` defaults to `ON` and is currently supported on Linux
-and macOS. Their depends builds supply SQLite 3.50.4. A supported BDB-only
-build uses:
+`ENABLE_SQLITE_WALLET` defaults to `ON` on all three platforms. Their depends
+builds supply SQLite 3.50.4. A supported BDB-only build uses:
 
 ```bash
 cmake -S . -B build-bdb \
@@ -28,21 +27,43 @@ cmake -S . -B build-bdb \
 
 For depends, `NO_SQLITE=1` omits SQLite from the packages built and installed
 and configures the resulting toolchain with SQLite wallet support disabled.
-The Windows depends toolchain does this automatically. A BDB-only binary
-creates BDB wallets and rejects an existing SQLite wallet before mutation.
-SQLite-only wallet builds are not supported.
+`ENABLE_SQLITE_WALLET=OFF`, including a toolchain generated with
+`NO_SQLITE=1`, is a true BDB-only build: it does not compile SQLite wallet
+sources or require SQLite headers or libraries. It creates BDB wallets and
+rejects an existing SQLite wallet before mutation. SQLite-only wallet builds
+are not supported.
 
-A direct Windows configuration must pass
-`-DENABLE_SQLITE_WALLET=OFF`; leaving the option enabled fails during
-configuration with an actionable error. Windows remains supported with
-writable BDB wallets.
+The secure SQLite lifecycle publishes or replaces wallet files at the latest
+safe filesystem boundary available on each platform. Linux uses `renameat2`
+with `RENAME_NOREPLACE` or `RENAME_EXCHANGE` and `fsync`. macOS uses
+`renameatx_np` with `RENAME_EXCL` or `RENAME_SWAP` and `F_FULLFSYNC`.
 
-The secure SQLite lifecycle requires atomic no-replace publication, atomic
-exchange during migration and recovery, and durable file and directory
-synchronization. Linux uses `renameat2` with `RENAME_NOREPLACE` or
-`RENAME_EXCHANGE` and `fsync`. macOS uses `renameatx_np` with `RENAME_EXCL` or
-`RENAME_SWAP` and `F_FULLFSYNC`. Creation, backup, recovery, or migration
-fails closed when a required operation is unavailable or cannot be verified.
+Windows support requires a local NTFS volume with persistent ACLs and stable
+file identities. Firo opens every relevant path component without following
+reparse points and rejects reparse entries. New candidates and backups use
+`CREATE_NEW` with a protected, non-null DACL granting the current user full
+control. Existing SQLite lifecycle files must be current-user-owned and pass
+the private-access check. BDB migration sources must be current-user-owned and
+source-controlled against untrusted mutation or security-control access;
+ordinary BDB loading retains its legacy policy. Private directory validation
+also rejects untrusted inheritable grants, so SQLite rollback journals cannot
+inherit broader access. Firo retains and verifies native file identities
+throughout each operation.
+
+Windows no-replace publication uses
+`MoveFileExW(..., MOVEFILE_WRITE_THROUGH)` without
+`MOVEFILE_REPLACE_EXISTING`. Migration and recovery replacement add
+`MOVEFILE_REPLACE_EXISTING`; neither operation permits `MOVEFILE_COPY_ALLOWED`.
+Firo flushes the closed candidate first, reconciles the result using exact
+retained file identities, then reopens, verifies, and flushes the final file.
+
+Windows provides no documented generic directory-`fsync` equivalent for an
+ordinary user. `MOVEFILE_WRITE_THROUGH` waits for the move to complete on disk,
+but it is not a generic directory flush. This contract therefore does not
+claim stronger atomicity or durability across power loss, and cleanup of a
+failed pre-publication operation cannot be claimed power-loss durable.
+Creation, backup, recovery, or migration fails closed when a required
+operation is unavailable or cannot be verified.
 
 ## Creating and identifying wallets
 
@@ -94,11 +115,17 @@ safe filesystem boundary. The retained backup's exact absolute path is
 reported in the successful migration log message.
 
 The backup is never deleted or overwritten by migration. A failure before
-publication leaves the BDB source authoritative. Atomic exchange prevents a
-missing final wallet path on supported platforms, but power-loss durability
-still depends on the filesystem honoring file and directory synchronization.
-No migration is attempted during ordinary startup, wallet creation, backup,
-or software upgrade.
+publication leaves the BDB source authoritative. Linux and macOS use an atomic
+exchange at publication. Windows uses a same-volume, write-through replacement
+and reconciles the exact candidate, source, and replaced-file identities after
+the operation; Windows does not provide the same documented atomic-exchange or
+generic directory-synchronization guarantees. Power-loss durability still
+depends on the operating system and filesystem honoring the available
+synchronization operations. If Windows cannot prove exact candidate cleanup
+after a pre-publication failure, Firo reports the retained path, fails closed,
+and requests shutdown before another wallet operation. No migration is
+attempted during ordinary startup, wallet creation, backup, or software
+upgrade.
 
 ## Backup
 
@@ -132,10 +159,13 @@ only while the wallet is stopped:
    directory. Do not replace the original wallet in place.
 3. Confirm that the destination and its `-journal`, `-wal`, and `-shm`
    side-file names are all absent.
-4. Copy the verified backup to the new filename with the same owner and mode
-   `0600`. Use a copy method that exclusively creates the absent destination
-   without following symlinks. Set a restrictive umask before copying; a
-   default umask followed by a later `chmod` can expose the file temporarily.
+4. Copy the verified backup with a method that exclusively creates the absent
+   destination without following reparse points or symbolic links. On POSIX
+   systems, preserve the owner, use mode `0600`, and set a restrictive umask
+   before copying; a later `chmod` can expose the file temporarily. On Windows,
+   create the destination as the current user with a protected private DACL
+   granting only that user full control; do not rely on tightening inherited
+   permissions after the copy.
 5. Start Firo with the new logical filename, for example:
 
    ```bash

@@ -154,7 +154,7 @@ static bool ApplyWalletCreationFormat(
 
 namespace
 {
-#if defined(USE_SQLITE) && (defined(__linux__) || defined(__APPLE__))
+#ifdef USE_SQLITE
 std::atomic<uint64_t> g_wallet_migration_path_counter{0};
 
 class MigrationRecordCleanser
@@ -543,12 +543,6 @@ bool MigrateWalletDatabaseToSQLite(
         "wallet support disabled.",
         source.Filename());
     return false;
-#elif !defined(__linux__) && !defined(__APPLE__)
-    error = strprintf(
-        "Cannot migrate wallet database '%s': atomic SQLite migration "
-        "publication is unsupported on this platform.",
-        source.Filename());
-    return false;
 #else
     BerkeleyDatabase* const berkeley =
         dynamic_cast<BerkeleyDatabase*>(&source);
@@ -574,6 +568,11 @@ bool MigrateWalletDatabaseToSQLite(
             backupCreated = true;
             break;
         }
+        if (result ==
+            MigrationBackupResult::INDETERMINATE) {
+            StartShutdown();
+            return false;
+        }
         if (result != MigrationBackupResult::EXISTS) {
             return false;
         }
@@ -592,12 +591,42 @@ bool MigrateWalletDatabaseToSQLite(
         return false;
     };
 
+#ifdef WIN32
+    std::unique_ptr<WalletDatabase> candidate;
+    auto failCandidate = [&]() {
+        const std::string primaryError = error;
+        std::string abortError;
+        const SQLiteMigrationPublishResult abortResult =
+            AbortSQLiteMigrationCandidate(
+                *candidate,
+                abortError);
+        error = primaryError;
+        if (!error.empty()) {
+            error += " ";
+        }
+        error += abortError.empty() ?
+                     "SQLite migration candidate cleanup did not provide a diagnostic." :
+                     abortError;
+        if (abortResult !=
+            SQLiteMigrationPublishResult::SUCCESS) {
+            StartShutdown();
+        }
+        return failAfterBackup();
+    };
+#endif
+
     try {
         std::string candidateFilename;
+#ifdef WIN32
+        candidate = CreateMigrationCandidate(
+            candidateFilename,
+            error);
+#else
         std::unique_ptr<WalletDatabase> candidate =
             CreateMigrationCandidate(
                 candidateFilename,
                 error);
+#endif
         if (!candidate) {
             return failAfterBackup();
         }
@@ -617,11 +646,19 @@ bool MigrateWalletDatabaseToSQLite(
                 source,
                 *candidate,
                 error)) {
+#ifdef WIN32
+            return failCandidate();
+#else
             return failAfterBackup();
+#endif
         }
         if (!berkeley->PrepareForMigrationPublication(
                 error)) {
+#ifdef WIN32
+            return failCandidate();
+#else
             return failAfterBackup();
+#endif
         }
 
         std::string creationError;
@@ -639,7 +676,11 @@ bool MigrateWalletDatabaseToSQLite(
                 DatabaseCreationResult::INDETERMINATE) {
                 StartShutdown();
             }
+#ifdef WIN32
+            return failCandidate();
+#else
             return failAfterBackup();
+#endif
         }
 
         const SQLiteMigrationPublishResult publishResult =
@@ -653,21 +694,40 @@ bool MigrateWalletDatabaseToSQLite(
                 SQLiteMigrationPublishResult::INDETERMINATE) {
                 StartShutdown();
             }
+#ifdef WIN32
+            return failCandidate();
+#else
             return failAfterBackup();
+#endif
         }
 
         error.clear();
         return true;
     } catch (const boost::thread_interrupted&) {
+#ifdef WIN32
+        if (candidate) {
+            (void)failCandidate();
+        }
+#endif
         throw;
     } catch (const std::exception& exception) {
         error = strprintf(
             "Wallet database migration failed with an exception: %s",
             exception.what());
+#ifdef WIN32
+        if (candidate) {
+            return failCandidate();
+        }
+#endif
         return failAfterBackup();
     } catch (...) {
         error =
             "Wallet database migration failed with an unknown exception.";
+#ifdef WIN32
+        if (candidate) {
+            return failCandidate();
+        }
+#endif
         return failAfterBackup();
     }
 #endif
@@ -1344,13 +1404,6 @@ bool CWallet::Verify()
             "wallet support disabled.",
             walletFile));
     }
-#elif !defined(__linux__) && !defined(__APPLE__)
-    if (migrateDatabase) {
-        return InitError(strprintf(
-            "Cannot migrate wallet database '%s': atomic SQLite migration "
-            "publication is unsupported on this platform.",
-            walletFile));
-    }
 #else
     if (migrateDatabase) {
         std::optional<DatabaseFormat> existingFormat;
@@ -1379,6 +1432,7 @@ bool CWallet::Verify()
     if (migrateDatabase) {
         options.require_format =
             DatabaseFormat::BERKELEY;
+        options.bdb_migration_source = true;
     }
     DatabaseStatus status;
     std::string error;

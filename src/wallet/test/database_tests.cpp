@@ -21,13 +21,20 @@
 #include "crypto/common.h"
 #include "init.h"
 #include "wallet/sqlite.h"
+#ifdef WIN32
+#include "wallet/win32_file_lifecycle.h"
+
+#include <aclapi.h>
+#include <windows.h>
+#include <winioctl.h>
+#endif
 
 #include <sqlite3.h>
 
-#ifndef WIN32
 #include <cerrno>
+
+#ifndef WIN32
 #include <csignal>
-#include <fcntl.h>
 #include <sys/stat.h>
 #if defined(__linux__)
 #include <sys/syscall.h>
@@ -46,6 +53,7 @@
 #include <cstdint>
 #include <future>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -64,6 +72,10 @@ extern std::atomic<bool> fRequestShutdown;
 namespace
 {
 using RawRecord = std::pair<std::string, std::string>;
+
+#if defined(WIN32) && defined(USE_SQLITE)
+namespace win32_wallet = wallet::win32;
+#endif
 
 class BerkeleyBatchForTest final : public CDB
 {
@@ -210,6 +222,68 @@ std::string ReadFile(const fs::path& path)
 }
 
 #ifdef USE_SQLITE
+#ifdef WIN32
+bool WritePrivateWin32File(
+    const fs::path& path,
+    const std::string& contents)
+{
+    HANDLE file = INVALID_HANDLE_VALUE;
+    try {
+        file = CreateFileW(
+            path.wstring().c_str(),
+            GENERIC_WRITE,
+            FILE_SHARE_READ |
+                FILE_SHARE_WRITE |
+                FILE_SHARE_DELETE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL |
+                FILE_FLAG_OPEN_REPARSE_POINT,
+            nullptr);
+    } catch (...) {
+        return false;
+    }
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    LARGE_INTEGER beginning{};
+    bool success =
+        SetFilePointerEx(
+            file,
+            beginning,
+            nullptr,
+            FILE_BEGIN) != FALSE &&
+        SetEndOfFile(file) != FALSE;
+    size_t written = 0;
+    while (success &&
+           written < contents.size()) {
+        const DWORD request =
+            static_cast<DWORD>(
+                std::min<size_t>(
+                    contents.size() - written,
+                    std::numeric_limits<DWORD>::max()));
+        DWORD count = 0;
+        success =
+            ::WriteFile(
+                file,
+                contents.data() + written,
+                request,
+                &count,
+                nullptr) != FALSE &&
+            count != 0;
+        written += count;
+    }
+    if (success) {
+        success =
+            FlushFileBuffers(file) != FALSE;
+    }
+    const bool closed =
+        CloseHandle(file) != FALSE;
+    return success && closed;
+}
+#endif
+
 bool ExecuteRawSQLite(
     const fs::path& path,
     const std::vector<std::string>& statements,
@@ -272,7 +346,6 @@ std::optional<int64_t> ReadRawSQLiteInteger(const fs::path& path, const char* st
     return value;
 }
 
-#if (defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__)
 std::optional<std::vector<RawRecord> > ReadRawSQLiteRecordsNotIndexed(
     const fs::path& path)
 {
@@ -397,87 +470,77 @@ bool CreateHotJournalRestoringForeignHeader(
         return false;
     }
 
-    const pid_t child = fork();
-    if (child == 0) {
-        sqlite3* database = nullptr;
-        const int flags =
-            SQLITE_OPEN_FULLMUTEX |
-            SQLITE_OPEN_NOFOLLOW |
-            SQLITE_OPEN_READWRITE;
-        bool success =
-            sqlite3_open_v2(
-                path.string().c_str(),
-                &database,
-                flags,
-                nullptr) == SQLITE_OK &&
-            sqlite3_exec(
-                database,
-                "PRAGMA journal_mode = DELETE",
-                nullptr,
-                nullptr,
-                nullptr) == SQLITE_OK &&
-            sqlite3_exec(
-                database,
-                "PRAGMA synchronous = FULL",
-                nullptr,
-                nullptr,
-                nullptr) == SQLITE_OK &&
-            sqlite3_exec(
-                database,
-                "PRAGMA cache_size = 1",
-                nullptr,
-                nullptr,
-                nullptr) == SQLITE_OK &&
-            sqlite3_exec(
-                database,
-                "PRAGMA cache_spill = ON",
-                nullptr,
-                nullptr,
-                nullptr) == SQLITE_OK &&
-            sqlite3_exec(
-                database,
-                "BEGIN IMMEDIATE TRANSACTION",
-                nullptr,
-                nullptr,
-                nullptr) == SQLITE_OK &&
-            sqlite3_exec(
-                database,
-                "INSERT INTO main(key, value) "
-                "VALUES(X'70656e64696e672d31', zeroblob(100000))",
-                nullptr,
-                nullptr,
-                nullptr) == SQLITE_OK &&
-            sqlite3_exec(
-                database,
-                "INSERT INTO main(key, value) "
-                "VALUES(X'70656e64696e672d32', zeroblob(100000))",
-                nullptr,
-                nullptr,
-                nullptr) == SQLITE_OK;
-        _exit(success ? 0 : 1);
-    }
-    if (child <= 0) {
+    if (sqlite3_initialize() != SQLITE_OK) {
         return false;
     }
 
-    int childStatus = 0;
-    pid_t waited;
-    do {
-        waited = waitpid(
-            child,
-            &childStatus,
-            0);
-    } while (waited < 0 && errno == EINTR);
-    if (waited != child ||
-        !WIFEXITED(childStatus) ||
-        WEXITSTATUS(childStatus) != 0) {
-        return false;
-    }
-
+    sqlite3* database = nullptr;
+    const int flags =
+        SQLITE_OPEN_FULLMUTEX |
+        SQLITE_OPEN_NOFOLLOW |
+        SQLITE_OPEN_READWRITE;
+    bool success =
+        sqlite3_open_v2(
+            path.string().c_str(),
+            &database,
+            flags,
+            nullptr) == SQLITE_OK &&
+        sqlite3_exec(
+            database,
+            "PRAGMA journal_mode = DELETE",
+            nullptr,
+            nullptr,
+            nullptr) == SQLITE_OK &&
+        sqlite3_exec(
+            database,
+            "PRAGMA synchronous = FULL",
+            nullptr,
+            nullptr,
+            nullptr) == SQLITE_OK &&
+        sqlite3_exec(
+            database,
+            "PRAGMA cache_size = 1",
+            nullptr,
+            nullptr,
+            nullptr) == SQLITE_OK &&
+        sqlite3_exec(
+            database,
+            "PRAGMA cache_spill = ON",
+            nullptr,
+            nullptr,
+            nullptr) == SQLITE_OK &&
+        sqlite3_exec(
+            database,
+            "BEGIN IMMEDIATE TRANSACTION",
+            nullptr,
+            nullptr,
+            nullptr) == SQLITE_OK &&
+        sqlite3_exec(
+            database,
+            "INSERT INTO main(key, value) "
+            "VALUES(X'70656e64696e672d31', zeroblob(100000))",
+            nullptr,
+            nullptr,
+            nullptr) == SQLITE_OK &&
+        sqlite3_exec(
+            database,
+            "INSERT INTO main(key, value) "
+            "VALUES(X'70656e64696e672d32', zeroblob(100000))",
+            nullptr,
+            nullptr,
+            nullptr) == SQLITE_OK;
     const fs::path journalPath =
         path.string() + "-journal";
-    const std::string journal =
-        ReadFile(journalPath);
+    std::string databaseSnapshot;
+    std::string journalSnapshot;
+    if (success) {
+        try {
+            databaseSnapshot = ReadFile(path);
+            journalSnapshot = ReadFile(journalPath);
+        } catch (...) {
+            success = false;
+        }
+    }
     static constexpr std::array<unsigned char, 8>
         JOURNAL_MAGIC{{
             0xd9,
@@ -489,56 +552,102 @@ bool CreateHotJournalRestoringForeignHeader(
             0x63,
             0xd7,
         }};
-    if (journal.size() <= 512 ||
-        !std::equal(
+    const bool hotJournal =
+        journalSnapshot.size() > 512 &&
+        std::equal(
             JOURNAL_MAGIC.begin(),
             JOURNAL_MAGIC.end(),
             reinterpret_cast<const unsigned char*>(
-                journal.data()))) {
+                journalSnapshot.data()));
+    const bool closed =
+        !database ||
+        sqlite3_close(database) == SQLITE_OK;
+    const bool shutDown =
+        sqlite3_shutdown() == SQLITE_OK;
+    if (!success ||
+        !hotJournal ||
+        !closed ||
+        !shutDown ||
+        databaseSnapshot.size() < 72) {
         return false;
     }
 
-    int flags = O_RDWR;
-#ifdef O_CLOEXEC
-    flags |= O_CLOEXEC;
-#endif
-#ifdef O_NOFOLLOW
-    flags |= O_NOFOLLOW;
-#endif
-    const int descriptor =
-        open(path.string().c_str(), flags);
-    if (descriptor < 0) {
-        return false;
-    }
-
-    std::array<unsigned char, 4> schemaVersion{};
-    std::array<unsigned char, 4> applicationId{};
     WriteBE32(
-        schemaVersion.data(),
+        reinterpret_cast<unsigned char*>(
+            databaseSnapshot.data() + 60),
         0);
     WriteBE32(
-        applicationId.data(),
+        reinterpret_cast<unsigned char*>(
+            databaseSnapshot.data() + 68),
         ReadBE32(
             Params().MessageStart()));
-    const bool patched =
-        pwrite(
-            descriptor,
-            schemaVersion.data(),
-            schemaVersion.size(),
-            60) ==
-            static_cast<ssize_t>(
-                schemaVersion.size()) &&
-        pwrite(
-            descriptor,
-            applicationId.data(),
-            applicationId.size(),
-            68) ==
-            static_cast<ssize_t>(
-                applicationId.size()) &&
-        fsync(descriptor) == 0;
-    const bool closed =
-        close(descriptor) == 0;
-    return patched && closed;
+    try {
+#ifdef WIN32
+        auto restorePrivateFile =
+            [](const fs::path& restoredPath,
+                const std::string& contents) {
+                win32_wallet::File file;
+                DatabaseFileIdentity identity;
+                std::string error;
+                const win32_wallet::OpenResult opened =
+                    win32_wallet::OpenExistingFile(
+                        restoredPath,
+                        win32_wallet::FileAccess::READ_WRITE,
+                        win32_wallet::SecurityPolicy::PRIVATE,
+                        false,
+                        file,
+                        identity,
+                        error);
+                if (opened ==
+                    win32_wallet::OpenResult::ABSENT) {
+                    if (win32_wallet::CreatePrivateFile(
+                            restoredPath,
+                            false,
+                            file,
+                            identity,
+                            error) !=
+                        win32_wallet::CreateResult::CREATED) {
+                        return false;
+                    }
+                } else if (opened !=
+                           win32_wallet::OpenResult::OPENED) {
+                    return false;
+                }
+                const bool restored =
+                    WritePrivateWin32File(
+                        restoredPath,
+                        contents);
+                const bool closed =
+                    file.Close(error);
+                return restored && closed;
+            };
+        if (!restorePrivateFile(
+                path,
+                databaseSnapshot) ||
+            !restorePrivateFile(
+                journalPath,
+                journalSnapshot)) {
+            return false;
+        }
+#else
+        WriteFile(
+            path,
+            databaseSnapshot);
+        WriteFile(
+            journalPath,
+            journalSnapshot);
+        fs::permissions(
+            journalPath,
+            fs::owner_read |
+                fs::owner_write);
+#endif
+        return ReadFile(path) ==
+                   databaseSnapshot &&
+               ReadFile(journalPath) ==
+                   journalSnapshot;
+    } catch (...) {
+        return false;
+    }
 }
 
 std::optional<std::string> RawRecordType(const RawRecord& record)
@@ -605,7 +714,6 @@ std::unique_ptr<WalletDatabase> CreateSQLiteTestDatabaseFromRawRecords(
     }
     return database;
 }
-#endif
 
 std::string ExpectedApplicationIdPragma()
 {
@@ -835,6 +943,18 @@ public:
     }
 };
 
+#ifdef WIN32
+bool ResetExpectedSQLiteQuarantine()
+{
+    if (!ShutdownRequested() ||
+        !ResetSQLiteLifecycleForTesting()) {
+        return false;
+    }
+    fRequestShutdown.store(false);
+    return true;
+}
+#endif
+
 void RemoveSQLiteTestFiles(const std::string& filename)
 {
     const fs::path path = GetDataDir() / filename;
@@ -906,6 +1026,7 @@ std::unique_ptr<WalletDatabase> ReopenBerkeleyForMigration(
     options.require_format =
         DatabaseFormat::BERKELEY;
     options.recover = false;
+    options.bdb_migration_source = true;
     DatabaseStatus status;
     return MakeWalletDatabase(
         filename,
@@ -1432,7 +1553,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
     BOOST_CHECK(bitdb.RemoveDb(berkeleyFilename));
 }
 
-#if defined(USE_SQLITE) && (defined(__linux__) || defined(__APPLE__))
+#ifdef USE_SQLITE
 BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
 {
     const std::string sourceFilename{
@@ -1499,6 +1620,7 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
     BOOST_CHECK_EQUAL(
         berkeley->MigrationBackupPath().string(),
         backupPath.string());
+#ifndef WIN32
     struct stat metadata{};
     BOOST_REQUIRE(
         lstat(
@@ -1509,6 +1631,7 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
     BOOST_CHECK_EQUAL(
         metadata.st_mode & 0777,
         S_IRUSR | S_IWUSR);
+#endif
     BOOST_CHECK(
         berkeley->MigrationBackupMatchesPath(
             error));
@@ -1548,6 +1671,7 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
     bitdb.Close();
     bitdb.Reset();
 
+#ifndef WIN32
     CDBEnv reopenedEnvironment;
     BOOST_REQUIRE(
         reopenedEnvironment.Open(
@@ -1583,11 +1707,15 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
     }
     reopenedSource.reset();
     reopenedEnvironment.Flush(true);
+#endif
     BOOST_REQUIRE(bitdb.Open(GetDataDir()));
 }
 
 BOOST_AUTO_TEST_CASE(berkeley_migration_backup_sync_failure_preserves_source)
 {
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
+
     const std::string sourceFilename{
         "migration_backup_sync_failure_source.dat"};
     const std::string backupFilename{
@@ -1631,19 +1759,53 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_sync_failure_preserves_source)
             source.get());
     BOOST_REQUIRE(berkeley);
     InjectBerkeleyMigrationSyncFailureForTesting(EIO);
-    BOOST_CHECK(
+    const MigrationBackupResult backupResult =
         berkeley->CreateMigrationBackup(
             backupFilename,
-            error) ==
+            error);
+#ifdef WIN32
+    BOOST_CHECK(
+        backupResult ==
+        MigrationBackupResult::INDETERMINATE);
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK(
+        !berkeley->MigrationBackupPath().empty());
+    BOOST_CHECK(
+        error.find(
+            berkeley->MigrationBackupPath().string()) !=
+        std::string::npos);
+#else
+    BOOST_CHECK(
+        backupResult ==
         MigrationBackupResult::FAILED);
+    BOOST_CHECK(!ShutdownRequested());
+#endif
     BOOST_CHECK(
         error.find("synchronize BDB migration backup") !=
         std::string::npos);
+#ifndef WIN32
     BOOST_CHECK(
         error.find(backupPath.string()) !=
         std::string::npos);
+#endif
     BOOST_CHECK(!fs::exists(backupPath));
     BOOST_CHECK(IsBerkeleyDatabase(sourcePath));
+#ifdef WIN32
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY}),
+        std::runtime_error);
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE}),
+        std::runtime_error);
+    BOOST_CHECK(!source->Rewrite());
+    BOOST_CHECK(!source->Backup(
+        (GetDataDir() /
+            "migration-backup-frozen-copy.dat")
+            .string()));
+    BOOST_CHECK(!source->PeriodicFlush());
+#else
     {
         std::unique_ptr<DatabaseBatch> batch =
             source->MakeBatch(
@@ -1657,6 +1819,7 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_sync_failure_preserves_source)
             value,
             "source-remains-authoritative");
     }
+#endif
 }
 
 BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
@@ -1711,8 +1874,15 @@ BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
     BOOST_CHECK(
         error.find(backupPath) !=
         std::string::npos);
+#ifndef WIN32
     BOOST_CHECK(IsBerkeleyDatabase(sourcePath));
+#endif
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+#else
     BOOST_CHECK(!ShutdownRequested());
+#endif
+#ifndef WIN32
     BOOST_CHECK(
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-")
@@ -1730,6 +1900,69 @@ BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
             value,
             "source-remains-authoritative");
     }
+#endif
+#ifdef WIN32
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY}),
+        std::runtime_error);
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE}),
+        std::runtime_error);
+    BOOST_CHECK(!source->Rewrite());
+    BOOST_CHECK(!source->Backup(
+        (GetDataDir() /
+            "migration-candidate-frozen-copy.dat")
+            .string()));
+    BOOST_CHECK(!source->PeriodicFlush());
+
+    DatabaseOptions quarantinedOptions;
+    quarantinedOptions.require_create = true;
+    quarantinedOptions.require_format =
+        DatabaseFormat::SQLITE;
+    DatabaseStatus quarantinedStatus =
+        DatabaseStatus::SUCCESS;
+    std::string quarantinedError;
+    std::unique_ptr<WalletDatabase> quarantined =
+        MakeSQLiteDatabase(
+            "migration-quarantine-probe.dat",
+            quarantinedOptions,
+            quarantinedStatus,
+            quarantinedError);
+    BOOST_CHECK(!quarantined);
+    BOOST_CHECK(
+        quarantinedError.find("quarantined") !=
+        std::string::npos);
+    source.reset();
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+    bitdb.Close();
+    bitdb.Reset();
+    BOOST_REQUIRE(bitdb.Open(GetDataDir()));
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            source->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("migration-sync-failure"),
+            value));
+        BOOST_CHECK_EQUAL(
+            value,
+            "source-remains-authoritative");
+    }
+    BOOST_CHECK(IsBerkeleyDatabase(sourcePath));
+    BOOST_CHECK(
+        FindMigrationPaths(
+            ".firo-wallet-sqlite-migration-")
+            .empty());
+#endif
     BOOST_CHECK(
         IsBerkeleyDatabase(
             fs::path(backupPath)));
@@ -1819,6 +2052,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
     BOOST_CHECK(
         fs::is_regular_file(
             backupFilesystemPath));
+#ifndef WIN32
     struct stat backupMetadata{};
     BOOST_REQUIRE(
         lstat(
@@ -1827,6 +2061,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
     BOOST_CHECK_EQUAL(
         backupMetadata.st_mode & 0777,
         S_IRUSR | S_IWUSR);
+#endif
 
     DatabaseOptions openSQLite;
     openSQLite.require_existing = true;
@@ -2246,6 +2481,8 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_bip47_accounts)
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
 {
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
     const std::array<std::string, 2> recordTypes{{
         "bip47rcv",
         "bip47snd",
@@ -2350,6 +2587,21 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
             BOOST_CHECK(
                 error.find(privateRecordSentinel) ==
                 std::string::npos);
+#ifdef WIN32
+            BOOST_CHECK(ShutdownRequested());
+            BOOST_CHECK(
+                error.find(
+                    "candidate cleanup is indeterminate") !=
+                std::string::npos);
+            BOOST_CHECK_THROW(
+                source->MakeBatch(
+                    {DatabaseBatchMode::READ_WRITE}),
+                std::runtime_error);
+            BOOST_REQUIRE(
+                ResetExpectedSQLiteQuarantine());
+#else
+            BOOST_CHECK(!ShutdownRequested());
+#endif
             BOOST_CHECK(
                 IsBerkeleyDatabase(
                     GetDataDir() /
@@ -2567,7 +2819,21 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_unloadable_spark_state)
             BOOST_CHECK(
                 error.find(privateRecordSentinel) ==
                 std::string::npos);
+#ifdef WIN32
+            BOOST_CHECK(ShutdownRequested());
+            BOOST_CHECK(
+                error.find(
+                    "candidate cleanup is indeterminate") !=
+                std::string::npos);
+            BOOST_CHECK_THROW(
+                source->MakeBatch(
+                    {DatabaseBatchMode::READ_WRITE}),
+                std::runtime_error);
+            BOOST_REQUIRE(
+                ResetExpectedSQLiteQuarantine());
+#else
             BOOST_CHECK(!ShutdownRequested());
+#endif
             BOOST_CHECK(
                 IsBerkeleyDatabase(
                     GetDataDir() /
@@ -2617,6 +2883,8 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_unloadable_spark_state)
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
 {
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
     auto createSource = [](
                             const std::string& filename) {
         DatabaseOptions options;
@@ -2672,9 +2940,20 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
     BOOST_CHECK(
         error.find(backupPath) !=
         std::string::npos);
+#ifndef WIN32
     BOOST_CHECK(
         IsBerkeleyDatabase(
             GetDataDir() / corruptFilename));
+#endif
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK(
+        error.find(
+            "candidate cleanup is indeterminate") !=
+        std::string::npos);
+#else
+    BOOST_CHECK(!ShutdownRequested());
+#endif
     {
         auto batch = corrupt->MakeBatch(
             {DatabaseBatchMode::READ_ONLY});
@@ -2682,6 +2961,17 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
             ReadRawRecords(*batch) ==
             corruptRecords);
     }
+#ifdef WIN32
+    BOOST_CHECK_THROW(
+        corrupt->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE}),
+        std::runtime_error);
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            GetDataDir() / corruptFilename));
+#endif
     BOOST_CHECK(
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-")
@@ -2719,9 +3009,29 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
     BOOST_CHECK(
         error.find("raw empty key") !=
         std::string::npos);
+#ifndef WIN32
     BOOST_CHECK(
         IsBerkeleyDatabase(
             GetDataDir() / emptyFilename));
+#endif
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK(
+        error.find(
+            "candidate cleanup is indeterminate") !=
+        std::string::npos);
+    BOOST_CHECK_THROW(
+        empty->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE}),
+        std::runtime_error);
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            GetDataDir() / emptyFilename));
+#else
+    BOOST_CHECK(!ShutdownRequested());
+#endif
     BOOST_CHECK(
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-")
@@ -2772,7 +3082,23 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
     BOOST_CHECK(
         error.find(backupPath) !=
         std::string::npos);
+#ifdef WIN32
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY}),
+        std::runtime_error);
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE}),
+        std::runtime_error);
+    BOOST_CHECK(!source->Rewrite());
+    BOOST_CHECK(!source->PeriodicFlush());
+#endif
     source.reset();
+#ifdef WIN32
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#endif
 
     DatabaseOptions openSQLite;
     openSQLite.require_existing = true;
@@ -2789,14 +3115,17 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
     const std::vector<fs::path> displaced =
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-");
-    BOOST_REQUIRE_EQUAL(displaced.size(), 1);
-    BOOST_CHECK(
-        IsBerkeleyDatabase(
-            displaced.front()));
     DatabaseOptions openBerkeley;
     openBerkeley.require_existing = true;
     openBerkeley.require_format =
         DatabaseFormat::BERKELEY;
+#ifdef WIN32
+    BOOST_CHECK(displaced.empty());
+#else
+    BOOST_REQUIRE_EQUAL(displaced.size(), 1);
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            displaced.front()));
     std::unique_ptr<WalletDatabase> displacedDatabase =
         MakeWalletDatabase(
             displaced.front().filename().string(),
@@ -2804,6 +3133,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
             status,
             error);
     BOOST_REQUIRE(displacedDatabase);
+#endif
     std::unique_ptr<WalletDatabase> backupDatabase =
         MakeWalletDatabase(
             fs::path(backupPath).filename().string(),
@@ -2812,6 +3142,222 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
             error);
     BOOST_REQUIRE(backupDatabase);
 }
+
+#ifdef WIN32
+BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bdb)
+{
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
+
+    const std::string sourceFilename{
+        "migration_win32_replace_sharing_source.dat"};
+    const fs::path sourcePath =
+        GetDataDir() / sourceFilename;
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status =
+        DatabaseStatus::FAILED_LOAD;
+    std::string error;
+    std::unique_ptr<WalletDatabase> source =
+        MakeWalletDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            source->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("win32-replacement-blocked"),
+            std::string("source-and-backup-preserved")));
+    }
+    std::vector<RawRecord> expectedRecords;
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            source->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        expectedRecords =
+            ReadRawRecords(*batch);
+    }
+    BOOST_REQUIRE(source->PeriodicFlush());
+    source.reset();
+    source = ReopenBerkeleyForMigration(
+        sourceFilename,
+        error);
+    BOOST_REQUIRE_MESSAGE(source, error);
+    const std::string sourceContents =
+        ReadFile(sourcePath);
+
+    win32_wallet::File blocker;
+    DatabaseFileIdentity blockerIdentity;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::OpenExistingFile(
+            sourcePath,
+            win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
+            false,
+            blocker,
+            blockerIdentity,
+            error) ==
+            win32_wallet::OpenResult::OPENED,
+        error);
+
+    std::string backupPath;
+    BOOST_CHECK(
+        !MigrateWalletDatabaseToSQLite(
+            *source,
+            backupPath,
+            error));
+    const std::string migrationError =
+        error;
+    BOOST_REQUIRE(!backupPath.empty());
+    const fs::path backupFilesystemPath{
+        backupPath};
+    BOOST_REQUIRE(
+        fs::is_regular_file(
+            backupFilesystemPath));
+    const std::string backupContents =
+        ReadFile(
+            backupFilesystemPath);
+
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_MESSAGE(
+        migrationError.find(
+            "Failed to perform write-through wallet lifecycle replacement") !=
+            std::string::npos,
+        migrationError);
+    BOOST_CHECK_MESSAGE(
+        migrationError.find(
+            "candidate cleanup is indeterminate") !=
+            std::string::npos,
+        migrationError);
+    BOOST_CHECK(
+        migrationError.find(
+            sourcePath.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        migrationError.find(
+            backupFilesystemPath.string()) !=
+        std::string::npos);
+    BOOST_CHECK_EQUAL(
+        ReadFile(sourcePath),
+        sourceContents);
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            sourcePath));
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            backupFilesystemPath));
+    std::optional<DatabaseFormat> sourceFormat;
+    std::string formatError;
+    BOOST_REQUIRE_MESSAGE(
+        ReadWalletDatabaseFormat(
+            sourceFilename,
+            sourceFormat,
+            formatError),
+        formatError);
+    BOOST_REQUIRE(sourceFormat);
+    BOOST_CHECK(
+        *sourceFormat ==
+        DatabaseFormat::BERKELEY);
+    BOOST_CHECK(
+        FindMigrationPaths(
+            ".firo-wallet-sqlite-migration-")
+            .empty());
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY}),
+        std::runtime_error);
+    BOOST_CHECK_THROW(
+        source->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE}),
+        std::runtime_error);
+    BOOST_CHECK(!source->Rewrite());
+    BOOST_CHECK(!source->PeriodicFlush());
+
+    std::string closeError;
+    BOOST_REQUIRE_MESSAGE(
+        blocker.Close(
+            closeError),
+        closeError);
+    source.reset();
+    BOOST_REQUIRE_MESSAGE(
+        ResetExpectedSQLiteQuarantine(),
+        migrationError);
+    BOOST_CHECK(!ShutdownRequested());
+    bitdb.Close();
+    bitdb.Reset();
+    BOOST_REQUIRE(bitdb.Open(
+        GetDataDir()));
+
+    BOOST_CHECK_EQUAL(
+        ReadFile(sourcePath),
+        sourceContents);
+    BOOST_CHECK_EQUAL(
+        ReadFile(
+            backupFilesystemPath),
+        backupContents);
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            sourcePath));
+    BOOST_CHECK(
+        IsBerkeleyDatabase(
+            backupFilesystemPath));
+    BOOST_CHECK(
+        FindMigrationPaths(
+            ".firo-wallet-sqlite-migration-")
+            .empty());
+
+    DatabaseOptions openBerkeley;
+    openBerkeley.require_existing = true;
+    openBerkeley.require_format =
+        DatabaseFormat::BERKELEY;
+    openBerkeley.recover = false;
+    std::unique_ptr<WalletDatabase> reopenedSource =
+        MakeWalletDatabase(
+            sourceFilename,
+            openBerkeley,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(
+        reopenedSource,
+        error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            reopenedSource->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        const bool recordsMatch =
+            ReadRawRecords(*batch) ==
+            expectedRecords;
+        BOOST_CHECK(recordsMatch);
+    }
+
+    std::unique_ptr<WalletDatabase> backup =
+        MakeWalletDatabase(
+            backupFilesystemPath.filename().string(),
+            openBerkeley,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(backup, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            backup->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        const bool recordsMatch =
+            ReadRawRecords(*batch) ==
+            expectedRecords;
+        BOOST_CHECK(recordsMatch);
+    }
+}
+#endif
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
 {
@@ -2873,7 +3419,8 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
         DatabaseFormat::SQLITE;
     candidateOptions.logical_wallet_create = true;
     candidateOptions.sqlite_migration_candidate = true;
-    std::unique_ptr<WalletDatabase> candidate =
+    std::unique_ptr<WalletDatabase> candidate;
+    candidate =
         MakeWalletDatabase(
             candidateFilename,
             candidateOptions,
@@ -2908,10 +3455,40 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
     interruptedPublisher.interrupt();
     interruptedPublisher.join();
     BOOST_CHECK(interruptionObserved.load());
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_MESSAGE(
+        error.find("indeterminate") !=
+            std::string::npos,
+        error);
+    BOOST_CHECK(
+        error.find(
+            (GetDataDir() /
+                candidateFilename)
+                .string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(
+            sourcePath.string()) !=
+        std::string::npos);
+    BOOST_CHECK(
+        error.find(
+            berkeley->MigrationBackupPath().string()) !=
+        std::string::npos);
+    BOOST_CHECK_THROW(
+        candidate->MakeBatch(
+            {DatabaseBatchMode::READ_ONLY}),
+        std::runtime_error);
+    BOOST_CHECK_THROW(
+        candidate->MakeBatch(
+            {DatabaseBatchMode::READ_WRITE}),
+        std::runtime_error);
+#else
     BOOST_CHECK(
         error.find("exact owned candidate") !=
         std::string::npos);
     BOOST_CHECK(!fRequestShutdown.load());
+#endif
     BOOST_CHECK(!fs::exists(
         GetDataDir() / candidateFilename));
     std::optional<DatabaseFormat> sourceFormat;
@@ -2937,6 +3514,12 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
 
     blockingSourceBatch.reset();
     candidate.reset();
+#ifdef WIN32
+    BOOST_REQUIRE_MESSAGE(
+        ResetExpectedSQLiteQuarantine(),
+        error);
+    BOOST_CHECK(!ShutdownRequested());
+#endif
     candidate = MakeWalletDatabase(
         candidateFilename,
         candidateOptions,
@@ -3540,6 +4123,1108 @@ BOOST_AUTO_TEST_CASE(berkeley_batch_contract)
 }
 
 #ifdef USE_SQLITE
+#ifdef WIN32
+BOOST_AUTO_TEST_CASE(sqlite_win32_private_file_and_native_handle_identity)
+{
+    const std::string filename{
+        "sqlite_win32_private_identity.dat"};
+    const fs::path path =
+        GetDataDir() / filename;
+    RemoveSQLiteTestFiles(filename);
+
+    win32_wallet::File created;
+    DatabaseFileIdentity identity;
+    std::string error{"unchanged"};
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::CreatePrivateFile(
+            path,
+            false,
+            created,
+            identity,
+            error) ==
+            win32_wallet::CreateResult::CREATED,
+        error);
+    BOOST_CHECK(error.empty());
+
+    win32_wallet::FileState state;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::GetFileState(
+            created,
+            state,
+            error),
+        error);
+    BOOST_CHECK_EQUAL(
+        state.identity.device,
+        identity.device);
+    BOOST_CHECK_EQUAL(
+        state.identity.inode,
+        identity.inode);
+    BOOST_CHECK_NE(identity.inode, 0U);
+    BOOST_CHECK_EQUAL(state.link_count, 1U);
+    BOOST_CHECK(!state.directory);
+    BOOST_CHECK(!state.reparse_point);
+    BOOST_CHECK(!state.delete_pending);
+    BOOST_CHECK(
+        win32_wallet::InspectHandleIdentity(
+            created,
+            identity,
+            error) ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(
+        win32_wallet::InspectPathIdentity(
+            path,
+            identity,
+            error) ==
+        win32_wallet::IdentityState::MATCH);
+
+    win32_wallet::File opened;
+    DatabaseFileIdentity openedIdentity;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::OpenExistingFile(
+            path,
+            win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            false,
+            opened,
+            openedIdentity,
+            error) ==
+            win32_wallet::OpenResult::OPENED,
+        error);
+    BOOST_CHECK_EQUAL(
+        openedIdentity.device,
+        identity.device);
+    BOOST_CHECK_EQUAL(
+        openedIdentity.inode,
+        identity.inode);
+
+    win32_wallet::File collision;
+    DatabaseFileIdentity collisionIdentity;
+    BOOST_CHECK(
+        win32_wallet::CreatePrivateFile(
+            path,
+            false,
+            collision,
+            collisionIdentity,
+            error) ==
+        win32_wallet::CreateResult::EXISTS);
+    BOOST_CHECK(!collision);
+
+    BOOST_REQUIRE_MESSAGE(
+        opened.Close(error),
+        error);
+
+    std::string sqlitePath;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::PathToUtf8(
+            path,
+            sqlitePath,
+            error),
+        error);
+    BOOST_REQUIRE_EQUAL(
+        sqlite3_initialize(),
+        SQLITE_OK);
+    sqlite3* rawDatabase = nullptr;
+    const int openResult =
+        sqlite3_open_v2(
+            sqlitePath.c_str(),
+            &rawDatabase,
+            SQLITE_OPEN_FULLMUTEX |
+                SQLITE_OPEN_NOFOLLOW |
+                SQLITE_OPEN_READWRITE,
+            nullptr);
+    std::unique_ptr<
+        sqlite3,
+        decltype(&sqlite3_close)>
+        database(
+            rawDatabase,
+            &sqlite3_close);
+    const std::string openError =
+        rawDatabase ?
+            sqlite3_errmsg(rawDatabase) :
+            "SQLite returned no connection";
+    BOOST_REQUIRE_MESSAGE(
+        openResult == SQLITE_OK,
+        openError);
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::SQLiteHandleIdentityMatches(
+            database.get(),
+            identity,
+            error),
+        error);
+
+    DatabaseFileIdentity wrongIdentity =
+        identity;
+    wrongIdentity.inode ^= UINT64_C(1);
+    BOOST_CHECK(
+        !win32_wallet::SQLiteHandleIdentityMatches(
+            database.get(),
+            wrongIdentity,
+            error));
+    BOOST_CHECK(
+        error.find("does not match") !=
+        std::string::npos);
+
+    BOOST_CHECK_EQUAL(
+        sqlite3_close(database.release()),
+        SQLITE_OK);
+    BOOST_CHECK_EQUAL(
+        sqlite3_shutdown(),
+        SQLITE_OK);
+    BOOST_REQUIRE_MESSAGE(
+        created.Close(error),
+        error);
+    RemoveSQLiteTestFiles(filename);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_win32_reparse_point_is_rejected)
+{
+    const std::string targetFilename{
+        "sqlite_win32_reparse_target.dat"};
+    const std::string linkFilename{
+        "sqlite_win32_reparse_link.dat"};
+    const fs::path targetPath =
+        GetDataDir() / targetFilename;
+    const fs::path linkPath =
+        GetDataDir() / linkFilename;
+    RemoveSQLiteTestFiles(targetFilename);
+    RemoveSQLiteTestFiles(linkFilename);
+
+    win32_wallet::File target;
+    DatabaseFileIdentity targetIdentity;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::CreatePrivateFile(
+            targetPath,
+            false,
+            target,
+            targetIdentity,
+            error) ==
+            win32_wallet::CreateResult::CREATED,
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        target.Close(error),
+        error);
+
+    static constexpr DWORD ALLOW_UNPRIVILEGED_CREATE =
+        0x2;
+    using CreateSymbolicLinkFunction =
+        BOOLEAN(WINAPI*)(LPCWSTR, LPCWSTR, DWORD);
+    const CreateSymbolicLinkFunction createSymbolicLink =
+        reinterpret_cast<CreateSymbolicLinkFunction>(
+            reinterpret_cast<void*>(
+                GetProcAddress(
+                    GetModuleHandleW(L"kernel32.dll"),
+                    "CreateSymbolicLinkW")));
+    BOOST_REQUIRE_MESSAGE(
+        createSymbolicLink,
+        "CreateSymbolicLinkW is unavailable");
+    bool linkCreated =
+        createSymbolicLink(
+            linkPath.wstring().c_str(),
+            targetPath.wstring().c_str(),
+            ALLOW_UNPRIVILEGED_CREATE) != FALSE;
+    DWORD linkError =
+        linkCreated ? ERROR_SUCCESS : GetLastError();
+    if (!linkCreated &&
+        linkError == ERROR_INVALID_PARAMETER) {
+        linkCreated =
+            createSymbolicLink(
+                linkPath.wstring().c_str(),
+                targetPath.wstring().c_str(),
+                0) != FALSE;
+        linkError =
+            linkCreated ?
+                ERROR_SUCCESS :
+                GetLastError();
+    }
+    if (!linkCreated &&
+        linkError == ERROR_PRIVILEGE_NOT_HELD) {
+        BOOST_TEST_MESSAGE(
+            "Skipping Win32 reparse-point rejection: symbolic-link "
+            "creation privilege and Developer Mode are unavailable");
+        RemoveSQLiteTestFiles(targetFilename);
+        return;
+    }
+    BOOST_REQUIRE_MESSAGE(
+        linkCreated,
+        "CreateSymbolicLinkW failed with error " << linkError);
+
+    win32_wallet::File rejected;
+    DatabaseFileIdentity rejectedIdentity;
+    error.clear();
+    BOOST_CHECK(
+        win32_wallet::OpenExistingFile(
+            linkPath,
+            win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::DISCOVERY,
+            false,
+            rejected,
+            rejectedIdentity,
+            error) ==
+        win32_wallet::OpenResult::FAILED);
+    BOOST_CHECK(!rejected);
+    BOOST_CHECK(
+        error.find("reparse") !=
+        std::string::npos);
+
+    DatabaseOptions existingOptions;
+    existingOptions.require_existing = true;
+    existingOptions.require_format =
+        DatabaseFormat::SQLITE;
+    DatabaseStatus status =
+        DatabaseStatus::SUCCESS;
+    error = "unchanged";
+    std::unique_ptr<WalletDatabase> database =
+        MakeWalletDatabase(
+            linkFilename,
+            existingOptions,
+            status,
+            error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(
+        status ==
+        DatabaseStatus::FAILED_BAD_PATH);
+    BOOST_CHECK(
+        error.find("reparse") !=
+        std::string::npos);
+
+    BOOST_CHECK(fs::remove(linkPath));
+    RemoveSQLiteTestFiles(targetFilename);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_win32_ancestor_junction_is_rejected)
+{
+    struct MountPointReparseData {
+        DWORD tag;
+        WORD dataLength;
+        WORD reserved;
+        WORD substituteNameOffset;
+        WORD substituteNameLength;
+        WORD printNameOffset;
+        WORD printNameLength;
+        wchar_t pathBuffer[1];
+    };
+    static_assert(
+        offsetof(
+            MountPointReparseData,
+            substituteNameOffset) == 8);
+    static_assert(
+        offsetof(
+            MountPointReparseData,
+            pathBuffer) == 16);
+
+    const fs::path targetDirectory =
+        GetDataDir() /
+        "sqlite_win32_junction_target";
+    const fs::path junctionDirectory =
+        GetDataDir() /
+        "sqlite_win32_junction_path";
+    const fs::path rejectedPath =
+        junctionDirectory /
+        "wallet.dat";
+    boost::system::error_code filesystemError;
+    fs::remove_all(
+        targetDirectory,
+        filesystemError);
+    filesystemError.clear();
+    fs::remove_all(
+        junctionDirectory,
+        filesystemError);
+    BOOST_REQUIRE(
+        fs::create_directory(
+            targetDirectory));
+    BOOST_REQUIRE(
+        fs::create_directory(
+            junctionDirectory));
+
+    auto closeHandle = [](void* handle) {
+        if (handle &&
+            handle != INVALID_HANDLE_VALUE) {
+            CloseHandle(handle);
+        }
+    };
+    std::unique_ptr<void, decltype(closeHandle)>
+        junctionHandle(
+            CreateFileW(
+                junctionDirectory.wstring().c_str(),
+                GENERIC_WRITE,
+                0,
+                nullptr,
+                OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS |
+                    FILE_FLAG_OPEN_REPARSE_POINT,
+                nullptr),
+            closeHandle);
+    BOOST_REQUIRE_MESSAGE(
+        junctionHandle.get() !=
+            INVALID_HANDLE_VALUE,
+        "Failed to open junction fixture with error " << GetLastError());
+
+    const std::wstring printName =
+        targetDirectory.wstring();
+    const std::wstring substituteName =
+        L"\\??\\" + printName;
+    const size_t pathCharacters =
+        substituteName.size() + 1 +
+        printName.size() + 1;
+    const size_t bufferSize =
+        offsetof(
+            MountPointReparseData,
+            pathBuffer) +
+        pathCharacters *
+            sizeof(wchar_t);
+    BOOST_REQUIRE(
+        bufferSize <=
+        std::numeric_limits<DWORD>::max());
+    BOOST_REQUIRE(
+        bufferSize - 8 <=
+        std::numeric_limits<WORD>::max());
+    std::vector<unsigned char> storage(
+        bufferSize);
+    auto* const reparse =
+        reinterpret_cast<MountPointReparseData*>(
+            storage.data());
+    reparse->tag =
+        IO_REPARSE_TAG_MOUNT_POINT;
+    reparse->dataLength =
+        static_cast<WORD>(
+            bufferSize - 8);
+    reparse->substituteNameOffset = 0;
+    reparse->substituteNameLength =
+        static_cast<WORD>(
+            substituteName.size() *
+            sizeof(wchar_t));
+    reparse->printNameOffset =
+        static_cast<WORD>(
+            (substituteName.size() + 1) *
+            sizeof(wchar_t));
+    reparse->printNameLength =
+        static_cast<WORD>(
+            printName.size() *
+            sizeof(wchar_t));
+    std::copy(
+        substituteName.begin(),
+        substituteName.end(),
+        reparse->pathBuffer);
+    reparse->pathBuffer[substituteName.size()] = L'\0';
+    std::copy(
+        printName.begin(),
+        printName.end(),
+        reparse->pathBuffer +
+            substituteName.size() + 1);
+    reparse->pathBuffer[substituteName.size() + 1 +
+                        printName.size()] = L'\0';
+
+    DWORD returned = 0;
+    const bool junctionCreated =
+        DeviceIoControl(
+            junctionHandle.get(),
+            FSCTL_SET_REPARSE_POINT,
+            reparse,
+            static_cast<DWORD>(
+                bufferSize),
+            nullptr,
+            0,
+            &returned,
+            nullptr) != FALSE;
+    const DWORD junctionError =
+        junctionCreated ?
+            ERROR_SUCCESS :
+            GetLastError();
+    BOOST_REQUIRE_MESSAGE(
+        junctionCreated,
+        "FSCTL_SET_REPARSE_POINT failed with error " << junctionError);
+    junctionHandle.reset();
+
+    win32_wallet::File rejected;
+    DatabaseFileIdentity rejectedIdentity;
+    std::string error;
+    BOOST_CHECK(
+        win32_wallet::CreatePrivateFile(
+            rejectedPath,
+            false,
+            rejected,
+            rejectedIdentity,
+            error) ==
+        win32_wallet::CreateResult::FAILED);
+    BOOST_CHECK(!rejected);
+    BOOST_CHECK_MESSAGE(
+        error.find("reparse") !=
+            std::string::npos,
+        error);
+    BOOST_CHECK(
+        !fs::exists(
+            targetDirectory /
+            "wallet.dat"));
+
+    BOOST_REQUIRE_MESSAGE(
+        RemoveDirectoryW(
+            junctionDirectory.wstring().c_str()) !=
+            FALSE,
+        "Failed to remove junction fixture with error " << GetLastError());
+    BOOST_CHECK(
+        fs::remove(
+            targetDirectory));
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_win32_dual_build_preserves_berkeley_hardlinks)
+{
+    const std::string filename{
+        "sqlite_win32_berkeley_hardlink.dat"};
+    const std::string hardlinkFilename{
+        "sqlite_win32_berkeley_hardlink_alias.dat"};
+    const fs::path path =
+        GetDataDir() / filename;
+    const fs::path hardlinkPath =
+        GetDataDir() / hardlinkFilename;
+
+    boost::system::error_code cleanupError;
+    fs::remove(hardlinkPath, cleanupError);
+    cleanupError.clear();
+    fs::remove(path, cleanupError);
+
+    DatabaseOptions createOptions;
+    createOptions.require_create = true;
+    createOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    DatabaseStatus status =
+        DatabaseStatus::FAILED_LOAD;
+    std::string error;
+    std::unique_ptr<WalletDatabase> database =
+        MakeWalletDatabase(
+            filename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            database->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE_CREATE});
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("before-hardlink"),
+            std::string("preserved")));
+    }
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    const bool hardlinkCreated =
+        CreateHardLinkW(
+            hardlinkPath.wstring().c_str(),
+            path.wstring().c_str(),
+            nullptr) != FALSE;
+    const DWORD hardlinkError =
+        hardlinkCreated ?
+            ERROR_SUCCESS :
+            GetLastError();
+    BOOST_REQUIRE_MESSAGE(
+        hardlinkCreated,
+        "CreateHardLinkW failed with error " << hardlinkError);
+
+    DatabaseOptions existingOptions;
+    existingOptions.require_existing = true;
+    status = DatabaseStatus::FAILED_LOAD;
+    error.clear();
+    database = MakeWalletDatabase(
+        filename,
+        existingOptions,
+        status,
+        error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    BOOST_CHECK(
+        database->Format() ==
+        DatabaseFormat::BERKELEY);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            database->MakeBatch(
+                {DatabaseBatchMode::READ_WRITE});
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("before-hardlink"),
+            value));
+        BOOST_CHECK_EQUAL(value, "preserved");
+        BOOST_REQUIRE(batch->Write(
+            std::string("after-hardlink"),
+            std::string("writable")));
+    }
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    existingOptions.require_format =
+        DatabaseFormat::BERKELEY;
+    status = DatabaseStatus::FAILED_LOAD;
+    error.clear();
+    database = MakeWalletDatabase(
+        filename,
+        existingOptions,
+        status,
+        error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            database->MakeBatch(
+                {DatabaseBatchMode::READ_ONLY});
+        BOOST_REQUIRE(batch);
+        std::string value;
+        BOOST_REQUIRE(batch->Read(
+            std::string("after-hardlink"),
+            value));
+        BOOST_CHECK_EQUAL(value, "writable");
+    }
+    BOOST_REQUIRE(database->PeriodicFlush());
+    database.reset();
+
+    BOOST_REQUIRE(fs::remove(hardlinkPath));
+    BOOST_CHECK(bitdb.RemoveDb(filename));
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_win32_inheritable_untrusted_directory_acl_is_rejected)
+{
+    const fs::path directory =
+        GetDataDir() /
+        "sqlite_win32_inheritable_acl";
+    boost::system::error_code filesystemError;
+    fs::remove_all(
+        directory,
+        filesystemError);
+    BOOST_REQUIRE(
+        fs::create_directory(directory));
+
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ValidateMigrationDirectory(
+            directory,
+            error),
+        error);
+
+    std::wstring nativePath =
+        directory.wstring();
+    PACL originalDacl = nullptr;
+    PSECURITY_DESCRIPTOR rawDescriptor = nullptr;
+    const DWORD securityResult =
+        GetNamedSecurityInfoW(
+            nativePath.data(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            nullptr,
+            nullptr,
+            &originalDacl,
+            nullptr,
+            &rawDescriptor);
+    auto localFree = [](void* memory) {
+        if (memory) {
+            LocalFree(memory);
+        }
+    };
+    std::unique_ptr<void, decltype(localFree)>
+        descriptor(rawDescriptor, localFree);
+    BOOST_REQUIRE_EQUAL(
+        securityResult,
+        ERROR_SUCCESS);
+    BOOST_REQUIRE(originalDacl);
+
+    SID_IDENTIFIER_AUTHORITY ntAuthority =
+        SECURITY_NT_AUTHORITY;
+    std::array<unsigned char, SECURITY_MAX_SID_SIZE>
+        trustedInstallerStorage{};
+    BOOST_REQUIRE(
+        InitializeSid(
+            trustedInstallerStorage.data(),
+            &ntAuthority,
+            6) != FALSE);
+    static constexpr std::array<DWORD, 6>
+        TRUSTED_INSTALLER_SUBAUTHORITIES{{
+            80,
+            956008885,
+            3418522649,
+            1831038044,
+            1853292631,
+            2271478464,
+        }};
+    for (size_t index = 0;
+        index <
+        TRUSTED_INSTALLER_SUBAUTHORITIES.size();
+        ++index) {
+        *GetSidSubAuthority(
+            trustedInstallerStorage.data(),
+            static_cast<DWORD>(index)) =
+            TRUSTED_INSTALLER_SUBAUTHORITIES[index];
+    }
+
+    EXPLICIT_ACCESSW trustedAccess{};
+    trustedAccess.grfAccessPermissions =
+        FILE_ALL_ACCESS;
+    trustedAccess.grfAccessMode =
+        GRANT_ACCESS;
+    trustedAccess.grfInheritance =
+        OBJECT_INHERIT_ACE |
+        CONTAINER_INHERIT_ACE;
+    BuildTrusteeWithSidW(
+        &trustedAccess.Trustee,
+        trustedInstallerStorage.data());
+
+    PACL rawTrustedDacl = nullptr;
+    const DWORD trustedAclResult =
+        SetEntriesInAclW(
+            1,
+            &trustedAccess,
+            originalDacl,
+            &rawTrustedDacl);
+    std::unique_ptr<void, decltype(localFree)>
+        trustedDacl(rawTrustedDacl, localFree);
+    BOOST_REQUIRE_EQUAL(
+        trustedAclResult,
+        ERROR_SUCCESS);
+    BOOST_REQUIRE(rawTrustedDacl);
+    BOOST_REQUIRE_EQUAL(
+        SetNamedSecurityInfoW(
+            nativePath.data(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            nullptr,
+            nullptr,
+            rawTrustedDacl,
+            nullptr),
+        ERROR_SUCCESS);
+    error.clear();
+    BOOST_CHECK_MESSAGE(
+        win32_wallet::ValidateMigrationDirectory(
+            directory,
+            error),
+        error);
+
+    std::array<unsigned char, SECURITY_MAX_SID_SIZE>
+        everyoneStorage{};
+    DWORD everyoneSize =
+        static_cast<DWORD>(
+            everyoneStorage.size());
+    BOOST_REQUIRE(
+        CreateWellKnownSid(
+            WinWorldSid,
+            nullptr,
+            everyoneStorage.data(),
+            &everyoneSize) != FALSE);
+
+    EXPLICIT_ACCESSW inheritedAccess{};
+    inheritedAccess.grfAccessPermissions =
+        FILE_ALL_ACCESS;
+    inheritedAccess.grfAccessMode =
+        GRANT_ACCESS;
+    inheritedAccess.grfInheritance =
+        OBJECT_INHERIT_ACE |
+        INHERIT_ONLY_ACE;
+    BuildTrusteeWithSidW(
+        &inheritedAccess.Trustee,
+        everyoneStorage.data());
+
+    PACL rawAugmentedDacl = nullptr;
+    const DWORD aclResult =
+        SetEntriesInAclW(
+            1,
+            &inheritedAccess,
+            rawTrustedDacl,
+            &rawAugmentedDacl);
+    std::unique_ptr<void, decltype(localFree)>
+        augmentedDacl(rawAugmentedDacl, localFree);
+    BOOST_REQUIRE_EQUAL(
+        aclResult,
+        ERROR_SUCCESS);
+    BOOST_REQUIRE(rawAugmentedDacl);
+    BOOST_REQUIRE_EQUAL(
+        SetNamedSecurityInfoW(
+            nativePath.data(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            nullptr,
+            nullptr,
+            rawAugmentedDacl,
+            nullptr),
+        ERROR_SUCCESS);
+
+    error.clear();
+    BOOST_CHECK(
+        !win32_wallet::ValidateMigrationDirectory(
+            directory,
+            error));
+    BOOST_CHECK(
+        error.find("untrusted allow ACE") !=
+        std::string::npos);
+
+    BOOST_CHECK(
+        fs::remove(directory));
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_win32_candidate_validation_failures_are_quarantined)
+{
+    ShutdownRequestReset shutdownReset;
+    auto expectQuarantinedCreation =
+        [&](const std::string& filename,
+            bool adapterValidationFailure,
+            bool expectRetainedCandidate,
+            const std::string& expectedError) {
+            RemoveSQLiteTestFiles(filename);
+            BOOST_REQUIRE(!ShutdownRequested());
+            if (adapterValidationFailure) {
+                win32_wallet::InjectPrivateFileValidationFailureForTesting();
+            } else {
+                InjectSQLiteCandidateRevalidationFailureForTesting();
+            }
+
+            DatabaseOptions options;
+            options.require_create = true;
+            options.require_format =
+                DatabaseFormat::SQLITE;
+            DatabaseStatus status =
+                DatabaseStatus::SUCCESS;
+            std::string error;
+            std::unique_ptr<WalletDatabase> database =
+                MakeSQLiteDatabase(
+                    filename,
+                    options,
+                    status,
+                    error);
+            BOOST_CHECK(!database);
+            BOOST_CHECK(
+                status ==
+                DatabaseStatus::FAILED_LOAD);
+            BOOST_CHECK(ShutdownRequested());
+            BOOST_CHECK(
+                error.find(expectedError) !=
+                std::string::npos);
+            BOOST_CHECK(
+                !fs::exists(
+                    GetDataDir() / filename));
+
+            BOOST_REQUIRE_MESSAGE(
+                ResetExpectedSQLiteQuarantine(),
+                error);
+            BOOST_CHECK_EQUAL(
+                HasSQLiteTestCandidate(filename),
+                expectRetainedCandidate);
+            RemoveSQLiteTestCandidates(filename);
+            BOOST_CHECK(
+                !HasSQLiteTestCandidate(filename));
+            RemoveSQLiteTestFiles(filename);
+        };
+
+    expectQuarantinedCreation(
+        "sqlite_win32_adapter_validation_failure.dat",
+        true,
+        false,
+        "Injected failure while validating a newly created private wallet "
+        "lifecycle file");
+    expectQuarantinedCreation(
+        "sqlite_win32_candidate_revalidation_failure.dat",
+        false,
+        true,
+        "retained private Windows identity could not be revalidated");
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_win32_no_replace_collision_preserves_both_files)
+{
+    const std::string sourceFilename{
+        "sqlite_win32_no_replace_source.dat"};
+    const std::string destinationFilename{
+        "sqlite_win32_no_replace_destination.dat"};
+    const fs::path sourcePath =
+        GetDataDir() / sourceFilename;
+    const fs::path destinationPath =
+        GetDataDir() / destinationFilename;
+    RemoveSQLiteTestFiles(sourceFilename);
+    RemoveSQLiteTestFiles(destinationFilename);
+
+    win32_wallet::File source;
+    win32_wallet::File destination;
+    DatabaseFileIdentity sourceIdentity;
+    DatabaseFileIdentity destinationIdentity;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::CreatePrivateFile(
+            sourcePath,
+            false,
+            source,
+            sourceIdentity,
+            error) ==
+            win32_wallet::CreateResult::CREATED,
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::CreatePrivateFile(
+            destinationPath,
+            false,
+            destination,
+            destinationIdentity,
+            error) ==
+            win32_wallet::CreateResult::CREATED,
+        error);
+
+    const std::string sourceContents{
+        "owned source bytes"};
+    const std::string destinationContents{
+        "preexisting destination bytes"};
+    BOOST_REQUIRE(
+        WritePrivateWin32File(
+            sourcePath,
+            sourceContents));
+    BOOST_REQUIRE(
+        WritePrivateWin32File(
+            destinationPath,
+            destinationContents));
+
+    const win32_wallet::MoveResult result =
+        win32_wallet::MoveFileNoReplace(
+            sourcePath,
+            source,
+            sourceIdentity,
+            destinationPath,
+            error);
+    BOOST_CHECK(
+        result.disposition ==
+        win32_wallet::MoveDisposition::COLLISION);
+    BOOST_CHECK(
+        result.source_path ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(
+        result.destination_path ==
+        win32_wallet::IdentityState::OTHER);
+    BOOST_CHECK(
+        result.moving_handle ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(!result.write_through_confirmed);
+    BOOST_CHECK(
+        error.find("already exists") !=
+        std::string::npos);
+    BOOST_CHECK(
+        win32_wallet::InspectPathIdentity(
+            sourcePath,
+            sourceIdentity,
+            error) ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(
+        win32_wallet::InspectPathIdentity(
+            destinationPath,
+            destinationIdentity,
+            error) ==
+        win32_wallet::IdentityState::MATCH);
+
+    std::string sourceAfter(
+        sourceContents.size(),
+        '\0');
+    std::string destinationAfter(
+        destinationContents.size(),
+        '\0');
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ReadExact(
+            source,
+            0,
+            sourceAfter.data(),
+            sourceAfter.size(),
+            error),
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ReadExact(
+            destination,
+            0,
+            destinationAfter.data(),
+            destinationAfter.size(),
+            error),
+        error);
+    BOOST_CHECK_EQUAL(
+        sourceAfter,
+        sourceContents);
+    BOOST_CHECK_EQUAL(
+        destinationAfter,
+        destinationContents);
+
+    BOOST_REQUIRE_MESSAGE(
+        source.Close(error),
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        destination.Close(error),
+        error);
+    RemoveSQLiteTestFiles(sourceFilename);
+    RemoveSQLiteTestFiles(destinationFilename);
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_win32_replace_reconciles_retained_identities)
+{
+    const std::string candidateFilename{
+        "sqlite_win32_replace_candidate.dat"};
+    const std::string sourceFilename{
+        "sqlite_win32_replace_source.dat"};
+    const fs::path candidatePath =
+        GetDataDir() / candidateFilename;
+    const fs::path sourcePath =
+        GetDataDir() / sourceFilename;
+    RemoveSQLiteTestFiles(candidateFilename);
+    RemoveSQLiteTestFiles(sourceFilename);
+
+    win32_wallet::File candidate;
+    win32_wallet::File oldSource;
+    DatabaseFileIdentity candidateIdentity;
+    DatabaseFileIdentity oldSourceIdentity;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::CreatePrivateFile(
+            candidatePath,
+            false,
+            candidate,
+            candidateIdentity,
+            error) ==
+            win32_wallet::CreateResult::CREATED,
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::CreatePrivateFile(
+            sourcePath,
+            false,
+            oldSource,
+            oldSourceIdentity,
+            error) ==
+            win32_wallet::CreateResult::CREATED,
+        error);
+
+    const std::string candidateContents{
+        "replacement SQLite bytes"};
+    const std::string oldSourceContents{
+        "retained old source bytes"};
+    BOOST_REQUIRE(
+        WritePrivateWin32File(
+            candidatePath,
+            candidateContents));
+    BOOST_REQUIRE(
+        WritePrivateWin32File(
+            sourcePath,
+            oldSourceContents));
+
+    const win32_wallet::MoveResult result =
+        win32_wallet::MoveFileReplace(
+            candidatePath,
+            candidate,
+            candidateIdentity,
+            sourcePath,
+            oldSource,
+            oldSourceIdentity,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            error);
+    BOOST_REQUIRE_MESSAGE(
+        result.disposition ==
+            win32_wallet::MoveDisposition::MOVED,
+        error);
+    BOOST_CHECK(result.write_through_confirmed);
+    BOOST_CHECK(
+        result.source_path ==
+        win32_wallet::IdentityState::ABSENT);
+    BOOST_CHECK(
+        result.destination_path ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(
+        result.destination_replaced ==
+        win32_wallet::IdentityState::OTHER);
+    BOOST_CHECK(
+        result.moving_handle ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(
+        result.replaced_handle ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(result.replaced_delete_pending);
+
+    win32_wallet::FileState oldSourceState;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::GetFileState(
+            oldSource,
+            oldSourceState,
+            error),
+        error);
+    BOOST_CHECK_EQUAL(
+        oldSourceState.identity.device,
+        oldSourceIdentity.device);
+    BOOST_CHECK_EQUAL(
+        oldSourceState.identity.inode,
+        oldSourceIdentity.inode);
+    BOOST_CHECK(oldSourceState.delete_pending);
+    BOOST_CHECK(
+        win32_wallet::InspectPathIdentity(
+            candidatePath,
+            candidateIdentity,
+            error) ==
+        win32_wallet::IdentityState::ABSENT);
+    BOOST_CHECK(
+        win32_wallet::InspectPathIdentity(
+            sourcePath,
+            candidateIdentity,
+            error) ==
+        win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(
+        win32_wallet::InspectPathIdentity(
+            sourcePath,
+            oldSourceIdentity,
+            error) ==
+        win32_wallet::IdentityState::OTHER);
+
+    win32_wallet::File finalFile;
+    DatabaseFileIdentity finalIdentity;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::OpenExistingFile(
+            sourcePath,
+            win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::PRIVATE,
+            false,
+            finalFile,
+            finalIdentity,
+            error) ==
+            win32_wallet::OpenResult::OPENED,
+        error);
+    BOOST_CHECK_EQUAL(
+        finalIdentity.device,
+        candidateIdentity.device);
+    BOOST_CHECK_EQUAL(
+        finalIdentity.inode,
+        candidateIdentity.inode);
+
+    std::string finalContents(
+        candidateContents.size(),
+        '\0');
+    std::string retainedOldContents(
+        oldSourceContents.size(),
+        '\0');
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ReadExact(
+            finalFile,
+            0,
+            finalContents.data(),
+            finalContents.size(),
+            error),
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ReadExact(
+            oldSource,
+            0,
+            retainedOldContents.data(),
+            retainedOldContents.size(),
+            error),
+        error);
+    BOOST_CHECK_EQUAL(
+        finalContents,
+        candidateContents);
+    BOOST_CHECK_EQUAL(
+        retainedOldContents,
+        oldSourceContents);
+
+    BOOST_REQUIRE_MESSAGE(
+        finalFile.Close(error),
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        oldSource.Close(error),
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        candidate.Close(error),
+        error);
+    RemoveSQLiteTestFiles(candidateFilename);
+    RemoveSQLiteTestFiles(sourceFilename);
+}
+#endif
+
 BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
 {
     const std::string filename{"sqlite_batch_test.dat"};
@@ -4607,6 +6292,157 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     DatabaseStatus status = DatabaseStatus::SUCCESS;
     std::string error{"unchanged"};
 
+#ifdef WIN32
+    auto expectIndeterminateCreate =
+        [&](const std::string& filename,
+            const std::string& expectedDiagnostic) {
+            status = DatabaseStatus::SUCCESS;
+            error = "unchanged";
+            std::unique_ptr<WalletDatabase> failed =
+                MakeWalletDatabase(
+                    filename,
+                    defaultCreateOptions,
+                    status,
+                    error);
+            BOOST_CHECK(!failed);
+            BOOST_CHECK(
+                status ==
+                DatabaseStatus::FAILED_LOAD);
+            BOOST_CHECK(ShutdownRequested());
+            BOOST_CHECK(
+                error.find(filename) !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(expectedDiagnostic) !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find(
+                    "cannot prove that removal durable") !=
+                std::string::npos);
+            BOOST_CHECK(
+                error.find("restart Firo") !=
+                std::string::npos);
+            BOOST_REQUIRE(
+                ResetExpectedSQLiteQuarantine());
+            BOOST_CHECK(!fs::exists(
+                GetDataDir() / filename));
+            BOOST_CHECK(
+                !HasSQLiteTestCandidate(filename));
+        };
+
+    InjectSQLiteDirectorySyncFailureForTesting(EINVAL);
+    expectIndeterminateCreate(
+        syncCreateFilename,
+        "injected namespace reconciliation failed");
+
+    InjectSQLitePostPublishFailureForTesting();
+    expectIndeterminateCreate(
+        createFilename,
+        "Injected failure after publishing SQLite wallet candidate");
+
+    InjectSQLiteAmbiguousPublishFailureForTesting();
+    expectIndeterminateCreate(
+        ambiguousFilename,
+        "injected post-move identity probe failed");
+
+    std::unique_ptr<WalletDatabase> database =
+        MakeSQLiteDatabase(
+            sourceFilename,
+            createOptions,
+            status,
+            error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    {
+        std::unique_ptr<DatabaseBatch> batch =
+            database->MakeBatch();
+        BOOST_REQUIRE(batch);
+        BOOST_REQUIRE(batch->Write(
+            std::string("source"),
+            std::string("preserved")));
+    }
+
+    auto expectIndeterminateBackup =
+        [&](const std::string& filename,
+            const std::string& expectedDiagnostic) {
+            std::string backupError{"unchanged"};
+            BOOST_CHECK(!database->Backup(
+                (GetDataDir() / filename).string(),
+                backupError));
+            BOOST_CHECK(ShutdownRequested());
+            BOOST_CHECK(
+                backupError.find(sourceFilename) !=
+                std::string::npos);
+            BOOST_CHECK(
+                backupError.find(filename) !=
+                std::string::npos);
+            BOOST_CHECK(
+                backupError.find(expectedDiagnostic) !=
+                std::string::npos);
+            BOOST_CHECK(
+                backupError.find(
+                    "cannot prove that removal durable") !=
+                std::string::npos);
+            BOOST_CHECK(
+                backupError.find("restart Firo") !=
+                std::string::npos);
+            BOOST_CHECK(
+                backupError.find("preserved") ==
+                std::string::npos);
+            BOOST_CHECK_THROW(
+                database->MakeBatch(),
+                std::runtime_error);
+            database.reset();
+            BOOST_REQUIRE(
+                ResetExpectedSQLiteQuarantine());
+            BOOST_CHECK(!fs::exists(
+                GetDataDir() / filename));
+            BOOST_CHECK(
+                !HasSQLiteTestCandidate(filename));
+
+            DatabaseOptions existingOptions;
+            existingOptions.require_existing = true;
+            existingOptions.require_format =
+                DatabaseFormat::SQLITE;
+            database = MakeSQLiteDatabase(
+                sourceFilename,
+                existingOptions,
+                status,
+                error);
+            BOOST_REQUIRE_MESSAGE(database, error);
+            std::unique_ptr<DatabaseBatch> batch =
+                database->MakeBatch(
+                    {DatabaseBatchMode::READ_ONLY});
+            BOOST_REQUIRE(batch);
+            std::string value;
+            BOOST_REQUIRE(batch->Read(
+                std::string("source"),
+                value));
+            BOOST_CHECK_EQUAL(value, "preserved");
+        };
+
+    InjectSQLiteDirectorySyncFailureForTesting(ENOTSUP);
+    expectIndeterminateBackup(
+        syncBackupFilename,
+        "injected namespace reconciliation failed");
+
+    InjectSQLitePostPublishFailureForTesting();
+    expectIndeterminateBackup(
+        backupFilename,
+        "Injected failure after publishing SQLite backup candidate");
+
+    InjectSQLiteAmbiguousPublishFailureForTesting();
+    InjectSQLiteDirectorySyncFailureForTesting(EIO);
+    expectIndeterminateBackup(
+        indeterminateBackupFilename,
+        "injected post-move identity probe failed");
+    database.reset();
+
+    InjectSQLitePostPublishFailureForTesting();
+    InjectSQLiteDirectorySyncFailureForTesting(EIO, 1);
+    expectIndeterminateCreate(
+        indeterminateFilename,
+        "Injected failure after publishing SQLite wallet candidate");
+#else
     InjectSQLiteDirectorySyncFailureForTesting(EINVAL);
     std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(
         syncCreateFilename,
@@ -4819,6 +6655,7 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     BOOST_CHECK(!HasSQLiteTestCandidate(
         indeterminateFilename));
     BOOST_CHECK(ShutdownRequested());
+#endif
 
     for (const std::string& filename : {
              syncCreateFilename,
@@ -4834,7 +6671,6 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     }
 }
 
-#ifndef WIN32
 BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
 {
     ShutdownRequestReset shutdownReset;
@@ -4873,9 +6709,15 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
         error);
     BOOST_CHECK(!database);
     BOOST_CHECK(status == DatabaseStatus::FAILED_LOAD);
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#else
+    BOOST_CHECK(ResetSQLiteLifecycleForTesting());
+#endif
     BOOST_CHECK(!fs::exists(GetDataDir() / prePublishFilename));
     BOOST_CHECK(HasSQLiteTestCandidate(prePublishFilename));
-    BOOST_CHECK(ResetSQLiteLifecycleForTesting());
     RemoveSQLiteTestCandidates(prePublishFilename);
 
     InjectSQLitePostPublishFailureForTesting();
@@ -4887,9 +6729,15 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
         error);
     BOOST_CHECK(!database);
     BOOST_CHECK(status == DatabaseStatus::FAILED_LOAD);
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#else
+    BOOST_CHECK(ResetSQLiteLifecycleForTesting());
+#endif
     BOOST_CHECK(fs::exists(GetDataDir() / postPublishFilename));
     BOOST_CHECK(!HasSQLiteTestCandidate(postPublishFilename));
-    BOOST_CHECK(ResetSQLiteLifecycleForTesting());
     RemoveSQLiteTestFiles(postPublishFilename);
 
     database = MakeSQLiteDatabase(
@@ -4934,6 +6782,15 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
     BOOST_CHECK(
         collisionError.find("preserved") ==
         std::string::npos);
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_THROW(
+        database->MakeBatch(),
+        std::runtime_error);
+    database.reset();
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#endif
     BOOST_CHECK(!fs::exists(
         GetDataDir() / collisionBackupFilename));
     const std::set<std::string> entriesAfterInjectedFailure =
@@ -4953,6 +6810,18 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
         collisionError.find(retainedPath.string()) !=
         std::string::npos);
     BOOST_CHECK(fs::remove(retainedPath));
+#ifdef WIN32
+    DatabaseOptions reopenSourceOptions;
+    reopenSourceOptions.require_existing = true;
+    reopenSourceOptions.require_format =
+        DatabaseFormat::SQLITE;
+    database = MakeSQLiteDatabase(
+        sourceFilename,
+        reopenSourceOptions,
+        status,
+        error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+#endif
 
     InjectSQLiteCloseFailureForTesting(1);
     std::string backupError{"unchanged"};
@@ -4974,13 +6843,18 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
     BOOST_CHECK(
         backupError.find("preserved") ==
         std::string::npos);
-    BOOST_CHECK(fs::exists(GetDataDir() / backupFilename));
-    BOOST_CHECK(!HasSQLiteTestCandidate(backupFilename));
     BOOST_CHECK_THROW(
         database->MakeBatch(),
         std::runtime_error);
     database.reset();
+#ifdef WIN32
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#else
     BOOST_CHECK(ResetSQLiteLifecycleForTesting());
+#endif
+    BOOST_CHECK(fs::exists(GetDataDir() / backupFilename));
+    BOOST_CHECK(!HasSQLiteTestCandidate(backupFilename));
 
     DatabaseOptions existingOptions;
     existingOptions.require_existing = true;
@@ -5011,6 +6885,7 @@ BOOST_AUTO_TEST_CASE(sqlite_close_failure_retains_owned_paths)
     }
 }
 
+#ifndef WIN32
 BOOST_AUTO_TEST_CASE(sqlite_identity_lock_closes_across_exec)
 {
     const std::string filename{
@@ -5390,7 +7265,7 @@ BOOST_AUTO_TEST_CASE(sqlite_identity_schema_corruption_policy)
     RemoveSQLiteTestFiles(existingFilename);
 }
 
-#if (defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__)
+#if defined(WIN32) || (defined(__linux__) && defined(SYS_renameat2)) || defined(__APPLE__)
 BOOST_AUTO_TEST_CASE(sqlite_primary_key_index_logical_recovery)
 {
     struct MockTimeReset {
@@ -5565,6 +7440,7 @@ BOOST_AUTO_TEST_CASE(sqlite_primary_key_index_logical_recovery)
     BOOST_CHECK(
         !HasSQLiteTestCandidate(backupFilename));
 
+#ifndef WIN32
     struct stat sourceMetadata{};
     struct stat backupMetadata{};
     BOOST_REQUIRE_EQUAL(
@@ -5590,6 +7466,7 @@ BOOST_AUTO_TEST_CASE(sqlite_primary_key_index_logical_recovery)
             backupMetadata.st_dev ||
         sourceMetadata.st_ino !=
             backupMetadata.st_ino);
+#endif
 
     BOOST_REQUIRE(database->PeriodicFlush());
     database.reset();
@@ -6006,6 +7883,8 @@ BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_rejects_storage_violations)
     struct MockTimeReset {
         ~MockTimeReset() { SetMockTime(0); }
     } mockTimeReset;
+    ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
 
     struct RejectionCase {
         const char* filename;
@@ -6095,12 +7974,27 @@ BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_rejects_storage_violations)
             status,
             error);
         BOOST_CHECK(!database);
+#ifdef WIN32
+        BOOST_CHECK(
+            status ==
+            DatabaseStatus::FAILED_LOAD);
+#else
         BOOST_CHECK(
             status ==
             DatabaseStatus::FAILED_VERIFY);
+#endif
         BOOST_CHECK(
             error.find(test.expected_error) !=
             std::string::npos);
+#ifdef WIN32
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK(
+            error.find(
+                "candidate cleanup is indeterminate") !=
+            std::string::npos);
+        BOOST_REQUIRE(
+            ResetExpectedSQLiteQuarantine());
+#endif
         BOOST_CHECK_MESSAGE(
             ReadFile(path) == sourceContents,
             "Rejected salvage changed its source");
@@ -6203,19 +8097,37 @@ BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_rejects_hot_journal_identity)
         status,
         error);
     BOOST_CHECK(!database);
+#ifdef WIN32
+    BOOST_CHECK(
+        status ==
+        DatabaseStatus::FAILED_LOAD);
+#else
     BOOST_CHECK(
         status ==
         DatabaseStatus::FAILED_VERIFY);
+#endif
     BOOST_CHECK_MESSAGE(
         error.find("application ID 0") !=
             std::string::npos,
         error);
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_MESSAGE(
+        error.find(
+            "candidate cleanup is indeterminate") !=
+            std::string::npos,
+        error);
+    BOOST_REQUIRE_MESSAGE(
+        ResetExpectedSQLiteQuarantine(),
+        error);
+#else
+    BOOST_CHECK(!fRequestShutdown.load());
+#endif
     BOOST_CHECK(!fs::exists(journalPath));
     BOOST_CHECK(!fs::exists(backupPath));
     BOOST_CHECK(!HasSQLiteTestCandidate(filename));
     BOOST_CHECK(
         !HasSQLiteTestCandidate(backupFilename));
-    BOOST_CHECK(!fRequestShutdown.load());
 
     const std::string recoveredContents =
         ReadFile(path);
@@ -6244,6 +8156,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_ambiguous_publication_is_indetermina
         ~MockTimeReset() { SetMockTime(0); }
     } mockTimeReset;
     ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
 
     constexpr int64_t RECOVERY_TIME = 1900000290;
     SetMockTime(RECOVERY_TIME);
@@ -6330,10 +8243,17 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_ambiguous_publication_is_indetermina
         error.find(
             "SQLite recovery backup publication from working path") !=
         std::string::npos);
+#ifdef WIN32
+    BOOST_CHECK(
+        error.find(
+            "injected post-move identity probe failed") !=
+        std::string::npos);
+#else
     BOOST_CHECK(
         error.find(
             "neither retained path identity could be proven") !=
         std::string::npos);
+#endif
     BOOST_CHECK(
         error.find(path.string()) !=
         std::string::npos);
@@ -6354,6 +8274,10 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_ambiguous_publication_is_indetermina
         error.find(SerializeToString(sensitivePayload)) ==
         std::string::npos);
     BOOST_CHECK(ShutdownRequested());
+#ifdef WIN32
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#endif
 
     BOOST_CHECK_MESSAGE(
         ReadFile(path) == sourceContents,
@@ -6423,6 +8347,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_ambiguous_publication_is_indetermina
              path,
              backupPath,
              recoveryPath}) {
+#ifndef WIN32
         struct stat metadata{};
         BOOST_REQUIRE_EQUAL(
             lstat(
@@ -6439,6 +8364,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_ambiguous_publication_is_indetermina
         BOOST_CHECK_EQUAL(
             metadata.st_mode & 0777,
             S_IRUSR | S_IWUSR);
+#endif
         for (const char* suffix :
             {"-journal", "-wal", "-shm"}) {
             BOOST_CHECK(!fs::exists(
@@ -6474,6 +8400,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
         ~MockTimeReset() { SetMockTime(0); }
     } mockTimeReset;
     ShutdownRequestReset shutdownReset;
+    BOOST_REQUIRE(!ShutdownRequested());
 
     constexpr int64_t RECOVERY_TIME = 1900000300;
     SetMockTime(RECOVERY_TIME);
@@ -6548,6 +8475,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
         "preexisting\0backup",
         18};
     WriteFile(backupPath, backupContents);
+#ifndef WIN32
     fs::permissions(
         backupPath,
         fs::owner_read |
@@ -6563,6 +8491,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
             backupPath.string().c_str(),
             &backupBefore),
         0);
+#endif
     const std::set<std::string> entriesBeforeCleanCollision =
         SQLiteTestDirectoryEntries();
 
@@ -6579,8 +8508,13 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
         status,
         error);
     BOOST_CHECK(!database);
+#ifdef WIN32
+    BOOST_CHECK(
+        status == DatabaseStatus::FAILED_LOAD);
+#else
     BOOST_CHECK(
         status == DatabaseStatus::FAILED_VERIFY);
+#endif
     BOOST_CHECK(
         error.find(
             "Refusing to overwrite existing SQLite "
@@ -6589,6 +8523,17 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
     BOOST_CHECK(
         error.find(backupPath.string()) !=
         std::string::npos);
+#ifdef WIN32
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK(
+        error.find(
+            "candidate cleanup is indeterminate") !=
+        std::string::npos);
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#else
+    BOOST_CHECK(!fRequestShutdown.load());
+#endif
     BOOST_CHECK_MESSAGE(
         ReadFile(path) == corruptContents,
         "Backup collision changed the recovery source");
@@ -6601,8 +8546,8 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
     BOOST_CHECK(
         SQLiteTestDirectoryEntries() ==
         entriesBeforeCleanCollision);
-    BOOST_CHECK(!fRequestShutdown.load());
 
+#ifndef WIN32
     struct stat sourceAfter{};
     struct stat backupAfter{};
     BOOST_REQUIRE_EQUAL(
@@ -6631,6 +8576,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
     BOOST_CHECK_EQUAL(
         backupAfter.st_mode & 0777,
         S_IRUSR | S_IWUSR);
+#endif
 
     const std::set<std::string> entriesBeforeAmbiguousCleanup =
         SQLiteTestDirectoryEntries();
@@ -6658,7 +8604,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
         error.find("unpublished backup working path") !=
         std::string::npos);
     BOOST_CHECK(
-        error.find("No atomic recovery exchange was applied") !=
+        error.find("No recovery replacement was applied") !=
         std::string::npos);
     BOOST_CHECK(
         error.find("original wallet path remains authoritative") !=
@@ -6682,6 +8628,10 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
         error.find(std::string(64, 'a')) ==
         std::string::npos);
     BOOST_CHECK(fRequestShutdown.load());
+#ifdef WIN32
+    BOOST_REQUIRE(
+        ResetExpectedSQLiteQuarantine());
+#endif
     BOOST_CHECK_MESSAGE(
         ReadFile(path) == corruptContents,
         "Ambiguous cleanup changed the recovery source");
@@ -6689,6 +8639,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
         ReadFile(backupPath) == backupContents,
         "Ambiguous cleanup changed the existing backup");
 
+#ifndef WIN32
     struct stat sourceFinal{};
     struct stat backupFinal{};
     BOOST_REQUIRE_EQUAL(
@@ -6717,6 +8668,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
     BOOST_CHECK_EQUAL(
         backupFinal.st_mode & 0777,
         S_IRUSR | S_IWUSR);
+#endif
 
     const std::set<std::string> entriesAfterAmbiguousCleanup =
         SQLiteTestDirectoryEntries();
@@ -6730,6 +8682,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
     }
     BOOST_REQUIRE_EQUAL(retainedPaths.size(), 2U);
     for (const fs::path& retainedPath : retainedPaths) {
+#ifndef WIN32
         struct stat retainedMetadata{};
         BOOST_REQUIRE_EQUAL(
             lstat(
@@ -6746,6 +8699,7 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
         BOOST_CHECK_EQUAL(
             retainedMetadata.st_mode & 0777,
             S_IRUSR | S_IWUSR);
+#endif
         BOOST_CHECK(
             error.find(retainedPath.string()) !=
             std::string::npos);
@@ -6754,8 +8708,15 @@ BOOST_AUTO_TEST_CASE(sqlite_recovery_backup_collision_is_fail_closed)
             BOOST_CHECK(!fs::exists(
                 retainedPath.string() + suffix));
         }
+#ifndef WIN32
+        BOOST_CHECK(fs::remove(retainedPath));
+#endif
+    }
+#ifdef WIN32
+    for (const fs::path& retainedPath : retainedPaths) {
         BOOST_CHECK(fs::remove(retainedPath));
     }
+#endif
     BOOST_CHECK(
         SQLiteTestDirectoryEntries() ==
         entriesBeforeAmbiguousCleanup);
@@ -6793,6 +8754,8 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
     }();
 
     {
+        ShutdownRequestReset shutdownReset;
+        BOOST_REQUIRE(!ShutdownRequested());
         const std::string filename{
             "sqlite_pending_wallet_load.dat"};
         const fs::path path =
@@ -6814,6 +8777,13 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
                 DB_LOAD_OK);
             BOOST_CHECK(firstRun);
         }
+#ifdef WIN32
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_REQUIRE(
+            ResetExpectedSQLiteQuarantine());
+#else
+        BOOST_CHECK(!ShutdownRequested());
+#endif
         BOOST_CHECK(!fs::exists(path));
     }
 
@@ -6892,6 +8862,20 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
                     BlockingSQLiteStatementExecutor>(
                     std::set<std::string>{
                         "COMMIT TRANSACTION"})));
+#ifdef WIN32
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::INDETERMINATE);
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK_THROW(
+            database->MakeBatch(),
+            std::runtime_error);
+        database.reset();
+        BOOST_REQUIRE(
+            ResetExpectedSQLiteQuarantine());
+        BOOST_CHECK(fs::is_regular_file(path));
+        RemoveSQLiteTestFiles(filename);
+#else
         BOOST_CHECK(
             database->CompleteCreation(error) ==
             DatabaseCreationResult::FAILED);
@@ -6899,6 +8883,7 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
         BOOST_CHECK(!ShutdownRequested());
         database.reset();
         BOOST_CHECK(!fs::exists(path));
+#endif
     }
 
     {
@@ -6922,6 +8907,20 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
                 *database,
                 std::make_unique<
                     RollbackCommitSQLiteStatementExecutor>()));
+#ifdef WIN32
+        BOOST_CHECK(
+            database->CompleteCreation(error) ==
+            DatabaseCreationResult::INDETERMINATE);
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_CHECK_THROW(
+            database->MakeBatch(),
+            std::runtime_error);
+        database.reset();
+        BOOST_REQUIRE(
+            ResetExpectedSQLiteQuarantine());
+        BOOST_CHECK(fs::is_regular_file(path));
+        RemoveSQLiteTestFiles(filename);
+#else
         BOOST_CHECK(
             database->CompleteCreation(error) ==
             DatabaseCreationResult::FAILED);
@@ -6929,6 +8928,7 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
         BOOST_CHECK(!ShutdownRequested());
         database.reset();
         BOOST_CHECK(!fs::exists(path));
+#endif
     }
 
     {
@@ -7002,8 +9002,13 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
             DatabaseCreationResult::INDETERMINATE);
         BOOST_CHECK(ShutdownRequested());
         database.reset();
-        BOOST_CHECK(fs::is_regular_file(path));
+#ifdef WIN32
+        BOOST_REQUIRE(
+            ResetExpectedSQLiteQuarantine());
+#else
         BOOST_REQUIRE(ResetSQLiteLifecycleForTesting());
+#endif
+        BOOST_CHECK(fs::is_regular_file(path));
 
         database = MakeSQLiteDatabase(
             filename,

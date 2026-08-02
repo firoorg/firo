@@ -14,6 +14,9 @@
 #ifdef USE_SQLITE
 #include "wallet/sqlite.h"
 #endif
+#if defined(WIN32) && defined(USE_SQLITE)
+#include "wallet/win32_file_lifecycle.h"
+#endif
 
 #include <algorithm>
 #include <array>
@@ -27,6 +30,10 @@
 #ifndef WIN32
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
+
+#if defined(WIN32) && defined(USE_SQLITE)
+namespace win32_wallet = wallet::win32;
 #endif
 
 namespace
@@ -118,8 +125,120 @@ bool InspectWalletDatabaseFile(
     DatabaseFileInfo& info,
     bool inspect_format,
     DatabaseStatus& status,
-    std::string& error)
+    std::string& error,
+    bool secure_win32_inspection = false)
 {
+#if defined(WIN32) && defined(USE_SQLITE)
+    if (secure_win32_inspection) {
+        info = {};
+        win32_wallet::File file;
+        DatabaseFileIdentity identity;
+        std::string inspection_error;
+        const win32_wallet::OpenResult open_result =
+            win32_wallet::OpenExistingFile(
+                path,
+                win32_wallet::FileAccess::READ_ONLY,
+                win32_wallet::SecurityPolicy::DISCOVERY,
+                false,
+                file,
+                identity,
+                inspection_error);
+        if (open_result ==
+            win32_wallet::OpenResult::ABSENT) {
+            return true;
+        }
+        info.entry_exists = true;
+        if (open_result !=
+            win32_wallet::OpenResult::OPENED) {
+            status = DatabaseStatus::FAILED_BAD_PATH;
+            error = strprintf(
+                "Failed to inspect wallet database '%s' without following reparse points: %s",
+                path.string(),
+                inspection_error);
+            return false;
+        }
+
+        win32_wallet::FileState file_state;
+        if (!win32_wallet::GetFileState(
+                file,
+                file_state,
+                inspection_error) ||
+            file_state.directory ||
+            file_state.reparse_point ||
+            file_state.delete_pending ||
+            file_state.link_count != 1 ||
+            file_state.identity.device != identity.device ||
+            file_state.identity.inode != identity.inode) {
+            status = DatabaseStatus::FAILED_BAD_PATH;
+            error = strprintf(
+                "Refusing wallet database '%s': it is not one stable, non-reparse regular file%s%s",
+                path.string(),
+                inspection_error.empty() ? "." : ": ",
+                inspection_error);
+            return false;
+        }
+        info.exists = true;
+        info.identity = identity;
+        if (!inspect_format || file_state.size < 16) {
+            return true;
+        }
+
+        std::array<unsigned char, 16> header{};
+        if (!win32_wallet::ReadExact(
+                file,
+                0,
+                header.data(),
+                header.size(),
+                inspection_error)) {
+            status = DatabaseStatus::FAILED_BAD_PATH;
+            error = strprintf(
+                "Failed to read wallet database header '%s': %s",
+                path.string(),
+                inspection_error);
+            return false;
+        }
+
+        static constexpr std::array<unsigned char, 16> SQLITE_MAGIC{{
+            'S',
+            'Q',
+            'L',
+            'i',
+            't',
+            'e',
+            ' ',
+            'f',
+            'o',
+            'r',
+            'm',
+            'a',
+            't',
+            ' ',
+            '3',
+            '\0',
+        }};
+        static constexpr std::array<unsigned char, 4> BDB_BIG_ENDIAN_MAGIC{{0x00, 0x05, 0x31, 0x62}};
+        static constexpr std::array<unsigned char, 4> BDB_LITTLE_ENDIAN_MAGIC{{0x62, 0x31, 0x05, 0x00}};
+        if (std::equal(
+                SQLITE_MAGIC.begin(),
+                SQLITE_MAGIC.end(),
+                header.begin())) {
+            info.format = DatabaseFormat::SQLITE;
+        } else if (file_state.size >= 4096 &&
+                   (std::equal(
+                        BDB_BIG_ENDIAN_MAGIC.begin(),
+                        BDB_BIG_ENDIAN_MAGIC.end(),
+                        header.begin() + 12) ||
+                       std::equal(
+                           BDB_LITTLE_ENDIAN_MAGIC.begin(),
+                           BDB_LITTLE_ENDIAN_MAGIC.end(),
+                           header.begin() + 12))) {
+            info.format = DatabaseFormat::BERKELEY;
+        }
+        return true;
+    }
+#else
+    (void)secure_win32_inspection;
+#endif
     fs::file_status path_status;
     if (!GetWalletPathStatus(path, path_status, error)) {
         status = DatabaseStatus::FAILED_BAD_PATH;
@@ -288,7 +407,11 @@ bool ValidateWalletMigrationDirectory(
     std::string& error)
 {
     error.clear();
-#ifdef WIN32
+#if defined(WIN32) && defined(USE_SQLITE)
+    return win32_wallet::ValidateMigrationDirectory(
+        directory,
+        error);
+#elif defined(WIN32)
     (void)directory;
     error =
         "Secure wallet migration directory validation is unavailable on Windows.";
@@ -409,6 +532,14 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
                 !options.require_create ||
                 options.require_format !=
                     DatabaseFormat::SQLITE)) ||
+        (options.bdb_migration_source &&
+            (!options.require_existing ||
+                options.require_create ||
+                options.require_format !=
+                    DatabaseFormat::BERKELEY ||
+                !options.verify ||
+                options.recover ||
+                options.salvage)) ||
         (options.salvage &&
             (!options.verify || !options.recover))) {
         status = DatabaseStatus::FAILED_INVALID_OPTIONS;
@@ -436,8 +567,18 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
         }
     }
 
+    const bool secure_win32_inspection =
+        options.bdb_migration_source ||
+        options.require_format ==
+            DatabaseFormat::SQLITE;
     DatabaseFileInfo file_info;
-    if (!InspectWalletDatabaseFile(path, file_info, !options.require_create, status, error)) {
+    if (!InspectWalletDatabaseFile(
+            path,
+            file_info,
+            !options.require_create,
+            status,
+            error,
+            secure_win32_inspection)) {
         return nullptr;
     }
 
@@ -472,7 +613,7 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
         if (options.require_format) {
             format = options.require_format;
         } else {
-#if defined(USE_SQLITE) && !defined(WIN32)
+#ifdef USE_SQLITE
             format = DatabaseFormat::SQLITE;
 #else
             format = DatabaseFormat::BERKELEY;
@@ -502,7 +643,13 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
     }
 
     DatabaseFileInfo opened_file_info;
-    if (!InspectWalletDatabaseFile(path, opened_file_info, !options.require_create, status, error)) {
+    if (!InspectWalletDatabaseFile(
+            path,
+            opened_file_info,
+            !options.require_create,
+            status,
+            error,
+            secure_win32_inspection)) {
         return nullptr;
     }
     if (!opened_file_info.exists && file_info.exists) {
@@ -583,7 +730,8 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(
                 final_file_info,
                 true,
                 status,
-                error)) {
+                error,
+                secure_win32_inspection)) {
             return nullptr;
         }
         if (!final_file_info.exists) {

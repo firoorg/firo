@@ -225,6 +225,8 @@ struct DatabaseOptions {
     bool logical_wallet_create{false};
     /** Grant an owned logical SQLite candidate the one-shot migration publication capability. */
     bool sqlite_migration_candidate{false};
+    /** Require the retained source identity needed for explicit BDB-to-SQLite migration. */
+    bool bdb_migration_source{false};
 };
 
 enum class DatabaseStatus {

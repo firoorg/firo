@@ -56,6 +56,13 @@ SQLiteMigrationPublishResult PublishSQLiteMigrationCandidate(
     BerkeleyDatabase& source,
     std::string& error);
 
+#ifdef WIN32
+/** Safely consume and remove an unpublished SQLite migration candidate. */
+SQLiteMigrationPublishResult AbortSQLiteMigrationCandidate(
+    WalletDatabase& candidate,
+    std::string& error);
+#endif
+
 /** Replace transaction statement execution for one SQLite batch. */
 bool SetSQLiteStatementExecutorForTesting(
     DatabaseBatch& batch,
@@ -120,10 +127,15 @@ void InjectSQLiteFileSyncFailureForTesting(
 void InjectSQLiteEraseFailureForTesting(
     int successful_erases_before_failure = 0);
 
+#ifdef WIN32
+/** Fail the next Win32 SQLite candidate's second retained-identity check. */
+void InjectSQLiteCandidateRevalidationFailureForTesting();
+#endif
+
 /** Return SQLite erase attempts since the last erase-failure injection. */
 int GetSQLiteEraseAttemptsForTesting();
 
-/** Recover the single deliberately abandoned connection created by a test. */
+/** Recover the deliberately quarantined connection and file handles created by a test. */
 bool ResetSQLiteLifecycleForTesting();
 
 #endif // FIRO_WALLET_SQLITE_H

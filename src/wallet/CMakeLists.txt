@@ -48,5 +48,10 @@ if(ENABLE_SQLITE_WALLET)
   target_sources(firo_wallet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sqlite.cpp
   )
+  if(WIN32)
+    target_sources(firo_wallet PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/win32_file_lifecycle.cpp
+    )
+  endif()
   target_link_libraries(firo_wallet PRIVATE SQLite3::SQLite3)
 endif()

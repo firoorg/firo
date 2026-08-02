@@ -7,6 +7,9 @@
 #define BITCOIN_WALLET_DB_H
 
 #include "wallet/database.h"
+#if defined(WIN32) && defined(USE_SQLITE)
+#include "wallet/win32_file_lifecycle.h"
+#endif
 
 #include "serialize.h"
 #include "sync.h"
@@ -93,7 +96,7 @@ public:
 
 extern CDBEnv bitdb;
 
-#ifndef WIN32
+#if !defined(WIN32) || defined(USE_SQLITE)
 /** Fail one BDB migration sync after the requested number of successful syncs. */
 void InjectBerkeleyMigrationSyncFailureForTesting(
     int error_number,
@@ -104,6 +107,7 @@ enum class MigrationBackupResult {
     SUCCESS,
     EXISTS,
     FAILED,
+    INDETERMINATE,
 };
 
 /**
@@ -128,9 +132,35 @@ private:
     FirstOpenRequirement m_first_open_requirement{
         FirstOpenRequirement::NONE};
     std::optional<DatabaseFileIdentity> m_first_open_identity;
+#if defined(WIN32) && defined(USE_SQLITE)
+    enum class Win32MigrationState {
+        NONE,
+        BACKUP_READY,
+        READY,
+        MOVE_ATTEMPTED,
+        MOVED_PROVEN,
+        INDETERMINATE,
+        FINALIZED,
+    };
+
+    struct Win32MigrationReceipt {
+        fs::path candidate_path;
+        fs::path source_path;
+        DatabaseFileIdentity candidate_identity;
+        wallet::win32::MoveResult move_result;
+    };
+
+    wallet::win32::File m_migration_source_file;
+    wallet::win32::File m_migration_backup_file;
+    Win32MigrationState m_win32_migration_state{
+        Win32MigrationState::NONE};
+    std::optional<Win32MigrationReceipt> m_win32_migration_receipt;
+    fs::path m_migration_backup_alternate_path;
+#else
     int m_migration_source_descriptor{-1};
-    std::optional<DatabaseFileIdentity> m_migration_source_identity;
     int m_migration_backup_descriptor{-1};
+#endif
+    std::optional<DatabaseFileIdentity> m_migration_source_identity;
     std::optional<DatabaseFileIdentity> m_migration_backup_identity;
     fs::path m_migration_backup_path;
 
@@ -186,6 +216,14 @@ public:
         const fs::path& path,
         std::string& error) const;
     bool MigrationBackupMatchesPath(std::string& error) const;
+#if defined(WIN32) && defined(USE_SQLITE)
+    wallet::win32::MoveResult ReplaceMigrationSourceWithSQLite(
+        const fs::path& candidate_path,
+        const wallet::win32::File& candidate_file,
+        const DatabaseFileIdentity& candidate_identity,
+        const fs::path& source_path,
+        std::string& error);
+#endif
     bool ConfirmMigrationSourceRemoved(std::string& error);
     const fs::path& MigrationBackupPath() const
     {
