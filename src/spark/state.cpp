@@ -10,31 +10,39 @@
 
 #include <algorithm>
 #include <memory>
+#include <deque>
 #include <set>
 
 namespace spark {
 
-struct ProofCheckState {
-    // if this is true, then the proof was already checked, no need to check again
-    bool fChecked = false;
+static constexpr std::size_t MAX_SPARK_PROOF_CACHE_SIZE = 10000;
+static std::set<uint256> gCheckedSparkSpendTransactions;
+static std::deque<uint256> gCheckedSparkSpendTransactionOrder;
 
-    // result of the check (if fChecked is true)
-    bool fResult = false;
-};
-
-// Bound the mempool-acceptance proof cache. Without a cap, peers can relay many
-// distinct spends that parse and fail verification, each leaving a permanent
-// uint256 entry. DisconnectTipSpark clears on reorg; successful entries are also
-// removed when the mempool drops the transaction.
-static constexpr size_t MAX_CHECKED_SPARK_SPEND_TRANSACTIONS = 10000;
-static CCriticalSection cs_checkedSparkSpendTransactions;
-static unordered_lru_cache<uint256, ProofCheckState, StaticSaltedHasher, MAX_CHECKED_SPARK_SPEND_TRANSACTIONS>
-    gCheckedSparkSpendTransactions(MAX_CHECKED_SPARK_SPEND_TRANSACTIONS);
-
-void EraseCheckedSparkSpendTransaction(const uint256& hashTx)
+void ClearSparkSpendProofCache()
 {
-    LOCK(cs_checkedSparkSpendTransactions);
-    gCheckedSparkSpendTransactions.erase(hashTx);
+    gCheckedSparkSpendTransactions.clear();
+    gCheckedSparkSpendTransactionOrder.clear();
+}
+
+std::size_t GetSparkSpendProofCacheSize()
+{
+    return gCheckedSparkSpendTransactions.size();
+}
+
+static void CacheSuccessfulSparkSpendProof(const uint256& hashTx)
+{
+    if (!gCheckedSparkSpendTransactions.insert(hashTx).second) {
+        return;
+    }
+
+    gCheckedSparkSpendTransactionOrder.push_back(hashTx);
+    if (gCheckedSparkSpendTransactionOrder.size() >
+        MAX_SPARK_PROOF_CACHE_SIZE) {
+        gCheckedSparkSpendTransactions.erase(
+            gCheckedSparkSpendTransactionOrder.front());
+        gCheckedSparkSpendTransactionOrder.pop_front();
+    }
 }
 
 static CSparkState sparkState;
@@ -165,6 +173,8 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
     }
     try {
         mintTransaction.setMintTransaction(serializedCoins);
+    } catch (const std::bad_alloc &) {
+        throw;
     } catch (const std::exception &) {
         throw std::invalid_argument("Unable to deserialize Spark mint transaction");
     }
@@ -188,6 +198,8 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
 
     try {
         stream >> txCoin;
+    } catch (const std::bad_alloc &) {
+        throw;
     } catch (const std::exception &) {
         throw std::invalid_argument("Unable to deserialize Spark mint");
     }
@@ -284,6 +296,8 @@ std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
     spark::SpendTransaction spendTransaction(params);
     try {
         spendTransaction = ParseSparkSpend(tx);
+    } catch (const std::bad_alloc &) {
+        throw;
     } catch (const std::exception &) {
         return std::vector<GroupElement>();
     }
@@ -305,6 +319,8 @@ std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
                     ParseSparkMintCoin(script, coin);
                     coin.setSerialContext(serial_context);
                     result.push_back(coin);
+                } catch (const std::bad_alloc &) {
+                    throw;
                 } catch (const std::exception &) {
                     //Continue
                 }
@@ -584,10 +600,7 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 
     // Spark verification depends on active-chain cover-set data. Refresh all
     // cached results after a disconnect so they use the current chain context.
-    {
-        LOCK(cs_checkedSparkSpendTransactions);
-        gCheckedSparkSpendTransactions.clear();
-    }
+    ClearSparkSpendProofCache();
 
     // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
@@ -699,6 +712,9 @@ bool CheckSparkSMintTransaction(
                 spark::Coin coin(Params::get_default());
                 ParseSparkMintCoin(script, coin);
                 out_coins.emplace_back(coin);
+            } catch (const std::bad_alloc &) {
+                return state.Error(
+                    "CheckSparkSMintTransaction: memory allocation failed while parsing output");
             } catch (const std::exception &) {
                 return state.DoS(100,
                          false,
@@ -761,6 +777,10 @@ bool CheckSparkSpendTransaction(
                          REJECT_MALFORMED,
                          "CheckSparkSpendTransaction: invalid spend transaction");
     }
+    catch (const std::bad_alloc &) {
+        return state.Error(
+            "CheckSparkSpendTransaction: memory allocation failed while parsing spend");
+    }
     catch (const std::exception &) {
         return state.DoS(100,
                          false,
@@ -808,6 +828,21 @@ bool CheckSparkSpendTransaction(
                          isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
                          "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
     }
+    if (isMempoolAcceptance || isChaumV2 || enforceChaumV1SingleInput) {
+        for (const uint64_t id : spend->getCoinGroupIds()) {
+            if (id == 0 ||
+                id > static_cast<uint64_t>(
+                    std::numeric_limits<int>::max())) {
+                return state.DoS(
+                    isMempoolAcceptance ? 0 : 100,
+                    false,
+                    isMempoolAcceptance
+                        ? REJECT_NONSTANDARD
+                        : REJECT_INVALID,
+                    "CheckSparkSpendTransaction: cover-set identifier is out of range");
+            }
+        }
+    }
     if (spend->getFee() > static_cast<uint64_t>(MAX_MONEY)) {
         return state.DoS(100, false, REJECT_INVALID,
             "CheckSparkSpendTransaction: fee out of range");
@@ -842,6 +877,9 @@ bool CheckSparkSpendTransaction(
                         return state.DoS(100, false, REJECT_INVALID,
                             "CheckSparkSpendTransaction: non-canonical Spark V2 private output");
                     }
+                } catch (const std::bad_alloc &) {
+                    return state.Error(
+                        "CheckSparkSpendTransaction: memory allocation failed while parsing output");
                 } catch (const std::exception &) {
                     return state.DoS(100, false, REJECT_INVALID,
                         "CheckSparkSpendTransaction: invalid Spark V2 private output");
@@ -878,7 +916,14 @@ bool CheckSparkSpendTransaction(
     if (!CheckSparkSMintTransaction(tx.vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
         return false;
     spend->setOutCoins(out_coins);
-    std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
+    struct CoverSetSource {
+        int stateId;
+        int previousStateId;
+        CBlockIndex* referenceBlock;
+        CBlockIndex* firstBlock;
+        std::size_t size;
+    };
+    std::unordered_map<uint64_t, CoverSetSource> coverSetSources;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
     const auto idAndBlockHashes = spend->getBlockHashes();
 
@@ -886,40 +931,75 @@ bool CheckSparkSpendTransaction(
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
+        const uint64_t wireCoverSetId = idAndHash.first;
+        const bool requireStateDomainId =
+            isMempoolAcceptance || isChaumV2 || enforceChaumV1SingleInput;
+        if (requireStateDomainId &&
+            (wireCoverSetId == 0 ||
+             wireCoverSetId >
+                 static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                false,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                "CheckSparkSpendTransaction: cover-set identifier is out of range");
+        }
+
+        // Historical V1 validation retains the deployed integer conversion.
+        // Active formats require the range check above before this narrowing.
+        const int stateCoverSetId = static_cast<int>(wireCoverSetId);
+        const int previousStateCoverSetId =
+            static_cast<int>(wireCoverSetId - 1);
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup))
-            return state.DoS(100, false, NO_MINT_ZEROCOIN, "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
+        if (!sparkState.GetCoinGroupInfo(stateCoverSetId, coinGroup)) {
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                false,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : NO_MINT_ZEROCOIN,
+                "CheckSparkSpendTransaction: no matching cover set");
+        }
 
         CBlockIndex *index = coinGroup.lastBlock;
         // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
-        // take the hash from last block of anonymity set
-        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
+        const bool unknownReference =
+            index->GetBlockHash() != idAndHash.second;
+        if (unknownReference &&
+            (isMempoolAcceptance || isChaumV2 || enforceChaumV1SingleInput)) {
+            // Mempool admission is a non-punitive policy failure. Consensus
+            // retains the deployed first-block fallback only for historical
+            // V1 blocks before the single-input activation. V2 and later V1
+            // validation fail closed.
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                false,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                "CheckSparkSpendTransaction: unknown cover-set reference");
+        }
 
-        std::vector<Coin> cover_set;
-        cover_set.reserve(coinGroup.nCoins);
+
+        // take the hash from last block of anonymity set
+        std::vector<unsigned char> set_hash =
+            GetAnonymitySetHash(index, stateCoverSetId);
+        CBlockIndex* referenceBlock = index;
+
         std::size_t set_size = 0;
         // Build a vector with all the public coins with given id before
         // the block on which the spend occurred.
         // This list of public coins is required by function "Verify" of spend.
         while (true) {
             int id = 0;
-            if (CountCoinInBlock(index, idAndHash.first)) {
-                id = idAndHash.first;
-            } else if (CountCoinInBlock(index, idAndHash.first - 1)) {
-                id = idAndHash.first - 1;
+            if (CountCoinInBlock(index, stateCoverSetId)) {
+                id = stateCoverSetId;
+            } else if (CountCoinInBlock(
+                    index, previousStateCoverSetId)) {
+                id = previousStateCoverSetId;
             }
             if (id) {
                 if (index->sparkMintedCoins.count(id) > 0) {
-                    BOOST_FOREACH(
-                    const auto& coin,
-                    index->sparkMintedCoins[id]) {
-                        set_size++;
-                        if (!useBatching)
-                            cover_set.push_back(coin);
-                    }
+                    set_size += index->sparkMintedCoins[id].size();
                 }
             }
 
@@ -934,18 +1014,64 @@ bool CheckSparkSpendTransaction(
             setData.cover_set_representation = set_hash;
         setData.cover_set_representation.insert(setData.cover_set_representation.end(), txHashForMetadata.begin(), txHashForMetadata.end());
 
-        cover_sets[idAndHash.first] = std::move(cover_set);
-        cover_set_data [idAndHash.first] = setData;
+        coverSetSources.emplace(
+            wireCoverSetId,
+            CoverSetSource{
+                stateCoverSetId,
+                previousStateCoverSetId,
+                referenceBlock,
+                coinGroup.firstBlock,
+                set_size});
+        cover_set_data[wireCoverSetId] = setData;
     }
     spend->setCoverSets(cover_set_data);
     spend->setVout(Vout);
 
     const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {
-        if (!cover_sets.count(id) || !cover_set_data.count(id))
-            return state.DoS(100,
-                             error("CheckSparkSpendTransaction: No cover set found."));
+        if (!coverSetSources.count(id) || !cover_set_data.count(id))
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                error("CheckSparkSpendTransaction: No cover set found."),
+                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                "bad-spark-cover-set-missing");
     }
+
+    std::vector<Coin> loadedCoverSet;
+    const SpendTransaction::CoverSetProvider coverSetProvider =
+        [&coverSetSources, &loadedCoverSet](uint64_t wireId)
+            -> const std::vector<Coin>& {
+        const auto source = coverSetSources.find(wireId);
+        if (source == coverSetSources.end()) {
+            throw std::invalid_argument("Cover set missing");
+        }
+
+        loadedCoverSet.clear();
+        loadedCoverSet.reserve(source->second.size);
+        CBlockIndex* index = source->second.referenceBlock;
+        while (true) {
+            int id = 0;
+            if (CountCoinInBlock(index, source->second.stateId)) {
+                id = source->second.stateId;
+            } else if (CountCoinInBlock(
+                    index, source->second.previousStateId)) {
+                id = source->second.previousStateId;
+            }
+            if (id && index->sparkMintedCoins.count(id)) {
+                const auto& coins = index->sparkMintedCoins.at(id);
+                loadedCoverSet.insert(
+                    loadedCoverSet.end(), coins.begin(), coins.end());
+            }
+            if (index == source->second.firstBlock) {
+                break;
+            }
+            index = index->pprev;
+        }
+        if (loadedCoverSet.size() != source->second.size) {
+            throw std::invalid_argument("Cover set size changed");
+        }
+        return loadedCoverSet;
+    };
     
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
@@ -958,40 +1084,37 @@ bool CheckSparkSpendTransaction(
         }
     } else {
         try {
-            ProofCheckState checkState;
-            bool haveCachedResult = false;
-            {
-                LOCK(cs_checkedSparkSpendTransactions);
-                haveCachedResult = gCheckedSparkSpendTransactions.get(hashTx, checkState);
-            }
-            if (haveCachedResult) {
-                if (checkState.fChecked) {
-                    if (!checkState.fResult)
-                        return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
-                    else {
-                        LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
-                        passVerify = true;
-                    }
+            if (!isVerifyDB &&
+                gCheckedSparkSpendTransactions.count(hashTx)) {
+                LogPrintf(
+                    "CheckSparkSpendTransaction: already checked tx %s\n",
+                    hashTx.ToString());
+                passVerify = true;
+            } else if (isMempoolAcceptance) {
+                passVerify = spark::SpendTransaction::verify(
+                    spark::Params::get_default(),
+                    {*spend},
+                    coverSetProvider);
+                if (passVerify) {
+                    CacheSuccessfulSparkSpendProof(hashTx);
                 }
-            }
-            else if (isMempoolAcceptance) {
-                passVerify = enforceSingleInput
-                    ? spark::SpendTransaction::verify(*spend, cover_sets)
-                    : spark::SpendTransaction::verifyHistorical(
-                        *spend, cover_sets);
-                ProofCheckState newState;
-                newState.fChecked = true;
-                newState.fResult = passVerify;
-                LOCK(cs_checkedSparkSpendTransactions);
-                gCheckedSparkSpendTransactions.insert(hashTx, newState);
             }
             else {
                 // we need the answer now, so verify and execute
                 passVerify = (isChaumV2 || requireChaumV1SingleInput)
-                    ? spark::SpendTransaction::verify(*spend, cover_sets)
+                    ? spark::SpendTransaction::verify(
+                        spark::Params::get_default(),
+                        {*spend},
+                        coverSetProvider)
                     : spark::SpendTransaction::verifyHistorical(
-                        *spend, cover_sets);
+                        spark::Params::get_default(),
+                        {*spend},
+                        coverSetProvider);
             }
+        }
+        catch (const std::bad_alloc &) {
+            return state.Error(
+                "CheckSparkSpendTransaction: memory allocation failed while verifying spend");
         }
         catch (const std::exception &) {
             passVerify = false;
@@ -1008,8 +1131,14 @@ bool CheckSparkSpendTransaction(
 
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
+            const bool fConnectTip = sparkTxInfo && !isVerifyDB;
             for (size_t i = 0; i < lTags.size(); ++i) {
-                    if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
+                    if (!CheckLTag(
+                            state,
+                            sparkTxInfo,
+                            lTags[i],
+                            nHeight,
+                            fConnectTip)) {
                         LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
@@ -1129,7 +1258,10 @@ bool CheckSparkTransaction(
                 else {
                     return false;
                 }
-
+            }
+            catch (const std::bad_alloc &) {
+                return state.Error(
+                    "CheckSparkTransaction: memory allocation failed while checking spend");
             }
             catch (const std::exception &x) {
                 return state.Error(x.what());
@@ -1209,6 +1341,8 @@ std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
         try {
             spark::SpendTransaction spend = ParseSparkSpend(tx);
             serialContextStream << spend.getUsedLTags();
+        } catch (const std::bad_alloc &) {
+            throw;
         } catch (const std::exception &) {
             return std::vector<unsigned char>();
         }
@@ -1260,6 +1394,7 @@ CSparkState::CSparkState(
 }
 
 void CSparkState::Reset() {
+    ClearSparkSpendProofCache();
     ShutdownWallet();
     coinGroups.clear();
     latestCoinId = 0;

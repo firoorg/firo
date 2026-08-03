@@ -14,8 +14,15 @@ BatchProofContainer* BatchProofContainer::get_instance() {
 }
 
 void BatchProofContainer::init() {
+    abort();
+}
+
+void BatchProofContainer::abort() {
     tempSparkTransactions.clear();
     tempHistoricalSparkTransactions.clear();
+    sparkTransactions.clear();
+    historicalSparkTransactions.clear();
+    fCollectProofs = false;
 }
 
 void BatchProofContainer::finalize() {
@@ -30,10 +37,15 @@ void BatchProofContainer::finalize() {
 }
 
 void BatchProofContainer::verify() {
-    if (!fCollectProofs) {
-        batch_spark();
+    try {
+        if (!fCollectProofs) {
+            batch_spark();
+        }
+        fCollectProofs = false;
+    } catch (...) {
+        abort();
+        throw;
     }
-    fCollectProofs = false;
 }
 
 void BatchProofContainer::add(const spark::SpendTransaction& tx) {
@@ -68,54 +80,44 @@ void BatchProofContainer::batch_spark() {
         return;
     }
 
-    std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
     spark::CSparkState* sparkState = spark::CSparkState::GetState();
-
-    for (auto& itr : sparkTransactions) {
-        auto& idAndBlockHashes = itr.getBlockHashes();
-        for (const auto& idAndHash : idAndBlockHashes) {
-            int cover_set_id = idAndHash.first;
-            if (!cover_sets.count(cover_set_id)) {
-                std::vector<spark::Coin> cover_set;
-                sparkState->GetCoinSet(cover_set_id, cover_set);
-                cover_sets[cover_set_id] = cover_set;
-            }
-        }
-    }
-    for (auto& itr : historicalSparkTransactions) {
-        auto& idAndBlockHashes = itr.getBlockHashes();
-        for (const auto& idAndHash : idAndBlockHashes) {
-            int cover_set_id = idAndHash.first;
-            if (!cover_sets.count(cover_set_id)) {
-                std::vector<spark::Coin> cover_set;
-                sparkState->GetCoinSet(cover_set_id, cover_set);
-                cover_sets[cover_set_id] = cover_set;
-            }
-        }
-    }
+    std::vector<spark::Coin> loadedCoverSet;
+    const spark::SpendTransaction::CoverSetProvider coverSetProvider =
+        [sparkState, &loadedCoverSet](uint64_t wireId)
+            -> const std::vector<spark::Coin>& {
+        loadedCoverSet.clear();
+        sparkState->GetCoinSet(
+            static_cast<int>(wireId), loadedCoverSet);
+        return loadedCoverSet;
+    };
     auto* params = spark::Params::get_default();
 
     bool passed = true;
     try {
         if (!sparkTransactions.empty()) {
             passed = spark::SpendTransaction::verify(
-                params, sparkTransactions, cover_sets);
+                params, sparkTransactions, coverSetProvider);
         }
         if (passed && !historicalSparkTransactions.empty()) {
             passed = spark::SpendTransaction::verifyHistorical(
-                params, historicalSparkTransactions, cover_sets);
+                params, historicalSparkTransactions, coverSetProvider);
         }
+    } catch (const std::bad_alloc &) {
+        throw;
     } catch (const std::exception &) {
         passed = false;
     }
 
-    if (!passed) {
-        LogPrintf("Spark batch verification failed.");
-        throw std::invalid_argument("Spark batch verification failed, please run Firo with -reindex -batching=0");
-    }
-
-    if (!sparkTransactions.empty())
-        LogPrintf("Spark batch verification finished successfully.\n");
+    // A failed block must not poison later block validation with retained
+    // proofs. Successful per-block verification also leaves no cross-block
+    // proof state behind.
     sparkTransactions.clear();
     historicalSparkTransactions.clear();
+
+    if (!passed) {
+        LogPrintf("Spark batch verification failed.");
+        throw std::invalid_argument("Spark batch verification failed");
+    }
+
+    LogPrintf("Spark batch verification finished successfully.\n");
 }

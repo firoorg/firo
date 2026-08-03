@@ -325,7 +325,7 @@ bool SpendTransaction::verify(
         const SpendTransaction& transaction,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
 	std::vector<SpendTransaction> transactions = { transaction };
-	return verify(transaction.params, transactions, cover_sets, true);
+	return verify(transaction.params, transactions, cover_sets);
 }
 
 bool SpendTransaction::verifyHistorical(
@@ -335,14 +335,29 @@ bool SpendTransaction::verifyHistorical(
 		return false;
 	}
 	std::vector<SpendTransaction> transactions = { transaction };
-	return verify(transaction.params, transactions, cover_sets, false);
+	return verifyHistorical(transaction.params, transactions, cover_sets);
 }
 
 bool SpendTransaction::verify(
         const Params* params,
         const std::vector<SpendTransaction>& transactions,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
-	return verify(params, transactions, cover_sets, true);
+	const CoverSetProvider provider = [&cover_sets](uint64_t id)
+			-> const std::vector<Coin>& {
+		const auto set = cover_sets.find(id);
+		if (set == cover_sets.end()) {
+			throw std::invalid_argument("Cover set missing");
+		}
+		return set->second;
+	};
+	return verify(params, transactions, provider, true);
+}
+
+bool SpendTransaction::verify(
+        const Params* params,
+        const std::vector<SpendTransaction>& transactions,
+        const CoverSetProvider& cover_set_provider) {
+	return verify(params, transactions, cover_set_provider, true);
 }
 
 bool SpendTransaction::verifyHistorical(
@@ -354,7 +369,27 @@ bool SpendTransaction::verifyHistorical(
 			return false;
 		}
 	}
-	return verify(params, transactions, cover_sets, false);
+	const CoverSetProvider provider = [&cover_sets](uint64_t id)
+			-> const std::vector<Coin>& {
+		const auto set = cover_sets.find(id);
+		if (set == cover_sets.end()) {
+			throw std::invalid_argument("Cover set missing");
+		}
+		return set->second;
+	};
+	return verify(params, transactions, provider, false);
+}
+
+bool SpendTransaction::verifyHistorical(
+        const Params* params,
+        const std::vector<SpendTransaction>& transactions,
+        const CoverSetProvider& cover_set_provider) {
+	for (const auto& transaction : transactions) {
+		if (transaction.version != SpendTransactionVersion::V1) {
+			return false;
+		}
+	}
+	return verify(params, transactions, cover_set_provider, false);
 }
 
 // Determine if a set of spend transactions is collectively valid
@@ -363,7 +398,7 @@ bool SpendTransaction::verifyHistorical(
 bool SpendTransaction::verify(
         const Params* params,
         const std::vector<SpendTransaction>& transactions,
-        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
+        const CoverSetProvider& cover_set_provider,
         bool require_single_input) {
 	// The idea here is to perform batching as broadly as possible
 	// - Grootle proofs can be batched if they share a (partial) cover set
@@ -377,6 +412,8 @@ bool SpendTransaction::verify(
 
 	// Track cover sets across Grootle proofs to batch
 	std::unordered_map<uint64_t, std::vector<std::pair<std::size_t, std::size_t>>> grootle_buckets;
+	const std::size_t N = (std::size_t) std::pow(
+		params->get_n_grootle(), params->get_m_grootle());
 
 	// Process each transaction
 	for (std::size_t i = 0; i < transactions.size(); i++) {
@@ -390,7 +427,6 @@ bool SpendTransaction::verify(
 		// Size parameters for this transaction
 		const std::size_t w = tx.cover_set_ids.size(); // number of consumed coins
 		const std::size_t t = tx.out_coins.size(); // number of generated coins
-		const std::size_t N = (std::size_t) std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
 
 		if (w == 0 ||
 			(tx.version == SpendTransactionVersion::V2 &&
@@ -417,13 +453,6 @@ bool SpendTransaction::verify(
 			tx.grootle_proofs.size() != w ||
 			tx.cover_set_sizes.size() != tx.cover_set_representations.size()) {
 			throw std::invalid_argument("Bad spend transaction semantics");
-		}
-
-		// Cover set semantics
-		for (const auto& set : cover_sets) {
-			if (set.second.size() > N) {
-				throw std::invalid_argument("Bad spend transaction semantics");
-			}
 		}
 
 		// Store range proof with commitments
@@ -522,7 +551,7 @@ bool SpendTransaction::verify(
 		params->get_m_grootle()
 	);
 	for (auto grootle_bucket : grootle_buckets) {
-		std::size_t cover_set_id = grootle_bucket.first;
+		const uint64_t cover_set_id = grootle_bucket.first;
 		std::vector<std::pair<std::size_t, std::size_t>> proof_indexes = grootle_bucket.second;
 
 		// Build the proof statement and metadata vectors from these proofs
@@ -531,16 +560,20 @@ bool SpendTransaction::verify(
 		std::vector<std::size_t> sizes;
 		std::vector<GrootleProof> proofs;
 
-        std::size_t full_cover_set_size = cover_sets.at(cover_set_id).size();
+		const std::vector<Coin>& cover_set =
+			cover_set_provider(cover_set_id);
+		if (cover_set.size() > N) {
+			throw std::invalid_argument("Bad spend transaction semantics");
+		}
+
+        std::size_t full_cover_set_size = cover_set.size();
         for (std::size_t i = 0; i < full_cover_set_size; i++) {
-            S.emplace_back(cover_sets.at(cover_set_id)[i].S);
-            V.emplace_back(cover_sets.at(cover_set_id)[i].C);
+            S.emplace_back(cover_set[i].S);
+            V.emplace_back(cover_set[i].C);
         }
 
-		for (auto proof_index : proof_indexes) {
+        for (auto proof_index : proof_indexes) {
             const auto& tx = transactions[proof_index.first];
-            if (!cover_sets.count(cover_set_id))
-                throw std::invalid_argument("Cover set missing");
 			// Because we assume all proofs in this list share a monotonic cover set, the largest such set is the one to use for verification
             if (!tx.cover_set_sizes.count(cover_set_id))
                 throw std::invalid_argument("Cover set size missing");

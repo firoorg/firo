@@ -1516,6 +1516,105 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     BOOST_CHECK_EQUAL(activeDoS, 100);
 }
 
+BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
+{
+    BatchProofContainer* batch = BatchProofContainer::get_instance();
+    struct ResetBatch {
+        BatchProofContainer* batch;
+        ~ResetBatch()
+        {
+            batch->fCollectProofs = false;
+            batch->init();
+        }
+    } reset{batch};
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    CMutableTransaction invalidSpend(
+        GenerateSparkSpend({4 * COIN}, {}, nullptr));
+    BOOST_REQUIRE(!invalidSpend.vout.empty());
+    ++invalidSpend.vout.front().nValue;
+    mempool.clear();
+
+    CBlock candidate = CreateBlock({invalidSpend}, script);
+    uint256 candidateHash = candidate.GetHash();
+    CBlockIndex candidateIndex(candidate);
+    candidateIndex.phashBlock = &candidateHash;
+    candidateIndex.pprev = chainActive.Tip();
+    candidateIndex.nHeight = chainActive.Height() + 1;
+    candidateIndex.nTime = GetSystemTimeInSeconds() - 86401;
+
+    CValidationState state;
+    CCoinsViewCache view(pcoinsTip);
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!ConnectBlock(
+            candidate, state, &candidateIndex, view, ::Params(), true));
+    }
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
+{
+    BatchProofContainer* batch = BatchProofContainer::get_instance();
+    struct ResetBatch {
+        BatchProofContainer* batch;
+        ~ResetBatch()
+        {
+            batch->fCollectProofs = false;
+            batch->init();
+        }
+    } reset{batch};
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    CMutableTransaction invalidSpend(
+        GenerateSparkSpend({4 * COIN}, {}, nullptr));
+    BOOST_REQUIRE(!invalidSpend.vout.empty());
+    ++invalidSpend.vout.front().nValue;
+
+    CMutableTransaction missingInput;
+    missingInput.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    missingInput.vout.emplace_back(1, script);
+    mempool.clear();
+
+    CBlock candidate = CreateBlock({invalidSpend, missingInput}, script);
+    uint256 candidateHash = candidate.GetHash();
+    CBlockIndex candidateIndex(candidate);
+    candidateIndex.phashBlock = &candidateHash;
+    candidateIndex.pprev = chainActive.Tip();
+    candidateIndex.nHeight = chainActive.Height() + 1;
+    candidateIndex.nTime = GetSystemTimeInSeconds() - 86401;
+
+    CValidationState state;
+    CCoinsViewCache view(pcoinsTip);
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!ConnectBlock(
+            candidate, state, &candidateIndex, view, ::Params(), true));
+    }
+
+    // No proof from an abandoned block may remain for shutdown or the next
+    // block to finalize and verify.
+    batch->finalize();
+    BOOST_CHECK_NO_THROW(batch->verify());
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(spark_single_input_block_boundary_and_reorg)
 {
     struct ResetActivationHeight {
@@ -1616,6 +1715,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_block_boundary_and_reorg)
 
 BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
 {
+    ClearSparkSpendProofCache();
     GenerateBlocks(500);
 
     std::vector<CMutableTransaction> firstMintTransactions;
@@ -1649,6 +1749,22 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
         false,
         true,
         nullptr));
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 1U);
+
+    CMutableTransaction invalidSpend(spend);
+    BOOST_REQUIRE(!invalidSpend.vout.empty());
+    ++invalidSpend.vout.front().nValue;
+    CValidationState invalidState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(invalidSpend),
+        invalidState,
+        invalidSpend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 1U);
 
     // Remove the referenced cover-set block while leaving the first mint and
     // group active. Validation must recompute the result for the new context.
@@ -1657,6 +1773,7 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
     BOOST_REQUIRE_GT(disconnectCount, 0);
     BOOST_REQUIRE(DisconnectBlocks(disconnectCount));
     BOOST_REQUIRE(chainActive.Height() >= firstMintIndex->nHeight);
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 0U);
 
     CValidationState reorgState;
     CSparkTxInfo reorgInfo;
@@ -1669,6 +1786,152 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
         false,
         true,
         &reorgInfo));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible)
+{
+    struct ResetActivationHeight {
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetActivationHeight;
+
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+    SpendTransaction parsed = ParseSparkSpend(spend);
+    auto references = parsed.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(references.size(), 1U);
+    references.begin()->second = uint256S("01");
+    parsed.setBlockHashes(references);
+
+    CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+    payload << parsed;
+    CMutableTransaction unknownReference(spend);
+    unknownReference.vExtraPayload.assign(payload.begin(), payload.end());
+
+    CValidationState state;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(unknownReference),
+        state,
+        unknownReference.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    int dos = -1;
+    BOOST_REQUIRE(state.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 0);
+
+    auto unavailableReferences = parsed.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(unavailableReferences.size(), 1U);
+    const uint256 referenceHash = unavailableReferences.begin()->second;
+    unavailableReferences.clear();
+    unavailableReferences.emplace(
+        static_cast<uint64_t>(sparkState->GetLatestCoinID()) + 1,
+        referenceHash);
+    parsed.setBlockHashes(unavailableReferences);
+    CDataStream unavailablePayload(SER_NETWORK, PROTOCOL_VERSION);
+    unavailablePayload << parsed;
+    CMutableTransaction unavailableGroup(spend);
+    unavailableGroup.vExtraPayload.assign(
+        unavailablePayload.begin(), unavailablePayload.end());
+
+    CValidationState unavailableState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(unavailableGroup),
+        unavailableState,
+        unavailableGroup.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_REQUIRE(unavailableState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 0);
+
+    unavailableReferences.clear();
+    unavailableReferences.emplace(
+        static_cast<uint64_t>(std::numeric_limits<int>::max()) + 1,
+        referenceHash);
+    parsed.setBlockHashes(unavailableReferences);
+    CDataStream outOfRangePayload(SER_NETWORK, PROTOCOL_VERSION);
+    outOfRangePayload << parsed;
+    CMutableTransaction outOfRangeGroup(spend);
+    outOfRangeGroup.vExtraPayload.assign(
+        outOfRangePayload.begin(), outOfRangePayload.end());
+
+    CValidationState outOfRangeState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(outOfRangeGroup),
+        outOfRangeState,
+        outOfRangeGroup.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_REQUIRE(outOfRangeState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 0);
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
+
+    BatchProofContainer* batch = BatchProofContainer::get_instance();
+    batch->init();
+    batch->fCollectProofs = true;
+    CValidationState batchedOutOfRangeState;
+    CSparkTxInfo batchedOutOfRangeInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(outOfRangeGroup),
+        batchedOutOfRangeState,
+        outOfRangeGroup.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &batchedOutOfRangeInfo));
+    BOOST_REQUIRE(batchedOutOfRangeState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 100);
+    batch->finalize();
+    BOOST_CHECK_NO_THROW(batch->verify());
+
+    CValidationState historicalState;
+    CSparkTxInfo historicalInfo;
+    BOOST_CHECK(CheckSparkTransaction(
+        CTransaction(unknownReference),
+        historicalState,
+        unknownReference.GetHash(),
+        false,
+        activationHeight - 1,
+        false,
+        true,
+        &historicalInfo));
+
+    CValidationState activeState;
+    CSparkTxInfo activeInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(unknownReference),
+        activeState,
+        unknownReference.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &activeInfo));
+    BOOST_REQUIRE(activeState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 100);
 
     mempool.clear();
     sparkState->Reset();

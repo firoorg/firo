@@ -880,6 +880,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             try {
                 sparkUsedLTags = spark::GetSparkUsedTags(tx);
             }
+            catch (const std::bad_alloc &) {
+                return state.Error(
+                    "AcceptToMemoryPool: memory allocation failed while parsing Spark linking tags");
+            }
             catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark spend");
             }
@@ -907,6 +911,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (tx.IsSparkTransaction()) {
             try {
                 sparkMintCoins = spark::GetSparkMintCoins(tx);
+            }
+            catch (const std::bad_alloc &) {
+                return state.Error(
+                    "AcceptToMemoryPool: memory allocation failed while parsing Spark mints");
             }
             catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark mint");
@@ -1100,6 +1108,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+                }
+                catch (const std::bad_alloc&) {
+                    return state.Error(
+                        "AcceptToMemoryPool: memory allocation failed while parsing Spark fee");
                 }
                 catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
@@ -2314,6 +2326,27 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     CDbIndexHelper dbIndexHelper(fAddressIndex, fSpentIndex);
 
     CAmount nFees = 0;
+    try {
+        for (const CTransactionRef& tx : block.vtx) {
+            if (!tx->IsSparkSpend()) {
+                continue;
+            }
+
+            const CAmount fee = spark::GetSparkSpendFee(*tx);
+            if (!MoneyRange(fee) || fee > MAX_MONEY - nFees) {
+                LogPrintf(
+                    "DisconnectBlock(): Spark spend fee is out of range\n");
+                return DISCONNECT_FAILED;
+            }
+            nFees += fee;
+        }
+    }
+    catch (const std::exception& e) {
+        LogPrintf(
+            "DisconnectBlock(): failed to parse Spark spend fee: %s\n",
+            e.what());
+        return DISCONNECT_FAILED;
+    }
 
     if (!UndoSpecialTxsInBlock(block, pindex)) {
         return DISCONNECT_FAILED;
@@ -2355,15 +2388,6 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                 }
             }
             // At this point, all of txundo.vprevout should have been moved out.
-        }
-
-        if (tx.IsSparkSpend()) {
-            try {
-                nFees += spark::GetSparkSpendFee(tx);
-            }
-            catch (const std::exception &) {
-                // do nothing
-            }
         }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
@@ -2690,8 +2714,17 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
     batchProofContainer->init();
+    batchProofContainer->fCollectProofs =
+        ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) &&
+        GetBoolArg("-batching", true);
+    struct BatchProofCleanup {
+        BatchProofContainer* container;
+        ~BatchProofCleanup()
+        {
+            container->abort();
+        }
+    } batchProofCleanup{batchProofContainer};
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -2754,6 +2787,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");
                 }
+                catch (const std::bad_alloc&) {
+                    return state.Error(
+                        "ConnectBlock(): memory allocation failed while parsing Spark fee");
+                }
                 catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize spark spend");
                 }
@@ -2806,6 +2843,24 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
+    }
+
+    // Batch within this block, but complete verification before committing
+    // Spark state, block-index data, or persistent chain state.
+    try {
+        batchProofContainer->finalize();
+        batchProofContainer->verify();
+    } catch (const std::bad_alloc&) {
+        return state.Error(
+            "ConnectBlock(): memory allocation failed during Spark batch verification");
+    } catch (const std::exception& errorMessage) {
+        return state.DoS(
+            100,
+            error(
+                "ConnectBlock(): Spark batch proof verification failed: %s",
+                errorMessage.what()),
+            REJECT_INVALID,
+            "bad-spark-batch-proof");
     }
 
     block.sparkTxInfo->Complete();
@@ -2959,9 +3014,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
-
-    // do batch verification if remains a day or collect proofs
-    batchProofContainer->finalize();
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);
@@ -3799,11 +3851,6 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
         }
-        // Do batch verification if we reach 1 day old block,
-        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-        batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-        batchProofContainer->verify();
-
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         // Notifications/callbacks that can run without cs_main

@@ -3,6 +3,7 @@
 
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <random>
 #include <set>
@@ -53,6 +54,9 @@ static constexpr std::size_t MAX_SPARK_V2_OUTPUTS = 16;
 
 class SpendTransaction {
 public:
+    using CoverSetProvider = std::function<
+        const std::vector<Coin>&(uint64_t)>;
+
     SpendTransaction(
         const Params* params,
         SpendTransactionVersion version = SpendTransactionVersion::V1,
@@ -83,11 +87,16 @@ public:
     }
 
 	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
+	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const CoverSetProvider& cover_set_provider);
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
     static bool verifyHistorical(
         const Params* params,
         const std::vector<SpendTransaction>& transactions,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
+    static bool verifyHistorical(
+        const Params* params,
+        const std::vector<SpendTransaction>& transactions,
+        const CoverSetProvider& cover_set_provider);
     static bool verifyHistorical(
         const SpendTransaction& transaction,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
@@ -300,7 +309,7 @@ private:
 	static bool verify(
         const Params* params,
         const std::vector<SpendTransaction>& transactions,
-        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
+		const CoverSetProvider& cover_set_provider,
 		bool require_single_input);
 
     static ChaumV2Context GetChaumV2Context(

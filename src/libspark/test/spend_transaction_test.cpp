@@ -2,6 +2,7 @@
 
 #include "../../test/test_bitcoin.h"
 #include <boost/test/unit_test.hpp>
+#include <new>
 
 namespace spark {
 
@@ -160,6 +161,26 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
         blockHashes);
     transactionV2.setCoverSets(cover_set_data);
     BOOST_REQUIRE(SpendTransaction::verify(transactionV2, cover_sets));
+
+    std::size_t providerCalls = 0;
+    const SpendTransaction::CoverSetProvider provider =
+        [&cover_sets, &providerCalls](uint64_t id)
+            -> const std::vector<Coin>& {
+        ++providerCalls;
+        return cover_sets.at(id);
+    };
+    BOOST_CHECK(SpendTransaction::verify(
+        params, {transactionV2}, provider));
+    BOOST_CHECK_EQUAL(providerCalls, cover_sets.size());
+
+    const SpendTransaction::CoverSetProvider allocationFailure =
+        [](uint64_t) -> const std::vector<Coin>& {
+        throw std::bad_alloc();
+    };
+    BOOST_CHECK_THROW(
+        SpendTransaction::verify(
+            params, {transactionV2}, allocationFailure),
+        std::bad_alloc);
 
     // V2 must authorize the exact serialized cover-set reference map. Even
     // when two reference blocks happen to resolve to the same cover set, a
