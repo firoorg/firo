@@ -140,7 +140,12 @@ public:
         const uint256& digest,
         bool useChaumV2);
 
-    bool CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData = nullptr);
+    bool CheckSparkNameTx(
+        const CTransaction &tx,
+        int nHeight,
+        CValidationState &state,
+        CSparkNameTxData *outSparkNameData = nullptr,
+        int nContextualFailureDoS = 100);
 
     // test if the spark name is valid
     static bool IsSparkNameValid(const std::string &name);

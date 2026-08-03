@@ -376,7 +376,8 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
                 tx,
                 nextBlockHeight,
                 state,
-                &sparkNameData)) {
+                &sparkNameData,
+                0)) {
             throw JSONRPCError(
                 RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
         }

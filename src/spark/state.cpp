@@ -835,6 +835,19 @@ bool CheckSparkSpendTransaction(
 
     Consensus::Params const & params = ::Params().GetConsensus();
     int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+    const bool isMempoolAcceptance = !sparkTxInfo;
+    const bool isChaumV2 = tx.nType == TRANSACTION_SPARK_V2;
+    if (fStatefulSigmaCheck && isMempoolAcceptance && isChaumV2 &&
+        height < params.nSparkChaumV2StartBlock) {
+        // Do not parse or score a format that cannot enter the next block.
+        // This also keeps malformed premature payloads from affecting a peer's
+        // ban score before the format is active.
+        return state.DoS(
+            0,
+            false,
+            REJECT_NONSTANDARD,
+            "CheckSparkSpendTransaction: CHAUM_V2 is not active");
+    }
     if (!isVerifyDB) {
             if (height >= params.nSparkStartBlock) {
                 // data should be moved to v3 payload
@@ -886,8 +899,6 @@ bool CheckSparkSpendTransaction(
 
     if (!fStatefulSigmaCheck)
         return true;
-    bool isMempoolAcceptance = (!sparkTxInfo);
-    const bool isChaumV2 = tx.nType == TRANSACTION_SPARK_V2;
     if (isChaumV2 && height < params.nSparkChaumV2StartBlock) {
         return state.DoS(isMempoolAcceptance ? 0 : 100,
                          false,
@@ -1342,7 +1353,12 @@ bool CheckSparkTransaction(
                 CSparkNameManager *sparkNameManager =
                     SparkNameManagerForValidation(isVerifyDB);
                 CSparkNameTxData sparkTxData;
-                if (sparkNameManager->CheckSparkNameTx(tx, nRealHeight, state, &sparkTxData)) {
+                if (sparkNameManager->CheckSparkNameTx(
+                        tx,
+                        nRealHeight,
+                        state,
+                        &sparkTxData,
+                        /* nContextualFailureDoS */ nHeight == INT_MAX ? 0 : 100)) {
                     if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                         // Check if the block already contains conflicting spark name
                         if (CSparkNameManager::IsInConflict(sparkTxData, sparkTxInfo->sparkNames,

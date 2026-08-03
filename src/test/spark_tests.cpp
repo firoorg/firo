@@ -1117,6 +1117,38 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         true,
         &prematureInfo));
 
+    CValidationState prematureMempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        v2Multi,
+        prematureMempoolState,
+        v2Multi.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    int prematureMempoolDoS = -1;
+    BOOST_REQUIRE(prematureMempoolState.IsInvalid(
+        prematureMempoolDoS));
+    BOOST_CHECK_EQUAL(prematureMempoolDoS, 0);
+
+    CMutableTransaction malformedPrematureV2(v2Multi);
+    malformedPrematureV2.vExtraPayload.clear();
+    CValidationState malformedPrematureMempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        malformedPrematureV2,
+        malformedPrematureMempoolState,
+        malformedPrematureV2.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    int malformedPrematureMempoolDoS = -1;
+    BOOST_REQUIRE(malformedPrematureMempoolState.IsInvalid(
+        malformedPrematureMempoolDoS));
+    BOOST_CHECK_EQUAL(malformedPrematureMempoolDoS, 0);
+
     BOOST_CHECK(!GenerateBlock({CMutableTransaction(v2Multi)}));
     BOOST_CHECK_EQUAL(chainActive.Height(), preActivationHeight);
 

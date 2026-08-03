@@ -1107,6 +1107,7 @@ void CTxMemPool::_clear()
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
     sparkState.Reset();
+    sparkNames.clear();
     ++nTransactionsUpdated;
 }
 

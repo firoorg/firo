@@ -834,6 +834,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     const Consensus::Params& consensus = Params().GetConsensus();
 
+    if (tx.IsSparkSpendV2() &&
+        chainActive.Height() + 1 < consensus.nSparkChaumV2StartBlock) {
+        // Reject the not-yet-mineable format before parsing any nested Spark
+        // or Spark Name data. Malformed future-format payloads are policy
+        // failures and must not increase the relaying peer's ban score.
+        return state.DoS(
+            0,
+            false,
+            REJECT_NONSTANDARD,
+            "spark-chaum-v2-not-active");
+    }
+
     bool startLelantusRejectSigma = (chainActive.Height() >= consensus.nLelantusStartBlock);
     if (startLelantusRejectSigma) {
         if(tx.IsSigmaMint() || tx.IsSigmaSpend()) {
@@ -900,7 +912,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height() + 1, state, &sparkNameData))
+            if (!sparkNameManager->CheckSparkNameTx(
+                    tx,
+                    chainActive.Height() + 1,
+                    state,
+                    &sparkNameData,
+                    /* nContextualFailureDoS */ 0))
                 return false;
 
             if (!sparkNameData.name.empty() &&
