@@ -46,13 +46,61 @@ static void CacheSuccessfulSparkSpendProof(const uint256& hashTx)
 }
 
 static CSparkState sparkState;
+static thread_local CSparkVerifyDBContext* activeVerifyDBContext = nullptr;
+
+static CSparkState& SparkStateForValidation(bool isVerifyDB)
+{
+    if (isVerifyDB && activeVerifyDBContext) {
+        return activeVerifyDBContext->GetSparkState();
+    }
+    return sparkState;
+}
+
+static CSparkNameManager* SparkNameManagerForValidation(bool isVerifyDB)
+{
+    if (isVerifyDB && activeVerifyDBContext) {
+        return &activeVerifyDBContext->GetSparkNameManager();
+    }
+    return CSparkNameManager::GetInstance();
+}
+
+CSparkVerifyDBContext::CSparkVerifyDBContext(CBlockIndex* tip) :
+    previous(activeVerifyDBContext)
+{
+    state = sparkState;
+    sparkNameManager.CopyFrom(*CSparkNameManager::GetInstance());
+    for (CBlockIndex* index = chainActive.Tip();
+         index && index != tip;
+         index = index->pprev) {
+        state.RemoveBlock(index);
+        sparkNameManager.RemoveBlock(index, false);
+    }
+    activeVerifyDBContext = this;
+}
+
+CSparkVerifyDBContext::~CSparkVerifyDBContext()
+{
+    activeVerifyDBContext = previous;
+}
+
+void CSparkVerifyDBContext::AddBlock(CBlockIndex* index)
+{
+    state.AddBlock(index);
+    sparkNameManager.AddBlock(index, false, false);
+}
+
+CSparkVerifyDBContext* CSparkVerifyDBContext::GetActive()
+{
+    return activeVerifyDBContext;
+}
 
 static bool CheckLTag(
         CValidationState &state,
         CSparkTxInfo *sparkTxInfo,
         const GroupElement& lTag,
         int nHeight,
-        bool fConnectTip) {
+        bool fConnectTip,
+        CSparkState& validationState) {
     // check for Spark transaction in this block as well
     if (sparkTxInfo &&
         !sparkTxInfo->fInfoIsComplete &&
@@ -61,7 +109,7 @@ static bool CheckLTag(
             "bad-spark-linking-tag-duplicate");
 
     // check for used linking tags in state
-    if (sparkState.IsUsedLTag(lTag)) {
+    if (validationState.IsUsedLTag(lTag)) {
         // Proceed with checks ONLY if we're accepting tx into the memory pool or connecting block to the existing blockchain
         if (nHeight == INT_MAX || fConnectTip) {
             return state.DoS(0, false, REJECT_INVALID,
@@ -388,7 +436,8 @@ bool ConnectBlockSpark(
         const CChainParams &chainparams,
         CBlockIndex *pindexNew,
         const CBlock *pblock,
-        bool fJustCheck) {
+        bool fJustCheck,
+        bool isVerifyDB) {
 
     bool fBackupRewrittenSparkNames = false;
     
@@ -405,12 +454,15 @@ bool ConnectBlockSpark(
         }
 
         BOOST_FOREACH(auto& lTag, pblock->sparkTxInfo->spentLTags) {
+            CSparkState& validationState =
+                SparkStateForValidation(isVerifyDB);
             if (!CheckLTag(
                     state,
                     pblock->sparkTxInfo.get(),
                     lTag.first,
                     pindexNew->nHeight,
-                    true /* fConnectTip */
+                    !isVerifyDB || activeVerifyDBContext,
+                    validationState
             )) {
                 return false;
             }
@@ -429,6 +481,9 @@ bool ConnectBlockSpark(
             }
         }
         else {
+            if (isVerifyDB && activeVerifyDBContext) {
+                activeVerifyDBContext->AddBlock(pindexNew);
+            }
             return true;
         }
 
@@ -636,7 +691,9 @@ bool CheckSparkMintTransaction(
         CValidationState &state,
         uint256 hashTx,
         bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo) {
+        CSparkTxInfo* sparkTxInfo,
+        bool enforceMintUniqueness,
+        CSparkState* chainState) {
 
     LogPrintf("CheckSparkMintTransaction txHash = %s\n", hashTx.GetHex());
     const spark::Params* params = spark::Params::get_default();
@@ -672,6 +729,28 @@ bool CheckSparkMintTransaction(
                          "CheckSparkMintTransaction : mintTransaction parsing failed");
 
 
+    if (enforceMintUniqueness) {
+        std::unordered_set<Coin, CoinHash> transactionMints;
+        for (const Coin& coin : coins) {
+            const bool repeatedInTransaction =
+                !transactionMints.insert(coin).second;
+            const bool repeatedInBlock = sparkTxInfo &&
+                std::find(
+                    sparkTxInfo->mints.begin(),
+                    sparkTxInfo->mints.end(),
+                    coin) != sparkTxInfo->mints.end();
+            const bool repeatedInChain = chainState &&
+                chainState->HasCoin(coin);
+            if (repeatedInTransaction || repeatedInBlock || repeatedInChain) {
+                return state.DoS(
+                    100,
+                    false,
+                    REJECT_INVALID,
+                    "bad-txns-spark-mint-duplicate");
+            }
+        }
+    }
+
     for (size_t i = 0; i < coins.size(); i++) {
         auto& coin = coins[i];
         if (cmp::not_equal(coin.v, txOuts[i].nValue))
@@ -686,11 +765,12 @@ bool CheckSparkMintTransaction(
 //                             REJECT_INVALID,
 //                             "CTransaction::CheckTransaction() : Spark Mint is out of limit.");
 
-        if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
-            // Update coin list in the info
-            sparkTxInfo->mints.push_back(coin);
-            sparkTxInfo->spTransactions.insert(hashTx);
-        }
+    }
+
+    if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
+        sparkTxInfo->mints.insert(
+            sparkTxInfo->mints.end(), coins.begin(), coins.end());
+        sparkTxInfo->spTransactions.insert(hashTx);
     }
 
     return true;
@@ -951,7 +1031,10 @@ bool CheckSparkSpendTransaction(
         const int previousStateCoverSetId =
             static_cast<int>(wireCoverSetId - 1);
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!sparkState.GetCoinGroupInfo(stateCoverSetId, coinGroup)) {
+        CSparkState& validationSparkState =
+            SparkStateForValidation(isVerifyDB);
+        if (!validationSparkState.GetCoinGroupInfo(
+                stateCoverSetId, coinGroup)) {
             return state.DoS(
                 isMempoolAcceptance ? 0 : 100,
                 false,
@@ -1131,14 +1214,18 @@ bool CheckSparkSpendTransaction(
 
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
-            const bool fConnectTip = sparkTxInfo && !isVerifyDB;
+            const bool fConnectTip = sparkTxInfo &&
+                (!isVerifyDB || activeVerifyDBContext);
+            CSparkState& validationSparkState =
+                SparkStateForValidation(isVerifyDB);
             for (size_t i = 0; i < lTags.size(); ++i) {
                     if (!CheckLTag(
                             state,
                             sparkTxInfo,
                             lTags[i],
                             nHeight,
-                            fConnectTip)) {
+                            fConnectTip,
+                            validationSparkState)) {
                         LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
@@ -1153,7 +1240,7 @@ bool CheckSparkSpendTransaction(
             }
         }
 
-        if (!isVerifyDB && !isCheckWallet) {
+        if (!isCheckWallet) {
             // add spend information to the index
             if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                 for (size_t i = 0; i < lTags.size(); i++) {
@@ -1171,7 +1258,7 @@ bool CheckSparkSpendTransaction(
             "CheckSparkSpendTransaction: proof verification failed");
     }
 
-    if (!isVerifyDB && !isCheckWallet) {
+    if (!isCheckWallet) {
         if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
             sparkTxInfo->spTransactions.insert(hashTx);
         }
@@ -1192,10 +1279,16 @@ bool CheckSparkTransaction(
 {
     Consensus::Params const & consensus = ::Params().GetConsensus();
 
+    int nRealHeight = nHeight;
+    if (nRealHeight == INT_MAX) {
+        LOCK(cs_main);
+        nRealHeight = chainActive.Height() + 1;
+    }
+
     bool const allowSpark = IsSparkAllowed();
 
     // Check Spark Mint Transaction
-    if (allowSpark && !isVerifyDB && tx.IsSparkMint()) {
+    if (allowSpark && tx.IsSparkMint()) {
         std::vector<CTxOut> txOuts;
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSparkMint()) {
@@ -1204,7 +1297,18 @@ bool CheckSparkTransaction(
         }
         if (!txOuts.empty()) {
             try {
-                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                if (!CheckSparkMintTransaction(
+                        txOuts,
+                        state,
+                        hashTx,
+                        fStatefulSigmaCheck,
+                        sparkTxInfo,
+                        nRealHeight >= consensus.nSparkSingleInputStartBlock,
+                        isVerifyDB
+                            ? (activeVerifyDBContext
+                                ? &activeVerifyDBContext->GetSparkState()
+                                : nullptr)
+                            : &sparkState)) {
                     LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
                     return false;
                 }
@@ -1221,27 +1325,22 @@ bool CheckSparkTransaction(
 
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
-        int nRealHeight = nHeight;
-        if (nRealHeight == INT_MAX)  // mempool validation checks the next block height
-        {
-            LOCK(cs_main);
-            nRealHeight = chainActive.Height() + 1;
-        }
         if (GetSpendTransparentAmount(tx) > consensus.GetMaxValueSparkSpendPerTransaction(nRealHeight)) {
             return state.DoS(100, false,
                              REJECT_INVALID,
                              "bad-txns-spend-invalid");
         }
 
-        if (!isVerifyDB) {
-            try {
-                if (!CheckSparkSpendTransaction(
-                        tx, state, hashTx, isVerifyDB, nHeight,
-                        isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
-                    return false;
-                }
+        try {
+            if (!CheckSparkSpendTransaction(
+                    tx, state, hashTx, isVerifyDB, nHeight,
+                    isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
+                return false;
+            }
 
-                CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            if (!isVerifyDB || activeVerifyDBContext) {
+                CSparkNameManager *sparkNameManager =
+                    SparkNameManagerForValidation(isVerifyDB);
                 CSparkNameTxData sparkTxData;
                 if (sparkNameManager->CheckSparkNameTx(tx, nRealHeight, state, &sparkTxData)) {
                     if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
@@ -1259,13 +1358,13 @@ bool CheckSparkTransaction(
                     return false;
                 }
             }
-            catch (const std::bad_alloc &) {
-                return state.Error(
-                    "CheckSparkTransaction: memory allocation failed while checking spend");
-            }
-            catch (const std::exception &x) {
-                return state.Error(x.what());
-            }
+        }
+        catch (const std::bad_alloc &) {
+            return state.Error(
+                "CheckSparkTransaction: memory allocation failed while checking spend");
+        }
+        catch (const std::exception &x) {
+            return state.Error(x.what());
         }
     }
 
@@ -1469,9 +1568,14 @@ bool CSparkState::CanAddMintToMempool(const spark::Coin& coin){
     return !HasCoin(coin) && !mempool.sparkState.HasMint(coin);
 }
 
-void CSparkState::AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo) {
-    mintedCoins.insert(std::make_pair(coin, coinInfo));
-    mintMetaInfo[coinInfo.coinGroupId] += 1;
+bool CSparkState::AddMint(
+        const spark::Coin& coin,
+        const CMintedCoinInfo& coinInfo) {
+    const auto inserted = mintedCoins.emplace(coin, coinInfo).second;
+    if (inserted) {
+        mintMetaInfo[coinInfo.coinGroupId] += 1;
+    }
+    return inserted;
 }
 
 void CSparkState::RemoveMint(const spark::Coin& coin) {
@@ -1516,8 +1620,12 @@ void CSparkState::AddMintsToStateAndBlockIndex(
     }
 
     for (const auto& mint : blockMints) {
-        AddMint(mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
-        LogPrintf("AddMintsToStateAndBlockIndex: Spark mint added id=%d\n", latestCoinId);
+        const bool inserted = AddMint(
+            mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
+        LogPrintf(
+            "AddMintsToStateAndBlockIndex: Spark mint %s id=%d\n",
+            inserted ? "added" : "already present",
+            latestCoinId);
         index->sparkMintedCoins[latestCoinId].push_back(mint);
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
@@ -1652,10 +1760,17 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
             auto mintCoins = GetMints().equal_range(coin);
             auto coinIt = find_if(
                     mintCoins.first, mintCoins.second,
-                    [&coins](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
-                        return v.second.coinGroupId == coins.first;
+                    [&coins, index](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
+                        return v.second.coinGroupId == coins.first &&
+                            v.second.nHeight == index->nHeight;
                     });
-            assert(coinIt != mintCoins.second);
+            if (coinIt == mintCoins.second) {
+                LogPrintf(
+                    "RemoveBlock: Spark mint missing from state at height=%d group=%d\n",
+                    index->nHeight,
+                    coins.first);
+                continue;
+            }
             RemoveMint(coinIt->first);
         }
     }

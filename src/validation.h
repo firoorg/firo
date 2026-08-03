@@ -554,7 +554,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& coins,
-                  const CChainParams& chainparams, bool fJustCheck = false);
+                  const CChainParams& chainparams, bool fJustCheck = false,
+                  bool isVerifyDB = false);
 
 /** Reprocess a number of blocks to try and get on the correct chain again **/
 bool DisconnectBlocks(int blocks);

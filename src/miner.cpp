@@ -935,7 +935,7 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             }
         }
 
-        if (tx.nVersion >= 3 && tx.nType == TRANSACTION_SPORK) {
+        if (tx.nVersion == 3 && tx.nType == TRANSACTION_SPORK) {
             CSporkTx sporkTx;
             if (GetTxPayload<CSporkTx>(tx, sporkTx)) {
                 sporkTxs.insert(mi);

@@ -42,7 +42,8 @@ public:
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
     bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state);
-    bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
+    bool UndoBlock(const CBlock& block, const CBlockIndex* pindex,
+                   bool fAddMinable = true);
 
     void AddMinableCommitment(const CFinalCommitment& fqc);
     bool HasMinableCommitment(const uint256& hash);
@@ -52,6 +53,9 @@ public:
 
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash);
     bool GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, CFinalCommitment& ret, uint256& retMinedBlockHash);
+
+    /** Drop database-derived results after temporary database traversal. */
+    void ClearMinedCommitmentCache();
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t maxCount);
     std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(const CBlockIndex* pindex);

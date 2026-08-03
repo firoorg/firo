@@ -325,6 +325,40 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(disconnecting_historical_duplicate_mint_preserves_original)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> transactions;
+    const CSparkMintMeta mint = GenerateMints({COIN}, transactions).front();
+    const spark::Coin coin =
+        pwalletMain->sparkWallet->getCoinFromMeta(mint);
+    ::mempool.clear();
+
+    CBlockIndex* originalIndex = GenerateBlock({});
+    CBlock originalBlock = GetCBlock(originalIndex);
+    PopulateSparkTxInfo(originalBlock, {coin}, {});
+
+    CBlockIndex* duplicateIndex = GenerateBlock({});
+    CBlock duplicateBlock = GetCBlock(duplicateIndex);
+    PopulateSparkTxInfo(duplicateBlock, {coin}, {});
+
+    sparkState->AddMintsToStateAndBlockIndex(
+        originalIndex, &originalBlock);
+    sparkState->AddMintsToStateAndBlockIndex(
+        duplicateIndex, &duplicateBlock);
+    BOOST_REQUIRE(sparkState->HasCoin(coin));
+    BOOST_REQUIRE_EQUAL(sparkState->GetTotalCoins(), 1U);
+
+    sparkState->RemoveBlock(duplicateIndex);
+    BOOST_CHECK(sparkState->HasCoin(coin));
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), 1U);
+
+    sparkState->RemoveBlock(originalIndex);
+    BOOST_CHECK(!sparkState->HasCoin(coin));
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), 0U);
+}
+
 BOOST_AUTO_TEST_CASE(get_coin_group)
 {
     GenerateBlocks(500);

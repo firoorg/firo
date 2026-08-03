@@ -226,7 +226,8 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     return true;
 }
 
-bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pindex)
+bool CQuorumBlockProcessor::UndoBlock(
+        const CBlock& block, const CBlockIndex* pindex, bool fAddMinable)
 {
     AssertLockHeld(cs_main);
 
@@ -249,8 +250,10 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pi
             hasMinedCommitmentCache.erase(std::make_pair((Consensus::LLMQType)qc.llmqType, qc.quorumHash));
         }
 
-        // if a reorg happened, we should allow to mine this commitment later
-        AddMinableCommitment(qc);
+        // If a real reorg happened, allow this commitment to be mined later.
+        // VerifyDB's temporary disconnect must not mutate or relay mining work.
+        if (fAddMinable)
+            AddMinableCommitment(qc);
     }
 
     evoDb.Write(DB_BEST_BLOCK_UPGRADE, pindex->pprev->GetBlockHash());
@@ -389,6 +392,12 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
     LOCK(minableCommitmentsCs);
     hasMinedCommitmentCache.emplace(cacheKey, ret);
     return ret;
+}
+
+void CQuorumBlockProcessor::ClearMinedCommitmentCache()
+{
+    LOCK(minableCommitmentsCs);
+    hasMinedCommitmentCache.clear();
 }
 
 bool CQuorumBlockProcessor::GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, CFinalCommitment& retQc, uint256& retMinedBlockHash)

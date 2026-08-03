@@ -43,13 +43,17 @@ bool IsCanonicalOwnershipProof(
 
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
 
-bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
+bool CSparkNameManager::AddBlock(
+    CBlockIndex *pindex,
+    bool fBackupRewrittenEntries,
+    bool notify)
 {
     LOCK(cs_spark_name);
     for (const auto &entry : pindex->removedSparkNames) {
         sparkNameAddresses.erase(entry.second.sparkAddress);
         sparkNames.erase(ToUpper(entry.first));
-        uiInterface.NotifySparkNameRemoved(entry.second);
+        if (notify)
+            uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
     for (const auto &entry : pindex->addedSparkNames) {
@@ -58,28 +62,47 @@ bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntri
             pindex->removedSparkNames[upperName] = sparkNames[upperName];
         sparkNames[upperName] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = upperName;
-        uiInterface.NotifySparkNameAdded(entry.second);
+        if (notify)
+            uiInterface.NotifySparkNameAdded(entry.second);
     }
 
     return true;
 }
 
-bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
+bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex, bool notify)
 {
     LOCK(cs_spark_name);
     for (const auto &entry : pindex->addedSparkNames) {
         sparkNames.erase(ToUpper(entry.first));
         sparkNameAddresses.erase(entry.second.sparkAddress);
-        uiInterface.NotifySparkNameRemoved(entry.second);
+        if (notify)
+            uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
     for (const auto &entry : pindex->removedSparkNames) {
         sparkNames[ToUpper(entry.first)] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = ToUpper(entry.first);
-        uiInterface.NotifySparkNameAdded(entry.second);
+        if (notify)
+            uiInterface.NotifySparkNameAdded(entry.second);
     }
 
     return true;
+}
+
+void CSparkNameManager::CopyFrom(const CSparkNameManager& other)
+{
+    std::map<std::string, CSparkNameBlockIndexData> names;
+    std::map<std::string, std::string> addresses;
+    {
+        LOCK(other.cs_spark_name);
+        names = other.sparkNames;
+        addresses = other.sparkNameAddresses;
+    }
+    {
+        LOCK(cs_spark_name);
+        sparkNames = std::move(names);
+        sparkNameAddresses = std::move(addresses);
+    }
 }
 
 std::set<std::string> CSparkNameManager::GetSparkNames()

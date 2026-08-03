@@ -41,7 +41,6 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
-#include "batchproof_container.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -267,9 +266,6 @@ void Shutdown()
     StopRPC();
     StopHTTPServer();
     llmq::StopLLMQSystem();
-
-    BatchProofContainer::get_instance()->finalize();
-    BatchProofContainer::get_instance()->verify();
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)

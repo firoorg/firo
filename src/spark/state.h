@@ -72,7 +72,8 @@ bool ConnectBlockSpark(
         const CChainParams& chainparams,
         CBlockIndex* pindexNew,
         const CBlock *pblock,
-        bool fJustCheck=false);
+        bool fJustCheck=false,
+        bool isVerifyDB=false);
 
 void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
 
@@ -179,7 +180,7 @@ public:
 
     bool CanAddMintToMempool(const spark::Coin& coin);
 
-    void AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo);
+    bool AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo);
     void RemoveMint(const spark::Coin& coin);
     // Add mints in block, automatically assigning id to it
     void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
@@ -284,6 +285,32 @@ private:
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
     friend struct spark_mintspend::spark_mintspend_test;
+};
+
+/**
+ * Isolated Spark state used while VerifyDB reconnects blocks. The active
+ * context is thread-local so validation can use it without changing the live
+ * node state that VerifyDB is auditing.
+ */
+class CSparkVerifyDBContext {
+public:
+    explicit CSparkVerifyDBContext(CBlockIndex* tip);
+    ~CSparkVerifyDBContext();
+
+    CSparkVerifyDBContext(const CSparkVerifyDBContext&) = delete;
+    CSparkVerifyDBContext& operator=(const CSparkVerifyDBContext&) = delete;
+
+    void AddBlock(CBlockIndex* index);
+
+    CSparkState& GetSparkState() { return state; }
+    CSparkNameManager& GetSparkNameManager() { return sparkNameManager; }
+
+    static CSparkVerifyDBContext* GetActive();
+
+private:
+    CSparkState state;
+    CSparkNameManager sparkNameManager;
+    CSparkVerifyDBContext* previous;
 };
 
 } // namespace spark

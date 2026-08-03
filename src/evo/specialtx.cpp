@@ -115,7 +115,13 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     return false;
 }
 
-bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck, bool fCheckCbTxMerleRoots)
+bool ProcessSpecialTxsInBlock(
+        const CBlock& block,
+        const CBlockIndex* pindex,
+        CValidationState& state,
+        bool fJustCheck,
+        bool fCheckCbTxMerleRoots,
+        bool fNotify)
 {
     static int64_t nTimeLoop = 0;
     static int64_t nTimeQuorum = 0;
@@ -148,7 +154,14 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     CDeterministicMNList* newMNListRet = fCheckCbTxMerleRoots ? &newMNList : nullptr;
     bool cbTxMerkleRootMNListChanged = true;
     bool* cbTxMerkleRootMNListChangedRet = fCheckCbTxMerleRoots ? &cbTxMerkleRootMNListChanged : nullptr;
-    if (!deterministicMNManager->ProcessBlock(block, pindex, state, fJustCheck, newMNListRet, cbTxMerkleRootMNListChangedRet)) {
+    if (!deterministicMNManager->ProcessBlock(
+            block,
+            pindex,
+            state,
+            fJustCheck,
+            newMNListRet,
+            cbTxMerkleRootMNListChangedRet,
+            fNotify)) {
         return false;
     }
 
@@ -165,7 +178,8 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     return true;
 }
 
-bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
+bool UndoSpecialTxsInBlock(
+        const CBlock& block, const CBlockIndex* pindex, bool fNotify)
 {
     for (int i = (int)block.vtx.size() - 1; i >= 0; --i) {
         const CTransaction& tx = *block.vtx[i];
@@ -174,11 +188,11 @@ bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
         }
     }
 
-    if (!deterministicMNManager->UndoBlock(block, pindex)) {
+    if (!deterministicMNManager->UndoBlock(block, pindex, fNotify)) {
         return false;
     }
 
-    if (!llmq::quorumBlockProcessor->UndoBlock(block, pindex)) {
+    if (!llmq::quorumBlockProcessor->UndoBlock(block, pindex, fNotify)) {
         return false;
     }
 

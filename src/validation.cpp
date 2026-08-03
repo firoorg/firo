@@ -66,6 +66,7 @@
 
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
+#include "llmq/quorums_blockprocessor.h"
 
 #include <atomic>
 #include <sstream>
@@ -765,7 +766,9 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
             if (tx.nType == TRANSACTION_SPORK &&
-                    !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
+                    (tx.nVersion != 3 ||
+                     !(nHeight >= consensusParams.nEvoSporkStartBlock &&
+                       nHeight < consensusParams.nEvoSporkStopBlock)))
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             if ((tx.nType == TRANSACTION_SPARK ||
                  tx.nType == TRANSACTION_SPARK_V2) &&
@@ -2348,7 +2351,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         return DISCONNECT_FAILED;
     }
 
-    if (!UndoSpecialTxsInBlock(block, pindex)) {
+    if (!UndoSpecialTxsInBlock(block, pindex, pfClean == nullptr)) {
         return DISCONNECT_FAILED;
     }
 
@@ -2532,20 +2535,29 @@ static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex,
-                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck)
+                  CCoinsViewCache& view, const CChainParams& chainparams,
+                  bool fJustCheck, bool isVerifyDB)
 {
     AssertLockHeld(cs_main);
+    assert(!isVerifyDB || fJustCheck);
 
     int64_t nTimeStart = GetTimeMicros();
     //btzc: update nHeight, isVerifyDB
     // Check it again in case a previous version let a bad block in
     LogPrint("validation", "ConnectBlock nHeight=%d, hash=%s\n", pindex->nHeight, block.GetHash().ToString());
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, false)) {
+    if (!CheckBlock(
+            block,
+            state,
+            chainparams.GetConsensus(),
+            !fJustCheck,
+            !fJustCheck,
+            pindex->nHeight,
+            isVerifyDB)) {
         LogPrintf("--> failed\n");
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     }
 
-    if (block.IsProgPow() && !fJustCheck)
+    if (block.IsProgPow() && (!fJustCheck || isVerifyDB))
     {
         // do full PP hash check
 
@@ -2716,6 +2728,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     batchProofContainer->init();
     batchProofContainer->fCollectProofs =
+        !isVerifyDB &&
         ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) &&
         GetBoolArg("-batching", true);
     struct BatchProofCleanup {
@@ -2800,7 +2813,16 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
 
             // Check transaction against signa/lelantus state
-            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.sparkTxInfo.get()))
+            if (!CheckTransaction(
+                    tx,
+                    state,
+                    false,
+                    txHash,
+                    isVerifyDB,
+                    pindex->nHeight,
+                    false,
+                    true,
+                    block.sparkTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -2898,20 +2920,83 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, pindex->nTime, blockSubsidy)) {
-        LOCK(cs_main);
-        mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        if (!isVerifyDB) {
+            LOCK(cs_main);
+            mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        }
         return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
                                 REJECT_INVALID, "bad-cb-payee");
     }
 
-    if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
+    // Derive and validate the block's spork state before any subsystem mutates
+    // persistent or process-global state.
+    struct SporkSetRollback {
+        CBlockIndex* index;
+        decltype(pindex->activeDisablingSporks) backup;
+        bool enabled;
+        ~SporkSetRollback()
+        {
+            if (enabled)
+                index->activeDisablingSporks.swap(backup);
+        }
+    } sporkSetRollback{
+        pindex, std::move(pindex->activeDisablingSporks), true};
+    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
+
+    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
+        try {
+            for (const CTransactionRef& tx : block.vtx) {
+                // Reject type-tagged later versions here; only version 3
+                // serializes the payload consumed by the spork state updater.
+                if (tx->nVersion >= 3 &&
+                        tx->nType == TRANSACTION_SPORK &&
+                        !CheckSporkTx(*tx, pindex->pprev, state)) {
+                    return false;
+                }
+            }
+        }
+        catch (const std::bad_alloc&) {
+            return state.Error(
+                "ConnectBlock(): memory allocation failed while checking Evo sporks");
+        }
+
+        if (!sporkManager->BlockConnected(block, pindex)) {
+            return false;
+        }
+
+        for (const CTransactionRef& tx : block.vtx) {
+            if (!sporkManager->IsTransactionAllowed(
+                    *tx, pindex->activeDisablingSporks, state)) {
+                return false;
+            }
+        }
+    }
+
+    if (!sporkManager->IsBlockAllowed(block, pindex, state)) {
+        return false;
+    }
+
+    if (!spark::CheckSparkBlock(state, block, pindex->nHeight)) {
+        return false;
+    }
+
+    if (!ProcessSpecialTxsInBlock(
+            block,
+            pindex,
+            state,
+            isVerifyDB ? false : fJustCheck,
+            fScriptChecks,
+            !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
     }
     // END ZNODE
 
     //CHECK TRANSACTIONS FOR INSTANTSEND
-    if (pindex->nHeight >= Params().GetConsensus().nInstantSendBlockFilteringStartHeight && IsNewInstantSendEnabled()) {
+    if (!isVerifyDB &&
+        pindex->nHeight >= Params().GetConsensus().nInstantSendBlockFilteringStartHeight &&
+        IsNewInstantSendEnabled()) {
         // Require other nodes to comply, send them some data in case they are missing it.
         for (const auto& tx : block.vtx) {
             // skip txes that have no inputs
@@ -2937,37 +3022,29 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
     LogPrint("bench", "      - IS filter: %.2fms [%.2fs]\n", 0.001 * (nTime5_1 - nTime4), nTimeISFilter * 0.000001);
 
-    if (!fJustCheck)
-        MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
-
-    // evo spork handling
-    // back up spork state if fJustCheck is true
-    auto sporkSetBackup = pindex->activeDisablingSporks;
-    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
-
-    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
-                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
-        if (!sporkManager->BlockConnected(block, pindex)) {
-            pindex->activeDisablingSporks = sporkSetBackup;
-            return false;
-        }
-
-        // check if transaction is allowed under spork rules
-        for (CTransactionRef tx: block.vtx) {
-            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
-                return false;
-        }
-    }
-
-    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck))
+    if (!spark::ConnectBlockSpark(
+            state,
+            chainparams,
+            pindex,
+            &block,
+            fJustCheck || isVerifyDB,
+            isVerifyDB))
         return false;
 
-    if (!sporkManager->IsBlockAllowed(block, pindex, state))
-        return false;
+    if (!fJustCheck && !isVerifyDB)
+        MTPState::GetMTPState()->SetLastBlock(
+            pindex, chainparams.GetConsensus());
 
     if (fJustCheck) {
-        // roll back spork set if needed
-        pindex->activeDisablingSporks = sporkSetBackup;
+        // VerifyDB reconnects need the temporary coin view to advance across
+        // blocks without executing the persistent ConnectBlock tail.
+        if (isVerifyDB) {
+            view.SetBestBlock(pindex->GetBlockHash());
+            // The enclosing VerifyDB transaction rolls this back after the
+            // temporary reconnect, but the next block must observe the
+            // matching EvoDB tip while it is checked.
+            evoDb->WriteBestBlock(pindex->GetBlockHash());
+        }
         return true;
     }
 
@@ -3028,6 +3105,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
 
+    sporkSetRollback.enabled = false;
     return true;
 }
 
@@ -5139,7 +5217,23 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
 
-    // begin tx and let it rollback
+    struct VerifyDBCacheCleanup {
+        ~VerifyDBCacheCleanup()
+        {
+            // Temporary disconnect/reconnect traversals alter database-derived
+            // caches even though the EvoDB transaction itself rolls back.
+            // Discard those entries on every return path so later reads are
+            // rebuilt from the restored database state.
+            if (deterministicMNManager) {
+                deterministicMNManager->ClearCache();
+            }
+            if (llmq::quorumBlockProcessor) {
+                llmq::quorumBlockProcessor->ClearMinedCommitmentCache();
+            }
+        }
+    } verifyDBCacheCleanup;
+    // Declare the temporary transaction after the cache guard so rollback
+    // completes before the derived caches are discarded.
     auto dbTx = evoDb->BeginTransaction();
 
     // Verify blocks in the best chain
@@ -5214,6 +5308,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
 
     // check level 4: try reconnecting blocks
     if (nCheckLevel >= 4) {
+        spark::CSparkVerifyDBContext sparkContext(pindexState);
         CBlockIndex *pindex = pindexState;
         while (pindex != chainActive.Tip()) {
             boost::this_thread::interruption_point();
@@ -5222,7 +5317,8 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-            if (!ConnectBlock(block, state, pindex, coins, chainparams))
+            if (!ConnectBlock(
+                    block, state, pindex, coins, chainparams, true, true))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
     }

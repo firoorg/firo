@@ -14,8 +14,11 @@ class CBlockIndex;
 class CValidationState;
 
 bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
-bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck, bool fCheckCbTxMerleRoots);
-bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex);
+bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex,
+                              CValidationState& state, bool fJustCheck,
+                              bool fCheckCbTxMerleRoots, bool fNotify = true);
+bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex,
+                           bool fNotify = true);
 
 template <typename T>
 inline bool GetTxPayload(const std::vector<unsigned char>& payload, T& obj)

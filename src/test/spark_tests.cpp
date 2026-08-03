@@ -866,6 +866,99 @@ BOOST_AUTO_TEST_CASE(spark_single_input_consensus_activation)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_mint_uniqueness_activates_with_single_input_rules)
+{
+    struct ResetActivationHeight {
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetActivationHeight;
+
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 1U);
+    mempool.clear();
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
+
+    const CTransaction original(mintTransactions.front());
+    CMutableTransaction replay(original);
+    ++replay.nLockTime;
+    const CTransaction duplicate(replay);
+    BOOST_REQUIRE(original.GetHash() != duplicate.GetHash());
+
+    CValidationState originalState;
+    CSparkTxInfo blockInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        original,
+        originalState,
+        original.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &blockInfo));
+
+    CValidationState duplicateState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        duplicate,
+        duplicateState,
+        duplicate.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &blockInfo));
+    BOOST_CHECK_EQUAL(
+        duplicateState.GetRejectReason(),
+        "bad-txns-spark-mint-duplicate");
+
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_mint_replay_from_chain_is_rejected_after_activation)
+{
+    struct ResetActivationHeight {
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetActivationHeight;
+
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 1U);
+    mempool.clear();
+    GenerateBlock({mintTransactions.front()});
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
+
+    CMutableTransaction replay(mintTransactions.front());
+    ++replay.nLockTime;
+    const CTransaction duplicate(replay);
+    CValidationState duplicateState;
+    CSparkTxInfo blockInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        duplicate,
+        duplicateState,
+        duplicate.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &blockInfo));
+    BOOST_CHECK_EQUAL(
+        duplicateState.GetRejectReason(),
+        "bad-txns-spark-mint-duplicate");
+}
+
 BOOST_AUTO_TEST_CASE(spark_single_input_wallet_requires_one_coin_immediately)
 {
     GenerateBlocks(500);
@@ -1292,6 +1385,16 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
 
 BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
 {
+    struct RestoreBroadcastSetting {
+        CWallet* wallet;
+        bool enabled;
+        ~RestoreBroadcastSetting()
+        {
+            wallet->SetBroadcastTransactions(enabled);
+        }
+    } restoreBroadcast{pwalletMain, pwalletMain->GetBroadcastTransactions()};
+    pwalletMain->SetBroadcastTransactions(true);
+
     struct ResetActivationHeights {
         ~ResetActivationHeights()
         {
@@ -1336,7 +1439,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
     privateRecipient.memo = "fee-reporting";
     CAmount privateFee = 0;
     std::vector<CAmount> reportedRecipientAmounts;
-    const CWalletTx privateSpend =
+    CWalletTx privateSpend =
         pwalletMain->CreateSparkSpendTransaction(
             {},
             {{privateRecipient, true}},
@@ -1354,6 +1457,17 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
         reportedRecipientAmounts.front(),
         static_cast<CAmount>(privateRecipient.v) - privateFee);
 
+    const auto privateOutput = std::find_if(
+        privateSpend.tx->vout.begin(),
+        privateSpend.tx->vout.end(),
+        [](const CTxOut& output) {
+            return output.scriptPubKey.IsSparkSMint();
+        });
+    BOOST_REQUIRE(privateOutput != privateSpend.tx->vout.end());
+    CSparkOutputTx uncommittedOutput;
+    BOOST_CHECK(!pwalletMain->GetSparkOutputTx(
+        privateOutput->scriptPubKey, uncommittedOutput));
+
     // A private-only transaction puts a Spark output at vout.begin(). This
     // also exercises metadata hashing without relying on invalidated vector
     // iterators.
@@ -1368,6 +1482,22 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
         false,
         true,
         &privateSpendInfo));
+
+    CValidationState commitState;
+    CReserveKey reserveKey(pwalletMain);
+    BOOST_REQUIRE(pwalletMain->CommitTransaction(
+        privateSpend,
+        reserveKey,
+        g_connman.get(),
+        commitState,
+        true));
+    CSparkOutputTx committedOutput;
+    BOOST_REQUIRE(pwalletMain->GetSparkOutputTx(
+        privateOutput->scriptPubKey, committedOutput));
+    BOOST_CHECK_EQUAL(committedOutput.memo, privateRecipient.memo);
+    BOOST_CHECK_EQUAL(
+        committedOutput.amount,
+        reportedRecipientAmounts.front());
 
     mempool.clear();
     sparkState->Reset();
@@ -1557,6 +1687,21 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
             candidate, state, &candidateIndex, view, ::Params(), true));
     }
 
+    // VerifyDB must avoid tip-state mutation without skipping the proof.
+    CValidationState verifyState;
+    CCoinsViewCache verifyView(pcoinsTip);
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!ConnectBlock(
+            candidate,
+            verifyState,
+            &candidateIndex,
+            verifyView,
+            ::Params(),
+            true,
+            true));
+    }
+
     mempool.clear();
     sparkState->Reset();
 }
@@ -1610,6 +1755,189 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     // block to finalize and verify.
     batch->finalize();
     BOOST_CHECK_NO_THROW(batch->verify());
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(verifydb_level_four_reconnects_spark_spend_and_mints)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    CMutableTransaction spend(GenerateSparkSpend({4 * COIN}, {}, nullptr));
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock({spend}));
+
+    CVerifyDB verifier;
+    BOOST_CHECK(verifier.VerifyDB(::Params(), pcoinsTip, 4, 12));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(verifydb_rejects_invalid_standalone_spark_mint)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 1U);
+    mempool.clear();
+
+    CMutableTransaction invalidMint(mintTransactions.front());
+    auto mintOutput = std::find_if(
+        invalidMint.vout.begin(),
+        invalidMint.vout.end(),
+        [](const CTxOut& output) {
+            return output.scriptPubKey.IsSparkMint();
+        });
+    BOOST_REQUIRE(mintOutput != invalidMint.vout.end());
+    BOOST_REQUIRE(mintOutput->scriptPubKey.size() > 1U);
+    mintOutput->scriptPubKey.back() ^= 1;
+
+    const CTransaction invalidTransaction(invalidMint);
+    CValidationState state;
+    CSparkTxInfo info;
+    BOOST_CHECK(!CheckSparkTransaction(
+        invalidTransaction,
+        state,
+        invalidTransaction.GetHash(),
+        true,
+        chainActive.Height() + 1,
+        false,
+        true,
+        &info));
+}
+
+BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto mints = GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    CCoinControl coinControl;
+    const auto mintOutput = std::find_if(
+        mintTransactions[0].vout.begin(),
+        mintTransactions[0].vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+    BOOST_REQUIRE(mintOutput != mintTransactions[0].vout.end());
+    coinControl.Select(COutPoint(
+        mintTransactions[0].GetHash(),
+        std::distance(mintTransactions[0].vout.begin(), mintOutput)));
+
+    const CMutableTransaction firstSpend(
+        GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    CSparkMintMeta mintMeta =
+        pwalletMain->sparkWallet->getMintMeta(mints[0].k);
+    BOOST_REQUIRE(mintMeta != CSparkMintMeta());
+    mintMeta.isUsed = false;
+    pwalletMain->sparkWallet->updateMintInMemory(mintMeta);
+    const CMutableTransaction duplicateSpend(
+        GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    mempool.clear();
+
+    BOOST_REQUIRE(firstSpend.GetHash() != duplicateSpend.GetHash());
+    BOOST_REQUIRE(
+        ParseSparkSpend(firstSpend).getUsedLTags() ==
+        ParseSparkSpend(duplicateSpend).getUsedLTags());
+
+    CBlock candidate = CreateBlock({firstSpend, duplicateSpend}, script);
+    uint256 candidateHash = candidate.GetHash();
+    CBlockIndex candidateIndex(candidate);
+    candidateIndex.phashBlock = &candidateHash;
+    candidateIndex.pprev = chainActive.Tip();
+    candidateIndex.nHeight = chainActive.Height() + 1;
+
+    CValidationState state;
+    CCoinsViewCache view(pcoinsTip);
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!ConnectBlock(
+            candidate,
+            state,
+            &candidateIndex,
+            view,
+            ::Params(),
+            true,
+            true));
+    }
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto mints = GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    CCoinControl coinControl;
+    const auto mintOutput = std::find_if(
+        mintTransactions[0].vout.begin(),
+        mintTransactions[0].vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+    BOOST_REQUIRE(mintOutput != mintTransactions[0].vout.end());
+    coinControl.Select(COutPoint(
+        mintTransactions[0].GetHash(),
+        std::distance(mintTransactions[0].vout.begin(), mintOutput)));
+
+    const CTransaction firstSpend(
+        GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    CSparkMintMeta mintMeta =
+        pwalletMain->sparkWallet->getMintMeta(mints[0].k);
+    BOOST_REQUIRE(mintMeta != CSparkMintMeta());
+    mintMeta.isUsed = false;
+    pwalletMain->sparkWallet->updateMintInMemory(mintMeta);
+    const CTransaction duplicateSpend(
+        GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    mempool.clear();
+
+    BOOST_REQUIRE(
+        ParseSparkSpend(firstSpend).getUsedLTags() ==
+        ParseSparkSpend(duplicateSpend).getUsedLTags());
+
+    CSparkVerifyDBContext verifyContext(chainActive.Tip());
+    CSparkTxInfo firstInfo;
+    CValidationState firstState;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        firstSpend,
+        firstState,
+        firstSpend.GetHash(),
+        true,
+        chainActive.Height() + 1,
+        false,
+        true,
+        &firstInfo));
+
+    CBlockIndex firstSpendIndex;
+    firstSpendIndex.pprev = chainActive.Tip();
+    firstSpendIndex.nHeight = chainActive.Height() + 1;
+    firstSpendIndex.spentLTags = firstInfo.spentLTags;
+    verifyContext.AddBlock(&firstSpendIndex);
+
+    CSparkTxInfo duplicateInfo;
+    CValidationState duplicateState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        duplicateSpend,
+        duplicateState,
+        duplicateSpend.GetHash(),
+        true,
+        chainActive.Height() + 2,
+        false,
+        true,
+        &duplicateInfo));
 
     mempool.clear();
     sparkState->Reset();
