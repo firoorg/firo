@@ -20,6 +20,7 @@
 #include "pow.h"
 #include "primitives/transaction.h"
 #include "script/standard.h"
+#include "spark/state.h"
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
@@ -360,6 +361,9 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 {
     uint64_t nPotentialBlockSize = nBlockSize; // only used with fNeedSizeAccounting
     BOOST_FOREACH (const CTxMemPool::txiter it, package) {
+        if (!spark::IsSparkSpendFormatAllowed(it->GetTx(), nHeight)) {
+            return false;
+        }
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
         if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) {
@@ -380,6 +384,10 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 
 bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 {
+    if (!spark::IsSparkSpendFormatAllowed(iter->GetTx(), nHeight)) {
+        return false;
+    }
+
     if (nBlockWeight + iter->GetTxWeight() >= nBlockMaxWeight) {
         // If the block is so close to full that no more txs will fit
         // or if we've tried more than 50 times to fill remaining space

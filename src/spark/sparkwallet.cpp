@@ -1572,6 +1572,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         LOCK(cs_main);
         nHeight = chainActive.Height();
     }
+    const bool useChaumV2 =
+        nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock;
 
     if (vOut > consensusParams.GetMaxValueSparkSpendPerTransaction(nHeight))
         throw std::runtime_error(_("Spend to transparent address limit exceeded."));
@@ -1623,24 +1625,13 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         {
             std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
             std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
-                    SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, additionalTxSize);
+                    SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, useChaumV2, additionalTxSize);
 
-            // Apply the single-input rule immediately in upgraded wallets,
-            // independently of the configured consensus activation height.
-            // Callers that need to cover a payment with several coins must use
-            // the single-input batch planner instead of this one-shot path.
-            if (estimated.second.size() != 1) {
-                if (coinControl && coinControl->HasSelected()) {
-                    std::vector<COutPoint> selected;
-                    coinControl->ListSelected(selected);
-                    if (selected.size() > 1) {
-                        throw SparkFundsFragmented(_(
-                            "Spark Coin Control temporarily supports selecting at most one coin. "
-                            "Select a single Spark coin, or clear the selection to let the wallet "
-                            "split the payment automatically."));
-                    }
-                }
-                throw SparkFundsFragmented();
+            // V1 construction retains the single-input selection rule.
+            if (!useChaumV2 && estimated.second.size() != 1) {
+                throw InsufficientFunds(_(
+                    "Spark multi-input spends are temporarily disabled. "
+                    "No single available Spark coin can fund this transaction."));
             }
 
             bool remainderSubtracted = false;
@@ -1778,7 +1769,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             // set correct type of transaction (this affects metadata hash)
             tx.nVersion = 3;
-            tx.nType = TRANSACTION_SPARK;
+            tx.nType = useChaumV2
+                ? TRANSACTION_SPARK_V2
+                : TRANSACTION_SPARK;
 
             // now every field is populated then we can sign transaction
             // We will write this into cover set representation, with anonymity set hash
@@ -1845,7 +1838,19 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             }
 
-            spark::SpendTransaction spendTransaction(params, fullViewKey, spendKey, inputs, cover_set_data, cover_sets, fee, transparentOut, privOutputs);
+            spark::SpendTransaction spendTransaction(
+                params,
+                fullViewKey,
+                spendKey,
+                inputs,
+                cover_set_data,
+                cover_sets,
+                fee,
+                transparentOut,
+                privOutputs,
+                useChaumV2
+                    ? spark::SpendTransactionVersion::V2
+                    : spark::SpendTransactionVersion::V1);
             spendTransaction.setBlockHashes(idAndBlockHashes);
             CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
             serialized << spendTransaction;
@@ -2069,6 +2074,7 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         std::size_t mintNum,
         std::size_t utxoNum,
         const CCoinControl *coinControl,
+        bool useChaumV2,
         size_t additionalTxSize) {
 
     CAmount fee;
@@ -2089,6 +2095,12 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         // 1803 is for first grootle proof/aux data
         // 213 for each private output, 34 for each utxo,924 constant parts of tx parts of tx,
         size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum + additionalTxSize;
+        if (useChaumV2 && spendCoins.size() > 1) {
+            // Each additional V2 input carries its own A1, t2 and t3. This is
+            // the exact Chaum-proof delta (34 + 32 + 32 bytes) over V1; the
+            // surrounding fitted estimate remains conservative.
+            size += 98*(spendCoins.size() - 1);
+        }
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {

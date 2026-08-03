@@ -141,6 +141,9 @@ CChainParams& Params(const std::string& chain);
  */
 void SelectParams(const std::string& chain);
 
+/** Reject inconsistent Spark spend activation ordering. */
+void ValidateSparkActivationHeights(const Consensus::Params& consensus);
+
 /**
  * Allows modifying the BIP9 regtest parameters.
  */
@@ -148,5 +151,8 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 
 /** Allows tests to exercise the single-input Spark consensus activation. */
 void UpdateRegtestSparkSingleInputHeight(int height);
+
+/** Allows tests to exercise the Spark CHAUM_V2 hard-fork activation. */
+void UpdateRegtestSparkChaumV2Height(int height);
 
 #endif // BITCOIN_CHAINPARAMS_H

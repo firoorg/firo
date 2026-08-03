@@ -1,5 +1,6 @@
 #include "../chainparams.h"
 #include "../batchproof_container.h"
+#include "../consensus/consensus.h"
 #include "../script/standard.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
@@ -60,9 +61,10 @@ public:
 
     CTransaction GenerateHistoricalMultiInputSpend(
         const std::vector<CSparkMintMeta>& selected,
-        CAmount transparentAmount)
+        CAmount transparentAmount,
+        SpendTransactionVersion version = SpendTransactionVersion::V1)
     {
-        BOOST_REQUIRE(selected.size() > 1U);
+        BOOST_REQUIRE(!selected.empty());
 
         const auto* params = spark::Params::get_default();
         const SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(params);
@@ -75,7 +77,9 @@ public:
             COutPoint(), spendScript, std::numeric_limits<uint32_t>::max());
         tx.vout.emplace_back(transparentAmount, script);
         tx.nVersion = 3;
-        tx.nType = TRANSACTION_SPARK;
+        tx.nType = version == SpendTransactionVersion::V2
+            ? TRANSACTION_SPARK_V2
+            : TRANSACTION_SPARK;
         tx.vExtraPayload.clear();
         const uint256 metadataHash = tx.GetHash();
 
@@ -162,7 +166,8 @@ public:
             coverSets,
             fee,
             transparentAmount,
-            {change});
+            {change},
+            version);
         spend.setBlockHashes(blockHashes);
 
         CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
@@ -800,6 +805,29 @@ BOOST_AUTO_TEST_CASE(spark_single_input_consensus_activation)
     BOOST_REQUIRE(activeState.IsInvalid(activeDoS));
     BOOST_CHECK_EQUAL(activeDoS, 100);
 
+    // Consensus keeps the single-input rule effective if an in-memory test
+    // configuration bypasses the startup ordering check.
+    Consensus::Params& mutableConsensus =
+        const_cast<Consensus::Params&>(::Params().GetConsensus());
+    const int originalV2Height = mutableConsensus.nSparkChaumV2StartBlock;
+    mutableConsensus.nSparkSingleInputStartBlock = activationHeight + 1;
+    mutableConsensus.nSparkChaumV2StartBlock = activationHeight;
+    CValidationState defensiveState;
+    CSparkTxInfo defensiveInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        multiInputSpend,
+        defensiveState,
+        multiInputSpend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &defensiveInfo));
+    BOOST_REQUIRE(defensiveState.IsInvalid(activeDoS));
+    BOOST_CHECK_EQUAL(activeDoS, 100);
+    mutableConsensus.nSparkSingleInputStartBlock = activationHeight;
+    mutableConsensus.nSparkChaumV2StartBlock = originalV2Height;
+
     CValidationState historicalSingleState;
     CSparkTxInfo historicalSingleInfo;
     BOOST_REQUIRE(CheckSparkTransaction(
@@ -852,6 +880,182 @@ BOOST_AUTO_TEST_CASE(spark_single_input_wallet_requires_one_coin_immediately)
         GenerateSparkSpend({4 * COIN}, {}, nullptr));
     BOOST_CHECK_EQUAL(
         ParseSparkSpend(singleInputSpend).getUsedLTags().size(), 1U);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
+{
+    struct ResetActivationHeights {
+        ~ResetActivationHeights()
+        {
+            BatchProofContainer::get_instance()->fCollectProofs = false;
+            BatchProofContainer::get_instance()->init();
+            UpdateRegtestSparkChaumV2Height(INT_MAX);
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetActivationHeights;
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints =
+        GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    GenerateBlock(mintTransactions);
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> fiveCoinMints;
+    for (const auto& mint : createdMints) {
+        if (mint.v == 5 * COIN) {
+            fiveCoinMints.push_back(
+                pwalletMain->sparkWallet->getMintMeta(mint.k));
+        }
+    }
+    BOOST_REQUIRE_EQUAL(fiveCoinMints.size(), 2U);
+
+    // Construct both formats before changing activation so their acceptance
+    // can be tested at the exact boundary.
+    const CTransaction v1Single(GenerateHistoricalMultiInputSpend(
+        {fiveCoinMints[0]}, 4 * COIN, SpendTransactionVersion::V1));
+    const CTransaction v2Multi(GenerateHistoricalMultiInputSpend(
+        fiveCoinMints, 9 * COIN, SpendTransactionVersion::V2));
+    BOOST_REQUIRE(v1Single.IsSparkSpendV1());
+    BOOST_REQUIRE(v2Multi.IsSparkSpendV2());
+    BOOST_REQUIRE(
+        ParseSparkSpend(v2Multi).getVersion() == SpendTransactionVersion::V2);
+
+    CMutableTransaction v2PayloadAsV1(v2Multi);
+    v2PayloadAsV1.nType = TRANSACTION_SPARK;
+    const CTransaction retaggedV2(v2PayloadAsV1);
+    BOOST_REQUIRE(retaggedV2.IsSparkSpendV1());
+    CMutableTransaction v1PayloadAsV2(v1Single);
+    v1PayloadAsV2.nType = TRANSACTION_SPARK_V2;
+    BOOST_CHECK_THROW(ParseSparkSpend(v1PayloadAsV2), std::exception);
+    CMutableTransaction trailingV2(v2Multi);
+    trailingV2.vExtraPayload.push_back(0);
+    BOOST_CHECK_THROW(ParseSparkSpend(trailingV2), std::exception);
+    mempool.clear();
+
+    const int preActivationHeight = chainActive.Height();
+    const int activationHeight = preActivationHeight + 2;
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
+    UpdateRegtestSparkChaumV2Height(activationHeight);
+
+    CValidationState retaggedV2State;
+    CSparkTxInfo retaggedV2Info;
+    BOOST_CHECK(!CheckSparkTransaction(
+        retaggedV2,
+        retaggedV2State,
+        retaggedV2.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &retaggedV2Info));
+
+    CValidationState prematureContextualState;
+    BOOST_CHECK(!IsSparkSpendFormatAllowed(
+        v2Multi, activationHeight - 1));
+    BOOST_CHECK(!ContextualCheckTransaction(
+        v2Multi,
+        prematureContextualState,
+        ::Params().GetConsensus(),
+        chainActive.Tip()));
+
+    CValidationState prematureState;
+    CSparkTxInfo prematureInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        v2Multi,
+        prematureState,
+        v2Multi.GetHash(),
+        false,
+        activationHeight - 1,
+        false,
+        true,
+        &prematureInfo));
+
+    BOOST_CHECK(!GenerateBlock({CMutableTransaction(v2Multi)}));
+    BOOST_CHECK_EQUAL(chainActive.Height(), preActivationHeight);
+
+    BOOST_REQUIRE(GenerateBlock({}));
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
+
+    CValidationState activeContextualState;
+    BOOST_CHECK(IsSparkSpendFormatAllowed(
+        v2Multi, activationHeight));
+    BOOST_CHECK(ContextualCheckTransaction(
+        v2Multi,
+        activeContextualState,
+        ::Params().GetConsensus(),
+        chainActive.Tip()));
+
+    CValidationState activeV2State;
+    CSparkTxInfo activeV2Info;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        v2Multi,
+        activeV2State,
+        v2Multi.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &activeV2Info));
+
+    BatchProofContainer* batch = BatchProofContainer::get_instance();
+    batch->init();
+    batch->fCollectProofs = true;
+    CValidationState batchedV2State;
+    CSparkTxInfo batchedV2Info;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        v2Multi,
+        batchedV2State,
+        v2Multi.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &batchedV2Info));
+    batch->finalize();
+    BOOST_CHECK_NO_THROW(batch->verify());
+
+    CValidationState activeV1State;
+    CSparkTxInfo activeV1Info;
+    BOOST_CHECK(CheckSparkTransaction(
+        v1Single,
+        activeV1State,
+        v1Single.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &activeV1Info));
+
+    // After activation the wallet may select multiple coins again and must
+    // emit only the explicitly versioned transaction type and payload.
+    const CTransaction walletV2(GenerateSparkSpend({9 * COIN}, {}, nullptr));
+    BOOST_CHECK(walletV2.IsSparkSpendV2());
+    const SpendTransaction parsedWalletV2 = ParseSparkSpend(walletV2);
+    BOOST_CHECK(parsedWalletV2.getVersion() == SpendTransactionVersion::V2);
+    BOOST_CHECK_EQUAL(parsedWalletV2.getUsedLTags().size(), 2U);
+
+    CBlockIndex* activationIndex =
+        GenerateBlock({CMutableTransaction(walletV2)});
+    BOOST_REQUIRE(activationIndex);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight);
+    const CBlock activationBlock = GetCBlock(activationIndex);
+
+    BOOST_REQUIRE(DisconnectBlocks(1));
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
+    {
+        LOCK(cs_main);
+        CValidationState reconnectState;
+        BOOST_REQUIRE(ActivateBestChain(
+            reconnectState,
+            ::Params(),
+            std::make_shared<const CBlock>(activationBlock)));
+    }
+    BOOST_CHECK_EQUAL(chainActive.Height(), activationHeight);
 
     mempool.clear();
     sparkState->Reset();
@@ -962,6 +1166,31 @@ BOOST_AUTO_TEST_CASE(spark_single_input_block_boundary_and_reorg)
     const int activationHeight = baseHeight + 2;
     UpdateRegtestSparkSingleInputHeight(activationHeight);
 
+    BOOST_CHECK(IsSparkSpendFormatAllowed(
+        historicalMultiInput, activationHeight - 1));
+    BOOST_CHECK(!IsSparkSpendFormatAllowed(
+        historicalMultiInput, activationHeight));
+    BOOST_CHECK(IsSparkSpendFormatAllowed(
+        activeSingleInput, activationHeight));
+
+    TestMemPoolEntryHelper mempoolEntry;
+    mempool.addUnchecked(
+        historicalMultiInput.GetHash(),
+        mempoolEntry.Height(baseHeight).FromTx(historicalMultiInput));
+    BOOST_REQUIRE(mempool.exists(historicalMultiInput.GetHash()));
+    {
+        LOCK(cs_main);
+        mempool.removeForReorg(
+            pcoinsTip, activationHeight - 1, LOCKTIME_VERIFY_SEQUENCE);
+    }
+    BOOST_CHECK(mempool.exists(historicalMultiInput.GetHash()));
+    {
+        LOCK(cs_main);
+        mempool.removeForReorg(
+            pcoinsTip, activationHeight, LOCKTIME_VERIFY_SEQUENCE);
+    }
+    BOOST_CHECK(!mempool.exists(historicalMultiInput.GetHash()));
+
     CBlockIndex* historicalIndex =
         GenerateBlock({CMutableTransaction(historicalMultiInput)});
     BOOST_REQUIRE(historicalIndex);
@@ -1052,6 +1281,36 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
 
     mempool.clear();
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_activation_order_is_validated)
+{
+    Consensus::Params& consensus =
+        const_cast<Consensus::Params&>(::Params().GetConsensus());
+    const int originalSingleInput = consensus.nSparkSingleInputStartBlock;
+    const int originalV2 = consensus.nSparkChaumV2StartBlock;
+    struct RestoreActivationHeights {
+        Consensus::Params& consensus;
+        int singleInput;
+        int v2;
+        ~RestoreActivationHeights()
+        {
+            consensus.nSparkSingleInputStartBlock = singleInput;
+            consensus.nSparkChaumV2StartBlock = v2;
+        }
+    } restore{consensus, originalSingleInput, originalV2};
+
+    BOOST_CHECK_THROW(
+        UpdateRegtestSparkChaumV2Height(100), std::runtime_error);
+    BOOST_CHECK_EQUAL(consensus.nSparkChaumV2StartBlock, originalV2);
+
+    UpdateRegtestSparkSingleInputHeight(100);
+    UpdateRegtestSparkChaumV2Height(100);
+    BOOST_CHECK_NO_THROW(ValidateSparkActivationHeights(consensus));
+
+    consensus.nSparkSingleInputStartBlock = 101;
+    BOOST_CHECK_THROW(
+        ValidateSparkActivationHeights(consensus), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(coingroup)

@@ -1,6 +1,7 @@
 #include "test/test_bitcoin.h"
 #include "test/fixtures.h"
 
+#include "chainparams.h"
 #include "script/interpreter.h"
 #include "script/standard.h"
 #include "script/sign.h"
@@ -280,6 +281,14 @@ BOOST_AUTO_TEST_CASE(mempool)
 
 BOOST_AUTO_TEST_CASE(limit)
 {
+    struct ResetSparkV2Height {
+        ~ResetSparkV2Height()
+        {
+            UpdateRegtestSparkChaumV2Height(INT_MAX);
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetSparkV2Height;
+
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -322,19 +331,11 @@ BOOST_AUTO_TEST_CASE(limit)
     for (int i = 0; i < 10; i++)
         GenerateBlock({});
 
-    {
-        std::list<CSparkMintMeta> available =
-            pwalletMain->sparkWallet->GetAvailableSparkCoins(nullptr);
-        CAmount largest = 0;
-        int largeEnoughFor70 = 0;
-        for (const CSparkMintMeta& coin : available) {
-            largest = std::max(largest, static_cast<CAmount>(coin.v));
-            if (coin.v >= 70 * COIN)
-                ++largeEnoughFor70;
-        }
-        BOOST_ASSERT(largest >= 150 * COIN);
-        BOOST_ASSERT(largeEnoughFor70 >= 3);
-    }
+    // This test exercises the legacy Evo-spork amount limit, which requires
+    // spends larger than any one minted coin. Enable versioned construction
+    // locally so the test continues to exercise that amount boundary.
+    UpdateRegtestSparkSingleInputHeight(chainActive.Height() + 1);
+    UpdateRegtestSparkChaumV2Height(chainActive.Height() + 1);
 
     CAmount fee = 0;
     CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, fee);

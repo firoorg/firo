@@ -197,15 +197,27 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     }
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
 
-    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND && tx.nVersion >= 3 && tx.nType == TRANSACTION_SPARK) {
+    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND && tx.nVersion >= 3 &&
+        (tx.nType == TRANSACTION_SPARK || tx.nType == TRANSACTION_SPARK_V2)) {
         serialized.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     }
     else {
         throw CBadTxIn();
     }
     const spark::Params* params = spark::Params::get_default();
-    spark::SpendTransaction spendTransaction(params);
+    const auto version = tx.nType == TRANSACTION_SPARK_V2
+        ? SpendTransactionVersion::V2
+        : SpendTransactionVersion::V1;
+    const std::size_t private_output_count = std::count_if(
+        tx.vout.begin(), tx.vout.end(), [](const CTxOut& output) {
+            return output.scriptPubKey.IsSparkSMint();
+        });
+    spark::SpendTransaction spendTransaction(
+        params, version, private_output_count);
     serialized >> spendTransaction;
+    if (version == SpendTransactionVersion::V2 && !serialized.empty()) {
+        throw std::invalid_argument("Trailing data in Spark V2 spend payload");
+    }
     return spendTransaction;
 }
 
@@ -261,6 +273,39 @@ CAmount GetSpendTransparentAmount(const CTransaction& tx) {
     for (const CTxOut &txout : tx.vout)
         result += txout.nValue;
     return result;
+}
+
+bool IsSparkSpendFormatAllowed(const CTransaction& tx, int height)
+{
+    if (!tx.IsSparkSpend()) {
+        return true;
+    }
+
+    const auto& consensus = ::Params().GetConsensus();
+    if (tx.IsSparkSpendV2()) {
+        return height >= consensus.nSparkChaumV2StartBlock;
+    }
+
+    const int singleInputActivation = std::min(
+        consensus.nSparkSingleInputStartBlock,
+        consensus.nSparkChaumV2StartBlock);
+    if (height < singleInputActivation) {
+        return true;
+    }
+
+    try {
+        // The deployed V1 layout starts with the input-reference vector size.
+        // Inspect only that dimension here: block assembly and reorg cleanup
+        // need a cheap format check, while full deserialization is performed
+        // by transaction validation.
+        CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+        payload.write(
+            reinterpret_cast<const char*>(tx.vExtraPayload.data()),
+            tx.vExtraPayload.size());
+        return ReadCompactSize(payload) == 1;
+    } catch (const std::exception&) {
+        return false;
+    }
 }
 
 /**
@@ -642,7 +687,9 @@ bool CheckSparkSpendTransaction(
     if (!isVerifyDB) {
             if (height >= params.nSparkStartBlock) {
                 // data should be moved to v3 payload
-                if (tx.nVersion < 3 || tx.nType != TRANSACTION_SPARK)
+                if (tx.nVersion < 3 ||
+                    (tx.nType != TRANSACTION_SPARK &&
+                     tx.nType != TRANSACTION_SPARK_V2))
                     return state.DoS(100, false, NSEQUENCE_INCORRECT,
                                      "CheckSparkSpendTransaction: spark data should reside in transaction payload");
             }
@@ -683,10 +730,21 @@ bool CheckSparkSpendTransaction(
     if (!fStatefulSigmaCheck)
         return true;
     bool isMempoolAcceptance = (!sparkTxInfo);
-    const bool enforceSingleInput = isMempoolAcceptance ? (height >= (params.nSparkSingleInputStartBlock - 10))
-        : height >= params.nSparkSingleInputStartBlock;
-
-    if (enforceSingleInput &&
+    const bool isChaumV2 = tx.nType == TRANSACTION_SPARK_V2;
+    if (isChaumV2 && height < params.nSparkChaumV2StartBlock) {
+        return state.DoS(isMempoolAcceptance ? 0 : 100,
+                         false,
+                         isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                         "CheckSparkSpendTransaction: CHAUM_V2 is not active");
+    }
+    const int singleInputActivation = std::min(
+        params.nSparkSingleInputStartBlock,
+        params.nSparkChaumV2StartBlock);
+    const bool enforceChaumV1SingleInput =
+        !isChaumV2 && height >= singleInputActivation;
+    const bool requireChaumV1SingleInput =
+        !isChaumV2 && (isMempoolAcceptance || enforceChaumV1SingleInput);
+    if (requireChaumV1SingleInput &&
         spend->getUsedLTags().size() != 1) {
         return state.DoS(isMempoolAcceptance ? 0 : 100,
                          false,
@@ -707,7 +765,13 @@ bool CheckSparkSpendTransaction(
                 script.IsSigmaMint()) {
             return false;
         } else {
-            Vout += txout.nValue;
+            if (txout.nValue < 0 ||
+                static_cast<uint64_t>(txout.nValue) >
+                    std::numeric_limits<uint64_t>::max() - Vout) {
+                return state.DoS(100, false, REJECT_INVALID,
+                                 "CheckSparkSpendTransaction: transparent output overflow");
+            }
+            Vout += static_cast<uint64_t>(txout.nValue);
         }
     }
 
@@ -792,7 +856,7 @@ bool CheckSparkSpendTransaction(
     // add proofs into container
     if (useBatching) {
         passVerify = true;
-        if (enforceSingleInput) {
+        if (isChaumV2 || requireChaumV1SingleInput) {
             batchProofContainer->add(*spend);
         } else {
             batchProofContainer->addHistorical(*spend);
@@ -828,7 +892,7 @@ bool CheckSparkSpendTransaction(
             }
             else {
                 // we need the answer now, so verify and execute
-                passVerify = enforceSingleInput
+                passVerify = (isChaumV2 || requireChaumV1SingleInput)
                     ? spark::SpendTransaction::verify(*spend, cover_sets)
                     : spark::SpendTransaction::verifyHistorical(
                         *spend, cover_sets);

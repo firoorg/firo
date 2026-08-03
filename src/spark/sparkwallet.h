@@ -161,6 +161,7 @@ public:
             std::size_t mintNum,
             std::size_t utxoNum,
             const CCoinControl *coinControl,
+            bool useChaumV2,
             size_t additionalTxSize = 0);
 
     CWalletTx CreateSparkNameTransaction(

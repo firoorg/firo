@@ -229,6 +229,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
                 entry.push_back(Pair("lelantusData", HexStr(tx.vExtraPayload)));
                 break;
             case TRANSACTION_SPARK:
+            case TRANSACTION_SPARK_V2:
                 entry.push_back(Pair("sparkData", HexStr(tx.vExtraPayload)));
                 break;
             default:

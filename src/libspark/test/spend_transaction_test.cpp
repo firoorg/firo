@@ -133,6 +133,68 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
     BOOST_REQUIRE(SpendTransaction::verifyHistorical(
         transaction, cover_sets));
     BOOST_CHECK(!SpendTransaction::verify(transaction, cover_sets));
+
+    // V2 uses the componentwise relation and is valid for the same honest
+    // multi-input witness. Its payload starts with an explicit version and is
+    // parsed only when the transaction type selects V2.
+    SpendTransaction transactionV2(
+        params,
+        full_view_key,
+        spend_key,
+        spend_coin_data,
+        cover_set_data,
+        cover_sets,
+        f,
+        0,
+        out_coin_data,
+        SpendTransactionVersion::V2);
+    transactionV2.setCoverSets(cover_set_data);
+    BOOST_REQUIRE(SpendTransaction::verify(transactionV2, cover_sets));
+
+    CDataStream encodedV2(SER_NETWORK, PROTOCOL_VERSION);
+    encodedV2 << transactionV2;
+    BOOST_REQUIRE(!encodedV2.empty());
+    BOOST_CHECK_EQUAL(static_cast<unsigned char>(encodedV2[0]), 2U);
+
+    SpendTransaction decodedV2(
+        params, SpendTransactionVersion::V2, out_coin_data.size());
+    encodedV2 >> decodedV2;
+    BOOST_CHECK(encodedV2.empty());
+    decodedV2.setOutCoins(transactionV2.getOutCoins());
+    decodedV2.setVout(0);
+    decodedV2.setCoverSets(cover_set_data);
+    BOOST_CHECK(SpendTransaction::verify(decodedV2, cover_sets));
+
+    // Historical V1 has no inner version byte, so arbitrary V2 bytes are not
+    // guaranteed to fail while being decoded as V1. Consensus selects the
+    // parser from the transaction type and activation height; the node-level
+    // test covers rejection after deliberately retagging a V2 payload as V1.
+
+    CDataStream truncatedV2(SER_NETWORK, PROTOCOL_VERSION);
+    truncatedV2 << transactionV2;
+    truncatedV2.resize(truncatedV2.size() - 1);
+    SpendTransaction truncatedParser(
+        params, SpendTransactionVersion::V2, out_coin_data.size());
+    BOOST_CHECK_THROW(truncatedV2 >> truncatedParser, std::exception);
+
+    CDataStream encodedV1(SER_NETWORK, PROTOCOL_VERSION);
+    encodedV1 << transaction;
+    SpendTransaction wrongV2Parser(
+        params, SpendTransactionVersion::V2, out_coin_data.size());
+    BOOST_CHECK_THROW(encodedV1 >> wrongV2Parser, std::exception);
+
+    CDataStream wrongVersion(SER_NETWORK, PROTOCOL_VERSION);
+    wrongVersion << transactionV2;
+    wrongVersion[0] = 3;
+    SpendTransaction rejectedVersion(
+        params, SpendTransactionVersion::V2, out_coin_data.size());
+    BOOST_CHECK_THROW(wrongVersion >> rejectedVersion, std::exception);
+
+    CDataStream oversized(SER_NETWORK, PROTOCOL_VERSION);
+    oversized.write("\x02\x65", 2); // V2, 101 inputs (limit is 100)
+    SpendTransaction boundedParser(
+        params, SpendTransactionVersion::V2, out_coin_data.size());
+    BOOST_CHECK_THROW(oversized >> boundedParser, std::exception);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -59,6 +59,9 @@ std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
 size_t GetSpendInputs(const CTransaction &tx);
 CAmount GetSpendTransparentAmount(const CTransaction& tx);
 
+/** Whether a Spark spend has a format mineable at the given block height. */
+bool IsSparkSpendFormatAllowed(const CTransaction& tx, int height);
+
 bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight);
 
 //void DisconnectTipLelantus(CBlock &block, CBlockIndex *pindexDelete);

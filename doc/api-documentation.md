@@ -1702,7 +1702,8 @@ Firo supports multiple transaction types:
 | `TRANSACTION_PROVIDER_UPDATE_REVOKE` | 4 | Revoke masternode |
 | `TRANSACTION_COINBASE` | 5 | Coinbase special transaction |
 | `TRANSACTION_LELANTUS` | 8 | Lelantus transaction |
-| `TRANSACTION_SPARK` | 9 | Spark transaction |
+| `TRANSACTION_SPARK` | 9 | Spark V1 transaction |
+| `TRANSACTION_SPARK_V2` | 11 | Versioned Spark Chaum V2 transaction |
 
 ### CWallet
 

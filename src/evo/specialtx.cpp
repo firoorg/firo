@@ -45,6 +45,7 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
     case TRANSACTION_LELANTUS:
         return true;
     case TRANSACTION_SPARK:
+    case TRANSACTION_SPARK_V2:
         // spark transaction checks are done in other places
         return true;
     case TRANSACTION_ALIAS:
@@ -75,6 +76,7 @@ bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
     case TRANSACTION_LELANTUS:
         return true;
     case TRANSACTION_SPARK:
+    case TRANSACTION_SPARK_V2:
         return true;
     case TRANSACTION_ALIAS:
         return true;
@@ -104,6 +106,7 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     case TRANSACTION_LELANTUS:
         return true;
     case TRANSACTION_SPARK:
+    case TRANSACTION_SPARK_V2:
         return true;
     case TRANSACTION_ALIAS:
         return true;

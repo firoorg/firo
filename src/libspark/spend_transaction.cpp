@@ -4,8 +4,18 @@ namespace spark {
 
 // Generate a spend transaction that consumes existing coins and generates new ones
 SpendTransaction::SpendTransaction(
-        const Params* params) {
-    this->params = params;
+        const Params* params,
+        SpendTransactionVersion version,
+        std::size_t expected_output_count) :
+        params(params),
+        version(version),
+        expected_output_count(expected_output_count),
+        f(0),
+        vout(0) {
+	if (version != SpendTransactionVersion::V1 &&
+		version != SpendTransactionVersion::V2) {
+		throw std::invalid_argument("Unsupported Spark spend version");
+	}
 }
 
 SpendTransaction::SpendTransaction(
@@ -17,14 +27,26 @@ SpendTransaction::SpendTransaction(
     const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
 	const uint64_t f,
     const uint64_t vout,
-	const std::vector<OutputCoinData>& outputs
+	const std::vector<OutputCoinData>& outputs,
+    SpendTransactionVersion version
 ) {
 	this->params = params;
+	this->version = version;
+	this->expected_output_count = outputs.size();
+	if (version != SpendTransactionVersion::V1 &&
+		version != SpendTransactionVersion::V2) {
+		throw std::invalid_argument("Unsupported Spark spend version");
+	}
 
 	// Size parameters
 	const std::size_t w = inputs.size(); // number of consumed coins
 	const std::size_t t = outputs.size(); // number of generated coins
 	const std::size_t N = (std::size_t) std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
+	if (version == SpendTransactionVersion::V2 &&
+		(w == 0 || w > MAX_CHAUM_V2_INPUTS ||
+		 t == 0 || t > MAX_SPARK_V2_OUTPUTS)) {
+		throw std::invalid_argument("Bad Spark V2 dimensions");
+	}
 
 	// Prepare input-related vectors
 	this->cover_set_ids.reserve(w); // cover set data and metadata
@@ -202,15 +224,44 @@ SpendTransaction::SpendTransaction(
 		this->params->get_H(),
 		this->params->get_U()
 	);
-	chaum.prove_v1(
-		mu,
-		chaum_x,
-		chaum_y,
-		chaum_z,
-		this->S1,
-		this->T,
-		this->chaum_proof
-	);
+	if (version == SpendTransactionVersion::V2) {
+		chaum.prove_v2(
+			mu,
+			GetChaumV2Context(this->out_coins, f, vout),
+			chaum_x,
+			chaum_y,
+			chaum_z,
+			this->S1,
+			this->T,
+			this->chaum_proof_v2
+		);
+	} else {
+		chaum.prove_v1(
+			mu,
+			chaum_x,
+			chaum_y,
+			chaum_z,
+			this->S1,
+			this->T,
+			this->chaum_proof_v1
+		);
+	}
+}
+
+ChaumV2Context SpendTransaction::GetChaumV2Context(
+        const std::vector<Coin>& out_coins,
+        uint64_t fee,
+        uint64_t transparent_value) {
+    ChaumV2Context context;
+    context.fee = fee;
+    context.transparent_value = transparent_value;
+    context.serialized_outputs.reserve(out_coins.size());
+    for (const auto& coin : out_coins) {
+        CDataStream encoded(SER_NETWORK, PROTOCOL_VERSION);
+        encoded << coin;
+        context.serialized_outputs.emplace_back(encoded.begin(), encoded.end());
+    }
+    return context;
 }
 
 uint64_t SpendTransaction::getFee() {
@@ -240,6 +291,9 @@ bool SpendTransaction::verify(
 bool SpendTransaction::verifyHistorical(
         const SpendTransaction& transaction,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
+	if (transaction.version != SpendTransactionVersion::V1) {
+		return false;
+	}
 	std::vector<SpendTransaction> transactions = { transaction };
 	return verify(transaction.params, transactions, cover_sets, false);
 }
@@ -255,6 +309,11 @@ bool SpendTransaction::verifyHistorical(
         const Params* params,
         const std::vector<SpendTransaction>& transactions,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
+	for (const auto& transaction : transactions) {
+		if (transaction.version != SpendTransactionVersion::V1) {
+			return false;
+		}
+	}
 	return verify(params, transactions, cover_sets, false);
 }
 
@@ -293,7 +352,16 @@ bool SpendTransaction::verify(
 		const std::size_t t = tx.out_coins.size(); // number of generated coins
 		const std::size_t N = (std::size_t) std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
 
-		if (require_single_input && w != 1) {
+		if (w == 0 ||
+			(tx.version == SpendTransactionVersion::V2 &&
+			 w > MAX_CHAUM_V2_INPUTS) ||
+			(tx.version == SpendTransactionVersion::V1 &&
+			 require_single_input && w != 1)) {
+			return false;
+		}
+		if (tx.version == SpendTransactionVersion::V2 &&
+			(t == 0 || t > MAX_SPARK_V2_OUTPUTS ||
+			 t != tx.expected_output_count)) {
 			return false;
 		}
 
@@ -352,9 +420,17 @@ bool SpendTransaction::verify(
 			tx.params->get_H(),
 			tx.params->get_U()
 		);
-		const bool chaum_valid = require_single_input
-			? chaum.verify_single_input(mu, tx.S1, tx.T, tx.chaum_proof)
-			: chaum.verify_v1(mu, tx.S1, tx.T, tx.chaum_proof);
+		const bool chaum_valid = tx.version == SpendTransactionVersion::V2
+			? chaum.verify_v2(
+				mu,
+				GetChaumV2Context(tx.out_coins, tx.f, tx.vout),
+				tx.S1,
+				tx.T,
+				tx.chaum_proof_v2)
+			: (require_single_input
+				? chaum.verify_single_input(mu, tx.S1, tx.T, tx.chaum_proof_v1)
+				: chaum.verify_v1(
+					mu, tx.S1, tx.T, tx.chaum_proof_v1));
 		if (!chaum_valid) {
 			return false;
 		}

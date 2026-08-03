@@ -758,7 +758,8 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
                 tx.nType != TRANSACTION_SPORK &&
                 tx.nType != TRANSACTION_LELANTUS &&
-                tx.nType != TRANSACTION_SPARK) {
+                tx.nType != TRANSACTION_SPARK &&
+                tx.nType != TRANSACTION_SPARK_V2) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
@@ -766,8 +767,13 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
             if (tx.nType == TRANSACTION_SPORK &&
                     !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
-            if (tx.nType == TRANSACTION_SPARK && nHeight < consensusParams.nSparkStartBlock)
+            if ((tx.nType == TRANSACTION_SPARK ||
+                 tx.nType == TRANSACTION_SPARK_V2) &&
+                nHeight < consensusParams.nSparkStartBlock)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+            if (tx.nType == TRANSACTION_SPARK_V2 &&
+                nHeight < consensusParams.nSparkChaumV2StartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spark-v2-premature");
         }
         else if (tx.nType != TRANSACTION_NORMAL) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
