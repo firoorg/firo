@@ -369,13 +369,24 @@ jobs:
             }
 
             if ($exitCode -ne 0) {
-              $failureText = (
-                "$Executable $Filter`n" +
-                (($testOutput | Select-Object -Last 80) -join "`n")
+              $diagnosticLines = @(
+                $testOutput |
+                  Where-Object { "$_" -notmatch 'is skipped because disabled' }
               )
-              if ($failureText.Length -gt 12000) {
-                $failureText = $failureText.Substring($failureText.Length - 12000)
+              $failureLines = @(
+                $diagnosticLines | Select-Object -Last 40
+                $diagnosticLines |
+                  Where-Object {
+                    "$_" -match 'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert'
+                  }
+              )
+              $failureBody = (
+                ($failureLines | Select-Object -Last 60) -join "`n"
+              )
+              if ($failureBody.Length -gt 3000) {
+                $failureBody = $failureBody.Substring($failureBody.Length - 3000)
               }
+              $failureText = "$Executable $Filter (exit $exitCode)`n$failureBody"
               $failureTail = ConvertTo-WorkflowCommandValue $failureText
               Write-Output "::error title=Firo wallet test failure::$failureTail"
               throw "$Executable failed for $Filter with exit code $exitCode"
@@ -508,9 +519,74 @@ jobs:
             exit 1
           fi
 
-          build-mac-dual/bin/test_firo \
-            --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
-            --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+          run_firo_test() {
+            local executable="$1"
+            local filter="$2"
+            local test_output
+            local test_exit
+            local summary
+            local failure
+            local context
+            local priority
+
+            set +e
+            test_output=$(
+              "$executable" \
+                "--run_test=$filter" \
+                --catch_system_error=no \
+                --log_level=test_suite \
+                -- DEBUG_LOG_OUT 2>&1
+            )
+            test_exit=$?
+            set -e
+            printf '%s\n' "$test_output"
+
+            summary=$(
+              printf '%s\n' "$test_output" \
+                | grep -E 'Running [0-9]+ test cases|No errors detected' \
+                || true
+            )
+            if [ -n "$summary" ]; then
+              summary="$executable $filter"$'\n'"$summary"
+              summary=${summary//'%'/'%25'}
+              summary=${summary//$'\r'/'%0D'}
+              summary=${summary//$'\n'/'%0A'}
+              echo "::notice title=Firo wallet test summary::$summary"
+            fi
+
+            if [ "$test_exit" -ne 0 ]; then
+              failure=$(
+                printf '%s\n' "$test_output" \
+                  | grep -Fv 'is skipped because disabled' \
+                  || true
+              )
+              context=$(
+                printf '%s\n' "$failure" \
+                  | tail -n 40
+              )
+              priority=$(
+                printf '%s\n' "$failure" \
+                  | grep -Ei \
+                    'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert' \
+                  || true
+              )
+              failure=$(
+                printf '%s\n%s\n' "$context" "$priority" \
+                  | tail -n 60 \
+                  | tail -c 3000
+              )
+              failure="$executable $filter (exit $test_exit)"$'\n'"$failure"
+              failure=${failure//'%'/'%25'}
+              failure=${failure//$'\r'/'%0D'}
+              failure=${failure//$'\n'/'%0A'}
+              echo "::error title=Firo wallet test failure::$failure"
+              exit "$test_exit"
+            fi
+          }
+
+          run_firo_test \
+            build-mac-dual/bin/test_firo \
+            wallet_database_factory_preopen_policy,wallet_database_tests
 
       - name: Build and test true BDB-only wallets
         run: |
@@ -586,6 +662,71 @@ jobs:
             exit 1
           fi
 
-          build-mac-bdb-only/bin/test_firo \
-            --run_test=wallet_database_factory_preopen_policy,wallet_database_tests \
-            --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
+          run_firo_test() {
+            local executable="$1"
+            local filter="$2"
+            local test_output
+            local test_exit
+            local summary
+            local failure
+            local context
+            local priority
+
+            set +e
+            test_output=$(
+              "$executable" \
+                "--run_test=$filter" \
+                --catch_system_error=no \
+                --log_level=test_suite \
+                -- DEBUG_LOG_OUT 2>&1
+            )
+            test_exit=$?
+            set -e
+            printf '%s\n' "$test_output"
+
+            summary=$(
+              printf '%s\n' "$test_output" \
+                | grep -E 'Running [0-9]+ test cases|No errors detected' \
+                || true
+            )
+            if [ -n "$summary" ]; then
+              summary="$executable $filter"$'\n'"$summary"
+              summary=${summary//'%'/'%25'}
+              summary=${summary//$'\r'/'%0D'}
+              summary=${summary//$'\n'/'%0A'}
+              echo "::notice title=Firo wallet test summary::$summary"
+            fi
+
+            if [ "$test_exit" -ne 0 ]; then
+              failure=$(
+                printf '%s\n' "$test_output" \
+                  | grep -Fv 'is skipped because disabled' \
+                  || true
+              )
+              context=$(
+                printf '%s\n' "$failure" \
+                  | tail -n 40
+              )
+              priority=$(
+                printf '%s\n' "$failure" \
+                  | grep -Ei \
+                    'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert' \
+                  || true
+              )
+              failure=$(
+                printf '%s\n%s\n' "$context" "$priority" \
+                  | tail -n 60 \
+                  | tail -c 3000
+              )
+              failure="$executable $filter (exit $test_exit)"$'\n'"$failure"
+              failure=${failure//'%'/'%25'}
+              failure=${failure//$'\r'/'%0D'}
+              failure=${failure//$'\n'/'%0A'}
+              echo "::error title=Firo wallet test failure::$failure"
+              exit "$test_exit"
+            fi
+          }
+
+          run_firo_test \
+            build-mac-bdb-only/bin/test_firo \
+            wallet_database_factory_preopen_policy,wallet_database_tests
