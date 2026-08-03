@@ -457,6 +457,113 @@ jobs:
           $testTemp = Join-Path $env:LOCALAPPDATA "FiroSQLiteWalletTests-$PID"
           New-Item -ItemType Directory -Path $testTemp | Out-Null
           $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+          $identityBefore = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+          try {
+            $tokenOwnerBefore = $identityBefore.Owner
+          } finally {
+            $identityBefore.Dispose()
+          }
+          $tokenOwnerBeforeCategory = if (
+            $null -ne $tokenOwnerBefore -and
+            $tokenOwnerBefore.Equals($currentSid)
+          ) {
+            'current-user'
+          } else {
+            'non-current-user'
+          }
+
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.ComponentModel;
+          using System.Runtime.InteropServices;
+          using System.Security.Principal;
+          using Microsoft.Win32.SafeHandles;
+
+          public static class FiroTestTokenOwner
+          {
+              private const uint TOKEN_ADJUST_DEFAULT = 0x0080;
+              private const int TOKEN_OWNER_CLASS = 4;
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct TokenOwner
+              {
+                  public IntPtr Owner;
+              }
+
+              [DllImport("kernel32.dll")]
+              private static extern IntPtr GetCurrentProcess();
+
+              [DllImport("advapi32.dll", SetLastError = true)]
+              private static extern bool OpenProcessToken(
+                  IntPtr process,
+                  uint desiredAccess,
+                  out SafeAccessTokenHandle token);
+
+              [DllImport("advapi32.dll", SetLastError = true)]
+              private static extern bool SetTokenInformation(
+                  SafeAccessTokenHandle token,
+                  int informationClass,
+                  ref TokenOwner information,
+                  int informationLength);
+
+              public static void SetCurrentUserAsDefaultOwner()
+              {
+                  SafeAccessTokenHandle token;
+                  if (!OpenProcessToken(
+                          GetCurrentProcess(),
+                          TOKEN_ADJUST_DEFAULT,
+                          out token)) {
+                      throw new Win32Exception(
+                          Marshal.GetLastWin32Error(),
+                          "OpenProcessToken(TOKEN_ADJUST_DEFAULT) failed");
+                  }
+
+                  using (token)
+                  using (WindowsIdentity identity = WindowsIdentity.GetCurrent()) {
+                      SecurityIdentifier user = identity.User;
+                      if (user == null) {
+                          throw new InvalidOperationException(
+                              "The current process token has no user SID.");
+                      }
+                      byte[] userBytes = new byte[user.BinaryLength];
+                      user.GetBinaryForm(userBytes, 0);
+                      GCHandle pinnedUser = GCHandle.Alloc(
+                          userBytes,
+                          GCHandleType.Pinned);
+                      try {
+                          TokenOwner owner = new TokenOwner {
+                              Owner = pinnedUser.AddrOfPinnedObject()
+                          };
+                          if (!SetTokenInformation(
+                                  token,
+                                  TOKEN_OWNER_CLASS,
+                                  ref owner,
+                                  Marshal.SizeOf(typeof(TokenOwner)))) {
+                              throw new Win32Exception(
+                                  Marshal.GetLastWin32Error(),
+                                  "SetTokenInformation(TokenOwner) failed");
+                          }
+                      } finally {
+                          pinnedUser.Free();
+                      }
+                  }
+              }
+          }
+          '@
+          [FiroTestTokenOwner]::SetCurrentUserAsDefaultOwner()
+          $identityAfter = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+          try {
+            $tokenOwnerAfter = $identityAfter.Owner
+          } finally {
+            $identityAfter.Dispose()
+          }
+          if (
+            $null -eq $tokenOwnerAfter -or
+            !$tokenOwnerAfter.Equals($currentSid)
+          ) {
+            throw 'Failed to normalize the test process token owner'
+          }
+
           $inheritance = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
           $accessRule = [System.Security.AccessControl.FileSystemAccessRule]::new(
             $currentSid,
@@ -470,6 +577,29 @@ jobs:
           $privateAcl.SetOwner($currentSid)
           $privateAcl.AddAccessRule($accessRule)
           Set-Acl -LiteralPath $testTemp -AclObject $privateAcl
+
+          $ownerProbe = Join-Path $testTemp 'child-token-owner-probe'
+          try {
+            & "$env:SystemRoot\System32\cmd.exe" /d /c "mkdir `"$ownerProbe`""
+            if ($LASTEXITCODE -ne 0) {
+              throw "Child token-owner probe failed with exit code $LASTEXITCODE"
+            }
+            $probeOwner = (Get-Acl -LiteralPath $ownerProbe).GetOwner(
+              [System.Security.Principal.SecurityIdentifier]
+            )
+            if (!$probeOwner.Equals($currentSid)) {
+              throw 'The normalized token owner was not inherited by a child process'
+            }
+          } finally {
+            if ([System.IO.Directory]::Exists($ownerProbe)) {
+              [System.IO.Directory]::Delete($ownerProbe, $false)
+            }
+          }
+          Write-Output (
+            '::notice title=Windows test token-owner normalization::before={0}; after=current-user; child-probe=current-user' -f
+              $tokenOwnerBeforeCategory
+          )
+
           $env:TEMP = $testTemp
           $env:TMP = $env:TEMP
           $env:FIRO_TEST_REQUIRE_WIN32_REPARSE = '1'
