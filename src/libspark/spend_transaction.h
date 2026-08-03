@@ -147,7 +147,7 @@ private:
     uint64_t vout;
 	std::vector<GroupElement> S1, C1, T;
 	std::vector<GrootleProof> grootle_proofs;
-	ChaumProof chaum_proof;
+	ChaumProofV1 chaum_proof;
 	SchnorrProof balance_proof;
 	BPPlusProof range_proof;
 };

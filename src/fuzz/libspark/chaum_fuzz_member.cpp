@@ -15,7 +15,8 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     H0.randomize();
     U0.randomize();
 
-    const std::size_t n = fdp.ConsumeIntegralInRange(1, INT_MAX);
+    const std::size_t n = fdp.ConsumeIntegralInRange<std::size_t>(
+        1, spark::MAX_CHAUM_V2_INPUTS);
 
     Scalar mu0;
     mu0.randomize();
@@ -35,15 +36,15 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         T0[i] = (U0 + G0*y0[i].negate())*x0[i].inverse();
     }
 
-    spark::ChaumProof proof0;
+    spark::ChaumProofV1 proof0;
 
     spark::Chaum chaum0(F0, G0, H0, U0);
-    chaum0.prove(mu0, x0, y0, z0, S0, T0, proof0);
+    chaum0.prove_v1(mu0, x0, y0, z0, S0, T0, proof0);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << proof0;
 
-    spark::ChaumProof deserialized_proof0;
+    spark::ChaumProofV1 deserialized_proof0;
     serialized >> deserialized_proof0;
 
     assert(proof0.A1 == deserialized_proof0.A1);
@@ -61,7 +62,8 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     H1.randomize();
     U1.randomize();
 
-    const std::size_t n1 = fdp.ConsumeIntegralInRange(1, INT_MAX);
+    const std::size_t n1 = fdp.ConsumeIntegralInRange<std::size_t>(
+        1, spark::MAX_CHAUM_V2_INPUTS);
 
     Scalar mu1;
     mu1.randomize();
@@ -72,7 +74,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     std::vector<GroupElement> S1, T1;
     S1.resize(n1);
     T1.resize(n1);
-    for (std::size_t i = 0; i < n; i++) {
+    for (std::size_t i = 0; i < n1; i++) {
         x1[i].randomize();
         y1[i].randomize();
         z1[i].randomize();
@@ -81,11 +83,11 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         T1[i] = (U1 + G1*y1[i].negate())*x1[i].inverse();
     }
 
-    spark::ChaumProof proof1;
+    spark::ChaumProofV1 proof1;
     spark::Chaum chaum1(F1, G1, H1, U1);
-    chaum1.prove(mu1, x1, y1, z1, S1, T1, proof1);
+    chaum1.prove_v1(mu1, x1, y1, z1, S1, T1, proof1);
 
-    assert(chaum1.verify(mu1, S1, T1, proof1));
+    assert(chaum1.verify_v1(mu1, S1, T1, proof1));
     /** End of completeness tests**/
 
     /* Fuzzing for bad proofs*/
@@ -93,50 +95,50 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     // Bad mu
     Scalar evil_mu;
     evil_mu.randomize();
-    assert(!(chaum1.verify(evil_mu, S1, T1, proof1)));
+    assert(!(chaum1.verify_v1(evil_mu, S1, T1, proof1)));
 
     // Bad S
     for (std::size_t i = 0; i < n1; i++) {
         std::vector<GroupElement> evil_S(S1);
         evil_S[i].randomize();
-        assert(!(chaum1.verify(m1, evil_S, T1, proof1)));
+        assert(!(chaum1.verify_v1(mu1, evil_S, T1, proof1)));
     }
 
     // Bad T
     for (std::size_t i = 0; i < n1; i++) {
         std::vector<GroupElement> evil_T(T1);
         evil_T[i].randomize();
-        assert(!(chaum1.verify(mu1, S1, evil_T, proof1)));
+        assert(!(chaum1.verify_v1(mu1, S1, evil_T, proof1)));
     }
 
     // Bad A1
-    spark::ChaumProof evil_proof = proof1;
+    spark::ChaumProofV1 evil_proof = proof1;
     evil_proof.A1.randomize();
-    assert(!(chaum1.verify(mu1, S1, T1, evil_proof)));
+    assert(!(chaum1.verify_v1(mu1, S1, T1, evil_proof)));
 
     // Bad A2
     for (std::size_t i = 0; i < n1; i++) {
         evil_proof = proof1;
         evil_proof.A2[i].randomize();
-        assert(!(chaum1.verify(mu1, S1, T1, evil_proof)));
+        assert(!(chaum1.verify_v1(mu1, S1, T1, evil_proof)));
     }
 
     // Bad t1
     for (std::size_t i = 0; i < n1; i++) {
         evil_proof = proof1;
         evil_proof.t1[i].randomize();
-        assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+        assert(!(chaum1.verify_v1(mu1, S1, T1, evil_proof)));
     }
 
     // Bad t2
-    evil_proof = proof3;
+    evil_proof = proof1;
     evil_proof.t2.randomize();
-    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+    assert(!(chaum1.verify_v1(mu1, S1, T1, evil_proof)));
 
     // Bad t3
-    evil_proof = proof3;
+    evil_proof = proof1;
     evil_proof.t3.randomize();
-    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+    assert(!(chaum1.verify_v1(mu1, S1, T1, evil_proof)));
     
     return 0;
 

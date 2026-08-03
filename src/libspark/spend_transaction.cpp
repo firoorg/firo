@@ -202,7 +202,7 @@ SpendTransaction::SpendTransaction(
 		this->params->get_H(),
 		this->params->get_U()
 	);
-	chaum.prove(
+	chaum.prove_v1(
 		mu,
 		chaum_x,
 		chaum_y,
@@ -354,7 +354,7 @@ bool SpendTransaction::verify(
 		);
 		const bool chaum_valid = require_single_input
 			? chaum.verify_single_input(mu, tx.S1, tx.T, tx.chaum_proof)
-			: chaum.verify(mu, tx.S1, tx.T, tx.chaum_proof);
+			: chaum.verify_v1(mu, tx.S1, tx.T, tx.chaum_proof);
 		if (!chaum_valid) {
 			return false;
 		}
