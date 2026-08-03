@@ -15,7 +15,8 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     H0.randomize();
     U0.randomize();
 
-    const std::size_t n = fdp.ConsumeIntegral<size_t>();
+    const std::size_t n = fdp.ConsumeIntegralInRange<std::size_t>(
+        1, spark::MAX_CHAUM_V2_INPUTS);
 
     Scalar mu0;
     mu0.randomize();
