@@ -248,9 +248,17 @@ Scalar Chaum::challenge_v2(
     transcript.add("T", T);
     transcript.add("A1", A1);
     transcript.add("A2", A2);
+    transcript.add(
+        "cover_set_references",
+        context.serialized_cover_set_references);
     transcript.add("outputs", context.serialized_outputs);
     transcript.add("fee", EncodeUint64LE(context.fee));
     transcript.add("transparent_value", EncodeUint64LE(context.transparent_value));
+    transcript.add(
+        "extension_commitment",
+        std::vector<unsigned char>(
+            context.extension_commitment.begin(),
+            context.extension_commitment.end()));
     return transcript.challenge("c");
 }
 

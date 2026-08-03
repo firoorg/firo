@@ -11,7 +11,8 @@ SpendTransaction::SpendTransaction(
         version(version),
         expected_output_count(expected_output_count),
         f(0),
-        vout(0) {
+        vout(0),
+        extension_commitment() {
 	if (version != SpendTransactionVersion::V1 &&
 		version != SpendTransactionVersion::V2) {
 		throw std::invalid_argument("Unsupported Spark spend version");
@@ -26,9 +27,11 @@ SpendTransaction::SpendTransaction(
     const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
     const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
 	const uint64_t f,
-    const uint64_t vout,
+	const uint64_t vout,
 	const std::vector<OutputCoinData>& outputs,
-    SpendTransactionVersion version
+    SpendTransactionVersion version,
+    const uint256& extension_commitment,
+    const std::map<uint64_t, uint256>& block_hashes
 ) {
 	this->params = params;
 	this->version = version;
@@ -36,6 +39,21 @@ SpendTransaction::SpendTransaction(
 	if (version != SpendTransactionVersion::V1 &&
 		version != SpendTransactionVersion::V2) {
 		throw std::invalid_argument("Unsupported Spark spend version");
+	}
+	this->set_id_blockHash = block_hashes;
+	if (version == SpendTransactionVersion::V2) {
+		std::set<uint64_t> referenced_ids;
+		for (const auto& input : inputs) {
+			referenced_ids.insert(input.cover_set_id);
+		}
+		if (block_hashes.size() != referenced_ids.size()) {
+			throw std::invalid_argument("Missing Spark V2 cover-set reference");
+		}
+		for (uint64_t id : referenced_ids) {
+			if (block_hashes.count(id) == 0) {
+				throw std::invalid_argument("Missing Spark V2 cover-set reference");
+			}
+		}
 	}
 
 	// Size parameters
@@ -57,7 +75,8 @@ SpendTransaction::SpendTransaction(
 	this->T.reserve(w); // linking tags
 
 	this->f = f; // fee
-    this->vout = vout; // transparent output value
+	this->vout = vout; // transparent output value
+	this->extension_commitment = extension_commitment;
 
 	// Defense-in-depth: guard against uint64_t overflow of fee + vout (Schnorr proof also constrains this)
 	if (vout > 0 && f > std::numeric_limits<uint64_t>::max() - vout) {
@@ -227,7 +246,13 @@ SpendTransaction::SpendTransaction(
 	if (version == SpendTransactionVersion::V2) {
 		chaum.prove_v2(
 			mu,
-			GetChaumV2Context(this->out_coins, f, vout),
+			GetChaumV2Context(
+				this->out_coins,
+				f,
+				vout,
+				this->extension_commitment,
+				this->cover_set_ids,
+				this->set_id_blockHash),
 			chaum_x,
 			chaum_y,
 			chaum_z,
@@ -251,10 +276,25 @@ SpendTransaction::SpendTransaction(
 ChaumV2Context SpendTransaction::GetChaumV2Context(
         const std::vector<Coin>& out_coins,
         uint64_t fee,
-        uint64_t transparent_value) {
+        uint64_t transparent_value,
+        const uint256& extension_commitment,
+        const std::vector<uint64_t>& cover_set_ids,
+        const std::map<uint64_t, uint256>& block_hashes) {
     ChaumV2Context context;
     context.fee = fee;
     context.transparent_value = transparent_value;
+    context.extension_commitment = extension_commitment;
+    CDataStream references(SER_NETWORK, PROTOCOL_VERSION);
+    WriteCompactSize(references, cover_set_ids.size());
+    for (const uint64_t id : cover_set_ids) {
+        references << id;
+    }
+    WriteCompactSize(references, block_hashes.size());
+    for (const auto& entry : block_hashes) {
+        references << entry.first << entry.second;
+    }
+    context.serialized_cover_set_references.assign(
+        references.begin(), references.end());
     context.serialized_outputs.reserve(out_coins.size());
     for (const auto& coin : out_coins) {
         CDataStream encoded(SER_NETWORK, PROTOCOL_VERSION);
@@ -423,7 +463,13 @@ bool SpendTransaction::verify(
 		const bool chaum_valid = tx.version == SpendTransactionVersion::V2
 			? chaum.verify_v2(
 				mu,
-				GetChaumV2Context(tx.out_coins, tx.f, tx.vout),
+				GetChaumV2Context(
+					tx.out_coins,
+					tx.f,
+					tx.vout,
+					tx.extension_commitment,
+					tx.cover_set_ids,
+					tx.set_id_blockHash),
 				tx.S1,
 				tx.T,
 				tx.chaum_proof_v2)

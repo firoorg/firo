@@ -24,6 +24,21 @@ char ToUpperAscii(unsigned char c)
     }
     return static_cast<char>(c);
 }
+
+bool IsCanonicalOwnershipProof(
+        const std::vector<unsigned char>& encoded,
+        const spark::OwnershipProof& proof)
+{
+    CDataStream canonical(SER_NETWORK, PROTOCOL_VERSION);
+    canonical.reserve(spark::OwnershipProof::memoryRequired());
+    canonical << proof;
+    return canonical.size() == encoded.size() &&
+        std::equal(
+            canonical.begin(), canonical.end(), encoded.begin(),
+            [](char left, unsigned char right) {
+                return static_cast<unsigned char>(left) == right;
+            });
+}
 } // namespace
 
 CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameManager();
@@ -122,12 +137,26 @@ std::string CSparkNameManager::GetSparkNameAdditionalData(const std::string &nam
     return it->second.additionalInfo;
 }
 
-bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos)
+bool CSparkNameManager::ParseSparkNameTxData(
+        const CTransaction &tx,
+        spark::SpendTransaction &sparkTx,
+        CSparkNameTxData &sparkNameData,
+        size_t &sparkNameDataPos,
+        bool requireCanonicalExtension)
 {
     sparkNameDataPos = 0;
     CDataStream serializedSpark(SER_NETWORK, PROTOCOL_VERSION);
     serializedSpark.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     try {
+        const auto version = tx.nType == TRANSACTION_SPARK_V2
+            ? spark::SpendTransactionVersion::V2
+            : spark::SpendTransactionVersion::V1;
+        const std::size_t privateOutputCount = std::count_if(
+            tx.vout.begin(), tx.vout.end(), [](const CTxOut& output) {
+                return output.scriptPubKey.IsSparkSMint();
+            });
+        sparkTx = spark::SpendTransaction(
+            spark::Params::get_default(), version, privateOutputCount);
         serializedSpark >> sparkTx;
         if (serializedSpark.size() == 0) {
             // silently ignore, it's not a critical error to not have a spark name tx part
@@ -138,12 +167,33 @@ bool CSparkNameManager::ParseSparkNameTxData(const CTransaction &tx, spark::Spen
 
         sparkNameDataPos = tx.vExtraPayload.size() - serializedSpark.size();
         serializedSpark >> sparkNameData;
+        if ((version == spark::SpendTransactionVersion::V2 ||
+             requireCanonicalExtension) && !serializedSpark.empty()) {
+            return false;
+        }
     }
     catch (const std::exception &) {
         return false;
     }
 
     return true;
+}
+
+spark::Scalar CSparkNameManager::GetSparkNameOwnershipMessage(
+        const uint256& digest,
+        bool useChaumV2)
+{
+    spark::Scalar message;
+    if (!useChaumV2) {
+        message.SetHex(digest.ToString());
+        return message;
+    }
+
+    CHashWriter domain(SER_GETHASH, PROTOCOL_VERSION);
+    domain << std::string("SparkNameOwnershipMessageV2") << digest;
+    uint256 seed = domain.GetHash();
+    message.memberFromSeed(seed.begin());
+    return message;
 }
 
 bool CSparkNameManager::CheckPaymentToTransparentAddress(const CTransaction &tx, const std::string &address, CAmount amount) const
@@ -179,8 +229,25 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
     spark::SpendTransaction spendTransaction(params);
     size_t sparkNameDataPos;
 
-    if (!ParseSparkNameTxData(tx, spendTransaction, sparkNameData, sparkNameDataPos)) {
+    const bool requireCanonicalExtension =
+        tx.IsSparkSpendV2() ||
+        nHeight >= consensusParams.nSparkChaumV2StartBlock;
+    if (!ParseSparkNameTxData(
+            tx,
+            spendTransaction,
+            sparkNameData,
+            sparkNameDataPos,
+            requireCanonicalExtension)) {
         if (sparkNameDataPos == tx.vExtraPayload.size()) {
+            const bool hasSparkNameFee = std::any_of(
+                tx.vout.begin(), tx.vout.end(), [](const CTxOut& output) {
+                    return output.scriptPubKey.IsSparkNameFee();
+                });
+            if (nHeight >= consensusParams.nSparkChaumV2StartBlock &&
+                hasSparkNameFee) {
+                return state.DoS(100, error(
+                    "CheckSparkNameTx: Spark name fee requires canonical metadata"));
+            }
             return true;    // no payload, not an error at all
         }
         else {
@@ -317,6 +384,13 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
         CDataStream ownershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
         ownershipProofStream.write((const char *)sparkNameData.addressOwnershipProof.data(), sparkNameData.addressOwnershipProof.size());
         ownershipProofStream >> ownershipProof;
+        if (requireCanonicalExtension &&
+            (!ownershipProofStream.empty() ||
+             !IsCanonicalOwnershipProof(
+                 sparkNameData.addressOwnershipProof, ownershipProof))) {
+            return state.DoS(100, error(
+                "CheckSparkNameTx: non-canonical ownership proof"));
+        }
     }
     catch (const std::exception &) {
         return state.DoS(100, error("CheckSparkNameTx: failed to deserialize ownership proof"));
@@ -324,7 +398,8 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
 
     spark::Scalar m;
     try {
-        m.SetHex(ss.GetHash().ToString());
+        m = GetSparkNameOwnershipMessage(
+            ss.GetHash(), tx.IsSparkSpendV2());
     }
     catch (const std::exception &) {
         return state.DoS(100, error("CheckSparkNameTx: hash is out of range"));
@@ -379,6 +454,14 @@ bool CSparkNameManager::CheckSparkNameTx(const CTransaction &tx, int nHeight, CV
             CDataStream transferOwnershipProofStream(SER_NETWORK, PROTOCOL_VERSION);
             transferOwnershipProofStream.write((const char *)sparkNameData.transferOwnershipProof.data(), sparkNameData.transferOwnershipProof.size());
             transferOwnershipProofStream >> transferOwnershipProof;
+            if (requireCanonicalExtension &&
+                (!transferOwnershipProofStream.empty() ||
+                 !IsCanonicalOwnershipProof(
+                     sparkNameData.transferOwnershipProof,
+                     transferOwnershipProof))) {
+                return state.DoS(100, error(
+                    "CheckSparkNameTx: non-canonical transfer ownership proof"));
+            }
         }
         catch (const std::exception &) {
             return state.DoS(100, error("CheckSparkNameTx: failed to deserialize transfer ownership proof"));
@@ -532,23 +615,71 @@ size_t CSparkNameManager::GetSparkNameTxDataSize(const CSparkNameTxData &sparkNa
     return sparkNameDataStream.size();
 }
 
-void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, int nHeight)
+void CSparkNameManager::PrepareSparkNameTxData(
+        CSparkNameTxData &sparkNameData,
+        int nHeight)
 {
     if (sparkNameData.operationType == (uint8_t)CSparkNameTxData::opTransfer &&
         nHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
         try {
-            uint64_t expirationHeight = GetSparkNameBlockHeight(sparkNameData.name);
+            const uint64_t expirationHeight =
+                GetSparkNameBlockHeight(sparkNameData.name);
             CHashWriter hw(SER_GETHASH, PROTOCOL_VERSION);
             hw << expirationHeight;
             sparkNameData.inputsHash = hw.GetHash();
         } catch (const std::exception &) {
-            // Name not found; inputsHash stays zero and CheckSparkNameTx will reject the tx.
+            // Leave inputsHash unchanged; validation will reject an unknown
+            // name instead of allowing the wallet to bind a different value.
+        }
+    }
+}
+
+uint256 CSparkNameManager::GetSparkNameCommitment(
+        const CSparkNameTxData &sparkNameData)
+{
+    CSparkNameTxData committed = sparkNameData;
+    committed.addressOwnershipProof.clear();
+    committed.transferOwnershipProof.clear();
+
+    CHashWriter hash(SER_GETHASH, PROTOCOL_VERSION);
+    hash << std::string("FiroSparkNameExtensionV1") << committed;
+    return hash.GetHash();
+}
+
+void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, int nHeight)
+{
+    const bool useChaumV2 =
+        txSparkSpend.nType == TRANSACTION_SPARK_V2;
+    if (!useChaumV2) {
+        PrepareSparkNameTxData(sparkNameData, nHeight);
+    } else {
+        const std::size_t privateOutputCount = std::count_if(
+            txSparkSpend.vout.begin(), txSparkSpend.vout.end(),
+            [](const CTxOut& output) {
+                return output.scriptPubKey.IsSparkSMint();
+            });
+        CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+        payload.write(
+            reinterpret_cast<const char*>(txSparkSpend.vExtraPayload.data()),
+            txSparkSpend.vExtraPayload.size());
+        spark::SpendTransaction spend(
+            spark::Params::get_default(),
+            spark::SpendTransactionVersion::V2,
+            privateOutputCount);
+        payload >> spend;
+        if (!payload.empty() ||
+            spend.getExtensionCommitment() !=
+                GetSparkNameCommitment(sparkNameData)) {
+            throw std::invalid_argument(
+                "Spark V2 name metadata changed after spend construction");
         }
     }
 
     for (uint32_t n=0; ; n++) {
         sparkNameData.addressOwnershipProof.clear();
-        sparkNameData.hashFailsafe = n;
+        if (!useChaumV2) {
+            sparkNameData.hashFailsafe = n;
+        }
 
         CMutableTransaction txCopy(txSparkSpend);
         CDataStream serializedSparkNameData(SER_NETWORK, PROTOCOL_VERSION);
@@ -560,7 +691,8 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
 
         spark::Scalar m;
         try {
-            m.SetHex(ss.GetHash().ToString());
+            m = GetSparkNameOwnershipMessage(
+                ss.GetHash(), useChaumV2);
         }
         catch (const std::exception &) {
             continue;   // increase hashFailSafe and try again

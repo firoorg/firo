@@ -12,6 +12,9 @@
 #include "fixtures.h"
 #include <iostream>
 #include <boost/test/unit_test.hpp>
+#include <univalue.h>
+
+UniValue CallRPC(std::string args);
 
 namespace spark {
 
@@ -134,9 +137,13 @@ public:
         modify(sparkNameData);
 
         if (fRecalcOwnershipProof) {
+            const bool useChaumV2 =
+                tx.nType == TRANSACTION_SPARK_V2;
             for (uint32_t n=0; ; n++) {
                 sparkNameData.addressOwnershipProof.clear();
-                sparkNameData.hashFailsafe = n;
+                if (!useChaumV2) {
+                    sparkNameData.hashFailsafe = n;
+                }
         
                 CMutableTransaction txCopy(tx);
                 CDataStream serializedSparkNameData(SER_NETWORK, PROTOCOL_VERSION);
@@ -149,7 +156,8 @@ public:
         
                 spark::Scalar m;
                 try {
-                    m.SetHex(ss.GetHash().ToString());
+                    m = CSparkNameManager::GetSparkNameOwnershipMessage(
+                        ss.GetHash(), useChaumV2);
                 }
                 catch (const std::exception &) {
                     continue;   // increase hashFailSafe and try again
@@ -194,6 +202,325 @@ public:
 } // namespace spark
 
 BOOST_FIXTURE_TEST_SUITE(sparknames, spark::SparkNameTests)
+
+BOOST_AUTO_TEST_CASE(chaum_v2_name_extension_is_canonical_and_bound)
+{
+    Initialize();
+    const int v2Height = chainActive.Height() + 1;
+    mutableConsensus.nSparkSingleInputStartBlock = v2Height;
+    mutableConsensus.nSparkChaumV2StartBlock = v2Height;
+    mutableConsensus.nSparkNamesStartBlock = 1;
+    mutableConsensus.nSparkNamesV2StartBlock = 1;
+    mutableConsensus.nSparkNamesV21StartBlock = 1;
+
+    CSparkNameTxData data;
+    data.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    data.name = "v2-bound-name";
+    data.sparkAddress = GenerateSparkAddress();
+    data.sparkNameValidityBlocks = 365 * 24 * 24;
+    data.additionalInfo = "bound";
+    data.hashFailsafe = 7;
+
+    uint256 outOfRangeDigest;
+    outOfRangeDigest.SetHex(std::string(64, 'f'));
+    BOOST_CHECK_THROW(
+        CSparkNameManager::GetSparkNameOwnershipMessage(
+            outOfRangeDigest, false),
+        std::runtime_error);
+    BOOST_CHECK_NO_THROW(
+        CSparkNameManager::GetSparkNameOwnershipMessage(
+            outOfRangeDigest, true));
+
+    CMutableTransaction nameTx = CreateSparkNameTx(data, false);
+    BOOST_REQUIRE(CTransaction(nameTx).IsSparkSpendV2());
+
+    BOOST_REQUIRE_NO_THROW(spark::ParseSparkSpend(CTransaction(nameTx)));
+    CValidationState nameState;
+    BOOST_REQUIRE_MESSAGE(sparkNameManager->CheckSparkNameTx(
+        CTransaction(nameTx), v2Height, nameState), FormatStateMessage(nameState));
+    CValidationState spendState;
+    BOOST_REQUIRE_MESSAGE(spark::CheckSparkTransaction(
+        CTransaction(nameTx), spendState, nameTx.GetHash(), false, v2Height,
+        false, true, nullptr), spendState.GetRejectReason());
+
+    CValidationState validState;
+    BOOST_REQUIRE_MESSAGE(CheckTransaction(
+        CTransaction(nameTx), validState, false, nameTx.GetHash(), false,
+        v2Height, false, true, nullptr), validState.GetRejectReason());
+
+    spark::SpendTransaction spend(spark::Params::get_default());
+    CSparkNameTxData parsed;
+    std::size_t extensionPosition = 0;
+    BOOST_REQUIRE(sparkNameManager->ParseSparkNameTxData(
+        nameTx, spend, parsed, extensionPosition));
+    BOOST_CHECK(!spend.getExtensionCommitment().IsNull());
+    BOOST_CHECK_EQUAL(
+        spend.getExtensionCommitment().ToString(),
+        CSparkNameManager::GetSparkNameCommitment(parsed).ToString());
+
+    // Removing a name suffix must not turn a pending registration into an
+    // ordinary spend that consumes the same tag and burns the name fee.
+    CMutableTransaction stripped(nameTx);
+    stripped.vExtraPayload.resize(extensionPosition);
+    CValidationState strippedState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(stripped), strippedState, false, stripped.GetHash(),
+        false, v2Height, false, true, nullptr));
+
+    // Semantic extension mutations are bound by the V2 proof.
+    CMutableTransaction changed(nameTx);
+    ModifySparkNameTx(changed, [](CSparkNameTxData& changedData) {
+        changedData.additionalInfo = "not-bound";
+    }, false);
+    CValidationState changedState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(changed), changedState, false, changed.GetHash(),
+        false, v2Height, false, true, nullptr));
+
+    CMutableTransaction tailedExtension(nameTx);
+    tailedExtension.vExtraPayload.push_back(0);
+    CValidationState tailedExtensionState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(tailedExtension), tailedExtensionState, false,
+        tailedExtension.GetHash(), false, v2Height, false, true, nullptr));
+
+    // Ownership-proof byte vectors must contain exactly one proof.
+    CMutableTransaction tailedProof(nameTx);
+    ModifySparkNameTx(tailedProof, [](CSparkNameTxData& changedData) {
+        changedData.addressOwnershipProof.push_back(0);
+    }, false);
+    CValidationState tailedProofState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(tailedProof), tailedProofState, false,
+        tailedProof.GetHash(), false, v2Height, false, true, nullptr));
+
+    // A noncanonical GroupElement flag can deserialize to a usable point for
+    // some encodings. Reject the raw encoding before proof verification so it
+    // cannot malleate the txid even when it represents the same proof.
+    CMutableTransaction noncanonicalProof(nameTx);
+    ModifySparkNameTx(noncanonicalProof, [](CSparkNameTxData& changedData) {
+        BOOST_REQUIRE_GT(changedData.addressOwnershipProof.size(), 32U);
+        changedData.addressOwnershipProof[32] += 2;
+    }, false);
+    CValidationState noncanonicalProofState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(noncanonicalProof), noncanonicalProofState, false,
+        noncanonicalProof.GetHash(), false, v2Height, false, true, nullptr));
+
+    const int beforeNameBlock = chainActive.Height();
+    BOOST_REQUIRE(GenerateBlock({nameTx}));
+    BOOST_CHECK_EQUAL(chainActive.Height(), beforeNameBlock + 1);
+}
+
+BOOST_AUTO_TEST_CASE(chaum_v1_name_fee_requires_canonical_metadata_after_v2_activation)
+{
+    Initialize();
+    const int singleInputHeight = chainActive.Height() + 1;
+    const int v2Height = singleInputHeight + 1;
+    mutableConsensus.nSparkSingleInputStartBlock = singleInputHeight;
+    mutableConsensus.nSparkChaumV2StartBlock = v2Height;
+    mutableConsensus.nSparkNamesStartBlock = 1;
+    mutableConsensus.nSparkNamesV2StartBlock = 1;
+    mutableConsensus.nSparkNamesV21StartBlock = 1;
+
+    CSparkNameTxData data;
+    data.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    data.name = "v1-canonical-name";
+    data.sparkAddress = GenerateSparkAddress();
+    data.sparkNameValidityBlocks = 365 * 24 * 24;
+
+    CMutableTransaction nameTx = CreateSparkNameTx(data, false);
+    BOOST_REQUIRE(CTransaction(nameTx).IsSparkSpendV1());
+
+    CValidationState validState;
+    BOOST_REQUIRE(CheckTransaction(
+        CTransaction(nameTx), validState, false, nameTx.GetHash(), false,
+        v2Height, false, true, nullptr));
+
+    spark::SpendTransaction spend(spark::Params::get_default());
+    CSparkNameTxData parsed;
+    std::size_t extensionPosition = 0;
+    BOOST_REQUIRE(sparkNameManager->ParseSparkNameTxData(
+        nameTx, spend, parsed, extensionPosition, true));
+
+    CMutableTransaction stripped(nameTx);
+    stripped.vExtraPayload.resize(extensionPosition);
+    CValidationState historicalStrippedState;
+    BOOST_REQUIRE(CheckTransaction(
+        CTransaction(stripped), historicalStrippedState, false,
+        stripped.GetHash(), false, singleInputHeight, false, true, nullptr));
+    CValidationState strippedState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(stripped), strippedState, false, stripped.GetHash(),
+        false, v2Height, false, true, nullptr));
+
+    CMutableTransaction tailed(nameTx);
+    tailed.vExtraPayload.push_back(0);
+    CValidationState historicalTailedState;
+    BOOST_REQUIRE(CheckTransaction(
+        CTransaction(tailed), historicalTailedState, false,
+        tailed.GetHash(), false, singleInputHeight, false, true, nullptr));
+    CValidationState tailedState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(tailed), tailedState, false, tailed.GetHash(), false,
+        v2Height, false, true, nullptr));
+
+    CMutableTransaction tailedProof(nameTx);
+    ModifySparkNameTx(tailedProof, [](CSparkNameTxData& changedData) {
+        changedData.addressOwnershipProof.push_back(0);
+    }, false);
+    CValidationState tailedProofState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(tailedProof), tailedProofState, false,
+        tailedProof.GetHash(), false, v2Height, false, true, nullptr));
+}
+
+BOOST_AUTO_TEST_CASE(chaum_v2_transfer_binds_canonical_extension)
+{
+    constexpr uint32_t blocksPerYear = 365 * 24 * 24;
+    Initialize();
+    const int v2Height = chainActive.Height() + 1;
+    mutableConsensus.nSparkSingleInputStartBlock = v2Height;
+    mutableConsensus.nSparkChaumV2StartBlock = v2Height;
+    mutableConsensus.nSparkNamesStartBlock = 1;
+    mutableConsensus.nSparkNamesV2StartBlock = 1;
+    mutableConsensus.nSparkNamesV21StartBlock = 1;
+
+    const std::string addressA = GenerateSparkAddress();
+    CSparkNameTxData registration;
+    registration.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    registration.name = "v2-transfer-name";
+    registration.sparkAddress = addressA;
+    registration.sparkNameValidityBlocks = blocksPerYear;
+    CMutableTransaction registrationTx =
+        CreateSparkNameTx(registration, false);
+    BOOST_REQUIRE(CTransaction(registrationTx).IsSparkSpendV2());
+    CBlockIndex* registrationIndex = GenerateBlock({registrationTx});
+    BOOST_REQUIRE(registrationIndex);
+    const auto registrationRecord = registrationIndex->addedSparkNames.find(
+        CSparkNameManager::ToUpper(registration.name));
+    BOOST_REQUIRE(
+        registrationRecord != registrationIndex->addedSparkNames.end());
+    const uint64_t registrationExpiration =
+        registrationRecord->second.sparkNameValidityHeight;
+
+    CSparkNameTxData transfer;
+    transfer.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    transfer.operationType = CSparkNameTxData::opTransfer;
+    transfer.name = registration.name;
+    transfer.oldSparkAddress = addressA;
+    transfer.sparkAddress = GenerateSparkAddress();
+    transfer.sparkNameValidityBlocks = blocksPerYear;
+    CHashWriter inputsHash(SER_GETHASH, PROTOCOL_VERSION);
+    inputsHash << sparkNameManager->GetSparkNameBlockHeight(transfer.name);
+    transfer.inputsHash = inputsHash.GetHash();
+
+    CSparkNameTxData transferMessage = transfer;
+    transferMessage.addressOwnershipProof.clear();
+    transferMessage.transferOwnershipProof.clear();
+    CHashWriter nameHash(SER_GETHASH, PROTOCOL_VERSION);
+    nameHash << transferMessage;
+    CHashWriter transferHash(SER_GETHASH, PROTOCOL_VERSION);
+    transferHash << "SparkNameTransferProof";
+    transferHash << transfer.oldSparkAddress << transfer.sparkAddress;
+    transferHash << nameHash.GetHash();
+
+    const spark::Params* params = spark::Params::get_default();
+    spark::SpendKey spendKey =
+        pwalletMain->sparkWallet->generateSpendKey(params);
+    spark::Address oldAddress(params);
+    oldAddress.decode(addressA);
+    spark::Scalar transferScalar;
+    transferScalar.SetHex(transferHash.GetHash().ToString());
+    spark::OwnershipProof transferProof;
+    oldAddress.prove_own(
+        transferScalar,
+        spendKey,
+        spark::FullViewKey(spendKey),
+        transferProof);
+    CDataStream transferProofStream(SER_NETWORK, PROTOCOL_VERSION);
+    transferProofStream << transferProof;
+    transfer.transferOwnershipProof.assign(
+        transferProofStream.begin(), transferProofStream.end());
+
+    CMutableTransaction transferTx = CreateSparkNameTx(transfer, false);
+    BOOST_REQUIRE(CTransaction(transferTx).IsSparkSpendV2());
+    CValidationState validState;
+    BOOST_REQUIRE(CheckTransaction(
+        CTransaction(transferTx), validState, false, transferTx.GetHash(),
+        false, chainActive.Height() + 1, false, true, nullptr));
+
+    CMutableTransaction tailedTransferProof(transferTx);
+    ModifySparkNameTx(
+        tailedTransferProof,
+        [](CSparkNameTxData& changedData) {
+            changedData.transferOwnershipProof.push_back(0);
+        },
+        false);
+    CValidationState tailedState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(tailedTransferProof), tailedState, false,
+        tailedTransferProof.GetHash(), false, chainActive.Height() + 1,
+        false, true, nullptr));
+
+    const int beforeTransfer = chainActive.Height();
+    BOOST_REQUIRE(GenerateBlock({transferTx}));
+    BOOST_CHECK_EQUAL(chainActive.Height(), beforeTransfer + 1);
+    std::string resolved;
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(transfer.name, resolved));
+    BOOST_CHECK_EQUAL(resolved, transfer.sparkAddress);
+
+    const UniValue historical = CallRPC(
+        "getsparknametxdetails " + registrationTx.GetHash().ToString());
+    BOOST_CHECK_EQUAL(
+        find_value(historical, "address").get_str(), addressA);
+    BOOST_CHECK_EQUAL(
+        find_value(historical, "validUntil").get_int64(),
+        registrationExpiration);
+}
+
+BOOST_AUTO_TEST_CASE(unconfirmed_details_report_pending_validity)
+{
+    Initialize(510);
+    const int activationHeight = chainActive.Height() + 1;
+    mutableConsensus.nSparkSingleInputStartBlock = activationHeight;
+    mutableConsensus.nSparkChaumV2StartBlock = activationHeight;
+    mutableConsensus.nSparkNamesStartBlock = 1;
+    mutableConsensus.nSparkNamesV2StartBlock = 1;
+    mutableConsensus.nSparkNamesV21StartBlock = 1;
+
+    CSparkNameTxData registration;
+    registration.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    registration.name = "pending-details";
+    registration.sparkAddress = GenerateSparkAddress();
+    registration.sparkNameValidityBlocks = 100;
+    CMutableTransaction registrationTx =
+        CreateSparkNameTx(registration, true);
+    BOOST_REQUIRE(lastState.IsValid());
+
+    const UniValue pendingRegistration = CallRPC(
+        "getsparknametxdetails " + registrationTx.GetHash().ToString());
+    BOOST_CHECK_EQUAL(
+        find_value(pendingRegistration, "validUntil").get_int64(),
+        chainActive.Height() + 1 +
+            registration.sparkNameValidityBlocks);
+
+    BOOST_REQUIRE(GenerateBlock({registrationTx}));
+    const uint64_t existingValidity =
+        sparkNameManager->GetSparkNameBlockHeight(registration.name);
+
+    CSparkNameTxData renewal = registration;
+    renewal.sparkNameValidityBlocks = 25;
+    renewal.additionalInfo = "pending-renewal";
+    CMutableTransaction renewalTx = CreateSparkNameTx(renewal, true);
+    BOOST_REQUIRE(lastState.IsValid());
+
+    const UniValue pendingRenewal = CallRPC(
+        "getsparknametxdetails " + renewalTx.GetHash().ToString());
+    BOOST_CHECK_EQUAL(
+        find_value(pendingRenewal, "validUntil").get_int64(),
+        existingValidity + renewal.sparkNameValidityBlocks);
+}
 
 BOOST_AUTO_TEST_CASE(general)
 {
@@ -334,6 +661,12 @@ BOOST_AUTO_TEST_CASE(general)
 BOOST_AUTO_TEST_CASE(hfblocknumber)
 {
     Initialize(1000);   // stay below HF block number for a time being
+
+    // This lifecycle test creates several large name payments. Exercise it
+    // with V2 enabled so the single-input rule does not make its legacy
+    // multi-input wallet setup fail before the Spark Names assertions run.
+    mutableConsensus.nSparkSingleInputStartBlock = 1;
+    mutableConsensus.nSparkChaumV2StartBlock = 1;
 
     // Push V2.1 activation past the end of the graceful period so fee-tag
     // requirements don't interfere with the address-transition test below.

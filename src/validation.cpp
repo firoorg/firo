@@ -1096,7 +1096,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 nFees = nValueIn - nValueOut;
             } else {
                 try {
-                    nFees = spark::ParseSparkSpend(tx).getFee();
+                    nFees = spark::GetSparkSpendFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -2359,7 +2359,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
 
         if (tx.IsSparkSpend()) {
             try {
-                nFees += spark::ParseSparkSpend(tx).getFee();
+                nFees += spark::GetSparkSpendFee(tx);
             }
             catch (const std::exception &) {
                 // do nothing
@@ -2749,7 +2749,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             if(tx.IsSparkSpend()) {
                 try {
-                    nFees += spark::ParseSparkSpend(tx).getFee();
+                    nFees += spark::GetSparkSpendFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");

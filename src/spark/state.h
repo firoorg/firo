@@ -52,6 +52,7 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
+CAmount GetSparkSpendFee(const CTransaction& tx);
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);

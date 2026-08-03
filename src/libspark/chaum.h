@@ -2,14 +2,17 @@
 #define FIRO_LIBSPARK_CHAUM_H
 
 #include "chaum_proof.h"
+#include "uint256.h"
 #include <secp256k1/include/MultiExponent.h>
 
 namespace spark {
 
 struct ChaumV2Context {
-    uint64_t fee;
-    uint64_t transparent_value;
+    uint64_t fee = 0;
+    uint64_t transparent_value = 0;
     std::vector<std::vector<unsigned char>> serialized_outputs;
+    uint256 extension_commitment{};
+    std::vector<unsigned char> serialized_cover_set_references;
 };
 
 class Chaum {

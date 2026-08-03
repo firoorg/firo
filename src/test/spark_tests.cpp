@@ -7,6 +7,8 @@
 #include "../wallet/walletexcept.h"
 #include "../wallet/wallet.h"
 #include "../net.h"
+#include "../miner.h"
+#include "../policy/policy.h"
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
@@ -167,8 +169,9 @@ public:
             fee,
             transparentAmount,
             {change},
-            version);
-        spend.setBlockHashes(blockHashes);
+            version,
+            uint256(),
+            blockHashes);
 
         CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
         payload << spend;
@@ -887,15 +890,23 @@ BOOST_AUTO_TEST_CASE(spark_single_input_wallet_requires_one_coin_immediately)
 
 BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
 {
+    Consensus::Params& mutableConsensus =
+        const_cast<Consensus::Params&>(::Params().GetConsensus());
+    const int originalSparkNamesStartBlock =
+        mutableConsensus.nSparkNamesStartBlock;
     struct ResetActivationHeights {
+        Consensus::Params& consensus;
+        int sparkNamesStartBlock;
         ~ResetActivationHeights()
         {
             BatchProofContainer::get_instance()->fCollectProofs = false;
             BatchProofContainer::get_instance()->init();
             UpdateRegtestSparkChaumV2Height(INT_MAX);
             UpdateRegtestSparkSingleInputHeight(INT_MAX);
+            consensus.nSparkNamesStartBlock = sparkNamesStartBlock;
         }
-    } resetActivationHeights;
+    } resetActivationHeights{
+        mutableConsensus, originalSparkNamesStartBlock};
 
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
@@ -935,12 +946,43 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     CMutableTransaction trailingV2(v2Multi);
     trailingV2.vExtraPayload.push_back(0);
     BOOST_CHECK_THROW(ParseSparkSpend(trailingV2), std::exception);
+
+    CMutableTransaction oversizedFee(v2Multi);
+    CDataStream feePosition(
+        oversizedFee.vExtraPayload, SER_NETWORK, PROTOCOL_VERSION);
+    uint8_t wireVersion;
+    feePosition >> wireVersion;
+    const uint64_t feeInputCount = ReadCompactSize(feePosition);
+    FIRO_UNUSED const uint64_t feeOutputCount =
+        ReadCompactSize(feePosition);
+    for (uint64_t i = 0; i < feeInputCount; ++i) {
+        uint64_t coverSetId;
+        feePosition >> coverSetId;
+    }
+    const uint64_t blockHashCount = ReadCompactSize(feePosition);
+    for (uint64_t i = 0; i < blockHashCount; ++i) {
+        uint64_t coverSetId;
+        uint256 blockHash;
+        feePosition >> coverSetId >> blockHash;
+    }
+    const std::size_t feeOffset =
+        oversizedFee.vExtraPayload.size() - feePosition.size();
+    BOOST_REQUIRE_LE(feeOffset + sizeof(uint64_t),
+        oversizedFee.vExtraPayload.size());
+    std::fill_n(
+        oversizedFee.vExtraPayload.begin() + feeOffset,
+        sizeof(uint64_t),
+        0xff);
+    BOOST_CHECK_THROW(GetSparkSpendFee(oversizedFee), std::invalid_argument);
     mempool.clear();
 
     const int preActivationHeight = chainActive.Height();
     const int activationHeight = preActivationHeight + 2;
     UpdateRegtestSparkSingleInputHeight(activationHeight);
     UpdateRegtestSparkChaumV2Height(activationHeight);
+    // Live networks activated Spark Names before the V2 spend format. Exercise
+    // that ordering instead of regtest's otherwise later names height.
+    mutableConsensus.nSparkNamesStartBlock = 1;
 
     CValidationState retaggedV2State;
     CSparkTxInfo retaggedV2Info;
@@ -1039,14 +1081,165 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     BOOST_CHECK(parsedWalletV2.getVersion() == SpendTransactionVersion::V2);
     BOOST_CHECK_EQUAL(parsedWalletV2.getUsedLTags().size(), 2U);
 
+    // Wallet selection must enforce the same input bound as the V2 parser so
+    // an oversized selection fails before expensive proof construction.
+    std::list<CSparkMintMeta> boundedSelection(MAX_CHAUM_V2_INPUTS);
+    for (auto& coin : boundedSelection) {
+        coin.v = COIN;
+    }
+    const auto boundedResult =
+        pwalletMain->sparkWallet->SelectSparkCoins(
+            static_cast<CAmount>(boundedSelection.size()) * COIN,
+            true,
+            boundedSelection,
+            0,
+            1,
+            nullptr,
+            true,
+            0);
+    BOOST_CHECK_EQUAL(
+        boundedResult.second.size(), MAX_CHAUM_V2_INPUTS);
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->SelectSparkCoins(
+            COIN,
+            true,
+            boundedSelection,
+            0,
+            1,
+            nullptr,
+            true,
+            std::numeric_limits<std::size_t>::max()),
+        std::invalid_argument);
+
+    std::list<CSparkMintMeta> oversizedSelection = boundedSelection;
+    oversizedSelection.push_back(CSparkMintMeta());
+    oversizedSelection.back().v = COIN;
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->SelectSparkCoins(
+            static_cast<CAmount>(oversizedSelection.size()) * COIN,
+            true,
+            oversizedSelection,
+            0,
+            1,
+            nullptr,
+            true,
+            0),
+        std::invalid_argument);
+
+    CRecipient maximumRecipient;
+    maximumRecipient.scriptPubKey = script;
+    maximumRecipient.nAmount = MAX_MONEY;
+    CAmount rejectedFee = 0;
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->CreateSparkSpendTransaction(
+            {maximumRecipient, maximumRecipient}, {}, rejectedFee),
+        std::runtime_error);
+    const CFeeRate originalPayTxFee = payTxFee;
+    payTxFee = CFeeRate(CAmount{1});
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->SelectSparkCoins(
+            MAX_MONEY, false, {}, 0, 1, nullptr, true, 0),
+        std::invalid_argument);
+    payTxFee = originalPayTxFee;
+
+    OutputCoinData oversizedPrivateRecipient;
+    oversizedPrivateRecipient.v = std::numeric_limits<uint64_t>::max();
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->CreateSparkSpendTransaction(
+            {}, {{oversizedPrivateRecipient, false}}, rejectedFee),
+        std::runtime_error);
+
+    // V2 private output scripts and their placement are consensus-canonical.
+    // Otherwise third parties can change the txid without changing any proof
+    // statement, tag, output coin, fee, or transparent value.
+    mempool.clear();
+    CMutableTransaction tailedPrivateOutput(walletV2);
+    auto privateOutput = std::find_if(
+        tailedPrivateOutput.vout.begin(), tailedPrivateOutput.vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkSMint(); });
+    BOOST_REQUIRE(privateOutput != tailedPrivateOutput.vout.end());
+    privateOutput->scriptPubKey.push_back(0);
+    CValidationState tailedState;
+    CSparkTxInfo tailedInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        tailedPrivateOutput,
+        tailedState,
+        tailedPrivateOutput.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &tailedInfo));
+
+    CMutableTransaction reorderedOutputs(walletV2);
+    const auto reorderedPrivate = std::find_if(
+        reorderedOutputs.vout.begin(), reorderedOutputs.vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkSMint(); });
+    BOOST_REQUIRE(reorderedPrivate != reorderedOutputs.vout.end());
+    BOOST_REQUIRE(reorderedPrivate != reorderedOutputs.vout.begin());
+    std::rotate(
+        reorderedOutputs.vout.begin(),
+        reorderedPrivate,
+        std::next(reorderedPrivate));
+    CValidationState reorderedState;
+    CSparkTxInfo reorderedInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        reorderedOutputs,
+        reorderedState,
+        reorderedOutputs.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &reorderedInfo));
+
     CBlockIndex* activationIndex =
-        GenerateBlock({CMutableTransaction(walletV2)});
+        GenerateBlock({CMutableTransaction(v2Multi)});
     BOOST_REQUIRE(activationIndex);
     BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight);
     const CBlock activationBlock = GetCBlock(activationIndex);
 
-    BOOST_REQUIRE(DisconnectBlocks(1));
-    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
+    BOOST_REQUIRE(DisconnectBlocks(2));
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 2);
+    BOOST_REQUIRE(mempool.exists(v2Multi.GetHash()));
+    BOOST_REQUIRE(IsFinalTx(
+        v2Multi, chainActive.Height() + 1, GetAdjustedTime()));
+
+    // A stale V2 transaction must be excluded from both miner selection
+    // paths before V2 activation. A large priority delta forces the legacy
+    // priority path independently of the package-level activation check.
+    mempool.PrioritiseTransaction(
+        v2Multi.GetHash(), v2Multi.GetHash().ToString(), 1e15, 0);
+    std::unique_ptr<CBlockTemplate> preActivationTemplate;
+    BOOST_CHECK_NO_THROW(preActivationTemplate =
+        BlockAssembler(::Params()).CreateNewBlock(script));
+    BOOST_REQUIRE(preActivationTemplate);
+    BOOST_CHECK(std::none_of(
+        preActivationTemplate->block.vtx.begin(), preActivationTemplate->block.vtx.end(),
+        [&v2Multi](const CTransactionRef& tx) {
+            return tx->GetHash() == v2Multi.GetHash();
+        }));
+    mempool.ClearPrioritisation(v2Multi.GetHash());
+
+    std::unique_ptr<CBlockTemplate> preActivationPackageTemplate;
+    BOOST_CHECK_NO_THROW(preActivationPackageTemplate =
+        BlockAssembler(::Params()).CreateNewBlock(script));
+    BOOST_REQUIRE(preActivationPackageTemplate);
+    BOOST_CHECK(std::none_of(
+        preActivationPackageTemplate->block.vtx.begin(),
+        preActivationPackageTemplate->block.vtx.end(),
+        [&v2Multi](const CTransactionRef& tx) {
+            return tx->GetHash() == v2Multi.GetHash();
+        }));
+
+    {
+        LOCK(cs_main);
+        mempool.removeForReorg(
+            pcoinsTip,
+            chainActive.Height() + 1,
+            STANDARD_LOCKTIME_VERIFY_FLAGS);
+    }
+    BOOST_CHECK(!mempool.exists(v2Multi.GetHash()));
     {
         LOCK(cs_main);
         CValidationState reconnectState;

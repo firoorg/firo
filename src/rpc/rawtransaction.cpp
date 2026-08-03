@@ -110,13 +110,15 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
             in.push_back("sparkSpend");
             fillStdFields(in, txin);
             std::unique_ptr<spark::SpendTransaction> sparkSpend;
+            CAmount sparkFee = 0;
             try {
                 sparkSpend = std::make_unique<spark::SpendTransaction>(spark::ParseSparkSpend(tx));
+                sparkFee = spark::GetSparkSpendFee(tx);
             }
             catch (const std::exception &) {
                 continue;
             }
-            in.push_back(Pair("nFees", ValueFromAmount(sparkSpend->getFee())));
+            in.push_back(Pair("nFees", ValueFromAmount(sparkFee)));
             UniValue lTags(UniValue::VARR);
             for (GroupElement const & lTag : sparkSpend->getUsedLTags()) {
                 lTags.push_back(lTag.GetHex());

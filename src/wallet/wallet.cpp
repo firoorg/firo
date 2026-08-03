@@ -2074,7 +2074,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
     {
         if (tx->IsSparkSpend()) {
             try {
-                nFee = spark::ParseSparkSpend(*tx).getFee();
+                nFee = spark::GetSparkSpendFee(*tx);
             }
             catch (const std::exception &) {
                 // do nothing

@@ -302,6 +302,8 @@ BOOST_AUTO_TEST_CASE(v2_binds_context_and_each_statement)
     context.fee = 11;
     context.transparent_value = 22;
     context.serialized_outputs = {{0xaa}, {0xbb}};
+    context.extension_commitment = uint256S("01");
+    context.serialized_cover_set_references = {0x01, 0xaa};
 
     Chaum chaum(F, G, H, U);
     ChaumProofV2 proof;
@@ -316,6 +318,12 @@ BOOST_AUTO_TEST_CASE(v2_binds_context_and_each_statement)
     BOOST_CHECK(!chaum.verify_v2(mu, changed, S, T, proof));
     changed = context;
     changed.serialized_outputs[0][0] ^= 1;
+    BOOST_CHECK(!chaum.verify_v2(mu, changed, S, T, proof));
+    changed = context;
+    changed.extension_commitment = uint256S("02");
+    BOOST_CHECK(!chaum.verify_v2(mu, changed, S, T, proof));
+    changed = context;
+    changed.serialized_cover_set_references.back() ^= 1;
     BOOST_CHECK(!chaum.verify_v2(mu, changed, S, T, proof));
 
     for (std::size_t i = 0; i < n; ++i) {
@@ -547,7 +555,7 @@ BOOST_AUTO_TEST_CASE(v2_rejects_bad_dimensions_before_verification)
     U.randomize();
     Scalar mu;
     mu.randomize();
-    ChaumV2Context context{0, 0, {}};
+    ChaumV2Context context;
     Chaum chaum(F, G, H, U);
     ChaumProofV2 proof;
 

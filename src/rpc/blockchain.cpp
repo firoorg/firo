@@ -329,12 +329,77 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
         throw JSONRPCError(RPC_TRANSACTION_ERROR, "Unknown transaction.");
 
     CSparkNameTxData sparkNameData;
-    CValidationState state;
     CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
     const CTransaction& tx = *txRef;
-    if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height(), state, &sparkNameData))
-        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark tx hash");
+    const CSparkNameBlockIndexData* historicalRecord = nullptr;
+    uint64_t pendingValidityHeight = 0;
+    if (!hashBlock.IsNull()) {
+        const auto block = mapBlockIndex.find(hashBlock);
+        if (block == mapBlockIndex.end()) {
+            throw JSONRPCError(
+                RPC_INTERNAL_ERROR,
+                "Transaction block is not indexed");
+        }
+        CBlockIndex* blockIndex = block->second;
+        spark::SpendTransaction spend(spark::Params::get_default());
+        std::size_t extensionPosition = 0;
+        const bool requireCanonicalExtension =
+            tx.IsSparkSpendV2() ||
+            blockIndex->nHeight >=
+                Params().GetConsensus().nSparkChaumV2StartBlock;
+        if (!CSparkNameManager::ParseSparkNameTxData(
+                tx,
+                spend,
+                sparkNameData,
+                extensionPosition,
+                requireCanonicalExtension)) {
+            throw JSONRPCError(
+                RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+        }
+
+        const auto record = blockIndex->addedSparkNames.find(
+            CSparkNameManager::ToUpper(sparkNameData.name));
+        if (record == blockIndex->addedSparkNames.end() ||
+            record->second.name != sparkNameData.name ||
+            record->second.sparkAddress != sparkNameData.sparkAddress ||
+            record->second.additionalInfo != sparkNameData.additionalInfo) {
+            throw JSONRPCError(
+                RPC_TRANSACTION_ERROR,
+                "Spark name transaction does not match its block index");
+        }
+        historicalRecord = &record->second;
+    } else {
+        const int nextBlockHeight = chainActive.Height() + 1;
+        CValidationState state;
+        if (!sparkNameManager->CheckSparkNameTx(
+                tx,
+                nextBlockHeight,
+                state,
+                &sparkNameData)) {
+            throw JSONRPCError(
+                RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+        }
+
+        pendingValidityHeight =
+            static_cast<uint64_t>(nextBlockHeight) +
+            sparkNameData.sparkNameValidityBlocks;
+        if (nextBlockHeight >=
+            Params().GetConsensus().nSparkNamesV21StartBlock) {
+            try {
+                const uint64_t existingValidity =
+                    sparkNameManager->GetSparkNameBlockHeight(
+                        sparkNameData.name);
+                if (existingValidity >
+                    static_cast<uint64_t>(nextBlockHeight)) {
+                    pendingValidityHeight = existingValidity +
+                        sparkNameData.sparkNameValidityBlocks;
+                }
+            } catch (const std::runtime_error&) {
+                // A new registration has no active record yet.
+            }
+        }
+    }
 
     if (sparkNameData.name.empty() && sparkNameData.sparkAddress.empty())
         throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
@@ -342,7 +407,9 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("name", sparkNameData.name));
     result.push_back(Pair("address", sparkNameData.sparkAddress));
-    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkNameData.name);
+    uint64_t nameBlockHeight = historicalRecord
+        ? historicalRecord->sparkNameValidityHeight
+        : pendingValidityHeight;
     result.push_back(Pair("validUntil", nameBlockHeight));
     if (sparkNameData.additionalInfo != "")
         result.push_back(Pair("additionalInfo", sparkNameData.additionalInfo));

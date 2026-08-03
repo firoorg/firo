@@ -66,18 +66,22 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
     const std::size_t w = spend_indices.size();
     std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
+    const std::vector<unsigned char> shared_cover_set_representation =
+        random_char_vector();
 
     for (std::size_t u = 0; u < w; u++) {
         IdentifiedCoinData identified_coin_data = in_coins[spend_indices[u]].identify(incoming_view_key);
         RecoveredCoinData recovered_coin_data = in_coins[spend_indices[u]].recover(full_view_key, identified_coin_data);
 
         spend_coin_data.emplace_back();
-        uint64_t cover_set_id = 31415;
+        // Use two identifiers that intentionally resolve to the same set. The
+        // ordered input-to-set association must still be authenticated.
+        uint64_t cover_set_id = 31415 + (u % 2);
         spend_coin_data.back().cover_set_id = cover_set_id;
 
         CoverSetData setData;
         setData.cover_set_size = in_coins.size();
-        setData.cover_set_representation = random_char_vector();
+        setData.cover_set_representation = shared_cover_set_representation;
         cover_set_data[cover_set_id] = setData;
         cover_sets[cover_set_id] = in_coins;
         spend_coin_data.back().index = spend_indices[u];
@@ -137,6 +141,10 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
     // V2 uses the componentwise relation and is valid for the same honest
     // multi-input witness. Its payload starts with an explicit version and is
     // parsed only when the transaction type selects V2.
+    std::map<uint64_t, uint256> blockHashes;
+    for (const auto& entry : cover_set_data) {
+        blockHashes.emplace(entry.first, uint256S("01"));
+    }
     SpendTransaction transactionV2(
         params,
         full_view_key,
@@ -147,12 +155,26 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
         f,
         0,
         out_coin_data,
-        SpendTransactionVersion::V2);
+        SpendTransactionVersion::V2,
+        uint256S("01"),
+        blockHashes);
     transactionV2.setCoverSets(cover_set_data);
     BOOST_REQUIRE(SpendTransaction::verify(transactionV2, cover_sets));
 
+    // V2 must authorize the exact serialized cover-set reference map. Even
+    // when two reference blocks happen to resolve to the same cover set, a
+    // third party must not be able to change the txid without invalidating the
+    // proof.
+    SpendTransaction changedReferences(transactionV2);
+    auto replacementReferences = blockHashes;
+    replacementReferences.begin()->second = uint256S("02");
+    changedReferences.setBlockHashes(replacementReferences);
+    BOOST_CHECK(!SpendTransaction::verify(changedReferences, cover_sets));
+
     CDataStream encodedV2(SER_NETWORK, PROTOCOL_VERSION);
     encodedV2 << transactionV2;
+    const std::vector<unsigned char> originalV2(
+        encodedV2.begin(), encodedV2.end());
     BOOST_REQUIRE(!encodedV2.empty());
     BOOST_CHECK_EQUAL(static_cast<unsigned char>(encodedV2[0]), 2U);
 
@@ -160,10 +182,47 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
         params, SpendTransactionVersion::V2, out_coin_data.size());
     encodedV2 >> decodedV2;
     BOOST_CHECK(encodedV2.empty());
+    CDataStream canonicalV2(SER_NETWORK, PROTOCOL_VERSION);
+    canonicalV2 << decodedV2;
+    BOOST_CHECK(std::equal(
+        canonicalV2.begin(), canonicalV2.end(), originalV2.begin(),
+        [](char left, unsigned char right) {
+            return static_cast<unsigned char>(left) == right;
+        }));
     decodedV2.setOutCoins(transactionV2.getOutCoins());
     decodedV2.setVout(0);
     decodedV2.setCoverSets(cover_set_data);
     BOOST_CHECK(SpendTransaction::verify(decodedV2, cover_sets));
+
+    CDataStream reorderedIds(SER_NETWORK, PROTOCOL_VERSION);
+    reorderedIds << transactionV2;
+    // The first three bytes are the version and the two CompactSize counts;
+    // fixed-width input identifiers follow immediately.
+    BOOST_REQUIRE_GE(reorderedIds.size(), 19U);
+    std::swap_ranges(
+        reorderedIds.begin() + 3,
+        reorderedIds.begin() + 11,
+        reorderedIds.begin() + 11);
+    SpendTransaction reorderedParser(
+        params, SpendTransactionVersion::V2, out_coin_data.size());
+    reorderedIds >> reorderedParser;
+    BOOST_CHECK(reorderedIds.empty());
+    reorderedParser.setOutCoins(transactionV2.getOutCoins());
+    reorderedParser.setVout(0);
+    reorderedParser.setCoverSets(cover_set_data);
+    BOOST_CHECK(!SpendTransaction::verify(reorderedParser, cover_sets));
+
+    SpendTransaction extraneousCoverSet(transactionV2);
+    extraneousCoverSet.setBlockHashes({{999, uint256S("02")}});
+    CDataStream extraneousEncoding(SER_NETWORK, PROTOCOL_VERSION);
+    BOOST_CHECK_THROW(
+        extraneousEncoding << extraneousCoverSet, std::exception);
+
+    SpendTransaction missingCoverSet(transactionV2);
+    missingCoverSet.setBlockHashes({});
+    CDataStream missingEncoding(SER_NETWORK, PROTOCOL_VERSION);
+    BOOST_CHECK_THROW(
+        missingEncoding << missingCoverSet, std::exception);
 
     // Historical V1 has no inner version byte, so arbitrary V2 bytes are not
     // guaranteed to fail while being decoded as V1. Consensus selects the

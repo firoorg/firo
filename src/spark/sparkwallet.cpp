@@ -1527,7 +1527,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         CAmount &fee,
         const CCoinControl *coinControl,
-        CAmount additionalTxSize) {
+        CAmount additionalTxSize,
+        const uint256& extensionCommitment) {
 
     if (recipients.empty() && privateRecipients.empty()) {
         throw std::runtime_error(_("Either recipients or newMints has to be nonempty."));
@@ -1549,8 +1550,10 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             throw std::runtime_error("Exchange addresses cannot receive private funds. Please transfer your funds to a transparent address first before sending to an Exchange address");
         }
 
-        if (!MoneyRange(recipient.nAmount)) {
-            throw std::runtime_error(boost::str(boost::format(_("Recipient has invalid amount")) % i));
+        if (!MoneyRange(recipient.nAmount) ||
+            recipient.nAmount > MAX_MONEY - vOut) {
+            throw std::runtime_error(boost::str(
+                boost::format(_("Recipient %1% has invalid amount")) % i));
         }
 
         vOut += recipient.nAmount;
@@ -1561,10 +1564,20 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     for (const auto& privRecipient : privateRecipients) {
-        mintVOut += privRecipient.first.v;
+        if (privRecipient.first.v > static_cast<uint64_t>(MAX_MONEY) ||
+            static_cast<CAmount>(privRecipient.first.v) >
+                MAX_MONEY - mintVOut) {
+            throw std::runtime_error(_(
+                "Private recipient has invalid amount"));
+        }
+        mintVOut += static_cast<CAmount>(privRecipient.first.v);
         if (privRecipient.second) {
             recipientsToSubtractFee++;
         }
+    }
+    if (mintVOut > MAX_MONEY - vOut) {
+        throw std::runtime_error(_(
+            "Spark spend output amount is out of range"));
     }
 
     int nHeight = 0;
@@ -1850,8 +1863,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                 privOutputs,
                 useChaumV2
                     ? spark::SpendTransactionVersion::V2
-                    : spark::SpendTransactionVersion::V1);
-            spendTransaction.setBlockHashes(idAndBlockHashes);
+                    : spark::SpendTransactionVersion::V1,
+                useChaumV2 ? extensionCommitment : uint256(),
+                idAndBlockHashes);
             CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
             serialized << spendTransaction;
             tx.vExtraPayload.assign(serialized.begin(), serialized.end());
@@ -1900,7 +1914,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             result.push_back(wtxNew);
         }
     }
-    {
+    if (extensionCommitment.IsNull()) {
         CValidationState state;
         for (CWalletTx& wtx : result) {
             if (!mempool.IsTransactionAllowed(*wtx.tx, state))
@@ -1950,8 +1964,16 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     devPayout.scriptPubKey = CSparkNameManager::GetSparkNameFeeScript(payoutAddress, nameData.name, nameData.sparkAddress);
     devPayout.fSubtractFeeFromAmount = false;
 
+    sparkNameManager->PrepareSparkNameTxData(nameData, nHeight);
+    const bool useChaumV2 =
+        nHeight >= consensusParams.nSparkChaumV2StartBlock;
+    const uint256 extensionCommitment = useChaumV2
+        ? CSparkNameManager::GetSparkNameCommitment(nameData)
+        : uint256();
+
     CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, txFee, coinConrol,
-        sparkNameManager->GetSparkNameTxDataSize(nameData) + 20 /* add a little bit to the fee to be on the safe side */);
+        sparkNameManager->GetSparkNameTxDataSize(nameData) + 20 /* add a little bit to the fee to be on the safe side */,
+        extensionCommitment);
 
     const spark::Params* params = spark::Params::get_default();
     spark::SpendKey spendKey(params);
@@ -1977,6 +1999,11 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(CSparkNameTxData &nameData, C
     sparkNameManager->AppendSparkNameTxData(tx, nameData, spendKey, fullViewKey, nHeight);
 
     wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
+    CValidationState state;
+    if (!mempool.IsTransactionAllowed(*wtxSparkSpend.tx, state)) {
+        throw std::invalid_argument(_(
+            "Unable to create a valid Spark name transaction"));
+    }
     return wtxSparkSpend;
 }
 
@@ -2078,29 +2105,67 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         size_t additionalTxSize) {
 
     CAmount fee;
-    unsigned size;
     int64_t changeToMint = 0; // this value can be negative, that means we need to spend remaining part of required value with another transaction (nMaxInputPerTransaction exceeded)
+
+    if (!MoneyRange(required)) {
+        throw std::invalid_argument(_(
+            "Spark spend amount is out of range"));
+    }
 
     std::vector<CSparkMintMeta> spendCoins;
     for (fee = payTxFee.GetFeePerK();;) {
         CAmount currentRequired = required;
 
-        if (!subtractFeeFromAmount)
+        if (!MoneyRange(fee)) {
+            throw std::invalid_argument(_(
+                "Spark spend fee is out of range"));
+        }
+        if (!subtractFeeFromAmount) {
+            if (fee > MAX_MONEY - currentRequired) {
+                throw std::invalid_argument(_(
+                    "Spark spend amount plus fee is out of range"));
+            }
             currentRequired += fee;
+        }
         spendCoins.clear();
         if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint, coinControl)) {
             throw std::invalid_argument(_("Unable to select cons for spend"));
         }
-
-        // 1803 is for first grootle proof/aux data
-        // 213 for each private output, 34 for each utxo,924 constant parts of tx parts of tx,
-        size = 924 + 1803*(spendCoins.size()) + 322*(mintNum+1) + 34*utxoNum + additionalTxSize;
-        if (useChaumV2 && spendCoins.size() > 1) {
-            // Each additional V2 input carries its own A1, t2 and t3. This is
-            // the exact Chaum-proof delta (34 + 32 + 32 bytes) over V1; the
-            // surrounding fitted estimate remains conservative.
-            size += 98*(spendCoins.size() - 1);
+        if (useChaumV2 &&
+            spendCoins.size() > spark::MAX_CHAUM_V2_INPUTS) {
+            throw std::invalid_argument(_(
+                "Spark V2 spends are limited to 100 inputs"));
         }
+
+        // 1803 is for each Grootle proof/auxiliary input, 322 for
+        // each private output (including change), 34 for each transparent
+        // output, and 924 for the fitted constant transaction parts.
+        uint64_t estimatedSize = 924;
+        const auto addEstimatedSize = [&estimatedSize](
+                uint64_t bytesPerItem,
+                std::size_t itemCount) {
+            if (itemCount >
+                (std::numeric_limits<unsigned int>::max() - estimatedSize) /
+                    bytesPerItem) {
+                throw std::invalid_argument(
+                    _("Spark spend size estimate is out of range"));
+            }
+            estimatedSize += bytesPerItem*itemCount;
+        };
+        addEstimatedSize(1803, spendCoins.size());
+        addEstimatedSize(322, mintNum);
+        addEstimatedSize(322, 1);
+        addEstimatedSize(34, utxoNum);
+        addEstimatedSize(1, additionalTxSize);
+        if (useChaumV2) {
+            // V2 adds a fixed extension commitment. Each additional input
+            // also carries its own A1, t2 and t3 (34 + 32 + 32 bytes).
+            addEstimatedSize(32, 1);
+            if (spendCoins.size() > 1) {
+                addEstimatedSize(98, spendCoins.size() - 1);
+            }
+        }
+        const unsigned int size = static_cast<unsigned int>(estimatedSize);
         CAmount feeNeeded = CWallet::GetMinimumFee(size, nTxConfirmTarget, mempool);
 
         if (fee >= feeNeeded) {

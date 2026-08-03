@@ -2,8 +2,10 @@
 #define FIRO_SPARK_SPEND_TRANSACTION_H
 
 
+#include <algorithm>
 #include <limits>
 #include <random>
+#include <set>
 
 #include "grootle_proof.h"
 #include "keys.h"
@@ -64,9 +66,11 @@ public:
         const std::unordered_map<uint64_t, CoverSetData>& cover_set_data,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
 		const uint64_t f,
-        const uint64_t vout,
-		const std::vector<OutputCoinData>& outputs,
-        SpendTransactionVersion version = SpendTransactionVersion::V1
+		const uint64_t vout,
+        const std::vector<OutputCoinData>& outputs,
+        SpendTransactionVersion version = SpendTransactionVersion::V1,
+        const uint256& extension_commitment = uint256(),
+        const std::map<uint64_t, uint256>& block_hashes = {}
 	);
 
 	uint64_t getFee();
@@ -74,6 +78,9 @@ public:
     const std::vector<GroupElement>& getUsedLTags() const;
     const std::vector<Coin>& getOutCoins();
     const std::vector<uint64_t>& getCoinGroupIds();
+    const uint256& getExtensionCommitment() const {
+        return extension_commitment;
+    }
 
 	static bool verify(const Params* params, const std::vector<SpendTransaction>& transactions, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
 	static bool verify(const SpendTransaction& transaction, const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
@@ -177,7 +184,7 @@ private:
         }
 
         uint64_t input_count = cover_set_ids.size();
-        uint64_t output_count = out_coins.size();
+        uint64_t output_count = expected_output_count;
         if (ser_action.ForRead()) {
             input_count = ReadCompactSize(s);
             output_count = ReadCompactSize(s);
@@ -223,8 +230,23 @@ private:
                 READWRITE(block_hash);
             }
         }
+        for (const auto& entry : set_id_blockHash) {
+            if (std::find(
+                    cover_set_ids.begin(), cover_set_ids.end(), entry.first) ==
+                    cover_set_ids.end()) {
+                throw std::ios_base::failure(
+                    "Spark V2 cover-set hash has no input");
+            }
+        }
+        for (uint64_t id : cover_set_ids) {
+            if (set_id_blockHash.count(id) == 0) {
+                throw std::ios_base::failure(
+                    "Spark V2 input has no cover-set hash");
+            }
+        }
 
         READWRITE(f);
+        READWRITE(extension_commitment);
         ReadWriteFixedVector(s, ser_action, S1, input_count);
         ReadWriteFixedVector(s, ser_action, C1, input_count);
         ReadWriteFixedVector(s, ser_action, T, input_count);
@@ -284,7 +306,10 @@ private:
     static ChaumV2Context GetChaumV2Context(
         const std::vector<Coin>& out_coins,
         uint64_t fee,
-        uint64_t transparent_value);
+        uint64_t transparent_value,
+        const uint256& extension_commitment,
+        const std::vector<uint64_t>& cover_set_ids,
+        const std::map<uint64_t, uint256>& block_hashes);
 
 	const Params* params;
     SpendTransactionVersion version;
@@ -299,6 +324,7 @@ private:
     std::vector<uint64_t> cover_set_ids;
 	uint64_t f;
     uint64_t vout;
+    uint256 extension_commitment;
 	std::vector<GroupElement> S1, C1, T;
 	std::vector<GrootleProof> grootle_proofs;
 	ChaumProofV1 chaum_proof_v1;

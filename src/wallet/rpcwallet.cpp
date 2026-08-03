@@ -2832,7 +2832,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
     if (wtx.tx->IsSparkSpend()) {
         try {
-            nFee = (0 - spark::ParseSparkSpend(*wtx.tx).getFee());
+            nFee = -spark::GetSparkSpendFee(*wtx.tx);
         }
         catch (const std::exception &) {
             // do nothing

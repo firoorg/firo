@@ -152,7 +152,8 @@ public:
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL,
-            CAmount additionalTxSize = 0);
+            CAmount additionalTxSize = 0,
+            const uint256& extensionCommitment = uint256());
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,

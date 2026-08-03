@@ -8,6 +8,7 @@
 #include "../sync.h"
 #include "../unordered_lru_cache.h"
 
+#include <algorithm>
 #include <memory>
 #include <set>
 
@@ -48,13 +49,15 @@ static bool CheckLTag(
     if (sparkTxInfo &&
         !sparkTxInfo->fInfoIsComplete &&
             sparkTxInfo->spentLTags.find(lTag) != sparkTxInfo->spentLTags.end())
-        return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same linking tag in the same block"));
+        return state.DoS(0, false, REJECT_INVALID,
+            "bad-spark-linking-tag-duplicate");
 
     // check for used linking tags in state
     if (sparkState.IsUsedLTag(lTag)) {
         // Proceed with checks ONLY if we're accepting tx into the memory pool or connecting block to the existing blockchain
         if (nHeight == INT_MAX || fConnectTip) {
-            return state.DoS(0, error("CTransaction::CheckTransaction() : The Spark coin has been used"));
+            return state.DoS(0, false, REJECT_INVALID,
+                "bad-spark-linking-tag-used");
         }
     }
     return true;
@@ -215,10 +218,62 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     spark::SpendTransaction spendTransaction(
         params, version, private_output_count);
     serialized >> spendTransaction;
-    if (version == SpendTransactionVersion::V2 && !serialized.empty()) {
-        throw std::invalid_argument("Trailing data in Spark V2 spend payload");
+    if (version == SpendTransactionVersion::V2) {
+        const std::size_t spendSize =
+            tx.vExtraPayload.size() - serialized.size();
+        CDataStream canonicalSpend(SER_NETWORK, PROTOCOL_VERSION);
+        canonicalSpend << spendTransaction;
+        if (canonicalSpend.size() != spendSize ||
+            !std::equal(
+                canonicalSpend.begin(), canonicalSpend.end(),
+                tx.vExtraPayload.begin(),
+                [](char left, unsigned char right) {
+                    return static_cast<unsigned char>(left) == right;
+                })) {
+            throw std::invalid_argument(
+                "Non-canonical Spark V2 spend payload");
+        }
+
+        if (serialized.empty()) {
+            if (!spendTransaction.getExtensionCommitment().IsNull()) {
+                throw std::invalid_argument(
+                    "Missing committed Spark V2 extension");
+            }
+        } else {
+            CSparkNameTxData nameData;
+            serialized >> nameData;
+            if (!serialized.empty()) {
+                throw std::invalid_argument(
+                    "Trailing data in Spark V2 extension");
+            }
+
+            CDataStream canonicalName(SER_NETWORK, PROTOCOL_VERSION);
+            canonicalName << nameData;
+            const auto nameBegin = tx.vExtraPayload.begin() + spendSize;
+            if (canonicalName.size() != tx.vExtraPayload.size() - spendSize ||
+                !std::equal(
+                    canonicalName.begin(), canonicalName.end(), nameBegin,
+                    [](char left, unsigned char right) {
+                        return static_cast<unsigned char>(left) == right;
+                    }) ||
+                spendTransaction.getExtensionCommitment().IsNull() ||
+                spendTransaction.getExtensionCommitment() !=
+                    CSparkNameManager::GetSparkNameCommitment(nameData)) {
+                throw std::invalid_argument(
+                    "Invalid committed Spark V2 extension");
+            }
+        }
     }
     return spendTransaction;
+}
+
+CAmount GetSparkSpendFee(const CTransaction& tx)
+{
+    const uint64_t fee = ParseSparkSpend(tx).getFee();
+    if (fee > static_cast<uint64_t>(MAX_MONEY)) {
+        throw std::invalid_argument("Spark spend fee is out of range");
+    }
+    return static_cast<CAmount>(fee);
 }
 
 
@@ -717,12 +772,14 @@ bool CheckSparkSpendTransaction(
     // Obtain the hash of the transaction sans the Spark part
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
-    for (auto itr = txTemp.vout.begin(); itr < txTemp.vout.end(); ++itr) {
-        if (itr->scriptPubKey.IsSparkSMint()) {
-            txTemp.vout.erase(itr);
-            --itr;
-        }
-    }
+    txTemp.vout.erase(
+        std::remove_if(
+            txTemp.vout.begin(),
+            txTemp.vout.end(),
+            [](const CTxOut& output) {
+                return output.scriptPubKey.IsSparkSMint();
+            }),
+        txTemp.vout.end());
     txHashForMetadata = txTemp.GetHash();
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
@@ -751,20 +808,56 @@ bool CheckSparkSpendTransaction(
                          isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
                          "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
     }
+    if (spend->getFee() > static_cast<uint64_t>(MAX_MONEY)) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSparkSpendTransaction: fee out of range");
+    }
     bool passVerify = false;
 
     uint64_t Vout = 0;
     std::size_t private_num = 0;
+    bool sawPrivateOutput = false;
     for (const CTxOut &txout : tx.vout) {
         const auto& script = txout.scriptPubKey;
         if (!script.empty() && script.IsSparkSMint()) {
             private_num++;
+            sawPrivateOutput = true;
+            if (isChaumV2) {
+                if (txout.nValue != 0) {
+                    return state.DoS(100, false, REJECT_INVALID,
+                        "CheckSparkSpendTransaction: nonzero Spark V2 private output");
+                }
+                try {
+                    spark::Coin coin(Params::get_default());
+                    ParseSparkMintCoin(script, coin);
+                    CDataStream canonical(SER_NETWORK, PROTOCOL_VERSION);
+                    canonical << coin;
+                    if (script.size() != canonical.size() + 1 ||
+                        !std::equal(
+                            canonical.begin(), canonical.end(),
+                            script.begin() + 1,
+                            [](char left, unsigned char right) {
+                                return static_cast<unsigned char>(left) == right;
+                            })) {
+                        return state.DoS(100, false, REJECT_INVALID,
+                            "CheckSparkSpendTransaction: non-canonical Spark V2 private output");
+                    }
+                } catch (const std::exception &) {
+                    return state.DoS(100, false, REJECT_INVALID,
+                        "CheckSparkSpendTransaction: invalid Spark V2 private output");
+                }
+            }
         } else if (script.IsSparkMint() ||
                 script.IsLelantusMint() ||
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
-            return false;
+            return state.DoS(100, false, REJECT_INVALID,
+                "CheckSparkSpendTransaction: incompatible private output type");
         } else {
+            if (isChaumV2 && sawPrivateOutput) {
+                return state.DoS(100, false, REJECT_INVALID,
+                    "CheckSparkSpendTransaction: non-canonical Spark V2 output order");
+            }
             if (txout.nValue < 0 ||
                 static_cast<uint64_t>(txout.nValue) >
                     std::numeric_limits<uint64_t>::max() - Vout) {
@@ -775,8 +868,10 @@ bool CheckSparkSpendTransaction(
         }
     }
 
-    if (private_num > ::Params().GetConsensus().nMaxSparkOutLimitPerTx)
-        return false;
+    if (private_num > ::Params().GetConsensus().nMaxSparkOutLimitPerTx) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSparkSpendTransaction: too many private outputs");
+    }
 
     std::vector<Coin> out_coins;
     out_coins.reserve(private_num);
@@ -943,7 +1038,8 @@ bool CheckSparkSpendTransaction(
     }
     else {
         LogPrintf("CheckSparkSpendTransaction: verification failed at block %d\n", nHeight);
-        return false;
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSparkSpendTransaction: proof verification failed");
     }
 
     if (!isVerifyDB && !isCheckWallet) {
