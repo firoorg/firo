@@ -519,8 +519,15 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
     }
 
     std::size_t old_size = mempool.size();
-    // Create duplicated serial tx and test this at the bottom
-    auto dupTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
+    // Construct a duplicate without committing it. SpendAndStoreSpark now
+    // rejects the mempool conflict before returning, while this test needs the
+    // transaction below to exercise block-level rejection.
+    CAmount duplicateFee = 0;
+    CWalletTx duplicateWalletTx =
+        pwalletMain->CreateSparkSpendTransaction(
+            {{script, COIN, false}}, {}, duplicateFee, &coinControl);
+    BOOST_REQUIRE(duplicateWalletTx.tx);
+    CTransaction dupTx1(*duplicateWalletTx.tx);
 
     // check that it is not accepted into mempool
     BOOST_CHECK(old_size == mempool.size());
@@ -1081,6 +1088,26 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     BOOST_CHECK(parsedWalletV2.getVersion() == SpendTransactionVersion::V2);
     BOOST_CHECK_EQUAL(parsedWalletV2.getUsedLTags().size(), 2U);
 
+    CRecipient coherenceRecipient;
+    coherenceRecipient.scriptPubKey = script;
+    coherenceRecipient.nAmount = COIN;
+    CAmount coherenceFee = 0;
+    int mismatchedNextBlockHeight;
+    {
+        LOCK(cs_main);
+        mismatchedNextBlockHeight = chainActive.Height() + 2;
+    }
+    BOOST_CHECK_THROW(
+        pwalletMain->sparkWallet->CreateSparkSpendTransaction(
+            {coherenceRecipient},
+            {},
+            coherenceFee,
+            nullptr,
+            0,
+            uint256(),
+            mismatchedNextBlockHeight),
+        std::runtime_error);
+
     // Wallet selection must enforce the same input bound as the V2 parser so
     // an oversized selection fails before expensive proof construction.
     std::list<CSparkMintMeta> boundedSelection(MAX_CHAUM_V2_INPUTS);
@@ -1136,9 +1163,18 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         std::runtime_error);
     const CFeeRate originalPayTxFee = payTxFee;
     payTxFee = CFeeRate(CAmount{1});
+    std::list<CSparkMintMeta> maximumBalance(1);
+    maximumBalance.front().v = MAX_MONEY;
     BOOST_CHECK_THROW(
         pwalletMain->sparkWallet->SelectSparkCoins(
-            MAX_MONEY, false, {}, 0, 1, nullptr, true, 0),
+            MAX_MONEY,
+            false,
+            maximumBalance,
+            0,
+            1,
+            nullptr,
+            true,
+            0),
         std::invalid_argument);
     payTxFee = originalPayTxFee;
 
@@ -1249,6 +1285,168 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
             std::make_shared<const CBlock>(activationBlock)));
     }
     BOOST_CHECK_EQUAL(chainActive.Height(), activationHeight);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
+{
+    struct ResetActivationHeights {
+        ~ResetActivationHeights()
+        {
+            UpdateRegtestSparkChaumV2Height(INT_MAX);
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetActivationHeights;
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
+    UpdateRegtestSparkChaumV2Height(activationHeight);
+
+    // Per-send fee controls must govern both selection and the final size
+    // check. The wallet must also report the exact post-fee private recipient
+    // amount; the private output cannot be recovered later from public output
+    // values when the GUI builds its confirmation.
+    CCoinControl minimumFeeControl;
+    minimumFeeControl.nMinimumTotalFee = maxTxFee / 2;
+    BOOST_CHECK_EQUAL(
+        CWallet::GetMinimumFee(1000, &minimumFeeControl, mempool),
+        minimumFeeControl.nMinimumTotalFee);
+
+    CCoinControl overrideFeeControl;
+    overrideFeeControl.nMinimumTotalFee = maxTxFee / 2;
+    overrideFeeControl.fOverrideFeeRate = true;
+    overrideFeeControl.nFeeRate = CFeeRate(100000);
+
+    OutputCoinData privateRecipient;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        privateRecipient.address =
+            pwalletMain->sparkWallet->generateNewAddress();
+    }
+    privateRecipient.v = 2 * COIN;
+    privateRecipient.memo = "fee-reporting";
+    CAmount privateFee = 0;
+    std::vector<CAmount> reportedRecipientAmounts;
+    const CWalletTx privateSpend =
+        pwalletMain->CreateSparkSpendTransaction(
+            {},
+            {{privateRecipient, true}},
+            privateFee,
+            &overrideFeeControl,
+            activationHeight,
+            &reportedRecipientAmounts);
+    BOOST_REQUIRE(privateSpend.tx);
+    BOOST_REQUIRE(privateSpend.tx->IsSparkSpendV2());
+    BOOST_CHECK_EQUAL(
+        privateFee,
+        overrideFeeControl.nFeeRate.GetFee(3403));
+    BOOST_REQUIRE_EQUAL(reportedRecipientAmounts.size(), 1U);
+    BOOST_CHECK_EQUAL(
+        reportedRecipientAmounts.front(),
+        static_cast<CAmount>(privateRecipient.v) - privateFee);
+
+    // A private-only transaction puts a Spark output at vout.begin(). This
+    // also exercises metadata hashing without relying on invalidated vector
+    // iterators.
+    CValidationState privateSpendState;
+    CSparkTxInfo privateSpendInfo;
+    BOOST_CHECK(CheckSparkTransaction(
+        *privateSpend.tx,
+        privateSpendState,
+        privateSpend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &privateSpendInfo));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
+{
+    struct RestoreBroadcastSetting {
+        CWallet* wallet;
+        bool enabled;
+        ~RestoreBroadcastSetting()
+        {
+            wallet->SetBroadcastTransactions(enabled);
+        }
+    } restoreBroadcast{pwalletMain, pwalletMain->GetBroadcastTransactions()};
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto mints =
+        GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    COutPoint conflictingOutpoint;
+    BOOST_REQUIRE(GetOutPoint(
+        conflictingOutpoint,
+        pwalletMain->sparkWallet->getCoinFromMeta(mints[0])));
+    CCoinControl conflictingControl;
+    conflictingControl.fAllowOtherInputs = false;
+    conflictingControl.fRequireAllInputs = true;
+    conflictingControl.Select(conflictingOutpoint);
+    pwalletMain->SetBroadcastTransactions(true);
+    CAmount fee = 0;
+    const CWalletTx accepted = pwalletMain->SpendAndStoreSpark(
+        {{script, COIN, false}}, {}, fee, &conflictingControl);
+    BOOST_REQUIRE(mempool.exists(accepted.GetHash()));
+
+    for (int attempt = 0;
+         attempt < 500 &&
+             !pwalletMain->sparkWallet->getMintMeta(mints[0].k).isUsed;
+         ++attempt) {
+        MilliSleep(10);
+    }
+    BOOST_REQUIRE(
+        pwalletMain->sparkWallet->getMintMeta(mints[0].k).isUsed);
+
+    const std::vector<GroupElement> usedTags =
+        ParseSparkSpend(*accepted.tx).getUsedLTags();
+    BOOST_REQUIRE_EQUAL(usedTags.size(), 1U);
+    pwalletMain->sparkWallet->setCoinUnused(usedTags.front());
+
+    const std::size_t walletSizeBeforeRejection =
+        pwalletMain->mapWallet.size();
+    BOOST_CHECK_THROW(
+        pwalletMain->SpendAndStoreSpark(
+            {{script, COIN, false}}, {}, fee, &conflictingControl),
+        std::runtime_error);
+    BOOST_CHECK_EQUAL(
+        pwalletMain->mapWallet.size(), walletSizeBeforeRejection);
+    BOOST_CHECK(mempool.exists(accepted.GetHash()));
+
+    COutPoint offlineOutpoint;
+    BOOST_REQUIRE(GetOutPoint(
+        offlineOutpoint,
+        pwalletMain->sparkWallet->getCoinFromMeta(mints[1])));
+    CCoinControl offlineControl;
+    offlineControl.fAllowOtherInputs = false;
+    offlineControl.fRequireAllInputs = true;
+    offlineControl.Select(offlineOutpoint);
+    pwalletMain->SetBroadcastTransactions(false);
+    const std::size_t walletSizeBeforeOfflineSpend =
+        pwalletMain->mapWallet.size();
+    const CWalletTx offlineSpend = pwalletMain->SpendAndStoreSpark(
+        {{script, COIN, false}}, {}, fee, &offlineControl);
+    BOOST_CHECK_EQUAL(
+        pwalletMain->mapWallet.size(), walletSizeBeforeOfflineSpend + 1);
+    BOOST_CHECK(pwalletMain->GetWalletTx(offlineSpend.GetHash()));
+    BOOST_CHECK(!mempool.exists(offlineSpend.GetHash()));
 
     mempool.clear();
     sparkState->Reset();

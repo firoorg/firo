@@ -65,7 +65,6 @@ public:
     QString authenticatedMerchant;
 
     bool fSubtractFeeFromAmount; // memory only
-    std::vector<unsigned char> opReturnData; // memory only, Rosen Bridge metadata
 
     static const int CURRENT_VERSION = 1;
     int nVersion;
@@ -118,9 +117,7 @@ public:
         TransactionCommitFailed,
         AbsurdFee,
         PaymentRequestExpired,
-        ExceedLimit,
-        InvalidRosenBridgeData,
-        RosenBridgeRequiresTransparent
+        ExceedLimit
     };
 
     enum EncryptionStatus
@@ -196,7 +193,7 @@ public:
         const QList<SendCoinsRecipient> &recipients,
         const CCoinControl *coinControl);
 
-    SendCoinsReturn prepareSpendSparkTransactionsSingleInput(
+    SendCoinsReturn prepareSpendSparkTransactions(
         std::vector<WalletModelTransaction> &transactions,
         const QList<SendCoinsRecipient> &recipients,
         const CCoinControl *coinControl);
@@ -208,6 +205,8 @@ public:
         std::vector<WalletModelTransaction> &transactions);
 
     bool sparkNamesAllowed() const;
+
+    bool versionedSparkSpendsAllowed() const;
 
     bool GetSparkNameByAddress(const QString& sparkAddress, QString& name);
 

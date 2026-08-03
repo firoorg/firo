@@ -142,14 +142,20 @@ void CreateSparkNamePage::updateFee() {
 bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo)
 {
     try {
-        LOCK(cs_main);
-        LOCK(pwalletMain->cs_wallet);
-
         const auto &consensusParams = Params().GetConsensus();
         CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
 
+        int nextBlockHeight;
+        {
+            LOCK(cs_main);
+            nextBlockHeight = chainActive.Height() + 1;
+        }
+
         CSparkNameTxData sparkNameData;
-        sparkNameData.nVersion = chainActive.Height() >= consensusParams.nSparkNamesV2StartBlock ? CSparkNameTxData::CURRENT_VERSION : 1;
+        sparkNameData.nVersion = nextBlockHeight >=
+                consensusParams.nSparkNamesV2StartBlock
+            ? CSparkNameTxData::CURRENT_VERSION
+            : 1;
         sparkNameData.operationType = (uint8_t)CSparkNameTxData::opRegister;
         sparkNameData.name = name;
         sparkNameData.sparkAddress = address;
@@ -183,7 +189,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
 
         QString formatted;
         QString questionString = tr("Are you sure you want to register spark name?");
-        questionString.append(tr("  You are sending Firo from a Spark address to development fund transparent address."));
+        questionString.append(tr("  You are sending Firo from a Spark address to the Spark name fee address."));
 
         SendConfirmationDialog confirmationDialog(tr("Confirm send coins for registering spark name"),
             questionString, SEND_CONFIRM_DELAY, this);

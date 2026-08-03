@@ -64,7 +64,8 @@ public:
     static unsigned int estimateSparkTxBytes(
         size_t selectedInputs,
         size_t privateOutputs,
-        size_t transparentOutputs);
+        size_t transparentOutputs,
+        bool versionedSpend = false);
 
     static QList<PayAmount> payAmounts;
     static CCoinControl *coinControl;

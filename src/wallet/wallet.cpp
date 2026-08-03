@@ -3769,6 +3769,19 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
             return false;
         }
 
+        if (!wtxNew.pendingSparkOutputRecords.empty()) {
+            CWalletDB walletdb(strWalletFile);
+            for (const auto& outputRecord :
+                 wtxNew.pendingSparkOutputRecords) {
+                if (!walletdb.WriteSparkOutputTx(
+                        outputRecord.first, outputRecord.second)) {
+                    return state.Error(
+                        "Unable to save Spark transaction output");
+                }
+            }
+            wtxNew.pendingSparkOutputRecords.clear();
+        }
+
         {
             // Take key pair from key pool so it won't be used again
             reservekey.KeepKey();
@@ -3891,7 +3904,9 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         CAmount &fee,
-        const CCoinControl *coinControl)
+        const CCoinControl *coinControl,
+        int expectedNextBlockHeight,
+        std::vector<CAmount>* recipientAmounts)
 {
     // sanity check
     EnsureSparkWalletAvailable();
@@ -3900,14 +3915,23 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         throw std::runtime_error(_("Wallet locked"));
     }
 
-    return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
+    return sparkWallet->CreateSparkSpendTransaction(
+        recipients,
+        privateRecipients,
+        fee,
+        coinControl,
+        0,
+        uint256(),
+        expectedNextBlockHeight,
+        recipientAmounts);
 }
 
 CWalletTx CWallet::CreateSparkNameTransaction(
         CSparkNameTxData &sparkNameData,
         CAmount sparkNameFee,
         CAmount &txFee,
-        const CCoinControl *coinControl)
+        const CCoinControl *coinControl,
+        int expectedNextBlockHeight)
 {
     // sanity check
     EnsureSparkWalletAvailable();
@@ -3916,7 +3940,12 @@ CWalletTx CWallet::CreateSparkNameTransaction(
         throw std::runtime_error(_("Wallet locked"));
     }
 
-    return sparkWallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, txFee, coinControl);
+    return sparkWallet->CreateSparkNameTransaction(
+        sparkNameData,
+        sparkNameFee,
+        txFee,
+        coinControl,
+        expectedNextBlockHeight);
 }
 
 CWalletTx CWallet::SpendAndStoreSpark(
@@ -3932,7 +3961,14 @@ CWalletTx CWallet::SpendAndStoreSpark(
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        CommitTransaction(result, reserveKey, g_connman.get(), state);
+        if (!CommitTransaction(
+                result,
+                reserveKey,
+                g_connman.get(),
+                state,
+                GetBroadcastTransactions())) {
+            throw std::runtime_error(state.GetRejectReason());
+        }
     } catch (const std::exception &) {
         auto error = _(
                 "Error: The transaction was rejected! This might happen if some of "
@@ -3990,6 +4026,25 @@ CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarge
 {
     // payTxFee is the user-set global for desired feerate
     return GetMinimumFee(nTxBytes, nConfirmTarget, pool, payTxFee.GetFee(nTxBytes));
+}
+
+CAmount CWallet::GetMinimumFee(
+    unsigned int nTxBytes,
+    const CCoinControl* coinControl,
+    const CTxMemPool& pool)
+{
+    const unsigned int confirmationTarget =
+        coinControl && coinControl->nConfirmTarget > 0
+            ? coinControl->nConfirmTarget
+            : nTxConfirmTarget;
+    CAmount fee = GetMinimumFee(nTxBytes, confirmationTarget, pool);
+    if (coinControl && fee > 0 && coinControl->nMinimumTotalFee > fee) {
+        fee = coinControl->nMinimumTotalFee;
+    }
+    if (coinControl && coinControl->fOverrideFeeRate) {
+        fee = coinControl->nFeeRate.GetFee(nTxBytes);
+    }
+    return fee;
 }
 
 CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool, CAmount targetFee)

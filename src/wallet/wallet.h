@@ -326,6 +326,10 @@ public:
     int64_t nOrderPos; //!< position in ordered transaction list
     std::unordered_set<uint32_t> changes; //!< positions of changes in vout
 
+    // Memory-only Spark output metadata staged by transaction construction.
+    // It is persisted only if CommitTransaction accepts the transaction.
+    std::vector<std::pair<CScript, CSparkOutputTx>> pendingSparkOutputRecords;
+
     // memory only
     mutable bool fDebitCached;
     mutable bool fCreditCached;
@@ -386,6 +390,7 @@ public:
         nChangeCached = 0;
         nOrderPos = -1;
         changes.clear();
+        pendingSparkOutputRecords.clear();
     }
 
     ADD_SERIALIZE_METHODS;
@@ -997,13 +1002,16 @@ public:
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1,
+            std::vector<CAmount>* recipientAmounts = nullptr);
 
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &sparkNameData,
             CAmount sparkNameFee,
             CAmount &txFee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1);
 
     CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
@@ -1035,6 +1043,8 @@ public:
      * and the required fee
      */
     static CAmount GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool);
+    /** Apply per-send confirmation and fee overrides from coin control. */
+    static CAmount GetMinimumFee(unsigned int nTxBytes, const CCoinControl* coinControl, const CTxMemPool& pool);
     /**
      * Estimate the minimum fee considering required fee and targetFee or if 0
      * then fee estimation for nConfirmTarget
