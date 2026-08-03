@@ -4689,12 +4689,20 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_inheritable_untrusted_directory_acl_is_rejecte
     const fs::path directory =
         GetDataDir() /
         "sqlite_win32_inheritable_acl";
+    const fs::path privateChild =
+        directory /
+        "private_child";
+    const fs::path inheritedChild =
+        directory /
+        "inherited_child";
     boost::system::error_code filesystemError;
     fs::remove_all(
         directory,
         filesystemError);
     BOOST_REQUIRE(
         fs::create_directory(directory));
+    BOOST_REQUIRE(
+        fs::create_directory(privateChild));
 
     std::string error;
     BOOST_REQUIRE_MESSAGE(
@@ -4702,9 +4710,16 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_inheritable_untrusted_directory_acl_is_rejecte
             directory,
             error),
         error);
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ValidateMigrationDirectory(
+            privateChild,
+            error),
+        error);
 
     std::wstring nativePath =
         directory.wstring();
+    std::wstring privateChildNativePath =
+        privateChild.wstring();
     PACL originalDacl = nullptr;
     PSECURITY_DESCRIPTOR rawDescriptor = nullptr;
     const DWORD securityResult =
@@ -4728,6 +4743,23 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_inheritable_untrusted_directory_acl_is_rejecte
         securityResult,
         ERROR_SUCCESS);
     BOOST_REQUIRE(originalDacl);
+    BOOST_REQUIRE_EQUAL(
+        SetNamedSecurityInfoW(
+            privateChildNativePath.data(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION |
+                PROTECTED_DACL_SECURITY_INFORMATION,
+            nullptr,
+            nullptr,
+            originalDacl,
+            nullptr),
+        ERROR_SUCCESS);
+    error.clear();
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ValidateMigrationDirectory(
+            privateChild,
+            error),
+        error);
 
     SID_IDENTIFIER_AUTHORITY ntAuthority =
         SECURITY_NT_AUTHORITY;
@@ -4818,6 +4850,7 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_inheritable_untrusted_directory_acl_is_rejecte
         GRANT_ACCESS;
     inheritedAccess.grfInheritance =
         OBJECT_INHERIT_ACE |
+        CONTAINER_INHERIT_ACE |
         INHERIT_ONLY_ACE;
     BuildTrusteeWithSidW(
         &inheritedAccess.Trustee,
@@ -4848,6 +4881,13 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_inheritable_untrusted_directory_acl_is_rejecte
         ERROR_SUCCESS);
 
     error.clear();
+    BOOST_CHECK_MESSAGE(
+        win32_wallet::ValidateMigrationDirectory(
+            privateChild,
+            error),
+        error);
+
+    error.clear();
     BOOST_CHECK(
         !win32_wallet::ValidateMigrationDirectory(
             directory,
@@ -4856,6 +4896,60 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_inheritable_untrusted_directory_acl_is_rejecte
         error.find("untrusted allow ACE") !=
         std::string::npos);
 
+    BOOST_REQUIRE(
+        fs::create_directory(inheritedChild));
+    error.clear();
+    BOOST_CHECK(
+        !win32_wallet::ValidateMigrationDirectory(
+            inheritedChild,
+            error));
+    BOOST_CHECK(
+        error.find("untrusted allow ACE") !=
+        std::string::npos);
+
+    EXPLICIT_ACCESSW effectiveAccess =
+        inheritedAccess;
+    effectiveAccess.grfInheritance =
+        OBJECT_INHERIT_ACE |
+        CONTAINER_INHERIT_ACE;
+
+    PACL rawEffectiveDacl = nullptr;
+    const DWORD effectiveAclResult =
+        SetEntriesInAclW(
+            1,
+            &effectiveAccess,
+            rawTrustedDacl,
+            &rawEffectiveDacl);
+    std::unique_ptr<void, decltype(localFree)>
+        effectiveDacl(rawEffectiveDacl, localFree);
+    BOOST_REQUIRE_EQUAL(
+        effectiveAclResult,
+        ERROR_SUCCESS);
+    BOOST_REQUIRE(rawEffectiveDacl);
+    BOOST_REQUIRE_EQUAL(
+        SetNamedSecurityInfoW(
+            nativePath.data(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            nullptr,
+            nullptr,
+            rawEffectiveDacl,
+            nullptr),
+        ERROR_SUCCESS);
+
+    error.clear();
+    BOOST_CHECK(
+        !win32_wallet::ValidateMigrationDirectory(
+            privateChild,
+            error));
+    BOOST_CHECK(
+        error.find("untrusted allow ACE") !=
+        std::string::npos);
+
+    BOOST_CHECK(
+        fs::remove(inheritedChild));
+    BOOST_CHECK(
+        fs::remove(privateChild));
     BOOST_CHECK(
         fs::remove(directory));
 }

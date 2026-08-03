@@ -393,6 +393,187 @@ jobs:
             }
           }
 
+          $trustedInstallerSid = [System.Security.Principal.SecurityIdentifier]::new(
+            'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+          )
+
+          function Get-TrusteeCategory(
+            [System.Security.Principal.IdentityReference]$Identity
+          ) {
+            try {
+              $sid = $Identity.Translate(
+                [System.Security.Principal.SecurityIdentifier]
+              )
+            } catch {
+              return 'other'
+            }
+
+            if ($sid.Equals($currentSid)) {
+              return 'current-user'
+            }
+            if ($sid.Equals($trustedInstallerSid)) {
+              return 'trusted-installer'
+            }
+
+            foreach (
+              $wellKnownType in [Enum]::GetValues(
+                [System.Security.Principal.WellKnownSidType]
+              )
+            ) {
+              try {
+                if ($sid.IsWellKnown($wellKnownType)) {
+                  return "well-known:$wellKnownType"
+                }
+              } catch {
+                continue
+              }
+            }
+
+            return 'other'
+          }
+
+          $driveRoot = "$drive`:\"
+          $driveAcl = Get-Acl -LiteralPath $driveRoot
+          $driveOwner = $driveAcl.GetOwner(
+            [System.Security.Principal.SecurityIdentifier]
+          )
+          $driveOwnerCategory = Get-TrusteeCategory $driveOwner
+          $driveRules = @(
+            $driveAcl.GetAccessRules(
+              $true,
+              $true,
+              [System.Security.Principal.SecurityIdentifier]
+            )
+          )
+          $normalizedRules = @(
+            $driveRules |
+              ForEach-Object {
+                $mask = [BitConverter]::ToUInt32(
+                  [BitConverter]::GetBytes([int]$_.FileSystemRights),
+                  0
+                )
+                [PSCustomObject]@{
+                  Trustee = Get-TrusteeCategory $_.IdentityReference
+                  Rights = $_.FileSystemRights.ToString()
+                  Mask = $mask
+                  Inheritance = $_.InheritanceFlags.ToString()
+                  Propagation = $_.PropagationFlags.ToString()
+                  IsInherited = $_.IsInherited
+                  AccessType = $_.AccessControlType.ToString()
+                }
+              } |
+              Sort-Object `
+                IsInherited, AccessType, Trustee, Mask, Inheritance, Propagation
+          )
+
+          $aceLines = @(
+            $normalizedRules |
+              Select-Object -First 32 |
+              ForEach-Object {
+                $delete = [uint32]($_.Mask -band [uint32]0x00010000)
+                $deleteChild = [uint32]($_.Mask -band [uint32]0x00000040)
+                $writeDac = [uint32]($_.Mask -band [uint32]0x00040000)
+                $writeOwner = [uint32]($_.Mask -band [uint32]0x00080000)
+                (
+                  'ace trustee={0}; rights={1}; mask=0x{2:X8}; inheritance={3}; propagation={4}; inherited={5}; type={6}; DELETE=0x{7:X8}; FILE_DELETE_CHILD=0x{8:X8}; WRITE_DAC=0x{9:X8}; WRITE_OWNER=0x{10:X8}' -f
+                    $_.Trustee,
+                    $_.Rights,
+                    $_.Mask,
+                    $_.Inheritance,
+                    $_.Propagation,
+                    $_.IsInherited,
+                    $_.AccessType,
+                    $delete,
+                    $deleteChild,
+                    $writeDac,
+                    $writeOwner
+                )
+              }
+          )
+
+          $requestedPrivileges = @(
+            'SeCreateSymbolicLinkPrivilege',
+            'SeRestorePrivilege',
+            'SeTakeOwnershipPrivilege',
+            'SeManageVolumePrivilege'
+          )
+          $whoamiPrivilegeOutput = @(
+            & whoami.exe /priv /fo csv /nh 2>$null
+          )
+          $whoamiPrivilegeExit = $LASTEXITCODE
+          if ($whoamiPrivilegeExit -ne 0) {
+            throw "whoami /priv failed with exit code $whoamiPrivilegeExit"
+          }
+          $whoamiPrivileges = @(
+            $whoamiPrivilegeOutput |
+              ConvertFrom-Csv -Header Name, Description, State
+          )
+          $privilegeStates = @(
+            foreach ($privilegeName in $requestedPrivileges) {
+              $privilegeMatch = @(
+                $whoamiPrivileges |
+                  Where-Object { $_.Name -eq $privilegeName }
+              )
+              $privilegeState = if ($privilegeMatch.Count -gt 0) {
+                $privilegeMatch[0].State
+              } else {
+                'absent'
+              }
+              "$privilegeName=$privilegeState"
+            }
+          )
+
+          $selectedAceLines = [System.Collections.Generic.List[string]]::new()
+          foreach ($aceLine in $aceLines) {
+            $prospectiveCount = $selectedAceLines.Count + 1
+            $noticeHeader = (
+              'root={0}; owner={1}; daclProtected={2}; accessRuleCount={3}; aceShown={4}; aceLimit=32' -f
+                $driveRoot,
+                $driveOwnerCategory,
+                $driveAcl.AreAccessRulesProtected,
+                $driveRules.Count,
+                $prospectiveCount
+            )
+            $prospectiveNotice = @(
+              $noticeHeader
+              "privileges: $($privilegeStates -join '; ')"
+              $selectedAceLines
+              $aceLine
+            ) -join "`n"
+            $prospectiveEscaped = ConvertTo-WorkflowCommandValue `
+              $prospectiveNotice
+            if (
+              $prospectiveNotice.Length -ge 2600 -or
+              $prospectiveEscaped.Length -ge 2900
+            ) {
+              break
+            }
+            $selectedAceLines.Add($aceLine)
+          }
+
+          $noticeHeader = (
+            'root={0}; owner={1}; daclProtected={2}; accessRuleCount={3}; aceShown={4}; aceLimit=32' -f
+              $driveRoot,
+              $driveOwnerCategory,
+              $driveAcl.AreAccessRulesProtected,
+              $driveRules.Count,
+              $selectedAceLines.Count
+          )
+          $driveNoticeText = @(
+            $noticeHeader
+            "privileges: $($privilegeStates -join '; ')"
+            $selectedAceLines
+          ) -join "`n"
+          if ($driveNoticeText.Length -ge 2600) {
+            throw 'Internal drive diagnostic raw notice limit exceeded'
+          }
+          $driveNotice = ConvertTo-WorkflowCommandValue $driveNoticeText
+          if ($driveNotice.Length -ge 2900) {
+            throw 'Internal drive diagnostic escaped notice limit exceeded'
+          }
+          Write-Output `
+            "::notice title=Windows drive-root ACL and privilege diagnostics::$driveNotice"
+
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
           Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
@@ -441,8 +622,120 @@ jobs:
 
       - name: Build and test dual BDB and SQLite wallets
         run: |
-          set -exo pipefail
-          make -C depends -j"$EVIDENCE_JOBS" NO_QT=1
+          set -Eexo pipefail
+          PRETEST_PHASE='initialize dual-wallet diagnostics'
+          PRETEST_ANNOTATION_ESCAPED=0
+          PRETEST_ANNOTATION_LIMIT=9000
+          PRETEST_FAILURE_ANNOTATED=0
+          PRETEST_LOG_INDEX=0
+
+          emit_pretest_annotation() {
+            local title="$1"
+            local raw="$2"
+            local escaped
+            local escaped_length
+            local remaining
+            local LC_ALL=C
+
+            escaped=${raw//'%'/'%25'}
+            escaped=${escaped//$'\r'/'%0D'}
+            escaped=${escaped//$'\n'/'%0A'}
+            remaining=$((PRETEST_ANNOTATION_LIMIT - PRETEST_ANNOTATION_ESCAPED))
+            if [ "$remaining" -le 0 ]; then
+              return 0
+            fi
+            escaped_length=${#escaped}
+            if [ "$escaped_length" -gt "$remaining" ]; then
+              escaped=${escaped:0:$remaining}
+              case "$escaped" in
+                *%)
+                  escaped=${escaped%?}
+                  ;;
+                *%0|*%2)
+                  escaped=${escaped%??}
+                  ;;
+              esac
+              escaped_length=${#escaped}
+            fi
+            PRETEST_ANNOTATION_ESCAPED=$((PRETEST_ANNOTATION_ESCAPED + escaped_length))
+            printf '::error title=%s::%s\n' "$title" "$escaped"
+          }
+
+          pretest_err_trap() {
+            local error_exit="$1"
+            local error_line="$2"
+            local error_command="$3"
+            local error_body
+
+            if [ "$PRETEST_FAILURE_ANNOTATED" -eq 0 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              error_body="phase=$PRETEST_PHASE"$'\n'"command=$error_command"$'\n'"exit=$error_exit; line=$error_line"
+              emit_pretest_annotation \
+                'macOS pre-test guard or audit failure' \
+                "$error_body"
+            fi
+            return 0
+          }
+
+          run_logged_phase() {
+            local phase="$1"
+            shift
+            local phase_command=''
+            local command_arg
+            local quoted_arg
+            local log_path
+            local producer_exit
+            local tee_exit
+            local phase_tail
+            local failure_body
+            local -a phase_status
+
+            PRETEST_PHASE="$phase"
+            for command_arg in "$@"; do
+              printf -v quoted_arg '%q' "$command_arg"
+              if [ -n "$phase_command" ]; then
+                phase_command="$phase_command $quoted_arg"
+              else
+                phase_command="$quoted_arg"
+              fi
+            done
+            PRETEST_LOG_INDEX=$((PRETEST_LOG_INDEX + 1))
+            log_path="$PRETEST_LOG_DIR/phase-$PRETEST_LOG_INDEX.log"
+
+            trap - ERR
+            set +e
+            "$@" 2>&1 | tee "$log_path"
+            phase_status=("${PIPESTATUS[@]}")
+            set -e
+            trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+
+            producer_exit="${phase_status[0]}"
+            tee_exit="${phase_status[1]}"
+            if [ "$producer_exit" -ne 0 ] || [ "$tee_exit" -ne 0 ]; then
+              if phase_tail=$(tail -c 2200 "$log_path"); then
+                :
+              else
+                phase_tail='phase log tail unavailable'
+              fi
+              failure_body="phase=$phase"$'\n'"command=$phase_command"$'\n'"producer_exit=$producer_exit; tee_exit=$tee_exit"$'\n'"tail (last at most 2200 bytes):"$'\n'"$phase_tail"
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS pre-test logged phase failure' \
+                "$failure_body"
+              if [ "$producer_exit" -ne 0 ]; then
+                return "$producer_exit"
+              fi
+              return "$tee_exit"
+            fi
+          }
+
+          trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+          PRETEST_LOG_DIR=$(mktemp -d)
+
+          run_logged_phase \
+            'dual-wallet dependency build' \
+            make -C depends -j"$EVIDENCE_JOBS" NO_QT=1
+          PRETEST_PHASE='verify dual-wallet SQLite dependency'
           HOST_TRIPLET=$(depends/config.guess)
           PREFIX="$PWD/depends/$HOST_TRIPLET"
           PKG_CONFIG_DIR="$PREFIX/lib/pkgconfig"
@@ -464,7 +757,9 @@ jobs:
           )
           test "$SQLITE_MEMBERS" = "sqlite3.o"
 
-          env \
+          run_logged_phase \
+            'dual-wallet CMake configure' \
+            env \
             PKG_CONFIG_PATH="$PKG_CONFIG_DIR" \
             PKG_CONFIG_LIBDIR="$PKG_CONFIG_DIR" \
             cmake -G Ninja \
@@ -482,6 +777,7 @@ jobs:
               -S"$PWD" \
               -B"$PWD/build-mac-dual"
 
+          PRETEST_PHASE='install dual-wallet generated-header aid'
           HEADER_AID="$PWD/src/config/bitcoin-config.h"
           test ! -e "$HEADER_AID"
           test ! -L "$HEADER_AID"
@@ -495,12 +791,16 @@ jobs:
           }
           trap cleanup_header_aid EXIT
           echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
-          cmake --build build-mac-dual \
-            --target test_firo \
-            --parallel "$EVIDENCE_JOBS"
+          run_logged_phase \
+            'dual-wallet CMake build' \
+            cmake --build build-mac-dual \
+              --target test_firo \
+              --parallel "$EVIDENCE_JOBS"
+          PRETEST_PHASE='remove dual-wallet generated-header aid'
           cleanup_header_aid
           trap - EXIT
 
+          PRETEST_PHASE='audit dual-wallet static SQLite linkage'
           DUAL_AUDIT_DIR=$(mktemp -d)
           ar -t build-mac-dual/lib/libfiro_wallet.a \
             > "$DUAL_AUDIT_DIR/wallet-members"
@@ -516,9 +816,23 @@ jobs:
           if grep -qi sqlite \
               "$DUAL_AUDIT_DIR/test-firo-libraries"; then
             echo "Dual macOS test executable links SQLite dynamically"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden dynamic SQLite linkage' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden dynamic SQLite reference found"
             exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS dynamic SQLite audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
           fi
 
+          PRETEST_PHASE='run dual-wallet Boost tests'
           run_firo_test() {
             local executable="$1"
             local filter="$2"
@@ -584,14 +898,127 @@ jobs:
             fi
           }
 
+          trap - ERR
           run_firo_test \
             build-mac-dual/bin/test_firo \
             wallet_database_factory_preopen_policy,wallet_database_tests
 
       - name: Build and test true BDB-only wallets
         run: |
-          set -exo pipefail
-          make -C depends -j"$EVIDENCE_JOBS" NO_QT=1 NO_SQLITE=1
+          set -Eexo pipefail
+          PRETEST_PHASE='initialize BDB-only diagnostics'
+          PRETEST_ANNOTATION_ESCAPED=0
+          PRETEST_ANNOTATION_LIMIT=9000
+          PRETEST_FAILURE_ANNOTATED=0
+          PRETEST_LOG_INDEX=0
+
+          emit_pretest_annotation() {
+            local title="$1"
+            local raw="$2"
+            local escaped
+            local escaped_length
+            local remaining
+            local LC_ALL=C
+
+            escaped=${raw//'%'/'%25'}
+            escaped=${escaped//$'\r'/'%0D'}
+            escaped=${escaped//$'\n'/'%0A'}
+            remaining=$((PRETEST_ANNOTATION_LIMIT - PRETEST_ANNOTATION_ESCAPED))
+            if [ "$remaining" -le 0 ]; then
+              return 0
+            fi
+            escaped_length=${#escaped}
+            if [ "$escaped_length" -gt "$remaining" ]; then
+              escaped=${escaped:0:$remaining}
+              case "$escaped" in
+                *%)
+                  escaped=${escaped%?}
+                  ;;
+                *%0|*%2)
+                  escaped=${escaped%??}
+                  ;;
+              esac
+              escaped_length=${#escaped}
+            fi
+            PRETEST_ANNOTATION_ESCAPED=$((PRETEST_ANNOTATION_ESCAPED + escaped_length))
+            printf '::error title=%s::%s\n' "$title" "$escaped"
+          }
+
+          pretest_err_trap() {
+            local error_exit="$1"
+            local error_line="$2"
+            local error_command="$3"
+            local error_body
+
+            if [ "$PRETEST_FAILURE_ANNOTATED" -eq 0 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              error_body="phase=$PRETEST_PHASE"$'\n'"command=$error_command"$'\n'"exit=$error_exit; line=$error_line"
+              emit_pretest_annotation \
+                'macOS pre-test guard or audit failure' \
+                "$error_body"
+            fi
+            return 0
+          }
+
+          run_logged_phase() {
+            local phase="$1"
+            shift
+            local phase_command=''
+            local command_arg
+            local quoted_arg
+            local log_path
+            local producer_exit
+            local tee_exit
+            local phase_tail
+            local failure_body
+            local -a phase_status
+
+            PRETEST_PHASE="$phase"
+            for command_arg in "$@"; do
+              printf -v quoted_arg '%q' "$command_arg"
+              if [ -n "$phase_command" ]; then
+                phase_command="$phase_command $quoted_arg"
+              else
+                phase_command="$quoted_arg"
+              fi
+            done
+            PRETEST_LOG_INDEX=$((PRETEST_LOG_INDEX + 1))
+            log_path="$PRETEST_LOG_DIR/phase-$PRETEST_LOG_INDEX.log"
+
+            trap - ERR
+            set +e
+            "$@" 2>&1 | tee "$log_path"
+            phase_status=("${PIPESTATUS[@]}")
+            set -e
+            trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+
+            producer_exit="${phase_status[0]}"
+            tee_exit="${phase_status[1]}"
+            if [ "$producer_exit" -ne 0 ] || [ "$tee_exit" -ne 0 ]; then
+              if phase_tail=$(tail -c 2200 "$log_path"); then
+                :
+              else
+                phase_tail='phase log tail unavailable'
+              fi
+              failure_body="phase=$phase"$'\n'"command=$phase_command"$'\n'"producer_exit=$producer_exit; tee_exit=$tee_exit"$'\n'"tail (last at most 2200 bytes):"$'\n'"$phase_tail"
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS pre-test logged phase failure' \
+                "$failure_body"
+              if [ "$producer_exit" -ne 0 ]; then
+                return "$producer_exit"
+              fi
+              return "$tee_exit"
+            fi
+          }
+
+          trap 'pretest_err_trap "$?" "$LINENO" "$BASH_COMMAND"' ERR
+          PRETEST_LOG_DIR=$(mktemp -d)
+
+          run_logged_phase \
+            'BDB-only dependency build' \
+            make -C depends -j"$EVIDENCE_JOBS" NO_QT=1 NO_SQLITE=1
+          PRETEST_PHASE='verify absence of BDB-only SQLite dependency'
           HOST_TRIPLET=$(depends/config.guess)
           PREFIX="$PWD/depends/$HOST_TRIPLET"
           PKG_CONFIG_DIR="$PREFIX/lib/pkgconfig"
@@ -601,7 +1028,9 @@ jobs:
           test ! -e "$PREFIX/lib/libsqlite3.a"
           test ! -e "$PREFIX/lib/pkgconfig/sqlite3.pc"
 
-          env \
+          run_logged_phase \
+            'BDB-only CMake configure' \
+            env \
             PKG_CONFIG_PATH="$PKG_CONFIG_DIR" \
             PKG_CONFIG_LIBDIR="$PKG_CONFIG_DIR" \
             cmake -G Ninja \
@@ -619,6 +1048,7 @@ jobs:
               -S"$PWD" \
               -B"$PWD/build-mac-bdb-only"
 
+          PRETEST_PHASE='install BDB-only generated-header aid'
           HEADER_AID="$PWD/src/config/bitcoin-config.h"
           test ! -e "$HEADER_AID"
           test ! -L "$HEADER_AID"
@@ -632,12 +1062,16 @@ jobs:
           }
           trap cleanup_header_aid EXIT
           echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
-          cmake --build build-mac-bdb-only \
-            --target test_firo \
-            --parallel "$EVIDENCE_JOBS"
+          run_logged_phase \
+            'BDB-only CMake build' \
+            cmake --build build-mac-bdb-only \
+              --target test_firo \
+              --parallel "$EVIDENCE_JOBS"
+          PRETEST_PHASE='remove BDB-only generated-header aid'
           cleanup_header_aid
           trap - EXIT
 
+          PRETEST_PHASE='audit BDB-only absence of SQLite linkage'
           BDB_AUDIT_DIR=$(mktemp -d)
           ar -t build-mac-bdb-only/lib/libfiro_wallet.a \
             > "$BDB_AUDIT_DIR/wallet-members"
@@ -648,20 +1082,60 @@ jobs:
           if grep -Eiq 'sqlite\.cpp|win32_file_lifecycle' \
               "$BDB_AUDIT_DIR/wallet-members"; then
             echo "BDB-only macOS wallet archive contains a SQLite wallet object"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden BDB-only SQLite object' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden SQLite wallet object found"
             exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS BDB-only object audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
           fi
           if grep -Eq \
               'sqlite3_|(^|[^[:alnum:]_])SQLite(Database|Batch)(::|\()|win32_wallet::' \
               "$BDB_AUDIT_DIR/wallet-symbols"; then
             echo "BDB-only macOS wallet archive contains a SQLite wallet symbol"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden BDB-only SQLite symbol' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden SQLite wallet symbol found"
             exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS BDB-only symbol audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
           fi
           if grep -qi sqlite \
               "$BDB_AUDIT_DIR/test-firo-libraries"; then
             echo "BDB-only macOS test executable links SQLite"
+            PRETEST_FAILURE_ANNOTATED=1
+            emit_pretest_annotation \
+              'macOS forbidden BDB-only dynamic SQLite linkage' \
+              "phase=$PRETEST_PHASE; grep_exit=0; forbidden dynamic SQLite reference found"
             exit 1
+          else
+            AUDIT_GREP_EXIT=$?
+            if [ "$AUDIT_GREP_EXIT" -ne 1 ]; then
+              PRETEST_FAILURE_ANNOTATED=1
+              emit_pretest_annotation \
+                'macOS BDB-only dynamic SQLite audit failure' \
+                "phase=$PRETEST_PHASE; grep_exit=$AUDIT_GREP_EXIT; operational grep failure"
+              exit "$AUDIT_GREP_EXIT"
+            fi
           fi
 
+          PRETEST_PHASE='run BDB-only Boost tests'
           run_firo_test() {
             local executable="$1"
             local filter="$2"
@@ -727,6 +1201,7 @@ jobs:
             fi
           }
 
+          trap - ERR
           run_firo_test \
             build-mac-bdb-only/bin/test_firo \
             wallet_database_factory_preopen_policy,wallet_database_tests

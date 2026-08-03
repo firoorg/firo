@@ -903,6 +903,18 @@ bool ValidateHandleAcl(
             return false;
         }
 
+        // An inherit-only ACE does not control this ancestor. Each concrete
+        // descendant is validated separately.
+        const bool inherit_only_ancestor =
+            policy == AclPolicy::ANCESTOR &&
+            (header->AceFlags & INHERIT_ONLY_ACE) != 0 &&
+            (header->AceFlags &
+                (OBJECT_INHERIT_ACE |
+                    CONTAINER_INHERIT_ACE)) != 0;
+        if (inherit_only_ancestor) {
+            continue;
+        }
+
         if (policy == AclPolicy::CREATED_PRIVATE) {
             const ACCESS_MASK required =
                 FILE_ALL_ACCESS;
