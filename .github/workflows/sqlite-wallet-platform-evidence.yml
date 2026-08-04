@@ -153,24 +153,16 @@ jobs:
               -S"$(realpath .)" \
               -B"$(realpath build-windows-dual)"
 
-          HEADER_AID="$PWD/src/config/bitcoin-config.h"
-          test ! -e "$HEADER_AID"
-          test ! -L "$HEADER_AID"
-          ln -s \
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
             "$PWD/build-windows-dual/src/config/bitcoin-config.h" \
-            "$HEADER_AID"
-          cleanup_header_aid() {
-            if [ -L "$HEADER_AID" ]; then
-              unlink "$HEADER_AID"
-            fi
-          }
-          trap cleanup_header_aid EXIT
-          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+            "$PWD/build-windows-dual/config/bitcoin-config.h"
+          grep -Fqx '#define USE_SQLITE 1' \
+            "$PWD/build-windows-dual/src/config/bitcoin-config.h"
           cmake --build build-windows-dual \
             --target test_firo \
             --parallel "$EVIDENCE_JOBS"
-          cleanup_header_aid
-          trap - EXIT
 
           DUAL_AUDIT_DIR=$(mktemp -d)
           x86_64-w64-mingw32-ar -t \
@@ -230,24 +222,16 @@ jobs:
               -S"$(realpath .)" \
               -B"$(realpath build-windows-bdb-only)"
 
-          HEADER_AID="$PWD/src/config/bitcoin-config.h"
-          test ! -e "$HEADER_AID"
-          test ! -L "$HEADER_AID"
-          ln -s \
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
             "$PWD/build-windows-bdb-only/src/config/bitcoin-config.h" \
-            "$HEADER_AID"
-          cleanup_header_aid() {
-            if [ -L "$HEADER_AID" ]; then
-              unlink "$HEADER_AID"
-            fi
-          }
-          trap cleanup_header_aid EXIT
-          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+            "$PWD/build-windows-bdb-only/config/bitcoin-config.h"
+          grep -Fqx '/* #undef USE_SQLITE */' \
+            "$PWD/build-windows-bdb-only/src/config/bitcoin-config.h"
           cmake --build build-windows-bdb-only \
             --target test_firo \
             --parallel "$EVIDENCE_JOBS"
-          cleanup_header_aid
-          trap - EXIT
 
           BDB_AUDIT_DIR=$(mktemp -d)
           x86_64-w64-mingw32-ar -t \
@@ -335,9 +319,12 @@ jobs:
 
           Add-Type -TypeDefinition @'
           using System;
+          using System.Collections.Generic;
           using System.ComponentModel;
+          using System.IO;
           using System.Runtime.InteropServices;
           using System.Security.Principal;
+          using System.Text;
           using Microsoft.Win32.SafeHandles;
 
           public static class FiroTestTokenOwner
@@ -410,6 +397,655 @@ jobs:
                   }
               }
           }
+
+          public static class FiroMoveFileProbe
+          {
+              private const uint GENERIC_READ = 0x80000000;
+              private const uint GENERIC_WRITE = 0x40000000;
+              private const uint DELETE = 0x00010000;
+              private const uint READ_CONTROL = 0x00020000;
+              private const uint FILE_READ_ATTRIBUTES = 0x00000080;
+              private const uint FILE_SHARE_READ = 0x00000001;
+              private const uint FILE_SHARE_WRITE = 0x00000002;
+              private const uint FILE_SHARE_DELETE = 0x00000004;
+              private const uint OPEN_EXISTING = 3;
+              private const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
+              private const uint FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
+              private const uint FILE_FLAG_WRITE_THROUGH = 0x80000000;
+              private const uint MOVEFILE_REPLACE_EXISTING = 0x00000001;
+              private const uint MOVEFILE_WRITE_THROUGH = 0x00000008;
+              private const int FILE_RENAME_INFO_EX = 22;
+              private const uint FILE_RENAME_REPLACE_IF_EXISTS = 0x00000001;
+              private const uint FILE_RENAME_POSIX_SEMANTICS = 0x00000002;
+              private const int ERROR_FILE_NOT_FOUND = 2;
+              private const int ERROR_PATH_NOT_FOUND = 3;
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct FileTime
+              {
+                  public uint Low;
+                  public uint High;
+              }
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct ByHandleFileInformation
+              {
+                  public uint Attributes;
+                  public FileTime CreationTime;
+                  public FileTime LastAccessTime;
+                  public FileTime LastWriteTime;
+                  public uint VolumeSerial;
+                  public uint SizeHigh;
+                  public uint SizeLow;
+                  public uint LinkCount;
+                  public uint FileIndexHigh;
+                  public uint FileIndexLow;
+              }
+
+              [StructLayout(LayoutKind.Sequential)]
+              private struct FileStandardInformation
+              {
+                  public long AllocationSize;
+                  public long EndOfFile;
+                  public uint LinkCount;
+                  [MarshalAs(UnmanagedType.U1)]
+                  public bool DeletePending;
+                  [MarshalAs(UnmanagedType.U1)]
+                  public bool Directory;
+              }
+
+              private struct Identity
+              {
+                  public bool Valid;
+                  public uint Volume;
+                  public ulong Index;
+              }
+
+              [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+              private static extern SafeFileHandle CreateFileW(
+                  string path,
+                  uint access,
+                  uint share,
+                  IntPtr security,
+                  uint creation,
+                  uint flags,
+                  IntPtr template);
+
+              [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+              private static extern bool MoveFileExW(
+                  string existingPath,
+                  string newPath,
+                  uint flags);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool GetFileInformationByHandle(
+                  SafeFileHandle file,
+                  out ByHandleFileInformation information);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool GetFileInformationByHandleEx(
+                  SafeFileHandle file,
+                  int informationClass,
+                  out FileStandardInformation information,
+                  uint size);
+
+              [DllImport("kernel32.dll", SetLastError = true)]
+              private static extern bool SetFileInformationByHandle(
+                  SafeFileHandle file,
+                  int informationClass,
+                  IntPtr information,
+                  uint size);
+
+              private static SafeFileHandle OpenRetained(
+                  string path,
+                  bool grantDelete,
+                  bool writeThrough,
+                  bool shareDelete)
+              {
+                  uint access =
+                      GENERIC_READ |
+                      GENERIC_WRITE |
+                      FILE_READ_ATTRIBUTES |
+                      READ_CONTROL;
+                  if (grantDelete) {
+                      access |= DELETE;
+                  }
+                  uint flags =
+                      FILE_ATTRIBUTE_NORMAL |
+                      FILE_FLAG_OPEN_REPARSE_POINT;
+                  if (writeThrough) {
+                      flags |= FILE_FLAG_WRITE_THROUGH;
+                  }
+                  uint share =
+                      FILE_SHARE_READ |
+                      FILE_SHARE_WRITE;
+                  if (shareDelete) {
+                      share |= FILE_SHARE_DELETE;
+                  }
+                  SafeFileHandle file = CreateFileW(
+                      path,
+                      access,
+                      share,
+                      IntPtr.Zero,
+                      OPEN_EXISTING,
+                      flags,
+                      IntPtr.Zero);
+                  if (file.IsInvalid) {
+                      int error = Marshal.GetLastWin32Error();
+                      file.Dispose();
+                      throw new Win32Exception(error);
+                  }
+                  return file;
+              }
+
+              private static bool TryIdentity(
+                  SafeFileHandle file,
+                  out Identity identity,
+                  out int error)
+              {
+                  identity = new Identity();
+                  error = 0;
+                  if (file == null || file.IsInvalid) {
+                      return false;
+                  }
+                  ByHandleFileInformation information;
+                  if (!GetFileInformationByHandle(
+                          file,
+                          out information)) {
+                      error = Marshal.GetLastWin32Error();
+                      return false;
+                  }
+                  identity.Valid = true;
+                  identity.Volume = information.VolumeSerial;
+                  identity.Index =
+                      ((ulong)information.FileIndexHigh << 32) |
+                      information.FileIndexLow;
+                  return true;
+              }
+
+              private static bool TryPathIdentity(
+                  string path,
+                  out Identity identity,
+                  out int error)
+              {
+                  identity = new Identity();
+                  error = 0;
+                  using (SafeFileHandle file = CreateFileW(
+                      path,
+                      FILE_READ_ATTRIBUTES,
+                      FILE_SHARE_READ |
+                          FILE_SHARE_WRITE |
+                          FILE_SHARE_DELETE,
+                      IntPtr.Zero,
+                      OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL |
+                          FILE_FLAG_OPEN_REPARSE_POINT,
+                      IntPtr.Zero)) {
+                      if (file.IsInvalid) {
+                          error = Marshal.GetLastWin32Error();
+                          return false;
+                      }
+                      return TryIdentity(
+                          file,
+                          out identity,
+                          out error);
+                  }
+              }
+
+              private static bool Same(
+                  Identity first,
+                  Identity second)
+              {
+                  return first.Valid &&
+                      second.Valid &&
+                      first.Volume == second.Volume &&
+                      first.Index == second.Index;
+              }
+
+              private static string IdentityCategory(
+                  Identity identity,
+                  Identity source,
+                  Identity destination)
+              {
+                  if (!identity.Valid) {
+                      return "invalid";
+                  }
+                  if (Same(identity, source)) {
+                      return "source";
+                  }
+                  if (Same(identity, destination)) {
+                      return "destination";
+                  }
+                  return "other";
+              }
+
+              private static string PathCategory(
+                  string path,
+                  Identity source,
+                  Identity destination)
+              {
+                  Identity identity;
+                  int error;
+                  if (TryPathIdentity(
+                          path,
+                          out identity,
+                          out error)) {
+                      return IdentityCategory(
+                          identity,
+                          source,
+                          destination);
+                  }
+                  if (error == ERROR_FILE_NOT_FOUND ||
+                      error == ERROR_PATH_NOT_FOUND) {
+                      return "absent";
+                  }
+                  return "error-" + error;
+              }
+
+              private static string HandleCategory(
+                  SafeFileHandle file,
+                  Identity source,
+                  Identity destination)
+              {
+                  if (file == null) {
+                      return "none";
+                  }
+                  Identity identity;
+                  int error;
+                  if (!TryIdentity(
+                          file,
+                          out identity,
+                          out error)) {
+                      return "error-" + error;
+                  }
+                  return IdentityCategory(
+                      identity,
+                      source,
+                      destination);
+              }
+
+              private static string DeletePending(
+                  SafeFileHandle file)
+              {
+                  if (file == null) {
+                      return "none";
+                  }
+                  FileStandardInformation information;
+                  if (!GetFileInformationByHandleEx(
+                          file,
+                          1,
+                          out information,
+                          (uint)Marshal.SizeOf(
+                              typeof(FileStandardInformation)))) {
+                      return "error-" +
+                          Marshal.GetLastWin32Error();
+                  }
+                  return information.DeletePending ?
+                      "true" :
+                      "false";
+              }
+
+              private static bool Equal(
+                  byte[] first,
+                  byte[] second)
+              {
+                  if (first.Length != second.Length) {
+                      return false;
+                  }
+                  for (int index = 0;
+                       index < first.Length;
+                       ++index) {
+                      if (first[index] != second[index]) {
+                          return false;
+                      }
+                  }
+                  return true;
+              }
+
+              private static string DestinationBytes(
+                  string path,
+                  byte[] source,
+                  byte[] destination)
+              {
+                  if (!File.Exists(path)) {
+                      return "absent";
+                  }
+                  byte[] contents = File.ReadAllBytes(path);
+                  if (Equal(contents, source)) {
+                      return "source";
+                  }
+                  if (Equal(contents, destination)) {
+                      return "destination";
+                  }
+                  return "other";
+              }
+
+              private static bool RenamePosix(
+                  SafeFileHandle source,
+                  string destination,
+                  out int error)
+              {
+                  byte[] name =
+                      Encoding.Unicode.GetBytes(destination);
+                  int rootOffset =
+                      IntPtr.Size == 8 ? 8 : 4;
+                  int lengthOffset =
+                      rootOffset + IntPtr.Size;
+                  int nameOffset =
+                      lengthOffset + sizeof(uint);
+                  int size =
+                      nameOffset + name.Length;
+                  IntPtr information =
+                      Marshal.AllocHGlobal(size);
+                  try {
+                      for (int offset = 0;
+                           offset < size;
+                           ++offset) {
+                          Marshal.WriteByte(
+                              information,
+                              offset,
+                              0);
+                      }
+                      Marshal.WriteInt32(
+                          information,
+                          0,
+                          (int)(
+                              FILE_RENAME_REPLACE_IF_EXISTS |
+                              FILE_RENAME_POSIX_SEMANTICS));
+                      Marshal.WriteIntPtr(
+                          information,
+                          rootOffset,
+                          IntPtr.Zero);
+                      Marshal.WriteInt32(
+                          information,
+                          lengthOffset,
+                          name.Length);
+                      Marshal.Copy(
+                          name,
+                          0,
+                          IntPtr.Add(
+                              information,
+                              nameOffset),
+                          name.Length);
+                      bool renamed =
+                          SetFileInformationByHandle(
+                              source,
+                              FILE_RENAME_INFO_EX,
+                              information,
+                              (uint)size);
+                      error = renamed ?
+                          0 :
+                          Marshal.GetLastWin32Error();
+                      return renamed;
+                  } finally {
+                      Marshal.FreeHGlobal(information);
+                  }
+              }
+
+              private static void TryDelete(string path)
+              {
+                  try {
+                      if (File.Exists(path)) {
+                          File.Delete(path);
+                      }
+                  } catch {
+                  }
+              }
+
+              private static string RunScenario(
+                  string directory,
+                  string label,
+                  bool replace,
+                  bool holdSource,
+                  bool holdDestination,
+                  bool grantDelete,
+                  bool posix,
+                  bool blockDestinationDeleteShare)
+              {
+                  string nonce =
+                      Guid.NewGuid().ToString("N");
+                  string sourcePath =
+                      Path.Combine(
+                          directory,
+                          "move-probe-" + nonce + "-source");
+                  string destinationPath =
+                      Path.Combine(
+                          directory,
+                          "move-probe-" + nonce + "-destination");
+                  byte[] sourceBytes =
+                      Encoding.ASCII.GetBytes(
+                          "source-bytes");
+                  byte[] destinationBytes =
+                      Encoding.ASCII.GetBytes(
+                          "destination-bytes");
+                  SafeFileHandle sourceFile = null;
+                  SafeFileHandle destinationFile = null;
+                  try {
+                      File.WriteAllBytes(
+                          sourcePath,
+                          sourceBytes);
+                      if (replace) {
+                          File.WriteAllBytes(
+                              destinationPath,
+                              destinationBytes);
+                      }
+
+                      Identity sourceIdentity;
+                      Identity destinationIdentity;
+                      int identityError;
+                      if (!TryPathIdentity(
+                              sourcePath,
+                              out sourceIdentity,
+                              out identityError)) {
+                          return label +
+                              "=source-identity-error-" +
+                              identityError;
+                      }
+                      if (replace) {
+                          if (!TryPathIdentity(
+                                  destinationPath,
+                                  out destinationIdentity,
+                                  out identityError)) {
+                              return label +
+                                  "=destination-identity-error-" +
+                                  identityError;
+                          }
+                      } else {
+                          destinationIdentity =
+                              new Identity();
+                      }
+
+                      if (holdSource || posix) {
+                          sourceFile = OpenRetained(
+                          sourcePath,
+                          grantDelete || posix,
+                          posix,
+                          true);
+                      }
+                      if (holdDestination) {
+                          destinationFile = OpenRetained(
+                              destinationPath,
+                              grantDelete,
+                              false,
+                              !blockDestinationDeleteShare);
+                      }
+
+                      int nativeError;
+                      bool moved;
+                      if (posix) {
+                          moved = RenamePosix(
+                              sourceFile,
+                              destinationPath,
+                              out nativeError);
+                      } else {
+                          moved = MoveFileExW(
+                              sourcePath,
+                              destinationPath,
+                              MOVEFILE_WRITE_THROUGH |
+                                  (replace ?
+                                      MOVEFILE_REPLACE_EXISTING :
+                                      0));
+                          nativeError = moved ?
+                              0 :
+                              Marshal.GetLastWin32Error();
+                      }
+
+                      return label +
+                          "=" +
+                          (moved ?
+                              "success" :
+                              "failure") +
+                          ",error=" +
+                          nativeError +
+                          ",source_path=" +
+                          PathCategory(
+                              sourcePath,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",destination_path=" +
+                          PathCategory(
+                              destinationPath,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",source_handle=" +
+                          HandleCategory(
+                              sourceFile,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",destination_handle=" +
+                          HandleCategory(
+                              destinationFile,
+                              sourceIdentity,
+                              destinationIdentity) +
+                          ",destination_delete_pending=" +
+                          DeletePending(
+                              destinationFile) +
+                          ",destination_bytes=" +
+                          DestinationBytes(
+                              destinationPath,
+                              sourceBytes,
+                              destinationBytes);
+                  } catch (Win32Exception exception) {
+                      return label +
+                          "=probe-win32-error-" +
+                          exception.NativeErrorCode;
+                  } catch {
+                      return label +
+                          "=probe-exception";
+                  } finally {
+                      if (destinationFile != null) {
+                          destinationFile.Dispose();
+                      }
+                      if (sourceFile != null) {
+                          sourceFile.Dispose();
+                      }
+                      TryDelete(sourcePath);
+                      TryDelete(destinationPath);
+                  }
+              }
+
+              public static string Run(string directory)
+              {
+                  List<string> results =
+                      new List<string>();
+                  results.Add(
+                      "current_access=0xC0020080,delete_access=0xC0030080," +
+                      "current_share=0x7,blocker_share=0x3");
+                  results.Add(RunScenario(
+                      directory,
+                      "noreplace_none",
+                      false,
+                      false,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "noreplace_source",
+                      false,
+                      true,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "noreplace_source_delete",
+                      false,
+                      true,
+                      false,
+                      true,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_none",
+                      true,
+                      false,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_source",
+                      true,
+                      true,
+                      false,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_destination",
+                      true,
+                      false,
+                      true,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_both",
+                      true,
+                      true,
+                      true,
+                      false,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "replace_both_delete",
+                      true,
+                      true,
+                      true,
+                      true,
+                      false,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "posix_both_delete_write_through",
+                      true,
+                      true,
+                      true,
+                      true,
+                      true,
+                      false));
+                  results.Add(RunScenario(
+                      directory,
+                      "posix_destination_blocker",
+                      true,
+                      true,
+                      true,
+                      true,
+                      true,
+                      true));
+                  return string.Join(
+                      ";",
+                      results);
+              }
+          }
           '@
           [FiroTestTokenOwner]::SetCurrentUserAsDefaultOwner()
           $identityAfter = [System.Security.Principal.WindowsIdentity]::GetCurrent()
@@ -460,14 +1096,21 @@ jobs:
             '::notice title=Windows test token-owner normalization::before={0}; after=current-user; child-probe=current-user' -f
               $tokenOwnerBeforeCategory
           )
+          $drive = (Get-Item $testTemp).PSDrive.Name
+          $testVolume = Get-Volume -DriveLetter $drive
+          if ($testVolume.FileSystem -ne 'NTFS') {
+            throw "SQLite Windows tests require NTFS"
+          }
+          $moveFileProbe = [FiroMoveFileProbe]::Run($testTemp)
+          if ($moveFileProbe.Length -ge 5000) {
+            throw 'Internal MoveFileEx retained-handle probe limit exceeded'
+          }
+          Write-Output `
+            "::notice title=Windows retained-handle replacement probe::filesystem=NTFS;$moveFileProbe"
 
           $env:TEMP = $testTemp
           $env:TMP = $env:TEMP
           $env:FIRO_TEST_REQUIRE_WIN32_REPARSE = '1'
-          $drive = (Get-Item $env:TEMP).PSDrive.Name
-          if ((Get-Volume -DriveLetter $drive).FileSystem -ne 'NTFS') {
-            throw "SQLite Windows tests require NTFS"
-          }
 
           function ConvertTo-WorkflowCommandValue([string]$Value) {
             return $Value.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
@@ -475,7 +1118,8 @@ jobs:
 
           function Invoke-FiroTest(
             [string]$Executable,
-            [string]$Filter
+            [string]$Filter,
+            [switch]$DiagnosticOnly
           ) {
             $testOutput = @(
               & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=test_suite" "--" "DEBUG_LOG_OUT" 2>&1
@@ -519,7 +1163,9 @@ jobs:
               $failureText = "$Executable $Filter (exit $exitCode)`n$failureBody"
               $failureTail = ConvertTo-WorkflowCommandValue $failureText
               Write-Output "::error title=Firo wallet test failure::$failureTail"
-              throw "$Executable failed for $Filter with exit code $exitCode"
+              if (!$DiagnosticOnly) {
+                throw "$Executable failed for $Filter with exit code $exitCode"
+              }
             }
           }
 
@@ -704,6 +1350,14 @@ jobs:
           Write-Output `
             "::notice title=Windows drive-root ACL and privilege diagnostics::$driveNotice"
 
+          Invoke-FiroTest `
+            '.\dual\test_firo.exe' `
+            'wallet_database_tests/sqlite_win32_migration_replace_sharing_failure_preserves_bdb' `
+            -DiagnosticOnly
+          Invoke-FiroTest `
+            '.\dual\test_firo.exe' `
+            'wallet_database_tests/sqlite_win32_replace_reconciles_retained_identities' `
+            -DiagnosticOnly
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
           Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
@@ -1004,28 +1658,19 @@ jobs:
               -S"$PWD" \
               -B"$PWD/build-mac-dual"
 
-          PRETEST_PHASE='install dual-wallet generated-header aid'
-          HEADER_AID="$PWD/src/config/bitcoin-config.h"
-          test ! -e "$HEADER_AID"
-          test ! -L "$HEADER_AID"
-          ln -s \
+          PRETEST_PHASE='verify dual-wallet clean generated-header guards'
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
             "$PWD/build-mac-dual/src/config/bitcoin-config.h" \
-            "$HEADER_AID"
-          cleanup_header_aid() {
-            if [ -L "$HEADER_AID" ]; then
-              unlink "$HEADER_AID"
-            fi
-          }
-          trap cleanup_header_aid EXIT
-          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+            "$PWD/build-mac-dual/config/bitcoin-config.h"
+          grep -Fqx '#define USE_SQLITE 1' \
+            "$PWD/build-mac-dual/src/config/bitcoin-config.h"
           run_logged_phase \
-            'dual-wallet CMake build' \
+            'dual-wallet clean generated-header CMake build' \
             cmake --build build-mac-dual \
               --target test_firo \
               --parallel "$EVIDENCE_JOBS"
-          PRETEST_PHASE='remove dual-wallet generated-header aid'
-          cleanup_header_aid
-          trap - EXIT
 
           PRETEST_PHASE='audit dual-wallet static SQLite linkage'
           DUAL_AUDIT_DIR=$(mktemp -d)
@@ -1069,6 +1714,16 @@ jobs:
             local failure
             local context
             local priority
+            local earliest
+            local case_list
+            local list_output
+            local list_exit
+            local case_name
+            local isolated_output
+            local isolated_exit
+            local isolated_priority
+            local isolated_failures
+            local isolated_failure_count
 
             set +e
             test_output=$(
@@ -1111,6 +1766,23 @@ jobs:
                     'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert' \
                   || true
               )
+              earliest=$(
+                printf '%s\n' "$priority" \
+                  | head -n 24 \
+                  | head -c 2800 \
+                  || true
+              )
+              if [ -z "$earliest" ]; then
+                earliest=$(
+                  printf '%s\n' "$failure" \
+                    | head -n 24 \
+                    | head -c 2800 \
+                    || true
+                )
+              fi
+              emit_pretest_annotation \
+                'macOS earliest wallet test failure' \
+                "$executable $filter (exit $test_exit)"$'\n'"$earliest"
               failure=$(
                 printf '%s\n%s\n' "$context" "$priority" \
                   | tail -n 60 \
@@ -1121,6 +1793,83 @@ jobs:
               failure=${failure//$'\r'/'%0D'}
               failure=${failure//$'\n'/'%0A'}
               echo "::error title=Firo wallet test failure::$failure"
+
+              case_list="$PRETEST_LOG_DIR/wallet-database-cases.txt"
+              set +e
+              list_output=$(
+                "$executable" --list_content 2>&1
+              )
+              list_exit=$?
+              set -e
+              if [ "$list_exit" -ne 0 ]; then
+                emit_pretest_annotation \
+                  'macOS isolated wallet test discovery failure' \
+                  "$executable --list_content (exit $list_exit)"
+              else
+                printf '%s\n' "$list_output" \
+                  | awk '
+                      $0 == "wallet_database_tests*" {
+                          in_suite = 1
+                          next
+                      }
+                      in_suite && $0 !~ /^[[:space:]]/ {
+                          in_suite = 0
+                      }
+                      in_suite && $0 ~ /^    [^[:space:]].*\*$/ {
+                          sub(/^    /, "")
+                          sub(/\*$/, "")
+                          print
+                      }
+                    ' \
+                  > "$case_list"
+                if [ ! -s "$case_list" ]; then
+                  emit_pretest_annotation \
+                    'macOS isolated wallet test discovery failure' \
+                    'No wallet_database_tests cases were extracted from --list_content.'
+                else
+                  isolated_failures=''
+                  isolated_failure_count=0
+                  while IFS= read -r case_name; do
+                    set +e
+                    isolated_output=$(
+                      "$executable" \
+                        "--run_test=wallet_database_tests/$case_name" \
+                        --catch_system_error=no \
+                        --log_level=test_suite \
+                        -- DEBUG_LOG_OUT 2>&1
+                    )
+                    isolated_exit=$?
+                    set -e
+                    if [ "$isolated_exit" -ne 0 ]; then
+                      isolated_failure_count=$((isolated_failure_count + 1))
+                      isolated_priority=$(
+                        printf '%s\n' "$isolated_output" \
+                          | grep -Fv 'is skipped because disabled' \
+                          | grep -Ei \
+                            'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert' \
+                          | head -n 12 \
+                          | head -c 1400 \
+                          || true
+                      )
+                      if [ -z "$isolated_priority" ]; then
+                        isolated_priority=$(
+                          printf '%s\n' "$isolated_output" \
+                            | tail -n 20 \
+                            | tail -c 1400
+                        )
+                      fi
+                      isolated_failures+="$case_name (exit $isolated_exit)"$'\n'"$isolated_priority"$'\n'
+                    fi
+                  done < "$case_list"
+                  if [ "$isolated_failure_count" -eq 0 ]; then
+                    echo "::notice title=macOS isolated wallet tests::aggregate exit $test_exit; every wallet_database_tests case passed in a fresh process"
+                  else
+                    emit_pretest_annotation \
+                      'macOS isolated wallet test failures' \
+                      "isolated_failure_count=$isolated_failure_count"$'\n'"$isolated_failures"
+                  fi
+                fi
+              fi
               exit "$test_exit"
             fi
           }
@@ -1275,28 +2024,19 @@ jobs:
               -S"$PWD" \
               -B"$PWD/build-mac-bdb-only"
 
-          PRETEST_PHASE='install BDB-only generated-header aid'
-          HEADER_AID="$PWD/src/config/bitcoin-config.h"
-          test ! -e "$HEADER_AID"
-          test ! -L "$HEADER_AID"
-          ln -s \
+          PRETEST_PHASE='verify BDB-only clean generated-header guards'
+          test ! -e "$PWD/src/config/bitcoin-config.h"
+          test ! -L "$PWD/src/config/bitcoin-config.h"
+          cmake -E compare_files \
             "$PWD/build-mac-bdb-only/src/config/bitcoin-config.h" \
-            "$HEADER_AID"
-          cleanup_header_aid() {
-            if [ -L "$HEADER_AID" ]; then
-              unlink "$HEADER_AID"
-            fi
-          }
-          trap cleanup_header_aid EXIT
-          echo "::warning::Using the recorded generated-header aid; this is runtime evidence, not clean-build evidence."
+            "$PWD/build-mac-bdb-only/config/bitcoin-config.h"
+          grep -Fqx '/* #undef USE_SQLITE */' \
+            "$PWD/build-mac-bdb-only/src/config/bitcoin-config.h"
           run_logged_phase \
-            'BDB-only CMake build' \
+            'BDB-only clean generated-header CMake build' \
             cmake --build build-mac-bdb-only \
               --target test_firo \
               --parallel "$EVIDENCE_JOBS"
-          PRETEST_PHASE='remove BDB-only generated-header aid'
-          cleanup_header_aid
-          trap - EXIT
 
           PRETEST_PHASE='audit BDB-only absence of SQLite linkage'
           BDB_AUDIT_DIR=$(mktemp -d)

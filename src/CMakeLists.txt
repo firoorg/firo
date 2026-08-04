@@ -6,8 +6,10 @@ include(GNUInstallDirs)
 include(AddWindowsResources)
 include(WindowsSystemConfiguration)
 
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/config)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/config ${PROJECT_BINARY_DIR}/config)
 configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config/bitcoin-config.h USE_SOURCE_PERMISSIONS @ONLY)
+# Preserve legacy ../config includes without generating files in the source tree.
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/config/bitcoin-config.h ${PROJECT_BINARY_DIR}/config/bitcoin-config.h COPYONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_command(

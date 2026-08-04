@@ -3216,7 +3216,9 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bd
             error));
     const std::string migrationError =
         error;
-    BOOST_REQUIRE(!backupPath.empty());
+    BOOST_REQUIRE_MESSAGE(
+        !backupPath.empty(),
+        migrationError);
     const fs::path backupFilesystemPath{
         backupPath};
     BOOST_REQUIRE(
