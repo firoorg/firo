@@ -108,7 +108,8 @@ public:
     void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromBlock(const CBlock& block);
     void RemoveSparkMints(const std::vector<spark::Coin>& mints);
-    void RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends);
+    // mark the coins of the given linking tags as unspent again
+    void RemoveSparkSpends(const std::vector<GroupElement>& lTags);
     void AbandonSparkMints(const std::vector<spark::Coin>& mints);
     void AbandonSpends(const std::vector<GroupElement>& spends);
 
