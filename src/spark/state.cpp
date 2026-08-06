@@ -670,7 +670,7 @@ bool CheckSparkSpendTransaction(
 
     if (enforceSingleInput &&
         spend->getUsedLTags().size() != 1) {
-        return state.DoS(100,
+        return state.DoS(isMempoolAcceptance ? 0 : 100,
                          false,
                          isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
                          "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
