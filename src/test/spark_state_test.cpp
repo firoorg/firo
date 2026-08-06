@@ -283,7 +283,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto index3 = GenerateBlock({});
     auto block3 = GetCBlock(index3);
     PopulateSparkTxInfo(block3, {}, {{lTag1, 1}, {lTag2, 1}});
-    index3->spentLTags = block3.sparkTxInfo->spentLTags;
+    index3->ensurePrivacyData().spentLTags = block3.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index3);
 
@@ -300,7 +300,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto block4 = GetCBlock(index4);
     PopulateSparkTxInfo(block4, {pwalletMain->sparkWallet->getCoinFromMeta(mint3)}, {{lTag3, 1}});
     sparkState->AddMintsToStateAndBlockIndex(index4, &block4);
-    index4->spentLTags = block4.sparkTxInfo->spentLTags;
+    index4->ensurePrivacyData().spentLTags = block4.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index4);
 
@@ -363,7 +363,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     auto sparkState = new spark::CSparkState(maxSize, startCoin);
 
     auto addMintsToState = [&](CBlockIndex* index, CBlock const& block) {
-        index->sparkMintedCoins.clear();
+        if (index->hasPrivacyData()) index->ensurePrivacyData().sparkMintedCoins.clear();
         sparkState->AddMintsToStateAndBlockIndex(index, &block);
     };
 
@@ -499,6 +499,43 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     sparkState->RemoveBlock(indexes[5]);
     verifyGroup(2, 6, indexes[2], indexes[4]);
     verifyGroup(1, 6, indexes[0], indexes[2], 1);
+
+    sparkState->Reset();
+}
+
+// Blocks carrying no privacy transactions must not allocate CBlockIndexPrivacyData.
+// The block index keeps every entry alive for the lifetime of the process, so a
+// stray unconditional ensurePrivacyData() on the connect path costs hundreds of
+// megabytes over a full chain.
+//
+// The chain is generated past nSparkStartBlock and into the evo spork range so
+// that the spark and spork connect paths are actually exercised; below those
+// heights only the sigma/lelantus paths run and the check is nearly vacuous.
+// nSparkNamesStartBlock is far too high to reach in a unit test, so the spark
+// name path is not covered here.
+BOOST_AUTO_TEST_CASE(no_privacy_data_for_empty_blocks)
+{
+    const Consensus::Params &consensus = ::Params().GetConsensus();
+
+    // one block past the start of the evo spork range, which is the last of the
+    // protocol activations this test can reach
+    const int targetHeight = consensus.nEvoSporkStartBlock + 1;
+    BOOST_REQUIRE(targetHeight > consensus.nSparkStartBlock);
+    BOOST_REQUIRE(targetHeight < consensus.nEvoSporkStopBlock);
+
+    std::vector<int> allocatedAt;
+    while (chainActive.Height() < targetHeight) {
+        CBlockIndex *index = GenerateBlock({});
+        BOOST_REQUIRE(index != nullptr);
+        if (index->hasPrivacyData())
+            allocatedAt.push_back(index->nHeight);
+    }
+
+    // report the offending heights rather than just a count, so a regression
+    // points straight at the activation that started allocating
+    BOOST_CHECK_MESSAGE(allocatedAt.empty(),
+        "privacy data allocated for " << allocatedAt.size() << " empty block(s), first at height "
+        << (allocatedAt.empty() ? 0 : allocatedAt.front()));
 
     sparkState->Reset();
 }

@@ -31,16 +31,24 @@ CSparkNameManager *CSparkNameManager::sharedSparkNameManager = new CSparkNameMan
 bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries)
 {
     LOCK(cs_spark_name);
-    for (const auto &entry : pindex->removedSparkNames) {
+    // Nothing to do when no privacy data was allocated: both name maps are empty.
+    // Returning early also lets us bind a mutable reference below without forcing
+    // an allocation, and guarantees ensurePrivacyData() cannot reallocate (and so
+    // invalidate that reference) while we are iterating through it.
+    if (!pindex->hasPrivacyData())
+        return true;
+
+    auto& pd = pindex->ensurePrivacyData();
+    for (const auto &entry : pd.removedSparkNames) {
         sparkNameAddresses.erase(entry.second.sparkAddress);
         sparkNames.erase(ToUpper(entry.first));
         uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
-    for (const auto &entry : pindex->addedSparkNames) {
+    for (const auto &entry : pd.addedSparkNames) {
         std::string upperName = ToUpper(entry.first);
         if (sparkNames.count(upperName) > 0 && fBackupRewrittenEntries)
-            pindex->removedSparkNames[upperName] = sparkNames[upperName];
+            pd.removedSparkNames[upperName] = sparkNames[upperName];
         sparkNames[upperName] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = upperName;
         uiInterface.NotifySparkNameAdded(entry.second);
@@ -52,13 +60,14 @@ bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntri
 bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex)
 {
     LOCK(cs_spark_name);
-    for (const auto &entry : pindex->addedSparkNames) {
+    const auto& pd = pindex->privacyData();
+    for (const auto &entry : pd.addedSparkNames) {
         sparkNames.erase(ToUpper(entry.first));
         sparkNameAddresses.erase(entry.second.sparkAddress);
         uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
-    for (const auto &entry : pindex->removedSparkNames) {
+    for (const auto &entry : pd.removedSparkNames) {
         sparkNames[ToUpper(entry.first)] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = ToUpper(entry.first);
         uiInterface.NotifySparkNameAdded(entry.second);
