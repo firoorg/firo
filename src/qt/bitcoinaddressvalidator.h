@@ -21,9 +21,12 @@ class BitcoinAddressEntryValidator : public QValidator
     Q_OBJECT
 
 public:
-    explicit BitcoinAddressEntryValidator(QObject *parent);
+    explicit BitcoinAddressEntryValidator(QObject *parent, bool _allowPaymentURI = false);
 
     State validate(QString &input, int &pos) const override;
+
+private:
+    const bool allowPaymentURI;
 };
 
 /** Bitcoin address widget validator, checks for a valid bitcoin address.

@@ -10,6 +10,7 @@
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "rosenbridge.h"
 #include "walletmodel.h"
 #include "../spark/sparkwallet.h"
 #include "../wallet/wallet.h"
@@ -50,7 +51,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
 #endif
 
     // normal Firo address field
-    GUIUtil::setupAddressWidget(ui->payTo, this);
+    GUIUtil::setupAddressWidget(ui->payTo, this, true);
     // just a label for displaying Firo address(es)
     ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
 
@@ -65,6 +66,8 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->messageLabel->setVisible(false);
     ui->messageTextLabel->setVisible(false);
     ui->iconMessageWarning->setVisible(false);
+    ui->rosenBridgeLabel->setVisible(false);
+    ui->rosenBridgeDetails->setVisible(false);
 }
 
 SendCoinsEntry::~SendCoinsEntry()
@@ -99,8 +102,11 @@ void SendCoinsEntry::on_MemoTextChanged(const QString &text)
 
 void SendCoinsEntry::on_pasteButton_clicked()
 {
-    // Paste text from clipboard into recipient field
-    ui->payTo->setText(QApplication::clipboard()->text());
+    const QString text = QApplication::clipboard()->text().trimmed();
+    if (!applyPaymentURI(text)) {
+        clearRosenBridgeData();
+        ui->payTo->setText(text);
+    }
 }
 
 void SendCoinsEntry::on_addressBookButton_clicked()
@@ -111,6 +117,7 @@ void SendCoinsEntry::on_addressBookButton_clicked()
     dlg.setModel(model->getAddressTableModel());
     if(dlg.exec())
     {
+        clearRosenBridgeData();
         ui->payTo->setText(dlg.getReturnValue());
         ui->payAmount->setFocus();
     }
@@ -118,6 +125,14 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
+    if (!applyingRecipient && address.startsWith(QStringLiteral("firo:"), Qt::CaseInsensitive) &&
+        applyPaymentURI(address)) {
+        return;
+    }
+    if (!applyingRecipient && !recipient.opReturnData.empty()) {
+        clearRosenBridgeData();
+    }
+
     updateLabel(address);
     setWarning(fAnonymousMode);
 
@@ -129,6 +144,65 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
     }
     ui->messageLabel->setVisible(isSparkAddress);
     ui->messageTextLabel->setVisible(isSparkAddress);
+}
+
+bool SendCoinsEntry::applyPaymentURI(const QString& uri)
+{
+    if (!uri.startsWith(QStringLiteral("firo:"), Qt::CaseInsensitive)) {
+        return false;
+    }
+
+    SendCoinsRecipient parsed;
+    if (!GUIUtil::parseBitcoinURI(uri, &parsed) || parsed.address.isEmpty()) {
+        return false;
+    }
+
+    setValue(parsed);
+    return true;
+}
+
+void SendCoinsEntry::clearRosenBridgeData()
+{
+    if (recipient.opReturnData.empty()) {
+        return;
+    }
+
+    recipient.opReturnData.clear();
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
+}
+
+void SendCoinsEntry::updateRosenBridgeDisplay()
+{
+    RosenBridge::Metadata metadata;
+    const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
+
+    ui->rosenBridgeLabel->setVisible(valid);
+    ui->rosenBridgeDetails->setVisible(valid);
+    ui->payAmount->setReadOnly(valid);
+    ui->checkboxSubtractFeeFromAmount->setEnabled(!valid);
+
+    if (!valid) {
+        ui->rosenBridgeDetails->clear();
+        ui->rosenBridgeDetails->setToolTip(QString());
+        ui->rosenBridgeDetails->setStyleSheet(QString());
+        return;
+    }
+
+    ui->checkboxSubtractFeeFromAmount->setChecked(false);
+    QString details = tr("Metadata: %1 bytes\n").arg(static_cast<qulonglong>(recipient.opReturnData.size()));
+    details += RosenBridge::FormatDetails(metadata);
+    details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
+
+    if (fAnonymousMode) {
+        details.prepend(tr("Switch to Transparent Balance to send this Rosen Bridge transfer.\n"));
+        ui->rosenBridgeDetails->setStyleSheet(QStringLiteral("color: #aa0000;"));
+    } else {
+        ui->rosenBridgeDetails->setStyleSheet(QString());
+    }
+
+    ui->rosenBridgeDetails->setText(details);
+    ui->rosenBridgeDetails->setToolTip(tr("This transaction includes Rosen Bridge OP_RETURN metadata."));
 }
 
 void SendCoinsEntry::setModel(WalletModel *_model)
@@ -143,6 +217,9 @@ void SendCoinsEntry::setModel(WalletModel *_model)
 
 void SendCoinsEntry::clear()
 {
+    applyingRecipient = true;
+    recipient = SendCoinsRecipient();
+
     // clear UI elements for normal payment
     ui->payTo->clear();
     ui->addAsLabel->clear();
@@ -160,6 +237,10 @@ void SendCoinsEntry::clear()
     ui->memoTextLabel_s->clear();
     ui->payAmount_s->clear();
 
+    applyingRecipient = false;
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
+
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();
 }
@@ -172,7 +253,8 @@ void SendCoinsEntry::deleteClicked()
 void SendCoinsEntry::setWarning(bool fAnonymousMode) {
     const QString address = ui->payTo->text();
     const QString warningText = generateWarningText(address, fAnonymousMode);
-    const bool hasValidAddress = model->validateAddress(address) || model->validateSparkAddress(address);
+    const bool hasValidAddress = model &&
+        (model->validateAddress(address) || model->validateSparkAddress(address));
     ui->textWarning->setText(warningText);
     ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
     ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
@@ -209,6 +291,14 @@ bool SendCoinsEntry::validate()
 
     // Check input validity
     bool retval = true;
+
+    if (!recipient.opReturnData.empty()) {
+        if (fAnonymousMode || !model->validateAddress(ui->payTo->text()) ||
+            !RosenBridge::Parse(recipient.opReturnData) ||
+            ui->checkboxSubtractFeeFromAmount->isChecked()) {
+            retval = false;
+        }
+    }
 
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
 
@@ -248,7 +338,8 @@ SendCoinsRecipient SendCoinsEntry::getValue()
     recipient.label = ui->addAsLabel->text();
     recipient.amount = ui->payAmount->value();
     recipient.message = ui->messageTextLabel->text();
-    recipient.fSubtractFeeFromAmount = (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
+    recipient.fSubtractFeeFromAmount = recipient.opReturnData.empty() &&
+        (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
 
     return recipient;
 }
@@ -267,7 +358,14 @@ QWidget *SendCoinsEntry::setupTabChain(QWidget *prev)
 
 void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
 {
+    applyingRecipient = true;
     recipient = value;
+    if (!recipient.opReturnData.empty() && !RosenBridge::Parse(recipient.opReturnData)) {
+        recipient.opReturnData.clear();
+    }
+    if (!recipient.opReturnData.empty()) {
+        recipient.fSubtractFeeFromAmount = false;
+    }
     {
         // message
         ui->messageTextLabel->setText(recipient.message);
@@ -279,23 +377,33 @@ void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
         if (!recipient.label.isEmpty()) // if a label had been set from the addressbook, don't overwrite with an empty label
             ui->addAsLabel->setText(recipient.label);
         ui->payAmount->setValue(recipient.amount);
+        ui->checkboxSubtractFeeFromAmount->setChecked(recipient.fSubtractFeeFromAmount);
     }
+    applyingRecipient = false;
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
 }
 
 void SendCoinsEntry::setAddress(const QString &address)
 {
+    clearRosenBridgeData();
     ui->payTo->setText(address);
     ui->payAmount->setFocus();
 }
 
 void SendCoinsEntry::setSubtractFeeFromAmount(bool enable)
 {
-    ui->checkboxSubtractFeeFromAmount->setCheckState(enable ? Qt::Checked : Qt::Unchecked);
+    ui->checkboxSubtractFeeFromAmount->setCheckState(enable && recipient.opReturnData.empty() ? Qt::Checked : Qt::Unchecked);
 }
 
 bool SendCoinsEntry::isClear()
 {
     return ui->payTo->text().isEmpty() && ui->payTo_is->text().isEmpty() && ui->payTo_s->text().isEmpty();
+}
+
+bool SendCoinsEntry::hasRosenBridgeData() const
+{
+    return !recipient.opReturnData.empty();
 }
 
 bool SendCoinsEntry::isPayToPcode() const
@@ -306,6 +414,7 @@ bool SendCoinsEntry::isPayToPcode() const
 void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
 {
     this->fAnonymousMode = fAnonymousMode;
+    updateRosenBridgeDisplay();
 }
 
 void SendCoinsEntry::setFocus()
@@ -366,6 +475,8 @@ void SendCoinsEntry::adjustTextSize(int width, int height) {
     ui->amountLabel->setFont(font);
     ui->messageLabel->setFont(font);
     ui->messageTextLabel->setFont(font);
+    ui->rosenBridgeLabel->setFont(font);
+    ui->rosenBridgeDetails->setFont(font);
     ui->payTo->setFont(font);
     ui->payTo_is->setFont(font);
     ui->memoLabel_is->setFont(font);

@@ -11,6 +11,7 @@
 #include "sparkmodel.h"
 #include "paymentserver.h"
 #include "recentrequeststablemodel.h"
+#include "rosenbridge.h"
 #include "transactiontablemodel.h"
 
 #include "base58.h"
@@ -305,6 +306,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     bool fSubtractFeeFromAmount = false;
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> vecSend;
+    const std::vector<unsigned char>* opReturnData = nullptr;
 
     if(recipients.empty())
     {
@@ -317,6 +319,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     // Pre-check input data for validity
     for (const SendCoinsRecipient &rcp : recipients)
     {
+        if (!rcp.opReturnData.empty()) {
+            if (opReturnData || rcp.fSubtractFeeFromAmount || !RosenBridge::Parse(rcp.opReturnData)) {
+                return InvalidRosenBridgeData;
+            }
+            opReturnData = &rcp.opReturnData;
+        }
+
         if (rcp.fSubtractFeeFromAmount)
             fSubtractFeeFromAmount = true;
             
@@ -338,6 +347,12 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
             total += rcp.amount;
         }
+    }
+    if (opReturnData && fSubtractFeeFromAmount) {
+        return InvalidRosenBridgeData;
+    }
+    if (opReturnData) {
+        vecSend.push_back({RosenBridge::BuildOpReturnScript(*opReturnData), 0, false});
     }
     if(setAddress.size() != nAddresses)
     {
