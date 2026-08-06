@@ -40,6 +40,7 @@
 QList<CoinControlDialog::PayAmount> CoinControlDialog::payAmounts;
 CCoinControl* CoinControlDialog::coinControl = new CCoinControl();
 bool CoinControlDialog::fSubtractFeeFromAmount = false;
+std::size_t CoinControlDialog::extraOutputBytes = 0;
 
 unsigned int CoinControlDialog::estimateSparkTxBytes(
     size_t selectedInputs,
@@ -603,6 +604,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         } else {
             // Bytes
             nBytes = nBytesInputs + ((CoinControlDialog::payAmounts.size() > 0 ? CoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
+            nBytes += extraOutputBytes;
             if (fWitness)
             {
                 // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.

@@ -7,6 +7,8 @@
 
 #include "amount.h"
 
+#include <cstddef>
+
 #include <QAbstractButton>
 #include <QAction>
 #include <QDialog>
@@ -67,6 +69,7 @@ public:
     static QList<PayAmount> payAmounts;
     static CCoinControl *coinControl;
     static bool fSubtractFeeFromAmount;
+    static std::size_t extraOutputBytes;
 
 private:
     Ui::CoinControlDialog *ui;

@@ -65,6 +65,7 @@ public:
     QString authenticatedMerchant;
 
     bool fSubtractFeeFromAmount; // memory only
+    std::vector<unsigned char> opReturnData; // memory only, Rosen Bridge metadata
 
     static const int CURRENT_VERSION = 1;
     int nVersion;
@@ -117,7 +118,9 @@ public:
         TransactionCommitFailed,
         AbsurdFee,
         PaymentRequestExpired,
-        ExceedLimit
+        ExceedLimit,
+        InvalidRosenBridgeData,
+        RosenBridgeRequiresTransparent
     };
 
     enum EncryptionStatus
