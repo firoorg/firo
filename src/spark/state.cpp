@@ -776,7 +776,7 @@ bool CheckSparkSpendTransaction(
     // add proofs into container
     if (useBatching) {
         passVerify = true;
-        batchProofContainer->add(*spend);
+        batchProofContainer->add(*spend, hashTx);
     } else {
         try {
             if (gCheckedSparkSpendTransactions.count(hashTx)) {

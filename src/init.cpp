@@ -41,7 +41,6 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
-#include "batchproof_container.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -268,8 +267,8 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    BatchProofContainer::get_instance()->finalize();
-    BatchProofContainer::get_instance()->verify();
+    // Any pending Spark batch is verified by the final FlushStateToDisk() below,
+    // which refuses to persist validation state if verification fails.
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -769,6 +768,14 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
+        }
+        {
+            LOCK(cs_main);
+            CValidationState state;
+            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+                return;
+            }
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
@@ -1912,6 +1919,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
+
+    // If the previous run aborted on a failed Spark batch verification, verify
+    // Spark proofs block by block for this run so the invalid spend is
+    // identified and rejected through the normal consensus path. Checked here
+    // rather than in LoadBlockIndexDB() because a run restarted with -reindex
+    // wipes the block tree database and never calls LoadBlockIndexDB().
+    if (boost::filesystem::exists(GetDataDir() / "sparkbatchfailed")) {
+        LogPrintf("Previous run failed Spark batch verification, disabling -batching for this run\n");
+        ForceSetArg("-batching", "0");
+        boost::filesystem::remove(GetDataDir() / "sparkbatchfailed");
+    }
 
     boost::filesystem::create_directories(GetDataDir() / "blocks");
 
