@@ -19,7 +19,14 @@ public:
         const std::vector<GroupElement>& T,
         ChaumProof& proof
     );
+    // Original verification retained for pre-activation historical blocks.
     bool verify(
+        const Scalar& mu,
+        const std::vector<GroupElement>& S,
+        const std::vector<GroupElement>& T,
+        ChaumProof& proof
+    );
+    bool verify_single_input(
         const Scalar& mu,
         const std::vector<GroupElement>& S,
         const std::vector<GroupElement>& T,

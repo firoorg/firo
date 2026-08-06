@@ -16,6 +16,8 @@
 #include <QString>
 #include <QTreeWidgetItem>
 
+#include <cstddef>
+
 class PlatformStyle;
 class WalletModel;
 
@@ -44,6 +46,12 @@ class CoinControlDialog : public QDialog
     Q_OBJECT
 
 public:
+    struct PayAmount
+    {
+        CAmount amount;
+        bool isPrivate;
+    };
+
     explicit CoinControlDialog(bool anonymousMode, const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~CoinControlDialog();
 
@@ -51,8 +59,12 @@ public:
 
     // static because also called from sendcoinsdialog
     static void updateLabels(WalletModel*, QDialog*, bool anonymousMode = false);
+    static unsigned int estimateSparkTxBytes(
+        size_t selectedInputs,
+        size_t privateOutputs,
+        size_t transparentOutputs);
 
-    static QList<CAmount> payAmounts;
+    static QList<PayAmount> payAmounts;
     static CCoinControl *coinControl;
     static bool fSubtractFeeFromAmount;
 

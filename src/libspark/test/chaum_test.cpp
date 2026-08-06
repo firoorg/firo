@@ -191,6 +191,40 @@ BOOST_AUTO_TEST_CASE(empty_input_vectors_rejected)
     BOOST_CHECK_THROW(chaum.verify(mu, S, T, proof), std::invalid_argument);
  }
 
+BOOST_AUTO_TEST_CASE(single_input_verifier_accepts_valid_and_rejects_modified_proofs)
+{
+    GroupElement F, G, H, U;
+    F.randomize();
+    G.randomize();
+    H.randomize();
+    U.randomize();
+
+    Scalar mu, x, y, z;
+    mu.randomize();
+    x.randomize();
+    y.randomize();
+    z.randomize();
+    const std::vector<GroupElement> S{F*x + G*y + H*z};
+    const std::vector<GroupElement> T{
+        (U + (G*y).inverse())*x.inverse()};
+
+    Chaum chaum(F, G, H, U);
+    ChaumProof proof;
+    chaum.prove(mu, {x}, {y}, {z}, S, T, proof);
+    BOOST_REQUIRE(chaum.verify_single_input(mu, S, T, proof));
+
+    ChaumProof badFirst = proof;
+    do {
+        badFirst.A1.randomize();
+    } while (badFirst.A1 == proof.A1);
+    BOOST_CHECK(!chaum.verify_single_input(mu, S, T, badFirst));
+
+    ChaumProof badSecond = proof;
+    do {
+        badSecond.A2[0].randomize();
+    } while (badSecond.A2[0] == proof.A2[0]);
+    BOOST_CHECK(!chaum.verify_single_input(mu, S, T, badSecond));
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

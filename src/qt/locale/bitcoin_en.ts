@@ -2873,6 +2873,21 @@
         <source>(no label)</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../sendcoinsdialog.cpp" line="334"/>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sendcoinsdialog.cpp" line="335"/>
+        <source>Sending private funds to an exchange address is temporarily unavailable. Move the funds to a transparent address first, then send from there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../sendcoinsdialog.cpp" line="598"/>
+        <source>This payment does not fit in one Spark coin and will be sent as %1 separate transactions. Each pays its own fee, they can be linked to each other, and if one of them is rejected the recipients will have been paid only in part.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>SendCoinsEntry</name>
@@ -3819,6 +3834,68 @@
         <location filename="../walletmodel.cpp" line="+291"/>
         <source>Send Coins</source>
         <translation type="unfinished">Send Coins</translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1322"/>
+        <source>Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1352"/>
+        <source>Subtracting the fee from the amount is temporarily unavailable for Spark spends.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1455"/>
+        <source>Spend to transparent address limit exceeded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1461"/>
+        <source>A Spark payment may use at most %1 transactions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1466"/>
+        <source>The available Spark coins cannot cover the amount and the required transaction fees.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1517"/>
+        <location filename="../walletmodel.cpp" line="1678"/>
+        <source>Unable to create a single-input Spark transaction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1527"/>
+        <source>Spark fee estimate did not match the wallet (planned %1, wallet %2).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1619"/>
+        <source>Spark name registration temporarily uses a single Spark coin. Please select at most one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1635"/>
+        <source>Unable to select a Spark coin.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1654"/>
+        <source>Spark name registration temporarily requires one Spark coin large enough to cover the registration and transaction fees.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1754"/>
+        <location filename="../walletmodel.cpp" line="1810"/>
+        <source>Refusing to commit a non-single-input Spark transaction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../walletmodel.cpp" line="1854"/>
+        <source> This payment was split across %1 transactions and %2 of them were already sent, so the recipients have been paid only in part. Do not retry the whole payment. Already sent: %3</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

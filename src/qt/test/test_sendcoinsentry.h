@@ -12,6 +12,8 @@ class TestSendCoinsEntry : public QObject
 private Q_SLOTS:
     void testGenerateWarningText();
     void testTransactionCreationErrorDetails();
+    void testPrivateModeUpdatesExistingEntries();
+    void testSparkCoinControlSizeEstimate();
 };
 
 #endif // BITCOIN_QT_TEST_SENDCOINSENTRY_H

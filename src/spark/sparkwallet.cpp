@@ -1625,6 +1625,14 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
                     SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, additionalTxSize);
 
+            // Apply the single-input rule immediately in upgraded wallets,
+            // independently of the configured consensus activation height.
+            if (estimated.second.size() != 1) {
+                throw InsufficientFunds(_(
+                    "Spark multi-input spends are temporarily disabled. "
+                    "No single available Spark coin can fund this transaction."));
+            }
+
             bool remainderSubtracted = false;
             fee = estimated.first;
             const CAmount feePerRecipient = recipientsToSubtractFee > 0 ? fee / recipientsToSubtractFee : 0;

@@ -170,6 +170,13 @@ void SendCoinsEntry::deleteClicked()
 }
 
 void SendCoinsEntry::setWarning(bool fAnonymousMode) {
+    if (!model) {
+        ui->textWarning->clear();
+        ui->textWarning->hide();
+        ui->iconWarning->hide();
+        return;
+    }
+
     const QString address = ui->payTo->text();
     const QString warningText = generateWarningText(address, fAnonymousMode);
     const bool hasValidAddress = model->validateAddress(address) || model->validateSparkAddress(address);
@@ -306,6 +313,14 @@ bool SendCoinsEntry::isPayToPcode() const
 void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
 {
     this->fAnonymousMode = fAnonymousMode;
+
+    // A Spark spend may need more than one transaction, and the fee cannot then be
+    // taken out of a single recipient's amount. prepareSpendSparkTransactionsSingleInput
+    // rejects the flag, so take the checkbox away rather than failing at send time.
+    if (fAnonymousMode) {
+        ui->checkboxSubtractFeeFromAmount->setCheckState(Qt::Unchecked);
+    }
+    ui->checkboxSubtractFeeFromAmount->setEnabled(!fAnonymousMode);
 }
 
 void SendCoinsEntry::setFocus()

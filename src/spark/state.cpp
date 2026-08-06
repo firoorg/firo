@@ -467,16 +467,9 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 
     sparkState.RemoveBlock(pindexDelete);
 
-    // Invalidate proof cache for Spark spends in the disconnected block. After a reorg,
-    // those spends may be re-applied on the new fork where the anonymity set differs;
-    // they must be re-verified instead of using a stale cache hit.
-    {
-        for (const auto& txRef : block.vtx) {
-            const CTransaction& tx = *txRef;
-            if (tx.IsSparkSpend())
-                gCheckedSparkSpendTransactions.erase(tx.GetHash());
-        }
-    }
+    // Spark verification depends on active-chain cover-set data. Refresh all
+    // cached results after a disconnect so they use the current chain context.
+    gCheckedSparkSpendTransactions.clear();
 
     // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
@@ -672,6 +665,16 @@ bool CheckSparkSpendTransaction(
     if (!fStatefulSigmaCheck)
         return true;
     bool isMempoolAcceptance = (!sparkTxInfo);
+    const bool enforceSingleInput = isMempoolAcceptance ? (height >= (params.nSparkSingleInputStartBlock - 5))
+        : height >= params.nSparkSingleInputStartBlock;
+
+    if (enforceSingleInput &&
+        spend->getUsedLTags().size() != 1) {
+        return state.DoS(100,
+                         false,
+                         isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                         "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
+    }
     bool passVerify = false;
 
     uint64_t Vout = 0;
@@ -776,7 +779,11 @@ bool CheckSparkSpendTransaction(
     // add proofs into container
     if (useBatching) {
         passVerify = true;
-        batchProofContainer->add(*spend);
+        if (enforceSingleInput) {
+            batchProofContainer->add(*spend);
+        } else {
+            batchProofContainer->addHistorical(*spend);
+        }
     } else {
         try {
             if (gCheckedSparkSpendTransactions.count(hashTx)) {
@@ -798,7 +805,10 @@ bool CheckSparkSpendTransaction(
             }
             else {
                 // we need the answer now, so verify and execute
-                passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+                passVerify = enforceSingleInput
+                    ? spark::SpendTransaction::verify(*spend, cover_sets)
+                    : spark::SpendTransaction::verifyHistorical(
+                        *spend, cover_sets);
             }
         }
         catch (const std::exception &) {

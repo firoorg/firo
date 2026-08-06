@@ -54,7 +54,15 @@ public:
     void Initialize(int numberOfBlocks = 2000) {
         std::vector<CMutableTransaction> mintTxs;
         GenerateBlocks(numberOfBlocks-1);
-        GenerateMints({50 * COIN, 60 * COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN}, mintTxs);
+        // Each name registration must be funded by one Spark coin large enough to
+        // cover the registration fee plus the transaction fee. Several tests register
+        // consecutive names without mining between them, so each registration's change
+        // is still unconfirmed when the next one is built. The wallet therefore needs
+        // one spendable coin per registration that is large enough on its own. A
+        // 4-character name costs 10 FIRO per year,
+        // which the 10 FIRO coins below cannot cover once the fee is added.
+        GenerateMints({50 * COIN, 60 * COIN, 50 * COIN, 50 * COIN, 50 * COIN,
+                       10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN}, mintTxs);
         GenerateBlock(mintTxs);
         pwalletMain->SetBroadcastTransactions(true);
     }
