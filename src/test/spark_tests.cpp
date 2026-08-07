@@ -673,7 +673,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
 BOOST_AUTO_TEST_CASE(spark_single_input_mempool_policy)
 {
-    GenerateBlocks(500);
+    GenerateBlocks(200);
 
     std::vector<CMutableTransaction> mintTransactions;
     const auto createdMints =
@@ -709,6 +709,8 @@ BOOST_AUTO_TEST_CASE(spark_single_input_mempool_policy)
         false,
         true,
         &blockInfo));
+
+    GenerateBlocks(185);
 
     // Upgraded nodes stop relaying multi-input spends immediately,
     // without assigning peer misbehavior points.
