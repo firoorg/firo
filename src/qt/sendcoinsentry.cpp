@@ -176,11 +176,15 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
 {
     RosenBridge::Metadata metadata;
     const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
+    const bool subtractFeeAllowed = !fAnonymousMode && !valid;
 
     ui->rosenBridgeLabel->setVisible(valid);
     ui->rosenBridgeDetails->setVisible(valid);
     ui->payAmount->setReadOnly(valid);
-    ui->checkboxSubtractFeeFromAmount->setEnabled(!valid);
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
+    if (!subtractFeeAllowed) {
+        ui->checkboxSubtractFeeFromAmount->setChecked(false);
+    }
 
     if (!valid) {
         ui->rosenBridgeDetails->clear();
@@ -189,7 +193,6 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
         return;
     }
 
-    ui->checkboxSubtractFeeFromAmount->setChecked(false);
     QString details = tr("Metadata: %1 bytes\n").arg(static_cast<qulonglong>(recipient.opReturnData.size()));
     details += RosenBridge::FormatDetails(metadata);
     details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
