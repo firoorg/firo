@@ -798,7 +798,10 @@ bool CheckSparkSpendTransaction(
                 }
             }
             else if (isMempoolAcceptance) {
-                passVerify = spark::SpendTransaction::verify(*spend, cover_sets);
+                passVerify = enforceSingleInput
+                    ? spark::SpendTransaction::verify(*spend, cover_sets)
+                    : spark::SpendTransaction::verifyHistorical(
+                        *spend, cover_sets);
                 auto &checkState = gCheckedSparkSpendTransactions[hashTx];
                 checkState.fChecked = true;
                 checkState.fResult = passVerify;
