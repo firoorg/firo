@@ -665,7 +665,7 @@ bool CheckSparkSpendTransaction(
     if (!fStatefulSigmaCheck)
         return true;
     bool isMempoolAcceptance = (!sparkTxInfo);
-    const bool enforceSingleInput = isMempoolAcceptance ? (height >= (params.nSparkSingleInputStartBlock - 5))
+    const bool enforceSingleInput = isMempoolAcceptance ? (height >= (params.nSparkSingleInputStartBlock - 10))
         : height >= params.nSparkSingleInputStartBlock;
 
     if (enforceSingleInput &&
