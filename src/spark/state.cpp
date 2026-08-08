@@ -718,11 +718,6 @@ bool CheckSparkSpendTransaction(
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
-        if (index->GetBlockHash() != idAndHash.second && isMempoolAcceptance)
-            //we are in the mempool acceptance code, it's a soft error
-            // just return true. If isMempoolAcceptance is false, use coinGroup.firstBlock as a reference block
-            return true;
-
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
 
