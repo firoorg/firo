@@ -10,18 +10,15 @@
 
 WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient> &_recipients) :
     recipients(_recipients),
-    walletTransaction(0),
-    keyChange(0),
+    walletTransaction(std::make_unique<CWalletTx>()),
     fee(0)
 {
-    walletTransaction = new CWalletTx();
 }
 
-WalletModelTransaction::~WalletModelTransaction()
-{
-    delete keyChange;
-    delete walletTransaction;
-}
+WalletModelTransaction::~WalletModelTransaction() = default;
+
+WalletModelTransaction::WalletModelTransaction(WalletModelTransaction&&) noexcept = default;
+WalletModelTransaction& WalletModelTransaction::operator=(WalletModelTransaction&&) noexcept = default;
 
 QList<SendCoinsRecipient> WalletModelTransaction::getRecipients()
 {
@@ -30,7 +27,7 @@ QList<SendCoinsRecipient> WalletModelTransaction::getRecipients()
 
 CWalletTx *WalletModelTransaction::getTransaction()
 {
-    return walletTransaction;
+    return walletTransaction.get();
 }
 
 unsigned int WalletModelTransaction::getTransactionSize()
@@ -93,10 +90,10 @@ CAmount WalletModelTransaction::getTotalTransactionAmount()
 
 void WalletModelTransaction::newPossibleKeyChange(CWallet *wallet)
 {
-    keyChange = new CReserveKey(wallet);
+    keyChange = std::make_unique<CReserveKey>(wallet);
 }
 
 CReserveKey *WalletModelTransaction::getPossibleKeyChange()
 {
-    return keyChange;
+    return keyChange.get();
 }

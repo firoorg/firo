@@ -107,8 +107,21 @@ void CommitSparkSpend(CWallet& wallet, CWalletTx& wtx)
 {
     CValidationState state;
     CReserveKey reserveKey(&wallet);
-    if (!wallet.CommitTransaction(wtx, reserveKey, g_connman.get(), state)) {
-        throw std::runtime_error(state.GetRejectReason());
+    // Match WalletModel::spendSparkCoins: pass GetBroadcastTransactions() as
+    // fCheckTransaction so a mempool rejection fails the commit (and thus the
+    // batch) instead of being logged while CommitTransaction still returns true.
+    // Prefer GetBroadcastTransactions() over true so -walletbroadcast=0 does not
+    // force relay via the fCheckTransaction branch in CommitTransaction.
+    if (!wallet.CommitTransaction(
+            wtx,
+            reserveKey,
+            g_connman.get(),
+            state,
+            wallet.GetBroadcastTransactions())) {
+        throw std::runtime_error(
+            state.GetRejectReason().empty()
+                ? _("Transaction commit failed.")
+                : state.GetRejectReason());
     }
 }
 

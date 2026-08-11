@@ -296,10 +296,14 @@ BOOST_AUTO_TEST_CASE(limit)
     BOOST_ASSERT(pwalletMain->sparkWallet);
     spark::Address address = pwalletMain->sparkWallet->generateNewAddress();
 
+    // Upgraded wallets spend exactly one Spark coin per transaction. Mint
+    // coins that individually fund each spend below: one 120-FIRO transparent
+    // output (over the 100-FIRO spork limit) and two 70-FIRO outputs (each
+    // under the limit, but 140 > 100 so only one fits per block).
     std::vector<CMutableTransaction> sparkMints;
-    for (int i=0; i<10; i++) {
+    for (CAmount amount : {150 * COIN, 80 * COIN, 80 * COIN}) {
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        std::vector<spark::MintedCoinData> mints{{address, 50*COIN, ""}};
+        std::vector<spark::MintedCoinData> mints{{address, static_cast<uint64_t>(amount), ""}};
         std::string error = pwalletMain->MintAndStoreSpark(mints, wtxAndFee, false, true);
         BOOST_ASSERT(error.empty());
         for (auto &w: wtxAndFee)
@@ -307,6 +311,7 @@ BOOST_AUTO_TEST_CASE(limit)
     }
 
     GenerateBlock(sparkMints);
+    BOOST_ASSERT(sparkMints.size() == 3);
 
     for (int i=0; i<10; i++)
         GenerateBlock({});
@@ -320,6 +325,7 @@ BOOST_AUTO_TEST_CASE(limit)
 
     auto sparkSpend = spark::ParseSparkSpend(spendTx);
     std::vector<GroupElement> lTags = sparkSpend.getUsedLTags();
+    BOOST_ASSERT(lTags.size() == 1);
 
     // generate two smaller spark spend txs
     CWalletTx smallSparkWalletTxs[2] = {

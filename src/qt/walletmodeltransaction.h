@@ -9,6 +9,8 @@
 
 #include <QList>
 
+#include <memory>
+
 class SendCoinsRecipient;
 
 class CReserveKey;
@@ -21,6 +23,11 @@ class WalletModelTransaction
 public:
     explicit WalletModelTransaction(const QList<SendCoinsRecipient> &recipients);
     ~WalletModelTransaction();
+
+    WalletModelTransaction(const WalletModelTransaction&) = delete;
+    WalletModelTransaction& operator=(const WalletModelTransaction&) = delete;
+    WalletModelTransaction(WalletModelTransaction&&) noexcept;
+    WalletModelTransaction& operator=(WalletModelTransaction&&) noexcept;
 
     QList<SendCoinsRecipient> getRecipients();
 
@@ -39,8 +46,8 @@ public:
 
 private:
     QList<SendCoinsRecipient> recipients;
-    CWalletTx *walletTransaction;
-    CReserveKey *keyChange;
+    std::unique_ptr<CWalletTx> walletTransaction;
+    std::unique_ptr<CReserveKey> keyChange;
     CAmount fee;
 };
 
