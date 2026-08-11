@@ -152,6 +152,9 @@ BOOST_AUTO_TEST_CASE(header_height_mismatch)
     std::vector<CBlockHeader> headers{block};
     BOOST_CHECK(!ProcessNewBlockHeaders(headers, state, Params()));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-blk-progpow");
+
+    LOCK(cs_main);
+    BOOST_CHECK_EQUAL(mapBlockIndex.count(block.GetHash()), 0);
 }
 
 BOOST_AUTO_TEST_CASE(limit)
