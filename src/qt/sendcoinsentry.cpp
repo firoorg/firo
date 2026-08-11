@@ -176,11 +176,13 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
 {
     RosenBridge::Metadata metadata;
     const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
+
     const bool subtractFeeAllowed = !fAnonymousMode && !valid;
 
     ui->rosenBridgeLabel->setVisible(valid);
     ui->rosenBridgeDetails->setVisible(valid);
     ui->payAmount->setReadOnly(valid);
+
     ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
     if (!subtractFeeAllowed) {
         ui->checkboxSubtractFeeFromAmount->setChecked(false);

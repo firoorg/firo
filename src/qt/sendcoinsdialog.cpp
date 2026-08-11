@@ -1119,9 +1119,6 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 {
     fAnonymousMode = enableAnonymizeMode;
 
-    // This setter is also called when a wallet is attached and when Spark
-    // activates or deactivates at a block boundary. Keep every existing entry
-    // in sync for all of those paths, not only for the switch button.
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if (entry) {
