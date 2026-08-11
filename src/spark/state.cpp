@@ -669,11 +669,6 @@ bool CheckSparkSpendTransaction(
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
 
-    if (!fStatefulSigmaCheck)
-        return true;
-    bool isMempoolAcceptance = (!sparkTxInfo);
-    bool passVerify = false;
-
     uint64_t Vout = 0;
     std::size_t private_num = 0;
     for (const CTxOut &txout : tx.vout) {
@@ -697,6 +692,12 @@ bool CheckSparkSpendTransaction(
     out_coins.reserve(private_num);
     if (!CheckSparkSMintTransaction(tx.vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
         return false;
+
+    if (!fStatefulSigmaCheck)
+        return true;
+    bool isMempoolAcceptance = (!sparkTxInfo);
+    bool passVerify = false;
+
     spend->setOutCoins(out_coins);
     std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
