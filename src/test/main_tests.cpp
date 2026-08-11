@@ -36,6 +36,21 @@ BOOST_AUTO_TEST_CASE(block_subsidy_test)
     //TestBlockSubsidyHalvings(1000); // Just another interval
 }
 
+BOOST_AUTO_TEST_CASE(progpow_header_height_must_match_chain_height)
+{
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+    CBlockIndex previous;
+    previous.nHeight = 100;
+
+    CBlockHeader header;
+    header.nTime = consensusParams.nPPSwitchTime;
+    header.nHeight = 0;
+
+    CValidationState state;
+    BOOST_CHECK(!ContextualCheckBlockHeader(header, state, consensusParams, &previous, header.nTime));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-blk-progpow");
+}
+
 bool ReturnFalse() { return false; }
 bool ReturnTrue() { return true; }
 

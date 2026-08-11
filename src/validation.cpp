@@ -4305,6 +4305,11 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex * const pindexPrev, int64_t nAdjustedTime)
 {
+    // The ProgPoW height is serialized and contributes to the header hash. Bind it
+    // to the parent before accepting the header into the block index.
+    if (block.IsProgPow() && block.nHeight != static_cast<uint32_t>(pindexPrev->nHeight + 1))
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
+
 	// Firo - MTP
     bool fBlockHasMTP = (block.nVersion & 4096) != 0 || (pindexPrev && consensusParams.nMTPSwitchTime == 0);
 
