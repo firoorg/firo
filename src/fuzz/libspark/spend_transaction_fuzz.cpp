@@ -102,7 +102,10 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     for (const auto set_data: cover_set_data) {
         cover_sets[set_data.first] = set_data.second.cover_set;
     }
-    assert(spark::SpendTransaction::verify(transaction, cover_sets));
+    // This target constructs an arbitrary number of spend inputs. The current
+    // SpendTransaction::verify path enforces the single-input rule, so use the
+    // historical verifier that still accepts multi-input proofs.
+    assert(spark::SpendTransaction::verifyHistorical(transaction, cover_sets));
 
     
     return 0;

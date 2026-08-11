@@ -1362,7 +1362,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
             return InvalidAddress;
         }
 
-        plannerRecipients.push_back({recipient.amount, plan.isPrivate, 1});
+        const CAmount minimumOutputAmount = plan.isPrivate
+            ? 1
+            : sparkspendbatch::TransparentMinimumOutputAmount(plan.scriptPubKey);
+        plannerRecipients.push_back({recipient.amount, plan.isPrivate, minimumOutputAmount});
         recipientPlans.push_back(std::move(plan));
     }
 

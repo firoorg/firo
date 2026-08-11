@@ -156,6 +156,15 @@ CAmount EstimateSingleInputSparkFee(size_t privateOutputs, size_t transparentOut
         CWallet::GetMinimumFee(estimatedSize, nTxConfirmTarget, mempool));
 }
 
+CAmount TransparentMinimumOutputAmount(const CScript& scriptPubKey)
+{
+    // CreateSparkSpendTransaction rejects transparent outputs with
+    // IsDust(minRelayTxFee). Keep planner fragments at or above that threshold
+    // so a later batch cannot fail dust checks after earlier ones are planned.
+    const CAmount dust = CTxOut(0, scriptPubKey).GetDustThreshold(::minRelayTxFee);
+    return dust > 0 ? dust : 1;
+}
+
 spark::BatchPlanLimits BuildBatchPlanLimits()
 {
     const auto& consensus = Params().GetConsensus();
@@ -227,7 +236,11 @@ std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
         entry.scriptPubKey = recipient.scriptPubKey;
         entry.subtractFee = recipient.fSubtractFeeFromAmount;
         recipientEntries.push_back(entry);
-        plannerRecipients.push_back({recipient.nAmount, false, 1});
+        plannerRecipients.push_back({
+            recipient.nAmount,
+            false,
+            TransparentMinimumOutputAmount(recipient.scriptPubKey),
+            recipient.fSubtractFeeFromAmount});
     }
     for (const auto& recipient : privateRecipients) {
         const CAmount amount = static_cast<CAmount>(recipient.first.v);
@@ -236,7 +249,7 @@ std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
         entry.privateOutput = recipient.first;
         entry.subtractFee = recipient.second;
         recipientEntries.push_back(entry);
-        plannerRecipients.push_back({amount, true, 1});
+        plannerRecipients.push_back({amount, true, 1, recipient.second});
     }
 
     std::vector<AvailableCoin> availableCoins;

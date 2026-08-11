@@ -225,4 +225,57 @@ BOOST_AUTO_TEST_CASE(transaction_limit_fails_without_a_partial_plan)
     BOOST_CHECK(result.batches.empty());
 }
 
+BOOST_AUTO_TEST_CASE(exact_balance_succeeds_when_fee_subtracted_from_amount)
+{
+    const spark::BatchPlanLimits limits = DefaultLimits();
+    const std::vector<CAmount> coins{1'000};
+    // amount == coin value; fee is carved from the output, not reserved against the coin.
+    const std::vector<spark::BatchRecipient> recipients{{1'000, true, 1, true}};
+    const auto result = spark::PlanSingleInputSpend(
+        coins,
+        recipients,
+        limits,
+        [](size_t, size_t) { return CAmount{10}; },
+        [](size_t, size_t) { return 100U; });
+
+    BOOST_CHECK(result.status == spark::BatchPlanStatus::OK);
+    BOOST_REQUIRE_EQUAL(result.batches.size(), 1U);
+    BOOST_CHECK_EQUAL(result.batches.front().amount, 1'000);
+    BOOST_CHECK_EQUAL(result.batches.front().fee, 10);
+    BOOST_CHECK_EQUAL(result.batches.front().fragments.size(), 1U);
+    BOOST_CHECK_EQUAL(result.batches.front().fragments.front().amount, 1'000);
+}
+
+BOOST_AUTO_TEST_CASE(exact_balance_fails_when_fee_not_subtracted_from_amount)
+{
+    const spark::BatchPlanLimits limits = DefaultLimits();
+    const std::vector<CAmount> coins{1'000};
+    const std::vector<spark::BatchRecipient> recipients{{1'000, true, 1, false}};
+    const auto result = spark::PlanSingleInputSpend(
+        coins,
+        recipients,
+        limits,
+        [](size_t, size_t) { return CAmount{10}; },
+        [](size_t, size_t) { return 100U; });
+
+    BOOST_CHECK(result.status == spark::BatchPlanStatus::INSUFFICIENT_FUNDS);
+    BOOST_CHECK(result.batches.empty());
+}
+
+BOOST_AUTO_TEST_CASE(subtract_fee_rejects_when_fee_consumes_output)
+{
+    const spark::BatchPlanLimits limits = DefaultLimits();
+    const std::vector<CAmount> coins{1'000};
+    const std::vector<spark::BatchRecipient> recipients{{10, false, 1, true}};
+    const auto result = spark::PlanSingleInputSpend(
+        coins,
+        recipients,
+        limits,
+        [](size_t, size_t) { return CAmount{10}; },
+        [](size_t, size_t) { return 100U; });
+
+    BOOST_CHECK(result.status == spark::BatchPlanStatus::INSUFFICIENT_FUNDS);
+    BOOST_CHECK(result.batches.empty());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -94,11 +94,23 @@ BatchPlanResult PlanSingleInputSpend(
                 result.batches.clear();
                 return result;
             }
-            if (batch.amount >= coinValue || fee >= coinValue - batch.amount) {
-                break;
-            }
 
-            CAmount available = coinValue - batch.amount - fee;
+            // With subtractFeeFromAmount the entered amount is taken from the
+            // coin and the fee is carved out of the output later
+            // (SelectSparkCoins does not add the fee to the required value).
+            // Without it the coin must cover amount + fee.
+            CAmount available;
+            if (recipient.subtractFeeFromAmount) {
+                if (fee >= coinValue || batch.amount >= coinValue) {
+                    break;
+                }
+                available = coinValue - batch.amount;
+            } else {
+                if (batch.amount >= coinValue || fee >= coinValue - batch.amount) {
+                    break;
+                }
+                available = coinValue - batch.amount - fee;
+            }
             if (!recipient.isPrivate) {
                 available = std::min(
                     available,
@@ -110,6 +122,11 @@ BatchPlanResult PlanSingleInputSpend(
 
             CAmount fragment = std::min(remaining[recipientIndex], available);
             if (fragment < recipient.minimumOutputAmount) {
+                break;
+            }
+            // Fee is deducted from this output; it must remain funded after that.
+            if (recipient.subtractFeeFromAmount && fragment <= fee &&
+                remaining[recipientIndex] == fragment && batch.fragments.empty()) {
                 break;
             }
 

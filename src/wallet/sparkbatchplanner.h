@@ -19,6 +19,9 @@ struct BatchRecipient
     CAmount amount{0};
     bool isPrivate{false};
     CAmount minimumOutputAmount{1};
+    /** When true, amount is the gross value taken from the coin and the fee is
+     *  deducted from this recipient's output (same as CRecipient::fSubtractFeeFromAmount). */
+    bool subtractFeeFromAmount{false};
 };
 
 struct BatchFragment

@@ -50,6 +50,10 @@ bool HasMultipleSelectedCoins(const CCoinControl* coinControl);
 
 CAmount EstimateSingleInputSparkFee(size_t privateOutputs, size_t transparentOutputs);
 
+/** Minimum non-dust transparent output amount for scriptPubKey.
+ *  Matches CreateSparkSpendTransaction's IsDust(minRelayTxFee) check. */
+CAmount TransparentMinimumOutputAmount(const CScript& scriptPubKey);
+
 /** Requires cs_main to be held. */
 spark::BatchPlanLimits BuildBatchPlanLimits();
 
