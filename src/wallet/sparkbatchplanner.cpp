@@ -91,6 +91,7 @@ BatchPlanResult PlanSingleInputSpend(
             const CAmount fee = estimateFee(privateOutputs, transparentOutputs);
             if (fee > limits.maxFee) {
                 result.status = BatchPlanStatus::FEE_TOO_HIGH;
+                result.batches.clear();
                 return result;
             }
             if (batch.amount >= coinValue || fee >= coinValue - batch.amount) {
@@ -141,7 +142,7 @@ BatchPlanResult PlanSingleInputSpend(
         }
 
         result.batches.push_back(std::move(batch));
-        if (result.batches.size() == limits.maxTransactions && recipientIndex < recipients.size()) {
+        if (result.batches.size() >= limits.maxTransactions && recipientIndex < recipients.size()) {
             result.status = BatchPlanStatus::TOO_MANY_TRANSACTIONS;
             result.batches.clear();
             return result;

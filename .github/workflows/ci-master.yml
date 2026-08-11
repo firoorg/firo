@@ -6,8 +6,6 @@ on:
     - '**/README.md'
     branches:
     - master
-    - minor_fixes
-  workflow_dispatch:
   pull_request:
     paths-ignore:
     - 'doc/**'

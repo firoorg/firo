@@ -23,6 +23,7 @@
 #include "sync.h"
 #include "util.h" // for GetBoolArg
 #include "wallet/sparkbatchplanner.h"
+#include "wallet/sparkspendbatch.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
 #include "wallet/walletexcept.h"
@@ -41,40 +42,6 @@
 #include <QTimer>
 
 #include <boost/foreach.hpp>
-
-namespace {
-constexpr size_t MAX_SINGLE_INPUT_SPARK_TRANSACTIONS = 50;
-
-bool CompareSparkCoins(const CSparkMintMeta& a, const CSparkMintMeta& b)
-{
-    if (a.v != b.v) return a.v > b.v;
-    if (a.nHeight != b.nHeight) return a.nHeight < b.nHeight;
-    if (a.txid != b.txid) return a.txid < b.txid;
-    return a.GetNonceHash() < b.GetNonceHash();
-}
-
-bool HasMultipleSelectedCoins(const CCoinControl* coinControl)
-{
-    if (!coinControl || !coinControl->HasSelected()) return false;
-
-    std::vector<COutPoint> selected;
-    coinControl->ListSelected(selected);
-    return selected.size() > 1;
-}
-
-// SelectSparkCoins iterates from payTxFee.GetFeePerK() until the fee covers the
-// estimated size. With one input the size does not depend on the fee, so that
-// loop settles on this value.
-CAmount EstimateSingleInputSparkFee(size_t privateOutputs, size_t transparentOutputs)
-{
-    const unsigned int estimatedSize =
-        spark::EstimateSingleInputSparkSize(privateOutputs, transparentOutputs);
-
-    return std::max(
-        payTxFee.GetFeePerK(),
-        CWallet::GetMinimumFee(estimatedSize, nTxConfirmTarget, mempool));
-}
-}
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), _client_model(0),
@@ -1331,7 +1298,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
     // A selected set is a single coin-control instruction. Splitting it into
     // separate transactions would silently change its "use all inputs"
     // semantics, so this path accepts at most one selected Spark coin.
-    if (HasMultipleSelectedCoins(coinControl)) {
+    if (sparkspendbatch::HasMultipleSelectedCoins(coinControl)) {
         return SendCoinsReturn(
             TransactionCreationFailed,
             tr("Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically."));
@@ -1414,7 +1381,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
         LOCK2(cs_main, wallet->cs_wallet);
 
         std::list<CSparkMintMeta> coinMetadata = wallet->GetAvailableSparkCoins(coinControl);
-        coinMetadata.sort(CompareSparkCoins);
+        coinMetadata.sort(sparkspendbatch::CompareSparkCoins);
         availableCoins.reserve(coinMetadata.size());
         for (const CSparkMintMeta& coin : coinMetadata) {
             if (coin.v > static_cast<uint64_t>(MAX_MONEY)) {
@@ -1427,17 +1394,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
             }
         }
 
-        const auto& consensus = Params().GetConsensus();
-        limits.maxTransactions = MAX_SINGLE_INPUT_SPARK_TRANSACTIONS;
-        limits.maxPrivateOutputs = consensus.nMaxSparkOutLimitPerTx > 1
-            ? consensus.nMaxSparkOutLimitPerTx - 2
-            : 0;
-        limits.maxTransparentAmount =
-            consensus.GetMaxValueSparkSpendPerTransaction(chainActive.Height());
-        limits.maxFee = maxTxFee;
-        limits.maxMoney = MAX_MONEY;
-        limits.maxWeight = MAX_NEW_TX_WEIGHT;
-        limits.weightScaleFactor = WITNESS_SCALE_FACTOR;
+        limits = sparkspendbatch::BuildBatchPlanLimits();
     }
 
     std::vector<CAmount> coinValues;
@@ -1453,7 +1410,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
             coinValues,
             plannerRecipients,
             limits,
-            EstimateSingleInputSparkFee,
+            sparkspendbatch::EstimateSingleInputSparkFee,
             spark::EstimateSingleInputSparkSize);
     } catch (const std::exception& e) {
         return SendCoinsReturn(TransactionCreationFailed, QString::fromStdString(e.what()));
@@ -1474,7 +1431,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
         return SendCoinsReturn(
             TransactionCreationFailed,
             tr("A Spark payment may use at most %1 transactions.")
-                .arg(MAX_SINGLE_INPUT_SPARK_TRANSACTIONS));
+                .arg(sparkspendbatch::MAX_SINGLE_INPUT_SPARK_TRANSACTIONS));
     case spark::BatchPlanStatus::INSUFFICIENT_FUNDS:
         return SendCoinsReturn(
             TransactionCreationFailed,
@@ -1540,8 +1497,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
             return SendCoinsReturn(
                 TransactionCreationFailed,
                 tr("Spark fee estimate did not match the wallet (planned %1, wallet %2).")
-                    .arg(batch.fee)
-                    .arg(fee));
+                    .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), batch.fee))
+                    .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), fee)));
         }
 
         transactions.emplace_back(guiRecipients);
@@ -1628,7 +1585,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletMode
 
     // A name registration is a single transaction, so unlike a payment it cannot be
     // fanned out over several coins. Say so before doing any work.
-    if (HasMultipleSelectedCoins(coinControl)) {
+    if (sparkspendbatch::HasMultipleSelectedCoins(coinControl)) {
         return SendCoinsReturn(
             TransactionCreationFailed,
             tr("Spark name registration temporarily uses a single Spark coin. Please select at most one."));
@@ -1640,7 +1597,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletMode
         // Sorted largest first: if the largest coin cannot cover the registration
         // and the transaction fee, no other coin can either.
         std::list<CSparkMintMeta> availableCoins = wallet->GetAvailableSparkCoins(coinControl);
-        availableCoins.sort(CompareSparkCoins);
+        availableCoins.sort(sparkspendbatch::CompareSparkCoins);
         if (availableCoins.empty()) {
             return AmountExceedsBalance;
         }
@@ -1662,11 +1619,15 @@ WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletMode
             *newTx = wallet->CreateSparkNameTransaction(
                 sparkNameData, sparkNameFee, nFeeRequired, &singleCoinControl);
         }
-        catch (InsufficientFunds const&) {
+        catch (SparkFundsFragmented const&) {
             transaction.setTransactionFee(nFeeRequired);
             return SendCoinsReturn(
                 TransactionCreationFailed,
                 tr("Spark name registration temporarily requires one Spark coin large enough to cover the registration and transaction fees."));
+        }
+        catch (InsufficientFunds const&) {
+            transaction.setTransactionFee(nFeeRequired);
+            return AmountExceedsBalance;
         }
         catch (std::runtime_error const& e) {
             Q_EMIT message(
@@ -1837,10 +1798,18 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
     // Every transaction that made it out, so a partial failure can tell the user
     // exactly what was sent instead of leaving them to reconstruct it.
     QStringList committed;
-    {
-        LOCK2(cs_main, wallet->cs_wallet);
 
-        for (WalletModelTransaction& transaction : transactions) {
+    for (WalletModelTransaction& transaction : transactions) {
+        QByteArray transactionArray;
+        QList<SendCoinsRecipient> notifiedRecipients;
+
+        {
+            // Hold locks only for this transaction's commit and address-book
+            // update. CommitTransaction may accept/relay under fCheckTransaction,
+            // and coinsSent slots can take wallet/chain locks, so do not keep
+            // cs_main/cs_wallet across the whole batch or while emitting.
+            LOCK2(cs_main, wallet->cs_wallet);
+
             CWalletTx* walletTransaction = transaction.getTransaction();
             for (const SendCoinsRecipient& recipient : transaction.getRecipients()) {
                 if (!recipient.message.isEmpty()) {
@@ -1881,7 +1850,6 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
 
             CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
             stream << *walletTransaction->tx;
-            QByteArray transactionArray;
             transactionArray.append(&stream[0], stream.size());
 
             for (const SendCoinsRecipient& recipient : transaction.getRecipients()) {
@@ -1904,9 +1872,13 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
                         wallet->SetSparkAddressBook(address, label, "");
                     }
                 }
-
-                Q_EMIT coinsSent(wallet, recipient, transactionArray);
             }
+
+            notifiedRecipients = transaction.getRecipients();
+        }
+
+        for (const SendCoinsRecipient& recipient : notifiedRecipients) {
+            Q_EMIT coinsSent(wallet, recipient, transactionArray);
         }
     }
 

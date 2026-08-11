@@ -4,6 +4,9 @@
 #include "sparkname.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
+#include "../saltedhasher.h"
+#include "../sync.h"
+#include "../unordered_lru_cache.h"
 
 #include <memory>
 #include <set>
@@ -18,8 +21,20 @@ struct ProofCheckState {
     bool fResult = false;
 };
 
-// map from transaction hash to the state of checking its proofs
-static std::map<uint256, ProofCheckState> gCheckedSparkSpendTransactions;
+// Bound the mempool-acceptance proof cache. Without a cap, peers can relay many
+// distinct spends that parse and fail verification, each leaving a permanent
+// uint256 entry. DisconnectTipSpark clears on reorg; successful entries are also
+// removed when the mempool drops the transaction.
+static constexpr size_t MAX_CHECKED_SPARK_SPEND_TRANSACTIONS = 10000;
+static CCriticalSection cs_checkedSparkSpendTransactions;
+static unordered_lru_cache<uint256, ProofCheckState, StaticSaltedHasher, MAX_CHECKED_SPARK_SPEND_TRANSACTIONS>
+    gCheckedSparkSpendTransactions(MAX_CHECKED_SPARK_SPEND_TRANSACTIONS);
+
+void EraseCheckedSparkSpendTransaction(const uint256& hashTx)
+{
+    LOCK(cs_checkedSparkSpendTransactions);
+    gCheckedSparkSpendTransactions.erase(hashTx);
+}
 
 static CSparkState sparkState;
 
@@ -469,7 +484,10 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 
     // Spark verification depends on active-chain cover-set data. Refresh all
     // cached results after a disconnect so they use the current chain context.
-    gCheckedSparkSpendTransactions.clear();
+    {
+        LOCK(cs_checkedSparkSpendTransactions);
+        gCheckedSparkSpendTransactions.clear();
+    }
 
     // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
@@ -781,8 +799,13 @@ bool CheckSparkSpendTransaction(
         }
     } else {
         try {
-            if (gCheckedSparkSpendTransactions.count(hashTx)) {
-                auto& checkState = gCheckedSparkSpendTransactions[hashTx];
+            ProofCheckState checkState;
+            bool haveCachedResult = false;
+            {
+                LOCK(cs_checkedSparkSpendTransactions);
+                haveCachedResult = gCheckedSparkSpendTransactions.get(hashTx, checkState);
+            }
+            if (haveCachedResult) {
                 if (checkState.fChecked) {
                     if (!checkState.fResult)
                         return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
@@ -797,9 +820,11 @@ bool CheckSparkSpendTransaction(
                     ? spark::SpendTransaction::verify(*spend, cover_sets)
                     : spark::SpendTransaction::verifyHistorical(
                         *spend, cover_sets);
-                auto &checkState = gCheckedSparkSpendTransactions[hashTx];
-                checkState.fChecked = true;
-                checkState.fResult = passVerify;
+                ProofCheckState newState;
+                newState.fChecked = true;
+                newState.fResult = passVerify;
+                LOCK(cs_checkedSparkSpendTransactions);
+                gCheckedSparkSpendTransactions.insert(hashTx, newState);
             }
             else {
                 // we need the answer now, so verify and execute

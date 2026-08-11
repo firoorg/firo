@@ -10,12 +10,14 @@
 #include "policy/policy.h"
 #include "spark/state.h"
 #include "txmempool.h"
+#include "util.h"
 #include "utilmoneystr.h"
 #include "validation.h"
 #include "wallet/sparkbatchplanner.h"
 #include "wallet/walletexcept.h"
 
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace sparkspendbatch {
@@ -35,23 +37,32 @@ struct AvailableCoin
     COutPoint outpoint;
 };
 
-bool CompareSparkCoins(const CSparkMintMeta& a, const CSparkMintMeta& b)
+struct PreparedBatch
 {
-    if (a.v != b.v) return a.v > b.v;
-    if (a.nHeight != b.nHeight) return a.nHeight < b.nHeight;
-    if (a.txid != b.txid) return a.txid < b.txid;
-    return a.GetNonceHash() < b.GetNonceHash();
-}
+    CWalletTx wtx;
+    CAmount fee{0};
+};
 
-bool HasMultipleSelectedCoins(const CCoinControl* coinControl)
+std::string FormatPartialFailureMessage(
+    const std::string& reason,
+    const std::vector<uint256>& committedTxids,
+    size_t plannedTransactions)
 {
-    if (!coinControl || !coinControl->HasSelected()) {
-        return false;
+    std::string txidList;
+    for (size_t i = 0; i < committedTxids.size(); ++i) {
+        if (i > 0) {
+            txidList += ", ";
+        }
+        txidList += committedTxids[i].ToString();
     }
 
-    std::vector<COutPoint> selected;
-    coinControl->ListSelected(selected);
-    return selected.size() > 1;
+    return strprintf(
+        _("Spark spend batch failed after committing %u of %u transactions: %s. "
+          "Do not retry the whole payment. Already sent: %s"),
+        committedTxids.size(),
+        plannedTransactions,
+        reason,
+        txidList);
 }
 
 bool HasSubtractFee(
@@ -69,16 +80,6 @@ bool HasSubtractFee(
         }
     }
     return false;
-}
-
-CAmount EstimateSingleInputSparkFee(size_t privateOutputs, size_t transparentOutputs)
-{
-    const unsigned int estimatedSize =
-        spark::EstimateSingleInputSparkSize(privateOutputs, transparentOutputs);
-
-    return std::max(
-        payTxFee.GetFeePerK(),
-        CWallet::GetMinimumFee(estimatedSize, nTxConfirmTarget, mempool));
 }
 
 void ThrowForPlanStatus(spark::BatchPlanStatus status)
@@ -112,6 +113,65 @@ void CommitSparkSpend(CWallet& wallet, CWalletTx& wtx)
 }
 
 } // namespace
+
+SparkSpendBatchPartialFailure::SparkSpendBatchPartialFailure(
+    std::string reason,
+    std::vector<uint256> committedTxids,
+    CAmount committedFee,
+    size_t plannedTransactions)
+    : std::runtime_error(FormatPartialFailureMessage(
+          reason, committedTxids, plannedTransactions)),
+      m_committedTxids(std::move(committedTxids)),
+      m_committedFee(committedFee),
+      m_plannedTransactions(plannedTransactions)
+{
+}
+
+bool CompareSparkCoins(const CSparkMintMeta& a, const CSparkMintMeta& b)
+{
+    if (a.v != b.v) return a.v > b.v;
+    if (a.nHeight != b.nHeight) return a.nHeight < b.nHeight;
+    if (a.txid != b.txid) return a.txid < b.txid;
+    return a.GetNonceHash() < b.GetNonceHash();
+}
+
+bool HasMultipleSelectedCoins(const CCoinControl* coinControl)
+{
+    if (!coinControl || !coinControl->HasSelected()) {
+        return false;
+    }
+
+    std::vector<COutPoint> selected;
+    coinControl->ListSelected(selected);
+    return selected.size() > 1;
+}
+
+CAmount EstimateSingleInputSparkFee(size_t privateOutputs, size_t transparentOutputs)
+{
+    const unsigned int estimatedSize =
+        spark::EstimateSingleInputSparkSize(privateOutputs, transparentOutputs);
+
+    return std::max(
+        payTxFee.GetFeePerK(),
+        CWallet::GetMinimumFee(estimatedSize, nTxConfirmTarget, mempool));
+}
+
+spark::BatchPlanLimits BuildBatchPlanLimits()
+{
+    const auto& consensus = Params().GetConsensus();
+    spark::BatchPlanLimits limits;
+    limits.maxTransactions = MAX_SINGLE_INPUT_SPARK_TRANSACTIONS;
+    limits.maxPrivateOutputs = consensus.nMaxSparkOutLimitPerTx > 1
+        ? consensus.nMaxSparkOutLimitPerTx - 2
+        : 0;
+    limits.maxTransparentAmount =
+        consensus.GetMaxValueSparkSpendPerTransaction(chainActive.Height());
+    limits.maxFee = maxTxFee;
+    limits.maxMoney = MAX_MONEY;
+    limits.maxWeight = MAX_NEW_TX_WEIGHT;
+    limits.weightScaleFactor = WITNESS_SCALE_FACTOR;
+    return limits;
+}
 
 std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
     CWallet& wallet,
@@ -198,17 +258,7 @@ std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
             }
         }
 
-        const auto& consensus = Params().GetConsensus();
-        limits.maxTransactions = MAX_SINGLE_INPUT_SPARK_TRANSACTIONS;
-        limits.maxPrivateOutputs = consensus.nMaxSparkOutLimitPerTx > 1
-            ? consensus.nMaxSparkOutLimitPerTx - 2
-            : 0;
-        limits.maxTransparentAmount =
-            consensus.GetMaxValueSparkSpendPerTransaction(chainActive.Height());
-        limits.maxFee = maxTxFee;
-        limits.maxMoney = MAX_MONEY;
-        limits.maxWeight = MAX_NEW_TX_WEIGHT;
-        limits.weightScaleFactor = WITNESS_SCALE_FACTOR;
+        limits = BuildBatchPlanLimits();
     }
 
     std::vector<CAmount> coinValues;
@@ -236,9 +286,12 @@ std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
             "Subtracting the fee from the amount is temporarily unavailable when a Spark spend must be split across multiple transactions."));
     }
 
-    std::vector<CWalletTx> committedTransactions;
-    committedTransactions.reserve(plan.batches.size());
-    totalFee = 0;
+    // Create and validate every transaction before committing any of them so
+    // create-time / fee-mismatch failures cannot leave a partial payment on
+    // the network. Commit-time failures can still leave earlier txs broadcast;
+    // those are reported via SparkSpendBatchPartialFailure.
+    std::vector<PreparedBatch> prepared;
+    prepared.reserve(plan.batches.size());
 
     for (const spark::SingleInputBatch& batch : plan.batches) {
         if (batch.coinIndex >= availableCoins.size()) {
@@ -271,28 +324,53 @@ std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
             }
         }
 
-        CAmount fee = 0;
-        CWalletTx walletTransaction = wallet.CreateSparkSpendTransaction(
+        PreparedBatch preparedBatch;
+        preparedBatch.wtx = wallet.CreateSparkSpendTransaction(
             batchRecipients,
             batchPrivateRecipients,
-            fee,
+            preparedBatch.fee,
             &singleCoinControl);
 
-        if (!walletTransaction.tx || spark::GetSpendInputs(*walletTransaction.tx) != 1) {
+        if (!preparedBatch.wtx.tx || spark::GetSpendInputs(*preparedBatch.wtx.tx) != 1) {
             throw std::runtime_error(_(
                 "Unable to create a single-input Spark transaction."));
         }
 
-        if (fee != batch.fee) {
+        if (preparedBatch.fee != batch.fee) {
             throw std::runtime_error(strprintf(
                 _("Spark fee estimate did not match the wallet (planned %s, wallet %s)."),
                 FormatMoney(batch.fee),
-                FormatMoney(fee)));
+                FormatMoney(preparedBatch.fee)));
         }
 
-        CommitSparkSpend(wallet, walletTransaction);
-        totalFee += fee;
-        committedTransactions.push_back(std::move(walletTransaction));
+        prepared.push_back(std::move(preparedBatch));
+    }
+
+    std::vector<CWalletTx> committedTransactions;
+    committedTransactions.reserve(prepared.size());
+    totalFee = 0;
+
+    for (PreparedBatch& preparedBatch : prepared) {
+        try {
+            CommitSparkSpend(wallet, preparedBatch.wtx);
+        } catch (const std::exception& e) {
+            if (!committedTransactions.empty()) {
+                std::vector<uint256> committedTxids;
+                committedTxids.reserve(committedTransactions.size());
+                for (const CWalletTx& wtx : committedTransactions) {
+                    committedTxids.push_back(wtx.GetHash());
+                }
+                throw SparkSpendBatchPartialFailure(
+                    e.what(),
+                    std::move(committedTxids),
+                    totalFee,
+                    prepared.size());
+            }
+            throw;
+        }
+
+        totalFee += preparedBatch.fee;
+        committedTransactions.push_back(std::move(preparedBatch.wtx));
     }
 
     return committedTransactions;

@@ -72,6 +72,8 @@ bool ConnectBlockSpark(
 
 void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
 
+/** Drop a cached mempool-acceptance proof result when the tx leaves the mempool. */
+void EraseCheckedSparkSpendTransaction(const uint256& hashTx);
 
 bool CheckSparkTransaction(
         const CTransaction &tx,

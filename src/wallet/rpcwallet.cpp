@@ -28,6 +28,7 @@
 #include "bip47/account.h"
 #include "wallet/coincontrol.h"
 #include "wallet/walletexcept.h"
+#include "wallet/sparkspendbatch.h"
 #include "rpcdump.h"
 
 #include <stdint.h>
@@ -4417,6 +4418,12 @@ UniValue spendspark(const JSONRPCRequest& request)
             result.push_back(wtx.GetHash().GetHex());
         }
         return result;
+    } catch (const sparkspendbatch::SparkSpendBatchPartialFailure& e) {
+        // Some transactions were already broadcast. e.what() lists the
+        // committed txids so the caller does not retry the whole payment.
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    } catch (const SparkFundsFragmented& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
     } catch (const InsufficientFunds& e) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
     } catch (const std::exception& e) {
