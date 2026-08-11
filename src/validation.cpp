@@ -1872,11 +1872,48 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
     CheckForkWarningConditions();
 }
 
+static void RecalculateBestHeader()
+{
+    AssertLockHeld(cs_main);
+
+    pindexBestHeader = nullptr;
+    for (const auto& entry : mapBlockIndex) {
+        CBlockIndex* pindex = entry.second;
+        if (pindex->IsValid(BLOCK_VALID_TREE) &&
+                (!pindexBestHeader || CBlockIndexWorkComparator()(pindexBestHeader, pindex))) {
+            pindexBestHeader = pindex;
+        }
+    }
+}
+
+static void MarkBlockFailedDescendants(CBlockIndex* pindex)
+{
+    AssertLockHeld(cs_main);
+
+    std::vector<CBlockIndex*> queue{pindex};
+    for (size_t i = 0; i < queue.size(); ++i) {
+        auto range = mapPrevBlockIndex.equal_range(queue[i]->GetBlockHash());
+        for (auto it = range.first; it != range.second; ++it) {
+            CBlockIndex* pindexChild = it->second;
+            if (!(pindexChild->nStatus & BLOCK_FAILED_MASK)) {
+                pindexChild->nStatus |= BLOCK_FAILED_CHILD;
+                setDirtyBlockIndex.insert(pindexChild);
+            }
+            setBlockIndexCandidates.erase(pindexChild);
+            queue.emplace_back(pindexChild);
+        }
+    }
+
+    if (!pindexBestHeader || (pindexBestHeader->nStatus & BLOCK_FAILED_MASK))
+        RecalculateBestHeader();
+}
+
 void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state) {
     if (!state.CorruptionPossible()) {
         pindex->nStatus |= BLOCK_FAILED_VALID;
         setDirtyBlockIndex.insert(pindex);
         setBlockIndexCandidates.erase(pindex);
+        MarkBlockFailedDescendants(pindex);
         InvalidChainFound(pindex);
     }
 }
@@ -2515,7 +2552,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     }
 
-    if (block.IsProgPow() && !fJustCheck)
+    if (block.IsProgPow() && !fJustCheck && !pindex->fProgPowHeaderVerified)
     {
         // do full PP hash check
 
@@ -2536,6 +2573,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         {
             return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
         }
+
+        pindex->fProgPowHeaderVerified = true;
     }
 
     // verify that the view's current state corresponds to the previous block
@@ -3858,6 +3897,7 @@ bool InvalidateBlock(CValidationState& state, const CChainParams& chainparams, C
     pindex->nStatus |= BLOCK_FAILED_VALID;
     setDirtyBlockIndex.insert(pindex);
     setBlockIndexCandidates.erase(pindex);
+    MarkBlockFailedDescendants(pindex);
 
     while (chainActive.Contains(pindex)) {
         CBlockIndex *pindexWalk = chainActive.Tip();
@@ -3902,7 +3942,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
     // Remove the invalidity flag from this block and all its descendants.
     BlockMap::iterator it = mapBlockIndex.begin();
     while (it != mapBlockIndex.end()) {
-        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
+        if ((it->second->nStatus & BLOCK_FAILED_MASK) && it->second->GetAncestor(nHeight) == pindex) {
             it->second->nStatus &= ~BLOCK_FAILED_MASK;
             setDirtyBlockIndex.insert(it->second);
             if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
@@ -3921,9 +3961,23 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
         if (pindex->nStatus & BLOCK_FAILED_MASK) {
             pindex->nStatus &= ~BLOCK_FAILED_MASK;
             setDirtyBlockIndex.insert(pindex);
+
+            // Keep sibling subtrees invalid when reconsidering only one branch.
+            auto range = mapPrevBlockIndex.equal_range(pindex->GetBlockHash());
+            for (auto it = range.first; it != range.second; ++it) {
+                CBlockIndex* pindexChild = it->second;
+                if (pindexChild->nStatus & BLOCK_FAILED_CHILD) {
+                    pindexChild->nStatus |= BLOCK_FAILED_VALID;
+                    setDirtyBlockIndex.insert(pindexChild);
+                    setBlockIndexCandidates.erase(pindexChild);
+                }
+            }
         }
+        if (pindex == pindexBestInvalid)
+            pindexBestInvalid = NULL;
         pindex = pindex->pprev;
     }
+    RecalculateBestHeader();
     return true;
 }
 
@@ -4121,9 +4175,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
         {
             if (block.mix_hash.IsNull())
                 return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash cannot be null");
-            // If we use GetProgPowHashFull user may experience very slow header sync
-            // We use simplified function for header check and then will use full check in ConnectBlock()
-            // This won't make sync faster but it will give user a better experience
+            // Use the supplied mix as a cheap target prefilter. Header acceptance
+            // recomputes it after contextual validation binds the block height.
             final_hash = block.GetProgPowHashLight();
         }
         else
@@ -4312,7 +4365,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
     if (block.IsProgPow() && block.nHeight != static_cast<uint32_t>(pindexPrev->nHeight + 1))
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", false, "ProgPOW height doesn't match chain height");
 
 	// Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
@@ -4381,7 +4434,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         return state.Invalid(false, REJECT_INVALID, "bad-blk-stage3-state", "Cannot go back to 5 minutes between blocks");
 
     if (block.IsProgPow() && block.nHeight != nHeight)
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", false, "ProgPOW height doesn't match chain height");
 
     // Start enforcing BIP113 (Median Time Past) using versionbits logic.
     int nLockTimeFlags = 0;
@@ -4522,6 +4575,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     AssertLockHeld(cs_main);
     // Check for duplicate
     uint256 hash = block.GetHash();
+    bool fProgPowHeaderVerified = false;
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex *pindex = NULL;
     if (hash != chainparams.GetConsensus().hashGenesisBlock) {
@@ -4554,9 +4608,24 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 
         if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime()))
             return error("%s: Consensus::ContextualCheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
+
+        if (fCheckPOW && block.IsProgPow()) {
+            // Full verification must happen after the claimed ProgPoW height has been
+            // bound to pindexPrev, otherwise an untrusted height selects the epoch.
+            if (block.nHeight >= progpow::epoch_length * 2000)
+                return state.DoS(50, false, REJECT_INVALID, "invalid-progpow-epoch", false, "invalid epoch number");
+
+            uint256 expectedMixHash;
+            block.GetProgPowHashFull(expectedMixHash);
+            if (expectedMixHash != block.mix_hash)
+                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash validity failed");
+            fProgPowHeaderVerified = true;
+        }
     }
     if (pindex == NULL)
         pindex = AddToBlockIndex(block);
+    if (fProgPowHeaderVerified)
+        pindex->fProgPowHeaderVerified = true;
 
     if (ppindex)
         *ppindex = pindex;
@@ -4635,6 +4704,9 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
             setDirtyBlockIndex.insert(pindex);
+            setBlockIndexCandidates.erase(pindex);
+            MarkBlockFailedDescendants(pindex);
+            InvalidChainFound(pindex);
         }
         return error("%s: %s", __func__, FormatStateMessage(state));
     }
@@ -4944,6 +5016,8 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
 
     boost::this_thread::interruption_point();
 
+    mapPrevBlockIndex.clear();
+
     // Calculate nChainWork
     std::vector<std::pair<int, CBlockIndex*> > vSortedByHeight;
     vSortedByHeight.reserve(mapBlockIndex.size());
@@ -4963,6 +5037,16 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
         CBlockIndex* pindex = item.second;
         pindex->nChainWork = (pindex->pprev ? pindex->pprev->nChainWork : 0) + GetBlockProof(*pindex);
         pindex->nTimeMax = (pindex->pprev ? std::max(pindex->pprev->nTimeMax, pindex->nTime) : pindex->nTime);
+        if (pindex->pprev && (pindex->pprev->nStatus & BLOCK_FAILED_MASK) && !(pindex->nStatus & BLOCK_FAILED_MASK)) {
+            pindex->nStatus |= BLOCK_FAILED_CHILD;
+            setDirtyBlockIndex.insert(pindex);
+        } else if ((pindex->nStatus & BLOCK_FAILED_CHILD) && !(pindex->nStatus & BLOCK_FAILED_VALID) &&
+                (!pindex->pprev || !(pindex->pprev->nStatus & BLOCK_FAILED_MASK))) {
+            // Preserve a legacy orphaned failure flag by making this block the
+            // invalid root of its subtree.
+            pindex->nStatus |= BLOCK_FAILED_VALID;
+            setDirtyBlockIndex.insert(pindex);
+        }
         // We can link the chain of blocks for which we've received transactions at some point.
         // Pruned nodes may have deleted the block.
         if (pindex->nTx > 0) {
@@ -5285,6 +5369,8 @@ void UnloadBlockIndex()
     for (int b = 0; b < VERSIONBITS_NUM_BITS; b++) {
         warningcache[b].clear();
     }
+
+    mapPrevBlockIndex.clear();
 
     BOOST_FOREACH(BlockMap::value_type& entry, mapBlockIndex) {
         delete entry.second;
