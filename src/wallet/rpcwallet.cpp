@@ -27,6 +27,7 @@
 #include "bip47/paymentchannel.h"
 #include "bip47/account.h"
 #include "wallet/coincontrol.h"
+#include "wallet/walletexcept.h"
 #include "rpcdump.h"
 
 #include <stdint.h>
@@ -4404,16 +4405,23 @@ UniValue spendspark(const JSONRPCRequest& request)
     }
 
     CAmount fee;
-    CWalletTx wtx;
     try {
-        wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
+        std::vector<CWalletTx> wtxs = pwallet->SpendAndStoreSparkSingleInput(
+            recipients, privateRecipients, fee);
+        if (wtxs.size() == 1) {
+            return wtxs.front().GetHash().GetHex();
+        }
 
-
-    } catch (const std::exception &) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
+        UniValue result(UniValue::VARR);
+        for (const CWalletTx& wtx : wtxs) {
+            result.push_back(wtx.GetHash().GetHex());
+        }
+        return result;
+    } catch (const InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
     }
-
-    return wtx.GetHash().GetHex();
 }
 
 UniValue sendspark(const JSONRPCRequest& request)

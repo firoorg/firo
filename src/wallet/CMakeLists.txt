@@ -24,6 +24,7 @@ add_library(firo_wallet STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcdump.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcwallet.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkbatchplanner.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkspendbatch.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/walletexcept.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/wallet.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/walletdb.cpp
