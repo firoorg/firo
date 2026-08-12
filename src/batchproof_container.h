@@ -18,6 +18,7 @@ public:
     void verify();
 
     void add(const spark::SpendTransaction& tx);
+    void addHistorical(const spark::SpendTransaction& tx);
     void remove(const spark::SpendTransaction& tx);
     void batch_spark();
 public:
@@ -27,9 +28,11 @@ private:
     static std::unique_ptr<BatchProofContainer> instance;
     // temp spark transaction proofs
     std::vector<spark::SpendTransaction> tempSparkTransactions;
+    std::vector<spark::SpendTransaction> tempHistoricalSparkTransactions;
 
     // spark transaction proofs
     std::vector<spark::SpendTransaction> sparkTransactions;
+    std::vector<spark::SpendTransaction> historicalSparkTransactions;
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H

@@ -307,6 +307,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // prepare transaction for getting txFee earlier
     std::vector<WalletModelTransaction> transactions;
+    std::vector<WalletModelTransaction> sparkSpendTransactions;
     WalletModel::SendCoinsReturn prepareStatus;
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
     std::list<CReserveKey> reservekeys;
@@ -342,6 +343,21 @@ void SendCoinsDialog::on_sendButton_clicked()
             sparkAddressCount++;
         if (model->validateExchangeAddress(recipients[i].address))
             exchangeAddressCount++;
+    }
+
+    // The two-stage Spark -> transparent -> EX-address flow below needs the txid of a
+    // single first-stage transaction, and a private send may now produce several. Refuse
+    // the whole flow until it can be restaged. Everything guarded by
+    // fGoThroughTransparentAddress from here on is consequently unreachable; it is left
+    // in place because restoring the flow is a revert of this block, not a rewrite.
+    if (fAnonymousMode && exchangeAddressCount > 0) {
+        QMessageBox::critical(
+            this,
+            tr("Error"),
+            tr("Sending private funds to an exchange address is temporarily unavailable. "
+               "Move the funds to a transparent address first, then send from there."));
+        fNewRecipientAllowed = true;
+        return;
     }
 
     bool fGoThroughTransparentAddress = false;
@@ -401,10 +417,12 @@ void SendCoinsDialog::on_sendButton_clicked()
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
+    const bool isSparkSpend = fAnonymousMode && spark::IsSparkAllowed();
 
-    if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
+    if (isSparkSpend) {
         prepareStatus = runWalletOperation([&] {
-            return model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
+            return model->prepareSpendSparkTransactionsSingleInput(
+                sparkSpendTransactions, recipients, &ctrl);
         });
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
         if (spark::IsSparkAllowed())
@@ -446,10 +464,22 @@ void SendCoinsDialog::on_sendButton_clicked()
     QStringList formatted;
     QString warningMessage;
 
-    for(int i = 0; i < recipients.size(); ++i) {
-        warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
-        if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
-            break;
+    if (isSparkSpend) {
+        for (const SendCoinsRecipient& recipient : recipients) {
+            if (model->validateAddress(recipient.address)) {
+                warningMessage = entry->generateWarningText(recipient.address, fAnonymousMode);
+                break;
+            }
+        }
+        if (warningMessage.isEmpty() && !recipients.empty()) {
+            warningMessage = entry->generateWarningText(recipients.front().address, fAnonymousMode);
+        }
+    } else {
+        for(int i = 0; i < recipients.size(); ++i) {
+            warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
+            if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
+                break;
+            }
         }
     }
 
@@ -475,33 +505,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         {
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
-            amount.append("</b>");
-            // generate monospace address string
-            QString address = "<span style='font-family: monospace;'>" + rcp.address;
-            address.append("</span>");
-            QString recipientElement;
-            {
-                if(rcp.label.length() > 0) // label with address
-                {
-                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                    recipientElement.append(QString(" (%1)").arg(address));
-                }
-                else // just address
-                {
-                    recipientElement = tr("%1 to %2").arg(amount, address);
-                }
-            }
-            formatted.append(recipientElement);
-        }
-    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
-        for (auto &rcp : realRecipients)
-        {
-            // generate bold amount string
-            CAmount namount = rcp.amount;
-            if(rcp.fSubtractFeeFromAmount) {
-                namount = rcp.amount - currentTransaction.getTransactionFee();
-            }
-            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), namount);
             amount.append("</b>");
             // generate monospace address string
             QString address = "<span style='font-family: monospace;'>" + rcp.address;
@@ -594,6 +597,11 @@ void SendCoinsDialog::on_sendButton_clicked()
             mintSparkAmount += transaction.getTotalTransactionAmount();
             txSize +=  (double)transaction.getTransactionSize();
         }
+    } else if (isSparkSpend) {
+        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+            txFee += transaction.getTransactionFee();
+            txSize += static_cast<double>(transaction.getTransactionSize());
+        }
     } else {
         txFee = currentTransaction.getTransactionFee();
         txSize = (double)currentTransaction.getTransactionSize();
@@ -620,17 +628,24 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
+    // A private send is limited to one Spark coin per transaction, so a payment that
+    // needs several coins goes out as several transactions. Say so before the user
+    // confirms: it costs a fee each, they are linkable to each other, and if one is
+    // rejected the recipients are paid only in part.
+    if (isSparkSpend && sparkSpendTransactions.size() > 1) {
+        questionString.append("<hr />");
+        questionString.append(tr("This payment does not fit in one Spark coin and will be sent as "
+                                 "%1 separate transactions. Each pays its own fee, they can be "
+                                 "linked to each other, and if one of them is rejected the "
+                                 "recipients will have been paid only in part.")
+                                  .arg(sparkSpendTransactions.size()));
+    }
+
     // add total amount in all subdivision units
     questionString.append("<hr />");
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         totalAmount = mintSparkAmount + txFee;
-    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
-        if(recipients[0].fSubtractFeeFromAmount) {
-            totalAmount = recipients[0].amount;
-        } else {
-            totalAmount = recipients[0].amount + currentTransaction.getTransactionFee();
-        }
     } else {
         totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     }
@@ -660,9 +675,9 @@ void SendCoinsDialog::on_sendButton_clicked()
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
 
-    if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
+    if (isSparkSpend) {
         sendStatus = runWalletOperation([&] {
-            return model->spendSparkCoins(currentTransaction);
+            return model->spendSparkCoins(sparkSpendTransactions);
         });
     } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
         sendStatus = runWalletOperation([&] {
@@ -679,7 +694,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     // process sendStatus and on error generate message shown to user
     processSendCoinsReturn(sendStatus);
 
-    if (sendStatus.status == WalletModel::OK)
+    if (sendStatus.status == WalletModel::OK || sendStatus.partiallyCommitted)
     {
         for(int i = 0; i < ui->entries->count(); ++i)
         {
@@ -1368,7 +1383,9 @@ void SendCoinsDialog::coinControlUpdateLabels()
         if(entry && !entry->isHidden())
         {
             SendCoinsRecipient rcp = entry->getValue();
-            CoinControlDialog::payAmounts.append(rcp.amount);
+            const bool isPrivate =
+                model->validateSparkAddress(rcp.address) || rcp.address.startsWith("@");
+            CoinControlDialog::payAmounts.append({rcp.amount, isPrivate});
             if (rcp.fSubtractFeeFromAmount)
                 CoinControlDialog::fSubtractFeeFromAmount = true;
             if (!rcp.opReturnData.empty())

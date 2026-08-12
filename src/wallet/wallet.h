@@ -1011,6 +1011,12 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
+    std::vector<CWalletTx> SpendAndStoreSparkSingleInput(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+            CAmount& totalFee,
+            const CCoinControl* coinControl = NULL);
+
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction = false);
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);

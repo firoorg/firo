@@ -170,13 +170,15 @@ public:
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
     {
-        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "")
+        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "", bool _partiallyCommitted = false)
             : status(_status),
-              reasonCommitFailed(_reasonCommitFailed)
+              reasonCommitFailed(_reasonCommitFailed),
+              partiallyCommitted(_partiallyCommitted)
         {
         }
         StatusCode status;
         QString reasonCommitFailed;
+        bool partiallyCommitted;
     };
 
     // prepare transaction for getting txfee before sending coins
@@ -189,12 +191,16 @@ public:
         std::list<CReserveKey> &reserveKeys,
         const CCoinControl *coinControl);
 
-    SendCoinsReturn prepareSpendSparkTransaction(
-        WalletModelTransaction &transaction,
+    SendCoinsReturn prepareSpendSparkTransactionsSingleInput(
+        std::vector<WalletModelTransaction> &transactions,
+        const QList<SendCoinsRecipient> &recipients,
         const CCoinControl *coinControl);
 
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
+
+    SendCoinsReturn spendSparkCoins(
+        std::vector<WalletModelTransaction> &transactions);
 
     bool sparkNamesAllowed() const;
 

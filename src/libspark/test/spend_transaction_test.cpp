@@ -20,7 +20,7 @@ static std::vector<unsigned char> random_char_vector() {
 
 BOOST_FIXTURE_TEST_SUITE(spark_spend_transaction_tests, BasicTestingSetup)
 
-BOOST_AUTO_TEST_CASE(generate_verify)
+BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
 {
     // Parameters
     const Params* params;
@@ -127,9 +127,12 @@ BOOST_AUTO_TEST_CASE(generate_verify)
         out_coin_data
     );
 
-    // Verify
+    // Pre-activation spends remain verifiable only through the historical
+    // path. The default verifier applies the current single-input rule.
     transaction.setCoverSets(cover_set_data);
-    BOOST_CHECK(SpendTransaction::verify(transaction, cover_sets));
+    BOOST_REQUIRE(SpendTransaction::verifyHistorical(
+        transaction, cover_sets));
+    BOOST_CHECK(!SpendTransaction::verify(transaction, cover_sets));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

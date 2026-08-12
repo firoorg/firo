@@ -181,4 +181,37 @@ bool Chaum::verify(
     return multiexp.get_multiple().isInfinity();
 }
 
+bool Chaum::verify_single_input(
+    const Scalar& mu,
+    const std::vector<GroupElement>& S,
+    const std::vector<GroupElement>& T,
+    ChaumProof& proof
+) {
+    // The current path accepts only the single-input statement shape.
+    // Pre-activation blocks use the explicit historical compatibility path.
+    if (S.size() != 1 || T.size() != 1) {
+        return false;
+    }
+    if (proof.A2.size() != 1 || proof.t1.size() != 1 ||
+        S[0].isInfinity() || T[0].isInfinity()) {
+        throw std::invalid_argument("Bad Chaum single-input semantics!");
+    }
+
+    const Scalar c = challenge(mu, S, T, proof.A1, proof.A2);
+    if (c.isZero()) {
+        throw std::invalid_argument("Unexpected challenge!");
+    }
+
+    const GroupElement firstLeft = proof.A1 + S[0]*c;
+    const GroupElement firstRight =
+        F*proof.t1[0] + G*proof.t2 + H*proof.t3;
+    if (firstLeft != firstRight) {
+        return false;
+    }
+
+    const GroupElement secondLeft = proof.A2[0] + U*c;
+    const GroupElement secondRight = T[0]*proof.t1[0] + G*proof.t2;
+    return secondLeft == secondRight;
+}
+
 }

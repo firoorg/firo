@@ -15,6 +15,7 @@
 #include "checkpoints.h"
 #include "chain.h"
 #include "wallet/coincontrol.h"
+#include "wallet/sparkspendbatch.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
@@ -3944,6 +3945,16 @@ CWalletTx CWallet::SpendAndStoreSpark(
     }
 
     return result;
+}
+
+std::vector<CWalletTx> CWallet::SpendAndStoreSparkSingleInput(
+        const std::vector<CRecipient>& recipients,
+        const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+        CAmount& totalFee,
+        const CCoinControl* coinControl)
+{
+    return sparkspendbatch::SpendAndStoreSingleInputBatches(
+        *this, recipients, privateRecipients, totalFee, coinControl);
 }
 
 void CWallet::ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& entries) {

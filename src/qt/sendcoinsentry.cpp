@@ -177,10 +177,16 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
     RosenBridge::Metadata metadata;
     const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
 
+    const bool subtractFeeAllowed = !fAnonymousMode && !valid;
+
     ui->rosenBridgeLabel->setVisible(valid);
     ui->rosenBridgeDetails->setVisible(valid);
     ui->payAmount->setReadOnly(valid);
-    ui->checkboxSubtractFeeFromAmount->setEnabled(!valid);
+
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
+    if (!subtractFeeAllowed) {
+        ui->checkboxSubtractFeeFromAmount->setChecked(false);
+    }
 
     if (!valid) {
         ui->rosenBridgeDetails->clear();
@@ -189,7 +195,6 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
         return;
     }
 
-    ui->checkboxSubtractFeeFromAmount->setChecked(false);
     QString details = tr("Metadata: %1 bytes\n").arg(static_cast<qulonglong>(recipient.opReturnData.size()));
     details += RosenBridge::FormatDetails(metadata);
     details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
@@ -251,6 +256,13 @@ void SendCoinsEntry::deleteClicked()
 }
 
 void SendCoinsEntry::setWarning(bool fAnonymousMode) {
+    if (!model) {
+        ui->textWarning->clear();
+        ui->textWarning->hide();
+        ui->iconWarning->hide();
+        return;
+    }
+
     const QString address = ui->payTo->text();
     const QString warningText = generateWarningText(address, fAnonymousMode);
     const bool hasValidAddress = model &&
@@ -414,6 +426,15 @@ bool SendCoinsEntry::isPayToPcode() const
 void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
 {
     this->fAnonymousMode = fAnonymousMode;
+
+    // A Spark spend may need more than one transaction, and the fee cannot then be
+    // taken out of a single recipient's amount. prepareSpendSparkTransactionsSingleInput
+    // rejects the flag, so take the checkbox away rather than failing at send time.
+    if (fAnonymousMode) {
+        ui->checkboxSubtractFeeFromAmount->setCheckState(Qt::Unchecked);
+    }
+    ui->checkboxSubtractFeeFromAmount->setEnabled(!fAnonymousMode);
+
     updateRosenBridgeDisplay();
 }
 

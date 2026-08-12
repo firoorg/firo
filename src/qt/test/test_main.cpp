@@ -13,7 +13,7 @@
 #include "uritests.h"
 #include "compattests.h"
 #include "test_sendcoinsentry.h"
-#include <QCoreApplication>
+#include <QApplication>
 #include <QObject>
 #include <openssl/ssl.h>
 
@@ -38,9 +38,7 @@ int main(int argc, char *argv[])
 
     bool fInvalid = false;
 
-    // Don't remove this, it's needed to access
-    // QCoreApplication:: in the tests
-    QCoreApplication app(argc, argv);
+    QApplication app(argc, argv);
     app.setApplicationName("Firo-Qt-test");
 
     SSL_library_init();
