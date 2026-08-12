@@ -312,6 +312,39 @@ std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
             "Subtracting the fee from the amount is temporarily unavailable when a Spark spend must be split across multiple transactions."));
     }
 
+    // Mirror CreateSparkSpendTransaction's fee division: the fee is split
+    // across the subtract-fee recipients (transparent first, then private) and
+    // the first one also pays the remainder. Reject a recipient that could not
+    // cover its share here, with a clear message, instead of failing later
+    // inside transaction creation.
+    if (plan.batches.size() == 1 && HasSubtractFee(recipients, privateRecipients)) {
+        size_t subtractCount = 0;
+        for (const CRecipient& recipient : recipients) subtractCount += recipient.fSubtractFeeFromAmount;
+        for (const auto& recipient : privateRecipients) subtractCount += recipient.second;
+
+        const CAmount fee = plan.batches.front().fee;
+        const CAmount feePerRecipient = fee / static_cast<CAmount>(subtractCount);
+        const CAmount feeRemainder = fee % static_cast<CAmount>(subtractCount);
+        bool firstSubtracted = false;
+        const auto shareCovered = [&](CAmount amount) {
+            const CAmount share = feePerRecipient + (firstSubtracted ? 0 : feeRemainder);
+            firstSubtracted = true;
+            return amount > share;
+        };
+        for (const CRecipient& recipient : recipients) {
+            if (recipient.fSubtractFeeFromAmount && !shareCovered(recipient.nAmount)) {
+                throw std::runtime_error(_(
+                    "A recipient amount is too small to cover its share of the transaction fee."));
+            }
+        }
+        for (const auto& recipient : privateRecipients) {
+            if (recipient.second && !shareCovered(static_cast<CAmount>(recipient.first.v))) {
+                throw std::runtime_error(_(
+                    "A recipient amount is too small to cover its share of the transaction fee."));
+            }
+        }
+    }
+
     // Create and validate every transaction before committing any of them so
     // create-time / fee-mismatch failures cannot leave a partial payment on
     // the network. Commit-time failures can still leave earlier txs broadcast;
@@ -371,6 +404,33 @@ std::vector<CWalletTx> SpendAndStoreSingleInputBatches(
 
         prepared.push_back(std::move(preparedBatch));
     }
+
+    // Reserve the planned coins for the commit phase, so a concurrent spend
+    // from this wallet cannot take one of them and turn a later commit failure
+    // into a partial payment. This must happen after transaction creation:
+    // GetAvailableSparkCoins filters locked coins even when they are selected
+    // through coin control. Creation failures above abort before anything is
+    // sent, so only the commit loop needs the reservation.
+    std::vector<COutPoint> reservedCoins;
+    reservedCoins.reserve(plan.batches.size());
+    for (const spark::SingleInputBatch& batch : plan.batches) {
+        reservedCoins.push_back(availableCoins[batch.coinIndex].outpoint);
+    }
+    struct ReservedCoins {
+        CWallet& wallet;
+        const std::vector<COutPoint>& coins;
+        ReservedCoins(CWallet& _wallet, const std::vector<COutPoint>& _coins)
+            : wallet(_wallet), coins(_coins)
+        {
+            LOCK(wallet.cs_wallet);
+            for (const COutPoint& coin : coins) wallet.LockCoin(coin);
+        }
+        ~ReservedCoins()
+        {
+            LOCK(wallet.cs_wallet);
+            for (const COutPoint& coin : coins) wallet.UnlockCoin(coin);
+        }
+    } reservedCoinsGuard(wallet, reservedCoins);
 
     std::vector<CWalletTx> committedTransactions;
     committedTransactions.reserve(prepared.size());
