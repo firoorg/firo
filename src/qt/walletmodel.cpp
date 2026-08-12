@@ -1290,6 +1290,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
     const QList<SendCoinsRecipient>& recipients,
     const CCoinControl* coinControl)
 {
+    // Release any reservation left over from a previously prepared batch that
+    // was never sent, so its coins become selectable again.
+    unlockSparkSpendCoins();
+
     transactions.clear();
     if (recipients.empty()) {
         return OK;
@@ -1510,7 +1514,35 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
         transaction.setTransactionFee(fee);
     }
 
+    // Reserve the selected coins until the batch is sent or abandoned, so a
+    // concurrent spend from this wallet cannot take one of them while the user
+    // is looking at the confirmation dialog and turn a commit failure into a
+    // partial payment. This must happen after transaction creation:
+    // GetAvailableSparkCoins filters locked coins even when they are selected
+    // through coin control.
+    {
+        LOCK(wallet->cs_wallet);
+        for (const spark::SingleInputBatch& batch : plan.batches) {
+            const COutPoint& outpoint = availableCoins.at(batch.coinIndex).outpoint;
+            wallet->LockCoin(outpoint);
+            lockedSparkSpendCoins.push_back(outpoint);
+        }
+    }
+
     return OK;
+}
+
+void WalletModel::unlockSparkSpendCoins()
+{
+    if (lockedSparkSpendCoins.empty()) {
+        return;
+    }
+
+    LOCK(wallet->cs_wallet);
+    for (const COutPoint& outpoint : lockedSparkSpendCoins) {
+        wallet->UnlockCoin(outpoint);
+    }
+    lockedSparkSpendCoins.clear();
 }
 
 bool WalletModel::sparkNamesAllowed() const
@@ -1781,6 +1813,13 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
 
 WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletModelTransaction>& transactions)
 {
+    // The coins reserved at prepare time are consumed (or abandoned) by this
+    // attempt either way, so release the reservation on every exit path.
+    struct UnlockCoinsOnExit {
+        WalletModel* model;
+        ~UnlockCoinsOnExit() { model->unlockSparkSpendCoins(); }
+    } unlockCoinsOnExit{this};
+
     for (WalletModelTransaction& transaction : transactions) {
         const CWalletTx* walletTransaction = transaction.getTransaction();
         if (!walletTransaction->tx || spark::GetSpendInputs(*walletTransaction->tx) != 1) {

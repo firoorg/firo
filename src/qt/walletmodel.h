@@ -204,6 +204,11 @@ public:
     SendCoinsReturn spendSparkCoins(
         std::vector<WalletModelTransaction> &transactions);
 
+    // Release the coins reserved by prepareSpendSparkTransactionsSingleInput.
+    // Called automatically when the batch is sent; must also be called when
+    // the user abandons a prepared batch (e.g. cancels the confirmation).
+    void unlockSparkSpendCoins();
+
     bool sparkNamesAllowed() const;
 
     bool GetSparkNameByAddress(const QString& sparkAddress, QString& name);
@@ -299,6 +304,10 @@ public:
 
 private:
     CWallet *wallet;
+
+    // Outpoints locked for a prepared single-input Spark batch, held from
+    // prepare until the batch is sent or abandoned.
+    std::vector<COutPoint> lockedSparkSpendCoins;
 
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;

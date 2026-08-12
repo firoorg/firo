@@ -669,6 +669,9 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if(retval != QMessageBox::Yes)
     {
+        // Release the coins reserved for a prepared Spark batch.
+        if (isSparkSpend)
+            model->unlockSparkSpendCoins();
         fNewRecipientAllowed = true;
         return;
     }
