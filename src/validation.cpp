@@ -1900,6 +1900,10 @@ static void MarkBlockFailedDescendants(CBlockIndex* pindex)
                 setDirtyBlockIndex.insert(pindexChild);
             }
             setBlockIndexCandidates.erase(pindexChild);
+            // These blocks can no longer reach the pindexBestInvalid tracking in
+            // FindMostWorkChain, so account for their work here.
+            if (!pindexBestInvalid || pindexChild->nChainWork > pindexBestInvalid->nChainWork)
+                pindexBestInvalid = pindexChild;
             queue.emplace_back(pindexChild);
         }
     }
@@ -3938,12 +3942,14 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
     AssertLockHeld(cs_main);
 
     int nHeight = pindex->nHeight;
+    bool fClearedFailure = false;
 
     // Remove the invalidity flag from this block and all its descendants.
     BlockMap::iterator it = mapBlockIndex.begin();
     while (it != mapBlockIndex.end()) {
         if ((it->second->nStatus & BLOCK_FAILED_MASK) && it->second->GetAncestor(nHeight) == pindex) {
             it->second->nStatus &= ~BLOCK_FAILED_MASK;
+            fClearedFailure = true;
             setDirtyBlockIndex.insert(it->second);
             if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx && setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
                 setBlockIndexCandidates.insert(it->second);
@@ -3960,12 +3966,13 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
     while (pindex != NULL) {
         if (pindex->nStatus & BLOCK_FAILED_MASK) {
             pindex->nStatus &= ~BLOCK_FAILED_MASK;
+            fClearedFailure = true;
             setDirtyBlockIndex.insert(pindex);
 
             // Keep sibling subtrees invalid when reconsidering only one branch.
             auto range = mapPrevBlockIndex.equal_range(pindex->GetBlockHash());
-            for (auto it = range.first; it != range.second; ++it) {
-                CBlockIndex* pindexChild = it->second;
+            for (auto childIt = range.first; childIt != range.second; ++childIt) {
+                CBlockIndex* pindexChild = childIt->second;
                 if (pindexChild->nStatus & BLOCK_FAILED_CHILD) {
                     pindexChild->nStatus |= BLOCK_FAILED_VALID;
                     setDirtyBlockIndex.insert(pindexChild);
@@ -3977,7 +3984,9 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
             pindexBestInvalid = NULL;
         pindex = pindex->pprev;
     }
-    RecalculateBestHeader();
+    // Cleared blocks may now be eligible again; nothing changed otherwise.
+    if (fClearedFailure)
+        RecalculateBestHeader();
     return true;
 }
 
