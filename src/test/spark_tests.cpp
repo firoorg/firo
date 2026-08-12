@@ -838,14 +838,14 @@ BOOST_AUTO_TEST_CASE(spark_single_input_wallet_requires_one_coin_immediately)
     GenerateBlock(mintTransactions);
     GenerateBlocks(10);
 
-    const auto hasSingleCoinMessage = [](const InsufficientFunds& error) {
+    const auto hasSingleCoinMessage = [](const SparkFundsFragmented& error) {
         return std::string(error.what()).find(
             "No single available Spark coin can fund this transaction") !=
             std::string::npos;
     };
     BOOST_CHECK_EXCEPTION(
         GenerateSparkSpend({9 * COIN}, {}, nullptr),
-        InsufficientFunds,
+        SparkFundsFragmented,
         hasSingleCoinMessage);
 
     const CTransaction singleInputSpend(

@@ -300,21 +300,41 @@ BOOST_AUTO_TEST_CASE(limit)
     // coins that individually fund each spend below: one 120-FIRO transparent
     // output (over the 100-FIRO spork limit) and two 70-FIRO outputs (each
     // under the limit, but 140 > 100 so only one fits per block).
+    // Use fSplit=false so each requested amount becomes a single coin rather
+    // than being fragmented across UTXO address groups.
     std::vector<CMutableTransaction> sparkMints;
-    for (CAmount amount : {150 * COIN, 80 * COIN, 80 * COIN}) {
+    {
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        std::vector<spark::MintedCoinData> mints{{address, static_cast<uint64_t>(amount), ""}};
-        std::string error = pwalletMain->MintAndStoreSpark(mints, wtxAndFee, false, true);
+        std::vector<spark::MintedCoinData> mints{
+            {address, static_cast<uint64_t>(150 * COIN), ""},
+            {address, static_cast<uint64_t>(80 * COIN), ""},
+            {address, static_cast<uint64_t>(80 * COIN), ""},
+        };
+        std::string error = pwalletMain->MintAndStoreSpark(mints, wtxAndFee, false, false);
         BOOST_ASSERT(error.empty());
-        for (auto &w: wtxAndFee)
+        BOOST_ASSERT(!wtxAndFee.empty());
+        for (auto& w : wtxAndFee)
             sparkMints.emplace_back(*w.first.tx);
     }
 
-    GenerateBlock(sparkMints);
-    BOOST_ASSERT(sparkMints.size() == 3);
+    BOOST_ASSERT(GenerateBlock(sparkMints));
 
-    for (int i=0; i<10; i++)
+    for (int i = 0; i < 10; i++)
         GenerateBlock({});
+
+    {
+        std::list<CSparkMintMeta> available =
+            pwalletMain->sparkWallet->GetAvailableSparkCoins(nullptr);
+        CAmount largest = 0;
+        int largeEnoughFor70 = 0;
+        for (const CSparkMintMeta& coin : available) {
+            largest = std::max(largest, static_cast<CAmount>(coin.v));
+            if (coin.v >= 70 * COIN)
+                ++largeEnoughFor70;
+        }
+        BOOST_ASSERT(largest >= 150 * COIN);
+        BOOST_ASSERT(largeEnoughFor70 >= 3);
+    }
 
     CAmount fee = 0;
     CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, fee);
