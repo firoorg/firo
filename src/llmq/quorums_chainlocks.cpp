@@ -301,6 +301,12 @@ void CChainLocksHandler::TrySignChainTip()
             return;
         }
 
+        if (isEnforced && bestChainLock.blockHash != bestChainLockWithKnownBlock.blockHash) {
+            // The newest CLSIG references a block whose header is not known yet, so
+            // its ancestry is unproven. Don't risk signing a conflicting tip.
+            return;
+        }
+
         if (isEnforced && bestChainLockBlockIndex &&
                 (pindex->nHeight < bestChainLockBlockIndex->nHeight ||
                  pindex->GetAncestor(bestChainLockBlockIndex->nHeight) != bestChainLockBlockIndex)) {
@@ -368,6 +374,9 @@ void CChainLocksHandler::TrySignChainTip()
         }
         if (bestChainLock.nHeight >= pindex->nHeight) {
             // might have happened while we didn't hold cs
+            return;
+        }
+        if (isEnforced && bestChainLock.blockHash != bestChainLockWithKnownBlock.blockHash) {
             return;
         }
         if (isEnforced && bestChainLockBlockIndex &&
