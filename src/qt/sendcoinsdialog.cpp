@@ -26,6 +26,7 @@
 #include "overviewpage.h"
 
 #include <QFontMetrics>
+#include <QHash>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QSettings>
@@ -696,11 +697,30 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if (sendStatus.status == WalletModel::OK || sendStatus.partiallyCommitted)
     {
-        for(int i = 0; i < ui->entries->count(); ++i)
-        {
-            FIRO_UNUSED SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-        }
         accept();
+        // After a partial batch failure the form must not keep the original
+        // amounts (retrying them would double-pay the transactions that were
+        // already sent), but the user still needs the unpaid remainder. Put
+        // exactly the recipients of the uncommitted transactions back into the
+        // form, so pressing Send again pays only what is still owed.
+        if (sendStatus.partiallyCommitted) {
+            QList<SendCoinsRecipient> remainder;
+            QHash<QString, int> remainderIndexByAddress;
+            for (int i = sendStatus.numCommitted; i < (int)sparkSpendTransactions.size(); ++i) {
+                for (const SendCoinsRecipient& recipient : sparkSpendTransactions[i].getRecipients()) {
+                    const auto it = remainderIndexByAddress.constFind(recipient.address);
+                    if (it == remainderIndexByAddress.constEnd()) {
+                        remainderIndexByAddress.insert(recipient.address, remainder.size());
+                        remainder.append(recipient);
+                    } else {
+                        remainder[it.value()].amount += recipient.amount;
+                    }
+                }
+            }
+            fNewRecipientAllowed = true; // pasteEntry refuses entries while a send is in flight
+            for (const SendCoinsRecipient& recipient : remainder)
+                pasteEntry(recipient);
+        }
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
     }

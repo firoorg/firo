@@ -170,15 +170,17 @@ public:
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
     {
-        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "", bool _partiallyCommitted = false)
+        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "", bool _partiallyCommitted = false, int _numCommitted = 0)
             : status(_status),
               reasonCommitFailed(_reasonCommitFailed),
-              partiallyCommitted(_partiallyCommitted)
+              partiallyCommitted(_partiallyCommitted),
+              numCommitted(_numCommitted)
         {
         }
         StatusCode status;
         QString reasonCommitFailed;
         bool partiallyCommitted;
+        int numCommitted; //!< Transactions committed before a partial batch failure
     };
 
     // prepare transaction for getting txfee before sending coins

@@ -1845,7 +1845,7 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
                                       .arg(committed.size())
                                       .arg(committed.join(", ")));
                 }
-                result = SendCoinsReturn(TransactionCommitFailed, reason, committedAny);
+                result = SendCoinsReturn(TransactionCommitFailed, reason, committedAny, committed.size());
                 break;
             }
             committedAny = true;
