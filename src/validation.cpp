@@ -67,6 +67,8 @@
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
 
+#include "libspark/coin.h"
+
 #include <atomic>
 #include <sstream>
 #include <chrono>
@@ -573,6 +575,25 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
+static bool HasConsistentSparkCoinTypes(const CTransaction& tx)
+{
+    for (const auto& txout : tx.vout) {
+        const CScript& script = txout.scriptPubKey;
+
+        if (script.IsSparkMint() &&
+            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_MINT))) {
+            return false;
+        }
+
+        if (script.IsSparkSMint() &&
+            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_SPEND))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo)
 {
     LogPrint("validation", "CheckTransaction nHeight=%d, isVerifyDB=%d, isCheckWallet=%d, txHash=%s\n", nHeight, (int)isVerifyDB, (int)isCheckWallet, tx.GetHash().ToString());
@@ -597,7 +618,14 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         nTxHeight = chainActive.Height();
     }
 
-    if (nTxHeight < ::Params().GetConsensus().nSigmaEndBlock) {
+    const Consensus::Params& consensus = ::Params().GetConsensus();
+    if (nHeight != INT_MAX &&
+        nTxHeight >= consensus.nSparkCoinTypeFixStartBlock &&
+        !HasConsistentSparkCoinTypes(tx)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-spark-coin-type");
+    }
+
+    if (nTxHeight < consensus.nSigmaEndBlock) {
         if (tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
     } else {
@@ -824,6 +852,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         *pfMissingInputs = false;
 
     const Consensus::Params& consensus = Params().GetConsensus();
+
+    if (!HasConsistentSparkCoinTypes(tx))
+        return state.DoS(0, false, REJECT_NONSTANDARD, "bad-spark-coin-type");
 
     bool startLelantusRejectSigma = (chainActive.Height() >= consensus.nLelantusStartBlock);
     if (startLelantusRejectSigma) {

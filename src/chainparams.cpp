@@ -421,6 +421,8 @@ public:
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
         // Disabled until a deployment height is selected.
         consensus.nSparkSingleInputStartBlock = 1355970;
+        // Disabled until a deployment height is selected.
+        consensus.nSparkCoinTypeFixStartBlock = INT_MAX;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
@@ -748,6 +750,7 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
         consensus.nSparkSingleInputStartBlock = INT_MAX;
+        consensus.nSparkCoinTypeFixStartBlock = INT_MAX;
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -1020,6 +1023,7 @@ public:
 
         consensus.nSparkStartBlock = 1500;
         consensus.nSparkSingleInputStartBlock = INT_MAX;
+        consensus.nSparkCoinTypeFixStartBlock = INT_MAX;
         consensus.nLelantusGracefulPeriod = 6000;
         consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
@@ -1272,6 +1276,7 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
         consensus.nSparkStartBlock = 100;
         consensus.nSparkSingleInputStartBlock = 500;
+        consensus.nSparkCoinTypeFixStartBlock = INT_MAX;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
@@ -1341,6 +1346,11 @@ public:
     {
         consensus.nSparkSingleInputStartBlock = height;
     }
+
+    void UpdateSparkCoinTypeFixHeight(int height)
+    {
+        consensus.nSparkCoinTypeFixStartBlock = height;
+    }
 };
 static CRegTestParams regTestParams;
 
@@ -1379,4 +1389,9 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 void UpdateRegtestSparkSingleInputHeight(int height)
 {
     regTestParams.UpdateSparkSingleInputHeight(height);
+}
+
+void UpdateRegtestSparkCoinTypeFixHeight(int height)
+{
+    regTestParams.UpdateSparkCoinTypeFixHeight(height);
 }

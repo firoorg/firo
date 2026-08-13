@@ -671,6 +671,235 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
+{
+    struct ResetActivationHeight {
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestSparkCoinTypeFixHeight(INT_MAX);
+        }
+    } resetActivationHeight;
+
+    const auto makeTransaction = [](opcodetype opcode, char coinType) {
+        const auto* params = Params::get_default();
+        const SpendKey spendKey(params);
+        const FullViewKey fullViewKey(spendKey);
+        const IncomingViewKey incomingViewKey(fullViewKey);
+        const Address address(incomingViewKey, 12345);
+        Scalar k;
+        k.randomize();
+        const uint64_t value = 1;
+        const Coin coin(
+            params,
+            coinType,
+            k,
+            address,
+            value,
+            "coin-type-test",
+            random_char_vector());
+        CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+        serialized << coin;
+
+        CScript outputScript;
+        outputScript << opcode;
+        outputScript.insert(
+            outputScript.end(), serialized.begin(), serialized.end());
+
+        CMutableTransaction tx;
+        tx.vin.emplace_back(COutPoint(uint256S("0x1"), 0));
+        tx.vout.emplace_back(0, outputScript);
+        return tx;
+    };
+
+    const CMutableTransaction mismatchedMint =
+        makeTransaction(OP_SPARKMINT, COIN_TYPE_SPEND);
+    const CMutableTransaction mismatchedSMint =
+        makeTransaction(OP_SPARKSMINT, COIN_TYPE_MINT);
+
+    // Relay policy rejects both mismatches immediately, before Spark coin
+    // deserialization, without assigning peer misbehavior points.
+    CValidationState mintPolicyState;
+    bool mintMissingInputs = true;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            mintPolicyState,
+            MakeTransactionRef(mismatchedMint),
+            false,
+            &mintMissingInputs));
+    }
+    int mintPolicyDoS = -1;
+    BOOST_REQUIRE(mintPolicyState.IsInvalid(mintPolicyDoS));
+    BOOST_CHECK_EQUAL(mintPolicyDoS, 0);
+    BOOST_CHECK_EQUAL(mintPolicyState.GetRejectCode(), REJECT_NONSTANDARD);
+    BOOST_CHECK_EQUAL(mintPolicyState.GetRejectReason(), "bad-spark-coin-type");
+    BOOST_CHECK(!mintMissingInputs);
+
+    CValidationState smintPolicyState;
+    bool smintMissingInputs = true;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            smintPolicyState,
+            MakeTransactionRef(mismatchedSMint),
+            false,
+            &smintMissingInputs));
+    }
+    int smintPolicyDoS = -1;
+    BOOST_REQUIRE(smintPolicyState.IsInvalid(smintPolicyDoS));
+    BOOST_CHECK_EQUAL(smintPolicyDoS, 0);
+    BOOST_CHECK_EQUAL(smintPolicyState.GetRejectCode(), REJECT_NONSTANDARD);
+    BOOST_CHECK_EQUAL(smintPolicyState.GetRejectReason(), "bad-spark-coin-type");
+    BOOST_CHECK(!smintMissingInputs);
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkCoinTypeFixHeight(activationHeight);
+
+    // A mismatched SMint output in an otherwise ordinary transaction is safe
+    // to use for the preactivation boundary because legacy validation does not
+    // deserialize it as a Spark transaction.
+    CValidationState historicalState;
+    BOOST_REQUIRE(CheckTransaction(
+        CTransaction(mismatchedSMint),
+        historicalState,
+        true,
+        mismatchedSMint.GetHash(),
+        false,
+        activationHeight - 1));
+
+    CValidationState activeState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedSMint),
+        activeState,
+        true,
+        mismatchedSMint.GetHash(),
+        false,
+        activationHeight));
+    int activeDoS = -1;
+    BOOST_REQUIRE(activeState.IsInvalid(activeDoS));
+    BOOST_CHECK_EQUAL(activeDoS, 100);
+    BOOST_CHECK_EQUAL(activeState.GetRejectCode(), REJECT_INVALID);
+    BOOST_CHECK_EQUAL(activeState.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState postActivationState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedSMint),
+        postActivationState,
+        true,
+        mismatchedSMint.GetHash(),
+        false,
+        activationHeight + 1));
+    BOOST_CHECK_EQUAL(postActivationState.GetRejectReason(), "bad-spark-coin-type");
+
+    // The mint mismatch is tested only after activation. Running it through
+    // legacy validation would deliberately execute the bug this change gates.
+    CValidationState mintActiveState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedMint),
+        mintActiveState,
+        true,
+        mismatchedMint.GetHash(),
+        false,
+        activationHeight));
+    BOOST_CHECK_EQUAL(mintActiveState.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState verifyDbState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedSMint),
+        verifyDbState,
+        true,
+        mismatchedSMint.GetHash(),
+        true,
+        activationHeight));
+    BOOST_CHECK_EQUAL(verifyDbState.GetRejectReason(), "bad-spark-coin-type");
+
+    const CMutableTransaction consistentSMint =
+        makeTransaction(OP_SPARKSMINT, COIN_TYPE_SPEND);
+    CValidationState consistentState;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(consistentSMint),
+        consistentState,
+        true,
+        consistentSMint.GetHash(),
+        false,
+        activationHeight));
+
+    const auto* params = Params::get_default();
+    const SpendKey spendKey(params);
+    const FullViewKey fullViewKey(spendKey);
+    const IncomingViewKey incomingViewKey(fullViewKey);
+    MintedCoinData validCoin;
+    validCoin.address = Address(incomingViewKey, 54321);
+    validCoin.v = 1;
+    validCoin.memo = "valid-coin-type";
+    MintTransaction validMint(
+        params, {validCoin}, random_char_vector());
+    const std::vector<CDataStream> serializedMints =
+        validMint.getMintedCoinsSerialized();
+    BOOST_REQUIRE_EQUAL(serializedMints.size(), 1U);
+    CScript validMintScript;
+    validMintScript << OP_SPARKMINT;
+    validMintScript.insert(
+        validMintScript.end(),
+        serializedMints.front().begin(),
+        serializedMints.front().end());
+    CMutableTransaction validMintTransaction;
+    validMintTransaction.vin.emplace_back(
+        COutPoint(uint256S("0x2"), 0));
+    validMintTransaction.vout.emplace_back(1, validMintScript);
+
+    CValidationState validMintState;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(validMintTransaction),
+        validMintState,
+        true,
+        validMintTransaction.GetHash(),
+        false,
+        activationHeight));
+
+    const CBlock validMintBlock =
+        CreateBlock({validMintTransaction}, script);
+    CValidationState validMintBlockState;
+    BOOST_CHECK(CheckBlock(
+        validMintBlock,
+        validMintBlockState,
+        consensus,
+        false,
+        true,
+        activationHeight,
+        false));
+
+    const CBlock boundaryBlock = CreateBlock({mismatchedSMint}, script);
+    CValidationState historicalBlockState;
+    BOOST_REQUIRE(CheckBlock(
+        boundaryBlock,
+        historicalBlockState,
+        consensus,
+        false,
+        true,
+        activationHeight - 1,
+        false));
+
+    CValidationState activeBlockState;
+    BOOST_CHECK(!CheckBlock(
+        boundaryBlock,
+        activeBlockState,
+        consensus,
+        false,
+        true,
+        activationHeight,
+        false));
+    int activeBlockDoS = -1;
+    BOOST_REQUIRE(activeBlockState.IsInvalid(activeBlockDoS));
+    BOOST_CHECK_EQUAL(activeBlockDoS, 100);
+    BOOST_CHECK_EQUAL(activeBlockState.GetRejectReason(), "bad-spark-coin-type");
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(spark_single_input_mempool_policy)
 {
     GenerateBlocks(200);
