@@ -38,6 +38,23 @@ void EraseCheckedSparkSpendTransaction(const uint256& hashTx)
 
 static CSparkState sparkState;
 
+static bool CheckSparkMintDuplicates(
+        CValidationState& state,
+        const std::vector<spark::Coin>& mints,
+        bool checkActiveState)
+{
+    std::unordered_set<uint256> blockMints;
+    for (const auto& mint : mints) {
+        if (!blockMints.insert(mint.getHash()).second ||
+                (checkActiveState && sparkState.HasCoin(mint))) {
+            return state.DoS(100, false, REJECT_INVALID,
+                             "bad-txns-spark-mint-duplicate");
+        }
+    }
+
+    return true;
+}
+
 static bool CheckLTag(
         CValidationState &state,
         CSparkTxInfo *sparkTxInfo,
@@ -285,6 +302,16 @@ bool ConnectBlockSpark(
         }
 
         if (!CheckSparkBlock(state, *pblock, pindexNew->nHeight)) {
+            return false;
+        }
+
+        // VerifyDB rewinds its UTXO view, not global Spark state.
+        const bool checkActiveSparkState = pindexNew->pprev == chainActive.Tip();
+        if (pindexNew->nHeight >= chainparams.GetConsensus().nSparkDuplicateMintStartBlock &&
+                !CheckSparkMintDuplicates(
+                    state,
+                    pblock->sparkTxInfo->mints,
+                    checkActiveSparkState)) {
             return false;
         }
 
@@ -1390,10 +1417,12 @@ void CSparkState::RemoveSpendFromMempool(const std::vector<GroupElement>& lTags)
     }
 }
 
-void CSparkState::AddMintsToMempool(const std::vector<spark::Coin>& coins) {
+void CSparkState::AddMintsToMempool(
+        const std::vector<spark::Coin>& coins,
+        const uint256& txHash) {
     LOCK(mempool.cs);
     for (const auto& coin : coins) {
-        mempool.sparkState.AddMintToMempool(coin);
+        mempool.sparkState.AddMintToMempool(coin, txHash);
     }
 }
 
@@ -1684,15 +1713,20 @@ size_t CSparkState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &
 
 // CSparkMempoolState
 bool CSparkMempoolState::HasMint(const spark::Coin& coin) {
-    return mempoolMints.count(coin) > 0;
+    return mempoolMints.count(coin.getHash()) > 0;
 }
 
-void CSparkMempoolState::AddMintToMempool(const spark::Coin& coin) {
-    mempoolMints.insert(coin);
+void CSparkMempoolState::AddMintToMempool(const spark::Coin& coin, const uint256& txHash) {
+    mempoolMints.emplace(coin.getHash(), txHash);
 }
 
 void CSparkMempoolState::RemoveMintFromMempool(const spark::Coin& coin) {
-    mempoolMints.erase(coin);
+    mempoolMints.erase(coin.getHash());
+}
+
+uint256 CSparkMempoolState::GetMempoolConflictingMintTxHash(const spark::Coin& coin) {
+    const auto it = mempoolMints.find(coin.getHash());
+    return it == mempoolMints.end() ? uint256() : it->second;
 }
 
 bool CSparkMempoolState::HasLTag(const GroupElement& lTag) {

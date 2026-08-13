@@ -70,6 +70,7 @@
 #include <atomic>
 #include <sstream>
 #include <chrono>
+#include <unordered_set>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/join.hpp>
@@ -860,6 +861,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     // Spark
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     std::vector<spark::Coin> sparkMintCoins;
+    std::unordered_set<uint256> txSparkMints;
     std::vector<GroupElement> sparkUsedLTags;
 
     CSparkNameTxData sparkNameData;
@@ -907,8 +909,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             for (const auto& coin : sparkMintCoins) {
-                if (sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
-                    LogPrintf("AcceptToMemoryPool(): Spark mint with the same value %s is already in the mempool\n", coin.getHash().GetHex());
+                if (!txSparkMints.insert(coin.getHash()).second ||
+                        sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
+                    LogPrintf("AcceptToMemoryPool(): duplicate Spark mint coin %s\n", coin.getHash().GetHex());
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
             }
@@ -1406,6 +1409,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             // Store transaction in memory
             pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
+            for (const auto& coin : sparkMintCoins) {
+                pool.sparkState.AddMintToMempool(coin, hash);
+            }
 
             // Add memory address index
             if (fAddressIndex) {
@@ -2973,13 +2979,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     return true;
 }
 
-/**
- * Erase all of sigma/lelantus transactions conflicting with given block from the mempool
- */
-void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block) {
+/** Erase Spark spends conflicting with the given block from the mempool. */
+void static RemoveConflictingSparkSpendsFromMempool(const CBlock &block) {
     LOCK(mempool.cs);
 
-    // Erase conflicting sigma/lelantus txs from the mempool
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
         if (tx->IsSparkSpend()) {
@@ -2998,7 +3001,6 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
                     break;
             }
             if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                std::list<CTransaction> removed;
                 auto pTx = mempool.get(conflictingTxHash);
                 if (pTx)
                     mempool.removeRecursive(*pTx);
@@ -3009,6 +3011,14 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
             // In any case we need to remove lTags from mempool set
             sparkState->RemoveSpendFromMempool(lTags);
         }
+    }
+}
+
+/** Erase Spark mint transactions conflicting with the given block from a pool. */
+void static RemoveConflictingSparkMintsFromMempool(CTxMemPool& pool, const CBlock &block) {
+    LOCK(pool.cs);
+
+    BOOST_FOREACH(CTransactionRef tx, block.vtx) {
         BOOST_FOREACH(const CTxOut &txout, tx->vout)
         {
             if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
@@ -3017,7 +3027,16 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
 
                     spark::Coin txCoin(params);
                     spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
-                    sparkState->RemoveMintFromMempool(txCoin);
+                    const uint256 conflictingTxHash =
+                        pool.sparkState.GetMempoolConflictingMintTxHash(txCoin);
+                    if (!conflictingTxHash.IsNull() && conflictingTxHash != tx->GetHash()) {
+                        auto pTx = pool.get(conflictingTxHash);
+                        if (pTx)
+                            pool.removeRecursive(*pTx);
+                        LogPrintf("ConnectBlock: removed conflicting Spark mint tx %s from the mempool\n",
+                                  conflictingTxHash.ToString());
+                    }
+                    pool.sparkState.RemoveMintFromMempool(txCoin);
                 } catch (std::invalid_argument&) {
                     // nothing
                 }
@@ -3384,8 +3403,12 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
         CCoinsViewCache view(pcoinsTip);
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
-        if (rv)
-            RemoveConflictingPrivacyTransactionsFromMempool(blockConnecting);
+        if (rv) {
+            RemoveConflictingSparkSpendsFromMempool(blockConnecting);
+            RemoveConflictingSparkMintsFromMempool(mempool, blockConnecting);
+            RemoveConflictingSparkMintsFromMempool(
+                txpools.getStemTxPool(), blockConnecting);
+        }
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             LogPrintf("ConnectTip(): ConnectBlock failed at height=%d, hash=%s: %s\n",

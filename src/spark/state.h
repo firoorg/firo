@@ -94,7 +94,7 @@ bool BuildSparkStateFromIndex(CChain *chain);
 class CSparkMempoolState {
 private:
     // mints in the mempool
-    std::unordered_set<spark::Coin, spark::CoinHash> mempoolMints;
+    std::unordered_map<uint256, uint256> mempoolMints;
 
     // linking tags of spends currently in the mempool mapped to tx hashes
     std::unordered_map<GroupElement, uint256, spark::CLTagHash> mempoolLTags;
@@ -102,8 +102,9 @@ private:
 public:
     // Check if there is a conflicting tx in the blockchain or mempool
     bool HasMint(const spark::Coin& coin);
-    void AddMintToMempool(const spark::Coin& coin);
+    void AddMintToMempool(const spark::Coin& coin, const uint256& txHash);
     void RemoveMintFromMempool(const spark::Coin& coin);
+    uint256 GetMempoolConflictingMintTxHash(const spark::Coin& coin);
 
     // Check if there is a conflicting tx in the blockchain or mempool
     bool HasLTag(const GroupElement& lTag);
@@ -187,7 +188,9 @@ public:
     // Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash);
 
-    void AddMintsToMempool(const std::vector<spark::Coin>& coins);
+    void AddMintsToMempool(
+        const std::vector<spark::Coin>& coins,
+        const uint256& txHash);
     void RemoveMintFromMempool(const spark::Coin& coin);
 
     // Get conflicting tx hash by coin linking tag

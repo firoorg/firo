@@ -671,6 +671,88 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_duplicate_mint_mempool_policy)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 1U);
+    mempool.clear();
+
+    const CTransactionRef mintTx = MakeTransactionRef(mintTransactions.front());
+    const std::vector<spark::Coin> mintCoins = GetSparkMintCoins(*mintTx);
+    BOOST_REQUIRE_EQUAL(mintCoins.size(), 1U);
+
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            mempool, state, mintTx, false, &missingInputs));
+        BOOST_CHECK(!missingInputs);
+    }
+    BOOST_CHECK_EQUAL(mempool.size(), 1U);
+    BOOST_CHECK(
+        mempool.sparkState.GetMempoolConflictingMintTxHash(mintCoins.front()) ==
+        mintTx->GetHash());
+
+    CMutableTransaction crossTransactionDuplicate(*mintTx);
+    crossTransactionDuplicate.vin.front().scriptSig << OP_0;
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            state,
+            MakeTransactionRef(crossTransactionDuplicate),
+            false,
+            &missingInputs));
+        int dos = -1;
+        BOOST_REQUIRE(state.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 0);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "txn-mempool-conflict");
+        BOOST_CHECK(!missingInputs);
+    }
+
+    {
+        LOCK(cs_main);
+        mempool.removeRecursive(*mintTx);
+    }
+    BOOST_CHECK(!mempool.sparkState.HasMint(mintCoins.front()));
+    BOOST_CHECK(
+        mempool.sparkState.GetMempoolConflictingMintTxHash(mintCoins.front()).IsNull());
+
+    CMutableTransaction withinTransactionDuplicate(*mintTx);
+    const auto mintOutput = std::find_if(
+        withinTransactionDuplicate.vout.begin(),
+        withinTransactionDuplicate.vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+    BOOST_REQUIRE(mintOutput != withinTransactionDuplicate.vout.end());
+    const CTxOut duplicateOutput = *mintOutput;
+    withinTransactionDuplicate.vout.push_back(duplicateOutput);
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            state,
+            MakeTransactionRef(withinTransactionDuplicate),
+            false,
+            &missingInputs));
+        int dos = -1;
+        BOOST_REQUIRE(state.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 0);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "txn-mempool-conflict");
+        BOOST_CHECK(!missingInputs);
+    }
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(spark_single_input_mempool_policy)
 {
     GenerateBlocks(200);

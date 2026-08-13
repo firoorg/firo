@@ -64,6 +64,22 @@ public:
             block.sparkTxInfo->spentLTags.emplace(lTag);
         }
     }
+
+    spark::Coin CreateCoin(char type, CAmount value)
+    {
+        spark::SpendKey spendKey(params);
+        spark::FullViewKey fullViewKey(spendKey);
+        spark::IncomingViewKey incomingViewKey(fullViewKey);
+        spark::Address address(incomingViewKey, 1);
+        spark::Scalar k;
+        k.randomize();
+
+        spark::Coin coin(
+            params, type, k, address, value, "memo", random_char_vector());
+        // Spend coins do not serialize v, but keep local copies initialized.
+        coin.v = value;
+        return coin;
+    }
 public:
     spark::CSparkState* sparkState;
 };
@@ -211,12 +227,17 @@ BOOST_AUTO_TEST_CASE(mempool)
             );
 
     BOOST_CHECK(sparkState->CanAddMintToMempool(randMint));
-    sparkState->AddMintsToMempool({randMint});
+    const uint256 mintTxid = ArithToUint256(1);
+    sparkState->AddMintsToMempool({randMint}, mintTxid);
     BOOST_CHECK(!sparkState->CanAddMintToMempool(randMint));
+    BOOST_CHECK(
+        mempool.sparkState.GetMempoolConflictingMintTxHash(randMint) == mintTxid);
 
     // - remove from mempool then can add again
     sparkState->RemoveMintFromMempool(randMint);
     BOOST_CHECK(sparkState->CanAddMintToMempool(randMint));
+    BOOST_CHECK(
+        mempool.sparkState.GetMempoolConflictingMintTxHash(randMint).IsNull());
 
     // test spend mempool
     // - can not add on-chain spend
@@ -226,7 +247,7 @@ BOOST_AUTO_TEST_CASE(mempool)
     GroupElement anotherLTag;
     anotherLTag.randomize();
 
-    auto txid = ArithToUint256(1);
+    auto txid = ArithToUint256(2);
 
     BOOST_CHECK(sparkState->CanAddSpendToMempool(anotherLTag));
     sparkState->AddSpendToMempool({anotherLTag}, txid);
@@ -243,6 +264,98 @@ BOOST_AUTO_TEST_CASE(mempool)
     BOOST_CHECK(sparkState->CanAddSpendToMempool(anotherLTag));
     sparkState->AddSpendToMempool({anotherLTag}, txid);
     BOOST_CHECK(!sparkState->CanAddSpendToMempool(anotherLTag));
+
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
+{
+    struct ResetActivationHeight {
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestSparkDuplicateMintHeight(INT_MAX);
+        }
+    } resetActivationHeight;
+
+    const int activationHeight = chainActive.Height() + 2;
+    UpdateRegtestSparkDuplicateMintHeight(activationHeight);
+
+    const spark::Coin mint = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);
+    const spark::Coin spendMint = CreateCoin(spark::COIN_TYPE_SPEND, 2 * COIN);
+
+    const auto check = [this](
+            const std::vector<spark::Coin>& mints,
+            int height,
+            CBlockIndex* previous,
+            CValidationState& state) {
+        CBlock block;
+        PopulateSparkTxInfo(block, mints, {});
+        CBlockIndex index;
+        index.pprev = previous;
+        index.nHeight = height;
+        return ConnectBlockSpark(state, ::Params(), &index, &block, true);
+    };
+
+    CValidationState preActivationState;
+    BOOST_CHECK(check(
+        {mint, mint}, activationHeight - 1, chainActive.Tip(), preActivationState));
+
+    CValidationState mintDuplicateState;
+    BOOST_CHECK(!check(
+        {mint, mint}, activationHeight, chainActive.Tip(), mintDuplicateState));
+    int mintDuplicateDoS = 0;
+    BOOST_REQUIRE(mintDuplicateState.IsInvalid(mintDuplicateDoS));
+    BOOST_CHECK_EQUAL(mintDuplicateDoS, 100);
+    BOOST_CHECK_EQUAL(
+        mintDuplicateState.GetRejectReason(), "bad-txns-spark-mint-duplicate");
+
+    CValidationState spendMintDuplicateState;
+    BOOST_CHECK(!check(
+        {spendMint, spendMint},
+        activationHeight,
+        chainActive.Tip(),
+        spendMintDuplicateState));
+    BOOST_CHECK_EQUAL(
+        spendMintDuplicateState.GetRejectReason(),
+        "bad-txns-spark-mint-duplicate");
+
+    CValidationState distinctState;
+    BOOST_CHECK(check(
+        {mint, spendMint}, activationHeight, chainActive.Tip(), distinctState));
+
+    sparkState->AddMint(
+        mint, spark::CMintedCoinInfo::make(1, activationHeight - 1));
+    CValidationState activeChainState;
+    BOOST_CHECK(!check(
+        {mint}, activationHeight, chainActive.Tip(), activeChainState));
+    BOOST_CHECK_EQUAL(
+        activeChainState.GetRejectReason(), "bad-txns-spark-mint-duplicate");
+
+    // VerifyDB reconnects historical UTXO views without rewinding global Spark
+    // state, so only active-tip connections consult that state.
+    CValidationState historicalState;
+    BOOST_CHECK(check(
+        {mint}, activationHeight, chainActive.Tip()->pprev, historicalState));
+
+    GroupElement lTag;
+    lTag.randomize();
+    CBlock rejectedBlock;
+    PopulateSparkTxInfo(rejectedBlock, {spendMint, spendMint}, {{lTag, 1}});
+    CBlockIndex rejectedIndex;
+    rejectedIndex.pprev = chainActive.Tip();
+    rejectedIndex.nHeight = activationHeight;
+    const std::size_t coinsBefore = sparkState->GetTotalCoins();
+    CValidationState rejectedState;
+    BOOST_CHECK(!ConnectBlockSpark(
+        rejectedState,
+        ::Params(),
+        &rejectedIndex,
+        &rejectedBlock,
+        false));
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), coinsBefore);
+    BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
+    BOOST_CHECK(rejectedIndex.sparkMintedCoins.empty());
+    BOOST_CHECK(rejectedIndex.spentLTags.empty());
 
     sparkState->Reset();
 }
