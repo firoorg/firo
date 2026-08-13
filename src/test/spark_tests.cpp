@@ -828,7 +828,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         bool unknownParentNewBlock = false;
         BlockCheckResult unknownParentResult;
         BOOST_CHECK(!ProcessNewBlock(
-            Params(),
+            ::Params(),
             std::make_shared<const CBlock>(unknownParentBlock),
             false,
             &unknownParentNewBlock));
@@ -848,7 +848,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         bool wrongDifficultyNewBlock = false;
         BlockCheckResult wrongDifficultyResult;
         BOOST_CHECK(!ProcessNewBlock(
-            Params(),
+            ::Params(),
             std::make_shared<const CBlock>(wrongDifficultyBlock),
             false,
             &wrongDifficultyNewBlock));
@@ -865,7 +865,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         bool activeMismatchNewBlock = false;
         BlockCheckResult activeMismatchResult;
         BOOST_CHECK(!ProcessNewBlock(
-            Params(),
+            ::Params(),
             std::make_shared<const CBlock>(activeMismatchBlock),
             false,
             &activeMismatchNewBlock));
@@ -897,7 +897,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         bool staleNewBlock = true;
         BlockCheckResult staleResult;
         BOOST_CHECK(ProcessNewBlock(
-            Params(),
+            ::Params(),
             std::make_shared<const CBlock>(staleBlock),
             false,
             &staleNewBlock));
