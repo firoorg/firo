@@ -69,6 +69,7 @@
 
 #include "libspark/coin.h"
 
+#include <algorithm>
 #include <atomic>
 #include <sstream>
 #include <chrono>
@@ -4224,7 +4225,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (block.vtx[i]->IsCoinBase())
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
 
-    // Check transactions (when called from ProcessNewBlock, nHeight is INT_MAX and we derive it here)
+    // Derive the height for callers that do not have indexed block context.
     if (nHeight == INT_MAX)
         nHeight = GetNHeight(block.GetBlockHeader());
     LogPrint("validation", "CheckBlock() nHeight=%d, blockHash=%s, isVerifyDB=%d\n", nHeight, block.GetHash().ToString(), isVerifyDB);
@@ -4710,9 +4711,17 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         // TODO: refactor code so CheckTransaction and CheckBlock don't need cs_main
         LOCK(cs_main);
 
-        // Ensure that CheckBlock() passes before calling AcceptBlock, as
-        // belt-and-suspenders.
-        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
+        // A Spark type mismatch must not enter legacy parsing
+        // until AcceptBlock has contextualized its header and applied the
+        // unrequested-block gates. Keep the belt-and-suspenders check for all
+        // other blocks.
+        const bool fDeferBlockCheck = std::any_of(
+            pblock->vtx.begin(), pblock->vtx.end(),
+            [](const CTransactionRef& tx) {
+                return !HasConsistentSparkCoinTypes(*tx);
+            });
+        bool ret = fDeferBlockCheck ||
+            CheckBlock(*pblock, state, chainparams.GetConsensus());
 
         if (ret) {
             // Store to disk
