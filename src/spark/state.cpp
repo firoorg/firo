@@ -544,21 +544,26 @@ bool ConnectBlockSpark(
             updateHash = true;
             // get previous hash of the set, if there is no such, don't write anything
             std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true, includeFirstBlock);
-            if (!prev_hash.empty())
-                hash.Write(prev_hash.data(), 32);
-            else {
-                if (latestCoinId > 1) {
-                    prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true, includeFirstBlock);
-                    hash.Write(prev_hash.data(), 32);
-                }
-            }
+            if (prev_hash.empty() && latestCoinId > 1)
+                prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true, includeFirstBlock);
 
-            for (auto &coin : pindexNew->ensurePrivacyData().sparkMintedCoins[latestCoinId]) {
-                CDataStream serializedCoin(SER_NETWORK, 0);
-                serializedCoin << coin;
-                std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
-                hash.Write(data.data(), data.size());
-            }
+            if (prev_hash.size() == CSHA256::OUTPUT_SIZE)
+                hash.Write(prev_hash.data(), prev_hash.size());
+            else if (!prev_hash.empty())
+                LogPrintf("ConnectBlockSpark: ignoring malformed previous set hash of size %u\n", static_cast<unsigned int>(prev_hash.size()));
+
+            const auto& mintedCoins =
+                pindexNew->privacyData().sparkMintedCoins;
+            const auto mintedCoinsIt = mintedCoins.find(latestCoinId);
+            if (mintedCoinsIt != mintedCoins.end()) {
+                for (const auto &coin : mintedCoinsIt->second) {
+                    CDataStream serializedCoin(SER_NETWORK, 0);
+                    serializedCoin << coin;
+                    std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
+                    hash.Write(data.data(), data.size());
+                }
+            } else
+                LogPrintf("ConnectBlockSpark: missing minted coins for group %d\n", latestCoinId);
         }
 
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
@@ -1869,10 +1874,14 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
             // roll back lastBlock to previous position
             assert(coinGroup.lastBlock == index);
 
-            do {
+            while (true) {
                 assert(coinGroup.lastBlock != coinGroup.firstBlock);
                 coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-            } while (coinGroup.lastBlock->privacyData().sparkMintedCoins.count(coins.first) == 0);
+                const auto& mintedCoins =
+                    coinGroup.lastBlock->privacyData().sparkMintedCoins;
+                if (mintedCoins.find(coins.first) != mintedCoins.end())
+                    break;
+            }
         }
     }
 

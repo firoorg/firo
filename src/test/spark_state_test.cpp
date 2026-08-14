@@ -1,9 +1,12 @@
 #include "../chainparams.h"
+#include "../hash.h"
 #include "../spark/state.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "fixtures.h"
 #include "test_bitcoin.h"
+
+#include <climits>
 
 #include <boost/test/unit_test.hpp>
 
@@ -215,6 +218,75 @@ BOOST_AUTO_TEST_CASE(reconnect_clears_derived_privacy_data)
         sparkNameManager->GetSparkAddress("removed", restoredAddress));
     BOOST_CHECK_EQUAL(restoredAddress, "address");
     sparkNameManager->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(invalid_previous_set_hash_is_not_hashed)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    struct ResetState {
+        spark::CSparkState* sparkState;
+        CSparkNameManager* sparkNameManager;
+
+        ~ResetState()
+        {
+            sparkState->Reset();
+            sparkNameManager->Reset();
+        }
+    } resetState{sparkState, sparkNameManager};
+
+    const int h2Height = Params().GetConsensus().nSparkChaumV2StartBlock;
+    BOOST_REQUIRE(h2Height != INT_MAX);
+
+    const std::vector<std::vector<unsigned char>> previousHashes{{}, {1}};
+    for (const auto& previousHash : previousHashes) {
+        sparkState->Reset();
+        sparkNameManager->Reset();
+
+        const spark::Coin seedMint =
+            CreateCoin(spark::COIN_TYPE_MINT, COIN);
+        CBlockIndex seedIndex;
+        seedIndex.nHeight = h2Height - 1;
+        {
+            auto& seedData = seedIndex.ensurePrivacyData();
+            seedData.sparkMintedCoins[2] = {seedMint};
+            if (!previousHash.empty())
+                seedData.sparkSetHash[2] = previousHash;
+        }
+        sparkState->AddBlock(&seedIndex);
+        BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
+
+        const spark::Coin mint =
+            CreateCoin(spark::COIN_TYPE_MINT, 2 * COIN);
+        CBlock block;
+        PopulateSparkTxInfo(block, {mint}, {});
+        CBlockIndex index;
+        index.pprev = &seedIndex;
+        index.nHeight = h2Height;
+
+        CValidationState state;
+        BOOST_REQUIRE(
+            spark::ConnectBlockSpark(
+                state, Params(), &index, &block, false));
+
+        CDataStream encoded(SER_NETWORK, 0);
+        encoded << mint;
+        const std::vector<unsigned char> bytes(
+            encoded.begin(), encoded.end());
+        CHash256 hasher;
+        hasher.Write(bytes.data(), bytes.size());
+        unsigned char expectedBytes[CSHA256::OUTPUT_SIZE];
+        hasher.Finalize(expectedBytes);
+        const std::vector<unsigned char> expected(
+            expectedBytes, expectedBytes + CSHA256::OUTPUT_SIZE);
+
+        const auto& setHashes = index.privacyData().sparkSetHash;
+        const auto setHash = setHashes.find(2);
+        BOOST_REQUIRE(setHash != setHashes.end());
+        BOOST_CHECK(setHash->second == expected);
+
+        sparkState->Reset();
+        sparkNameManager->Reset();
+    }
 }
 
 BOOST_AUTO_TEST_CASE(lTag_adding)
