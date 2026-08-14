@@ -149,6 +149,74 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     mempool.clear();
 }
 
+BOOST_AUTO_TEST_CASE(reconnect_clears_derived_privacy_data)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    sparkNameManager->Reset();
+
+    CBlockIndex *index = GenerateBlock({});
+    BOOST_REQUIRE(index != nullptr);
+    CBlock block = GetCBlock(index);
+    PopulateSparkTxInfo(block, {}, {});
+
+    {
+        GroupElement group;
+        group.randomize();
+        auto& pd = index->ensurePrivacyData();
+        pd.sparkMintedCoins[1] = {};
+        pd.spentLTags[group] = 1;
+        pd.sparkSetHash[1] = {1};
+        pd.sparkTxHashContext[group] = {uint256S("01"), {1}};
+        pd.ltagTxhash[uint256S("02")] = uint256S("03");
+        pd.addedSparkNames["added"] =
+            CSparkNameBlockIndexData("added", "address", 1, "");
+        pd.removedSparkNames["removed"] =
+            CSparkNameBlockIndexData("removed", "address", 1, "");
+        pd.activeDisablingSporks.emplace(
+            "feature", std::make_pair(10, 20));
+    }
+
+    CValidationState state;
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(state, Params(), index, &block, true));
+    {
+        const auto& checked = index->privacyData();
+        BOOST_CHECK_EQUAL(checked.sparkMintedCoins.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.spentLTags.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.sparkSetHash.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.sparkTxHashContext.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.ltagTxhash.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.addedSparkNames.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.removedSparkNames.size(), 1U);
+    }
+
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(state, Params(), index, &block, false));
+
+    BOOST_REQUIRE(index->hasPrivacyData());
+    const auto& rebuilt = index->privacyData();
+    BOOST_CHECK(rebuilt.sparkMintedCoins.empty());
+    BOOST_CHECK(rebuilt.spentLTags.empty());
+    BOOST_CHECK(rebuilt.sparkSetHash.empty());
+    BOOST_CHECK(rebuilt.sparkTxHashContext.empty());
+    BOOST_CHECK(rebuilt.ltagTxhash.empty());
+    BOOST_CHECK(rebuilt.addedSparkNames.empty());
+    BOOST_CHECK_EQUAL(rebuilt.removedSparkNames.size(), 1U);
+    BOOST_CHECK(
+        rebuilt.removedSparkNames.find("removed") !=
+        rebuilt.removedSparkNames.end());
+    BOOST_CHECK_EQUAL(rebuilt.activeDisablingSporks.size(), 1U);
+
+    // Removed names are undo data. A replay against already-applied name state
+    // cannot rediscover an expiry entry, but a later disconnect must restore it.
+    std::string restoredAddress;
+    BOOST_CHECK(sparkNameManager->RemoveBlock(index));
+    BOOST_CHECK(
+        sparkNameManager->GetSparkAddress("removed", restoredAddress));
+    BOOST_CHECK_EQUAL(restoredAddress, "address");
+    sparkNameManager->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(lTag_adding)
 {
     GenerateBlocks(501);

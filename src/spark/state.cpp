@@ -481,14 +481,6 @@ bool ConnectBlockSpark(
     
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
-        // nothing to clear if no privacy data was allocated for this block yet
-        if (!fJustCheck && pindexNew->hasPrivacyData()) {
-            auto& pd = pindexNew->ensurePrivacyData();
-            pd.sparkMintedCoins.clear();
-            pd.spentLTags.clear();
-            pd.sparkSetHash.clear();
-        }
-
         if (!CheckSparkBlock(state, *pblock, pindexNew->nHeight)) {
             return false;
         }
@@ -508,24 +500,37 @@ bool ConnectBlockSpark(
             }
         }
 
-        if (!fJustCheck) {
-            // allocate privacy data only if this block actually has something to store
-            BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
-                pindexNew->ensurePrivacyData().spentLTags.insert(lTag);
-                sparkState.AddSpend(lTag.first, lTag.second);
-            }
-            if (GetBoolArg("-mobile", false)) {
-                BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
-                    pindexNew->ensurePrivacyData().ltagTxhash.insert(lTag);
-                    sparkState.AddLTagTxHash(lTag.first, lTag.second);
-                }
-            }
-        }
-        else {
+        if (fJustCheck) {
             if (isVerifyDB && activeVerifyDBContext) {
                 activeVerifyDBContext->AddBlock(pindexNew);
             }
             return true;
+        }
+
+        // Reconnecting an existing index entry rebuilds transaction-derived
+        // Spark metadata. Keep active sporks and removed Spark names: the
+        // latter also contains expiry undo data that cannot be reconstructed
+        // when replaying against an already-applied name state.
+        if (pindexNew->hasPrivacyData()) {
+            auto& pd = pindexNew->ensurePrivacyData();
+            pd.sparkMintedCoins.clear();
+            pd.spentLTags.clear();
+            pd.sparkSetHash.clear();
+            pd.sparkTxHashContext.clear();
+            pd.ltagTxhash.clear();
+            pd.addedSparkNames.clear();
+        }
+
+        // Allocate privacy data only if this block has something to store.
+        BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
+            pindexNew->ensurePrivacyData().spentLTags.insert(lTag);
+            sparkState.AddSpend(lTag.first, lTag.second);
+        }
+        if (GetBoolArg("-mobile", false)) {
+            BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
+                pindexNew->ensurePrivacyData().ltagTxhash.insert(lTag);
+                sparkState.AddLTagTxHash(lTag.first, lTag.second);
+            }
         }
 
         CHash256 hash;
