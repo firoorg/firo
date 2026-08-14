@@ -14,6 +14,7 @@
 #include "base58.h"
 
 #include <stdint.h>
+#include <utility>
 
 #include <boost/thread.hpp>
 
@@ -453,10 +454,10 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                     pindexNew->reserved[1] = diskindex.reserved[1];
                 }
 
-                {
-                    const auto& dpd = diskindex.privacyData();
+                if (diskindex.hasPrivacyData()) {
+                    auto& dpd = diskindex.ensurePrivacyData();
                     if (!dpd.IsEmpty())
-                        pindexNew->ensurePrivacyData() = dpd;
+                        pindexNew->ensurePrivacyData() = std::move(dpd);
                 }
 
                 if (fCheckPoWForAllBlocks) {
