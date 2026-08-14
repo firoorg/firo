@@ -190,6 +190,8 @@ struct CBlockIndexPrivacyData {
     std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
     std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
 
+    // Every member above must be checked here. An omitted member could be
+    // discarded when SetActiveDisablingSporks releases an empty allocation.
     bool IsEmpty() const {
         return sparkMintedCoins.empty() && sparkSetHash.empty() &&
                sparkTxHashContext.empty() && spentLTags.empty() && ltagTxhash.empty() &&
@@ -319,8 +321,11 @@ public:
     void SetActiveDisablingSporks(ActiveSporkMap sporkMap) {
         if (!sporkMap.empty())
             ensurePrivacyData().activeDisablingSporks = std::move(sporkMap);
-        else if (auto* data = m_privacyData.get())
+        else if (auto* data = m_privacyData.get()) {
             data->activeDisablingSporks.clear();
+            if (data->IsEmpty())
+                m_privacyData.reset();
+        }
     }
 
 private:

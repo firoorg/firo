@@ -89,6 +89,27 @@ BOOST_AUTO_TEST_CASE(block_index_copy_deep_copies_privacy_data)
     BOOST_CHECK_EQUAL(copy.privacyData().sparkSetHash.at(1)[0], 1);
 }
 
+BOOST_AUTO_TEST_CASE(active_sporks_preserve_lazy_privacy_ownership)
+{
+    ActiveSporkMap activeSporks;
+    activeSporks.emplace("feature", std::make_pair(10, 20));
+
+    CBlockIndex index;
+    index.SetActiveDisablingSporks(activeSporks);
+    BOOST_REQUIRE(index.hasPrivacyData());
+
+    index.SetActiveDisablingSporks({});
+    BOOST_CHECK(!index.hasPrivacyData());
+
+    index.ensurePrivacyData().sparkSetHash[1] = {1};
+    index.SetActiveDisablingSporks(activeSporks);
+    index.SetActiveDisablingSporks({});
+
+    BOOST_REQUIRE(index.hasPrivacyData());
+    BOOST_CHECK(index.privacyData().activeDisablingSporks.empty());
+    BOOST_CHECK_EQUAL(index.privacyData().sparkSetHash.at(1).size(), 1U);
+}
+
 BOOST_AUTO_TEST_CASE(disk_only_privacy_data_roundtrip_without_live_allocation)
 {
     const auto& consensus = Params().GetConsensus();
