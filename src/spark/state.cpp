@@ -266,14 +266,6 @@ bool ConnectBlockSpark(
     
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
-        // nothing to clear if no privacy data was allocated for this block yet
-        if (!fJustCheck && pindexNew->hasPrivacyData()) {
-            auto& pd = pindexNew->ensurePrivacyData();
-            pd.sparkMintedCoins.clear();
-            pd.spentLTags.clear();
-            pd.sparkSetHash.clear();
-        }
-
         if (!CheckSparkBlock(state, *pblock, pindexNew->nHeight)) {
             return false;
         }
@@ -290,21 +282,33 @@ bool ConnectBlockSpark(
             }
         }
 
-        if (!fJustCheck) {
-            // allocate privacy data only if this block actually has something to store
-            BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
-                pindexNew->ensurePrivacyData().spentLTags.insert(lTag);
-                sparkState.AddSpend(lTag.first, lTag.second);
-            }
-            if (GetBoolArg("-mobile", false)) {
-                BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
-                    pindexNew->ensurePrivacyData().ltagTxhash.insert(lTag);
-                    sparkState.AddLTagTxHash(lTag.first, lTag.second);
-                }
-            }
-        }
-        else {
+        if (fJustCheck)
             return true;
+
+        // Reconnecting an existing index entry rebuilds transaction-derived
+        // Spark metadata. Keep active sporks and removed Spark names: the
+        // latter also contains expiry undo data that cannot be reconstructed
+        // when replaying against an already-applied name state.
+        if (pindexNew->hasPrivacyData()) {
+            auto& pd = pindexNew->ensurePrivacyData();
+            pd.sparkMintedCoins.clear();
+            pd.spentLTags.clear();
+            pd.sparkSetHash.clear();
+            pd.sparkTxHashContext.clear();
+            pd.ltagTxhash.clear();
+            pd.addedSparkNames.clear();
+        }
+
+        // allocate privacy data only if this block actually has something to store
+        BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
+            pindexNew->ensurePrivacyData().spentLTags.insert(lTag);
+            sparkState.AddSpend(lTag.first, lTag.second);
+        }
+        if (GetBoolArg("-mobile", false)) {
+            BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
+                pindexNew->ensurePrivacyData().ltagTxhash.insert(lTag);
+                sparkState.AddLTagTxHash(lTag.first, lTag.second);
+            }
         }
 
         FIRO_UNUSED const auto& params = ::Params().GetConsensus();
@@ -318,21 +322,25 @@ bool ConnectBlockSpark(
             updateHash = true;
             // get previous hash of the set, if there is no such, don't write anything
             std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true);
-            if (!prev_hash.empty())
-                hash.Write(prev_hash.data(), 32);
-            else {
-                if (latestCoinId > 1) {
-                    prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true);
-                    hash.Write(prev_hash.data(), 32);
-                }
-            }
+            if (prev_hash.empty() && latestCoinId > 1)
+                prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true);
 
-            for (auto &coin : pindexNew->ensurePrivacyData().sparkMintedCoins[latestCoinId]) {
-                CDataStream serializedCoin(SER_NETWORK, 0);
-                serializedCoin << coin;
-                std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
-                hash.Write(data.data(), data.size());
-            }
+            if (prev_hash.size() == CSHA256::OUTPUT_SIZE)
+                hash.Write(prev_hash.data(), prev_hash.size());
+            else if (!prev_hash.empty())
+                LogPrintf("ConnectBlockSpark: ignoring malformed previous set hash of size %u\n", static_cast<unsigned int>(prev_hash.size()));
+
+            const auto& mintedCoins = pindexNew->privacyData().sparkMintedCoins;
+            const auto mintedCoinsIt = mintedCoins.find(latestCoinId);
+            if (mintedCoinsIt != mintedCoins.end()) {
+                for (const auto &coin : mintedCoinsIt->second) {
+                    CDataStream serializedCoin(SER_NETWORK, 0);
+                    serializedCoin << coin;
+                    std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
+                    hash.Write(data.data(), data.size());
+                }
+            } else
+                LogPrintf("ConnectBlockSpark: missing minted coins for group %d\n", latestCoinId);
         }
 
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
@@ -991,7 +999,10 @@ bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash)
     return GetOutPoint(outPoint, coin);
 }
 
-bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block) {
+bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block, CTransactionRef* txOut) {
+    if (txOut)
+        txOut->reset();
+
     spark::Coin txCoin(coin.params);
     // cycle transaction hashes, looking for this coin
     for (CTransactionRef tx : block.vtx){
@@ -1006,6 +1017,8 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
                 }
                 if (coin == txCoin) {
                     outPoint = COutPoint(tx->GetHash(), nIndex);
+                    if (txOut)
+                        *txOut = tx;
                     return true;
                 }
             }
@@ -1199,11 +1212,10 @@ void CSparkState::AddMintsToStateAndBlockIndex(
         pd.sparkMintedCoins[latestCoinId].push_back(mint);
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
-            GetOutPointFromBlock(outPoint, mint, *pblock);
             CTransactionRef tx;
-            for (CTransactionRef itr : pblock->vtx) {
-                if (outPoint.hash == itr->GetHash())
-                    tx = itr;
+            if (!GetOutPointFromBlock(outPoint, mint, *pblock, &tx)) {
+                LogPrintf("AddMintsToStateAndBlockIndex: unable to locate Spark mint transaction in block %s\n", pblock->GetHash().ToString());
+                continue;
             }
             pd.sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
         }
@@ -1319,10 +1331,13 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
             // roll back lastBlock to previous position
             assert(coinGroup.lastBlock == index);
 
-            do {
+            while (true) {
                 assert(coinGroup.lastBlock != coinGroup.firstBlock);
                 coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-            } while (coinGroup.lastBlock->privacyData().sparkMintedCoins.count(coins.first) == 0);
+                const auto& mintedCoins = coinGroup.lastBlock->privacyData().sparkMintedCoins;
+                if (mintedCoins.find(coins.first) != mintedCoins.end())
+                    break;
+            }
         }
     }
 

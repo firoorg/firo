@@ -47,8 +47,9 @@ bool CSparkNameManager::AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntri
 
     for (const auto &entry : pd.addedSparkNames) {
         std::string upperName = ToUpper(entry.first);
-        if (sparkNames.count(upperName) > 0 && fBackupRewrittenEntries)
-            pd.removedSparkNames[upperName] = sparkNames[upperName];
+        const auto existing = sparkNames.find(upperName);
+        if (existing != sparkNames.end() && fBackupRewrittenEntries)
+            pd.removedSparkNames[upperName] = existing->second;
         sparkNames[upperName] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = upperName;
         uiInterface.NotifySparkNameAdded(entry.second);
