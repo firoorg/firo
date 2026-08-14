@@ -547,9 +547,12 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
 
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins.
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
- *  can fail if those validity checks fail (among other reasons). */
+ *  can fail if those validity checks fail (among other reasons).
+ *  isVerifyDB must be set when reconnecting blocks against a throwaway coins
+ *  view (CVerifyDB): it skips updates to global state that VerifyDB's
+ *  in-memory disconnects never roll back. */
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& coins,
-                  const CChainParams& chainparams, bool fJustCheck = false);
+                  const CChainParams& chainparams, bool fJustCheck = false, bool isVerifyDB = false);
 
 /** Reprocess a number of blocks to try and get on the correct chain again **/
 bool DisconnectBlocks(int blocks);

@@ -247,6 +247,53 @@ BOOST_AUTO_TEST_CASE(mempool)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(verifydb_preserves_spark_state)
+{
+    GenerateBlocks(501);
+
+    // Two separate mint blocks so a reconnect that re-ran the Spark connect
+    // logic would hit the last-block ordering assertion, plus a spend block
+    // whose lTag is already in state.
+    std::vector<CMutableTransaction> mintTxs;
+    GenerateMints({50 * COIN, 60 * COIN}, mintTxs);
+    BOOST_REQUIRE(GenerateBlock(mintTxs));
+    GenerateBlocks(5);
+
+    std::vector<CMutableTransaction> moreMintTxs;
+    GenerateMints({70 * COIN}, moreMintTxs);
+    BOOST_REQUIRE(GenerateBlock(moreMintTxs));
+    GenerateBlocks(1);
+
+    const CTransaction spendTx = GenerateSparkSpend({30 * COIN}, {}, nullptr);
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(spendTx)}));
+    GenerateBlocks(2);
+
+    const std::size_t coinsBefore = sparkState->GetMints().size();
+    const std::size_t spendsBefore = sparkState->GetSpends().size();
+    BOOST_REQUIRE(coinsBefore >= 3);
+    BOOST_REQUIRE_EQUAL(spendsBefore, 1U);
+    spark::CSparkState::SparkCoinGroupInfo groupBefore;
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(1, groupBefore));
+
+    // -checklevel=4 verification disconnects recent blocks against a throwaway
+    // UTXO view and reconnects them; global Spark state is not rewound in the
+    // process and must come out of the reconnection untouched.
+    FlushStateToDisk(); // VerifyDB reads the database view, as at startup
+    BOOST_CHECK(CVerifyDB().VerifyDB(::Params(), pcoinsdbview, 4, 20));
+
+    BOOST_CHECK_EQUAL(sparkState->GetMints().size(), coinsBefore);
+    BOOST_CHECK_EQUAL(sparkState->GetSpends().size(), spendsBefore);
+    spark::CSparkState::SparkCoinGroupInfo groupAfter;
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(1, groupAfter));
+    BOOST_CHECK_EQUAL(groupAfter.nCoins, groupBefore.nCoins);
+    BOOST_CHECK(groupAfter.firstBlock == groupBefore.firstBlock);
+    BOOST_CHECK(groupAfter.lastBlock == groupBefore.lastBlock);
+
+    // the mempool test case class shadows the global mempool here
+    ::mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(add_remove_block)
 {
     GenerateBlocks(501);
