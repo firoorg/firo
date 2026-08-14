@@ -37,6 +37,24 @@ void AddTxToView(CTransaction const & tx, int height, CCoinsViewCache & viewCach
 }
 }
 
+BOOST_AUTO_TEST_CASE(block_index_copy_deep_copies_privacy_data)
+{
+    CBlockIndex original;
+    original.nHeight = 42;
+    original.reserved[0] = uint256S("01");
+    original.ensurePrivacyData().sparkSetHash[1] = {1, 2, 3};
+
+    CBlockIndex copy(original);
+    original.nHeight = 43;
+    original.reserved[0] = uint256S("02");
+    original.ensurePrivacyData().sparkSetHash[1][0] = 9;
+
+    BOOST_CHECK_EQUAL(copy.nHeight, 42);
+    BOOST_CHECK(copy.reserved[0] == uint256S("01"));
+    BOOST_REQUIRE_EQUAL(copy.privacyData().sparkSetHash.at(1).size(), 3U);
+    BOOST_CHECK_EQUAL(copy.privacyData().sparkSetHash.at(1)[0], 1);
+}
+
 BOOST_AUTO_TEST_CASE(dbindexhelper_coinbase)
 {
     //MTP Testnet: height: 7980, txid: 02fdd0c09e5e84c4fb2207f9a5b9bbdb181c71436660865ee0ce36e37fff3492

@@ -211,6 +211,38 @@ struct CBlockIndexPrivacyData {
     }
 };
 
+/** Pointer-sized lazy storage with value semantics for block-index copies. */
+class CBlockIndexPrivacyDataPtr
+{
+public:
+    CBlockIndexPrivacyDataPtr() = default;
+
+    CBlockIndexPrivacyDataPtr(const CBlockIndexPrivacyDataPtr& other)
+    {
+        if (other.data)
+            data = std::make_unique<CBlockIndexPrivacyData>(*other.data);
+    }
+
+    CBlockIndexPrivacyDataPtr(CBlockIndexPrivacyDataPtr&&) noexcept = default;
+    CBlockIndexPrivacyDataPtr& operator=(CBlockIndexPrivacyDataPtr&&) noexcept = default;
+    CBlockIndexPrivacyDataPtr& operator=(const CBlockIndexPrivacyDataPtr&) = delete;
+
+    const CBlockIndexPrivacyData* get() const { return data.get(); }
+    CBlockIndexPrivacyData* get() { return data.get(); }
+
+    CBlockIndexPrivacyData& ensure()
+    {
+        if (!data)
+            data = std::make_unique<CBlockIndexPrivacyData>();
+        return *data;
+    }
+
+    void reset() { data.reset(); }
+
+private:
+    std::unique_ptr<CBlockIndexPrivacyData> data;
+};
+
 /** The block chain is a tree shaped structure starting with the
  * genesis block at the root, with each block potentially having multiple
  * candidates to be the next block. A blockindex may have multiple pprev pointing
@@ -284,16 +316,15 @@ public:
     // must be written (the latter allocates the struct on first call).
     const CBlockIndexPrivacyData& privacyData() const {
         static const CBlockIndexPrivacyData empty;
-        return m_privacyData ? *m_privacyData : empty;
+        const auto* data = m_privacyData.get();
+        return data ? *data : empty;
     }
 
     CBlockIndexPrivacyData& ensurePrivacyData() {
-        if (!m_privacyData)
-            m_privacyData = std::make_unique<CBlockIndexPrivacyData>();
-        return *m_privacyData;
+        return m_privacyData.ensure();
     }
 
-    bool hasPrivacyData() const { return bool(m_privacyData); }
+    bool hasPrivacyData() const { return m_privacyData.get() != nullptr; }
 
     //! Assign the active disabling spork map without forcing allocation of the
     //! privacy data structure for an empty map.  Almost every block in the evo
@@ -302,12 +333,12 @@ public:
     void SetActiveDisablingSporks(ActiveSporkMap sporkMap) {
         if (!sporkMap.empty())
             ensurePrivacyData().activeDisablingSporks = std::move(sporkMap);
-        else if (m_privacyData)
-            m_privacyData->activeDisablingSporks.clear();
+        else if (auto* data = m_privacyData.get())
+            data->activeDisablingSporks.clear();
     }
 
 private:
-    std::unique_ptr<CBlockIndexPrivacyData> m_privacyData;
+    CBlockIndexPrivacyDataPtr m_privacyData;
 
 public:
     void SetNull()
@@ -370,35 +401,8 @@ public:
         }
     }
 
-    CBlockIndex(const CBlockIndex& other)
-        : phashBlock(other.phashBlock)
-        , pprev(other.pprev)
-        , pskip(other.pskip)
-        , nHeight(other.nHeight)
-        , nFile(other.nFile)
-        , nDataPos(other.nDataPos)
-        , nUndoPos(other.nUndoPos)
-        , nChainWork(other.nChainWork)
-        , nTx(other.nTx)
-        , nChainTx(other.nChainTx)
-        , nStatus(other.nStatus)
-        , nVersion(other.nVersion)
-        , hashMerkleRoot(other.hashMerkleRoot)
-        , nTime(other.nTime)
-        , nBits(other.nBits)
-        , nNonce(other.nNonce)
-        , nNonce64(other.nNonce64)
-        , mix_hash(other.mix_hash)
-        , nVersionMTP(other.nVersionMTP)
-        , mtpHashValue(other.mtpHashValue)
-        , nSequenceId(other.nSequenceId)
-        , nTimeMax(other.nTimeMax)
-    {
-        reserved[0] = other.reserved[0];
-        reserved[1] = other.reserved[1];
-        if (other.m_privacyData)
-            m_privacyData = std::make_unique<CBlockIndexPrivacyData>(*other.m_privacyData);
-    }
+    CBlockIndex(const CBlockIndex&) = default;
+    CBlockIndex& operator=(const CBlockIndex&) = delete;
 
     CDiskBlockPos GetBlockPos() const {
         CDiskBlockPos ret;
