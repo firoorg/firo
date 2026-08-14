@@ -7,8 +7,12 @@
 #include "test_bitcoin.h"
 
 #include <climits>
+#include <map>
 
 #include <boost/test/unit_test.hpp>
+
+extern CCriticalSection cs_args;
+extern std::map<std::string, std::string> mapArgs;
 
 namespace std
 {
@@ -31,6 +35,34 @@ static std::vector<unsigned char> random_char_vector() {
 
     return result;
 }
+
+class ScopedMobileMode
+{
+public:
+    ScopedMobileMode()
+    {
+        LOCK(cs_args);
+        const auto it = mapArgs.find("-mobile");
+        if (it != mapArgs.end()) {
+            wasSet = true;
+            previous = it->second;
+        }
+        mapArgs["-mobile"] = "1";
+    }
+
+    ~ScopedMobileMode()
+    {
+        LOCK(cs_args);
+        if (wasSet)
+            mapArgs["-mobile"] = previous;
+        else
+            mapArgs.erase("-mobile");
+    }
+
+private:
+    bool wasSet{false};
+    std::string previous;
+};
 
 class SparkStateTests : public SparkTestingSetup
 {
@@ -149,6 +181,28 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     BOOST_CHECK_EQUAL(1, sparkState->GetLatestCoinID());
 
     sparkState->Reset();
+    mempool.clear();
+}
+
+BOOST_AUTO_TEST_CASE(mobile_missing_mint_context_is_ignored)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> txs;
+    const auto mintMetas = GenerateMints({1 * COIN}, txs);
+    BOOST_REQUIRE_EQUAL(mintMetas.size(), 1U);
+    const auto mintMeta = mintMetas.front();
+    const auto mint = pwalletMain->sparkWallet->getCoinFromMeta(mintMeta);
+    CBlockIndex *index = GenerateBlock({});
+    BOOST_REQUIRE(index != nullptr);
+    CBlock block = GetCBlock(index);
+    PopulateSparkTxInfo(block, {mint}, {});
+
+    ScopedMobileMode mobileMode;
+    sparkState->AddMintsToStateAndBlockIndex(index, &block);
+
+    BOOST_CHECK(sparkState->HasCoin(mint));
+    BOOST_CHECK(index->privacyData().sparkTxHashContext.empty());
     mempool.clear();
 }
 

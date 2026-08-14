@@ -1491,7 +1491,10 @@ bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash)
     return GetOutPoint(outPoint, coin);
 }
 
-bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block) {
+bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block, CTransactionRef* txOut) {
+    if (txOut)
+        txOut->reset();
+
     spark::Coin txCoin(coin.params);
     // cycle transaction hashes, looking for this coin
     for (CTransactionRef tx : block.vtx){
@@ -1506,6 +1509,8 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
                 }
                 if (coin == txCoin) {
                     outPoint = COutPoint(tx->GetHash(), nIndex);
+                    if (txOut)
+                        *txOut = tx;
                     return true;
                 }
             }
@@ -1754,11 +1759,10 @@ void CSparkState::AddMintsToStateAndBlockIndex(
         pd.sparkMintedCoins[latestCoinId].push_back(mint);
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
-            GetOutPointFromBlock(outPoint, mint, *pblock);
             CTransactionRef tx;
-            for (CTransactionRef itr : pblock->vtx) {
-                if (outPoint.hash == itr->GetHash())
-                    tx = itr;
+            if (!GetOutPointFromBlock(outPoint, mint, *pblock, &tx)) {
+                LogPrintf("AddMintsToStateAndBlockIndex: unable to locate Spark mint transaction in block %s\n", pblock->GetHash().ToString());
+                continue;
             }
             pd.sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
         }
