@@ -319,8 +319,11 @@ public:
     void SetActiveDisablingSporks(ActiveSporkMap sporkMap) {
         if (!sporkMap.empty())
             ensurePrivacyData().activeDisablingSporks = std::move(sporkMap);
-        else if (auto* data = m_privacyData.get())
+        else if (auto* data = m_privacyData.get()) {
             data->activeDisablingSporks.clear();
+            if (data->IsEmpty())
+                m_privacyData.reset();
+        }
     }
 
 private:
