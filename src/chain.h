@@ -167,26 +167,15 @@ enum BlockStatus: uint32_t {
  *
  * Most blocks contain no privacy transactions, so this struct is heap-allocated
  * on demand (see CBlockIndex::ensurePrivacyData / privacyData).  In the live
- * block index only blocks that actually carry sigma/lelantus/spark coins or
- * spork/spark-name records allocate it, which keeps the common-case entry small.
+ * block index only blocks that actually carry Spark coins, sporks, or Spark-name
+ * records allocate it, which keeps the common-case entry small.
  *
- * This does not hold for CDiskBlockIndex: its SerializationOp allocates
- * unconditionally for any block at or past the relevant protocol start height,
- * on both read and write.  Those objects are short-lived temporaries, and
- * LoadBlockIndexGuts drops empty privacy data rather than copying it into the
- * live index, so the saving is preserved.
+ * CDiskBlockIndex keeps retired privacy-protocol fields directly so old records
+ * remain readable without loading that unused data into the live block index.
+ * Its privacy-data allocations are short-lived, and LoadBlockIndexGuts drops
+ * empty privacy data rather than copying it into the live index.
  */
 struct CBlockIndexPrivacyData {
-    // Sigma
-    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
-    sigma::spend_info_container sigmaSpentSerials;
-
-    // Lelantus
-    std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>> lelantusMintedPubCoins;
-    std::unordered_map<GroupElement, lelantus::MintValueData> lelantusMintData;
-    std::map<int, std::vector<unsigned char>> anonymitySetHash;
-    std::unordered_map<Scalar, int> lelantusSpentSerials;
-
     // Spark
     std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
     std::map<int, std::vector<unsigned char>> sparkSetHash;
@@ -202,10 +191,7 @@ struct CBlockIndexPrivacyData {
     std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
 
     bool IsEmpty() const {
-        return sigmaMintedPubCoins.empty() && sigmaSpentSerials.empty() &&
-               lelantusMintedPubCoins.empty() && lelantusMintData.empty() &&
-               anonymitySetHash.empty() && lelantusSpentSerials.empty() &&
-               sparkMintedCoins.empty() && sparkSetHash.empty() &&
+        return sparkMintedCoins.empty() && sparkSetHash.empty() &&
                sparkTxHashContext.empty() && spentLTags.empty() && ltagTxhash.empty() &&
                activeDisablingSporks.empty() && addedSparkNames.empty() && removedSparkNames.empty();
     }
@@ -310,7 +296,7 @@ public:
     //! (memory only) Maximum nTime in the chain upto and including this block.
     unsigned int nTimeMax;
 
-    // Privacy-protocol data (sigma, lelantus, spark, sporks, spark names).
+    // Live privacy-protocol data (Spark, sporks, Spark names).
     // Allocated on demand: null for blocks that carry no privacy transactions.
     // Use privacyData() for read-only access and ensurePrivacyData() when a field
     // must be written (the latter allocates the struct on first call).
@@ -536,12 +522,24 @@ public:
     uint256 hashPrev;
     int nDiskBlockVersion;
 
-    // Zerocoin legacy fields - only meaningful in the disk format; not loaded
-    // into the live in-memory block index (see CBlockTreeDB::LoadBlockIndexGuts
-    // in txdb.cpp, which has never copied these across).
+    // Retired privacy-protocol fields are kept only in the disk format. They are
+    // accepted when loading old indexes but are not copied into the live block
+    // index. WriteBatchSync carries them forward when rewriting historical
+    // records so an unrelated metadata update does not make a downgrade lossy.
+    // Zerocoin
     std::map<std::pair<int,int>, std::vector<CBigNum>> mintedPubCoins;
     std::map<std::pair<int,int>, std::pair<CBigNum,int>> accumulatorChanges;
     std::set<CBigNum> spentSerials;
+
+    // Sigma
+    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
+    sigma::spend_info_container sigmaSpentSerials;
+
+    // Lelantus
+    std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>> lelantusMintedPubCoins;
+    std::unordered_map<GroupElement, lelantus::MintValueData> lelantusMintData;
+    std::map<int, std::vector<unsigned char>> anonymitySetHash;
+    std::unordered_map<Scalar, int> lelantusSpentSerials;
 
     CDiskBlockIndex() {
         hashPrev = uint256();
@@ -552,6 +550,19 @@ public:
     explicit CDiskBlockIndex(const CBlockIndex* pindex) : CBlockIndex(*pindex) {
         hashPrev = (pprev ? pprev->GetBlockHash() : uint256());
         nDiskBlockVersion = 0;
+    }
+
+    void TakeDiskOnlyPrivacyData(CDiskBlockIndex&& other)
+    {
+        mintedPubCoins = std::move(other.mintedPubCoins);
+        accumulatorChanges = std::move(other.accumulatorChanges);
+        spentSerials = std::move(other.spentSerials);
+        sigmaMintedPubCoins = std::move(other.sigmaMintedPubCoins);
+        sigmaSpentSerials = std::move(other.sigmaSpentSerials);
+        lelantusMintedPubCoins = std::move(other.lelantusMintedPubCoins);
+        lelantusMintData = std::move(other.lelantusMintData);
+        anonymitySetHash = std::move(other.anonymitySetHash);
+        lelantusSpentSerials = std::move(other.lelantusSpentSerials);
     }
 
     ADD_SERIALIZE_METHODS;
@@ -602,34 +613,32 @@ public:
         }
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSigmaStartBlock) {
-            auto& pd = ensurePrivacyData();
-            READWRITE(pd.sigmaMintedPubCoins);
-            READWRITE(pd.sigmaSpentSerials);
+            READWRITE(sigmaMintedPubCoins);
+            READWRITE(sigmaSpentSerials);
         }
 
         if (!(s.GetType() & SER_GETHASH)
                 && nHeight >= params.nLelantusStartBlock
                 && nVersion >= LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
-            auto& pd = ensurePrivacyData();
             if (nVersion == LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
                 std::map<int, std::vector<lelantus::PublicCoin>> lelantusPubCoins;
                 READWRITE(lelantusPubCoins);
                 for (auto& itr : lelantusPubCoins) {
                     if (!itr.second.empty()) {
                         for (auto& coin : itr.second)
-                            pd.lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin, uint256()));
+                            lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin, uint256()));
                     }
                 }
             } else
-                READWRITE(pd.lelantusMintedPubCoins);
+                READWRITE(lelantusMintedPubCoins);
             if (GetBoolArg("-mobile", false)) {
-                READWRITE(pd.lelantusMintData);
+                READWRITE(lelantusMintData);
             }
 
-            READWRITE(pd.lelantusSpentSerials);
+            READWRITE(lelantusSpentSerials);
 
             if (nHeight >= params.nLelantusFixesStartBlock)
-                READWRITE(pd.anonymitySetHash);
+                READWRITE(anonymitySetHash);
         }
 
         if (!(s.GetType() & SER_GETHASH)
