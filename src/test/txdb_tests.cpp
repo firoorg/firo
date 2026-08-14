@@ -1,8 +1,12 @@
 #include "txdb.h"
 #include "uint256.h"
 #include "random.h"
+#include "pow.h"
 #include "test/test_bitcoin.h"
 #include "base58.h"
+
+#include <map>
+#include <memory>
 
 #include <boost/assert.hpp>
 #include <boost/test/unit_test.hpp>
@@ -53,6 +57,102 @@ BOOST_AUTO_TEST_CASE(block_index_copy_deep_copies_privacy_data)
     BOOST_CHECK(copy.reserved[0] == uint256S("01"));
     BOOST_REQUIRE_EQUAL(copy.privacyData().sparkSetHash.at(1).size(), 3U);
     BOOST_CHECK_EQUAL(copy.privacyData().sparkSetHash.at(1)[0], 1);
+}
+
+BOOST_AUTO_TEST_CASE(disk_only_privacy_data_roundtrip_without_live_allocation)
+{
+    const auto& consensus = Params().GetConsensus();
+    const int legacyHeight = consensus.nEvoSporkStopBlock;
+    BOOST_REQUIRE(legacyHeight >= consensus.nLelantusFixesStartBlock);
+    BOOST_REQUIRE(legacyHeight < consensus.nSparkStartBlock);
+
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 1;
+    header.nBits = UintToArith256(consensus.powLimit).GetCompact();
+    while (!CheckProofOfWork(header.GetHash(), header.nBits, consensus))
+        ++header.nNonce;
+
+    const uint256 blockHash = header.GetHash();
+    CBlockIndex liveIndex(header);
+    liveIndex.phashBlock = &blockHash;
+    liveIndex.nHeight = legacyHeight;
+
+    CDiskBlockIndex original(&liveIndex);
+    original.mintedPubCoins[{1, 2}].push_back(CBigNum(11));
+    original.sigmaMintedPubCoins[{sigma::CoinDenomination::SIGMA_DENOM_1, 3}] = {};
+    original.lelantusMintedPubCoins[4] = {};
+    original.anonymitySetHash[5] = {6, 7, 8};
+
+    CDataStream encoded(SER_DISK, CLIENT_VERSION);
+    encoded << original;
+
+    CDiskBlockIndex decoded;
+    encoded >> decoded;
+
+    BOOST_CHECK(!decoded.hasPrivacyData());
+    BOOST_CHECK_EQUAL(decoded.mintedPubCoins.size(), 1U);
+    BOOST_CHECK_EQUAL(decoded.sigmaMintedPubCoins.size(), 1U);
+    BOOST_CHECK_EQUAL(decoded.lelantusMintedPubCoins.size(), 1U);
+    BOOST_CHECK(decoded.anonymitySetHash.at(5) == std::vector<unsigned char>({6, 7, 8}));
+
+    CBlockTreeDB db(1 << 20, true, true);
+    BOOST_REQUIRE(db.Write(std::make_pair('b', blockHash), decoded));
+
+    std::map<uint256, std::unique_ptr<CBlockIndex>> loadedIndexes;
+    auto insertBlockIndex = [&loadedIndexes](const uint256& hash) -> CBlockIndex* {
+        if (hash.IsNull())
+            return nullptr;
+
+        auto& index = loadedIndexes[hash];
+        if (!index) {
+            index = std::make_unique<CBlockIndex>();
+            index->phashBlock = &loadedIndexes.find(hash)->first;
+        }
+        return index.get();
+    };
+
+    BOOST_REQUIRE(db.LoadBlockIndexGuts(insertBlockIndex));
+    BOOST_REQUIRE_EQUAL(loadedIndexes.size(), 1U);
+    BOOST_CHECK(!loadedIndexes.at(blockHash)->hasPrivacyData());
+}
+
+BOOST_AUTO_TEST_CASE(block_index_rewrite_preserves_disk_only_privacy_data)
+{
+    const auto& consensus = Params().GetConsensus();
+    const int legacyHeight = consensus.nEvoSporkStopBlock;
+    BOOST_REQUIRE(legacyHeight >= consensus.nLelantusFixesStartBlock);
+    BOOST_REQUIRE(legacyHeight < consensus.nLelantusGracefulPeriod);
+
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 1;
+    header.nBits = 1;
+    header.nNonce = 1;
+    const uint256 blockHash = header.GetHash();
+
+    CBlockIndex liveIndex(header);
+    liveIndex.phashBlock = &blockHash;
+    liveIndex.nHeight = legacyHeight;
+    liveIndex.nTx = 1;
+
+    CDiskBlockIndex storedIndex(&liveIndex);
+    storedIndex.mintedPubCoins[{1, 2}].push_back(CBigNum(11));
+    storedIndex.anonymitySetHash[5] = {6, 7, 8};
+    BOOST_REQUIRE(storedIndex.GetBlockHash() == blockHash);
+
+    CBlockTreeDB db(1 << 20, true, true);
+    const auto key = std::make_pair('b', blockHash);
+    BOOST_REQUIRE(db.Write(key, storedIndex));
+
+    liveIndex.nTx = 2;
+    BOOST_REQUIRE(db.WriteBatchSync({}, 0, {&liveIndex}));
+
+    CDiskBlockIndex rewrittenIndex;
+    BOOST_REQUIRE(db.Read(key, rewrittenIndex));
+    BOOST_CHECK_EQUAL(rewrittenIndex.nTx, 2U);
+    BOOST_CHECK_EQUAL(rewrittenIndex.mintedPubCoins.size(), 1U);
+    BOOST_CHECK(rewrittenIndex.anonymitySetHash.at(5) == std::vector<unsigned char>({6, 7, 8}));
 }
 
 BOOST_AUTO_TEST_CASE(dbindexhelper_coinbase)

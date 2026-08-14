@@ -193,8 +193,22 @@ bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockF
         batch.Write(std::make_pair(DB_BLOCK_FILES, it->first), *it->second);
     }
     batch.Write(DB_LAST_BLOCK, nLastFile);
+    const auto& consensus = Params().GetConsensus();
     for (std::vector<const CBlockIndex*>::const_iterator it=blockinfo.begin(); it != blockinfo.end(); it++) {
-        batch.Write(std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash()), CDiskBlockIndex(*it));
+        const auto key = std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash());
+        CDiskBlockIndex diskIndex(*it);
+
+        // Preserve retired protocol data when an existing historical record is
+        // dirtied for an unrelated reason. No such data is valid at or after the
+        // Lelantus graceful-period height, so current tip writes avoid this read.
+        if ((*it)->nHeight < consensus.nLelantusGracefulPeriod && Exists(key)) {
+            CDiskBlockIndex storedIndex;
+            if (!Read(key, storedIndex))
+                return error("WriteBatchSync: failed to read existing block index %s", (*it)->GetBlockHash().ToString());
+            diskIndex.TakeDiskOnlyPrivacyData(std::move(storedIndex));
+        }
+
+        batch.Write(key, diskIndex);
     }
     return WriteBatch(batch, true);
 }
