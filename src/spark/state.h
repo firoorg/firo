@@ -72,6 +72,8 @@ bool ConnectBlockSpark(
 
 void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
 
+/** Drop a cached mempool-acceptance proof result when the tx leaves the mempool. */
+void EraseCheckedSparkSpendTransaction(const uint256& hashTx);
 
 bool CheckSparkTransaction(
         const CTransaction &tx,
@@ -82,9 +84,6 @@ bool CheckSparkTransaction(
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
         CSparkTxInfo* sparkTxInfo);
-
-// call this on shutdown
-void ShutdownSparkState();
 
 bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin);
 bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash);

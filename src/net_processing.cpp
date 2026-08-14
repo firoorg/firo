@@ -655,8 +655,8 @@ bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRE
 
     AddToCompactExtraTransactions(tx);
 
-    LogPrint("mempool", "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
-             mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
+    LogPrintWithLock(cs_main, "mempool", "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
+                     mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
     return true;
 }
 
@@ -1214,7 +1214,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             {
                 // Send stream from relay memory
                 bool pushed = false;
-                {
+                if (inv.type == MSG_TX || inv.type == MSG_DANDELION_TX) {
                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                     auto mi = mapRelay.find(inv.hash);
                     if (mi != mapRelay.end()) {

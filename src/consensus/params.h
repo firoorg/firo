@@ -276,6 +276,9 @@ struct Params {
 
     int nSparkStartBlock;
 
+    // Activation height for the single-input Spark spend rule.
+    int nSparkSingleInputStartBlock;
+
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
     int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers

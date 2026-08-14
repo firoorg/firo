@@ -146,6 +146,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/recentrequeststablemodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/recover.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcconsole.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rosenbridge.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
@@ -167,6 +168,8 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macdockiconhandler.mm>
   $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnotificationhandler.h>
   $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnotificationhandler.mm>
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnapinhibitor.h>
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnapinhibitor.mm>
   $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/winshutdownmonitor.cpp>
   $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/winshutdownmonitor.h>
 )
@@ -204,6 +207,7 @@ target_link_libraries(firoqt
     Qt6::Network
   PRIVATE
     core_interface
+    warn_interface
     firo_cli
     firo_node
     Boost::headers   
@@ -315,6 +319,8 @@ target_link_libraries(firo-qt
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
     $<TARGET_NAME_IF_EXISTS:libevent::core>
     ${TOR_LIBRARY}
+  PRIVATE
+    warn_interface
 )
 
 # Add macOS-specific frameworks
@@ -362,6 +368,7 @@ if(WITH_MULTIPROCESS)
   )
   target_link_libraries(bitcoin-gui
     core_interface
+    warn_interface
     firoqt
     firo_node
     bitcoin_ipc

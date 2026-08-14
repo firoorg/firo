@@ -22,7 +22,10 @@ class SparkMintSpendTest(BitcoinTestFramework):
         sparkAddress = self.nodes[0].getsparkdefaultaddress()[0]
 
         mint_trans = list()
-        mint_trans.append(self.nodes[0].mintspark({sparkAddress: {"amount": 1, "memo": "Test memo"}}))
+        # Mint one large coin that can alone cover later spend amount + fee
+        # (multi-input Spark spends are disabled), plus a second mint for the
+        # confirmation / balance accounting checks below.
+        mint_trans.append(self.nodes[0].mintspark({sparkAddress: {"amount": 5, "memo": "Test memo"}}))
         mint_trans.append(self.nodes[0].mintspark({sparkAddress: {"amount": 2, "memo":"Test memo"}}))
 
         # Get last added transaction and fee for it
@@ -31,7 +34,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
         # fee in transaction is negative
         fee = -(info['fee'] * 2)
         cur_bal = self.nodes[0].getbalance()
-        start_bal = float(start_bal) - float(fee) - 3
+        start_bal = float(start_bal) - float(fee) - 7
         start_bal = Decimal(format(start_bal, '.8f'))
 
         assert start_bal == cur_bal, \

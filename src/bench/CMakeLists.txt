@@ -25,6 +25,7 @@ add_executable(bench_firo
 
 target_link_libraries(bench_firo
   core_interface
+  warn_interface
   firo_node
   Boost::headers
 )

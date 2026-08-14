@@ -811,7 +811,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
     return true;
 }
 
-std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>>& pend, bool ban)
+std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban)
 {
     auto llmqType = Params().GetConsensus().llmqForInstantSend;
 
@@ -880,7 +880,7 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
         auto nodeId = p.second.first;
         auto& islock = p.second.second;
 
-        if (batchVerifier.badMessages.count(hash)) {
+        if (batchVerifier.badSources.count(nodeId) || batchVerifier.badMessages.count(hash)) {
             LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: invalid sig in islock, peer=%d\n", __func__,
                      islock.txid.ToString(), hash.ToString(), nodeId);
             badISLocks.emplace(hash);

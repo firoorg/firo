@@ -23,15 +23,13 @@ AutoMintSparkDialog::AutoMintSparkDialog(AutoMintSparkMode mode, QWidget *parent
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
 
     ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Make Private"));
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
 }
 
 AutoMintSparkDialog::~AutoMintSparkDialog()
 {
-    if (sparkModel) {
-        LEAVE_CRITICAL_SECTION(sparkModel->cs);
-    }
+    sparkModelLock.reset();
 
     LEAVE_CRITICAL_SECTION(pwalletMain->cs_wallet);
     LEAVE_CRITICAL_SECTION(cs_main);
@@ -107,10 +105,10 @@ void AutoMintSparkDialog::reject()
  * @brief Attach a WalletModel to the dialog and configure UI based on wallet state.
  *
  * Sets the dialog's internal model and resolves its SparkModel. If a SparkModel is found,
- * this function acquires the SparkModel critical section (ENTER_CRITICAL_SECTION on
- * sparkModel->cs) and leaves it only when the dialog is destroyed. If the wallet is
+ * this function acquires the SparkModel critical section and leaves it only when the
+ * dialog is destroyed. If the wallet is
  * currently unlocked, the passphrase input, passphrase label, and lock checkbox are
- * hidden, the lock warning text is changed to "Do you want to anonymize all transparent funds?",
+ * hidden, the lock warning text asks whether to make all transparent funds private with Spark,
  * and requiredPassphase is cleared.
  *
  * This method has the side effects of:
@@ -132,13 +130,13 @@ void AutoMintSparkDialog::setModel(WalletModel *model)
         return;
     }
 
-    ENTER_CRITICAL_SECTION(sparkModel->cs);
+    sparkModelLock = std::make_unique<CCriticalBlock>(sparkModel->cs, "sparkModel->cs", __FILE__, __LINE__);
 
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
         ui->lockCheckBox->setVisible(false);
-        ui->lockWarningLabel->setText(QString(tr("Do you want to anonymize all transparent funds?")));
+        ui->lockWarningLabel->setText(QString(tr("Make all available transparent funds private with Spark?")));
 
         requiredPassphase = false;
     }
@@ -150,7 +148,7 @@ void AutoMintSparkDialog::paintEvent(QPaintEvent *event)
     painter.begin(this);
 
     if (progress != AutoMintSparkProgress::Start) {
-        auto progressMessage = progress == AutoMintSparkProgress::Unlocking ? tr("Unlocking wallet...") : tr("Anonymizing...");
+        auto progressMessage = progress == AutoMintSparkProgress::Unlocking ? tr("Unlocking wallet...") : tr("Making funds private...");
         auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
         painter.drawText(
             (width() - size.width()) / 2,

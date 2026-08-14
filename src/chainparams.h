@@ -146,4 +146,7 @@ void SelectParams(const std::string& chain);
  */
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
 
+/** Allows tests to exercise the single-input Spark consensus activation. */
+void UpdateRegtestSparkSingleInputHeight(int height);
+
 #endif // BITCOIN_CHAINPARAMS_H

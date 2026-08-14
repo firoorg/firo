@@ -73,7 +73,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QHBoxLayout" name="horizontalLayout1">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -98,7 +98,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
      </item>
      <item>
       <widget class="QFrame" name="numberofwords">
-       <layout class="QHBoxLayout" name="horizontalLayout1">
+       <layout class="QHBoxLayout" name="horizontalLayout11">
         <item>
          <widget class="QRadioButton" name="use12">
           <property name="text">
@@ -119,7 +119,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     </layout>
    </item>
    <item>
-    <spacer name="horizontalSpacer">
+    <spacer name="horizontalSpacer1">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
@@ -183,7 +183,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     </layout>
    </item>
    <item>
-    <spacer name="horizontalSpacer1">
+    <spacer name="horizontalSpacer11">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>

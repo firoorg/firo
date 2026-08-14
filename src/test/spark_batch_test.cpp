@@ -23,9 +23,9 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     auto result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, fee, nullptr);
     CTransaction spendTx(*result.tx);
 
-    // A second, larger spend has to consume both mints, so its lTag set is
-    // guaranteed to differ from the first spend's.
-    std::vector<CRecipient> recipientsB = {{GetScriptForDestination(GenerateAddress().GetID()), 25 * COIN, false}};
+    // A second, larger spend selects the 20 FIRO mint instead of the 10 FIRO
+    // mint used by the first spend, so its lTag set is guaranteed to differ.
+    std::vector<CRecipient> recipientsB = {{GetScriptForDestination(GenerateAddress().GetID()), 15 * COIN, false}};
     CAmount feeB;
     auto resultB = pwalletMain->CreateSparkSpendTransaction(recipientsB, {}, feeB, nullptr);
     CTransaction spendTxB(*resultB.tx);

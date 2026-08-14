@@ -7,6 +7,8 @@
 
 #include "amount.h"
 
+#include <functional>
+
 #include <QEvent>
 #include <QHeaderView>
 #include <QMessageBox>
@@ -35,6 +37,10 @@ QT_END_NAMESPACE
  */
 namespace GUIUtil
 {
+    /** Run a slow wallet operation on a worker while the GUI repaints.
+     * User input is excluded until completion and exceptions are rethrown. */
+    void runWalletOperation(const std::function<void()>& operation);
+
     // Create human-readable string from date
     QString dateTimeStr(const QDateTime &datetime);
     QString dateTimeStr(qint64 nTime);
@@ -43,7 +49,7 @@ namespace GUIUtil
     QFont fixedPitchFont();
 
     // Set up widgets for address and amounts
-    void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent);
+    void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool allowPaymentURI = false);
     void setupAmountWidget(QLineEdit *widget, QWidget *parent);
 
     // Parse "bitcoin:" URI into recipient object, return true on successful parsing

@@ -7,10 +7,13 @@
 #include "bitcoinaddressvalidator.h"
 #include "bitcoinunits.h"
 #include "qvalidatedlineedit.h"
+#include "rosenbridge.h"
 #include "walletmodel.h"
 
+#include "amount.h"
 #include "primitives/transaction.h"
 #include "init.h"
+#include "logging.h"
 #include "policy/policy.h"
 #include "protocol.h"
 #include "script/script.h"
@@ -42,6 +45,9 @@
 #endif
 #include <boost/scoped_array.hpp>
 
+#include <exception>
+#include <thread>
+
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QClipboard>
@@ -49,6 +55,7 @@
 #include <QDesktopServices>
 #include <QScreen>
 #include <QDoubleValidator>
+#include <QEventLoop>
 #include <QFileDialog>
 #include <QFont>
 #include <QLineEdit>
@@ -89,6 +96,34 @@ namespace GUIUtil {
 static QString stylesheetDirectory = ":css";
 static QString firoTheme = "firoTheme";
 static CCriticalSection cs_css;
+
+void runWalletOperation(const std::function<void()>& operation)
+{
+    std::exception_ptr exception;
+    QEventLoop waitLoop;
+    std::thread worker([&] {
+        try {
+            operation();
+        } catch (...) {
+            exception = std::current_exception();
+        }
+        QMetaObject::invokeMethod(&waitLoop, &QEventLoop::quit, Qt::QueuedConnection);
+    });
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    struct Cleanup {
+        std::thread& worker;
+        ~Cleanup()
+        {
+            if (worker.joinable())
+                worker.join();
+            QApplication::restoreOverrideCursor();
+        }
+    } cleanup{worker};
+    waitLoop.exec(QEventLoop::ExcludeUserInputEvents);
+    worker.join();
+    if (exception)
+        std::rethrow_exception(exception);
+}
 
 QString dateTimeStr(const QDateTime &date)
 {
@@ -132,7 +167,7 @@ static std::string DummyAddress(const CChainParams &params)
     return "";
 }
 
-void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
+void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool allowPaymentURI)
 {
     parent->setFocusProxy(widget);
 
@@ -144,7 +179,7 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent)
         QString::fromStdString(DummyAddress(Params()))) +
         QObject::tr(" or a payment code") + QObject::tr(" or a Firo spark address (e.g. pr1cjgedy25xhr4fmzx8cm5gf940v5j2482m94uaa0yguxxw2yrel0f0hyjesg77px7at47f4s3jy8hthmyr6ajhvn025yp28fyuwzvar0gcc7p27rvttn2tyl9ejwthjpaavlmy3cm3sysz)"));
 #endif
-    widget->setValidator(new BitcoinAddressEntryValidator(parent));
+    widget->setValidator(new BitcoinAddressEntryValidator(parent, allowPaymentURI));
     widget->setCheckValidator(new BitcoinAddressCheckValidator(parent));
 }
 
@@ -160,7 +195,7 @@ void setupAmountWidget(QLineEdit *widget, QWidget *parent)
 bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
 {
     // return if URI is not valid or is no firo: URI
-    if(!uri.isValid() || uri.scheme() != QString("firo"))
+    if(!uri.isValid() || uri.scheme().compare(QStringLiteral("firo"), Qt::CaseInsensitive) != 0)
         return false;
 
     SendCoinsRecipient rv;
@@ -177,39 +212,62 @@ bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
     QUrlQuery uriQuery(uri);
     QList<QPair<QString, QString> > items = uriQuery.queryItems();
 #endif
-    for (QList<QPair<QString, QString> >::iterator i = items.begin(); i != items.end(); i++)
+    static const QRegularExpression DECIMAL_AMOUNT(QStringLiteral("\\A[0-9]+(?:\\.[0-9]{1,8})?\\z"));
+    QList<QString> amounts;
+    bool opReturnSeen = false;
+    for (const auto& item : items)
     {
+        QString key = item.first;
         bool fShouldReturnFalse = false;
-        if (i->first.startsWith("req-"))
+        if (key.startsWith("req-"))
         {
-            i->first.remove(0, 4);
+            key.remove(0, 4);
             fShouldReturnFalse = true;
         }
 
-        if (i->first == "label")
+        if (key == "label")
         {
-            rv.label = i->second;
+            rv.label = item.second;
             fShouldReturnFalse = false;
         }
-        if (i->first == "message")
+        else if (key == "message")
         {
-            rv.message = i->second;
+            rv.message = item.second;
             fShouldReturnFalse = false;
         }
-        else if (i->first == "amount")
+        else if (key == "amount")
         {
-            if(!i->second.isEmpty())
-            {
-                if(!BitcoinUnits::parse(BitcoinUnits::BTC, i->second, &rv.amount))
-                {
-                    return false;
-                }
+            amounts.append(item.second);
+            fShouldReturnFalse = false;
+        }
+        else if (key == "op_return")
+        {
+            if (opReturnSeen || !RosenBridge::ParseHex(item.second, &rv.opReturnData)) {
+                return false;
             }
+            opReturnSeen = true;
             fShouldReturnFalse = false;
         }
 
         if (fShouldReturnFalse)
             return false;
+    }
+
+    if (opReturnSeen) {
+        // Rosen emits decimal FIRO. Parse exactly once to avoid treating its
+        // decimal value as an atomic-unit amount a second time.
+        if (amounts.size() != 1 || !DECIMAL_AMOUNT.match(amounts.front()).hasMatch() ||
+            !BitcoinUnits::parse(BitcoinUnits::BTC, amounts.front(), &rv.amount) ||
+            !MoneyRange(rv.amount) || rv.amount <= 0) {
+            return false;
+        }
+    } else {
+        // Preserve the historical behavior of ordinary Firo payment URIs.
+        for (const QString& amount : amounts) {
+            if (!amount.isEmpty() && !BitcoinUnits::parse(BitcoinUnits::BTC, amount, &rv.amount)) {
+                return false;
+            }
+        }
     }
     if(out)
     {
@@ -226,7 +284,7 @@ bool parseBitcoinURI(QString uri, SendCoinsRecipient *out)
     //    which will lower-case it (and thus invalidate the address).
     if(uri.startsWith("firo://", Qt::CaseInsensitive))
     {
-        uri.replace(0, 10, "firo:");
+        uri.replace(0, 7, "firo:");
     }
     QUrl uriInstance(uri);
     return parseBitcoinURI(uriInstance, out);
@@ -255,6 +313,11 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
         QString msg(QUrl::toPercentEncoding(info.message));
         ret += QString("%1message=%2").arg(paramCount == 0 ? "?" : "&").arg(msg);
         paramCount++;
+    }
+
+    if (!info.opReturnData.empty())
+    {
+        ret += QString("%1op_return=%2").arg(paramCount == 0 ? "?" : "&", RosenBridge::HexStr(info.opReturnData));
     }
 
     return ret;
@@ -420,7 +483,7 @@ bool isObscured(QWidget *w)
 
 void openDebugLogfile()
 {
-    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
+    const boost::filesystem::path pathDebug = LogInstance().m_file_path;
 
     /* Open debug.log with the associated application */
     if (boost::filesystem::exists(pathDebug))
@@ -811,7 +874,7 @@ QString formatServicesStr(quint64 mask)
 
 QString formatPingTime(double dPingTime)
 {
-    return (dPingTime == std::numeric_limits<int64_t>::max()/1e6 || dPingTime == 0) ? QObject::tr("N/A") : QString(QObject::tr("%1 ms")).arg(QString::number((int)(dPingTime * 1000), 10));
+    return (dPingTime == static_cast<double>(std::numeric_limits<int64_t>::max())/1e6 || dPingTime == 0) ? QObject::tr("N/A") : QString(QObject::tr("%1 ms")).arg(QString::number((int)(dPingTime * 1000), 10));
 }
 
 QString formatTimeOffset(int64_t nTimeOffset)

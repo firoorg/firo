@@ -27,6 +27,7 @@ set_source_files_properties(
 target_link_libraries(test_firo-qt
   PRIVATE
   core_interface
+  warn_interface
   firoqt
   firo_node
   ${TOR_LIBRARY}
@@ -77,6 +78,11 @@ endif()
 add_test(NAME test_firo-qt
   COMMAND test_firo-qt
 )
+if(UNIX AND NOT APPLE)
+  set_tests_properties(test_firo-qt PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=minimal"
+  )
+endif()
 if(WIN32 AND VCPKG_TARGET_TRIPLET)
   # On Windows, vcpkg configures Qt with `-opengl dynamic`, which makes
   # the "minimal" platform plugin unusable due to internal Qt bugs.

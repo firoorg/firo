@@ -223,7 +223,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (ptx.nVersion == 0 || ptx.nVersion > CProRegTx::CURRENT_VERSION) {
+    if (ptx.nVersion == 0 || ptx.nVersion > CProUpServTx::CURRENT_VERSION) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
     }
 
@@ -276,7 +276,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (ptx.nVersion == 0 || ptx.nVersion > CProRegTx::CURRENT_VERSION) {
+    if (ptx.nVersion == 0 || ptx.nVersion > CProUpRegTx::CURRENT_VERSION) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
     }
     if (ptx.nMode != 0) {
@@ -358,7 +358,7 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (ptx.nVersion == 0 || ptx.nVersion > CProRegTx::CURRENT_VERSION) {
+    if (ptx.nVersion == 0 || ptx.nVersion > CProUpRevTx::CURRENT_VERSION) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
     }
 

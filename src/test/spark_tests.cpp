@@ -1,7 +1,9 @@
 #include "../chainparams.h"
+#include "../batchproof_container.h"
 #include "../script/standard.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
+#include "../wallet/walletexcept.h"
 #include "../wallet/wallet.h"
 #include "../net.h"
 
@@ -54,6 +56,129 @@ public:
         }
 
         return block;
+    }
+
+    CTransaction GenerateHistoricalMultiInputSpend(
+        const std::vector<CSparkMintMeta>& selected,
+        CAmount transparentAmount)
+    {
+        BOOST_REQUIRE(selected.size() > 1U);
+
+        const auto* params = spark::Params::get_default();
+        const SpendKey spendKey = pwalletMain->sparkWallet->generateSpendKey(params);
+        const FullViewKey fullViewKey(spendKey);
+
+        CMutableTransaction tx;
+        CScript spendScript;
+        spendScript << OP_SPARKSPEND;
+        tx.vin.emplace_back(
+            COutPoint(), spendScript, std::numeric_limits<uint32_t>::max());
+        tx.vout.emplace_back(transparentAmount, script);
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_SPARK;
+        tx.vExtraPayload.clear();
+        const uint256 metadataHash = tx.GetHash();
+
+        std::vector<InputCoinData> inputs;
+        std::map<uint64_t, uint256> blockHashes;
+        std::unordered_map<uint64_t, CoverSetData> coverSetData;
+        std::unordered_map<uint64_t, std::vector<Coin>> coverSets;
+        CAmount totalInput = 0;
+
+        for (const auto& meta : selected) {
+            uint64_t groupId = meta.nId;
+            CSparkState::SparkCoinGroupInfo nextGroup;
+            if (cmp::greater(sparkState->GetLatestCoinID(), groupId) &&
+                sparkState->GetCoinGroupInfo(groupId + 1, nextGroup) &&
+                nextGroup.firstBlock->nHeight <= meta.nHeight) {
+                ++groupId;
+            }
+
+            if (!coverSetData.count(groupId)) {
+                uint256 blockHash;
+                std::vector<Coin> coverSet;
+                std::vector<unsigned char> setHash;
+                BOOST_REQUIRE(sparkState->GetCoinSetForSpend(
+                    &chainActive,
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                    groupId,
+                    blockHash,
+                    coverSet,
+                    setHash) >= 2);
+
+                CoverSetData data;
+                data.cover_set_size = coverSet.size();
+                data.cover_set_representation = setHash;
+                data.cover_set_representation.insert(
+                    data.cover_set_representation.end(),
+                    metadataHash.begin(),
+                    metadataHash.end());
+                coverSetData[groupId] = std::move(data);
+                coverSets[groupId] = std::move(coverSet);
+                blockHashes[groupId] = blockHash;
+            }
+
+            Coin coin = pwalletMain->sparkWallet->getCoinFromMeta(meta);
+            std::size_t index = 0;
+            while (index < coverSets.at(groupId).size() &&
+                   coverSets.at(groupId)[index] != coin) {
+                ++index;
+            }
+            BOOST_REQUIRE(index < coverSets.at(groupId).size());
+
+            IdentifiedCoinData identified;
+            identified.i = meta.i;
+            identified.d = meta.d;
+            identified.v = meta.v;
+            identified.k = meta.k;
+            identified.memo = meta.memo;
+            const RecoveredCoinData recovered =
+                coin.recover(fullViewKey, identified);
+
+            InputCoinData input;
+            input.cover_set_id = groupId;
+            input.index = index;
+            input.s = recovered.s;
+            input.T = recovered.T;
+            input.v = meta.v;
+            input.k = meta.k;
+            inputs.push_back(std::move(input));
+            totalInput += meta.v;
+        }
+
+        const CAmount fee = CENT;
+        BOOST_REQUIRE(totalInput > transparentAmount + fee);
+        OutputCoinData change;
+        change.address = pwalletMain->sparkWallet->getChangeAddress();
+        change.v = totalInput - transparentAmount - fee;
+        change.memo = "";
+
+        SpendTransaction spend(
+            params,
+            fullViewKey,
+            spendKey,
+            inputs,
+            coverSetData,
+            coverSets,
+            fee,
+            transparentAmount,
+            {change});
+        spend.setBlockHashes(blockHashes);
+
+        CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+        payload << spend;
+        tx.vExtraPayload.assign(payload.begin(), payload.end());
+
+        for (const auto& outCoin : spend.getOutCoins()) {
+            CDataStream encoded(SER_NETWORK, PROTOCOL_VERSION);
+            encoded << outCoin;
+            CScript mintScript;
+            mintScript << OP_SPARKSMINT;
+            mintScript.insert(mintScript.end(), encoded.begin(), encoded.end());
+            tx.vout.emplace_back(0, mintScript);
+        }
+
+        return CTransaction(tx);
     }
 
 
@@ -546,6 +671,390 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_single_input_mempool_policy)
+{
+    GenerateBlocks(200);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints =
+        GenerateMints({5 * COIN, 5 * COIN, 10 * COIN}, mintTransactions);
+    mempool.clear();
+    GenerateBlock(mintTransactions);
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> selectedMints;
+    for (const auto& mint : createdMints) {
+        if (mint.v == 5 * COIN) {
+            selectedMints.push_back(
+                pwalletMain->sparkWallet->getMintMeta(mint.k));
+        }
+    }
+    BOOST_REQUIRE_EQUAL(selectedMints.size(), 2U);
+    const CTransaction multiInputSpend(
+        GenerateHistoricalMultiInputSpend(selectedMints, 9 * COIN));
+    const SpendTransaction parsed = ParseSparkSpend(multiInputSpend);
+    BOOST_REQUIRE_EQUAL(parsed.getUsedLTags().size(), 2U);
+    mempool.clear();
+
+    // Until consensus activation, historical/block validation retains the
+    // deployed verifier so existing blocks remain reindexable.
+    CValidationState blockState;
+    CSparkTxInfo blockInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        multiInputSpend,
+        blockState,
+        multiInputSpend.GetHash(),
+        false,
+        chainActive.Height(),
+        false,
+        true,
+        &blockInfo));
+
+    GenerateBlocks(185);
+
+    // Upgraded nodes stop relaying multi-input spends immediately,
+    // without assigning peer misbehavior points.
+    CValidationState mempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        multiInputSpend,
+        mempoolState,
+        multiInputSpend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    int mempoolDoS = -1;
+    BOOST_REQUIRE(mempoolState.IsInvalid(mempoolDoS));
+    BOOST_CHECK_EQUAL(mempoolDoS, 0);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_single_input_consensus_activation)
+{
+    struct ResetActivationHeight {
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetActivationHeight;
+
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints =
+        GenerateMints({5 * COIN, 5 * COIN, 10 * COIN}, mintTransactions);
+    mempool.clear();
+    GenerateBlock(mintTransactions);
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> selectedMints;
+    for (const auto& mint : createdMints) {
+        if (mint.v == 5 * COIN) {
+            selectedMints.push_back(
+                pwalletMain->sparkWallet->getMintMeta(mint.k));
+        }
+    }
+    BOOST_REQUIRE_EQUAL(selectedMints.size(), 2U);
+    const CTransaction multiInputSpend(
+        GenerateHistoricalMultiInputSpend(selectedMints, 9 * COIN));
+    const SpendTransaction parsed = ParseSparkSpend(multiInputSpend);
+    BOOST_REQUIRE_EQUAL(parsed.getUsedLTags().size(), 2U);
+    mempool.clear();
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
+
+    const CTransaction singleInputSpend(
+        GenerateSparkSpend({4 * COIN}, {}, nullptr));
+    BOOST_REQUIRE_EQUAL(
+        ParseSparkSpend(singleInputSpend).getUsedLTags().size(), 1U);
+    mempool.clear();
+
+    CValidationState historicalState;
+    CSparkTxInfo historicalInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        multiInputSpend,
+        historicalState,
+        multiInputSpend.GetHash(),
+        false,
+        activationHeight - 1,
+        false,
+        true,
+        &historicalInfo));
+
+    CValidationState activeState;
+    CSparkTxInfo activeInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        multiInputSpend,
+        activeState,
+        multiInputSpend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &activeInfo));
+    int activeDoS = 0;
+    BOOST_REQUIRE(activeState.IsInvalid(activeDoS));
+    BOOST_CHECK_EQUAL(activeDoS, 100);
+
+    CValidationState historicalSingleState;
+    CSparkTxInfo historicalSingleInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        singleInputSpend,
+        historicalSingleState,
+        singleInputSpend.GetHash(),
+        false,
+        activationHeight - 1,
+        false,
+        true,
+        &historicalSingleInfo));
+
+    CValidationState activeSingleState;
+    CSparkTxInfo activeSingleInfo;
+    BOOST_CHECK(CheckSparkTransaction(
+        singleInputSpend,
+        activeSingleState,
+        singleInputSpend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &activeSingleInfo));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_single_input_wallet_requires_one_coin_immediately)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    GenerateBlock(mintTransactions);
+    GenerateBlocks(10);
+
+    const auto hasSingleCoinMessage = [](const SparkFundsFragmented& error) {
+        return std::string(error.what()).find(
+            "No single available Spark coin can fund this transaction") !=
+            std::string::npos;
+    };
+    BOOST_CHECK_EXCEPTION(
+        GenerateSparkSpend({9 * COIN}, {}, nullptr),
+        SparkFundsFragmented,
+        hasSingleCoinMessage);
+
+    const CTransaction singleInputSpend(
+        GenerateSparkSpend({4 * COIN}, {}, nullptr));
+    BOOST_CHECK_EQUAL(
+        ParseSparkSpend(singleInputSpend).getUsedLTags().size(), 1U);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
+{
+    BatchProofContainer* batch = BatchProofContainer::get_instance();
+    struct ResetBatchAndActivation {
+        BatchProofContainer* batch;
+        ~ResetBatchAndActivation()
+        {
+            batch->fCollectProofs = false;
+            batch->init();
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } reset{batch};
+    UpdateRegtestSparkSingleInputHeight(INT_MAX);
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints =
+        GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    GenerateBlock(mintTransactions);
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> selectedMints;
+    for (const auto& mint : createdMints) {
+        selectedMints.push_back(
+            pwalletMain->sparkWallet->getMintMeta(mint.k));
+    }
+    const CTransaction multiInputSpend(
+        GenerateHistoricalMultiInputSpend(selectedMints, 9 * COIN));
+
+    batch->init();
+    batch->fCollectProofs = true;
+    CValidationState historicalState;
+    CSparkTxInfo historicalInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        multiInputSpend,
+        historicalState,
+        multiInputSpend.GetHash(),
+        false,
+        chainActive.Height(),
+        false,
+        true,
+        &historicalInfo));
+    batch->finalize();
+    BOOST_CHECK(batch->verify_pending());
+
+    UpdateRegtestSparkSingleInputHeight(chainActive.Height());
+    batch->init();
+    batch->fCollectProofs = true;
+    CValidationState activeState;
+    CSparkTxInfo activeInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        multiInputSpend,
+        activeState,
+        multiInputSpend.GetHash(),
+        false,
+        chainActive.Height(),
+        false,
+        true,
+        &activeInfo));
+    int activeDoS = 0;
+    BOOST_REQUIRE(activeState.IsInvalid(activeDoS));
+    BOOST_CHECK_EQUAL(activeDoS, 100);
+}
+
+BOOST_AUTO_TEST_CASE(spark_single_input_block_boundary_and_reorg)
+{
+    struct ResetActivationHeight {
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+        }
+    } resetActivationHeight;
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints = GenerateMints(
+        {5 * COIN, 5 * COIN, 5 * COIN, 5 * COIN, 10 * COIN},
+        mintTransactions);
+    mempool.clear();
+    GenerateBlock(mintTransactions);
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> fiveCoinMints;
+    for (const auto& mint : createdMints) {
+        if (mint.v == 5 * COIN) {
+            fiveCoinMints.push_back(
+                pwalletMain->sparkWallet->getMintMeta(mint.k));
+        }
+    }
+    BOOST_REQUIRE_EQUAL(fiveCoinMints.size(), 4U);
+
+    const CTransaction historicalMultiInput =
+        GenerateHistoricalMultiInputSpend(
+            {fiveCoinMints[0], fiveCoinMints[1]}, 9 * COIN);
+    const CTransaction activeMultiInput =
+        GenerateHistoricalMultiInputSpend(
+            {fiveCoinMints[2], fiveCoinMints[3]}, 9 * COIN);
+    const CTransaction activeSingleInput(
+        GenerateSparkSpend({4 * COIN}, {}, nullptr));
+    mempool.clear();
+
+    const int baseHeight = chainActive.Height();
+    const int activationHeight = baseHeight + 2;
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
+
+    CBlockIndex* historicalIndex =
+        GenerateBlock({CMutableTransaction(historicalMultiInput)});
+    BOOST_REQUIRE(historicalIndex);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
+    const CBlock historicalBlock = GetCBlock(historicalIndex);
+
+    BOOST_CHECK(!GenerateBlock({CMutableTransaction(activeMultiInput)}));
+    BOOST_CHECK_EQUAL(chainActive.Height(), activationHeight - 1);
+
+    CBlockIndex* activationIndex =
+        GenerateBlock({CMutableTransaction(activeSingleInput)});
+    BOOST_REQUIRE(activationIndex);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight);
+    const CBlock activationBlock = GetCBlock(activationIndex);
+
+    BOOST_REQUIRE(DisconnectBlocks(2));
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), baseHeight);
+
+    const auto reconnect = [](const CBlock& block) {
+        LOCK(cs_main);
+        CValidationState state;
+        const auto shared = std::make_shared<const CBlock>(block);
+        BOOST_REQUIRE(ActivateBestChain(state, ::Params(), shared));
+    };
+
+    // Supplying the first disconnected block lets ActivateBestChain reconnect
+    // the known two-block branch across the boundary in one activation step.
+    reconnect(historicalBlock);
+    BOOST_CHECK_EQUAL(chainActive.Height(), activationHeight);
+    BOOST_CHECK(chainActive.Tip()->GetBlockHash() == activationBlock.GetHash());
+}
+
+BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> firstMintTransactions;
+    GenerateMints({5 * COIN}, firstMintTransactions);
+    mempool.clear();
+    CBlockIndex* firstMintIndex = GenerateBlock(firstMintTransactions);
+    BOOST_REQUIRE(firstMintIndex);
+    GenerateBlocks(10);
+
+    std::vector<CMutableTransaction> secondMintTransactions;
+    GenerateMints({5 * COIN}, secondMintTransactions);
+    mempool.clear();
+    CBlockIndex* secondMintIndex = GenerateBlock(secondMintTransactions);
+    BOOST_REQUIRE(secondMintIndex);
+    GenerateBlocks(10);
+
+    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+    SpendTransaction parsed = ParseSparkSpend(spend);
+    const auto references = parsed.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(references.size(), 1U);
+    BOOST_REQUIRE(references.begin()->second == secondMintIndex->GetBlockHash());
+
+    // Mempool validation populates the proof cache for the two-coin cover set.
+    CValidationState mempoolState;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        spend,
+        mempoolState,
+        spend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+
+    // Remove the referenced cover-set block while leaving the first mint and
+    // group active. Validation must recompute the result for the new context.
+    const int disconnectCount =
+        chainActive.Height() - secondMintIndex->nHeight + 1;
+    BOOST_REQUIRE_GT(disconnectCount, 0);
+    BOOST_REQUIRE(DisconnectBlocks(disconnectCount));
+    BOOST_REQUIRE(chainActive.Height() >= firstMintIndex->nHeight);
+
+    CValidationState reorgState;
+    CSparkTxInfo reorgInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        spend,
+        reorgState,
+        spend.GetHash(),
+        false,
+        chainActive.Height() + 1,
+        false,
+        true,
+        &reorgInfo));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(coingroup)
 {
     GenerateBlocks(500);
@@ -686,6 +1195,161 @@ BOOST_AUTO_TEST_CASE(coingroup)
 
     mempool.clear();
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(wallet_lookup_indexes)
+{
+    auto params = Params::get_default();
+    CSparkWallet* wallet = pwalletMain->sparkWallet.get();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    // Build a meta for a coin generated from foreign keys: trial decryption
+    // with the wallet's view key can never identify it, so any positive
+    // answer below must come from the lookup indexes, not the EC fallback.
+    const SpendKey spendKey(params);
+    const FullViewKey fullViewKey(spendKey);
+    const IncomingViewKey incomingViewKey(fullViewKey);
+    const Address address(incomingViewKey, 1);
+
+    CSparkMintMeta meta;
+    meta.nHeight = 1;
+    meta.nId = 1;
+    meta.isUsed = false;
+    meta.txid = uint256();
+    meta.i = 1;
+    meta.d = address.get_d();
+    meta.v = 7 * COIN;
+    meta.k.randomize();
+    meta.memo = "lookup test";
+    meta.serial_context = random_char_vector();
+    meta.type = COIN_TYPE_MINT;
+    meta.coin = Coin(params, meta.type, meta.k, address, meta.v, meta.memo, meta.serial_context);
+
+    const uint256 lTagHash = uint256S("0x1");
+
+    // Unknown coin: both the coin index and identification miss
+    BOOST_CHECK(!wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+    BOOST_CHECK(wallet->validateLookupIndexes());
+
+    wallet->addOrUpdateMint(meta, lTagHash, walletdb);
+    BOOST_CHECK(wallet->validateLookupIndexes());
+
+    // Coin index hits
+    BOOST_CHECK(wallet->isMine(meta.coin));
+    BOOST_CHECK_EQUAL(wallet->getMyCoinV(meta.coin), CAmount(meta.v));
+    CAmount amount(0);
+    BOOST_CHECK(wallet->getMintAmount(meta.coin, amount));
+    BOOST_CHECK_EQUAL(amount, CAmount(meta.v));
+    CSparkMintMeta byCoin;
+    BOOST_CHECK(wallet->getMintMeta(meta.coin, byCoin));
+    BOOST_CHECK(byCoin == meta);
+
+    // Nonce index hits
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == meta);
+    BOOST_CHECK_EQUAL(wallet->getMintMeta(meta.k).v, meta.v);
+    BOOST_CHECK(wallet->getMintMeta(meta.k).serial_context == meta.serial_context);
+    Scalar otherNonce;
+    otherNonce.randomize();
+    BOOST_CHECK(wallet->getMintMeta(otherNonce) == CSparkMintMeta());
+
+    // Same coin under a different serial context must not hit: coin equality
+    // does not cover the serial context, but identification depends on it
+    Coin altered = meta.coin;
+    altered.setSerialContext(random_char_vector());
+    BOOST_CHECK(!wallet->isMine(altered));
+
+    // Indexes follow an in-memory update
+    CSparkMintMeta updated = meta;
+    updated.isUsed = true;
+    wallet->updateMintInMemory(updated);
+    BOOST_CHECK(wallet->getMintMeta(meta.k).isUsed);
+    BOOST_CHECK(wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->validateLookupIndexes());
+
+    // Indexes drop the entry on erase
+    wallet->eraseMint(lTagHash, walletdb);
+    BOOST_CHECK(!wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+    BOOST_CHECK(!wallet->getMintAmount(meta.coin, amount));
+    BOOST_CHECK(wallet->validateLookupIndexes());
+
+    // Re-add, then clearAllMints empties the indexes
+    wallet->addOrUpdateMint(meta, lTagHash, walletdb);
+    BOOST_CHECK(wallet->isMine(meta.coin));
+    wallet->clearAllMints(walletdb);
+    BOOST_CHECK(!wallet->isMine(meta.coin));
+    BOOST_CHECK(wallet->getMintMeta(meta.k) == CSparkMintMeta());
+    BOOST_CHECK(wallet->validateLookupIndexes());
+}
+
+BOOST_AUTO_TEST_CASE(wallet_cache_verification)
+{
+    auto params = Params::get_default();
+    CSparkWallet* wallet = pwalletMain->sparkWallet.get();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    // A record whose coin was built from the wallet's own keys, so
+    // identification confirms it
+    const uint64_t goodI = 5;
+    const Address goodAddress = wallet->getAddress(int32_t(goodI));
+    CSparkMintMeta good;
+    good.nHeight = 1;
+    good.nId = 1;
+    good.isUsed = false;
+    good.txid = uint256();
+    good.i = goodI;
+    good.d = goodAddress.get_d();
+    good.v = 3 * COIN;
+    good.k.randomize();
+    good.memo = "good";
+    good.serial_context = random_char_vector();
+    good.type = COIN_TYPE_MINT;
+    good.coin = Coin(params, good.type, good.k, goodAddress, good.v, good.memo, good.serial_context);
+    const uint256 goodTag = uint256S("0x10");
+
+    // A record whose coin was built from foreign keys, standing in for a
+    // corrupt or tampered wallet record that identification rejects
+    const SpendKey foreignSpend(params);
+    const FullViewKey foreignFull(foreignSpend);
+    const IncomingViewKey foreignView(foreignFull);
+    const Address foreignAddress(foreignView, 1);
+    CSparkMintMeta bad;
+    bad.nHeight = 1;
+    bad.nId = 1;
+    bad.isUsed = false;
+    bad.txid = uint256();
+    bad.i = 1;
+    bad.d = foreignAddress.get_d();
+    bad.v = 9 * COIN;
+    bad.k.randomize();
+    bad.memo = "bad";
+    bad.serial_context = random_char_vector();
+    bad.type = COIN_TYPE_MINT;
+    bad.coin = Coin(params, bad.type, bad.k, foreignAddress, bad.v, bad.memo, bad.serial_context);
+    const uint256 badTag = uint256S("0x20");
+
+    wallet->addOrUpdateMint(good, goodTag, walletdb);
+    wallet->addOrUpdateMint(bad, badTag, walletdb);
+    BOOST_CHECK(wallet->isMine(good.coin));
+    BOOST_CHECK(wallet->isMine(bad.coin));
+    BOOST_CHECK(wallet->validateLookupIndexes());
+
+    // The sweep confirms the good record and evicts only the bad one
+    BOOST_CHECK_EQUAL(wallet->verifyCachedCoins(), 1u);
+    BOOST_CHECK(wallet->isMine(good.coin));
+    BOOST_CHECK(wallet->getMintMeta(good.k) == good);
+    BOOST_CHECK(!wallet->isMine(bad.coin));
+    BOOST_CHECK(wallet->getMintMeta(bad.k) == CSparkMintMeta());
+
+    // Only the fast path was evicted; the record itself remains
+    BOOST_CHECK(wallet->getMintMeta(badTag) == bad);
+
+    // A second sweep has nothing left to evict
+    BOOST_CHECK_EQUAL(wallet->verifyCachedCoins(), 0u);
+
+    wallet->clearAllMints(walletdb);
+    BOOST_CHECK(wallet->validateLookupIndexes());
 }
 
 } // end of namespace spark

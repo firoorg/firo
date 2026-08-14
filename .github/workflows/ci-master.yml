@@ -5,7 +5,7 @@ on:
     - 'doc/**'
     - '**/README.md'
     branches:
-    - '**'
+    - master
   pull_request:
     paths-ignore:
     - 'doc/**'
@@ -431,7 +431,6 @@ jobs:
 
           export VER=1.5.0
           export ARCH=x86_64-linux
-          export BASE=https://ftp.gnu.org/gnu/guix
           export TAR="guix-binary-${VER}.${ARCH}.tar.xz"
           export GUIX_INSTALLER_SHA256=7f544e48c9082baf489207ac506acd78bf251355bbafffd744498e658880879d
           export GUIX_TAR_SHA256=aa41025489c5061543e9c48873eaa829b900b2da75d40f9648913622f5f47817
@@ -449,17 +448,36 @@ jobs:
 
           cd /tmp
 
+          download() {
+            local output="$1"
+            shift
+            for url in "$@"; do
+              if wget --tries=5 --timeout=30 --waitretry=10 \
+                --retry-connrefused --retry-on-host-error \
+                --retry-on-http-error=429,500,502,503,504 \
+                "${url}" -O "${output}"; then
+                return 0
+              fi
+              echo "Download failed from ${url}, trying next mirror..."
+            done
+            return 1
+          }
+
           # 1. Download and pin-check all unsigned inputs before use.
           echo "::group::Download Guix installer and binary tarball"
-          wget --tries=5 --timeout=30 --waitretry=10 \
-            "https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh?h=v${VER}" \
-            -O guix-install.sh
+          download guix-install.sh \
+            "https://codeberg.org/guix/guix/raw/tag/v${VER}/etc/guix-install.sh" \
+            "https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh?h=v${VER}"
           echo "${GUIX_INSTALLER_SHA256}  guix-install.sh" | sha256sum -c -
           chmod +x guix-install.sh
 
-          wget --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}" -O "${TAR}"
+          download "${TAR}" \
+            "https://ftpmirror.gnu.org/gnu/guix/${TAR}" \
+            "https://ftp.gnu.org/gnu/guix/${TAR}"
           echo "${GUIX_TAR_SHA256}  ${TAR}" | sha256sum -c -
-          wget --tries=5 --timeout=30 --waitretry=10 "${BASE}/${TAR}.sig" -O "${TAR}.sig"
+          download "${TAR}.sig" \
+            "https://ftpmirror.gnu.org/gnu/guix/${TAR}.sig" \
+            "https://ftp.gnu.org/gnu/guix/${TAR}.sig"
           echo "::endgroup::"
 
           # 2. Best-effort import each trusted key into an isolated keyring.

@@ -1,11 +1,14 @@
 #ifndef FIRO_QT_AUTOMINT_H
 #define FIRO_QT_AUTOMINT_H
 
+#include "sync.h"
 #include "walletmodel.h"
 
 #include <QDialog>
 #include <QPainter>
 #include <QPaintEvent>
+
+#include <memory>
 
 /**
  * Forward declaration of the Qt UI class for the AutoMint dialog.
@@ -51,6 +54,7 @@ private:
     Ui::AutoMintDialog *ui;
     WalletModel *model;
     SparkModel *sparkModel;
+    std::unique_ptr<CCriticalBlock> sparkModelLock;
     bool requiredPassphase;
     AutoMintSparkProgress progress;
     AutoMintSparkMode mode;

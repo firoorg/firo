@@ -65,6 +65,7 @@ public:
     QString authenticatedMerchant;
 
     bool fSubtractFeeFromAmount; // memory only
+    std::vector<unsigned char> opReturnData; // memory only, Rosen Bridge metadata
 
     static const int CURRENT_VERSION = 1;
     int nVersion;
@@ -117,7 +118,9 @@ public:
         TransactionCommitFailed,
         AbsurdFee,
         PaymentRequestExpired,
-        ExceedLimit
+        ExceedLimit,
+        InvalidRosenBridgeData,
+        RosenBridgeRequiresTransparent
     };
 
     enum EncryptionStatus
@@ -157,19 +160,25 @@ public:
     bool isSparkAddressMine(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
 
+    // Sign a message with a Spark address held by this wallet. Returns the ownership proof
+    // as hex, or a null QString with `error` set to a message fit to show the user.
+    QString signSparkMessage(const QString &sparkAddress, const QString &message, QString &error);
+
     // Generate spark address
     QString generateSparkAddress();
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
     {
-        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "")
+        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "", bool _partiallyCommitted = false)
             : status(_status),
-              reasonCommitFailed(_reasonCommitFailed)
+              reasonCommitFailed(_reasonCommitFailed),
+              partiallyCommitted(_partiallyCommitted)
         {
         }
         StatusCode status;
         QString reasonCommitFailed;
+        bool partiallyCommitted;
     };
 
     // prepare transaction for getting txfee before sending coins
@@ -182,12 +191,16 @@ public:
         std::list<CReserveKey> &reserveKeys,
         const CCoinControl *coinControl);
 
-    SendCoinsReturn prepareSpendSparkTransaction(
-        WalletModelTransaction &transaction,
+    SendCoinsReturn prepareSpendSparkTransactionsSingleInput(
+        std::vector<WalletModelTransaction> &transactions,
+        const QList<SendCoinsRecipient> &recipients,
         const CCoinControl *coinControl);
 
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
+
+    SendCoinsReturn spendSparkCoins(
+        std::vector<WalletModelTransaction> &transactions);
 
     bool sparkNamesAllowed() const;
 
@@ -280,7 +293,7 @@ public:
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash, CValidationState &state);
 
-    CAmount GetJMintCredit(const CTxOut& txout) const;
+    CAmount GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const;
 
 private:
     CWallet *wallet;

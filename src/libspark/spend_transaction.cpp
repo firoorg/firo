@@ -234,7 +234,28 @@ bool SpendTransaction::verify(
         const SpendTransaction& transaction,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
 	std::vector<SpendTransaction> transactions = { transaction };
-	return verify(transaction.params, transactions, cover_sets);
+	return verify(transaction.params, transactions, cover_sets, true);
+}
+
+bool SpendTransaction::verifyHistorical(
+        const SpendTransaction& transaction,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
+	std::vector<SpendTransaction> transactions = { transaction };
+	return verify(transaction.params, transactions, cover_sets, false);
+}
+
+bool SpendTransaction::verify(
+        const Params* params,
+        const std::vector<SpendTransaction>& transactions,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
+	return verify(params, transactions, cover_sets, true);
+}
+
+bool SpendTransaction::verifyHistorical(
+        const Params* params,
+        const std::vector<SpendTransaction>& transactions,
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
+	return verify(params, transactions, cover_sets, false);
 }
 
 // Determine if a set of spend transactions is collectively valid
@@ -243,7 +264,8 @@ bool SpendTransaction::verify(
 bool SpendTransaction::verify(
         const Params* params,
         const std::vector<SpendTransaction>& transactions,
-        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets) {
+        const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets,
+        bool require_single_input) {
 	// The idea here is to perform batching as broadly as possible
 	// - Grootle proofs can be batched if they share a (partial) cover set
 	// - Range proofs can always be batched arbitrarily
@@ -270,6 +292,10 @@ bool SpendTransaction::verify(
 		const std::size_t w = tx.cover_set_ids.size(); // number of consumed coins
 		const std::size_t t = tx.out_coins.size(); // number of generated coins
 		const std::size_t N = (std::size_t) std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
+
+		if (require_single_input && w != 1) {
+			return false;
+		}
 
 		// Defense-in-depth: reject attacker-controlled fee + vout that would overflow (balance proof would fail anyway)
 		if (tx.vout > 0 && tx.f > std::numeric_limits<uint64_t>::max() - tx.vout) {
@@ -326,7 +352,10 @@ bool SpendTransaction::verify(
 			tx.params->get_H(),
 			tx.params->get_U()
 		);
-		if (!chaum.verify(mu, tx.S1, tx.T, tx.chaum_proof)) {
+		const bool chaum_valid = require_single_input
+			? chaum.verify_single_input(mu, tx.S1, tx.T, tx.chaum_proof)
+			: chaum.verify(mu, tx.S1, tx.T, tx.chaum_proof);
+		if (!chaum_valid) {
 			return false;
 		}
 

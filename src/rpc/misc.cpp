@@ -20,6 +20,7 @@
 #include "wallet/walletdb.h"
 #endif
 #include "txdb.h"
+#include "spark/sparkmessage.h"
 
 #include "masternode-sync.h"
 #include "evo/deterministicmns.h"
@@ -509,45 +510,22 @@ UniValue verifymessagewithsparkaddress(const JSONRPCRequest& request)
     std::string strSign     = request.params[1].get_str();
     std::string strMessage  = request.params[2].get_str();
 
-    const spark::Params* params = spark::Params::get_default();
-    unsigned char network = spark::GetNetworkType();
-    spark::Address address(params);
-    unsigned char coinNetwork;
-    try {
-        coinNetwork = address.decode(strAddress);
-    } catch (const std::exception&) {
+    switch (spark::VerifyMessage(strAddress, strSign, strMessage)) {
+    case spark::VerifyResult::Ok:
+        return true;
+    case spark::VerifyResult::Mismatch:
+        return false;
+    case spark::VerifyResult::InvalidAddress:
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Spark address");
-    }
-    if (coinNetwork != network)
+    case spark::VerifyResult::WrongNetwork:
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address is for a different network");
-
-    // Decode the hex signature into an OwnershipProof
-    if (!IsHex(strSign))
+    case spark::VerifyResult::NotHex:
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Signature must be a hex string");
-
-    std::vector<unsigned char> proofData = ParseHex(strSign);
-    CDataStream proofStream(proofData, SER_NETWORK, PROTOCOL_VERSION);
-    spark::OwnershipProof proof;
-    try {
-        proofStream >> proof;
-    } catch (const std::exception&) {
+    case spark::VerifyResult::MalformedProof:
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Malformed ownership proof");
     }
 
-    // Hash the message the same way as signmessage / signmessagewithsparkaddress
-    CHashWriter ss(SER_GETHASH, 0);
-    ss << strMessageMagic;
-    ss << strMessage;
-    uint256 msgHash = ss.GetHash();
-
-    spark::Scalar m;
-    m.SetHex(msgHash.GetHex());
-
-    try {
-        return address.verify_own(m, proof);
-    } catch (const std::exception&) {
-        return false;
-    }
+    return false; // every enumerator is handled above
 }
 
 UniValue signmessagewithprivkey(const JSONRPCRequest& request)

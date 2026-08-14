@@ -25,6 +25,7 @@ public:
     bool verify_pending();
 
     void add(const spark::SpendTransaction& tx, const uint256& txHash);
+    void addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);
 public:
     bool fCollectProofs = 0;
@@ -38,10 +39,14 @@ private:
     // temp spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> tempSparkTransactions;
     std::vector<uint256> tempSparkTxIds;
+    std::vector<spark::SpendTransaction> tempHistoricalSparkTransactions;
+    std::vector<uint256> tempHistoricalSparkTxIds;
 
     // spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> sparkTransactions;
     std::vector<uint256> sparkTxIds;
+    std::vector<spark::SpendTransaction> historicalSparkTransactions;
+    std::vector<uint256> historicalSparkTxIds;
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H
