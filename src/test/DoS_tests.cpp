@@ -20,6 +20,7 @@
 
 #include "test/test_bitcoin.h"
 
+#include <limits>
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
@@ -550,6 +551,190 @@ BOOST_FIXTURE_TEST_CASE(blocktxn_repeated_response, BlockTxnTestingSetup)
         BOOST_REQUIRE(chainActive.Tip());
         BOOST_CHECK(chainActive.Tip()->GetBlockHash() == validBlock.GetHash());
     }
+}
+
+BOOST_AUTO_TEST_CASE(inv_queue_adaptive_drain)
+{
+    std::atomic<bool> interruptDummy(false);
+    PeerLogicValidation peerLogic(connman);
+
+    BOOST_CHECK_EQUAL(GetInventoryBroadcastMax(0), 35U);
+    BOOST_CHECK_EQUAL(GetInventoryBroadcastMax(999), 35U);
+    BOOST_CHECK_EQUAL(GetInventoryBroadcastMax(1000), 40U);
+    BOOST_CHECK_EQUAL(GetInventoryBroadcastMax(2000), 45U);
+    BOOST_CHECK_EQUAL(GetInventoryBroadcastMax(192999), 995U);
+    BOOST_CHECK_EQUAL(GetInventoryBroadcastMax(193000), 1000U);
+    BOOST_CHECK_EQUAL(GetInventoryBroadcastMax(std::numeric_limits<size_t>::max()), 1000U);
+
+    CAddress peerAddress(ip(0xa0b0c006), NODE_NONE);
+    CNode peerNode(id++, NODE_NETWORK, 0, INVALID_SOCKET, peerAddress, 0, 0, "", true);
+    peerNode.SetSendVersion(PROTOCOL_VERSION);
+    peerNode.SetRecvVersion(PROTOCOL_VERSION);
+    peerNode.nVersion = PROTOCOL_VERSION;
+    peerNode.fWhitelisted = true;
+    peerNode.fSuccessfullyConnected = true;
+    {
+        LOCK(peerNode.cs_filter);
+        peerNode.fRelayTxes = true;
+    }
+    GetNodeSignals().InitializeNode(&peerNode, *connman);
+
+    struct NodeStateCleanup {
+        explicit NodeStateCleanup(NodeId nodeId) : nodeId(nodeId) {}
+
+        ~NodeStateCleanup()
+        {
+            bool updateConnectionTime = false;
+            GetNodeSignals().FinalizeNode(nodeId, updateConnectionTime);
+        }
+
+        NodeId nodeId;
+    } nodeStateCleanup(peerNode.GetId());
+
+    BOOST_REQUIRE_EQUAL(mempool.size(), 0U);
+
+    CMutableTransaction parent;
+    parent.vin.resize(1);
+    parent.vin[0].prevout = COutPoint(ArithToUint256(1), 0);
+    parent.vin[0].scriptSig << OP_1;
+    parent.vout.resize(1);
+    parent.vout[0].nValue = 1;
+    parent.vout[0].scriptPubKey << OP_TRUE;
+
+    TestMemPoolEntryHelper parentEntry;
+    const uint256 parentHash = parent.GetHash();
+    BOOST_REQUIRE(mempool.addUnchecked(parentHash, parentEntry.Fee(1000).FromTx(parent)));
+
+    CMutableTransaction child;
+    child.vin.resize(1);
+    child.vin[0].prevout = COutPoint(parentHash, 0);
+    child.vin[0].scriptSig << OP_1;
+    child.vout.resize(1);
+    child.vout[0].nValue = 1;
+    child.vout[0].scriptPubKey << OP_TRUE;
+
+    CTxMemPool::setEntries childAncestors;
+    const auto parentIt = mempool.mapTx.find(parentHash);
+    BOOST_REQUIRE(parentIt != mempool.mapTx.end());
+    childAncestors.insert(parentIt);
+
+    TestMemPoolEntryHelper childEntry;
+    const uint256 childHash = child.GetHash();
+    BOOST_REQUIRE(mempool.addUnchecked(
+        childHash,
+        childEntry.Fee(1000000).FromTx(child, &mempool),
+        childAncestors));
+
+    std::vector<uint256> liveHashes{parentHash, childHash};
+    for (uint32_t tag = 2; liveHashes.size() < 50; ++tag) {
+        CMutableTransaction tx;
+        tx.vin.resize(1);
+        tx.vin[0].prevout = COutPoint(ArithToUint256(1000 + tag), 0);
+        tx.vin[0].scriptSig << OP_1;
+        tx.vout.resize(1);
+        tx.vout[0].nValue = 1;
+        tx.vout[0].scriptPubKey << OP_TRUE;
+        tx.nLockTime = tag;
+
+        TestMemPoolEntryHelper entry;
+        const uint256 hash = tx.GetHash();
+        BOOST_REQUIRE(mempool.addUnchecked(hash, entry.Fee((tag + 1) * 1000).FromTx(tx)));
+        liveHashes.push_back(hash);
+    }
+    BOOST_REQUIRE_EQUAL(mempool.size(), 50U);
+
+    std::vector<uint256> missingHashes;
+    missingHashes.reserve(2000);
+    for (uint32_t value = 100000; missingHashes.size() < 2000; ++value) {
+        const uint256 hash = ArithToUint256(value);
+        if (!mempool.exists(hash))
+            missingHashes.push_back(hash);
+    }
+
+    const uint256& forcedHighFeeHash = liveHashes.back();
+    const uint256& lowFeeHash = liveHashes[2];
+    const uint256& missingHash = missingHashes.front();
+    BOOST_CHECK(mempool.CompareDepthAndScore(missingHash, forcedHighFeeHash));
+    BOOST_CHECK(!mempool.CompareDepthAndScore(forcedHighFeeHash, missingHash));
+    BOOST_CHECK(mempool.CompareDepthAndScore(forcedHighFeeHash, lowFeeHash));
+    BOOST_CHECK(!mempool.CompareDepthAndScore(lowFeeHash, forcedHighFeeHash));
+    BOOST_CHECK(mempool.CompareDepthAndScore(parentHash, childHash));
+    BOOST_CHECK(!mempool.CompareDepthAndScore(childHash, parentHash));
+
+    for (const uint256& hash : missingHashes)
+        peerNode.PushInventory(CInv(MSG_TX, hash));
+    for (size_t i = 0; i + 1 < liveHashes.size(); ++i)
+        peerNode.PushInventory(CInv(MSG_TX, liveHashes[i]));
+
+    const CInv forcedInventory(MSG_TX, forcedHighFeeHash);
+    peerNode.AddInventoryKnown(forcedInventory);
+    peerNode.PushInventory(forcedInventory, true);
+
+    {
+        LOCK(peerNode.cs_inventory);
+        BOOST_REQUIRE_EQUAL(peerNode.setInventoryTxToSend.size(), 2050U);
+        BOOST_REQUIRE_EQUAL(peerNode.setInventoryForcedToSend.size(), 1U);
+    }
+
+    BOOST_CHECK(SendMessages(&peerNode, *connman, interruptDummy));
+
+    size_t invMessageCount = 0;
+    std::vector<CInv> sentInventory;
+    {
+        LOCK(peerNode.cs_vSend);
+        size_t position = 0;
+        while (position < peerNode.vSendMsg.size()) {
+            CDataStream sentHeader(peerNode.vSendMsg[position++], SER_NETWORK, PROTOCOL_VERSION);
+            CMessageHeader parsedHeader(Params().MessageStart());
+            sentHeader >> parsedHeader;
+            BOOST_CHECK(sentHeader.empty());
+
+            if (parsedHeader.nMessageSize == 0)
+                continue;
+
+            BOOST_REQUIRE_LT(position, peerNode.vSendMsg.size());
+            CDataStream sentPayload(peerNode.vSendMsg[position++], SER_NETWORK, PROTOCOL_VERSION);
+            if (parsedHeader.GetCommand() != NetMsgType::INV)
+                continue;
+
+            std::vector<CInv> inventory;
+            sentPayload >> inventory;
+            BOOST_CHECK(sentPayload.empty());
+            sentInventory.insert(sentInventory.end(), inventory.begin(), inventory.end());
+            ++invMessageCount;
+        }
+    }
+
+    BOOST_CHECK_EQUAL(invMessageCount, 1U);
+    BOOST_CHECK_EQUAL(sentInventory.size(), 45U);
+
+    std::set<uint256> sentHashes;
+    for (const CInv& inv : sentInventory) {
+        BOOST_CHECK_EQUAL(inv.type, MSG_TX);
+        sentHashes.insert(inv.hash);
+    }
+    BOOST_CHECK_EQUAL(sentHashes.size(), sentInventory.size());
+    BOOST_CHECK(sentHashes.count(forcedHighFeeHash) == 1);
+    BOOST_CHECK(sentHashes.count(childHash) == 0);
+
+    size_t remainingMissing = 0;
+    bool allRemainingTransactionsAreLive = true;
+    {
+        LOCK(peerNode.cs_inventory);
+        BOOST_CHECK_EQUAL(peerNode.setInventoryTxToSend.size(), 5U);
+        BOOST_CHECK(peerNode.setInventoryForcedToSend.empty());
+        for (const uint256& hash : missingHashes)
+            remainingMissing += peerNode.setInventoryTxToSend.count(hash);
+        for (const uint256& hash : peerNode.setInventoryTxToSend)
+            allRemainingTransactionsAreLive &= mempool.exists(hash);
+    }
+    BOOST_CHECK_EQUAL(remainingMissing, 0U);
+    BOOST_CHECK(allRemainingTransactionsAreLive);
+
+    CNodeStateStats peerState;
+    BOOST_REQUIRE(GetNodeStateStats(peerNode.GetId(), peerState));
+    BOOST_CHECK_EQUAL(peerState.nMisbehavior, 0);
+    BOOST_CHECK(!peerNode.fDisconnect);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

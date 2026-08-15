@@ -3330,6 +3330,11 @@ public:
     }
 };
 
+size_t GetInventoryBroadcastMax(size_t inventorySize)
+{
+    return std::min<size_t>(1000, INVENTORY_BROADCAST_MAX + (inventorySize / 1000) * 5);
+}
+
 bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interruptMsgProc)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
@@ -3711,8 +3716,9 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
                 // No reason to drain out at many times the network's capacity,
                 // especially since we have many peers and some will draw much shorter delays.
                 unsigned int nRelayedTransactions = 0;
+                const size_t broadcastMax = GetInventoryBroadcastMax(pto->setInventoryTxToSend.size());
                 LOCK(pto->cs_filter);
-                while (!vInvTx.empty() && nRelayedTransactions < INVENTORY_BROADCAST_MAX) {
+                while (!vInvTx.empty() && nRelayedTransactions < broadcastMax) {
                     // Fetch the top element from the heap
                     std::pop_heap(vInvTx.begin(), vInvTx.end(), compareInvMempoolOrder);
                     std::set<uint256>::iterator it = vInvTx.back();
