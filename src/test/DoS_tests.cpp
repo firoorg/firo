@@ -5,6 +5,7 @@
 // Unit tests for denial-of-service detection/prevention code
 
 #include "arith_uint256.h"
+#include "blockencodings.h"
 #include "chainparams.h"
 #include "hash.h"
 #include "keystore.h"
@@ -45,6 +46,36 @@ CService ip(uint32_t i)
 }
 
 static NodeId id = 0;
+
+struct BlockTxnTestingSetup : public TestChain100Setup {
+    BlockTxnTestingSetup() : TestChain100Setup(1) {}
+};
+
+template <typename Payload>
+static void QueueNetMessage(CNode& node, const char* command, const Payload& value)
+{
+    CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+    payload << value;
+
+    CMessageHeader header(Params().MessageStart(), command, payload.size());
+    const uint256 payloadHash = Hash(payload.begin(), payload.end());
+    memcpy(header.pchChecksum, payloadHash.begin(), CMessageHeader::CHECKSUM_SIZE);
+
+    CDataStream serializedHeader(SER_NETWORK, PROTOCOL_VERSION);
+    serializedHeader << header;
+
+    LOCK(node.cs_vProcessMsg);
+    node.vProcessMsg.emplace_back(Params().MessageStart(), SER_NETWORK, PROTOCOL_VERSION);
+    CNetMessage& message = node.vProcessMsg.back();
+    BOOST_REQUIRE_EQUAL(
+        static_cast<size_t>(message.readHeader(serializedHeader.data(), serializedHeader.size())),
+        serializedHeader.size());
+    BOOST_REQUIRE_EQUAL(
+        static_cast<size_t>(message.readData(payload.data(), payload.size())),
+        payload.size());
+    message.nTime = GetTimeMicros();
+    node.nProcessQueueSize += payload.size() + CMessageHeader::HEADER_SIZE;
+}
 
 BOOST_FIXTURE_TEST_SUITE(DoS_tests, TestingSetup)
 
@@ -329,6 +360,195 @@ BOOST_AUTO_TEST_CASE(inv_getheaders_coalesced)
         LOCK(dummyNode.cs_inventory);
         BOOST_CHECK(dummyNode.filterInventoryKnown.contains(txHash));
         BOOST_CHECK(dummyNode.filterDandelionInventoryKnown.contains(dandelionTxHash));
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(blocktxn_repeated_response, BlockTxnTestingSetup)
+{
+    std::atomic<bool> interruptDummy(false);
+    PeerLogicValidation peerLogic(connman);
+
+    CAddress ownerAddress(ip(0xa0b0c004), NODE_NONE);
+    CNode ownerNode(id++, NODE_NETWORK, 0, INVALID_SOCKET, ownerAddress, 0, 0, "", true);
+    ownerNode.SetSendVersion(PROTOCOL_VERSION);
+    ownerNode.SetRecvVersion(PROTOCOL_VERSION);
+    ownerNode.nVersion = PROTOCOL_VERSION;
+    ownerNode.fSuccessfullyConnected = true;
+    GetNodeSignals().InitializeNode(&ownerNode, *connman);
+
+    CAddress nonOwnerAddress(ip(0xa0b0c005), NODE_NONE);
+    CNode nonOwnerNode(id++, NODE_NETWORK, 0, INVALID_SOCKET, nonOwnerAddress, 1, 1, "", true);
+    nonOwnerNode.SetSendVersion(PROTOCOL_VERSION);
+    nonOwnerNode.SetRecvVersion(PROTOCOL_VERSION);
+    nonOwnerNode.nVersion = PROTOCOL_VERSION;
+    nonOwnerNode.fSuccessfullyConnected = true;
+    GetNodeSignals().InitializeNode(&nonOwnerNode, *connman);
+
+    struct NodeStateCleanup {
+        NodeStateCleanup(NodeId ownerId, NodeId nonOwnerId) : ownerId(ownerId), nonOwnerId(nonOwnerId) {}
+
+        ~NodeStateCleanup()
+        {
+            bool updateConnectionTime = false;
+            GetNodeSignals().FinalizeNode(nonOwnerId, updateConnectionTime);
+            GetNodeSignals().FinalizeNode(ownerId, updateConnectionTime);
+        }
+
+        NodeId ownerId;
+        NodeId nonOwnerId;
+    } nodeStateCleanup(ownerNode.GetId(), nonOwnerNode.GetId());
+
+    const auto processMessage = [&](CNode& node, bool expectDisconnect = false) {
+        // TestingSetup constructs but does not start connman, leaving its synthetic send limit at zero.
+        node.fPauseSend = false;
+        BOOST_CHECK(!ProcessMessages(&node, *connman, interruptDummy));
+        BOOST_CHECK(node.vProcessMsg.empty());
+        BOOST_CHECK(node.fDisconnect == expectDisconnect);
+    };
+
+    int initialHeight;
+    {
+        LOCK(cs_main);
+        initialHeight = chainActive.Height();
+    }
+
+    CBlock validBlock = CreateBlock({}, coinbaseKey);
+    CBlockHeaderAndShortTxIDs validCompactBlock(validBlock, false);
+    QueueNetMessage(ownerNode, NetMsgType::CMPCTBLOCK, validCompactBlock);
+    processMessage(ownerNode);
+
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(chainActive.Tip());
+        BOOST_CHECK_EQUAL(chainActive.Height(), initialHeight + 1);
+        BOOST_CHECK(chainActive.Tip()->GetBlockHash() == validBlock.GetHash());
+    }
+
+    CNodeStateStats ownerState;
+    BOOST_REQUIRE(GetNodeStateStats(ownerNode.GetId(), ownerState));
+    BOOST_CHECK(ownerState.vHeightInFlight.empty());
+    BOOST_CHECK_EQUAL(ownerState.nMisbehavior, 0);
+
+    CMutableTransaction expectedTransaction;
+    expectedTransaction.vin.resize(1);
+    expectedTransaction.vin[0].prevout = COutPoint(GetRandHash(), 0);
+    expectedTransaction.vin[0].scriptSig << OP_1;
+    expectedTransaction.vout.resize(1);
+    expectedTransaction.vout[0].nValue = 1;
+    expectedTransaction.vout[0].scriptPubKey << OP_TRUE;
+
+    CBlock attackBlock = CreateBlock({expectedTransaction}, coinbaseKey);
+    BOOST_REQUIRE_EQUAL(attackBlock.vtx.size(), 2U);
+    CBlockHeaderAndShortTxIDs attackCompactBlock(attackBlock, false);
+    QueueNetMessage(ownerNode, NetMsgType::CMPCTBLOCK, attackCompactBlock);
+    processMessage(ownerNode);
+
+    {
+        LOCK(ownerNode.cs_vSend);
+        BOOST_REQUIRE_GE(ownerNode.vSendMsg.size(), 2U);
+
+        CDataStream sentHeader(
+            ownerNode.vSendMsg[ownerNode.vSendMsg.size() - 2],
+            SER_NETWORK,
+            PROTOCOL_VERSION);
+        CMessageHeader parsedHeader(Params().MessageStart());
+        sentHeader >> parsedHeader;
+        BOOST_CHECK_EQUAL(parsedHeader.GetCommand(), NetMsgType::GETBLOCKTXN);
+
+        CDataStream sentPayload(ownerNode.vSendMsg.back(), SER_NETWORK, PROTOCOL_VERSION);
+        BlockTransactionsRequest request;
+        sentPayload >> request;
+        BOOST_CHECK(request.blockhash == attackBlock.GetHash());
+        BOOST_REQUIRE_EQUAL(request.indexes.size(), 1U);
+        BOOST_CHECK_EQUAL(request.indexes[0], 1U);
+        BOOST_CHECK(sentPayload.empty());
+    }
+
+    ownerState = CNodeStateStats();
+    BOOST_REQUIRE(GetNodeStateStats(ownerNode.GetId(), ownerState));
+    BOOST_REQUIRE_EQUAL(ownerState.vHeightInFlight.size(), 1U);
+    BOOST_CHECK_EQUAL(ownerState.vHeightInFlight[0], initialHeight + 2);
+    BOOST_CHECK_EQUAL(ownerState.nMisbehavior, 0);
+
+    CMutableTransaction wrongTransaction(expectedTransaction);
+    ++wrongTransaction.nLockTime;
+    BlockTransactions mismatchedResponse;
+    mismatchedResponse.blockhash = attackBlock.GetHash();
+    mismatchedResponse.txn.push_back(MakeTransactionRef(wrongTransaction));
+
+    QueueNetMessage(ownerNode, NetMsgType::BLOCKTXN, mismatchedResponse);
+    processMessage(ownerNode);
+
+    {
+        LOCK(ownerNode.cs_vSend);
+        BOOST_REQUIRE_GE(ownerNode.vSendMsg.size(), 2U);
+
+        CDataStream sentHeader(
+            ownerNode.vSendMsg[ownerNode.vSendMsg.size() - 2],
+            SER_NETWORK,
+            PROTOCOL_VERSION);
+        CMessageHeader parsedHeader(Params().MessageStart());
+        sentHeader >> parsedHeader;
+        BOOST_CHECK_EQUAL(parsedHeader.GetCommand(), NetMsgType::GETDATA);
+
+        CDataStream sentPayload(ownerNode.vSendMsg.back(), SER_NETWORK, PROTOCOL_VERSION);
+        std::vector<CInv> requests;
+        sentPayload >> requests;
+        BOOST_REQUIRE_EQUAL(requests.size(), 1U);
+        BOOST_CHECK(requests[0].hash == attackBlock.GetHash());
+        BOOST_CHECK(sentPayload.empty());
+    }
+
+    ownerState = CNodeStateStats();
+    BOOST_REQUIRE(GetNodeStateStats(ownerNode.GetId(), ownerState));
+    BOOST_REQUIRE_EQUAL(ownerState.vHeightInFlight.size(), 1U);
+    BOOST_CHECK_EQUAL(ownerState.vHeightInFlight[0], initialHeight + 2);
+    BOOST_CHECK_EQUAL(ownerState.nMisbehavior, 0);
+
+    QueueNetMessage(nonOwnerNode, NetMsgType::BLOCKTXN, mismatchedResponse);
+    processMessage(nonOwnerNode);
+
+    ownerState = CNodeStateStats();
+    BOOST_REQUIRE(GetNodeStateStats(ownerNode.GetId(), ownerState));
+    BOOST_REQUIRE_EQUAL(ownerState.vHeightInFlight.size(), 1U);
+    BOOST_CHECK_EQUAL(ownerState.vHeightInFlight[0], initialHeight + 2);
+    BOOST_CHECK_EQUAL(ownerState.nMisbehavior, 0);
+
+    CNodeStateStats nonOwnerState;
+    BOOST_REQUIRE(GetNodeStateStats(nonOwnerNode.GetId(), nonOwnerState));
+    BOOST_CHECK(nonOwnerState.vHeightInFlight.empty());
+    BOOST_CHECK_EQUAL(nonOwnerState.nMisbehavior, 0);
+
+    QueueNetMessage(ownerNode, NetMsgType::BLOCKTXN, mismatchedResponse);
+    processMessage(ownerNode, true);
+
+    ownerState = CNodeStateStats();
+    BOOST_REQUIRE(GetNodeStateStats(ownerNode.GetId(), ownerState));
+    BOOST_CHECK(ownerState.vHeightInFlight.empty());
+    BOOST_CHECK_EQUAL(ownerState.nMisbehavior, 100);
+
+    nonOwnerState = CNodeStateStats();
+    BOOST_REQUIRE(GetNodeStateStats(nonOwnerNode.GetId(), nonOwnerState));
+    BOOST_CHECK(nonOwnerState.vHeightInFlight.empty());
+    BOOST_CHECK_EQUAL(nonOwnerState.nMisbehavior, 0);
+
+    QueueNetMessage(nonOwnerNode, NetMsgType::BLOCKTXN, mismatchedResponse);
+    processMessage(nonOwnerNode);
+
+    ownerState = CNodeStateStats();
+    BOOST_REQUIRE(GetNodeStateStats(ownerNode.GetId(), ownerState));
+    BOOST_CHECK(ownerState.vHeightInFlight.empty());
+    BOOST_CHECK_EQUAL(ownerState.nMisbehavior, 100);
+
+    nonOwnerState = CNodeStateStats();
+    BOOST_REQUIRE(GetNodeStateStats(nonOwnerNode.GetId(), nonOwnerState));
+    BOOST_CHECK(nonOwnerState.vHeightInFlight.empty());
+    BOOST_CHECK_EQUAL(nonOwnerState.nMisbehavior, 0);
+
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(chainActive.Tip());
+        BOOST_CHECK(chainActive.Tip()->GetBlockHash() == validBlock.GetHash());
     }
 }
 
