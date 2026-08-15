@@ -1884,6 +1884,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         uint32_t nFetchFlags = GetFetchFlags(pfrom, chainActive.Tip(), chainparams.GetConsensus());
 
         std::vector<CInv> vToFetch;
+        uint256 hashBestBlock;
+        bool fRequestHeaders = false;
 
         for (unsigned int nInv = 0; nInv < vInv.size(); nInv++)
         {
@@ -1902,13 +1904,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             if (inv.type == MSG_BLOCK) {
                 UpdateBlockAvailability(pfrom->GetId(), inv.hash);
                 if (!fAlreadyHave && !fImporting && !fReindex && !mapBlocksInFlight.count(inv.hash)) {
-                    // We used to request the full block here, but since headers-announcements are now the
-                    // primary method of announcement on the network, and since, in the case that a node
-                    // fell back to inv we probably have a reorg which we should get the headers for first,
-                    // we now only provide a getheaders response here. When we receive the headers, we will
-                    // then ask for the blocks we need.
-                    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexBestHeader), inv.hash));
-                    LogPrint("net", "getheaders (%d) %s to peer=%d\n", pindexBestHeader->nHeight, inv.hash.ToString(), pfrom->id);
+                    // Headers-first is the primary method of announcement on the network. If a node fell
+                    // back to sending blocks by inv, it is probably for a reorg. The final block hash
+                    // provided should be the highest, so ask for headers once and then fetch the blocks
+                    // needed to catch up.
+                    hashBestBlock = inv.hash;
+                    fRequestHeaders = true;
                 }
             }
 
@@ -1954,6 +1955,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     pfrom->AskFor(inv, doubleRequestDelay);
                 }
             }
+        }
+
+        if (fRequestHeaders) {
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexBestHeader), hashBestBlock));
+            LogPrint("net", "getheaders (%d) %s to peer=%d\n", pindexBestHeader->nHeight, hashBestBlock.ToString(), pfrom->id);
         }
 
         if (!vToFetch.empty())

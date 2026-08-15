@@ -4,10 +4,13 @@
 
 // Unit tests for denial-of-service detection/prevention code
 
+#include "arith_uint256.h"
 #include "chainparams.h"
+#include "hash.h"
 #include "keystore.h"
 #include "net.h"
 #include "net_processing.h"
+#include "netmessagemaker.h"
 #include "pow.h"
 #include "script/sign.h"
 #include "serialize.h"
@@ -213,6 +216,120 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
     BOOST_CHECK(mapOrphanTransactions.size() <= 10);
     LimitOrphanTxSize(0);
     BOOST_CHECK(mapOrphanTransactions.empty());
+}
+
+BOOST_AUTO_TEST_CASE(inv_getheaders_coalesced)
+{
+    std::atomic<bool> interruptDummy(false);
+    PeerLogicValidation peerLogic(connman);
+
+    CAddress addr(ip(0xa0b0c003), NODE_NONE);
+    CNode dummyNode(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr, 0, 0, "", true);
+    dummyNode.SetSendVersion(PROTOCOL_VERSION);
+    dummyNode.SetRecvVersion(PROTOCOL_VERSION);
+    dummyNode.nVersion = PROTOCOL_VERSION;
+    dummyNode.fSuccessfullyConnected = true;
+    GetNodeSignals().InitializeNode(&dummyNode, *connman);
+
+    struct NodeStateCleanup {
+        explicit NodeStateCleanup(NodeId nodeId) : nodeId(nodeId) {}
+
+        ~NodeStateCleanup()
+        {
+            bool updateConnectionTime = false;
+            GetNodeSignals().FinalizeNode(nodeId, updateConnectionTime);
+        }
+
+        NodeId nodeId;
+    } nodeStateCleanup(dummyNode.GetId());
+
+    const uint256 firstBlock = uint256S("01");
+    const uint256 secondBlock = uint256S("02");
+    const uint256 txHash = uint256S("04");
+    const uint256 dandelionTxHash = uint256S("05");
+    std::vector<CInv> inventory{
+        CInv(MSG_BLOCK, firstBlock),
+        CInv(MSG_TX, txHash),
+        CInv(MSG_BLOCK, secondBlock),
+        CInv(MSG_DANDELION_TX, dandelionTxHash),
+    };
+    inventory.reserve(MAX_INV_SZ);
+
+    uint256 finalBlock;
+    for (uint32_t value = 100; inventory.size() < MAX_INV_SZ - 1; ++value) {
+        finalBlock = ArithToUint256(value);
+        inventory.emplace_back(MSG_BLOCK, finalBlock);
+    }
+    inventory.emplace_back(MSG_BLOCK, Params().GenesisBlock().GetHash());
+    BOOST_REQUIRE_EQUAL(inventory.size(), MAX_INV_SZ);
+
+    CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+    payload << inventory;
+    CMessageHeader header(Params().MessageStart(), NetMsgType::INV, payload.size());
+    const uint256 payloadHash = Hash(payload.begin(), payload.end());
+    memcpy(header.pchChecksum, payloadHash.begin(), CMessageHeader::CHECKSUM_SIZE);
+
+    CDataStream serializedHeader(SER_NETWORK, PROTOCOL_VERSION);
+    serializedHeader << header;
+    {
+        LOCK(dummyNode.cs_vProcessMsg);
+        dummyNode.vProcessMsg.emplace_back(Params().MessageStart(), SER_NETWORK, PROTOCOL_VERSION);
+        CNetMessage& message = dummyNode.vProcessMsg.back();
+        BOOST_REQUIRE_EQUAL(
+            static_cast<size_t>(message.readHeader(serializedHeader.data(), serializedHeader.size())),
+            serializedHeader.size());
+        BOOST_REQUIRE_EQUAL(
+            static_cast<size_t>(message.readData(payload.data(), payload.size())),
+            payload.size());
+        message.nTime = GetTimeMicros();
+        dummyNode.nProcessQueueSize += payload.size() + CMessageHeader::HEADER_SIZE;
+    }
+
+    BOOST_CHECK(!ProcessMessages(&dummyNode, *connman, interruptDummy));
+    BOOST_CHECK(!dummyNode.fDisconnect);
+    BOOST_CHECK(dummyNode.vProcessMsg.empty());
+
+    const CSerializedNetMsg expected = CNetMsgMaker(PROTOCOL_VERSION).Make(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexBestHeader), finalBlock);
+    const size_t expectedQueuedBytes = CMessageHeader::HEADER_SIZE + expected.data.size();
+    const size_t vulnerableQueuedBytes = (MAX_INV_SZ - 3) * expectedQueuedBytes;
+    BOOST_CHECK_LT(expectedQueuedBytes, DEFAULT_MAXSENDBUFFER * 1000);
+    BOOST_CHECK_GT(vulnerableQueuedBytes, DEFAULT_MAXSENDBUFFER * 1000);
+
+    CNodeStats stats;
+    dummyNode.copyStats(stats);
+    const auto getHeadersBytes = stats.mapSendBytesPerMsgCmd.find(NetMsgType::GETHEADERS);
+    BOOST_REQUIRE(getHeadersBytes != stats.mapSendBytesPerMsgCmd.end());
+    BOOST_CHECK_EQUAL(getHeadersBytes->second, expectedQueuedBytes);
+
+    {
+        LOCK(dummyNode.cs_vSend);
+        BOOST_CHECK_EQUAL(dummyNode.nSendSize, expectedQueuedBytes);
+        BOOST_CHECK_EQUAL(dummyNode.vSendMsg.size(), 2U);
+        BOOST_REQUIRE_GE(dummyNode.vSendMsg.size(), 2U);
+
+        CDataStream sentHeader(
+            dummyNode.vSendMsg[dummyNode.vSendMsg.size() - 2],
+            SER_NETWORK,
+            PROTOCOL_VERSION);
+        CMessageHeader parsedHeader(Params().MessageStart());
+        sentHeader >> parsedHeader;
+        BOOST_CHECK_EQUAL(parsedHeader.GetCommand(), NetMsgType::GETHEADERS);
+        BOOST_CHECK_EQUAL(parsedHeader.nMessageSize, expected.data.size());
+
+        CDataStream sentPayload(dummyNode.vSendMsg.back(), SER_NETWORK, PROTOCOL_VERSION);
+        CBlockLocator locator;
+        uint256 stopHash;
+        sentPayload >> locator >> stopHash;
+        BOOST_CHECK(!locator.IsNull());
+        BOOST_CHECK(stopHash == finalBlock);
+        BOOST_CHECK(sentPayload.empty());
+    }
+
+    {
+        LOCK(dummyNode.cs_inventory);
+        BOOST_CHECK(dummyNode.filterInventoryKnown.contains(txHash));
+        BOOST_CHECK(dummyNode.filterDandelionInventoryKnown.contains(dandelionTxHash));
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
