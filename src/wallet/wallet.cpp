@@ -2441,11 +2441,14 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, bool fExcludeLocked) const
         }
     }
 
-    nAvailableCreditCached = nCredit;
-    fAvailableCreditCached = true;
-
-    if (fExcludeLocked)
-        fAvailableCreditCached = false;
+    // The exclude-locked variant never reads the cache (see above), so it
+    // must not overwrite the cached unfiltered credit either: doing so (and
+    // then flagging it invalid) forced the next unfiltered call on every
+    // transaction to recompute from scratch.
+    if (!fExcludeLocked) {
+        nAvailableCreditCached = nCredit;
+        fAvailableCreditCached = true;
+    }
 
     return nCredit;
 }
@@ -2805,10 +2808,33 @@ bool CWallet::TryGetBalances(CAmount& balance,
         return false;
     }
 
-    balance = GetBalance();
-    unconfirmedBalance = GetUnconfirmedBalance();
-    newImmatureBalance = GetImmatureBalance();
-    mintableBalance = GetBalance(true);
+    // This runs on the GUI thread for every new block, so compute all four
+    // balances in a single scan of mapWallet instead of one scan each
+    // (GetBalance, GetUnconfirmedBalance, GetImmatureBalance,
+    // GetBalance(true)), which called IsTrusted() up to three times per
+    // transaction. The per-transaction conditions and credit calls below are
+    // identical to those of the replaced getters.
+    balance = 0;
+    unconfirmedBalance = 0;
+    newImmatureBalance = 0;
+    mintableBalance = 0;
+    const bool fHasLockedCoins = !setLockedCoins.empty();
+    for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx* pcoin = &(*it).second;
+        if (pcoin->IsTrusted()) {
+            const CAmount nAvailable = pcoin->GetAvailableCredit();
+            balance += nAvailable;
+            // Excluding locked coins only skips outputs in setLockedCoins, so
+            // with none locked the mintable credit equals the available
+            // credit and the second, uncacheable computation can be skipped.
+            mintableBalance += fHasLockedCoins ? pcoin->GetAvailableCredit(true, true) : nAvailable;
+        } else if (pcoin->GetDepthInMainChain() == 0 &&
+                   (pcoin->InMempool() || pcoin->InStempool()) &&
+                   !pcoin->IsLockedByLLMQInstantSend()) {
+            unconfirmedBalance += pcoin->GetAvailableCredit();
+        }
+        newImmatureBalance += pcoin->GetImmatureCredit();
+    }
 
     return true;
 }
