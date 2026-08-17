@@ -3319,14 +3319,32 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     UpdateTip(pindexDelete->pprev, chainparams);
 
 #ifdef ENABLE_WALLET
-    // update mint/spend wallet
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet && block.sparkTxInfo) {
-        if (block.sparkTxInfo->spentLTags.size() > 0) {
-            pwalletMain->sparkWallet->RemoveSparkSpends(block.sparkTxInfo->spentLTags);
-        }
+    // Update mint/spend wallet. The rollback data is taken from the transactions of the
+    // block instead of block.sparkTxInfo: spark::GetSparkMintCoins() binds every coin to
+    // its serial context, which is not serialized with the coin but is required to
+    // identify it, and it covers the SMint outputs of spend transactions as well as pure
+    // mints.
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
+        for (const CTransactionRef& tx : block.vtx) {
+            if (!tx->IsSparkTransaction())
+                continue;
 
-        if (block.sparkTxInfo->mints.size() > 0) {
-            pwalletMain->sparkWallet->RemoveSparkMints(block.sparkTxInfo->mints);
+            // A transaction resurrected into the pools above still exists, it is only
+            // unconfirmed again, and its acceptance has re-registered its coins with the
+            // wallet. Roll back the wallet for the transactions that did not make it back.
+            const uint256 txHash = tx->GetHash();
+            if (mempool.exists(txHash) || txpools.getStemTxPool().exists(txHash))
+                continue;
+
+            if (tx->IsSparkSpend()) {
+                std::vector<GroupElement> lTags = spark::GetSparkUsedTags(*tx);
+                if (!lTags.empty())
+                    pwalletMain->sparkWallet->RemoveSparkSpends(lTags);
+            }
+
+            std::vector<spark::Coin> coins = spark::GetSparkMintCoins(*tx);
+            if (!coins.empty())
+                pwalletMain->sparkWallet->RemoveSparkMints(coins);
         }
     }
 #endif

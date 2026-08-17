@@ -705,14 +705,20 @@ bool CheckSparkSpendTransaction(
                 script.IsLelantusMint() ||
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
-            return false;
+            return state.DoS(100,
+                             false,
+                             REJECT_INVALID,
+                             "CheckSparkSpendTransaction: can't mix spark spend with mint outputs");
         } else {
             Vout += txout.nValue;
         }
     }
 
     if (private_num > ::Params().GetConsensus().nMaxSparkOutLimitPerTx)
-        return false;
+        return state.DoS(100,
+                         false,
+                         REJECT_INVALID,
+                         "CheckSparkSpendTransaction: number of private outputs is out of limit");
 
     std::vector<Coin> out_coins;
     out_coins.reserve(private_num);
