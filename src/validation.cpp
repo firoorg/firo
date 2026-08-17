@@ -2502,7 +2502,7 @@ static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex,
-                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck)
+                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck, bool isVerifyDB)
 {
     AssertLockHeld(cs_main);
 
@@ -2898,7 +2898,11 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck))
+    // VerifyDB rewinds only its throwaway UTXO view; global Spark state and the
+    // Spark entries of the block index are never rolled back. Re-running the
+    // Spark connect logic on such a reconnect double-counts mints and fails the
+    // used-lTag check against state that still contains this block, so skip it.
+    if (!isVerifyDB && !spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
     if (!sporkManager->IsBlockAllowed(block, pindex, state))
@@ -5169,7 +5173,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-            if (!ConnectBlock(block, state, pindex, coins, chainparams))
+            if (!ConnectBlock(block, state, pindex, coins, chainparams, false, true /* isVerifyDB */))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
     }
