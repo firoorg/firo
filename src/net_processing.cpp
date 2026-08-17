@@ -2899,11 +2899,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             mapBlockSource.emplace(hash, std::make_pair(pfrom->GetId(), true));
         }
         bool fNewBlock = false;
-        const bool fProcessed = ProcessNewBlock(chainparams, pblock, forceProcessing, &fNewBlock);
-        if (fProcessed && fNewBlock) {
+        ProcessNewBlock(chainparams, pblock, forceProcessing, &fNewBlock);
+        if (fNewBlock) {
             pfrom->nLastBlockTime = GetTime();
             LOCK(cs_main);
             MarkBlockAsReceived(hash, std::nullopt);
+        } else {
+            LOCK(cs_main);
+            mapBlockSource.erase(hash);
         }
     }
 

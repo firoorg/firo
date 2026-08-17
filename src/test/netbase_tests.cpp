@@ -15,9 +15,6 @@
 #include <boost/assign/list_of.hpp>
 #include <boost/test/unit_test.hpp>
 
-struct ProxyCredentials;
-bool Socks5(const std::string& strDest, int port, const ProxyCredentials* auth, SOCKET& hSocket);
-
 BOOST_FIXTURE_TEST_SUITE(netbase_tests, BasicTestingSetup)
 
 #ifndef WIN32

@@ -262,12 +262,6 @@ bool static InterruptibleRecv(uint8_t* data, size_t len, int timeout, SOCKET& hS
     return len == 0;
 }
 
-struct ProxyCredentials
-{
-    std::string username;
-    std::string password;
-};
-
 std::string Socks5ErrorString(int err)
 {
     switch(err) {
