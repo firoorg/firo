@@ -40,15 +40,10 @@ static inline uint256 H256ToU256(const ethash::hash256& in) {
 
 uint256 progpow_hash_full(const CProgPowHeader& header, uint256& mix_hash)
 {
-    static ethash::epoch_context_ptr epochContext{nullptr,nullptr};
-    if (!epochContext || epochContext->epoch_number != ethash::get_epoch_number(header.nHeight))
-    {
-        epochContext.reset();
-        epochContext = ethash::create_epoch_context(ethash::get_epoch_number(header.nHeight));
-    }
+    const auto& epochContext = ethash::get_global_epoch_context(ethash::get_epoch_number(header.nHeight));
 
     const auto header_h256{U256ToH256(SerializeHash(header))};
-    const auto result = progpow::hash(*epochContext, header.nHeight, header_h256, header.nNonce64);
+    const auto result = progpow::hash(epochContext, header.nHeight, header_h256, header.nNonce64);
     mix_hash = H256ToU256(result.mix_hash);
     return H256ToU256(result.final_hash);
 }
