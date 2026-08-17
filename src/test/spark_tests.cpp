@@ -869,6 +869,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
             UpdateRegtestSparkSingleInputHeight(INT_MAX);
         }
     } reset{batch};
+    UpdateRegtestSparkSingleInputHeight(INT_MAX);
 
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
@@ -900,7 +901,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         true,
         &historicalInfo));
     batch->finalize();
-    BOOST_CHECK_NO_THROW(batch->verify());
+    BOOST_CHECK(batch->verify_pending());
 
     UpdateRegtestSparkSingleInputHeight(chainActive.Height());
     batch->init();

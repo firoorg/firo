@@ -793,9 +793,9 @@ bool CheckSparkSpendTransaction(
     if (useBatching) {
         passVerify = true;
         if (enforceSingleInput) {
-            batchProofContainer->add(*spend);
+            batchProofContainer->add(*spend, hashTx);
         } else {
-            batchProofContainer->addHistorical(*spend);
+            batchProofContainer->addHistorical(*spend, hashTx);
         }
     } else {
         try {
