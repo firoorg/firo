@@ -87,7 +87,7 @@ bool CheckSparkTransaction(
 
 bool GetOutPoint(COutPoint& outPoint, const spark::Coin& coin);
 bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash);
-bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block);
+bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block, CTransactionRef* txOut = nullptr);
 
 bool BuildSparkStateFromIndex(CChain *chain);
 
