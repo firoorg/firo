@@ -230,14 +230,21 @@ BOOST_AUTO_TEST_CASE(mempool)
     const uint256 mintTxid = ArithToUint256(1);
     sparkState->AddMintsToMempool({randMint}, mintTxid);
     BOOST_CHECK(!sparkState->CanAddMintToMempool(randMint));
-    BOOST_CHECK(
-        mempool.sparkState.GetMempoolConflictingMintTxHash(randMint) == mintTxid);
+    {
+        LOCK(::mempool.cs);
+        BOOST_CHECK(
+            ::mempool.sparkState.GetMempoolConflictingMintTxHash(randMint) ==
+            mintTxid);
+    }
 
     // - remove from mempool then can add again
     sparkState->RemoveMintFromMempool(randMint);
     BOOST_CHECK(sparkState->CanAddMintToMempool(randMint));
-    BOOST_CHECK(
-        mempool.sparkState.GetMempoolConflictingMintTxHash(randMint).IsNull());
+    {
+        LOCK(::mempool.cs);
+        BOOST_CHECK(
+            ::mempool.sparkState.GetMempoolConflictingMintTxHash(randMint).IsNull());
+    }
 
     // test spend mempool
     // - can not add on-chain spend
@@ -283,26 +290,22 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
     const spark::Coin mint = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);
     const spark::Coin spendMint = CreateCoin(spark::COIN_TYPE_SPEND, 2 * COIN);
 
-    const auto check = [this](
+    const auto check = [](
             const std::vector<spark::Coin>& mints,
             int height,
-            CBlockIndex* previous,
             CValidationState& state) {
-        CBlock block;
-        PopulateSparkTxInfo(block, mints, {});
-        CBlockIndex index;
-        index.pprev = previous;
-        index.nHeight = height;
-        return ConnectBlockSpark(state, ::Params(), &index, &block, true);
+        if (height < ::Params().GetConsensus().nSparkDuplicateMintStartBlock)
+            return true;
+        return spark::CheckSparkMintDuplicates(state, mints, height);
     };
 
     CValidationState preActivationState;
     BOOST_CHECK(check(
-        {mint, mint}, activationHeight - 1, chainActive.Tip(), preActivationState));
+        {mint, mint}, activationHeight - 1, preActivationState));
 
     CValidationState mintDuplicateState;
     BOOST_CHECK(!check(
-        {mint, mint}, activationHeight, chainActive.Tip(), mintDuplicateState));
+        {mint, mint}, activationHeight, mintDuplicateState));
     int mintDuplicateDoS = 0;
     BOOST_REQUIRE(mintDuplicateState.IsInvalid(mintDuplicateDoS));
     BOOST_CHECK_EQUAL(mintDuplicateDoS, 100);
@@ -313,7 +316,6 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
     BOOST_CHECK(!check(
         {spendMint, spendMint},
         activationHeight,
-        chainActive.Tip(),
         spendMintDuplicateState));
     BOOST_CHECK_EQUAL(
         spendMintDuplicateState.GetRejectReason(),
@@ -321,43 +323,108 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
 
     CValidationState distinctState;
     BOOST_CHECK(check(
-        {mint, spendMint}, activationHeight, chainActive.Tip(), distinctState));
+        {mint, spendMint}, activationHeight, distinctState));
 
     sparkState->AddMint(
         mint, spark::CMintedCoinInfo::make(1, activationHeight - 1));
     CValidationState activeChainState;
     BOOST_CHECK(!check(
-        {mint}, activationHeight, chainActive.Tip(), activeChainState));
+        {mint}, activationHeight, activeChainState));
     BOOST_CHECK_EQUAL(
         activeChainState.GetRejectReason(), "bad-txns-spark-mint-duplicate");
 
-    // VerifyDB reconnects historical UTXO views without rewinding global Spark
-    // state, so only active-tip connections consult that state.
-    CValidationState historicalState;
+    // VerifyDB may see the candidate block's own mint in global Spark state.
+    // An occurrence at the candidate height is not an earlier duplicate.
+    const spark::Coin replayMint =
+        CreateCoin(spark::COIN_TYPE_MINT, 3 * COIN);
+    sparkState->AddMint(
+        replayMint, spark::CMintedCoinInfo::make(1, activationHeight));
+    CValidationState historicalReplayState;
     BOOST_CHECK(check(
-        {mint}, activationHeight, chainActive.Tip()->pprev, historicalState));
-
-    GroupElement lTag;
-    lTag.randomize();
-    CBlock rejectedBlock;
-    PopulateSparkTxInfo(rejectedBlock, {spendMint, spendMint}, {{lTag, 1}});
-    CBlockIndex rejectedIndex;
-    rejectedIndex.pprev = chainActive.Tip();
-    rejectedIndex.nHeight = activationHeight;
-    const std::size_t coinsBefore = sparkState->GetTotalCoins();
-    CValidationState rejectedState;
-    BOOST_CHECK(!ConnectBlockSpark(
-        rejectedState,
-        ::Params(),
-        &rejectedIndex,
-        &rejectedBlock,
-        false));
-    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), coinsBefore);
-    BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
-    BOOST_CHECK(rejectedIndex.sparkMintedCoins.empty());
-    BOOST_CHECK(rejectedIndex.spentLTags.empty());
+        {replayMint}, activationHeight, historicalReplayState));
 
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(duplicate_mint_legacy_disconnect)
+{
+    const spark::Coin mint = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);
+
+    CBlock firstBlock;
+    PopulateSparkTxInfo(firstBlock, {mint}, {});
+    CBlockIndex firstIndex;
+    firstIndex.pprev = chainActive.Tip();
+    firstIndex.nHeight = chainActive.Height() + 1;
+    sparkState->AddMintsToStateAndBlockIndex(&firstIndex, &firstBlock);
+
+    CBlock duplicateBlock;
+    PopulateSparkTxInfo(duplicateBlock, {mint, mint}, {});
+    CBlockIndex duplicateIndex;
+    duplicateIndex.pprev = &firstIndex;
+    duplicateIndex.nHeight = firstIndex.nHeight + 1;
+    sparkState->AddMintsToStateAndBlockIndex(&duplicateIndex, &duplicateBlock);
+
+    BOOST_REQUIRE_EQUAL(sparkState->GetTotalCoins(), 1U);
+    BOOST_REQUIRE_EQUAL(duplicateIndex.sparkMintedCoins.at(1).size(), 2U);
+
+    sparkState->RemoveBlock(&duplicateIndex);
+
+    BOOST_CHECK(sparkState->HasCoin(mint));
+    BOOST_CHECK(
+        sparkState->GetMintedCoinHeightAndId(mint) ==
+        std::make_pair(firstIndex.nHeight, 1));
+    spark::CSparkState::SparkCoinGroupInfo group;
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(1, group));
+    BOOST_CHECK_EQUAL(group.nCoins, 1);
+    BOOST_CHECK(group.lastBlock == &firstIndex);
+
+    sparkState->RemoveBlock(&firstIndex);
+    BOOST_CHECK(!sparkState->HasCoin(mint));
+    BOOST_CHECK(!sparkState->GetCoinGroupInfo(1, group));
+
+    // Rebuilding from persisted block-index entries must preserve the same
+    // occurrence and remain safe to disconnect.
+    sparkState->AddBlock(&firstIndex);
+    sparkState->AddBlock(&duplicateIndex);
+    BOOST_REQUIRE_EQUAL(sparkState->GetTotalCoins(), 1U);
+    sparkState->RemoveBlock(&duplicateIndex);
+    BOOST_CHECK(
+        sparkState->GetMintedCoinHeightAndId(mint) ==
+        std::make_pair(firstIndex.nHeight, 1));
+    sparkState->RemoveBlock(&firstIndex);
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), 0U);
+
+    // A later duplicate can also be indexed in a different anonymity-set
+    // group. Disconnecting that group must still preserve the earlier mint.
+    firstIndex.sparkMintedCoins.clear();
+    duplicateIndex.sparkMintedCoins.clear();
+    firstIndex.sparkMintedCoins[1].push_back(mint);
+    duplicateIndex.sparkMintedCoins[2].push_back(mint);
+    sparkState->AddBlock(&firstIndex);
+    sparkState->AddBlock(&duplicateIndex);
+    BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
+
+    sparkState->RemoveBlock(&duplicateIndex);
+    BOOST_CHECK(
+        sparkState->GetMintedCoinHeightAndId(mint) ==
+        std::make_pair(firstIndex.nHeight, 1));
+    BOOST_CHECK_EQUAL(sparkState->GetLatestCoinID(), 1);
+    BOOST_CHECK(!sparkState->GetCoinGroupInfo(2, group));
+    sparkState->RemoveBlock(&firstIndex);
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), 0U);
+
+    const spark::Coin sameBlockMint =
+        CreateCoin(spark::COIN_TYPE_MINT, 2 * COIN);
+    CBlock sameBlock;
+    PopulateSparkTxInfo(sameBlock, {sameBlockMint, sameBlockMint}, {});
+    CBlockIndex sameBlockIndex;
+    sameBlockIndex.pprev = chainActive.Tip();
+    sameBlockIndex.nHeight = chainActive.Height() + 1;
+    sparkState->AddMintsToStateAndBlockIndex(&sameBlockIndex, &sameBlock);
+
+    BOOST_REQUIRE_EQUAL(sparkState->GetTotalCoins(), 1U);
+    sparkState->RemoveBlock(&sameBlockIndex);
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), 0U);
 }
 
 BOOST_AUTO_TEST_CASE(add_remove_block)

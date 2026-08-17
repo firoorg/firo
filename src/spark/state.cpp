@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <set>
+#include <unordered_set>
 
 namespace spark {
 
@@ -38,15 +39,18 @@ void EraseCheckedSparkSpendTransaction(const uint256& hashTx)
 
 static CSparkState sparkState;
 
-static bool CheckSparkMintDuplicates(
+bool CheckSparkMintDuplicates(
         CValidationState& state,
         const std::vector<spark::Coin>& mints,
-        bool checkActiveState)
+        int nHeight)
 {
     std::unordered_set<uint256> blockMints;
     for (const auto& mint : mints) {
+        const auto mintedCoinHeightAndId =
+            sparkState.GetMintedCoinHeightAndId(mint);
         if (!blockMints.insert(mint.getHash()).second ||
-                (checkActiveState && sparkState.HasCoin(mint))) {
+                (mintedCoinHeightAndId.first >= 0 &&
+                 mintedCoinHeightAndId.first < nHeight)) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-mint-duplicate");
         }
@@ -302,16 +306,6 @@ bool ConnectBlockSpark(
         }
 
         if (!CheckSparkBlock(state, *pblock, pindexNew->nHeight)) {
-            return false;
-        }
-
-        // VerifyDB rewinds its UTXO view, not global Spark state.
-        const bool checkActiveSparkState = pindexNew->pprev == chainActive.Tip();
-        if (pindexNew->nHeight >= chainparams.GetConsensus().nSparkDuplicateMintStartBlock &&
-                !CheckSparkMintDuplicates(
-                    state,
-                    pblock->sparkTxInfo->mints,
-                    checkActiveSparkState)) {
             return false;
         }
 
@@ -1384,10 +1378,17 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
             auto mintCoins = GetMints().equal_range(coin);
             auto coinIt = find_if(
                     mintCoins.first, mintCoins.second,
-                    [&coins](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
-                        return v.second.coinGroupId == coins.first;
+                    [&coins, index](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
+                        return v.second.coinGroupId == coins.first && v.second.nHeight == index->nHeight;
                     });
-            assert(coinIt != mintCoins.second);
+            // A legacy index may contain a duplicate that never entered mintedCoins.
+            // Do not remove an older occurrence while disconnecting that block.
+            if (coinIt == mintCoins.second) {
+                auto metaIt = mintMetaInfo.find(coins.first);
+                if (metaIt != mintMetaInfo.end() && metaIt->second > 0)
+                    --metaIt->second;
+                continue;
+            }
             RemoveMint(coinIt->first);
         }
     }

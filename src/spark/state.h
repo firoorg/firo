@@ -61,6 +61,12 @@ CAmount GetSpendTransparentAmount(const CTransaction& tx);
 
 bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight);
 
+/** Reject repeated Spark coin identities within a block or at an earlier height. */
+bool CheckSparkMintDuplicates(
+        CValidationState& state,
+        const std::vector<spark::Coin>& mints,
+        int nHeight);
+
 //void DisconnectTipLelantus(CBlock &block, CBlockIndex *pindexDelete);
 
 bool ConnectBlockSpark(
