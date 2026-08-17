@@ -126,6 +126,7 @@ testScripts = [
     # 'p2p-segwit.py',
     'listtransactions.py',
     # vv Tests less than 60s vv
+    'p2p-block-source.py',
     # 'sendheaders.py',
     # 'importmulti.py',
     # 'mempool_limit.py',
