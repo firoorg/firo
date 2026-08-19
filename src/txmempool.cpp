@@ -598,8 +598,6 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             catch (CBadTxIn&) {
             }
 
-            spark::EraseCheckedSparkSpendTransaction(tx.GetHash());
-
             // remove all the spark name transactions referencing this tx
             for (auto it = sparkNames.begin(); it!=sparkNames.end();) {
                 if (it->second.second == tx.GetHash()) {

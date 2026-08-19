@@ -422,7 +422,7 @@ public:
         // Disabled until a deployment height is selected.
         consensus.nSparkSingleInputStartBlock = 1355970;
         // Disabled until a deployment height is selected.
-        consensus.nSparkChaumV2StartBlock = INT_MAX;
+        consensus.nSparkChaumV2StartBlock = 1364983;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
@@ -1276,7 +1276,7 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
         consensus.nSparkStartBlock = 100;
         consensus.nSparkSingleInputStartBlock = 500;
-        consensus.nSparkChaumV2StartBlock = INT_MAX;
+        consensus.nSparkChaumV2StartBlock = 700;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
