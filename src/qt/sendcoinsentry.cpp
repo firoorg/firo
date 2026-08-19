@@ -10,6 +10,7 @@
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "rosenbridge.h"
 #include "walletmodel.h"
 #include "../spark/sparkwallet.h"
 #include "../wallet/wallet.h"
@@ -303,6 +304,60 @@ void SendCoinsEntry::setSubtractFeeFromAmount(bool enable)
 bool SendCoinsEntry::isClear()
 {
     return ui->payTo->text().isEmpty() && ui->payTo_is->text().isEmpty() && ui->payTo_s->text().isEmpty();
+}
+
+bool SendCoinsEntry::hasRosenBridgeData() const
+{
+    return !recipient.opReturnData.empty();
+}
+
+void SendCoinsEntry::clearRosenBridgeData()
+{
+    if (recipient.opReturnData.empty()) {
+        return;
+    }
+
+    recipient.opReturnData.clear();
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
+}
+
+void SendCoinsEntry::updateRosenBridgeDisplay()
+{
+    RosenBridge::Metadata metadata;
+    const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
+
+    const bool subtractFeeAllowed = !fAnonymousMode && !valid;
+
+    ui->rosenBridgeLabel->setVisible(valid);
+    ui->rosenBridgeDetails->setVisible(valid);
+    ui->payAmount->setReadOnly(valid);
+
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
+    if (!subtractFeeAllowed) {
+        ui->checkboxSubtractFeeFromAmount->setChecked(false);
+    }
+
+    if (!valid) {
+        ui->rosenBridgeDetails->clear();
+        ui->rosenBridgeDetails->setToolTip(QString());
+        ui->rosenBridgeDetails->setStyleSheet(QString());
+        return;
+    }
+
+    QString details = tr("Metadata: %1 bytes\n").arg(static_cast<qulonglong>(recipient.opReturnData.size()));
+    details += RosenBridge::FormatDetails(metadata);
+    details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
+
+    if (fAnonymousMode) {
+        details.prepend(tr("Switch to Transparent Balance to send this Rosen Bridge transfer.\n"));
+        ui->rosenBridgeDetails->setStyleSheet(QStringLiteral("color: #aa0000;"));
+    } else {
+        ui->rosenBridgeDetails->setStyleSheet(QString());
+    }
+
+    ui->rosenBridgeDetails->setText(details);
+    ui->rosenBridgeDetails->setToolTip(tr("This transaction includes Rosen Bridge OP_RETURN metadata."));
 }
 
 bool SendCoinsEntry::isPayToPcode() const

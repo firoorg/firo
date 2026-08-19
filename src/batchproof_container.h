@@ -13,8 +13,6 @@ public:
 
     void init();
 
-    void abort();
-
     void finalize();
 
     void verify();

@@ -2743,18 +2743,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+    batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
     batchProofContainer->init();
-    batchProofContainer->fCollectProofs =
-        !isVerifyDB &&
-        ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) &&
-        GetBoolArg("-batching", true);
-    struct BatchProofCleanup {
-        BatchProofContainer* container;
-        ~BatchProofCleanup()
-        {
-            container->abort();
-        }
-    } batchProofCleanup{batchProofContainer};
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -2882,24 +2872,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
-    }
-
-    // Batch within this block, but complete verification before committing
-    // Spark state, block-index data, or persistent chain state.
-    try {
-        batchProofContainer->finalize();
-        batchProofContainer->verify();
-    } catch (const std::bad_alloc&) {
-        return state.Error(
-            "ConnectBlock(): memory allocation failed during Spark batch verification");
-    } catch (const std::exception& errorMessage) {
-        return state.DoS(
-            100,
-            error(
-                "ConnectBlock(): Spark batch proof verification failed: %s",
-                errorMessage.what()),
-            REJECT_INVALID,
-            "bad-spark-batch-proof");
     }
 
     block.sparkTxInfo->Complete();
@@ -3108,6 +3080,9 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
+
+    // do batch verification if remains a day or collect proofs
+    batchProofContainer->finalize();
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);
@@ -3946,6 +3921,11 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
         }
+        // Do batch verification if we reach 1 day old block,
+        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+        batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+        batchProofContainer->verify();
+
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         // Notifications/callbacks that can run without cs_main

@@ -41,6 +41,7 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "mtpstate.h"
+#include "batchproof_container.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -311,6 +312,8 @@ void Shutdown()
     {
         LOCK(cs_main);
         if (pcoinsTip != NULL) {
+            BatchProofContainer::get_instance()->finalize();
+            BatchProofContainer::get_instance()->verify();
             FlushStateToDisk();
         }
         delete pcoinsTip;
