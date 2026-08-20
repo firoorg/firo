@@ -8,6 +8,8 @@
 #include "../sync.h"
 #include "../unordered_lru_cache.h"
 
+#include <algorithm>
+#include <limits>
 #include <memory>
 #include <set>
 
@@ -685,6 +687,8 @@ bool CheckSparkSpendTransaction(
     bool isMempoolAcceptance = (!sparkTxInfo);
     const bool enforceSingleInput = isMempoolAcceptance ? (height >= (params.nSparkSingleInputStartBlock - 10))
         : height >= params.nSparkSingleInputStartBlock;
+    const bool enforceCanonicalGroupIds = isMempoolAcceptance ||
+        height >= params.nSparkCanonicalGroupIdStartBlock;
 
     if (enforceSingleInput &&
         spend->getUsedLTags().size() != 1) {
@@ -693,6 +697,22 @@ bool CheckSparkSpendTransaction(
                          isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
                          "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
     }
+
+    const auto& idAndBlockHashes = spend->getBlockHashes();
+    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
+    const auto isInvalidGroupId = [](uint64_t id) {
+        return id == 0 || id > static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
+    };
+    if (enforceCanonicalGroupIds &&
+        (std::any_of(ids.begin(), ids.end(), isInvalidGroupId) ||
+         std::any_of(idAndBlockHashes.begin(), idAndBlockHashes.end(),
+                     [&isInvalidGroupId](const auto& item) { return isInvalidGroupId(item.first); }))) {
+        return state.DoS(isMempoolAcceptance ? 0 : 100,
+                         false,
+                         isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                         "CheckSparkSpendTransaction: invalid coin group id");
+    }
+
     bool passVerify = false;
 
     uint64_t Vout = 0;
@@ -721,14 +741,17 @@ bool CheckSparkSpendTransaction(
     spend->setOutCoins(out_coins);
     std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
-    const auto idAndBlockHashes = spend->getBlockHashes();
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
+        const uint64_t wireGroupId = idAndHash.first;
+        // Preserve the deployed 32-bit interpretation for historical blocks.
+        const int stateGroupId = static_cast<int32_t>(wireGroupId);
+        const int previousStateGroupId = static_cast<int32_t>(wireGroupId - 1);
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup))
+        if (!sparkState.GetCoinGroupInfo(stateGroupId, coinGroup))
             return state.DoS(100, false, NO_MINT_ZEROCOIN, "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
 
         CBlockIndex *index = coinGroup.lastBlock;
@@ -737,7 +760,7 @@ bool CheckSparkSpendTransaction(
             index = index->pprev;
 
         // take the hash from last block of anonymity set
-        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
+        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, stateGroupId);
 
         std::vector<Coin> cover_set;
         cover_set.reserve(coinGroup.nCoins);
@@ -747,10 +770,10 @@ bool CheckSparkSpendTransaction(
         // This list of public coins is required by function "Verify" of spend.
         while (true) {
             int id = 0;
-            if (CountCoinInBlock(index, idAndHash.first)) {
-                id = idAndHash.first;
-            } else if (CountCoinInBlock(index, idAndHash.first - 1)) {
-                id = idAndHash.first - 1;
+            if (CountCoinInBlock(index, stateGroupId)) {
+                id = stateGroupId;
+            } else if (CountCoinInBlock(index, previousStateGroupId)) {
+                id = previousStateGroupId;
             }
             if (id) {
                 if (index->sparkMintedCoins.count(id) > 0) {
@@ -775,13 +798,12 @@ bool CheckSparkSpendTransaction(
             setData.cover_set_representation = set_hash;
         setData.cover_set_representation.insert(setData.cover_set_representation.end(), txHashForMetadata.begin(), txHashForMetadata.end());
 
-        cover_sets[idAndHash.first] = std::move(cover_set);
-        cover_set_data [idAndHash.first] = setData;
+        cover_sets[wireGroupId] = std::move(cover_set);
+        cover_set_data[wireGroupId] = setData;
     }
     spend->setCoverSets(cover_set_data);
     spend->setVout(Vout);
 
-    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {
         if (!cover_sets.count(id) || !cover_set_data.count(id))
             return state.DoS(100,
@@ -869,7 +891,8 @@ bool CheckSparkSpendTransaction(
             // add spend information to the index
             if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                 for (size_t i = 0; i < lTags.size(); i++) {
-                    sparkTxInfo->spentLTags.insert(std::make_pair(lTags[i], ids[i]));
+                    sparkTxInfo->spentLTags.insert(std::make_pair(
+                        lTags[i], static_cast<int32_t>(ids[i])));
                     if (GetBoolArg("-mobile", false)) {
                         sparkTxInfo->ltagTxhash.insert(std::make_pair(primitives::GetLTagHash(lTags[i]), hashTx));
                     }

@@ -400,7 +400,7 @@ bool SpendTransaction::verify(
 		params->get_m_grootle()
 	);
 	for (auto grootle_bucket : grootle_buckets) {
-		std::size_t cover_set_id = grootle_bucket.first;
+		const uint64_t cover_set_id = grootle_bucket.first;
 		std::vector<std::pair<std::size_t, std::size_t>> proof_indexes = grootle_bucket.second;
 
 		// Build the proof statement and metadata vectors from these proofs
