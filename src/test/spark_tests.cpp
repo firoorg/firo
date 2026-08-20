@@ -1548,7 +1548,9 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         }
     } reset{batch};
 
-    GenerateBlocks(500);
+    // Stay below regtest nSparkSingleInputStartBlock (500) so historical
+    // multi-input spends remain consensus-valid for the first check.
+    GenerateBlocks(200);
     std::vector<CMutableTransaction> mintTransactions;
     const auto createdMints =
         GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
@@ -2268,7 +2270,8 @@ BOOST_AUTO_TEST_CASE(spark_activation_order_is_validated)
     BOOST_CHECK_EQUAL(consensus.nSparkSingleInputStartBlock, 800);
     BOOST_CHECK_EQUAL(consensus.nSparkChaumV2StartBlock, 900);
 
-    consensus.nSparkSingleInputStartBlock = 101;
+    // single-input must not follow V2 (901 > 900).
+    consensus.nSparkSingleInputStartBlock = 901;
     BOOST_CHECK_THROW(
         ValidateSparkActivationHeights(consensus), std::runtime_error);
 }
