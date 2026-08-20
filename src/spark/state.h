@@ -77,10 +77,13 @@ bool ConnectBlockSpark(
 
 void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
 
+/** Drop a cached mempool-acceptance proof result when the tx leaves the mempool. */
+void EraseCheckedSparkSpendTransaction(const uint256& hashTx);
+
 /** Clear proof results that depend on active-chain cover-set data. */
 void ClearSparkSpendProofCache();
 
-/** Current number of successful proof results retained in memory. */
+/** Current number of proof results retained in memory. */
 std::size_t GetSparkSpendProofCacheSize();
 
 

@@ -1491,24 +1491,29 @@ bool AppInitParameterInteraction()
         };
 
         try {
+            int singleInputHeight = 0;
+            int chaumV2Height = 0;
+            const int* pSingleInputHeight = nullptr;
+            const int* pChaumV2Height = nullptr;
+
             if (IsArgSet("-sparksingleinputheight")) {
-                int height;
                 if (!parseActivationHeight(
-                        "-sparksingleinputheight", height)) {
+                        "-sparksingleinputheight", singleInputHeight)) {
                     return InitError(
                         "Invalid -sparksingleinputheight value.");
                 }
-                UpdateRegtestSparkSingleInputHeight(height);
+                pSingleInputHeight = &singleInputHeight;
             }
             if (IsArgSet("-sparkchaumv2height")) {
-                int height;
                 if (!parseActivationHeight(
-                        "-sparkchaumv2height", height)) {
+                        "-sparkchaumv2height", chaumV2Height)) {
                     return InitError(
                         "Invalid -sparkchaumv2height value.");
                 }
-                UpdateRegtestSparkChaumV2Height(height);
+                pChaumV2Height = &chaumV2Height;
             }
+            UpdateRegtestSparkActivationHeights(
+                pSingleInputHeight, pChaumV2Height);
         } catch (const std::exception& e) {
             return InitError(e.what());
         }

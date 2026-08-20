@@ -355,13 +355,24 @@ BOOST_AUTO_TEST_CASE(malformed_spork_payload_is_consensus_invalid)
 
 BOOST_AUTO_TEST_CASE(limit)
 {
+    Consensus::Params& consensus =
+        const_cast<Consensus::Params&>(::Params().GetConsensus());
     struct ResetSparkV2Height {
+        Consensus::Params& consensus;
+        int singleInput;
+        int v2;
+        ResetSparkV2Height(Consensus::Params& consensusIn)
+            : consensus(consensusIn)
+            , singleInput(consensus.nSparkSingleInputStartBlock)
+            , v2(consensus.nSparkChaumV2StartBlock)
+        {
+        }
         ~ResetSparkV2Height()
         {
-            UpdateRegtestSparkChaumV2Height(INT_MAX);
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
+            consensus.nSparkSingleInputStartBlock = singleInput;
+            consensus.nSparkChaumV2StartBlock = v2;
         }
-    } resetSparkV2Height;
+    } resetSparkV2Height(consensus);
 
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
@@ -409,8 +420,8 @@ BOOST_AUTO_TEST_CASE(limit)
     // spends larger than any one minted coin. Enable versioned construction
     // locally so the test continues to exercise that amount boundary.
     const int activationHeight = chainActive.Height() + 1;
-    UpdateRegtestSparkChaumV2Height(activationHeight);
-    UpdateRegtestSparkSingleInputHeight(activationHeight);
+    UpdateRegtestSparkActivationHeights(
+        &activationHeight, &activationHeight);
 
     CAmount fee = 0;
     CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, fee);

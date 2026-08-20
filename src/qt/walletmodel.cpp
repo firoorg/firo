@@ -22,6 +22,7 @@
 #include "sync.h"
 #include "util.h" // for GetBoolArg
 #include "wallet/sparkbatchplanner.h"
+#include "wallet/sparkspendbatch.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
 #include "wallet/walletexcept.h"
@@ -1380,7 +1381,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
             return InvalidAddress;
         }
 
-        plannerRecipients.push_back({recipient.amount, plan.isPrivate, 1});
+        const CAmount minimumOutputAmount = plan.isPrivate
+            ? 1
+            : sparkspendbatch::TransparentMinimumOutputAmount(plan.scriptPubKey);
+        plannerRecipients.push_back({recipient.amount, plan.isPrivate, minimumOutputAmount});
         recipientPlans.push_back(std::move(plan));
     }
 

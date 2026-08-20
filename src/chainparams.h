@@ -155,4 +155,13 @@ void UpdateRegtestSparkSingleInputHeight(int height);
 /** Allows tests to exercise the Spark CHAUM_V2 hard-fork activation. */
 void UpdateRegtestSparkChaumV2Height(int height);
 
+/**
+ * Apply one or both Spark activation heights, then validate the final pair.
+ * Prefer this when both CLI/test overrides are known up front so intermediate
+ * states do not spuriously fail the ordering check.
+ */
+void UpdateRegtestSparkActivationHeights(
+    const int* singleInputHeight,
+    const int* chaumV2Height);
+
 #endif // BITCOIN_CHAINPARAMS_H

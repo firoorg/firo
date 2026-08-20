@@ -8,41 +8,44 @@
 #include "../sync.h"
 #include "../unordered_lru_cache.h"
 
-#include <algorithm>
 #include <memory>
-#include <deque>
 #include <set>
 
 namespace spark {
 
-static constexpr std::size_t MAX_SPARK_PROOF_CACHE_SIZE = 10000;
-static std::set<uint256> gCheckedSparkSpendTransactions;
-static std::deque<uint256> gCheckedSparkSpendTransactionOrder;
+struct ProofCheckState {
+    // if this is true, then the proof was already checked, no need to check again
+    bool fChecked = false;
+
+    // result of the check (if fChecked is true)
+    bool fResult = false;
+};
+
+// Bound the mempool-acceptance proof cache. Without a cap, peers can relay many
+// distinct spends that parse and fail verification, each leaving a permanent
+// uint256 entry. DisconnectTipSpark clears on reorg; successful entries are also
+// removed when the mempool drops the transaction.
+static constexpr size_t MAX_CHECKED_SPARK_SPEND_TRANSACTIONS = 10000;
+static CCriticalSection cs_checkedSparkSpendTransactions;
+static unordered_lru_cache<uint256, ProofCheckState, StaticSaltedHasher, MAX_CHECKED_SPARK_SPEND_TRANSACTIONS>
+    gCheckedSparkSpendTransactions(MAX_CHECKED_SPARK_SPEND_TRANSACTIONS);
+
+void EraseCheckedSparkSpendTransaction(const uint256& hashTx)
+{
+    LOCK(cs_checkedSparkSpendTransactions);
+    gCheckedSparkSpendTransactions.erase(hashTx);
+}
 
 void ClearSparkSpendProofCache()
 {
+    LOCK(cs_checkedSparkSpendTransactions);
     gCheckedSparkSpendTransactions.clear();
-    gCheckedSparkSpendTransactionOrder.clear();
 }
 
 std::size_t GetSparkSpendProofCacheSize()
 {
+    LOCK(cs_checkedSparkSpendTransactions);
     return gCheckedSparkSpendTransactions.size();
-}
-
-static void CacheSuccessfulSparkSpendProof(const uint256& hashTx)
-{
-    if (!gCheckedSparkSpendTransactions.insert(hashTx).second) {
-        return;
-    }
-
-    gCheckedSparkSpendTransactionOrder.push_back(hashTx);
-    if (gCheckedSparkSpendTransactionOrder.size() >
-        MAX_SPARK_PROOF_CACHE_SIZE) {
-        gCheckedSparkSpendTransactions.erase(
-            gCheckedSparkSpendTransactionOrder.front());
-        gCheckedSparkSpendTransactionOrder.pop_front();
-    }
 }
 
 static CSparkState sparkState;
@@ -910,8 +913,11 @@ bool CheckSparkSpendTransaction(
         params.nSparkChaumV2StartBlock);
     const bool enforceChaumV1SingleInput =
         !isChaumV2 && height >= singleInputActivation;
+
     const bool requireChaumV1SingleInput =
-        !isChaumV2 && (isMempoolAcceptance || enforceChaumV1SingleInput);
+        !isChaumV2 && (isMempoolAcceptance
+            ? height >= (singleInputActivation - 10)
+            : enforceChaumV1SingleInput);
     if (requireChaumV1SingleInput &&
         spend->getUsedLTags().size() != 1) {
         return state.DoS(isMempoolAcceptance ? 0 : 100,
@@ -1178,20 +1184,32 @@ bool CheckSparkSpendTransaction(
         }
     } else {
         try {
-            if (!isVerifyDB &&
-                gCheckedSparkSpendTransactions.count(hashTx)) {
-                LogPrintf(
-                    "CheckSparkSpendTransaction: already checked tx %s\n",
-                    hashTx.ToString());
-                passVerify = true;
-            } else if (isMempoolAcceptance) {
+            ProofCheckState checkState;
+            bool haveCachedResult = false;
+            {
+                LOCK(cs_checkedSparkSpendTransactions);
+                haveCachedResult = gCheckedSparkSpendTransactions.get(hashTx, checkState);
+            }
+            if (haveCachedResult) {
+                if (checkState.fChecked) {
+                    if (!checkState.fResult)
+                        return state.DoS(100, false, REJECT_INVALID, "CheckSparkSpendTransaction: previously checked and failed");
+                    else {
+                        LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
+                        passVerify = true;
+                    }
+                }
+            }
+            else if (isMempoolAcceptance) {
                 passVerify = spark::SpendTransaction::verify(
                     spark::Params::get_default(),
                     {*spend},
                     coverSetProvider);
-                if (passVerify) {
-                    CacheSuccessfulSparkSpendProof(hashTx);
-                }
+                ProofCheckState newState;
+                newState.fChecked = true;
+                newState.fResult = passVerify;
+                LOCK(cs_checkedSparkSpendTransactions);
+                gCheckedSparkSpendTransactions.insert(hashTx, newState);
             }
             else {
                 // we need the answer now, so verify and execute

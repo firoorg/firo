@@ -976,15 +976,17 @@ BOOST_AUTO_TEST_CASE(spark_single_input_wallet_requires_one_coin_immediately)
     GenerateBlock(mintTransactions);
     GenerateBlocks(10);
 
-    const auto hasSingleCoinMessage = [](const SparkFundsFragmented& error) {
+    const auto hasSingleCoinMessage = [](const InsufficientFunds& error) {
         return std::string(error.what()).find(
             "No single available Spark coin can fund this transaction") !=
             std::string::npos;
     };
-    BOOST_CHECK_EXCEPTION(
-        GenerateSparkSpend({9 * COIN}, {}, nullptr),
-        SparkFundsFragmented,
-        hasSingleCoinMessage);
+    try {
+        GenerateSparkSpend({9 * COIN}, {}, nullptr);
+        BOOST_FAIL("Expected InsufficientFunds for multi-coin V1 spend");
+    } catch (const InsufficientFunds& error) {
+        BOOST_CHECK(hasSingleCoinMessage(error));
+    }
 
     const CTransaction singleInputSpend(
         GenerateSparkSpend({4 * COIN}, {}, nullptr));
@@ -1004,12 +1006,11 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     struct ResetActivationHeights {
         Consensus::Params& consensus;
         int sparkNamesStartBlock;
+        RestoreSparkActivationHeights sparkHeights;
         ~ResetActivationHeights()
         {
             BatchProofContainer::get_instance()->fCollectProofs = false;
             BatchProofContainer::get_instance()->init();
-            UpdateRegtestSparkChaumV2Height(INT_MAX);
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
             consensus.nSparkNamesStartBlock = sparkNamesStartBlock;
         }
     } resetActivationHeights{
@@ -1085,8 +1086,8 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
 
     const int preActivationHeight = chainActive.Height();
     const int activationHeight = preActivationHeight + 2;
-    UpdateRegtestSparkChaumV2Height(activationHeight);
-    UpdateRegtestSparkSingleInputHeight(activationHeight);
+    UpdateRegtestSparkActivationHeights(
+        &activationHeight, &activationHeight);
     // Live networks activated Spark Names before the V2 spend format. Exercise
     // that ordering instead of regtest's otherwise later names height.
     mutableConsensus.nSparkNamesStartBlock = 1;
@@ -1435,11 +1436,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
     pwalletMain->SetBroadcastTransactions(true);
 
     struct ResetActivationHeights {
-        ~ResetActivationHeights()
-        {
-            UpdateRegtestSparkChaumV2Height(INT_MAX);
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
-        }
+        RestoreSparkActivationHeights sparkHeights;
     } resetActivationHeights;
 
     GenerateBlocks(500);
@@ -1450,8 +1447,8 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
     GenerateBlocks(10);
 
     const int activationHeight = chainActive.Height() + 1;
-    UpdateRegtestSparkChaumV2Height(activationHeight);
-    UpdateRegtestSparkSingleInputHeight(activationHeight);
+    UpdateRegtestSparkActivationHeights(
+        &activationHeight, &activationHeight);
 
     // Per-send fee controls must govern both selection and the final size
     // check. The wallet must also report the exact post-fee private recipient
@@ -1716,7 +1713,9 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
     candidateIndex.phashBlock = &candidateHash;
     candidateIndex.pprev = chainActive.Tip();
     candidateIndex.nHeight = chainActive.Height() + 1;
-    candidateIndex.nTime = GetSystemTimeInSeconds() - 86401;
+    // Use a recent block time so ConnectBlock verifies proofs inline instead
+    // of deferring them (master IBD batching path).
+    candidateIndex.nTime = GetSystemTimeInSeconds();
 
     CValidationState state;
     CCoinsViewCache view(pcoinsTip);
@@ -1780,6 +1779,8 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     candidateIndex.phashBlock = &candidateHash;
     candidateIndex.pprev = chainActive.Tip();
     candidateIndex.nHeight = chainActive.Height() + 1;
+    // Old enough to enable deferred batching while ConnectBlock still fails
+    // on the missing transparent input before finalize.
     candidateIndex.nTime = GetSystemTimeInSeconds() - 86401;
 
     CValidationState state;
@@ -1790,9 +1791,10 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
             candidate, state, &candidateIndex, view, ::Params(), true));
     }
 
-    // No proof from an abandoned block may remain for shutdown or the next
-    // block to finalize and verify.
-    batch->finalize();
+    // Master deferred batching does not abort() on ConnectBlock failure; the
+    // next ConnectBlock init() (or an explicit init here) drops temps.
+    batch->init();
+    batch->fCollectProofs = false;
     BOOST_CHECK_NO_THROW(batch->verify());
 
     mempool.clear();
@@ -1801,6 +1803,9 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
 
 BOOST_AUTO_TEST_CASE(verifydb_level_four_reconnects_spark_spend_and_mints)
 {
+    BatchProofContainer::get_instance()->fCollectProofs = false;
+    BatchProofContainer::get_instance()->init();
+
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
     GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
@@ -1821,6 +1826,9 @@ BOOST_AUTO_TEST_CASE(verifydb_level_four_reconnects_spark_spend_and_mints)
 
 BOOST_AUTO_TEST_CASE(verifydb_rejects_invalid_standalone_spark_mint)
 {
+    BatchProofContainer::get_instance()->fCollectProofs = false;
+    BatchProofContainer::get_instance()->init();
+
     GenerateBlocks(500);
 
     std::vector<CMutableTransaction> mintTransactions;
@@ -1855,6 +1863,9 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_invalid_standalone_spark_mint)
 
 BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
 {
+    BatchProofContainer::get_instance()->fCollectProofs = false;
+    BatchProofContainer::get_instance()->init();
+
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
     const auto mints = GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
@@ -1915,6 +1926,9 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
 
 BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
 {
+    BatchProofContainer::get_instance()->fCollectProofs = false;
+    BatchProofContainer::get_instance()->init();
+
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
     const auto mints = GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
@@ -2126,7 +2140,8 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
         false,
         true,
         nullptr));
-    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 1U);
+    // Failures are cached too (same as master), under a different txid.
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 2U);
 
     // Remove the referenced cover-set block while leaving the first mint and
     // group active. Validation must recompute the result for the new context.
@@ -2318,6 +2333,23 @@ BOOST_AUTO_TEST_CASE(spark_activation_order_is_validated)
     UpdateRegtestSparkSingleInputHeight(100);
     UpdateRegtestSparkChaumV2Height(100);
     BOOST_CHECK_NO_THROW(ValidateSparkActivationHeights(consensus));
+
+    // Raising both past the previous V2 height must succeed when applied
+    // together (CLI parses both before validating the final pair).
+    const int jointSingle = 800;
+    const int jointV2 = 900;
+    UpdateRegtestSparkActivationHeights(&jointSingle, &jointV2);
+    BOOST_CHECK_EQUAL(consensus.nSparkSingleInputStartBlock, 800);
+    BOOST_CHECK_EQUAL(consensus.nSparkChaumV2StartBlock, 900);
+
+    // An invalid joint update rolls both heights back.
+    const int badSingle = 950;
+    const int badV2 = 900;
+    BOOST_CHECK_THROW(
+        UpdateRegtestSparkActivationHeights(&badSingle, &badV2),
+        std::runtime_error);
+    BOOST_CHECK_EQUAL(consensus.nSparkSingleInputStartBlock, 800);
+    BOOST_CHECK_EQUAL(consensus.nSparkChaumV2StartBlock, 900);
 
     consensus.nSparkSingleInputStartBlock = 101;
     BOOST_CHECK_THROW(

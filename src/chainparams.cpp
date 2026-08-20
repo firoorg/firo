@@ -1398,24 +1398,33 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 
 void UpdateRegtestSparkSingleInputHeight(int height)
 {
-    const int previous = regTestParams.GetConsensus().nSparkSingleInputStartBlock;
-    regTestParams.UpdateSparkSingleInputHeight(height);
-    try {
-        ValidateSparkActivationHeights(regTestParams.GetConsensus());
-    } catch (...) {
-        regTestParams.UpdateSparkSingleInputHeight(previous);
-        throw;
-    }
+    UpdateRegtestSparkActivationHeights(&height, nullptr);
 }
 
 void UpdateRegtestSparkChaumV2Height(int height)
 {
-    const int previous = regTestParams.GetConsensus().nSparkChaumV2StartBlock;
-    regTestParams.UpdateSparkChaumV2Height(height);
+    UpdateRegtestSparkActivationHeights(nullptr, &height);
+}
+
+void UpdateRegtestSparkActivationHeights(
+    const int* singleInputHeight,
+    const int* chaumV2Height)
+{
+    const int previousSingle =
+        regTestParams.GetConsensus().nSparkSingleInputStartBlock;
+    const int previousV2 =
+        regTestParams.GetConsensus().nSparkChaumV2StartBlock;
+    if (singleInputHeight) {
+        regTestParams.UpdateSparkSingleInputHeight(*singleInputHeight);
+    }
+    if (chaumV2Height) {
+        regTestParams.UpdateSparkChaumV2Height(*chaumV2Height);
+    }
     try {
         ValidateSparkActivationHeights(regTestParams.GetConsensus());
     } catch (...) {
-        regTestParams.UpdateSparkChaumV2Height(previous);
+        regTestParams.UpdateSparkSingleInputHeight(previousSingle);
+        regTestParams.UpdateSparkChaumV2Height(previousV2);
         throw;
     }
 }
