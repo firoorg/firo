@@ -197,6 +197,28 @@ public:
 
 };
 
+// Restore both Spark activation heights by assignment. Calling
+// UpdateRegtestSparkSingleInputHeight(INT_MAX) throws when Chaum V2 is still
+// the regtest default (700), and a throw from a test destructor terminates.
+struct RestoreSparkActivationHeights {
+    Consensus::Params& consensus;
+    int singleInput;
+    int v2;
+
+    RestoreSparkActivationHeights()
+        : consensus(const_cast<Consensus::Params&>(::Params().GetConsensus()))
+        , singleInput(consensus.nSparkSingleInputStartBlock)
+        , v2(consensus.nSparkChaumV2StartBlock)
+    {
+    }
+
+    ~RestoreSparkActivationHeights()
+    {
+        consensus.nSparkSingleInputStartBlock = singleInput;
+        consensus.nSparkChaumV2StartBlock = v2;
+    }
+};
+
 BOOST_FIXTURE_TEST_SUITE(spark_tests, SparkTests)
 
 BOOST_AUTO_TEST_CASE(schnorr_proof)
@@ -749,12 +771,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_mempool_policy)
 
 BOOST_AUTO_TEST_CASE(spark_single_input_consensus_activation)
 {
-    struct ResetActivationHeight {
-        ~ResetActivationHeight()
-        {
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
-        }
-    } resetActivationHeight;
+    RestoreSparkActivationHeights resetActivationHeights;
 
     GenerateBlocks(500);
 
@@ -868,12 +885,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_consensus_activation)
 
 BOOST_AUTO_TEST_CASE(spark_mint_uniqueness_activates_with_single_input_rules)
 {
-    struct ResetActivationHeight {
-        ~ResetActivationHeight()
-        {
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
-        }
-    } resetActivationHeight;
+    RestoreSparkActivationHeights resetActivationHeights;
 
     GenerateBlocks(500);
 
@@ -922,12 +934,7 @@ BOOST_AUTO_TEST_CASE(spark_mint_uniqueness_activates_with_single_input_rules)
 
 BOOST_AUTO_TEST_CASE(spark_mint_replay_from_chain_is_rejected_after_activation)
 {
-    struct ResetActivationHeight {
-        ~ResetActivationHeight()
-        {
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
-        }
-    } resetActivationHeight;
+    RestoreSparkActivationHeights resetActivationHeights;
 
     GenerateBlocks(500);
 
@@ -1078,8 +1085,8 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
 
     const int preActivationHeight = chainActive.Height();
     const int activationHeight = preActivationHeight + 2;
-    UpdateRegtestSparkSingleInputHeight(activationHeight);
     UpdateRegtestSparkChaumV2Height(activationHeight);
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
     // Live networks activated Spark Names before the V2 spend format. Exercise
     // that ordering instead of regtest's otherwise later names height.
     mutableConsensus.nSparkNamesStartBlock = 1;
@@ -1443,8 +1450,8 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
     GenerateBlocks(10);
 
     const int activationHeight = chainActive.Height() + 1;
-    UpdateRegtestSparkSingleInputHeight(activationHeight);
     UpdateRegtestSparkChaumV2Height(activationHeight);
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
 
     // Per-send fee controls must govern both selection and the final size
     // check. The wallet must also report the exact post-fee private recipient
@@ -1619,11 +1626,11 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     BatchProofContainer* batch = BatchProofContainer::get_instance();
     struct ResetBatchAndActivation {
         BatchProofContainer* batch;
+        RestoreSparkActivationHeights heights;
         ~ResetBatchAndActivation()
         {
             batch->fCollectProofs = false;
             batch->init();
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
         }
     } reset{batch};
 
@@ -1977,12 +1984,7 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
 
 BOOST_AUTO_TEST_CASE(spark_single_input_block_boundary_and_reorg)
 {
-    struct ResetActivationHeight {
-        ~ResetActivationHeight()
-        {
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
-        }
-    } resetActivationHeight;
+    RestoreSparkActivationHeights resetActivationHeights;
 
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
@@ -2153,12 +2155,7 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
 
 BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible)
 {
-    struct ResetActivationHeight {
-        ~ResetActivationHeight()
-        {
-            UpdateRegtestSparkSingleInputHeight(INT_MAX);
-        }
-    } resetActivationHeight;
+    RestoreSparkActivationHeights resetActivationHeights;
 
     GenerateBlocks(500);
 

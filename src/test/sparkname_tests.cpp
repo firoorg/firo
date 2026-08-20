@@ -1764,6 +1764,13 @@ BOOST_AUTO_TEST_CASE(transfer_replay_grace_period_v21)
 {
     constexpr int nBlockPerYear = 365*24*24;
 
+    // This test synthesizes pre-v2.1 transfers by mutating extra payload after
+    // the wallet builds the spend (nulling inputsHash). Spark V2 spends bind
+    // that payload in the proof, so keep Chaum V2 inactive here. The fixture
+    // destructor restores the original activation heights.
+    mutableConsensus.nSparkSingleInputStartBlock = INT_MAX;
+    mutableConsensus.nSparkChaumV2StartBlock = INT_MAX;
+
     // regtest: V2.1 starts at block 2700 with a 100-block grace period (stage41SparkNamesGracefulPeriod).
     // Transfers built before activation carry no inputsHash; if they were broadcast just before the fork
     // they can still be sitting in the mempool when it activates. During [2700, 2800) such legacy (null

@@ -20,6 +20,7 @@ function(add_spark_fuzz_target target source)
   if(NOT FUZZ_BINARY_LINKS_WITHOUT_MAIN_FUNCTION)
     target_sources(${target} PRIVATE fuzz.cpp)
   endif()
+  apply_wrapped_exception_flags(${target})
 endfunction()
 
 add_spark_fuzz_target(fuzz_spark_spend_parser spark_spend_parser.cpp)

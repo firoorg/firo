@@ -408,8 +408,9 @@ BOOST_AUTO_TEST_CASE(limit)
     // This test exercises the legacy Evo-spork amount limit, which requires
     // spends larger than any one minted coin. Enable versioned construction
     // locally so the test continues to exercise that amount boundary.
-    UpdateRegtestSparkSingleInputHeight(chainActive.Height() + 1);
-    UpdateRegtestSparkChaumV2Height(chainActive.Height() + 1);
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkChaumV2Height(activationHeight);
+    UpdateRegtestSparkSingleInputHeight(activationHeight);
 
     CAmount fee = 0;
     CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, fee);
