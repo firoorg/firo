@@ -17,6 +17,11 @@
 #include "univalue.h"
 #include "validation.h"
 
+static bool IsBLSStrictValidationEnabled(const CBlockIndex* pindexPrev)
+{
+    return !pindexPrev || pindexPrev->nHeight + 1 >= Params().GetConsensus().nBLSStrictValidationStartBlock;
+}
+
 template <typename ProTx>
 static bool CheckService(const uint256& proTxHash, const ProTx& proTx, CValidationState& state)
 {
@@ -64,9 +69,9 @@ static bool CheckStringSig(const ProTx& proTx, const CKeyID& keyID, CValidationS
 }
 
 template <typename ProTx>
-static bool CheckHashSig(const ProTx& proTx, const CBLSPublicKey& pubKey, CValidationState& state)
+static bool CheckHashSig(const ProTx& proTx, const CBLSPublicKey& pubKey, CValidationState& state, bool fBLSStrict)
 {
-    if (!proTx.sig.VerifyInsecure(pubKey, ::SerializeHash(proTx))) {
+    if (!proTx.sig.VerifyInsecure(pubKey, ::SerializeHash(proTx), fBLSStrict)) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-sig", false);
     }
     return true;
@@ -104,7 +109,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-mode");
     }
 
-    if (ptx.keyIDOwner.IsNull() || !ptx.pubKeyOperator.IsValid() || ptx.keyIDVoting.IsNull()) {
+    if (ptx.keyIDOwner.IsNull() || !ptx.pubKeyOperator.IsValid(IsBLSStrictValidationEnabled(pindexPrev)) || ptx.keyIDVoting.IsNull()) {
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-null");
     }
     if (!ptx.scriptPayout.IsPayToPublicKeyHash() && !ptx.scriptPayout.IsPayToScriptHash()) {
@@ -257,7 +262,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
         if (!CheckInputsHash(tx, ptx, state)) {
             return false;
         }
-        if (!CheckHashSig(ptx, mn->pdmnState->pubKeyOperator.Get(), state)) {
+        if (!CheckHashSig(ptx, mn->pdmnState->pubKeyOperator.Get(), state, IsBLSStrictValidationEnabled(pindexPrev))) {
             return false;
         }
     }
@@ -283,7 +288,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-mode");
     }
 
-    if (!ptx.pubKeyOperator.IsValid() || ptx.keyIDVoting.IsNull()) {
+    if (!ptx.pubKeyOperator.IsValid(IsBLSStrictValidationEnabled(pindexPrev)) || ptx.keyIDVoting.IsNull()) {
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-null");
     }
     if (!ptx.scriptPayout.IsPayToPublicKeyHash() && !ptx.scriptPayout.IsPayToScriptHash()) {
@@ -376,7 +381,7 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
 
         if (!CheckInputsHash(tx, ptx, state))
             return false;
-        if (!CheckHashSig(ptx, dmn->pdmnState->pubKeyOperator.Get(), state))
+        if (!CheckHashSig(ptx, dmn->pdmnState->pubKeyOperator.Get(), state, IsBLSStrictValidationEnabled(pindexPrev)))
             return false;
     }
 

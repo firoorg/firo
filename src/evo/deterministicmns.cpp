@@ -448,7 +448,7 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn)
         AddUniqueProperty(dmn, dmn->pdmnState->addr);
     }
     AddUniqueProperty(dmn, dmn->pdmnState->keyIDOwner);
-    if (dmn->pdmnState->pubKeyOperator.Get().IsValid()) {
+    if (dmn->pdmnState->pubKeyOperator.Get().IsValid(false)) {
         AddUniqueProperty(dmn, dmn->pdmnState->pubKeyOperator);
     }
 }
@@ -491,7 +491,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
         DeleteUniqueProperty(dmn, dmn->pdmnState->addr);
     }
     DeleteUniqueProperty(dmn, dmn->pdmnState->keyIDOwner);
-    if (dmn->pdmnState->pubKeyOperator.Get().IsValid()) {
+    if (dmn->pdmnState->pubKeyOperator.Get().IsValid(false)) {
         DeleteUniqueProperty(dmn, dmn->pdmnState->pubKeyOperator);
     }
     mnMap = mnMap.erase(proTxHash);
@@ -658,6 +658,24 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
     DecreasePoSePenalties(newList);
 
+    if (nHeight == Params().GetConsensus().nBLSStrictValidationStartBlock) {
+        std::vector<uint256> invalidOperatorMNs;
+        newList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+            const auto& operatorKey = dmn->pdmnState->pubKeyOperator.Get();
+            if (operatorKey.IsValid(false) && !operatorKey.IsValid()) {
+                invalidOperatorMNs.emplace_back(dmn->proTxHash);
+            }
+        });
+
+        for (const auto& proTxHash : invalidOperatorMNs) {
+            const auto dmn = newList.GetMN(proTxHash);
+            auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            newState->ResetOperatorFields();
+            newState->BanIfNotBanned(nHeight);
+            newList.UpdateMN(dmn, newState);
+        }
+    }
+
     // we skip the coinbase
     for (int i = 1; i < (int)block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
@@ -756,7 +774,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
             if (newState->nPoSeBanHeight != -1) {
                 // only revive when all keys are set
-                if (newState->pubKeyOperator.Get().IsValid() && !newState->keyIDVoting.IsNull() && !newState->keyIDOwner.IsNull()) {
+                const bool fBLSStrict = nHeight >= Params().GetConsensus().nBLSStrictValidationStartBlock;
+                if (newState->pubKeyOperator.Get().IsValid(fBLSStrict) && !newState->keyIDVoting.IsNull() && !newState->keyIDOwner.IsNull()) {
                     newState->nPoSePenalty = 0;
                     newState->nPoSeBanHeight = -1;
                     newState->nPoSeRevivedHeight = nHeight;

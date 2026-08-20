@@ -5,6 +5,7 @@
 #include <bls/bls.h>
 
 #include <random.h>
+#include <support/cleanse.h>
 #include <tinyformat.h>
 
 #ifndef BUILD_BITCOIN_INTERNAL
@@ -58,11 +59,12 @@ CBLSSecretKey CBLSSecretKey::AggregateInsecure(const std::vector<CBLSSecretKey>&
 #ifndef BUILD_BITCOIN_INTERNAL
 void CBLSSecretKey::MakeNewKey()
 {
-    unsigned char buf[32];
+    std::vector<uint8_t> buf(BLS_CURVE_SECKEY_SIZE);
     do {
-        GetStrongRandBytes(buf, sizeof(buf));
-        SetByteVector(std::vector<uint8_t>(buf, buf + sizeof(buf)));
+        GetStrongRandBytes(buf.data(), buf.size());
+        SetByteVector(buf);
     } while (!IsValid());
+    memory_cleanse(buf.data(), buf.size());
 }
 #endif
 
@@ -253,9 +255,9 @@ void CBLSSignature::SubInsecure(const CBLSSignature& o)
     cachedHash.SetNull();
 }
 
-bool CBLSSignature::VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash) const
+bool CBLSSignature::VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash, bool fStrict) const
 {
-    if (!IsValid() || !pubKey.IsValid()) {
+    if (!IsValid(fStrict) || !pubKey.IsValid(fStrict)) {
         return false;
     }
 
@@ -293,16 +295,16 @@ bool CBLSSignature::VerifyInsecureAggregated(const std::vector<CBLSPublicKey>& p
     }
 }
 
-bool CBLSSignature::VerifySecureAggregated(const std::vector<CBLSPublicKey>& pks, const uint256& hash) const
+bool CBLSSignature::VerifySecureAggregated(const std::vector<CBLSPublicKey>& pks, const uint256& hash, bool fStrict) const
 {
-    if (!IsValid() || pks.empty()) {
+    if (!IsValid(fStrict) || pks.empty()) {
         return false;
     }
 
     std::vector<bls::G1Element> vecPublicKeys;
     vecPublicKeys.reserve(pks.size());
     for (const auto& pk : pks) {
-        if (!pk.IsValid()) {
+        if (!pk.IsValid(fStrict)) {
             return false;
         }
         vecPublicKeys.push_back(pk.impl);

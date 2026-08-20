@@ -207,7 +207,8 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     auto quorumIndex = mapBlockIndex.at(qc.quorumHash);
     auto members = CLLMQUtils::GetAllQuorumMembers(params.type, quorumIndex);
 
-    if (!qc.Verify(members, true)) {
+    const bool fBLSStrict = nHeight >= Params().GetConsensus().nBLSStrictValidationStartBlock;
+    if (!qc.Verify(members, true, fBLSStrict)) {
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid");
     }
 

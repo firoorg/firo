@@ -27,7 +27,7 @@ CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const ui
     LogPrintStr(strprintf("CFinalCommitment::%s -- %s", __func__, tinyformat::format(__VA_ARGS__))); \
 } while(0)
 
-bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, bool checkSigs) const
+bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, bool checkSigs, bool fBLSStrict) const
 {
     if (nVersion == 0 || nVersion > CURRENT_VERSION) {
         return false;
@@ -42,6 +42,10 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, 
     if (!VerifySizes(params)) {
         return false;
     }
+    if (cmp::greater(members.size(), params.size)) {
+        LogPrintfFinalCommitment("invalid members size. membersSize=%d\n", members.size());
+        return false;
+    }
 
     if (CountValidMembers() < params.minSize) {
         LogPrintfFinalCommitment("invalid validMembers count. validMembersCount=%d\n", CountValidMembers());
@@ -51,7 +55,7 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, 
         LogPrintfFinalCommitment("invalid signers count. signersCount=%d\n", CountSigners());
         return false;
     }
-    if (!quorumPublicKey.IsValid()) {
+    if (!quorumPublicKey.IsValid(fBLSStrict)) {
         LogPrintfFinalCommitment("invalid quorumPublicKey\n");
         return false;
     }
@@ -59,11 +63,11 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, 
         LogPrintfFinalCommitment("invalid quorumVvecHash\n");
         return false;
     }
-    if (!membersSig.IsValid()) {
+    if (!membersSig.IsValid(fBLSStrict)) {
         LogPrintfFinalCommitment("invalid membersSig\n");
         return false;
     }
-    if (!quorumSig.IsValid()) {
+    if (!quorumSig.IsValid(fBLSStrict)) {
         LogPrintfFinalCommitment("invalid vvecSig\n");
         return false;
     }
@@ -79,6 +83,15 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, 
         }
     }
 
+    if (fBLSStrict) {
+        for (size_t i = 0; i < members.size(); ++i) {
+            if ((signers[i] || validMembers[i]) && !members[i]->pdmnState->pubKeyOperator.Get().IsValid()) {
+                LogPrintfFinalCommitment("invalid member public key at index=%d\n", i);
+                return false;
+            }
+        }
+    }
+
     // sigs are only checked when the block is processed
     if (checkSigs) {
         uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash((uint8_t)params.type, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
@@ -91,12 +104,12 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, 
             memberPubKeys.emplace_back(members[i]->pdmnState->pubKeyOperator.Get());
         }
 
-        if (!membersSig.VerifySecureAggregated(memberPubKeys, commitmentHash)) {
+        if (!membersSig.VerifySecureAggregated(memberPubKeys, commitmentHash, fBLSStrict)) {
             LogPrintfFinalCommitment("invalid aggregated members signature\n");
             return false;
         }
 
-        if (!quorumSig.VerifyInsecure(quorumPublicKey, commitmentHash)) {
+        if (!quorumSig.VerifyInsecure(quorumPublicKey, commitmentHash, fBLSStrict)) {
             LogPrintfFinalCommitment("invalid quorum signature\n");
             return false;
         }
@@ -194,7 +207,8 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
     }
 
     auto members = CLLMQUtils::GetAllQuorumMembers(params.type, pindexQuorum);
-    if (!qcTx.commitment.Verify(members, false)) {
+    const bool fBLSStrict = cmp::greater_equal(qcTx.nHeight, Params().GetConsensus().nBLSStrictValidationStartBlock);
+    if (!qcTx.commitment.Verify(members, false, fBLSStrict)) {
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid");
     }
 
