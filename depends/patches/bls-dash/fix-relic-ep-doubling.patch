@@ -1,0 +1,14 @@
+diff --git a/src/ep/relic_ep_dbl.c b/src/ep/relic_ep_dbl.c
+index 66369fdb..1a160d02 100644
+--- a/src/ep/relic_ep_dbl.c
++++ b/src/ep/relic_ep_dbl.c
+@@ -516,4 +515,0 @@ void ep_dbl_projc(ep_t r, const ep_t p) {
+-	if (fp_is_zero(p->x)) {
+-		ep_set_infty(r);
+-		return;
+-	}
+@@ -533,4 +528,0 @@ void ep_dbl_jacob(ep_t r, const ep_t p) {
+-	if (fp_is_zero(p->x)) {
+-		ep_set_infty(r);
+-		return;
+-	}

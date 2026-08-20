@@ -1,0 +1,35 @@
+diff --git a/src/pc/relic_pc_util.c b/src/pc/relic_pc_util.c
+index af2af3fa..198f4b14 100644
+--- a/src/pc/relic_pc_util.c
++++ b/src/pc/relic_pc_util.c
+@@ -109 +109,2 @@ int g1_is_valid(g1_t a) {
+-				 * https://eprint.iacr.org/2019/814.pdf */
++				 * https://eprint.iacr.org/2019/814.pdf, together with tweaks
++				 * by Mike Scott. */
+@@ -111,6 +112 @@ int g1_is_valid(g1_t a) {
+-					/* Check [(z^2−1)](2\psi(P)-P-\psi^2(P)) == [3]\psi^2(P). */
+-					ep_psi(v, a);
+-					ep_dbl(u, v);
+-					ep_psi(v, v);
+-					ep_sub(u, u, a);
+-					ep_sub(u, u, v);
++					/* Check [(z^2−1)](\psi(P)+P) == -P. */
+@@ -119 +115,4 @@ int g1_is_valid(g1_t a) {
+-					ep_copy(t, u);
++					bn_sub_dig(n, n, 1);
++					ep_psi(t, a);
++					ep_add(t, t, a);
++					ep_copy(u, t);
+@@ -121 +120 @@ int g1_is_valid(g1_t a) {
+-						ep_dbl(t, t);
++						ep_dbl(u, u);
+@@ -123 +122 @@ int g1_is_valid(g1_t a) {
+-							ep_add(t, t, u);
++							ep_add(u, u, t);
+@@ -126,4 +125,2 @@ int g1_is_valid(g1_t a) {
+-					ep_sub(t, t, u);
+-					ep_dbl(u, v);
+-					ep_add(u, u, v);
+-					r = ep_on_curve(t) && (ep_cmp(t, u) == RLC_EQ);
++					ep_neg(v, a);
++					r = ep_on_curve(a) && (ep_cmp(v, u) == RLC_EQ);
