@@ -698,7 +698,7 @@ bool CheckSparkSpendTransaction(
                          "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
     }
 
-    const auto idAndBlockHashes = spend->getBlockHashes();
+    const auto& idAndBlockHashes = spend->getBlockHashes();
     const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     const auto isInvalidGroupId = [](uint64_t id) {
         return id == 0 || id > static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
