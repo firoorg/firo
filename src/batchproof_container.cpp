@@ -75,10 +75,10 @@ void BatchProofContainer::batch_spark() {
         auto& idAndBlockHashes = itr.getBlockHashes();
         for (const auto& idAndHash : idAndBlockHashes) {
             const uint64_t cover_set_id = idAndHash.first;
-            if (!cover_sets.count(cover_set_id)) {
+            if (cover_sets.find(cover_set_id) == cover_sets.end()) {
                 std::vector<spark::Coin> cover_set;
                 sparkState->GetCoinSet(static_cast<int32_t>(cover_set_id), cover_set);
-                cover_sets[cover_set_id] = cover_set;
+                cover_sets.emplace(cover_set_id, std::move(cover_set));
             }
         }
     }
@@ -86,10 +86,10 @@ void BatchProofContainer::batch_spark() {
         auto& idAndBlockHashes = itr.getBlockHashes();
         for (const auto& idAndHash : idAndBlockHashes) {
             const uint64_t cover_set_id = idAndHash.first;
-            if (!cover_sets.count(cover_set_id)) {
+            if (cover_sets.find(cover_set_id) == cover_sets.end()) {
                 std::vector<spark::Coin> cover_set;
                 sparkState->GetCoinSet(static_cast<int32_t>(cover_set_id), cover_set);
-                cover_sets[cover_set_id] = cover_set;
+                cover_sets.emplace(cover_set_id, std::move(cover_set));
             }
         }
     }
