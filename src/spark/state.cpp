@@ -694,9 +694,7 @@ bool CheckSparkMintTransaction(
         CValidationState &state,
         uint256 hashTx,
         bool fStatefulSigmaCheck,
-        CSparkTxInfo* sparkTxInfo,
-        bool enforceMintUniqueness,
-        CSparkState* chainState) {
+        CSparkTxInfo* sparkTxInfo) {
 
     LogPrintf("CheckSparkMintTransaction txHash = %s\n", hashTx.GetHex());
     const spark::Params* params = spark::Params::get_default();
@@ -731,28 +729,6 @@ bool CheckSparkMintTransaction(
                          PUBCOIN_NOT_VALIDATE,
                          "CheckSparkMintTransaction : mintTransaction parsing failed");
 
-
-    if (enforceMintUniqueness) {
-        std::unordered_set<Coin, CoinHash> transactionMints;
-        for (const Coin& coin : coins) {
-            const bool repeatedInTransaction =
-                !transactionMints.insert(coin).second;
-            const bool repeatedInBlock = sparkTxInfo &&
-                std::find(
-                    sparkTxInfo->mints.begin(),
-                    sparkTxInfo->mints.end(),
-                    coin) != sparkTxInfo->mints.end();
-            const bool repeatedInChain = chainState &&
-                chainState->HasCoin(coin);
-            if (repeatedInTransaction || repeatedInBlock || repeatedInChain) {
-                return state.DoS(
-                    100,
-                    false,
-                    REJECT_INVALID,
-                    "bad-txns-spark-mint-duplicate");
-            }
-        }
-    }
 
     for (size_t i = 0; i < coins.size(); i++) {
         auto& coin = coins[i];
@@ -1331,13 +1307,7 @@ bool CheckSparkTransaction(
                         state,
                         hashTx,
                         fStatefulSigmaCheck,
-                        sparkTxInfo,
-                        nRealHeight >= consensus.nSparkSingleInputStartBlock,
-                        isVerifyDB
-                            ? (activeVerifyDBContext
-                                ? &activeVerifyDBContext->GetSparkState()
-                                : nullptr)
-                            : &sparkState)) {
+                        sparkTxInfo)) {
                     LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
                     return false;
                 }
