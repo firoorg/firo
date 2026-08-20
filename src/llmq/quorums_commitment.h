@@ -48,6 +48,22 @@ public:
         return (int)std::count(validMembers.begin(), validMembers.end(), true);
     }
 
+    /**
+     * Validate this final commitment against its quorum members.
+     *
+     * @param members Ordered deterministic quorum members for this commitment's
+     *        llmqType and quorumHash.
+     * @param checkSigs Perform cryptographic verification of the aggregate
+     *        member signature and recovered quorum signature when true.
+     * @param fBLSStrict When true, require the commitment's BLS public key and
+     *        signatures, and participating members' operator public keys, to be
+     *        non-identity elements in the prime-order subgroup. When false,
+     *        apply the legacy parse-valid policy.
+     * @return true if all structural and field checks pass and, when requested,
+     *         both signatures verify; false otherwise.
+     * @pre members contains non-null entries in quorum-member order and does
+     *      not exceed the configured quorum size.
+     */
     bool Verify(const std::vector<CDeterministicMNCPtr>& members, bool checkSigs, bool fBLSStrict) const;
     bool VerifyNull() const;
     bool VerifySizes(const Consensus::LLMQParams& params) const;
