@@ -28,6 +28,39 @@ BOOST_AUTO_TEST_CASE(bls_sethexstr_tests)
     BOOST_CHECK(!sk.IsValid());
 }
 
+BOOST_AUTO_TEST_CASE(bls_reject_invalid_elements_tests)
+{
+    std::vector<uint8_t> g1Identity(BLS_CURVE_PUBKEY_SIZE, 0);
+    std::vector<uint8_t> g2Identity(BLS_CURVE_SIG_SIZE, 0);
+    g1Identity[0] = 0xc0;
+    g2Identity[0] = 0xc0;
+    const std::vector<uint8_t> g1OrderThree = ParseHex("800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+    const std::vector<uint8_t> mixedG1 = ParseHex("8e9277968cb92c78d15a2a2ed855d55061c3929db43d1e53d6d13bee755ff9a91b3f577bbb2f15c6ba8206a6a81c4afd");
+    const std::vector<uint8_t> invalidG1 = ParseHex("11df3a748b713460f9b21083315c0dca1742b7962ca98685be4094d302e84b0884a04c1a55beb0ed921dae1dd66c0a11");
+    const std::vector<uint8_t> invalidG2 = ParseHex("0888879c99852460912fd28c7a9138926c1e87fd6609fd2d3d307764e49feb85702fd8f9b3b836bc11f7ce151b769dc70b760879d26f8c33a29e24f69297f45ef028f0794e63ddb0610db7de1a608b6d6a2129ada62b845004a408f651fd44a6");
+    const std::vector<uint8_t> secretKeyGroupOrder = ParseHex("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001");
+    const std::vector<uint8_t> secretKeyGroupOrderPlusOne = ParseHex("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000002");
+
+    BOOST_CHECK(!CBLSPublicKey(g1Identity).IsValid());
+    BOOST_CHECK(!CBLSSignature(g2Identity).IsValid());
+    BOOST_CHECK(!CBLSPublicKey(g1OrderThree).IsValid());
+    BOOST_CHECK(!CBLSPublicKey(mixedG1).IsValid());
+    BOOST_CHECK(!CBLSPublicKey(invalidG1).IsValid());
+    BOOST_CHECK(!CBLSSignature(invalidG2).IsValid());
+    BOOST_CHECK(!CBLSSecretKey(secretKeyGroupOrder).IsValid());
+    BOOST_CHECK(!CBLSSecretKey(secretKeyGroupOrder, false).IsValid());
+    BOOST_CHECK(!CBLSSecretKey(secretKeyGroupOrderPlusOne).IsValid());
+
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+    const uint256 msgHash = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
+    const CBLSPublicKey pubKey(sk.GetPublicKey().ToByteVector());
+    const CBLSSignature sig(sk.Sign(msgHash).ToByteVector());
+    BOOST_CHECK(pubKey.IsValid());
+    BOOST_CHECK(sig.IsValid());
+    BOOST_CHECK(sig.VerifyInsecure(pubKey, msgHash));
+}
+
 BOOST_AUTO_TEST_CASE(bls_sig_tests)
 {
     CBLSSecretKey sk1, sk2;

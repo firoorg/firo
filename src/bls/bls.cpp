@@ -59,16 +59,10 @@ CBLSSecretKey CBLSSecretKey::AggregateInsecure(const std::vector<CBLSSecretKey>&
 void CBLSSecretKey::MakeNewKey()
 {
     unsigned char buf[32];
-    while (true) {
+    do {
         GetStrongRandBytes(buf, sizeof(buf));
-        try {
-            impl = bls::PrivateKey::FromBytes(bls::Bytes((const uint8_t*)buf, SerSize));
-            break;
-        } catch (...) {
-        }
-    }
-    fValid = true;
-    cachedHash.SetNull();
+        SetByteVector(std::vector<uint8_t>(buf, buf + sizeof(buf)));
+    } while (!IsValid());
 }
 #endif
 
@@ -301,17 +295,24 @@ bool CBLSSignature::VerifyInsecureAggregated(const std::vector<CBLSPublicKey>& p
 
 bool CBLSSignature::VerifySecureAggregated(const std::vector<CBLSPublicKey>& pks, const uint256& hash) const
 {
-    if (pks.empty()) {
+    if (!IsValid() || pks.empty()) {
         return false;
     }
 
     std::vector<bls::G1Element> vecPublicKeys;
     vecPublicKeys.reserve(pks.size());
     for (const auto& pk : pks) {
+        if (!pk.IsValid()) {
+            return false;
+        }
         vecPublicKeys.push_back(pk.impl);
     }
 
-    return Scheme(fLegacy)->VerifySecure(vecPublicKeys, impl, bls::Bytes(hash.begin(), hash.size()));
+    try {
+        return Scheme(fLegacy)->VerifySecure(vecPublicKeys, impl, bls::Bytes(hash.begin(), hash.size()));
+    } catch (...) {
+        return false;
+    }
 }
 
 bool CBLSSignature::Recover(const std::vector<CBLSSignature>& sigs, const std::vector<CBLSId>& ids)
@@ -392,5 +393,27 @@ bool BLSInit()
 #ifndef BUILD_BITCOIN_INTERNAL
     bls::BLS::SetSecureAllocator(secure_allocate, secure_free);
 #endif
-    return true;
+
+    // A system-provided bls-dash can otherwise silently bypass the RELIC
+    // subgroup fixes carried by depends. Fail closed if the linked library
+    // accepts either a pure torsion point or a mixed prime/torsion point.
+    try {
+        const auto orderThree = ParseHex("800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        const auto mixedSubgroup = ParseHex("8e9277968cb92c78d15a2a2ed855d55061c3929db43d1e53d6d13bee755ff9a91b3f577bbb2f15c6ba8206a6a81c4afd");
+        const auto invalidG2 = ParseHex("0888879c99852460912fd28c7a9138926c1e87fd6609fd2d3d307764e49feb85702fd8f9b3b836bc11f7ce151b769dc70b760879d26f8c33a29e24f69297f45ef028f0794e63ddb0610db7de1a608b6d6a2129ada62b845004a408f651fd44a6");
+        if (CBLSPublicKey(orderThree).IsValid() || CBLSPublicKey(mixedSubgroup).IsValid()
+            || CBLSSignature(invalidG2).IsValid()) {
+            return false;
+        }
+
+        std::vector<uint8_t> secretKeyOne(BLS_CURVE_SECKEY_SIZE, 0);
+        secretKeyOne.back() = 1;
+        const CBLSSecretKey sk(secretKeyOne);
+        const CBLSPublicKey pk = sk.GetPublicKey();
+        const uint256 hash;
+        const CBLSSignature sig = sk.Sign(hash);
+        return sk.IsValid() && pk.IsValid() && sig.IsValid() && sig.VerifyInsecure(pk, hash);
+    } catch (...) {
+        return false;
+    }
 }

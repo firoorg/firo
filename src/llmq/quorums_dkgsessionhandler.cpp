@@ -17,6 +17,21 @@
 namespace llmq
 {
 
+static size_t GetMaxDKGMessageSize(const Consensus::LLMQParams& params, const std::string& command)
+{
+    // Leave ample room for fixed fields and CompactSize prefixes while
+    // bounding vectors before their BLS elements are deserialized.
+    constexpr size_t overhead = 1024;
+    if (command == NetMsgType::QCONTRIB) {
+        return overhead + static_cast<size_t>(params.threshold) * BLS_CURVE_PUBKEY_SIZE
+               + static_cast<size_t>(params.size) * (BLS_CURVE_SECKEY_SIZE + 1);
+    }
+    if (command == NetMsgType::QJUSTIFICATION) {
+        return overhead + static_cast<size_t>(params.size) * (sizeof(uint32_t) + BLS_CURVE_SECKEY_SIZE);
+    }
+    return overhead;
+}
+
 CDKGPendingMessages::CDKGPendingMessages(size_t _maxMessagesPerNode) :
     maxMessagesPerNode(_maxMessagesPerNode)
 {
@@ -127,6 +142,16 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
 
 void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
+    const size_t maxSize = GetMaxDKGMessageSize(params, strCommand);
+    if (vRecv.size() > maxSize) {
+        LogPrintf("CDKGSessionHandler::%s -- oversized %s message, size=%u, max=%u, peer=%d\n",
+                  __func__, strCommand, static_cast<unsigned int>(vRecv.size()),
+                  static_cast<unsigned int>(maxSize), pfrom->id);
+        LOCK(cs_main);
+        Misbehaving(pfrom->id, 100);
+        return;
+    }
+
     // We don't handle messages in the calling thread as deserialization/processing of these would block everything
     if (strCommand == NetMsgType::QCONTRIB) {
         pendingContributions.PushPendingMessage(pfrom->id, vRecv);

@@ -29,8 +29,10 @@
 #undef BENCH
 #undef RAND
 
+#include <algorithm>
 #include <array>
 #include <mutex>
+#include <utility>
 #include <unistd.h>
 
 static const bool fLegacyDefault{true};
@@ -43,6 +45,74 @@ static const bool fLegacyDefault{true};
 
 class CBLSSignature;
 class CBLSPublicKey;
+struct CBLSIdImplicit;
+
+template <typename ImplType>
+struct CBLSImplValidation;
+
+template <typename ImplType>
+struct CBLSImplParser
+{
+    static ImplType FromBytes(const std::vector<uint8_t>& vecBytes, bool fLegacy)
+    {
+        return ImplType::FromBytes(bls::Bytes(vecBytes), fLegacy);
+    }
+};
+
+template <>
+struct CBLSImplParser<bls::PrivateKey>
+{
+    static bls::PrivateKey FromBytes(const std::vector<uint8_t>& vecBytes, bool)
+    {
+        static constexpr std::array<uint8_t, BLS_CURVE_SECKEY_SIZE> groupOrder{
+            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48,
+            0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1, 0xd8, 0x05,
+            0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe,
+            0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01,
+        };
+        if (!std::lexicographical_compare(vecBytes.begin(), vecBytes.end(), groupOrder.begin(), groupOrder.end())) {
+            return bls::PrivateKey();
+        }
+        return bls::PrivateKey::FromBytes(bls::Bytes(vecBytes));
+    }
+};
+
+inline bool IsValidBLSGroupElement(const bls::G1Element& impl)
+{
+    return impl != bls::G1Element() && impl.IsValid();
+}
+
+inline bool IsValidBLSGroupElement(const bls::G2Element& impl)
+{
+    return impl != bls::G2Element() && impl.IsValid();
+}
+
+template <>
+struct CBLSImplValidation<bls::PrivateKey>
+{
+    static bool IsValid(const bls::PrivateKey& impl)
+    {
+        return !impl.IsZero();
+    }
+};
+
+template <>
+struct CBLSImplValidation<bls::G1Element>
+{
+    static bool IsValid(const bls::G1Element& impl)
+    {
+        return IsValidBLSGroupElement(impl);
+    }
+};
+
+template <>
+struct CBLSImplValidation<bls::G2Element>
+{
+    static bool IsValid(const bls::G2Element& impl)
+    {
+        return IsValidBLSGroupElement(impl);
+    }
+};
 
 template <typename ImplType, size_t _SerSize, typename C>
 class CBLSWrapper
@@ -119,8 +189,13 @@ public:
             Reset();
         } else {
             try {
-                impl = ImplType::FromBytes(bls::Bytes(vecBytes), fLegacy);
-                fValid = true;
+                ImplType parsed = CBLSImplParser<ImplType>::FromBytes(vecBytes, fLegacy);
+                if (CBLSImplValidation<ImplType>::IsValid(parsed)) {
+                    impl = std::move(parsed);
+                    fValid = true;
+                } else {
+                    Reset();
+                }
             } catch (...) {
                 Reset();
             }
@@ -218,6 +293,15 @@ struct CBLSIdImplicit : public uint256
     std::vector<uint8_t> Serialize(const bool fLegacy = false) const
     {
         return {begin(), end()};
+    }
+};
+
+template <>
+struct CBLSImplValidation<CBLSIdImplicit>
+{
+    static bool IsValid(const CBLSIdImplicit&)
+    {
+        return true;
     }
 };
 
