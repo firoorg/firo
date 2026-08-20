@@ -101,7 +101,8 @@ void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& strC
 
         auto members = CLLMQUtils::GetAllQuorumMembers(type, pquorumIndex);
 
-        if (!qc.Verify(members, true)) {
+        // Unmined P2P commitments always use the node's strict runtime policy.
+        if (!qc.Verify(members, true, true)) {
             LOCK(cs_main);
             LogPrintf("CQuorumBlockProcessor::%s -- commitment for quorum %s:%d is not valid, peer=%d\n", __func__,
                       qc.quorumHash.ToString(), qc.llmqType, pfrom->id);

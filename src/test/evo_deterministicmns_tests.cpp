@@ -425,14 +425,14 @@ BOOST_FIXTURE_TEST_CASE(bls_strict_validation_activation, TestChainDIP3Setup)
     BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.Get().IsValid());
     BOOST_CHECK_EQUAL(dmn->pdmnState->nPoSeBanHeight, -1);
 
+    CValidationState reconnectState;
     {
-        CValidationState reconnectState;
         LOCK(cs_main);
         const auto it = mapBlockIndex.find(activationBlockHash);
         BOOST_REQUIRE(it != mapBlockIndex.end());
         BOOST_REQUIRE(ResetBlockFailureFlags(it->second));
-        BOOST_REQUIRE(ActivateBestChain(reconnectState, Params()));
     }
+    BOOST_REQUIRE(ActivateBestChain(reconnectState, Params()));
     deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
     BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight);
     dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTxHash);
