@@ -1066,8 +1066,9 @@ bool CheckSparkSpendTransaction(
                 id = previousStateCoverSetId;
             }
             if (id) {
-                if (index->sparkMintedCoins.count(id) > 0) {
-                    set_size += index->sparkMintedCoins[id].size();
+                auto minted = index->sparkMintedCoins.find(id);
+                if (minted != index->sparkMintedCoins.end()) {
+                    set_size += minted->second.size();
                 }
             }
 

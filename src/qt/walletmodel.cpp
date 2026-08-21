@@ -1647,7 +1647,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactions(
         if (!subtractFeeFromAmount && feeRequired > 0 &&
             total <= MAX_MONEY - feeRequired &&
             total + feeRequired > balance) {
-            WalletModelTransaction feeHint(QList<SendCoinsRecipient>());
+            WalletModelTransaction feeHint{QList<SendCoinsRecipient>()};
             feeHint.setTransactionFee(feeRequired);
             transactions.push_back(std::move(feeHint));
             return AmountWithFeeExceedsBalance;

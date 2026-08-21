@@ -58,8 +58,9 @@ bool CSparkNameManager::AddBlock(
 
     for (const auto &entry : pindex->addedSparkNames) {
         std::string upperName = ToUpper(entry.first);
-        if (sparkNames.count(upperName) > 0 && fBackupRewrittenEntries)
-            pindex->removedSparkNames[upperName] = sparkNames[upperName];
+        auto it = sparkNames.find(upperName);
+        if (it != sparkNames.end() && fBackupRewrittenEntries)
+            pindex->removedSparkNames[upperName] = it->second;
         sparkNames[upperName] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = upperName;
         if (notify)

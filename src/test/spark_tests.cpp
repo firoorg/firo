@@ -1438,9 +1438,13 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
             &reportedRecipientAmounts);
     BOOST_REQUIRE(privateSpend.tx);
     BOOST_REQUIRE(privateSpend.tx->IsSparkSpendV2());
+    // Fee is selected from SelectSparkCoins' estimate before the Spark payload
+    // exists: 924 constant + 1803 one Grootle input + 322 recipient + 322 change
+    // + 32 V2 extension commitment.
+    const unsigned int estimatedV2SpendSize = 924 + 1803 + 322 + 322 + 32;
     BOOST_CHECK_EQUAL(
         privateFee,
-        overrideFeeControl.nFeeRate.GetFee(3403));
+        overrideFeeControl.nFeeRate.GetFee(estimatedV2SpendSize));
     BOOST_REQUIRE_EQUAL(reportedRecipientAmounts.size(), 1U);
     BOOST_CHECK_EQUAL(
         reportedRecipientAmounts.front(),

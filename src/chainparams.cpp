@@ -419,9 +419,7 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
-        // Disabled until a deployment height is selected.
         consensus.nSparkSingleInputStartBlock = 1355970;
-        // Disabled until a deployment height is selected.
         consensus.nSparkChaumV2StartBlock = 1364983;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
