@@ -1,5 +1,8 @@
 #include "../chainparams.h"
 #include "../batchproof_container.h"
+#include "../llmq/quorums_chainlocks.h"
+#include "../miner.h"
+#include "../policy/policy.h"
 #include "../script/standard.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
@@ -206,6 +209,288 @@ BOOST_AUTO_TEST_CASE(is_spark_allowed)
     BOOST_CHECK(!IsSparkAllowed(start - 1));
     BOOST_CHECK(IsSparkAllowed(start));
     BOOST_CHECK(IsSparkAllowed(start + 1));
+}
+
+BOOST_AUTO_TEST_CASE(spark_spend_work_limit_and_cache_safety)
+{
+    auto& mutableParams =
+        const_cast<Consensus::Params&>(::Params().GetConsensus());
+    const int originalActivation =
+        mutableParams.nSparkSpendLimitStartBlock;
+    const unsigned originalMaxWork =
+        mutableParams.nMaxSparkSpendWorkPerBlock;
+    struct ResetSpendWorkLimit {
+        int height;
+        unsigned maxWork;
+        ~ResetSpendWorkLimit()
+        {
+            UpdateRegtestSparkSpendLimitHeight(height);
+            auto& params =
+                const_cast<Consensus::Params&>(::Params().GetConsensus());
+            params.nMaxSparkSpendWorkPerBlock = maxWork;
+            mempool.clear();
+        }
+    } resetLimit{originalActivation, originalMaxWork};
+
+    BOOST_REQUIRE_EQUAL(
+        originalMaxWork,
+        static_cast<unsigned>(SPARK_SPEND_WORK_LIMIT_PER_BLOCK));
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(1);
+
+    const CTransaction spend = GenerateSparkSpend({1 * COIN}, {}, nullptr);
+    BOOST_REQUIRE_EQUAL(GetSpendInputs(spend), 1U);
+    BOOST_REQUIRE(mempool.exists(spend.GetHash()));
+
+    // Check only the verification-work rule, independently of the separate
+    // transparent-value limit.
+    CMutableTransaction workMarkerMutable(spend);
+    for (auto& output : workMarkerMutable.vout) {
+        output.nValue = 0;
+    }
+    const CTransaction workMarker(workMarkerMutable);
+    BOOST_REQUIRE_EQUAL(GetSpendWorkUnits(workMarker), 1U);
+
+    const auto makeBlock = [&workMarker](std::size_t spendCount) {
+        CBlock block;
+        block.vtx.reserve(spendCount + 1);
+        block.vtx.emplace_back(MakeTransactionRef(CMutableTransaction()));
+        for (std::size_t i = 0; i < spendCount; ++i) {
+            block.vtx.emplace_back(MakeTransactionRef(workMarker));
+        }
+        return block;
+    };
+
+    const auto& params = ::Params().GetConsensus();
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkSpendLimitHeight(activationHeight);
+
+    const CBlock overLimitBlock =
+        makeBlock(params.nMaxSparkSpendWorkPerBlock + 1);
+    CValidationState preActivationState;
+    BOOST_CHECK(CheckSparkBlock(
+        preActivationState, overLimitBlock, activationHeight - 1));
+
+    CValidationState atLimitState;
+    BOOST_CHECK(CheckSparkBlock(
+        atLimitState,
+        makeBlock(params.nMaxSparkSpendWorkPerBlock),
+        activationHeight));
+
+    CValidationState overLimitState;
+    BOOST_CHECK(!CheckSparkBlock(
+        overLimitState, overLimitBlock, activationHeight));
+    int dosScore = 0;
+    BOOST_REQUIRE(overLimitState.IsInvalid(dosScore));
+    BOOST_CHECK_EQUAL(dosScore, 100);
+    BOOST_CHECK_EQUAL(
+        overLimitState.GetRejectReason(),
+        "bad-blk-spark-spend-work");
+
+    // A single-input spend can serialize additional cover-set references.
+    // Charge those references as work so they cannot bypass the proof count.
+    SpendTransaction extraReferences = ParseSparkSpend(workMarker);
+    std::map<uint64_t, uint256> blockHashes = extraReferences.getBlockHashes();
+    BOOST_REQUIRE(!blockHashes.empty());
+    uint64_t nextGroupId = blockHashes.rbegin()->first + 1;
+    while (blockHashes.size() <= params.nMaxSparkSpendWorkPerBlock) {
+        blockHashes.emplace(nextGroupId++, blockHashes.begin()->second);
+    }
+    extraReferences.setBlockHashes(blockHashes);
+
+    CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+    payload << extraReferences;
+    CMutableTransaction extraReferenceMutable(workMarker);
+    extraReferenceMutable.vExtraPayload.assign(payload.begin(), payload.end());
+    const CTransaction extraReferenceSpend(extraReferenceMutable);
+    BOOST_REQUIRE_EQUAL(GetSpendInputs(extraReferenceSpend), 1U);
+    BOOST_REQUIRE_EQUAL(
+        GetSpendWorkUnits(extraReferenceSpend),
+        params.nMaxSparkSpendWorkPerBlock + 1U);
+
+    CBlock extraReferenceBlock;
+    extraReferenceBlock.vtx.emplace_back(MakeTransactionRef(extraReferenceSpend));
+    CValidationState extraReferenceState;
+    BOOST_CHECK(!CheckSparkBlock(
+        extraReferenceState, extraReferenceBlock, activationHeight));
+    BOOST_CHECK_EQUAL(
+        extraReferenceState.GetRejectReason(),
+        "bad-blk-spark-spend-work");
+
+    CValidationState extraReferenceMempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        extraReferenceSpend,
+        extraReferenceMempoolState,
+        extraReferenceSpend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        nullptr));
+    BOOST_CHECK_EQUAL(
+        extraReferenceMempoolState.GetRejectReason(),
+        "CheckSparkSpendTransaction: Spark spend work limit exceeded");
+
+    // Negative proof results may accelerate repeated mempool rejection, but
+    // they must never decide consensus validation for a block.
+    const std::string cachedFailureReason =
+        "CheckSparkSpendTransaction: previously checked and failed";
+    CValidationState firstInvalidProofState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        workMarker,
+        firstInvalidProofState,
+        workMarker.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        nullptr));
+    BOOST_CHECK(firstInvalidProofState.GetRejectReason() != cachedFailureReason);
+
+    CValidationState cachedInvalidProofState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        workMarker,
+        cachedInvalidProofState,
+        workMarker.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        nullptr));
+    BOOST_CHECK_EQUAL(
+        cachedInvalidProofState.GetRejectReason(), cachedFailureReason);
+
+    CValidationState blockInvalidProofState;
+    CSparkTxInfo blockInvalidProofInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        workMarker,
+        blockInvalidProofState,
+        workMarker.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &blockInvalidProofInfo));
+    BOOST_CHECK(blockInvalidProofState.GetRejectReason() != cachedFailureReason);
+
+    // An unresolved claimed cutoff uses the historical fallback, whose result
+    // can change as the chain grows. Such results must not enter the cache.
+    SpendTransaction unresolvedCutoff = ParseSparkSpend(workMarker);
+    std::map<uint64_t, uint256> unresolvedHashes =
+        unresolvedCutoff.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(unresolvedHashes.size(), 1U);
+    unresolvedHashes.begin()->second = uint256S("01");
+    unresolvedCutoff.setBlockHashes(unresolvedHashes);
+    CDataStream unresolvedPayload(SER_NETWORK, PROTOCOL_VERSION);
+    unresolvedPayload << unresolvedCutoff;
+    CMutableTransaction unresolvedMutable(workMarker);
+    unresolvedMutable.vExtraPayload.assign(
+        unresolvedPayload.begin(), unresolvedPayload.end());
+    const CTransaction unresolvedSpend(unresolvedMutable);
+
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        CValidationState unresolvedState;
+        BOOST_CHECK(!CheckSparkTransaction(
+            unresolvedSpend,
+            unresolvedState,
+            unresolvedSpend.GetHash(),
+            false,
+            activationHeight,
+            false,
+            true,
+            nullptr));
+        BOOST_CHECK(unresolvedState.GetRejectReason() != cachedFailureReason);
+    }
+
+    CMutableTransaction malformedSpend;
+    malformedSpend.nVersion = 3;
+    malformedSpend.nType = TRANSACTION_SPARK;
+    CBlock malformedBlock;
+    malformedBlock.vtx.emplace_back(MakeTransactionRef(malformedSpend));
+    CValidationState malformedState;
+    BOOST_CHECK(!CheckSparkBlock(
+        malformedState, malformedBlock, activationHeight));
+    BOOST_CHECK_EQUAL(
+        malformedState.GetRejectReason(),
+        "bad-blk-spark-spend-work");
+
+    // Exercise the real template path with a one-unit test limit. The clone
+    // is deliberately proof-invalid, but has a slightly lower fee so the valid
+    // original is selected first and the work limit excludes it.
+    mutableParams.nMaxSparkSpendWorkPerBlock = 1;
+    CAmount originalFee = 0;
+    {
+        LOCK(mempool.cs);
+        const auto original = mempool.mapTx.find(spend.GetHash());
+        BOOST_REQUIRE(original != mempool.mapTx.end());
+        originalFee = original->GetFee();
+    }
+    BOOST_REQUIRE_GT(originalFee, 1);
+
+    CMutableTransaction cloneMutable(spend);
+    cloneMutable.nLockTime = spend.nLockTime == 0 ? 1 : 0;
+    const CTransaction clone(cloneMutable);
+    BOOST_REQUIRE(spend.GetHash() != clone.GetHash());
+    BOOST_REQUIRE_EQUAL(spend.GetTotalSize(), clone.GetTotalSize());
+    BOOST_REQUIRE_EQUAL(GetSpendWorkUnits(clone), 1U);
+    BOOST_REQUIRE(
+        CFeeRate(originalFee - 1, clone.GetTotalSize()).GetFeePerK() >=
+        static_cast<CAmount>(DEFAULT_BLOCK_MIN_TX_FEE));
+
+    TestMemPoolEntryHelper entry;
+    BOOST_REQUIRE(mempool.addUnchecked(
+        clone.GetHash(),
+        entry.Fee(originalFee - 1)
+            .Time(1)
+            .Height(chainActive.Height())
+            .FromTx(clone),
+        false));
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(llmq::chainLocksHandler->IsTxSafeForMining(
+            spend.GetHash()));
+        BOOST_REQUIRE(llmq::chainLocksHandler->IsTxSafeForMining(
+            clone.GetHash()));
+    }
+
+    std::unique_ptr<CBlockTemplate> blockTemplate =
+        BlockAssembler(::Params()).CreateNewBlock(script);
+    BOOST_REQUIRE(blockTemplate);
+    std::size_t sparkSpendCount = 0;
+    bool hasOriginal = false;
+    bool hasClone = false;
+    for (const auto& tx : blockTemplate->block.vtx) {
+        if (tx->IsSparkSpend()) {
+            ++sparkSpendCount;
+        }
+        hasOriginal |= tx->GetHash() == spend.GetHash();
+        hasClone |= tx->GetHash() == clone.GetHash();
+    }
+    BOOST_CHECK_EQUAL(sparkSpendCount, 1U);
+    BOOST_CHECK(hasOriginal);
+    BOOST_CHECK(!hasClone);
+
+    // A direct active-state reset must invalidate positive proof-cache entries.
+    sparkState->Reset();
+    CValidationState resetState;
+    CSparkTxInfo resetInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        spend,
+        resetState,
+        spend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &resetInfo));
+    BOOST_CHECK_EQUAL(
+        resetState.GetRejectReason(),
+        "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
 }
 
 BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
