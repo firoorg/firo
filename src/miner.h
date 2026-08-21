@@ -174,9 +174,9 @@ private:
     CAmount nLelantusSpendAmount;
     size_t nLelantusSpendInputs;
 
-    // lelantus spend limits
+    // Spark spend limits
     CAmount nSparkSpendAmount;
-    size_t nSparkSpendInputs;
+    size_t nSparkSpendWork;
 
     // transactions we cannot include in this block
     CTxMemPool::setEntries txBlackList;
@@ -192,6 +192,8 @@ private:
     void resetBlock();
     /** Add a tx to the block */
     void AddToBlock(CTxMemPool::txiter iter);
+    /** Test and update tentative Spark spend totals. */
+    bool TestSparkSpendLimits(const CTransaction& tx, CAmount& spendAmount, size_t& spendWork) const;
 
     // Methods for how to add transactions to a block.
     /** Add transactions based on tx "priority" */

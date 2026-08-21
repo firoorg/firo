@@ -149,4 +149,7 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 /** Allows tests to exercise the single-input Spark consensus activation. */
 void UpdateRegtestSparkSingleInputHeight(int height);
 
+/** Allows tests to exercise the per-block Spark verification-work limit. */
+void UpdateRegtestSparkSpendLimitHeight(int height);
+
 #endif // BITCOIN_CHAINPARAMS_H

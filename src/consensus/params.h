@@ -360,7 +360,14 @@ struct Params {
     // Value of maximum spark spend per block.
     int64_t nMaxValueSparkSpendPerBlock;
 
-    // Two values above increase after this block number
+    // Height at which the per-block Spark verification-work limit is enforced.
+    int nSparkSpendLimitStartBlock;
+    // Maximum Spark proof/cover-set work units per block after activation.
+    // Each spend is charged the maximum of its proof tags, group ids, and
+    // serialized cover-set references.
+    unsigned nMaxSparkSpendWorkPerBlock;
+
+    // The two Spark value limits increase after this block number
     int nSparkLimitV2StartBlock;
     // ... by this factor
     int nSparkLimitV2Factor;

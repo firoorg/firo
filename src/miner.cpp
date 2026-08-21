@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <climits>
 #include <queue>
 #include <unistd.h>
 
@@ -155,7 +156,7 @@ void BlockAssembler::resetBlock()
     nLelantusSpendInputs = 0;
 
     nSparkSpendAmount = 0;
-    nSparkSpendInputs = 0;
+    nSparkSpendWork = 0;
 }
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, bool fMineWitnessTx)
@@ -351,6 +352,36 @@ bool BlockAssembler::TestPackage(uint64_t packageSize, int64_t packageSigOpsCost
     return true;
 }
 
+bool BlockAssembler::TestSparkSpendLimits(
+    const CTransaction& tx,
+    CAmount& spendAmount,
+    size_t& spendWork) const
+{
+    if (!tx.IsSparkSpend())
+        return true;
+
+    const auto& params = chainparams.GetConsensus();
+    const CAmount txSpendAmount = spark::GetSpendTransparentAmount(tx);
+    if (txSpendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight) ||
+        spendAmount > params.GetMaxValueSparkSpendPerBlock(nHeight) - txSpendAmount) {
+        return false;
+    }
+
+    if (params.nSparkSpendLimitStartBlock != INT_MAX &&
+        nHeight >= params.nSparkSpendLimitStartBlock) {
+        const size_t txSpendWork = spark::GetSpendWorkUnits(tx);
+        if (txSpendWork == 0 ||
+            txSpendWork > params.nMaxSparkSpendWorkPerBlock ||
+            spendWork > params.nMaxSparkSpendWorkPerBlock - txSpendWork) {
+            return false;
+        }
+        spendWork += txSpendWork;
+    }
+
+    spendAmount += txSpendAmount;
+    return true;
+}
+
 // Perform transaction-level checks before adding to block:
 // - transaction finality (locktime)
 // - premature witness (in case segwit transactions are added to mempool before
@@ -359,6 +390,8 @@ bool BlockAssembler::TestPackage(uint64_t packageSize, int64_t packageSigOpsCost
 bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& package)
 {
     uint64_t nPotentialBlockSize = nBlockSize; // only used with fNeedSizeAccounting
+    CAmount nPotentialSparkSpendAmount = nSparkSpendAmount;
+    size_t nPotentialSparkSpendWork = nSparkSpendWork;
     BOOST_FOREACH (const CTxMemPool::txiter it, package) {
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
@@ -373,6 +406,12 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
                 return false;
             }
             nPotentialBlockSize += nTxSize;
+        }
+        if (!TestSparkSpendLimits(
+                it->GetTx(),
+                nPotentialSparkSpendAmount,
+                nPotentialSparkSpendWork)) {
+            return false;
         }
     }
     return true;
@@ -429,16 +468,13 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
     const CTransaction &tx = iter->GetTx();
 
-    // Check transaction against spark limits
-    if(tx.IsSparkSpend()) {
-        CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
-            return false;
-
-        if (spendAmount + nSparkSpendAmount > params.GetMaxValueSparkSpendPerBlock(nHeight))
-            return false;
+    CAmount nPotentialSparkSpendAmount = nSparkSpendAmount;
+    size_t nPotentialSparkSpendWork = nSparkSpendWork;
+    if (!TestSparkSpendLimits(
+            tx,
+            nPotentialSparkSpendAmount,
+            nPotentialSparkSpendWork)) {
+        return false;
     }
 
     return true;
@@ -448,16 +484,8 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 {
     const CTransaction &tx = iter->GetTx();
 
-    if(tx.IsSparkSpend()) {
-        CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (spendAmount > params.GetMaxValueSparkSpendPerTransaction(nHeight))
-            return;
-
-        if ((nSparkSpendAmount += spendAmount) > params.GetMaxValueSparkSpendPerBlock(nHeight))
-            return;
-    }
+    if (!TestSparkSpendLimits(tx, nSparkSpendAmount, nSparkSpendWork))
+        return;
 
     pblock->vtx.emplace_back(iter->GetSharedTx());
     pblocktemplate->vTxFees.push_back(iter->GetFee());
