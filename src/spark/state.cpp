@@ -1183,16 +1183,31 @@ bool CSparkState::CanAddMintToMempool(const spark::Coin& coin){
 void CSparkState::AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo) {
     LOCK(cs_minted_coins);
     mintedCoins.insert(std::make_pair(coin, coinInfo));
+    // Count indexed occurrences, including legacy duplicates that do not enter
+    // the unique mintedCoins map.
     mintMetaInfo[coinInfo.coinGroupId] += 1;
 }
 
-void CSparkState::RemoveMint(const spark::Coin& coin) {
+bool CSparkState::RemoveMint(
+        const spark::Coin& coin,
+        int expectedGroupId,
+        int expectedHeight) {
     LOCK(cs_minted_coins);
-    auto iter = mintedCoins.find(coin);
-    if (iter != mintedCoins.end()) {
-        mintMetaInfo[iter->second.coinGroupId] -= 1;
-        mintedCoins.erase(iter);
+
+    auto metaIt = mintMetaInfo.find(expectedGroupId);
+    if (metaIt != mintMetaInfo.end() && metaIt->second > 0) {
+        --metaIt->second;
     }
+
+    auto iter = mintedCoins.find(coin);
+    if (iter == mintedCoins.end() ||
+            iter->second.coinGroupId != expectedGroupId ||
+            iter->second.nHeight != expectedHeight) {
+        return false;
+    }
+
+    mintedCoins.erase(iter);
+    return true;
 }
 
 void CSparkState::AddMintsToStateAndBlockIndex(
@@ -1362,8 +1377,7 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     // roll back mints
     for (auto const&coins : index->sparkMintedCoins) {
         for (auto const& coin : coins.second) {
-            assert(GetMintedCoinHeightAndId(coin).second == coins.first);
-            RemoveMint(coin);
+            RemoveMint(coin, coins.first, index->nHeight);
         }
     }
 

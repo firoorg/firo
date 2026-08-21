@@ -325,6 +325,49 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(remove_block_preserves_legacy_duplicate_mint)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> txs;
+    const auto mint = GenerateMints({1 * COIN}, txs)[0];
+    const auto coin = pwalletMain->sparkWallet->getCoinFromMeta(mint);
+
+    const auto checkDuplicate = [&](size_t maxCoinInGroup, int duplicateGroupId) {
+        spark::CSparkState state(maxCoinInGroup, 1);
+
+        CBlock firstBlock;
+        PopulateSparkTxInfo(firstBlock, {coin}, {});
+        CBlockIndex firstIndex;
+        firstIndex.pprev = chainActive.Tip();
+        firstIndex.nHeight = chainActive.Height() + 1;
+        state.AddMintsToStateAndBlockIndex(&firstIndex, &firstBlock);
+
+        CBlock duplicateBlock;
+        PopulateSparkTxInfo(duplicateBlock, {coin}, {});
+        CBlockIndex duplicateIndex;
+        duplicateIndex.pprev = &firstIndex;
+        duplicateIndex.nHeight = firstIndex.nHeight + 1;
+        state.AddMintsToStateAndBlockIndex(&duplicateIndex, &duplicateBlock);
+
+        BOOST_REQUIRE_EQUAL(state.GetTotalCoins(), 1U);
+        BOOST_REQUIRE_EQUAL(
+            duplicateIndex.sparkMintedCoins.at(duplicateGroupId).size(), 1U);
+
+        state.RemoveBlock(&duplicateIndex);
+        BOOST_CHECK(
+            state.GetMintedCoinHeightAndId(coin) ==
+            std::make_pair(firstIndex.nHeight, 1));
+
+        state.RemoveBlock(&firstIndex);
+        BOOST_CHECK_EQUAL(state.GetTotalCoins(), 0U);
+    };
+
+    // Exercise duplicates in both the same group and a later group.
+    checkDuplicate(10, 1);
+    checkDuplicate(1, 2);
+}
+
 BOOST_AUTO_TEST_CASE(get_coin_group)
 {
     GenerateBlocks(500);

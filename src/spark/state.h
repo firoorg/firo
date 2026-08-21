@@ -172,7 +172,7 @@ public:
     bool CanAddMintToMempool(const spark::Coin& coin);
 
     void AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo);
-    void RemoveMint(const spark::Coin& coin);
+    bool RemoveMint(const spark::Coin& coin, int expectedGroupId, int expectedHeight);
     // Add mints in block, automatically assigning id to it
     void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
 
