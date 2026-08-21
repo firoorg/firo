@@ -1296,24 +1296,24 @@ UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
     return ret;
 }
 
+static constexpr size_t MAX_SPARK_MINT_METADATA_REQUEST_SIZE = 1000;
+
 UniValue getsparkmintmetadata(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-                "getmintmetadata\n"
+                "getsparkmintmetadata\n"
                 "\nReturns the anonymity set id and nHeight of mint.\n"
                 "\nArguments:\n"
-                "  \"coinHashes\"\n"
+                "  \"coinHashes\" (array, max 1000)\n"
                 "    [\n"
-                "      {\n"
-                "        \"coinHash\" (string) The hash of the spark mint\n"
-                "      }\n"
+                "      \"coinHash\" (string) The 64-character hash of the Spark mint\n"
                 "      ,...\n"
                 "    ]\n"
                 "\nResult:\n"
-                "{\n"
-                "  \"metadata\"   (Pair<string,int>) nHeight and id for each coin\n"
-                "}\n"
+                "[\n"
+                "  { \"height\": coinGroupId }, ...\n"
+                "]\n"
                 + HelpExampleCli("getsparkmintmetadata", "'{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
                 + HelpExampleRpc("getsparkmintmetadata", "{\"coinHashes\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
 
@@ -1321,24 +1321,39 @@ UniValue getsparkmintmetadata(const JSONRPCRequest& request)
 
     UniValue coinHashes = find_value(request.params[0].get_obj(), "coinHashes");
     if (!coinHashes.isArray()) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "coinHashes is expected to be an array");
     }
 
-    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
+    const auto& coinHashValues = coinHashes.getValues();
+    if (coinHashValues.size() > MAX_SPARK_MINT_METADATA_REQUEST_SIZE) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER,
+                strprintf("coinHashes must contain no more than %u entries",
+                        static_cast<unsigned int>(MAX_SPARK_MINT_METADATA_REQUEST_SIZE)));
+    }
+
+    std::vector<uint256> parsedCoinHashes;
+    parsedCoinHashes.reserve(coinHashValues.size());
+    for (size_t i = 0; i < coinHashValues.size(); ++i) {
+        parsedCoinHashes.push_back(ParseHashV(
+                coinHashValues[i], strprintf("coinHashes[%u]", static_cast<unsigned int>(i))));
+    }
+
+    spark::CSparkState* sparkState = spark::CSparkState::GetState();
+    std::vector<std::pair<int, int>> matchingMetadata;
+    matchingMetadata.reserve(parsedCoinHashes.size());
+
+    {
+        LOCK(cs_main);
+        for (const auto& coinHash : parsedCoinHashes) {
+            std::pair<int, int> coinHeightAndId;
+            if (sparkState->GetMintedCoinHeightAndId(coinHash, coinHeightAndId)) {
+                matchingMetadata.push_back(coinHeightAndId);
+            }
+        }
+    }
 
     UniValue ret(UniValue::VARR);
-    for(UniValue const & element : coinHashes.getValues()) {
-        uint256 coinHash;
-        coinHash.SetHex(element.get_str());
-        spark::Coin coin(spark::Params::get_default());
-        if(!sparkState->HasCoinHash(coin, coinHash))
-            continue;
-
-        std::pair<int, int> coinHeightAndId;
-        {
-            LOCK(cs_main);
-            coinHeightAndId = sparkState->GetMintedCoinHeightAndId(coin);
-        }
+    for (const auto& coinHeightAndId : matchingMetadata) {
         UniValue metaData(UniValue::VOBJ);
         metaData.pushKV(std::to_string(coinHeightAndId.first), coinHeightAndId.second);
         ret.push_back(metaData);

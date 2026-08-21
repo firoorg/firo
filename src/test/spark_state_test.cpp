@@ -106,12 +106,22 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
     BOOST_CHECK(!sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mints[2])));
 
     // test has coin hash
-    auto cn0 = pwalletMain->sparkWallet->getCoinFromMeta(mints[0]);
-    BOOST_CHECK(sparkState->HasCoinHash(cn0, cn0.getHash()));
-    auto cn1 = pwalletMain->sparkWallet->getCoinFromMeta(mints[1]);
-    BOOST_CHECK(sparkState->HasCoinHash(cn1, cn1.getHash()));
-    auto cn2 = pwalletMain->sparkWallet->getCoinFromMeta(mints[2]);
-    BOOST_CHECK(!sparkState->HasCoinHash(cn2, cn2.getHash()));
+    const auto expectedCn0 = pwalletMain->sparkWallet->getCoinFromMeta(mints[0]);
+    const auto expectedCn1 = pwalletMain->sparkWallet->getCoinFromMeta(mints[1]);
+    const auto expectedCn2 = pwalletMain->sparkWallet->getCoinFromMeta(mints[2]);
+    spark::Coin cn0(spark::Params::get_default());
+    BOOST_CHECK(sparkState->HasCoinHash(cn0, expectedCn0.getHash()));
+    BOOST_CHECK(cn0 == expectedCn0);
+    spark::Coin cn1(spark::Params::get_default());
+    BOOST_CHECK(sparkState->HasCoinHash(cn1, expectedCn1.getHash()));
+    BOOST_CHECK(cn1 == expectedCn1);
+    spark::Coin cn2(spark::Params::get_default());
+    BOOST_CHECK(!sparkState->HasCoinHash(cn2, expectedCn2.getHash()));
+
+    std::pair<int, int> coinHeightAndId;
+    BOOST_CHECK(sparkState->GetMintedCoinHeightAndId(expectedCn0.getHash(), coinHeightAndId));
+    BOOST_CHECK_EQUAL(std::make_pair(chainActive.Height() - 1, 1), coinHeightAndId);
+    BOOST_CHECK(!sparkState->GetMintedCoinHeightAndId(expectedCn2.getHash(), coinHeightAndId));
 
     BOOST_CHECK_EQUAL(2, sparkState->GetTotalCoins());
 
@@ -128,7 +138,20 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
 
     BOOST_CHECK_EQUAL(1, sparkState->GetLatestCoinID());
 
+    // The hash index stores pointers to mintedCoins nodes. Verify that the first
+    // entry remains valid after enough insertions to force map rehashing.
+    for (size_t i = 0; i < 256; ++i) {
+        auto rehashCoin = expectedCn0;
+        rehashCoin.S.randomize();
+        sparkState->AddMint(rehashCoin, spark::CMintedCoinInfo::make(1, chainActive.Height()));
+    }
+    spark::Coin coinAfterRehash(spark::Params::get_default());
+    BOOST_CHECK(sparkState->HasCoinHash(coinAfterRehash, expectedCn0.getHash()));
+    BOOST_CHECK(coinAfterRehash == expectedCn0);
+
     sparkState->Reset();
+    BOOST_CHECK(!sparkState->HasCoinHash(cn0, expectedCn0.getHash()));
+    BOOST_CHECK(!sparkState->GetMintedCoinHeightAndId(expectedCn0.getHash(), coinHeightAndId));
     mempool.clear();
 }
 
@@ -318,11 +341,23 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     BOOST_CHECK(sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mint2)));
     BOOST_CHECK(!sparkState->HasCoin(pwalletMain->sparkWallet->getCoinFromMeta(mint3)));
 
+    spark::Coin foundCoin(spark::Params::get_default());
+    const auto coin1 = pwalletMain->sparkWallet->getCoinFromMeta(mint1);
+    const auto coin3 = pwalletMain->sparkWallet->getCoinFromMeta(mint3);
+    BOOST_CHECK(sparkState->HasCoinHash(foundCoin, coin1.getHash()));
+    BOOST_CHECK(foundCoin == coin1);
+    BOOST_CHECK(!sparkState->HasCoinHash(foundCoin, coin3.getHash()));
+
+    std::pair<int, int> coinHeightAndId;
+    BOOST_CHECK(sparkState->GetMintedCoinHeightAndId(coin1.getHash(), coinHeightAndId));
+    BOOST_CHECK(!sparkState->GetMintedCoinHeightAndId(coin3.getHash(), coinHeightAndId));
+
     BOOST_CHECK(sparkState->IsUsedLTag(lTag1));
     BOOST_CHECK(sparkState->IsUsedLTag(lTag2));
     BOOST_CHECK(!sparkState->IsUsedLTag(lTag3));
 
     sparkState->Reset();
+    BOOST_CHECK(!sparkState->HasCoinHash(foundCoin, coin1.getHash()));
 }
 
 BOOST_AUTO_TEST_CASE(remove_block_preserves_legacy_duplicate_mint)
@@ -358,9 +393,13 @@ BOOST_AUTO_TEST_CASE(remove_block_preserves_legacy_duplicate_mint)
         BOOST_CHECK(
             state.GetMintedCoinHeightAndId(coin) ==
             std::make_pair(firstIndex.nHeight, 1));
+        std::pair<int, int> hashHeightAndId;
+        BOOST_REQUIRE(state.GetMintedCoinHeightAndId(coin.getHash(), hashHeightAndId));
+        BOOST_CHECK(hashHeightAndId == std::make_pair(firstIndex.nHeight, 1));
 
         state.RemoveBlock(&firstIndex);
         BOOST_CHECK_EQUAL(state.GetTotalCoins(), 0U);
+        BOOST_CHECK(!state.GetMintedCoinHeightAndId(coin.getHash(), hashHeightAndId));
     };
 
     // Exercise duplicates in both the same group and a later group.
