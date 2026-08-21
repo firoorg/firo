@@ -10,6 +10,7 @@
 #include "../wallet/wallet.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
+#include "../sync.h"
 #include "primitives.h"
 #include "sparkname.h"
 
@@ -237,7 +238,7 @@ public:
             uint256& blockHash,
             std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins);
 
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
     std::vector<std::pair<GroupElement, int>> const & GetSpendsMobile() const;
     std::unordered_map<uint256, uint256> const& GetSpendTxIds() const;
@@ -246,7 +247,7 @@ public:
 
     static CSparkState* GetState();
 
-    std::size_t GetTotalCoins() const { return mintedCoins.size(); }
+    std::size_t GetTotalCoins() const;
 
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
@@ -263,7 +264,8 @@ private:
     std::unordered_map<int, SparkCoinGroupInfo> coinGroups;
 
     // Set of all minted coins
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins;
+    mutable CCriticalSection cs_minted_coins;
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins GUARDED_BY(cs_minted_coins);
     // Set of all used coin linking tags.
     std::unordered_map<GroupElement, int, spark::CLTagHash> usedLTags;
     // Set of all used linking tags, used only when -mobile=true
