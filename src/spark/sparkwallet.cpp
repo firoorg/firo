@@ -1659,8 +1659,23 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
     {
             std::list<CSparkMintMeta> coins = GetAvailableSparkCoins(coinControl);
-            std::pair<CAmount, std::vector<CSparkMintMeta>> estimated =
-                    SelectSparkCoins(vOut + mintVOut, recipientsToSubtractFee, coins, privateRecipients.size(), recipients.size(), coinControl, useChaumV2, additionalTxSize);
+            std::pair<CAmount, std::vector<CSparkMintMeta>> estimated;
+            try {
+                estimated = SelectSparkCoins(
+                    vOut + mintVOut,
+                    recipientsToSubtractFee,
+                    coins,
+                    privateRecipients.size(),
+                    recipients.size(),
+                    coinControl,
+                    useChaumV2,
+                    additionalTxSize);
+            } catch (const InsufficientFunds& error) {
+                if (error.GetRequiredFee() > 0) {
+                    fee = error.GetRequiredFee();
+                }
+                throw;
+            }
             selectedCoins = std::move(estimated.second);
 
             // V1 construction retains the single-input selection rule.
@@ -2252,8 +2267,18 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
             currentRequired += fee;
         }
         spendCoins.clear();
-        if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint, coinControl)) {
-            throw std::invalid_argument(_("Unable to select cons for spend"));
+        try {
+            if (!GetCoinsToSpend(currentRequired, spendCoins, coins, changeToMint, coinControl)) {
+                throw std::invalid_argument(_("Unable to select cons for spend"));
+            }
+        } catch (const InsufficientFunds&) {
+            // GetCoinsToSpend throws before the caller can record the fee that
+            // made selection fail. Re-throw with that fee so the UI can report
+            // AmountWithFeeExceedsBalance instead of AmountExceedsBalance.
+            if (fee > 0) {
+                throw InsufficientFunds(fee);
+            }
+            throw;
         }
         if (useChaumV2 &&
             spendCoins.size() > spark::MAX_CHAUM_V2_INPUTS) {

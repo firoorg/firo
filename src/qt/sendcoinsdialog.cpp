@@ -439,8 +439,15 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // process prepareStatus and on error generate message shown to user
+    CAmount feeForMessage = currentTransaction.getTransactionFee();
+    if (isSparkSpend) {
+        feeForMessage = 0;
+        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+            feeForMessage += transaction.getTransactionFee();
+        }
+    }
     processSendCoinsReturn(prepareStatus,
-        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeForMessage));
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;

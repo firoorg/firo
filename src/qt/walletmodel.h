@@ -223,7 +223,8 @@ public:
         WalletModelTransaction &transaction,
         CSparkNameTxData &sparkNameData,
         CAmount sparkNameFee,
-        const CCoinControl *coinControl);
+        const CCoinControl *coinControl,
+        int expectedNextBlockHeight);
         
     SendCoinsReturn mintSparkCoins(
         std::vector<WalletModelTransaction> &transactions,

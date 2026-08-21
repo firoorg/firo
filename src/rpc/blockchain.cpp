@@ -297,18 +297,22 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
 {
     if (request.fHelp || request.params.size() != 1) {
         throw std::runtime_error(
-            "getsparknametxdetails (txhash)\n"
-            "\nReturns spark address and spark name associated with tx hash.\n"
+            "getsparknametxdetails \"txhash\"\n"
+            "\nReturns the Spark name registration associated with txhash.\n"
             "\nArguments:\n"
-            "1. txhash\n"
+            "1. txhash    (string, required) The Spark name transaction id\n"
             "\nResult:\n"
-            "[\n"
-            "  \"Name (string)\n"
-            "  \"Address (string)\"\n"
-            "  \"Validity blocks (int)\n"
-            "  \"Additional Info (string)\n"
-            "  ...\n"
-            "]\n"
+            "{\n"
+            "  \"name\":            (string) Spark name\n"
+            "  \"address\":         (string) Spark address registered by this transaction\n"
+            "  \"validUntil\":      (numeric) Block height until this registration is valid\n"
+            "  \"additionalInfo\":  (string, optional) Additional info from this transaction\n"
+            "}\n"
+            "\nFor a confirmed transaction, validUntil is the expiry height stored with\n"
+            "the registration in its containing block (sparkNameValidityHeight), not the\n"
+            "name manager's current state after later renewals or transfers.\n"
+            "For an unconfirmed transaction, validUntil is the pending expiry if the\n"
+            "transaction is included in the next block.\n"
             "\nExamples:\n"
             + HelpExampleCli("getsparknametxdetails", "txhash")
             + HelpExampleRpc("getsparknametxdetails", "txhash")

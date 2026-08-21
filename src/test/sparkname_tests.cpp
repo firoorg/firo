@@ -140,7 +140,7 @@ public:
         if (fRecalcOwnershipProof) {
             const bool useChaumV2 =
                 tx.nType == TRANSACTION_SPARK_V2;
-            for (uint32_t n=0; ; n++) {
+            for (uint32_t n=0; ; ++n) {
                 sparkNameData.addressOwnershipProof.clear();
                 if (!useChaumV2) {
                     sparkNameData.hashFailsafe = n;
@@ -160,7 +160,13 @@ public:
                     m = CSparkNameManager::GetSparkNameOwnershipMessage(
                         ss.GetHash(), useChaumV2);
                 }
+                catch (const std::bad_alloc &) {
+                    throw;
+                }
                 catch (const std::exception &) {
+                    if (useChaumV2) {
+                        throw;
+                    }
                     continue;   // increase hashFailSafe and try again
                 }
         
@@ -350,6 +356,34 @@ BOOST_AUTO_TEST_CASE(chaum_v2_name_fee_covers_final_payload)
             GetVirtualTransactionSize(*transaction.tx),
             &feeControl,
             mempool));
+}
+
+BOOST_AUTO_TEST_CASE(spark_name_construction_rejects_stale_next_block_height)
+{
+    Initialize();
+    mutableConsensus.nSparkNamesStartBlock = 1;
+
+    CSparkNameTxData nameData;
+    nameData.name = "height-race";
+    nameData.sparkAddress = GenerateSparkAddress();
+    nameData.sparkNameValidityBlocks = 365 * 24 * 24;
+
+    const int nextHeight = chainActive.Height() + 1;
+    nameData.nVersion = nextHeight >= mutableConsensus.nSparkNamesV2StartBlock
+        ? CSparkNameTxData::CURRENT_VERSION
+        : 1;
+
+    const CAmount nameFee =
+        mutableConsensus.nSparkNamesFee[nameData.name.length()] * COIN;
+    CAmount transactionFee = 0;
+    BOOST_CHECK_THROW(
+        pwalletMain->CreateSparkNameTransaction(
+            nameData,
+            nameFee,
+            transactionFee,
+            nullptr,
+            nextHeight + 1),
+        std::runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(chaum_v1_name_fee_requires_canonical_metadata_after_v2_activation)

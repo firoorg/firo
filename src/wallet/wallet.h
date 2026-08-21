@@ -327,7 +327,8 @@ public:
     std::unordered_set<uint32_t> changes; //!< positions of changes in vout
 
     // Memory-only Spark output metadata staged by transaction construction.
-    // It is persisted only if CommitTransaction accepts the transaction.
+    // CommitTransaction persists it atomically before mempool acceptance, and
+    // erases it again if acceptance fails.
     std::vector<std::pair<CScript, CSparkOutputTx>> pendingSparkOutputRecords;
 
     // memory only
@@ -1026,6 +1027,13 @@ public:
             const CCoinControl* coinControl = NULL);
 
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction = false);
+
+    /**
+     * Testing-only hook for Spark output persistence in CommitTransaction.
+     * Negative values disable the hook. 0 fails before any write. A positive
+     * value succeeds that many writes, then fails (to test transactional abort).
+     */
+    static void SetSparkOutputWriteFailureForTesting(int failAfterWrites);
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
     bool ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecAmounts);

@@ -717,7 +717,14 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
             spark::Params::get_default(),
             spark::SpendTransactionVersion::V2,
             privateOutputCount);
-        payload >> spend;
+        try {
+            payload >> spend;
+        } catch (const std::bad_alloc &) {
+            throw;
+        } catch (const std::exception &) {
+            throw std::invalid_argument(
+                "Unable to deserialize Spark V2 spend payload");
+        }
         if (!payload.empty() ||
             spend.getExtensionCommitment() !=
                 GetSparkNameCommitment(sparkNameData)) {
@@ -726,7 +733,7 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
         }
     }
 
-    for (uint32_t n=0; ; n++) {
+    for (uint32_t n=0; ; ++n) {
         sparkNameData.addressOwnershipProof.clear();
         if (!useChaumV2) {
             sparkNameData.hashFailsafe = n;
@@ -749,6 +756,9 @@ void CSparkNameManager::AppendSparkNameTxData(CMutableTransaction &txSparkSpend,
             throw;
         }
         catch (const std::exception &) {
+            if (useChaumV2) {
+                throw;
+            }
             continue;   // increase hashFailSafe and try again
         }
 

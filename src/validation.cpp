@@ -2346,26 +2346,28 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     CDbIndexHelper dbIndexHelper(fAddressIndex, fSpentIndex);
 
     CAmount nFees = 0;
-    try {
-        for (const CTransactionRef& tx : block.vtx) {
-            if (!tx->IsSparkSpend()) {
-                continue;
-            }
+    if (fAddressIndex) {
+        try {
+            for (const CTransactionRef& tx : block.vtx) {
+                if (!tx->IsSparkSpend()) {
+                    continue;
+                }
 
-            const CAmount fee = spark::GetSparkSpendFee(*tx);
-            if (!MoneyRange(fee) || fee > MAX_MONEY - nFees) {
-                LogPrintf(
-                    "DisconnectBlock(): Spark spend fee is out of range\n");
-                return DISCONNECT_FAILED;
+                const CAmount fee = spark::GetSparkSpendFee(*tx);
+                if (!MoneyRange(fee) || fee > MAX_MONEY - nFees) {
+                    LogPrintf(
+                        "DisconnectBlock(): Spark spend fee is out of range\n");
+                    return DISCONNECT_FAILED;
+                }
+                nFees += fee;
             }
-            nFees += fee;
         }
-    }
-    catch (const std::exception& e) {
-        LogPrintf(
-            "DisconnectBlock(): failed to parse Spark spend fee: %s\n",
-            e.what());
-        return DISCONNECT_FAILED;
+        catch (const std::exception& e) {
+            LogPrintf(
+                "DisconnectBlock(): failed to parse Spark spend fee: %s\n",
+                e.what());
+            return DISCONNECT_FAILED;
+        }
     }
 
     if (!UndoSpecialTxsInBlock(block, pindex, pfClean == nullptr)) {
@@ -2917,66 +2919,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                 REJECT_INVALID, "bad-cb-payee");
     }
 
-    // Derive and validate the block's spork state before any subsystem mutates
-    // persistent or process-global state.
-    struct SporkSetRollback {
-        CBlockIndex* index;
-        decltype(pindex->activeDisablingSporks) backup;
-        bool enabled;
-        ~SporkSetRollback()
-        {
-            if (enabled)
-                index->activeDisablingSporks.swap(backup);
-        }
-    } sporkSetRollback{
-        pindex, std::move(pindex->activeDisablingSporks), true};
-    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
-
-    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
-                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
-        try {
-            for (const CTransactionRef& tx : block.vtx) {
-                // Reject type-tagged later versions here; only version 3
-                // serializes the payload consumed by the spork state updater.
-                if (tx->nVersion >= 3 &&
-                        tx->nType == TRANSACTION_SPORK &&
-                        !CheckSporkTx(*tx, pindex->pprev, state)) {
-                    return false;
-                }
-            }
-        }
-        catch (const std::bad_alloc&) {
-            return state.Error(
-                "ConnectBlock(): memory allocation failed while checking Evo sporks");
-        }
-
-        if (!sporkManager->BlockConnected(block, pindex)) {
-            return false;
-        }
-
-        for (const CTransactionRef& tx : block.vtx) {
-            if (!sporkManager->IsTransactionAllowed(
-                    *tx, pindex->activeDisablingSporks, state)) {
-                return false;
-            }
-        }
-    }
-
-    if (!sporkManager->IsBlockAllowed(block, pindex, state)) {
-        return false;
-    }
-
-    if (!spark::CheckSparkBlock(state, block, pindex->nHeight)) {
-        return false;
-    }
-
-    if (!ProcessSpecialTxsInBlock(
-            block,
-            pindex,
-            state,
-            isVerifyDB ? false : fJustCheck,
-            fScriptChecks,
-            !isVerifyDB)) {
+    if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
     }
@@ -3011,27 +2954,45 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
     LogPrint("bench", "      - IS filter: %.2fms [%.2fs]\n", 0.001 * (nTime5_1 - nTime4), nTimeISFilter * 0.000001);
 
-    if (!spark::ConnectBlockSpark(
-            state,
-            chainparams,
-            pindex,
-            &block,
-            fJustCheck || isVerifyDB,
-            isVerifyDB))
+    // Copy, do not move: the live map must stay intact until BlockConnected
+    // rewrites it. Restore on every failure and on fJustCheck.
+    struct SporkSetRollback {
+        CBlockIndex* index;
+        decltype(pindex->activeDisablingSporks) backup;
+        bool enabled;
+        ~SporkSetRollback()
+        {
+            if (enabled)
+                index->activeDisablingSporks.swap(backup);
+        }
+    } sporkSetRollback{
+        pindex, pindex->activeDisablingSporks, true};
+    CSporkManager *sporkManager = CSporkManager::GetSporkManager();
+
+    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
+        if (!sporkManager->BlockConnected(block, pindex)) {
+            return false;
+        }
+
+        // check if transaction is allowed under spork rules
+        for (CTransactionRef tx: block.vtx) {
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
+                return false;
+        }
+    }
+
+    // Reject before ConnectBlockSpark so a transparent-output spork failure
+    // cannot leave spends applied in global Spark state.
+    if (!sporkManager->IsBlockAllowed(block, pindex, state))
         return false;
 
-    if (!fJustCheck && !isVerifyDB)
-        MTPState::GetMTPState()->SetLastBlock(
-            pindex, chainparams.GetConsensus());
+    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck || isVerifyDB, isVerifyDB))
+        return false;
 
     if (fJustCheck) {
-        // VerifyDB reconnects need the temporary coin view to advance across
-        // blocks without executing the persistent ConnectBlock tail.
         if (isVerifyDB) {
             view.SetBestBlock(pindex->GetBlockHash());
-            // The enclosing VerifyDB transaction rolls this back after the
-            // temporary reconnect, but the next block must observe the
-            // matching EvoDB tip while it is checked.
             evoDb->WriteBestBlock(pindex->GetBlockHash());
         }
         return true;
@@ -3093,6 +3054,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     hashPrevBestCoinBase = block.vtx[0]->GetHash();
 
     evoDb->WriteBestBlock(pindex->GetBlockHash());
+
+    MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
 
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);

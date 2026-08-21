@@ -47,6 +47,7 @@
 #include "evo/deterministicmns.h"
 
 #include <assert.h>
+#include <atomic>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
@@ -3753,6 +3754,74 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
     return true;
 }
 
+static std::atomic<int> g_sparkOutputWriteFailAfter{-1};
+
+void CWallet::SetSparkOutputWriteFailureForTesting(int failAfterWrites)
+{
+    g_sparkOutputWriteFailAfter.store(failAfterWrites);
+}
+
+static bool WritePendingSparkOutputsAtomically(
+    const std::string& strWalletFile,
+    const std::vector<std::pair<CScript, CSparkOutputTx>>& records,
+    std::vector<CScript>& persistedScripts)
+{
+    persistedScripts.clear();
+    if (records.empty())
+        return true;
+
+    const int failAfter = g_sparkOutputWriteFailAfter.load();
+    if (failAfter == 0)
+        return false;
+
+    CWalletDB walletdb(strWalletFile);
+    if (!walletdb.TxnBegin())
+        return false;
+
+    int writes = 0;
+    for (const auto& outputRecord : records) {
+        if (!walletdb.WriteSparkOutputTx(outputRecord.first, outputRecord.second)) {
+            walletdb.TxnAbort();
+            persistedScripts.clear();
+            return false;
+        }
+        persistedScripts.push_back(outputRecord.first);
+        ++writes;
+        if (failAfter > 0 && writes >= failAfter) {
+            walletdb.TxnAbort();
+            persistedScripts.clear();
+            return false;
+        }
+    }
+
+    if (!walletdb.TxnCommit()) {
+        persistedScripts.clear();
+        return false;
+    }
+    return true;
+}
+
+static bool EraseSparkOutputScripts(
+    const std::string& strWalletFile,
+    const std::vector<CScript>& scripts)
+{
+    if (scripts.empty())
+        return true;
+
+    CWalletDB walletdb(strWalletFile);
+    if (!walletdb.TxnBegin())
+        return false;
+
+    for (const auto& script : scripts) {
+        if (!walletdb.EraseSparkOutputTx(script)) {
+            walletdb.TxnAbort();
+            return false;
+        }
+    }
+
+    return walletdb.TxnCommit();
+}
+
 /**
  * Call after CreateTransaction unless you want to abort
  */
@@ -3762,25 +3831,32 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         LOCK2(cs_main, cs_wallet);
         LogPrintf("CommitTransaction:\n%s", wtxNew.tx->ToString());
 
-        // When fCheckTransaction is set, validate against the mempool before touching
-        // the wallet. If rejected, return false immediately without adding the transaction.
+        // Persist Spark output metadata atomically before mempool acceptance.
+        // AcceptToMemoryPool inserts the transaction and updates Spark spend
+        // state, so a later disk-full failure would otherwise be reported as a
+        // failed payment while the transaction remained eligible for mining.
+        std::vector<CScript> persistedSparkOutputScripts;
+        if (!WritePendingSparkOutputsAtomically(
+                strWalletFile,
+                wtxNew.pendingSparkOutputRecords,
+                persistedSparkOutputScripts)) {
+            LogPrintf("CommitTransaction(): Unable to save Spark transaction output\n");
+            return state.Error("Unable to save Spark transaction output");
+        }
+
+        // When fCheckTransaction is set, validate against the mempool before adding
+        // the transaction to the wallet. If rejected, drop Spark output metadata
+        // written above and return without AddToWallet.
         if (fCheckTransaction && !wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
             LogPrintf("CommitTransaction(): Transaction rejected: %s\n", state.GetRejectReason());
+            if (!EraseSparkOutputScripts(strWalletFile, persistedSparkOutputScripts)) {
+                LogPrintf(
+                    "CommitTransaction(): failed to drop Spark output metadata after mempool rejection\n");
+            }
             return false;
         }
 
-        if (!wtxNew.pendingSparkOutputRecords.empty()) {
-            CWalletDB walletdb(strWalletFile);
-            for (const auto& outputRecord :
-                 wtxNew.pendingSparkOutputRecords) {
-                if (!walletdb.WriteSparkOutputTx(
-                        outputRecord.first, outputRecord.second)) {
-                    return state.Error(
-                        "Unable to save Spark transaction output");
-                }
-            }
-            wtxNew.pendingSparkOutputRecords.clear();
-        }
+        wtxNew.pendingSparkOutputRecords.clear();
 
         {
             // Take key pair from key pool so it won't be used again

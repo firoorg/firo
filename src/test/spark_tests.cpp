@@ -13,6 +13,7 @@
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
+#include <set>
 #include <boost/test/unit_test.hpp>
 
 namespace spark {
@@ -1228,6 +1229,41 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         std::invalid_argument);
     payTxFee = originalPayTxFee;
 
+    // Amount that fits the selected coins still fails once the required fee is
+    // added. Report that fee so callers can distinguish it from a bare
+    // amount shortfall.
+    std::list<CSparkMintMeta> exactBalance(1);
+    exactBalance.front().v = COIN;
+    try {
+        pwalletMain->sparkWallet->SelectSparkCoins(
+            COIN,
+            false,
+            exactBalance,
+            0,
+            1,
+            nullptr,
+            true,
+            0);
+        BOOST_FAIL("Expected InsufficientFunds when the fee does not fit");
+    } catch (const InsufficientFunds& error) {
+        BOOST_CHECK_GT(error.GetRequiredFee(), 0);
+        BOOST_CHECK(MoneyRange(error.GetRequiredFee()));
+    }
+    try {
+        pwalletMain->sparkWallet->SelectSparkCoins(
+            2 * COIN,
+            false,
+            exactBalance,
+            0,
+            1,
+            nullptr,
+            true,
+            0);
+        BOOST_FAIL("Expected InsufficientFunds when the amount exceeds coins");
+    } catch (const InsufficientFunds& error) {
+        BOOST_CHECK_EQUAL(error.GetRequiredFee(), 0);
+    }
+
     OutputCoinData oversizedPrivateRecipient;
     oversizedPrivateRecipient.v = std::numeric_limits<uint64_t>::max();
     BOOST_CHECK_THROW(
@@ -1530,6 +1566,142 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
         pwalletMain->mapWallet.size(), walletSizeBeforeOfflineSpend + 1);
     BOOST_CHECK(pwalletMain->GetWalletTx(offlineSpend.GetHash()));
     BOOST_CHECK(!mempool.exists(offlineSpend.GetHash()));
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_spend_commit_persists_outputs_before_mempool)
+{
+    struct RestoreBroadcastSetting {
+        CWallet* wallet;
+        bool enabled;
+        ~RestoreBroadcastSetting()
+        {
+            wallet->SetBroadcastTransactions(enabled);
+        }
+    } restoreBroadcast{pwalletMain, pwalletMain->GetBroadcastTransactions()};
+
+    struct RestoreWriteFailure {
+        ~RestoreWriteFailure()
+        {
+            CWallet::SetSparkOutputWriteFailureForTesting(-1);
+        }
+    } restoreWriteFailure;
+
+    pwalletMain->SetBroadcastTransactions(true);
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto mints =
+        GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    COutPoint selectedOutpoint;
+    BOOST_REQUIRE(GetOutPoint(
+        selectedOutpoint,
+        pwalletMain->sparkWallet->getCoinFromMeta(mints[0])));
+    CCoinControl coinControl;
+    coinControl.fAllowOtherInputs = false;
+    coinControl.fRequireAllInputs = true;
+    coinControl.Select(selectedOutpoint);
+
+    OutputCoinData privateRecipient1;
+    OutputCoinData privateRecipient2;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        privateRecipient1.address =
+            pwalletMain->sparkWallet->generateNewAddress();
+        privateRecipient2.address =
+            pwalletMain->sparkWallet->generateNewAddress();
+    }
+    privateRecipient1.v = COIN;
+    privateRecipient1.memo = "persist-1";
+    privateRecipient2.v = COIN;
+    privateRecipient2.memo = "persist-2";
+
+    CAmount fee = 0;
+    CWalletTx spend = pwalletMain->CreateSparkSpendTransaction(
+        {},
+        {{privateRecipient1, false}, {privateRecipient2, false}},
+        fee,
+        &coinControl);
+    BOOST_REQUIRE(spend.tx);
+    BOOST_REQUIRE(spend.pendingSparkOutputRecords.size() >= 2);
+    const auto pendingRecords = spend.pendingSparkOutputRecords;
+    const uint256 txid = spend.GetHash();
+    const std::size_t walletSizeBefore = pwalletMain->mapWallet.size();
+
+    CWallet::SetSparkOutputWriteFailureForTesting(1);
+    {
+        CValidationState state;
+        CReserveKey reserveKey(pwalletMain);
+        BOOST_CHECK(!pwalletMain->CommitTransaction(
+            spend, reserveKey, g_connman.get(), state, true));
+        BOOST_CHECK_EQUAL(
+            state.GetRejectReason(),
+            "Unable to save Spark transaction output");
+    }
+    BOOST_CHECK(!mempool.exists(txid));
+    BOOST_CHECK(!txpools.getStemTxPool().exists(txid));
+    BOOST_CHECK_EQUAL(pwalletMain->mapWallet.size(), walletSizeBefore);
+    BOOST_CHECK(!pwalletMain->GetWalletTx(txid));
+    BOOST_CHECK_EQUAL(
+        spend.pendingSparkOutputRecords.size(), pendingRecords.size());
+    for (const auto& record : pendingRecords) {
+        CSparkOutputTx output;
+        BOOST_CHECK(!pwalletMain->GetSparkOutputTx(record.first, output));
+    }
+    BOOST_CHECK(!pwalletMain->sparkWallet->getMintMeta(mints[0].k).isUsed);
+
+    CWallet::SetSparkOutputWriteFailureForTesting(-1);
+    {
+        CValidationState state;
+        CReserveKey reserveKey(pwalletMain);
+        BOOST_REQUIRE(pwalletMain->CommitTransaction(
+            spend, reserveKey, g_connman.get(), state, true));
+    }
+    BOOST_CHECK(mempool.exists(txid));
+    BOOST_REQUIRE(pwalletMain->GetWalletTx(txid));
+    BOOST_CHECK(spend.pendingSparkOutputRecords.empty());
+    std::set<std::string> foundMemos;
+    for (const auto& record : pendingRecords) {
+        CSparkOutputTx output;
+        BOOST_REQUIRE(pwalletMain->GetSparkOutputTx(record.first, output));
+        foundMemos.insert(output.memo);
+    }
+    BOOST_CHECK(foundMemos.count(privateRecipient1.memo));
+    BOOST_CHECK(foundMemos.count(privateRecipient2.memo));
+
+    const std::vector<GroupElement> usedTags =
+        ParseSparkSpend(*spend.tx).getUsedLTags();
+    BOOST_REQUIRE(!usedTags.empty());
+    pwalletMain->sparkWallet->setCoinUnused(usedTags.front());
+
+    CAmount conflictFee = 0;
+    CWalletTx conflicting = pwalletMain->CreateSparkSpendTransaction(
+        {{script, COIN, false}}, {}, conflictFee, &coinControl);
+    BOOST_REQUIRE(!conflicting.pendingSparkOutputRecords.empty());
+    const auto conflictingRecords = conflicting.pendingSparkOutputRecords;
+    const uint256 conflictingTxid = conflicting.GetHash();
+    {
+        CValidationState state;
+        CReserveKey reserveKey(pwalletMain);
+        BOOST_CHECK(!pwalletMain->CommitTransaction(
+            conflicting, reserveKey, g_connman.get(), state, true));
+    }
+    BOOST_CHECK(mempool.exists(txid));
+    BOOST_CHECK(!mempool.exists(conflictingTxid));
+    BOOST_CHECK(!pwalletMain->GetWalletTx(conflictingTxid));
+    BOOST_CHECK_EQUAL(
+        conflicting.pendingSparkOutputRecords.size(),
+        conflictingRecords.size());
+    for (const auto& record : conflictingRecords) {
+        CSparkOutputTx output;
+        BOOST_CHECK(!pwalletMain->GetSparkOutputTx(record.first, output));
+    }
 
     mempool.clear();
     sparkState->Reset();
@@ -2059,8 +2231,23 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
         false,
         true,
         nullptr));
-    // Failures are cached too (same as master), under a different txid.
-    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 2U);
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 1U);
+
+    BOOST_REQUIRE(mempool.exists(spend.GetHash()));
+    mempool.removeRecursive(spend);
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 0U);
+
+    CValidationState recacheState;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        spend,
+        recacheState,
+        spend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 1U);
 
     // Remove the referenced cover-set block while leaving the first mint and
     // group active. Validation must recompute the result for the new context.

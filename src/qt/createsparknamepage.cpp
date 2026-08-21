@@ -181,7 +181,8 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         if (!ctx->isValid())
             return false;
 
-        WalletModel::SendCoinsReturn prepareStatus = model->prepareSparkNameTransaction(tx, sparkNameData, sparkNameFee, nullptr);
+        WalletModel::SendCoinsReturn prepareStatus = model->prepareSparkNameTransaction(
+            tx, sparkNameData, sparkNameFee, nullptr, nextBlockHeight);
         if (prepareStatus.status != WalletModel::StatusCode::OK) {
             QMessageBox::critical(this, tr("Error"), tr("Failed to prepare spark name transaction"));
             return false;

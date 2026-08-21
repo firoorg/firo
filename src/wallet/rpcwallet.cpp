@@ -4852,7 +4852,8 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     CAmount fee;
     CWalletTx wtx;
     try {
-        wtx = pwallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, fee);
+        wtx = pwallet->CreateSparkNameTransaction(
+            sparkNameData, sparkNameFee, fee, nullptr, chainHeight);
     } catch (const std::exception &x) {
         throw JSONRPCError(RPC_WALLET_ERROR, std::string("Spark name registration failed: ") + x.what());
     }

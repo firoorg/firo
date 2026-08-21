@@ -1640,10 +1640,16 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactions(
             coinControl,
             expectedNextBlockHeight,
             &recipientAmounts);
-    } catch (const InsufficientFunds&) {
+    } catch (const InsufficientFunds& error) {
         transactions.clear();
-        if (!subtractFeeFromAmount && total <= MAX_MONEY - fee &&
-            total + fee > balance) {
+        const CAmount feeRequired =
+            error.GetRequiredFee() > 0 ? error.GetRequiredFee() : fee;
+        if (!subtractFeeFromAmount && feeRequired > 0 &&
+            total <= MAX_MONEY - feeRequired &&
+            total + feeRequired > balance) {
+            WalletModelTransaction feeHint(QList<SendCoinsRecipient>());
+            feeHint.setTransactionFee(feeRequired);
+            transactions.push_back(std::move(feeHint));
             return AmountWithFeeExceedsBalance;
         }
         return AmountExceedsBalance;
@@ -1748,7 +1754,7 @@ QString WalletModel::getSparkNameAddress(const QString &sparkName) {
     }
 }
 
-WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletModelTransaction &transaction, CSparkNameTxData &sparkNameData, CAmount sparkNameFee, const CCoinControl* coinControl)
+WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletModelTransaction &transaction, CSparkNameTxData &sparkNameData, CAmount sparkNameFee, const CCoinControl* coinControl, int expectedNextBlockHeight)
 {
     CAmount nBalance;
     std::tie(nBalance, std::ignore) = getSparkBalance();
@@ -1757,10 +1763,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletMode
         return AmountExceedsBalance;
     }
 
-    int expectedNextBlockHeight;
     {
         LOCK(cs_main);
-        expectedNextBlockHeight = chainActive.Height() + 1;
+        if (expectedNextBlockHeight != chainActive.Height() + 1) {
+            return SendCoinsReturn(
+                TransactionCreationFailed,
+                tr("Chain height changed during Spark name construction; retry"));
+        }
     }
     const bool versionedSpend = expectedNextBlockHeight >=
         Params().GetConsensus().nSparkChaumV2StartBlock;
@@ -1985,21 +1994,47 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
         }
     }
 
+    {
+        // Reject the whole batch before any commit so a later format mismatch
+        // cannot leave earlier transactions already sent.
+        LOCK2(cs_main, wallet->cs_wallet);
+        const int nextBlockHeight = chainActive.Height() + 1;
+        for (WalletModelTransaction& transaction : transactions) {
+            const CWalletTx* walletTransaction = transaction.getTransaction();
+            if (!spark::IsSparkSpendFormatAllowed(
+                    *walletTransaction->tx, nextBlockHeight)) {
+                return SendCoinsReturn(
+                    TransactionCommitFailed,
+                    tr("Refusing to commit an incompatible Spark transaction format."));
+            }
+        }
+    }
+
     SendCoinsReturn result = OK;
     bool committedAny = false;
     // Every transaction that made it out, so a partial failure can tell the user
     // exactly what was sent instead of leaving them to reconstruct it.
     QStringList committed;
-    {
-        LOCK2(cs_main, wallet->cs_wallet);
 
-        for (WalletModelTransaction& transaction : transactions) {
+    for (WalletModelTransaction& transaction : transactions) {
+        QByteArray transactionArray;
+        QList<SendCoinsRecipient> notifiedRecipients;
+
+        {
+            // Hold locks only for this transaction's commit and address-book
+            // update. CommitTransaction may accept/relay under fCheckTransaction,
+            // and coinsSent slots can take wallet/chain locks, so do not keep
+            // cs_main/cs_wallet across the whole batch or while emitting.
+            LOCK2(cs_main, wallet->cs_wallet);
+
             CWalletTx* walletTransaction = transaction.getTransaction();
             if (!spark::IsSparkSpendFormatAllowed(
                     *walletTransaction->tx, chainActive.Height() + 1)) {
-                return SendCoinsReturn(
+                result = SendCoinsReturn(
                     TransactionCommitFailed,
-                    tr("Refusing to commit an incompatible Spark transaction format."));
+                    tr("Refusing to commit an incompatible Spark transaction format."),
+                    committedAny);
+                break;
             }
             for (const SendCoinsRecipient& recipient : transaction.getRecipients()) {
                 if (!recipient.message.isEmpty()) {
@@ -2040,7 +2075,6 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
 
             CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
             stream << *walletTransaction->tx;
-            QByteArray transactionArray;
             transactionArray.append(&stream[0], stream.size());
 
             for (const SendCoinsRecipient& recipient : transaction.getRecipients()) {
@@ -2063,9 +2097,13 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
                         wallet->SetSparkAddressBook(address, label, "");
                     }
                 }
-
-                Q_EMIT coinsSent(wallet, recipient, transactionArray);
             }
+
+            notifiedRecipients = transaction.getRecipients();
+        }
+
+        for (const SendCoinsRecipient& recipient : notifiedRecipients) {
+            Q_EMIT coinsSent(wallet, recipient, transactionArray);
         }
     }
 
