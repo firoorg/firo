@@ -10,6 +10,7 @@
 #include "bitcoinunits.h"
 #include "clientmodel.h"
 #include "coincontroldialog.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -91,9 +92,10 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
-    ui->frameCoinControl->setAutoFillBackground(true);
-    ui->scrollArea->setAutoFillBackground(true);
-    ui->frameFee->setAutoFillBackground(true);
+    ui->balancePill->setAttribute(Qt::WA_StyledBackground, true);
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &SendCoinsDialog::applyTheme);
+    applyTheme();
 
     {
         auto allowed = spark::IsSparkAllowed();
@@ -129,6 +131,45 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->customFee->setValue(settings.value("nTransactionFee").toLongLong());
     ui->checkBoxMinimumFee->setChecked(settings.value("fPayOnlyMinFee").toBool());
     minimizeFeeSection(settings.value("fFeeSectionMinimized").toBool());
+}
+
+void SendCoinsDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+    ui->scrollArea->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; border: none; }"));
+    ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("background: transparent;"));
+
+    const QString cardStyle = GUIUtil::themed(QStringLiteral(
+        "QFrame#frameFee, QFrame#frameCoinControl {"
+        " background: $PANEL;"
+        " border: 1px solid $BORDER;"
+        " border-radius: 18px;"
+        "}"));
+    ui->frameFee->setStyleSheet(cardStyle);
+    ui->frameCoinControl->setStyleSheet(cardStyle);
+
+    ui->labelFeeHeadline->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-size: 13px; font-weight: 700; }")));
+    ui->labelFeeMinimized->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; font-family: monospace; }")));
+
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("5px 14px"));
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("5px 14px"));
+    ui->sendButton->setStyleSheet(primaryButtonStyle);
+    ui->switchFundButton->setStyleSheet(primaryButtonStyle);
+    ui->clearButton->setStyleSheet(secondaryButtonStyle);
+    ui->addButton->setStyleSheet(secondaryButtonStyle);
+    ui->buttonChooseFee->setStyleSheet(primaryButtonStyle);
+    ui->buttonMinimizeFee->setStyleSheet(secondaryButtonStyle);
+    GUIUtil::applyPrimaryButtonShadow(ui->sendButton);
+    GUIUtil::applyPrimaryButtonShadow(ui->switchFundButton);
+    GUIUtil::applyPrimaryButtonShadow(ui->buttonChooseFee);
+
+    ui->balancePill->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QFrame#balancePill { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
+        "QFrame#balancePill QLabel { background: transparent; border: none; }"
+        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-size: 11px; font-weight: 700; }"
+        "QFrame#balancePill QLabel#labelBalance { color: $INK; font-weight: 700; }")));
 }
 
 void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
@@ -1199,7 +1240,8 @@ void SendCoinsDialog::updateSmartFeeLabel()
         ui->fallbackFeeWarningLabel->setVisible(true);
         int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
         QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
-        ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
+        ui->fallbackFeeWarningLabel->setStyleSheet(
+            "QLabel { background: transparent; color: " + warning_colour.name() + "; }");
         ui->fallbackFeeWarningLabel->setIndent(GUIUtil::TextWidth(QFontMetrics(ui->fallbackFeeWarningLabel->font()), "x"));
     }
     else

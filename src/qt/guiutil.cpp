@@ -6,6 +6,7 @@
 
 #include "bitcoinaddressvalidator.h"
 #include "bitcoinunits.h"
+#include "guitheme.h"
 #include "qvalidatedlineedit.h"
 #include "rosenbridge.h"
 #include "walletmodel.h"
@@ -936,6 +937,92 @@ void TextElideStyledItemDelegate::initStyleOption(QStyleOptionViewItem *option, 
     option->textElideMode = Qt::ElideMiddle;
 }
 
+static QString darkModeOverrideCss()
+{
+    return QStringLiteral(R"(
+        QDialog, QMainWindow, QMenuBar, QStatusBar, RPCConsole, QWidget#RPCConsole { background-color: #110C12; color: #F5EFF3; }
+        QWidget { color: #F5EFF3; }
+        QFrame { background-color: transparent; }
+        QToolBar { background-color: #1C151B; }
+        QLabel { background-color: transparent; color: #F5EFF3; }
+        QGroupBox { background-color: #1C151B; color: #F5EFF3; border-color: #362A34; }
+        QGroupBox::title { background-color: #110C12; color: #F5EFF3; }
+        QTabWidget::pane { background-color: #1C151B; border: 1px solid #362A34; }
+        QTabBar { background-color: #110C12; }
+        QTabBar::tab {
+            background-color: #1C151B; color: #B4A8B2; border: 1px solid #362A34;
+            border-bottom: none; padding: 6px 12px;
+        }
+        QTabBar::tab:selected { background-color: #A3223F; color: #FFFFFF; }
+        QTabBar::tab:hover:!selected { background-color: #241B22; color: #F5EFF3; }
+        QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QAbstractSpinBox {
+            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+            selection-background-color: #DE3358;
+        }
+        QSpinBox::up-button, QSpinBox::down-button,
+        QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+            background-color: transparent; border: none; width: 18px;
+        }
+        QAbstractSpinBox QLineEdit {
+            background-color: transparent; border: none;
+        }
+        QComboBox {
+            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+            selection-background-color: #DE3358; selection-color: #FFFFFF;
+        }
+        QComboBox QListView {
+            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+        }
+        QComboBox::item {
+            color: #F5EFF3;
+        }
+        QComboBox::item:alternate {
+            background-color: #1C151B; color: #F5EFF3;
+        }
+        QComboBox::item:selected {
+            background-color: #DE3358; color: #FFFFFF;
+        }
+        QMenu {
+            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+        }
+        QMenu::item { color: #F5EFF3; }
+        QMenu::item:selected { background-color: #362A34; color: #F5EFF3; }
+        QMenu::item:disabled { color: #6E5C68; }
+        QMenuBar::item:selected { background-color: #362A34; }
+        QTableView, QTreeView, QListView {
+            background-color: #1C151B; color: #F5EFF3;
+            alternate-background-color: #241B22;
+            gridline-color: #362A34;
+            selection-background-color: rgba(222,51,88,0.22);
+            selection-color: #F5EFF3;
+        }
+        QHeaderView::section { background-color: transparent; color: #8A7E88; }
+        QHeaderView::section:hover { background-color: #241B22; color: #F5EFF3; }
+        QScrollBar:vertical, QScrollBar:horizontal { background: #1C151B; border: none; }
+        QScrollBar::handle { background: #362A34; border-radius: 4px; }
+        QScrollBar::handle:hover { background: #4A3A45; }
+        QScrollBar::add-line, QScrollBar::sub-line { background: none; border: none; }
+        QToolTip {
+            background-color: #241B22; color: #F5EFF3; border: 1px solid #362A34;
+        }
+        QMessageBox { background-color: #1C151B; }
+        QTabWidget::pane { background-color: #1C151B; border-color: #362A34; }
+        QCheckBox, QRadioButton { color: #F5EFF3; background-color: transparent; }
+        QWidget#RPCConsole QPushButton#promptIcon,
+        QWidget#RPCConsole QPushButton#fontSmallerButton,
+        QWidget#RPCConsole QPushButton#fontBiggerButton,
+        QWidget#RPCConsole QPushButton#clearButton {
+            background-color: #241B22; color: #F5EFF3;
+        }
+        QWidget#RPCConsole QLineEdit#lineEdit {
+            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+        }
+    )");
+}
+
 void loadTheme()
 {
     AssertLockNotHeld(cs_css);
@@ -950,9 +1037,12 @@ void loadTheme()
     }
 
     QString strStyle = QLatin1String(qFile.readAll());
-    stylesheet = std::make_unique<QString>(); 
+    stylesheet = std::make_unique<QString>();
 
     stylesheet->append(strStyle);
+    if (isDarkMode()) {
+        stylesheet->append(darkModeOverrideCss());
+    }
 
     qApp->setStyleSheet(*stylesheet);
 }

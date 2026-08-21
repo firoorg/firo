@@ -7,6 +7,7 @@
 
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -39,10 +40,12 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
     ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
     ui->deleteButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-    ui->deleteButton_is->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-    ui->deleteButton_s->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
 
     setCurrentWidget(ui->SendCoins);
+
+    updatePageSizePolicies();
+    connect(this, &QStackedWidget::currentChanged,
+            this, [this](int) { updatePageSizePolicies(); });
 
     if (platformStyle->getUseExtraSpacing())
         ui->payToLayout->setSpacing(4);
@@ -52,15 +55,11 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
 
     // normal Firo address field
     GUIUtil::setupAddressWidget(ui->payTo, this, true);
-    // just a label for displaying Firo address(es)
-    ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
 
     // Connect signals
     connect(ui->payAmount, &BitcoinAmountField::valueChanged, this, &SendCoinsEntry::payAmountChanged);
     connect(ui->checkboxSubtractFeeFromAmount, &QCheckBox::toggled, this, &SendCoinsEntry::subtractFeeFromAmountChanged);
     connect(ui->deleteButton, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
-    connect(ui->deleteButton_is, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
-    connect(ui->deleteButton_s, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
     connect(ui->messageTextLabel, &QLineEdit::textChanged, this, &SendCoinsEntry::on_MemoTextChanged);
 
     ui->messageLabel->setVisible(false);
@@ -68,6 +67,121 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->iconMessageWarning->setVisible(false);
     ui->rosenBridgeLabel->setVisible(false);
     ui->rosenBridgeDetails->setVisible(false);
+
+    ui->SendCoins->setAttribute(Qt::WA_StyledBackground, true);
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &SendCoinsEntry::applyTheme);
+    applyTheme();
+    ui->payAmount->setExpanding(true, 420);
+}
+
+void SendCoinsEntry::updatePageSizePolicies()
+{
+    for (int i = 0; i < count(); ++i) {
+        QWidget* page = widget(i);
+        if (!page)
+            continue;
+        page->setSizePolicy(QSizePolicy::Preferred,
+                            i == currentIndex() ? QSizePolicy::Preferred
+                                                : QSizePolicy::Ignored);
+    }
+    updateGeometry();
+}
+
+void SendCoinsEntry::applyTheme()
+{
+    ui->SendCoins->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QFrame#SendCoins {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 18px;
+        }
+        QFrame#SendCoins QLabel {
+            background: transparent;
+            border: none;
+        }
+        QFrame#SendCoins QLabel#payToLabel,
+        QFrame#SendCoins QLabel#labellLabel,
+        QFrame#SendCoins QLabel#amountLabel,
+        QFrame#SendCoins QLabel#messageLabel {
+            color: $INK_FAINT;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        QFrame#SendCoins QValidatedLineEdit,
+        QFrame#SendCoins QLineEdit,
+        QFrame#SendCoins AmountSpinBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 8px 12px;
+            color: $INK;
+            selection-background-color: $WINE;
+        }
+        QFrame#SendCoins QValidatedLineEdit:focus,
+        QFrame#SendCoins QLineEdit:focus,
+        QFrame#SendCoins AmountSpinBox:focus {
+            background: $PANEL_SOFT;
+            border: 1px solid $WINE;
+            border-radius: 10px;
+            padding: 8px 12px;
+            color: $INK;
+        }
+        QFrame#SendCoins AmountSpinBox[invalidInput="true"],
+        QFrame#SendCoins QValidatedLineEdit[invalidInput="true"] {
+            border-color: #E5484D;
+        }
+        QFrame#SendCoins AmountSpinBox QLineEdit { %1 }
+        QFrame#SendCoins QValueComboBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 6px 10px;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox QAbstractItemView {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 4px;
+            outline: none;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox::item {
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox::item:alternate {
+            background: $PANEL;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox::item:selected {
+            background: $WINE;
+            color: #FFFFFF;
+        }
+        QFrame#SendCoins QToolButton {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 8px;
+            padding: 4px;
+            margin-left: 6px;
+        }
+        QFrame#SendCoins QToolButton:hover {
+            background: $PANEL_SOFT;
+        }
+        QFrame#SendCoins QCheckBox {
+            color: $INK_FAINT;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        QFrame#SendCoins QCheckBox::indicator:unchecked {
+            image: url(:/images/checkbox_normal_light);
+        }
+        QFrame#SendCoins QCheckBox::indicator:checked {
+            image: url(:/images/checkbox_checked_light);
+        }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
 }
 
 SendCoinsEntry::~SendCoinsEntry()
@@ -86,6 +200,7 @@ void SendCoinsEntry::on_MemoTextChanged(const QString &text)
         ui->messageWarning->setVisible(true);
         ui->messageTextLabel->setStyleSheet("border: 1px solid red;");
         ui->iconMessageWarning->setVisible(true);
+        ui->messageWarningRow->setVisible(true);
     } else {
         QString sanitized = text;
         sanitized.remove(QRegularExpression("[\\x00-\\x1F\\x7F]"));
@@ -97,6 +212,7 @@ void SendCoinsEntry::on_MemoTextChanged(const QString &text)
         ui->messageWarning->setVisible(false);
         ui->messageTextLabel->setStyleSheet("");
         ui->iconMessageWarning->setVisible(false);
+        ui->messageWarningRow->setVisible(false);
     }
 }
 
@@ -181,6 +297,7 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
 
     ui->rosenBridgeLabel->setVisible(valid);
     ui->rosenBridgeDetails->setVisible(valid);
+    ui->rosenBridgeRow->setVisible(valid);
     ui->payAmount->setReadOnly(valid);
 
     ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
@@ -233,14 +350,6 @@ void SendCoinsEntry::clear()
     ui->messageTextLabel->clear();
     ui->messageTextLabel->hide();
     ui->messageLabel->hide();
-    // clear UI elements for unauthenticated payment request
-    ui->payTo_is->clear();
-    ui->memoTextLabel_is->clear();
-    ui->payAmount_is->clear();
-    // clear UI elements for authenticated payment request
-    ui->payTo_s->clear();
-    ui->memoTextLabel_s->clear();
-    ui->payAmount_s->clear();
 
     applyingRecipient = false;
     updateRosenBridgeDisplay();
@@ -260,6 +369,7 @@ void SendCoinsEntry::setWarning(bool fAnonymousMode) {
         ui->textWarning->clear();
         ui->textWarning->hide();
         ui->iconWarning->hide();
+        ui->addressWarningRow->hide();
         return;
     }
 
@@ -270,6 +380,7 @@ void SendCoinsEntry::setWarning(bool fAnonymousMode) {
     ui->textWarning->setText(warningText);
     ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
     ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+    ui->addressWarningRow->setVisible(!warningText.isEmpty() && hasValidAddress);
 }
 
 QString SendCoinsEntry::generateWarningText(const QString& address, const bool fAnonymousMode)
@@ -410,7 +521,7 @@ void SendCoinsEntry::setSubtractFeeFromAmount(bool enable)
 
 bool SendCoinsEntry::isClear()
 {
-    return ui->payTo->text().isEmpty() && ui->payTo_is->text().isEmpty() && ui->payTo_s->text().isEmpty();
+    return ui->payTo->text().isEmpty();
 }
 
 bool SendCoinsEntry::hasRosenBridgeData() const
@@ -447,10 +558,7 @@ void SendCoinsEntry::updateDisplayUnit()
 {
     if(model && model->getOptionsModel())
     {
-        // Update payAmount with the current unit
         ui->payAmount->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-        ui->payAmount_is->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-        ui->payAmount_s->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     }
 }
 
@@ -499,15 +607,6 @@ void SendCoinsEntry::adjustTextSize(int width, int height) {
     ui->rosenBridgeLabel->setFont(font);
     ui->rosenBridgeDetails->setFont(font);
     ui->payTo->setFont(font);
-    ui->payTo_is->setFont(font);
-    ui->memoLabel_is->setFont(font);
-    ui->memoTextLabel_is->setFont(font);
-    ui->amountLabel_is->setFont(font);
-    ui->payToLabel_s->setFont(font);
-    ui->payTo_s->setFont(font);
-    ui->memoLabel_s->setFont(font);
-    ui->memoTextLabel_s->setFont(font);
-    ui->amountLabel_s->setFont(font);
     ui->checkboxSubtractFeeFromAmount->setFont(font);
     ui->deleteButton->setFont(font);
     ui->pasteButton->setFont(font);

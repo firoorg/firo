@@ -28,6 +28,10 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, const QStr
 {
     ui->setupUi(this);
 
+    if (ui->passphraseCard) {
+        ui->passphraseCard->setAttribute(Qt::WA_StyledBackground, true);
+    }
+
     ui->passEdit1->setMaxLength(MAX_PASSPHRASE_SIZE);
     ui->passEdit2->setMaxLength(MAX_PASSPHRASE_SIZE);
     ui->passEdit3->setMaxLength(MAX_PASSPHRASE_SIZE);

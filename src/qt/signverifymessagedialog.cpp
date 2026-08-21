@@ -6,6 +6,7 @@
 #include "ui_signverifymessagedialog.h"
 
 #include "addressbookpage.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "walletmodel.h"
@@ -30,6 +31,50 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
     platformStyle(_platformStyle)
 {
     ui->setupUi(this);
+
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
+        QTabBar::tab {
+            background: transparent;
+            color: $INK_FAINT;
+            font-weight: 700;
+            padding: 8px 14px;
+            border: none;
+        }
+        QTabBar::tab:selected { color: $WINE; }
+        QTabBar::tab:hover { color: $INK; }
+        QLineEdit, QPlainTextEdit, QTextEdit {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 8px 12px;
+            color: $INK;
+        }
+        QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus { border: 1px solid $WINE; }
+        QCheckBox { color: $INK_SOFT; }
+        QPushButton {
+            color: $INK;
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            font-weight: 700;
+            padding: 7px 16px;
+        }
+        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
+        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton#signMessageButton_SM, QPushButton#verifyMessageButton_VM {
+            color: #FFFFFF;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            border: none;
+        }
+        QPushButton#signMessageButton_SM:hover:enabled, QPushButton#verifyMessageButton_VM:hover:enabled {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+        }
+        QPushButton#signMessageButton_SM:pressed, QPushButton#verifyMessageButton_VM:pressed { background: $WINE_DEEP; }
+    )")));
 
     ui->addressBookButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
     ui->pasteButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));

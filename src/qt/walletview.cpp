@@ -80,35 +80,15 @@ void WalletView::setupTransactionPage()
 
     connect(firoTransactionList, &TransactionView::message, this, &WalletView::message);
 
-    // Create export panel for Firo transactions
-    auto exportButton = new QPushButton(tr("&Export"));
-
-    exportButton->setToolTip(tr("Export the data in the current tab to a file"));
-
-    if (platformStyle->getImagesOnButtons()) {
-        exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
-    }
-
-    connect(exportButton, &QPushButton::clicked, firoTransactionList, &TransactionView::exportClicked);
-
-    auto exportLayout = new QHBoxLayout();
-    exportLayout->addStretch();
-    exportLayout->addWidget(exportButton);
-
-    // Compose transaction list and export panel together
-    auto firoLayout = new QVBoxLayout();
-    firoLayout->addWidget(firoTransactionList);
-    firoLayout->addLayout(exportLayout);
-    // TODO: fix this
     connect(overviewPage, &OverviewPage::transactionClicked, firoTransactionList, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
     connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
-    firoTransactionsView = new QWidget();
-    firoTransactionsView->setLayout(firoLayout);
+    firoTransactionsView = firoTransactionList;
 
     // Set layout for transaction page
     auto pageLayout = new QVBoxLayout();
-        pageLayout->addWidget(firoTransactionsView);
+    pageLayout->setContentsMargins(0, 0, 0, 0);
+    pageLayout->addWidget(firoTransactionsView);
 
     transactionsPage->setLayout(pageLayout);
 }
@@ -132,6 +112,9 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
     {
         // Clicking on a transaction on the overview page simply sends you to transaction history page
         connect(overviewPage, &OverviewPage::transactionClicked, gui, &BitcoinGUI::gotoHistoryPage);
+
+        connect(overviewPage, &OverviewPage::gotoSendCoinsPage, gui, [gui] { gui->gotoSendCoinsPage(); });
+        connect(overviewPage, &OverviewPage::gotoReceiveCoinsPage, gui, &BitcoinGUI::gotoReceiveCoinsPage);
 
         // Receive and report messages
         connect(this, &WalletView::message, [gui](const QString &title, const QString &message, unsigned int style) {

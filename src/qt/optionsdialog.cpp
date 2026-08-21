@@ -10,6 +10,7 @@
 #include "ui_optionsdialog.h"
 
 #include "bitcoinunits.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 
@@ -38,6 +39,61 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     mapper(0)
 {
     ui->setupUi(this);
+
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
+        QTabBar::tab {
+            background: transparent;
+            color: $INK_FAINT;
+            font-weight: 700;
+            padding: 8px 14px;
+            border: none;
+        }
+        QTabBar::tab:selected { color: $WINE; }
+        QTabBar::tab:hover { color: $INK; }
+        QGroupBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 12px;
+            font-weight: 700;
+            color: $INK;
+            margin-top: 10px;
+            padding-top: 12px;
+        }
+        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_FAINT; background-color: $PANEL; }
+        QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 8px;
+            padding: 4px 8px;
+            color: $INK;
+        }
+        QSpinBox QLineEdit { %1 }
+        QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
+        QCheckBox { color: $INK_SOFT; }
+        QPushButton {
+            color: $INK;
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            font-weight: 700;
+            padding: 7px 16px;
+        }
+        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
+        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton#okButton {
+            color: #FFFFFF;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            border: none;
+        }
+        QPushButton#okButton:hover:enabled {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+        }
+        QPushButton#okButton:pressed { background: $WINE_DEEP; }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
 
     /* Main elements init */
     ui->databaseCache->setMinimum(nMinDbCache);

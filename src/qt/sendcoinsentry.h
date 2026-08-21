@@ -52,6 +52,9 @@ public:
     void setWarning(bool fAnonymousMode);
     void setfAnonymousMode(bool fAnonymousMode);
     static QString generateWarningText(const QString& address, const bool fAnonymousMode);
+    void applyTheme();
+
+    void updatePageSizePolicies();
 
 public Q_SLOTS:
     void clear();

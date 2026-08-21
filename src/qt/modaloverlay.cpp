@@ -5,12 +5,20 @@
 #include "modaloverlay.h"
 #include "ui_modaloverlay.h"
 
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include "chainparams.h"
 
 #include <QResizeEvent>
+#include <QFrame>
+#include <QFormLayout>
+#include <QGraphicsDropShadowEffect>
+#include <QIcon>
+#include <QLabel>
 #include <QPropertyAnimation>
+#include <QSizePolicy>
+#include <QVBoxLayout>
 
 ModalOverlay::ModalOverlay(QWidget *parent) :
 QWidget(parent),
@@ -22,14 +30,160 @@ userClosed(false),
 foreverHidden(false)
 {
     ui->setupUi(this);
+    ui->contentWidget->setAttribute(Qt::WA_StyledBackground, true);
+
+    ui->verticalLayoutSub->removeItem(ui->formLayout);
+    auto* statsCard = new QFrame(ui->contentWidget);
+    statsCard->setObjectName(QStringLiteral("syncStatsCard"));
+    statsCard->setMinimumHeight(245);
+    auto* statsLayout = new QVBoxLayout(statsCard);
+    statsLayout->setContentsMargins(28, 14, 28, 14);
+    statsLayout->addLayout(ui->formLayout);
+    ui->verticalLayoutSub->insertWidget(2, statsCard);
+
+    ui->formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    ui->formLayout->setHorizontalSpacing(24);
+    ui->formLayout->setVerticalSpacing(15);
+
+    for (QLabel* value : {
+             ui->numberOfBlocksLeft,
+             ui->newestBlockDate,
+             ui->percentageProgress,
+             ui->progressIncreasePerH,
+             ui->expectedTimeLeft}) {
+        value->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        value->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    }
+
+    ui->warningIcon->setEnabled(true);
+    ui->warningIcon->setIcon(QIcon());
+    ui->warningIcon->setText(QStringLiteral("⚠"));
+    ui->warningIcon->setFocusPolicy(Qt::NoFocus);
+    ui->warningIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+    auto* contentShadow = new QGraphicsDropShadowEffect(ui->contentWidget);
+    contentShadow->setBlurRadius(30);
+    contentShadow->setOffset(0, 10);
+    contentShadow->setColor(QColor(35, 24, 32, 70));
+    ui->contentWidget->setGraphicsEffect(contentShadow);
+
+    auto* buttonShadow = new QGraphicsDropShadowEffect(ui->closeButton);
+    buttonShadow->setBlurRadius(20);
+    buttonShadow->setOffset(0, 6);
+    buttonShadow->setColor(QColor(139, 26, 58, 70));
+    ui->closeButton->setGraphicsEffect(buttonShadow);
+
     connect(ui->closeButton, &QPushButton::clicked, this, &ModalOverlay::closeClicked);
     if (parent) {
         parent->installEventFilter(this);
         raise();
     }
 
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &ModalOverlay::applyTheme);
+    applyTheme();
+
     blockProcessTime.clear();
     setVisible(false);
+}
+
+void ModalOverlay::applyTheme()
+{
+    ui->bgWidget->setStyleSheet(QStringLiteral(
+        "#bgWidget { background-color: rgba(15, 23, 42, 148); }"));
+
+    ui->contentWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+#contentWidget {
+    background: $PANEL;
+    border: 1px solid $BORDER;
+    border-radius: 22px;
+}
+#contentWidget QLabel {
+    background: transparent;
+    border: none;
+    color: $INK_SOFT;
+    font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+#contentWidget QLabel#titleLabel {
+    color: $INK;
+    font-size: 23px;
+    font-weight: 700;
+}
+#contentWidget QLabel#infoText {
+    color: $INK_SOFT;
+    font-size: 14px;
+}
+#contentWidget QLabel#infoTextStrong {
+    color: $INK;
+    font-weight: 700;
+    font-size: 13px;
+}
+#contentWidget QFrame#syncStatsCard {
+    background: $PANEL_SOFT;
+    border: 1px solid $BORDER;
+    border-radius: 18px;
+}
+#contentWidget QLabel#labelNumberOfBlocksLeft,
+#contentWidget QLabel#labelLastBlockTime,
+#contentWidget QLabel#labelSyncDone,
+#contentWidget QLabel#labelProgressIncrease,
+#contentWidget QLabel#labelEstimatedTimeLeft {
+    color: $INK_FAINT;
+    font-weight: 700;
+    font-size: 13px;
+}
+#contentWidget QLabel#numberOfBlocksLeft,
+#contentWidget QLabel#newestBlockDate,
+#contentWidget QLabel#percentageProgress,
+#contentWidget QLabel#progressIncreasePerH,
+#contentWidget QLabel#expectedTimeLeft {
+    color: $INK;
+    font-size: 13px;
+    font-weight: 700;
+}
+#contentWidget QProgressBar {
+    min-height: 10px;
+    max-height: 10px;
+    border: none;
+    border-radius: 5px;
+    background: $BORDER;
+}
+#contentWidget QProgressBar::chunk {
+    border-radius: 5px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 $WINE, stop:1 $WINE_DEEP);
+}
+#contentWidget QPushButton#closeButton {
+    min-width: 112px;
+    min-height: 46px;
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 14px;
+    border: none;
+    border-radius: 12px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 $WINE, stop:1 $WINE_DEEP);
+}
+#contentWidget QPushButton#closeButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 $WINE, stop:1 $WINE_DEEP);
+}
+#contentWidget QPushButton#closeButton:pressed {
+    background: $WINE_DEEP;
+}
+#contentWidget QPushButton#warningIcon {
+    min-width: 64px;
+    max-width: 64px;
+    min-height: 64px;
+    max-height: 64px;
+    background: $GOLD_TINT;
+    color: $GOLD;
+    font-size: 30px;
+    border: none;
+    border-radius: 14px;
+    padding: 8px;
+}
+    )")));
 }
 
 ModalOverlay::~ModalOverlay()
@@ -118,6 +272,8 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
     // show the last block date
     ui->newestBlockDate->setText(blockDate.toString());
 
+    lastVerificationProgress = nVerificationProgress;
+
     // show the percentage done according to nVerificationProgress
     ui->percentageProgress->setText(QString::number(nVerificationProgress*100, 'f', 2)+"%");
     ui->progressBar->setValue(nVerificationProgress*100);
@@ -132,7 +288,8 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
     bool hasBestHeader = bestHeaderHeight >= count;
 
     // show remaining number of blocks
-    if (estimateNumHeadersLeft < HEADER_HEIGHT_DELTA_SYNC && hasBestHeader) {
+    headerSyncPending = !(estimateNumHeadersLeft < HEADER_HEIGHT_DELTA_SYNC && hasBestHeader);
+    if (!headerSyncPending) {
         ui->numberOfBlocksLeft->setText(QString::number(bestHeaderHeight - count));
     } else {
         ui->numberOfBlocksLeft->setText(tr("Unknown. Syncing Headers (%1)...").arg(bestHeaderHeight));

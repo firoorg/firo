@@ -31,6 +31,8 @@ namespace Ui {
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
+class QProgressBar;
+class QLabel;
 QT_END_NAMESPACE
 
 /** Overview ("home") page widget */
@@ -66,6 +68,8 @@ Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
     void outOfSyncWarningClicked();
+    void gotoSendCoinsPage();
+    void gotoReceiveCoinsPage();
 private:
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
@@ -90,7 +94,24 @@ private:
     QString migrationWindowClosesIn;
     QString blocksRemaining;
     QString migrateAmount;
+
+    int privateBarSplitPercent_{0};
+    QProgressBar *privateSplitProgress{nullptr};
+    QWidget *activityEmptyState_{nullptr};
+    QLabel *networkBadge_{nullptr};
+    QLabel *fiatValue_{nullptr};
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyHint_{nullptr};
+    bool outOfSync_{false};
+
     void adjustTextSize(int width,int height);
+    void applyOverviewRedesign();
+    void applyOverviewTheme();
+    void addShadow(QWidget *w, int blurRadius = 18, int yOffset = 4, int alpha = 60);
+    void updatePrivateTransparentSplitBar();
+    void updateBalanceSplitLabels();
+    void updateActivityEmptyState();
 private Q_SLOTS:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);

@@ -36,49 +36,59 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayoutMain" stretch="1">
       <property name="leftMargin">
-       <number>60</number>
+       <number>36</number>
       </property>
       <property name="topMargin">
-       <number>60</number>
+       <number>36</number>
       </property>
       <property name="rightMargin">
-       <number>60</number>
+       <number>36</number>
       </property>
       <property name="bottomMargin">
-       <number>60</number>
+       <number>36</number>
       </property>
-      <item>
+      <item alignment="Qt::AlignCenter">
        <widget class="QWidget" name="contentWidget" native="true">
-        <property name="styleSheet">
-         <string notr="true">#contentWidget { background: rgba(255,255,255,240); border-radius: 6px; }
-
-QLabel { color: rgb(40,40,40);  }</string>
+        <property name="minimumSize">
+         <size>
+          <width>760</width>
+          <height>560</height>
+         </size>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayoutSub" stretch="1,0,0,0">
+        <property name="maximumSize">
+         <size>
+          <width>860</width>
+          <height>620</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayoutSub" stretch="0,0,1,0">
          <property name="spacing">
-          <number>0</number>
+          <number>14</number>
          </property>
          <property name="leftMargin">
-          <number>10</number>
+          <number>38</number>
          </property>
          <property name="topMargin">
-          <number>10</number>
+          <number>32</number>
          </property>
          <property name="rightMargin">
-          <number>10</number>
+          <number>38</number>
          </property>
          <property name="bottomMargin">
-          <number>10</number>
+          <number>28</number>
          </property>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayoutIconText" stretch="0,1">
            <property name="topMargin">
-            <number>20</number>
+            <number>4</number>
            </property>
            <item>
             <layout class="QVBoxLayout" name="verticalLayoutIcon">
              <property name="leftMargin">
-              <number>0</number>
+              <number>2</number>
              </property>
              <item>
               <widget class="QPushButton" name="warningIcon">
@@ -95,8 +105,8 @@ QLabel { color: rgb(40,40,40);  }</string>
                </property>
                <property name="iconSize">
                 <size>
-                 <width>48</width>
-                 <height>48</height>
+                 <width>40</width>
+                 <height>40</height>
                 </size>
                </property>
                <property name="flat">
@@ -112,7 +122,7 @@ QLabel { color: rgb(40,40,40);  }</string>
                <property name="sizeHint" stdset="0">
                 <size>
                  <width>20</width>
-                 <height>40</height>
+                 <height>18</height>
                 </size>
                </property>
               </spacer>
@@ -125,12 +135,19 @@ QLabel { color: rgb(40,40,40);  }</string>
               <number>0</number>
              </property>
              <property name="topMargin">
-              <number>0</number>
+              <number>2</number>
              </property>
+             <item>
+              <widget class="QLabel" name="titleLabel">
+               <property name="text">
+                <string>Wallet is still syncing</string>
+               </property>
+              </widget>
+             </item>
              <item>
               <widget class="QLabel" name="infoText">
                <property name="text">
-                <string>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the firo network, as detailed below.</string>
+                <string>Recent transactions may not yet be visible, and your balance might be incorrect until the wallet finishes synchronizing with the Firo network.</string>
                </property>
                <property name="textFormat">
                 <enum>Qt::RichText</enum>
@@ -149,7 +166,7 @@ QLabel { color: rgb(40,40,40);  }</string>
                 </font>
                </property>
                <property name="text">
-                <string>Attempting to spend firos that are affected by not-yet-displayed transactions will not be accepted by the network.</string>
+                <string>Spending firos affected by not-yet-displayed transactions won't be accepted by the network.</string>
                </property>
                <property name="textFormat">
                 <enum>Qt::RichText</enum>
@@ -167,7 +184,7 @@ QLabel { color: rgb(40,40,40);  }</string>
                <property name="sizeHint" stdset="0">
                 <size>
                  <width>20</width>
-                 <height>40</height>
+                 <height>24</height>
                 </size>
                </property>
               </spacer>
@@ -184,7 +201,7 @@ QLabel { color: rgb(40,40,40);  }</string>
            <property name="sizeHint" stdset="0">
             <size>
              <width>20</width>
-             <height>40</height>
+             <height>18</height>
             </size>
            </property>
           </spacer>
@@ -195,13 +212,13 @@ QLabel { color: rgb(40,40,40);  }</string>
             <enum>QFormLayout::FieldsStayAtSizeHint</enum>
            </property>
            <property name="horizontalSpacing">
-            <number>6</number>
+            <number>14</number>
            </property>
            <property name="verticalSpacing">
-            <number>6</number>
+            <number>8</number>
            </property>
            <property name="topMargin">
-            <number>10</number>
+            <number>4</number>
            </property>
            <item row="0" column="0">
             <widget class="QLabel" name="labelNumberOfBlocksLeft">
@@ -328,20 +345,23 @@ QLabel { color: rgb(40,40,40);  }</string>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayoutButtons">
            <property name="leftMargin">
-            <number>10</number>
+            <number>0</number>
            </property>
            <property name="topMargin">
-            <number>10</number>
+            <number>12</number>
            </property>
            <item>
             <spacer name="horizontalSpacer">
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
              </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
              <property name="sizeHint" stdset="0">
               <size>
-               <width>40</width>
-               <height>20</height>
+               <width>0</width>
+               <height>0</height>
               </size>
              </property>
             </spacer>

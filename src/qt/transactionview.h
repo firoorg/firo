@@ -19,9 +19,11 @@ QT_BEGIN_NAMESPACE
 class QComboBox;
 class QDateTimeEdit;
 class QFrame;
+class QLabel;
 class QLineEdit;
 class QMenu;
 class QModelIndex;
+class QPushButton;
 class QTableView;
 class QSpacerItem;
 class QHBoxLayout;
@@ -77,10 +79,14 @@ private:
     QComboBox *instantsendWidget;
     QLineEdit *addressWidget;
     QLineEdit *amountWidget;
+    QPushButton *exportButton;
+    QWidget *emptyState;
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyDescription_{nullptr};
 
     QMenu *contextMenu;
-
-    QFrame *dateRangeWidget;
+    QWidget* dateRangeWidget;
     QDateTimeEdit *dateFrom;
     QDateTimeEdit *dateTo;
     QAction *copyLabelAction;
@@ -91,6 +97,10 @@ private:
     void updateCalendarWidgets();
 
     bool eventFilter(QObject *obj, QEvent *event) override;
+    void addShadow(QWidget* w);
+    void updateEmptyState();
+    void updateTableColumnWidths();
+    void applyTheme();
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);

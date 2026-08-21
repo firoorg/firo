@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>550</width>
-    <height>175</height>
+    <width>520</width>
+    <height>320</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,157 +18,280 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>550</width>
+    <width>440</width>
     <height>0</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>Passphrase Dialog</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <property name="styleSheet">
+   <string notr="true">QDialog#AskPassphraseDialog {
+  background: #F7F8FA;
+  font-family: "Segoe UI", sans-serif;
+}
+
+QFrame#passphraseCard {
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid #E5E7EB;
+}
+
+QLabel#passphraseWarning {
+  color: #374151;
+  font-size: 10pt;
+  font-weight: 500;
+  background: transparent;
+  line-height: 130%;
+}
+
+QLabel#passLabel1,
+QLabel#passLabel2,
+QLabel#passLabel3 {
+  color: #6B7280;
+  font-size: 9.5pt;
+  font-weight: 600;
+  background: transparent;
+  min-width: 140px;
+}
+
+QLineEdit#passEdit1,
+QLineEdit#passEdit2,
+QLineEdit#passEdit3 {
+  background: #FFFFFF;
+  border: 1px solid #D1D5DB;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 10pt;
+  color: #111827;
+  min-height: 20px;
+  selection-background-color: #FEE2E2;
+}
+
+QLineEdit#passEdit1:focus,
+QLineEdit#passEdit2:focus,
+QLineEdit#passEdit3:focus {
+  border: 1px solid #B24040;
+}
+
+QLabel#capsLabel {
+  color: #B45309;
+  font-size: 9pt;
+  font-weight: 700;
+  background: transparent;
+  padding: 4px 0 0 0;
+}
+
+QDialogButtonBox {
+  dialogbuttonbox-buttons-have-icons: 0;
+}
+
+QDialog#AskPassphraseDialog QDialogButtonBox QPushButton {
+  min-width: 88px;
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 10pt;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+
+QDialog#AskPassphraseDialog QDialogButtonBox QPushButton:default {
+  background: #B24040;
+  color: #FFFFFF;
+  border: 1px solid #B24040;
+}
+
+QDialog#AskPassphraseDialog QDialogButtonBox QPushButton:default:hover {
+  background: #993333;
+  border-color: #993333;
+}
+
+QDialog#AskPassphraseDialog QDialogButtonBox QPushButton:default:pressed {
+  background: #7A2626;
+  border-color: #7A2626;
+}
+
+QDialog#AskPassphraseDialog QDialogButtonBox QPushButton:default:disabled {
+  background: #E5E7EB;
+  color: #9CA3AF;
+  border-color: #E5E7EB;
+}
+
+QDialog#AskPassphraseDialog QDialogButtonBox QPushButton:!default {
+  background: #FFFFFF;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+}
+
+QDialog#AskPassphraseDialog QDialogButtonBox QPushButton:!default:hover {
+  background: #F3F4F6;
+  border-color: #B24040;
+  color: #111827;
+}
+</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayoutOuter">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>16</number>
+   </property>
+   <property name="topMargin">
+    <number>16</number>
+   </property>
+   <property name="rightMargin">
+    <number>16</number>
+   </property>
+   <property name="bottomMargin">
+    <number>16</number>
+   </property>
    <property name="sizeConstraint">
     <enum>QLayout::SetMinimumSize</enum>
    </property>
    <item>
-    <widget class="QLabel" name="warningLabel">
-     <property name="text">
-      <string notr="true">Placeholder text</string>
+    <widget class="QFrame" name="passphraseCard">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
      </property>
-     <property name="textFormat">
-      <enum>Qt::RichText</enum>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QGridLayout" name="gridLayout_2">
-     <property name="sizeConstraint">
-      <enum>QLayout::SetMinimumSize</enum>
-     </property>
-     <item row="1" column="2">
-      <widget class="QLineEdit" name="passEdit2">
-       <property name="echoMode">
-        <enum>QLineEdit::Password</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="2">
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>3</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="passLabel1">
-       <property name="text">
-        <string>Enter passphrase</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="passLabel3">
-       <property name="text">
-        <string>Repeat new passphrase</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="passLabel2">
-       <property name="text">
-        <string>New passphrase</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="2">
-      <widget class="QLineEdit" name="passEdit1">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>300</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="echoMode">
-        <enum>QLineEdit::Password</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="2">
-      <widget class="QLabel" name="capsLabel">
-       <property name="font">
-        <font>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="2">
-      <widget class="QLineEdit" name="passEdit3">
-       <property name="echoMode">
-        <enum>QLineEdit::Password</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1">
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::Minimum</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>1</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item row="3" column="0">
-      <spacer name="verticalSpacer">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>1</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="spacing">
+       <number>14</number>
+      </property>
+      <property name="leftMargin">
+       <number>20</number>
+      </property>
+      <property name="topMargin">
+       <number>20</number>
+      </property>
+      <property name="rightMargin">
+       <number>20</number>
+      </property>
+      <property name="bottomMargin">
+       <number>18</number>
+      </property>
+      <property name="sizeConstraint">
+       <enum>QLayout::SetMinimumSize</enum>
+      </property>
+      <item>
+       <widget class="QLabel" name="warningLabel">
+        <property name="objectName">
+         <string>passphraseWarning</string>
+        </property>
+        <property name="text">
+         <string notr="true">Placeholder text</string>
+        </property>
+        <property name="textFormat">
+         <enum>Qt::RichText</enum>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignLeft|Qt::AlignTop</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QFormLayout" name="formPassphrase">
+        <property name="labelAlignment">
+         <set>Qt::AlignRight|Qt::AlignVCenter</set>
+        </property>
+        <property name="formAlignment">
+         <set>Qt::AlignLeft|Qt::AlignTop</set>
+        </property>
+        <property name="horizontalSpacing">
+         <number>14</number>
+        </property>
+        <property name="verticalSpacing">
+         <number>12</number>
+        </property>
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::ExpandingFieldsGrow</enum>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="passLabel1">
+          <property name="text">
+           <string>Enter passphrase</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="passEdit1">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>260</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="echoMode">
+           <enum>QLineEdit::Password</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="passLabel2">
+          <property name="text">
+           <string>New passphrase</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="passEdit2">
+          <property name="echoMode">
+           <enum>QLineEdit::Password</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="passLabel3">
+          <property name="text">
+           <string>Repeat new passphrase</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="passEdit3">
+          <property name="echoMode">
+           <enum>QLineEdit::Password</enum>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="capsLabel">
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QDialogButtonBox" name="buttonBox">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="standardButtons">
+         <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>
