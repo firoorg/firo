@@ -1105,11 +1105,12 @@ void CSparkState::Reset() {
     latestCoinId = 0;
     {
         LOCK(cs_minted_coins);
+        mintedCoinsByHash.clear();
         mintedCoins.clear();
+        mintMetaInfo.clear();
     }
     usedLTags.clear();
     mobileUsedLTags.clear();
-    mintMetaInfo.clear();
     spendMetaInfo.clear();
 }
 
@@ -1123,6 +1124,17 @@ std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coi
     return std::make_pair(-1, -1);
 }
 
+bool CSparkState::GetMintedCoinHeightAndId(const uint256& coinHash, std::pair<int, int>& result) const {
+    LOCK(cs_minted_coins);
+    auto coinIt = mintedCoinsByHash.find(coinHash);
+    if (coinIt == mintedCoinsByHash.end()) {
+        return false;
+    }
+
+    result = std::make_pair(coinIt->second->second.nHeight, coinIt->second->second.coinGroupId);
+    return true;
+}
+
 bool CSparkState::HasCoin(const spark::Coin& coin) {
     LOCK(cs_minted_coins);
     return mintedCoins.find(coin) != mintedCoins.end();
@@ -1131,14 +1143,13 @@ bool CSparkState::HasCoin(const spark::Coin& coin) {
 
 bool CSparkState::HasCoinHash(spark::Coin& coin, const uint256& coinHash) {
     LOCK(cs_minted_coins);
-    for (auto it = mintedCoins.begin(); it != mintedCoins.end(); ++it ){
-        const spark::Coin& coin_ = (*it).first;
-        if (primitives::GetSparkCoinHash(coin_) == coinHash) {
-            coin = coin_;
-            return true;
-        }
+    auto coinIt = mintedCoinsByHash.find(coinHash);
+    if (coinIt == mintedCoinsByHash.end()) {
+        return false;
     }
-    return false;
+
+    coin = coinIt->second->first;
+    return true;
 }
 
 bool CSparkState::GetCoinGroupInfo(
@@ -1182,7 +1193,10 @@ bool CSparkState::CanAddMintToMempool(const spark::Coin& coin){
 
 void CSparkState::AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo) {
     LOCK(cs_minted_coins);
-    mintedCoins.insert(std::make_pair(coin, coinInfo));
+    auto result = mintedCoins.insert(std::make_pair(coin, coinInfo));
+    if (result.second) {
+        mintedCoinsByHash.emplace(primitives::GetSparkCoinHash(result.first->first), &*result.first);
+    }
     // Count indexed occurrences, including legacy duplicates that do not enter
     // the unique mintedCoins map.
     mintMetaInfo[coinInfo.coinGroupId] += 1;
@@ -1206,6 +1220,7 @@ bool CSparkState::RemoveMint(
         return false;
     }
 
+    mintedCoinsByHash.erase(primitives::GetSparkCoinHash(iter->first));
     mintedCoins.erase(iter);
     return true;
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_message, JSONRPCException
+from test_framework.util import assert_equal, assert_raises_jsonrpc, assert_raises_message, JSONRPCException
 
 class SparkMintTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -8,6 +8,19 @@ class SparkMintTest(BitcoinTestFramework):
         self.setup_clean_chain = True
 
     def run_test(self):
+        get_metadata = self.nodes[0].getsparkmintmetadata
+        assert_equal([], get_metadata({"coinHashes": []}))
+        assert_equal([], get_metadata({"coinHashes": [f"{i:064x}" for i in range(1000)]}))
+        assert_raises_jsonrpc(
+            -8,
+            "coinHashes must contain no more than 1000 entries",
+            get_metadata,
+            {"coinHashes": [f"{i:064x}" for i in range(1001)]})
+        assert_raises_jsonrpc(-8, "must be of length 64", get_metadata, {"coinHashes": ["0"]})
+        assert_raises_jsonrpc(-8, "must be hexadecimal", get_metadata, {"coinHashes": ["z" * 64]})
+        assert_raises_jsonrpc(-8, "must be hexadecimal", get_metadata, {"coinHashes": [1]})
+        assert_raises_jsonrpc(-8, "coinHashes is expected to be an array", get_metadata, {"coinHashes": "0" * 64})
+
         assert_raises_message(
             JSONRPCException,
             "Spark is not activated yet",
@@ -30,8 +43,15 @@ class SparkMintTest(BitcoinTestFramework):
 
         # get all mints and utxos
         mints = self.verify_listsparkmints(amounts)
-        self.verify_listunspentsparkmints(amounts)
+        unspent_mints = self.verify_listunspentsparkmints(amounts)
         assert_equal([False, False, False, False], list(map(lambda m : m["isUsed"], mints)))
+
+        expected_metadata = [{str(mint["nHeight"]): mint["nId"]} for mint in mints]
+        mint_hashes = [mint["coin"] for mint in unspent_mints]
+        assert_equal(expected_metadata, get_metadata({"coinHashes": mint_hashes}))
+        assert_equal(
+            [expected_metadata[0], expected_metadata[0]],
+            get_metadata({"coinHashes": [mint_hashes[0], mint_hashes[0]]}))
 
         # state modification test
         # mark two coins as used

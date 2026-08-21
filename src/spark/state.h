@@ -144,6 +144,11 @@ public:
             size_t maxCoinInGroup = ZC_SPARK_MAX_MINT_NUM,
             size_t startGroupSize = ZC_SPARK_SET_START_SIZE);
 
+    CSparkState(const CSparkState&) = delete;
+    CSparkState& operator=(const CSparkState&) = delete;
+    CSparkState(CSparkState&&) = delete;
+    CSparkState& operator=(CSparkState&&) = delete;
+
     // Reset to initial values
     void Reset();
 
@@ -154,6 +159,9 @@ public:
 
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(const spark::Coin& coin);
+
+    // Return height and id for the mint matching the given coin hash
+    bool GetMintedCoinHeightAndId(const uint256& coinHash, std::pair<int, int>& result) const;
 
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const spark::Coin& coin);
@@ -263,9 +271,13 @@ private:
     // Collection of coin groups. Map from id to LelantusCoinGroupInfo structure
     std::unordered_map<int, SparkCoinGroupInfo> coinGroups;
 
+    using MintedCoins = std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>;
+
     // Set of all minted coins
     mutable CCriticalSection cs_minted_coins;
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins GUARDED_BY(cs_minted_coins);
+    MintedCoins mintedCoins GUARDED_BY(cs_minted_coins);
+    // Entries point to stable unordered_map nodes and are erased before their nodes.
+    std::unordered_map<uint256, const MintedCoins::value_type*> mintedCoinsByHash GUARDED_BY(cs_minted_coins);
     // Set of all used coin linking tags.
     std::unordered_map<GroupElement, int, spark::CLTagHash> usedLTags;
     // Set of all used linking tags, used only when -mobile=true
