@@ -68,6 +68,9 @@
 #include "llmq/quorums_chainlocks.h"
 #include "llmq/quorums_blockprocessor.h"
 
+#include "libspark/coin.h"
+
+#include <algorithm>
 #include <atomic>
 #include <sstream>
 #include <chrono>
@@ -575,6 +578,25 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
+static bool HasConsistentSparkCoinTypes(const CTransaction& tx)
+{
+    for (const auto& txout : tx.vout) {
+        const CScript& script = txout.scriptPubKey;
+
+        if (script.IsSparkMint() &&
+            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_MINT))) {
+            return false;
+        }
+
+        if (script.IsSparkSMint() &&
+            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_SPEND))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo)
 {
     LogPrint("validation", "CheckTransaction nHeight=%d, isVerifyDB=%d, isCheckWallet=%d, txHash=%s\n", nHeight, (int)isVerifyDB, (int)isCheckWallet, tx.GetHash().ToString());
@@ -599,7 +621,14 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         nTxHeight = chainActive.Height();
     }
 
-    if (nTxHeight < ::Params().GetConsensus().nSigmaEndBlock) {
+    const Consensus::Params& consensus = ::Params().GetConsensus();
+    if (nHeight != INT_MAX &&
+        nTxHeight >= consensus.nSparkChaumV2StartBlock &&
+        !HasConsistentSparkCoinTypes(tx)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-spark-coin-type");
+    }
+
+    if (nTxHeight < consensus.nSigmaEndBlock) {
         if (tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
     } else {
@@ -834,6 +863,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         *pfMissingInputs = false;
 
     const Consensus::Params& consensus = Params().GetConsensus();
+
+    if (!HasConsistentSparkCoinTypes(tx))
+        return state.DoS(0, false, REJECT_NONSTANDARD, "bad-spark-coin-type");
 
     if (tx.IsSparkSpendV2() &&
         chainActive.Height() + 1 < consensus.nSparkChaumV2StartBlock) {
@@ -4327,7 +4359,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (block.vtx[i]->IsCoinBase())
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
 
-    // Check transactions (when called from ProcessNewBlock, nHeight is INT_MAX and we derive it here)
+    // Derive the height for callers that do not have indexed block context.
     if (nHeight == INT_MAX)
         nHeight = GetNHeight(block.GetBlockHeader());
     LogPrint("validation", "CheckBlock() nHeight=%d, blockHash=%s, isVerifyDB=%d\n", nHeight, block.GetHash().ToString(), isVerifyDB);
@@ -4813,9 +4845,17 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         // TODO: refactor code so CheckTransaction and CheckBlock don't need cs_main
         LOCK(cs_main);
 
-        // Ensure that CheckBlock() passes before calling AcceptBlock, as
-        // belt-and-suspenders.
-        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
+        // A Spark type mismatch must not enter legacy parsing
+        // until AcceptBlock has contextualized its header and applied the
+        // unrequested-block gates. Keep the belt-and-suspenders check for all
+        // other blocks.
+        const bool fDeferBlockCheck = std::any_of(
+            pblock->vtx.begin(), pblock->vtx.end(),
+            [](const CTransactionRef& tx) {
+                return !HasConsistentSparkCoinTypes(*tx);
+            });
+        bool ret = fDeferBlockCheck ||
+            CheckBlock(*pblock, state, chainparams.GetConsensus());
 
         if (ret) {
             // Store to disk

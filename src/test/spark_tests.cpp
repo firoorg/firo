@@ -1,9 +1,11 @@
 #include "../chainparams.h"
 #include "../batchproof_container.h"
+#include "../pow.h"
 #include "../consensus/consensus.h"
 #include "../script/sign.h"
 #include "../script/standard.h"
 #include "../validation.h"
+#include "../validationinterface.h"
 #include "../wallet/coincontrol.h"
 #include "../wallet/walletexcept.h"
 #include "../wallet/wallet.h"
@@ -728,6 +730,385 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
+{
+    RestoreSparkActivationHeights restoreActivationHeights;
+
+    const auto makeTransaction = [](opcodetype opcode, char coinType) {
+        const auto* params = Params::get_default();
+        const SpendKey spendKey(params);
+        const FullViewKey fullViewKey(spendKey);
+        const IncomingViewKey incomingViewKey(fullViewKey);
+        const Address address(incomingViewKey, 12345);
+        Scalar k;
+        k.randomize();
+        const uint64_t value = 1;
+        const Coin coin(
+            params,
+            coinType,
+            k,
+            address,
+            value,
+            "coin-type-test",
+            random_char_vector());
+        CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+        serialized << coin;
+
+        CScript outputScript;
+        outputScript << opcode;
+        outputScript.insert(
+            outputScript.end(), serialized.begin(), serialized.end());
+
+        CMutableTransaction tx;
+        tx.vin.emplace_back(COutPoint(uint256S("0x1"), 0));
+        tx.vout.emplace_back(0, outputScript);
+        return tx;
+    };
+
+    const CMutableTransaction mismatchedMint =
+        makeTransaction(OP_SPARKMINT, COIN_TYPE_SPEND);
+    const CMutableTransaction mismatchedSMint =
+        makeTransaction(OP_SPARKSMINT, COIN_TYPE_MINT);
+
+    // Relay policy rejects both mismatches immediately, before Spark coin
+    // deserialization, without assigning peer misbehavior points.
+    CValidationState mintPolicyState;
+    bool mintMissingInputs = true;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            mintPolicyState,
+            MakeTransactionRef(mismatchedMint),
+            false,
+            &mintMissingInputs));
+    }
+    int mintPolicyDoS = -1;
+    BOOST_REQUIRE(mintPolicyState.IsInvalid(mintPolicyDoS));
+    BOOST_CHECK_EQUAL(mintPolicyDoS, 0);
+    BOOST_CHECK_EQUAL(mintPolicyState.GetRejectCode(), REJECT_NONSTANDARD);
+    BOOST_CHECK_EQUAL(mintPolicyState.GetRejectReason(), "bad-spark-coin-type");
+    BOOST_CHECK(!mintMissingInputs);
+
+    CValidationState smintPolicyState;
+    bool smintMissingInputs = true;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            smintPolicyState,
+            MakeTransactionRef(mismatchedSMint),
+            false,
+            &smintMissingInputs));
+    }
+    int smintPolicyDoS = -1;
+    BOOST_REQUIRE(smintPolicyState.IsInvalid(smintPolicyDoS));
+    BOOST_CHECK_EQUAL(smintPolicyDoS, 0);
+    BOOST_CHECK_EQUAL(smintPolicyState.GetRejectCode(), REJECT_NONSTANDARD);
+    BOOST_CHECK_EQUAL(smintPolicyState.GetRejectReason(), "bad-spark-coin-type");
+    BOOST_CHECK(!smintMissingInputs);
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
+
+    // INT_MAX is reserved for non-consensus callers. Keep that contract
+    // distinct from the height-gated block rule even when the tip is active.
+    const int tipHeight = chainActive.Height();
+    UpdateRegtestSparkActivationHeights(&tipHeight, &tipHeight);
+    CValidationState sentinelHeightState;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(mismatchedSMint),
+        sentinelHeightState,
+        true,
+        mismatchedSMint.GetHash(),
+        false,
+        INT_MAX));
+    UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
+
+    struct BlockCheckResult : public CValidationInterface {
+        BlockCheckResult()
+        {
+            RegisterValidationInterface(this);
+        }
+
+        ~BlockCheckResult()
+        {
+            UnregisterValidationInterface(this);
+        }
+
+        int calls = 0;
+        int dos = -1;
+        std::string reason;
+
+    protected:
+        void BlockChecked(const CBlock&, const CValidationState& state) override
+        {
+            ++calls;
+            state.IsInvalid(dos);
+            reason = state.GetRejectReason();
+        }
+    };
+
+    const auto mineRegtestBlock = [this](CBlock& block) {
+        block.nNonce = 0;
+        block.cachedPoWHash.SetNull();
+        block.fChecked = false;
+        while (!CheckProofOfWork(block.GetHash(), block.nBits, consensus)) {
+            ++block.nNonce;
+        }
+    };
+
+    CScript truncatedMintScript;
+    truncatedMintScript << OP_SPARKMINT;
+    truncatedMintScript.push_back(
+        static_cast<unsigned char>(COIN_TYPE_SPEND));
+    CMutableTransaction truncatedMint;
+    truncatedMint.vin.emplace_back(COutPoint(uint256S("0x3"), 0));
+    truncatedMint.vout.emplace_back(0, truncatedMintScript);
+
+    // Reject an uncontextualized block header before its transactions can
+    // enter legacy Spark parsing with a fabricated height of zero.
+    CBlock unknownParentBlock = CreateBlock({truncatedMint}, script);
+    unknownParentBlock.hashPrevBlock = uint256S(
+        "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
+    mineRegtestBlock(unknownParentBlock);
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE_EQUAL(
+            mapBlockIndex.count(unknownParentBlock.hashPrevBlock), 0U);
+    }
+    {
+        bool unknownParentNewBlock = false;
+        BlockCheckResult unknownParentResult;
+        BOOST_CHECK(!ProcessNewBlock(
+            ::Params(),
+            std::make_shared<const CBlock>(unknownParentBlock),
+            false,
+            &unknownParentNewBlock));
+        BOOST_CHECK(!unknownParentNewBlock);
+        BOOST_CHECK_EQUAL(unknownParentResult.calls, 1);
+        BOOST_CHECK_EQUAL(unknownParentResult.dos, 10);
+        BOOST_CHECK_EQUAL(unknownParentResult.reason, "bad-prevblk");
+    }
+
+    // Contextual header checks must also precede body validation when the
+    // parent is known. The alternative target is valid in isolation but is
+    // not the target required for this child.
+    CBlock wrongDifficultyBlock = CreateBlock({truncatedMint}, script);
+    wrongDifficultyBlock.nBits = 0x2070ffff;
+    mineRegtestBlock(wrongDifficultyBlock);
+    {
+        bool wrongDifficultyNewBlock = false;
+        BlockCheckResult wrongDifficultyResult;
+        BOOST_CHECK(!ProcessNewBlock(
+            ::Params(),
+            std::make_shared<const CBlock>(wrongDifficultyBlock),
+            false,
+            &wrongDifficultyNewBlock));
+        BOOST_CHECK(!wrongDifficultyNewBlock);
+        BOOST_CHECK_EQUAL(wrongDifficultyResult.calls, 1);
+        BOOST_CHECK_EQUAL(wrongDifficultyResult.dos, 100);
+        BOOST_CHECK_EQUAL(wrongDifficultyResult.reason, "bad-diffbits");
+    }
+
+    // Once the header is contextualized at the activation height, the body
+    // still receives the raw coin-type check and the index records the failure.
+    CBlock activeMismatchBlock = CreateBlock({truncatedMint}, script);
+    {
+        bool activeMismatchNewBlock = false;
+        BlockCheckResult activeMismatchResult;
+        BOOST_CHECK(!ProcessNewBlock(
+            ::Params(),
+            std::make_shared<const CBlock>(activeMismatchBlock),
+            false,
+            &activeMismatchNewBlock));
+        BOOST_CHECK(activeMismatchNewBlock);
+        BOOST_CHECK_EQUAL(activeMismatchResult.calls, 1);
+        BOOST_CHECK_EQUAL(activeMismatchResult.dos, 100);
+        BOOST_CHECK_EQUAL(
+            activeMismatchResult.reason, "bad-spark-coin-type");
+
+        LOCK(cs_main);
+        const auto activeMismatchIndex =
+            mapBlockIndex.find(activeMismatchBlock.GetHash());
+        BOOST_REQUIRE(activeMismatchIndex != mapBlockIndex.end());
+        BOOST_CHECK(
+            activeMismatchIndex->second->nStatus & BLOCK_FAILED_VALID);
+    }
+
+    // A context-valid historical fork with no more work is ignored before
+    // its preactivation body is checked. This preserves historical consensus
+    // behavior without exposing the legacy parser to unsolicited stale data.
+    CBlock staleBlock = CreateBlock({truncatedMint}, script);
+    {
+        LOCK(cs_main);
+        staleBlock.hashPrevBlock =
+            chainActive[chainActive.Height() - 1]->GetBlockHash();
+    }
+    mineRegtestBlock(staleBlock);
+    {
+        bool staleNewBlock = true;
+        BlockCheckResult staleResult;
+        BOOST_CHECK(ProcessNewBlock(
+            ::Params(),
+            std::make_shared<const CBlock>(staleBlock),
+            false,
+            &staleNewBlock));
+        BOOST_CHECK(!staleNewBlock);
+        BOOST_CHECK_EQUAL(staleResult.calls, 0);
+
+        LOCK(cs_main);
+        const auto staleIndex = mapBlockIndex.find(staleBlock.GetHash());
+        BOOST_REQUIRE(staleIndex != mapBlockIndex.end());
+        BOOST_CHECK_EQUAL(
+            staleIndex->second->nStatus & BLOCK_HAVE_DATA, 0U);
+        BOOST_CHECK_EQUAL(
+            staleIndex->second->nStatus & BLOCK_FAILED_MASK, 0U);
+    }
+
+    // A mismatched SMint output in an otherwise ordinary transaction is safe
+    // to use for the preactivation boundary because legacy validation does not
+    // deserialize it as a Spark transaction.
+    CValidationState historicalState;
+    BOOST_REQUIRE(CheckTransaction(
+        CTransaction(mismatchedSMint),
+        historicalState,
+        true,
+        mismatchedSMint.GetHash(),
+        false,
+        activationHeight - 1));
+
+    CValidationState activeState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedSMint),
+        activeState,
+        true,
+        mismatchedSMint.GetHash(),
+        false,
+        activationHeight));
+    int activeDoS = -1;
+    BOOST_REQUIRE(activeState.IsInvalid(activeDoS));
+    BOOST_CHECK_EQUAL(activeDoS, 100);
+    BOOST_CHECK_EQUAL(activeState.GetRejectCode(), REJECT_INVALID);
+    BOOST_CHECK_EQUAL(activeState.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState postActivationState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedSMint),
+        postActivationState,
+        true,
+        mismatchedSMint.GetHash(),
+        false,
+        activationHeight + 1));
+    BOOST_CHECK_EQUAL(postActivationState.GetRejectReason(), "bad-spark-coin-type");
+
+    // The mint mismatch is tested only after activation. Running it through
+    // legacy validation would deliberately execute the bug this change gates.
+    CValidationState mintActiveState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedMint),
+        mintActiveState,
+        true,
+        mismatchedMint.GetHash(),
+        false,
+        activationHeight));
+    BOOST_CHECK_EQUAL(mintActiveState.GetRejectReason(), "bad-spark-coin-type");
+
+    CValidationState verifyDbState;
+    BOOST_CHECK(!CheckTransaction(
+        CTransaction(mismatchedSMint),
+        verifyDbState,
+        true,
+        mismatchedSMint.GetHash(),
+        true,
+        activationHeight));
+    BOOST_CHECK_EQUAL(verifyDbState.GetRejectReason(), "bad-spark-coin-type");
+
+    const CMutableTransaction consistentSMint =
+        makeTransaction(OP_SPARKSMINT, COIN_TYPE_SPEND);
+    CValidationState consistentState;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(consistentSMint),
+        consistentState,
+        true,
+        consistentSMint.GetHash(),
+        false,
+        activationHeight));
+
+    const auto* params = Params::get_default();
+    const SpendKey spendKey(params);
+    const FullViewKey fullViewKey(spendKey);
+    const IncomingViewKey incomingViewKey(fullViewKey);
+    MintedCoinData validCoin;
+    validCoin.address = Address(incomingViewKey, 54321);
+    validCoin.v = 1;
+    validCoin.memo = "valid-coin-type";
+    MintTransaction validMint(
+        params, {validCoin}, random_char_vector());
+    const std::vector<CDataStream> serializedMints =
+        validMint.getMintedCoinsSerialized();
+    BOOST_REQUIRE_EQUAL(serializedMints.size(), 1U);
+    CScript validMintScript;
+    validMintScript << OP_SPARKMINT;
+    validMintScript.insert(
+        validMintScript.end(),
+        serializedMints.front().begin(),
+        serializedMints.front().end());
+    CMutableTransaction validMintTransaction;
+    validMintTransaction.vin.emplace_back(
+        COutPoint(uint256S("0x2"), 0));
+    validMintTransaction.vout.emplace_back(1, validMintScript);
+
+    CValidationState validMintState;
+    BOOST_CHECK(CheckTransaction(
+        CTransaction(validMintTransaction),
+        validMintState,
+        true,
+        validMintTransaction.GetHash(),
+        false,
+        activationHeight));
+
+    const CBlock validMintBlock =
+        CreateBlock({validMintTransaction}, script);
+    CValidationState validMintBlockState;
+    BOOST_CHECK(CheckBlock(
+        validMintBlock,
+        validMintBlockState,
+        consensus,
+        false,
+        true,
+        activationHeight,
+        false));
+
+    const CBlock boundaryBlock = CreateBlock({mismatchedSMint}, script);
+    CValidationState historicalBlockState;
+    BOOST_REQUIRE(CheckBlock(
+        boundaryBlock,
+        historicalBlockState,
+        consensus,
+        false,
+        true,
+        activationHeight - 1,
+        false));
+
+    CValidationState activeBlockState;
+    BOOST_CHECK(!CheckBlock(
+        boundaryBlock,
+        activeBlockState,
+        consensus,
+        false,
+        true,
+        activationHeight,
+        false));
+    int activeBlockDoS = -1;
+    BOOST_REQUIRE(activeBlockState.IsInvalid(activeBlockDoS));
+    BOOST_CHECK_EQUAL(activeBlockDoS, 100);
+    BOOST_CHECK_EQUAL(activeBlockState.GetRejectReason(), "bad-spark-coin-type");
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(spark_duplicate_mint_policy_and_block_activation)
 {
     RestoreSparkActivationHeights restoreActivationHeights;
@@ -897,6 +1278,9 @@ BOOST_AUTO_TEST_CASE(spark_duplicate_mint_policy_and_block_activation)
     }
 
     txpools.clear();
+    sparkState->Reset();
+}
+
     sparkState->Reset();
 }
 
