@@ -66,10 +66,12 @@
 
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
+#include "llmq/quorums_blockprocessor.h"
 
 #include <atomic>
 #include <sstream>
 #include <chrono>
+#include <unordered_set>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/join.hpp>
@@ -758,16 +760,24 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
                 tx.nType != TRANSACTION_SPORK &&
                 tx.nType != TRANSACTION_LELANTUS &&
-                tx.nType != TRANSACTION_SPARK) {
+                tx.nType != TRANSACTION_SPARK &&
+                tx.nType != TRANSACTION_SPARK_V2) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
             if (tx.nType == TRANSACTION_SPORK &&
-                    !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
+                    (tx.nVersion != 3 ||
+                     !(nHeight >= consensusParams.nEvoSporkStartBlock &&
+                       nHeight < consensusParams.nEvoSporkStopBlock)))
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
-            if (tx.nType == TRANSACTION_SPARK && nHeight < consensusParams.nSparkStartBlock)
+            if ((tx.nType == TRANSACTION_SPARK ||
+                 tx.nType == TRANSACTION_SPARK_V2) &&
+                nHeight < consensusParams.nSparkStartBlock)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+            if (tx.nType == TRANSACTION_SPARK_V2 &&
+                nHeight < consensusParams.nSparkChaumV2StartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spark-v2-premature");
         }
         else if (tx.nType != TRANSACTION_NORMAL) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
@@ -825,6 +835,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     const Consensus::Params& consensus = Params().GetConsensus();
 
+    if (tx.IsSparkSpendV2() &&
+        chainActive.Height() + 1 < consensus.nSparkChaumV2StartBlock) {
+        // Reject the not-yet-mineable format before parsing any nested Spark
+        // or Spark Name data. Malformed future-format payloads are policy
+        // failures and must not increase the relaying peer's ban score.
+        return state.DoS(
+            0,
+            false,
+            REJECT_NONSTANDARD,
+            "spark-chaum-v2-not-active");
+    }
+
     bool startLelantusRejectSigma = (chainActive.Height() >= consensus.nLelantusStartBlock);
     if (startLelantusRejectSigma) {
         if(tx.IsSigmaMint() || tx.IsSigmaSpend()) {
@@ -860,6 +882,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     // Spark
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     std::vector<spark::Coin> sparkMintCoins;
+    std::unordered_set<uint256> txSparkMints;
     std::vector<GroupElement> sparkUsedLTags;
 
     CSparkNameTxData sparkNameData;
@@ -874,6 +897,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             try {
                 sparkUsedLTags = spark::GetSparkUsedTags(tx);
             }
+            catch (const std::bad_alloc &) {
+                return state.Error(
+                    "AcceptToMemoryPool: memory allocation failed while parsing Spark linking tags");
+            }
             catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark spend");
             }
@@ -887,7 +914,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-            if (!sparkNameManager->CheckSparkNameTx(tx, chainActive.Height() + 1, state, &sparkNameData))
+            if (!sparkNameManager->CheckSparkNameTx(
+                    tx,
+                    chainActive.Height() + 1,
+                    state,
+                    &sparkNameData,
+                    /* nContextualFailureDoS */ 0))
                 return false;
 
             if (!sparkNameData.name.empty() &&
@@ -902,13 +934,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             try {
                 sparkMintCoins = spark::GetSparkMintCoins(tx);
             }
+            catch (const std::bad_alloc &) {
+                return state.Error(
+                    "AcceptToMemoryPool: memory allocation failed while parsing Spark mints");
+            }
             catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark mint");
             }
 
             for (const auto& coin : sparkMintCoins) {
-                if (sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
-                    LogPrintf("AcceptToMemoryPool(): Spark mint with the same value %s is already in the mempool\n", coin.getHash().GetHex());
+                if (!txSparkMints.insert(coin.getHash()).second ||
+                        sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
+                    LogPrintf("AcceptToMemoryPool(): duplicate Spark mint coin %s\n", coin.getHash().GetHex());
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
             }
@@ -1090,10 +1127,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 nFees = nValueIn - nValueOut;
             } else {
                 try {
-                    nFees = spark::ParseSparkSpend(tx).getFee();
+                    nFees = spark::GetSparkSpendFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+                }
+                catch (const std::bad_alloc&) {
+                    return state.Error(
+                        "AcceptToMemoryPool: memory allocation failed while parsing Spark fee");
                 }
                 catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
@@ -1406,6 +1447,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             // Store transaction in memory
             pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
+            for (const auto& coin : sparkMintCoins) {
+                pool.sparkState.AddMintToMempool(coin, hash);
+            }
 
             // Add memory address index
             if (fAddressIndex) {
@@ -2308,8 +2352,31 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     CDbIndexHelper dbIndexHelper(fAddressIndex, fSpentIndex);
 
     CAmount nFees = 0;
+    if (fAddressIndex) {
+        try {
+            for (const CTransactionRef& tx : block.vtx) {
+                if (!tx->IsSparkSpend()) {
+                    continue;
+                }
 
-    if (!UndoSpecialTxsInBlock(block, pindex)) {
+                const CAmount fee = spark::GetSparkSpendFee(*tx);
+                if (!MoneyRange(fee) || fee > MAX_MONEY - nFees) {
+                    LogPrintf(
+                        "DisconnectBlock(): Spark spend fee is out of range\n");
+                    return DISCONNECT_FAILED;
+                }
+                nFees += fee;
+            }
+        }
+        catch (const std::exception& e) {
+            LogPrintf(
+                "DisconnectBlock(): failed to parse Spark spend fee: %s\n",
+                e.what());
+            return DISCONNECT_FAILED;
+        }
+    }
+
+    if (!UndoSpecialTxsInBlock(block, pindex, pfClean == nullptr)) {
         return DISCONNECT_FAILED;
     }
 
@@ -2349,15 +2416,6 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                 }
             }
             // At this point, all of txundo.vprevout should have been moved out.
-        }
-
-        if (tx.IsSparkSpend()) {
-            try {
-                nFees += spark::ParseSparkSpend(tx).getFee();
-            }
-            catch (const std::exception &) {
-                // do nothing
-            }
         }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
@@ -2502,20 +2560,29 @@ static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex,
-                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck)
+                  CCoinsViewCache& view, const CChainParams& chainparams,
+                  bool fJustCheck, bool isVerifyDB)
 {
     AssertLockHeld(cs_main);
+    assert(!isVerifyDB || fJustCheck);
 
     int64_t nTimeStart = GetTimeMicros();
     //btzc: update nHeight, isVerifyDB
     // Check it again in case a previous version let a bad block in
     LogPrint("validation", "ConnectBlock nHeight=%d, hash=%s\n", pindex->nHeight, block.GetHash().ToString());
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, false)) {
+    if (!CheckBlock(
+            block,
+            state,
+            chainparams.GetConsensus(),
+            !fJustCheck,
+            !fJustCheck,
+            pindex->nHeight,
+            isVerifyDB)) {
         LogPrintf("--> failed\n");
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     }
 
-    if (block.IsProgPow() && !fJustCheck)
+    if (block.IsProgPow() && (!fJustCheck || isVerifyDB))
     {
         // do full PP hash check
 
@@ -2743,10 +2810,14 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             if(tx.IsSparkSpend()) {
                 try {
-                    nFees += spark::ParseSparkSpend(tx).getFee();
+                    nFees += spark::GetSparkSpendFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");
+                }
+                catch (const std::bad_alloc&) {
+                    return state.Error(
+                        "ConnectBlock(): memory allocation failed while parsing Spark fee");
                 }
                 catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize spark spend");
@@ -2757,7 +2828,16 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
 
             // Check transaction against signa/lelantus state
-            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.sparkTxInfo.get()))
+            if (!CheckTransaction(
+                    tx,
+                    state,
+                    false,
+                    txHash,
+                    isVerifyDB,
+                    pindex->nHeight,
+                    false,
+                    true,
+                    block.sparkTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -2803,6 +2883,11 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     block.sparkTxInfo->Complete();
+    if (pindex->nHeight >= chainparams.GetConsensus().nSparkChaumV2StartBlock &&
+            !spark::CheckSparkMintDuplicates(
+                state, block.sparkTxInfo->mints, pindex->nHeight)) {
+        return false;
+    }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
@@ -2837,20 +2922,37 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, pindex->nTime, blockSubsidy)) {
-        LOCK(cs_main);
-        mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        if (!isVerifyDB) {
+            LOCK(cs_main);
+            mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        }
         return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
                                 REJECT_INVALID, "bad-cb-payee");
     }
 
-    if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
+    // CheckSpecialTx skips nVersion != 3. A later version with a spork type
+    // tag must still be rejected before MN-list or spork state is updated.
+    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
+        for (const CTransactionRef& tx : block.vtx) {
+            if (tx->nVersion >= 3 &&
+                    tx->nType == TRANSACTION_SPORK &&
+                    !CheckSporkTx(*tx, pindex->pprev, state)) {
+                return false;
+            }
+        }
+    }
+
+    if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
     }
     // END ZNODE
 
     //CHECK TRANSACTIONS FOR INSTANTSEND
-    if (pindex->nHeight >= Params().GetConsensus().nInstantSendBlockFilteringStartHeight && IsNewInstantSendEnabled()) {
+    if (!isVerifyDB &&
+        pindex->nHeight >= Params().GetConsensus().nInstantSendBlockFilteringStartHeight &&
+        IsNewInstantSendEnabled()) {
         // Require other nodes to comply, send them some data in case they are missing it.
         for (const auto& tx : block.vtx) {
             // skip txes that have no inputs
@@ -2876,18 +2978,25 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
     LogPrint("bench", "      - IS filter: %.2fms [%.2fs]\n", 0.001 * (nTime5_1 - nTime4), nTimeISFilter * 0.000001);
 
-    if (!fJustCheck)
-        MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
-
-    // evo spork handling
-    // back up spork state if fJustCheck is true
-    auto sporkSetBackup = pindex->activeDisablingSporks;
+    // Copy, do not move: the live map must stay intact until BlockConnected
+    // rewrites it. Restore on every failure and on fJustCheck.
+    struct SporkSetRollback
+    {
+        CBlockIndex* index;
+        decltype(pindex->activeDisablingSporks) backup;
+        bool enabled;
+        ~SporkSetRollback()
+        {
+            if (enabled)
+                index->activeDisablingSporks.swap(backup);
+        }
+    } sporkSetRollback{
+        pindex, pindex->activeDisablingSporks, true};
     CSporkManager *sporkManager = CSporkManager::GetSporkManager();
 
     if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
                 pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
         if (!sporkManager->BlockConnected(block, pindex)) {
-            pindex->activeDisablingSporks = sporkSetBackup;
             return false;
         }
 
@@ -2898,15 +3007,19 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck))
-        return false;
-
+    // Reject before ConnectBlockSpark so a transparent-output spork failure
+    // cannot leave spends applied in global Spark state.
     if (!sporkManager->IsBlockAllowed(block, pindex, state))
         return false;
 
+    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck || isVerifyDB, isVerifyDB))
+        return false;
+
     if (fJustCheck) {
-        // roll back spork set if needed
-        pindex->activeDisablingSporks = sporkSetBackup;
+        if (isVerifyDB) {
+            view.SetBestBlock(pindex->GetBlockHash());
+            evoDb->WriteBestBlock(pindex->GetBlockHash());
+        }
         return true;
     }
 
@@ -2967,19 +3080,19 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     evoDb->WriteBestBlock(pindex->GetBlockHash());
 
+    MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
+
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
 
+    sporkSetRollback.enabled = false;
     return true;
 }
 
-/**
- * Erase all of sigma/lelantus transactions conflicting with given block from the mempool
- */
-void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block) {
+/** Erase Spark spends conflicting with the given block from the mempool. */
+void static RemoveConflictingSparkSpendsFromMempool(const CBlock &block) {
     LOCK(mempool.cs);
 
-    // Erase conflicting sigma/lelantus txs from the mempool
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
         if (tx->IsSparkSpend()) {
@@ -2998,10 +3111,9 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
                     break;
             }
             if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                std::list<CTransaction> removed;
                 auto pTx = mempool.get(conflictingTxHash);
                 if (pTx)
-                    mempool.removeRecursive(*pTx);
+                    mempool.removeRecursive(*pTx, MemPoolRemovalReason::CONFLICT);
                 LogPrintf("ConnectBlock: removed conflicting spark spend tx %s from the mempool\n",
                           conflictingTxHash.ToString());
             }
@@ -3009,6 +3121,14 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
             // In any case we need to remove lTags from mempool set
             sparkState->RemoveSpendFromMempool(lTags);
         }
+    }
+}
+
+/** Erase Spark mint transactions conflicting with the given block from a pool. */
+void static RemoveConflictingSparkMintsFromMempool(CTxMemPool& pool, const CBlock &block) {
+    LOCK(pool.cs);
+
+    BOOST_FOREACH(CTransactionRef tx, block.vtx) {
         BOOST_FOREACH(const CTxOut &txout, tx->vout)
         {
             if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
@@ -3017,7 +3137,17 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
 
                     spark::Coin txCoin(params);
                     spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
-                    sparkState->RemoveMintFromMempool(txCoin);
+                    const uint256 conflictingTxHash =
+                        pool.sparkState.GetMempoolConflictingMintTxHash(txCoin);
+                    if (!conflictingTxHash.IsNull() && conflictingTxHash != tx->GetHash()) {
+                        auto pTx = pool.get(conflictingTxHash);
+                        if (pTx)
+                            pool.removeRecursive(
+                                *pTx, MemPoolRemovalReason::CONFLICT);
+                        LogPrintf("ConnectBlock: removed conflicting Spark mint tx %s from the mempool\n",
+                                  conflictingTxHash.ToString());
+                    }
+                    pool.sparkState.RemoveMintFromMempool(txCoin);
                 } catch (std::invalid_argument&) {
                     // nothing
                 }
@@ -3384,8 +3514,12 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
         CCoinsViewCache view(pcoinsTip);
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
-        if (rv)
-            RemoveConflictingPrivacyTransactionsFromMempool(blockConnecting);
+        if (rv) {
+            RemoveConflictingSparkSpendsFromMempool(blockConnecting);
+            RemoveConflictingSparkMintsFromMempool(mempool, blockConnecting);
+            RemoveConflictingSparkMintsFromMempool(
+                txpools.getStemTxPool(), blockConnecting);
+        }
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             LogPrintf("ConnectTip(): ConnectBlock failed at height=%d, hash=%s: %s\n",
@@ -5086,7 +5220,24 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
 
-    // begin tx and let it rollback
+    struct VerifyDBCacheCleanup
+    {
+        ~VerifyDBCacheCleanup()
+        {
+            // Temporary disconnect/reconnect traversals alter database-derived
+            // caches even though the EvoDB transaction itself rolls back.
+            // Discard those entries on every return path so later reads are
+            // rebuilt from the restored database state.
+            if (deterministicMNManager) {
+                deterministicMNManager->ClearCache();
+            }
+            if (llmq::quorumBlockProcessor) {
+                llmq::quorumBlockProcessor->ClearMinedCommitmentCache();
+            }
+        }
+    } verifyDBCacheCleanup;
+    // Declare the temporary transaction after the cache guard so rollback
+    // completes before the derived caches are discarded.
     auto dbTx = evoDb->BeginTransaction();
 
     // Verify blocks in the best chain
@@ -5161,6 +5312,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
 
     // check level 4: try reconnecting blocks
     if (nCheckLevel >= 4) {
+        spark::CSparkVerifyDBContext sparkContext(pindexState);
         CBlockIndex *pindex = pindexState;
         while (pindex != chainActive.Tip()) {
             boost::this_thread::interruption_point();
@@ -5169,7 +5321,8 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-            if (!ConnectBlock(block, state, pindex, coins, chainparams))
+            if (!ConnectBlock(
+                    block, state, pindex, coins, chainparams, true, true))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
     }
