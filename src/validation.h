@@ -419,6 +419,11 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 
 /** Context-independent validity checks */
 bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, spark::CSparkTxInfo* sparkTxInfo = NULL);
+/**
+ * Contextual transaction checks (version and type against the previous block).
+ * @param[in] pindexPrev Previous block; may be null (treated as height 0).
+ * @return true if validation succeeds
+ */
 bool ContextualCheckTransaction(
     const CTransaction& tx,
     CValidationState& state,

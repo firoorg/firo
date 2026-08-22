@@ -1408,21 +1408,19 @@ void UpdateRegtestSparkActivationHeights(
     const int* singleInputHeight,
     const int* chaumV2Height)
 {
-    const int previousSingle =
-        regTestParams.GetConsensus().nSparkSingleInputStartBlock;
-    const int previousV2 =
-        regTestParams.GetConsensus().nSparkChaumV2StartBlock;
+    Consensus::Params proposed = regTestParams.GetConsensus();
+    if (singleInputHeight) {
+        proposed.nSparkSingleInputStartBlock = *singleInputHeight;
+    }
+    if (chaumV2Height) {
+        proposed.nSparkChaumV2StartBlock = *chaumV2Height;
+    }
+    ValidateSparkActivationHeights(proposed);
+
     if (singleInputHeight) {
         regTestParams.UpdateSparkSingleInputHeight(*singleInputHeight);
     }
     if (chaumV2Height) {
         regTestParams.UpdateSparkChaumV2Height(*chaumV2Height);
-    }
-    try {
-        ValidateSparkActivationHeights(regTestParams.GetConsensus());
-    } catch (...) {
-        regTestParams.UpdateSparkSingleInputHeight(previousSingle);
-        regTestParams.UpdateSparkChaumV2Height(previousV2);
-        throw;
     }
 }

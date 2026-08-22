@@ -1275,7 +1275,7 @@ bool CheckSparkTransaction(
         nRealHeight = chainActive.Height() + 1;
     }
 
-    bool const allowSpark = IsSparkAllowed();
+    bool const allowSpark = IsSparkAllowed(nRealHeight);
 
     // Check Spark Mint Transaction
     if (allowSpark && tx.IsSparkMint()) {

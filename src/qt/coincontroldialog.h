@@ -61,6 +61,9 @@ public:
 
     // static because also called from sendcoinsdialog
     static void updateLabels(WalletModel*, QDialog*, bool anonymousMode = false);
+    /**
+     * @param[in] versionedSpend true selects Spark V2 (Chaum V2) sizing; the default false preserves V1 sizing
+     */
     static unsigned int estimateSparkTxBytes(
         size_t selectedInputs,
         size_t privateOutputs,

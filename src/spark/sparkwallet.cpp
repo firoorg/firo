@@ -1527,7 +1527,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
         CAmount &fee,
         const CCoinControl *coinControl,
-        CAmount additionalTxSize,
+        size_t additionalTxSize,
         const uint256& extensionCommitment,
         int expectedNextBlockHeight,
         std::vector<CAmount>* recipientAmounts) {
@@ -2102,7 +2102,7 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(
 
         CMutableTransaction tx(*wtxSparkSpend.tx);
         sparkNameManager->AppendSparkNameTxData(
-            tx, nameData, spendKey, fullViewKey, nHeight);
+            tx, nameData, spendKey, viewKey, nHeight);
 
         const unsigned int finalSize = GetVirtualTransactionSize(tx);
         const CAmount finalFeeNeeded =
@@ -2282,8 +2282,9 @@ std::pair<CAmount, std::vector<CSparkMintMeta>> CSparkWallet::SelectSparkCoins(
         }
         if (useChaumV2 &&
             spendCoins.size() > spark::MAX_CHAUM_V2_INPUTS) {
-            throw std::invalid_argument(_(
-                "Spark V2 spends are limited to 100 inputs"));
+            throw std::invalid_argument(boost::str(
+                boost::format(_("Spark V2 spends are limited to %1% inputs")) %
+                    spark::MAX_CHAUM_V2_INPUTS));
         }
 
         // 1803 is for each Grootle proof/auxiliary input, 322 for

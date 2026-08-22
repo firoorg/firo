@@ -156,9 +156,9 @@ void UpdateRegtestSparkSingleInputHeight(int height);
 void UpdateRegtestSparkChaumV2Height(int height);
 
 /**
- * Apply one or both Spark activation heights, then validate the final pair.
- * Prefer this when both CLI/test overrides are known up front so intermediate
- * states do not spuriously fail the ordering check.
+ * Validate the resulting Spark activation-height pair, then apply one or both
+ * heights. Prefer this when both CLI/test overrides are known up front so
+ * intermediate states do not spuriously fail the ordering check.
  */
 void UpdateRegtestSparkActivationHeights(
     const int* singleInputHeight,

@@ -999,6 +999,18 @@ public:
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
+    /**
+     * Build a Spark spend. Chaum V2 is selected when the next block is at or
+     * past nSparkChaumV2StartBlock.
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @param[out] recipientAmounts Optional caller-owned vector. If non-null it
+     *     is overwritten with post-fee amounts (transparent, then private).
+     *     The wallet does not take ownership of the container.
+     * @return The constructed wallet transaction.
+     * @pre The wallet is unlocked and a Spark wallet is available.
+     */
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
@@ -1007,6 +1019,15 @@ public:
             int expectedNextBlockHeight = -1,
             std::vector<CAmount>* recipientAmounts = nullptr);
 
+    /**
+     * Build a Spark name transaction using the next block's activation rules
+     * (name format, fee script, and Chaum V2).
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @return The constructed wallet transaction.
+     * @pre The wallet is unlocked and a Spark wallet is available.
+     */
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &sparkNameData,
             CAmount sparkNameFee,
@@ -1051,7 +1072,15 @@ public:
      * and the required fee
      */
     static CAmount GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool);
-    /** Apply per-send confirmation and fee overrides from coin control. */
+    /**
+     * Estimate the minimum fee, applying coin-control overrides when present.
+     * Confirmation target is coinControl->nConfirmTarget when it is greater
+     * than 0, otherwise nTxConfirmTarget. nMinimumTotalFee raises that
+     * estimate when higher. fOverrideFeeRate then replaces the result with
+     * coinControl->nFeeRate.
+     * @param[in] coinControl May be null; then only the wallet confirmation target is used.
+     * @return The selected fee in satoshis.
+     */
     static CAmount GetMinimumFee(unsigned int nTxBytes, const CCoinControl* coinControl, const CTxMemPool& pool);
     /**
      * Estimate the minimum fee considering required fee and targetFee or if 0

@@ -54,6 +54,11 @@ static constexpr std::size_t MAX_SPARK_V2_OUTPUTS = 16;
 
 class SpendTransaction {
 public:
+    /**
+     * Supplies the cover set for a group id. The returned reference remains
+     * valid only until the next provider call, matching
+     * SpendTransaction::verify's use across the current Grootle bucket.
+     */
     using CoverSetProvider = std::function<
         const std::vector<Coin>&(uint64_t)>;
 

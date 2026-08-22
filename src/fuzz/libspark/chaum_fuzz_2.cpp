@@ -2,6 +2,7 @@
 #include "../FuzzedDataProvider.h"
 #include "../../libspark/chaum_proof.h"
 #include "../../libspark/chaum.h"
+#include "chaum_fuzz_helpers.h"
 #include <cassert>
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
@@ -92,54 +93,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     assert(chaum3.verify_v1(mu3, S3, T3, proof3));
 
     /* Fuzzing for bad proofs*/
-
-    // Bad mu
-    Scalar evil_mu;
-    evil_mu.randomize();
-    assert(!(chaum3.verify_v1(evil_mu, S3, T3, proof3)));
-
-    // Bad S
-    for (std::size_t i = 0; i < n; i++) {
-        std::vector<GroupElement> evil_S(S3);
-        evil_S[i].randomize();
-        assert(!(chaum3.verify_v1(mu3, evil_S, T3, proof3)));
-    }
-
-    // Bad T
-    for (std::size_t i = 0; i < n; i++) {
-        std::vector<GroupElement> evil_T(T3);
-        evil_T[i].randomize();
-        assert(!(chaum3.verify_v1(mu3, S3, evil_T, proof3)));
-    }
-
-    // Bad A1
-    spark::ChaumProofV1 evil_proof = proof3;
-    evil_proof.A1.randomize();
-    assert(!(chaum3.verify_v1(mu3, S3, T3, evil_proof)));
-
-    // Bad A2
-    for (std::size_t i = 0; i < n; i++) {
-        evil_proof = proof3;
-        evil_proof.A2[i].randomize();
-        assert(!(chaum3.verify_v1(mu3, S3, T3, evil_proof)));
-    }
-
-    // Bad t1
-    for (std::size_t i = 0; i < n; i++) {
-        evil_proof = proof3;
-        evil_proof.t1[i].randomize();
-        assert(!(chaum3.verify_v1(mu3, S3, T3, evil_proof)));
-    }
-
-    // Bad t2
-    evil_proof = proof3;
-    evil_proof.t2.randomize();
-    assert(!(chaum3.verify_v1(mu3, S3, T3, evil_proof)));
-
-    // Bad t3
-    evil_proof = proof3;
-    evil_proof.t3.randomize();
-    assert(!(chaum3.verify_v1(mu3, S3, T3, evil_proof)));
+    assert_v1_rejects_mutations(chaum3, mu3, S3, T3, proof3);
 
     return 0;
 

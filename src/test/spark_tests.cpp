@@ -220,6 +220,24 @@ struct RestoreSparkActivationHeights {
     }
 };
 
+// Restore wallet broadcast after tests that enable it so SpendAndStoreSpark
+// can reach the mempool.
+struct RestoreBroadcastSetting {
+    CWallet* wallet;
+    bool enabled;
+
+    RestoreBroadcastSetting()
+        : wallet(::pwalletMain)
+        , enabled(::pwalletMain->GetBroadcastTransactions())
+    {
+    }
+
+    ~RestoreBroadcastSetting()
+    {
+        wallet->SetBroadcastTransactions(enabled);
+    }
+};
+
 BOOST_FIXTURE_TEST_SUITE(spark_tests, SparkTests)
 
 BOOST_AUTO_TEST_CASE(schnorr_proof)
@@ -1212,22 +1230,29 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         pwalletMain->sparkWallet->CreateSparkSpendTransaction(
             {maximumRecipient, maximumRecipient}, {}, rejectedFee),
         std::runtime_error);
-    const CFeeRate originalPayTxFee = payTxFee;
-    payTxFee = CFeeRate(CAmount{1});
-    std::list<CSparkMintMeta> maximumBalance(1);
-    maximumBalance.front().v = MAX_MONEY;
-    BOOST_CHECK_THROW(
-        pwalletMain->sparkWallet->SelectSparkCoins(
-            MAX_MONEY,
-            false,
-            maximumBalance,
-            0,
-            1,
-            nullptr,
-            true,
-            0),
-        std::invalid_argument);
-    payTxFee = originalPayTxFee;
+    {
+        struct RestorePayTxFee {
+            CFeeRate original;
+            ~RestorePayTxFee()
+            {
+                payTxFee = original;
+            }
+        } restorePayTxFee{payTxFee};
+        payTxFee = CFeeRate(CAmount{1});
+        std::list<CSparkMintMeta> maximumBalance(1);
+        maximumBalance.front().v = MAX_MONEY;
+        BOOST_CHECK_THROW(
+            pwalletMain->sparkWallet->SelectSparkCoins(
+                MAX_MONEY,
+                false,
+                maximumBalance,
+                0,
+                1,
+                nullptr,
+                true,
+                0),
+            std::invalid_argument);
+    }
 
     // Amount that fits the selected coins still fails once the required fee is
     // added. Report that fee so callers can distinguish it from a bare
@@ -1378,14 +1403,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
 
 BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
 {
-    struct RestoreBroadcastSetting {
-        CWallet* wallet;
-        bool enabled;
-        ~RestoreBroadcastSetting()
-        {
-            wallet->SetBroadcastTransactions(enabled);
-        }
-    } restoreBroadcast{pwalletMain, pwalletMain->GetBroadcastTransactions()};
+    RestoreBroadcastSetting restoreBroadcast;
     pwalletMain->SetBroadcastTransactions(true);
 
     struct ResetActivationHeights {
@@ -1498,14 +1516,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
 
 BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
 {
-    struct RestoreBroadcastSetting {
-        CWallet* wallet;
-        bool enabled;
-        ~RestoreBroadcastSetting()
-        {
-            wallet->SetBroadcastTransactions(enabled);
-        }
-    } restoreBroadcast{pwalletMain, pwalletMain->GetBroadcastTransactions()};
+    RestoreBroadcastSetting restoreBroadcast;
 
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
@@ -1577,14 +1588,7 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
 
 BOOST_AUTO_TEST_CASE(spark_spend_commit_persists_outputs_before_mempool)
 {
-    struct RestoreBroadcastSetting {
-        CWallet* wallet;
-        bool enabled;
-        ~RestoreBroadcastSetting()
-        {
-            wallet->SetBroadcastTransactions(enabled);
-        }
-    } restoreBroadcast{pwalletMain, pwalletMain->GetBroadcastTransactions()};
+    RestoreBroadcastSetting restoreBroadcast;
 
     struct RestoreWriteFailure {
         ~RestoreWriteFailure()
@@ -2186,6 +2190,9 @@ BOOST_AUTO_TEST_CASE(spark_single_input_block_boundary_and_reorg)
 
 BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
 {
+    RestoreBroadcastSetting restoreBroadcast;
+    pwalletMain->SetBroadcastTransactions(true);
+
     ClearSparkSpendProofCache();
     GenerateBlocks(500);
 
@@ -2421,24 +2428,13 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
 
 BOOST_AUTO_TEST_CASE(spark_activation_order_is_validated)
 {
+    RestoreSparkActivationHeights restore;
     Consensus::Params& consensus =
         const_cast<Consensus::Params&>(::Params().GetConsensus());
-    const int originalSingleInput = consensus.nSparkSingleInputStartBlock;
-    const int originalV2 = consensus.nSparkChaumV2StartBlock;
-    struct RestoreActivationHeights {
-        Consensus::Params& consensus;
-        int singleInput;
-        int v2;
-        ~RestoreActivationHeights()
-        {
-            consensus.nSparkSingleInputStartBlock = singleInput;
-            consensus.nSparkChaumV2StartBlock = v2;
-        }
-    } restore{consensus, originalSingleInput, originalV2};
 
     BOOST_CHECK_THROW(
         UpdateRegtestSparkChaumV2Height(100), std::runtime_error);
-    BOOST_CHECK_EQUAL(consensus.nSparkChaumV2StartBlock, originalV2);
+    BOOST_CHECK_EQUAL(consensus.nSparkChaumV2StartBlock, restore.v2);
 
     UpdateRegtestSparkSingleInputHeight(100);
     UpdateRegtestSparkChaumV2Height(100);
@@ -2452,7 +2448,7 @@ BOOST_AUTO_TEST_CASE(spark_activation_order_is_validated)
     BOOST_CHECK_EQUAL(consensus.nSparkSingleInputStartBlock, 800);
     BOOST_CHECK_EQUAL(consensus.nSparkChaumV2StartBlock, 900);
 
-    // An invalid joint update rolls both heights back.
+    // An invalid joint update leaves the previous pair unchanged.
     const int badSingle = 950;
     const int badV2 = 900;
     BOOST_CHECK_THROW(

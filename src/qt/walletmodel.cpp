@@ -1854,6 +1854,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletMode
 WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModelTransaction> &transactions, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFee, std::list<CReserveKey>& reserveKeys)
 {
     QByteArray transaction_array; /* store serialized transaction */
+    std::vector<std::pair<SendCoinsRecipient, QByteArray>> pendingCoinsSent;
     {
         LOCK2(cs_main, wallet->cs_wallet);
         CValidationState state;
@@ -1887,10 +1888,14 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
                         }
                     }
                 }
-                Q_EMIT coinsSent(wallet, rcp, transaction_array);
+                pendingCoinsSent.emplace_back(rcp, transaction_array);
             }
 
         }
+    }
+
+    for (const auto& event : pendingCoinsSent) {
+        Q_EMIT coinsSent(wallet, event.first, event.second);
     }
 
     // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits.
@@ -1966,8 +1971,11 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
                     wallet->SetSparkAddressBook(strAddress, strLabel, ""); // "" means don't change purpose
                 }
             }
-            Q_EMIT coinsSent(wallet, rcp, transaction_array);
         }
+    }
+
+    for (const SendCoinsRecipient& rcp : recipients) {
+        Q_EMIT coinsSent(wallet, rcp, transaction_array);
     }
 
     // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits.

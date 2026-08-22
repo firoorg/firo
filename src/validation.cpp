@@ -2956,7 +2956,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // Copy, do not move: the live map must stay intact until BlockConnected
     // rewrites it. Restore on every failure and on fJustCheck.
-    struct SporkSetRollback {
+    struct SporkSetRollback
+    {
         CBlockIndex* index;
         decltype(pindex->activeDisablingSporks) backup;
         bool enabled;
@@ -5177,7 +5178,8 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
 
-    struct VerifyDBCacheCleanup {
+    struct VerifyDBCacheCleanup
+    {
         ~VerifyDBCacheCleanup()
         {
             // Temporary disconnect/reconnect traversals alter database-derived

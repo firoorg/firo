@@ -247,8 +247,9 @@ BOOST_AUTO_TEST_CASE(historical_multi_input_verification_is_explicit)
 
     // Historical V1 has no inner version byte, so arbitrary V2 bytes are not
     // guaranteed to fail while being decoded as V1. Consensus selects the
-    // parser from the transaction type and activation height; the node-level
-    // test covers rejection after deliberately retagging a V2 payload as V1.
+    // parser from the transaction type and activation height.
+    // spark_v2_activation_and_wallet_selection retags v2Multi as
+    // TRANSACTION_SPARK and asserts CheckSparkTransaction rejects it.
 
     CDataStream truncatedV2(SER_NETWORK, PROTOCOL_VERSION);
     truncatedV2 << transactionV2;

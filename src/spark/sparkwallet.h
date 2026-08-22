@@ -152,7 +152,7 @@ public:
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL,
-            CAmount additionalTxSize = 0,
+            size_t additionalTxSize = 0,
             const uint256& extensionCommitment = uint256(),
             int expectedNextBlockHeight = -1,
             std::vector<CAmount>* recipientAmounts = nullptr);
