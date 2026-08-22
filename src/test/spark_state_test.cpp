@@ -358,6 +358,32 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(copy_from_isolates_minted_coins)
+{
+    const spark::Coin mint = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);
+    CBlock block;
+    PopulateSparkTxInfo(block, {mint}, {});
+    CBlockIndex index;
+    index.pprev = chainActive.Tip();
+    index.nHeight = chainActive.Height() + 1;
+    sparkState->AddMintsToStateAndBlockIndex(&index, &block);
+    BOOST_REQUIRE(sparkState->HasCoin(mint));
+
+    spark::CSparkState snapshot;
+    snapshot.CopyFrom(*sparkState);
+    BOOST_CHECK(snapshot.HasCoin(mint));
+    BOOST_CHECK_EQUAL(snapshot.GetTotalCoins(), sparkState->GetTotalCoins());
+    BOOST_CHECK(
+        snapshot.GetMintedCoinHeightAndId(mint) ==
+        sparkState->GetMintedCoinHeightAndId(mint));
+
+    const spark::Coin extra = CreateCoin(spark::COIN_TYPE_MINT, 2 * COIN);
+    BOOST_REQUIRE(
+        snapshot.AddMint(extra, spark::CMintedCoinInfo::make(1, index.nHeight + 1)));
+    BOOST_CHECK(snapshot.HasCoin(extra));
+    BOOST_CHECK(!sparkState->HasCoin(extra));
+}
+
 BOOST_AUTO_TEST_CASE(duplicate_mint_legacy_disconnect)
 {
     const spark::Coin mint = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);

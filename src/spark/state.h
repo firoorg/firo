@@ -163,6 +163,14 @@ public:
     CSparkState(
             size_t maxCoinInGroup = ZC_SPARK_MAX_MINT_NUM,
             size_t startGroupSize = ZC_SPARK_SET_START_SIZE);
+    CSparkState(const CSparkState&) = delete;
+    CSparkState& operator=(const CSparkState&) = delete;
+
+    /**
+     * Copy live Spark state into this instance without copying the mutex.
+     * Used by VerifyDB to snapshot the node state into an isolated context.
+     */
+    void CopyFrom(const CSparkState& other);
 
     // Reset to initial values
     void Reset();

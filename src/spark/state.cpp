@@ -63,7 +63,7 @@ static CSparkNameManager* SparkNameManagerForValidation(bool isVerifyDB)
 CSparkVerifyDBContext::CSparkVerifyDBContext(CBlockIndex* tip) :
     previous(activeVerifyDBContext)
 {
-    state = sparkState;
+    state.CopyFrom(sparkState);
     sparkNameManager.CopyFrom(*CSparkNameManager::GetInstance());
     for (CBlockIndex* index = chainActive.Tip();
          index && index != tip;
@@ -1500,6 +1500,28 @@ CSparkState::CSparkState(
         startGroupSize(startGroupSize)
 {
     Reset();
+}
+
+void CSparkState::CopyFrom(const CSparkState& other)
+{
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> coins;
+    {
+        LOCK(other.cs_minted_coins);
+        coins = other.mintedCoins;
+    }
+
+    LOCK(cs_minted_coins);
+    maxCoinInGroup = other.maxCoinInGroup;
+    startGroupSize = other.startGroupSize;
+    latestCoinId = other.latestCoinId;
+    coinGroups = other.coinGroups;
+    mintedCoins = std::move(coins);
+    usedLTags = other.usedLTags;
+    mobileUsedLTags = other.mobileUsedLTags;
+    ltagTxhash = other.ltagTxhash;
+    extendedMintMetaInfo = other.extendedMintMetaInfo;
+    mintMetaInfo = other.mintMetaInfo;
+    spendMetaInfo = other.spendMetaInfo;
 }
 
 void CSparkState::Reset() {
