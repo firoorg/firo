@@ -1466,7 +1466,8 @@ void BitcoinGUI::updateHeadersSyncProgressLabel()
 {
     if (modalOverlay->isHeaderSyncPending())
         progressBarLabel->setText(tr("Syncing Headers..."));
-    updateNavigationSyncCard(progressBarLabel->text(), modalOverlay->currentVerificationProgress(), true);
+    updateNavigationSyncCard(progressBarLabel->text(), modalOverlay->currentVerificationProgress(),
+                              !masternodeSync.IsSynced());
 }
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)

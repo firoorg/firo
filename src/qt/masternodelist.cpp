@@ -824,12 +824,6 @@ QFrame* MasternodeList::createMasternodeCard(const QString& address,
     frame->setProperty("selected", false);
     frame->setProperty("statusKind", statusKind);
 
-    auto* shadow = new QGraphicsDropShadowEffect(frame);
-    shadow->setBlurRadius(20);
-    shadow->setOffset(0, 5);
-    shadow->setColor(QColor(65, 37, 52, 24));
-    frame->setGraphicsEffect(shadow);
-
     auto* root = new QVBoxLayout(frame);
     root->setContentsMargins(16, 14, 16, 14);
     root->setSpacing(0);
