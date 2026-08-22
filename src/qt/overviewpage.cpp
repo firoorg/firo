@@ -277,6 +277,7 @@ void OverviewPage::on_anonymizeButton_clicked()
     amountDialog.setWindowTitle(tr("Make Funds Private"));
 
     auto layout = new QVBoxLayout(&amountDialog);
+    layout->setSizeConstraint(QLayout::SetFixedSize);
     auto description = new QLabel(
         tr("Move FIRO from your transparent balance into Spark, Firo's private balance."),
         &amountDialog);
