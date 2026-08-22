@@ -555,9 +555,10 @@ void MasternodeList::updateDIP3List()
         const QString registered = formatBlockHeight(dmn->pdmnState->nRegisteredHeight, false);
         const bool lastPaidNone = dmn->pdmnState->nLastPaidHeight < params.DIP0003EnforcementHeight;
         const QString lastPaid = formatBlockHeight(dmn->pdmnState->nLastPaidHeight, lastPaidNone);
-        const bool nextUnknown = !nextPayments.count(dmn->proTxHash);
+        const auto nextPaymentIt = nextPayments.find(dmn->proTxHash);
+        const bool nextUnknown = nextPaymentIt == nextPayments.end();
         const QString nextPayment = formatBlockHeight(
-            nextUnknown ? 0 : nextPayments[dmn->proTxHash], nextUnknown);
+            nextUnknown ? 0 : nextPaymentIt->second, nextUnknown);
 
         CTxDestination payeeDest;
         QString payeeStr = QStringLiteral("-");

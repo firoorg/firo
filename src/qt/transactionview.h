@@ -107,6 +107,7 @@ private Q_SLOTS:
     void updateHeaderSizes(int logicalIndex, int oldSize, int newSize);
     void dateRangeChanged();
     void showDetails();
+    void openTransaction(const QModelIndex &index);
     void copyAddress();
     void editLabel();
     void copyLabel();

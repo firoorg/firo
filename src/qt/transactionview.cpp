@@ -473,7 +473,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(copyTxPlainText,    &QAction::triggered, this, &TransactionView::copyTxPlainText);
     connect(editLabelAction,    &QAction::triggered, this, &TransactionView::editLabel);
     connect(showDetailsAction,  &QAction::triggered, this, &TransactionView::showDetails);
-    connect(this,               &TransactionView::doubleClicked, this, &TransactionView::showDetails);
+    connect(this,               &TransactionView::doubleClicked, this, &TransactionView::openTransaction);
     connect(resendAction,       &QAction::triggered, this, &TransactionView::rebroadcastTx);
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
@@ -633,9 +633,24 @@ void TransactionView::updateEmptyState()
         return;
 
     emptyState->setGeometry(transactionView->viewport()->rect());
-    emptyState->setVisible(!transactionProxyModel || transactionProxyModel->rowCount() == 0);
-    if (emptyState->isVisible())
-        emptyState->raise();
+
+    const bool noRows = !transactionProxyModel || transactionProxyModel->rowCount() == 0;
+    emptyState->setVisible(noRows);
+    if (!noRows)
+        return;
+
+    if (emptyTitle_ && emptyDescription_) {
+        const bool walletEmpty = !transactionProxyModel || !transactionProxyModel->sourceModel()
+            || transactionProxyModel->sourceModel()->rowCount() == 0;
+        if (walletEmpty) {
+            emptyTitle_->setText(tr("No transactions yet"));
+            emptyDescription_->setText(tr("Your history will appear here after the first transfer"));
+        } else {
+            emptyTitle_->setText(tr("No matching transactions"));
+            emptyDescription_->setText(tr("Try adjusting the filters above"));
+        }
+    }
+    emptyState->raise();
 }
 
 void TransactionView::updateTableColumnWidths()
@@ -1052,6 +1067,16 @@ void TransactionView::showDetails()
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->show();
     }
+}
+
+void TransactionView::openTransaction(const QModelIndex &index)
+{
+    if (!index.isValid())
+        return;
+
+    TransactionDescDialog *dlg = new TransactionDescDialog(index, this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->show();
 }
 
 void TransactionView::openThirdPartyTxUrl(QString url)
