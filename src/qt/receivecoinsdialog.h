@@ -30,6 +30,7 @@ QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QComboBox;
 class QHBoxLayout;
+class QLabel;
 class QSortFilterProxyModel;
 QT_END_NAMESPACE
 
@@ -80,6 +81,12 @@ private:
     void copyColumnToClipboard(int column);
     RecentRequestsFilterProxy *recentRequestsProxyModel;
     void adjustTextSize(int width,int height);
+    QWidget *requestsEmptyState;
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyHint_{nullptr};
+    void updateRequestsEmptyState();
+    void applyTheme();
 private Q_SLOTS:
     void on_receiveButton_clicked();
     void on_showRequestButton_clicked();

@@ -26,6 +26,11 @@ class WalletModel;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
+class QEvent;
+class QFrame;
+class QLabel;
+class QScrollArea;
+class QVBoxLayout;
 QT_END_NAMESPACE
 
 /** Masternode Manager page widget */
@@ -45,7 +50,6 @@ private:
     QMenu* contextMenuDIP3;
     int64_t nTimeFilterUpdatedDIP3;
     int64_t nTimeUpdatedDIP3;
-    int64_t numColumn;
     bool fFilterUpdatedDIP3;
 
     QTimer* timer;
@@ -53,16 +57,43 @@ private:
     ClientModel* clientModel;
     WalletModel* walletModel;
 
-    // Protects tableWidgetMasternodesDIP3
+    // Protects the masternode card list state
     CCriticalSection cs_dip3list;
 
     QString strCurrentFilterDIP3;
 
     bool mnListChanged;
+    QWidget* emptyState;
+    QLabel* emptyIcon_{nullptr};
+    QLabel* emptyTitle_{nullptr};
+    QLabel* emptyDescription_{nullptr};
+    QScrollArea* masternodeScroll;
+    QWidget* masternodeCardsHost;
+    QVBoxLayout* masternodeCardsLayout;
+    QString selectedProTxHash;
 
     CDeterministicMNCPtr GetSelectedDIP3MN();
 
     void updateDIP3List();
+    void updateEmptyState();
+    void applyTheme();
+    void restyleMasternodeCards();
+    void selectMasternodeCard(QFrame* frame);
+    int masternodeCardCount() const;
+    QFrame* createMasternodeCard(const QString& address,
+                                 const QString& status,
+                                 int statusKind,
+                                 int poseScore,
+                                 int maxPose,
+                                 const QString& registered,
+                                 const QString& lastPaid,
+                                 const QString& nextPayment,
+                                 const QString& payout,
+                                 const QString& operatorReward,
+                                 const QString& collateral,
+                                 const QString& collateralId,
+                                 const QString& proTxHash);
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);

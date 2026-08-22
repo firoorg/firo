@@ -1,6 +1,13 @@
 <!DOCTYPE RCC><RCC version="1.0">
     <qresource prefix="/icons">
         <file alias="bitcoin">res/icons/bitcoin.png</file>
+        <file alias="sidebar_overview">res/icons/sidebar_overview.png</file>
+        <file alias="sidebar_send">res/icons/sidebar_send.png</file>
+        <file alias="sidebar_receive">res/icons/sidebar_receive.png</file>
+        <file alias="sidebar_transactions">res/icons/sidebar_transactions.png</file>
+        <file alias="sidebar_masternodes">res/icons/sidebar_masternodes.png</file>
+        <file alias="sidebar_console">res/icons/sidebar_console.png</file>
+        <file alias="sidebar_options">res/icons/sidebar_options.png</file>
         <file alias="firo_svg">res/icons/firo.svg</file>
         <file alias="address-book">res/icons/address-book.png</file>
         <file alias="quit">res/icons/quit.png</file>
@@ -136,6 +143,7 @@
         <file alias="checkbox_partly_checked_hover_light">res/images/checkbox_partly_checked_hover_light.png</file>
         <file alias="checkbox_partly_checked_disabled_light">res/images/checkbox_partly_checked_disabled_light.png</file>
         <file alias="firo_logo_toolbar">res/images/firo_logo.png</file>
+        <file alias="firo_logo_toolbar_dark">res/images/firo_logo_dark.png</file>
         <file alias="radio_normal_light">res/images/radio_normal_light.png</file>
         <file alias="radio_normal_hover_light">res/images/radio_normal_hover_light.png</file>
         <file alias="radio_checked_light">res/images/radio_checked_light.png</file>

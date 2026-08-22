@@ -65,19 +65,8 @@ QAbstractSpinBox:hover:!focus,
 QComboBox:hover:!focus,
 QPlainTextEdit:hover:!focus,
 QLineEdit:hover:!focus {
-    border: 2px solid;
-    min-height: 28px;
-    background-color: #f4f4f4;
     border-color: #7c1624;
-} 
-
-BitcoinAmountField:hover:!focus,
-QAbstractSpinBox:hover:!focus,
-QPlainTextEdit:hover:!focus,
-QLineEdit:hover:!focus {
-    padding: -1px 7px -1px 7px;
 }
-
 
 BitcoinAmountField:focus,
 QAbstractSpinBox:focus,
@@ -85,10 +74,14 @@ QComboBox:checked,
 QComboBox:focus,
 QPlainTextEdit:focus,
 QLineEdit:focus {
-    border: 2px solid;
-    padding: -1px 7px -1px 7px;
-    background-color: #d2d2d2;
     border-color: #7c1624;
+}
+
+BitcoinAmountField[invalidInput="true"],
+QAbstractSpinBox[invalidInput="true"],
+QPlainTextEdit[invalidInput="true"],
+QLineEdit[invalidInput="true"] {
+    border-color: #E5484D;
 }
 
 BitcoinAmountField:disabled,
@@ -176,85 +169,56 @@ QAbstractSpinBox::down-arrow:disabled {
 
 /* QCalendarWidget */
 
-QCalendarWidget  {
-    background-color: #cfcccc;
+QCalendarWidget {
+    background-color: #FFFFFF;
     min-height: 250px;
-}
-
-QCalendarWidget QToolButton {
-    color: #110202;
-    width: 80px;
-}
-
-#qt_calendar_calendarview {
-    border-top: 0px;
-    border-right: 1px solid #3d3939;
-    border-bottom: 1px solid #3d3939;
-    border-left: 1px solid #3d3939;
-    background-color: #cfcccc;
+    border: 1px solid #ECE8F2;
+    border-radius: 14px;
 }
 
 #qt_calendar_navigationbar {
-    background-color: #9b1c2e;
+    background-color: #99213C;
+    min-height: 42px;
+    border: none;
 }
 
-#qt_calendar_navigationbar,
-#qt_calendar_prevmonth {
-    border-left: 1px solid #3d3939;
-}
-
-#qt_calendar_navigationbar,
+#qt_calendar_prevmonth,
 #qt_calendar_nextmonth {
-    border-right: 1px solid #3d3939;
+    background-color: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    qproperty-iconSize: 14px 14px;
 }
+#qt_calendar_prevmonth { qproperty-icon: url(':/images/arrow_left_light'); }
+#qt_calendar_nextmonth { qproperty-icon: url(':/images/arrow_right_light'); }
 
-#qt_calendar_navigationbar,
-#qt_calendar_prevmonth,
-#qt_calendar_nextmonth,
 #qt_calendar_monthbutton,
 #qt_calendar_yearbutton {
-    border-top: 1px solid #3d3939;
-}
-
-#qt_calendar_prevmonth {
-    width: 80px;
-    height: 33px;
-    qproperty-icon: url(':/images/arrow_left_light');
-    qproperty-iconSize: 23px 23px;
-}
-
-#qt_calendar_nextmonth {
-    width: 80px;
-    height: 33px;
-    qproperty-icon: url(':/images/arrow_right_light');
-    qproperty-iconSize: 23px 23px;
-}
-
-QCalendarWidget,
-#qt_calendar_calendarview,
-#qt_calendar_navigationbar,
-#qt_calendar_prevmonth,
-#qt_calendar_nextmonth,
-#qt_calendar_monthbutton,
-#qt_calendar_yearbutton {
-    background-color: #f4f4f4;
-}
-
-#qt_calendar_calendarview,
-#qt_calendar_navigationbar,
-#qt_calendar_prevmonth,
-#qt_calendar_nextmonth,
-#qt_calendar_monthbutton,
-#qt_calendar_yearbutton {
-    border-color: #cfcccc;
+    background-color: transparent;
+    border: none;
+    color: #FFFFFF;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 4px 10px;
 }
 
 #qt_calendar_prevmonth:hover,
 #qt_calendar_nextmonth:hover,
 #qt_calendar_monthbutton:hover,
 #qt_calendar_yearbutton:hover {
-    background-color: #878787;
+    background-color: rgba(255,255,255,0.16);
     color: #FFFFFF;
+}
+
+#qt_calendar_calendarview {
+    background-color: #FFFFFF;
+    border: none;
+    outline: none;
+    gridline-color: transparent;
+    selection-background-color: #99213C;
+    selection-color: #FFFFFF;
 }
 
 QCalendarWidget QToolButton::menu-indicator {
@@ -262,19 +226,19 @@ QCalendarWidget QToolButton::menu-indicator {
 }
 
 QCalendarWidget QWidget {
-    alternate-background-color: #9b1c2e;
+    alternate-background-color: #FBFAFD;
     font: 12pt 'Source Sans Pro';
 }
 
 QCalendarWidget QAbstractItemView:enabled {
-    color: #110202;
-    selection-background-color: #3d3939;
+    color: #201C2E;
+    selection-background-color: #99213C;
     selection-color: #FFFFFF;
     border: 0px;
 }
 
 QCalendarWidget QAbstractItemView:disabled {
-    color: #3d3939;
+    color: #8C8993;
 }
 
 /* QCheckBox */
@@ -335,6 +299,10 @@ QCheckBox > .QLabel {
 }
 
 /* QComboBox */
+
+QComboBox {
+    combobox-popup: 0;
+}
 
 QComboBox:editable {
     border: 0px solid #f4f4f4;
@@ -434,7 +402,7 @@ QGroupBox:title {
 /* QHeaderView */
 
 QHeaderView {
-    background-color: #9b1c2e;
+    background-color: transparent;
     font: 12pt 'Source Sans Pro';
 }
 
@@ -443,18 +411,19 @@ QHeaderView::section > .QLabel {
 }
 
 QHeaderView::section {
-    qproperty-alignment: center;
+    qproperty-alignment: left;
     min-height: 25px;
     outline: 0;
     border: 0px solid;
-    padding-left: 5px;
-    padding-right: 5px;
+    padding-left: 8px;
+    padding-right: 8px;
     padding-top: 2px;
     padding-bottom: 2px;
-    background-color: #9b1c2e;
-    border-color: #f4f4f4;
-    color: #f4f4f4;
-    font: 12pt 'Source Sans Pro';
+    background-color: transparent;
+    border-color: transparent;
+    color: #A4A1AA;
+    font-size: 10pt;
+    font-weight: 700;
 }
 
 QHeaderView::section:last {
@@ -462,8 +431,8 @@ QHeaderView::section:last {
 }
 
 QHeaderView::down-arrow {
-    width: 20px;
-    height: 20px;
+    width: 12px;
+    height: 12px;
     image: url(':/images/arrow_light_down_normal');
     subcontrol-position: right center;
     subcontrol-origin: margin;
@@ -471,8 +440,8 @@ QHeaderView::down-arrow {
 }
 
 QHeaderView::up-arrow {
-    width: 20px;
-    height: 20px;
+    width: 12px;
+    height: 12px;
     image: url(':/images/arrow_light_up_normal');
     subcontrol-position: right center;
     subcontrol-origin: margin;
@@ -480,9 +449,9 @@ QHeaderView::up-arrow {
 }
 
 QHeaderView::section:hover {
-    background-color: #7c1624;
-    color: #f4f4f4;
-    font: 12pt 'Source Sans Pro';
+    background-color: #F3EEF4;
+    color: #5F5B70;
+    font-weight: 700;
 }
 
 /* QMenu */
@@ -895,37 +864,6 @@ QToolBar {
     min-height: 2em;
     background-color: #f4f4f4;
     font: 12pt 'Source Sans Pro';
-}
-
-QToolBar > QToolButton {
-    border: none;
-    min-height: 2em;
-    min-width: 6em;
-    padding: 1px;
-    text-align: center;
-    background-color: #f4f4f4;
-    color: #9b1c2e;
-    font-weight: bold;
-    font: 14pt 'Saira SemiCondensed';
-}
-
-QToolBar > QToolButton > QLabel {
-    padding: 12px;
-}
-
-QToolBar > QToolButton:hover:!checked {
-    background-color: #7c1624;
-    color: #cfcccc;
-}
-
-QToolBar > QToolButton:checked {
-    background-color: #9b1c2e;
-    color: #f4f4f4;
-}
-
-QToolBar > QToolButton:disabled {
-    background-color: #f4f4f4;
-    color: #a7a7a7;
 }
 
 QToolBar QLabel#lblToolbarLogo {

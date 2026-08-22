@@ -7,11 +7,14 @@
 #include "sendcoinsdialog.h"
 #include "addresstablemodel.h"
 
+#include "guitheme.h"
 #include "platformstyle.h"
 #include "validation.h"
 #include "sparkname.h"
 #include "compat_layer.h"
 
+#include <QDialogButtonBox>
+#include <QPushButton>
 #include <QStyle>
 #include <QMessageBox>
 #include <QDateTime>
@@ -28,6 +31,46 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->numberOfYearsEdit->setValue(1);
     ui->numberOfYearsEdit->setRange(1, 15);
     updateFee();
+
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+
+    const QString captionStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; font-weight: 700; }"));
+    for (QLabel* caption : {ui->label_6, ui->label_2, ui->label_5, ui->label_3}) {
+        caption->setStyleSheet(captionStyle);
+    }
+    ui->label->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; }")));
+    ui->label_7->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; font-weight: 700; }")));
+    ui->feeTextLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; }")));
+
+    const QString fieldStyle = GUIUtil::themed(QStringLiteral(
+        "QLineEdit, QSpinBox, QTextEdit {"
+        " background: $PANEL_SOFT;"
+        " border: 1px solid $BORDER;"
+        " border-radius: 10px;"
+        " padding: 8px 12px;"
+        " color: $INK;"
+        "}"
+        "QSpinBox QLineEdit { %1 }"
+        "QLineEdit:focus, QSpinBox:focus, QTextEdit:focus { border: 1px solid $WINE; }"))
+        .arg(GUIUtil::spinBoxInnerLineEditReset());
+    ui->sparkAddressEdit->setStyleSheet(fieldStyle);
+    ui->sparkNameEdit->setStyleSheet(fieldStyle);
+    ui->numberOfYearsEdit->setStyleSheet(fieldStyle);
+    ui->additionalInfoEdit->setStyleSheet(fieldStyle);
+
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
+    ui->generateButton->setStyleSheet(secondaryButtonStyle);
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(primaryButtonStyle);
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(secondaryButtonStyle);
 }
 
 CreateSparkNamePage::~CreateSparkNamePage()

@@ -37,9 +37,12 @@ class ModalOverlay;
 class CWallet;
 
 QT_BEGIN_NAMESPACE
+class QAbstractButton;
 class QAction;
+class QFrame;
 class QProgressBar;
 class QProgressDialog;
+class QToolButton;
 QT_END_NAMESPACE
 
 namespace GUIUtil {
@@ -120,11 +123,23 @@ private:
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
+    QAction *consoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *masternodeAction;
     QAction *logoAction;
     QToolBar *toolbar;
+    QToolButton *navigationToggleButton{nullptr};
+    bool navigationSidebarExpanded{true};
+    QFrame *navigationSyncCard{nullptr};
+    QLabel *navigationSyncLabel{nullptr};
+    QLabel *navigationSyncPercent{nullptr};
+    QProgressBar *navigationSyncProgress{nullptr};
+    QFrame *navigationThemeRow{nullptr};
+    QLabel *navigationThemeLightLabel{nullptr};
+    QLabel *navigationThemeDarkLabel{nullptr};
+    QAbstractButton *navigationThemeSwitch{nullptr};
+    QWidget *navigationSelectionHighlight{nullptr};
     QLabel *logoLabel;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -149,6 +164,12 @@ private:
     /** Create the toolbars */
     void createToolBars();
     void resizeEvent(QResizeEvent*) override;
+    void updateToolbarTabWidths();
+    void updateNavigationSidebarGeometry();
+    void toggleNavigationSidebar();
+    void updateNavigationSyncCard(const QString& status, double progress, bool visible);
+    void applyNavigationTheme();
+    void updateNavigationSelectionHighlight();
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
     /** Create system tray menu (or setup the dock menu) */

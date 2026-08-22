@@ -124,6 +124,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/coincontroltreewidget.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/csvmodelwriter.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/editaddressdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/guitheme.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/guiutil.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/intro.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/manualmintdialog.cpp

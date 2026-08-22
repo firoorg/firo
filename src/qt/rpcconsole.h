@@ -124,6 +124,7 @@ Q_SIGNALS:
     void cmdRequest(const QString &command);
 
 private:
+    void applyConsoleToolbarTheme();
     static QString FormatBytes(quint64 bytes);
     void startExecutor();
     void setTrafficGraphRange(int mins);

@@ -1,6 +1,7 @@
 #include "notifymnemonic.h"
 #include "ui_notifymnemonic.h"
 
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include "util.h"
@@ -20,8 +21,48 @@ NotifyMnemonic::NotifyMnemonic(QWidget *parent) :
         ui(new Ui::NotifyMnemonic)
 {
     ui->setupUi(this);
+    applyTheme();
     disconnect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &QDialog::reject);
     connect(QWizard::button(QWizard::CancelButton), &QAbstractButton::clicked, this, &NotifyMnemonic::cancelEvent);
+}
+
+void NotifyMnemonic::applyTheme()
+{
+    GUIUtil::loadTheme();
+
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QWizard#NotifyMnemonic { background: $BG; }
+        QWizard#NotifyMnemonic QWizardPage { background: $BG; }
+        QWizard#NotifyMnemonic QLabel { background: transparent; color: $INK; }
+        QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_FAINT; font-size: 11px; font-weight: 700; }
+        QWizard#NotifyMnemonic QLabel#errorMessage { color: #E5484D; font-weight: 700; }
+        QWizard#NotifyMnemonic QFrame#mnemonicBox {
+            background: $WINE_TINT;
+            border: 1.5px solid $WINE;
+            border-radius: 16px;
+        }
+        QWizard#NotifyMnemonic QLabel#mnemonic {
+            color: $INK;
+            font-family: 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+        }
+        QWizard#NotifyMnemonic QTextEdit {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 8px 12px;
+            color: $INK;
+        }
+    )")));
+
+    if (QAbstractButton* nextButton = QWizard::button(QWizard::NextButton))
+        nextButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    if (QAbstractButton* finishButton = QWizard::button(QWizard::FinishButton))
+        finishButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    if (QAbstractButton* backButton = QWizard::button(QWizard::BackButton))
+        backButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    if (QAbstractButton* cancelButton = QWizard::button(QWizard::CancelButton))
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 NotifyMnemonic::~NotifyMnemonic()

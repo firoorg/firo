@@ -7,6 +7,7 @@
 
 #include "bitcoinunits.h"
 #include "guiconstants.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
@@ -17,6 +18,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPixmap>
+#include <QPushButton>
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
@@ -101,6 +103,30 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
 #endif
 
     connect(ui->btnSaveAs, &QPushButton::clicked, ui->lblQRCode, &QRImageWidget::saveImage);
+    connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::accept);
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &ReceiveRequestDialog::applyTheme);
+    applyTheme();
+}
+
+void ReceiveRequestDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+    ui->lblQRCode->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: $PANEL; border: 1px solid $BORDER; border-radius: 18px; color: $INK; }")));
+    ui->outUri->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QTextEdit { background: $WINE_TINT; border: 1.5px solid $WINE; border-radius: 16px;"
+        " padding: 14px 16px; color: $INK; }")));
+
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
+    ui->btnCopyURI->setStyleSheet(secondaryButtonStyle);
+    ui->btnCopyAddress->setStyleSheet(secondaryButtonStyle);
+    ui->btnSaveAs->setStyleSheet(secondaryButtonStyle);
+    ui->closeButton->setStyleSheet(primaryButtonStyle);
+
+    update();
 }
 
 ReceiveRequestDialog::~ReceiveRequestDialog()
@@ -138,27 +164,33 @@ void ReceiveRequestDialog::update()
 
     QString uri = GUIUtil::formatBitcoinURI(info);
     ui->btnSaveAs->setEnabled(false);
-    QString html;
-    html += "<html><font face='verdana, arial, helvetica, sans-serif'>";
-    html += "<b>"+tr("Payment information")+"</b><br>";
-    html += "<b>"+tr("URI")+"</b>: ";
-    html += "<a href=\""+uri+"\">" + GUIUtil::HtmlEscape(uri) + "</a><br>";
-    html += "<b>"+tr("Address")+"</b>: " + GUIUtil::HtmlEscape(info.address) + "<br>";
-    if(info.amount)
-        html += "<b>"+tr("Amount")+"</b>: " + BitcoinUnits::formatHtmlWithUnit(model->getDisplayUnit(), info.amount) + "<br>";
-    if(!info.label.isEmpty())
-        html += "<b>"+tr("Label")+"</b>: " + GUIUtil::HtmlEscape(info.label) + "<br>";
-    if(walletModel->validateAddress(info.address))
-    {
-        html += "<b>"+tr("Address Type")+"</b>: " + tr("transparent") + "<br>";
+
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    const QString captionStyle = QStringLiteral("color:%1; font-size:11px; font-weight:700;").arg(tc.wine);
+    const QString valueStyle = QStringLiteral(
+        "color:%1; font-family:'Menlo','Courier New',monospace; font-size:12px;").arg(tc.ink);
+    const auto section = [&](const QString& caption, const QString& value) {
+        return QStringLiteral("<p style=\"margin:0 0 4px 0;\"><span style=\"%1\">%2</span></p>"
+                              "<p style=\"margin:0 0 14px 0;\"><span style=\"%3\">%4</span></p>")
+            .arg(captionStyle, caption.toUpper(), valueStyle, value);
+    };
+
+    QString html = QStringLiteral("<html><body style=\"margin:0;\">");
+    html += section(tr("Payment URI"), GUIUtil::HtmlEscape(uri));
+    html += section(tr("Address"), GUIUtil::HtmlEscape(info.address));
+    if (info.amount)
+        html += section(tr("Amount"), BitcoinUnits::formatHtmlWithUnit(model->getDisplayUnit(), info.amount));
+    if (!info.label.isEmpty())
+        html += section(tr("Label"), GUIUtil::HtmlEscape(info.label));
+    if (walletModel->validateAddress(info.address)) {
+        html += section(tr("Address Type"), tr("transparent"));
+    } else if (walletModel->validateSparkAddress(info.address)) {
+        html += section(tr("Address Type"), tr("spark"));
     }
-    else if(walletModel->validateSparkAddress(info.address))
-    {
-        html += "<b>"+tr("Address Type")+"</b>: " + tr("spark") + "<br>";
-    }
-    if(!info.message.isEmpty())
-        html += "<b>"+tr("Message")+"</b>: " + GUIUtil::HtmlEscape(info.message) + "<br>";
-    ui->outUri->setText(html);
+    if (!info.message.isEmpty())
+        html += section(tr("Message"), GUIUtil::HtmlEscape(info.message));
+    html += QStringLiteral("</body></html>");
+    ui->outUri->setHtml(html);
 
 #ifdef USE_QRCODE
     ui->lblQRCode->setText("");

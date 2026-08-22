@@ -1,6 +1,7 @@
 #include "recover.h"
 #include "ui_recover.h"
 
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include "util.h"
@@ -13,7 +14,10 @@
 
 #include <boost/filesystem.hpp>
 
+#include <QCalendarWidget>
+#include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QPushButton>
 #include <QSettings>
 #include <QMessageBox>
 
@@ -26,6 +30,7 @@ Recover::Recover(QWidget *parent) :
     GUIUtil::loadTheme();
     
     ui->setupUi(this);
+    applyTheme();
     setCreateNew();
     thread = new QThread(this);
 
@@ -34,6 +39,100 @@ Recover::Recover(QWidget *parent) :
 
     ui->dateInput->setDisplayFormat("dd-MM-yyyy");
     ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
+}
+
+void Recover::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog#Recover { background: $BG; }
+        QDialog#Recover QLabel { background: transparent; color: $INK; }
+        QDialog#Recover QLabel#errorMessage { color: #E5484D; font-weight: 700; }
+        QDialog#Recover QFrame { background: transparent; }
+        QDialog#Recover QLineEdit,
+        QDialog#Recover QDateEdit,
+        QDialog#Recover QSpinBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 8px 12px;
+            color: $INK;
+            selection-background-color: $WINE;
+        }
+        QDialog#Recover QLineEdit:focus,
+        QDialog#Recover QDateEdit:focus,
+        QDialog#Recover QSpinBox:focus {
+            border: 1px solid $WINE;
+        }
+        QDialog#Recover QLineEdit:disabled,
+        QDialog#Recover QDateEdit:disabled,
+        QDialog#Recover QSpinBox:disabled {
+            color: $INK_FAINT;
+        }
+        QDialog#Recover QRadioButton,
+        QDialog#Recover QCheckBox {
+            background: transparent;
+            color: $INK;
+        }
+        QDialog#Recover QRadioButton:disabled,
+        QDialog#Recover QCheckBox:disabled {
+            color: $INK_FAINT;
+        }
+        QDialog#Recover QRadioButton::indicator:unchecked {
+            image: url(:/images/radio_normal_light);
+        }
+        QDialog#Recover QRadioButton::indicator:checked {
+            image: url(:/images/radio_checked_light);
+        }
+        QDialog#Recover QCheckBox::indicator:unchecked {
+            image: url(:/images/checkbox_normal_light);
+        }
+        QDialog#Recover QCheckBox::indicator:checked {
+            image: url(:/images/checkbox_checked_light);
+        }
+    )")));
+
+    const QString primaryStyle = GUIUtil::primaryButtonStyle();
+    const QString secondaryStyle = GUIUtil::secondaryButtonStyle();
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
+        okButton->setStyleSheet(primaryStyle);
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(secondaryStyle);
+
+    if (QCalendarWidget* calendar = ui->dateInput->calendarWidget()) {
+        calendar->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+            QCalendarWidget { background: $PANEL; border: 1px solid $BORDER; }
+            #qt_calendar_navigationbar { background: $WINE; min-height: 42px; border: none; }
+            #qt_calendar_prevmonth, #qt_calendar_nextmonth {
+                background: transparent; border: none; width: 32px; height: 32px;
+                border-radius: 8px; qproperty-iconSize: 14px 14px;
+            }
+            #qt_calendar_monthbutton, #qt_calendar_yearbutton {
+                background: transparent; border: none; color: #FFFFFF;
+                font-weight: 700; border-radius: 8px; padding: 4px 10px;
+            }
+            #qt_calendar_prevmonth:hover, #qt_calendar_nextmonth:hover,
+            #qt_calendar_monthbutton:hover, #qt_calendar_yearbutton:hover {
+                background: rgba(255,255,255,0.16);
+            }
+            #qt_calendar_calendarview {
+                background: $PANEL; border: none; outline: none;
+                gridline-color: transparent;
+                selection-background-color: $WINE; selection-color: #FFFFFF;
+            }
+            QCalendarWidget QWidget { alternate-background-color: $PANEL_SOFT; }
+            QCalendarWidget QToolButton::menu-indicator { image: none; }
+            QCalendarWidget QAbstractItemView:enabled {
+                color: $INK; selection-background-color: $WINE; selection-color: #FFFFFF;
+            }
+            QCalendarWidget QAbstractItemView:disabled { color: $INK_FAINT; }
+            QCalendarWidget QMenu {
+                background: $PANEL; color: $INK; border: 1px solid $BORDER;
+            }
+            QCalendarWidget QSpinBox {
+                background: $PANEL; color: $INK; border: 1px solid $BORDER;
+            }
+        )")));
+    }
 }
 
 Recover::~Recover()

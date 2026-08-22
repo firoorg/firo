@@ -13,6 +13,7 @@
 
 #include "bantablemodel.h"
 #include "clientmodel.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "bantablemodel.h"
@@ -450,6 +451,10 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     connect(ui->fontSmallerButton, &QPushButton::clicked, this, &RPCConsole::fontSmaller);
     connect(ui->btnClearTrafficGraph, &QPushButton::clicked, ui->trafficGraph, &TrafficGraphWidget::clear);
 
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &RPCConsole::applyConsoleToolbarTheme);
+    applyConsoleToolbarTheme();
+
     // set library version labels
 #ifdef ENABLE_WALLET
     ui->berkeleyDBVersion->setText(DbEnv::version(0, 0, 0));
@@ -470,6 +475,20 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
 
     consoleFontSize = settings.value(fontSizeSettingsKey, QFontInfo(QFont()).pointSize()).toInt();
     clear();
+}
+
+void RPCConsole::applyConsoleToolbarTheme()
+{
+    const QString buttonStyle = GUIUtil::themed(QStringLiteral(
+        "QPushButton { background-color: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 4px; }"
+        "QPushButton:hover:enabled { background-color: $PANEL; }"
+        "QPushButton:disabled { background-color: $PANEL_SOFT; border-color: $PANEL_SOFT; }"));
+    ui->fontSmallerButton->setStyleSheet(buttonStyle);
+    ui->fontBiggerButton->setStyleSheet(buttonStyle);
+    ui->clearButton->setStyleSheet(buttonStyle);
+    ui->promptIcon->setStyleSheet(buttonStyle);
+    ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLineEdit { background-color: $PANEL_SOFT; color: $INK; border: 1px solid $BORDER; }")));
 }
 
 RPCConsole::~RPCConsole()
