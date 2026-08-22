@@ -606,29 +606,33 @@ std::string HelpExampleRpc(const std::string& methodname, const std::string& arg
 
 void RPCSetTimerInterfaceIfUnset(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     if (!timerInterface)
         timerInterface = iface;
 }
 
 void RPCSetTimerInterface(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     timerInterface = iface;
 }
 
 void RPCUnsetTimerInterface(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     if (timerInterface == iface)
         timerInterface = NULL;
 }
 
 void RPCRunLater(const std::string& name, boost::function<void(void)> func, int64_t nSeconds)
 {
-    if (!timerInterface)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "No timer handler registered for RPC");
     LOCK(cs_deadlineTimers);
+    RPCTimerInterface* iface = timerInterface;
+    if (!iface)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "No timer handler registered for RPC");
     deadlineTimers.erase(name);
-    LogPrint("rpc", "queue run of timer %s in %i seconds (using %s)\n", name, nSeconds, timerInterface->Name());
-    deadlineTimers.emplace(name, std::unique_ptr<RPCTimerBase>(timerInterface->NewTimer(func, nSeconds*1000)));
+    LogPrint("rpc", "queue run of timer %s in %i seconds (using %s)\n", name, nSeconds, iface->Name());
+    deadlineTimers.emplace(name, std::unique_ptr<RPCTimerBase>(iface->NewTimer(func, nSeconds*1000)));
 }
 
 int RPCSerializationFlags()

@@ -1583,7 +1583,6 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     }
 
     std::vector<CWalletTx> result;
-    std::vector<CMutableTransaction> txs;
     CWalletTx wtxNew;
     CMutableTransaction tx;
     wtxNew.fTimeReceivedIsTxTime = true;
@@ -2003,9 +2002,9 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         size_t nLimitDescendantSize = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000;
         std::string errString;
 
-        for (auto &tx_: txs) {
+        for (CWalletTx& wtx : result) {
             LockPoints lp;
-            CTxMemPoolEntry entry(MakeTransactionRef(tx_), 0, 0, 0, 0, false, 0, lp);
+            CTxMemPoolEntry entry(wtx.tx, 0, 0, 0, 0, false, 0, lp);
             CTxMemPool::setEntries setAncestors;
             if (!mempool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize,
                                                    nLimitDescendants, nLimitDescendantSize, errString)) {
