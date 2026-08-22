@@ -221,6 +221,7 @@ public:
     /**
      * True when the next block (chainActive.Height()+1) is at or past
      * Spark Chaum V2 activation.
+     * @return true if versioned Spark spends are allowed at the next block.
      */
     bool versionedSparkSpendsAllowed() const;
 

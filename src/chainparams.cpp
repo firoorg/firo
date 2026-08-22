@@ -1424,4 +1424,3 @@ void UpdateRegtestSparkActivationHeights(
         regTestParams.UpdateSparkChaumV2Height(*chaumV2Height);
     }
 }
-

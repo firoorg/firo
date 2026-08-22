@@ -2930,6 +2930,19 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                                 REJECT_INVALID, "bad-cb-payee");
     }
 
+    // CheckSpecialTx skips nVersion != 3. A later version with a spork type
+    // tag must still be rejected before MN-list or spork state is updated.
+    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
+        for (const CTransactionRef& tx : block.vtx) {
+            if (tx->nVersion >= 3 &&
+                    tx->nType == TRANSACTION_SPORK &&
+                    !CheckSporkTx(*tx, pindex->pprev, state)) {
+                return false;
+            }
+        }
+    }
+
     if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
@@ -3100,7 +3113,7 @@ void static RemoveConflictingSparkSpendsFromMempool(const CBlock &block) {
             if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
                 auto pTx = mempool.get(conflictingTxHash);
                 if (pTx)
-                    mempool.removeRecursive(*pTx);
+                    mempool.removeRecursive(*pTx, MemPoolRemovalReason::CONFLICT);
                 LogPrintf("ConnectBlock: removed conflicting spark spend tx %s from the mempool\n",
                           conflictingTxHash.ToString());
             }
