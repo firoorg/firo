@@ -705,7 +705,13 @@ void MasternodeList::extraInfoDIP3_clicked()
     connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     layout->addWidget(buttonBox);
 
-    const QScreen *screen = QGuiApplication::primaryScreen();
+    const QScreen *screen = this->screen();
+    if (!screen) {
+        screen = QGuiApplication::screenAt(QCursor::pos());
+    }
+    if (!screen) {
+        screen = QGuiApplication::primaryScreen();
+    }
     const QSize avail = screen ? screen->availableGeometry().size() : QSize(1200, 800);
     const int dialogWidth = qMin(640, avail.width() - 80);
     const int maxHeight = static_cast<int>(avail.height() * 0.85);
