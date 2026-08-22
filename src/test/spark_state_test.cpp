@@ -1,3 +1,4 @@
+#include "../chainparams.h"
 #include "../spark/state.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
@@ -277,15 +278,26 @@ BOOST_AUTO_TEST_CASE(mempool)
 
 BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
 {
-    struct ResetActivationHeight {
-        ~ResetActivationHeight()
+    struct RestoreActivationHeights {
+        Consensus::Params& consensus;
+        int singleInput;
+        int v2;
+        RestoreActivationHeights()
+            : consensus(const_cast<Consensus::Params&>(::Params().GetConsensus()))
+            , singleInput(consensus.nSparkSingleInputStartBlock)
+            , v2(consensus.nSparkChaumV2StartBlock)
         {
-            UpdateRegtestSparkDuplicateMintHeight(INT_MAX);
         }
-    } resetActivationHeight;
+        ~RestoreActivationHeights()
+        {
+            consensus.nSparkSingleInputStartBlock = singleInput;
+            consensus.nSparkChaumV2StartBlock = v2;
+        }
+    } restoreActivationHeights;
 
     const int activationHeight = chainActive.Height() + 2;
-    UpdateRegtestSparkDuplicateMintHeight(activationHeight);
+    UpdateRegtestSparkActivationHeights(
+        &activationHeight, &activationHeight);
 
     const spark::Coin mint = CreateCoin(spark::COIN_TYPE_MINT, 1 * COIN);
     const spark::Coin spendMint = CreateCoin(spark::COIN_TYPE_SPEND, 2 * COIN);
@@ -294,7 +306,7 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_consensus_activation)
             const std::vector<spark::Coin>& mints,
             int height,
             CValidationState& state) {
-        if (height < ::Params().GetConsensus().nSparkDuplicateMintStartBlock)
+        if (height < ::Params().GetConsensus().nSparkChaumV2StartBlock)
             return true;
         return spark::CheckSparkMintDuplicates(state, mints, height);
     };
@@ -503,6 +515,40 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     BOOST_CHECK(!sparkState->IsUsedLTag(lTag3));
 
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(disconnecting_historical_duplicate_mint_preserves_original)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> transactions;
+    const CSparkMintMeta mint = GenerateMints({COIN}, transactions).front();
+    const spark::Coin coin =
+        pwalletMain->sparkWallet->getCoinFromMeta(mint);
+    ::mempool.clear();
+
+    CBlockIndex* originalIndex = GenerateBlock({});
+    CBlock originalBlock = GetCBlock(originalIndex);
+    PopulateSparkTxInfo(originalBlock, {coin}, {});
+
+    CBlockIndex* duplicateIndex = GenerateBlock({});
+    CBlock duplicateBlock = GetCBlock(duplicateIndex);
+    PopulateSparkTxInfo(duplicateBlock, {coin}, {});
+
+    sparkState->AddMintsToStateAndBlockIndex(
+        originalIndex, &originalBlock);
+    sparkState->AddMintsToStateAndBlockIndex(
+        duplicateIndex, &duplicateBlock);
+    BOOST_REQUIRE(sparkState->HasCoin(coin));
+    BOOST_REQUIRE_EQUAL(sparkState->GetTotalCoins(), 1U);
+
+    sparkState->RemoveBlock(duplicateIndex);
+    BOOST_CHECK(sparkState->HasCoin(coin));
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), 1U);
+
+    sparkState->RemoveBlock(originalIndex);
+    BOOST_CHECK(!sparkState->HasCoin(coin));
+    BOOST_CHECK_EQUAL(sparkState->GetTotalCoins(), 0U);
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_group)

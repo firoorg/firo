@@ -279,8 +279,10 @@ struct Params {
     // Activation height for the single-input Spark spend rule.
     int nSparkSingleInputStartBlock;
 
-    // Activation height for rejecting duplicate Spark mint coins.
-    int nSparkDuplicateMintStartBlock;
+    // At and after this height, the explicitly versioned componentwise
+    // CHAUM_V2 Spark spend type is accepted, and duplicate Spark mint coins
+    // are rejected. INT_MAX is the deployment blocker.
+    int nSparkChaumV2StartBlock;
 
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer

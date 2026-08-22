@@ -44,6 +44,9 @@ enum {
     TRANSACTION_LELANTUS = 8,
     TRANSACTION_SPARK = 9,
     TRANSACTION_ALIAS = 10,
+    // Explicitly versioned, componentwise Spark Chaum proof payload. Old
+    // nodes reject this unknown type, so activation is a hard fork.
+    TRANSACTION_SPARK_V2 = 11,
 };
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
@@ -462,6 +465,8 @@ public:
 
     bool IsSparkTransaction() const;
     bool IsSparkSpend() const;
+    bool IsSparkSpendV1() const;
+    bool IsSparkSpendV2() const;
     bool IsSparkMint() const;
 
     bool HasNoRegularInputs() const;

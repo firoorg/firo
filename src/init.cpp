@@ -268,9 +268,6 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    BatchProofContainer::get_instance()->finalize();
-    BatchProofContainer::get_instance()->verify();
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -315,6 +312,8 @@ void Shutdown()
     {
         LOCK(cs_main);
         if (pcoinsTip != NULL) {
+            BatchProofContainer::get_instance()->finalize();
+            BatchProofContainer::get_instance()->verify();
             FlushStateToDisk();
         }
         delete pcoinsTip;
@@ -552,6 +551,8 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-limitdescendantcount=<n>", strprintf("Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)", DEFAULT_DESCENDANT_LIMIT));
         strUsage += HelpMessageOpt("-limitdescendantsize=<n>", strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end", "Use given start/end times for specified BIP9 deployment (regtest-only)");
+        strUsage += HelpMessageOpt("-sparksingleinputheight=<n>", "Activate single-input Spark V1 rules at height <n> (regtest-only)");
+        strUsage += HelpMessageOpt("-sparkchaumv2height=<n>", "Activate versioned Spark Chaum V2 spends at height <n> (regtest-only; must not precede the single-input height)");
     }
     const std::string debugCategories = LogInstance().LogCategoriesString(); // Don't translate category names.
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
@@ -1469,6 +1470,52 @@ bool AppInitParameterInteraction()
             if (!found) {
                 return InitError(strprintf("Invalid deployment (%s)", vDeploymentParams[0]));
             }
+        }
+    }
+    if (IsArgSet("-sparksingleinputheight") ||
+        IsArgSet("-sparkchaumv2height")) {
+        if (!chainparams.MineBlocksOnDemand()) {
+            return InitError(
+                "Spark activation heights may only be overridden on regtest.");
+        }
+
+        const auto parseActivationHeight = [](const char* argument,
+                                              int& height) {
+            int64_t parsed;
+            if (!ParseInt64(GetArg(argument, ""), &parsed) ||
+                parsed < 0 || parsed > INT_MAX) {
+                return false;
+            }
+            height = static_cast<int>(parsed);
+            return true;
+        };
+
+        try {
+            int singleInputHeight = 0;
+            int chaumV2Height = 0;
+            const int* pSingleInputHeight = nullptr;
+            const int* pChaumV2Height = nullptr;
+
+            if (IsArgSet("-sparksingleinputheight")) {
+                if (!parseActivationHeight(
+                        "-sparksingleinputheight", singleInputHeight)) {
+                    return InitError(
+                        "Invalid -sparksingleinputheight value.");
+                }
+                pSingleInputHeight = &singleInputHeight;
+            }
+            if (IsArgSet("-sparkchaumv2height")) {
+                if (!parseActivationHeight(
+                        "-sparkchaumv2height", chaumV2Height)) {
+                    return InitError(
+                        "Invalid -sparkchaumv2height value.");
+                }
+                pChaumV2Height = &chaumV2Height;
+            }
+            UpdateRegtestSparkActivationHeights(
+                pSingleInputHeight, pChaumV2Height);
+        } catch (const std::exception& e) {
+            return InitError(e.what());
         }
     }
     fSkipMnpayoutCheck = GetBoolArg("-skipmnpayoutcheck", false);

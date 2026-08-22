@@ -152,7 +152,10 @@ public:
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL,
-            CAmount additionalTxSize = 0);
+            size_t additionalTxSize = 0,
+            const uint256& extensionCommitment = uint256(),
+            int expectedNextBlockHeight = -1,
+            std::vector<CAmount>* recipientAmounts = nullptr);
 
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,
@@ -161,13 +164,15 @@ public:
             std::size_t mintNum,
             std::size_t utxoNum,
             const CCoinControl *coinControl,
+            bool useChaumV2,
             size_t additionalTxSize = 0);
 
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &nameData,
             CAmount sparkNamefee,
             CAmount &txFee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1);
 
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
@@ -198,22 +203,25 @@ private:
     // wallet-known coins are resolved by hash lookup instead of trial
     // decryption or a linear scan. Guarded by cs_spark_wallet and maintained
     // wherever coinMeta is mutated.
-    std::unordered_map<uint256, uint256> coinLookup;  // GetSparkCoinHash(meta.coin) -> lTagHash
-    std::unordered_map<uint256, uint256> nonceLookup; // GetNonceHash(meta.k) -> lTagHash
+    std::unordered_map<uint256, uint256> coinLookup GUARDED_BY(cs_spark_wallet);  // GetSparkCoinHash(meta.coin) -> lTagHash
+    std::unordered_map<uint256, uint256> nonceLookup GUARDED_BY(cs_spark_wallet); // GetNonceHash(meta.k) -> lTagHash
 
     // when true (-sparkcacheverify), every lookup index hit is cross-checked
     // against identification and rejected on divergence
     bool fCacheAudit{false};
 
-    void addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
-    void removeFromLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
+    void addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
+    void removeFromLookups(const uint256& lTagHash, const CSparkMintMeta& mint)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
     /**
      * Return the recorded meta for a wallet-known coin, or nullptr.
      * A non-null result requires full coin equality plus an equal serial
      * context, so the answer matches what identification would produce.
      * @pre cs_spark_wallet is held; the pointer is valid only under it
      */
-    const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const;
+    const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
 
     void* threadPool;
 };

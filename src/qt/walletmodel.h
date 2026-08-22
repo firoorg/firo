@@ -196,6 +196,20 @@ public:
         const QList<SendCoinsRecipient> &recipients,
         const CCoinControl *coinControl);
 
+    /**
+     * Prepare Spark spend(s) for broadcast. Before Chaum V2 activation the
+     * spend may be split into multiple single-input transactions; afterward
+     * one V2 spend is built.
+     * @param[in,out] transactions Cleared, then filled with the prepared batch
+     *     on success. On failure it is empty, except AmountWithFeeExceedsBalance
+     *     may hold a fee-only hint.
+     * @return Status of preparation; OK only if the batch is ready.
+     */
+    SendCoinsReturn prepareSpendSparkTransactions(
+        std::vector<WalletModelTransaction> &transactions,
+        const QList<SendCoinsRecipient> &recipients,
+        const CCoinControl *coinControl);
+
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
 
@@ -203,6 +217,12 @@ public:
         std::vector<WalletModelTransaction> &transactions);
 
     bool sparkNamesAllowed() const;
+
+    /**
+     * True when the next block (chainActive.Height()+1) is at or past
+     * Spark Chaum V2 activation.
+     */
+    bool versionedSparkSpendsAllowed() const;
 
     bool GetSparkNameByAddress(const QString& sparkAddress, QString& name);
 
@@ -216,7 +236,8 @@ public:
         WalletModelTransaction &transaction,
         CSparkNameTxData &sparkNameData,
         CAmount sparkNameFee,
-        const CCoinControl *coinControl);
+        const CCoinControl *coinControl,
+        int expectedNextBlockHeight);
         
     SendCoinsReturn mintSparkCoins(
         std::vector<WalletModelTransaction> &transactions,
