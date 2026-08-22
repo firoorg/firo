@@ -36,7 +36,7 @@
     <item>
      <widget class="QLabel" name="payToLabel">
       <property name="text">
-       <string>PAY TO</string>
+       <string>PAY &amp;TO</string>
       </property>
       <property name="buddy">
        <cstring>payTo</cstring>
@@ -179,7 +179,7 @@
     <item>
      <widget class="QLabel" name="labellLabel">
       <property name="text">
-       <string>LABEL</string>
+       <string>&amp;LABEL</string>
       </property>
       <property name="buddy">
        <cstring>addAsLabel</cstring>
@@ -202,7 +202,7 @@
     <item>
      <widget class="QLabel" name="amountLabel">
       <property name="text">
-       <string>AMOUNT</string>
+       <string>A&amp;MOUNT</string>
       </property>
       <property name="buddy">
        <cstring>payAmount</cstring>
@@ -224,7 +224,7 @@
          <string>The fee will be deducted from the amount being sent. The recipient will receive less firos than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
         </property>
         <property name="text">
-         <string>SUBTRACT FEE FROM AMOUNT</string>
+         <string>S&amp;UBTRACT FEE FROM AMOUNT</string>
         </property>
        </widget>
       </item>

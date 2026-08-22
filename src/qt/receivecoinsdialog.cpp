@@ -86,8 +86,8 @@ public:
             painter->drawText(icon, Qt::AlignCenter, QStringLiteral("↙"));
 
             const QString raw = index.data(Qt::DisplayRole).toString();
-            const QString dateText = raw.section(QLatin1Char(' '), 0, 0);
-            const QString timeText = raw.section(QLatin1Char(' '), 1, 1);
+            const QString dateText = raw.section(QLatin1Char(' '), 0, -2);
+            const QString timeText = raw.section(QLatin1Char(' '), -1);
             QFont dateFont = option.font;
             dateFont.setPixelSize(12);
             dateFont.setBold(true);
