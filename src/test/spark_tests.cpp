@@ -1281,9 +1281,6 @@ BOOST_AUTO_TEST_CASE(spark_duplicate_mint_policy_and_block_activation)
     sparkState->Reset();
 }
 
-    sparkState->Reset();
-}
-
 BOOST_AUTO_TEST_CASE(spark_single_input_mempool_policy)
 {
     GenerateBlocks(200);
