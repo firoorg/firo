@@ -436,13 +436,15 @@ void OverviewPage::applyOverviewTheme()
     ui->label_5->setStyleSheet(sectionTitleStyle);
     ui->label->setStyleSheet(sectionTitleStyle);
     ui->label_4->setStyleSheet(sectionTitleStyle);
+    ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; font-weight: 600; }"));
     for (QLabel* caption : {ui->labelPrivateText, ui->labelUnconfirmedPrivateText,
                             ui->labelAnonymizableText, ui->labelBalanceText,
                             ui->labelPendingText, ui->labelImmatureText,
-                            ui->labelSpendable, ui->labelWatchonly}) {
+                            ui->labelWatchAvailableText, ui->labelWatchPendingText,
+                            ui->labelWatchImmatureText, ui->labelWatchTotalText}) {
         caption->setStyleSheet(captionStyle);
     }
 
@@ -786,7 +788,8 @@ void OverviewPage::setBalance(
     // for symmetry reasons also show immature label when the watch-only one is shown
     ui->labelImmature->setVisible(showImmature || showWatchOnlyImmature);
     ui->labelImmatureText->setVisible(showImmature || showWatchOnlyImmature);
-    ui->labelWatchImmature->setVisible(showWatchOnlyImmature); // show watch-only immature balance
+    ui->labelWatchImmatureText->setVisible(showWatchOnlyImmature);
+    ui->labelWatchImmature->setVisible(showWatchOnlyImmature);
 
     updateBalanceSplitLabels();
     updatePrivateTransparentSplitBar();
@@ -851,15 +854,19 @@ void OverviewPage::updateActivityEmptyState()
 // show/hide watch-only labels
 void OverviewPage::updateWatchOnlyLabels(bool showWatchOnly)
 {
-    ui->labelSpendable->setVisible(showWatchOnly);      // show spendable label (only when watch-only is active)
-    ui->labelWatchonly->setVisible(showWatchOnly);      // show watch-only label
-    ui->lineWatchBalance->setVisible(showWatchOnly);    // show watch-only balance separator line
-    ui->labelWatchAvailable->setVisible(showWatchOnly); // show watch-only available balance
-    ui->labelWatchPending->setVisible(showWatchOnly);   // show watch-only pending balance
-    ui->labelWatchTotal->setVisible(showWatchOnly);     // show watch-only total balance
+    ui->labelWatchonly->setVisible(showWatchOnly);
+    ui->lineWatchBalance->setVisible(showWatchOnly);
+    ui->labelWatchAvailableText->setVisible(showWatchOnly);
+    ui->labelWatchAvailable->setVisible(showWatchOnly);
+    ui->labelWatchPendingText->setVisible(showWatchOnly);
+    ui->labelWatchPending->setVisible(showWatchOnly);
+    ui->labelWatchTotalText->setVisible(showWatchOnly);
+    ui->labelWatchTotal->setVisible(showWatchOnly);
 
-    if (!showWatchOnly)
+    if (!showWatchOnly) {
+        ui->labelWatchImmatureText->hide();
         ui->labelWatchImmature->hide();
+    }
 }
 
 void OverviewPage::setClientModel(ClientModel *model)
