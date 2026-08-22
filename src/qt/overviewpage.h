@@ -99,7 +99,6 @@ private:
     QProgressBar *privateSplitProgress{nullptr};
     QWidget *activityEmptyState_{nullptr};
     QLabel *networkBadge_{nullptr};
-    QLabel *fiatValue_{nullptr};
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};

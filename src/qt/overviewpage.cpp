@@ -265,10 +265,6 @@ void OverviewPage::applyOverviewRedesign()
 
     ui->labelTotalText->hide();
 
-    fiatValue_ = new QLabel(QStringLiteral("≈ $0.00 USD"), ui->balancesCard);
-    fiatValue_->setObjectName(QStringLiteral("labelFiatValue"));
-    ui->balancesCardLayout->insertWidget(2, fiatValue_);
-
     ui->privateTransparentBarLayout->setSpacing(10);
     ui->privateTransparentBarFrame->setAttribute(Qt::WA_StyledBackground, true);
     ui->privateTransparentBarFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -364,12 +360,6 @@ void OverviewPage::applyOverviewTheme()
     ui->labelTotal->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK;"
         " font-size: 31px; font-weight: 700; }")));
-
-    if (fiatValue_) {
-        fiatValue_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel#labelFiatValue { background: transparent; color: $INK_FAINT;"
-            " font-size: 10px; font-weight: 500; }")));
-    }
 
     ui->privateTransparentBarFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#privateTransparentBarFrame {"
