@@ -23,20 +23,26 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QEvent>
 #include <QFrame>
 #include <QGraphicsDropShadowEffect>
+#include <QGuiApplication>
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
-#include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
+#include <QPushButton>
+#include <QScreen>
 #include <QScrollArea>
 #include <QSizePolicy>
 #include <QStyle>
+#include <QTextDocument>
+#include <QTextEdit>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QtGui/QClipboard>
@@ -560,7 +566,7 @@ void MasternodeList::updateDIP3List()
         }
 
         const QString operatorRewardShort =
-            QString::number(dmn->nOperatorReward / 100) + QLatin1Char('%');
+            QString::number(dmn->nOperatorReward / 100.0, 'f', 2) + QLatin1Char('%');
 
         QString collateralAddr = QStringLiteral("-");
         auto collateralDestIt = mapCollateralDests.find(dmn->proTxHash);
@@ -662,11 +668,62 @@ void MasternodeList::extraInfoDIP3_clicked()
     UniValue json(UniValue::VOBJ);
     dmn->ToJson(json);
 
-    // Title of popup window
-    QString strWindowtitle = tr("Additional information for DIP3 Masternode %1").arg(QString::fromStdString(dmn->proTxHash.ToString()));
-    QString strText = QString::fromStdString(json.write(2));
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Additional information for DIP3 Masternode %1").arg(QString::fromStdString(dmn->proTxHash.ToString())));
+    dialog.setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QTextEdit#mnDetailText {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+            padding: 14px 16px;
+            color: $INK;
+            selection-background-color: $WINE_TINT;
+            selection-color: $INK;
+        }
+    )")));
 
-    QMessageBox::information(this, strWindowtitle, strText);
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(18, 18, 18, 18);
+    layout->setSpacing(14);
+
+    auto *detailText = new QTextEdit(&dialog);
+    detailText->setObjectName(QStringLiteral("mnDetailText"));
+    detailText->setReadOnly(true);
+    detailText->setFrameShape(QFrame::NoFrame);
+    QFont monoFont(QStringLiteral("monospace"));
+    monoFont.setStyleHint(QFont::Monospace);
+    detailText->setFont(monoFont);
+    detailText->setPlainText(QString::fromStdString(json.write(2)));
+    layout->addWidget(detailText);
+
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok, &dialog);
+    if (QPushButton *okButton = buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("8px 24px")));
+        okButton->setCursor(Qt::PointingHandCursor);
+    }
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(buttonBox);
+
+    const QScreen *screen = QGuiApplication::primaryScreen();
+    const QSize avail = screen ? screen->availableGeometry().size() : QSize(1200, 800);
+    const int dialogWidth = qMin(640, avail.width() - 80);
+    const int maxHeight = static_cast<int>(avail.height() * 0.85);
+
+    dialog.resize(dialogWidth, 400);
+    dialog.ensurePolished();
+    layout->activate();
+
+    const QMargins textMargins = detailText->contentsMargins();
+    QTextDocument *doc = detailText->document();
+    doc->setTextWidth(detailText->width() - textMargins.left() - textMargins.right());
+    const int contentHeight = qRound(doc->size().height()) + textMargins.top() + textMargins.bottom();
+
+    const int chrome = dialog.height() - detailText->height();
+    const int dialogHeight = qBound(280, contentHeight + chrome, maxHeight);
+    dialog.resize(dialogWidth, dialogHeight);
+
+    dialog.exec();
 }
 
 void MasternodeList::copyProTxHash_clicked()
