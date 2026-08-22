@@ -1,6 +1,7 @@
 #include "../chainparams.h"
 #include "../batchproof_container.h"
 #include "../consensus/consensus.h"
+#include "../script/sign.h"
 #include "../script/standard.h"
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
@@ -724,6 +725,178 @@ BOOST_AUTO_TEST_CASE(checktransaction)
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
 
     mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_duplicate_mint_policy_and_block_activation)
+{
+    RestoreSparkActivationHeights restoreActivationHeights;
+
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 2U);
+
+    const auto firstMintOutput = std::find_if(
+        mintTransactions[0].vout.cbegin(),
+        mintTransactions[0].vout.cend(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+    auto duplicateMintOutput = std::find_if(
+        mintTransactions[1].vout.begin(),
+        mintTransactions[1].vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+    BOOST_REQUIRE(firstMintOutput != mintTransactions[0].vout.cend());
+    BOOST_REQUIRE(duplicateMintOutput != mintTransactions[1].vout.end());
+    *duplicateMintOutput = *firstMintOutput;
+
+    // Re-sign the independently funded transaction after replacing its output.
+    for (size_t input = 0; input < mintTransactions[1].vin.size(); ++input) {
+        CTransactionRef previousTransaction;
+        uint256 previousBlock;
+        BOOST_REQUIRE(GetTransaction(
+            mintTransactions[1].vin[input].prevout.hash,
+            previousTransaction,
+            ::Params().GetConsensus(),
+            previousBlock,
+            true));
+        LOCK(pwalletMain->cs_wallet);
+        BOOST_REQUIRE(SignSignature(
+            *pwalletMain,
+            *previousTransaction,
+            mintTransactions[1],
+            input,
+            SIGHASH_ALL));
+    }
+
+    txpools.clear();
+
+    const CTransactionRef mintTx = MakeTransactionRef(mintTransactions.front());
+    const CTransactionRef crossTransactionDuplicate =
+        MakeTransactionRef(mintTransactions.back());
+    const std::vector<spark::Coin> mintCoins = GetSparkMintCoins(*mintTx);
+    const std::vector<spark::Coin> duplicateMintCoins =
+        GetSparkMintCoins(*crossTransactionDuplicate);
+    BOOST_REQUIRE_EQUAL(mintCoins.size(), 1U);
+    BOOST_REQUIRE_EQUAL(duplicateMintCoins.size(), 1U);
+    BOOST_REQUIRE(mintTx->GetHash() != crossTransactionDuplicate->GetHash());
+    BOOST_REQUIRE(
+        mintCoins.front().getHash() == duplicateMintCoins.front().getHash());
+
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            mempool, state, mintTx, false, &missingInputs));
+        BOOST_CHECK(!missingInputs);
+    }
+    BOOST_CHECK_EQUAL(mempool.size(), 1U);
+    {
+        LOCK(mempool.cs);
+        BOOST_CHECK(
+            mempool.sparkState.GetMempoolConflictingMintTxHash(mintCoins.front()) ==
+            mintTx->GetHash());
+    }
+
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            state,
+            crossTransactionDuplicate,
+            false,
+            &missingInputs));
+        int dos = -1;
+        BOOST_REQUIRE(state.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 0);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "txn-mempool-conflict");
+        BOOST_CHECK(!missingInputs);
+    }
+
+    {
+        LOCK(cs_main);
+        mempool.removeRecursive(*mintTx);
+    }
+    {
+        LOCK(mempool.cs);
+        BOOST_CHECK(!mempool.sparkState.HasMint(mintCoins.front()));
+        BOOST_CHECK(
+            mempool.sparkState.GetMempoolConflictingMintTxHash(mintCoins.front()).IsNull());
+    }
+
+    CMutableTransaction withinTransactionDuplicate(*mintTx);
+    const auto mintOutput = std::find_if(
+        withinTransactionDuplicate.vout.begin(),
+        withinTransactionDuplicate.vout.end(),
+        [](const CTxOut& output) { return output.scriptPubKey.IsSparkMint(); });
+    BOOST_REQUIRE(mintOutput != withinTransactionDuplicate.vout.end());
+    const CTxOut duplicateOutput = *mintOutput;
+    withinTransactionDuplicate.vout.push_back(duplicateOutput);
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool,
+            state,
+            MakeTransactionRef(withinTransactionDuplicate),
+            false,
+            &missingInputs));
+        int dos = -1;
+        BOOST_REQUIRE(state.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 0);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "txn-mempool-conflict");
+        BOOST_CHECK(!missingInputs);
+    }
+
+    // Removing the owner must release the mint identity for future admission.
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            mempool, state, mintTx, false, &missingInputs));
+        BOOST_CHECK(!missingInputs);
+    }
+
+    txpools.clear();
+
+    // Exercise the full block path with valid transactions on both sides of
+    // the activation boundary.
+    const int candidateHeight = chainActive.Height() + 1;
+    const CBlock duplicateBlock = CreateBlock(mintTransactions, script);
+    UpdateRegtestSparkChaumV2Height(candidateHeight + 1);
+    {
+        LOCK(cs_main);
+        CValidationState preActivationState;
+        BOOST_REQUIRE(TestBlockValidity(
+            preActivationState,
+            ::Params(),
+            duplicateBlock,
+            chainActive.Tip()));
+    }
+
+    UpdateRegtestSparkChaumV2Height(candidateHeight);
+    {
+        LOCK(cs_main);
+        CValidationState activationState;
+        BOOST_CHECK(!TestBlockValidity(
+            activationState,
+            ::Params(),
+            duplicateBlock,
+            chainActive.Tip()));
+        int dos = -1;
+        BOOST_REQUIRE(activationState.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 100);
+        BOOST_CHECK_EQUAL(
+            activationState.GetRejectReason(),
+            "bad-txns-spark-mint-duplicate");
+    }
+
+    txpools.clear();
     sparkState->Reset();
 }
 

@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <set>
+#include <unordered_set>
 
 namespace spark {
 
@@ -87,6 +88,26 @@ void CSparkVerifyDBContext::AddBlock(CBlockIndex* index)
 CSparkVerifyDBContext* CSparkVerifyDBContext::GetActive()
 {
     return activeVerifyDBContext;
+}
+
+bool CheckSparkMintDuplicates(
+        CValidationState& state,
+        const std::vector<spark::Coin>& mints,
+        int nHeight)
+{
+    std::unordered_set<uint256> blockMints;
+    for (const auto& mint : mints) {
+        const auto mintedCoinHeightAndId =
+            sparkState.GetMintedCoinHeightAndId(mint);
+        if (!blockMints.insert(mint.getHash()).second ||
+                (mintedCoinHeightAndId.first >= 0 &&
+                 mintedCoinHeightAndId.first < nHeight)) {
+            return state.DoS(100, false, REJECT_INVALID,
+                             "bad-txns-spark-mint-duplicate");
+        }
+    }
+
+    return true;
 }
 
 static bool CheckLTag(
@@ -1753,6 +1774,8 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
                         return v.second.coinGroupId == coins.first &&
                             v.second.nHeight == index->nHeight;
                     });
+            // A legacy index may contain a duplicate that never entered mintedCoins.
+            // Do not remove an older occurrence while disconnecting that block.
             if (coinIt == mintCoins.second) {
                 LogPrintf(
                     "RemoveBlock: Spark mint missing from state at height=%d group=%d\n",
@@ -1789,10 +1812,12 @@ void CSparkState::RemoveSpendFromMempool(const std::vector<GroupElement>& lTags)
     }
 }
 
-void CSparkState::AddMintsToMempool(const std::vector<spark::Coin>& coins) {
+void CSparkState::AddMintsToMempool(
+        const std::vector<spark::Coin>& coins,
+        const uint256& txHash) {
     LOCK(mempool.cs);
     for (const auto& coin : coins) {
-        mempool.sparkState.AddMintToMempool(coin);
+        mempool.sparkState.AddMintToMempool(coin, txHash);
     }
 }
 
@@ -2083,15 +2108,20 @@ size_t CSparkState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &
 
 // CSparkMempoolState
 bool CSparkMempoolState::HasMint(const spark::Coin& coin) {
-    return mempoolMints.count(coin) > 0;
+    return mempoolMints.count(coin.getHash()) > 0;
 }
 
-void CSparkMempoolState::AddMintToMempool(const spark::Coin& coin) {
-    mempoolMints.insert(coin);
+void CSparkMempoolState::AddMintToMempool(const spark::Coin& coin, const uint256& txHash) {
+    mempoolMints.emplace(coin.getHash(), txHash);
 }
 
 void CSparkMempoolState::RemoveMintFromMempool(const spark::Coin& coin) {
-    mempoolMints.erase(coin);
+    mempoolMints.erase(coin.getHash());
+}
+
+uint256 CSparkMempoolState::GetMempoolConflictingMintTxHash(const spark::Coin& coin) {
+    const auto it = mempoolMints.find(coin.getHash());
+    return it == mempoolMints.end() ? uint256() : it->second;
 }
 
 bool CSparkMempoolState::HasLTag(const GroupElement& lTag) {

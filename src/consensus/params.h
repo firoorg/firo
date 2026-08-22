@@ -280,7 +280,8 @@ struct Params {
     int nSparkSingleInputStartBlock;
 
     // At and after this height, the explicitly versioned componentwise
-    // CHAUM_V2 Spark spend type is accepted. INT_MAX is the deployment blocker.
+    // CHAUM_V2 Spark spend type is accepted, and duplicate Spark mint coins
+    // are rejected. INT_MAX is the deployment blocker.
     int nSparkChaumV2StartBlock;
 
     int nSparkNamesStartBlock;
