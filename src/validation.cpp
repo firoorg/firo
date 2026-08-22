@@ -623,7 +623,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
 
     const Consensus::Params& consensus = ::Params().GetConsensus();
     if (nHeight != INT_MAX &&
-        nTxHeight >= consensus.nSparkCoinTypeFixStartBlock &&
+        nTxHeight >= consensus.nSparkChaumV2StartBlock &&
         !HasConsistentSparkCoinTypes(tx)) {
         return state.DoS(100, false, REJECT_INVALID, "bad-spark-coin-type");
     }

@@ -732,12 +732,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
 BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
 {
-    struct ResetActivationHeight {
-        ~ResetActivationHeight()
-        {
-            UpdateRegtestSparkCoinTypeFixHeight(INT_MAX);
-        }
-    } resetActivationHeight;
+    RestoreSparkActivationHeights restoreActivationHeights;
 
     const auto makeTransaction = [](opcodetype opcode, char coinType) {
         const auto* params = Params::get_default();
@@ -814,11 +809,12 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
     BOOST_CHECK(!smintMissingInputs);
 
     const int activationHeight = chainActive.Height() + 1;
-    UpdateRegtestSparkCoinTypeFixHeight(activationHeight);
+    UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
 
     // INT_MAX is reserved for non-consensus callers. Keep that contract
     // distinct from the height-gated block rule even when the tip is active.
-    UpdateRegtestSparkCoinTypeFixHeight(chainActive.Height());
+    const int tipHeight = chainActive.Height();
+    UpdateRegtestSparkActivationHeights(&tipHeight, &tipHeight);
     CValidationState sentinelHeightState;
     BOOST_CHECK(CheckTransaction(
         CTransaction(mismatchedSMint),
@@ -827,7 +823,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
         mismatchedSMint.GetHash(),
         false,
         INT_MAX));
-    UpdateRegtestSparkCoinTypeFixHeight(activationHeight);
+    UpdateRegtestSparkActivationHeights(&activationHeight, &activationHeight);
 
     struct BlockCheckResult : public CValidationInterface {
         BlockCheckResult()
