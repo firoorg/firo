@@ -1507,7 +1507,10 @@ void CSparkState::Reset() {
     ShutdownWallet();
     coinGroups.clear();
     latestCoinId = 0;
-    mintedCoins.clear();
+    {
+        LOCK(cs_minted_coins);
+        mintedCoins.clear();
+    }
     usedLTags.clear();
     mobileUsedLTags.clear();
     mintMetaInfo.clear();
@@ -1515,6 +1518,7 @@ void CSparkState::Reset() {
 }
 
 std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coin) {
+    LOCK(cs_minted_coins);
     auto coinIt = mintedCoins.find(coin);
 
     if (coinIt != mintedCoins.end()) {
@@ -1524,11 +1528,13 @@ std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coi
 }
 
 bool CSparkState::HasCoin(const spark::Coin& coin) {
+    LOCK(cs_minted_coins);
     return mintedCoins.find(coin) != mintedCoins.end();
 
 }
 
 bool CSparkState::HasCoinHash(spark::Coin& coin, const uint256& coinHash) {
+    LOCK(cs_minted_coins);
     for (auto it = mintedCoins.begin(); it != mintedCoins.end(); ++it ){
         const spark::Coin& coin_ = (*it).first;
         if (primitives::GetSparkCoinHash(coin_) == coinHash) {
@@ -1581,6 +1587,7 @@ bool CSparkState::CanAddMintToMempool(const spark::Coin& coin){
 bool CSparkState::AddMint(
         const spark::Coin& coin,
         const CMintedCoinInfo& coinInfo) {
+    LOCK(cs_minted_coins);
     const auto inserted = mintedCoins.emplace(coin, coinInfo).second;
     if (inserted) {
         mintMetaInfo[coinInfo.coinGroupId] += 1;
@@ -1588,12 +1595,26 @@ bool CSparkState::AddMint(
     return inserted;
 }
 
-void CSparkState::RemoveMint(const spark::Coin& coin) {
+bool CSparkState::RemoveMint(
+        const spark::Coin& coin,
+        int expectedGroupId,
+        int expectedHeight) {
+    LOCK(cs_minted_coins);
+
     auto iter = mintedCoins.find(coin);
-    if (iter != mintedCoins.end()) {
-        mintMetaInfo[iter->second.coinGroupId] -= 1;
-        mintedCoins.erase(iter);
+    if (iter == mintedCoins.end() ||
+            iter->second.coinGroupId != expectedGroupId ||
+            iter->second.nHeight != expectedHeight) {
+        return false;
     }
+
+    auto metaIt = mintMetaInfo.find(expectedGroupId);
+    if (metaIt != mintMetaInfo.end() && metaIt->second > 0) {
+        --metaIt->second;
+    }
+
+    mintedCoins.erase(iter);
+    return true;
 }
 
 void CSparkState::AddMintsToStateAndBlockIndex(
@@ -1767,23 +1788,9 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
     // roll back mints
     for (auto const&coins : index->sparkMintedCoins) {
         for (auto const& coin : coins.second) {
-            auto mintCoins = GetMints().equal_range(coin);
-            auto coinIt = find_if(
-                    mintCoins.first, mintCoins.second,
-                    [&coins, index](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
-                        return v.second.coinGroupId == coins.first &&
-                            v.second.nHeight == index->nHeight;
-                    });
-            // A legacy index may contain a duplicate that never entered mintedCoins.
-            // Do not remove an older occurrence while disconnecting that block.
-            if (coinIt == mintCoins.second) {
-                LogPrintf(
-                    "RemoveBlock: Spark mint missing from state at height=%d group=%d\n",
-                    index->nHeight,
-                    coins.first);
-                continue;
-            }
-            RemoveMint(coinIt->first);
+            // A legacy index may contain a duplicate that never entered
+            // mintedCoins. Height/group must match so an older occurrence stays.
+            RemoveMint(coin, coins.first, index->nHeight);
         }
     }
 
@@ -2056,9 +2063,16 @@ void CSparkState::GetCoinsForRecovery(
     }
 }
 
-std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSparkState::GetMints() const {
+std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> CSparkState::GetMints() const {
+    LOCK(cs_minted_coins);
     return mintedCoins;
 }
+
+std::size_t CSparkState::GetTotalCoins() const {
+    LOCK(cs_minted_coins);
+    return mintedCoins.size();
+}
+
 std::unordered_map<GroupElement, int, spark::CLTagHash> const & CSparkState::GetSpends() const {
     return usedLTags;
 }
