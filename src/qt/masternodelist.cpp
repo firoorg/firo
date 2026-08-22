@@ -31,6 +31,7 @@
 #include <QGuiApplication>
 #include <QHeaderView>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLocale>
 #include <QMouseEvent>
@@ -425,10 +426,11 @@ void MasternodeList::setWalletModel(WalletModel* model)
     this->walletModel = model;
 }
 
-void MasternodeList::showContextMenuDIP3(const QPoint&)
+void MasternodeList::showContextMenuDIP3(const QPoint& globalPos)
 {
-    if (!selectedProTxHash.isEmpty())
-        contextMenuDIP3->exec(QCursor::pos());
+    if (selectedProTxHash.isEmpty())
+        return;
+    contextMenuDIP3->exec(globalPos.isNull() ? QCursor::pos() : globalPos);
 }
 
 void MasternodeList::handleMasternodeListChanged()
@@ -592,8 +594,11 @@ void MasternodeList::updateDIP3List()
                 status + QLatin1Char(' ') +
                 QString::number(dmn->pdmnState->nPoSePenalty) + QLatin1Char(' ') +
                 registered + QLatin1Char(' ') +
+                QString::number(dmn->pdmnState->nRegisteredHeight) + QLatin1Char(' ') +
                 lastPaid + QLatin1Char(' ') +
+                (lastPaidNone ? QString() : QString::number(dmn->pdmnState->nLastPaidHeight)) + QLatin1Char(' ') +
                 nextPayment + QLatin1Char(' ') +
+                (nextUnknown ? QString() : QString::number(nextPaymentIt->second)) + QLatin1Char(' ') +
                 payeeStr + QLatin1Char(' ') +
                 operatorRewardShort + QLatin1Char(' ') +
                 collateralAddr + QLatin1Char(' ') +
@@ -812,6 +817,7 @@ QFrame* MasternodeList::createMasternodeCard(const QString& address,
     frame->setObjectName(QStringLiteral("masternodeCard"));
     frame->setAttribute(Qt::WA_StyledBackground, true);
     frame->setCursor(Qt::PointingHandCursor);
+    frame->setFocusPolicy(Qt::StrongFocus);
     frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     frame->setMinimumHeight(126);
     frame->setProperty("proTxHash", proTxHash);
@@ -944,12 +950,27 @@ bool MasternodeList::eventFilter(QObject* watched, QEvent* event)
             auto* me = static_cast<QMouseEvent*>(event);
             selectMasternodeCard(card);
             if (me->button() == Qt::RightButton) {
-                showContextMenuDIP3(me->pos());
+                showContextMenuDIP3(me->globalPosition().toPoint());
                 return true;
             }
         } else if (event->type() == QEvent::MouseButtonDblClick) {
             extraInfoDIP3_clicked();
             return true;
+        } else if (event->type() == QEvent::FocusIn) {
+            selectMasternodeCard(card);
+        } else if (event->type() == QEvent::KeyPress) {
+            auto* ke = static_cast<QKeyEvent*>(event);
+            if (ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) {
+                selectMasternodeCard(card);
+                extraInfoDIP3_clicked();
+                return true;
+            }
+            if (ke->key() == Qt::Key_Menu ||
+                (ke->key() == Qt::Key_F10 && ke->modifiers() == Qt::ShiftModifier)) {
+                selectMasternodeCard(card);
+                showContextMenuDIP3(card->mapToGlobal(card->rect().center()));
+                return true;
+            }
         }
     }
 
