@@ -34,7 +34,11 @@ static std::string rpcWarmupStatus("RPC server started");
 static CCriticalSection cs_rpcWarmup;
 /* Timer-creating functions */
 static RPCTimerInterface* timerInterface = NULL;
-/* Map of name to timer. */
+/* Map of name to timer, and the lock protecting it. Callers may run on any of
+ * the RPC worker threads, so every access has to be serialized. The lock is
+ * held while a timer is destroyed, which blocks until a running timer callback
+ * has returned, so no timer callback may acquire it. */
+static CCriticalSection cs_deadlineTimers;
 static std::map<std::string, std::unique_ptr<RPCTimerBase> > deadlineTimers;
 
 static struct CRPCSignals
@@ -408,7 +412,10 @@ void InterruptRPC()
 void StopRPC()
 {
     LogPrint("rpc", "Stopping RPC\n");
-    deadlineTimers.clear();
+    {
+        LOCK(cs_deadlineTimers);
+        deadlineTimers.clear();
+    }
     DeleteAuthCookie();
     g_rpcSignals.Stopped();
 }
@@ -599,28 +606,33 @@ std::string HelpExampleRpc(const std::string& methodname, const std::string& arg
 
 void RPCSetTimerInterfaceIfUnset(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     if (!timerInterface)
         timerInterface = iface;
 }
 
 void RPCSetTimerInterface(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     timerInterface = iface;
 }
 
 void RPCUnsetTimerInterface(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     if (timerInterface == iface)
         timerInterface = NULL;
 }
 
 void RPCRunLater(const std::string& name, boost::function<void(void)> func, int64_t nSeconds)
 {
-    if (!timerInterface)
+    LOCK(cs_deadlineTimers);
+    RPCTimerInterface* iface = timerInterface;
+    if (!iface)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No timer handler registered for RPC");
     deadlineTimers.erase(name);
-    LogPrint("rpc", "queue run of timer %s in %i seconds (using %s)\n", name, nSeconds, timerInterface->Name());
-    deadlineTimers.emplace(name, std::unique_ptr<RPCTimerBase>(timerInterface->NewTimer(func, nSeconds*1000)));
+    LogPrint("rpc", "queue run of timer %s in %i seconds (using %s)\n", name, nSeconds, iface->Name());
+    deadlineTimers.emplace(name, std::unique_ptr<RPCTimerBase>(iface->NewTimer(func, nSeconds*1000)));
 }
 
 int RPCSerializationFlags()

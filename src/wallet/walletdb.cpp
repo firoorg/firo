@@ -1424,6 +1424,11 @@ bool CWalletDB::ReadSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& o
     return Read(std::make_pair(std::string("sparkOutputTx"), scriptPubKey), output);
 }
 
+bool CWalletDB::EraseSparkOutputTx(const CScript& scriptPubKey)
+{
+    return Erase(std::make_pair(std::string("sparkOutputTx"), scriptPubKey));
+}
+
 bool CWalletDB::WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint)
 {
     return Write(std::make_pair(std::string("sparkMint"), lTagHash), mint);

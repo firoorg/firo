@@ -109,19 +109,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
         } else if (tx.IsSparkSpend()) {
             in.push_back("sparkSpend");
             fillStdFields(in, txin);
-            std::unique_ptr<spark::SpendTransaction> sparkSpend;
             try {
-                sparkSpend = std::make_unique<spark::SpendTransaction>(spark::ParseSparkSpend(tx));
+                spark::SpendTransaction sparkSpend = spark::ParseSparkSpend(tx);
+                const uint64_t fee = sparkSpend.getFee();
+                if (fee > static_cast<uint64_t>(MAX_MONEY)) {
+                    throw std::invalid_argument("Spark spend fee is out of range");
+                }
+                in.push_back(Pair("nFees", ValueFromAmount(static_cast<CAmount>(fee))));
+                UniValue lTags(UniValue::VARR);
+                for (GroupElement const & lTag : sparkSpend.getUsedLTags()) {
+                    lTags.push_back(lTag.GetHex());
+                }
+                in.push_back(Pair("lTags", lTags));
+            } catch (const std::exception &) {
+                // Leave Spark metadata unset and still emit this vin entry.
             }
-            catch (const std::exception &) {
-                continue;
-            }
-            in.push_back(Pair("nFees", ValueFromAmount(sparkSpend->getFee())));
-            UniValue lTags(UniValue::VARR);
-            for (GroupElement const & lTag : sparkSpend->getUsedLTags()) {
-                lTags.push_back(lTag.GetHex());
-            }
-            in.push_back(Pair("lTags", lTags));
         } else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
@@ -229,6 +231,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
                 entry.push_back(Pair("lelantusData", HexStr(tx.vExtraPayload)));
                 break;
             case TRANSACTION_SPARK:
+            case TRANSACTION_SPARK_V2:
                 entry.push_back(Pair("sparkData", HexStr(tx.vExtraPayload)));
                 break;
             default:

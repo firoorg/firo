@@ -161,55 +161,6 @@ bool SendCoinsEntry::applyPaymentURI(const QString& uri)
     return true;
 }
 
-void SendCoinsEntry::clearRosenBridgeData()
-{
-    if (recipient.opReturnData.empty()) {
-        return;
-    }
-
-    recipient.opReturnData.clear();
-    updateRosenBridgeDisplay();
-    Q_EMIT rosenBridgeChanged();
-}
-
-void SendCoinsEntry::updateRosenBridgeDisplay()
-{
-    RosenBridge::Metadata metadata;
-    const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
-
-    const bool subtractFeeAllowed = !fAnonymousMode && !valid;
-
-    ui->rosenBridgeLabel->setVisible(valid);
-    ui->rosenBridgeDetails->setVisible(valid);
-    ui->payAmount->setReadOnly(valid);
-
-    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
-    if (!subtractFeeAllowed) {
-        ui->checkboxSubtractFeeFromAmount->setChecked(false);
-    }
-
-    if (!valid) {
-        ui->rosenBridgeDetails->clear();
-        ui->rosenBridgeDetails->setToolTip(QString());
-        ui->rosenBridgeDetails->setStyleSheet(QString());
-        return;
-    }
-
-    QString details = tr("Metadata: %1 bytes\n").arg(static_cast<qulonglong>(recipient.opReturnData.size()));
-    details += RosenBridge::FormatDetails(metadata);
-    details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
-
-    if (fAnonymousMode) {
-        details.prepend(tr("Switch to Transparent Balance to send this Rosen Bridge transfer.\n"));
-        ui->rosenBridgeDetails->setStyleSheet(QStringLiteral("color: #aa0000;"));
-    } else {
-        ui->rosenBridgeDetails->setStyleSheet(QString());
-    }
-
-    ui->rosenBridgeDetails->setText(details);
-    ui->rosenBridgeDetails->setToolTip(tr("This transaction includes Rosen Bridge OP_RETURN metadata."));
-}
-
 void SendCoinsEntry::setModel(WalletModel *_model)
 {
     this->model = _model;
@@ -418,6 +369,56 @@ bool SendCoinsEntry::hasRosenBridgeData() const
     return !recipient.opReturnData.empty();
 }
 
+void SendCoinsEntry::clearRosenBridgeData()
+{
+    if (recipient.opReturnData.empty()) {
+        return;
+    }
+
+    recipient.opReturnData.clear();
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
+}
+
+void SendCoinsEntry::updateRosenBridgeDisplay()
+{
+    RosenBridge::Metadata metadata;
+    const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
+
+    const bool subtractFeeAllowed =
+        (!fAnonymousMode || (model && model->versionedSparkSpendsAllowed())) && !valid;
+
+    ui->rosenBridgeLabel->setVisible(valid);
+    ui->rosenBridgeDetails->setVisible(valid);
+    ui->payAmount->setReadOnly(valid);
+
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
+    if (!subtractFeeAllowed) {
+        ui->checkboxSubtractFeeFromAmount->setChecked(false);
+    }
+
+    if (!valid) {
+        ui->rosenBridgeDetails->clear();
+        ui->rosenBridgeDetails->setToolTip(QString());
+        ui->rosenBridgeDetails->setStyleSheet(QString());
+        return;
+    }
+
+    QString details = tr("Metadata: %1 bytes\n").arg(static_cast<qulonglong>(recipient.opReturnData.size()));
+    details += RosenBridge::FormatDetails(metadata);
+    details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
+
+    if (fAnonymousMode) {
+        details.prepend(tr("Switch to Transparent Balance to send this Rosen Bridge transfer.\n"));
+        ui->rosenBridgeDetails->setStyleSheet(QStringLiteral("color: #aa0000;"));
+    } else {
+        ui->rosenBridgeDetails->setStyleSheet(QString());
+    }
+
+    ui->rosenBridgeDetails->setText(details);
+    ui->rosenBridgeDetails->setToolTip(tr("This transaction includes Rosen Bridge OP_RETURN metadata."));
+}
+
 bool SendCoinsEntry::isPayToPcode() const
 {
     return isPcodeEntry;
@@ -427,13 +428,13 @@ void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
 {
     this->fAnonymousMode = fAnonymousMode;
 
-    // A Spark spend may need more than one transaction, and the fee cannot then be
-    // taken out of a single recipient's amount. prepareSpendSparkTransactionsSingleInput
-    // rejects the flag, so take the checkbox away rather than failing at send time.
-    if (fAnonymousMode) {
+    const bool subtractFeeSupported =
+        !fAnonymousMode ||
+        (model && model->versionedSparkSpendsAllowed());
+    if (!subtractFeeSupported) {
         ui->checkboxSubtractFeeFromAmount->setCheckState(Qt::Unchecked);
     }
-    ui->checkboxSubtractFeeFromAmount->setEnabled(!fAnonymousMode);
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeSupported);
 
     updateRosenBridgeDisplay();
 }

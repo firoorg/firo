@@ -234,8 +234,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             } else if (wtx.tx->IsSparkSpend()) {
                 CAmount fee = 0;
                 try {
-                    spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
-                    fee = spend.getFee();
+                    fee = spark::GetSparkSpendFee(*wtx.tx);
                 } catch (...) {
                 }
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::SpendSparkToSelf, "",
@@ -256,7 +255,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
             if (wtx.tx->IsSparkSpend() && wtx.tx->vin.size() > 0) {
                 try {
-                    nTxFee = spark::ParseSparkSpend(*wtx.tx).getFee();
+                    nTxFee = spark::GetSparkSpendFee(*wtx.tx);
                 }
                 catch (...) {
                     //do nothing
