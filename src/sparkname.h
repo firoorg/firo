@@ -125,9 +125,27 @@ public:
 
     // Parse spark name transaction data from the transaction. Sets fCriticalError to false if there is no name data found
     // but the transaction is otherwise valid. Returns true if the transaction is a valid spark name transaction.
-    static bool ParseSparkNameTxData(const CTransaction &tx, spark::SpendTransaction &sparkTx, CSparkNameTxData &sparkNameData, size_t &sparkNameDataPos);
+    static bool ParseSparkNameTxData(
+        const CTransaction &tx,
+        spark::SpendTransaction &sparkTx,
+        CSparkNameTxData &sparkNameData,
+        size_t &sparkNameDataPos,
+        bool requireCanonicalExtension = false);
 
-    bool CheckSparkNameTx(const CTransaction &tx, int nHeight, CValidationState &state, CSparkNameTxData *outSparkNameData = nullptr);
+    // V2 maps the transaction digest into the scalar field deterministically,
+    // so ownership-proof construction never mutates already-committed name
+    // metadata to retry an out-of-range digest. V1 retains deployed SetHex
+    // semantics for historical validation.
+    static spark::Scalar GetSparkNameOwnershipMessage(
+        const uint256& digest,
+        bool useChaumV2);
+
+    bool CheckSparkNameTx(
+        const CTransaction &tx,
+        int nHeight,
+        CValidationState &state,
+        CSparkNameTxData *outSparkNameData = nullptr,
+        int nContextualFailureDoS = 100);
 
     // test if the spark name is valid
     static bool IsSparkNameValid(const std::string &name);
@@ -175,6 +193,14 @@ public:
     // get the size of the spark name transaction metadata
     size_t GetSparkNameTxDataSize(const CSparkNameTxData &sparkNameData);
 
+    // Populate height-dependent fields before a Spark V2 spend commits to
+    // the canonical name extension.
+    void PrepareSparkNameTxData(CSparkNameTxData &sparkNameData, int nHeight);
+
+    // The V2 spend proof commits to name semantics without the ownership
+    // proofs, which are produced only after the spend itself exists.
+    static uint256 GetSparkNameCommitment(const CSparkNameTxData &sparkNameData);
+
     // fill missing CSparkNameTxData fields and append spark name tx data to the transaction
     void AppendSparkNameTxData(CMutableTransaction &txSparkSpend, CSparkNameTxData &sparkNameData, const spark::SpendKey &spendKey, const spark::IncomingViewKey &incomingViewKey, int nHeight);
 
@@ -194,8 +220,13 @@ public:
 
     std::map<std::string, CSparkNameBlockIndexData> RemoveSparkNamesLosingValidity(int nHeight);
 
-    bool AddBlock(CBlockIndex *pindex, bool fBackupRewrittenEntries = false);
-    bool RemoveBlock(CBlockIndex *pindex);
+    bool AddBlock(
+        CBlockIndex *pindex,
+        bool fBackupRewrittenEntries = false,
+        bool notify = true);
+    bool RemoveBlock(CBlockIndex *pindex, bool notify = true);
+
+    void CopyFrom(const CSparkNameManager& other);
 
     static std::string ToUpper(const std::string &sparkName);
 

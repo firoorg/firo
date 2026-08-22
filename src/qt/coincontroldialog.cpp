@@ -7,6 +7,7 @@
 
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "chainparams.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -45,24 +46,48 @@ std::size_t CoinControlDialog::extraOutputBytes = 0;
 unsigned int CoinControlDialog::estimateSparkTxBytes(
     size_t selectedInputs,
     size_t privateOutputs,
-    size_t transparentOutputs)
+    size_t transparentOutputs,
+    bool versionedSpend)
 {
+    constexpr uint64_t maxSize =
+        std::numeric_limits<unsigned int>::max();
+    const auto saturatingAdd = [](uint64_t left, uint64_t right) {
+        return right > maxSize - left ? maxSize : left + right;
+    };
+    const auto saturatingMultiply = [](uint64_t left, uint64_t right) {
+        return left != 0 && right > maxSize / left
+            ? maxSize
+            : left * right;
+    };
+
+    uint64_t estimatedSize;
     if (selectedInputs == 1) {
-        return spark::EstimateSingleInputSparkSize(
+        estimatedSize = spark::EstimateSingleInputSparkSize(
             privateOutputs,
             transparentOutputs);
+    } else {
+        estimatedSize = 924;
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(1803, selectedInputs));
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(
+                322,
+                saturatingAdd(privateOutputs, 1)));
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(34, transparentOutputs));
     }
-
-    // Multi-coin Spark selections are rejected before construction. Keep an
-    // approximate display for that invalid state; the supported one-coin case
-    // above uses the batch planner's exact size.
-    const uint64_t estimatedSize = 924ULL
-        + 1803ULL * static_cast<uint64_t>(selectedInputs)
-        + 322ULL * (static_cast<uint64_t>(privateOutputs) + 1)
-        + 34ULL * static_cast<uint64_t>(transparentOutputs);
-    return static_cast<unsigned int>(std::min<uint64_t>(
-        estimatedSize,
-        std::numeric_limits<unsigned int>::max()));
+    if (versionedSpend) {
+        estimatedSize = saturatingAdd(estimatedSize, 32);
+        if (selectedInputs > 1) {
+            estimatedSize = saturatingAdd(
+                estimatedSize,
+                saturatingMultiply(98, selectedInputs - 1));
+        }
+    }
+    return static_cast<unsigned int>(estimatedSize);
 }
 
 bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
@@ -584,10 +609,17 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
                     [](const PayAmount& payment) { return payment.isPrivate; });
                 const size_t transparentOutputs =
                     static_cast<size_t>(CoinControlDialog::payAmounts.size()) - privateOutputs;
+                bool versionedSpend;
+                {
+                    LOCK(cs_main);
+                    versionedSpend = chainActive.Height() + 1 >=
+                        Params().GetConsensus().nSparkChaumV2StartBlock;
+                }
                 nBytes = estimateSparkTxBytes(
                     nQuantity,
                     privateOutputs,
-                    transparentOutputs);
+                    transparentOutputs,
+                    versionedSpend);
             } else {
                 // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
                 // 83 assuming 1 jmint, 34 is the size of each normal vout,  10 is the size of empty transaction, 52 other constant parts

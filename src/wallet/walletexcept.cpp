@@ -31,6 +31,11 @@ InsufficientFunds::InsufficientFunds(const std::string& what) : WalletError(what
 {
 }
 
+InsufficientFunds::InsufficientFunds(CAmount requiredFee)
+    : WalletError(_("Insufficient funds")), nRequiredFee(requiredFee)
+{
+}
+
 // SparkFundsFragmented
 
 SparkFundsFragmented::SparkFundsFragmented() : WalletError(_(
