@@ -30,6 +30,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QLocale>
 #include <QMenu>
 #include <QPoint>
 #include <QScrollBar>
@@ -118,7 +119,7 @@ public:
             const QRect dateRect(icon.right() + 10, option.rect.top() + 14,
                                  option.rect.right() - icon.right() - 30, 18);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              dt.isValid() ? dt.toString(QStringLiteral("dd.MM.yy"))
+                              dt.isValid() ? QLocale::system().toString(dt.date(), QLocale::ShortFormat)
                                            : index.data(Qt::DisplayRole).toString());
 
             QFont timeFont = option.font;
@@ -128,7 +129,7 @@ public:
             painter->setPen(QColor(tc.inkFaint));
             const QRect timeRect(dateRect.left(), dateRect.bottom() - 2, dateRect.width(), 16);
             painter->drawText(timeRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              dt.isValid() ? dt.toString(QStringLiteral("HH:mm")) : QString());
+                              dt.isValid() ? QLocale::system().toString(dt.time(), QLocale::ShortFormat) : QString());
 
             const QRect statusRect(option.rect.right() - 22, option.rect.center().y() - 8, 16, 16);
             paintStatusIcon(painter, index, statusRect);

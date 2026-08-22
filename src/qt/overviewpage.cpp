@@ -39,6 +39,7 @@
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
@@ -126,7 +127,7 @@ public:
         painter->setPen(QColor(tc.ink));
         const QRect dateRect(textLeft, card.top() + 12, card.width() - textLeft - amountWidth - 16, 16);
         painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
-                          date.isValid() ? date.toString(QStringLiteral("dd.MM.yy HH:mm"))
+                          date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
                                          : GUIUtil::dateTimeStr(date));
 
         QFont addrFont = dateFont;
@@ -815,18 +816,20 @@ void OverviewPage::updateBalanceSplitLabels()
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     ui->labelTransparentSplit->setText(
         QStringLiteral("<span style=\"color:%3\">●</span>&nbsp; "
-                       "<span style=\"color:%4\">Transparent</span> "
+                       "<span style=\"color:%4\">%6</span> "
                        "<span style=\"color:%5; font-weight:700\">%1 (%2%)</span>")
             .arg(BitcoinUnits::formatWithUnit(unit, transparentTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(100 - privatePercent)
-            .arg(tc.border, tc.inkSoft, tc.ink));
+            .arg(tc.border, tc.inkSoft, tc.ink)
+            .arg(tr("Transparent")));
     ui->labelPrivateSplit->setText(
         QStringLiteral("<span style=\"color:%3\">●</span>&nbsp; "
-                       "<span style=\"color:%4\">Private</span> "
+                       "<span style=\"color:%4\">%6</span> "
                        "<span style=\"color:%5; font-weight:700\">%1 (%2%)</span>")
             .arg(BitcoinUnits::formatWithUnit(unit, privateTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(privatePercent)
-            .arg(tc.teal, tc.inkSoft, tc.ink));
+            .arg(tc.teal, tc.inkSoft, tc.ink)
+            .arg(tr("Private")));
 }
 
 void OverviewPage::updatePrivateTransparentSplitBar()

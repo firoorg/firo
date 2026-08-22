@@ -383,6 +383,10 @@ void MasternodeList::restyleMasternodeCards()
         card->style()->unpolish(card);
         card->style()->polish(card);
 
+        if (auto* icon = card->findChild<QLabel*>(QStringLiteral("cardIcon"))) {
+            icon->setPixmap(masternodeGlyph());
+        }
+
         const int statusKind = card->property("statusKind").toInt();
         QString badgeBg = tc.tealTint;
         QString badgeFg = tc.teal;
@@ -515,7 +519,7 @@ void MasternodeList::updateDIP3List()
 
     auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
     std::map<uint256, int> nextPayments;
-    for (size_t i = 0; i < projectedPayees.size(); i++) {
+    for (size_t i = 0; i < projectedPayees.size(); ++i) {
         const auto& dmn = projectedPayees[i];
         nextPayments.emplace(dmn->proTxHash, mnList.GetHeight() + (int)i + 1);
     }
@@ -632,7 +636,7 @@ void MasternodeList::updateDIP3List()
     ui->countLabelDIP3->setText(QString::number(shown));
     if (restoreSelection)
         selectMasternodeCard(restoreSelection);
-    else if (shown == 0)
+    else
         selectedProTxHash.clear();
     updateEmptyState();
 }
@@ -833,6 +837,7 @@ QFrame* MasternodeList::createMasternodeCard(const QString& address,
     header->setSpacing(12);
 
     auto* icon = new QLabel(frame);
+    icon->setObjectName(QStringLiteral("cardIcon"));
     icon->setFixedSize(36, 36);
     icon->setPixmap(masternodeGlyph());
     icon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
