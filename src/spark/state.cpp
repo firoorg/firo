@@ -22,7 +22,7 @@ struct ProofCheckState {
 };
 
 // Bound the mempool-acceptance proof cache. Without a cap, peers can relay many
-// distinct spends that parse and fail verification, each leaving a permanent
+// distinct spends that parse and pass verification, each leaving a permanent
 // uint256 entry. DisconnectTipSpark clears on reorg; successful entries are also
 // removed when the mempool drops the transaction.
 static constexpr size_t MAX_CHECKED_SPARK_SPEND_TRANSACTIONS = 10000;
@@ -820,11 +820,13 @@ bool CheckSparkSpendTransaction(
                     ? spark::SpendTransaction::verify(*spend, cover_sets)
                     : spark::SpendTransaction::verifyHistorical(
                         *spend, cover_sets);
-                ProofCheckState newState;
-                newState.fChecked = true;
-                newState.fResult = passVerify;
-                LOCK(cs_checkedSparkSpendTransactions);
-                gCheckedSparkSpendTransactions.insert(hashTx, newState);
+                if (passVerify) {
+                    ProofCheckState newState;
+                    newState.fChecked = true;
+                    newState.fResult = true;
+                    LOCK(cs_checkedSparkSpendTransactions);
+                    gCheckedSparkSpendTransactions.insert(hashTx, newState);
+                }
             }
             else {
                 // we need the answer now, so verify and execute

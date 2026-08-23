@@ -1054,6 +1054,63 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_failed_proof_is_not_cached)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+    mempool.clear();
+
+    // Change the public output without updating the proof transcript. The
+    // transaction remains well formed, but its proof must return false.
+    CMutableTransaction invalidSpend(spend);
+    bool changedOutput = false;
+    for (CTxOut& output : invalidSpend.vout) {
+        if (!output.scriptPubKey.IsSparkSMint()) {
+            ++output.nValue;
+            changedOutput = true;
+            break;
+        }
+    }
+    BOOST_REQUIRE(changedOutput);
+    const CTransaction invalidTx(invalidSpend);
+
+    CValidationState firstState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        invalidTx,
+        firstState,
+        invalidTx.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_CHECK(firstState.IsValid());
+
+    // A negative cache entry used to turn this second proof failure into a
+    // punitive "previously checked and failed" rejection.
+    CValidationState secondState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        invalidTx,
+        secondState,
+        invalidTx.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_CHECK(secondState.IsValid());
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(coingroup)
 {
     GenerateBlocks(500);
