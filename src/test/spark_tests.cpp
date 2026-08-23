@@ -2285,9 +2285,8 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         }
     } reset{batch};
 
-    // Stay below regtest nSparkSingleInputStartBlock (500) and
-    // nSparkChaumV2StartBlock (700) so historical multi-input spends
-    // and 32-bit group-id aliases remain consensus-valid.
+    // Stay below regtest nSparkSingleInputStartBlock (500) so historical
+    // multi-input spends remain consensus-valid for the first check.
     GenerateBlocks(200);
 
     std::vector<CMutableTransaction> mintTransactions;
