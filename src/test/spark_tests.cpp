@@ -2281,6 +2281,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
             batch->init();
         }
     } reset{batch};
+    UpdateRegtestSparkSingleInputHeight(INT_MAX);
 
     // Stay below regtest nSparkSingleInputStartBlock (500) so historical
     // multi-input spends remain consensus-valid for the first check.
@@ -2314,7 +2315,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         true,
         &historicalInfo));
     batch->finalize();
-    BOOST_CHECK_NO_THROW(batch->verify());
+    BOOST_CHECK(batch->verify_pending());
 
     UpdateRegtestSparkSingleInputHeight(chainActive.Height());
     batch->init();

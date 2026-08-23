@@ -1168,9 +1168,9 @@ bool CheckSparkSpendTransaction(
     if (useBatching) {
         passVerify = true;
         if (isChaumV2 || requireChaumV1SingleInput) {
-            batchProofContainer->add(*spend);
+            batchProofContainer->add(*spend, hashTx);
         } else {
-            batchProofContainer->addHistorical(*spend);
+            batchProofContainer->addHistorical(*spend, hashTx);
         }
     } else {
         try {
