@@ -303,6 +303,14 @@ bool IsInitialBlockDownload();
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
+/**
+ * Verify finalized deferred Spark proofs before crossing a durable validation boundary.
+ *
+ * @param state Validation state to mutate if verification fails (the node is aborted).
+ * @param reason Text included in the abort message to identify the boundary being protected.
+ * @return true when there is no pending batch or the pending batch verifies successfully.
+ */
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason);
 CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params& consensusParams, bool fMTP, bool fShorterBlockDistance);
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams, int nTime = 1475020800);
 CAmount GetMasternodePayment(int nHeight, int nTime, CAmount blockValue);
@@ -419,6 +427,19 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 
 /** Context-independent validity checks */
 bool CheckTransaction(const CTransaction& tx, CValidationState& state, bool fCheckDuplicateInputs, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, spark::CSparkTxInfo* sparkTxInfo = NULL);
+/**
+ * Contextual transaction checks (version and type against the previous block).
+ * @param[in] tx Transaction to check.
+ * @param[out] state Filled on failure.
+ * @param[in] consensusParams Consensus parameters for the chain.
+ * @param[in] pindexPrev Previous block; may be null (treated as height 0).
+ * @return true if validation succeeds.
+ */
+bool ContextualCheckTransaction(
+    const CTransaction& tx,
+    CValidationState& state,
+    const Consensus::Params& consensusParams,
+    const CBlockIndex* pindexPrev);
 
 namespace Consensus {
 
@@ -549,7 +570,8 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& coins,
-                  const CChainParams& chainparams, bool fJustCheck = false);
+                  const CChainParams& chainparams, bool fJustCheck = false,
+                  bool isVerifyDB = false);
 
 /** Reprocess a number of blocks to try and get on the correct chain again **/
 bool DisconnectBlocks(int blocks);

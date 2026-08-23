@@ -327,7 +327,7 @@ void OverviewPage::on_anonymizeButton_clicked()
         amountDialog.accept();
     });
 
-    auto errorDetails = [this, unit](const WalletModel::SendCoinsReturn& result) {
+    auto errorDetails = [unit](const WalletModel::SendCoinsReturn& result) {
         switch (result.status) {
         case WalletModel::AmountExceedsBalance:
             return tr("The amount exceeds your available transparent balance.");

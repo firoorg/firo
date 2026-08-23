@@ -503,7 +503,14 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 {
 }
 
-bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck, CDeterministicMNList* newListRet, bool* cbTxMerkleRootMNListChangedRet)
+bool CDeterministicMNManager::ProcessBlock(
+        const CBlock& block,
+        const CBlockIndex* pindex,
+        CValidationState& _state,
+        bool fJustCheck,
+        CDeterministicMNList* newListRet,
+        bool* cbTxMerkleRootMNListChangedRet,
+        bool fNotify)
 {
     AssertLockHeld(cs_main);
 
@@ -560,7 +567,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     }
 
     // Don't hold cs while calling signals
-    if (diff.HasChanges()) {
+    if (fNotify && diff.HasChanges()) {
         GetMainSignals().NotifyMasternodeListChanged(false, oldList, diff);
         uiInterface.NotifyMasternodeListChanged(newList);
     }
@@ -580,7 +587,8 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     return true;
 }
 
-bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* pindex)
+bool CDeterministicMNManager::UndoBlock(
+        const CBlock& block, const CBlockIndex* pindex, bool fNotify)
 {
     int nHeight = pindex->nHeight;
     uint256 blockHash = block.GetHash();
@@ -604,7 +612,7 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
         mnListsCache.erase(blockHash);
     }
 
-    if (diff.HasChanges()) {
+    if (fNotify && diff.HasChanges()) {
         auto inversedDiff = curList.BuildDiff(prevList);
         GetMainSignals().NotifyMasternodeListChanged(true, curList, inversedDiff);
         uiInterface.NotifyMasternodeListChanged(prevList);
@@ -970,6 +978,12 @@ CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
         return {};
     }
     return GetListForBlock(tipIndex);
+}
+
+void CDeterministicMNManager::ClearCache()
+{
+    LOCK(cs);
+    mnListsCache.clear();
 }
 
 bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)

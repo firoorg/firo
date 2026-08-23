@@ -670,8 +670,13 @@ private:
 public:
     CDeterministicMNManager(CEvoDB& _evoDb);
 
-    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck, CDeterministicMNList* newListRet = nullptr, bool* cbTxMerkleRootMNListChangedRet = nullptr);
-    bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
+    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex,
+                      CValidationState& state, bool fJustCheck,
+                      CDeterministicMNList* newListRet = nullptr,
+                      bool* cbTxMerkleRootMNListChangedRet = nullptr,
+                      bool fNotify = true);
+    bool UndoBlock(const CBlock& block, const CBlockIndex* pindex,
+                   bool fNotify = true);
 
     void UpdatedBlockTip(const CBlockIndex* pindex);
 
@@ -682,6 +687,9 @@ public:
 
     CDeterministicMNList GetListForBlock(const CBlockIndex* pindex);
     CDeterministicMNList GetListAtChainTip();
+
+    /** Drop derived list snapshots after temporary database traversal. */
+    void ClearCache();
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);

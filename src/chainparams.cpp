@@ -419,10 +419,10 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
-        // Mainnet single-input deployment height.
         consensus.nSparkSingleInputStartBlock = 1355970;
         // Keep canonical IDs policy-only until a deployment height is selected.
         consensus.nSparkCanonicalGroupIdStartBlock = INT_MAX;
+        consensus.nSparkChaumV2StartBlock = 1364983;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
@@ -751,6 +751,7 @@ public:
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
         consensus.nSparkSingleInputStartBlock = INT_MAX;
         consensus.nSparkCanonicalGroupIdStartBlock = INT_MAX;
+        consensus.nSparkChaumV2StartBlock = INT_MAX;
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -1024,6 +1025,7 @@ public:
         consensus.nSparkStartBlock = 1500;
         consensus.nSparkSingleInputStartBlock = INT_MAX;
         consensus.nSparkCanonicalGroupIdStartBlock = INT_MAX;
+        consensus.nSparkChaumV2StartBlock = INT_MAX;
         consensus.nLelantusGracefulPeriod = 6000;
         consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
@@ -1277,6 +1279,7 @@ public:
         consensus.nSparkStartBlock = 100;
         consensus.nSparkSingleInputStartBlock = 500;
         consensus.nSparkCanonicalGroupIdStartBlock = 500;
+        consensus.nSparkChaumV2StartBlock = 700;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
@@ -1351,6 +1354,11 @@ public:
     {
         consensus.nSparkCanonicalGroupIdStartBlock = height;
     }
+
+    void UpdateSparkChaumV2Height(int height)
+    {
+        consensus.nSparkChaumV2StartBlock = height;
+    }
 };
 static CRegTestParams regTestParams;
 
@@ -1379,6 +1387,16 @@ void SelectParams(const std::string& network)
 {
     SelectBaseParams(network);
     pCurrentParams = &Params(network);
+    ValidateSparkActivationHeights(pCurrentParams->GetConsensus());
+}
+
+void ValidateSparkActivationHeights(const Consensus::Params& consensus)
+{
+    if (consensus.nSparkSingleInputStartBlock >
+        consensus.nSparkChaumV2StartBlock) {
+        throw std::runtime_error(
+            "Spark single-input activation must not follow versioned spend activation");
+    }
 }
 
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
@@ -1388,7 +1406,33 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 
 void UpdateRegtestSparkSingleInputHeight(int height)
 {
-    regTestParams.UpdateSparkSingleInputHeight(height);
+    UpdateRegtestSparkActivationHeights(&height, nullptr);
+}
+
+void UpdateRegtestSparkChaumV2Height(int height)
+{
+    UpdateRegtestSparkActivationHeights(nullptr, &height);
+}
+
+void UpdateRegtestSparkActivationHeights(
+    const int* singleInputHeight,
+    const int* chaumV2Height)
+{
+    Consensus::Params proposed = regTestParams.GetConsensus();
+    if (singleInputHeight) {
+        proposed.nSparkSingleInputStartBlock = *singleInputHeight;
+    }
+    if (chaumV2Height) {
+        proposed.nSparkChaumV2StartBlock = *chaumV2Height;
+    }
+    ValidateSparkActivationHeights(proposed);
+
+    if (singleInputHeight) {
+        regTestParams.UpdateSparkSingleInputHeight(*singleInputHeight);
+    }
+    if (chaumV2Height) {
+        regTestParams.UpdateSparkChaumV2Height(*chaumV2Height);
+    }
 }
 
 void UpdateRegtestSparkCanonicalGroupIdHeight(int height)

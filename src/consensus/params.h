@@ -282,6 +282,12 @@ struct Params {
     // Activation height for canonical 32-bit Spark coin group identifiers.
     int nSparkCanonicalGroupIdStartBlock;
 
+    // At and after this height, the explicitly versioned componentwise
+    // CHAUM_V2 Spark spend type is accepted, duplicate Spark mint coins
+    // are rejected, and Spark output opcode/coin-type pairs are enforced.
+    // INT_MAX is the deployment blocker.
+    int nSparkChaumV2StartBlock;
+
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
     int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers
