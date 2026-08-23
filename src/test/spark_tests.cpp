@@ -1111,6 +1111,60 @@ BOOST_AUTO_TEST_CASE(spark_failed_proof_is_not_cached)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_unknown_group_uses_mempool_penalty)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    CBlockIndex* mintIndex = GenerateBlock(mintTransactions);
+    BOOST_REQUIRE(mintIndex);
+    GenerateBlocks(10);
+
+    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+    mempool.clear();
+
+    const int disconnectCount = chainActive.Height() - mintIndex->nHeight + 1;
+    BOOST_REQUIRE_GT(disconnectCount, 0);
+    BOOST_REQUIRE(DisconnectBlocks(disconnectCount));
+    BOOST_REQUIRE(chainActive.Height() < mintIndex->nHeight);
+
+    CValidationState mempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        spend,
+        mempoolState,
+        spend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    int mempoolDoS = -1;
+    BOOST_REQUIRE(mempoolState.IsInvalid(mempoolDoS));
+    BOOST_CHECK_EQUAL(mempoolDoS, 5);
+    BOOST_CHECK_EQUAL(mempoolState.GetRejectCode(), REJECT_NONSTANDARD);
+
+    CValidationState blockState;
+    CSparkTxInfo blockInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        spend,
+        blockState,
+        spend.GetHash(),
+        false,
+        chainActive.Height() + 1,
+        false,
+        true,
+        &blockInfo));
+    int blockDoS = -1;
+    BOOST_REQUIRE(blockState.IsInvalid(blockDoS));
+    BOOST_CHECK_EQUAL(blockDoS, 100);
+    BOOST_CHECK_EQUAL(blockState.GetRejectCode(), NO_MINT_ZEROCOIN);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(coingroup)
 {
     GenerateBlocks(500);

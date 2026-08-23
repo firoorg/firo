@@ -728,8 +728,15 @@ bool CheckSparkSpendTransaction(
 
     for (const auto& idAndHash : idAndBlockHashes) {
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup))
-            return state.DoS(100, false, NO_MINT_ZEROCOIN, "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
+        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup)) {
+            // A peer may be ahead of us, so avoid an immediate mempool ban
+            // while keeping block validation strict.
+            return state.DoS(
+                isMempoolAcceptance ? 5 : 100,
+                false,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : NO_MINT_ZEROCOIN,
+                "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
+        }
 
         CBlockIndex *index = coinGroup.lastBlock;
         // find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
