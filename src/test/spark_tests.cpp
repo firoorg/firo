@@ -1500,6 +1500,11 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         Consensus::Params& consensus;
         int sparkNamesStartBlock;
         RestoreSparkActivationHeights sparkHeights;
+        ResetActivationHeights(Consensus::Params& consensusIn, int sparkNamesStartBlockIn)
+            : consensus(consensusIn)
+            , sparkNamesStartBlock(sparkNamesStartBlockIn)
+        {
+        }
         ~ResetActivationHeights()
         {
             BatchProofContainer::get_instance()->fCollectProofs = false;
@@ -1528,10 +1533,10 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
 
     // Construct both formats before changing activation so their acceptance
     // can be tested at the exact boundary.
-    const CTransaction v1Single(GenerateHistoricalMultiInputSpend(
-        {fiveCoinMints[0]}, 4 * COIN, SpendTransactionVersion::V1));
-    const CTransaction v2Multi(GenerateHistoricalMultiInputSpend(
-        fiveCoinMints, 9 * COIN, SpendTransactionVersion::V2));
+    const CTransaction v1Single(GenerateCustomSparkSpend(
+        {fiveCoinMints[0]}, 4 * COIN, 0, SpendTransactionVersion::V1));
+    const CTransaction v2Multi(GenerateCustomSparkSpend(
+        fiveCoinMints, 9 * COIN, 0, SpendTransactionVersion::V2));
     BOOST_REQUIRE(v1Single.IsSparkSpendV1());
     BOOST_REQUIRE(v2Multi.IsSparkSpendV2());
     BOOST_REQUIRE(
@@ -2278,6 +2283,10 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     struct ResetBatchAndActivation {
         BatchProofContainer* batch;
         RestoreSparkActivationHeights heights;
+        explicit ResetBatchAndActivation(BatchProofContainer* batchIn)
+            : batch(batchIn)
+        {
+        }
         ~ResetBatchAndActivation()
         {
             batch->fCollectProofs = false;
