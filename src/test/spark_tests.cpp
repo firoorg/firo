@@ -2281,10 +2281,11 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
             batch->init();
         }
     } reset{batch};
-    UpdateRegtestSparkSingleInputHeight(INT_MAX);
 
     // Stay below regtest nSparkSingleInputStartBlock (500) so historical
     // multi-input spends remain consensus-valid for the first check.
+    // Do not disable single-input with INT_MAX: that would follow the
+    // regtest Chaum V2 height (700) and fail ValidateSparkActivationHeights.
     GenerateBlocks(200);
     std::vector<CMutableTransaction> mintTransactions;
     const auto createdMints =
