@@ -420,8 +420,6 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
         consensus.nSparkSingleInputStartBlock = 1355970;
-        // Keep canonical IDs policy-only until a deployment height is selected.
-        consensus.nSparkCanonicalGroupIdStartBlock = INT_MAX;
         consensus.nSparkChaumV2StartBlock = 1364983;
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
@@ -750,7 +748,6 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
         consensus.nSparkSingleInputStartBlock = INT_MAX;
-        consensus.nSparkCanonicalGroupIdStartBlock = INT_MAX;
         consensus.nSparkChaumV2StartBlock = INT_MAX;
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
@@ -1024,7 +1021,6 @@ public:
 
         consensus.nSparkStartBlock = 1500;
         consensus.nSparkSingleInputStartBlock = INT_MAX;
-        consensus.nSparkCanonicalGroupIdStartBlock = INT_MAX;
         consensus.nSparkChaumV2StartBlock = INT_MAX;
         consensus.nLelantusGracefulPeriod = 6000;
         consensus.nSigmaEndBlock = 3600;
@@ -1278,7 +1274,6 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
         consensus.nSparkStartBlock = 100;
         consensus.nSparkSingleInputStartBlock = 500;
-        consensus.nSparkCanonicalGroupIdStartBlock = 500;
         consensus.nSparkChaumV2StartBlock = 700;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
@@ -1348,11 +1343,6 @@ public:
     void UpdateSparkSingleInputHeight(int height)
     {
         consensus.nSparkSingleInputStartBlock = height;
-    }
-
-    void UpdateSparkCanonicalGroupIdHeight(int height)
-    {
-        consensus.nSparkCanonicalGroupIdStartBlock = height;
     }
 
     void UpdateSparkChaumV2Height(int height)
@@ -1433,9 +1423,4 @@ void UpdateRegtestSparkActivationHeights(
     if (chaumV2Height) {
         regTestParams.UpdateSparkChaumV2Height(*chaumV2Height);
     }
-}
-
-void UpdateRegtestSparkCanonicalGroupIdHeight(int height)
-{
-    regTestParams.UpdateSparkCanonicalGroupIdHeight(height);
 }

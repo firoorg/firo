@@ -211,13 +211,11 @@ struct RestoreSparkActivationHeights {
     Consensus::Params& consensus;
     int singleInput;
     int v2;
-    int canonicalGroupId;
 
     RestoreSparkActivationHeights()
         : consensus(const_cast<Consensus::Params&>(::Params().GetConsensus()))
         , singleInput(consensus.nSparkSingleInputStartBlock)
         , v2(consensus.nSparkChaumV2StartBlock)
-        , canonicalGroupId(consensus.nSparkCanonicalGroupIdStartBlock)
     {
     }
 
@@ -225,7 +223,6 @@ struct RestoreSparkActivationHeights {
     {
         consensus.nSparkSingleInputStartBlock = singleInput;
         consensus.nSparkChaumV2StartBlock = v2;
-        consensus.nSparkCanonicalGroupIdStartBlock = canonicalGroupId;
     }
 };
 
@@ -2288,9 +2285,9 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         }
     } reset{batch};
 
-    // Stay below regtest nSparkSingleInputStartBlock and
-    // nSparkCanonicalGroupIdStartBlock (500) so historical multi-input
-    // spends and 32-bit group-id aliases remain consensus-valid.
+    // Stay below regtest nSparkSingleInputStartBlock (500) and
+    // nSparkChaumV2StartBlock (700) so historical multi-input spends
+    // and 32-bit group-id aliases remain consensus-valid.
     GenerateBlocks(200);
 
     std::vector<CMutableTransaction> mintTransactions;
@@ -2406,7 +2403,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     BOOST_REQUIRE(mempoolAliasState.IsInvalid(mempoolAliasDoS));
     BOOST_CHECK_EQUAL(mempoolAliasDoS, 0);
 
-    UpdateRegtestSparkCanonicalGroupIdHeight(chainActive.Height());
+    UpdateRegtestSparkChaumV2Height(chainActive.Height());
     CValidationState activeAliasState;
     CSparkTxInfo activeAliasInfo;
     BOOST_CHECK(!CheckSparkTransaction(

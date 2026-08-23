@@ -905,7 +905,7 @@ bool CheckSparkSpendTransaction(
     const bool enforceChaumV1SingleInput =
         !isChaumV2 && height >= singleInputActivation;
     const bool enforceCanonicalGroupIds = isMempoolAcceptance ||
-        height >= params.nSparkCanonicalGroupIdStartBlock;
+        height >= params.nSparkChaumV2StartBlock;
 
     const bool requireChaumV1SingleInput =
         !isChaumV2 && (isMempoolAcceptance
@@ -1023,7 +1023,7 @@ bool CheckSparkSpendTransaction(
         const uint64_t wireGroupId = idAndHash.first;
 
         // Preserve the deployed 32-bit interpretation for historical blocks.
-        // Canonical ID rejection is gated separately so this lookup still
+        // Canonical ID rejection is gated on Chaum V2 so this lookup still
         // matches pre-activation spends that wrap at 32 bits.
         const int stateGroupId = static_cast<int32_t>(wireGroupId);
         const int previousStateGroupId = static_cast<int32_t>(wireGroupId - 1);
