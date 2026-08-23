@@ -6,6 +6,7 @@
 
 #include <QCheckBox>
 
+#include <limits>
 #include <memory>
 
 void TestSendCoinsEntry::testGenerateWarningText()
@@ -64,4 +65,13 @@ void TestSendCoinsEntry::testSparkCoinControlSizeEstimate()
     QCOMPARE(CoinControlDialog::estimateSparkTxBytes(1, 1, 0), 3'371U);
     QCOMPARE(CoinControlDialog::estimateSparkTxBytes(1, 0, 1), 3'083U);
     QCOMPARE(CoinControlDialog::estimateSparkTxBytes(1, 1, 1), 3'405U);
+    QCOMPARE(CoinControlDialog::estimateSparkTxBytes(1, 1, 0, true), 3'403U);
+    QCOMPARE(CoinControlDialog::estimateSparkTxBytes(2, 1, 0, true), 5'304U);
+    QCOMPARE(
+        CoinControlDialog::estimateSparkTxBytes(
+            std::numeric_limits<size_t>::max(),
+            std::numeric_limits<size_t>::max(),
+            std::numeric_limits<size_t>::max(),
+            true),
+        std::numeric_limits<unsigned int>::max());
 }

@@ -2,6 +2,7 @@
 #include "../FuzzedDataProvider.h"
 #include "../../libspark/chaum_proof.h"
 #include "../../libspark/chaum.h"
+#include "chaum_fuzz_helpers.h"
 #include <cassert>
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
@@ -21,7 +22,8 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
     H1 = ge[2];
     U1 = ge[3];
 
-    const std::size_t n = fdp.ConsumeIntegral<size_t>();
+    const std::size_t n = fdp.ConsumeIntegralInRange<std::size_t>(
+        1, spark::MAX_CHAUM_V2_INPUTS);
 
     Scalar mu1;
     mu1 = fsp.GetScalar();
@@ -41,15 +43,15 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         T1[i] = (U1 + G1*y1[i].negate())*x1[i].inverse();
     }
 
-    spark::ChaumProof proof1;
+    spark::ChaumProofV1 proof1;
 
     spark::Chaum chaum1(F1, G1, H1, U1);
-    chaum1.prove(mu1, x1, y1, z1, S1, T1, proof1);
+    chaum1.prove_v1(mu1, x1, y1, z1, S1, T1, proof1);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << proof1;
 
-    spark::ChaumProof deserialized_proof1;
+    spark::ChaumProofV1 deserialized_proof1;
     serialized >> deserialized_proof1;
 
     assert(proof1.A1 == deserialized_proof1.A1);
@@ -84,61 +86,14 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t *buf, size_t len) {
         T3[i] = (U3 + G3*y3[i].negate())*x3[i].inverse();
     }
 
-    spark::ChaumProof proof3;
+    spark::ChaumProofV1 proof3;
 
     spark::Chaum chaum3(F3, G3, H3, U3);
-    chaum3.prove(mu3, x3, y3, z3, S3, T3, proof3);
-    assert(chaum3.verify(mu3, S3, T3, proof3));
+    chaum3.prove_v1(mu3, x3, y3, z3, S3, T3, proof3);
+    assert(chaum3.verify_v1(mu3, S3, T3, proof3));
 
     /* Fuzzing for bad proofs*/
-
-    // Bad mu
-    Scalar evil_mu;
-    evil_mu.randomize();
-    assert(!(chaum3.verify(evil_mu, S3, T3, proof3)));
-
-    // Bad S
-    for (std::size_t i = 0; i < n; i++) {
-        std::vector<GroupElement> evil_S(S3);
-        evil_S[i].randomize();
-        assert(!(chaum3.verify(mu3, evil_S, T3, proof3)));
-    }
-
-    // Bad T
-    for (std::size_t i = 0; i < n; i++) {
-        std::vector<GroupElement> evil_T(T3);
-        evil_T[i].randomize();
-        assert(!(chaum3.verify(mu3, S3, evil_T, proof3)));
-    }
-
-    // Bad A1
-    spark::ChaumProof evil_proof = proof3;
-    evil_proof.A1.randomize();
-    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
-
-    // Bad A2
-    for (std::size_t i = 0; i < n; i++) {
-        evil_proof = proof3;
-        evil_proof.A2[i].randomize();
-        assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
-    }
-
-    // Bad t1
-    for (std::size_t i = 0; i < n; i++) {
-        evil_proof = proof3;
-        evil_proof.t1[i].randomize();
-        assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
-    }
-
-    // Bad t2
-    evil_proof = proof3;
-    evil_proof.t2.randomize();
-    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
-
-    // Bad t3
-    evil_proof = proof3;
-    evil_proof.t3.randomize();
-    assert(!(chaum3.verify(mu3, S3, T3, evil_proof)));
+    assert_v1_rejects_mutations(chaum3, mu3, S3, T3, proof3);
 
     return 0;
 
