@@ -281,7 +281,8 @@ struct Params {
 
     // At and after this height, the explicitly versioned componentwise
     // CHAUM_V2 Spark spend type is accepted, duplicate Spark mint coins
-    // are rejected, and Spark output opcode/coin-type pairs are enforced.
+    // are rejected, Spark output opcode/coin-type pairs are enforced,
+    // and coin group identifiers must be canonical 32-bit values.
     // INT_MAX is the deployment blocker.
     int nSparkChaumV2StartBlock;
 

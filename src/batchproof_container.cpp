@@ -94,22 +94,22 @@ bool BatchProofContainer::batch_spark() {
     for (auto& itr : sparkTransactions) {
         auto& idAndBlockHashes = itr.getBlockHashes();
         for (const auto& idAndHash : idAndBlockHashes) {
-            int cover_set_id = idAndHash.first;
-            if (!cover_sets.count(cover_set_id)) {
+            const uint64_t cover_set_id = idAndHash.first;
+            if (cover_sets.find(cover_set_id) == cover_sets.end()) {
                 std::vector<spark::Coin> cover_set;
-                sparkState->GetCoinSet(cover_set_id, cover_set);
-                cover_sets[cover_set_id] = cover_set;
+                sparkState->GetCoinSet(static_cast<int32_t>(cover_set_id), cover_set);
+                cover_sets.emplace(cover_set_id, std::move(cover_set));
             }
         }
     }
     for (auto& itr : historicalSparkTransactions) {
         auto& idAndBlockHashes = itr.getBlockHashes();
         for (const auto& idAndHash : idAndBlockHashes) {
-            int cover_set_id = idAndHash.first;
-            if (!cover_sets.count(cover_set_id)) {
+            const uint64_t cover_set_id = idAndHash.first;
+            if (cover_sets.find(cover_set_id) == cover_sets.end()) {
                 std::vector<spark::Coin> cover_set;
-                sparkState->GetCoinSet(cover_set_id, cover_set);
-                cover_sets[cover_set_id] = cover_set;
+                sparkState->GetCoinSet(static_cast<int32_t>(cover_set_id), cover_set);
+                cover_sets.emplace(cover_set_id, std::move(cover_set));
             }
         }
     }

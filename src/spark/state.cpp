@@ -8,6 +8,8 @@
 #include "../sync.h"
 #include "../unordered_lru_cache.h"
 
+#include <algorithm>
+#include <limits>
 #include <memory>
 #include <set>
 #include <unordered_set>
@@ -902,6 +904,8 @@ bool CheckSparkSpendTransaction(
         params.nSparkChaumV2StartBlock);
     const bool enforceChaumV1SingleInput =
         !isChaumV2 && height >= singleInputActivation;
+    const bool enforceCanonicalGroupIds = isMempoolAcceptance ||
+        height >= params.nSparkChaumV2StartBlock;
 
     const bool requireChaumV1SingleInput =
         !isChaumV2 && (isMempoolAcceptance
@@ -914,20 +918,20 @@ bool CheckSparkSpendTransaction(
                          isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
                          "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
     }
-    if (isMempoolAcceptance || isChaumV2 || enforceChaumV1SingleInput) {
-        for (const uint64_t id : spend->getCoinGroupIds()) {
-            if (id == 0 ||
-                id > static_cast<uint64_t>(
-                    std::numeric_limits<int>::max())) {
-                return state.DoS(
-                    isMempoolAcceptance ? 0 : 100,
-                    false,
-                    isMempoolAcceptance
-                        ? REJECT_NONSTANDARD
-                        : REJECT_INVALID,
-                    "CheckSparkSpendTransaction: cover-set identifier is out of range");
-            }
-        }
+
+    const auto& idAndBlockHashes = spend->getBlockHashes();
+    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
+    const auto isInvalidGroupId = [](uint64_t id) {
+        return id == 0 || id > static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
+    };
+    if (enforceCanonicalGroupIds &&
+        (std::any_of(ids.begin(), ids.end(), isInvalidGroupId) ||
+         std::any_of(idAndBlockHashes.begin(), idAndBlockHashes.end(),
+                     [&isInvalidGroupId](const auto& item) { return isInvalidGroupId(item.first); }))) {
+        return state.DoS(isMempoolAcceptance ? 0 : 100,
+                         false,
+                         isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                         "CheckSparkSpendTransaction: invalid coin group id");
     }
     if (spend->getFee() > static_cast<uint64_t>(MAX_MONEY)) {
         return state.DoS(100, false, REJECT_INVALID,
@@ -1011,36 +1015,23 @@ bool CheckSparkSpendTransaction(
     };
     std::unordered_map<uint64_t, CoverSetSource> coverSetSources;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
-    const auto idAndBlockHashes = spend->getBlockHashes();
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
-        const uint64_t wireCoverSetId = idAndHash.first;
-        const bool requireStateDomainId =
-            isMempoolAcceptance || isChaumV2 || enforceChaumV1SingleInput;
-        if (requireStateDomainId &&
-            (wireCoverSetId == 0 ||
-             wireCoverSetId >
-                 static_cast<uint64_t>(std::numeric_limits<int>::max()))) {
-            return state.DoS(
-                isMempoolAcceptance ? 0 : 100,
-                false,
-                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
-                "CheckSparkSpendTransaction: cover-set identifier is out of range");
-        }
+        const uint64_t wireGroupId = idAndHash.first;
 
-        // Historical V1 validation retains the deployed integer conversion.
-        // Active formats require the range check above before this narrowing.
-        const int stateCoverSetId = static_cast<int>(wireCoverSetId);
-        const int previousStateCoverSetId =
-            static_cast<int>(wireCoverSetId - 1);
+        // Preserve the deployed 32-bit interpretation for historical blocks.
+        // Canonical ID rejection is gated on Chaum V2 so this lookup still
+        // matches pre-activation spends that wrap at 32 bits.
+        const int stateGroupId = static_cast<int32_t>(wireGroupId);
+        const int previousStateGroupId = static_cast<int32_t>(wireGroupId - 1);
         CSparkState::SparkCoinGroupInfo coinGroup;
         CSparkState& validationSparkState =
             SparkStateForValidation(isVerifyDB);
         if (!validationSparkState.GetCoinGroupInfo(
-                stateCoverSetId, coinGroup)) {
+                stateGroupId, coinGroup)) {
             return state.DoS(
                 isMempoolAcceptance ? 0 : 100,
                 false,
@@ -1068,10 +1059,9 @@ bool CheckSparkSpendTransaction(
                 "CheckSparkSpendTransaction: unknown cover-set reference");
         }
 
-
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash =
-            GetAnonymitySetHash(index, stateCoverSetId);
+            GetAnonymitySetHash(index, stateGroupId);
         CBlockIndex* referenceBlock = index;
 
         std::size_t set_size = 0;
@@ -1080,11 +1070,10 @@ bool CheckSparkSpendTransaction(
         // This list of public coins is required by function "Verify" of spend.
         while (true) {
             int id = 0;
-            if (CountCoinInBlock(index, stateCoverSetId)) {
-                id = stateCoverSetId;
-            } else if (CountCoinInBlock(
-                    index, previousStateCoverSetId)) {
-                id = previousStateCoverSetId;
+            if (CountCoinInBlock(index, stateGroupId)) {
+                id = stateGroupId;
+            } else if (CountCoinInBlock(index, previousStateGroupId)) {
+                id = previousStateGroupId;
             }
             if (id) {
                 auto minted = index->sparkMintedCoins.find(id);
@@ -1105,19 +1094,18 @@ bool CheckSparkSpendTransaction(
         setData.cover_set_representation.insert(setData.cover_set_representation.end(), txHashForMetadata.begin(), txHashForMetadata.end());
 
         coverSetSources.emplace(
-            wireCoverSetId,
+            wireGroupId,
             CoverSetSource{
-                stateCoverSetId,
-                previousStateCoverSetId,
+                stateGroupId,
+                previousStateGroupId,
                 referenceBlock,
                 coinGroup.firstBlock,
                 set_size});
-        cover_set_data[wireCoverSetId] = setData;
+        cover_set_data[wireGroupId] = setData;
     }
     spend->setCoverSets(cover_set_data);
     spend->setVout(Vout);
 
-    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {
         if (!coverSetSources.count(id) || !cover_set_data.count(id))
             return state.DoS(
@@ -1255,7 +1243,8 @@ bool CheckSparkSpendTransaction(
             // add spend information to the index
             if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                 for (size_t i = 0; i < lTags.size(); i++) {
-                    sparkTxInfo->spentLTags.insert(std::make_pair(lTags[i], ids[i]));
+                    sparkTxInfo->spentLTags.insert(std::make_pair(
+                        lTags[i], static_cast<int32_t>(ids[i])));
                     if (GetBoolArg("-mobile", false)) {
                         sparkTxInfo->ltagTxhash.insert(std::make_pair(primitives::GetLTagHash(lTags[i]), hashTx));
                     }
