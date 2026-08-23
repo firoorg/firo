@@ -314,8 +314,6 @@ void Shutdown()
     {
         LOCK(cs_main);
         if (pcoinsTip != NULL) {
-            BatchProofContainer::get_instance()->finalize();
-            BatchProofContainer::get_instance()->verify();
             FlushStateToDisk();
         }
         delete pcoinsTip;

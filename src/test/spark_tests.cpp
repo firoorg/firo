@@ -1689,7 +1689,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         true,
         &batchedV2Info));
     batch->finalize();
-    BOOST_CHECK_NO_THROW(batch->verify());
+    BOOST_CHECK(batch->verify_pending());
 
     CValidationState activeV1State;
     CSparkTxInfo activeV1Info;
@@ -2449,7 +2449,7 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     // next ConnectBlock init() (or an explicit init here) drops temps.
     batch->init();
     batch->fCollectProofs = false;
-    BOOST_CHECK_NO_THROW(batch->verify());
+    BOOST_CHECK(batch->verify_pending());
 
     mempool.clear();
     sparkState->Reset();
@@ -2949,7 +2949,7 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
     BOOST_REQUIRE(batchedOutOfRangeState.IsInvalid(dos));
     BOOST_CHECK_EQUAL(dos, 100);
     batch->finalize();
-    BOOST_CHECK_NO_THROW(batch->verify());
+    BOOST_CHECK(batch->verify_pending());
 
     CValidationState historicalState;
     CSparkTxInfo historicalInfo;
