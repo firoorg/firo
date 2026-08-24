@@ -452,8 +452,8 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     connect(ui->btnClearTrafficGraph, &QPushButton::clicked, ui->trafficGraph, &TrafficGraphWidget::clear);
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
-            this, &RPCConsole::applyConsoleToolbarTheme);
-    applyConsoleToolbarTheme();
+            this, &RPCConsole::applyConsoleTheme);
+    applyConsoleTheme();
 
     // set library version labels
 #ifdef ENABLE_WALLET

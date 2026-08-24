@@ -37,32 +37,9 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
 {
     ui->setupUi(this);
 
-    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
-        QDialog { background: $BG; }
-        QTextEdit, QLabel#aboutMessage {
-            background: $PANEL;
-            border: 1px solid $BORDER;
-            border-radius: 14px;
-            padding: 10px 12px;
-            color: $INK;
-        }
-        QScrollArea { background: transparent; border: none; }
-        QScrollArea > QWidget > QWidget { background: transparent; }
-        QDialogButtonBox QPushButton {
-            color: #FFFFFF;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
-            border: none;
-            border-radius: 12px;
-            font-weight: 700;
-            padding: 8px 18px;
-        }
-        QDialogButtonBox QPushButton:hover:enabled {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
-        }
-        QDialogButtonBox QPushButton:pressed { background: $WINE_DEEP; }
-    )")));
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &HelpMessageDialog::applyTheme);
+    applyTheme();
 
     QString version = tr(PACKAGE_NAME) + " " + tr("version") + " " + QString::fromStdString(FormatFullVersion());
     /* On x86 add a bit specifier to the version so that users can distinguish between
@@ -181,6 +158,36 @@ void HelpMessageDialog::showOrPrint()
 void HelpMessageDialog::on_okButton_accepted()
 {
     close();
+}
+
+void HelpMessageDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QTextEdit, QLabel#aboutMessage {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+            padding: 10px 12px;
+            color: $INK;
+        }
+        QScrollArea { background: transparent; border: none; }
+        QScrollArea > QWidget > QWidget { background: transparent; }
+        QDialogButtonBox QPushButton {
+            color: #FFFFFF;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            padding: 8px 18px;
+        }
+        QDialogButtonBox QPushButton:hover:enabled {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+        }
+        QDialogButtonBox QPushButton:pressed { background: $WINE_DEEP; }
+    )")));
 }
 
 
