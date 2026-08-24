@@ -2986,7 +2986,7 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
             : state(stateIn), original()
         {
             original.CopyFrom(*state);
-            CSparkState limited(2, 1);
+            CSparkState limited(3, 1);
             state->CopyFrom(limited);
         }
 
@@ -3001,12 +3001,28 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
 
     std::vector<CMutableTransaction> mintTransactions;
     const auto createdMints =
-        GenerateMints({5 * COIN, 1 * COIN, 1 * COIN}, mintTransactions);
-    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 3U);
+        GenerateMints({5 * COIN, 1 * COIN, 1 * COIN, 1 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 4U);
     mempool.clear();
-    BOOST_REQUIRE(GenerateBlock({mintTransactions[0]}));
-    BOOST_REQUIRE(GenerateBlock({mintTransactions[1]}));
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[0], mintTransactions[1]}));
+    GenerateBlocks(10);
+
+    const auto fiveCoinMint = std::find_if(
+        createdMints.begin(), createdMints.end(),
+        [](const CSparkMintMeta& mint) { return mint.v == 5 * COIN; });
+    BOOST_REQUIRE(fiveCoinMint != createdMints.end());
+    const CSparkMintMeta confirmedFiveCoinMint =
+        pwalletMain->sparkWallet->getMintMeta(fiveCoinMint->k);
+    BOOST_REQUIRE_EQUAL(confirmedFiveCoinMint.nId, 1);
+
+    const CTransaction spend = GenerateCustomSparkSpend(
+        {confirmedFiveCoinMint}, 4 * COIN);
+    SpendTransaction parsed = ParseSparkSpend(spend);
+    auto references = parsed.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(references.size(), 1U);
+
     BOOST_REQUIRE(GenerateBlock({mintTransactions[2]}));
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[3]}));
     GenerateBlocks(10);
     BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
 
@@ -3034,11 +3050,6 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
         BOOST_REQUIRE(sparkState->GetCoinGroupInfo(
             static_cast<int>(reference.first), group));
     }
-
-    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
-    SpendTransaction parsed = ParseSparkSpend(spend);
-    auto references = parsed.getBlockHashes();
-    BOOST_REQUIRE_EQUAL(references.size(), 1U);
 
     const std::size_t proofCacheSize = GetSparkSpendProofCacheSize();
     CValidationState extraReferenceMempoolState;
