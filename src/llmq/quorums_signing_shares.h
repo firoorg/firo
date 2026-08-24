@@ -27,6 +27,8 @@ class CScheduler;
 
 namespace llmq
 {
+struct CSigSharesManagerTestAccess;
+
 // <signHash, quorumMember>
 typedef std::pair<uint256, uint16_t> SigShareKey;
 
@@ -138,40 +140,125 @@ public:
     std::string ToInvString() const;
 };
 
-template<typename T>
-class SigShareMap
+/**
+ * Two-level (signHash -> quorumMember) map with a running entry count, so Size() is O(1)
+ * instead of a fold over all sign hash buckets. All structural mutations go through the
+ * counted methods; Buckets() is for lookups and in-place value updates only.
+ */
+template <typename T>
+class CountedBucketMap
 {
+public:
+    using BucketMap = std::unordered_map<uint256, std::unordered_map<uint16_t, T>, StaticSaltedHasher>;
+
 private:
-    std::unordered_map<uint256, std::unordered_map<uint16_t, T>, StaticSaltedHasher> internalMap;
+    BucketMap m_data;
+    size_t m_num_entries{0};
 
 public:
-    bool Add(const SigShareKey& k, const T& v)
+    BucketMap& Buckets()
     {
-        auto& m = internalMap[k.first];
-        return m.emplace(k.second, v).second;
+        return m_data;
+    }
+
+    const BucketMap& Buckets() const
+    {
+        return m_data;
+    }
+
+    size_t Size() const
+    {
+        return m_num_entries;
+    }
+
+    bool Emplace(const SigShareKey& k, const T& v)
+    {
+        if (!m_data[k.first].emplace(k.second, v).second) {
+            return false;
+        }
+        ++m_num_entries;
+        return true;
     }
 
     void Erase(const SigShareKey& k)
     {
-        auto it = internalMap.find(k.first);
-        if (it == internalMap.end()) {
+        auto it = m_data.find(k.first);
+        if (it == m_data.end()) {
             return;
         }
-        it->second.erase(k.second);
+        m_num_entries -= it->second.erase(k.second);
         if (it->second.empty()) {
-            internalMap.erase(it);
+            m_data.erase(it);
+        }
+    }
+
+    void EraseBucket(const uint256& signHash)
+    {
+        auto it = m_data.find(signHash);
+        if (it == m_data.end()) {
+            return;
+        }
+        m_num_entries -= it->second.size();
+        m_data.erase(it);
+    }
+
+    template <typename F>
+    void EraseIf(F&& f)
+    {
+        for (auto it = m_data.begin(); it != m_data.end();) {
+            SigShareKey k;
+            k.first = it->first;
+            for (auto jt = it->second.begin(); jt != it->second.end();) {
+                k.second = jt->first;
+                if (f(k, jt->second)) {
+                    jt = it->second.erase(jt);
+                    --m_num_entries;
+                } else {
+                    ++jt;
+                }
+            }
+            if (it->second.empty()) {
+                it = m_data.erase(it);
+            } else {
+                ++it;
+            }
         }
     }
 
     void Clear()
     {
-        internalMap.clear();
+        m_data.clear();
+        m_num_entries = 0;
+    }
+};
+
+template <typename T>
+class SigShareMap
+{
+private:
+    CountedBucketMap<T> internalMap;
+
+public:
+    bool Add(const SigShareKey& k, const T& v)
+    {
+        return internalMap.Emplace(k, v);
+    }
+
+    void Erase(const SigShareKey& k)
+    {
+        internalMap.Erase(k);
+    }
+
+    void Clear()
+    {
+        internalMap.Clear();
     }
 
     bool Has(const SigShareKey& k) const
     {
-        auto it = internalMap.find(k.first);
-        if (it == internalMap.end()) {
+        const auto& buckets = internalMap.Buckets();
+        auto it = buckets.find(k.first);
+        if (it == buckets.end()) {
             return false;
         }
         return it->second.count(k.second) != 0;
@@ -179,8 +266,9 @@ public:
 
     T* Get(const SigShareKey& k)
     {
-        auto it = internalMap.find(k.first);
-        if (it == internalMap.end()) {
+        auto& buckets = internalMap.Buckets();
+        auto it = buckets.find(k.first);
+        if (it == buckets.end()) {
             return nullptr;
         }
 
@@ -204,25 +292,23 @@ public:
 
     const T* GetFirst() const
     {
-        if (internalMap.empty()) {
+        const auto& buckets = internalMap.Buckets();
+        if (buckets.empty()) {
             return nullptr;
         }
-        return &internalMap.begin()->second.begin()->second;
+        return &buckets.begin()->second.begin()->second;
     }
 
     size_t Size() const
     {
-        size_t s = 0;
-        for (auto& p : internalMap) {
-            s += p.second.size();
-        }
-        return s;
+        return internalMap.Size();
     }
 
     size_t CountForSignHash(const uint256& signHash) const
     {
-        auto it = internalMap.find(signHash);
-        if (it == internalMap.end()) {
+        const auto& buckets = internalMap.Buckets();
+        auto it = buckets.find(signHash);
+        if (it == buckets.end()) {
             return 0;
         }
         return it->second.size();
@@ -230,13 +316,14 @@ public:
 
     bool Empty() const
     {
-        return internalMap.empty();
+        return internalMap.Buckets().empty();
     }
 
     const std::unordered_map<uint16_t, T>* GetAllForSignHash(const uint256& signHash)
     {
-        auto it = internalMap.find(signHash);
-        if (it == internalMap.end()) {
+        const auto& buckets = internalMap.Buckets();
+        auto it = buckets.find(signHash);
+        if (it == buckets.end()) {
             return nullptr;
         }
         return &it->second;
@@ -244,35 +331,19 @@ public:
 
     void EraseAllForSignHash(const uint256& signHash)
     {
-        internalMap.erase(signHash);
+        internalMap.EraseBucket(signHash);
     }
 
     template<typename F>
     void EraseIf(F&& f)
     {
-        for (auto it = internalMap.begin(); it != internalMap.end(); ) {
-            SigShareKey k;
-            k.first = it->first;
-            for (auto jt = it->second.begin(); jt != it->second.end(); ) {
-                k.second = jt->first;
-                if (f(k, jt->second)) {
-                    jt = it->second.erase(jt);
-                } else {
-                    ++jt;
-                }
-            }
-            if (it->second.empty()) {
-                it = internalMap.erase(it);
-            } else {
-                ++it;
-            }
-        }
+        internalMap.EraseIf(f);
     }
 
     template<typename F>
     void ForEach(F&& f)
     {
-        for (auto& p : internalMap) {
+        for (auto& p : internalMap.Buckets()) {
             SigShareKey k;
             k.first = p.first;
             for (auto& p2 : p.second) {
@@ -342,8 +413,12 @@ public:
 
 class CSigSharesManager : public CRecoveredSigsListener
 {
+    friend struct CSigSharesManagerTestAccess;
+
     static const int64_t SESSION_NEW_SHARES_TIMEOUT = 60;
     static const int64_t SIG_SHARE_REQUEST_TIMEOUT = 5;
+    static constexpr size_t MAX_PENDING_SIG_SHARES_PER_NODE{1000};
+    static constexpr size_t MAX_PENDING_SIG_SHARES_TOTAL{10000};
 
     // we try to keep total message size below 10k
     const size_t MAX_MSGS_CNT_QSIGSESANN = 100;
@@ -421,6 +496,7 @@ private:
 private:
     bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo);
     CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, size_t idx);
+    bool TryAddPendingIncomingSigShare(NodeId nodeId, CSigSharesNodeState& nodeState, const CSigShare& sigShare);
 
     void Cleanup();
     void RemoveSigSharesForSession(const uint256& signHash);
