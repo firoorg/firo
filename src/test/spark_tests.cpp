@@ -2986,7 +2986,7 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
             : state(stateIn), original()
         {
             original.CopyFrom(*state);
-            CSparkState limited(2, 2);
+            CSparkState limited(2, 1);
             state->CopyFrom(limited);
         }
 
@@ -3004,7 +3004,8 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
         GenerateMints({5 * COIN, 1 * COIN, 1 * COIN}, mintTransactions);
     BOOST_REQUIRE_EQUAL(mintTransactions.size(), 3U);
     mempool.clear();
-    BOOST_REQUIRE(GenerateBlock({mintTransactions[0], mintTransactions[1]}));
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[0]}));
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[1]}));
     BOOST_REQUIRE(GenerateBlock({mintTransactions[2]}));
     GenerateBlocks(10);
     BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
