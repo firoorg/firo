@@ -630,6 +630,7 @@ void RPCRunLater(const std::string& name, boost::function<void(void)> func, int6
     RPCTimerInterface* iface = timerInterface;
     if (!iface)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No timer handler registered for RPC");
+    LOCK(cs_deadlineTimers);
     deadlineTimers.erase(name);
     LogPrint("rpc", "queue run of timer %s in %i seconds (using %s)\n", name, nSeconds, iface->Name());
     deadlineTimers.emplace(name, std::unique_ptr<RPCTimerBase>(iface->NewTimer(func, nSeconds*1000)));
