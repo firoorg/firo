@@ -2515,7 +2515,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     }
 
-    if (block.IsProgPow() && !fJustCheck)
+    if (block.IsProgPow() && !fJustCheck && !pindex->fProgPowHeaderVerified)
     {
         // do full PP hash check
 
@@ -2536,6 +2536,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         {
             return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
         }
+
+        pindex->fProgPowHeaderVerified = true;
     }
 
     // verify that the view's current state corresponds to the previous block
@@ -4122,9 +4124,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
         {
             if (block.mix_hash.IsNull())
                 return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash cannot be null");
-            // If we use GetProgPowHashFull user may experience very slow header sync
-            // We use simplified function for header check and then will use full check in ConnectBlock()
-            // This won't make sync faster but it will give user a better experience
+            // Use the supplied mix as a cheap target prefilter. Header acceptance
+            // recomputes it after contextual validation binds the block height.
             final_hash = block.GetProgPowHashLight();
         }
         else
@@ -4313,7 +4314,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
     if (block.IsProgPow() && block.nHeight != static_cast<uint32_t>(pindexPrev->nHeight + 1))
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", false, "ProgPOW height doesn't match chain height");
 
 	// Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
@@ -4382,7 +4383,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         return state.Invalid(false, REJECT_INVALID, "bad-blk-stage3-state", "Cannot go back to 5 minutes between blocks");
 
     if (block.IsProgPow() && block.nHeight != nHeight)
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", false, "ProgPOW height doesn't match chain height");
 
     // Start enforcing BIP113 (Median Time Past) using versionbits logic.
     int nLockTimeFlags = 0;
@@ -4523,6 +4524,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     AssertLockHeld(cs_main);
     // Check for duplicate
     uint256 hash = block.GetHash();
+    bool fProgPowHeaderVerified = false;
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex *pindex = NULL;
     if (hash != chainparams.GetConsensus().hashGenesisBlock) {
@@ -4555,9 +4557,24 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 
         if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime()))
             return error("%s: Consensus::ContextualCheckBlockHeader: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
+
+        if (fCheckPOW && block.IsProgPow()) {
+            // Full verification must happen after the claimed ProgPoW height has been
+            // bound to pindexPrev, otherwise an untrusted height selects the epoch.
+            if (block.nHeight >= progpow::epoch_length * 2000)
+                return state.DoS(50, false, REJECT_INVALID, "invalid-progpow-epoch", false, "invalid epoch number");
+
+            uint256 expectedMixHash;
+            block.GetProgPowHashFull(expectedMixHash);
+            if (expectedMixHash != block.mix_hash)
+                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash validity failed");
+            fProgPowHeaderVerified = true;
+        }
     }
     if (pindex == NULL)
         pindex = AddToBlockIndex(block);
+    if (fProgPowHeaderVerified)
+        pindex->fProgPowHeaderVerified = true;
 
     if (ppindex)
         *ppindex = pindex;

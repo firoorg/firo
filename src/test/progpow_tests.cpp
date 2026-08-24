@@ -152,9 +152,47 @@ BOOST_AUTO_TEST_CASE(header_height_mismatch)
     std::vector<CBlockHeader> headers{block};
     BOOST_CHECK(!ProcessNewBlockHeaders(headers, state, Params()));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-blk-progpow");
+    BOOST_CHECK(!state.CorruptionPossible());
 
     LOCK(cs_main);
     BOOST_CHECK_EQUAL(mapBlockIndex.count(block.GetHash()), 0);
+}
+
+BOOST_AUTO_TEST_CASE(header_mix_hash_mismatch)
+{
+    mutableParams.nPPSwitchTime = (uint32_t)(chainActive.Tip()->GetMedianTimePast()+10);
+    SetMockTime(mutableParams.nPPSwitchTime+1);
+
+    CBlock block = CreateBlock({}, m_coinbaseKey);
+    BOOST_REQUIRE(block.IsProgPow());
+
+    CBlockHeader forged = block.GetBlockHeader();
+    forged.mix_hash.begin()[0] ^= 1;
+    while (!CheckProofOfWork(forged.GetProgPowHashLight(), forged.nBits, mutableParams))
+        ++forged.nNonce64;
+    BOOST_REQUIRE(CheckProofOfWork(forged.GetProgPowHashLight(), forged.nBits, mutableParams));
+
+    uint256 expectedMixHash;
+    forged.GetProgPowHashFull(expectedMixHash);
+    BOOST_REQUIRE(expectedMixHash != forged.mix_hash);
+
+    CValidationState state;
+    BOOST_CHECK(!ProcessNewBlockHeaders({forged}, state, Params()));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "invalid-mixhash");
+
+    {
+        LOCK(cs_main);
+        BOOST_CHECK_EQUAL(mapBlockIndex.count(forged.GetHash()), 0);
+    }
+
+    const CBlockIndex* validIndex = nullptr;
+    CValidationState validState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders({block.GetBlockHeader()}, validState, Params(), &validIndex));
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(validIndex != nullptr);
+        BOOST_CHECK(validIndex->fProgPowHeaderVerified);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(limit)
