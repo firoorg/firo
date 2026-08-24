@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from test_framework.blocktools import create_block, create_coinbase, create_transaction
 from test_framework.mininode import (
+    CTxInWitness,
     HeaderAndShortIDs,
     NetworkThread,
     NodeConn,
@@ -16,6 +17,7 @@ from test_framework.mininode import (
     msg_blocktxn,
     msg_cmpctblock,
     msg_ping,
+    msg_witness_block,
     wait_until,
 )
 from test_framework.script import CScript, OP_TRUE
@@ -132,14 +134,23 @@ class BlockSourceTest(BitcoinTestFramework):
             requested_indexes = request.to_absolute()
         assert_equal(requested_indexes, [1, 2])
 
-        # Duplicating the odd Merkle tree's final leaf preserves the header.
+        # Adding non-committed witness data preserves the header.
         mutated_block = deepcopy(valid_block)
-        mutated_block.vtx.append(deepcopy(mutated_block.vtx[-1]))
+        mutated_tx = mutated_block.vtx[-1]
+        original_txid = mutated_tx.sha256
+        original_wtxid = mutated_tx.calc_sha256(with_witness=True)
+        mutated_tx.wit.vtxinwit = [CTxInWitness() for _ in mutated_tx.vin]
+        mutated_tx.wit.vtxinwit[0].scriptWitness.stack = [b"\x01"]
+        mutated_tx.rehash()
+        assert_equal(mutated_tx.sha256, original_txid)
+        assert mutated_tx.calc_sha256(with_witness=True) != original_wtxid
         assert_equal(mutated_block.calc_merkle_root(), valid_block.hashMerkleRoot)
         mutated_block.rehash()
         assert_equal(mutated_block.sha256, valid_block.sha256)
 
-        assert attacker_peer.send_and_sync_or_disconnect(msg_block(mutated_block))
+        assert attacker_peer.send_and_sync_or_disconnect(
+            msg_witness_block(mutated_block)
+        )
         assert_equal(int(node.getbestblockhash(), 16), previous_tip)
         assert honest_peer.sync_with_ping(timeout=10)
 
