@@ -188,7 +188,7 @@
             <item row="16" column="0">
              <widget class="QLabel" name="labelAnonymizableText">
               <property name="text">
-               <string>Anonymizable:</string>
+               <string>Available to make private:</string>
               </property>
              </widget>
             </item>
@@ -338,7 +338,7 @@
                <cursorShape>IBeamCursor</cursorShape>
               </property>
               <property name="toolTip">
-               <string>Total of anonymize transactions that have yet to be confirmed, and do not yet count toward the spendable balance</string>
+               <string>Total of Spark mint transactions that have yet to be confirmed, and do not yet count toward the spendable balance</string>
               </property>
               <property name="text">
                <string>0.000 000 00 FIRO</string>
@@ -483,7 +483,7 @@
               </property>
              </widget>
             </item>
-            <item row="16" column="4">
+            <item row="16" column="3" alignment="Qt::AlignLeft">
              <widget class="QPushButton" name="anonymizeButton">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -497,7 +497,7 @@
                </font>
               </property>
               <property name="text">
-               <string>Anonymize All</string>
+               <string>Make Private...</string>
               </property>
              </widget>
             </item>
@@ -577,7 +577,7 @@
                <cursorShape>IBeamCursor</cursorShape>
               </property>
               <property name="toolTip">
-               <string>Your current spendable anonymized balance</string>
+               <string>Your current spendable private Spark balance</string>
               </property>
               <property name="text">
                <string>0.000 000 00 FIRO</string>

@@ -136,6 +136,27 @@ BOOST_AUTO_TEST_CASE(corruption)
     BOOST_ASSERT(VerifyBlockCheckStatus(block, ""));
 }
 
+BOOST_AUTO_TEST_CASE(header_height_mismatch)
+{
+    mutableParams.nPPSwitchTime = (uint32_t)(chainActive.Tip()->GetMedianTimePast()+10);
+    SetMockTime(mutableParams.nPPSwitchTime+1);
+
+    CBlock block = CreateBlock({}, m_coinbaseKey);
+    BOOST_REQUIRE(block.IsProgPow());
+    block.nHeight = 0;
+
+    while (!CheckProofOfWork(block.GetProgPowHashLight(), block.nBits, mutableParams))
+        ++block.nNonce64;
+
+    CValidationState state;
+    std::vector<CBlockHeader> headers{block};
+    BOOST_CHECK(!ProcessNewBlockHeaders(headers, state, Params()));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-blk-progpow");
+
+    LOCK(cs_main);
+    BOOST_CHECK_EQUAL(mapBlockIndex.count(block.GetHash()), 0);
+}
+
 BOOST_AUTO_TEST_CASE(limit)
 {
     mutableParams.nPPSwitchTime = INT_MAX;

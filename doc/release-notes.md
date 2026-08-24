@@ -34,6 +34,16 @@ but severe issues with the libc++ version on 10.7.x keep it from running reliabl
 Notable changes
 ===============
 
+RPC
+---
+
+- `getsparknametxdetails`: For confirmed Spark name transactions, `validUntil`
+  reports the expiry height recorded in the containing block
+  (`sparkNameValidityHeight`) rather than the name manager's current state.
+  Later renewals or transfers therefore no longer change the details of an
+  earlier confirmed registration. Unconfirmed transactions report the pending
+  expiry if they are included in the next block.
+
 
 Detailed release notes follow. This overview includes changes that affect
 behavior, not code moves, refactors and string updates. For convenience in locating

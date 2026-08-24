@@ -27,6 +27,7 @@
 #include "bip47/paymentchannel.h"
 #include "bip47/account.h"
 #include "wallet/coincontrol.h"
+#include "wallet/sparkspendbatch.h"
 #include "rpcdump.h"
 
 #include <stdint.h>
@@ -1410,35 +1411,13 @@ UniValue signmessagewithsparkaddress(const JSONRPCRequest& request)
     if (coinNetwork != spark::GetNetworkType())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address is for a different network");
 
-    if (!pwallet->sparkWallet->isAddressMine(address))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Spark address does not belong to this wallet");
-
-    // Hash the message the same way as signmessage
-    CHashWriter ss(SER_GETHASH, 0);
-    ss << strMessageMagic;
-    ss << strMessage;
-    uint256 msgHash = ss.GetHash();
-
-    spark::Scalar m;
-    m.SetHex(msgHash.ToString());
-
-    spark::SpendKey spendKey(params);
     try {
-        spendKey = std::move(pwallet->sparkWallet->generateSpendKey(params));
+        return pwallet->sparkWallet->SignMessage(address, strMessage);
     } catch (const WalletLocked&) {
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Unable to generate spend key, wallet may be locked");
-    } catch (const std::exception&) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Unable to generate spend key");
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
     }
-
-    spark::OwnershipProof proof;
-    spark::FullViewKey fullViewKey(spendKey);
-    address.prove_own(m, spendKey, fullViewKey, proof);
-
-    CDataStream proofStream(SER_NETWORK, PROTOCOL_VERSION);
-    proofStream << proof;
-
-    return HexStr(proofStream.begin(), proofStream.end());
 }
 
 UniValue getreceivedbyaddress(const JSONRPCRequest& request)
@@ -2853,7 +2832,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
     if (wtx.tx->IsSparkSpend()) {
         try {
-            nFee = (0 - spark::ParseSparkSpend(*wtx.tx).getFee());
+            nFee = -spark::GetSparkSpendFee(*wtx.tx);
         }
         catch (const std::exception &) {
             // do nothing
@@ -2995,9 +2974,14 @@ UniValue keypoolrefill(const JSONRPCRequest& request)
 }
 
 
-static void LockWallet(CWallet* pWallet)
+static void LockWallet(CWallet* pWallet, int64_t nRelockTime)
 {
     LOCK(pWallet->cs_wallet);
+    // Skip if this is not the most recent relock callback. walletpassphrase()
+    // may have been called again in the meantime (extending the timeout), or
+    // walletlock() may have already locked the wallet and reset nRelockTime.
+    if (pWallet->nRelockTime != nRelockTime)
+        return;
     pWallet->nRelockTime = 0;
     pWallet->Lock();
 }
@@ -3030,37 +3014,75 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
         );
     }
 
-    LOCK2(cs_main, pwallet->cs_wallet);
+    // Prevent concurrent walletpassphrase calls for the same wallet. Without
+    // this, two overlapping calls can update nRelockTime and schedule the
+    // relock timer in opposite orders, so the slower call installs the last
+    // timer while the faster call owns nRelockTime. The stale callback then
+    // does nothing (see LockWallet) and no timer is left, i.e. the wallet stays
+    // unlocked past the requested timeout.
+    //
+    // This has to be a separate lock rather than cs_wallet, because it is held
+    // across RPCRunLater() below, which blocks on the relock callback, which in
+    // turn takes cs_wallet.
+    LOCK(pwallet->cs_unlock);
 
-    if (request.fHelp)
-        return true;
-    if (!pwallet->IsCrypted()) {
-        throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrase was called.");
-    }
-
-    // Note that the walletpassphrase is stored in request.params[0] which is not mlock()ed
-    SecureString strWalletPass;
-    strWalletPass.reserve(100);
-    // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
-    // Alternately, find a way to make request.params[0] mlock()'d to begin with.
-    strWalletPass = request.params[0].get_str().c_str();
-
-    if (strWalletPass.length() > 0)
+    int64_t nSleepTime;
+    int64_t nRelockTime;
     {
-        if (!pwallet->Unlock(strWalletPass)) {
-            throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+        LOCK2(cs_main, pwallet->cs_wallet);
+
+        if (request.fHelp)
+            return true;
+        if (!pwallet->IsCrypted()) {
+            throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrase was called.");
         }
+
+        // Note that the walletpassphrase is stored in request.params[0] which is not mlock()ed
+        SecureString strWalletPass;
+        strWalletPass.reserve(100);
+        // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
+        // Alternately, find a way to make request.params[0] mlock()'d to begin with.
+        strWalletPass = request.params[0].get_str().c_str();
+
+        nSleepTime = request.params[1].get_int64();
+        // Timeout cannot be negative, otherwise it will relock immediately
+        if (nSleepTime < 0) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Timeout cannot be negative.");
+        }
+        // Clamp the timeout so GetTime() + nSleepTime cannot overflow
+        // nRelockTime (same bound as upstream Bitcoin Core's MAX_SLEEP_TIME)
+        constexpr int64_t MAX_SLEEP_TIME = 100000000;
+        if (nSleepTime > MAX_SLEEP_TIME) {
+            nSleepTime = MAX_SLEEP_TIME;
+        }
+
+        if (strWalletPass.length() > 0)
+        {
+            if (!pwallet->Unlock(strWalletPass)) {
+                throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+            }
+        }
+        else
+            throw std::runtime_error(
+                "walletpassphrase <passphrase> <timeout>\n"
+                "Stores the wallet decryption key in memory for <timeout> seconds.");
+
+        pwallet->TopUpKeyPool();
+
+        pwallet->nRelockTime = GetTime() + nSleepTime;
+        nRelockTime = pwallet->nRelockTime;
     }
-    else
-        throw std::runtime_error(
-            "walletpassphrase <passphrase> <timeout>\n"
-            "Stores the wallet decryption key in memory for <timeout> seconds.");
 
-    pwallet->TopUpKeyPool();
-
-    int64_t nSleepTime = request.params[1].get_int64();
-    pwallet->nRelockTime = GetTime() + nSleepTime;
-    RPCRunLater(strprintf("lockwallet(%s)", pwallet->strWalletFile), boost::bind(LockWallet, pwallet), nSleepTime);
+    // Schedule the relock *after* releasing cs_wallet, but still under cs_unlock.
+    // RPCRunLater() erases any previously scheduled lockwallet timer, and
+    // destroying a libevent timer blocks until that timer's callback has finished
+    // executing. When the callback (LockWallet) happens to be running at that
+    // moment it is itself waiting for cs_wallet, so holding the lock across this
+    // call deadlocks the RPC worker against the HTTP event loop thread. Because
+    // the RPC worker also holds cs_main, every other thread that needs cs_main
+    // then piles up behind it and the whole node stops making progress.
+    AssertLockNotHeld(pwallet->cs_wallet);
+    RPCRunLater(strprintf("lockwallet(%s)", pwallet->strWalletFile), boost::bind(LockWallet, pwallet, nRelockTime), nSleepTime);
 
     return NullUniValue;
 }
@@ -4429,13 +4451,182 @@ UniValue spendspark(const JSONRPCRequest& request)
     CWalletTx wtx;
     try {
         wtx = pwallet->SpendAndStoreSpark(recipients, privateRecipients, fee);
-
-
+    } catch (const SparkFundsFragmented& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR,
+            std::string(e.what()) + " Use spendsparksplit instead.");
     } catch (const std::exception &) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark spend creation failed.");
     }
 
     return wtx.GetHash().GetHex();
+}
+
+UniValue spendsparksplit(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "spendsparksplit {\"address\":{amount,subtractfee...}, \"address\":{amount,memo,subtractfee...}}\n"
+                + HelpRequiringPassphrase(pwallet) + "\n"
+                                                     "Temporary helper that splits a Spark payment across multiple single-input\n"
+                                                     "transactions when no single Spark coin can fund the payment alone.\n"
+                                                     "\nArguments:\n"
+                                                     "1. recipients              (string, required) A json object with addresses and amounts\n"
+                                                     "{\n"
+                                                     "  \"address\":amount (numeric or string), memo (string,only for private, not required), subtractfee (bool) The Spark address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                                                     "  ,...\n"
+                                                     " }\n"
+                                                     "\nResult:\n"
+                                                     "[                           (json array) Transaction ids for the send. Always an array,\n"
+                                                     "  \"txid\",                  even when only one transaction is created.\n"
+                                                     "  ...\n"
+                                                     "]\n"
+                                                     "\nExamples:\n"
+                                                     "\nSend an amount to transparent address:\n"
+                 + HelpExampleCli("spendsparksplit", "\"{\\\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\\\":{\\\"amount\\\":0.01, \\\"subtractFee\\\": false}}\"") +
+                 "\nAs a json rpc call\n"
+                 + HelpExampleRpc("spendsparksplit", "\"{\"TR1FW48J6ozpRu25U8giSDdTrdXXUYau7U\":{\"amount\":0.01, \"subtractFee\": false}}\"")
+        );
+
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::vector<CRecipient> recipients;
+    std::vector<std::pair<spark::OutputCoinData, bool>> privateRecipients;
+
+    UniValue sendTo;
+    if (request.params[0].isStr()) {
+        if (!sendTo.read(request.params[0].get_str())) {
+            throw JSONRPCError(RPC_PARSE_ERROR, "Invalid JSON string");
+        }
+        if (!sendTo.isObject()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "JSON parameter must be an object");
+        }
+    } else {
+        sendTo = request.params[0].get_obj();
+    }
+
+    std::vector<std::string> keys = sendTo.getKeys();
+    const spark::Params* params = spark::Params::get_default();
+    std::set<CBitcoinAddress> setAddress;
+    unsigned char network = spark::GetNetworkType();
+
+    BOOST_FOREACH(const std::string& name_, keys)
+    {
+        spark::Address sAddress(params);
+        bool isSparkAddress;
+        std::string sparkAddressStr;
+
+        if (!name_.empty() && name_[0] == '@') {
+            LOCK(cs_main);
+
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            if (!sparkNameManager->GetSparkAddress(name_.substr(1), sparkAddressStr))
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Spark name not found: ")+name_);
+        } else {
+            sparkAddressStr = name_;
+        }
+
+        try {
+            unsigned char coinNetwork = sAddress.decode(sparkAddressStr);
+            isSparkAddress = true;
+            if (coinNetwork != network)
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ")+name_);
+        } catch (const std::exception &) {
+            isSparkAddress = false;
+        }
+
+        if (isSparkAddress) {
+            UniValue amountAndMemo = sendTo[name_].get_obj();
+            CAmount nAmount(0);
+            if (amountAndMemo.exists("amount"))
+                nAmount = AmountFromValue(amountAndMemo["amount"]);
+            else
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount: ")+name_);
+
+            if (nAmount <= 0)
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+            std::string memo = "";
+            if (amountAndMemo.exists("memo"))
+                memo = amountAndMemo["memo"].get_str();
+
+            bool subtractFee = false;
+            if (amountAndMemo.exists("subtractFee"))
+                subtractFee = amountAndMemo["subtractFee"].get_bool();
+            else
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ")+name_);
+
+            ValidateFeeSubtractionAmount(nAmount, subtractFee, name_);
+
+            spark::OutputCoinData data;
+            data.address = sAddress;
+            data.memo = memo;
+            data.v = nAmount;
+            privateRecipients.push_back(std::make_pair(data, subtractFee));
+            continue;
+        }
+
+        CBitcoinAddress address(name_);
+        if (address.IsValid()) {
+            if (setAddress.count(address))
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                                   std::string("Invalid parameter, duplicated address: ") + name_);
+            setAddress.insert(address);
+
+            CScript scriptPubKey = GetScriptForDestination(address.Get());
+
+            UniValue amountObj = sendTo[name_].get_obj();
+            CAmount nAmount(0);
+            if (amountObj.exists("amount"))
+                nAmount = AmountFromValue(amountObj["amount"]);
+            else
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no amount: ") + name_);
+            if (nAmount <= 0)
+                throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+
+            bool fSubtractFeeFromAmount = false;
+            if (amountObj.exists("subtractFee"))
+                fSubtractFeeFromAmount = amountObj["subtractFee"].get_bool();
+            else
+                throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid parameters, no subtractFee: ") + name_);
+
+            ValidateFeeSubtractionAmount(nAmount, fSubtractFeeFromAmount, name_);
+
+            CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount, {}, {}};
+            recipients.push_back(recipient);
+            continue;
+        }
+
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo address: ") + name_);
+    }
+
+    CAmount fee;
+    try {
+        std::vector<CWalletTx> wtxs = pwallet->SpendAndStoreSparkSingleInput(
+            recipients, privateRecipients, fee);
+        UniValue result(UniValue::VARR);
+        for (const CWalletTx& wtx : wtxs) {
+            result.push_back(wtx.GetHash().GetHex());
+        }
+        return result;
+    } catch (const sparkspendbatch::SparkSpendBatchPartialFailure& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    } catch (const SparkFundsFragmented& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    } catch (const InsufficientFunds& e) {
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+    } catch (const std::exception& e) {
+        throw JSONRPCError(RPC_WALLET_ERROR, e.what());
+    }
 }
 
 UniValue sendspark(const JSONRPCRequest& request)
@@ -4643,14 +4834,15 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     int chainHeight;
     {
         LOCK(cs_main);
-        chainHeight = chainActive.Height();
+        chainHeight = chainActive.Height() + 1;
     }
 
     const auto &consensusParams = Params().GetConsensus();
 
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!spark::IsSparkAllowed() || chainHeight < consensusParams.nSparkNamesStartBlock) {
+    if (!spark::IsSparkAllowed(chainHeight) ||
+        chainHeight < consensusParams.nSparkNamesStartBlock) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark names are not activated yet");
     }
 
@@ -4703,7 +4895,8 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     CAmount fee;
     CWalletTx wtx;
     try {
-        wtx = pwallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, fee);
+        wtx = pwallet->CreateSparkNameTransaction(
+            sparkNameData, sparkNameFee, fee, nullptr, chainHeight);
     } catch (const std::exception &x) {
         throw JSONRPCError(RPC_WALLET_ERROR, std::string("Spark name registration failed: ") + x.what());
     }
@@ -5633,6 +5826,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "mintspark",              &mintspark,              true,  {} },
     { "wallet",             "automintspark",          &automintspark,          false, {} },
     { "wallet",             "spendspark",             &spendspark,             false, {} },
+    { "wallet",             "spendsparksplit",        &spendsparksplit,        false, {} },
     { "wallet",             "sendspark",              &sendspark,              false, {} },
     { "wallet",             "sendsparkmany",          &sendsparkmany,          false, {"fromaccount","amounts","comment","subtractfeefrom"} },
     { "wallet",             "identifysparkcoins",     &identifysparkcoins,     false, {} },

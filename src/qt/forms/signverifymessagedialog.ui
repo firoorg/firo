@@ -48,7 +48,7 @@
          <item>
           <widget class="QValidatedLineEdit" name="addressIn_SM">
            <property name="toolTip">
-            <string>The Firo address to sign the message with</string>
+            <string>The Firo or Spark address to sign the message with</string>
            </property>
           </widget>
          </item>
@@ -117,11 +117,14 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLineEdit" name="signatureOut_SM">
+          <widget class="QPlainTextEdit" name="signatureOut_SM">
            <property name="font">
             <font>
              <italic>true</italic>
             </font>
+           </property>
+           <property name="tabChangesFocus">
+            <bool>true</bool>
            </property>
            <property name="readOnly">
             <bool>true</bool>
@@ -152,7 +155,7 @@
          <item>
           <widget class="QPushButton" name="signMessageButton_SM">
            <property name="toolTip">
-            <string>Sign the message to prove you own this Firo address</string>
+            <string>Sign the message to prove you own this Firo or Spark address</string>
            </property>
            <property name="text">
             <string>Sign &amp;Message</string>
@@ -250,7 +253,7 @@
          <item>
           <widget class="QValidatedLineEdit" name="addressIn_VM">
            <property name="toolTip">
-            <string>The Firo address the message was signed with</string>
+            <string>The Firo or Spark address the message was signed with</string>
            </property>
           </widget>
          </item>
@@ -287,7 +290,7 @@
          <item>
           <widget class="QPushButton" name="verifyMessageButton_VM">
            <property name="toolTip">
-            <string>Verify the message to ensure it was signed with the specified Firo address</string>
+            <string>Verify the message to ensure it was signed with the specified Firo or Spark address</string>
            </property>
            <property name="text">
             <string>Verify &amp;Message</string>

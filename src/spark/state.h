@@ -10,6 +10,7 @@
 #include "../wallet/wallet.h"
 #include "../libspark/mint_transaction.h"
 #include "../libspark/spend_transaction.h"
+#include "../sync.h"
 #include "primitives.h"
 #include "sparkname.h"
 
@@ -52,6 +53,7 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
 void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin);
 std::vector<unsigned char> getSerialContext(const CTransaction &tx);
 spark::SpendTransaction ParseSparkSpend(const CTransaction &tx);
+CAmount GetSparkSpendFee(const CTransaction& tx);
 
 std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
@@ -59,7 +61,16 @@ std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
 size_t GetSpendInputs(const CTransaction &tx);
 CAmount GetSpendTransparentAmount(const CTransaction& tx);
 
+/** Whether a Spark spend has a format mineable at the given block height. */
+bool IsSparkSpendFormatAllowed(const CTransaction& tx, int height);
+
 bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight);
+
+/** Reject repeated Spark coin identities within a block or at an earlier height. */
+bool CheckSparkMintDuplicates(
+        CValidationState& state,
+        const std::vector<spark::Coin>& mints,
+        int nHeight);
 
 //void DisconnectTipLelantus(CBlock &block, CBlockIndex *pindexDelete);
 
@@ -68,9 +79,20 @@ bool ConnectBlockSpark(
         const CChainParams& chainparams,
         CBlockIndex* pindexNew,
         const CBlock *pblock,
-        bool fJustCheck=false);
+        bool fJustCheck=false,
+        bool isVerifyDB=false);
 
 void DisconnectTipSpark(CBlock &block, CBlockIndex *pindexDelete);
+
+/** Drop a cached successful proof when the tx leaves the mempool. */
+void EraseCheckedSparkSpendTransaction(const uint256& hashTx);
+
+/** Clear proof results that depend on active-chain cover-set data. */
+void ClearSparkSpendProofCache();
+
+/** Current number of cached successful proofs. */
+std::size_t GetSparkSpendProofCacheSize();
+
 
 
 bool CheckSparkTransaction(
@@ -92,7 +114,7 @@ bool BuildSparkStateFromIndex(CChain *chain);
 class CSparkMempoolState {
 private:
     // mints in the mempool
-    std::unordered_set<spark::Coin, spark::CoinHash> mempoolMints;
+    std::unordered_map<uint256, uint256> mempoolMints;
 
     // linking tags of spends currently in the mempool mapped to tx hashes
     std::unordered_map<GroupElement, uint256, spark::CLTagHash> mempoolLTags;
@@ -100,8 +122,9 @@ private:
 public:
     // Check if there is a conflicting tx in the blockchain or mempool
     bool HasMint(const spark::Coin& coin);
-    void AddMintToMempool(const spark::Coin& coin);
+    void AddMintToMempool(const spark::Coin& coin, const uint256& txHash);
     void RemoveMintFromMempool(const spark::Coin& coin);
+    uint256 GetMempoolConflictingMintTxHash(const spark::Coin& coin);
 
     // Check if there is a conflicting tx in the blockchain or mempool
     bool HasLTag(const GroupElement& lTag);
@@ -140,6 +163,14 @@ public:
     CSparkState(
             size_t maxCoinInGroup = ZC_SPARK_MAX_MINT_NUM,
             size_t startGroupSize = ZC_SPARK_SET_START_SIZE);
+    CSparkState(const CSparkState&) = delete;
+    CSparkState& operator=(const CSparkState&) = delete;
+
+    /**
+     * Copy live Spark state into this instance without copying the mutex.
+     * Used by VerifyDB to snapshot the node state into an isolated context.
+     */
+    void CopyFrom(const CSparkState& other);
 
     // Reset to initial values
     void Reset();
@@ -168,8 +199,8 @@ public:
 
     bool CanAddMintToMempool(const spark::Coin& coin);
 
-    void AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo);
-    void RemoveMint(const spark::Coin& coin);
+    bool AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo);
+    bool RemoveMint(const spark::Coin& coin, int expectedGroupId, int expectedHeight);
     // Add mints in block, automatically assigning id to it
     void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
 
@@ -185,7 +216,9 @@ public:
     // Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const std::vector<GroupElement>& lTags, uint256 txHash);
 
-    void AddMintsToMempool(const std::vector<spark::Coin>& coins);
+    void AddMintsToMempool(
+        const std::vector<spark::Coin>& coins,
+        const uint256& txHash);
     void RemoveMintFromMempool(const spark::Coin& coin);
 
     // Get conflicting tx hash by coin linking tag
@@ -235,7 +268,7 @@ public:
             uint256& blockHash,
             std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>>& coins);
 
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & GetMints() const;
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> GetMints() const;
     std::unordered_map<GroupElement, int, spark::CLTagHash> const & GetSpends() const;
     std::vector<std::pair<GroupElement, int>> const & GetSpendsMobile() const;
     std::unordered_map<uint256, uint256> const& GetSpendTxIds() const;
@@ -244,7 +277,7 @@ public:
 
     static CSparkState* GetState();
 
-    std::size_t GetTotalCoins() const { return mintedCoins.size(); }
+    std::size_t GetTotalCoins() const;
 
 private:
     size_t CountLastNCoins(int groupId, size_t required, CBlockIndex* &first);
@@ -261,7 +294,8 @@ private:
     std::unordered_map<int, SparkCoinGroupInfo> coinGroups;
 
     // Set of all minted coins
-    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins;
+    mutable CCriticalSection cs_minted_coins;
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> mintedCoins GUARDED_BY(cs_minted_coins);
     // Set of all used coin linking tags.
     std::unordered_map<GroupElement, int, spark::CLTagHash> usedLTags;
     // Set of all used linking tags, used only when -mobile=true
@@ -273,6 +307,32 @@ private:
     metainfo_container_t extendedMintMetaInfo, mintMetaInfo, spendMetaInfo;
 
     friend struct spark_mintspend::spark_mintspend_test;
+};
+
+/**
+ * Isolated Spark state used while VerifyDB reconnects blocks. The active
+ * context is thread-local so validation can use it without changing the live
+ * node state that VerifyDB is auditing.
+ */
+class CSparkVerifyDBContext {
+public:
+    explicit CSparkVerifyDBContext(CBlockIndex* tip);
+    ~CSparkVerifyDBContext();
+
+    CSparkVerifyDBContext(const CSparkVerifyDBContext&) = delete;
+    CSparkVerifyDBContext& operator=(const CSparkVerifyDBContext&) = delete;
+
+    void AddBlock(CBlockIndex* index);
+
+    CSparkState& GetSparkState() { return state; }
+    CSparkNameManager& GetSparkNameManager() { return sparkNameManager; }
+
+    static CSparkVerifyDBContext* GetActive();
+
+private:
+    CSparkState state;
+    CSparkNameManager sparkNameManager;
+    CSparkVerifyDBContext* previous;
 };
 
 } // namespace spark

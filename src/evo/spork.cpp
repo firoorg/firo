@@ -13,6 +13,9 @@ bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValida
     if (tx.nType != TRANSACTION_SPORK) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-type");
     }
+    if (tx.nVersion != 3) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
+    }
 
     CSporkTx sporkTx;
     if (!GetTxPayload(tx, sporkTx)) {
@@ -128,7 +131,7 @@ bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveS
     }
 
     for (CTransactionRef ptx: sporkTransactions) {
-        if (ptx->nVersion >= 3 && ptx->nType == TRANSACTION_SPORK) {
+        if (ptx->nVersion == 3 && ptx->nType == TRANSACTION_SPORK) {
             CSporkTx sporkTx;
             if (!GetTxPayload<CSporkTx>(*ptx, sporkTx))
                 return false;
@@ -197,7 +200,7 @@ bool CMempoolSporkManager::AcceptSporkToMemoryPool(const CTransaction &sporkTx)
             it++;
     }
 
-    if (sporkTx.nVersion >= 3 && sporkTx.nType == TRANSACTION_SPORK) {
+    if (sporkTx.nVersion == 3 && sporkTx.nType == TRANSACTION_SPORK) {
         CSporkTx sporkTxPayload;
         if (!GetTxPayload<CSporkTx>(sporkTx, sporkTxPayload))
             return false;
@@ -214,7 +217,7 @@ bool CMempoolSporkManager::AcceptSporkToMemoryPool(const CTransaction &sporkTx)
 
 void CMempoolSporkManager::RemovedFromMemoryPool(const CTransaction &sporkTx)
 {
-    if (sporkTx.nVersion >= 3 && sporkTx.nType == TRANSACTION_SPORK) {
+    if (sporkTx.nVersion == 3 && sporkTx.nType == TRANSACTION_SPORK) {
         CSporkTx sporkTxPayload;
         if (GetTxPayload<CSporkTx>(sporkTx, sporkTxPayload)) {
             // remove it from the mempool spork manager. If the removal is due to inclusion into the block

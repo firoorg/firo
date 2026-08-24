@@ -95,6 +95,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/evo_simplifiedmns_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/progpow_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bls_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkmessage_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/ownership_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/transcript_test.cpp
@@ -112,6 +113,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_state_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_mintspend_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_batch_test.cpp
 )
 
 target_link_libraries(test_firo

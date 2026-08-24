@@ -33,7 +33,8 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
     pwalletMain->SetBroadcastTransactions(true);
 
     std::vector<CMutableTransaction> mintTxs;
-    auto sparkMints = GenerateMints({50 * COIN, 60 * COIN}, mintTxs);
+    // Upgraded wallets can spend only one Spark coin at a time.
+    auto sparkMints = GenerateMints({100 * COIN, 60 * COIN}, mintTxs);
 
     // Verify Mint gets in the mempool
     BOOST_CHECK_MESSAGE(mempool.size() == sparkMints.size(), "Mints were not added to mempool");
@@ -141,7 +142,8 @@ BOOST_AUTO_TEST_CASE(spark_limit_test)
     std::vector<CMutableTransaction> txs;
     auto mints = GenerateMints({500*COIN, 500*COIN, 
         1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN,
-        1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN}, txs);
+        1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN, 1000*COIN,
+        3000*COIN, 3000*COIN}, txs);
 
     int nHeight = chainActive.Height();
     GenerateBlock(txs);

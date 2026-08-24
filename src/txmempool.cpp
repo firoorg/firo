@@ -6,11 +6,13 @@
 #include "txmempool.h"
 
 #include "clientversion.h"
+#include "chainparams.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "validation.h"
 #include "policy/policy.h"
 #include "policy/fees.h"
+#include "spark/state.h"
 #include "streams.h"
 #include "timedata.h"
 #include "util.h"
@@ -596,6 +598,8 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             catch (CBadTxIn&) {
             }
 
+            spark::EraseCheckedSparkSpendTransaction(tx.GetHash());
+
             // remove all the spark name transactions referencing this tx
             for (auto it = sparkNames.begin(); it!=sparkNames.end();) {
                 if (it->second.second == tx.GetHash()) {
@@ -863,7 +867,10 @@ void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMem
         const CTransaction& tx = it->GetTx();
         LockPoints lp = it->GetLockPoints();
         bool validLP =  TestLockPointValidity(&lp);
-        if (!CheckFinalTx(tx, flags) || !CheckSequenceLocks(*this, tx, flags, &lp, validLP)) {
+        if (!spark::IsSparkSpendFormatAllowed(
+                tx, static_cast<int>(nMemPoolHeight)) ||
+            !CheckFinalTx(tx, flags) ||
+            !CheckSequenceLocks(*this, tx, flags, &lp, validLP)) {
             // Note if CheckSequenceLocks fails the LockPoints may still be invalid
             // So it's critical that we remove the tx and not depend on the LockPoints.
             txToRemove.insert(it);
@@ -1100,6 +1107,7 @@ void CTxMemPool::_clear()
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
     sparkState.Reset();
+    sparkNames.clear();
     ++nTransactionsUpdated;
 }
 

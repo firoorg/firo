@@ -1,6 +1,7 @@
 #include "test/test_bitcoin.h"
 #include "test/fixtures.h"
 
+#include "chainparams.h"
 #include "script/interpreter.h"
 #include "script/standard.h"
 #include "script/sign.h"
@@ -278,8 +279,101 @@ BOOST_AUTO_TEST_CASE(mempool)
     BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight+1);
 }
 
+BOOST_AUTO_TEST_CASE(malformed_spork_payload_is_consensus_invalid)
+{
+    for (int n = chainActive.Height(); n < 1000; ++n) {
+        GenerateBlock({});
+    }
+
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    const CMutableTransaction validSpork = CreateSporkTx(
+        utxos,
+        coinbaseKey,
+        {{CSporkAction::sporkDisable,
+          CSporkAction::featureSpark,
+          0,
+          1075}});
+
+    const auto checkMalformedVersion = [&](
+            int32_t version, const std::string& rejectReason) {
+        CMutableTransaction malformedSpork(validSpork);
+        malformedSpork.nVersion = version;
+        malformedSpork.vExtraPayload.clear();
+        for (CTxIn& input : malformedSpork.vin) {
+            input.scriptSig.clear();
+        }
+        SignTransaction(malformedSpork, coinbaseKey);
+
+        CBlock candidate = CreateBlock({malformedSpork}, coinbaseKey);
+        uint256 candidateHash = candidate.GetHash();
+        CBlockIndex candidateIndex(candidate);
+        candidateIndex.phashBlock = &candidateHash;
+        candidateIndex.pprev = chainActive.Tip();
+        candidateIndex.nHeight = chainActive.Height() + 1;
+
+        CValidationState state;
+        CCoinsViewCache view(pcoinsTip);
+        {
+            LOCK(cs_main);
+            BOOST_CHECK(!ConnectBlock(
+                candidate,
+                state,
+                &candidateIndex,
+                view,
+                Params(),
+                true));
+        }
+
+        int dosScore = 0;
+        BOOST_REQUIRE(state.IsInvalid(dosScore));
+        BOOST_CHECK_EQUAL(dosScore, 100);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), rejectReason);
+        BOOST_CHECK(candidateIndex.activeDisablingSporks.empty());
+    };
+
+    // Version 3 is the deployed special-transaction format. A later version
+    // with the same type tag must be rejected before any state update.
+    checkMalformedVersion(3, "bad-protx-payload");
+    checkMalformedVersion(4, "bad-protx-version");
+
+    CMutableTransaction versionFourSpork(validSpork);
+    versionFourSpork.nVersion = 4;
+    CDataStream encoded(SER_NETWORK, PROTOCOL_VERSION);
+    encoded << versionFourSpork;
+    CMutableTransaction decoded;
+    encoded >> decoded;
+    BOOST_CHECK(decoded.vExtraPayload.empty());
+
+    CValidationState contextualState;
+    BOOST_CHECK(!ContextualCheckTransaction(
+        decoded,
+        contextualState,
+        Params().GetConsensus(),
+        chainActive.Tip()));
+    BOOST_CHECK_EQUAL(contextualState.GetRejectReason(), "bad-txns-type");
+}
+
 BOOST_AUTO_TEST_CASE(limit)
 {
+    Consensus::Params& consensus =
+        const_cast<Consensus::Params&>(::Params().GetConsensus());
+    struct ResetSparkV2Height {
+        Consensus::Params& consensus;
+        int singleInput;
+        int v2;
+        ResetSparkV2Height(Consensus::Params& consensusIn)
+            : consensus(consensusIn)
+            , singleInput(consensus.nSparkSingleInputStartBlock)
+            , v2(consensus.nSparkChaumV2StartBlock)
+        {
+        }
+        ~ResetSparkV2Height()
+        {
+            consensus.nSparkSingleInputStartBlock = singleInput;
+            consensus.nSparkChaumV2StartBlock = v2;
+        }
+    } resetSparkV2Height(consensus);
+
     int prevHeight;
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -296,20 +390,38 @@ BOOST_AUTO_TEST_CASE(limit)
     BOOST_ASSERT(pwalletMain->sparkWallet);
     spark::Address address = pwalletMain->sparkWallet->generateNewAddress();
 
+    // Upgraded wallets spend exactly one Spark coin per transaction. Mint
+    // coins that individually fund each spend below: one 120-FIRO transparent
+    // output (over the 100-FIRO spork limit) and two 70-FIRO outputs (each
+    // under the limit, but 140 > 100 so only one fits per block).
+    // Use fSplit=false so each requested amount becomes a single coin rather
+    // than being fragmented across UTXO address groups.
     std::vector<CMutableTransaction> sparkMints;
-    for (int i=0; i<10; i++) {
+    {
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        std::vector<spark::MintedCoinData> mints{{address, 50*COIN, ""}};
-        std::string error = pwalletMain->MintAndStoreSpark(mints, wtxAndFee, false, true);
+        std::vector<spark::MintedCoinData> mints{
+            {address, static_cast<uint64_t>(150 * COIN), ""},
+            {address, static_cast<uint64_t>(80 * COIN), ""},
+            {address, static_cast<uint64_t>(80 * COIN), ""},
+        };
+        std::string error = pwalletMain->MintAndStoreSpark(mints, wtxAndFee, false, false);
         BOOST_ASSERT(error.empty());
-        for (auto &w: wtxAndFee)
+        BOOST_ASSERT(!wtxAndFee.empty());
+        for (auto& w : wtxAndFee)
             sparkMints.emplace_back(*w.first.tx);
     }
 
-    GenerateBlock(sparkMints);
+    BOOST_ASSERT(GenerateBlock(sparkMints));
 
-    for (int i=0; i<10; i++)
+    for (int i = 0; i < 10; i++)
         GenerateBlock({});
+
+    // This test exercises the legacy Evo-spork amount limit, which requires
+    // spends larger than any one minted coin. Enable versioned construction
+    // locally so the test continues to exercise that amount boundary.
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkActivationHeights(
+        &activationHeight, &activationHeight);
 
     CAmount fee = 0;
     CWalletTx spendWalletTx = pwalletMain->SpendAndStoreSpark({{script, 120*COIN, false, ""}}, {}, fee);
@@ -320,6 +432,7 @@ BOOST_AUTO_TEST_CASE(limit)
 
     auto sparkSpend = spark::ParseSparkSpend(spendTx);
     std::vector<GroupElement> lTags = sparkSpend.getUsedLTags();
+    BOOST_ASSERT(lTags.size() == 1);
 
     // generate two smaller spark spend txs
     CWalletTx smallSparkWalletTxs[2] = {
@@ -328,6 +441,35 @@ BOOST_AUTO_TEST_CASE(limit)
     };
 
     CMutableTransaction smallSparkTxs[2] = {*smallSparkWalletTxs[0].tx, *smallSparkWalletTxs[1].tx};
+
+    // Each spend is within the active per-transaction limit, but the block is
+    // over the aggregate limit introduced by its own spork. Rejection must
+    // happen before either linking tag reaches process-global Spark state.
+    const std::vector<GroupElement> firstSmallTags =
+        spark::ParseSparkSpend(smallSparkTxs[0]).getUsedLTags();
+    const std::vector<GroupElement> secondSmallTags =
+        spark::ParseSparkSpend(smallSparkTxs[1]).getUsedLTags();
+    CBlock aggregateLimitBlock =
+        CreateBlock({sporkTx1, smallSparkTxs[0], smallSparkTxs[1]}, script);
+    prevHeight = chainActive.Height();
+    ProcessNewBlock(
+        Params(),
+        std::make_shared<const CBlock>(aggregateLimitBlock),
+        true,
+        nullptr);
+    BOOST_CHECK_EQUAL(chainActive.Height(), prevHeight);
+    {
+        LOCK(cs_main);
+        const auto candidate = mapBlockIndex.find(aggregateLimitBlock.GetHash());
+        BOOST_REQUIRE(candidate != mapBlockIndex.end());
+        BOOST_CHECK(candidate->second->activeDisablingSporks.empty());
+    }
+    for (const GroupElement& tag : firstSmallTags) {
+        BOOST_CHECK(!spark::CSparkState::GetState()->IsUsedLTag(tag));
+    }
+    for (const GroupElement& tag : secondSmallTags) {
+        BOOST_CHECK(!spark::CSparkState::GetState()->IsUsedLTag(tag));
+    }
 
     CommitToMempool(sporkTx1);
     BOOST_ASSERT(::mempool.size() == 3);    // two small spark spends and spork
@@ -344,6 +486,30 @@ BOOST_AUTO_TEST_CASE(limit)
     prevHeight = chainActive.Height();
     ProcessNewBlock(Params(), std::make_shared<CBlock>(block), true, nullptr);
     BOOST_ASSERT(chainActive.Height() == prevHeight+1);
+    {
+        CBlockIndex* tip = chainActive.Tip();
+        struct RestoreSporkMap {
+            CBlockIndex* index;
+            ActiveSporkMap original;
+            ~RestoreSporkMap()
+            {
+                LOCK(cs_main);
+                index->activeDisablingSporks.swap(original);
+            }
+        } restoreSporkMap{tip, tip->activeDisablingSporks};
+
+        BOOST_REQUIRE(tip->activeDisablingSporks.count(
+            CSporkAction::featureSparkTransparentLimit));
+        ++tip->activeDisablingSporks
+              .at(CSporkAction::featureSparkTransparentLimit)
+              .second;
+        const ActiveSporkMap expectedSporks =
+            tip->activeDisablingSporks;
+
+        CVerifyDB verifier;
+        BOOST_REQUIRE(verifier.VerifyDB(Params(), pcoinsTip, 4, 1));
+        BOOST_CHECK(tip->activeDisablingSporks == expectedSporks);
+    }
     // one spark spend should be left at the mempool
     BOOST_ASSERT(::mempool.size() == 1);
 

@@ -7,6 +7,7 @@
 
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "chainparams.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -14,6 +15,7 @@
 #include "walletmodel.h"
 
 #include "wallet/coincontrol.h"
+#include "wallet/sparkbatchplanner.h"
 #include "init.h"
 #include "policy/policy.h"
 #include "validation.h" // For mempool
@@ -32,9 +34,61 @@
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 
-QList<CAmount> CoinControlDialog::payAmounts;
+#include <algorithm>
+#include <cstdint>
+#include <limits>
+
+QList<CoinControlDialog::PayAmount> CoinControlDialog::payAmounts;
 CCoinControl* CoinControlDialog::coinControl = new CCoinControl();
 bool CoinControlDialog::fSubtractFeeFromAmount = false;
+std::size_t CoinControlDialog::extraOutputBytes = 0;
+
+unsigned int CoinControlDialog::estimateSparkTxBytes(
+    size_t selectedInputs,
+    size_t privateOutputs,
+    size_t transparentOutputs,
+    bool versionedSpend)
+{
+    constexpr uint64_t maxSize =
+        std::numeric_limits<unsigned int>::max();
+    const auto saturatingAdd = [](uint64_t left, uint64_t right) {
+        return right > maxSize - left ? maxSize : left + right;
+    };
+    const auto saturatingMultiply = [](uint64_t left, uint64_t right) {
+        return left != 0 && right > maxSize / left
+            ? maxSize
+            : left * right;
+    };
+
+    uint64_t estimatedSize;
+    if (selectedInputs == 1) {
+        estimatedSize = spark::EstimateSingleInputSparkSize(
+            privateOutputs,
+            transparentOutputs);
+    } else {
+        estimatedSize = 924;
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(1803, selectedInputs));
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(
+                322,
+                saturatingAdd(privateOutputs, 1)));
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(34, transparentOutputs));
+    }
+    if (versionedSpend) {
+        estimatedSize = saturatingAdd(estimatedSize, 32);
+        if (selectedInputs > 1) {
+            estimatedSize = saturatingAdd(
+                estimatedSize,
+                saturatingMultiply(98, selectedInputs - 1));
+        }
+    }
+    return static_cast<unsigned int>(estimatedSize);
+}
 
 bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
     int column = treeWidget()->sortColumn();
@@ -447,8 +501,9 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     CAmount nPayAmount = 0;
     bool fDust = false;
     CMutableTransaction txDummy;
-    for (const CAmount &amount : CoinControlDialog::payAmounts)
+    for (const PayAmount& payment : CoinControlDialog::payAmounts)
     {
+        const CAmount amount = payment.amount;
         nPayAmount += amount;
 
         if (amount > 0)
@@ -548,15 +603,31 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     {
         if (anonymousMode) {
             if(spark::IsSparkAllowed()) {
-                // 924 is constant part, mainly Schnorr and Range proofs, 1803 is for each grootle proof/aux data
-                // 213 for each private output,
-                nBytes = 924 + 1803 * (vOutputs.size()) + 322 * CoinControlDialog::payAmounts.size();
+                const size_t privateOutputs = std::count_if(
+                    CoinControlDialog::payAmounts.cbegin(),
+                    CoinControlDialog::payAmounts.cend(),
+                    [](const PayAmount& payment) { return payment.isPrivate; });
+                const size_t transparentOutputs =
+                    static_cast<size_t>(CoinControlDialog::payAmounts.size()) - privateOutputs;
+                bool versionedSpend;
+                {
+                    LOCK(cs_main);
+                    versionedSpend = chainActive.Height() + 1 >=
+                        Params().GetConsensus().nSparkChaumV2StartBlock;
+                }
+                nBytes = estimateSparkTxBytes(
+                    nQuantity,
+                    privateOutputs,
+                    transparentOutputs,
+                    versionedSpend);
             } else {
                 // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
                 // 83 assuming 1 jmint, 34 is the size of each normal vout,  10 is the size of empty transaction, 52 other constant parts
                 nBytes = 1054 + 2560 * vOutputs.size() + 83 + CoinControlDialog::payAmounts.size()  * 34  + 10 + 52;
             }
-            nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+            nPayFee = std::max(
+                payTxFee.GetFeePerK(),
+                CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool));
             if (nPayAmount > 0) {
                 nChange = nAmount - nPayAmount;
                 if (!CoinControlDialog::fSubtractFeeFromAmount)
@@ -565,6 +636,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         } else {
             // Bytes
             nBytes = nBytesInputs + ((CoinControlDialog::payAmounts.size() > 0 ? CoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
+            nBytes += extraOutputBytes;
             if (fWitness)
             {
                 // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.

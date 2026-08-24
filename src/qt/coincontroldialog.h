@@ -7,6 +7,8 @@
 
 #include "amount.h"
 
+#include <cstddef>
+
 #include <QAbstractButton>
 #include <QAction>
 #include <QDialog>
@@ -15,6 +17,8 @@
 #include <QPoint>
 #include <QString>
 #include <QTreeWidgetItem>
+
+#include <cstddef>
 
 class PlatformStyle;
 class WalletModel;
@@ -44,6 +48,12 @@ class CoinControlDialog : public QDialog
     Q_OBJECT
 
 public:
+    struct PayAmount
+    {
+        CAmount amount;
+        bool isPrivate;
+    };
+
     explicit CoinControlDialog(bool anonymousMode, const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~CoinControlDialog();
 
@@ -51,10 +61,19 @@ public:
 
     // static because also called from sendcoinsdialog
     static void updateLabels(WalletModel*, QDialog*, bool anonymousMode = false);
+    /**
+     * @param[in] versionedSpend true selects Spark V2 (Chaum V2) sizing; the default false preserves V1 sizing
+     */
+    static unsigned int estimateSparkTxBytes(
+        size_t selectedInputs,
+        size_t privateOutputs,
+        size_t transparentOutputs,
+        bool versionedSpend = false);
 
-    static QList<CAmount> payAmounts;
+    static QList<PayAmount> payAmounts;
     static CCoinControl *coinControl;
     static bool fSubtractFeeFromAmount;
+    static std::size_t extraOutputBytes;
 
 private:
     Ui::CoinControlDialog *ui;

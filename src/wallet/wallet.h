@@ -326,6 +326,11 @@ public:
     int64_t nOrderPos; //!< position in ordered transaction list
     std::unordered_set<uint32_t> changes; //!< positions of changes in vout
 
+    // Memory-only Spark output metadata staged by transaction construction.
+    // CommitTransaction persists it atomically before mempool acceptance, and
+    // erases it again if acceptance fails.
+    std::vector<std::pair<CScript, CSparkOutputTx>> pendingSparkOutputRecords;
+
     // memory only
     mutable bool fDebitCached;
     mutable bool fCreditCached;
@@ -386,6 +391,7 @@ public:
         nChangeCached = 0;
         nOrderPos = -1;
         changes.clear();
+        pendingSparkOutputRecords.clear();
     }
 
     ADD_SERIALIZE_METHODS;
@@ -729,6 +735,17 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
+    /*
+     * Serializes the walletpassphrase RPC for this wallet, so that unlocking
+     * the wallet and scheduling the matching relock timer happen atomically
+     * with respect to other walletpassphrase calls.
+     *
+     * This must never be acquired while cs_wallet is held: it is held across
+     * RPCRunLater(), which blocks until a running relock callback has returned,
+     * and that callback acquires cs_wallet.
+     */
+    CCriticalSection cs_unlock;
+
     const std::string strWalletFile;
 
     void LoadKeyPool(int nIndex, const CKeyPool &keypool)
@@ -993,17 +1010,41 @@ public:
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
+    /**
+     * Build a Spark spend. Chaum V2 is selected when the next block is at or
+     * past nSparkChaumV2StartBlock.
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @param[out] recipientAmounts Optional caller-owned vector. If non-null it
+     *     is overwritten with post-fee amounts (transparent, then private).
+     *     The wallet does not take ownership of the container.
+     * @return The constructed wallet transaction.
+     * @pre The wallet is unlocked and a Spark wallet is available.
+     */
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1,
+            std::vector<CAmount>* recipientAmounts = nullptr);
 
+    /**
+     * Build a Spark name transaction using the next block's activation rules
+     * (name format, fee script, and Chaum V2).
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @return The constructed wallet transaction.
+     * @pre The wallet is unlocked and a Spark wallet is available.
+     */
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &sparkNameData,
             CAmount sparkNameFee,
             CAmount &txFee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1);
 
     CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
@@ -1011,7 +1052,20 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
+    std::vector<CWalletTx> SpendAndStoreSparkSingleInput(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+            CAmount& totalFee,
+            const CCoinControl* coinControl = NULL);
+
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction = false);
+
+    /**
+     * Testing-only hook for Spark output persistence in CommitTransaction.
+     * Negative values disable the hook. 0 fails before any write. A positive
+     * value succeeds that many writes, then fails (to test transactional abort).
+     */
+    static void SetSparkOutputWriteFailureForTesting(int failAfterWrites);
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
     bool ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecAmounts);
@@ -1029,6 +1083,16 @@ public:
      * and the required fee
      */
     static CAmount GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool);
+    /**
+     * Estimate the minimum fee, applying coin-control overrides when present.
+     * Confirmation target is coinControl->nConfirmTarget when it is greater
+     * than 0, otherwise nTxConfirmTarget. nMinimumTotalFee raises that
+     * estimate when higher. fOverrideFeeRate then replaces the result with
+     * coinControl->nFeeRate.
+     * @param[in] coinControl May be null; then only the wallet confirmation target is used.
+     * @return The selected fee in satoshis.
+     */
+    static CAmount GetMinimumFee(unsigned int nTxBytes, const CCoinControl* coinControl, const CTxMemPool& pool);
     /**
      * Estimate the minimum fee considering required fee and targetFee or if 0
      * then fee estimation for nConfirmTarget

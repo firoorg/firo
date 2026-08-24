@@ -185,10 +185,10 @@
           <item>
            <widget class="QCheckBox" name="autoAnonymize">
             <property name="toolTip">
-             <string>When enabled, the wallet can prompt to anonymize transparent funds using Spark.</string>
+             <string>When enabled, the wallet can prompt to make transparent funds private with Spark.</string>
             </property>
             <property name="text">
-             <string>Enable &amp;auto-anonymize features</string>
+             <string>Enable automatic Spark &amp;privacy</string>
             </property>
            </widget>
           </item>
@@ -205,10 +205,10 @@
           <item>
            <widget class="QCheckBox" name="sparkPage">
             <property name="toolTip">
-             <string>Show the Spark manual anonymize controls in the overview.</string>
+             <string>Show the Make Private control in the overview.</string>
             </property>
             <property name="text">
-             <string>Enable Spark &amp;manual-anonymize page</string>
+             <string>Show Spark &amp;privacy controls</string>
             </property>
            </widget>
           </item>
