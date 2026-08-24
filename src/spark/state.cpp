@@ -196,7 +196,21 @@ size_t CountCoinInBlock(CBlockIndex *index, int id) {
            ? index->sparkMintedCoins[id].size() : 0;
 }
 
-std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
+static int NextBlockHeight(CChain* chain)
+{
+    return (chain && chain->Tip()) ? chain->Height() + 1 : 0;
+}
+
+// After Chaum V2, cover-set hash lookup includes the group's first mint block.
+// INT_MAX / negative values are mempool sentinels, not consensus heights.
+static bool IncludeFirstBlockSetHash(int height)
+{
+    if (height < 0 || height == INT_MAX)
+        return false;
+    return height >= ::Params().GetConsensus().nSparkChaumV2StartBlock;
+}
+
+std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false, bool includeFirstBlock = false) {
     std::vector<unsigned char> out_hash;
 
     CSparkState::SparkCoinGroupInfo coinGroup;
@@ -206,11 +220,14 @@ std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id,
     if ((coinGroup.firstBlock == coinGroup.lastBlock && generation) || (coinGroup.nCoins == 0))
         return out_hash;
 
-    while (index != coinGroup.firstBlock) {
+    // Pre-V2: stop before firstBlock so one-block groups report an empty hash.
+    while (index != coinGroup.firstBlock || includeFirstBlock) {
         if (index->sparkSetHash.count(group_id) > 0) {
             out_hash = index->sparkSetHash[group_id];
             break;
         }
+        if (index == coinGroup.firstBlock)
+            break;
         index = index->pprev;
     }
     return out_hash;
@@ -505,9 +522,9 @@ bool ConnectBlockSpark(
             return true;
         }
 
-        FIRO_UNUSED const auto& params = ::Params().GetConsensus();
         CHash256 hash;
         bool updateHash = false;
+        const bool includeFirstBlock = IncludeFirstBlockSetHash(pindexNew->nHeight);
 
         if (!pblock->sparkTxInfo->mints.empty()) {
             sparkState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
@@ -515,12 +532,12 @@ bool ConnectBlockSpark(
             // add  coins into hasher, for generating set hash
             updateHash = true;
             // get previous hash of the set, if there is no such, don't write anything
-            std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true);
+            std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true, includeFirstBlock);
             if (!prev_hash.empty())
                 hash.Write(prev_hash.data(), 32);
             else {
                 if (latestCoinId > 1) {
-                    prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true);
+                    prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true, includeFirstBlock);
                     hash.Write(prev_hash.data(), 32);
                 }
             }
@@ -1080,7 +1097,7 @@ bool CheckSparkSpendTransaction(
 
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash =
-            GetAnonymitySetHash(index, stateGroupId);
+            GetAnonymitySetHash(index, stateGroupId, false, IncludeFirstBlockSetHash(height));
         CBlockIndex* referenceBlock = index;
 
         std::size_t set_size = 0;
@@ -1104,6 +1121,19 @@ bool CheckSparkSpendTransaction(
             if (index == coinGroup.firstBlock)
                 break;
             index = index->pprev;
+        }
+
+        // After Chaum V2, nonempty cover sets must commit the canonical
+        // 32-byte cumulative hash. Before that height the first mint block is
+        // omitted from lookup, so honest one-block groups have an empty hash.
+        if (IncludeFirstBlockSetHash(height) &&
+            set_size > 0 &&
+            set_hash.size() != CSHA256::OUTPUT_SIZE) {
+            return state.DoS(
+                nHeight == INT_MAX ? 0 : 100,
+                false,
+                nHeight == INT_MAX ? REJECT_NONSTANDARD : REJECT_INVALID,
+                "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
         }
 
         CoverSetData setData;
@@ -1929,7 +1959,7 @@ int CSparkState::GetCoinSetForSpend(
                 // latest block satisfying given conditions
                 // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                setHash_out =  GetAnonymitySetHash(block, id);
+                setHash_out =  GetAnonymitySetHash(block, id, false, IncludeFirstBlockSetHash(NextBlockHeight(chain)));
             }
             numberOfCoins += block->sparkMintedCoins[id].size();
             if (block->sparkMintedCoins.count(id) > 0) {
@@ -1981,7 +2011,7 @@ void CSparkState::GetCoinsForRecovery(
                 // latest block satisfying given conditions
                 // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                setHash_out =  GetAnonymitySetHash(block, id);
+                setHash_out =  GetAnonymitySetHash(block, id, false, IncludeFirstBlockSetHash(NextBlockHeight(chain)));
             }
             numberOfCoins += block->sparkMintedCoins[id].size();
             if (block->sparkMintedCoins.count(id) > 0) {
@@ -2024,7 +2054,7 @@ void CSparkState::GetAnonSetMetaData(
                 // latest block satisfying given conditions
                 // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                setHash_out =  GetAnonymitySetHash(block, id);
+                setHash_out =  GetAnonymitySetHash(block, id, false, IncludeFirstBlockSetHash(NextBlockHeight(chain)));
             }
             size += block->sparkMintedCoins[id].size();
         }

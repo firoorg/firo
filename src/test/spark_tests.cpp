@@ -12,6 +12,7 @@
 #include "../net.h"
 #include "../miner.h"
 #include "../policy/policy.h"
+#include "../hash.h"
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
@@ -1671,6 +1672,11 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     BOOST_REQUIRE(GenerateBlock({}));
     BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
 
+    const CTransaction v2MultiAtFork(GenerateCustomSparkSpend(
+        fiveCoinMints, 9 * COIN, 0, SpendTransactionVersion::V2));
+    const CTransaction v1SingleAtFork(GenerateCustomSparkSpend(
+        {fiveCoinMints[0]}, 4 * COIN, 0, SpendTransactionVersion::V1));
+
     CValidationState activeContextualState;
     BOOST_CHECK(IsSparkSpendFormatAllowed(
         v2Multi, activationHeight));
@@ -1683,9 +1689,9 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     CValidationState activeV2State;
     CSparkTxInfo activeV2Info;
     BOOST_REQUIRE(CheckSparkTransaction(
-        v2Multi,
+        v2MultiAtFork,
         activeV2State,
-        v2Multi.GetHash(),
+        v2MultiAtFork.GetHash(),
         false,
         activationHeight,
         false,
@@ -1698,9 +1704,9 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     CValidationState batchedV2State;
     CSparkTxInfo batchedV2Info;
     BOOST_REQUIRE(CheckSparkTransaction(
-        v2Multi,
+        v2MultiAtFork,
         batchedV2State,
-        v2Multi.GetHash(),
+        v2MultiAtFork.GetHash(),
         false,
         activationHeight,
         false,
@@ -1712,9 +1718,9 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     CValidationState activeV1State;
     CSparkTxInfo activeV1Info;
     BOOST_CHECK(CheckSparkTransaction(
-        v1Single,
+        v1SingleAtFork,
         activeV1State,
-        v1Single.GetHash(),
+        v1SingleAtFork.GetHash(),
         false,
         activationHeight,
         false,
@@ -1913,32 +1919,32 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         &reorderedInfo));
 
     CBlockIndex* activationIndex =
-        GenerateBlock({CMutableTransaction(v2Multi)});
+        GenerateBlock({CMutableTransaction(v2MultiAtFork)});
     BOOST_REQUIRE(activationIndex);
     BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight);
     const CBlock activationBlock = GetCBlock(activationIndex);
 
     BOOST_REQUIRE(DisconnectBlocks(2));
     BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 2);
-    BOOST_REQUIRE(mempool.exists(v2Multi.GetHash()));
+    BOOST_REQUIRE(mempool.exists(v2MultiAtFork.GetHash()));
     BOOST_REQUIRE(IsFinalTx(
-        v2Multi, chainActive.Height() + 1, GetAdjustedTime()));
+        v2MultiAtFork, chainActive.Height() + 1, GetAdjustedTime()));
 
     // A stale V2 transaction must be excluded from both miner selection
     // paths before V2 activation. A large priority delta forces the legacy
     // priority path independently of the package-level activation check.
     mempool.PrioritiseTransaction(
-        v2Multi.GetHash(), v2Multi.GetHash().ToString(), 1e15, 0);
+        v2MultiAtFork.GetHash(), v2MultiAtFork.GetHash().ToString(), 1e15, 0);
     std::unique_ptr<CBlockTemplate> preActivationTemplate;
     BOOST_CHECK_NO_THROW(preActivationTemplate =
         BlockAssembler(::Params()).CreateNewBlock(script));
     BOOST_REQUIRE(preActivationTemplate);
     BOOST_CHECK(std::none_of(
         preActivationTemplate->block.vtx.begin(), preActivationTemplate->block.vtx.end(),
-        [&v2Multi](const CTransactionRef& tx) {
-            return tx->GetHash() == v2Multi.GetHash();
+        [&v2MultiAtFork](const CTransactionRef& tx) {
+            return tx->GetHash() == v2MultiAtFork.GetHash();
         }));
-    mempool.ClearPrioritisation(v2Multi.GetHash());
+    mempool.ClearPrioritisation(v2MultiAtFork.GetHash());
 
     std::unique_ptr<CBlockTemplate> preActivationPackageTemplate;
     BOOST_CHECK_NO_THROW(preActivationPackageTemplate =
@@ -1947,8 +1953,8 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     BOOST_CHECK(std::none_of(
         preActivationPackageTemplate->block.vtx.begin(),
         preActivationPackageTemplate->block.vtx.end(),
-        [&v2Multi](const CTransactionRef& tx) {
-            return tx->GetHash() == v2Multi.GetHash();
+        [&v2MultiAtFork](const CTransactionRef& tx) {
+            return tx->GetHash() == v2MultiAtFork.GetHash();
         }));
 
     {
@@ -1958,7 +1964,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
             chainActive.Height() + 1,
             STANDARD_LOCKTIME_VERIFY_FLAGS);
     }
-    BOOST_CHECK(!mempool.exists(v2Multi.GetHash()));
+    BOOST_CHECK(!mempool.exists(v2MultiAtFork.GetHash()));
     {
         LOCK(cs_main);
         CValidationState reconnectState;
@@ -1968,6 +1974,194 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
             std::make_shared<const CBlock>(activationBlock)));
     }
     BOOST_CHECK_EQUAL(chainActive.Height(), activationHeight);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(first_block_cover_set_hash_after_chaum_v2)
+{
+    RestoreSparkActivationHeights restoreHeights;
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    const int groupId = sparkState->GetLatestCoinID();
+    CSparkState::SparkCoinGroupInfo group;
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(groupId, group));
+    BOOST_REQUIRE(group.firstBlock);
+    BOOST_REQUIRE_EQUAL(group.firstBlock, group.lastBlock);
+    BOOST_REQUIRE(group.firstBlock->sparkSetHash.count(groupId));
+    const std::vector<unsigned char> firstBlockHash =
+        group.firstBlock->sparkSetHash.at(groupId);
+    BOOST_REQUIRE_EQUAL(firstBlockHash.size(), 32U);
+
+    uint256 blockHash;
+    std::vector<Coin> coins;
+    std::vector<unsigned char> setHash;
+    const int maxHeight =
+        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
+
+    BOOST_REQUIRE_GE(sparkState->GetCoinSetForSpend(
+        &chainActive, maxHeight, groupId, blockHash, coins, setHash), 2);
+    BOOST_CHECK(setHash.empty());
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkActivationHeights(
+        &activationHeight, &activationHeight);
+
+    BOOST_REQUIRE_GE(sparkState->GetCoinSetForSpend(
+        &chainActive, maxHeight, groupId, blockHash, coins, setHash), 2);
+    BOOST_CHECK(setHash == firstBlockHash);
+
+    std::vector<CMutableTransaction> nextMintTransactions;
+    GenerateMints({3 * COIN, 3 * COIN}, nextMintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(nextMintTransactions));
+
+    BOOST_REQUIRE(sparkState->GetCoinGroupInfo(groupId, group));
+    BOOST_REQUIRE(group.lastBlock != group.firstBlock);
+    BOOST_CHECK(group.firstBlock->sparkSetHash.at(groupId) == firstBlockHash);
+
+    CHash256 hasher;
+    hasher.Write(firstBlockHash.data(), firstBlockHash.size());
+    for (const auto& coin : group.lastBlock->sparkMintedCoins.at(groupId)) {
+        CDataStream serializedCoin(SER_NETWORK, 0);
+        serializedCoin << coin;
+        std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
+        hasher.Write(data.data(), data.size());
+    }
+    unsigned char expected[CSHA256::OUTPUT_SIZE];
+    hasher.Finalize(expected);
+    const std::vector<unsigned char> expectedHash(
+        expected, expected + CSHA256::OUTPUT_SIZE);
+    BOOST_CHECK(group.lastBlock->sparkSetHash.at(groupId) == expectedHash);
+
+    BOOST_REQUIRE_GE(sparkState->GetCoinSetForSpend(
+        &chainActive,
+        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+        groupId, blockHash, coins, setHash), 2);
+    BOOST_CHECK(setHash == expectedHash);
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
+{
+    RestoreSparkActivationHeights restoreHeights;
+    RestoreBroadcastSetting restoreBroadcast;
+    pwalletMain->SetBroadcastTransactions(true);
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    const int activationHeight = chainActive.Height() + 1;
+    UpdateRegtestSparkActivationHeights(
+        &activationHeight, &activationHeight);
+
+    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+    mempool.clear();
+    SpendTransaction parsed = ParseSparkSpend(spend);
+    const auto references = parsed.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(references.size(), 1U);
+
+    const int groupId = static_cast<int>(references.begin()->first);
+    const auto blockIt = mapBlockIndex.find(references.begin()->second);
+    BOOST_REQUIRE(blockIt != mapBlockIndex.end());
+    CBlockIndex* referencedBlock = blockIt->second;
+    BOOST_REQUIRE(referencedBlock->sparkSetHash.count(groupId));
+    const std::vector<unsigned char> storedHash =
+        referencedBlock->sparkSetHash.at(groupId);
+    BOOST_REQUIRE_EQUAL(storedHash.size(), 32U);
+
+    struct RestoreSetHash {
+        CBlockIndex* block;
+        int groupId;
+        std::vector<unsigned char> hash;
+        ~RestoreSetHash()
+        {
+            block->sparkSetHash[groupId] = hash;
+        }
+    } restoreSetHash{referencedBlock, groupId, storedHash};
+    referencedBlock->sparkSetHash.erase(groupId);
+
+    BatchProofContainer* batch = BatchProofContainer::get_instance();
+    batch->init();
+    batch->fCollectProofs = true;
+    struct RestoreBatchCollection {
+        BatchProofContainer* batch;
+        ~RestoreBatchCollection()
+        {
+            batch->fCollectProofs = false;
+            batch->init();
+        }
+    } restoreBatch{batch};
+
+    CValidationState state;
+    CSparkTxInfo info;
+    BOOST_CHECK(!CheckSparkTransaction(
+        spend,
+        state,
+        spend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &info));
+    int consensusDoS = -1;
+    BOOST_REQUIRE(state.IsInvalid(consensusDoS));
+    BOOST_CHECK_EQUAL(consensusDoS, 100);
+    BOOST_CHECK_EQUAL(state.GetRejectCode(), REJECT_INVALID);
+    BOOST_CHECK_EQUAL(
+        state.GetRejectReason(),
+        "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
+
+    CValidationState mempoolHeightState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        spend,
+        mempoolHeightState,
+        spend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    int mempoolHeightDoS = -1;
+    BOOST_REQUIRE(mempoolHeightState.IsInvalid(mempoolHeightDoS));
+    BOOST_CHECK_EQUAL(mempoolHeightDoS, 0);
+    BOOST_CHECK_EQUAL(mempoolHeightState.GetRejectCode(), REJECT_NONSTANDARD);
+    BOOST_CHECK_EQUAL(
+        mempoolHeightState.GetRejectReason(),
+        "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
+
+    batch->finalize();
+    BOOST_CHECK(batch->verify_pending());
+
+    referencedBlock->sparkSetHash[groupId] = storedHash;
+    referencedBlock->sparkSetHash[groupId].resize(8);
+    CValidationState truncatedState;
+    CSparkTxInfo truncatedInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        spend,
+        truncatedState,
+        spend.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &truncatedInfo));
+    BOOST_CHECK_EQUAL(
+        truncatedState.GetRejectReason(),
+        "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
 
     mempool.clear();
     sparkState->Reset();
