@@ -45,6 +45,7 @@
 #include "llmq/quorums_signing.h"
 #include "llmq/quorums_signing_shares.h"
 
+#include <limits>
 #include <optional>
 
 #include <boost/thread.hpp>
@@ -1418,6 +1419,9 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         bool fRelay = true;
 
         vRecv >> nVersion >> nServiceInt >> nTime >> addrMe;
+        if (nTime < 0) {
+            nTime = 0;
+        }
         nSendVersion = std::min(nVersion, PROTOCOL_VERSION);
         nServices = ServiceFlags(nServiceInt);
         if (!pfrom->fInbound)
@@ -1565,7 +1569,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                   pfrom->nStartingHeight, addrMe.ToString(), pfrom->id,
                   remoteAddr);
 
-        int64_t nTimeOffset = nTime - GetTime();
+        const int64_t nNow = GetTime();
+        // Firo permits negative mock time, so saturate the otherwise overflowing difference.
+        const int64_t nTimeOffset = nNow < 0 && nTime > std::numeric_limits<int64_t>::max() + nNow
+            ? std::numeric_limits<int64_t>::max()
+            : nTime - nNow;
         pfrom->nTimeOffset = nTimeOffset;
         AddTimeData(pfrom->addr, nTimeOffset);
 

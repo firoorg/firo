@@ -161,6 +161,47 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
     BOOST_CHECK(!connman->IsBanned(addr));
 }
 
+BOOST_AUTO_TEST_CASE(version_timestamp_int64_min)
+{
+    std::atomic<bool> interruptDummy(false);
+    PeerLogicValidation peerLogic(connman);
+
+    struct MockTimeReset {
+        ~MockTimeReset() { SetMockTime(0); }
+    } mockTimeReset;
+    SetMockTime(1);
+
+    CAddress peerAddress(ip(0xa0b0c007), NODE_NONE);
+    CNode peerNode(id++, NODE_NETWORK, 0, INVALID_SOCKET, peerAddress, 0, 0, "", true);
+    GetNodeSignals().InitializeNode(&peerNode, *connman);
+
+    struct NodeStateCleanup {
+        explicit NodeStateCleanup(NodeId nodeId) : nodeId(nodeId) {}
+
+        ~NodeStateCleanup()
+        {
+            bool updateConnectionTime = false;
+            GetNodeSignals().FinalizeNode(nodeId, updateConnectionTime);
+        }
+
+        NodeId nodeId;
+    } nodeStateCleanup(peerNode.GetId());
+
+    auto versionMessage = CNetMsgMaker(INIT_PROTO_VERSION).Make(
+        NetMsgType::VERSION,
+        PROTOCOL_VERSION,
+        static_cast<uint64_t>(NODE_NETWORK),
+        std::numeric_limits<int64_t>::min(),
+        CAddress());
+    QueueNetMessage(peerNode, versionMessage.command.c_str(), CFlatData(versionMessage.data));
+
+    BOOST_CHECK(!ProcessMessages(&peerNode, *connman, interruptDummy));
+    BOOST_CHECK(peerNode.vProcessMsg.empty());
+    BOOST_CHECK(!peerNode.fDisconnect);
+    BOOST_CHECK_EQUAL(peerNode.nVersion.load(), PROTOCOL_VERSION);
+    BOOST_CHECK_EQUAL(peerNode.nTimeOffset.load(), -1);
+}
+
 CTransactionRef RandomOrphan()
 {
     std::map<uint256, COrphanTx>::iterator it;
