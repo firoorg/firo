@@ -234,6 +234,86 @@ BOOST_AUTO_TEST_CASE(spend)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(disconnect_block_rolls_back_spend)
+{
+    pwalletMain->SetBroadcastTransactions(true);
+    GenerateBlocks(1001);
+
+    // mint the coins to spend from, a spend needs a cover set of at least two coins
+    spark::MintedCoinData data;
+    data.address = pwalletMain->sparkWallet->getDefaultAddress();
+    data.v = 2 * COIN;
+    data.memo = "Test memo";
+
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    BOOST_CHECK_EQUAL("", pwalletMain->MintAndStoreSpark({data, data}, wtxAndFee, false, true));
+
+    std::vector<CMutableTransaction> mintTxs;
+    for (const auto& wtx : wtxAndFee)
+        mintTxs.emplace_back(*(wtx.first.tx));
+
+    BOOST_REQUIRE(GenerateBlock(mintTxs));
+    GenerateBlocks(5);
+    BOOST_REQUIRE_EQUAL(2, pwalletMain->sparkWallet->ListSparkMints().size());
+
+    // spend a part of it, the remainder comes back as an SMint output of the spend
+    auto spendTx = GenerateSparkSpend({1 * COIN}, {}, nullptr);
+
+    std::vector<spark::Coin> coins;
+    std::vector<GroupElement> lTags;
+    ExtractSpend(spendTx, coins, lTags);
+    BOOST_REQUIRE_EQUAL(1, coins.size());
+    BOOST_REQUIRE_EQUAL(1, lTags.size());
+
+    auto blockIdx = GenerateBlock({CMutableTransaction(spendTx)});
+    BOOST_REQUIRE(blockIdx);
+
+    // the wallet picks the connected block up on a background thread, let it settle
+    // before touching its state
+    pwalletMain->sparkWallet->FinishTasks();
+
+    // the wallet holds the mint of the change and the spent coin is marked as used
+    uint256 spentLTagHash = primitives::GetLTagHash(lTags[0]);
+    CSparkMintMeta changeMeta;
+    BOOST_CHECK(pwalletMain->sparkWallet->getMintMeta(coins[0], changeMeta));
+    BOOST_CHECK(pwalletMain->sparkWallet->getMintMeta(spentLTagHash).isUsed);
+    BOOST_CHECK_EQUAL(3, pwalletMain->sparkWallet->ListSparkMints().size());
+    BOOST_CHECK_EQUAL(1, pwalletMain->sparkWallet->ListSparkSpends().size());
+
+    // DisconnectTip resurrects the transactions of the disconnected block into the
+    // pools and keeps the wallet state of everything that makes it back. Make the
+    // pools reject the spend the way a competing spend of the same coin on the new
+    // chain would, so that the transaction is really gone and the wallet has to roll
+    // back.
+    {
+        LOCK(mempool.cs);
+        mempool.sparkState.AddSpendToMempool(lTags[0], spendTx.GetHash());
+    }
+    {
+        CTxMemPool &stemPool = txpools.getStemTxPool();
+        LOCK(stemPool.cs);
+        stemPool.sparkState.AddSpendToMempool(lTags[0], spendTx.GetHash());
+    }
+
+    BOOST_CHECK(DisconnectBlocks(1));
+    BOOST_CHECK_EQUAL(chainActive.Tip()->nHeight, blockIdx->nHeight - 1);
+
+    // the mint created by the spend is gone and the coin it spent is spendable again
+    CSparkMintMeta staleMeta;
+    BOOST_CHECK(!pwalletMain->sparkWallet->getMintMeta(coins[0], staleMeta));
+
+    CSparkMintMeta spentMeta = pwalletMain->sparkWallet->getMintMeta(spentLTagHash);
+    BOOST_CHECK_EQUAL(data.v, spentMeta.v);
+    BOOST_CHECK(!spentMeta.isUsed);
+
+    BOOST_CHECK_EQUAL(2, pwalletMain->sparkWallet->ListSparkMints().size());
+    BOOST_CHECK_EQUAL(0, pwalletMain->sparkWallet->ListSparkSpends().size());
+
+    mempool.clear();
+    auto sparkState = spark::CSparkState::GetState();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
 {
     auto countMintsInBalance = [&](
