@@ -88,42 +88,26 @@ bool BatchProofContainer::batch_spark() {
     LogPrintf("Spark batch verification started.\n");
     uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
 
-    std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
     spark::CSparkState* sparkState = spark::CSparkState::GetState();
-
-    for (auto& itr : sparkTransactions) {
-        auto& idAndBlockHashes = itr.getBlockHashes();
-        for (const auto& idAndHash : idAndBlockHashes) {
-            const uint64_t cover_set_id = idAndHash.first;
-            if (cover_sets.find(cover_set_id) == cover_sets.end()) {
-                std::vector<spark::Coin> cover_set;
-                sparkState->GetCoinSet(static_cast<int32_t>(cover_set_id), cover_set);
-                cover_sets.emplace(cover_set_id, std::move(cover_set));
-            }
-        }
-    }
-    for (auto& itr : historicalSparkTransactions) {
-        auto& idAndBlockHashes = itr.getBlockHashes();
-        for (const auto& idAndHash : idAndBlockHashes) {
-            const uint64_t cover_set_id = idAndHash.first;
-            if (cover_sets.find(cover_set_id) == cover_sets.end()) {
-                std::vector<spark::Coin> cover_set;
-                sparkState->GetCoinSet(static_cast<int32_t>(cover_set_id), cover_set);
-                cover_sets.emplace(cover_set_id, std::move(cover_set));
-            }
-        }
-    }
+    std::vector<spark::Coin> loadedCoverSet;
+    const spark::SpendTransaction::CoverSetProvider coverSetProvider =
+        [sparkState, &loadedCoverSet](uint64_t id)
+            -> const std::vector<spark::Coin>& {
+        loadedCoverSet.clear();
+        sparkState->GetCoinSet(static_cast<int32_t>(id), loadedCoverSet);
+        return loadedCoverSet;
+    };
     auto* params = spark::Params::get_default();
 
     bool passed = true;
     try {
         if (!sparkTransactions.empty()) {
             passed = spark::SpendTransaction::verify(
-                params, sparkTransactions, cover_sets);
+                params, sparkTransactions, coverSetProvider);
         }
         if (passed && !historicalSparkTransactions.empty()) {
             passed = spark::SpendTransaction::verifyHistorical(
-                params, historicalSparkTransactions, cover_sets);
+                params, historicalSparkTransactions, coverSetProvider);
         }
     } catch (const std::exception &) {
         passed = false;
@@ -135,7 +119,8 @@ bool BatchProofContainer::batch_spark() {
         for (std::size_t i = 0; i < sparkTransactions.size(); ++i) {
             bool fProofValid;
             try {
-                fProofValid = spark::SpendTransaction::verify(sparkTransactions[i], cover_sets);
+                fProofValid = spark::SpendTransaction::verify(
+                    params, {sparkTransactions[i]}, coverSetProvider);
             } catch (const std::exception &) {
                 fProofValid = false;
             }
@@ -147,7 +132,7 @@ bool BatchProofContainer::batch_spark() {
             bool fProofValid;
             try {
                 fProofValid = spark::SpendTransaction::verifyHistorical(
-                    historicalSparkTransactions[i], cover_sets);
+                    params, {historicalSparkTransactions[i]}, coverSetProvider);
             } catch (const std::exception &) {
                 fProofValid = false;
             }

@@ -933,6 +933,25 @@ bool CheckSparkSpendTransaction(
                          isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
                          "CheckSparkSpendTransaction: invalid coin group id");
     }
+    const bool enforceExactCoverSetReferences = isMempoolAcceptance ||
+        height >= params.nSparkChaumV2StartBlock;
+    if (enforceExactCoverSetReferences) {
+        bool referencesMatchIds = false;
+        if (ids.size() == spend->getUsedLTags().size()) {
+            const std::set<uint64_t> uniqueIds(ids.begin(), ids.end());
+            referencesMatchIds =
+                idAndBlockHashes.size() == uniqueIds.size() &&
+                std::equal(
+                    uniqueIds.begin(), uniqueIds.end(), idAndBlockHashes.begin(),
+                    [](uint64_t id, const auto& item) { return id == item.first; });
+        }
+        if (!referencesMatchIds) {
+            return state.DoS(isMempoolAcceptance ? 0 : 100,
+                             false,
+                             isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                             "CheckSparkSpendTransaction: invalid cover set references");
+        }
+    }
     if (spend->getFee() > static_cast<uint64_t>(MAX_MONEY)) {
         return state.DoS(100, false, REJECT_INVALID,
             "CheckSparkSpendTransaction: fee out of range");

@@ -69,7 +69,8 @@ public:
         const std::vector<CSparkMintMeta>& selected,
         CAmount transparentAmount,
         uint64_t coverSetIdOffset = 0,
-        SpendTransactionVersion version = SpendTransactionVersion::V1)
+        SpendTransactionVersion version = SpendTransactionVersion::V1,
+        uint64_t unusedCoverSetId = 0)
     {
         BOOST_REQUIRE(!selected.empty());
 
@@ -96,6 +97,34 @@ public:
         std::unordered_map<uint64_t, std::vector<Coin>> coverSets;
         CAmount totalInput = 0;
 
+        const auto addCoverSet = [&](int groupId, uint64_t wireGroupId) {
+            if (coverSetData.count(wireGroupId)) {
+                return;
+            }
+
+            uint256 blockHash;
+            std::vector<Coin> coverSet;
+            std::vector<unsigned char> setHash;
+            BOOST_REQUIRE(sparkState->GetCoinSetForSpend(
+                &chainActive,
+                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                groupId,
+                blockHash,
+                coverSet,
+                setHash) >= 2);
+
+            CoverSetData data;
+            data.cover_set_size = coverSet.size();
+            data.cover_set_representation = std::move(setHash);
+            data.cover_set_representation.insert(
+                data.cover_set_representation.end(),
+                metadataHash.begin(),
+                metadataHash.end());
+            coverSetData[wireGroupId] = std::move(data);
+            coverSets[wireGroupId] = std::move(coverSet);
+            blockHashes[wireGroupId] = blockHash;
+        };
+
         for (const auto& meta : selected) {
             int groupId = meta.nId;
             CSparkState::SparkCoinGroupInfo nextGroup;
@@ -106,30 +135,7 @@ public:
             }
             const uint64_t wireGroupId =
                 static_cast<uint64_t>(groupId) + coverSetIdOffset;
-
-            if (!coverSetData.count(wireGroupId)) {
-                uint256 blockHash;
-                std::vector<Coin> coverSet;
-                std::vector<unsigned char> setHash;
-                BOOST_REQUIRE(sparkState->GetCoinSetForSpend(
-                    &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                    groupId,
-                    blockHash,
-                    coverSet,
-                    setHash) >= 2);
-
-                CoverSetData data;
-                data.cover_set_size = coverSet.size();
-                data.cover_set_representation = setHash;
-                data.cover_set_representation.insert(
-                    data.cover_set_representation.end(),
-                    metadataHash.begin(),
-                    metadataHash.end());
-                coverSetData[wireGroupId] = std::move(data);
-                coverSets[wireGroupId] = std::move(coverSet);
-                blockHashes[wireGroupId] = blockHash;
-            }
+            addCoverSet(groupId, wireGroupId);
 
             Coin coin = pwalletMain->sparkWallet->getCoinFromMeta(meta);
             std::size_t index = 0;
@@ -157,6 +163,10 @@ public:
             input.k = meta.k;
             inputs.push_back(std::move(input));
             totalInput += meta.v;
+        }
+
+        if (unusedCoverSetId) {
+            addCoverSet(static_cast<int>(unusedCoverSetId), unusedCoverSetId);
         }
 
         const CAmount fee = CENT;
@@ -2968,19 +2978,129 @@ BOOST_AUTO_TEST_CASE(spark_proof_cache_is_invalidated_on_cover_set_reorg)
 BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible)
 {
     RestoreSparkActivationHeights resetActivationHeights;
+    struct RestoreSparkGroupLimits {
+        CSparkState* state;
+
+        explicit RestoreSparkGroupLimits(CSparkState* stateIn)
+            : state(stateIn)
+        {
+            state->Reset();
+            state->~CSparkState();
+            new (state) CSparkState(2, 2);
+        }
+
+        ~RestoreSparkGroupLimits()
+        {
+            state->Reset();
+            state->~CSparkState();
+            new (state) CSparkState();
+        }
+    } resetGroupLimits{sparkState};
 
     GenerateBlocks(500);
 
     std::vector<CMutableTransaction> mintTransactions;
-    GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    const auto createdMints =
+        GenerateMints({5 * COIN, 1 * COIN, 1 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 3U);
     mempool.clear();
-    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[0], mintTransactions[1]}));
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[2]}));
     GenerateBlocks(10);
+    BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
+
+    std::vector<CSparkMintMeta> confirmedMints;
+    for (const auto& mint : createdMints) {
+        confirmedMints.push_back(
+            pwalletMain->sparkWallet->getMintMeta(mint.k));
+    }
+    const auto groupTwoMint = std::find_if(
+        confirmedMints.begin(), confirmedMints.end(),
+        [](const CSparkMintMeta& mint) { return mint.nId == 2; });
+    BOOST_REQUIRE(groupTwoMint != confirmedMints.end());
+
+    const CTransaction extraReference = GenerateCustomSparkSpend(
+        {*groupTwoMint},
+        COIN / 2,
+        0,
+        SpendTransactionVersion::V1,
+        1);
+    SpendTransaction extraReferenceParsed = ParseSparkSpend(extraReference);
+    BOOST_REQUIRE_EQUAL(extraReferenceParsed.getCoinGroupIds().size(), 1U);
+    BOOST_REQUIRE_EQUAL(extraReferenceParsed.getBlockHashes().size(), 2U);
+    for (const auto& reference : extraReferenceParsed.getBlockHashes()) {
+        CSparkState::SparkCoinGroupInfo group;
+        BOOST_REQUIRE(sparkState->GetCoinGroupInfo(
+            static_cast<int>(reference.first), group));
+    }
 
     const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
     SpendTransaction parsed = ParseSparkSpend(spend);
     auto references = parsed.getBlockHashes();
     BOOST_REQUIRE_EQUAL(references.size(), 1U);
+
+    const std::size_t proofCacheSize = GetSparkSpendProofCacheSize();
+    CValidationState extraReferenceMempoolState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        extraReference,
+        extraReferenceMempoolState,
+        extraReference.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    int dos = -1;
+    BOOST_REQUIRE(extraReferenceMempoolState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 0);
+    BOOST_CHECK_EQUAL(
+        extraReferenceMempoolState.GetRejectCode(), REJECT_NONSTANDARD);
+    BOOST_CHECK_EQUAL(
+        extraReferenceMempoolState.GetRejectReason(),
+        "CheckSparkSpendTransaction: invalid cover set references");
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), proofCacheSize);
+
+    CDataStream decodedPayload(
+        spend.vExtraPayload, SER_NETWORK, PROTOCOL_VERSION);
+    std::vector<uint64_t> ids;
+    std::map<uint64_t, uint256> matchingReferences;
+    uint64_t fee;
+    std::vector<GroupElement> S1, C1, tags;
+    std::vector<GrootleProof> grootleProofs;
+    ChaumProofV1 chaumProof;
+    SchnorrProof balanceProof;
+    BPPlusProof rangeProof;
+    decodedPayload >> ids >> matchingReferences >> fee >> S1 >> C1 >> tags >>
+        grootleProofs >> chaumProof >> balanceProof >> rangeProof;
+    BOOST_REQUIRE(decodedPayload.empty());
+    BOOST_REQUIRE_EQUAL(ids.size(), 1U);
+    BOOST_REQUIRE_EQUAL(tags.size(), 1U);
+    ids.push_back(ids.front());
+    BOOST_REQUIRE_EQUAL(matchingReferences.size(), 1U);
+
+    CDataStream mismatchedPayload(SER_NETWORK, PROTOCOL_VERSION);
+    mismatchedPayload << ids << matchingReferences << fee << S1 << C1 << tags <<
+        grootleProofs << chaumProof << balanceProof << rangeProof;
+    CMutableTransaction mismatchedDimensions(spend);
+    mismatchedDimensions.vExtraPayload.assign(
+        mismatchedPayload.begin(), mismatchedPayload.end());
+
+    CValidationState mismatchedDimensionsState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        CTransaction(mismatchedDimensions),
+        mismatchedDimensionsState,
+        mismatchedDimensions.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_REQUIRE(mismatchedDimensionsState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 0);
+    BOOST_CHECK_EQUAL(
+        mismatchedDimensionsState.GetRejectReason(),
+        "CheckSparkSpendTransaction: invalid cover set references");
+
     references.begin()->second = uint256S("01");
     parsed.setBlockHashes(references);
 
@@ -2999,7 +3119,6 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
         false,
         true,
         nullptr));
-    int dos = -1;
     BOOST_REQUIRE(state.IsInvalid(dos));
     BOOST_CHECK_EQUAL(dos, 0);
 
@@ -3055,11 +3174,57 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
     BOOST_CHECK_EQUAL(dos, 0);
 
     const int activationHeight = chainActive.Height() + 1;
+    const int exactReferencesHeight = activationHeight + 1;
     UpdateRegtestSparkSingleInputHeight(activationHeight);
+    UpdateRegtestSparkChaumV2Height(exactReferencesHeight);
 
     BatchProofContainer* batch = BatchProofContainer::get_instance();
+    batch->fCollectProofs = false;
+    CValidationState legacyExtraReferenceState;
+    CSparkTxInfo legacyExtraReferenceInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        extraReference,
+        legacyExtraReferenceState,
+        extraReference.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &legacyExtraReferenceInfo));
+
     batch->init();
     batch->fCollectProofs = true;
+    CValidationState legacyBatchedExtraReferenceState;
+    CSparkTxInfo legacyBatchedExtraReferenceInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        extraReference,
+        legacyBatchedExtraReferenceState,
+        extraReference.GetHash(),
+        false,
+        activationHeight,
+        false,
+        true,
+        &legacyBatchedExtraReferenceInfo));
+
+    CValidationState batchedExtraReferenceState;
+    CSparkTxInfo batchedExtraReferenceInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        extraReference,
+        batchedExtraReferenceState,
+        extraReference.GetHash(),
+        false,
+        exactReferencesHeight,
+        false,
+        true,
+        &batchedExtraReferenceInfo));
+    BOOST_REQUIRE(batchedExtraReferenceState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 100);
+    BOOST_CHECK_EQUAL(
+        batchedExtraReferenceState.GetRejectCode(), REJECT_INVALID);
+    BOOST_CHECK_EQUAL(
+        batchedExtraReferenceState.GetRejectReason(),
+        "CheckSparkSpendTransaction: invalid cover set references");
+
     CValidationState batchedOutOfRangeState;
     CSparkTxInfo batchedOutOfRangeInfo;
     BOOST_CHECK(!CheckSparkTransaction(
