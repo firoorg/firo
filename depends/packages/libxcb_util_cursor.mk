@@ -1,6 +1,6 @@
 package=libxcb_util_cursor
 $(package)_version=0.1.5
-$(package)_download_path=https://xcb.freedesktop.org/dist
+$(package)_download_path=https://xorg.freedesktop.org/archive/individual/lib
 $(package)_file_name=xcb-util-cursor-$($(package)_version).tar.gz
 $(package)_sha256_hash=0e9c5446dc6f3beb8af6ebfcc9e27bcc6da6fe2860f7fc07b99144dfa568e93b
 $(package)_dependencies=libxcb libxcb_util_render libxcb_util_image

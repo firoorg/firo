@@ -1,6 +1,6 @@
 package=libxcb
 $(package)_version=1.14
-$(package)_download_path=https://xcb.freedesktop.org/dist
+$(package)_download_path=https://xorg.freedesktop.org/archive/individual/lib
 $(package)_file_name=$(package)-$($(package)_version).tar.xz
 $(package)_sha256_hash=a55ed6db98d43469801262d81dc2572ed124edc3db31059d4e9916eb9f844c34
 $(package)_dependencies=xcb_proto libXau libXdmcp

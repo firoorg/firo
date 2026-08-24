@@ -1,6 +1,6 @@
 package=libxcb_util_image
 $(package)_version=0.4.1
-$(package)_download_path=https://xcb.freedesktop.org/dist
+$(package)_download_path=https://xorg.freedesktop.org/archive/individual/lib
 $(package)_file_name=xcb-util-image-$($(package)_version).tar.xz
 $(package)_sha256_hash=ccad8ee5dadb1271fd4727ad14d9bd77a64e505608766c4e98267d9aede40d3d
 $(package)_dependencies=libxcb libxcb_util
