@@ -704,6 +704,11 @@ void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCom
     if (strCommand == NetMsgType::ISLOCK) {
         CInstantSendLock islock;
         vRecv >> islock;
+        if (islock.inputs.size() > CInstantSendLock::MAX_INPUTS) {
+            LOCK(cs_main);
+            Misbehaving(pfrom->id, 100);
+            return;
+        }
         ProcessMessageInstantSendLock(pfrom, islock, connman);
     }
 }
@@ -728,6 +733,11 @@ void CInstantSendManager::ProcessMessageInstantSendLock(CNode* pfrom, const llmq
     if (pendingInstantSendLocks.count(hash)) {
         return;
     }
+    if (pendingInstantSendLocks.size() >= MAX_PENDING_INSTANTSEND_LOCKS) {
+        LogPrint("instantsend", "CInstantSendManager::%s -- pending islock queue full (%d), dropping islock=%s, peer=%d\n",
+            __func__, pendingInstantSendLocks.size(), hash.ToString(), pfrom->id);
+        return;
+    }
 
     LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s, islock=%s: received islock, peer=%d\n", __func__,
             islock.txid.ToString(), hash.ToString(), pfrom->id);
@@ -739,7 +749,7 @@ bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CI
 {
     retBan = false;
 
-    if (islock.txid.IsNull() || islock.inputs.empty()) {
+    if (islock.txid.IsNull() || islock.inputs.empty() || islock.inputs.size() > CInstantSendLock::MAX_INPUTS) {
         retBan = true;
         return false;
     }
@@ -761,7 +771,18 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
 
     {
         LOCK(cs);
-        pend = std::move(pendingInstantSendLocks);
+        // Only process 32 locks at a time to avoid duplicate verification of recovered signatures which have been
+        // verified by CSigningManager in parallel.
+        const size_t maxCount = 32;
+        if (pendingInstantSendLocks.size() <= maxCount) {
+            pend = std::move(pendingInstantSendLocks);
+        } else {
+            while (pend.size() < maxCount) {
+                auto it = pendingInstantSendLocks.begin();
+                pend.emplace(it->first, std::move(it->second));
+                pendingInstantSendLocks.erase(it);
+            }
+        }
     }
 
     if (pend.empty()) {
@@ -834,8 +855,10 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
 
         auto id = islock.GetRequestId();
 
-        // no need to verify an ISLOCK if we already have verified the recovered sig that belongs to it
-        if (quorumSigningManager->HasRecoveredSig(llmqType, id, islock.txid)) {
+        // no need to verify an ISLOCK if we already have verified the exact recovered sig that belongs to it
+        CRecoveredSig recoveredSig;
+        if (quorumSigningManager->GetRecoveredSigForId(llmqType, id, recoveredSig) &&
+            recoveredSig.msgHash == islock.txid && recoveredSig.sig == islock.sig) {
             continue;
         }
 
