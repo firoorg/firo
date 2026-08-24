@@ -2980,20 +2980,20 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
     RestoreSparkActivationHeights resetActivationHeights;
     struct RestoreSparkGroupLimits {
         CSparkState* state;
+        CSparkState original;
 
         explicit RestoreSparkGroupLimits(CSparkState* stateIn)
-            : state(stateIn)
+            : state(stateIn), original()
         {
-            state->Reset();
-            state->~CSparkState();
-            new (state) CSparkState(2, 2);
+            original.CopyFrom(*state);
+            CSparkState limited(2, 2);
+            state->CopyFrom(limited);
         }
 
         ~RestoreSparkGroupLimits()
         {
             state->Reset();
-            state->~CSparkState();
-            new (state) CSparkState();
+            state->CopyFrom(original);
         }
     } resetGroupLimits{sparkState};
 
