@@ -547,6 +547,8 @@ void OverviewPage::on_anonymizeButton_clicked()
     auto layout = new QVBoxLayout(&amountDialog);
     layout->setContentsMargins(24, 24, 24, 24);
     layout->setSpacing(16);
+    layout->setSizeConstraint(QLayout::SetFixedSize);
+
     auto description = new QLabel(
         tr("Move FIRO from your transparent balance into Spark, Firo's private balance."),
         &amountDialog);
