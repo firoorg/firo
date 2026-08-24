@@ -409,7 +409,7 @@ BOOST_AUTO_TEST_CASE(chaum_v1_name_fee_requires_canonical_metadata_after_v2_acti
     CValidationState validState;
     BOOST_REQUIRE(CheckTransaction(
         CTransaction(nameTx), validState, false, nameTx.GetHash(), false,
-        v2Height, false, true, nullptr));
+        singleInputHeight, false, true, nullptr));
 
     spark::SpendTransaction spend(spark::Params::get_default());
     CSparkNameTxData parsed;
