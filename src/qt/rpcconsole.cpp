@@ -477,18 +477,82 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     clear();
 }
 
-void RPCConsole::applyConsoleToolbarTheme()
+void RPCConsole::applyConsoleTheme()
 {
-    const QString buttonStyle = GUIUtil::themed(QStringLiteral(
-        "QPushButton { background-color: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 4px; }"
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QWidget#RPCConsole { background: $BG; }
+        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
+        QTabBar::tab {
+            background: transparent;
+            color: $INK_FAINT;
+            font-weight: 700;
+            padding: 8px 14px;
+            border: none;
+        }
+        QTabBar::tab:selected { color: $WINE; }
+        QTabBar::tab:hover { color: $INK; }
+        QGroupBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 12px;
+            font-weight: 700;
+            color: $INK;
+            margin-top: 10px;
+            padding-top: 12px;
+        }
+        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_FAINT; background-color: $PANEL; }
+        QTextEdit#messagesWidget {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 12px;
+            padding: 8px;
+            color: $INK;
+        }
+        QTableView {
+            background: $PANEL;
+            alternate-background-color: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 12px;
+            color: $INK;
+            gridline-color: $BORDER;
+            selection-background-color: $WINE_TINT;
+            selection-color: $INK;
+        }
+        QHeaderView::section {
+            background: $PANEL_SOFT;
+            color: $INK_FAINT;
+            border: none;
+            border-bottom: 1px solid $BORDER;
+            padding: 4px 8px;
+            font-weight: 700;
+        }
+        QLabel#peerHeading, QLabel#banHeading {
+            color: $INK;
+            font-weight: 700;
+        }
+        QPushButton {
+            color: $INK;
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            font-weight: 700;
+            padding: 6px 14px;
+        }
+        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
+        QPushButton:pressed { background: $PANEL_SOFT; }
+    )")));
+
+    const QString iconButtonStyle = GUIUtil::themed(QStringLiteral(
+        "QPushButton { background-color: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 4px; padding: 0px; }"
         "QPushButton:hover:enabled { background-color: $PANEL; }"
         "QPushButton:disabled { background-color: $PANEL_SOFT; border-color: $PANEL_SOFT; }"));
-    ui->fontSmallerButton->setStyleSheet(buttonStyle);
-    ui->fontBiggerButton->setStyleSheet(buttonStyle);
-    ui->clearButton->setStyleSheet(buttonStyle);
-    ui->promptIcon->setStyleSheet(buttonStyle);
+    ui->fontSmallerButton->setStyleSheet(iconButtonStyle);
+    ui->fontBiggerButton->setStyleSheet(iconButtonStyle);
+    ui->clearButton->setStyleSheet(iconButtonStyle);
+    ui->promptIcon->setStyleSheet(iconButtonStyle);
     ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLineEdit { background-color: $PANEL_SOFT; color: $INK; border: 1px solid $BORDER; }")));
+        "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $BORDER; border-radius: 10px; padding: 4px 8px; }"
+        "QLineEdit:focus { border: 1px solid $WINE; }")));
 }
 
 RPCConsole::~RPCConsole()
