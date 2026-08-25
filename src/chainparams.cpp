@@ -420,7 +420,7 @@ public:
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
         consensus.nSparkSingleInputStartBlock = 1355970;
-        consensus.nSparkChaumV2StartBlock = 1364983;
+        consensus.nSparkChaumV2StartBlock = 1371000; // Approximately September 4 2026, 10:00 UTC
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
