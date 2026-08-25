@@ -1,4 +1,5 @@
 #include <../../test/fixtures.h>
+#include "../../chainparams.h"
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
 #include "../../validation.h"
@@ -232,6 +233,58 @@ BOOST_AUTO_TEST_CASE(spend)
 
     auto sparkState = spark::CSparkState::GetState();
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spend_rejects_unbound_cover_set_during_h2_policy_lead)
+{
+    struct RestoreSparkTestState {
+        ~RestoreSparkTestState()
+        {
+            mempool.clear();
+            spark::CSparkState::GetState()->Reset();
+        }
+    } restoreSparkTestState;
+
+    struct RestoreActivationHeights {
+        Consensus::Params& consensus;
+        int singleInput;
+        int v2;
+
+        RestoreActivationHeights()
+            : consensus(const_cast<Consensus::Params&>(
+                ::Params().GetConsensus()))
+            , singleInput(consensus.nSparkSingleInputStartBlock)
+            , v2(consensus.nSparkChaumV2StartBlock)
+        {
+        }
+
+        ~RestoreActivationHeights()
+        {
+            consensus.nSparkSingleInputStartBlock = singleInput;
+            consensus.nSparkChaumV2StartBlock = v2;
+        }
+    } restoreActivationHeights;
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({2 * COIN, 2 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(5);
+    pwalletMain->sparkWallet->FinishTasks();
+
+    const int nextHeight = chainActive.Height() + 1;
+    const int h2Height = nextHeight + 10;
+    UpdateRegtestSparkActivationHeights(&nextHeight, &h2Height);
+
+    try {
+        GenerateSparkSpend({COIN}, {}, nullptr);
+        BOOST_FAIL("Expected an unbound cover-set rejection");
+    } catch (const std::runtime_error& error) {
+        BOOST_CHECK_EQUAL(
+            error.what(),
+            "Selected Spark cover set is not yet bound to a canonical state hash");
+    }
 }
 
 BOOST_AUTO_TEST_CASE(disconnect_block_rolls_back_spend)

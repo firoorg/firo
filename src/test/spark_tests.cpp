@@ -71,7 +71,9 @@ public:
         CAmount transparentAmount,
         uint64_t coverSetIdOffset = 0,
         SpendTransactionVersion version = SpendTransactionVersion::V1,
-        uint64_t unusedCoverSetId = 0)
+        uint64_t unusedCoverSetId = 0,
+        int maxCoverSetHeight = -1,
+        bool omitStateHash = false)
     {
         BOOST_REQUIRE(!selected.empty());
 
@@ -108,7 +110,9 @@ public:
             std::vector<unsigned char> setHash;
             BOOST_REQUIRE(sparkState->GetCoinSetForSpend(
                 &chainActive,
-                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                maxCoverSetHeight >= 0
+                    ? maxCoverSetHeight
+                    : chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
                 groupId,
                 blockHash,
                 coverSet,
@@ -116,7 +120,8 @@ public:
 
             CoverSetData data;
             data.cover_set_size = coverSet.size();
-            data.cover_set_representation = std::move(setHash);
+            if (!omitStateHash)
+                data.cover_set_representation = std::move(setHash);
             data.cover_set_representation.insert(
                 data.cover_set_representation.end(),
                 metadataHash.begin(),
@@ -2165,6 +2170,204 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
 
     mempool.clear();
     sparkState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(spark_cover_set_hash_binding_activates_with_h2)
+{
+    RestoreSparkActivationHeights restoreActivationHeights;
+    struct RestoreSparkGroupLimits {
+        CSparkState* state;
+        CSparkState original;
+
+        explicit RestoreSparkGroupLimits(CSparkState* stateIn)
+            : state(stateIn), original()
+        {
+            original.CopyFrom(*state);
+            CSparkState limited(3, 2);
+            state->CopyFrom(limited);
+        }
+
+        ~RestoreSparkGroupLimits()
+        {
+            mempool.clear();
+            state->Reset();
+            state->CopyFrom(original);
+        }
+    } restoreGroupLimits{sparkState};
+
+    ClearSparkSpendProofCache();
+    GenerateBlocks(500);
+    const int constructionSingleInputHeight = chainActive.Height() + 1;
+    const int deferredH2Height = chainActive.Height() + 1000;
+    UpdateRegtestSparkActivationHeights(
+        &constructionSingleInputHeight, &deferredH2Height);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints = GenerateMints(
+        {5 * COIN, 1 * COIN, 1 * COIN, 1 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 4U);
+    mempool.clear();
+
+    CBlockIndex* firstBlock = GenerateBlock(
+        {mintTransactions[0], mintTransactions[1]});
+    BOOST_REQUIRE(firstBlock);
+    pwalletMain->sparkWallet->FinishTasks();
+
+    const auto firstMintIt = std::find_if(
+        createdMints.begin(), createdMints.end(),
+        [&mintTransactions](const CSparkMintMeta& mint) {
+            return mint.txid == mintTransactions[0].GetHash();
+        });
+    BOOST_REQUIRE(firstMintIt != createdMints.end());
+    const CSparkMintMeta firstMint =
+        pwalletMain->sparkWallet->getMintMeta(firstMintIt->k);
+    BOOST_REQUIRE_EQUAL(firstMint.nId, 1);
+    const CTransaction legacyFirstBlockSpend = GenerateCustomSparkSpend(
+        {firstMint},
+        4 * COIN,
+        0,
+        SpendTransactionVersion::V1,
+        0,
+        firstBlock->nHeight,
+        true);
+    BOOST_REQUIRE_EQUAL(firstBlock->sparkSetHash.count(1), 1U);
+
+    CBlockIndex* rolloverReference = GenerateBlock({mintTransactions[2]});
+    BOOST_REQUIRE(rolloverReference);
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[3]}));
+    GenerateBlocks(10);
+    pwalletMain->sparkWallet->FinishTasks();
+    BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
+
+    const auto rolloverMintIt = std::find_if(
+        createdMints.begin(), createdMints.end(),
+        [&mintTransactions](const CSparkMintMeta& mint) {
+            return mint.txid == mintTransactions[2].GetHash();
+        });
+    BOOST_REQUIRE(rolloverMintIt != createdMints.end());
+    const CSparkMintMeta rolloverMint =
+        pwalletMain->sparkWallet->getMintMeta(rolloverMintIt->k);
+    BOOST_REQUIRE_EQUAL(rolloverMint.nId, 1);
+    const CTransaction unboundRolloverSpend = GenerateCustomSparkSpend(
+        {rolloverMint},
+        COIN / 2,
+        0,
+        SpendTransactionVersion::V1,
+        0,
+        rolloverReference->nHeight,
+        true);
+    SpendTransaction parsedRolloverSpend =
+        ParseSparkSpend(unboundRolloverSpend);
+    const auto& references = parsedRolloverSpend.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(references.size(), 1U);
+    BOOST_CHECK_EQUAL(references.begin()->first, 2U);
+    BOOST_CHECK_EQUAL(rolloverReference->sparkSetHash.count(2), 0U);
+
+    const int nextHeight = chainActive.Height() + 1;
+    const int initialH2Height = nextHeight + 11;
+    UpdateRegtestSparkActivationHeights(
+        &nextHeight, &initialH2Height);
+
+    // Legacy first-block proof cached pre-H2 would skip H2 re-verification
+    // unless the HF-1 connect clears the cache.
+    CValidationState cachedLegacyState;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        legacyFirstBlockSpend,
+        cachedLegacyState,
+        legacyFirstBlockSpend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    BOOST_REQUIRE_EQUAL(GetSparkSpendProofCacheSize(), 1U);
+
+    CValidationState wronglyCachedState;
+    CSparkTxInfo wronglyCachedInfo;
+    BOOST_CHECK(CheckSparkTransaction(
+        legacyFirstBlockSpend,
+        wronglyCachedState,
+        legacyFirstBlockSpend.GetHash(),
+        false,
+        initialH2Height,
+        false,
+        true,
+        &wronglyCachedInfo));
+
+    // ConnectBlockSpark clears the proof cache when HF-1 connects.
+    ClearSparkSpendProofCache();
+    BOOST_CHECK_EQUAL(GetSparkSpendProofCacheSize(), 0U);
+
+    CValidationState activeLegacyState;
+    CSparkTxInfo activeLegacyInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        legacyFirstBlockSpend,
+        activeLegacyState,
+        legacyFirstBlockSpend.GetHash(),
+        false,
+        initialH2Height,
+        false,
+        true,
+        &activeLegacyInfo));
+    int dos = -1;
+    BOOST_REQUIRE(activeLegacyState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 100);
+    BOOST_CHECK_EQUAL(
+        activeLegacyState.GetRejectReason(),
+        "CheckSparkSpendTransaction: proof verification failed");
+    EraseCheckedSparkSpendTransaction(legacyFirstBlockSpend.GetHash());
+
+    const int h2Height = nextHeight + 10;
+    UpdateRegtestSparkChaumV2Height(h2Height);
+
+    CValidationState policyState;
+    BOOST_CHECK(!CheckSparkTransaction(
+        unboundRolloverSpend,
+        policyState,
+        unboundRolloverSpend.GetHash(),
+        false,
+        INT_MAX,
+        false,
+        true,
+        nullptr));
+    dos = -1;
+    BOOST_REQUIRE(policyState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 0);
+    BOOST_CHECK_EQUAL(
+        policyState.GetRejectReason(),
+        "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
+
+    CValidationState preActivationState;
+    CSparkTxInfo preActivationInfo;
+    BOOST_REQUIRE(CheckSparkTransaction(
+        unboundRolloverSpend,
+        preActivationState,
+        unboundRolloverSpend.GetHash(),
+        false,
+        h2Height - 1,
+        false,
+        true,
+        &preActivationInfo));
+    EraseCheckedSparkSpendTransaction(unboundRolloverSpend.GetHash());
+
+    CValidationState activeState;
+    CSparkTxInfo activeInfo;
+    BOOST_CHECK(!CheckSparkTransaction(
+        unboundRolloverSpend,
+        activeState,
+        unboundRolloverSpend.GetHash(),
+        false,
+        h2Height,
+        false,
+        true,
+        &activeInfo));
+    BOOST_REQUIRE(activeState.IsInvalid(dos));
+    BOOST_CHECK_EQUAL(dos, 100);
+    BOOST_CHECK_EQUAL(
+        activeState.GetRejectReason(),
+        "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
+
+    mempool.clear();
 }
 
 BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)

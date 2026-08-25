@@ -640,6 +640,12 @@ bool ConnectBlockSpark(
     
     sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
 
+    if (!fJustCheck &&
+        pindexNew->nHeight + 1 ==
+            chainparams.GetConsensus().nSparkChaumV2StartBlock) {
+        ClearSparkSpendProofCache();
+    }
+
     return true;
 }
 
@@ -846,7 +852,7 @@ bool CheckSparkSpendTransaction(
 
     Consensus::Params const & params = ::Params().GetConsensus();
     int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
-    const bool isMempoolAcceptance = !sparkTxInfo;
+    const bool isMempoolAcceptance = !sparkTxInfo && nHeight == INT_MAX;
     const bool isChaumV2 = tx.nType == TRANSACTION_SPARK_V2;
     if (fStatefulSigmaCheck && isMempoolAcceptance && isChaumV2 &&
         height < params.nSparkChaumV2StartBlock) {
@@ -928,6 +934,13 @@ bool CheckSparkSpendTransaction(
         !isChaumV2 && (isMempoolAcceptance
             ? height >= (singleInputActivation - 10)
             : enforceChaumV1SingleInput);
+    // Mempool policy leads consensus by 10 blocks so stale unbound proofs are
+    // drained before H2. Consensus itself binds only from H2 onward.
+    const bool enforceBoundCoverSetHash = isMempoolAcceptance
+        ? height >= (params.nSparkChaumV2StartBlock - 10)
+        : height >= params.nSparkChaumV2StartBlock;
+    const bool useBoundCoverSetHash =
+        height >= params.nSparkChaumV2StartBlock;
     if (requireChaumV1SingleInput &&
         spend->getUsedLTags().size() != 1) {
         return state.DoS(isMempoolAcceptance ? 0 : 100,
@@ -1097,7 +1110,7 @@ bool CheckSparkSpendTransaction(
 
         // take the hash from last block of anonymity set
         std::vector<unsigned char> set_hash =
-            GetAnonymitySetHash(index, stateGroupId, false, IncludeFirstBlockSetHash(height));
+            GetAnonymitySetHash(index, stateGroupId, false, useBoundCoverSetHash);
         CBlockIndex* referenceBlock = index;
 
         std::size_t set_size = 0;
@@ -1123,16 +1136,15 @@ bool CheckSparkSpendTransaction(
             index = index->pprev;
         }
 
-        // After Chaum V2, nonempty cover sets must commit the canonical
-        // 32-byte cumulative hash. Before that height the first mint block is
-        // omitted from lookup, so honest one-block groups have an empty hash.
-        if (IncludeFirstBlockSetHash(height) &&
+        // After Chaum V2 (and H2-10 for mempool), nonempty cover sets must
+        // commit the canonical 32-byte cumulative hash.
+        if (enforceBoundCoverSetHash &&
             set_size > 0 &&
             set_hash.size() != CSHA256::OUTPUT_SIZE) {
             return state.DoS(
-                nHeight == INT_MAX ? 0 : 100,
+                isMempoolAcceptance ? 0 : 100,
                 false,
-                nHeight == INT_MAX ? REJECT_NONSTANDARD : REJECT_INVALID,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
                 "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
         }
 

@@ -1586,6 +1586,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
     int nHeight = 0;
     uint256 expectedTipHash;
     bool useChaumV2 = false;
+    bool enforceBoundCoverSetHash = false;
     uint64_t transparentOut = 0;
     std::vector<CSparkMintMeta> selectedCoins;
     std::vector<spark::OutputCoinData> privOutputs;
@@ -1611,6 +1612,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
         }
         useChaumV2 =
             nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock;
+        enforceBoundCoverSetHash =
+            nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock - 10;
         fullViewKeySnapshot = fullViewKey;
 
         if (vOut > consensusParams.GetMaxValueSparkSpendPerTransaction(nHeight + 1))
@@ -1843,6 +1846,12 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                             setHash) < 2)
                         throw std::runtime_error(
                                 _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
+
+                    if (enforceBoundCoverSetHash &&
+                            setHash.size() != CSHA256::OUTPUT_SIZE) {
+                        throw std::runtime_error(_(
+                            "Selected Spark cover set is not yet bound to a canonical state hash"));
+                    }
 
                     spark::CoverSetData coverSetData;
                     coverSetData.cover_set_size = set.size();
