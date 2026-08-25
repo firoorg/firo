@@ -315,7 +315,7 @@ public:
         CSigSharesInv requested;
         CSigSharesInv knows;
 
-        bool receivedAnnouncement{false};
+        bool fReceivedAnnouncement{false};
     };
     std::unordered_map<uint256, Session, StaticSaltedHasher> sessions;
 

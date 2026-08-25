@@ -144,7 +144,7 @@ CSigSharesNodeState::Session& CSigSharesNodeState::GetOrCreateSessionFromAnn(con
     if (s.announced.inv.empty()) {
         InitSession(s, signHash, ann);
     }
-    s.receivedAnnouncement = true;
+    s.fReceivedAnnouncement = true;
     return s;
 }
 
@@ -152,7 +152,7 @@ bool CSigSharesNodeState::CanCreateSessionFromAnn(const CSigSesAnn& ann, size_t 
 {
     const auto llmqType = (Consensus::LLMQType)ann.llmqType;
     const auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
-    return sessions.count(signHash) != 0 || GetAnnouncementSessionCount(llmqType) < maxSessions;
+    return sessions.find(signHash) != sessions.end() || GetAnnouncementSessionCount(llmqType) < maxSessions;
 }
 
 size_t CSigSharesNodeState::GetSessionCount() const
@@ -170,7 +170,7 @@ size_t CSigSharesNodeState::GetSessionCount(Consensus::LLMQType llmqType) const
 size_t CSigSharesNodeState::GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const
 {
     return std::count_if(sessions.begin(), sessions.end(), [llmqType](const auto& entry) {
-        return entry.second.llmqType == llmqType && entry.second.receivedAnnouncement;
+        return entry.second.llmqType == llmqType && entry.second.fReceivedAnnouncement;
     });
 }
 
