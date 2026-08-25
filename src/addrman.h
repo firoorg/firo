@@ -555,6 +555,8 @@ public:
 
     void Clear()
     {
+        mapInfo.clear();
+        mapAddr.clear();
         std::vector<nid_type>().swap(vRandom);
         nKey = GetRandHash();
         for (size_t bucket = 0; bucket < ADDRMAN_NEW_BUCKET_COUNT; bucket++) {

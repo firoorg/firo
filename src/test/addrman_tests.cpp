@@ -134,6 +134,8 @@ BOOST_AUTO_TEST_CASE(addrman_simple)
     // Test 6: AddrMan::Clear() should empty the new table.
     addrman.Clear();
     BOOST_CHECK(addrman.size() == 0);
+    BOOST_CHECK(addrman.Find(addr1) == nullptr);
+    BOOST_CHECK(addrman.Find(addr2) == nullptr);
     CAddrInfo addr_null2 = addrman.Select();
     BOOST_CHECK(addr_null2.ToString() == "[::]:0");
 }
