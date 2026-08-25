@@ -19,6 +19,7 @@
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
+#include "sparknamespage.h"
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
@@ -47,6 +48,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
+    sparkNamesPage = new SparkNamesPage(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this, false);
 
@@ -62,6 +64,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(overviewPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
+    addWidget(sparkNamesPage);
     addWidget(sendCoinsPage);
     addWidget(masternodeListPage);
 
@@ -149,6 +152,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
+    sparkNamesPage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
@@ -242,6 +246,11 @@ void WalletView::gotoMasternodePage()
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
+}
+
+void WalletView::gotoSparkNamesPage()
+{
+    setCurrentWidget(sparkNamesPage);
 }
 
 void WalletView::gotoSendCoinsPage(QString addr)

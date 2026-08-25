@@ -108,6 +108,17 @@ void SendCoinsEntry::applyTheme()
             font-size: 11px;
             font-weight: 700;
         }
+        QFrame#SendCoins QLabel#sparkNameResolvedLabel {
+            color: $INK_FAINT;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        QFrame#SendCoins QLabel#sparkNameResolvedAddress {
+            color: $TEAL;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: monospace;
+        }
         QFrame#SendCoins QValidatedLineEdit,
         QFrame#SendCoins QLineEdit,
         QFrame#SendCoins AmountSpinBox {
@@ -260,6 +271,31 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
     }
     ui->messageLabel->setVisible(isSparkAddress);
     ui->messageTextLabel->setVisible(isSparkAddress);
+
+    updateSparkNameResolution();
+}
+
+void SendCoinsEntry::updateSparkNameResolution()
+{
+    const QString payToText = ui->payTo->text();
+    QString resolvedAddress;
+    if (model && payToText.startsWith(QStringLiteral("@")) && payToText.size() > 1 &&
+        cmp::less_equal(payToText.size(), CSparkNameManager::maximumSparkNameLength + 1)) {
+        resolvedAddress = model->getSparkNameAddress(payToText.mid(1));
+    }
+
+    const bool resolved = !resolvedAddress.isEmpty();
+    ui->sparkNameResolvedRow->setVisible(resolved);
+    if (resolved) {
+        const QString truncated = resolvedAddress.size() > 24
+            ? resolvedAddress.left(14) + QStringLiteral("...") + resolvedAddress.right(8)
+            : resolvedAddress;
+        ui->sparkNameResolvedAddress->setText(truncated);
+        ui->sparkNameResolvedAddress->setToolTip(resolvedAddress);
+    } else {
+        ui->sparkNameResolvedAddress->clear();
+        ui->sparkNameResolvedAddress->setToolTip(QString());
+    }
 }
 
 bool SendCoinsEntry::applyPaymentURI(const QString& uri)
@@ -350,6 +386,7 @@ void SendCoinsEntry::clear()
     ui->messageTextLabel->clear();
     ui->messageTextLabel->hide();
     ui->messageLabel->hide();
+    updateSparkNameResolution();
 
     applyingRecipient = false;
     updateRosenBridgeDisplay();
@@ -426,7 +463,10 @@ bool SendCoinsEntry::validate()
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
 
     if (ui->payTo->text().startsWith("@") && cmp::less_equal(ui->payTo->text().size(), CSparkNameManager::maximumSparkNameLength+1)) {
-        ui->payTo->setValid(true);
+        const bool nameResolves = !model->getSparkNameAddress(ui->payTo->text().mid(1)).isEmpty();
+        ui->payTo->setValid(nameResolves);
+        if (!nameResolves)
+            retval = false;
     }
     else if (!(model->validateAddress(ui->payTo->text()) || model->validateSparkAddress(ui->payTo->text()) || isPcodeEntry))
     {

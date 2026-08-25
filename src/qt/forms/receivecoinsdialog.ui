@@ -192,44 +192,6 @@
             </property>
            </spacer>
           </item>
-          <item>
-           <widget class="QPushButton" name="mySparkNamesButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Browse your spark names to use as label.</string>
-            </property>
-            <property name="text">
-             <string>My Spark names</string>
-            </property>
-            <property name="autoDefault">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="createSparkNameButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Create new spark name.</string>
-            </property>
-            <property name="text">
-             <string>Create Spark name</string>
-            </property>
-            <property name="autoDefault">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
        </layout>

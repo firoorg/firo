@@ -123,6 +123,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     aboutAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
+    sparkNamesAction(0),
     optionsAction(0),
     toggleHideAction(0),
     encryptWalletAction(0),
@@ -360,6 +361,13 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(QString("Alt+%1").arg(key++)));
 	tabGroup->addAction(historyAction);
 
+	sparkNamesAction = new QAction(tr("&Spark Names"), this);
+	sparkNamesAction->setStatusTip(tr("Manage your registered Spark Names"));
+	sparkNamesAction->setToolTip(sparkNamesAction->statusTip());
+	sparkNamesAction->setCheckable(true);
+	sparkNamesAction->setShortcut(QKeySequence(QString("Alt+%1").arg(key++)));
+	tabGroup->addAction(sparkNamesAction);
+
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
@@ -390,6 +398,8 @@ void BitcoinGUI::createActions()
 	connect(receiveCoinsMenuAction, &QAction::triggered, this, &BitcoinGUI::gotoReceiveCoinsPage);
 	connect(historyAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
 	connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
+	connect(sparkNamesAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
+	connect(sparkNamesAction, &QAction::triggered, this, &BitcoinGUI::gotoSparkNamesPage);
 
 #endif // ENABLE_WALLET
 
@@ -699,6 +709,7 @@ void BitcoinGUI::createToolBars()
         sendCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_send")));
         receiveCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_receive")));
         historyAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_transactions")));
+        sparkNamesAction->setIcon(NavigationIcon(QStringLiteral(":/icons/spark")));
         masternodeAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_masternodes")));
         consoleAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_console")));
         optionsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_options")));
@@ -709,6 +720,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
+        toolbar->addAction(sparkNamesAction);
         toolbar->addAction(masternodeAction);
 
         auto* navigationSpacer = new QWidget(toolbar);
@@ -778,6 +790,7 @@ void BitcoinGUI::createToolBars()
             sendCoinsAction,
             receiveCoinsAction,
             historyAction,
+            sparkNamesAction,
             masternodeAction
         };
         for (QAction* action : navigationActions) {
@@ -993,6 +1006,7 @@ void BitcoinGUI::updateNavigationSelectionHighlight()
         sendCoinsAction,
         receiveCoinsAction,
         historyAction,
+        sparkNamesAction,
         masternodeAction
     };
 
@@ -1043,6 +1057,7 @@ void BitcoinGUI::updateToolbarTabWidths()
     QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
     QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
     QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
+    QWidget* sparkNamesWidget = sparkNamesAction ? toolbar->widgetForAction(sparkNamesAction) : nullptr;
     QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
     QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
     QWidget* consoleWidget = consoleAction ? toolbar->widgetForAction(consoleAction) : nullptr;
@@ -1057,6 +1072,7 @@ void BitcoinGUI::updateToolbarTabWidths()
     setActionWidth(overviewWidget);
     setActionWidth(receiveWidget);
     setActionWidth(historyWidget);
+    setActionWidth(sparkNamesWidget);
     setActionWidth(sendCoinsWidget);
     setActionWidth(masternodeWidget);
     setActionWidth(consoleWidget);
@@ -1256,6 +1272,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
+    sparkNamesAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -1404,6 +1421,12 @@ void BitcoinGUI::gotoReceiveCoinsPage()
 {
     receiveCoinsAction->setChecked(true);
     if (walletFrame) walletFrame->gotoReceiveCoinsPage();
+}
+
+void BitcoinGUI::gotoSparkNamesPage()
+{
+    sparkNamesAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoSparkNamesPage();
 }
 
 void BitcoinGUI::gotoSendCoinsPage(QString addr)

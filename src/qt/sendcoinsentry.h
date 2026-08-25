@@ -85,6 +85,7 @@ private:
     bool applyPaymentURI(const QString& uri);
     void clearRosenBridgeData();
     void updateRosenBridgeDisplay();
+    void updateSparkNameResolution();
     void resizeEvent(QResizeEvent* event) override;
     void adjustTextSize(int width, int height);
     
