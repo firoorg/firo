@@ -3882,18 +3882,15 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         // Track how many getdata requests our transaction gets
         mapRequestCount[wtxNew.GetHash()] = 0;
 
+        // RelayWalletTransaction asserts GetBroadcastTransactions(), so never
+        // relay when -walletbroadcast=0. fCheckTransaction only controls the
+        // earlier mempool acceptance, not inventory push.
         if (fBroadcastTransactions) {
-            // When fCheckTransaction is true the tx is already in the mempool; just relay.
-            // Otherwise attempt mempool acceptance now and relay on success.
             if (fCheckTransaction || wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
                 wtxNew.RelayWalletTransaction(connman);
             } else {
                 LogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", state.GetRejectReason());
             }
-        } else if (fCheckTransaction) {
-            // The tx was explicitly validated and accepted; relay it regardless of
-            // the fBroadcastTransactions flag.
-            wtxNew.RelayWalletTransaction(connman);
         }
     }
     return true;
@@ -4042,7 +4039,7 @@ CWalletTx CWallet::SpendAndStoreSpark(
                 reserveKey,
                 g_connman.get(),
                 state,
-                GetBroadcastTransactions())) {
+                true)) {
             throw std::runtime_error(state.GetRejectReason());
         }
     } catch (const std::exception &) {

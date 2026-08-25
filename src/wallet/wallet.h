@@ -1058,6 +1058,12 @@ public:
             CAmount& totalFee,
             const CCoinControl* coinControl = NULL);
 
+    /**
+     * Persist a constructed transaction. If fCheckTransaction is true, require
+     * mempool acceptance before AddToWallet so a rejection fails the commit.
+     * That check does not override -walletbroadcast=0; relay still requires
+     * fBroadcastTransactions.
+     */
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction = false);
 
     /**

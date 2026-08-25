@@ -1224,7 +1224,9 @@ bool CheckSparkSpendTransaction(
     } else {
         try {
             bool haveCachedSuccess = false;
-            {
+            // The cache is txid-only. VerifyDB reconstructs cover sets at the
+            // historical height, so a mempool success must not skip re-verify.
+            if (!isVerifyDB) {
                 LOCK(cs_checkedSparkSpendTransactions);
                 haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
             }

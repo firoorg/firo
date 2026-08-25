@@ -2549,7 +2549,9 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
     BOOST_CHECK_EQUAL(
         pwalletMain->mapWallet.size(), walletSizeBeforeOfflineSpend + 1);
     BOOST_CHECK(pwalletMain->GetWalletTx(offlineSpend.GetHash()));
-    BOOST_CHECK(!mempool.exists(offlineSpend.GetHash()));
+    // fCheckTransaction still accepts locally. RelayWalletTransaction is not
+    // called, so -walletbroadcast=0 does not hit its debug assertion.
+    BOOST_CHECK(mempool.exists(offlineSpend.GetHash()));
 
     mempool.clear();
     sparkState->Reset();

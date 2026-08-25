@@ -5,10 +5,12 @@
 #include "walletmodel.h"
 #include "clientmodel.h"
 #include "addresstablemodel.h"
+#include "bitcoinunits.h"
 #include "consensus/validation.h"
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "sparkmodel.h"
+#include "optionsmodel.h"
 #include "paymentserver.h"
 #include "policy/policy.h"
 #include "recentrequeststablemodel.h"
@@ -1548,11 +1550,14 @@ WalletModel::SendCoinsReturn WalletModel::prepareSpendSparkTransactionsSingleInp
         // guaranteed to be funded. Refuse rather than send something unplanned.
         if (fee != batch.fee) {
             transactions.clear();
+            const int unit = optionsModel
+                ? optionsModel->getDisplayUnit()
+                : BitcoinUnits::BTC;
             return SendCoinsReturn(
                 TransactionCreationFailed,
                 tr("Spark fee estimate did not match the wallet (planned %1, wallet %2).")
-                    .arg(batch.fee)
-                    .arg(fee));
+                    .arg(BitcoinUnits::formatWithUnit(unit, batch.fee))
+                    .arg(BitcoinUnits::formatWithUnit(unit, fee)));
         }
 
         transactions.emplace_back(guiRecipients);
@@ -1965,7 +1970,7 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction
                 reserveKey,
                 g_connman.get(),
                 state,
-                wallet->GetBroadcastTransactions())) {
+                true)) {
             return SendCoinsReturn(
                 TransactionCommitFailed,
                 QString::fromStdString(state.GetRejectReason()));
@@ -2055,7 +2060,7 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
 
         {
             // Hold locks only for this transaction's commit and address-book
-            // update. CommitTransaction may accept/relay under fCheckTransaction,
+            // update. CommitTransaction may accept to the mempool when checking,
             // and coinsSent slots can take wallet/chain locks, so do not keep
             // cs_main/cs_wallet across the whole batch or while emitting.
             LOCK2(cs_main, wallet->cs_wallet);
@@ -2077,20 +2082,14 @@ WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(std::vector<WalletMode
 
             CValidationState state;
             CReserveKey reserveKey(wallet);
-            // The last argument is CommitTransaction's fCheckTransaction: it makes the
-            // transaction go through the mempool before it is added to the wallet, so a
-            // rejection stops the batch instead of being discovered afterwards. It is
-            // passed as GetBroadcastTransactions() rather than true because with
-            // -walletbroadcast=0 CommitTransaction relays unconditionally when
-            // fCheckTransaction is set, which would override the user's setting. Under
-            // -walletbroadcast=0 nothing is validated or sent, so no batch can fail
-            // part-way in the first place.
+            // fCheckTransaction: mempool rejection fails this commit (and the
+            // batch). Relay still respects -walletbroadcast=0.
             if (!wallet->CommitTransaction(
                     *walletTransaction,
                     reserveKey,
                     g_connman.get(),
                     state,
-                    wallet->GetBroadcastTransactions())) {
+                    true)) {
                 QString reason = QString::fromStdString(state.GetRejectReason());
                 if (committedAny) {
                     reason.append(tr(" This payment was split across %1 transactions and %2 of them "
