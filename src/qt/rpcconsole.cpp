@@ -484,7 +484,7 @@ void RPCConsole::applyConsoleTheme()
         QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
         QTabBar::tab {
             background: transparent;
-            color: $INK_FAINT;
+            color: $INK_SOFT;
             font-weight: 700;
             padding: 8px 14px;
             border: none;
@@ -500,7 +500,7 @@ void RPCConsole::applyConsoleTheme()
             margin-top: 10px;
             padding-top: 12px;
         }
-        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_FAINT; background-color: $PANEL; }
+        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_SOFT; background-color: $PANEL; }
         QTextEdit#messagesWidget {
             background: $PANEL;
             border: 1px solid $BORDER;
@@ -520,7 +520,7 @@ void RPCConsole::applyConsoleTheme()
         }
         QHeaderView::section {
             background: $PANEL_SOFT;
-            color: $INK_FAINT;
+            color: $INK_SOFT;
             border: none;
             border-bottom: 1px solid $BORDER;
             padding: 4px 8px;

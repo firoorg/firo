@@ -274,12 +274,12 @@ void ReceiveCoinsDialog::applyTheme()
     ui->frame->setStyleSheet(cardStyle);
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }"));
     for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
     ui->label_5->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; }")));
     ui->label_6->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 15px; font-weight: 700; }")));
 

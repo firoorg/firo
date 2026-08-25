@@ -35,14 +35,14 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }"));
     for (QLabel* caption : {ui->label_6, ui->label_2, ui->label_5, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
     ui->label->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT; }")));
     ui->label_7->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; font-weight: 700; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }")));
     ui->feeTextLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT; }")));
 

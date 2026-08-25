@@ -440,7 +440,7 @@ void OverviewPage::applyOverviewTheme()
     ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_FAINT; font-size: 11px; font-weight: 600; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 600; }"));
     for (QLabel* caption : {ui->labelPrivateText, ui->labelUnconfirmedPrivateText,
                             ui->labelAnonymizableText, ui->labelBalanceText,
                             ui->labelPendingText, ui->labelImmatureText,
@@ -459,7 +459,7 @@ void OverviewPage::applyOverviewTheme()
     }
 
     ui->labelSyncStatus->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_FAINT; font-size: 10px; font-weight: 600; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 10px; font-weight: 600; }")));
     ui->listTransactions->setStyleSheet(QStringLiteral(
         "QListView, QListView::viewport { background: transparent; border: none; }"
         "QListView::item { border: none; padding: 0px; }"
@@ -482,7 +482,7 @@ void OverviewPage::applyOverviewTheme()
     }
 
     ui->checkboxEnabledTor->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QCheckBox { background: transparent; color: $INK_FAINT; font-size: 9px; padding: 0; }"
+        "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 9px; padding: 0; }"
         "QCheckBox::indicator { width: 13px; height: 13px; }")));
 
     updateBalanceSplitLabels();

@@ -37,6 +37,7 @@ public:
 public:
     int exec() override;
     void setModel(WalletModel *model);
+    void applyTheme();
 
     void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE;
 

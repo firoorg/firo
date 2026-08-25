@@ -34,7 +34,7 @@ void NotifyMnemonic::applyTheme()
         QWizard#NotifyMnemonic { background: $BG; }
         QWizard#NotifyMnemonic QWizardPage { background: $BG; }
         QWizard#NotifyMnemonic QLabel { background: transparent; color: $INK; }
-        QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_FAINT; font-size: 11px; font-weight: 700; }
+        QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_SOFT; font-size: 11px; font-weight: 700; }
         QWizard#NotifyMnemonic QLabel#errorMessage { color: #E5484D; font-weight: 700; }
         QWizard#NotifyMnemonic QFrame#mnemonicBox {
             background: $WINE_TINT;

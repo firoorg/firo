@@ -37,7 +37,7 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
         QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
         QTabBar::tab {
             background: transparent;
-            color: $INK_FAINT;
+            color: $INK_SOFT;
             font-weight: 700;
             padding: 8px 14px;
             border: none;

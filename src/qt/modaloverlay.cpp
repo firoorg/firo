@@ -102,7 +102,6 @@ void ModalOverlay::applyTheme()
     background: transparent;
     border: none;
     color: $INK_SOFT;
-    font-family: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 #contentWidget QLabel#titleLabel {
     color: $INK;

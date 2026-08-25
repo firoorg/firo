@@ -170,6 +170,48 @@ void SendCoinsDialog::applyTheme()
         "QFrame#balancePill QLabel { background: transparent; border: none; }"
         "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-size: 11px; font-weight: 700; }"
         "QFrame#balancePill QLabel#labelBalance { color: $INK; font-weight: 700; }")));
+
+    ui->labelCoinControlFeatures->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-size: 13px; font-weight: 700; }")));
+    ui->pushButtonCoinControl->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    ui->labelCoinControlAutomaticallySelected->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " padding: 4px 10px; color: $INK_SOFT; font-size: 10px; font-weight: 600; }")));
+    ui->labelCoinControlInsuffFunds->setStyleSheet(QStringLiteral(
+        "QLabel { background: transparent; color: #E5484D; font-weight: 700; }"));
+
+    const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    for (QLabel* caption : {ui->labelCoinControlQuantityText, ui->labelCoinControlBytesText,
+                            ui->labelCoinControlAmountText, ui->labelCoinControlLowOutputText,
+                            ui->labelCoinControlFeeText, ui->labelCoinControlAfterFeeText,
+                            ui->labelCoinControlChangeText}) {
+        caption->setStyleSheet(ccCaptionStyle);
+    }
+    for (QLabel* value : {ui->labelCoinControlQuantity, ui->labelCoinControlBytes,
+                          ui->labelCoinControlAmount, ui->labelCoinControlLowOutput,
+                          ui->labelCoinControlFee, ui->labelCoinControlAfterFee,
+                          ui->labelCoinControlChange}) {
+        value->setStyleSheet(ccValueStyle);
+    }
+
+    ui->checkBoxCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 600; }"
+        "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_light); }"
+        "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_light); }")));
+    ui->lineEditCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QValidatedLineEdit {"
+        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " padding: 8px 12px; color: $INK;"
+        "}"
+        "QValidatedLineEdit:focus { border: 1px solid $WINE; }"
+        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: #E5484D; }")));
+    ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; }")));
 }
 
 void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
@@ -1342,7 +1384,7 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
     {
         // Default to no change address until verified
         CoinControlDialog::coinControl->destChange = CNoDestination();
-        ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
+        ui->labelCoinControlChangeLabel->setStyleSheet(QStringLiteral("QLabel{background:transparent;color:#E5484D;}"));
 
         CBitcoinAddress addr = CBitcoinAddress(text.toStdString());
 
@@ -1371,13 +1413,13 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
                 else
                 {
                     ui->lineEditCoinControlChange->setText("");
-                    ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
+                    ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel{background:transparent;color:$INK;}")));
                     ui->labelCoinControlChangeLabel->setText("");
                 }
             }
             else // Known change address
             {
-                ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
+                ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel{background:transparent;color:$INK;}")));
 
                 // Query label
                 QString associatedLabel = model->getAddressTableModel()->labelForAddress(text);

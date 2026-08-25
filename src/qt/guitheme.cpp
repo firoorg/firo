@@ -32,7 +32,7 @@ static const ThemeColors LIGHT_COLORS{
     QStringLiteral("#201C2E"),
     QStringLiteral("#6E6A80"),
     QStringLiteral("#8C8993"),
-    QStringLiteral("#99213C"),
+    QStringLiteral("#9B1C2E"),
     QStringLiteral("#7A1830"),
     QStringLiteral("#FCE9EE"),
     QStringLiteral("#3FA796"),

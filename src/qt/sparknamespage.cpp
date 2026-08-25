@@ -398,7 +398,6 @@ void SparkNamesPage::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
 QWidget#SparkNamesPage {
   background: $BG;
-  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 QFrame#sparkNamesContentCard {
   background: $PANEL;
@@ -427,14 +426,14 @@ QFrame#sparkNameCard QLabel#cardTitle {
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardSubtitle {
-  color: $INK_FAINT; font-size: 10px; font-weight: 500;
+  color: $INK_SOFT; font-size: 10px; font-weight: 500;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricCaption {
-  color: $INK_FAINT; font-size: 8px; font-weight: 700; letter-spacing: 0.4px;
+  color: $INK_SOFT; font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricValue {

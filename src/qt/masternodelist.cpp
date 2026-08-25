@@ -253,7 +253,6 @@ void MasternodeList::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
 QWidget#MasternodeList {
   background: $BG;
-  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 QFrame#masternodeFilterCard,
 QFrame#masternodeContentCard {
@@ -325,7 +324,7 @@ QFrame#masternodeCard QLabel#cardTitle {
   background: transparent; border: none;
 }
 QFrame#masternodeCard QLabel#cardSubtitle {
-  color: $INK_FAINT; font-size: 10px; font-weight: 500;
+  color: $INK_SOFT; font-size: 10px; font-weight: 500;
   background: transparent; border: none;
 }
 QFrame#masternodeCard QLabel#cardPoseLabel {
@@ -339,7 +338,7 @@ QFrame#masternodeCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#masternodeCard QLabel#cardMetricCaption {
-  color: $INK_FAINT; font-size: 8px; font-weight: 700; letter-spacing: 0.4px;
+  color: $INK_SOFT; font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
   background: transparent; border: none;
 }
 QFrame#masternodeCard QLabel#cardMetricValue {
@@ -537,6 +536,7 @@ void MasternodeList::updateDIP3List()
     const int maxPose = std::max(100, mnList.CalcMaxPoSePenalty());
     QFrame* restoreSelection = nullptr;
     int shown = 0;
+    int matched = 0;
 
     mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
         if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
@@ -612,6 +612,10 @@ void MasternodeList::updateDIP3List()
                 return;
         }
 
+        ++matched;
+        if (shown >= MASTERNODELIST_CARD_RENDER_LIMIT)
+            return;
+
         QFrame* card = createMasternodeCard(
             address,
             status,
@@ -632,8 +636,21 @@ void MasternodeList::updateDIP3List()
         ++shown;
     });
 
+    if (matched > shown) {
+        auto* truncationNotice = new QLabel(
+            tr("Showing the first %1 of %2 matching masternodes. Use the filter above to narrow the results.")
+                .arg(shown).arg(matched),
+            masternodeCardsHost);
+        truncationNotice->setObjectName(QStringLiteral("masternodeTruncationNotice"));
+        truncationNotice->setWordWrap(true);
+        truncationNotice->setAlignment(Qt::AlignCenter);
+        truncationNotice->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "color: $INK_SOFT; font-size: 10px; padding: 8px;")));
+        masternodeCardsLayout->addWidget(truncationNotice);
+    }
+
     masternodeCardsLayout->addStretch(1);
-    ui->countLabelDIP3->setText(QString::number(shown));
+    ui->countLabelDIP3->setText(QString::number(matched));
     if (restoreSelection)
         selectMasternodeCard(restoreSelection);
     else

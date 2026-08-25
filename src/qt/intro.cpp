@@ -9,9 +9,13 @@
 #include "intro.h"
 #include "ui_intro.h"
 
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include "util.h"
+
+#include <QDialogButtonBox>
+#include <QPushButton>
 
 #include <boost/filesystem.hpp>
 
@@ -138,6 +142,31 @@ Intro::Intro(QWidget *parent) :
     requiredSpace += CHAIN_STATE_SIZE;
     ui->sizeWarningLabel->setText(ui->sizeWarningLabel->text().arg(tr(PACKAGE_NAME)).arg(requiredSpace));
     startThread();
+
+    applyTheme();
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &Intro::applyTheme);
+}
+
+void Intro::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QLabel { background: transparent; color: $INK_SOFT; }"
+        "QLabel#errorMessage, QLabel#freeSpace { color: $INK_SOFT; }"
+        "QRadioButton { background: transparent; color: $INK_SOFT; }"
+        "QLineEdit {"
+        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " padding: 8px 12px; color: $INK;"
+        "}"
+        "QLineEdit:focus { border: 1px solid $WINE; }")));
+    ui->ellipsisButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 Intro::~Intro()
@@ -233,7 +262,7 @@ void Intro::setStatus(int status, const QString &message, quint64 bytesAvailable
         break;
     case FreespaceChecker::ST_ERROR:
         ui->errorMessage->setText(tr("Error") + ": " + message);
-        ui->errorMessage->setStyleSheet("QLabel { color: #800000 }");
+        ui->errorMessage->setStyleSheet("QLabel { color: #E5484D }");
         break;
     }
     /* Indicate number of bytes available */
@@ -245,7 +274,7 @@ void Intro::setStatus(int status, const QString &message, quint64 bytesAvailable
         if(bytesAvailable < requiredSpace * GB_BYTES)
         {
             freeString += " " + tr("(of %n GB needed)", "", requiredSpace);
-            ui->freeSpace->setStyleSheet("QLabel { color: #800000 }");
+            ui->freeSpace->setStyleSheet("QLabel { color: #E5484D }");
         } else {
             ui->freeSpace->setStyleSheet("");
         }

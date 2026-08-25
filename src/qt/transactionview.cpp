@@ -498,7 +498,6 @@ void TransactionView::applyTheme()
     setStyleSheet(GUIUtil::themed(
         "QWidget#TransactionView {"
         " background: $BG;"
-        " font-family: 'Segoe UI';"
         " color: $INK;"
         "}"
 
@@ -562,7 +561,7 @@ void TransactionView::applyTheme()
 
         "QHeaderView::section {"
         " background:$PANEL; padding:9px 6px; border:none;"
-        " font-size:9px; font-weight:700; color:$INK_FAINT;"
+        " font-size:9px; font-weight:700; color:$INK_SOFT;"
         "}"
         "QHeaderView::section:hover { background:$PANEL; }"
         "QTableView::item { background: transparent; border: none; padding: 0; }"

@@ -104,12 +104,12 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins QLabel#labellLabel,
         QFrame#SendCoins QLabel#amountLabel,
         QFrame#SendCoins QLabel#messageLabel {
-            color: $INK_FAINT;
+            color: $INK_SOFT;
             font-size: 11px;
             font-weight: 700;
         }
         QFrame#SendCoins QLabel#sparkNameResolvedLabel {
-            color: $INK_FAINT;
+            color: $INK_SOFT;
             font-size: 10px;
             font-weight: 700;
         }
@@ -182,7 +182,7 @@ void SendCoinsEntry::applyTheme()
             background: $PANEL_SOFT;
         }
         QFrame#SendCoins QCheckBox {
-            color: $INK_FAINT;
+            color: $INK_SOFT;
             font-size: 10px;
             font-weight: 700;
         }

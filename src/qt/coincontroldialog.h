@@ -58,6 +58,7 @@ public:
     ~CoinControlDialog();
 
     void setModel(WalletModel *model);
+    void applyTheme();
 
     // static because also called from sendcoinsdialog
     static void updateLabels(WalletModel*, QDialog*, bool anonymousMode = false);
