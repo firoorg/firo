@@ -3078,8 +3078,14 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
     BOOST_REQUIRE(mintMeta != CSparkMintMeta());
     mintMeta.isUsed = false;
     pwalletMain->sparkWallet->updateMintInMemory(mintMeta);
-    const CMutableTransaction duplicateSpend(
-        GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    // Construct a duplicate without committing it. SpendAndStoreSpark now
+    // rejects the mempool conflict, while this test needs both transactions
+    // to exercise block-level VerifyDB rejection.
+    CAmount duplicateFee = 0;
+    CWalletTx duplicateWalletTx = pwalletMain->CreateSparkSpendTransaction(
+        {{script, COIN, false}}, {}, duplicateFee, &coinControl);
+    BOOST_REQUIRE(duplicateWalletTx.tx);
+    const CMutableTransaction duplicateSpend(*duplicateWalletTx.tx);
     mempool.clear();
 
     BOOST_REQUIRE(firstSpend.GetHash() != duplicateSpend.GetHash());
@@ -3141,8 +3147,14 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
     BOOST_REQUIRE(mintMeta != CSparkMintMeta());
     mintMeta.isUsed = false;
     pwalletMain->sparkWallet->updateMintInMemory(mintMeta);
-    const CTransaction duplicateSpend(
-        GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    // Construct a duplicate without committing it. SpendAndStoreSpark now
+    // rejects the mempool conflict, while this test needs both transactions
+    // to exercise VerifyDB rejection.
+    CAmount duplicateFee = 0;
+    CWalletTx duplicateWalletTx = pwalletMain->CreateSparkSpendTransaction(
+        {{script, COIN, false}}, {}, duplicateFee, &coinControl);
+    BOOST_REQUIRE(duplicateWalletTx.tx);
+    const CTransaction duplicateSpend(*duplicateWalletTx.tx);
     mempool.clear();
 
     BOOST_REQUIRE(
