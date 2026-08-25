@@ -56,8 +56,8 @@ public:
     }
 
     void Initialize(int numberOfBlocks = 2000) {
-        std::vector<CMutableTransaction> mintTxs;
-        GenerateBlocks(numberOfBlocks-1);
+        BOOST_REQUIRE_GE(numberOfBlocks, 2);
+        GenerateBlocks(numberOfBlocks - 2);
         // Each name registration must be funded by one Spark coin large enough to
         // cover the registration fee plus the transaction fee. Several tests register
         // consecutive names without mining between them, so each registration's change
@@ -65,9 +65,18 @@ public:
         // one spendable coin per registration that is large enough on its own. A
         // 4-character name costs 10 FIRO per year,
         // which the 10 FIRO coins below cannot cover once the fee is added.
-        GenerateMints({50 * COIN, 60 * COIN, 50 * COIN, 50 * COIN, 50 * COIN,
-                       10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN}, mintTxs);
-        GenerateBlock(mintTxs);
+        //
+        // Split mints across two blocks so the cover set has a last-block hash
+        // before H2. A one-block group reports an empty hash until H2 includes
+        // the first mint block, and wallet/mempool construction then fails in
+        // the H2-10 policy window.
+        std::vector<CMutableTransaction> firstMintTxs;
+        GenerateMints({50 * COIN, 60 * COIN}, firstMintTxs);
+        GenerateBlock(firstMintTxs);
+        std::vector<CMutableTransaction> laterMintTxs;
+        GenerateMints({50 * COIN, 50 * COIN, 50 * COIN,
+                       10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN, 10*COIN}, laterMintTxs);
+        GenerateBlock(laterMintTxs);
         pwalletMain->SetBroadcastTransactions(true);
     }
 
