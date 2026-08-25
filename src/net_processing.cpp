@@ -165,7 +165,7 @@ struct CNodeState {
     bool fCurrentlyConnected;
     //! Accumulated misbehaviour score for this peer.
     int nMisbehavior;
-    //! Whether this peer should be disconnected and banned (unless whitelisted).
+    //! Whether this peer should be disconnected and discouraged (unless whitelisted).
     bool fShouldBan;
     //! String name of this peer (debugging/logging purposes).
     const std::string name;
@@ -744,7 +744,7 @@ void Misbehaving(NodeId pnode, int howmuch)
     int banscore = GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
     if (state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore)
     {
-        LogPrintf("%s: %s peer=%d (%d -> %d) BAN THRESHOLD EXCEEDED\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
+        LogPrintf("%s: %s peer=%d (%d -> %d) DISCOURAGEMENT THRESHOLD EXCEEDED\n", __func__, state->name, pnode, state->nMisbehavior - howmuch, state->nMisbehavior);
         state->fShouldBan = true;
     } else
         LogPrintf("%s: %s peer=%d (%d -> %d)\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
@@ -3177,11 +3177,12 @@ static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman& connman)
                 llmq::quorumSigSharesManager->MarkNodeBanned(pnode->GetId());
             }
             pnode->fDisconnect = true;
-            if (pnode->addr.IsLocal())
-                LogPrintf("Warning: not banning local peer %s!\n", pnode->addr.ToString());
-            else
-            {
-                connman.Ban(pnode->addr, BanReasonNodeMisbehaving);
+            if (pnode->addr.IsLocal()) {
+                LogPrintf("Warning: not discouraging local peer %s!\n", pnode->addr.ToString());
+            } else {
+                LogPrintf("Disconnecting and discouraging peer %s!\n", pnode->addr.ToString());
+                connman.Discourage(pnode->addr);
+                connman.DisconnectNode(pnode->addr);
             }
         }
         return true;
