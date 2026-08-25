@@ -15,10 +15,23 @@
 
 #include "cxxtimer.hpp"
 
+#include <algorithm>
+
 namespace llmq
 {
 
 CSigSharesManager* quorumSigSharesManager = nullptr;
+
+namespace
+{
+constexpr size_t MAX_SESSIONS_PER_PEER_FACTOR{4};
+constexpr size_t MIN_SESSIONS_PER_PEER{100};
+
+size_t GetMaxSessionsForPeer(const Consensus::LLMQParams& params)
+{
+    return std::max<size_t>(size_t(params.size) * MAX_SESSIONS_PER_PEER_FACTOR, MIN_SESSIONS_PER_PEER);
+}
+}
 
 void CSigShare::UpdateKey()
 {
@@ -131,7 +144,34 @@ CSigSharesNodeState::Session& CSigSharesNodeState::GetOrCreateSessionFromAnn(con
     if (s.announced.inv.empty()) {
         InitSession(s, signHash, ann);
     }
+    s.receivedAnnouncement = true;
     return s;
+}
+
+bool CSigSharesNodeState::CanCreateSessionFromAnn(const CSigSesAnn& ann, size_t maxSessions) const
+{
+    const auto llmqType = (Consensus::LLMQType)ann.llmqType;
+    const auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
+    return sessions.count(signHash) != 0 || GetAnnouncementSessionCount(llmqType) < maxSessions;
+}
+
+size_t CSigSharesNodeState::GetSessionCount() const
+{
+    return sessions.size();
+}
+
+size_t CSigSharesNodeState::GetSessionCount(Consensus::LLMQType llmqType) const
+{
+    return std::count_if(sessions.begin(), sessions.end(), [llmqType](const auto& entry) {
+        return entry.second.llmqType == llmqType;
+    });
+}
+
+size_t CSigSharesNodeState::GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const
+{
+    return std::count_if(sessions.begin(), sessions.end(), [llmqType](const auto& entry) {
+        return entry.second.llmqType == llmqType && entry.second.receivedAnnouncement;
+    });
 }
 
 CSigSharesNodeState::Session* CSigSharesNodeState::GetSessionBySignHash(const uint256& signHash)
@@ -311,7 +351,9 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
 bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& ann, CConnman& connman)
 {
     auto llmqType = (Consensus::LLMQType)ann.llmqType;
-    if (!Params().GetConsensus().llmqs.count(llmqType)) {
+    const auto& llmqs = Params().GetConsensus().llmqs;
+    const auto paramsIt = llmqs.find(llmqType);
+    if (paramsIt == llmqs.end()) {
         return false;
     }
     if (ann.sessionId == (uint32_t)-1 || ann.quorumHash.IsNull() || ann.id.IsNull() || ann.msgHash.IsNull()) {
@@ -328,15 +370,22 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
         return true; // let's still try other announcements from the same message
     }
 
-    FIRO_UNUSED auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
-
     LOCK(cs);
     auto it = nodeStates.find(pfrom->id);
     if (it != nodeStates.end() && it->second.banned) {
         return true;
     }
     auto& nodeState = it != nodeStates.end() ? it->second : nodeStates[pfrom->id];
+    const size_t maxSessions = GetMaxSessionsForPeer(paramsIt->second);
+    if (!nodeState.CanCreateSessionFromAnn(ann, maxSessions)) {
+        LogPrint("llmq-sigs", "CSigSharesManager::%s -- too many sessions. cnt=%d, max=%d, llmqType=%d, node=%d\n", __func__,
+                 nodeState.GetAnnouncementSessionCount(llmqType), maxSessions, static_cast<int>(llmqType), pfrom->id);
+        return true;
+    }
+
+    const auto signHash = CLLMQUtils::BuildSignHash(llmqType, ann.quorumHash, ann.id, ann.msgHash);
     auto& session = nodeState.GetOrCreateSessionFromAnn(ann);
+    timeSeenForSessions.emplace(signHash, GetAdjustedTime());
     nodeState.sessionByRecvId.erase(session.recvSessionId);
     nodeState.sessionByRecvId.erase(ann.sessionId);
     session.recvSessionId = ann.sessionId;
@@ -1226,7 +1275,7 @@ void CSigSharesManager::Cleanup()
     {
         LOCK(cs);
 
-        // Remove sessions which were succesfully recovered
+        // Remove sessions which were successfully recovered
         std::unordered_set<uint256, StaticSaltedHasher> doneSessions;
         sigShares.ForEach([&](const SigShareKey& k, const CSigShare& sigShare) {
             if (doneSessions.count(sigShare.GetSignHash())) {
@@ -1236,6 +1285,11 @@ void CSigSharesManager::Cleanup()
                 doneSessions.emplace(sigShare.GetSignHash());
             }
         });
+        for (const auto& p : timeSeenForSessions) {
+            if (!doneSessions.count(p.first) && quorumSigningManager->HasRecoveredSigForSession(p.first)) {
+                doneSessions.emplace(p.first);
+            }
+        }
         for (auto& signHash : doneSessions) {
             RemoveSigSharesForSession(signHash);
         }
