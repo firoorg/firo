@@ -1870,14 +1870,22 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
 {
     QByteArray transaction_array; /* store serialized transaction */
     std::vector<std::pair<SendCoinsRecipient, QByteArray>> pendingCoinsSent;
+    SendCoinsReturn result = OK;
+    bool committedAny = false;
     {
         LOCK2(cs_main, wallet->cs_wallet);
         CValidationState state;
         auto reservekey = reserveKeys.begin();
 
         for (size_t i = 0; i != wtxAndFee.size(); i++) {
-            if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state))
-                return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(state.GetRejectReason()));
+            if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
+                result = SendCoinsReturn(
+                    TransactionCommitFailed,
+                    QString::fromStdString(state.GetRejectReason()),
+                    committedAny);
+                break;
+            }
+            committedAny = true;
 
             Q_FOREACH(const SendCoinsRecipient &rcp, transactions[i].getRecipients())
             {
@@ -1915,9 +1923,11 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
 
     // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits.
     // Queued so that it runs on the GUI thread even when mintSparkCoins is called from a worker thread.
-    QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
+    if (committedAny) {
+        QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
+    }
 
-    return SendCoinsReturn(OK);
+    return result;
 }
 
 WalletModel::SendCoinsReturn WalletModel::spendSparkCoins(WalletModelTransaction &transaction)
