@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "llmq/quorums_signing.h"
 #include "llmq/quorums_signing_shares.h"
 #include "test/test_bitcoin.h"
 
