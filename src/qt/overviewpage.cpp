@@ -122,7 +122,7 @@ public:
         const int amountWidth = 168;
         QFont dateFont = iconFont;
         dateFont.setPixelSize(11);
-        dateFont.setBold(true);
+        dateFont.setWeight(QFont::DemiBold);
         painter->setFont(dateFont);
         painter->setPen(QColor(tc.ink));
         const QRect dateRect(textLeft, card.top() + 12, card.width() - textLeft - amountWidth - 16, 16);
@@ -146,7 +146,7 @@ public:
         amountFont.setPixelSize(12);
         amountFont.setBold(true);
         painter->setFont(amountFont);
-        painter->setPen(amount < 0 ? QColor(tc.wine) : QColor(tc.ink));
+        painter->setPen(amount < 0 ? QColor(tc.wine) : QColor(tc.teal));
         const QRect amountRect(card.right() - amountWidth - 14, card.top(), amountWidth, card.height());
         painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
 
@@ -182,20 +182,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 {
     ui->setupUi(this);
 
-    // read config
-    bool torEnabled;
-    if(IsArgSet("-torsetup")){
-        torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
-    }else{
-        torEnabled = settings.value("fTorSetup").toBool();
-    }
-
-    if(torEnabled){
-        ui->checkboxEnabledTor->setChecked(true);
-    }else{
-        ui->checkboxEnabledTor->setChecked(false);
-    }
-
     ui->labelTransactionsStatus->hide();
     ui->labelWalletStatus->hide();
 
@@ -206,7 +192,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     connect(ui->listTransactions, &QListView::clicked, this, &OverviewPage::handleTransactionClicked);
-    connect(ui->checkboxEnabledTor, &QCheckBox::toggled, this, &OverviewPage::handleEnabledTorChanged);
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
@@ -233,8 +218,8 @@ void OverviewPage::applyOverviewRedesign()
     ui->topLayout->setSpacing(16);
     ui->mainGrid->setHorizontalSpacing(16);
     ui->mainGrid->setVerticalSpacing(16);
-    ui->mainGrid->setColumnStretch(0, 3);
-    ui->mainGrid->setColumnStretch(1, 2);
+    ui->mainGrid->setColumnStretch(0, 1);
+    ui->mainGrid->setColumnStretch(1, 1);
 
     ui->balancesCardLayout->setContentsMargins(24, 18, 24, 18);
     ui->balancesCardLayout->setSpacing(8);
@@ -245,6 +230,10 @@ void OverviewPage::applyOverviewRedesign()
     addShadow(ui->balancesCard);
     addShadow(ui->detailsCard);
     addShadow(ui->activityCard);
+
+    ui->detailsCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    ui->activityCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    ui->mainGrid->setRowStretch(1, 1);
 
     networkBadge_ = new QLabel(ui->balancesCard);
     networkBadge_->setObjectName(QStringLiteral("networkBadge"));
@@ -458,8 +447,6 @@ void OverviewPage::applyOverviewTheme()
         amount->setStyleSheet(amountStyle);
     }
 
-    ui->labelSyncStatus->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 10px; font-weight: 600; }")));
     ui->listTransactions->setStyleSheet(QStringLiteral(
         "QListView, QListView::viewport { background: transparent; border: none; }"
         "QListView::item { border: none; padding: 0px; }"
@@ -481,10 +468,6 @@ void OverviewPage::applyOverviewTheme()
             "QLabel { background: transparent; color: $INK_FAINT; font-size: 9px; }")));
     }
 
-    ui->checkboxEnabledTor->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 9px; padding: 0; }"
-        "QCheckBox::indicator { width: 13px; height: 13px; }")));
-
     updateBalanceSplitLabels();
 }
 
@@ -492,20 +475,6 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 {
     if(filter)
         Q_EMIT transactionClicked(filter->mapToSource(index));
-}
-
-void OverviewPage::handleEnabledTorChanged(){
-
-    QMessageBox msgBox;
-
-    if(ui->checkboxEnabledTor->isChecked()){
-        settings.setValue("fTorSetup", true);
-        msgBox.setText(tr("Please restart the Firo wallet to route your connection through Tor to protect your IP address. <br>Syncing your wallet might be slower with Tor. <br>Note that -torsetup in firo.conf will always override any changes made here."));
-    }else{
-        settings.setValue("fTorSetup", false);
-        msgBox.setText(tr("Please restart the Firo wallet to disable routing of your connection through Tor to protect your IP address. <br>Note that -torsetup in firo.conf will always override any changes made here."));
-    }
-    msgBox.exec();
 }
 
 void OverviewPage::handleOutOfSyncWarningClicks()
@@ -852,8 +821,6 @@ void OverviewPage::updateActivityEmptyState()
         activityEmptyState_->setVisible(!hasTransactions);
         ui->listTransactions->setVisible(hasTransactions);
     }
-
-    ui->labelSyncStatus->setText(outOfSync_ ? tr("Syncing…") : tr("Up to date"));
 }
 
 // show/hide watch-only labels
@@ -960,7 +927,6 @@ void OverviewPage::updateAlerts(const QString &warnings)
 
 void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
-    outOfSync_ = fShow;
     updateActivityEmptyState();
 }
 

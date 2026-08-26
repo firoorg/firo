@@ -201,7 +201,7 @@
           10
         </property>
         <property name="styleSheet">
-          <string>margin-left:-30px;margin-right:-10px;margin-top:2px;</string>
+          <string>margin-top:2px;</string>
         </property>
        </widget>
       </item>
@@ -211,7 +211,7 @@
           <string></string>
           </property>
           <property name="styleSheet">
-            <string>color: #FFA800; margin-left:-10px;</string>
+            <string>color: #FFA800;</string>
           </property>
         </widget>
       </item>
@@ -361,7 +361,7 @@
           10
         </property>
         <property name="styleSheet">
-          <string>margin-left:-30px;margin-right:-10px;margin-top:2px;</string>
+          <string>margin-top:2px;</string>
         </property>
        </widget>
       </item>
@@ -371,7 +371,7 @@
           <string></string>
           </property>
           <property name="styleSheet">
-            <string>color: #FFA800; margin-left:-10px;</string>
+            <string>color: #FFA800;</string>
           </property>
         </widget>
       </item>

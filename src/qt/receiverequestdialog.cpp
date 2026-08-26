@@ -156,7 +156,7 @@ void ReceiveRequestDialog::update()
 {
     if(!model || !walletModel)
         return;
-    resize(width(), 600);
+    resize(width(), 760);
     QString target = info.label;
     if(target.isEmpty())
         target = info.address;

@@ -14,11 +14,14 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QShowEvent>
 #include <QToolButton>
 #include <QVBoxLayout>
+
+#include <cmath>
 
 namespace {
 
@@ -29,25 +32,60 @@ QString elideMiddle(const QString& text, int keepLeft, int keepRight)
     return text.left(keepLeft) + QStringLiteral("..") + text.right(keepRight);
 }
 
-QPixmap sparkNameGlyph()
+QPainterPath sparklePath(const QPointF& center, qreal outerR, qreal innerR)
 {
-    QPixmap pm(36, 36);
+    QPainterPath star;
+    for (int i = 0; i < 8; ++i) {
+        const qreal angle = i * M_PI / 4.0 - M_PI / 2.0;
+        const qreal r = (i % 2 == 0) ? outerR : innerR;
+        const QPointF pt(center.x() + r * std::cos(angle), center.y() + r * std::sin(angle));
+        if (i == 0)
+            star.moveTo(pt);
+        else
+            star.lineTo(pt);
+    }
+    star.closeSubpath();
+    return star;
+}
+
+QPixmap sparkNameGlyph(int size = 36)
+{
+    QPixmap pm(size, size);
     pm.fill(Qt::transparent);
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
-    QLinearGradient g(0, 0, 0, 36);
+    QLinearGradient g(0, 0, 0, size);
     g.setColorAt(0, QColor(tc.wine));
     g.setColorAt(1, QColor(tc.wineDeep));
     p.setPen(Qt::NoPen);
     p.setBrush(g);
-    p.drawRoundedRect(QRectF(0, 0, 36, 36), 10, 10);
+    const qreal radius = size * 0.28;
+    p.drawRoundedRect(QRectF(0, 0, size, size), radius, radius);
+
+    p.setBrush(QColor("#FFFFFF"));
+
+    const QPointF mainCenter(size * 0.42, size * 0.44);
+    QPainterPath mainStar = sparklePath(mainCenter, size * 0.30, size * 0.105);
+    QPainterPath hole;
+    hole.addEllipse(mainCenter, size * 0.075, size * 0.075);
+    p.drawPath(mainStar.subtracted(hole));
+
+    const QPointF smallCenter(size * 0.76, size * 0.24);
+    p.drawPath(sparklePath(smallCenter, size * 0.135, size * 0.045));
+
+    const qreal badgeSize = size * 0.4;
+    const qreal badgeMargin = size * 0.06;
+    QRectF badgeRect(size - badgeSize - badgeMargin, size - badgeSize - badgeMargin, badgeSize, badgeSize);
+    p.setBrush(QColor(tc.wineDeep));
+    p.drawEllipse(badgeRect);
     QFont font = p.font();
-    font.setPixelSize(18);
+    font.setPixelSize(qRound(badgeSize * 0.6));
     font.setBold(true);
     p.setFont(font);
     p.setPen(QColor("#FFFFFF"));
-    p.drawText(QRectF(0, 0, 36, 36), Qt::AlignCenter, QStringLiteral("@"));
+    p.drawText(badgeRect, Qt::AlignCenter, QStringLiteral("@"));
+
     return pm;
 }
 
@@ -147,7 +185,7 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     emptyLayout->setSpacing(5);
     emptyLayout->addStretch();
 
-    emptyIcon_ = new QLabel(QStringLiteral("@"), emptyState);
+    emptyIcon_ = new QLabel(emptyState);
     emptyIcon_->setFixedSize(48, 48);
     emptyIcon_->setAlignment(Qt::AlignCenter);
     emptyLayout->addWidget(emptyIcon_, 0, Qt::AlignHCenter);
@@ -450,9 +488,8 @@ QFrame#sparkNameCard QToolButton#cardActionButton:hover {
     )")));
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "background: $WINE_TINT; color: $WINE; border-radius: 12px;"
-            "font-size: 20px; font-weight: 700;")));
+        emptyIcon_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+        emptyIcon_->setPixmap(sparkNameGlyph(48));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

@@ -524,13 +524,27 @@ void MasternodeList::updateDIP3List()
     }
 
     std::set<COutPoint> setOutpts;
+    std::set<CKeyID> setMyKeys;
+    CWallet* pWalletForFilter = nullptr;
     if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
         std::vector<COutPoint> vOutpts;
         walletModel->listProTxCoins(vOutpts);
         for (const auto& outpt : vOutpts) {
             setOutpts.emplace(outpt);
         }
+        pWalletForFilter = walletModel->getWallet();
+        if (pWalletForFilter)
+            pWalletForFilter->GetKeys(setMyKeys);
     }
+
+    auto isScriptMine = [&](const CScript& script) {
+        CTxDestination dest;
+        if (ExtractDestination(script, dest)) {
+            if (const CKeyID* keyID = boost::get<CKeyID>(&dest))
+                return setMyKeys.count(*keyID) > 0;
+        }
+        return walletModel->IsSpendable(script);
+    };
 
     const Consensus::Params& params = ::Params().GetConsensus();
     const int maxPose = std::max(100, mnList.CalcMaxPoSePenalty());
@@ -538,12 +552,12 @@ void MasternodeList::updateDIP3List()
     int shown = 0;
     int matched = 0;
 
-    mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
-        if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
+    auto processMN = [&](const CDeterministicMNCPtr& dmn) {
+        if (pWalletForFilter) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
-                walletModel->IsSpendable(dmn->pdmnState->keyIDOwner) ||
-                walletModel->IsSpendable(dmn->pdmnState->scriptPayout) ||
-                walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout);
+                setMyKeys.count(dmn->pdmnState->keyIDOwner) ||
+                isScriptMine(dmn->pdmnState->scriptPayout) ||
+                isScriptMine(dmn->pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
         }
 
@@ -634,7 +648,9 @@ void MasternodeList::updateDIP3List()
         if (proTxHash == selectedProTxHash)
             restoreSelection = card;
         ++shown;
-    });
+    };
+
+    mnList.ForEachMN(false, processMN);
 
     if (matched > shown) {
         auto* truncationNotice = new QLabel(

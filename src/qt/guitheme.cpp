@@ -5,6 +5,7 @@
 #include "guitheme.h"
 #include "guiutil.h"
 
+#include <QApplication>
 #include <QColor>
 #include <QGraphicsDropShadowEffect>
 #include <QHash>
@@ -13,7 +14,9 @@
 #include <QPair>
 #include <QPixmap>
 #include <QSettings>
+#include <QSize>
 #include <QWidget>
+#include <QWidgetList>
 
 namespace GUIUtil
 {
@@ -92,8 +95,15 @@ void setThemeMode(ThemeMode mode)
     QSettings settings;
     settings.setValue("fDarkMode", g_darkMode);
 
+    const QWidgetList topLevels = QApplication::topLevelWidgets();
+    for (QWidget* w : topLevels)
+        w->setUpdatesEnabled(false);
+
     loadTheme();
     Q_EMIT ThemeNotifier::instance().themeChanged();
+
+    for (QWidget* w : topLevels)
+        w->setUpdatesEnabled(true);
 }
 
 const ThemeColors& themeColors()
@@ -175,6 +185,27 @@ void applyPrimaryButtonShadow(QWidget* button)
     button->setGraphicsEffect(shadow);
 }
 
+QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
+{
+    const QPixmap source = icon.pixmap(size);
+    if (!isDarkMode() || source.isNull())
+        return source;
+
+    QImage img = source.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    const QColor tint(themeColors().inkSoft);
+    for (int y = 0; y < img.height(); ++y) {
+        QRgb* line = reinterpret_cast<QRgb*>(img.scanLine(y));
+        for (int x = 0; x < img.width(); ++x) {
+            const int a = qAlpha(line[x]);
+            line[x] = qRgba(tint.red() * a / 255, tint.green() * a / 255, tint.blue() * a / 255, a);
+        }
+    }
+
+    QPixmap result = QPixmap::fromImage(img);
+    result.setDevicePixelRatio(source.devicePixelRatio());
+    return result;
+}
+
 void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect)
 {
     if (!isDarkMode()) {
@@ -183,33 +214,16 @@ void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& re
     }
 
     const QSize size = rect.size().isEmpty() ? QSize(16, 16) : rect.size();
-
-    static QHash<QPair<qint64, quint32>, QPixmap> tintCache;
-    const QPair<qint64, quint32> cacheKey(
-        icon.cacheKey(), (quint32(size.width()) << 16) | quint32(size.height()));
-
-    QPixmap tinted = tintCache.value(cacheKey);
+    const QPixmap tinted = themedStatusIconPixmap(icon, size);
     if (tinted.isNull()) {
-        const QPixmap source = icon.pixmap(size);
-        if (source.isNull()) {
-            icon.paint(painter, rect, Qt::AlignCenter);
-            return;
-        }
-
-        tinted = QPixmap(source.size());
-        tinted.fill(Qt::transparent);
-        QPainter tintPainter(&tinted);
-        tintPainter.drawPixmap(0, 0, source);
-        tintPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        tintPainter.fillRect(tinted.rect(), QColor(themeColors().inkSoft));
-        tintPainter.end();
-        tintCache.insert(cacheKey, tinted);
+        icon.paint(painter, rect, Qt::AlignCenter);
+        return;
     }
 
     const QRect target(
-        rect.left() + (rect.width() - tinted.width()) / 2,
-        rect.top() + (rect.height() - tinted.height()) / 2,
-        tinted.width(), tinted.height());
+        rect.left() + (rect.width() - size.width()) / 2,
+        rect.top() + (rect.height() - size.height()) / 2,
+        size.width(), size.height());
     painter->drawPixmap(target, tinted);
 }
 

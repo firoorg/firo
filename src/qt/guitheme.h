@@ -11,7 +11,9 @@
 QT_BEGIN_NAMESPACE
 class QIcon;
 class QPainter;
+class QPixmap;
 class QRect;
+class QSize;
 class QWidget;
 QT_END_NAMESPACE
 
@@ -65,6 +67,8 @@ namespace GUIUtil
     void applyPrimaryButtonShadow(QWidget* button);
 
     void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect);
+
+    QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size);
 } // namespace GUIUtil
 
 #endif // BITCOIN_QT_GUITHEME_H

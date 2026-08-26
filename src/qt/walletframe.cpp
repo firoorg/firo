@@ -15,6 +15,7 @@
 WalletFrame::WalletFrame(const PlatformStyle *_platformStyle, BitcoinGUI *_gui) :
     QFrame(_gui),
     gui(_gui),
+    bOutOfSync(true),
     platformStyle(_platformStyle)
 {
     // Leave HBox hook for adding a list view later

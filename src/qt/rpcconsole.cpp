@@ -549,7 +549,9 @@ void RPCConsole::applyConsoleTheme()
     ui->fontSmallerButton->setStyleSheet(iconButtonStyle);
     ui->fontBiggerButton->setStyleSheet(iconButtonStyle);
     ui->clearButton->setStyleSheet(iconButtonStyle);
-    ui->promptIcon->setStyleSheet(iconButtonStyle);
+    ui->promptIcon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    ui->promptIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
+        QIcon(QStringLiteral(":/icons/prompticon")), QSize(14, 14)));
     ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $BORDER; border-radius: 10px; padding: 4px 8px; }"
         "QLineEdit:focus { border: 1px solid $WINE; }")));

@@ -17,6 +17,7 @@
 #include "validation.h" // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
 #include "netbase.h"
 #include "txdb.h" // for -dbcache defaults
+#include "util.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h" // for CWallet::GetRequiredFee()
@@ -72,6 +73,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         QSpinBox QLineEdit { %1 }
         QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
         QCheckBox { color: $INK_SOFT; }
+        QLabel#torStatusLabel { color: $INK_SOFT; }
         QPushButton {
             color: $INK;
             background: $PANEL;
@@ -216,6 +218,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
         mapper->toFirst();
 
         updateDefaultProxyNets();
+        updateTorStatusLabel();
     }
 
     /* warn when one of the following settings changes by user action (placed here so init via mapper doesn't trigger them) */
@@ -232,6 +235,8 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->allowIncoming, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocksTor, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
+    connect(ui->checkboxEnabledTor, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
+    connect(ui->checkboxEnabledTor, &QCheckBox::clicked, this, &OptionsDialog::updateTorStatusLabel);
     /* Display */
     connect(ui->lang, qOverload<>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
     connect(ui->thirdPartyTxUrls, &QLineEdit::textChanged, [this]{ showRestartWarning(); });
@@ -271,6 +276,8 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->connectSocksTor, OptionsModel::ProxyUseTor);
     mapper->addMapping(ui->proxyIpTor, OptionsModel::ProxyIPTor);
     mapper->addMapping(ui->proxyPortTor, OptionsModel::ProxyPortTor);
+
+    mapper->addMapping(ui->checkboxEnabledTor, OptionsModel::TorSetup);
 
     /* Window */
 #ifndef Q_OS_MAC
@@ -349,6 +356,31 @@ void OptionsDialog::handleEnabledZapChanged()
 #endif
     {
         clearStatusLabel();
+    }
+}
+
+void OptionsDialog::updateTorStatusLabel()
+{
+    const bool overridden = model && model->getOverriddenByCommandLine().contains(QLatin1String("-torsetup"));
+    if (overridden) {
+        ui->checkboxEnabledTor->setEnabled(false);
+        ui->torStatusLabel->setText(tr("Overridden by -torsetup on the command line or in firo.conf and cannot be changed here."));
+        return;
+    }
+
+    ui->checkboxEnabledTor->setEnabled(true);
+
+    const bool checked = ui->checkboxEnabledTor->isChecked();
+    const bool runningWithTor = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+
+    if (checked && runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled and active."));
+    } else if (checked && !runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled. Restart the client to apply this change."));
+    } else if (!checked && runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is disabled. Restart the client to apply this change."));
+    } else {
+        ui->torStatusLabel->setText(tr("Tor quickstart is disabled."));
     }
 }
 

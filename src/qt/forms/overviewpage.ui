@@ -519,11 +519,6 @@
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="labelSyncStatus">
-            <property name="text"><string>Syncing…</string></property>
-           </widget>
-          </item>
-          <item>
            <spacer name="activityHeaderSpacer">
             <property name="orientation"><enum>Qt::Horizontal</enum></property>
             <property name="sizeHint" stdset="0">
@@ -543,25 +538,6 @@
          </widget>
         </item>
        </layout>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="footerRow">
-     <item>
-      <spacer name="footerSpacer">
-       <property name="orientation"><enum>Qt::Horizontal</enum></property>
-       <property name="sizeHint" stdset="0">
-        <size><width>40</width><height>20</height></size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="checkboxEnabledTor">
-       <property name="enabled"><bool>true</bool></property>
-       <property name="text"><string>Route via Tor</string></property>
-       <property name="checked"><bool>false</bool></property>
       </widget>
      </item>
     </layout>

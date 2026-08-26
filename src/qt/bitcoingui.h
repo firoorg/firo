@@ -133,6 +133,7 @@ private:
     QToolButton *navigationToggleButton{nullptr};
     bool navigationSidebarExpanded{true};
     QFrame *navigationSyncCard{nullptr};
+    QAction *navigationSyncCardAction{nullptr};
     QLabel *navigationSyncLabel{nullptr};
     QLabel *navigationSyncPercent{nullptr};
     QProgressBar *navigationSyncProgress{nullptr};
@@ -155,6 +156,7 @@ private:
 #ifdef ENABLE_WALLET
     bool sparkAddressbookUpdated;
 #endif
+    int cachedEncryptionStatus{-1};
 
     const PlatformStyle *platformStyle;
 
@@ -169,6 +171,7 @@ private:
     void updateNavigationSidebarGeometry();
     void toggleNavigationSidebar();
     void updateNavigationSyncCard(const QString& status, double progress, bool visible);
+    bool syncInProgress() const;
     void applyNavigationTheme();
     void updateNavigationSelectionHighlight();
     /** Create system tray icon and notification */
@@ -186,6 +189,9 @@ private:
 
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
+
+    /** Updates Spark Names tab visibility */
+    void checkSparkNamesVisibility(int numBlocks);
 
     /** Update UI with latest network info from model. */
     void updateNetworkState();

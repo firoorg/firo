@@ -13,7 +13,6 @@
 
 #include "walletmodel.h"
 
-#include <QSettings>
 #include <QMessageBox>
 #include <QTimer>
 #include <QResizeEvent>
@@ -66,7 +65,6 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
-    void enabledTorChanged();
     void outOfSyncWarningClicked();
     void gotoSendCoinsPage();
     void gotoReceiveCoinsPage();
@@ -84,8 +82,6 @@ private:
     CAmount currentUnconfirmedPrivateBalance;
     CAmount currentAnonymizableBalance;
 
-    QSettings settings;
-
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
 
@@ -102,7 +98,6 @@ private:
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
-    bool outOfSync_{false};
 
     void adjustTextSize(int width,int height);
     void applyOverviewRedesign();
@@ -114,7 +109,6 @@ private:
 private Q_SLOTS:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
-    void handleEnabledTorChanged();
     void updateAlerts(const QString &warnings);
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();

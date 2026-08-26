@@ -1028,23 +1028,23 @@ void loadTheme()
     AssertLockNotHeld(cs_css);
     LOCK(cs_css);
 
-    static std::unique_ptr<QString> stylesheet;
+    static QString lightStylesheet;
+    static QString darkStylesheet;
+    static bool loaded = false;
 
-    QString fileName = stylesheetDirectory + "/" + firoTheme;
-    QFile qFile(fileName);
-    if (!qFile.open(QFile::ReadOnly)) {
-        throw std::runtime_error(strprintf("%s: Failed to open file: %s", __func__, fileName.toStdString()));
+    if (!loaded) {
+        QString fileName = stylesheetDirectory + "/" + firoTheme;
+        QFile qFile(fileName);
+        if (!qFile.open(QFile::ReadOnly)) {
+            throw std::runtime_error(strprintf("%s: Failed to open file: %s", __func__, fileName.toStdString()));
+        }
+
+        lightStylesheet = QLatin1String(qFile.readAll());
+        darkStylesheet = lightStylesheet + darkModeOverrideCss();
+        loaded = true;
     }
 
-    QString strStyle = QLatin1String(qFile.readAll());
-    stylesheet = std::make_unique<QString>();
-
-    stylesheet->append(strStyle);
-    if (isDarkMode()) {
-        stylesheet->append(darkModeOverrideCss());
-    }
-
-    qApp->setStyleSheet(*stylesheet);
+    qApp->setStyleSheet(isDarkMode() ? darkStylesheet : lightStylesheet);
 }
 
 int TextWidth(const QFontMetrics& fm, const QString& text)

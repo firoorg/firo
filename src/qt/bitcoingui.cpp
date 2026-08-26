@@ -39,6 +39,7 @@
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
+#include "spark/state.h"
 #include <iostream>
 
 #include <QAbstractButton>
@@ -280,6 +281,13 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     statusBar()->addWidget(progressBar);
     statusBar()->addPermanentWidget(frameBlocks);
     statusBar()->addWidget(framePending);
+
+    QTimer* syncStatusWatchdog = new QTimer(this);
+    connect(syncStatusWatchdog, &QTimer::timeout, this, [this]() {
+        if (walletFrame && masternodeSync.IsSynced())
+            walletFrame->showOutOfSyncWarning(false);
+    });
+    syncStatusWatchdog->start(2000);
 
     // Install event filter to be able to catch status tip events (QEvent::StatusTip)
     this->installEventFilter(this);
@@ -681,6 +689,8 @@ protected:
 
 #include "bitcoingui.moc"
 
+static constexpr int MAX_SYNCED_TIP_AGE_SECS = 45 * 60;
+
 static constexpr int NAVIGATION_SIDEBAR_WIDTH = 220;
 static constexpr int NAVIGATION_ACTION_WIDTH = 190;
 static constexpr int NAVIGATION_TOGGLE_WIDTH = 30;
@@ -770,7 +780,8 @@ void BitcoinGUI::createToolBars()
         navigationSyncProgress->setTextVisible(false);
         navigationSyncProgress->setAttribute(Qt::WA_TransparentForMouseEvents);
         syncLayout->addWidget(navigationSyncProgress);
-        toolbar->addWidget(navigationSyncCard);
+        navigationSyncCardAction = toolbar->addWidget(navigationSyncCard);
+        navigationSyncCardAction->setVisible(false);
 
         toolbar->addAction(consoleAction);
         toolbar->addAction(optionsAction);
@@ -844,9 +855,19 @@ void BitcoinGUI::applyNavigationTheme()
     sendCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_send")));
     receiveCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_receive")));
     historyAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_transactions")));
+    sparkNamesAction->setIcon(NavigationIcon(QStringLiteral(":/icons/spark")));
     masternodeAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_masternodes")));
     consoleAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_console")));
     optionsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_options")));
+
+    if (labelWalletHDStatusIcon)
+        setHDStatus(labelWalletHDStatusIcon->isEnabled());
+    if (cachedEncryptionStatus >= 0)
+        setEncryptionStatus(cachedEncryptionStatus);
+    if (clientModel && connectionsControl)
+        updateNetworkState();
+    if (labelBlocksIcon && masternodeSync.IsSynced())
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
 
     if (navigationThemeRow) {
         navigationThemeRow->setStyleSheet(GUIUtil::themed(QStringLiteral(
@@ -1032,6 +1053,20 @@ void BitcoinGUI::updateNavigationSelectionHighlight()
     navigationSelectionHighlight->update();
 }
 
+bool BitcoinGUI::syncInProgress() const
+{
+    if (!clientModel)
+        return false;
+
+    if (clientModel->inInitialBlockDownload())
+        return true;
+
+    if (clientModel->getLastBlockDate().secsTo(QDateTime::currentDateTime()) >= MAX_SYNCED_TIP_AGE_SECS)
+        return true;
+
+    return !masternodeSync.IsSynced() && clientModel->getNumConnections() > 0;
+}
+
 void BitcoinGUI::updateNavigationSyncCard(
     const QString& status, double progress, bool visible)
 {
@@ -1039,10 +1074,14 @@ void BitcoinGUI::updateNavigationSyncCard(
         !navigationSyncPercent || !navigationSyncProgress)
         return;
 
+    visible = visible && syncInProgress();
+
     const double clampedProgress = qBound(0.0, progress, 1.0);
     navigationSyncLabel->setText(status.isEmpty() ? tr("Syncing...") : status);
     navigationSyncPercent->setText(QString::number(clampedProgress * 100.0, 'f', 2) + "%");
     navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
+    if (navigationSyncCardAction)
+        navigationSyncCardAction->setVisible(visible);
     navigationSyncCard->setVisible(visible);
 }
 
@@ -1209,6 +1248,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #ifdef ENABLE_WALLET
             auto blocks = clientModel->getNumBlocks();
             checkZnodeVisibility(blocks);
+            checkSparkNamesVisibility(blocks);
 #endif // ENABLE_WALLET
         }
     } else {
@@ -1472,7 +1512,7 @@ void BitcoinGUI::updateNetworkState()
     tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
     connectionsControl->setToolTip(tooltip);
 
-    connectionsControl->setPixmap(QIcon(icon).pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+    connectionsControl->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(icon), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
 }
 
 void BitcoinGUI::setNumConnections(int count)
@@ -1547,7 +1587,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 #ifdef ENABLE_WALLET
     if(walletFrame)
     {
-        if (secs < 45*60) {
+        if (secs < MAX_SYNCED_TIP_AGE_SECS) {
             modalOverlay->showHide(true, true);
             // TODO instead of hiding it forever, we should add meaningful information about MN sync to the overlay
             modalOverlay->hideForever();
@@ -1568,15 +1608,17 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         progressBar->setMaximum(1000000000);
         progressBar->setValue(nVerificationProgress * 1000000000.0 + 0.5);
         progressBar->setVisible(false);
-        if (blockSource != BLOCK_SOURCE_NETWORK)
+        if (blockSource != BLOCK_SOURCE_NETWORK && blockSource != BLOCK_SOURCE_NONE)
             updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress, true);
+        else if (blockSource == BLOCK_SOURCE_NONE)
+            updateNavigationSyncCard(QString(), 0.0, false);
 
         tooltip = tr("Catching up...") + QString("<br>") + tooltip;
         if(count != prevBlocks)
         {
-            labelBlocksIcon->setPixmap(QIcon(QString(
-                ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0')))
-                .pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
+                ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
+                QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
             spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
         }
         prevBlocks = count;
@@ -1597,6 +1639,10 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         setAdditionalDataSyncProgress(1);
     } else if (masternodeSync.IsSynced()) {
         updateNavigationSyncCard(QString(), 1.0, false);
+#ifdef ENABLE_WALLET
+        if (walletFrame)
+            walletFrame->showOutOfSyncWarning(false);
+#endif // ENABLE_WALLET
     }
 
     // Don't word-wrap this (fixed-width) tooltip
@@ -1608,6 +1654,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkZnodeVisibility(count);
+    checkSparkNamesVisibility(count);
     if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
         sparkAddressbookUpdated = walletFrame->updateAddressbook();
     }
@@ -1642,12 +1689,12 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
         updateNavigationSyncCard(QString(), 1.0, false);
-        labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
     } else {
 
-        labelBlocksIcon->setPixmap(QIcon(QString(
-                        ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0')))
-                                            .pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
+                        ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
+                                            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
         spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
 
         progressBar->setFormat(tr("Synchronizing additional data: %p%"));
@@ -1865,7 +1912,8 @@ bool BitcoinGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
 
 void BitcoinGUI::setHDStatus(int hdEnabled)
 {
-    labelWalletHDStatusIcon->setPixmap(QIcon(hdEnabled ? ":/icons/hd_enabled" : ":/icons/hd_disabled").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+    labelWalletHDStatusIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
+        QIcon(hdEnabled ? ":/icons/hd_enabled" : ":/icons/hd_disabled"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
     labelWalletHDStatusIcon->setToolTip(hdEnabled ? tr("HD key generation is <b>enabled</b>") : tr("HD key generation is <b>disabled</b>"));
 
     // eventually disable the QLabel to set its opacity to 50%
@@ -1874,6 +1922,7 @@ void BitcoinGUI::setHDStatus(int hdEnabled)
 
 void BitcoinGUI::setEncryptionStatus(int status)
 {
+    cachedEncryptionStatus = status;
     switch(status)
     {
     case WalletModel::Unencrypted:
@@ -1884,7 +1933,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         break;
     case WalletModel::Unlocked:
         labelWalletEncryptionIcon->show();
-        labelWalletEncryptionIcon->setPixmap(QIcon(":/icons/lock_open").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelWalletEncryptionIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/lock_open"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
         labelWalletEncryptionIcon->setToolTip(tr("Wallet is <b>encrypted</b> and currently <b>unlocked</b>"));
         encryptWalletAction->setChecked(true);
         changePassphraseAction->setEnabled(true);
@@ -1892,7 +1941,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         break;
     case WalletModel::Locked:
         labelWalletEncryptionIcon->show();
-        labelWalletEncryptionIcon->setPixmap(QIcon(":/icons/lock_closed").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelWalletEncryptionIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/lock_closed"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
         labelWalletEncryptionIcon->setToolTip(tr("Wallet is <b>encrypted</b> and currently <b>locked</b>"));
         encryptWalletAction->setChecked(true);
         changePassphraseAction->setEnabled(true);
@@ -1982,9 +2031,7 @@ void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)
 
 void BitcoinGUI::showModalOverlay()
 {
-    if (modalOverlay &&
-        ((navigationSyncCard && navigationSyncCard->isVisible()) ||
-         modalOverlay->isLayerVisible()))
+    if (modalOverlay)
         modalOverlay->toggleVisibility();
 }
 
@@ -2028,6 +2075,16 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     } else {
         masternodeAction->setVisible(true);
     }
+    updateToolbarTabWidths();
+}
+
+void BitcoinGUI::checkSparkNamesVisibility(int numBlocks) {
+    if (!sparkNamesAction)
+        return;
+
+    const Consensus::Params& params = ::Params().GetConsensus();
+    const bool visible = spark::IsSparkAllowed(numBlocks) && numBlocks >= params.nSparkNamesStartBlock;
+    sparkNamesAction->setVisible(visible);
     updateToolbarTabWidths();
 }
 
