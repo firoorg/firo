@@ -57,6 +57,7 @@ std::vector<GroupElement>  GetSparkUsedTags(const CTransaction &tx);
 std::vector<spark::Coin>  GetSparkMintCoins(const CTransaction &tx);
 
 size_t GetSpendInputs(const CTransaction &tx);
+size_t GetSpendWorkUnits(const CTransaction& tx);
 CAmount GetSpendTransparentAmount(const CTransaction& tx);
 
 bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight);

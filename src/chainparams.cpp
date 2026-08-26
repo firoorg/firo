@@ -438,6 +438,9 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        // Disabled until a coordinated deployment height is selected.
+        consensus.nSparkSpendLimitStartBlock = INT_MAX;
+        consensus.nMaxSparkSpendWorkPerBlock = SPARK_SPEND_WORK_LIMIT_PER_BLOCK;
         consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
         consensus.nSparkLimitV2Factor = 5;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
@@ -765,6 +768,9 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        // Disabled until a coordinated deployment height is selected.
+        consensus.nSparkSpendLimitStartBlock = INT_MAX;
+        consensus.nMaxSparkSpendWorkPerBlock = SPARK_SPEND_WORK_LIMIT_PER_BLOCK;
         consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
         consensus.nSparkLimitV2Factor = 5;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
@@ -1033,6 +1039,9 @@ public:
         consensus.nMaxValueLelantusMint = 1001 * COIN;
         consensus.nMaxValueSparkSpendPerTransaction = SPARK_VALUE_SPEND_LIMIT_PER_TRANSACTION;
         consensus.nMaxValueSparkSpendPerBlock = SPARK_VALUE_SPEND_LIMIT_PER_BLOCK;
+        // Disabled until a coordinated deployment height is selected.
+        consensus.nSparkSpendLimitStartBlock = INT_MAX;
+        consensus.nMaxSparkSpendWorkPerBlock = SPARK_SPEND_WORK_LIMIT_PER_BLOCK;
         consensus.nSparkLimitV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
         consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
@@ -1290,6 +1299,8 @@ public:
         consensus.nMaxValueLelantusMint = ZC_LELANTUS_MAX_MINT;
         consensus.nMaxValueSparkSpendPerTransaction = 1000 * COIN; // 1000 FIRO
         consensus.nMaxValueSparkSpendPerBlock = 1500 * COIN; // 1500 FIRO
+        consensus.nSparkSpendLimitStartBlock = consensus.nSparkSingleInputStartBlock;
+        consensus.nMaxSparkSpendWorkPerBlock = SPARK_SPEND_WORK_LIMIT_PER_BLOCK;
         consensus.nSparkLimitV2StartBlock = 1500;
         consensus.nSparkLimitV2Factor = 3;
         consensus.nMaxSparkOutLimitPerTx = SPARK_OUT_LIMIT_PER_TX;
@@ -1341,6 +1352,11 @@ public:
     {
         consensus.nSparkSingleInputStartBlock = height;
     }
+
+    void UpdateSparkSpendLimitHeight(int height)
+    {
+        consensus.nSparkSpendLimitStartBlock = height;
+    }
 };
 static CRegTestParams regTestParams;
 
@@ -1379,4 +1395,9 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 void UpdateRegtestSparkSingleInputHeight(int height)
 {
     regTestParams.UpdateSparkSingleInputHeight(height);
+}
+
+void UpdateRegtestSparkSpendLimitHeight(int height)
+{
+    regTestParams.UpdateSparkSpendLimitHeight(height);
 }

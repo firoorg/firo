@@ -159,6 +159,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 // Value of spark spends allowed per block
 #define SPARK_VALUE_SPEND_LIMIT_PER_BLOCK  (20000 * COIN)
 
+// Provisional maximum Spark proof/cover-set verification work units per block.
+// Benchmark worst-case spends before selecting a public-network activation.
+#define SPARK_SPEND_WORK_LIMIT_PER_BLOCK  25
+
 // Maximum amount of lelantus mint
 #define ZC_LELANTUS_MAX_MINT            (5001 * COIN)
 
