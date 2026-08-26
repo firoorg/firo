@@ -1549,9 +1549,9 @@ CSparkState::CSparkState(
         size_t startGroupSize)
         :
         maxCoinInGroup(maxCoinInGroup),
-        startGroupSize(startGroupSize)
+        startGroupSize(startGroupSize),
+        latestCoinId(0)
 {
-    Reset();
 }
 
 void CSparkState::CopyFrom(const CSparkState& other)
