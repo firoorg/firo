@@ -2832,7 +2832,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
     if (wtx.tx->IsSparkSpend()) {
         try {
-            nFee = (0 - spark::ParseSparkSpend(*wtx.tx).getFee());
+            nFee = -spark::GetSparkSpendFee(*wtx.tx);
         }
         catch (const std::exception &) {
             // do nothing
@@ -4834,14 +4834,15 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     int chainHeight;
     {
         LOCK(cs_main);
-        chainHeight = chainActive.Height();
+        chainHeight = chainActive.Height() + 1;
     }
 
     const auto &consensusParams = Params().GetConsensus();
 
     // Ensure spark mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!spark::IsSparkAllowed() || chainHeight < consensusParams.nSparkNamesStartBlock) {
+    if (!spark::IsSparkAllowed(chainHeight) ||
+        chainHeight < consensusParams.nSparkNamesStartBlock) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark names are not activated yet");
     }
 
@@ -4894,7 +4895,8 @@ UniValue registersparkname(const JSONRPCRequest& request) {
     CAmount fee;
     CWalletTx wtx;
     try {
-        wtx = pwallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, fee);
+        wtx = pwallet->CreateSparkNameTransaction(
+            sparkNameData, sparkNameFee, fee, nullptr, chainHeight);
     } catch (const std::exception &x) {
         throw JSONRPCError(RPC_WALLET_ERROR, std::string("Spark name registration failed: ") + x.what());
     }

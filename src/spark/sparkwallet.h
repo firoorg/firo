@@ -108,7 +108,8 @@ public:
     void UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash);
     void UpdateMintStateFromBlock(const CBlock& block);
     void RemoveSparkMints(const std::vector<spark::Coin>& mints);
-    void RemoveSparkSpends(const std::unordered_map<GroupElement, int>& spends);
+    // mark the coins of the given linking tags as unspent again
+    void RemoveSparkSpends(const std::vector<GroupElement>& lTags);
     void AbandonSparkMints(const std::vector<spark::Coin>& mints);
     void AbandonSpends(const std::vector<GroupElement>& spends);
 
@@ -147,13 +148,46 @@ public:
             const CCoinControl *coinControl,
             bool autoMintAll = false);
 
+    /**
+     * Build a Spark spend. Chaum V2 is selected when the next block is at or
+     * past nSparkChaumV2StartBlock.
+     * @param[in] recipients Transparent outputs.
+     * @param[in] privateRecipients Private outputs and whether each pays the fee.
+     * @param[out] fee Selected fee in satoshis.
+     * @param[in] coinControl Optional per-send fee and coin-selection overrides; may be null.
+     * @param[in] additionalTxSize Extra serialized bytes included in the fee estimate.
+     * @param[in] extensionCommitment V2 spend extension commitment; ignored for V1.
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @param[out] recipientAmounts Optional caller-owned vector. If non-null it
+     *     is overwritten with post-fee amounts (transparent, then private).
+     *     The wallet does not take ownership of the container.
+     * @return The constructed wallet transaction.
+     * @pre pwalletMain is unlocked.
+     */
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
             const CCoinControl *coinControl = NULL,
-            CAmount additionalTxSize = 0);
+            size_t additionalTxSize = 0,
+            const uint256& extensionCommitment = uint256(),
+            int expectedNextBlockHeight = -1,
+            std::vector<CAmount>* recipientAmounts = nullptr);
 
+    /**
+     * Select Spark coins and the matching fee for a spend.
+     * @param[in] required Amount to cover before or after fee depending on subtractFeeFromAmount.
+     * @param[in] subtractFeeFromAmount If true, fee is taken from outputs instead of added to required.
+     * @param[in] coins Candidate mint metadata.
+     * @param[in] mintNum Private outputs used in the size model.
+     * @param[in] utxoNum Transparent outputs used in the size model.
+     * @param[in] coinControl Optional fee overrides; may be null.
+     * @param[in] useChaumV2 If true, apply V2 input-count and size-model extras.
+     * @param[in] additionalTxSize Extra bytes included in the size estimate.
+     * @return The selected fee and the coins to spend.
+     */
     std::pair<CAmount, std::vector<CSparkMintMeta>> SelectSparkCoins(
             CAmount required,
             bool subtractFeeFromAmount,
@@ -161,13 +195,28 @@ public:
             std::size_t mintNum,
             std::size_t utxoNum,
             const CCoinControl *coinControl,
+            bool useChaumV2,
             size_t additionalTxSize = 0);
 
+    /**
+     * Build a Spark name transaction using the next block's activation rules
+     * (name format, fee script, and Chaum V2).
+     * @param[in,out] nameData Name payload; filled with height-dependent fields.
+     * @param[in] sparkNamefee Transparent name-fee payout amount.
+     * @param[out] txFee Selected spend fee in satoshis.
+     * @param[in] coinControl Optional fee overrides; may be null.
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @return The constructed wallet transaction.
+     * @pre pwalletMain is unlocked.
+     */
     CWalletTx CreateSparkNameTransaction(
             CSparkNameTxData &nameData,
             CAmount sparkNamefee,
             CAmount &txFee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1);
 
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
@@ -198,22 +247,25 @@ private:
     // wallet-known coins are resolved by hash lookup instead of trial
     // decryption or a linear scan. Guarded by cs_spark_wallet and maintained
     // wherever coinMeta is mutated.
-    std::unordered_map<uint256, uint256> coinLookup;  // GetSparkCoinHash(meta.coin) -> lTagHash
-    std::unordered_map<uint256, uint256> nonceLookup; // GetNonceHash(meta.k) -> lTagHash
+    std::unordered_map<uint256, uint256> coinLookup GUARDED_BY(cs_spark_wallet);  // GetSparkCoinHash(meta.coin) -> lTagHash
+    std::unordered_map<uint256, uint256> nonceLookup GUARDED_BY(cs_spark_wallet); // GetNonceHash(meta.k) -> lTagHash
 
     // when true (-sparkcacheverify), every lookup index hit is cross-checked
     // against identification and rejected on divergence
     bool fCacheAudit{false};
 
-    void addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
-    void removeFromLookups(const uint256& lTagHash, const CSparkMintMeta& mint);
+    void addToLookups(const uint256& lTagHash, const CSparkMintMeta& mint)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
+    void removeFromLookups(const uint256& lTagHash, const CSparkMintMeta& mint)
+        EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
     /**
      * Return the recorded meta for a wallet-known coin, or nullptr.
      * A non-null result requires full coin equality plus an equal serial
      * context, so the answer matches what identification would produce.
      * @pre cs_spark_wallet is held; the pointer is valid only under it
      */
-    const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const;
+    const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
 
     void* threadPool;
 };

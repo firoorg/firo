@@ -40,8 +40,8 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "validation.h"
-#include "mtpstate.h"
 #include "batchproof_container.h"
+#include "mtpstate.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -268,8 +268,12 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    BatchProofContainer::get_instance()->finalize();
-    BatchProofContainer::get_instance()->verify();
+    {
+        LOCK(cs_main);
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState state;
+        VerifyPendingSparkBatch(state, "shutdown");
+    }
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -552,6 +556,8 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-limitdescendantcount=<n>", strprintf("Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)", DEFAULT_DESCENDANT_LIMIT));
         strUsage += HelpMessageOpt("-limitdescendantsize=<n>", strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end", "Use given start/end times for specified BIP9 deployment (regtest-only)");
+        strUsage += HelpMessageOpt("-sparksingleinputheight=<n>", "Activate single-input Spark V1 rules at height <n> (regtest-only)");
+        strUsage += HelpMessageOpt("-sparkchaumv2height=<n>", "Activate versioned Spark Chaum V2 spends at height <n> (regtest-only; must not precede the single-input height)");
     }
     const std::string debugCategories = LogInstance().LogCategoriesString(); // Don't translate category names.
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
@@ -770,8 +776,18 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
+        {
+            LOCK(cs_main);
+            BatchProofContainer::get_instance()->finalize();
+            CValidationState state;
+            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+                return;
+            }
+        }
         pblocktree->WriteReindexing(false);
         fReindex = false;
+        BatchProofContainer::RemoveRecoveryMarker();
         LogPrintf("Reindexing finished\n");
         // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
         InitBlockIndex(chainparams);
@@ -1471,6 +1487,52 @@ bool AppInitParameterInteraction()
             }
         }
     }
+    if (IsArgSet("-sparksingleinputheight") ||
+        IsArgSet("-sparkchaumv2height")) {
+        if (!chainparams.MineBlocksOnDemand()) {
+            return InitError(
+                "Spark activation heights may only be overridden on regtest.");
+        }
+
+        const auto parseActivationHeight = [](const char* argument,
+                                              int& height) {
+            int64_t parsed;
+            if (!ParseInt64(GetArg(argument, ""), &parsed) ||
+                parsed < 0 || parsed > INT_MAX) {
+                return false;
+            }
+            height = static_cast<int>(parsed);
+            return true;
+        };
+
+        try {
+            int singleInputHeight = 0;
+            int chaumV2Height = 0;
+            const int* pSingleInputHeight = nullptr;
+            const int* pChaumV2Height = nullptr;
+
+            if (IsArgSet("-sparksingleinputheight")) {
+                if (!parseActivationHeight(
+                        "-sparksingleinputheight", singleInputHeight)) {
+                    return InitError(
+                        "Invalid -sparksingleinputheight value.");
+                }
+                pSingleInputHeight = &singleInputHeight;
+            }
+            if (IsArgSet("-sparkchaumv2height")) {
+                if (!parseActivationHeight(
+                        "-sparkchaumv2height", chaumV2Height)) {
+                    return InitError(
+                        "Invalid -sparkchaumv2height value.");
+                }
+                pChaumV2Height = &chaumV2Height;
+            }
+            UpdateRegtestSparkActivationHeights(
+                pSingleInputHeight, pChaumV2Height);
+        } catch (const std::exception& e) {
+            return InitError(e.what());
+        }
+    }
     fSkipMnpayoutCheck = GetBoolArg("-skipmnpayoutcheck", false);
     return true;
 }
@@ -1909,6 +1971,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // ********************************************************* Step 7b: load block chain
+
+    // If the previous run aborted on a failed Spark batch verification, or
+    // crashed while Spark proofs were still being collected, drop chainstate
+    // and verify Spark proofs block by block on this run. Checked here rather
+    // than in LoadBlockIndexDB() because a run restarted with -reindex wipes
+    // the block tree database and never calls LoadBlockIndexDB().
+    if (BatchProofContainer::HasRecoveryMarker()) {
+        LogPrintf("Previous run did not finish Spark batch verification, disabling -batching and forcing -reindex for this run\n");
+        ForceSetArg("-batching", "0");
+        ForceSetArg("-reindex", "1");
+    }
 
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);

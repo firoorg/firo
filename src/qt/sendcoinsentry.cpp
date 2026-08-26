@@ -313,6 +313,7 @@ bool SendCoinsEntry::applyPaymentURI(const QString& uri)
     return true;
 }
 
+
 void SendCoinsEntry::clearRosenBridgeData()
 {
     if (recipient.opReturnData.empty()) {
@@ -362,6 +363,7 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
     ui->rosenBridgeDetails->setText(details);
     ui->rosenBridgeDetails->setToolTip(tr("This transaction includes Rosen Bridge OP_RETURN metadata."));
 }
+
 
 void SendCoinsEntry::setModel(WalletModel *_model)
 {
@@ -569,6 +571,7 @@ bool SendCoinsEntry::hasRosenBridgeData() const
     return !recipient.opReturnData.empty();
 }
 
+
 bool SendCoinsEntry::isPayToPcode() const
 {
     return isPcodeEntry;
@@ -578,13 +581,13 @@ void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
 {
     this->fAnonymousMode = fAnonymousMode;
 
-    // A Spark spend may need more than one transaction, and the fee cannot then be
-    // taken out of a single recipient's amount. prepareSpendSparkTransactionsSingleInput
-    // rejects the flag, so take the checkbox away rather than failing at send time.
-    if (fAnonymousMode) {
+    const bool subtractFeeSupported =
+        !fAnonymousMode ||
+        (model && model->versionedSparkSpendsAllowed());
+    if (!subtractFeeSupported) {
         ui->checkboxSubtractFeeFromAmount->setCheckState(Qt::Unchecked);
     }
-    ui->checkboxSubtractFeeFromAmount->setEnabled(!fAnonymousMode);
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeSupported);
 
     updateRosenBridgeDisplay();
 }

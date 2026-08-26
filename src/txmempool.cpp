@@ -6,11 +6,13 @@
 #include "txmempool.h"
 
 #include "clientversion.h"
+#include "chainparams.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "validation.h"
 #include "policy/policy.h"
 #include "policy/fees.h"
+#include "spark/state.h"
 #include "streams.h"
 #include "timedata.h"
 #include "util.h"
@@ -865,7 +867,10 @@ void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMem
         const CTransaction& tx = it->GetTx();
         LockPoints lp = it->GetLockPoints();
         bool validLP =  TestLockPointValidity(&lp);
-        if (!CheckFinalTx(tx, flags) || !CheckSequenceLocks(*this, tx, flags, &lp, validLP)) {
+        if (!spark::IsSparkSpendFormatAllowed(
+                tx, static_cast<int>(nMemPoolHeight)) ||
+            !CheckFinalTx(tx, flags) ||
+            !CheckSequenceLocks(*this, tx, flags, &lp, validLP)) {
             // Note if CheckSequenceLocks fails the LockPoints may still be invalid
             // So it's critical that we remove the tx and not depend on the LockPoints.
             txToRemove.insert(it);
@@ -1085,6 +1090,37 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         removeProTxConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }
+
+    // After HF-1 connects, the next block is H2. Drop leftover Spark spends
+    // that will fail consensus there so CreateNewBlock does not assemble a
+    // template that TestBlockValidity then rejects. Valid spends are kept.
+    const int h2Height = ::Params().GetConsensus().nSparkChaumV2StartBlock;
+    if (static_cast<int64_t>(nBlockHeight) + 1 ==
+            static_cast<int64_t>(h2Height)) {
+        setEntries toRemove;
+        for (txiter it = mapTx.begin(); it != mapTx.end(); ++it) {
+            if (!it->GetTx().IsSparkSpend())
+                continue;
+            CValidationState consensusState;
+            if (!spark::CheckSparkTransaction(
+                    it->GetTx(),
+                    consensusState,
+                    it->GetTx().GetHash(),
+                    false,
+                    h2Height,
+                    false,
+                    true,
+                    nullptr)) {
+                LogPrintf(
+                    "Removing Spark spend %s from the mempool; it fails H2 consensus: %s\n",
+                    it->GetTx().GetHash().ToString(),
+                    consensusState.GetRejectReason());
+                CalculateDescendants(it, toRemove);
+            }
+        }
+        RemoveStaged(toRemove, false, MemPoolRemovalReason::REORG);
+    }
+
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
 }
@@ -1102,6 +1138,7 @@ void CTxMemPool::_clear()
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
     sparkState.Reset();
+    sparkNames.clear();
     ++nTransactionsUpdated;
 }
 

@@ -699,7 +699,7 @@ void OverviewPage::on_anonymizeButton_clicked()
             QMessageBox error(
                 QMessageBox::Critical,
                 tr("Unable to Make Funds Private"),
-                transactionsAndFees.size() > 1
+                sendResult.partiallyCommitted
                     ? tr("The transfer could not be fully completed. Part of it may already have been sent; check the Transactions tab before trying again.")
                     : tr("The transfer could not be completed. No funds were moved."),
                 QMessageBox::Ok,

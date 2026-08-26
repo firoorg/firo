@@ -428,11 +428,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             exchangeAddressCount++;
     }
 
-    // The two-stage Spark -> transparent -> EX-address flow below needs the txid of a
-    // single first-stage transaction, and a private send may now produce several. Refuse
-    // the whole flow until it can be restaged. Everything guarded by
-    // fGoThroughTransparentAddress from here on is consequently unreachable; it is left
-    // in place because restoring the flow is a revert of this block, not a rewrite.
     if (fAnonymousMode && exchangeAddressCount > 0) {
         QMessageBox::critical(
             this,
@@ -504,7 +499,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if (isSparkSpend) {
         prepareStatus = runWalletOperation([&] {
-            return model->prepareSpendSparkTransactionsSingleInput(
+            return model->prepareSpendSparkTransactions(
                 sparkSpendTransactions, recipients, &ctrl);
         });
     } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
@@ -527,8 +522,15 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // process prepareStatus and on error generate message shown to user
+    CAmount feeForMessage = currentTransaction.getTransactionFee();
+    if (isSparkSpend) {
+        feeForMessage = 0;
+        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+            feeForMessage += transaction.getTransactionFee();
+        }
+    }
     processSendCoinsReturn(prepareStatus,
-        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeForMessage));
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;
@@ -541,6 +543,23 @@ void SendCoinsDialog::on_sendButton_clicked()
     if (fGoThroughTransparentAddress) {
         realRecipients.erase(realRecipients.end() - 1);
         realRecipients.append(exchangeRecipients);
+    } else if (isSparkSpend) {
+        // Use the amounts from the prepared transactions. In particular, these
+        // reflect any fee subtracted from a private recipient.
+        for (SendCoinsRecipient& recipient : realRecipients) {
+            recipient.amount = 0;
+        }
+        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+            for (const SendCoinsRecipient& prepared :
+                 transaction.getRecipients()) {
+                for (SendCoinsRecipient& recipient : realRecipients) {
+                    if (recipient.address == prepared.address) {
+                        recipient.amount += prepared.amount;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     // Format confirmation message
@@ -711,10 +730,9 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    // A private send is limited to one Spark coin per transaction, so a payment that
-    // needs several coins goes out as several transactions. Say so before the user
-    // confirms: it costs a fee each, they are linkable to each other, and if one is
-    // rejected the recipients are paid only in part.
+    // Before versioned construction is active, a payment that needs several
+    // coins is sent as several transactions. Make the fee and partial-commit
+    // behavior explicit before confirmation.
     if (isSparkSpend && sparkSpendTransactions.size() > 1) {
         questionString.append("<hr />");
         questionString.append(tr("This payment does not fit in one Spark coin and will be sent as "
@@ -729,6 +747,12 @@ void SendCoinsDialog::on_sendButton_clicked()
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         totalAmount = mintSparkAmount + txFee;
+    } else if (isSparkSpend) {
+        totalAmount = txFee;
+        for (WalletModelTransaction& transaction :
+             sparkSpendTransactions) {
+            totalAmount += transaction.getTotalTransactionAmount();
+        }
     } else {
         totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     }
@@ -788,15 +812,30 @@ void SendCoinsDialog::on_sendButton_clicked()
         coinControlUpdateLabels();
     }
 
+    if (sendStatus.status != WalletModel::OK) {
+        fNewRecipientAllowed = true;
+        return;
+    }
+
     // Launch the second stage of the transaction if needed
     if (fGoThroughTransparentAddress) {
+        if (sparkSpendTransactions.size() != 1) {
+            sendStatus.status = WalletModel::TransactionCreationFailed;
+            sendStatus.reasonCommitFailed =
+                tr("Private transaction staging produced an unexpected transaction count");
+            processSendCoinsReturn(sendStatus);
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        WalletModelTransaction& firstStage = sparkSpendTransactions.front();
         // prepare the coin control so the transaction will use (by default) only the transparent address
         // created in the first stage
         COutPoint outpoint;
-        outpoint.hash = currentTransaction.getTransaction()->GetHash();
+        outpoint.hash = firstStage.getTransaction()->GetHash();
         outpoint.n = UINT_MAX;
 
-        const auto &vout = currentTransaction.getTransaction()->tx->vout;
+        const auto &vout = firstStage.getTransaction()->tx->vout;
         for (size_t i = 0; i < vout.size(); i++) {
             if (vout[i].scriptPubKey == intermediateAddressScript) {
                 outpoint.n = i;
@@ -806,7 +845,8 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         if (outpoint.n == UINT_MAX) {
             sendStatus.status = WalletModel::InvalidAddress;
-            sendStatus.reasonCommitFailed = "Intermediate address was not found in the transaction";
+            sendStatus.reasonCommitFailed =
+                tr("Intermediate address was not found in the transaction");
             fNewRecipientAllowed = true;
             return;
         }
@@ -824,7 +864,9 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         // process prepareStatus and on error generate message shown to user
         processSendCoinsReturn(prepareStatus,
-            BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+            BitcoinUnits::formatWithUnit(
+                model->getOptionsModel()->getDisplayUnit(),
+                firstStage.getTransactionFee()));
 
         if(prepareStatus.status != WalletModel::OK) {
             fNewRecipientAllowed = true;
@@ -917,6 +959,15 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         setAnonymizeMode(false);
         ui->switchFundButton->setEnabled(false);
     }
+
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* sendEntry = qobject_cast<SendCoinsEntry*>(
+            ui->entries->itemAt(i)->widget());
+        if (sendEntry) {
+            sendEntry->setfAnonymousMode(fAnonymousMode);
+        }
+    }
+    coinControlUpdateLabels();
 }
 
 void SendCoinsDialog::updateTabsAndLabels()

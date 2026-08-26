@@ -109,9 +109,9 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         // Init HD mint
 
         // Create new keyUser and set as default key
-        // generate a new master key
-        CPubKey masterPubKey = pwalletMain->GenerateNewHDMasterKey();
-        pwalletMain->SetHDMasterKey(masterPubKey);
+        // generate a new mnemonic-backed HD chain
+        pwalletMain->GenerateNewMnemonic();
+        pwalletMain->SetMinVersion(FEATURE_HD);
         CPubKey newDefaultKey;
         if (pwalletMain->GetKeyFromPool(newDefaultKey)) {
             pwalletMain->SetDefaultKey(newDefaultKey);
@@ -188,6 +188,35 @@ CBlock TestChain100Setup::CreateBlock(const std::vector<CMutableTransaction>& tx
     
     BOOST_FOREACH(const CMutableTransaction& tx, txns)
         block.vtx.push_back(MakeTransactionRef(tx));
+
+    // CreateNewBlock sizes the coinbase from the live mempool. After those
+    // transactions are replaced, the miner output must match the fees of the
+    // transactions that actually remain in the block.
+    if (!fAllowMempoolTxsInCreateBlock) {
+        LOCK(cs_main);
+        CCoinsViewCache view(pcoinsTip);
+        CAmount nFees = 0;
+        for (size_t i = 1; i < block.vtx.size(); ++i) {
+            const CTransaction& tx = *block.vtx[i];
+            if (tx.IsCoinBase() || tx.HasNoRegularInputs() || !view.HaveInputs(tx)) {
+                continue;
+            }
+            nFees += view.GetValueIn(tx) - tx.GetValueOut();
+            UpdateCoins(tx, view, chainActive.Height() + 1);
+        }
+        const CAmount nBlockSubsidy = GetBlockSubsidy(
+            chainActive.Height() + 1,
+            chainparams.GetConsensus(),
+            block.nTime);
+        const CAmount oldFees = block.vtx[0]->GetValueOut() - nBlockSubsidy;
+        const CAmount delta = nFees - oldFees;
+        if (delta != 0) {
+            CMutableTransaction coinbase(*block.vtx[0]);
+            BOOST_ASSERT(delta > 0 || coinbase.vout[0].nValue >= -delta);
+            coinbase.vout[0].nValue += delta;
+            block.vtx[0] = MakeTransactionRef(std::move(coinbase));
+        }
+    }
 
     // Manually update CbTx as we modified the block here
     if (block.vtx[0]->nType == TRANSACTION_COINBASE) {

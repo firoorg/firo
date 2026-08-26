@@ -7,7 +7,21 @@ Chaum::Chaum(const GroupElement& F_, const GroupElement& G_, const GroupElement&
     F(F_), G(G_), H(H_), U(U_) {
 }
 
-Scalar Chaum::challenge(
+namespace {
+
+std::vector<unsigned char> EncodeUint64LE(uint64_t value)
+{
+    std::vector<unsigned char> encoded(8);
+    for (std::size_t i = 0; i < encoded.size(); ++i) {
+        encoded[i] = static_cast<unsigned char>(value & 0xff);
+        value >>= 8;
+    }
+    return encoded;
+}
+
+} // namespace
+
+Scalar Chaum::challenge_v1(
     const Scalar& mu,
     const std::vector<GroupElement>& S,
     const std::vector<GroupElement>& T,
@@ -28,14 +42,14 @@ Scalar Chaum::challenge(
     return transcript.challenge("c");
 }
 
-void Chaum::prove(
+void Chaum::prove_v1(
     const Scalar& mu,
     const std::vector<Scalar>& x,
     const std::vector<Scalar>& y,
     const std::vector<Scalar>& z,
     const std::vector<GroupElement>& S,
     const std::vector<GroupElement>& T,
-    ChaumProof& proof
+    ChaumProofV1& proof
 ) {
     // Check statement validity
     std::size_t n = x.size();
@@ -66,7 +80,7 @@ void Chaum::prove(
         proof.A2[i] = T[i]*r[i] + G*s[i];
     }
 
-    Scalar c = challenge(mu, S, T, proof.A1, proof.A2);
+    Scalar c = challenge_v1(mu, S, T, proof.A1, proof.A2);
 
     proof.t1.resize(n);
     proof.t3 = t;
@@ -82,11 +96,11 @@ void Chaum::prove(
     }
 }
 
-bool Chaum::verify(
+bool Chaum::verify_v1(
     const Scalar& mu,
     const std::vector<GroupElement>& S,
     const std::vector<GroupElement>& T,
-    ChaumProof& proof
+    ChaumProofV1& proof
 ) {
     // Check proof semantics
     std::size_t n = S.size();
@@ -102,7 +116,7 @@ bool Chaum::verify(
         }
     }
 
-    Scalar c = challenge(mu, S, T, proof.A1, proof.A2);
+    Scalar c = challenge_v1(mu, S, T, proof.A1, proof.A2);
     if (c.isZero()) {
         throw std::invalid_argument("Unexpected challenge!");
     }
@@ -185,7 +199,7 @@ bool Chaum::verify_single_input(
     const Scalar& mu,
     const std::vector<GroupElement>& S,
     const std::vector<GroupElement>& T,
-    ChaumProof& proof
+    ChaumProofV1& proof
 ) {
     // The current path accepts only the single-input statement shape.
     // Pre-activation blocks use the explicit historical compatibility path.
@@ -197,7 +211,7 @@ bool Chaum::verify_single_input(
         throw std::invalid_argument("Bad Chaum single-input semantics!");
     }
 
-    const Scalar c = challenge(mu, S, T, proof.A1, proof.A2);
+    const Scalar c = challenge_v1(mu, S, T, proof.A1, proof.A2);
     if (c.isZero()) {
         throw std::invalid_argument("Unexpected challenge!");
     }
@@ -212,6 +226,127 @@ bool Chaum::verify_single_input(
     const GroupElement secondLeft = proof.A2[0] + U*c;
     const GroupElement secondRight = T[0]*proof.t1[0] + G*proof.t2;
     return secondLeft == secondRight;
+}
+
+Scalar Chaum::challenge_v2(
+    const Scalar& mu,
+    const ChaumV2Context& context,
+    const std::vector<GroupElement>& S,
+    const std::vector<GroupElement>& T,
+    const std::vector<GroupElement>& A1,
+    const std::vector<GroupElement>& A2
+) {
+    Transcript transcript(LABEL_TRANSCRIPT_CHAUM_V2);
+    transcript.add("version", std::vector<unsigned char>{2});
+    transcript.add("input_count", EncodeUint64LE(S.size()));
+    transcript.add("F", F);
+    transcript.add("G", G);
+    transcript.add("H", H);
+    transcript.add("U", U);
+    transcript.add("mu", mu);
+    transcript.add("S", S);
+    transcript.add("T", T);
+    transcript.add("A1", A1);
+    transcript.add("A2", A2);
+    transcript.add(
+        "cover_set_references",
+        context.serialized_cover_set_references);
+    transcript.add("outputs", context.serialized_outputs);
+    transcript.add("fee", EncodeUint64LE(context.fee));
+    transcript.add("transparent_value", EncodeUint64LE(context.transparent_value));
+    transcript.add(
+        "extension_commitment",
+        std::vector<unsigned char>(
+            context.extension_commitment.begin(),
+            context.extension_commitment.end()));
+    return transcript.challenge("c");
+}
+
+void Chaum::prove_v2(
+    const Scalar& mu,
+    const ChaumV2Context& context,
+    const std::vector<Scalar>& x,
+    const std::vector<Scalar>& y,
+    const std::vector<Scalar>& z,
+    const std::vector<GroupElement>& S,
+    const std::vector<GroupElement>& T,
+    ChaumProofV2& proof
+) {
+    const std::size_t n = x.size();
+    if (n == 0 || n > MAX_CHAUM_V2_INPUTS ||
+        y.size() != n || z.size() != n || S.size() != n || T.size() != n) {
+        throw std::invalid_argument("Bad Chaum V2 statement");
+    }
+    for (std::size_t i = 0; i < n; ++i) {
+        if (S[i].isInfinity() || T[i].isInfinity() ||
+            F*x[i] + G*y[i] + H*z[i] != S[i] ||
+            T[i]*x[i] + G*y[i] != U) {
+            throw std::invalid_argument("Bad Chaum V2 statement");
+        }
+    }
+
+    std::vector<Scalar> r(n), s(n), t(n);
+    proof.A1.resize(n);
+    proof.A2.resize(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        r[i].randomize();
+        s[i].randomize();
+        t[i].randomize();
+        proof.A1[i] = F*r[i] + G*s[i] + H*t[i];
+        proof.A2[i] = T[i]*r[i] + G*s[i];
+    }
+
+    const Scalar c = challenge_v2(mu, context, S, T, proof.A1, proof.A2);
+    if (c.isZero()) {
+        throw std::invalid_argument("Unexpected Chaum V2 challenge");
+    }
+
+    proof.t1.resize(n);
+    proof.t2.resize(n);
+    proof.t3.resize(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        proof.t1[i] = r[i] + c*x[i];
+        proof.t2[i] = s[i] + c*y[i];
+        proof.t3[i] = t[i] + c*z[i];
+    }
+}
+
+bool Chaum::verify_v2(
+    const Scalar& mu,
+    const ChaumV2Context& context,
+    const std::vector<GroupElement>& S,
+    const std::vector<GroupElement>& T,
+    const ChaumProofV2& proof
+) {
+    const std::size_t n = S.size();
+    if (n == 0 || n > MAX_CHAUM_V2_INPUTS || T.size() != n ||
+        proof.A1.size() != n || proof.A2.size() != n ||
+        proof.t1.size() != n || proof.t2.size() != n || proof.t3.size() != n) {
+        return false;
+    }
+    for (std::size_t i = 0; i < n; ++i) {
+        if (S[i].isInfinity() || T[i].isInfinity() ||
+            proof.A1[i].isInfinity() || proof.A2[i].isInfinity()) {
+            return false;
+        }
+    }
+
+    const Scalar c = challenge_v2(mu, context, S, T, proof.A1, proof.A2);
+    if (c.isZero()) {
+        return false;
+    }
+
+    // Check all 2*n equations directly. This correctness-oriented verifier
+    // deliberately avoids probabilistic batching until independently derived
+    // coefficients and the final transcript have received cryptographic review.
+    for (std::size_t i = 0; i < n; ++i) {
+        if (proof.A1[i] + S[i]*c !=
+                F*proof.t1[i] + G*proof.t2[i] + H*proof.t3[i] ||
+            proof.A2[i] + U*c != T[i]*proof.t1[i] + G*proof.t2[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 }
