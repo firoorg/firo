@@ -698,6 +698,10 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     std::vector<spark::Coin> expectedCoins = spark::GetSparkMintCoins(tx);
     BOOST_CHECK(expectedCoins == info.mints);
 
+    // Drop the probe mint from the mempool so later mints cannot chain off its
+    // unconfirmed change. Mining only the spend mints would then miss inputs.
+    mempool.clear();
+
     // spend
     txs.clear();
     pwalletMain->SetBroadcastTransactions(true);
@@ -2576,9 +2580,6 @@ BOOST_AUTO_TEST_CASE(spark_block_evicts_all_conflicting_spends_from_mempool_and_
         {fiveCoinMints[0]}, 4 * COIN);
     const CTransaction spendB = GenerateCustomSparkSpend(
         {fiveCoinMints[1]}, 4 * COIN);
-    const CTransaction v2Both = GenerateCustomSparkSpend(
-        fiveCoinMints, 9 * COIN, 0, SpendTransactionVersion::V2);
-    BOOST_REQUIRE(v2Both.IsSparkSpendV2());
     const auto tagsA = ParseSparkSpend(spendA).getUsedLTags();
     const auto tagsB = ParseSparkSpend(spendB).getUsedLTags();
     BOOST_REQUIRE_EQUAL(tagsA.size(), 1U);
@@ -2616,6 +2617,9 @@ BOOST_AUTO_TEST_CASE(spark_block_evicts_all_conflicting_spends_from_mempool_and_
 
     const int h2Height = chainActive.Height() + 1;
     UpdateRegtestSparkActivationHeights(&h2Height, &h2Height);
+    const CTransaction v2Both = GenerateCustomSparkSpend(
+        fiveCoinMints, 9 * COIN, 0, SpendTransactionVersion::V2);
+    BOOST_REQUIRE(v2Both.IsSparkSpendV2());
     BOOST_REQUIRE(GenerateBlock({CMutableTransaction(v2Both)}));
 
     BOOST_CHECK(!mempool.exists(spendA.GetHash()));

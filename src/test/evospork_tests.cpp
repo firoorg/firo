@@ -174,13 +174,14 @@ BOOST_AUTO_TEST_CASE(general)
         {CSporkAction::sporkEnable, CSporkAction::featureSpark, 0, 0}
     });
 
+    std::vector<CMutableTransaction> sparkMints;
+    GenerateMints({1*COIN, 2*COIN}, sparkMints);
+    mempool.clear();
+
     prevHeight = chainActive.Height();
     GenerateBlock({sporkTx1});
     // spork should be accepted
     BOOST_ASSERT(chainActive.Height() == prevHeight+1);
-
-    std::vector<CMutableTransaction> sparkMints;
-    GenerateMints({1*COIN, 2*COIN}, sparkMints);
 
     prevHeight = chainActive.Height();
     GenerateBlock(sparkMints);
