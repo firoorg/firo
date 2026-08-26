@@ -701,6 +701,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     // Drop the probe mint from the mempool so later mints cannot chain off its
     // unconfirmed change. Mining only the spend mints would then miss inputs.
     mempool.clear();
+    txpools.getStemTxPool().clear();
 
     // spend
     txs.clear();
