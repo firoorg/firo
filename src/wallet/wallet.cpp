@@ -3962,7 +3962,13 @@ std::string CWallet::MintAndStoreSpark(
     CValidationState state;
     auto reservekey = reservekeys.begin();
     for(size_t i = 0; i < wtxAndFee.size(); i++) {
-        if (!CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
+        if (!CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state, true)) {
+            if (i > 0) {
+                return strprintf(
+                    _("Error: The transaction was rejected after %u of %u mint transactions were already sent. Do not retry the whole mint."),
+                    i,
+                    wtxAndFee.size());
+            }
             return _(
                     "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
         } else {

@@ -1965,19 +1965,19 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 7b: load block chain
 
-    fReindex = GetBoolArg("-reindex", false);
-    bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
-
-    // If the previous run aborted on a failed Spark batch verification, verify
-    // Spark proofs block by block for this run so the invalid spend is
-    // identified and rejected through the normal consensus path. Checked here
-    // rather than in LoadBlockIndexDB() because a run restarted with -reindex
-    // wipes the block tree database and never calls LoadBlockIndexDB().
+    // If the previous run aborted on a failed Spark batch verification, drop
+    // chainstate and verify Spark proofs block by block on this run. Checked
+    // here rather than in LoadBlockIndexDB() because a run restarted with
+    // -reindex wipes the block tree database and never calls LoadBlockIndexDB().
     if (boost::filesystem::exists(GetDataDir() / "sparkbatchfailed")) {
-        LogPrintf("Previous run failed Spark batch verification, disabling -batching for this run\n");
+        LogPrintf("Previous run failed Spark batch verification, disabling -batching and forcing -reindex for this run\n");
         ForceSetArg("-batching", "0");
+        ForceSetArg("-reindex", "1");
         boost::filesystem::remove(GetDataDir() / "sparkbatchfailed");
     }
+
+    fReindex = GetBoolArg("-reindex", false);
+    bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
 
     boost::filesystem::create_directories(GetDataDir() / "blocks");
 

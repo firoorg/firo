@@ -2370,6 +2370,273 @@ BOOST_AUTO_TEST_CASE(spark_cover_set_hash_binding_activates_with_h2)
     mempool.clear();
 }
 
+BOOST_AUTO_TEST_CASE(hf_minus_one_drops_mempool_spends_that_fail_h2_consensus)
+{
+    RestoreSparkActivationHeights restoreActivationHeights;
+    struct RestoreSparkGroupLimits {
+        CSparkState* state;
+        CSparkState original;
+
+        explicit RestoreSparkGroupLimits(CSparkState* stateIn)
+            : state(stateIn), original()
+        {
+            original.CopyFrom(*state);
+            CSparkState limited(3, 2);
+            state->CopyFrom(limited);
+        }
+
+        ~RestoreSparkGroupLimits()
+        {
+            mempool.clear();
+            state->Reset();
+            state->CopyFrom(original);
+        }
+    } restoreGroupLimits{sparkState};
+
+    GenerateBlocks(500);
+    const int constructionSingleInputHeight = chainActive.Height() + 1;
+    const int deferredH2Height = chainActive.Height() + 1000;
+    UpdateRegtestSparkActivationHeights(
+        &constructionSingleInputHeight, &deferredH2Height);
+
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints = GenerateMints(
+        {5 * COIN, 1 * COIN, 1 * COIN, 1 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 4U);
+    mempool.clear();
+
+    BOOST_REQUIRE(GenerateBlock(
+        {mintTransactions[0], mintTransactions[1]}));
+    CBlockIndex* rolloverReference = GenerateBlock({mintTransactions[2]});
+    BOOST_REQUIRE(rolloverReference);
+    BOOST_REQUIRE(GenerateBlock({mintTransactions[3]}));
+    GenerateBlocks(10);
+    pwalletMain->sparkWallet->FinishTasks();
+
+    const auto firstMintIt = std::find_if(
+        createdMints.begin(), createdMints.end(),
+        [&mintTransactions](const CSparkMintMeta& mint) {
+            return mint.txid == mintTransactions[0].GetHash();
+        });
+    BOOST_REQUIRE(firstMintIt != createdMints.end());
+    const CSparkMintMeta firstMint =
+        pwalletMain->sparkWallet->getMintMeta(firstMintIt->k);
+
+    const auto rolloverMintIt = std::find_if(
+        createdMints.begin(), createdMints.end(),
+        [&mintTransactions](const CSparkMintMeta& mint) {
+            return mint.txid == mintTransactions[2].GetHash();
+        });
+    BOOST_REQUIRE(rolloverMintIt != createdMints.end());
+    const CSparkMintMeta rolloverMint =
+        pwalletMain->sparkWallet->getMintMeta(rolloverMintIt->k);
+
+    const CTransaction boundSpend = GenerateCustomSparkSpend(
+        {firstMint}, 4 * COIN);
+    const CTransaction unboundSpend = GenerateCustomSparkSpend(
+        {rolloverMint},
+        COIN / 2,
+        0,
+        SpendTransactionVersion::V1,
+        0,
+        rolloverReference->nHeight,
+        true);
+    BOOST_REQUIRE(!unboundSpend.vout.empty());
+
+    bool missingInputs = true;
+    {
+        LOCK(cs_main);
+        CValidationState boundState;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            mempool,
+            boundState,
+            MakeTransactionRef(boundSpend),
+            false,
+            &missingInputs));
+        BOOST_CHECK(!missingInputs);
+        CValidationState unboundState;
+        missingInputs = true;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            mempool,
+            unboundState,
+            MakeTransactionRef(unboundSpend),
+            false,
+            &missingInputs));
+        BOOST_CHECK(!missingInputs);
+    }
+    BOOST_REQUIRE(mempool.exists(boundSpend.GetHash()));
+    BOOST_REQUIRE(mempool.exists(unboundSpend.GetHash()));
+
+    CMutableTransaction descendant;
+    descendant.vin.resize(1);
+    descendant.vin[0].prevout = COutPoint(unboundSpend.GetHash(), 0);
+    descendant.vin[0].scriptSig = CScript() << OP_11;
+    descendant.vout.resize(1);
+    descendant.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    descendant.vout[0].nValue = unboundSpend.vout[0].nValue - 1000;
+    TestMemPoolEntryHelper mempoolEntry;
+    mempool.addUnchecked(
+        descendant.GetHash(),
+        mempoolEntry.Height(chainActive.Height()).FromTx(descendant));
+    BOOST_REQUIRE(mempool.exists(descendant.GetHash()));
+
+    // Connecting any earlier block must leave both spends in place.
+    mempool.removeForBlock({}, chainActive.Height());
+    BOOST_CHECK(mempool.exists(boundSpend.GetHash()));
+    BOOST_CHECK(mempool.exists(unboundSpend.GetHash()));
+    BOOST_CHECK(mempool.exists(descendant.GetHash()));
+
+    const int h2Height = chainActive.Height() + 1;
+    UpdateRegtestSparkChaumV2Height(h2Height);
+
+    // Connecting HF-1 (current tip when H2 is the next height) drops only
+    // spends that fail H2 consensus, plus their descendants.
+    mempool.removeForBlock({}, chainActive.Height());
+    BOOST_CHECK(mempool.exists(boundSpend.GetHash()));
+    BOOST_CHECK(!mempool.exists(unboundSpend.GetHash()));
+    BOOST_CHECK(!mempool.exists(descendant.GetHash()));
+
+    mempool.clear();
+}
+
+BOOST_AUTO_TEST_CASE(spark_stem_admission_records_linking_tags)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, 1 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+    mempool.clear();
+    txpools.getStemTxPool().clear();
+    const std::vector<GroupElement> lTags = ParseSparkSpend(spend).getUsedLTags();
+    BOOST_REQUIRE(!lTags.empty());
+
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            txpools.getStemTxPool(),
+            state,
+            MakeTransactionRef(spend),
+            false,
+            &missingInputs,
+            nullptr,
+            false,
+            0,
+            false,
+            false));
+        BOOST_CHECK(!missingInputs);
+    }
+    BOOST_CHECK(!mempool.exists(spend.GetHash()));
+    {
+        CTxMemPool& stemPool = txpools.getStemTxPool();
+        LOCK(stemPool.cs);
+        for (const auto& lTag : lTags) {
+            BOOST_CHECK(stemPool.sparkState.HasLTag(lTag));
+            BOOST_CHECK(
+                stemPool.sparkState.GetMempoolConflictingTxHash(lTag) ==
+                spend.GetHash());
+        }
+    }
+    {
+        LOCK(mempool.cs);
+        for (const auto& lTag : lTags)
+            BOOST_CHECK(!mempool.sparkState.HasLTag(lTag));
+    }
+
+    txpools.clear();
+}
+
+BOOST_AUTO_TEST_CASE(spark_block_evicts_all_conflicting_spends_from_mempool_and_stem)
+{
+    RestoreSparkActivationHeights restoreActivationHeights;
+
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints =
+        GenerateMints({5 * COIN, 5 * COIN}, mintTransactions);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> fiveCoinMints;
+    for (const auto& mint : createdMints) {
+        if (mint.v == 5 * COIN) {
+            fiveCoinMints.push_back(
+                pwalletMain->sparkWallet->getMintMeta(mint.k));
+        }
+    }
+    BOOST_REQUIRE_EQUAL(fiveCoinMints.size(), 2U);
+
+    const CTransaction spendA = GenerateCustomSparkSpend(
+        {fiveCoinMints[0]}, 4 * COIN);
+    const CTransaction spendB = GenerateCustomSparkSpend(
+        {fiveCoinMints[1]}, 4 * COIN);
+    const CTransaction v2Both = GenerateCustomSparkSpend(
+        fiveCoinMints, 9 * COIN, 0, SpendTransactionVersion::V2);
+    BOOST_REQUIRE(v2Both.IsSparkSpendV2());
+    const auto tagsA = ParseSparkSpend(spendA).getUsedLTags();
+    const auto tagsB = ParseSparkSpend(spendB).getUsedLTags();
+    BOOST_REQUIRE_EQUAL(tagsA.size(), 1U);
+    BOOST_REQUIRE_EQUAL(tagsB.size(), 1U);
+    BOOST_REQUIRE(tagsA.front() != tagsB.front());
+
+    auto acceptTo = [](CTxMemPool& pool, const CTransaction& tx) {
+        LOCK(cs_main);
+        CValidationState state;
+        bool missingInputs = true;
+        BOOST_REQUIRE(AcceptToMemoryPool(
+            pool, state, MakeTransactionRef(tx), false, &missingInputs));
+        BOOST_CHECK(!missingInputs);
+    };
+    txpools.clear();
+    acceptTo(mempool, spendA);
+    acceptTo(mempool, spendB);
+    acceptTo(txpools.getStemTxPool(), spendA);
+    acceptTo(txpools.getStemTxPool(), spendB);
+    BOOST_REQUIRE(mempool.exists(spendA.GetHash()));
+    BOOST_REQUIRE(mempool.exists(spendB.GetHash()));
+    BOOST_REQUIRE(txpools.getStemTxPool().exists(spendA.GetHash()));
+    BOOST_REQUIRE(txpools.getStemTxPool().exists(spendB.GetHash()));
+    {
+        LOCK(mempool.cs);
+        BOOST_REQUIRE(mempool.sparkState.HasLTag(tagsA.front()));
+        BOOST_REQUIRE(mempool.sparkState.HasLTag(tagsB.front()));
+    }
+    {
+        CTxMemPool& stemPool = txpools.getStemTxPool();
+        LOCK(stemPool.cs);
+        BOOST_REQUIRE(stemPool.sparkState.HasLTag(tagsA.front()));
+        BOOST_REQUIRE(stemPool.sparkState.HasLTag(tagsB.front()));
+    }
+
+    const int h2Height = chainActive.Height() + 1;
+    UpdateRegtestSparkActivationHeights(&h2Height, &h2Height);
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(v2Both)}));
+
+    BOOST_CHECK(!mempool.exists(spendA.GetHash()));
+    BOOST_CHECK(!mempool.exists(spendB.GetHash()));
+    BOOST_CHECK(!txpools.getStemTxPool().exists(spendA.GetHash()));
+    BOOST_CHECK(!txpools.getStemTxPool().exists(spendB.GetHash()));
+    {
+        LOCK(mempool.cs);
+        BOOST_CHECK(!mempool.sparkState.HasLTag(tagsA.front()));
+        BOOST_CHECK(!mempool.sparkState.HasLTag(tagsB.front()));
+    }
+    {
+        CTxMemPool& stemPool = txpools.getStemTxPool();
+        LOCK(stemPool.cs);
+        BOOST_CHECK(!stemPool.sparkState.HasLTag(tagsA.front()));
+        BOOST_CHECK(!stemPool.sparkState.HasLTag(tagsB.front()));
+    }
+
+    txpools.clear();
+}
+
 BOOST_AUTO_TEST_CASE(spark_v2_private_fee_reporting_and_coin_control)
 {
     RestoreBroadcastSetting restoreBroadcast;

@@ -859,6 +859,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     const CTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
     AssertLockHeld(cs_main);
+    (void)markFiroSpendTransactionSerial;
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
@@ -1504,11 +1505,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
 
     if (tx.IsSparkSpend()) {
-        if(markFiroSpendTransactionSerial) {
-            LogPrintf("Adding spends to mempool state..\n");
-            for (const auto &usedLTag: sparkUsedLTags)
-                pool.sparkState.AddSpendToMempool(usedLTag, hash);
-        }
+        LogPrintf("Adding spends to mempool state..\n");
+        for (const auto &usedLTag: sparkUsedLTags)
+            pool.sparkState.AddSpendToMempool(usedLTag, hash);
 
         if (!sparkNameData.name.empty())
             pool.sparkNames[CSparkNameManager::ToUpper(sparkNameData.name)] = {sparkNameData.sparkAddress, hash};
@@ -2317,8 +2316,8 @@ static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
 bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
 {
     if (!BatchProofContainer::get_instance()->verify_pending()) {
-        // Remember the failure so the next start disables batching and the
-        // invalid spend is rejected through the normal block-by-block path.
+        // Remember the failure so the next start disables batching, forces
+        // -reindex, and rejects the invalid spend on the block-by-block path.
         // A datadir marker file is used instead of a block tree DB flag so
         // the marker survives the database wipe of a restarted -reindex run.
         FILE* file = fopen((GetDataDir() / "sparkbatchfailed").string().c_str(), "wb");
@@ -2329,7 +2328,7 @@ bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
         }
         return AbortNode(state,
                          strprintf("Spark batch verification failed before %s", reason),
-                         _("Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node to re-verify Spark proofs block by block (batching is disabled automatically for the next run)."));
+                         _("Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block."));
     }
     return true;
 }
@@ -3147,11 +3146,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     return true;
 }
 
-/** Erase Spark spends conflicting with the given block from the mempool. */
-void static RemoveConflictingSparkSpendsFromMempool(const CBlock &block) {
-    LOCK(mempool.cs);
+/** Erase Spark spend transactions conflicting with the given block from a pool. */
+void static RemoveConflictingSparkSpendsFromMempool(CTxMemPool& pool, const CBlock &block) {
+    LOCK(pool.cs);
 
-    spark::CSparkState *sparkState = spark::CSparkState::GetState();
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
         if (tx->IsSparkSpend()) {
             std::vector<GroupElement> lTags;
@@ -3162,22 +3160,20 @@ void static RemoveConflictingSparkSpendsFromMempool(const CBlock &block) {
             }
 
             uint256 thisTxHash = tx->GetHash();
-            uint256 conflictingTxHash;
-            for(const auto& lTag : lTags) {
-                conflictingTxHash = sparkState->GetMempoolConflictingTxHash(lTag);
-                if(!conflictingTxHash.IsNull())
-                    break;
-            }
-            if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                auto pTx = mempool.get(conflictingTxHash);
-                if (pTx)
-                    mempool.removeRecursive(*pTx, MemPoolRemovalReason::CONFLICT);
-                LogPrintf("ConnectBlock: removed conflicting spark spend tx %s from the mempool\n",
-                          conflictingTxHash.ToString());
+            for (const auto& lTag : lTags) {
+                uint256 conflictingTxHash = pool.sparkState.GetMempoolConflictingTxHash(lTag);
+                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
+                    auto pTx = pool.get(conflictingTxHash);
+                    if (pTx)
+                        pool.removeRecursive(*pTx, MemPoolRemovalReason::CONFLICT);
+                    LogPrintf("ConnectBlock: removed conflicting spark spend tx %s from the mempool\n",
+                              conflictingTxHash.ToString());
+                }
             }
 
             // In any case we need to remove lTags from mempool set
-            sparkState->RemoveSpendFromMempool(lTags);
+            for (const auto& lTag : lTags)
+                pool.sparkState.RemoveSpendFromMempool(lTag);
         }
     }
 }
@@ -3471,6 +3467,13 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
         return false;
 
+#ifdef ENABLE_WALLET
+    // Drop queued FromBlock/FromMempool jobs before resurrecting this block's
+    // txs. New mempool jobs posted by ATMP below capture the new epoch.
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain && pwalletMain->sparkWallet)
+        pwalletMain->sparkWallet->InvalidatePendingUpdates();
+#endif
+
     if (!fBare) {
         // Resurrect mempool transactions from the disconnected block.
         std::vector<uint256> vHashUpdate;
@@ -3595,7 +3598,9 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         CCoinsViewCache view(pcoinsTip);
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
         if (rv) {
-            RemoveConflictingSparkSpendsFromMempool(blockConnecting);
+            RemoveConflictingSparkSpendsFromMempool(mempool, blockConnecting);
+            RemoveConflictingSparkSpendsFromMempool(
+                txpools.getStemTxPool(), blockConnecting);
             RemoveConflictingSparkMintsFromMempool(mempool, blockConnecting);
             RemoveConflictingSparkMintsFromMempool(
                 txpools.getStemTxPool(), blockConnecting);

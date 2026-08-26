@@ -1873,7 +1873,6 @@ WalletModel::SendCoinsReturn WalletModel::prepareSparkNameTransaction(WalletMode
 
 WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModelTransaction> &transactions, std::vector<std::pair<CWalletTx, CAmount> >& wtxAndFee, std::list<CReserveKey>& reserveKeys)
 {
-    QByteArray transaction_array; /* store serialized transaction */
     std::vector<std::pair<SendCoinsRecipient, QByteArray>> pendingCoinsSent;
     SendCoinsReturn result = OK;
     bool committedAny = false;
@@ -1883,7 +1882,14 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
         auto reservekey = reserveKeys.begin();
 
         for (size_t i = 0; i != wtxAndFee.size(); i++) {
-            if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
+            Q_FOREACH(const SendCoinsRecipient &rcp, transactions[i].getRecipients()) {
+                if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
+                    wtxAndFee[i].first.vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
+            }
+
+            // fCheckTransaction: mempool rejection fails this commit (and the
+            // batch). Relay still respects -walletbroadcast=0.
+            if (!wallet->CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state, true)) {
                 result = SendCoinsReturn(
                     TransactionCommitFailed,
                     QString::fromStdString(state.GetRejectReason()),
@@ -1892,16 +1898,13 @@ WalletModel::SendCoinsReturn WalletModel::mintSparkCoins(std::vector<WalletModel
             }
             committedAny = true;
 
+            QByteArray transaction_array;
+            CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+            ssTx << *wtxAndFee[i].first.tx;
+            transaction_array.append(&(ssTx[0]), ssTx.size());
+
             Q_FOREACH(const SendCoinsRecipient &rcp, transactions[i].getRecipients())
             {
-                // CWalletTx* newTx = transactions[i].getTransaction();
-                if (!rcp.message.isEmpty()) // Message from normal firo:URI (firo:123...?message=example)
-                    wtxAndFee[i].first.vOrderForm.push_back(make_pair("Message", rcp.message.toStdString()));
-
-                CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-                ssTx << *wtxAndFee[i].first.tx;
-                transaction_array.append(&(ssTx[0]), ssTx.size());
-
                 {
                     std::string strAddress = rcp.address.toStdString();
                     std::string strLabel = rcp.label.toStdString();

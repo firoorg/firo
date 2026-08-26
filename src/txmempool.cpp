@@ -1090,6 +1090,37 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         removeProTxConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }
+
+    // After HF-1 connects, the next block is H2. Drop leftover Spark spends
+    // that will fail consensus there so CreateNewBlock does not assemble a
+    // template that TestBlockValidity then rejects. Valid spends are kept.
+    const int h2Height = ::Params().GetConsensus().nSparkChaumV2StartBlock;
+    if (static_cast<int64_t>(nBlockHeight) + 1 ==
+            static_cast<int64_t>(h2Height)) {
+        setEntries toRemove;
+        for (txiter it = mapTx.begin(); it != mapTx.end(); ++it) {
+            if (!it->GetTx().IsSparkSpend())
+                continue;
+            CValidationState consensusState;
+            if (!spark::CheckSparkTransaction(
+                    it->GetTx(),
+                    consensusState,
+                    it->GetTx().GetHash(),
+                    false,
+                    h2Height,
+                    false,
+                    true,
+                    nullptr)) {
+                LogPrintf(
+                    "Removing Spark spend %s from the mempool; it fails H2 consensus: %s\n",
+                    it->GetTx().GetHash().ToString(),
+                    consensusState.GetRejectReason());
+                CalculateDescendants(it, toRemove);
+            }
+        }
+        RemoveStaged(toRemove, false, MemPoolRemovalReason::REORG);
+    }
+
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
 }

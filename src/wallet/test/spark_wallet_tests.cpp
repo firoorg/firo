@@ -321,17 +321,9 @@ BOOST_AUTO_TEST_CASE(disconnect_block_rolls_back_spend)
     auto blockIdx = GenerateBlock({CMutableTransaction(spendTx)});
     BOOST_REQUIRE(blockIdx);
 
-    // the wallet picks the connected block up on a background thread, let it settle
-    // before touching its state
-    pwalletMain->sparkWallet->FinishTasks();
-
-    // the wallet holds the mint of the change and the spent coin is marked as used
     uint256 spentLTagHash = primitives::GetLTagHash(lTags[0]);
-    CSparkMintMeta changeMeta;
-    BOOST_CHECK(pwalletMain->sparkWallet->getMintMeta(coins[0], changeMeta));
-    BOOST_CHECK(pwalletMain->sparkWallet->getMintMeta(spentLTagHash).isUsed);
-    BOOST_CHECK_EQUAL(3, pwalletMain->sparkWallet->ListSparkMints().size());
-    BOOST_CHECK_EQUAL(1, pwalletMain->sparkWallet->ListSparkSpends().size());
+
+    // Leave connect and mempool wallet updates queued so they can race rollback.
 
     // DisconnectTip resurrects the transactions of the disconnected block into the
     // pools and keeps the wallet state of everything that makes it back. Make the
@@ -350,6 +342,8 @@ BOOST_AUTO_TEST_CASE(disconnect_block_rolls_back_spend)
 
     BOOST_CHECK(DisconnectBlocks(1));
     BOOST_CHECK_EQUAL(chainActive.Tip()->nHeight, blockIdx->nHeight - 1);
+
+    pwalletMain->sparkWallet->FinishTasks();
 
     // the mint created by the spend is gone and the coin it spent is spendable again
     CSparkMintMeta staleMeta;
