@@ -3463,13 +3463,6 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
         return false;
 
-#ifdef ENABLE_WALLET
-    // Drop queued FromBlock/FromMempool jobs before resurrecting this block's
-    // txs. New mempool jobs posted by ATMP below capture the new epoch.
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain && pwalletMain->sparkWallet)
-        pwalletMain->sparkWallet->InvalidatePendingUpdates();
-#endif
-
     if (!fBare) {
         // Resurrect mempool transactions from the disconnected block.
         std::vector<uint256> vHashUpdate;
@@ -4007,13 +4000,11 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                 for (unsigned int i = 0; i < block.vtx.size(); i++)
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
+            BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+            batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
+            if (!VerifyPendingSparkBatch(state, "connecting new tip"))
+                return false;
         }
-        // Do batch verification if we reach a 1-day-old block. While the new
-        // tip is still old enough to batch, this is a no-op (same as master).
-        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-        batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
-        if (!VerifyPendingSparkBatch(state, "connecting new tip"))
-            return false;
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 

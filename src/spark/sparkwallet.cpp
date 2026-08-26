@@ -121,11 +121,6 @@ void CSparkWallet::FinishTasks() {
     }
 }
 
-void CSparkWallet::InvalidatePendingUpdates() {
-    LOCK(cs_spark_wallet);
-    nUpdateEpoch.fetch_add(1, std::memory_order_acq_rel);
-}
-
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
     walletdb.readDiversifier(lastDiversifier);
@@ -738,11 +733,10 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txH
 }
 
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
-    const uint64_t epoch = nUpdateEpoch.load(std::memory_order_acquire);
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
-        LOCK(cs_spark_wallet);
-        if (epoch != nUpdateEpoch.load(std::memory_order_acquire))
+        if (!mempool.exists(txHash) && !txpools.getStemTxPool().exists(txHash))
             return;
+        LOCK(cs_spark_wallet);
         for (const auto& lTag : lTags) {
             uint256 lTagHash = primitives::GetLTagHash(lTag);
             if (coinMeta.count(lTagHash)) {
@@ -754,11 +748,15 @@ void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& 
 
 void CSparkWallet::UpdateSpendStateFromBlock(const CBlock& block) {
     std::vector<CTransactionRef> vtxCopy = block.vtx;
-    const uint64_t epoch = nUpdateEpoch.load(std::memory_order_acquire);
+    const uint256 blockHash = block.GetHash();
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
+        {
+            LOCK(cs_main);
+            auto it = mapBlockIndex.find(blockHash);
+            if (it == mapBlockIndex.end() || !chainActive.Contains(it->second))
+                return;
+        }
         LOCK(cs_spark_wallet);
-        if (epoch != nUpdateEpoch.load(std::memory_order_acquire))
-            return;
         for (const auto& tx : vtxCopy) {
             if (tx->IsSparkSpend()) {
                 try {
@@ -915,11 +913,10 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
 }
 
 void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash) {
-    const uint64_t epoch = nUpdateEpoch.load(std::memory_order_acquire);
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() mutable {
-        LOCK(cs_spark_wallet);
-        if (epoch != nUpdateEpoch.load(std::memory_order_acquire))
+        if (!mempool.exists(txHash) && !txpools.getStemTxPool().exists(txHash))
             return;
+        LOCK(cs_spark_wallet);
         CWalletDB walletdb(strWalletFile);
         UpdateMintState(coins, txHash, walletdb);
     });
@@ -927,11 +924,15 @@ void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& co
 
 void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
     std::vector<CTransactionRef> vtxCopy = block.vtx;
-    const uint64_t epoch = nUpdateEpoch.load(std::memory_order_acquire);
+    const uint256 blockHash = block.GetHash();
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() mutable {
+        {
+            LOCK(cs_main);
+            auto it = mapBlockIndex.find(blockHash);
+            if (it == mapBlockIndex.end() || !chainActive.Contains(it->second))
+                return;
+        }
         LOCK(cs_spark_wallet);
-        if (epoch != nUpdateEpoch.load(std::memory_order_acquire))
-            return;
         CWalletDB walletdb(strWalletFile);
         for (const auto& tx : vtxCopy) {
             if (tx->IsSparkTransaction()) {
@@ -977,12 +978,10 @@ void CSparkWallet::RemoveSparkSpends(const std::vector<GroupElement>& lTags) {
 }
 
 void CSparkWallet::AbandonSparkMints(const std::vector<spark::Coin>& mints) {
-    InvalidatePendingUpdates();
     RemoveSparkMints(mints);
 }
 
 void CSparkWallet::AbandonSpends(const std::vector<GroupElement>& spends) {
-    InvalidatePendingUpdates();
     RemoveSparkSpends(spends);
 }
 

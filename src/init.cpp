@@ -268,8 +268,9 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    BatchProofContainer::get_instance()->finalize();
     {
+        LOCK(cs_main);
+        BatchProofContainer::get_instance()->finalize();
         CValidationState state;
         VerifyPendingSparkBatch(state, "shutdown");
     }
@@ -775,8 +776,18 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
+        {
+            LOCK(cs_main);
+            BatchProofContainer::get_instance()->finalize();
+            CValidationState state;
+            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+                return;
+            }
+        }
         pblocktree->WriteReindexing(false);
         fReindex = false;
+        boost::filesystem::remove(GetDataDir() / "sparkbatchfailed");
         LogPrintf("Reindexing finished\n");
         // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
         InitBlockIndex(chainparams);
@@ -1969,7 +1980,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         LogPrintf("Previous run failed Spark batch verification, disabling -batching and forcing -reindex for this run\n");
         ForceSetArg("-batching", "0");
         ForceSetArg("-reindex", "1");
-        boost::filesystem::remove(GetDataDir() / "sparkbatchfailed");
     }
 
     fReindex = GetBoolArg("-reindex", false);

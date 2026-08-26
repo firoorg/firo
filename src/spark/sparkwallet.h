@@ -13,8 +13,6 @@
 #include "../sync.h"
 #include "../chain.h"
 
-#include <atomic>
-
 struct CRecipient;
 class CReserveKey;
 class CCoinControl;
@@ -224,10 +222,6 @@ public:
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
     void FinishTasks();
-    // Drop queued block/mempool wallet updates so they cannot persist after
-    // a synchronous rollback. Call before DisconnectTip resurrection ATMP
-    // so those new mempool jobs still apply.
-    void InvalidatePendingUpdates();
 
 public:
     // Protects lastDiversifier, addresses, and coinMeta.
@@ -274,7 +268,6 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
 
     void* threadPool;
-    std::atomic<uint64_t> nUpdateEpoch{0};
 };
 
 
