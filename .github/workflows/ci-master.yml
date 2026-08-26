@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Release, Debug]
+        build_type: [RelWithDebInfo, Debug]
         include:
           - platform: linux
             runs_on: ubuntu-22.04
