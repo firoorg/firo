@@ -25,6 +25,9 @@ public:
      */
     bool verify_pending();
 
+    static bool HasRecoveryMarker();
+    static void RemoveRecoveryMarker();
+
     void add(const spark::SpendTransaction& tx, const uint256& txHash);
     void addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);

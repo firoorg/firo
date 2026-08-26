@@ -4999,7 +4999,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
 
 CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 {
-    if (GetBoolArg("-zapwalletmints", false)) {
+    if (GetBoolArg("-zapwalletmints", false) || GetBoolArg("-reindex", false)) {
         uiInterface.InitMessage(_("Zapping all Sigma mints from wallet..."));
 
         CWallet *tempWallet = new CWallet(walletFile);

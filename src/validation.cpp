@@ -2316,16 +2316,6 @@ static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
 bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
 {
     if (!BatchProofContainer::get_instance()->verify_pending()) {
-        // Remember the failure so the next start disables batching, forces
-        // -reindex, and rejects the invalid spend on the block-by-block path.
-        // A datadir marker file is used instead of a block tree DB flag so
-        // the marker survives the database wipe of a restarted -reindex run.
-        FILE* file = fopen((GetDataDir() / "sparkbatchfailed").string().c_str(), "wb");
-        if (file) {
-            fclose(file);
-        } else {
-            LogPrintf("Failed to write Spark batch failure marker\n");
-        }
         return AbortNode(state,
                          strprintf("Spark batch verification failed before %s", reason),
                          _("Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block."));

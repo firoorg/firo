@@ -920,6 +920,13 @@ DBErrors CWalletDB::ZapSparkMints(CWallet *pwallet) {
             return DB_CORRUPT;
     }
 
+    std::list<CSparkSpendEntry> sparkSpends;
+    ListSparkSpends(sparkSpends);
+    for (const auto& spend : sparkSpends) {
+        if (!EraseSparkSpendEntry(spend.lTag))
+            return DB_CORRUPT;
+    }
+
     return DB_LOAD_OK;
 }
 

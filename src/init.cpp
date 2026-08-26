@@ -787,7 +787,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
-        boost::filesystem::remove(GetDataDir() / "sparkbatchfailed");
+        BatchProofContainer::RemoveRecoveryMarker();
         LogPrintf("Reindexing finished\n");
         // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
         InitBlockIndex(chainparams);
@@ -1972,12 +1972,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 7b: load block chain
 
-    // If the previous run aborted on a failed Spark batch verification, drop
-    // chainstate and verify Spark proofs block by block on this run. Checked
-    // here rather than in LoadBlockIndexDB() because a run restarted with
-    // -reindex wipes the block tree database and never calls LoadBlockIndexDB().
-    if (boost::filesystem::exists(GetDataDir() / "sparkbatchfailed")) {
-        LogPrintf("Previous run failed Spark batch verification, disabling -batching and forcing -reindex for this run\n");
+    // If the previous run aborted on a failed Spark batch verification, or
+    // crashed while Spark proofs were still being collected, drop chainstate
+    // and verify Spark proofs block by block on this run. Checked here rather
+    // than in LoadBlockIndexDB() because a run restarted with -reindex wipes
+    // the block tree database and never calls LoadBlockIndexDB().
+    if (BatchProofContainer::HasRecoveryMarker()) {
+        LogPrintf("Previous run did not finish Spark batch verification, disabling -batching and forcing -reindex for this run\n");
         ForceSetArg("-batching", "0");
         ForceSetArg("-reindex", "1");
     }

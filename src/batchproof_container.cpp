@@ -1,8 +1,40 @@
 #include "batchproof_container.h"
 #include "ui_interface.h"
 #include "spark/state.h"
+#include "util.h"
+
+#include <boost/filesystem.hpp>
+
+extern bool fReindex;
 
 std::unique_ptr<BatchProofContainer> BatchProofContainer::instance;
+
+static boost::filesystem::path RecoveryMarkerPath()
+{
+    return GetDataDir() / "sparkbatchfailed";
+}
+
+static void WriteRecoveryMarker()
+{
+    const auto path = RecoveryMarkerPath();
+    if (boost::filesystem::exists(path))
+        return;
+    FILE* file = fopen(path.string().c_str(), "wb");
+    if (file)
+        fclose(file);
+    else
+        LogPrintf("Failed to write Spark batch recovery marker\n");
+}
+
+bool BatchProofContainer::HasRecoveryMarker()
+{
+    return boost::filesystem::exists(RecoveryMarkerPath());
+}
+
+void BatchProofContainer::RemoveRecoveryMarker()
+{
+    boost::filesystem::remove(RecoveryMarkerPath());
+}
 
 BatchProofContainer* BatchProofContainer::get_instance() {
     if (instance) {
@@ -18,6 +50,8 @@ void BatchProofContainer::init() {
     tempSparkTxIds.clear();
     tempHistoricalSparkTransactions.clear();
     tempHistoricalSparkTxIds.clear();
+    if (fCollectProofs)
+        WriteRecoveryMarker();
 }
 
 void BatchProofContainer::finalize() {
@@ -45,6 +79,10 @@ bool BatchProofContainer::verify_pending() {
     if (!fCollectProofs) {
         init();
         passed = batch_spark();
+        if (!passed)
+            WriteRecoveryMarker();
+        else if (!fReindex)
+            RemoveRecoveryMarker();
     }
     fCollectProofs = false;
     return passed;
