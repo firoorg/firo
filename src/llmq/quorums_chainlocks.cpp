@@ -125,11 +125,27 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
     {
         LOCK2(cs_main, cs);
 
-        if (InternalHasConflictingChainLock(clsig.nHeight, clsig.blockHash)) {
-            // This should not happen. If it happens, it means that a malicious entity controls a large part of the MN
-            // network. In this case, we don't allow him to reorg older chainlocks.
-            LogPrintf("CChainLocksHandler::%s -- new CLSIG (%s) tries to reorg previous CLSIG (%s), peer=%d\n",
-                      __func__, clsig.ToString(), bestChainLock.ToString(), from);
+        // Another CLSIG might have been accepted while the signature was being verified.
+        if (bestChainLock.nHeight != -1 && clsig.nHeight <= bestChainLock.nHeight) {
+            return;
+        }
+
+        auto blockIt = mapBlockIndex.find(clsig.blockHash);
+        const CBlockIndex* pindex = blockIt == mapBlockIndex.end() ? nullptr : blockIt->second;
+
+        if (pindex && pindex->nHeight != clsig.nHeight) {
+            LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
+                    __func__, clsig.ToString(), pindex->nHeight);
+            return;
+        }
+
+        if (isEnforced && pindex && bestChainLockBlockIndex &&
+                (pindex->nHeight < bestChainLockBlockIndex->nHeight ||
+                 pindex->GetAncestor(bestChainLockBlockIndex->nHeight) != bestChainLockBlockIndex)) {
+            // A valid higher-height signature does not prove ancestry. Never let it
+            // replace the last ChainLock whose block is known.
+            LogPrintf("CChainLocksHandler::%s -- new CLSIG (%s) tries to reorg known CLSIG (%s), peer=%d\n",
+                      __func__, clsig.ToString(), bestChainLockWithKnownBlock.ToString(), from);
             return;
         }
 
@@ -139,21 +155,12 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
         CInv inv(MSG_CLSIG, hash);
         g_connman->RelayInv(inv, LLMQS_PROTO_VERSION);
 
-        auto blockIt = mapBlockIndex.find(clsig.blockHash);
-        if (blockIt == mapBlockIndex.end()) {
-            // we don't know the block/header for this CLSIG yet, so bail out for now
-            // when the block or the header later comes in, we will enforce the correct chain
+        if (!pindex) {
+            // We don't know the block/header for this CLSIG yet. Its ancestry will
+            // be checked when the header arrives.
             return;
         }
 
-        if (blockIt->second->nHeight != clsig.nHeight) {
-            // Should not happen, same as the conflict check from above.
-            LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
-                    __func__, clsig.ToString(), blockIt->second->nHeight);
-            return;
-        }
-
-        const CBlockIndex* pindex = blockIt->second;
         bestChainLockWithKnownBlock = bestChainLock;
         bestChainLockBlockIndex = pindex;
     }
@@ -172,14 +179,28 @@ void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
     LOCK2(cs_main, cs);
 
     if (pindexNew->GetBlockHash() == bestChainLock.blockHash) {
-        LogPrintf("CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
+        auto restoreKnownChainLock = [&]() {
+            bestChainLock = bestChainLockWithKnownBlock;
+            bestChainLockHash = bestChainLock.nHeight == -1 ? uint256() : ::SerializeHash(bestChainLock);
+        };
 
         if (bestChainLock.nHeight != pindexNew->nHeight) {
-            // Should not happen, same as the conflict check from ProcessNewChainLock.
             LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
                       __func__, bestChainLock.ToString(), pindexNew->nHeight);
+            restoreKnownChainLock();
             return;
         }
+
+        if (isEnforced && bestChainLockBlockIndex &&
+                (pindexNew->nHeight < bestChainLockBlockIndex->nHeight ||
+                 pindexNew->GetAncestor(bestChainLockBlockIndex->nHeight) != bestChainLockBlockIndex)) {
+            LogPrintf("CChainLocksHandler::%s -- late block header for CLSIG (%s) tries to reorg known CLSIG (%s)\n",
+                      __func__, bestChainLock.ToString(), bestChainLockWithKnownBlock.ToString());
+            restoreKnownChainLock();
+            return;
+        }
+
+        LogPrintf("CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
 
         // when EnforceBestChainLock is called later, it might end up invalidating other chains but not activating the
         // CLSIG locked chain. This happens when only the header is known but the block is still missing yet. The usual
@@ -280,7 +301,15 @@ void CChainLocksHandler::TrySignChainTip()
             return;
         }
 
-        if (InternalHasConflictingChainLock(pindex->nHeight, pindex->GetBlockHash())) {
+        if (isEnforced && bestChainLock.blockHash != bestChainLockWithKnownBlock.blockHash) {
+            // The newest CLSIG references a block whose header is not known yet, so
+            // its ancestry is unproven. Don't risk signing a conflicting tip.
+            return;
+        }
+
+        if (isEnforced && bestChainLockBlockIndex &&
+                (pindex->nHeight < bestChainLockBlockIndex->nHeight ||
+                 pindex->GetAncestor(bestChainLockBlockIndex->nHeight) != bestChainLockBlockIndex)) {
             // don't sign if another conflicting CLSIG is already present. EnforceBestChainLock will later enforce
             // the correct chain.
             return;
@@ -340,8 +369,19 @@ void CChainLocksHandler::TrySignChainTip()
 
     {
         LOCK(cs);
+        if (!isChainLocksActive) {
+            return;
+        }
         if (bestChainLock.nHeight >= pindex->nHeight) {
             // might have happened while we didn't hold cs
+            return;
+        }
+        if (isEnforced && bestChainLock.blockHash != bestChainLockWithKnownBlock.blockHash) {
+            return;
+        }
+        if (isEnforced && bestChainLockBlockIndex &&
+                (pindex->nHeight < bestChainLockBlockIndex->nHeight ||
+                 pindex->GetAncestor(bestChainLockBlockIndex->nHeight) != bestChainLockBlockIndex)) {
             return;
         }
         lastSignedHeight = pindex->nHeight;

@@ -227,6 +227,9 @@ public:
     //! (memory only) Maximum nTime in the chain upto and including this block.
     unsigned int nTimeMax;
 
+    //! (memory only) Whether the full ProgPoW mix for this header was verified.
+    bool fProgPowHeaderVerified;
+
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
     std::map<std::pair<int,int>, std::vector<CBigNum>> mintedPubCoins;
@@ -288,6 +291,7 @@ public:
         nStatus = 0;
         nSequenceId = 0;
         nTimeMax = 0;
+        fProgPowHeaderVerified = false;
 
         nVersion       = 0;
         hashMerkleRoot = uint256();

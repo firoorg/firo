@@ -8,6 +8,7 @@
 #include "utilmoneystr.h"
 #include "validation.h"
 #include "validationinterface.h"
+#include "warnings.h"
 #include "test/test_bitcoin.h"
 #include "script/standard.h"
 #include <consensus/merkle.h>
@@ -43,6 +44,7 @@ struct ProgpowTestingSetup : public TestChain100Setup
     ~ProgpowTestingSetup() {
         mutableParams = originalParams;
         SetMockTime(0);
+        SetfLargeWorkInvalidChainFound(false);
         ethash::ethash_clamp_memory_usage(INT_MAX, INT_MAX);
     }
 
@@ -152,9 +154,148 @@ BOOST_AUTO_TEST_CASE(header_height_mismatch)
     std::vector<CBlockHeader> headers{block};
     BOOST_CHECK(!ProcessNewBlockHeaders(headers, state, Params()));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-blk-progpow");
+    BOOST_CHECK(!state.CorruptionPossible());
 
     LOCK(cs_main);
     BOOST_CHECK_EQUAL(mapBlockIndex.count(block.GetHash()), 0);
+}
+
+BOOST_AUTO_TEST_CASE(header_mix_hash_mismatch)
+{
+    mutableParams.nPPSwitchTime = (uint32_t)(chainActive.Tip()->GetMedianTimePast()+10);
+    SetMockTime(mutableParams.nPPSwitchTime+1);
+
+    CBlock block = CreateBlock({}, m_coinbaseKey);
+    BOOST_REQUIRE(block.IsProgPow());
+
+    CBlockHeader forged = block.GetBlockHeader();
+    forged.mix_hash.begin()[0] ^= 1;
+    while (!CheckProofOfWork(forged.GetProgPowHashLight(), forged.nBits, mutableParams))
+        ++forged.nNonce64;
+    BOOST_REQUIRE(CheckProofOfWork(forged.GetProgPowHashLight(), forged.nBits, mutableParams));
+
+    uint256 expectedMixHash;
+    forged.GetProgPowHashFull(expectedMixHash);
+    BOOST_REQUIRE(expectedMixHash != forged.mix_hash);
+
+    CValidationState state;
+    BOOST_CHECK(!ProcessNewBlockHeaders({forged}, state, Params()));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "invalid-mixhash");
+
+    {
+        LOCK(cs_main);
+        BOOST_CHECK_EQUAL(mapBlockIndex.count(forged.GetHash()), 0);
+    }
+
+    const CBlockIndex* validIndex = nullptr;
+    CValidationState validState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders({block.GetBlockHeader()}, validState, Params(), &validIndex));
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(validIndex != nullptr);
+        BOOST_CHECK(validIndex->fProgPowHeaderVerified);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(invalidate_header_only_descendants)
+{
+    mutableParams.nPPSwitchTime = INT_MAX;
+    SetfLargeWorkInvalidChainFound(false);
+
+    uint256 forkHash;
+    uint32_t forkTime;
+    {
+        LOCK(cs_main);
+        forkHash = chainActive.Tip()->GetBlockHash();
+        forkTime = chainActive.Tip()->nTime;
+    }
+
+    CBlockHeader base = CreateBlock({}, m_coinbaseKey).GetBlockHeader();
+    auto makeHeader = [&](const uint256& prevHash, uint32_t prevTime, unsigned char tag) {
+        CBlockHeader header = base;
+        header.hashPrevBlock = prevHash;
+        header.hashMerkleRoot.SetNull();
+        header.hashMerkleRoot.begin()[0] = tag;
+        header.nTime = prevTime + 1;
+        header.nNonce = 0;
+        header.cachedPoWHash.SetNull();
+        while (!CheckProofOfWork(header.GetHash(), header.nBits, mutableParams))
+            ++header.nNonce;
+        return header;
+    };
+
+    CBlockHeader badRoot = makeHeader(forkHash, forkTime, 1);
+    CBlockHeader badChild = makeHeader(badRoot.GetHash(), badRoot.nTime, 2);
+    CBlockHeader badTipHeader = makeHeader(badChild.GetHash(), badChild.nTime, 3);
+    CBlockHeader badSibling = makeHeader(badRoot.GetHash(), badRoot.nTime, 5);
+    std::vector<CBlockHeader> badBranch{badRoot, badChild, badTipHeader};
+    for (unsigned char tag = 20; badBranch.size() < 10; ++tag) {
+        const CBlockHeader& previous = badBranch.back();
+        badBranch.emplace_back(makeHeader(previous.GetHash(), previous.nTime, tag));
+    }
+    std::vector<CBlockHeader> siblingBranch{badSibling};
+    for (unsigned char tag = 40; siblingBranch.size() < 8; ++tag) {
+        const CBlockHeader& previous = siblingBranch.back();
+        siblingBranch.emplace_back(makeHeader(previous.GetHash(), previous.nTime, tag));
+    }
+    CBlockHeader goodRoot = makeHeader(forkHash, forkTime, 11);
+    CBlockHeader goodTipHeader = makeHeader(goodRoot.GetHash(), goodRoot.nTime, 12);
+    CBlockHeader extension = makeHeader(badBranch.back().GetHash(), badBranch.back().nTime, 4);
+
+    const CBlockIndex* badTip = nullptr;
+    CValidationState badState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders(badBranch, badState, Params(), &badTip));
+    CValidationState siblingState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders(siblingBranch, siblingState, Params()));
+
+    const CBlockIndex* goodTip = nullptr;
+    CValidationState goodState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders({goodRoot, goodTipHeader}, goodState, Params(), &goodTip));
+
+    CBlockIndex* badRootIndex;
+    CBlockIndex* badTipIndex;
+    {
+        LOCK(cs_main);
+        badRootIndex = mapBlockIndex.at(badRoot.GetHash());
+        badTipIndex = mapBlockIndex.at(badBranch.back().GetHash());
+        CValidationState state;
+        BOOST_REQUIRE(InvalidateBlock(state, Params(), badRootIndex));
+        BOOST_CHECK(badRootIndex->nStatus & BLOCK_FAILED_VALID);
+        BOOST_CHECK(mapBlockIndex.at(badChild.GetHash())->nStatus & BLOCK_FAILED_CHILD);
+        BOOST_CHECK(mapBlockIndex.at(badTipHeader.GetHash())->nStatus & BLOCK_FAILED_CHILD);
+        BOOST_CHECK(mapBlockIndex.at(badSibling.GetHash())->nStatus & BLOCK_FAILED_CHILD);
+        BOOST_CHECK(pindexBestHeader == goodTip);
+        BOOST_CHECK(GetfLargeWorkInvalidChainFound());
+    }
+
+    CValidationState rejectState;
+    BOOST_CHECK(!ProcessNewBlockHeaders({extension}, rejectState, Params()));
+    BOOST_CHECK_EQUAL(rejectState.GetRejectReason(), "bad-prevblk");
+    {
+        LOCK(cs_main);
+        BOOST_CHECK_EQUAL(mapBlockIndex.count(extension.GetHash()), 0);
+    }
+
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(ResetBlockFailureFlags(badTipIndex));
+        BOOST_CHECK_EQUAL(badRootIndex->nStatus & BLOCK_FAILED_MASK, 0);
+        BOOST_CHECK_EQUAL(mapBlockIndex.at(badChild.GetHash())->nStatus & BLOCK_FAILED_MASK, 0);
+        BOOST_CHECK_EQUAL(mapBlockIndex.at(badTipHeader.GetHash())->nStatus & BLOCK_FAILED_MASK, 0);
+        BOOST_CHECK(mapBlockIndex.at(badSibling.GetHash())->nStatus & BLOCK_FAILED_VALID);
+        BOOST_CHECK(pindexBestHeader == badTip);
+        BOOST_CHECK(GetfLargeWorkInvalidChainFound());
+    }
+
+    const CBlockIndex* extensionIndex = nullptr;
+    CValidationState retryState;
+    BOOST_REQUIRE(ProcessNewBlockHeaders({extension}, retryState, Params(), &extensionIndex));
+    BOOST_CHECK(extensionIndex != nullptr);
+
+    // Updating the active chain reevaluates warnings. The preserved sibling is
+    // still more than six blocks ahead and must keep the warning active.
+    CreateAndProcessBlock({}, m_coinbaseKey);
+    BOOST_CHECK(GetfLargeWorkInvalidChainFound());
 }
 
 BOOST_AUTO_TEST_CASE(limit)
