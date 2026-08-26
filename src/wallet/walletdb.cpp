@@ -920,6 +920,13 @@ DBErrors CWalletDB::ZapSparkMints(CWallet *pwallet) {
             return DB_CORRUPT;
     }
 
+    std::list<CSparkSpendEntry> sparkSpends;
+    ListSparkSpends(sparkSpends);
+    for (const auto& spend : sparkSpends) {
+        if (!EraseSparkSpendEntry(spend.lTag))
+            return DB_CORRUPT;
+    }
+
     return DB_LOAD_OK;
 }
 
@@ -1422,6 +1429,11 @@ bool CWalletDB::WriteSparkOutputTx(const CScript& scriptPubKey, const CSparkOutp
 bool CWalletDB::ReadSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output)
 {
     return Read(std::make_pair(std::string("sparkOutputTx"), scriptPubKey), output);
+}
+
+bool CWalletDB::EraseSparkOutputTx(const CScript& scriptPubKey)
+{
+    return Erase(std::make_pair(std::string("sparkOutputTx"), scriptPubKey));
 }
 
 bool CWalletDB::WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint)

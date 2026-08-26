@@ -47,6 +47,7 @@
 #include "evo/deterministicmns.h"
 
 #include <assert.h>
+#include <atomic>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
@@ -2074,7 +2075,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
     {
         if (tx->IsSparkSpend()) {
             try {
-                nFee = spark::ParseSparkSpend(*tx).getFee();
+                nFee = spark::GetSparkSpendFee(*tx);
             }
             catch (const std::exception &) {
                 // do nothing
@@ -3753,6 +3754,74 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
     return true;
 }
 
+static std::atomic<int> g_sparkOutputWriteFailAfter{-1};
+
+void CWallet::SetSparkOutputWriteFailureForTesting(int failAfterWrites)
+{
+    g_sparkOutputWriteFailAfter.store(failAfterWrites);
+}
+
+static bool WritePendingSparkOutputsAtomically(
+    const std::string& strWalletFile,
+    const std::vector<std::pair<CScript, CSparkOutputTx>>& records,
+    std::vector<CScript>& persistedScripts)
+{
+    persistedScripts.clear();
+    if (records.empty())
+        return true;
+
+    const int failAfter = g_sparkOutputWriteFailAfter.load();
+    if (failAfter == 0)
+        return false;
+
+    CWalletDB walletdb(strWalletFile);
+    if (!walletdb.TxnBegin())
+        return false;
+
+    int writes = 0;
+    for (const auto& outputRecord : records) {
+        if (!walletdb.WriteSparkOutputTx(outputRecord.first, outputRecord.second)) {
+            walletdb.TxnAbort();
+            persistedScripts.clear();
+            return false;
+        }
+        persistedScripts.push_back(outputRecord.first);
+        ++writes;
+        if (failAfter > 0 && writes >= failAfter) {
+            walletdb.TxnAbort();
+            persistedScripts.clear();
+            return false;
+        }
+    }
+
+    if (!walletdb.TxnCommit()) {
+        persistedScripts.clear();
+        return false;
+    }
+    return true;
+}
+
+static bool EraseSparkOutputScripts(
+    const std::string& strWalletFile,
+    const std::vector<CScript>& scripts)
+{
+    if (scripts.empty())
+        return true;
+
+    CWalletDB walletdb(strWalletFile);
+    if (!walletdb.TxnBegin())
+        return false;
+
+    for (const auto& script : scripts) {
+        if (!walletdb.EraseSparkOutputTx(script)) {
+            walletdb.TxnAbort();
+            return false;
+        }
+    }
+
+    return walletdb.TxnCommit();
+}
+
 /**
  * Call after CreateTransaction unless you want to abort
  */
@@ -3762,12 +3831,32 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         LOCK2(cs_main, cs_wallet);
         LogPrintf("CommitTransaction:\n%s", wtxNew.tx->ToString());
 
-        // When fCheckTransaction is set, validate against the mempool before touching
-        // the wallet. If rejected, return false immediately without adding the transaction.
+        // Persist Spark output metadata atomically before mempool acceptance.
+        // AcceptToMemoryPool inserts the transaction and updates Spark spend
+        // state, so a later disk-full failure would otherwise be reported as a
+        // failed payment while the transaction remained eligible for mining.
+        std::vector<CScript> persistedSparkOutputScripts;
+        if (!WritePendingSparkOutputsAtomically(
+                strWalletFile,
+                wtxNew.pendingSparkOutputRecords,
+                persistedSparkOutputScripts)) {
+            LogPrintf("CommitTransaction(): Unable to save Spark transaction output\n");
+            return state.Error("Unable to save Spark transaction output");
+        }
+
+        // When fCheckTransaction is set, validate against the mempool before adding
+        // the transaction to the wallet. If rejected, drop Spark output metadata
+        // written above and return without AddToWallet.
         if (fCheckTransaction && !wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
             LogPrintf("CommitTransaction(): Transaction rejected: %s\n", state.GetRejectReason());
+            if (!EraseSparkOutputScripts(strWalletFile, persistedSparkOutputScripts)) {
+                LogPrintf(
+                    "CommitTransaction(): failed to drop Spark output metadata after mempool rejection\n");
+            }
             return false;
         }
+
+        wtxNew.pendingSparkOutputRecords.clear();
 
         {
             // Take key pair from key pool so it won't be used again
@@ -3793,18 +3882,15 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
         // Track how many getdata requests our transaction gets
         mapRequestCount[wtxNew.GetHash()] = 0;
 
+        // RelayWalletTransaction asserts GetBroadcastTransactions(), so never
+        // relay when -walletbroadcast=0. fCheckTransaction only controls the
+        // earlier mempool acceptance, not inventory push.
         if (fBroadcastTransactions) {
-            // When fCheckTransaction is true the tx is already in the mempool; just relay.
-            // Otherwise attempt mempool acceptance now and relay on success.
             if (fCheckTransaction || wtxNew.AcceptToMemoryPool(maxTxFee, state)) {
                 wtxNew.RelayWalletTransaction(connman);
             } else {
                 LogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", state.GetRejectReason());
             }
-        } else if (fCheckTransaction) {
-            // The tx was explicitly validated and accepted; relay it regardless of
-            // the fBroadcastTransactions flag.
-            wtxNew.RelayWalletTransaction(connman);
         }
     }
     return true;
@@ -3876,7 +3962,13 @@ std::string CWallet::MintAndStoreSpark(
     CValidationState state;
     auto reservekey = reservekeys.begin();
     for(size_t i = 0; i < wtxAndFee.size(); i++) {
-        if (!CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state)) {
+        if (!CommitTransaction(wtxAndFee[i].first, *reservekey++, g_connman.get(), state, true)) {
+            if (i > 0) {
+                return strprintf(
+                    _("Error: The transaction was rejected after %u of %u mint transactions were already sent. Do not retry the whole mint."),
+                    i,
+                    wtxAndFee.size());
+            }
             return _(
                     "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
         } else {
@@ -3891,7 +3983,9 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         const std::vector<CRecipient>& recipients,
         const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
         CAmount &fee,
-        const CCoinControl *coinControl)
+        const CCoinControl *coinControl,
+        int expectedNextBlockHeight,
+        std::vector<CAmount>* recipientAmounts)
 {
     // sanity check
     EnsureSparkWalletAvailable();
@@ -3900,14 +3994,23 @@ CWalletTx CWallet::CreateSparkSpendTransaction(
         throw std::runtime_error(_("Wallet locked"));
     }
 
-    return sparkWallet->CreateSparkSpendTransaction(recipients, privateRecipients, fee, coinControl);
+    return sparkWallet->CreateSparkSpendTransaction(
+        recipients,
+        privateRecipients,
+        fee,
+        coinControl,
+        0,
+        uint256(),
+        expectedNextBlockHeight,
+        recipientAmounts);
 }
 
 CWalletTx CWallet::CreateSparkNameTransaction(
         CSparkNameTxData &sparkNameData,
         CAmount sparkNameFee,
         CAmount &txFee,
-        const CCoinControl *coinControl)
+        const CCoinControl *coinControl,
+        int expectedNextBlockHeight)
 {
     // sanity check
     EnsureSparkWalletAvailable();
@@ -3916,7 +4019,12 @@ CWalletTx CWallet::CreateSparkNameTransaction(
         throw std::runtime_error(_("Wallet locked"));
     }
 
-    return sparkWallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, txFee, coinControl);
+    return sparkWallet->CreateSparkNameTransaction(
+        sparkNameData,
+        sparkNameFee,
+        txFee,
+        coinControl,
+        expectedNextBlockHeight);
 }
 
 CWalletTx CWallet::SpendAndStoreSpark(
@@ -3932,7 +4040,14 @@ CWalletTx CWallet::SpendAndStoreSpark(
     try {
         CValidationState state;
         CReserveKey reserveKey(this);
-        CommitTransaction(result, reserveKey, g_connman.get(), state);
+        if (!CommitTransaction(
+                result,
+                reserveKey,
+                g_connman.get(),
+                state,
+                true)) {
+            throw std::runtime_error(state.GetRejectReason());
+        }
     } catch (const std::exception &) {
         auto error = _(
                 "Error: The transaction was rejected! This might happen if some of "
@@ -3990,6 +4105,25 @@ CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarge
 {
     // payTxFee is the user-set global for desired feerate
     return GetMinimumFee(nTxBytes, nConfirmTarget, pool, payTxFee.GetFee(nTxBytes));
+}
+
+CAmount CWallet::GetMinimumFee(
+    unsigned int nTxBytes,
+    const CCoinControl* coinControl,
+    const CTxMemPool& pool)
+{
+    const unsigned int confirmationTarget =
+        coinControl && coinControl->nConfirmTarget > 0
+            ? coinControl->nConfirmTarget
+            : nTxConfirmTarget;
+    CAmount fee = GetMinimumFee(nTxBytes, confirmationTarget, pool);
+    if (coinControl && fee > 0 && coinControl->nMinimumTotalFee > fee) {
+        fee = coinControl->nMinimumTotalFee;
+    }
+    if (coinControl && coinControl->fOverrideFeeRate) {
+        fee = coinControl->nFeeRate.GetFee(nTxBytes);
+    }
+    return fee;
 }
 
 CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool, CAmount targetFee)
@@ -4865,7 +4999,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug)
 
 CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
 {
-    if (GetBoolArg("-zapwalletmints", false)) {
+    if (GetBoolArg("-zapwalletmints", false) || GetBoolArg("-reindex", false)) {
         uiInterface.InitMessage(_("Zapping all Sigma mints from wallet..."));
 
         CWallet *tempWallet = new CWallet(walletFile);
