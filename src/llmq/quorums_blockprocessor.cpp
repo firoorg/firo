@@ -101,7 +101,8 @@ void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& strC
 
         auto members = CLLMQUtils::GetAllQuorumMembers(type, pquorumIndex);
 
-        if (!qc.Verify(members, true)) {
+        // Unmined P2P commitments always use the node's strict runtime policy.
+        if (!qc.Verify(members, true, true)) {
             LOCK(cs_main);
             LogPrintf("CQuorumBlockProcessor::%s -- commitment for quorum %s:%d is not valid, peer=%d\n", __func__,
                       qc.quorumHash.ToString(), qc.llmqType, pfrom->id);
@@ -207,7 +208,8 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     auto quorumIndex = mapBlockIndex.at(qc.quorumHash);
     auto members = CLLMQUtils::GetAllQuorumMembers(params.type, quorumIndex);
 
-    if (!qc.Verify(members, true)) {
+    const bool fBLSStrict = nHeight >= Params().GetConsensus().nBLSStrictValidationStartBlock;
+    if (!qc.Verify(members, true, fBLSStrict)) {
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid");
     }
 

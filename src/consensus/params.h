@@ -279,6 +279,9 @@ struct Params {
     // Activation height for the single-input Spark spend rule.
     int nSparkSingleInputStartBlock;
 
+    // Activation height for strict BLS identity and subgroup validation.
+    int nBLSStrictValidationStartBlock;
+
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
     int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers

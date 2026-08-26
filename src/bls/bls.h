@@ -29,8 +29,11 @@
 #undef BENCH
 #undef RAND
 
+#include <algorithm>
 #include <array>
 #include <mutex>
+#include <stdexcept>
+#include <utility>
 #include <unistd.h>
 
 static const bool fLegacyDefault{true};
@@ -43,6 +46,74 @@ static const bool fLegacyDefault{true};
 
 class CBLSSignature;
 class CBLSPublicKey;
+struct CBLSIdImplicit;
+
+template <typename ImplType>
+struct CBLSImplValidation;
+
+template <typename ImplType>
+struct CBLSImplParser
+{
+    static ImplType FromBytes(const std::vector<uint8_t>& vecBytes, bool fLegacy)
+    {
+        return ImplType::FromBytes(bls::Bytes(vecBytes), fLegacy);
+    }
+};
+
+template <>
+struct CBLSImplParser<bls::PrivateKey>
+{
+    static bls::PrivateKey FromBytes(const std::vector<uint8_t>& vecBytes, bool)
+    {
+        static constexpr std::array<uint8_t, BLS_CURVE_SECKEY_SIZE> groupOrder{
+            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48,
+            0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1, 0xd8, 0x05,
+            0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe,
+            0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01,
+        };
+        if (!std::lexicographical_compare(vecBytes.begin(), vecBytes.end(), groupOrder.begin(), groupOrder.end())) {
+            throw std::invalid_argument("BLS private key is outside the scalar field");
+        }
+        return bls::PrivateKey::FromBytes(bls::Bytes(vecBytes));
+    }
+};
+
+inline bool IsValidBLSGroupElement(const bls::G1Element& impl)
+{
+    return impl != bls::G1Element() && impl.IsValid();
+}
+
+inline bool IsValidBLSGroupElement(const bls::G2Element& impl)
+{
+    return impl != bls::G2Element() && impl.IsValid();
+}
+
+template <>
+struct CBLSImplValidation<bls::PrivateKey>
+{
+    static bool IsValid(const bls::PrivateKey& impl)
+    {
+        return !impl.IsZero();
+    }
+};
+
+template <>
+struct CBLSImplValidation<bls::G1Element>
+{
+    static bool IsValid(const bls::G1Element& impl)
+    {
+        return IsValidBLSGroupElement(impl);
+    }
+};
+
+template <>
+struct CBLSImplValidation<bls::G2Element>
+{
+    static bool IsValid(const bls::G2Element& impl)
+    {
+        return IsValidBLSGroupElement(impl);
+    }
+};
 
 template <typename ImplType, size_t _SerSize, typename C>
 class CBLSWrapper
@@ -98,9 +169,9 @@ public:
         return !((*this) == r);
     }
 
-    bool IsValid() const
+    bool IsValid(bool fStrict = true) const
     {
-        return fValid;
+        return fValid && (!fStrict || CBLSImplValidation<ImplType>::IsValid(impl));
     }
 
     void Reset()
@@ -119,7 +190,7 @@ public:
             Reset();
         } else {
             try {
-                impl = ImplType::FromBytes(bls::Bytes(vecBytes), fLegacy);
+                impl = CBLSImplParser<ImplType>::FromBytes(vecBytes, fLegacy);
                 fValid = true;
             } catch (...) {
                 Reset();
@@ -156,7 +227,11 @@ public:
             return false;
         }
         SetByteVector(b);
-        return IsValid();
+        if (!IsValid()) {
+            Reset();
+            return false;
+        }
+        return true;
     }
 
 public:
@@ -218,6 +293,24 @@ struct CBLSIdImplicit : public uint256
     std::vector<uint8_t> Serialize(const bool fLegacy = false) const
     {
         return {begin(), end()};
+    }
+};
+
+template <>
+struct CBLSImplValidation<CBLSIdImplicit>
+{
+    static bool IsValid(const CBLSIdImplicit&)
+    {
+        return true;
+    }
+};
+
+template <>
+struct CBLSImplParser<CBLSIdImplicit>
+{
+    static CBLSIdImplicit FromBytes(const std::vector<uint8_t>& vecBytes, bool fLegacy)
+    {
+        return CBLSIdImplicit::FromBytes(vecBytes.data(), fLegacy);
     }
 };
 
@@ -294,10 +387,10 @@ public:
 
     void SubInsecure(const CBLSSignature& o);
 
-    bool VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash) const;
+    bool VerifyInsecure(const CBLSPublicKey& pubKey, const uint256& hash, bool fStrict = true) const;
     bool VerifyInsecureAggregated(const std::vector<CBLSPublicKey>& pubKeys, const std::vector<uint256>& hashes) const;
 
-    bool VerifySecureAggregated(const std::vector<CBLSPublicKey>& pks, const uint256& hash) const;
+    bool VerifySecureAggregated(const std::vector<CBLSPublicKey>& pks, const uint256& hash, bool fStrict = true) const;
 
     bool Recover(const std::vector<CBLSSignature>& sigs, const std::vector<CBLSId>& ids);
 };

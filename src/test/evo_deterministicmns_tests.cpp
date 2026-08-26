@@ -9,6 +9,7 @@
 #include "script/sign.h"
 #include "validation.h"
 #include "base58.h"
+#include "chainparams.h"
 #include "netbase.h"
 #include "messagesigner.h"
 #include "keystore.h"
@@ -366,6 +367,78 @@ BOOST_FIXTURE_TEST_CASE(dip3_activation, TestChainDIP3BeforeActivationSetup)
     BOOST_ASSERT(chainActive.Height() == nHeight + 2);
     BOOST_ASSERT(block->GetHash() == chainActive.Tip()->GetBlockHash());
     BOOST_ASSERT(deterministicMNManager->GetListAtChainTip().HasMN(tx.GetHash()));
+}
+
+BOOST_FIXTURE_TEST_CASE(bls_strict_validation_activation, TestChainDIP3Setup)
+{
+    struct ResetActivationHeight {
+        int height;
+        ~ResetActivationHeight()
+        {
+            UpdateRegtestBLSStrictValidationHeight(height);
+        }
+    } resetActivationHeight{Params().GetConsensus().nBLSStrictValidationStartBlock};
+
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    CKey ownerKey;
+    CBLSSecretKey operatorKey;
+    CMutableTransaction tx = CreateProRegTx(utxos, 1, GenerateRandomAddress(), coinbaseKey, ownerKey, operatorKey);
+
+    CProRegTx proTx;
+    BOOST_REQUIRE(GetTxPayload(CTransaction(tx), proTx));
+    std::vector<uint8_t> identity(BLS_CURVE_PUBKEY_SIZE, 0);
+    identity[0] = 0xc0;
+    proTx.pubKeyOperator = CBLSPublicKey(identity);
+    BOOST_REQUIRE(proTx.pubKeyOperator.IsValid(false));
+    BOOST_REQUIRE(!proTx.pubKeyOperator.IsValid());
+    SetTxPayload(tx, proTx);
+    SignTransaction(tx, coinbaseKey);
+
+    const int activationHeight = chainActive.Height() + 2;
+    UpdateRegtestBLSStrictValidationHeight(activationHeight);
+
+    CValidationState historicalState;
+    BOOST_CHECK(CheckProRegTx(CTransaction(tx), chainActive.Tip(), historicalState));
+
+    const uint256 proTxHash = tx.GetHash();
+    ProcessBlockAndUpdateMNManager(*this, {tx}, coinbaseKey);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
+    BOOST_REQUIRE(deterministicMNManager->GetListAtChainTip().HasMN(proTxHash));
+
+    CValidationState activeState;
+    BOOST_CHECK(!CheckProRegTx(CTransaction(tx), chainActive.Tip(), activeState));
+    BOOST_CHECK_EQUAL(activeState.GetRejectReason(), "bad-protx-key-null");
+
+    ProcessBlockAndUpdateMNManager(*this, {}, coinbaseKey);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight);
+    const uint256 activationBlockHash = chainActive.Tip()->GetBlockHash();
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.Get().IsValid(false));
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nPoSeBanHeight, activationHeight);
+
+    InvalidateBlockAndUpdateMNManager(activationBlockHash);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
+    dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK(dmn->pdmnState->pubKeyOperator.Get().IsValid(false));
+    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.Get().IsValid());
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nPoSeBanHeight, -1);
+
+    CValidationState reconnectState;
+    {
+        LOCK(cs_main);
+        const auto it = mapBlockIndex.find(activationBlockHash);
+        BOOST_REQUIRE(it != mapBlockIndex.end());
+        BOOST_REQUIRE(ResetBlockFailureFlags(it->second));
+    }
+    BOOST_REQUIRE(ActivateBestChain(reconnectState, Params()));
+    deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight);
+    dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK(!dmn->pdmnState->pubKeyOperator.Get().IsValid(false));
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nPoSeBanHeight, activationHeight);
 }
 
 BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)

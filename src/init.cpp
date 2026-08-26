@@ -42,6 +42,7 @@
 #include "validation.h"
 #include "mtpstate.h"
 #include "batchproof_container.h"
+#include "bls/bls.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -847,6 +848,10 @@ bool InitSanityCheck(void)
 {
     if(!ECC_InitSanityCheck()) {
         InitError("Elliptic curve cryptography sanity check failure. Aborting.");
+        return false;
+    }
+    if (!BLSInit()) {
+        InitError("BLS cryptographic sanity check failure. Aborting.");
         return false;
     }
     if (!glibc_sanity_test() || !glibcxx_sanity_test())
