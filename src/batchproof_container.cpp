@@ -41,9 +41,13 @@ void BatchProofContainer::finalize() {
 }
 
 bool BatchProofContainer::verify_pending() {
-    init();
+    bool passed = true;
+    if (!fCollectProofs) {
+        init();
+        passed = batch_spark();
+    }
     fCollectProofs = false;
-    return batch_spark();
+    return passed;
 }
 
 void BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& txHash) {

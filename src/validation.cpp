@@ -3235,8 +3235,6 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
         }
         if (!setFilesToPrune.empty()) {
             fFlushForPrune = true;
-            if (!VerifyPendingSparkBatch(state, "writing pruned block file flag"))
-                return false;
             if (!fHavePruned) {
                 pblocktree->WriteFlag("prunedblockfiles", true);
                 fHavePruned = true;
@@ -3268,8 +3266,6 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     bool fPeriodicFlush = mode == FLUSH_STATE_PERIODIC && nNow > nLastFlush + (int64_t)DATABASE_FLUSH_INTERVAL * 1000000;
     // Combine all conditions that result in a full cache flush.
     bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush || fFlushForPrune;
-    if ((fDoFullFlush || fPeriodicWrite) && !VerifyPendingSparkBatch(state, "flushing block index or chainstate"))
-        return false;
     // Write blocks and block index to disk.
     if (fDoFullFlush || fPeriodicWrite) {
         // Depend on nMinDiskSpace to ensure we can write block index
@@ -3855,8 +3851,6 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
 
         // Connect new blocks.
         BOOST_REVERSE_FOREACH(CBlockIndex *pindexConnect, vpindexToConnect) {
-            if (!ShouldBatchSparkProofs(pindexConnect) && !VerifyPendingSparkBatch(state, "connecting non-batched Spark block"))
-                return false;
             if (!ConnectTip(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace)) {
                 if (state.IsInvalid()) {
                     // The block violates a consensus rule.
@@ -4014,6 +4008,13 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
         }
+        // Do batch verification if we reach a 1-day-old block. While the new
+        // tip is still old enough to batch, this is a no-op (same as master).
+        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+        batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
+        if (!VerifyPendingSparkBatch(state, "connecting new tip"))
+            return false;
+
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
         // Notifications/callbacks that can run without cs_main

@@ -304,11 +304,9 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::P
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
 /**
- * Verify finalized deferred Spark proofs before crossing a durable validation boundary.
- *
- * @param state Validation state to mutate if verification fails (the node is aborted).
- * @param reason Text included in the abort message to identify the boundary being protected.
- * @return true when there is no pending batch or the pending batch verifies successfully.
+ * Verify the pending Spark batch when proofs are not being collected.
+ * On failure the node is aborted, a datadir marker is written so the next
+ * start disables batching and reindexes, and false is returned (no throw).
  */
 bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason);
 CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params& consensusParams, bool fMTP, bool fShorterBlockDistance);

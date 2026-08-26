@@ -16,11 +16,12 @@ public:
     void finalize();
 
     /**
-     * Discard any in-progress per-block collection and verify the finalized
-     * pending Spark batch.
+     * Verify the finalized pending Spark batch when proofs are not being
+     * collected. Matches master's verify() gate: a no-op while fCollectProofs
+     * is set, so IBD keeps accumulating until a recent tip.
      *
-     * @return true if no batch is pending or the batch verifies; false on
-     *         verification failure, in which case the pending proofs are kept.
+     * @return true if collecting, if no batch is pending, or if the batch
+     *         verifies; false on verification failure (pending proofs kept).
      */
     bool verify_pending();
 
