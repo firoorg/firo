@@ -37,6 +37,7 @@ namespace GUIUtil
         QString wineTint;
         QString teal;
         QString tealTint;
+        QString error;
         QString gold;
         QString goldTint;
     };

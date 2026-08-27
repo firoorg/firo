@@ -40,6 +40,7 @@ static const ThemeColors LIGHT_COLORS{
     QStringLiteral("#FCE9EE"),
     QStringLiteral("#237A6E"),
     QStringLiteral("#E6F5F2"),
+    QStringLiteral("#9B1C2E"),
     QStringLiteral("#A66314"),
     QStringLiteral("#FBF1E3"),
 };
@@ -57,6 +58,7 @@ static const ThemeColors DARK_COLORS{
     QStringLiteral("rgba(222,51,88,0.16)"),
     QStringLiteral("#4FBBA8"),
     QStringLiteral("rgba(79,187,168,0.14)"),
+    QStringLiteral("#FF708A"),
     QStringLiteral("#E7B678"),
     QStringLiteral("rgba(231,182,120,0.14)"),
 };
@@ -132,6 +134,7 @@ QString themed(const QString& cssTemplate, ThemeMode mode)
     result.replace(QLatin1String("$WINE"), c.wine);
     result.replace(QLatin1String("$TEAL_TINT"), c.tealTint);
     result.replace(QLatin1String("$TEAL"), c.teal);
+    result.replace(QLatin1String("$ERROR"), c.error);
     result.replace(QLatin1String("$GOLD_TINT"), c.goldTint);
     result.replace(QLatin1String("$GOLD"), c.gold);
     return result;
