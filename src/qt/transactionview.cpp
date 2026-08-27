@@ -386,6 +386,23 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     auto *exportLayout = new QHBoxLayout();
     exportLayout->setContentsMargins(0, 0, 0, 0);
+    auto* sortLabel = new QLabel(tr("Sort by"), tableCard);
+    exportLayout->addWidget(sortLabel);
+    sortWidget = new QComboBox(tableCard);
+    sortWidget->setMinimumSize(160, 28);
+    sortWidget->setToolTip(tr("Sort the transaction history"));
+    const auto addSortOption = [this](const QString& text, int column, Qt::SortOrder order) {
+        sortWidget->addItem(text, column * 2 + static_cast<int>(order));
+    };
+    addSortOption(tr("Newest first"), TransactionTableModel::Date, Qt::DescendingOrder);
+    addSortOption(tr("Oldest first"), TransactionTableModel::Date, Qt::AscendingOrder);
+    addSortOption(tr("Status"), TransactionTableModel::Status, Qt::AscendingOrder);
+    addSortOption(tr("Transaction type"), TransactionTableModel::Type, Qt::AscendingOrder);
+    addSortOption(tr("Highest amount"), TransactionTableModel::Amount, Qt::DescendingOrder);
+    addSortOption(tr("Lowest amount"), TransactionTableModel::Amount, Qt::AscendingOrder);
+    addSortOption(tr("InstantSend first"), TransactionTableModel::InstantSend, Qt::DescendingOrder);
+    addSortOption(tr("Watch-only first"), TransactionTableModel::Watchonly, Qt::DescendingOrder);
+    exportLayout->addWidget(sortWidget);
     exportLayout->addStretch();
     exportButton = new QPushButton(tr("Export"), tableCard);
     exportButton->setFixedSize(80, 28);
@@ -458,6 +475,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(instantsendWidget,  qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
     connect(addressWidget,      &QLineEdit::textChanged,               this, &TransactionView::changedPrefix);
     connect(amountWidget,       &QLineEdit::textChanged,               this, &TransactionView::changedAmount);
+    connect(sortWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseSort);
     connect(exportButton,       &QPushButton::clicked,                 this, &TransactionView::exportClicked);
 
     connect(view, &QTableView::doubleClicked, this, &TransactionView::doubleClicked);
@@ -811,6 +829,17 @@ void TransactionView::chooseInstantSend(int idx)
         return;
     transactionProxyModel->setInstantSendFilter(
         (TransactionFilterProxy::InstantSendFilter)instantsendWidget->itemData(idx).toInt());
+}
+
+void TransactionView::chooseSort(int idx)
+{
+    if (!transactionView || idx < 0)
+        return;
+
+    const int encodedSort = sortWidget->itemData(idx).toInt();
+    transactionView->sortByColumn(
+        encodedSort / 2,
+        static_cast<Qt::SortOrder>(encodedSort % 2));
 }
 
 void TransactionView::changedPrefix(const QString &prefix)
