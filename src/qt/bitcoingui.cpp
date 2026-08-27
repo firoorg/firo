@@ -1012,6 +1012,11 @@ void BitcoinGUI::applyNavigationTheme()
             max-height: 26px;
             padding: 1px 14px;
         }
+
+        QToolBar#navigationSidebar[ultraCompact="true"] {
+            spacing: 0;
+            padding: 4px 12px;
+        }
         )")).arg(NAVIGATION_ACTION_WIDTH));
 
     toolbar->style()->unpolish(toolbar);
@@ -1189,13 +1194,24 @@ void BitcoinGUI::updateNavigationSidebarGeometry()
         return;
 
     const bool compact = centralWidget()->height() < 600;
+    const bool ultraCompact = centralWidget()->height() < 450;
+    bool densityChanged = false;
     if (toolbar->property("compact").toBool() != compact) {
         toolbar->setProperty("compact", compact);
+        densityChanged = true;
+    }
+    if (toolbar->property("ultraCompact").toBool() != ultraCompact) {
+        toolbar->setProperty("ultraCompact", ultraCompact);
+        densityChanged = true;
+    }
+    if (densityChanged) {
         toolbar->style()->unpolish(toolbar);
         toolbar->style()->polish(toolbar);
     }
-    if (logoLabel)
+    if (logoLabel) {
+        logoLabel->setVisible(!ultraCompact);
         logoLabel->setFixedHeight(compact ? 54 : 88);
+    }
     if (navigationThemeRow) {
         navigationThemeRow->setMinimumHeight(compact ? 34 : 0);
         navigationThemeRow->setMaximumHeight(compact ? 34 : QWIDGETSIZE_MAX);
