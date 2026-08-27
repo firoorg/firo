@@ -99,6 +99,8 @@ private Q_SLOTS:
     void copyLabel();
     void copyMessage();
     void copyAmount();
+    void createSparkName();
+    void mySparkNames();
 };
 
 class RecentRequestsFilterProxy : public QSortFilterProxyModel

@@ -8,6 +8,7 @@
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "createsparknamepage.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
@@ -228,8 +229,13 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(copyAmountAction, &QAction::triggered, this, &ReceiveCoinsDialog::copyAmount);
 
     connect(ui->clearButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::clear);
+    connect(ui->createSparkNameButton, &QPushButton::clicked,
+            this, &ReceiveCoinsDialog::createSparkName);
+    connect(ui->mySparkNamesButton, &QPushButton::clicked,
+            this, &ReceiveCoinsDialog::mySparkNames);
     connect(ui->addressTypeHistoryCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::chooseType);
     connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
+    displayCheckBox(ui->addressTypeCombobox->currentIndex());
 
     ui->frame2->setAttribute(Qt::WA_StyledBackground, true);
     ui->frame->setAttribute(Qt::WA_StyledBackground, true);
@@ -343,6 +349,8 @@ void ReceiveCoinsDialog::applyTheme()
     ui->receiveButton->setStyleSheet(primaryButtonStyle);
     GUIUtil::applyPrimaryButtonShadow(ui->receiveButton);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
+    ui->mySparkNamesButton->setStyleSheet(secondaryButtonStyle);
+    ui->createSparkNameButton->setStyleSheet(secondaryButtonStyle);
     ui->showRequestButton->setStyleSheet(secondaryButtonStyle);
     ui->removeRequestButton->setStyleSheet(secondaryButtonStyle);
 
@@ -412,6 +420,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
             ui->addressTypeCombobox->removeItem(0);
             ui->reuseAddress->show();
         }
+        displayCheckBox(ui->addressTypeCombobox->currentIndex());
 
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
                 this, &ReceiveCoinsDialog::recentRequestsView_selectionChanged);
@@ -671,11 +680,42 @@ void ReceiveCoinsDialog::copyAmount()
 
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
-    if(ui->addressTypeCombobox->itemData(idx).toInt() == Spark){
-        ui->reuseAddress->hide();
-    } else {
-        ui->reuseAddress->show();
-    }
+    const bool sparkSelected = idx >= 0 && ui->addressTypeCombobox->itemData(idx).toInt() == Spark;
+    ui->reuseAddress->setVisible(!sparkSelected);
+    ui->sparkNameActions->setVisible(sparkSelected);
+}
+
+void ReceiveCoinsDialog::createSparkName()
+{
+    if (!model)
+        return;
+
+    auto* dialog = new CreateSparkNamePage(platformStyle, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModel(model);
+    dialog->show();
+}
+
+void ReceiveCoinsDialog::mySparkNames()
+{
+    if (!model || !model->getAddressTableModel())
+        return;
+
+    AddressBookPage dialog(
+        platformStyle, AddressBookPage::ForSelection,
+        AddressBookPage::ReceivingTab, this, false);
+    dialog.setInitialAddressType(AddressBookPage::SparkNameMine);
+    dialog.setModel(model->getAddressTableModel());
+    if (!dialog.exec())
+        return;
+
+    QString label = dialog.getReturnLabel();
+    if (label.isEmpty())
+        return;
+    if (!label.startsWith(QLatin1Char('@')))
+        label.prepend(QLatin1Char('@'));
+
+    ui->reqLabel->setText(label);
 }
 
 void ReceiveCoinsDialog::chooseType(int idx)
