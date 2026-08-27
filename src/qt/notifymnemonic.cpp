@@ -36,7 +36,7 @@ void NotifyMnemonic::applyTheme()
         QWizard#NotifyMnemonic QWizardPage { background: $BG; }
         QWizard#NotifyMnemonic QLabel { background: transparent; color: $INK; }
         QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_SOFT; font-size: 12px; font-weight: 700; }
-        QWizard#NotifyMnemonic QLabel#errorMessage { color: #E5484D; font-weight: 700; }
+        QWizard#NotifyMnemonic QLabel#errorMessage { color: $WINE; font-weight: 700; }
         QWizard#NotifyMnemonic QFrame#mnemonicBox {
             background: $WINE_TINT;
             border: 1.5px solid $WINE;
@@ -103,7 +103,7 @@ void NotifyMnemonic::notify()
             std::string inputMnememonic = notify.ui->words->toPlainText().toStdString();
             std::string strMnemonic(mnemonic.begin(), mnemonic.end());
             if(inputMnememonic != strMnemonic) {
-                notify.ui->errorMessage->setText("<font color='red'>" + tr("Your entered words do not match, please press back to re-check your mnemonic.") + "</font>");
+                notify.ui->errorMessage->setText(tr("Your entered words do not match, please press back to re-check your mnemonic."));
                 continue;
             }
             break;
