@@ -37,6 +37,7 @@
 #include <QSizePolicy>
 #include <QTableView>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QPainter>
@@ -255,6 +256,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     model(0),
     transactionProxyModel(0),
     transactionView(0),
+    sortDirectionButton(0),
     exportButton(0),
     emptyState(0),
     abandonAction(0)
@@ -389,19 +391,25 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     exportLayout->addWidget(sortLabel);
     sortWidget = new QComboBox(tableCard);
     sortWidget->setMinimumSize(160, 28);
+    sortWidget->setAccessibleName(tr("Sort transactions by"));
     sortWidget->setToolTip(tr("Sort the transaction history"));
     const auto addSortOption = [this](const QString& text, int column, Qt::SortOrder order) {
-        sortWidget->addItem(text, column * 2 + static_cast<int>(order));
+        sortWidget->addItem(text, QVariantList{column, static_cast<int>(order)});
     };
-    addSortOption(tr("Newest first"), TransactionTableModel::Date, Qt::DescendingOrder);
-    addSortOption(tr("Oldest first"), TransactionTableModel::Date, Qt::AscendingOrder);
+    addSortOption(tr("Date"), TransactionTableModel::Date, Qt::DescendingOrder);
     addSortOption(tr("Status"), TransactionTableModel::Status, Qt::AscendingOrder);
     addSortOption(tr("Transaction type"), TransactionTableModel::Type, Qt::AscendingOrder);
-    addSortOption(tr("Highest amount"), TransactionTableModel::Amount, Qt::DescendingOrder);
-    addSortOption(tr("Lowest amount"), TransactionTableModel::Amount, Qt::AscendingOrder);
-    addSortOption(tr("InstantSend first"), TransactionTableModel::InstantSend, Qt::DescendingOrder);
-    addSortOption(tr("Watch-only first"), TransactionTableModel::Watchonly, Qt::DescendingOrder);
+    addSortOption(tr("Address"), TransactionTableModel::ToAddress, Qt::AscendingOrder);
+    addSortOption(tr("Amount"), TransactionTableModel::Amount, Qt::DescendingOrder);
+    addSortOption(tr("InstantSend"), TransactionTableModel::InstantSend, Qt::DescendingOrder);
+    addSortOption(tr("Watch-only"), TransactionTableModel::Watchonly, Qt::DescendingOrder);
     exportLayout->addWidget(sortWidget);
+
+    sortDirectionButton = new QToolButton(tableCard);
+    sortDirectionButton->setObjectName(QStringLiteral("transactionSortDirection"));
+    sortDirectionButton->setFixedSize(32, 28);
+    exportLayout->addWidget(sortDirectionButton);
+    updateSortDirectionButton(Qt::DescendingOrder);
     exportLayout->addStretch();
     exportButton = new QPushButton(tr("Export"), tableCard);
     exportButton->setFixedSize(80, 28);
@@ -475,7 +483,20 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(addressWidget,      &QLineEdit::textChanged,               this, &TransactionView::changedPrefix);
     connect(amountWidget,       &QLineEdit::textChanged,               this, &TransactionView::changedAmount);
     connect(sortWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseSort);
+    connect(sortDirectionButton, &QToolButton::clicked,                this, &TransactionView::toggleSortOrder);
     connect(exportButton,       &QPushButton::clicked,                 this, &TransactionView::exportClicked);
+
+    connect(view->horizontalHeader(), &QHeaderView::sortIndicatorChanged,
+            this, [this](int column, Qt::SortOrder order) {
+                for (int i = 0; i < sortWidget->count(); ++i) {
+                    const QVariantList sortSpec = sortWidget->itemData(i).toList();
+                    if (sortSpec.size() == 2 && sortSpec.at(0).toInt() == column) {
+                        sortWidget->setCurrentIndex(i);
+                        break;
+                    }
+                }
+                updateSortDirectionButton(order);
+            });
 
     connect(view, &QTableView::doubleClicked, this, &TransactionView::doubleClicked);
     connect(view, &QTableView::customContextMenuRequested, this, &TransactionView::contextualMenu);
@@ -555,6 +576,14 @@ void TransactionView::applyTheme()
 
         "QComboBox::drop-down { border: none; width: 24px; }"
         "QComboBox::down-arrow { width: 12px; height: 12px; image: url(:/icons/arrow_down); }"
+
+        "QToolButton#transactionSortDirection {"
+        " background:$PANEL_SOFT; border:1px solid $BORDER; border-radius:9px;"
+        " color:$INK_SOFT; font-size:15px; font-weight:700;"
+        "}"
+        "QToolButton#transactionSortDirection:hover, QToolButton#transactionSortDirection:focus {"
+        " border-color:$WINE; color:$WINE;"
+        "}"
 
         "QDateTimeEdit { background:$PANEL; border-radius:10px; border:1px solid $BORDER; padding:7px 11px; }"
 
@@ -833,10 +862,38 @@ void TransactionView::chooseSort(int idx)
     if (!transactionView || idx < 0)
         return;
 
-    const int encodedSort = sortWidget->itemData(idx).toInt();
-    transactionView->sortByColumn(
-        encodedSort / 2,
-        static_cast<Qt::SortOrder>(encodedSort % 2));
+    const QVariantList sortSpec = sortWidget->itemData(idx).toList();
+    if (sortSpec.size() != 2)
+        return;
+
+    const Qt::SortOrder order = static_cast<Qt::SortOrder>(sortSpec.at(1).toInt());
+    transactionView->sortByColumn(sortSpec.at(0).toInt(), order);
+    updateSortDirectionButton(order);
+}
+
+void TransactionView::toggleSortOrder()
+{
+    if (!transactionView)
+        return;
+
+    QHeaderView *header = transactionView->horizontalHeader();
+    const Qt::SortOrder order = header->sortIndicatorOrder() == Qt::AscendingOrder
+        ? Qt::DescendingOrder
+        : Qt::AscendingOrder;
+    transactionView->sortByColumn(header->sortIndicatorSection(), order);
+    updateSortDirectionButton(order);
+}
+
+void TransactionView::updateSortDirectionButton(Qt::SortOrder order)
+{
+    if (!sortDirectionButton)
+        return;
+
+    const bool ascending = order == Qt::AscendingOrder;
+    sortDirectionButton->setText(ascending ? QStringLiteral("↑") : QStringLiteral("↓"));
+    const QString description = ascending ? tr("Sort ascending") : tr("Sort descending");
+    sortDirectionButton->setAccessibleName(description);
+    sortDirectionButton->setToolTip(description);
 }
 
 void TransactionView::changedPrefix(const QString &prefix)

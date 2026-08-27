@@ -26,6 +26,7 @@ class QModelIndex;
 class QPushButton;
 class QTableView;
 class QGridLayout;
+class QToolButton;
 QT_END_NAMESPACE
 
 /** Widget showing the transaction list for a wallet, including a filter row.
@@ -75,6 +76,7 @@ private:
     QComboBox *watchOnlyWidget;
     QComboBox *instantsendWidget;
     QComboBox *sortWidget;
+    QToolButton *sortDirectionButton;
     QLineEdit *addressWidget;
     QLineEdit *amountWidget;
     QPushButton *exportButton;
@@ -98,6 +100,7 @@ private:
     void addShadow(QWidget* w);
     void updateEmptyState();
     void updateTableColumnWidths();
+    void updateSortDirectionButton(Qt::SortOrder order);
     void applyTheme();
 
 private Q_SLOTS:
@@ -128,6 +131,7 @@ public Q_SLOTS:
     void chooseWatchonly(int idx);
     void chooseInstantSend(int idx);
     void chooseSort(int idx);
+    void toggleSortOrder();
     void changedPrefix(const QString &prefix);
     void changedAmount(const QString &amount);
     void exportClicked();
