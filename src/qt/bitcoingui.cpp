@@ -830,6 +830,16 @@ void BitcoinGUI::createToolBars()
 
         connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
                 this, &BitcoinGUI::applyNavigationTheme);
+
+        auto* syncStateTimer = new QTimer(this);
+        syncStateTimer->setInterval(60 * 1000);
+        connect(syncStateTimer, &QTimer::timeout, this, [this] {
+            if (!clientModel || !navigationSyncProgress)
+                return;
+            updateNavigationSyncCard(QString(), navigationSyncProgress->value() / 100.0);
+        });
+        syncStateTimer->start();
+
         applyNavigationTheme();
 
         updateNavigationSidebarGeometry();
