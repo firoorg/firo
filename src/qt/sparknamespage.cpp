@@ -397,15 +397,12 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     header->addLayout(titleCol, 1);
 
     QString badgeBg = tc.tealTint;
-    QString badgeFg = tc.teal;
     QString statusText = tr("Active");
     if (statusKind == 1) {
         badgeBg = tc.goldTint;
-        badgeFg = tc.gold;
         statusText = tr("Expiring Soon");
     } else if (statusKind == 2) {
         badgeBg = tc.wineTint;
-        badgeFg = tc.wine;
         statusText = tr("Expired");
     }
     auto* statusLab = new QLabel(statusText, frame);
@@ -414,8 +411,8 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     statusLab->setMinimumHeight(22);
     statusLab->setStyleSheet(QStringLiteral(
         "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
-        " padding: 2px 10px; font-size: 10px; font-weight: 700; }")
-                                 .arg(badgeBg, badgeFg));
+        " padding: 2px 10px; font-size: 12px; font-weight: 700; }")
+                                 .arg(badgeBg, tc.ink));
     header->addWidget(statusLab, 0, Qt::AlignVCenter);
 
     root->addLayout(header);
@@ -502,7 +499,7 @@ QFrame#sparkNamesContentCard {
 QLabel#headerLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
 }
 QScrollArea#sparkNamesScroll,
@@ -517,27 +514,27 @@ QFrame#sparkNameCard {
   border-radius: 16px;
 }
 QFrame#sparkNameCard QLabel#cardTitle {
-  color: $INK; font-size: 13px; font-weight: 700;
+  color: $INK; font-size: 16px; font-weight: 700;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardSubtitle {
-  color: $INK_SOFT; font-size: 10px; font-weight: 500;
+  color: $INK_SOFT; font-size: 12px; font-weight: 500;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricCaption {
-  color: $INK_SOFT; font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+  color: $INK_SOFT; font-size: 12px; font-weight: 700; letter-spacing: 0.4px;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricValue {
-  color: $INK; font-size: 12px; font-weight: 700;
+  color: $INK; font-size: 14px; font-weight: 700;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton {
   color: $INK_SOFT; background: $PANEL; border: 1px solid $BORDER; border-radius: 8px;
-  padding: 4px 10px; font-size: 10px; font-weight: 600;
+  padding: 4px 10px; font-size: 12px; font-weight: 600;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton:hover {
   color: $WINE; border-color: $WINE;
@@ -551,12 +548,12 @@ QFrame#sparkNameCard QToolButton#cardActionButton:hover {
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 11px; font-weight: 700;")));
+            "color: $INK; font-size: 14px; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_FAINT; font-size: 10px;")));
+            "color: $INK_SOFT; font-size: 12px;")));
     }
 
     if (model)
