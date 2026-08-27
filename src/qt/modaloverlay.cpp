@@ -136,11 +136,6 @@ void ModalOverlay::applyTheme()
     color: $INK_SOFT;
     font-size: 14px;
 }
-#contentWidget QLabel#infoTextStrong {
-    color: $INK;
-    font-weight: 700;
-    font-size: 13px;
-}
 #contentWidget QFrame#syncStatsCard {
     background: $PANEL_SOFT;
     border: 1px solid $BORDER;

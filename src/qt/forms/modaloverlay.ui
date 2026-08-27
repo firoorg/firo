@@ -157,38 +157,6 @@
                </property>
               </widget>
              </item>
-             <item>
-              <widget class="QLabel" name="infoTextStrong">
-               <property name="font">
-                <font>
-                 <weight>75</weight>
-                 <bold>true</bold>
-                </font>
-               </property>
-               <property name="text">
-                <string>Spending firos affected by not-yet-displayed transactions won't be accepted by the network.</string>
-               </property>
-               <property name="textFormat">
-                <enum>Qt::RichText</enum>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="verticalSpacerInTextSpace">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>24</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
             </layout>
            </item>
           </layout>
