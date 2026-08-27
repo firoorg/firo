@@ -73,6 +73,7 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
     ui->generateButton->setStyleSheet(secondaryButtonStyle);
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setText(tr("Register"));
         okButton->setStyleSheet(primaryButtonStyle);
         GUIUtil::applyPrimaryButtonShadow(okButton);
     }
@@ -111,6 +112,8 @@ void CreateSparkNamePage::setExtendMode(const QString &name, const QString &addr
     } catch (const std::runtime_error&) {
         ui->additionalInfoEdit->clear();
     }
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
+        okButton->setText(tr("Extend"));
     this->setWindowTitle(tr("Extend Spark Name"));
     updateFee();
 }
@@ -148,8 +151,15 @@ void CreateSparkNamePage::accept()
     else if (!model->validateSparkNameData(sparkName, sparkAddress, additionalInfo, strError))
         QMessageBox::critical(this, tr("Error"), tr("Error details: ") + strError);
     else {
-        if (CreateSparkNameTransaction(sparkName.toStdString(), sparkAddress.toStdString(), numberOfYears, additionalInfo.toStdString()))
+        if (CreateSparkNameTransaction(sparkName.toStdString(), sparkAddress.toStdString(), numberOfYears, additionalInfo.toStdString())) {
+            QMessageBox::information(
+                this,
+                tr("Transaction submitted"),
+                extendMode
+                    ? tr("The updated expiry will appear after the extension transaction is confirmed.")
+                    : tr("The Spark Name will appear after the registration transaction is confirmed."));
             QDialog::accept();
+        }
     }
 }
 
@@ -186,7 +196,8 @@ void CreateSparkNamePage::updateFee() {
                 .arg(fee)
                 .arg(expirationDate.toString("MMMM d, yyyy"));
         } catch (const std::runtime_error&) {
-            label = feeText.arg(QString::number(fee));
+            label = tr("Extension fee: %1 FIRO. The updated expiration estimate is unavailable.")
+                .arg(fee);
         }
     } else {
         label = feeText.arg(QString::number(fee));
@@ -221,7 +232,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         std::string strError;
 
         if (!sparkNameManager->ValidateSparkNameData(sparkNameData, strError)) {
-            QMessageBox::critical(this, tr("Error validating spark name paramaeter"), strError.c_str());
+            QMessageBox::critical(this, tr("Error validating Spark Name parameter"), strError.c_str());
             return false;
         }
 
@@ -240,15 +251,25 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         WalletModel::SendCoinsReturn prepareStatus = model->prepareSparkNameTransaction(
             tx, sparkNameData, sparkNameFee, nullptr, nextBlockHeight);
         if (prepareStatus.status != WalletModel::StatusCode::OK) {
-            QMessageBox::critical(this, tr("Error"), tr("Failed to prepare spark name transaction"));
+            QString errorText = extendMode
+                ? tr("Failed to prepare the Spark Name extension transaction.")
+                : tr("Failed to prepare the Spark Name registration transaction.");
+            if (!prepareStatus.reasonCommitFailed.isEmpty())
+                errorText.append(QStringLiteral("\n\n") + prepareStatus.reasonCommitFailed);
+            QMessageBox::critical(
+                this,
+                tr("Error"),
+                errorText);
             return false;
         }
 
-        QString formatted;
-        QString questionString = tr("Are you sure you want to register spark name?");
-        questionString.append(tr("  You are sending Firo from a Spark address to the Spark name fee address."));
+        QString questionString = extendMode
+            ? tr("Are you sure you want to extend this Spark Name?")
+            : tr("Are you sure you want to register this Spark Name?");
+        questionString.append(tr(" You are sending FIRO from a Spark address to the Spark Name fee address."));
 
-        SendConfirmationDialog confirmationDialog(tr("Confirm send coins for registering spark name"),
+        SendConfirmationDialog confirmationDialog(
+            extendMode ? tr("Confirm Spark Name extension") : tr("Confirm Spark Name registration"),
             questionString, SEND_CONFIRM_DELAY, this);
         confirmationDialog.exec();
 
@@ -260,7 +281,15 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
 
         WalletModel::SendCoinsReturn sendStatus = model->spendSparkCoins(tx);
         if (sendStatus.status != WalletModel::StatusCode::OK) {
-            QMessageBox::critical(this, tr("Error"), tr("Failed to send spark name transaction"));
+            QString errorText = extendMode
+                ? tr("Failed to submit the Spark Name extension transaction.")
+                : tr("Failed to submit the Spark Name registration transaction.");
+            if (!sendStatus.reasonCommitFailed.isEmpty())
+                errorText.append(QStringLiteral("\n\n") + sendStatus.reasonCommitFailed);
+            QMessageBox::critical(
+                this,
+                tr("Error"),
+                errorText);
             return false;
         }
 
@@ -274,7 +303,12 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         }
     }
     catch (const std::exception &) {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to create spark name transaction"));
+        QMessageBox::critical(
+            this,
+            tr("Error"),
+            extendMode
+                ? tr("Failed to extend the Spark Name.")
+                : tr("Failed to register the Spark Name."));
         return false;
     }
 
@@ -303,7 +337,9 @@ void CreateSparkNamePage::checkSparkBalance()
 
     if (available < requiredFee) {
         ui->balanceWarningLabel->setText(
-            tr("⚠️ Not enough private funds to register this Spark name.")
+            extendMode
+                ? tr("⚠️ Not enough private funds to extend this Spark Name.")
+                : tr("⚠️ Not enough private funds to register this Spark Name.")
         );
         ui->balanceWarningLabel->setVisible(true);
     } else {
