@@ -871,7 +871,8 @@ bool MasternodeList::updateDIP3List()
                 collateralAmount + QLatin1Char(' ') +
                 collateralAddr + QLatin1Char(' ') +
                 ownerStr + QLatin1Char(' ') +
-                proTxHash;
+                proTxHash + QLatin1Char(' ') +
+                collateralOutpoint;
             if (!strToFilter.contains(strCurrentFilterDIP3, Qt::CaseInsensitive))
                 return;
         }
