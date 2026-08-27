@@ -10,6 +10,7 @@ namespace Ui {
 class PlatformStyle;
 class WalletModel;
 class AddressTableModel;
+class ClientModel;
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -28,12 +29,14 @@ public:
     ~SparkNamesPage();
 
     void setModel(WalletModel *model);
+    void setClientModel(ClientModel *clientModel);
 
 private:
     Ui::SparkNamesPage *ui;
     const PlatformStyle *platformStyle;
     WalletModel *model;
     AddressTableModel *addressModel;
+    ClientModel *clientModel;
     bool refreshScheduled;
 
     QWidget *emptyState;

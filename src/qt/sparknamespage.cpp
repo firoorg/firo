@@ -160,6 +160,7 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     platformStyle(_platformStyle),
     model(nullptr),
     addressModel(nullptr),
+    clientModel(nullptr),
     refreshScheduled(false),
     emptyState(nullptr),
     namesScroll(nullptr),
@@ -253,6 +254,22 @@ void SparkNamesPage::setModel(WalletModel *_model)
     refreshList();
 }
 
+void SparkNamesPage::setClientModel(ClientModel *_clientModel)
+{
+    if (clientModel)
+        disconnect(clientModel, nullptr, this, nullptr);
+
+    clientModel = _clientModel;
+    if (clientModel) {
+        connect(clientModel, &ClientModel::numBlocksChanged,
+                this, [this](int, const QDateTime&, double, bool header) {
+                    if (!header && clientModel && !clientModel->inInitialBlockDownload())
+                        scheduleRefreshList();
+                });
+    }
+    refreshList();
+}
+
 void SparkNamesPage::scheduleRefreshList()
 {
     if (refreshScheduled)
@@ -323,7 +340,6 @@ void SparkNamesPage::refreshList()
         return QString::localeAwareCompare(left.name, right.name) < 0;
     });
 
-    const ClientModel *clientModel = model->getClientModel();
     const int currentHeight = clientModel ? clientModel->getNumBlocks() : 0;
 
     constexpr int nBlocksPerHour = 24;
