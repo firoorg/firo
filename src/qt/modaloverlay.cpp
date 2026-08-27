@@ -18,6 +18,7 @@
 #include <QLabel>
 #include <QPropertyAnimation>
 #include <QSizePolicy>
+#include <QScrollArea>
 #include <QStyle>
 #include <QVBoxLayout>
 
@@ -32,6 +33,20 @@ foreverHidden(false)
 {
     ui->setupUi(this);
     ui->contentWidget->setAttribute(Qt::WA_StyledBackground, true);
+    ui->verticalLayoutMain->removeWidget(ui->contentWidget);
+    ui->contentWidget->setMinimumSize(QSize(0, 0));
+    ui->contentWidget->setMaximumHeight(QWIDGETSIZE_MAX);
+    ui->contentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->verticalLayoutSub->setSizeConstraint(QLayout::SetMinimumSize);
+
+    auto* scrollArea = new QScrollArea(ui->bgWidget);
+    scrollArea->setObjectName(QStringLiteral("syncScrollArea"));
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setAlignment(Qt::AlignCenter);
+    scrollArea->setWidget(ui->contentWidget);
+    ui->verticalLayoutMain->addWidget(scrollArea, 1);
 
     ui->verticalLayoutSub->removeItem(ui->formLayout);
     auto* statsCard = new QFrame(ui->contentWidget);
@@ -43,6 +58,7 @@ foreverHidden(false)
     ui->verticalLayoutSub->insertWidget(2, statsCard);
 
     ui->formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    ui->formLayout->setRowWrapPolicy(QFormLayout::WrapLongRows);
     ui->formLayout->setHorizontalSpacing(24);
     ui->formLayout->setVerticalSpacing(15);
 
@@ -92,6 +108,12 @@ void ModalOverlay::applyTheme()
 {
     ui->bgWidget->setStyleSheet(QStringLiteral(
         "#bgWidget { background-color: rgba(17, 12, 18, 148); }"));
+
+    if (QScrollArea* scrollArea = findChild<QScrollArea*>(QStringLiteral("syncScrollArea"))) {
+        scrollArea->setStyleSheet(QStringLiteral(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }"));
+    }
 
     ui->contentWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
 #contentWidget {
