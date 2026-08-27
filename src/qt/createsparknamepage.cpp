@@ -281,20 +281,23 @@ void CreateSparkNamePage::updateFee() {
             constexpr int nBlocksPerHour = 24;
             const int64_t newValidityBlocks = numberOfYears * SPARK_NAME_BLOCKS_PER_YEAR;
 
-            int nextBlockHeight;
+            int currentBlockHeight;
             {
                 LOCK(cs_main);
-                nextBlockHeight = chainActive.Height() + 1;
+                currentBlockHeight = chainActive.Height();
             }
+            const int nextBlockHeight = currentBlockHeight + 1;
             const int64_t currentExpirationHeight = static_cast<int64_t>(
                 CSparkNameManager::GetInstance()->GetSparkNameBlockHeight(
                     CSparkNameManager::ToUpper(sparkName.toStdString())));
 
-            int64_t blocksFromNow = newValidityBlocks;
+            int64_t estimatedExpirationHeight = nextBlockHeight + newValidityBlocks;
             if (nextBlockHeight >= Params().GetConsensus().nSparkNamesV21StartBlock) {
-                blocksFromNow += std::max<int64_t>(
+                estimatedExpirationHeight += std::max<int64_t>(
                     0, currentExpirationHeight - nextBlockHeight);
             }
+            const int64_t blocksFromNow = std::max<int64_t>(
+                0, estimatedExpirationHeight - currentBlockHeight);
 
             QDateTime expirationDate = QDateTime::currentDateTime().addSecs(
                 (qint64)blocksFromNow * 3600 / nBlocksPerHour);
