@@ -14,6 +14,7 @@
 #include "platformstyle.h"
 #include "receiverequestdialog.h"
 #include "recentrequeststablemodel.h"
+#include "sparkname.h"
 #include "walletmodel.h"
 
 #include <QAction>
@@ -493,7 +494,31 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         if(selectedAddressType == Transparent) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
         } else if(selectedAddressType == Spark) {
-            address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            if (label.startsWith(QLatin1Char('@'))) {
+                const QString sparkName = label.mid(1);
+                if (!CSparkNameManager::IsSparkNameValid(sparkName.toStdString())) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("\"%1\" is not a valid Spark Name.").arg(label));
+                    return;
+                }
+                address = model->getSparkNameAddress(sparkName);
+                if (address.isEmpty()) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("Spark Name \"%1\" was not found or has expired.").arg(sparkName));
+                    return;
+                }
+                if (!model->isSparkAddressMine(address)) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("Spark Name \"%1\" does not belong to this wallet.").arg(sparkName));
+                    return;
+                }
+            } else {
+                address = model->getAddressTableModel()->addRow(
+                    AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            }
         }
     }
     if(address.isEmpty())
