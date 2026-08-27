@@ -25,8 +25,7 @@ class QMenu;
 class QModelIndex;
 class QPushButton;
 class QTableView;
-class QSpacerItem;
-class QHBoxLayout;
+class QGridLayout;
 QT_END_NAMESPACE
 
 /** Widget showing the transaction list for a wallet, including a filter row.
@@ -41,7 +40,6 @@ public:
 
     void setModel(WalletModel *model);
     void resizeEvent(QResizeEvent* event) override;
-    void adjustTextSize(int width, int height);
 
     // Date ranges for filter
     enum DateEnum
@@ -71,8 +69,7 @@ private:
     TransactionFilterProxy *transactionProxyModel;
     QTableView *transactionView;
 
-    QHBoxLayout * headerLayout;
-    QSpacerItem *statusSpacer;
+    QGridLayout *headerLayout;
     QComboBox *dateWidget;
     QComboBox *typeWidget;
     QComboBox *watchOnlyWidget;
@@ -104,7 +101,6 @@ private:
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);
-    void updateHeaderSizes(int logicalIndex, int oldSize, int newSize);
     void dateRangeChanged();
     void showDetails();
     void openTransaction(const QModelIndex &index);

@@ -43,6 +43,7 @@
 #include <QPainterPath>
 #include <QCalendarWidget>
 #include <QGraphicsDropShadowEffect>
+#include <QGridLayout>
 #include <QPushButton>
 #include <QStyledItemDelegate>
 #include <QStyleOptionViewItem>
@@ -265,44 +266,49 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     QFrame* filterCard = new QFrame(this);
     filterCard->setObjectName("filterCard");
 
-    headerLayout = new QHBoxLayout(filterCard);
+    headerLayout = new QGridLayout(filterCard);
     headerLayout->setContentsMargins(14,14,14,14);
-    headerLayout->setSpacing(12);
+    headerLayout->setHorizontalSpacing(12);
+    headerLayout->setVerticalSpacing(10);
 
     auto pillify = [](QComboBox* cb){ cb->setMinimumHeight(36); cb->setIconSize(QSize(16,16)); };
 
     watchOnlyWidget = new QComboBox(this);
     pillify(watchOnlyWidget);
     watchOnlyWidget->setFixedWidth(48);
+    watchOnlyWidget->setToolTip(tr("Filter by watch-only involvement"));
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_plus"), "", TransactionFilterProxy::WatchOnlyFilter_Yes);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_minus"), "", TransactionFilterProxy::WatchOnlyFilter_No);
-    headerLayout->addWidget(watchOnlyWidget);
+    headerLayout->addWidget(watchOnlyWidget, 0, 0);
 
     instantsendWidget = new QComboBox(this);
     pillify(instantsendWidget);
-    instantsendWidget->setFixedWidth(120);
-    instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
+    instantsendWidget->setMinimumWidth(110);
+    instantsendWidget->setToolTip(tr("Filter by InstantSend status"));
+    instantsendWidget->addItem(tr("Any InstantSend status"), TransactionFilterProxy::InstantSendFilter_All);
     instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
     instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
-    headerLayout->addWidget(instantsendWidget);
+    headerLayout->addWidget(instantsendWidget, 0, 1);
 
     dateWidget = new QComboBox(this);
     pillify(dateWidget);
-    dateWidget->setFixedWidth(120);
-    dateWidget->addItem(tr("All"), All);
+    dateWidget->setMinimumWidth(110);
+    dateWidget->setToolTip(tr("Filter by date"));
+    dateWidget->addItem(tr("Any date"), All);
     dateWidget->addItem(tr("Today"), Today);
     dateWidget->addItem(tr("This week"), ThisWeek);
     dateWidget->addItem(tr("This month"), ThisMonth);
     dateWidget->addItem(tr("Last month"), LastMonth);
     dateWidget->addItem(tr("This year"), ThisYear);
     dateWidget->addItem(tr("Range..."), Range);
-    headerLayout->addWidget(dateWidget);
+    headerLayout->addWidget(dateWidget, 0, 2);
 
     typeWidget = new QComboBox(this);
     pillify(typeWidget);
-    typeWidget->setFixedWidth(120);
-    typeWidget->addItem(tr("All"), TransactionFilterProxy::ALL_TYPES);
+    typeWidget->setMinimumWidth(110);
+    typeWidget->setToolTip(tr("Filter by transaction type"));
+    typeWidget->addItem(tr("Any type"), TransactionFilterProxy::ALL_TYPES);
     typeWidget->addItem(tr("Received with"),
                         TransactionFilterProxy::TYPE(TransactionRecord::RecvWithAddress) |
                         TransactionFilterProxy::TYPE(TransactionRecord::RecvFromOther));
@@ -322,27 +328,31 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("Mint spark to"), TransactionFilterProxy::TYPE(TransactionRecord::MintSparkTo));
     typeWidget->addItem(tr("Spend spark to"), TransactionFilterProxy::TYPE(TransactionRecord::SpendSparkTo));
     typeWidget->addItem(tr("Received Spark"), TransactionFilterProxy::TYPE(TransactionRecord::RecvSpark));
-    headerLayout->addWidget(typeWidget);
+    headerLayout->addWidget(typeWidget, 0, 3);
 
     addressWidget = new QLineEdit(this);
     addressWidget->setMinimumHeight(36);
     addressWidget->setPlaceholderText(tr("Enter address or label to search"));
-    headerLayout->addWidget(addressWidget);
+    headerLayout->addWidget(addressWidget, 1, 0, 1, 3);
 
     amountWidget = new QLineEdit(this);
     amountWidget->setMinimumHeight(36);
+    amountWidget->setMinimumWidth(110);
     amountWidget->setPlaceholderText(tr("Min amount"));
-    amountWidget->setFixedWidth(140);
     amountWidget->setValidator(new QDoubleValidator(0, 1e20, 8, this));
-    headerLayout->addWidget(amountWidget);
+    headerLayout->addWidget(amountWidget, 1, 3);
+
+    headerLayout->setColumnStretch(1, 1);
+    headerLayout->setColumnStretch(2, 1);
+    headerLayout->setColumnStretch(3, 1);
 
     QVBoxLayout *vlayout = new QVBoxLayout(this);
     vlayout->setContentsMargins(24,20,24,20);
     vlayout->setSpacing(14);
 
     vlayout->addWidget(filterCard);
-    filterCard->setMinimumHeight(70);
-    filterCard->setMaximumHeight(70);
+    filterCard->setMinimumHeight(116);
+    filterCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     dateRangeWidget = createDateRangeWidget();
     dateRangeWidget->setObjectName("dateRangeWidget");
@@ -452,8 +462,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     connect(view, &QTableView::doubleClicked, this, &TransactionView::doubleClicked);
     connect(view, &QTableView::customContextMenuRequested, this, &TransactionView::contextualMenu);
-    connect(view->horizontalHeader(), &QHeaderView::sectionResized, this, &TransactionView::updateHeaderSizes);
-
     connect(abandonAction,      &QAction::triggered, this, &TransactionView::abandonTx);
     connect(copyAddressAction,  &QAction::triggered, this, &TransactionView::copyAddress);
     connect(copyLabelAction,    &QAction::triggered, this, &TransactionView::copyLabel);
@@ -884,27 +892,6 @@ void TransactionView::contextualMenu(const QPoint &point)
     }
 }
 
-void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSize)
-{
-    static std::vector<std::pair<int, QWidget*>> const headerWidgets{
-        {TransactionTableModel::Watchonly, watchOnlyWidget},
-        {TransactionTableModel::InstantSend, instantsendWidget},
-        {TransactionTableModel::Date, dateWidget},
-        {TransactionTableModel::Type, typeWidget},
-        {TransactionTableModel::ToAddress, addressWidget},
-        {TransactionTableModel::Amount, amountWidget}
-    };
-
-    if(logicalIndex <= TransactionTableModel::Amount)
-        return;
-
-    for(std::pair<int, QWidget*> const & p : headerWidgets) {
-        int const w = transactionView->columnWidth(p.first) - headerLayout->spacing() / 2;
-        if(p.second->width() != w)
-            p.second->setFixedWidth(w);
-    }
-}
-
 void TransactionView::abandonTx()
 {
     if(!transactionView || !transactionView->selectionModel())
@@ -1191,22 +1178,4 @@ void TransactionView::resizeEvent(QResizeEvent* event)
 
     updateTableColumnWidths();
     updateEmptyState();
-}
-void TransactionView::adjustTextSize(int width,int height){
-
-    const double fontSizeScalingFactor = 65.0;
-    int baseFontSize = std::min(width, height) / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
-    QFont font = this->font();
-    font.setPointSize(fontSize);
-
-    // Set font size for all labels
-    transactionView->setFont(font);
-    transactionView->horizontalHeader()->setFont(font);
-    transactionView->verticalHeader()->setFont(font);
-    dateWidget->setFont(font);
-    typeWidget->setFont(font);
-    amountWidget->setFont(font);
-    instantsendWidget->setFont(font);
-    addressWidget->setFont(font);
 }
