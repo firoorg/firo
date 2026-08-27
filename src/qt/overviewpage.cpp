@@ -351,7 +351,7 @@ void OverviewPage::applyOverviewTheme()
     if (networkBadge_) {
         networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#networkBadge {"
-            " color: $WINE; background: $WINE_TINT; border: none;"
+            " color: $INK; background: $WINE_TINT; border: none;"
             " border-radius: 9px; padding: 2px 8px; font-size: 12px; font-weight: 700;"
             "}")));
     }

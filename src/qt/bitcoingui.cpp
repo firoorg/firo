@@ -875,7 +875,7 @@ void BitcoinGUI::applyNavigationTheme()
     if (torStatusBadge) {
         torStatusBadge->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#torStatusBadge {"
-            " color: $WINE; background: $WINE_TINT; border: none;"
+            " color: $INK; background: $WINE_TINT; border: none;"
             " border-radius: 8px; padding: 2px 7px; font-size: 12px; font-weight: 700;"
             "}")));
     }
