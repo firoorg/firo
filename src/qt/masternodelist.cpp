@@ -445,11 +445,9 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     connect(masternodeView, &QListView::customContextMenuRequested,
             this, &MasternodeList::showContextMenuDIP3);
     connect(masternodeView, &QListView::activated, this, [this](const QModelIndex& index) {
-        updateSelection(index);
+        masternodeView->setCurrentIndex(index);
         extraInfoDIP3_clicked();
     });
-    connect(masternodeView->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, &MasternodeList::updateSelection);
     //always start with "my znodes only" checked
     ui->checkBoxMyMasternodesOnly->setChecked(true);
     sortMasternodes(masternodeSort->currentIndex());
@@ -628,7 +626,7 @@ void MasternodeList::setWalletModel(WalletModel* model)
 {
     this->walletModel = model;
     mnListChanged = true;
-    nTimeUpdatedDIP3 = GetTime() - MASTERNODELIST_UPDATE_SECONDS * 10;
+    nTimeUpdatedDIP3 = 0;
     updateDIP3ListScheduled();
 }
 
@@ -647,13 +645,7 @@ void MasternodeList::showContextMenuDIP3(const QPoint& pos)
         menuPosition = masternodeView->visualRect(index).center();
 
     masternodeView->setCurrentIndex(index);
-    updateSelection(index);
     contextMenuDIP3->exec(masternodeView->viewport()->mapToGlobal(menuPosition));
-}
-
-void MasternodeList::updateSelection(const QModelIndex& index)
-{
-    selectedProTxHash = index.isValid() ? index.data(ProTxHashRole).toString() : QString();
 }
 
 void MasternodeList::sortMasternodes(int index)
@@ -665,9 +657,9 @@ void MasternodeList::sortMasternodes(int index)
     if (sortSpec.size() != 2)
         return;
 
-    masternodeSortOrder = static_cast<Qt::SortOrder>(sortSpec.at(1).toInt());
+    masternodeProxy->setSortRole(sortSpec.at(0).toInt());
+    masternodeProxy->sort(0, static_cast<Qt::SortOrder>(sortSpec.at(1).toInt()));
     updateSortDirectionButton();
-    applyMasternodeSort();
 }
 
 void MasternodeList::applyMasternodeSort()
@@ -679,25 +671,29 @@ void MasternodeList::applyMasternodeSort()
     if (sortSpec.size() != 2)
         return;
 
+    const Qt::SortOrder order = masternodeProxy->sortOrder();
     masternodeProxy->setSortRole(sortSpec.at(0).toInt());
-    masternodeProxy->sort(0, masternodeSortOrder);
+    masternodeProxy->sort(0, order);
 }
 
 void MasternodeList::toggleMasternodeSortOrder()
 {
-    masternodeSortOrder = masternodeSortOrder == Qt::AscendingOrder
+    if (!masternodeProxy)
+        return;
+
+    const Qt::SortOrder order = masternodeProxy->sortOrder() == Qt::AscendingOrder
         ? Qt::DescendingOrder
         : Qt::AscendingOrder;
+    masternodeProxy->sort(0, order);
     updateSortDirectionButton();
-    applyMasternodeSort();
 }
 
 void MasternodeList::updateSortDirectionButton()
 {
-    if (!masternodeSortDirection)
+    if (!masternodeProxy || !masternodeSortDirection)
         return;
 
-    const bool ascending = masternodeSortOrder == Qt::AscendingOrder;
+    const bool ascending = masternodeProxy->sortOrder() == Qt::AscendingOrder;
     masternodeSortDirection->setText(ascending ? QStringLiteral("↑") : QStringLiteral("↓"));
     const QString description = ascending ? tr("Sort ascending") : tr("Sort descending");
     masternodeSortDirection->setAccessibleName(description);
@@ -917,7 +913,10 @@ bool MasternodeList::updateDIP3List()
 
     mnList.ForEachMN(false, processMN);
 
-    const QString selectionToRestore = selectedProTxHash;
+    const QModelIndex currentIndex = masternodeView
+        ? masternodeView->currentIndex()
+        : QModelIndex();
+    const QString selectionToRestore = currentIndex.data(ProTxHashRole).toString();
     QString topRowToRestore;
     if (masternodeView) {
         const QModelIndex topIndex = masternodeView->indexAt(
@@ -947,8 +946,6 @@ bool MasternodeList::updateDIP3List()
         masternodeView->setCurrentIndex(restoredSelection);
         masternodeView->selectionModel()->select(
             restoredSelection, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-    } else {
-        selectedProTxHash.clear();
     }
     if (restoredTopRow.isValid())
         masternodeView->scrollTo(restoredTopRow, QAbstractItemView::PositionAtTop);
@@ -967,18 +964,22 @@ void MasternodeList::on_filterLineEditDIP3_textChanged(const QString& strFilterI
 void MasternodeList::on_checkBoxMyMasternodesOnly_stateChanged(int)
 {
     mnListChanged = true;
-    nTimeUpdatedDIP3 = GetTime() - MASTERNODELIST_UPDATE_SECONDS * 10;
+    nTimeUpdatedDIP3 = 0;
     updateDIP3ListScheduled();
 }
 
 CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
 {
-    if (!clientModel || selectedProTxHash.isEmpty()) {
+    const QModelIndex index = masternodeView
+        ? masternodeView->currentIndex()
+        : QModelIndex();
+    const QString proTxHashString = index.data(ProTxHashRole).toString();
+    if (!clientModel || proTxHashString.isEmpty()) {
         return nullptr;
     }
 
     uint256 proTxHash;
-    proTxHash.SetHex(selectedProTxHash.toStdString());
+    proTxHash.SetHex(proTxHashString.toStdString());
 
     CDeterministicMNList mnList;
     if (!clientModel->tryGetMasternodeList(mnList))

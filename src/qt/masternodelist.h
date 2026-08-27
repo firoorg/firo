@@ -62,15 +62,12 @@ private:
     QSortFilterProxyModel* masternodeProxy;
     QComboBox* masternodeSort;
     QToolButton* masternodeSortDirection;
-    Qt::SortOrder masternodeSortOrder{Qt::AscendingOrder};
-    QString selectedProTxHash;
 
     CDeterministicMNCPtr GetSelectedDIP3MN();
 
     bool updateDIP3List();
     void updateEmptyState();
     void applyTheme();
-    void updateSelection(const QModelIndex& index);
     void sortMasternodes(int index);
     void applyMasternodeSort();
     void toggleMasternodeSortOrder();
