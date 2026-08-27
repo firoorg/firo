@@ -116,8 +116,11 @@ public:
             dateFont.setBold(true);
             painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
+            const int metadataWidth = 30 +
+                (index.data(TransactionTableModel::InstantSendRole).toBool() ? 20 : 0) +
+                (index.data(TransactionTableModel::WatchonlyRole).toBool() ? 20 : 0);
             const QRect dateRect(icon.right() + 10, option.rect.top() + 14,
-                                 option.rect.right() - icon.right() - 30, 18);
+                                 option.rect.right() - icon.right() - metadataWidth, 18);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.date(), QLocale::ShortFormat)
                                            : index.data(Qt::DisplayRole).toString());
@@ -131,17 +134,27 @@ public:
             painter->drawText(timeRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.time(), QLocale::ShortFormat) : QString());
 
-            const QRect statusRect(option.rect.right() - 22, option.rect.center().y() - 8, 16, 16);
-            paintStatusIcon(painter, index, statusRect);
+            int iconRight = option.rect.right() - 6;
+            const auto paintMetadataIcon = [&](const QVariant& decoration) {
+                const QRect rect(iconRight - 16, option.rect.center().y() - 8, 16, 16);
+                if (paintDecorationIcon(painter, decoration, rect))
+                    iconRight -= 20;
+            };
+            paintMetadataIcon(index.sibling(index.row(), TransactionTableModel::Status)
+                                  .data(TransactionTableModel::RawDecorationRole));
+            paintMetadataIcon(index.data(TransactionTableModel::InstantSendDecorationRole));
+            paintMetadataIcon(index.data(TransactionTableModel::WatchonlyDecorationRole));
             break;
         }
         case TransactionTableModel::Type: {
-            const QString text = badgeText(txType, index.data(Qt::DisplayRole).toString());
+            const QString displayText = index.data(Qt::DisplayRole).toString();
             QFont badgeFont = option.font;
             badgeFont.setPixelSize(10);
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const QFontMetrics fm(badgeFont);
+            const QString text = fm.elidedText(displayText, Qt::ElideRight,
+                                                std::max(0, option.rect.width() - 34));
             const int w = std::min(option.rect.width() - 16, fm.boundingRect(text).width() + 18);
             const QRect badge(option.rect.left() + 6,
                               option.rect.center().y() - 11, w, 22);
@@ -221,39 +234,15 @@ private:
         }
     }
 
-    static QString badgeText(int txType, const QString& display)
+    static bool paintDecorationIcon(QPainter* painter, const QVariant& decoration, const QRect& rect)
     {
-        if (txType == TransactionRecord::Generated)
-            return QObject::tr("Mined");
-        if (isIncoming(txType))
-            return QObject::tr("Received");
-        switch (txType) {
-        case TransactionRecord::SendToAddress:
-        case TransactionRecord::SendToOther:
-        case TransactionRecord::SendToSelf:
-        case TransactionRecord::SpendToAddress:
-        case TransactionRecord::SpendToSelf:
-        case TransactionRecord::SendToPcode:
-        case TransactionRecord::MintSparkTo:
-        case TransactionRecord::MintSparkToSelf:
-        case TransactionRecord::SpendSparkTo:
-        case TransactionRecord::SpendSparkToSelf:
-            return QObject::tr("Sent");
-        default:
-            return display;
-        }
-    }
-
-    static void paintStatusIcon(QPainter* painter, const QModelIndex& index, const QRect& rect)
-    {
-        const QVariant dec = index.sibling(index.row(), TransactionTableModel::Status)
-                                 .data(TransactionTableModel::RawDecorationRole);
-        if (!dec.canConvert<QIcon>())
-            return;
-        const QIcon icon = qvariant_cast<QIcon>(dec);
+        if (!decoration.canConvert<QIcon>())
+            return false;
+        const QIcon icon = qvariant_cast<QIcon>(decoration);
         if (icon.isNull())
-            return;
+            return false;
         GUIUtil::paintThemedStatusIcon(painter, icon, rect);
+        return true;
     }
 
     QTableView* view_;

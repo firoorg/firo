@@ -649,6 +649,10 @@ QString TransactionTableModel::formatTooltip(const TransactionRecord *rec) const
     {
         tooltip += QString(" ") + formatTxToAddress(rec, true);
     }
+    if (rec->involvesWatchAddress)
+        tooltip += QString("\n") + tr("Involves a watch-only address.");
+    if (rec->status.lockedByInstantSend)
+        tooltip += QString("\n") + tr("Locked by InstantSend.");
     return tooltip;
 }
 
