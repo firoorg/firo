@@ -1,27 +1,34 @@
 #include "sparknamespage.h"
 #include "ui_sparknamespage.h"
 
+#include "addresstablemodel.h"
+#include "clientmodel.h"
 #include "createsparknamepage.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "sparkname.h"
-#include "validation.h"
 #include "walletmodel.h"
 
 #include <QDateTime>
+#include <QEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QShowEvent>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
 
 namespace {
 
@@ -114,6 +121,7 @@ QLabel* metricValue(const QString& text, QWidget* parent)
 {
     auto* lab = new QLabel(text, parent);
     lab->setObjectName(QStringLiteral("cardMetricValue"));
+    lab->setTextFormat(Qt::PlainText);
     lab->setWordWrap(true);
     return lab;
 }
@@ -152,6 +160,9 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     ui(new Ui::SparkNamesPage),
     platformStyle(_platformStyle),
     model(nullptr),
+    addressModel(nullptr),
+    clientModel(nullptr),
+    refreshScheduled(false),
     emptyState(nullptr),
     namesScroll(nullptr),
     namesCardsHost(nullptr),
@@ -159,7 +170,6 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
 {
     ui->setupUi(this);
 
-    ui->sparkNamesContentCard->setMinimumHeight(420);
     ui->sparkNamesContentCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->topLayout->setStretchFactor(ui->sparkNamesContentCard, 1);
     ui->sparkNamesContentCard->setAttribute(Qt::WA_StyledBackground, true);
@@ -200,6 +210,7 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     emptyDescription_->setWordWrap(true);
     emptyLayout->addWidget(emptyDescription_);
     emptyLayout->addStretch();
+    namesScroll->viewport()->installEventFilter(this);
 
     const auto addCardShadow = [](QWidget* card) {
         auto* shadow = new QGraphicsDropShadowEffect(card);
@@ -226,14 +237,50 @@ SparkNamesPage::~SparkNamesPage()
 
 void SparkNamesPage::setModel(WalletModel *_model)
 {
+    if (addressModel)
+        disconnect(addressModel, nullptr, this, nullptr);
+
     this->model = _model;
+    addressModel = model ? model->getAddressTableModel() : nullptr;
+    if (addressModel) {
+        connect(addressModel, &QAbstractItemModel::rowsInserted,
+                this, &SparkNamesPage::scheduleRefreshList);
+        connect(addressModel, &QAbstractItemModel::rowsRemoved,
+                this, &SparkNamesPage::scheduleRefreshList);
+        connect(addressModel, &QAbstractItemModel::dataChanged,
+                this, &SparkNamesPage::scheduleRefreshList);
+        connect(addressModel, &QAbstractItemModel::modelReset,
+                this, &SparkNamesPage::scheduleRefreshList);
+    }
     refreshList();
 }
 
-void SparkNamesPage::showEvent(QShowEvent *event)
+void SparkNamesPage::setClientModel(ClientModel *_clientModel)
 {
-    QWidget::showEvent(event);
+    if (clientModel)
+        disconnect(clientModel, nullptr, this, nullptr);
+
+    clientModel = _clientModel;
+    if (clientModel) {
+        connect(clientModel, &ClientModel::numBlocksChanged,
+                this, [this](int, const QDateTime&, double, bool header) {
+                    if (!header && clientModel && !clientModel->inInitialBlockDownload())
+                        scheduleRefreshList();
+                });
+    }
     refreshList();
+}
+
+void SparkNamesPage::scheduleRefreshList()
+{
+    if (refreshScheduled)
+        return;
+
+    refreshScheduled = true;
+    QTimer::singleShot(0, this, [this]() {
+        refreshScheduled = false;
+        refreshList();
+    });
 }
 
 void SparkNamesPage::on_createSparkNameButton_clicked()
@@ -244,7 +291,6 @@ void SparkNamesPage::on_createSparkNameButton_clicked()
     CreateSparkNamePage *dialog = new CreateSparkNamePage(platformStyle, this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModel(model);
-    connect(dialog, &QDialog::accepted, this, &SparkNamesPage::refreshList);
     dialog->show();
 }
 
@@ -257,24 +303,51 @@ void SparkNamesPage::refreshList()
         return;
     }
 
-    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::vector<CSparkNameBlockIndexData> sparkNames;
-    int currentHeight = 0;
-    {
-        LOCK(cs_main);
-        sparkNames = sparkNameManager->DumpSparkNameData();
-        currentHeight = chainActive.Height();
+    if (!addressModel) {
+        updateEmptyState();
+        return;
     }
+
+    struct SparkNameDisplayData {
+        QString name;
+        QString address;
+        uint64_t validityHeight;
+        QString additionalInfo;
+    };
+
+    std::vector<SparkNameDisplayData> sparkNames;
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    for (int row = 0; row < addressModel->rowCount(QModelIndex()); ++row) {
+        const QModelIndex labelIndex = addressModel->index(row, AddressTableModel::Label, QModelIndex());
+        if (labelIndex.data(AddressTableModel::AddressTypeRole).toString() != AddressTableModel::SparkName ||
+            !labelIndex.data(AddressTableModel::IsMineRole).toBool()) {
+            continue;
+        }
+
+        const QString displayName = labelIndex.data(Qt::DisplayRole).toString();
+        const QString rawName = displayName.startsWith('@') ? displayName.mid(1) : displayName;
+        try {
+            sparkNames.push_back({
+                displayName,
+                addressModel->index(row, AddressTableModel::Address, QModelIndex()).data(Qt::DisplayRole).toString(),
+                sparkNameManager->GetSparkNameBlockHeight(rawName.toStdString()),
+                QString::fromStdString(sparkNameManager->GetSparkNameAdditionalData(rawName.toStdString()))});
+        } catch (const std::runtime_error&) {
+            // The address cache may briefly outlive a name removed by a new block or reorg.
+        }
+    }
+
+    std::sort(sparkNames.begin(), sparkNames.end(), [](const auto& left, const auto& right) {
+        return QString::localeAwareCompare(left.name, right.name) < 0;
+    });
+
+    const int currentHeight = clientModel ? clientModel->getNumBlocks() : 0;
 
     constexpr int nBlocksPerHour = 24;
     constexpr int nBlocksPerMonth = nBlocksPerHour * 24 * 30;
 
     for (const auto &entry : sparkNames) {
-        const QString address = QString::fromStdString(entry.sparkAddress);
-        if (!model->isSparkAddressMine(address))
-            continue;
-
-        const int remainingBlocks = (int)entry.sparkNameValidityHeight - currentHeight;
+        const qint64 remainingBlocks = static_cast<qint64>(entry.validityHeight) - currentHeight;
         QString expiry;
         int statusKind;
         if (remainingBlocks <= 0) {
@@ -283,13 +356,12 @@ void SparkNamesPage::refreshList()
         } else {
             const QDateTime expiryDate = QDateTime::currentDateTime().addSecs(
                 (qint64)remainingBlocks * 3600 / nBlocksPerHour);
-            expiry = expiryDate.toString("MMMM d, yyyy");
+            expiry = QLocale::system().toString(expiryDate.date(), QLocale::LongFormat);
             statusKind = remainingBlocks < nBlocksPerMonth ? 1 : 0;
         }
 
         QFrame *card = createSparkNameCard(
-            QStringLiteral("@") + QString::fromStdString(entry.name),
-            address, expiry, statusKind, QString::fromStdString(entry.additionalInfo));
+            entry.name, entry.address, expiry, statusKind, entry.additionalInfo);
         namesCardsLayout->addWidget(card);
     }
 
@@ -332,22 +404,22 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     titleCol->setSpacing(2);
     auto* nameLab = new QLabel(name, frame);
     nameLab->setObjectName(QStringLiteral("cardTitle"));
+    nameLab->setTextFormat(Qt::PlainText);
     auto* addressLab = new QLabel(elideMiddle(address, 12, 8), frame);
     addressLab->setObjectName(QStringLiteral("cardSubtitle"));
+    addressLab->setTextFormat(Qt::PlainText);
+    addressLab->setToolTip(address);
     titleCol->addWidget(nameLab);
     titleCol->addWidget(addressLab);
     header->addLayout(titleCol, 1);
 
     QString badgeBg = tc.tealTint;
-    QString badgeFg = tc.teal;
     QString statusText = tr("Active");
     if (statusKind == 1) {
         badgeBg = tc.goldTint;
-        badgeFg = tc.gold;
         statusText = tr("Expiring Soon");
     } else if (statusKind == 2) {
         badgeBg = tc.wineTint;
-        badgeFg = tc.wine;
         statusText = tr("Expired");
     }
     auto* statusLab = new QLabel(statusText, frame);
@@ -356,8 +428,8 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     statusLab->setMinimumHeight(22);
     statusLab->setStyleSheet(QStringLiteral(
         "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
-        " padding: 2px 10px; font-size: 10px; font-weight: 700; }")
-                                 .arg(badgeBg, badgeFg));
+        " padding: 2px 10px; font-size: 12px; font-weight: 700; }")
+                                 .arg(badgeBg, tc.ink));
     header->addWidget(statusLab, 0, Qt::AlignVCenter);
 
     root->addLayout(header);
@@ -415,7 +487,6 @@ void SparkNamesPage::extendSparkName(const QString &name, const QString &address
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModel(model);
     dialog->setExtendMode(name, address);
-    connect(dialog, &QDialog::accepted, this, &SparkNamesPage::refreshList);
     dialog->show();
 }
 
@@ -429,6 +500,16 @@ void SparkNamesPage::updateEmptyState()
     }
     if (namesCardsHost)
         namesCardsHost->setVisible(hasEntries);
+}
+
+bool SparkNamesPage::eventFilter(QObject *object, QEvent *event)
+{
+    if (object == namesScroll->viewport()
+        && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
+        updateEmptyState();
+    }
+
+    return QWidget::eventFilter(object, event);
 }
 
 void SparkNamesPage::applyTheme()
@@ -445,7 +526,7 @@ QFrame#sparkNamesContentCard {
 QLabel#headerLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
 }
 QScrollArea#sparkNamesScroll,
@@ -460,30 +541,30 @@ QFrame#sparkNameCard {
   border-radius: 16px;
 }
 QFrame#sparkNameCard QLabel#cardTitle {
-  color: $INK; font-size: 13px; font-weight: 700;
+  color: $INK; font-size: 16px; font-weight: 700;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardSubtitle {
-  color: $INK_SOFT; font-size: 10px; font-weight: 500;
+  color: $INK_SOFT; font-size: 12px; font-weight: 500;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricCaption {
-  color: $INK_SOFT; font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+  color: $INK_SOFT; font-size: 12px; font-weight: 700; letter-spacing: 0.4px;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricValue {
-  color: $INK; font-size: 12px; font-weight: 700;
+  color: $INK; font-size: 14px; font-weight: 700;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton {
   color: $INK_SOFT; background: $PANEL; border: 1px solid $BORDER; border-radius: 8px;
-  padding: 4px 10px; font-size: 10px; font-weight: 600;
+  padding: 4px 10px; font-size: 12px; font-weight: 600;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton:hover {
-  color: $WINE; border-color: $WINE;
+  color: $INK; border-color: $WINE;
 }
     )")));
 
@@ -494,11 +575,14 @@ QFrame#sparkNameCard QToolButton#cardActionButton:hover {
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 11px; font-weight: 700;")));
+            "color: $INK; font-size: 14px; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_FAINT; font-size: 10px;")));
+            "color: $INK_SOFT; font-size: 12px;")));
     }
+
+    if (model)
+        scheduleRefreshList();
 }

@@ -83,13 +83,14 @@ void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
     Q_EMIT masternodeListChanged();
 }
 
-CDeterministicMNList ClientModel::getMasternodeList() const
+bool ClientModel::tryGetMasternodeList(CDeterministicMNList& mnList) const
 {
     TRY_LOCK(cs_mnlinst,lock);
     if (!lock)
-        return CDeterministicMNList();
+        return false;
 
-    return mnListCached;
+    mnList = mnListCached;
+    return true;
 }
 
 void ClientModel::refreshMasternodeList()

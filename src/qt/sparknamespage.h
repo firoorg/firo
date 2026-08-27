@@ -9,13 +9,14 @@ namespace Ui {
 
 class PlatformStyle;
 class WalletModel;
+class AddressTableModel;
+class ClientModel;
 
 QT_BEGIN_NAMESPACE
 class QLabel;
 class QVBoxLayout;
 class QScrollArea;
 class QFrame;
-class QShowEvent;
 QT_END_NAMESPACE
 
 /** Page listing the wallet's own registered Spark Names, their expiry, and letting the user create new ones. */
@@ -28,14 +29,15 @@ public:
     ~SparkNamesPage();
 
     void setModel(WalletModel *model);
-
-protected:
-    void showEvent(QShowEvent *event) override;
+    void setClientModel(ClientModel *clientModel);
 
 private:
     Ui::SparkNamesPage *ui;
     const PlatformStyle *platformStyle;
     WalletModel *model;
+    AddressTableModel *addressModel;
+    ClientModel *clientModel;
+    bool refreshScheduled;
 
     QWidget *emptyState;
     QLabel *emptyIcon_;
@@ -46,7 +48,9 @@ private:
     QVBoxLayout *namesCardsLayout;
 
     void refreshList();
+    void scheduleRefreshList();
     void updateEmptyState();
+    bool eventFilter(QObject *object, QEvent *event) override;
     void applyTheme();
     QFrame *createSparkNameCard(const QString &name, const QString &address, const QString &expiry,
                                  int statusKind, const QString &additionalInfo);

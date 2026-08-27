@@ -98,6 +98,14 @@ static QString stylesheetDirectory = ":css";
 static QString firoTheme = "firoTheme";
 static CCriticalSection cs_css;
 
+QSize availableScreenSize(const QWidget* widget)
+{
+    const QScreen* screen = widget ? widget->screen() : QApplication::primaryScreen();
+    if (!screen)
+        screen = QApplication::primaryScreen();
+    return screen ? screen->availableGeometry().size() : QSize(1200, 800);
+}
+
 void runWalletOperation(const std::function<void()>& operation)
 {
     std::exception_ptr exception;
@@ -939,25 +947,25 @@ void TextElideStyledItemDelegate::initStyleOption(QStyleOptionViewItem *option, 
 
 static QString darkModeOverrideCss()
 {
-    return QStringLiteral(R"(
-        QDialog, QMainWindow, QMenuBar, QStatusBar, RPCConsole, QWidget#RPCConsole { background-color: #110C12; color: #F5EFF3; }
-        QWidget { color: #F5EFF3; }
+    return themed(QStringLiteral(R"(
+        QDialog, QMainWindow, QMenuBar, QStatusBar, RPCConsole, QWidget#RPCConsole { background-color: $BG; color: $INK; }
+        QWidget { color: $INK; }
         QFrame { background-color: transparent; }
-        QToolBar { background-color: #1C151B; }
-        QLabel { background-color: transparent; color: #F5EFF3; }
-        QGroupBox { background-color: #1C151B; color: #F5EFF3; border-color: #362A34; }
-        QGroupBox::title { background-color: #110C12; color: #F5EFF3; }
-        QTabWidget::pane { background-color: #1C151B; border: 1px solid #362A34; }
-        QTabBar { background-color: #110C12; }
+        QToolBar { background-color: $PANEL; }
+        QLabel { background-color: transparent; color: $INK; }
+        QGroupBox { background-color: $PANEL; color: $INK; border-color: $BORDER; }
+        QGroupBox::title { background-color: $BG; color: $INK; }
+        QTabWidget::pane { background-color: $PANEL; border: 1px solid $BORDER; }
+        QTabBar { background-color: $BG; }
         QTabBar::tab {
-            background-color: #1C151B; color: #B4A8B2; border: 1px solid #362A34;
+            background-color: $PANEL; color: $INK_SOFT; border: 1px solid $BORDER;
             border-bottom: none; padding: 6px 12px;
         }
-        QTabBar::tab:selected { background-color: #A3223F; color: #FFFFFF; }
-        QTabBar::tab:hover:!selected { background-color: #241B22; color: #F5EFF3; }
+        QTabBar::tab:selected { background-color: $WINE_DEEP; color: $INK; }
+        QTabBar::tab:hover:!selected { background-color: $PANEL_SOFT; color: $INK; }
         QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QAbstractSpinBox {
-            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
-            selection-background-color: #DE3358;
+            background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
+            selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
         }
         QSpinBox::up-button, QSpinBox::down-button,
         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
@@ -966,61 +974,141 @@ static QString darkModeOverrideCss()
         QAbstractSpinBox QLineEdit {
             background-color: transparent; border: none;
         }
+        BitcoinAmountField[invalidInput="true"],
+        QAbstractSpinBox[invalidInput="true"],
+        QPlainTextEdit[invalidInput="true"],
+        QLineEdit[invalidInput="true"] {
+            border-color: $ERROR;
+        }
         QComboBox {
-            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+            background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
         }
         QComboBox QAbstractItemView {
-            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
-            selection-background-color: #DE3358; selection-color: #FFFFFF;
+            background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
+            selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
         }
         QComboBox QListView {
-            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+            background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
         }
         QComboBox::item {
-            color: #F5EFF3;
+            color: $INK;
         }
         QComboBox::item:alternate {
-            background-color: #1C151B; color: #F5EFF3;
+            background-color: $PANEL; color: $INK;
         }
         QComboBox::item:selected {
-            background-color: #DE3358; color: #FFFFFF;
+            background-color: $WINE_DEEP; color: #FFFFFF;
         }
         QMenu {
-            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+            background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
         }
-        QMenu::item { color: #F5EFF3; }
-        QMenu::item:selected { background-color: #362A34; color: #F5EFF3; }
-        QMenu::item:disabled { color: #6E5C68; }
-        QMenuBar::item:selected { background-color: #362A34; }
+        QMenu::item { color: $INK; }
+        QMenu::item:selected { background-color: $BORDER; color: $INK; }
+        QMenu::item:disabled { color: $INK_FAINT; }
+        QMenuBar::item:selected { background-color: $BORDER; }
         QTableView, QTreeView, QListView {
-            background-color: #1C151B; color: #F5EFF3;
-            alternate-background-color: #241B22;
-            gridline-color: #362A34;
-            selection-background-color: rgba(222,51,88,0.22);
-            selection-color: #F5EFF3;
+            background-color: $PANEL; color: $INK;
+            alternate-background-color: $PANEL_SOFT;
+            gridline-color: $BORDER;
+            selection-background-color: $WINE_TINT;
+            selection-color: $INK;
         }
-        QHeaderView::section { background-color: transparent; color: #8A7E88; }
-        QHeaderView::section:hover { background-color: #241B22; color: #F5EFF3; }
-        QScrollBar:vertical, QScrollBar:horizontal { background: #1C151B; border: none; }
-        QScrollBar::handle { background: #362A34; border-radius: 4px; }
-        QScrollBar::handle:hover { background: #4A3A45; }
+        QHeaderView::section { background-color: transparent; color: $INK_FAINT; }
+        QHeaderView::section:hover { background-color: $PANEL_SOFT; color: $INK; }
+        QScrollBar:vertical, QScrollBar:horizontal { background: $PANEL; border: none; }
+        QScrollBar::handle { background: $BORDER; border-radius: 4px; }
+        QScrollBar::handle:hover { background: $INK_FAINT; }
         QScrollBar::add-line, QScrollBar::sub-line { background: none; border: none; }
         QToolTip {
-            background-color: #241B22; color: #F5EFF3; border: 1px solid #362A34;
+            background-color: $PANEL_SOFT; color: $INK; border: 1px solid $BORDER;
         }
-        QMessageBox { background-color: #1C151B; }
-        QTabWidget::pane { background-color: #1C151B; border-color: #362A34; }
-        QCheckBox, QRadioButton { color: #F5EFF3; background-color: transparent; }
+        QMessageBox { background-color: $PANEL; }
+        QTabWidget::pane { background-color: $PANEL; border-color: $BORDER; }
+        QCheckBox, QRadioButton { color: $INK; background-color: transparent; }
+        QCheckBox::indicator:unchecked,
+        QCheckBox::indicator:unchecked:pressed,
+        QTreeWidget::indicator:unchecked,
+        QTreeWidget::indicator:unchecked:pressed {
+            image: url(:/images/checkbox_normal_dark);
+        }
+        QCheckBox::indicator:checked,
+        QCheckBox::indicator:checked:pressed,
+        QTreeWidget::indicator:checked,
+        QTreeWidget::indicator:checked:pressed {
+            image: url(:/images/checkbox_checked_dark);
+        }
+        QCheckBox::indicator:indeterminate,
+        QCheckBox::indicator:indeterminate:pressed,
+        QTreeWidget::indicator:indeterminate,
+        QTreeWidget::indicator:indeterminate:pressed {
+            image: url(:/images/checkbox_partly_checked_dark);
+        }
+        QCheckBox::indicator:hover:!pressed:unchecked,
+        QTreeWidget::indicator:hover:unchecked {
+            image: url(:/images/checkbox_normal_hover_dark);
+        }
+        QCheckBox::indicator:checked:!pressed:hover,
+        QTreeWidget::indicator:checked:hover {
+            image: url(:/images/checkbox_checked_hover_dark);
+        }
+        QCheckBox::indicator:indeterminate:hover,
+        QTreeWidget::indicator:indeterminate:!pressed:hover {
+            image: url(:/images/checkbox_partly_checked_hover_dark);
+        }
+        QCheckBox::indicator:unchecked:disabled,
+        QTreeWidget::indicator:unchecked:disabled {
+            image: url(:/images/checkbox_normal_disabled_dark);
+        }
+        QCheckBox::indicator:checked:disabled,
+        QTreeWidget::indicator:checked:disabled {
+            image: url(:/images/checkbox_checked_disabled_dark);
+        }
+        QCheckBox::indicator:indeterminate:disabled,
+        QTreeWidget::indicator:indeterminate:disabled {
+            image: url(:/images/checkbox_partly_checked_disabled_dark);
+        }
+        QRadioButton::indicator:unchecked,
+        QRadioButton::indicator:unchecked:pressed {
+            image: url(:/images/radio_normal_dark);
+        }
+        QRadioButton::indicator:checked,
+        QRadioButton::indicator:checked:pressed {
+            image: url(:/images/radio_checked_dark);
+        }
+        QRadioButton::indicator:hover:unchecked:!pressed {
+            image: url(:/images/radio_normal_hover_dark);
+        }
+        QRadioButton::indicator:checked:hover:!pressed {
+            image: url(:/images/radio_checked_hover_dark);
+        }
+        QRadioButton::indicator:unchecked:disabled {
+            image: url(:/images/radio_normal_disabled_dark);
+        }
+        QRadioButton::indicator:checked:disabled {
+            image: url(:/images/radio_checked_disabled_dark);
+        }
+        QAbstractSpinBox::up-arrow { image: url(:/images/arrow_light_up_normal); }
+        QAbstractSpinBox::up-arrow:hover { image: url(:/images/arrow_light_up_hover); }
+        QAbstractSpinBox::down-arrow { image: url(:/images/arrow_light_down_normal); }
+        QAbstractSpinBox::down-arrow:hover { image: url(:/images/arrow_light_down_hover); }
+        QComboBox::down-arrow { image: url(:/images/arrow_light_down_normal); }
+        QComboBox::down-arrow:hover { image: url(:/images/arrow_light_down_hover); }
+        QHeaderView::down-arrow { image: url(:/images/arrow_light_down_normal); }
+        QHeaderView::up-arrow { image: url(:/images/arrow_light_up_normal); }
+        QTreeWidget::branch::closed:has-children { image: url(:/images/arrow_light_right_normal); }
+        QTreeWidget::branch::closed:has-children:hover { image: url(:/images/arrow_light_right_hover); }
+        QTreeWidget::branch::open { image: url(:/images/arrow_light_down_normal); }
+        QTreeWidget::branch::open:hover { image: url(:/images/arrow_light_down_hover); }
         QWidget#RPCConsole QPushButton#promptIcon,
         QWidget#RPCConsole QPushButton#fontSmallerButton,
         QWidget#RPCConsole QPushButton#fontBiggerButton,
         QWidget#RPCConsole QPushButton#clearButton {
-            background-color: #241B22; color: #F5EFF3;
+            background-color: $PANEL_SOFT; color: $INK;
         }
         QWidget#RPCConsole QLineEdit#lineEdit {
-            background-color: #1C151B; color: #F5EFF3; border: 1px solid #362A34;
+            background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
         }
-    )");
+    )"), ThemeMode::Dark);
 }
 
 void loadTheme()

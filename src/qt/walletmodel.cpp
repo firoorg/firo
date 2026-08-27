@@ -969,15 +969,16 @@ void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
     wallet->ListLockedCoins(vOutpts);
 }
 
-void WalletModel::listProTxCoins(std::vector<COutPoint>& vOutpts)
+bool WalletModel::listProTxCoins(std::vector<COutPoint>& vOutpts)
 {
     TRY_LOCK(cs_main,lock_main);
     if (!lock_main)
-        return;
+        return false;
     TRY_LOCK(wallet->cs_wallet,lock_wallet);
     if (!lock_wallet)
-        return;
+        return false;
     wallet->ListProTxCoins(vOutpts);
+    return true;
 }
 
 bool WalletModel::hasMasternode()

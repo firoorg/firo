@@ -19,6 +19,8 @@
 #include <QMouseEvent>
 #include <QPixmap>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QVBoxLayout>
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
@@ -97,6 +99,29 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    ui->verticalLayout_3->removeWidget(ui->lblQRCode);
+    ui->verticalLayout_3->removeWidget(ui->outUri);
+    auto* scrollContents = new QWidget(this);
+    auto* scrollLayout = new QVBoxLayout(scrollContents);
+    scrollLayout->setContentsMargins(0, 0, 0, 0);
+    scrollLayout->setSpacing(14);
+    scrollLayout->addWidget(ui->lblQRCode);
+    scrollLayout->addWidget(ui->outUri);
+
+    auto* scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("paymentRequestScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(scrollContents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#paymentRequestScroll { background: transparent; border: none; }"));
+    ui->verticalLayout_3->insertWidget(0, scroll, 1);
+
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
+
 #ifndef USE_QRCODE
     ui->btnSaveAs->setVisible(false);
     ui->lblQRCode->setVisible(false);
@@ -156,7 +181,6 @@ void ReceiveRequestDialog::update()
 {
     if(!model || !walletModel)
         return;
-    resize(width(), 760);
     QString target = info.label;
     if(target.isEmpty())
         target = info.address;
@@ -166,9 +190,9 @@ void ReceiveRequestDialog::update()
     ui->btnSaveAs->setEnabled(false);
 
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    const QString captionStyle = QStringLiteral("color:%1; font-size:11px; font-weight:700;").arg(tc.wine);
+    const QString captionStyle = QStringLiteral("color:%1; font-size:12px; font-weight:700;").arg(tc.inkSoft);
     const QString valueStyle = QStringLiteral(
-        "color:%1; font-family:'Menlo','Courier New',monospace; font-size:12px;").arg(tc.ink);
+        "color:%1; font-family:monospace; font-size:12px;").arg(tc.ink);
     const auto section = [&](const QString& caption, const QString& value) {
         return QStringLiteral("<p style=\"margin:0 0 4px 0;\"><span style=\"%1\">%2</span></p>"
                               "<p style=\"margin:0 0 14px 0;\"><span style=\"%3\">%4</span></p>")

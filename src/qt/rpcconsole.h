@@ -12,6 +12,7 @@
 
 #include <QWidget>
 #include <QCompleter>
+#include <QStringList>
 #include <QThread>
 
 class ClientModel;
@@ -125,6 +126,8 @@ Q_SIGNALS:
 
 private:
     void applyConsoleTheme();
+    void updateConsoleDocumentStyle();
+    void rebuildConsoleMessages();
     static QString FormatBytes(quint64 bytes);
     void startExecutor();
     void setTrafficGraphRange(int mins);
@@ -152,7 +155,9 @@ private:
     RPCTimerInterface *rpcTimerInterface;
     QMenu *peersTableContextMenu;
     QMenu *banTableContextMenu;
-    int consoleFontSize;
+    int consoleFontSize{0};
+    QStringList consoleMessages;
+    qint64 consoleMessageCharacters{0};
     QCompleter *autoCompleter;
     QThread thread;
 

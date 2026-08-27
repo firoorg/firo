@@ -8,16 +8,19 @@
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "createsparknamepage.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "receiverequestdialog.h"
 #include "recentrequeststablemodel.h"
+#include "sparkname.h"
 #include "walletmodel.h"
 
 #include <QAction>
 #include <QCursor>
+#include <QEvent>
 #include <QItemSelection>
 #include <QLabel>
 #include <QMessageBox>
@@ -27,9 +30,11 @@
 #include <QStyledItemDelegate>
 #include <QTextDocument>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QScreen>
+#include <QScrollArea>
 #include <QVBoxLayout>
 #include <QVector>
 
@@ -96,7 +101,7 @@ public:
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
             QFont timeFont = option.font;
-            timeFont.setPixelSize(10);
+            timeFont.setPixelSize(12);
             painter->setFont(timeFont);
             painter->setPen(QColor(tc.inkFaint));
             painter->drawText(QRect(dateRect.left(), dateRect.bottom() - 2, dateRect.width(), 16),
@@ -118,7 +123,7 @@ public:
             const QString text = index.data(Qt::DisplayRole).toString();
             const bool spark = text.compare(QLatin1String("spark"), Qt::CaseInsensitive) == 0;
             QFont badgeFont = option.font;
-            badgeFont.setPixelSize(10);
+            badgeFont.setPixelSize(12);
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const int w = qMin(option.rect.width() - 16, QFontMetrics(badgeFont).boundingRect(text).width() + 18);
@@ -126,14 +131,14 @@ public:
             painter->setPen(Qt::NoPen);
             painter->setBrush(spark ? QColor(tc.wineTint) : QColor(tc.border));
             painter->drawRoundedRect(badge, 11, 11);
-            painter->setPen(spark ? QColor(tc.wine) : QColor(tc.inkSoft));
+            painter->setPen(spark ? QColor(tc.ink) : QColor(tc.inkSoft));
             painter->drawText(badge, Qt::AlignCenter, text);
             break;
         }
         case RecentRequestsTableModel::Message: {
             const QString text = index.data(Qt::DisplayRole).toString();
             QFont font = option.font;
-            font.setPixelSize(11);
+            font.setPixelSize(12);
             painter->setFont(font);
             painter->setPen(QColor(tc.inkSoft));
             painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
@@ -143,15 +148,16 @@ public:
         case RecentRequestsTableModel::Amount: {
             const QString amountText = index.data(Qt::DisplayRole).toString();
             QFont capFont = option.font;
-            capFont.setPixelSize(8);
+            capFont.setPixelSize(12);
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
             painter->drawText(option.rect.adjusted(8, 12, -14, -28),
-                              Qt::AlignRight | Qt::AlignVCenter, QObject::tr("REQUESTED"));
+                              Qt::AlignRight | Qt::AlignVCenter,
+                              QCoreApplication::translate("ReceiveCoinsDialog", "REQUESTED"));
 
             QFont amtFont = option.font;
-            amtFont.setPixelSize(13);
+            amtFont.setPixelSize(14);
             amtFont.setBold(true);
             painter->setFont(amtFont);
             painter->setPen(QColor(tc.ink));
@@ -180,6 +186,22 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     recentRequestsProxyModel(0)
 {
     ui->setupUi(this);
+    ui->recentRequestsView->viewport()->installEventFilter(this);
+
+    ui->verticalLayout->removeWidget(ui->frame2);
+    auto* requestFormContents = new QWidget(this);
+    auto* requestFormLayout = new QVBoxLayout(requestFormContents);
+    requestFormLayout->setContentsMargins(0, 0, 0, 0);
+    requestFormLayout->addWidget(ui->frame2);
+    auto* requestFormScroll = new QScrollArea(this);
+    requestFormScroll->setObjectName(QStringLiteral("requestFormScroll"));
+    requestFormScroll->setWidgetResizable(true);
+    requestFormScroll->setFrameShape(QFrame::NoFrame);
+    requestFormScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    requestFormScroll->setWidget(requestFormContents);
+    requestFormScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#requestFormScroll { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, requestFormScroll);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->clearButton->setIcon(QIcon());
@@ -205,6 +227,10 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
     ui->addressTypeHistoryCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeHistoryCombobox->addItem(tr("Transparent"), Transparent);
+    ui->addressTypeCombobox->setMinimumWidth(130);
+    ui->addressTypeHistoryCombobox->setMinimumWidth(130);
+    ui->addressTypeCombobox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    ui->addressTypeHistoryCombobox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
     // context menu actions
     QAction *copyURIAction = new QAction(tr("Copy URI"), this);
@@ -227,8 +253,13 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(copyAmountAction, &QAction::triggered, this, &ReceiveCoinsDialog::copyAmount);
 
     connect(ui->clearButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::clear);
+    connect(ui->createSparkNameButton, &QPushButton::clicked,
+            this, &ReceiveCoinsDialog::createSparkName);
+    connect(ui->mySparkNamesButton, &QPushButton::clicked,
+            this, &ReceiveCoinsDialog::mySparkNames);
     connect(ui->addressTypeHistoryCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::chooseType);
     connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
+    displayCheckBox(ui->addressTypeCombobox->currentIndex());
 
     ui->frame2->setAttribute(Qt::WA_StyledBackground, true);
     ui->frame->setAttribute(Qt::WA_StyledBackground, true);
@@ -274,14 +305,14 @@ void ReceiveCoinsDialog::applyTheme()
     ui->frame->setStyleSheet(cardStyle);
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"));
     for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
     ui->label_5->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     ui->label_6->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 15px; font-weight: 700; }")));
+        "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }")));
 
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QLineEdit, AmountSpinBox {"
@@ -293,7 +324,7 @@ void ReceiveCoinsDialog::applyTheme()
         "}"
         "AmountSpinBox QLineEdit { %1 }"
         "QLineEdit[invalidInput=\"true\"], AmountSpinBox[invalidInput=\"true\"] {"
-        " border-color: #E5484D;"
+        " border-color: $ERROR;"
         "}"
         "QLineEdit:focus, AmountSpinBox:focus {"
         " background: $PANEL_SOFT;"
@@ -331,7 +362,7 @@ void ReceiveCoinsDialog::applyTheme()
         " color: $INK;"
         "}"
         "QComboBox::item:selected {"
-        " background: $WINE;"
+        " background: $WINE_DEEP;"
         " color: #FFFFFF;"
         "}"));
     ui->addressTypeCombobox->setStyleSheet(comboStyle);
@@ -342,14 +373,16 @@ void ReceiveCoinsDialog::applyTheme()
     ui->receiveButton->setStyleSheet(primaryButtonStyle);
     GUIUtil::applyPrimaryButtonShadow(ui->receiveButton);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
+    ui->mySparkNamesButton->setStyleSheet(secondaryButtonStyle);
+    ui->createSparkNameButton->setStyleSheet(secondaryButtonStyle);
     ui->showRequestButton->setStyleSheet(secondaryButtonStyle);
     ui->removeRequestButton->setStyleSheet(secondaryButtonStyle);
 
     ui->recentRequestsView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
-        " background: transparent; border: none; color: $INK_FAINT;"
-        " font-size: 10px; font-weight: 700; padding: 6px;"
+        " background: transparent; border: none; color: $INK_SOFT;"
+        " font-size: 12px; font-weight: 700; padding: 6px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->recentRequestsView->viewport())
@@ -362,11 +395,11 @@ void ReceiveCoinsDialog::applyTheme()
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }")));
+            "QLabel { background: transparent; color: $INK; font-size: 14px; font-weight: 700; }")));
     }
     if (emptyHint_) {
         emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_FAINT; font-size: 9px; }")));
+            "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     }
 }
 
@@ -404,13 +437,15 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setColumnWidth(RecentRequestsTableModel::AddressType, ADDRESSTYPE_COLUMN_WIDTH);
         tableView->setColumnWidth(RecentRequestsTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
         tableView->horizontalHeader()->setMinimumSectionSize(23);
-        tableView->horizontalHeader()->setStretchLastSection(true);
+        tableView->horizontalHeader()->setStretchLastSection(false);
+        updateRequestColumnWidths();
 
         auto wallet = _model->getWallet();
         if (!wallet || !wallet->sparkWallet) {
             ui->addressTypeCombobox->removeItem(0);
             ui->reuseAddress->show();
         }
+        displayCheckBox(ui->addressTypeCombobox->currentIndex());
 
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
                 this, &ReceiveCoinsDialog::recentRequestsView_selectionChanged);
@@ -493,7 +528,31 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         if(selectedAddressType == Transparent) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
         } else if(selectedAddressType == Spark) {
-            address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            if (label.startsWith(QLatin1Char('@'))) {
+                const QString sparkName = label.mid(1);
+                if (!CSparkNameManager::IsSparkNameValid(sparkName.toStdString())) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("\"%1\" is not a valid Spark Name.").arg(label));
+                    return;
+                }
+                address = model->getSparkNameAddress(sparkName);
+                if (address.isEmpty()) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("Spark Name \"%1\" was not found or has expired.").arg(sparkName));
+                    return;
+                }
+                if (!model->isSparkAddressMine(address)) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("Spark Name \"%1\" does not belong to this wallet.").arg(sparkName));
+                    return;
+                }
+            } else {
+                address = model->getAddressTableModel()->addRow(
+                    AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            }
         }
     }
     if(address.isEmpty())
@@ -646,11 +705,42 @@ void ReceiveCoinsDialog::copyAmount()
 
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
-    if(ui->addressTypeCombobox->itemData(idx).toInt() == Spark){
-        ui->reuseAddress->hide();
-    } else {
-        ui->reuseAddress->show();
-    }
+    const bool sparkSelected = idx >= 0 && ui->addressTypeCombobox->itemData(idx).toInt() == Spark;
+    ui->reuseAddress->setVisible(!sparkSelected);
+    ui->sparkNameActions->setVisible(sparkSelected);
+}
+
+void ReceiveCoinsDialog::createSparkName()
+{
+    if (!model)
+        return;
+
+    auto* dialog = new CreateSparkNamePage(platformStyle, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModel(model);
+    dialog->show();
+}
+
+void ReceiveCoinsDialog::mySparkNames()
+{
+    if (!model || !model->getAddressTableModel())
+        return;
+
+    AddressBookPage dialog(
+        platformStyle, AddressBookPage::ForSelection,
+        AddressBookPage::ReceivingTab, this, false);
+    dialog.setInitialAddressType(AddressBookPage::SparkNameMine);
+    dialog.setModel(model->getAddressTableModel());
+    if (!dialog.exec())
+        return;
+
+    QString label = dialog.getReturnLabel();
+    if (label.isEmpty())
+        return;
+    if (!label.startsWith(QLatin1Char('@')))
+        label.prepend(QLatin1Char('@'));
+
+    ui->reqLabel->setText(label);
 }
 
 void ReceiveCoinsDialog::chooseType(int idx)
@@ -698,60 +788,35 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     const int newHeight = event->size().height();
     
     adjustTextSize(newWidth,newHeight);
-    // Set fixed, minimum, and maximum sizes for ComboBoxes
-    int comboBoxMinHeight = 20;
-    int comboBoxMaxHeight = 40;
-    FIRO_UNUSED int comboBoxWidth = newWidth * 0.08;
-    int comboBoxMinWidth = newWidth * 0.05; 
-    int comboBoxMaxWidth = newWidth * 0.1; 
+}
 
-    ui->addressTypeCombobox->setMinimumWidth(comboBoxMinWidth);
-    ui->addressTypeCombobox->setMaximumWidth(comboBoxMaxWidth);
-    ui->addressTypeCombobox->setMinimumHeight(comboBoxMinHeight);
-    ui->addressTypeCombobox->setMaximumHeight(comboBoxMaxHeight);
+bool ReceiveCoinsDialog::eventFilter(QObject* object, QEvent* event)
+{
+    if (object == ui->recentRequestsView->viewport()
+        && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
+        updateRequestColumnWidths();
+    }
 
-    ui->addressTypeHistoryCombobox->setMinimumWidth(comboBoxMinWidth);
-    ui->addressTypeHistoryCombobox->setMaximumWidth(comboBoxMaxWidth);
-    ui->addressTypeHistoryCombobox->setMinimumHeight(comboBoxMinHeight);
-    ui->addressTypeHistoryCombobox->setMaximumHeight(comboBoxMaxHeight);
+    return QDialog::eventFilter(object, event);
+}
 
-    // Set sizes for buttons dynamically
-    int buttonMinHeight = 20;
-    int buttonMaxHeight = 35;
-    FIRO_UNUSED int buttonWidth = newWidth * 0.15;
-    int buttonMinWidth = newWidth * 0.1; 
-    int buttonMaxWidth = newWidth * 0.4; 
+void ReceiveCoinsDialog::updateRequestColumnWidths()
+{
+    const int availableWidth = ui->recentRequestsView->viewport()->width();
+    if (availableWidth <= 0)
+        return;
 
-    ui->clearButton->setMinimumWidth(buttonMinWidth);
-    ui->clearButton->setMaximumWidth(buttonMaxWidth);
-    ui->clearButton->setMinimumHeight(buttonMinHeight);
-    ui->clearButton->setMaximumHeight(buttonMaxHeight);
+    const int dateWidth = availableWidth * 23 / 100;
+    const int labelWidth = availableWidth * 17 / 100;
+    const int addressTypeWidth = availableWidth * 17 / 100;
+    const int messageWidth = availableWidth * 20 / 100;
+    const int amountWidth = availableWidth - dateWidth - labelWidth - addressTypeWidth - messageWidth;
 
-    ui->receiveButton->setMinimumWidth(buttonMinWidth);
-    ui->receiveButton->setMaximumWidth(buttonMaxWidth);
-    ui->receiveButton->setMinimumHeight(buttonMinHeight);
-    ui->receiveButton->setMaximumHeight(buttonMaxHeight);
-
-    ui->showRequestButton->setMinimumWidth(buttonMinWidth);
-    ui->showRequestButton->setMaximumWidth(buttonMaxWidth);
-    ui->showRequestButton->setMinimumHeight(buttonMinHeight);
-    ui->showRequestButton->setMaximumHeight(buttonMaxHeight);
-
-    ui->removeRequestButton->setMinimumWidth(buttonMinWidth);
-    ui->removeRequestButton->setMaximumWidth(buttonMaxWidth);
-    ui->removeRequestButton->setMinimumHeight(buttonMinHeight);
-    ui->removeRequestButton->setMaximumHeight(buttonMaxHeight);
-
-    // Adjust column widths proportionally
-    int dateColumnWidth = newWidth * 0.25;
-    int labelColumnWidth = newWidth * 0.25;
-    int addressTypeColumnWidth = newWidth * 0.25;
-    int amountColumnWidth = newWidth * 0.25;
-
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Date, dateColumnWidth);
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Label, labelColumnWidth);
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeColumnWidth);
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountColumnWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Date, dateWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Label, labelWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Message, messageWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountWidth);
 }
 void ReceiveCoinsDialog::adjustTextSize(int width,int height){
 

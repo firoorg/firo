@@ -18,6 +18,8 @@
 #include <QLabel>
 #include <QPropertyAnimation>
 #include <QSizePolicy>
+#include <QScrollArea>
+#include <QStyle>
 #include <QVBoxLayout>
 
 ModalOverlay::ModalOverlay(QWidget *parent) :
@@ -31,6 +33,20 @@ foreverHidden(false)
 {
     ui->setupUi(this);
     ui->contentWidget->setAttribute(Qt::WA_StyledBackground, true);
+    ui->verticalLayoutMain->removeWidget(ui->contentWidget);
+    ui->contentWidget->setMinimumSize(QSize(0, 0));
+    ui->contentWidget->setMaximumHeight(QWIDGETSIZE_MAX);
+    ui->contentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->verticalLayoutSub->setSizeConstraint(QLayout::SetMinimumSize);
+
+    auto* scrollArea = new QScrollArea(ui->bgWidget);
+    scrollArea->setObjectName(QStringLiteral("syncScrollArea"));
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setAlignment(Qt::AlignCenter);
+    scrollArea->setWidget(ui->contentWidget);
+    ui->verticalLayoutMain->addWidget(scrollArea, 1);
 
     ui->verticalLayoutSub->removeItem(ui->formLayout);
     auto* statsCard = new QFrame(ui->contentWidget);
@@ -42,6 +58,7 @@ foreverHidden(false)
     ui->verticalLayoutSub->insertWidget(2, statsCard);
 
     ui->formLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    ui->formLayout->setRowWrapPolicy(QFormLayout::WrapLongRows);
     ui->formLayout->setHorizontalSpacing(24);
     ui->formLayout->setVerticalSpacing(15);
 
@@ -90,7 +107,13 @@ foreverHidden(false)
 void ModalOverlay::applyTheme()
 {
     ui->bgWidget->setStyleSheet(QStringLiteral(
-        "#bgWidget { background-color: rgba(15, 23, 42, 148); }"));
+        "#bgWidget { background-color: rgba(17, 12, 18, 148); }"));
+
+    if (QScrollArea* scrollArea = findChild<QScrollArea*>(QStringLiteral("syncScrollArea"))) {
+        scrollArea->setStyleSheet(QStringLiteral(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }"));
+    }
 
     ui->contentWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
 #contentWidget {
@@ -105,7 +128,8 @@ void ModalOverlay::applyTheme()
 }
 #contentWidget QLabel#titleLabel {
     color: $INK;
-    font-size: 23px;
+    font-family: 'Saira SemiCondensed';
+    font-size: 24px;
     font-weight: 700;
 }
 #contentWidget QLabel#infoText {
@@ -127,7 +151,7 @@ void ModalOverlay::applyTheme()
 #contentWidget QLabel#labelSyncDone,
 #contentWidget QLabel#labelProgressIncrease,
 #contentWidget QLabel#labelEstimatedTimeLeft {
-    color: $INK_FAINT;
+    color: $INK_SOFT;
     font-weight: 700;
     font-size: 13px;
 }
@@ -150,7 +174,11 @@ void ModalOverlay::applyTheme()
 #contentWidget QProgressBar::chunk {
     border-radius: 5px;
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                stop:0 $WINE, stop:1 $WINE_DEEP);
+                                stop:0 $GOLD, stop:1 $GOLD);
+}
+#contentWidget QProgressBar[synced="true"]::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 $TEAL, stop:1 $TEAL);
 }
 #contentWidget QPushButton#closeButton {
     min-width: 112px;
@@ -190,6 +218,16 @@ ModalOverlay::~ModalOverlay()
     delete ui;
 }
 
+void ModalOverlay::setSyncComplete(bool complete)
+{
+    if (ui->progressBar->property("synced").toBool() == complete)
+        return;
+
+    ui->progressBar->setProperty("synced", complete);
+    ui->progressBar->style()->unpolish(ui->progressBar);
+    ui->progressBar->style()->polish(ui->progressBar);
+}
+
 bool ModalOverlay::eventFilter(QObject * obj, QEvent * ev) {
     if (obj == parent()) {
         if (ev->type() == QEvent::Resize) {
@@ -225,7 +263,21 @@ void ModalOverlay::setKnownBestHeight(int count, const QDateTime& blockDate)
     if (count > bestHeaderHeight) {
         bestHeaderHeight = count;
         bestHeaderDate = blockDate;
+        const qint64 estimatedHeadersLeft = qMax<qint64>(0, blockDate.secsTo(QDateTime::currentDateTime())) /
+                                            Params().GetConsensus().nPowTargetSpacing;
+        headerSyncPending = estimatedHeadersLeft >= HEADER_HEIGHT_DELTA_SYNC;
     }
+}
+
+double ModalOverlay::headerSyncProgress() const
+{
+    if (bestHeaderHeight <= 0 || !bestHeaderDate.isValid())
+        return 0.0;
+
+    const qint64 secondsBehind = qMax<qint64>(0, bestHeaderDate.secsTo(QDateTime::currentDateTime()));
+    const double estimatedHeadersLeft = static_cast<double>(secondsBehind) /
+                                        Params().GetConsensus().nPowTargetSpacing;
+    return qBound(0.0, bestHeaderHeight / (bestHeaderHeight + estimatedHeadersLeft), 1.0);
 }
 
 void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVerificationProgress)
@@ -270,8 +322,6 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
 
     // show the last block date
     ui->newestBlockDate->setText(blockDate.toString());
-
-    lastVerificationProgress = nVerificationProgress;
 
     // show the percentage done according to nVerificationProgress
     ui->percentageProgress->setText(QString::number(nVerificationProgress*100, 'f', 2)+"%");

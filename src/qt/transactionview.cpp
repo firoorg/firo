@@ -21,6 +21,7 @@
 
 #include <QComboBox>
 #include <QAbstractItemModel>
+#include <QCoreApplication>
 #include <QDateTimeEdit>
 #include <QDesktopServices>
 #include <QDoubleValidator>
@@ -37,12 +38,14 @@
 #include <QSizePolicy>
 #include <QTableView>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QPainter>
 #include <QPainterPath>
 #include <QCalendarWidget>
 #include <QGraphicsDropShadowEffect>
+#include <QGridLayout>
 #include <QPushButton>
 #include <QStyledItemDelegate>
 #include <QStyleOptionViewItem>
@@ -116,14 +119,17 @@ public:
             dateFont.setBold(true);
             painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
+            const int metadataWidth = 30 +
+                (index.data(TransactionTableModel::InstantSendRole).toBool() ? 20 : 0) +
+                (index.data(TransactionTableModel::WatchonlyRole).toBool() ? 20 : 0);
             const QRect dateRect(icon.right() + 10, option.rect.top() + 14,
-                                 option.rect.right() - icon.right() - 30, 18);
+                                 option.rect.right() - icon.right() - metadataWidth, 18);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.date(), QLocale::ShortFormat)
                                            : index.data(Qt::DisplayRole).toString());
 
             QFont timeFont = option.font;
-            timeFont.setPixelSize(10);
+            timeFont.setPixelSize(12);
             timeFont.setBold(false);
             painter->setFont(timeFont);
             painter->setPen(QColor(tc.inkFaint));
@@ -131,24 +137,34 @@ public:
             painter->drawText(timeRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.time(), QLocale::ShortFormat) : QString());
 
-            const QRect statusRect(option.rect.right() - 22, option.rect.center().y() - 8, 16, 16);
-            paintStatusIcon(painter, index, statusRect);
+            int iconRight = option.rect.right() - 6;
+            const auto paintMetadataIcon = [&](const QVariant& decoration) {
+                const QRect rect(iconRight - 16, option.rect.center().y() - 8, 16, 16);
+                if (paintDecorationIcon(painter, decoration, rect))
+                    iconRight -= 20;
+            };
+            paintMetadataIcon(index.sibling(index.row(), TransactionTableModel::Status)
+                                  .data(TransactionTableModel::RawDecorationRole));
+            paintMetadataIcon(index.data(TransactionTableModel::InstantSendDecorationRole));
+            paintMetadataIcon(index.data(TransactionTableModel::WatchonlyDecorationRole));
             break;
         }
         case TransactionTableModel::Type: {
-            const QString text = badgeText(txType, index.data(Qt::DisplayRole).toString());
+            const QString displayText = index.data(Qt::DisplayRole).toString();
             QFont badgeFont = option.font;
-            badgeFont.setPixelSize(10);
+            badgeFont.setPixelSize(12);
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const QFontMetrics fm(badgeFont);
+            const QString text = fm.elidedText(displayText, Qt::ElideRight,
+                                                std::max(0, option.rect.width() - 34));
             const int w = std::min(option.rect.width() - 16, fm.boundingRect(text).width() + 18);
             const QRect badge(option.rect.left() + 6,
                               option.rect.center().y() - 11, w, 22);
             painter->setPen(Qt::NoPen);
             painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
             painter->drawRoundedRect(badge, 11, 11);
-            painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
+            painter->setPen(QColor(tc.ink));
             painter->drawText(badge, Qt::AlignCenter, text);
             break;
         }
@@ -163,9 +179,8 @@ public:
             painter->drawLine(iconRect.left() + 3, iconRect.top() + 8,
                               iconRect.right() - 3, iconRect.top() + 8);
 
-            QFont addrFont = option.font;
-            addrFont.setFamily(QStringLiteral("Menlo"));
-            addrFont.setPixelSize(11);
+            QFont addrFont = GUIUtil::fixedPitchFont();
+            addrFont.setPixelSize(12);
             painter->setFont(addrFont);
             painter->setPen(QColor(tc.ink));
             const QRect textRect(iconRect.right() + 8, option.rect.top(),
@@ -176,9 +191,11 @@ public:
             break;
         }
         case TransactionTableModel::Amount: {
-            const QString caption = positive ? QObject::tr("RECEIVED") : QObject::tr("SENT");
+            const QString caption = positive
+                ? QCoreApplication::translate("TransactionView", "RECEIVED")
+                : QCoreApplication::translate("TransactionView", "SENT");
             QFont capFont = option.font;
-            capFont.setPixelSize(8);
+            capFont.setPixelSize(12);
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
@@ -191,10 +208,10 @@ public:
             if (amount > 0 && !amountText.startsWith(QLatin1Char('+')))
                 amountText.prepend(QLatin1Char('+'));
             QFont amtFont = option.font;
-            amtFont.setPixelSize(13);
+            amtFont.setPixelSize(14);
             amtFont.setBold(true);
             painter->setFont(amtFont);
-            painter->setPen(amount < 0 ? QColor(tc.wine) : QColor(tc.teal));
+            painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
             const QRect amtRect = option.rect.adjusted(8, 28, -14, -12);
             painter->drawText(amtRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
             break;
@@ -221,39 +238,15 @@ private:
         }
     }
 
-    static QString badgeText(int txType, const QString& display)
+    static bool paintDecorationIcon(QPainter* painter, const QVariant& decoration, const QRect& rect)
     {
-        if (txType == TransactionRecord::Generated)
-            return QObject::tr("Mined");
-        if (isIncoming(txType))
-            return QObject::tr("Received");
-        switch (txType) {
-        case TransactionRecord::SendToAddress:
-        case TransactionRecord::SendToOther:
-        case TransactionRecord::SendToSelf:
-        case TransactionRecord::SpendToAddress:
-        case TransactionRecord::SpendToSelf:
-        case TransactionRecord::SendToPcode:
-        case TransactionRecord::MintSparkTo:
-        case TransactionRecord::MintSparkToSelf:
-        case TransactionRecord::SpendSparkTo:
-        case TransactionRecord::SpendSparkToSelf:
-            return QObject::tr("Sent");
-        default:
-            return display;
-        }
-    }
-
-    static void paintStatusIcon(QPainter* painter, const QModelIndex& index, const QRect& rect)
-    {
-        const QVariant dec = index.sibling(index.row(), TransactionTableModel::Status)
-                                 .data(TransactionTableModel::RawDecorationRole);
-        if (!dec.canConvert<QIcon>())
-            return;
-        const QIcon icon = qvariant_cast<QIcon>(dec);
+        if (!decoration.canConvert<QIcon>())
+            return false;
+        const QIcon icon = qvariant_cast<QIcon>(decoration);
         if (icon.isNull())
-            return;
+            return false;
         GUIUtil::paintThemedStatusIcon(painter, icon, rect);
+        return true;
     }
 
     QTableView* view_;
@@ -266,6 +259,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     model(0),
     transactionProxyModel(0),
     transactionView(0),
+    sortDirectionButton(0),
     exportButton(0),
     emptyState(0),
     abandonAction(0)
@@ -276,44 +270,49 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     QFrame* filterCard = new QFrame(this);
     filterCard->setObjectName("filterCard");
 
-    headerLayout = new QHBoxLayout(filterCard);
+    headerLayout = new QGridLayout(filterCard);
     headerLayout->setContentsMargins(14,14,14,14);
-    headerLayout->setSpacing(12);
+    headerLayout->setHorizontalSpacing(12);
+    headerLayout->setVerticalSpacing(10);
 
     auto pillify = [](QComboBox* cb){ cb->setMinimumHeight(36); cb->setIconSize(QSize(16,16)); };
 
     watchOnlyWidget = new QComboBox(this);
     pillify(watchOnlyWidget);
     watchOnlyWidget->setFixedWidth(48);
+    watchOnlyWidget->setToolTip(tr("Filter by watch-only involvement"));
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_plus"), "", TransactionFilterProxy::WatchOnlyFilter_Yes);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_minus"), "", TransactionFilterProxy::WatchOnlyFilter_No);
-    headerLayout->addWidget(watchOnlyWidget);
+    headerLayout->addWidget(watchOnlyWidget, 0, 0);
 
     instantsendWidget = new QComboBox(this);
     pillify(instantsendWidget);
-    instantsendWidget->setFixedWidth(120);
-    instantsendWidget->addItem(tr("All"), TransactionFilterProxy::InstantSendFilter_All);
+    instantsendWidget->setMinimumWidth(110);
+    instantsendWidget->setToolTip(tr("Filter by InstantSend status"));
+    instantsendWidget->addItem(tr("Any InstantSend status"), TransactionFilterProxy::InstantSendFilter_All);
     instantsendWidget->addItem(tr("Locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_Yes);
     instantsendWidget->addItem(tr("Not locked by InstantSend"), TransactionFilterProxy::InstantSendFilter_No);
-    headerLayout->addWidget(instantsendWidget);
+    headerLayout->addWidget(instantsendWidget, 0, 1);
 
     dateWidget = new QComboBox(this);
     pillify(dateWidget);
-    dateWidget->setFixedWidth(120);
-    dateWidget->addItem(tr("All"), All);
+    dateWidget->setMinimumWidth(110);
+    dateWidget->setToolTip(tr("Filter by date"));
+    dateWidget->addItem(tr("Any date"), All);
     dateWidget->addItem(tr("Today"), Today);
     dateWidget->addItem(tr("This week"), ThisWeek);
     dateWidget->addItem(tr("This month"), ThisMonth);
     dateWidget->addItem(tr("Last month"), LastMonth);
     dateWidget->addItem(tr("This year"), ThisYear);
     dateWidget->addItem(tr("Range..."), Range);
-    headerLayout->addWidget(dateWidget);
+    headerLayout->addWidget(dateWidget, 0, 2);
 
     typeWidget = new QComboBox(this);
     pillify(typeWidget);
-    typeWidget->setFixedWidth(120);
-    typeWidget->addItem(tr("All"), TransactionFilterProxy::ALL_TYPES);
+    typeWidget->setMinimumWidth(110);
+    typeWidget->setToolTip(tr("Filter by transaction type"));
+    typeWidget->addItem(tr("Any type"), TransactionFilterProxy::ALL_TYPES);
     typeWidget->addItem(tr("Received with"),
                         TransactionFilterProxy::TYPE(TransactionRecord::RecvWithAddress) |
                         TransactionFilterProxy::TYPE(TransactionRecord::RecvFromOther));
@@ -333,27 +332,31 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     typeWidget->addItem(tr("Mint spark to"), TransactionFilterProxy::TYPE(TransactionRecord::MintSparkTo));
     typeWidget->addItem(tr("Spend spark to"), TransactionFilterProxy::TYPE(TransactionRecord::SpendSparkTo));
     typeWidget->addItem(tr("Received Spark"), TransactionFilterProxy::TYPE(TransactionRecord::RecvSpark));
-    headerLayout->addWidget(typeWidget);
+    headerLayout->addWidget(typeWidget, 0, 3);
 
     addressWidget = new QLineEdit(this);
     addressWidget->setMinimumHeight(36);
     addressWidget->setPlaceholderText(tr("Enter address or label to search"));
-    headerLayout->addWidget(addressWidget);
+    headerLayout->addWidget(addressWidget, 1, 0, 1, 3);
 
     amountWidget = new QLineEdit(this);
     amountWidget->setMinimumHeight(36);
+    amountWidget->setMinimumWidth(110);
     amountWidget->setPlaceholderText(tr("Min amount"));
-    amountWidget->setFixedWidth(140);
     amountWidget->setValidator(new QDoubleValidator(0, 1e20, 8, this));
-    headerLayout->addWidget(amountWidget);
+    headerLayout->addWidget(amountWidget, 1, 3);
+
+    headerLayout->setColumnStretch(1, 1);
+    headerLayout->setColumnStretch(2, 1);
+    headerLayout->setColumnStretch(3, 1);
 
     QVBoxLayout *vlayout = new QVBoxLayout(this);
     vlayout->setContentsMargins(24,20,24,20);
     vlayout->setSpacing(14);
 
     vlayout->addWidget(filterCard);
-    filterCard->setMinimumHeight(70);
-    filterCard->setMaximumHeight(70);
+    filterCard->setMinimumHeight(116);
+    filterCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     dateRangeWidget = createDateRangeWidget();
     dateRangeWidget->setObjectName("dateRangeWidget");
@@ -369,7 +372,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     QTableView *view = new QTableView(this);
     transactionView = view;
 
-    transactionView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    transactionView->setVerticalScrollMode(QAbstractItemView::ScrollPerItem);
     transactionView->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     transactionView->setShowGrid(false);
     transactionView->setAlternatingRowColors(false);
@@ -387,6 +390,29 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     auto *exportLayout = new QHBoxLayout();
     exportLayout->setContentsMargins(0, 0, 0, 0);
+    auto* sortLabel = new QLabel(tr("Sort by"), tableCard);
+    exportLayout->addWidget(sortLabel);
+    sortWidget = new QComboBox(tableCard);
+    sortWidget->setMinimumSize(160, 28);
+    sortWidget->setAccessibleName(tr("Sort transactions by"));
+    sortWidget->setToolTip(tr("Sort the transaction history"));
+    const auto addSortOption = [this](const QString& text, int column, Qt::SortOrder order) {
+        sortWidget->addItem(text, QVariantList{column, static_cast<int>(order)});
+    };
+    addSortOption(tr("Date"), TransactionTableModel::Date, Qt::DescendingOrder);
+    addSortOption(tr("Status"), TransactionTableModel::Status, Qt::AscendingOrder);
+    addSortOption(tr("Transaction type"), TransactionTableModel::Type, Qt::AscendingOrder);
+    addSortOption(tr("Address"), TransactionTableModel::ToAddress, Qt::AscendingOrder);
+    addSortOption(tr("Amount"), TransactionTableModel::Amount, Qt::DescendingOrder);
+    addSortOption(tr("InstantSend"), TransactionTableModel::InstantSend, Qt::DescendingOrder);
+    addSortOption(tr("Watch-only"), TransactionTableModel::Watchonly, Qt::DescendingOrder);
+    exportLayout->addWidget(sortWidget);
+
+    sortDirectionButton = new QToolButton(tableCard);
+    sortDirectionButton->setObjectName(QStringLiteral("transactionSortDirection"));
+    sortDirectionButton->setFixedSize(32, 28);
+    exportLayout->addWidget(sortDirectionButton);
+    updateSortDirectionButton(Qt::DescendingOrder);
     exportLayout->addStretch();
     exportButton = new QPushButton(tr("Export"), tableCard);
     exportButton->setFixedSize(80, 28);
@@ -394,7 +420,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     exportLayout->addWidget(exportButton);
     tableLayout->addLayout(exportLayout);
 
-    tableCard->setMinimumHeight(420);
     tableCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     vlayout->addWidget(tableCard, 1);
 
@@ -459,12 +484,24 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(instantsendWidget,  qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseInstantSend);
     connect(addressWidget,      &QLineEdit::textChanged,               this, &TransactionView::changedPrefix);
     connect(amountWidget,       &QLineEdit::textChanged,               this, &TransactionView::changedAmount);
+    connect(sortWidget,         qOverload<int>(&QComboBox::activated), this, &TransactionView::chooseSort);
+    connect(sortDirectionButton, &QToolButton::clicked,                this, &TransactionView::toggleSortOrder);
     connect(exportButton,       &QPushButton::clicked,                 this, &TransactionView::exportClicked);
+
+    connect(view->horizontalHeader(), &QHeaderView::sortIndicatorChanged,
+            this, [this](int column, Qt::SortOrder order) {
+                for (int i = 0; i < sortWidget->count(); ++i) {
+                    const QVariantList sortSpec = sortWidget->itemData(i).toList();
+                    if (sortSpec.size() == 2 && sortSpec.at(0).toInt() == column) {
+                        sortWidget->setCurrentIndex(i);
+                        break;
+                    }
+                }
+                updateSortDirectionButton(order);
+            });
 
     connect(view, &QTableView::doubleClicked, this, &TransactionView::doubleClicked);
     connect(view, &QTableView::customContextMenuRequested, this, &TransactionView::contextualMenu);
-    connect(view->horizontalHeader(), &QHeaderView::sectionResized, this, &TransactionView::updateHeaderSizes);
-
     connect(abandonAction,      &QAction::triggered, this, &TransactionView::abandonTx);
     connect(copyAddressAction,  &QAction::triggered, this, &TransactionView::copyAddress);
     connect(copyLabelAction,    &QAction::triggered, this, &TransactionView::copyLabel);
@@ -482,8 +519,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     applyTheme();
 
     addShadow(filterCard);
-    addShadow(tableCard);
-    addShadow(dateRangeWidget);
 
     auto *exportShadow = new QGraphicsDropShadowEffect(exportButton);
     exportShadow->setBlurRadius(20);
@@ -514,7 +549,7 @@ void TransactionView::applyTheme()
         "   border-radius: 9px;"
         "   border: 1px solid $BORDER;"
         "   padding: 0 11px;"
-        "   font-size: 11px;"
+        "   font-size: 13px;"
         "   color: $INK_SOFT;"
         "}"
         "QLineEdit:!focus { color: $INK_FAINT; }"
@@ -537,12 +572,19 @@ void TransactionView::applyTheme()
         "   color: $INK;"
         "}"
         "QComboBox::item:selected {"
-        "   background: $WINE;"
+        "   background: $WINE_DEEP;"
         "   color: #FFFFFF;"
         "}"
 
         "QComboBox::drop-down { border: none; width: 24px; }"
-        "QComboBox::down-arrow { width: 12px; height: 12px; image: url(:/icons/arrow_down); }"
+
+        "QToolButton#transactionSortDirection {"
+        " background:$PANEL_SOFT; border:1px solid $BORDER; border-radius:9px;"
+        " color:$INK_SOFT; font-size:15px; font-weight:700;"
+        "}"
+        "QToolButton#transactionSortDirection:hover, QToolButton#transactionSortDirection:focus {"
+        " border-color:$WINE; color:$INK;"
+        "}"
 
         "QDateTimeEdit { background:$PANEL; border-radius:10px; border:1px solid $BORDER; padding:7px 11px; }"
 
@@ -553,7 +595,7 @@ void TransactionView::applyTheme()
         "QTableView {"
         "   background: $PANEL;"
         "   border: none;"
-        "   font-size: 10px;"
+        "   font-size: 12px;"
         "   gridline-color: transparent;"
         "   selection-background-color: transparent;"
         "   outline: 0;"
@@ -561,7 +603,7 @@ void TransactionView::applyTheme()
 
         "QHeaderView::section {"
         " background:$PANEL; padding:9px 6px; border:none;"
-        " font-size:9px; font-weight:700; color:$INK_SOFT;"
+        " font-size:12px; font-weight:700; color:$INK_SOFT;"
         "}"
         "QHeaderView::section:hover { background:$PANEL; }"
         "QTableView::item { background: transparent; border: none; padding: 0; }"
@@ -569,11 +611,11 @@ void TransactionView::applyTheme()
         "QTableView::item:selected { background: transparent; color: $INK; }"
 
         "QScrollBar:vertical { background:$PANEL_SOFT; width:12px; border-radius:6px; }"
-        "QScrollBar::handle:vertical { background:$BORDER; border-radius:6px; margin:2px; }"
-        "QScrollBar::handle:vertical:hover { background:$BORDER; }"
+        "QScrollBar::handle:vertical { background:$INK_FAINT; border-radius:6px; margin:2px; min-height:32px; }"
+        "QScrollBar::handle:vertical:hover { background:$INK_SOFT; }"
         "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
         "QScrollBar:horizontal { background:$PANEL_SOFT; height:12px; border-radius:6px; }"
-        "QScrollBar::handle:horizontal { background:$BORDER; border-radius:6px; margin:2px; }"
+        "QScrollBar::handle:horizontal { background:$INK_FAINT; border-radius:6px; margin:2px; min-width:32px; }"
 
         "QMenu { background:$PANEL; border:1px solid $BORDER; padding:6px; font-size:10pt; border-radius:10px; }"
         "QMenu::item:selected { background:$PANEL_SOFT; color:$INK; }"
@@ -599,7 +641,7 @@ void TransactionView::applyTheme()
 
     if (exportButton) {
         exportButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("4px 8px")) +
-            QStringLiteral("QPushButton { font-size: 11px; }"));
+            QStringLiteral("QPushButton { font-size: 12px; }"));
     }
 
     if (emptyIcon_) {
@@ -608,10 +650,10 @@ void TransactionView::applyTheme()
             "font-size: 20px; font-weight: 700;"));
     }
     if (emptyTitle_) {
-        emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK_SOFT; font-size: 11px; font-weight: 700;"));
+        emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-size: 14px; font-weight: 700;"));
     }
     if (emptyDescription_) {
-        emptyDescription_->setStyleSheet(GUIUtil::themed("color: $INK_FAINT; font-size: 10px;"));
+        emptyDescription_->setStyleSheet(GUIUtil::themed("color: $INK_SOFT; font-size: 12px;"));
     }
 
     if (transactionView && transactionView->viewport())
@@ -677,6 +719,14 @@ void TransactionView::setModel(WalletModel *_model)
     {
         transactionProxyModel = new TransactionFilterProxy(this);
         transactionProxyModel->setSourceModel(_model->getTransactionTableModel());
+        connect(transactionProxyModel, &QAbstractItemModel::dataChanged,
+                this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight) {
+                    if (topLeft.column() <= TransactionTableModel::InstantSend &&
+                        bottomRight.column() >= TransactionTableModel::Status) {
+                        // The row delegate paints this metadata in the Date cell.
+                        transactionView->viewport()->update();
+                    }
+                });
         transactionProxyModel->setDynamicSortFilter(true);
         transactionProxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
         transactionProxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
@@ -816,6 +866,45 @@ void TransactionView::chooseInstantSend(int idx)
         (TransactionFilterProxy::InstantSendFilter)instantsendWidget->itemData(idx).toInt());
 }
 
+void TransactionView::chooseSort(int idx)
+{
+    if (!transactionView || idx < 0)
+        return;
+
+    const QVariantList sortSpec = sortWidget->itemData(idx).toList();
+    if (sortSpec.size() != 2)
+        return;
+
+    const Qt::SortOrder order = static_cast<Qt::SortOrder>(sortSpec.at(1).toInt());
+    transactionView->sortByColumn(sortSpec.at(0).toInt(), order);
+    updateSortDirectionButton(order);
+}
+
+void TransactionView::toggleSortOrder()
+{
+    if (!transactionView)
+        return;
+
+    QHeaderView *header = transactionView->horizontalHeader();
+    const Qt::SortOrder order = header->sortIndicatorOrder() == Qt::AscendingOrder
+        ? Qt::DescendingOrder
+        : Qt::AscendingOrder;
+    transactionView->sortByColumn(header->sortIndicatorSection(), order);
+    updateSortDirectionButton(order);
+}
+
+void TransactionView::updateSortDirectionButton(Qt::SortOrder order)
+{
+    if (!sortDirectionButton)
+        return;
+
+    const bool ascending = order == Qt::AscendingOrder;
+    sortDirectionButton->setText(ascending ? QStringLiteral("↑") : QStringLiteral("↓"));
+    const QString description = ascending ? tr("Sort ascending") : tr("Sort descending");
+    sortDirectionButton->setAccessibleName(description);
+    sortDirectionButton->setToolTip(description);
+}
+
 void TransactionView::changedPrefix(const QString &prefix)
 {
     if(!transactionProxyModel)
@@ -892,27 +981,6 @@ void TransactionView::contextualMenu(const QPoint &point)
     if(index.isValid())
     {
         contextMenu->exec(QCursor::pos());
-    }
-}
-
-void TransactionView::updateHeaderSizes(int logicalIndex, int oldSize, int newSize)
-{
-    static std::vector<std::pair<int, QWidget*>> const headerWidgets{
-        {TransactionTableModel::Watchonly, watchOnlyWidget},
-        {TransactionTableModel::InstantSend, instantsendWidget},
-        {TransactionTableModel::Date, dateWidget},
-        {TransactionTableModel::Type, typeWidget},
-        {TransactionTableModel::ToAddress, addressWidget},
-        {TransactionTableModel::Amount, amountWidget}
-    };
-
-    if(logicalIndex <= TransactionTableModel::Amount)
-        return;
-
-    for(std::pair<int, QWidget*> const & p : headerWidgets) {
-        int const w = transactionView->columnWidth(p.first) - headerLayout->spacing() / 2;
-        if(p.second->width() != w)
-            p.second->setFixedWidth(w);
     }
 }
 
@@ -1193,31 +1261,4 @@ void TransactionView::updateWatchOnlyColumn(bool fHaveWatchOnly)
 {
     watchOnlyWidget->setVisible(fHaveWatchOnly);
     transactionView->setColumnHidden(TransactionTableModel::Watchonly, true);
-}
-
-// Handles resize events for the TransactionView widget by adjusting internal component sizes.
-void TransactionView::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-
-    updateTableColumnWidths();
-    updateEmptyState();
-}
-void TransactionView::adjustTextSize(int width,int height){
-
-    const double fontSizeScalingFactor = 65.0;
-    int baseFontSize = std::min(width, height) / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
-    QFont font = this->font();
-    font.setPointSize(fontSize);
-
-    // Set font size for all labels
-    transactionView->setFont(font);
-    transactionView->horizontalHeader()->setFont(font);
-    transactionView->verticalHeader()->setFont(font);
-    dateWidget->setFont(font);
-    typeWidget->setFont(font);
-    amountWidget->setFont(font);
-    instantsendWidget->setFont(font);
-    addressWidget->setFont(font);
 }

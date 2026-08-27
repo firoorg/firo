@@ -18,8 +18,10 @@
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSettings>
 #include <QMessageBox>
+#include <QVBoxLayout>
 
 Recover::Recover(QWidget *parent) :
     QDialog(parent),
@@ -30,6 +32,40 @@ Recover::Recover(QWidget *parent) :
     GUIUtil::loadTheme();
     
     ui->setupUi(this);
+
+    auto* scrollContents = new QWidget(this);
+    scrollContents->setObjectName(QStringLiteral("recoverScrollContents"));
+    auto* scrollLayout = new QVBoxLayout(scrollContents);
+    scrollLayout->setContentsMargins(0, 0, 0, 0);
+    scrollLayout->setSpacing(ui->verticalLayout->spacing());
+    while (ui->verticalLayout->count() > 1) {
+        QLayoutItem* item = ui->verticalLayout->takeAt(0);
+        if (QWidget* widget = item->widget()) {
+            widget->setParent(scrollContents);
+            scrollLayout->addWidget(widget);
+            delete item;
+        } else if (QLayout* layout = item->layout()) {
+            layout->setParent(nullptr);
+            scrollLayout->addLayout(layout);
+        } else {
+            scrollLayout->addItem(item);
+        }
+    }
+
+    auto* scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("recoverScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(scrollContents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#recoverScroll, QWidget#recoverScrollContents { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, scroll, 1);
+
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
+
     applyTheme();
     setCreateNew();
     thread = new QThread(this);
@@ -46,7 +82,7 @@ void Recover::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog#Recover { background: $BG; }
         QDialog#Recover QLabel { background: transparent; color: $INK; }
-        QDialog#Recover QLabel#errorMessage { color: #E5484D; font-weight: 700; }
+        QDialog#Recover QLabel#errorMessage { color: $ERROR; font-weight: 700; }
         QDialog#Recover QFrame { background: transparent; }
         QDialog#Recover QLineEdit,
         QDialog#Recover QDateEdit,
@@ -56,7 +92,8 @@ void Recover::applyTheme()
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
-            selection-background-color: $WINE;
+            selection-background-color: $WINE_DEEP;
+            selection-color: #FFFFFF;
         }
         QDialog#Recover QLineEdit:focus,
         QDialog#Recover QDateEdit:focus,
@@ -78,16 +115,16 @@ void Recover::applyTheme()
             color: $INK_FAINT;
         }
         QDialog#Recover QRadioButton::indicator:unchecked {
-            image: url(:/images/radio_normal_light);
+            image: url(:/images/radio_normal_$ASSET_THEME);
         }
         QDialog#Recover QRadioButton::indicator:checked {
-            image: url(:/images/radio_checked_light);
+            image: url(:/images/radio_checked_$ASSET_THEME);
         }
         QDialog#Recover QCheckBox::indicator:unchecked {
-            image: url(:/images/checkbox_normal_light);
+            image: url(:/images/checkbox_normal_$ASSET_THEME);
         }
         QDialog#Recover QCheckBox::indicator:checked {
-            image: url(:/images/checkbox_checked_light);
+            image: url(:/images/checkbox_checked_$ASSET_THEME);
         }
     )")));
 
@@ -117,12 +154,12 @@ void Recover::applyTheme()
             #qt_calendar_calendarview {
                 background: $PANEL; border: none; outline: none;
                 gridline-color: transparent;
-                selection-background-color: $WINE; selection-color: #FFFFFF;
+                selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
             }
             QCalendarWidget QWidget { alternate-background-color: $PANEL_SOFT; }
             QCalendarWidget QToolButton::menu-indicator { image: none; }
             QCalendarWidget QAbstractItemView:enabled {
-                color: $INK; selection-background-color: $WINE; selection-color: #FFFFFF;
+                color: $INK; selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
             }
             QCalendarWidget QAbstractItemView:disabled { color: $INK_FAINT; }
             QCalendarWidget QMenu {

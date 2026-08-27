@@ -168,7 +168,7 @@ void SendCoinsDialog::applyTheme()
     ui->balancePill->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#balancePill { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
         "QFrame#balancePill QLabel { background: transparent; border: none; }"
-        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-size: 11px; font-weight: 700; }"
+        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
         "QFrame#balancePill QLabel#labelBalance { color: $INK; font-weight: 700; }")));
 
     ui->labelCoinControlFeatures->setStyleSheet(GUIUtil::themed(QStringLiteral(
@@ -176,12 +176,12 @@ void SendCoinsDialog::applyTheme()
     ui->pushButtonCoinControl->setStyleSheet(GUIUtil::secondaryButtonStyle());
     ui->labelCoinControlAutomaticallySelected->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
-        " padding: 4px 10px; color: $INK_SOFT; font-size: 10px; font-weight: 600; }")));
-    ui->labelCoinControlInsuffFunds->setStyleSheet(QStringLiteral(
-        "QLabel { background: transparent; color: #E5484D; font-weight: 700; }"));
+        " padding: 4px 10px; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
+    ui->labelCoinControlInsuffFunds->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
 
     const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
     const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }"
@@ -200,16 +200,16 @@ void SendCoinsDialog::applyTheme()
     }
 
     ui->checkBoxCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 600; }"
-        "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_light); }"
-        "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_light); }")));
+        "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }"
+        "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_$ASSET_THEME); }"
+        "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_$ASSET_THEME); }")));
     ui->lineEditCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QValidatedLineEdit {"
         " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
         " padding: 8px 12px; color: $INK;"
         "}"
         "QValidatedLineEdit:focus { border: 1px solid $WINE; }"
-        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: #E5484D; }")));
+        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }")));
     ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; }")));
 }
@@ -712,7 +712,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     if(txFee > 0)
     {
         // append fee string if a fee is required
-        questionString.append("<hr /><span style='color:#aa0000;'>");
+        questionString.append("<hr /><span style='font-weight:600;'>");
         questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
         questionString.append("</span> ");
         questionString.append(tr("added as transaction fee"));
@@ -722,7 +722,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         if (fGoThroughTransparentAddress) {
             QString feeString;
-            feeString.append("<span style='color:#aa0000;'>");
+            feeString.append("<span style='font-weight:600;'>");
             feeString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
             feeString.append("</span>");
             
@@ -1435,7 +1435,8 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
     {
         // Default to no change address until verified
         CoinControlDialog::coinControl->destChange = CNoDestination();
-        ui->labelCoinControlChangeLabel->setStyleSheet(QStringLiteral("QLabel{background:transparent;color:#E5484D;}"));
+        ui->labelCoinControlChangeLabel->setStyleSheet(
+            GUIUtil::themed(QStringLiteral("QLabel{background:transparent;color:$ERROR;}")));
 
         CBitcoinAddress addr = CBitcoinAddress(text.toStdString());
 

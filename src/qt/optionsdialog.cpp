@@ -31,7 +31,9 @@
 #include <QIntValidator>
 #include <QLocale>
 #include <QMessageBox>
+#include <QScrollArea>
 #include <QTimer>
+#include <QVBoxLayout>
 
 OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     QDialog(parent),
@@ -40,6 +42,26 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     mapper(0)
 {
     ui->setupUi(this);
+
+    ui->verticalLayout->removeWidget(ui->tabWidget);
+    auto* optionsScrollContents = new QWidget(this);
+    optionsScrollContents->setObjectName(QStringLiteral("optionsScrollContents"));
+    auto* optionsScrollLayout = new QVBoxLayout(optionsScrollContents);
+    optionsScrollLayout->setContentsMargins(0, 0, 0, 0);
+    optionsScrollLayout->addWidget(ui->tabWidget);
+    auto* optionsScroll = new QScrollArea(this);
+    optionsScroll->setObjectName(QStringLiteral("optionsScroll"));
+    optionsScroll->setWidgetResizable(true);
+    optionsScroll->setFrameShape(QFrame::NoFrame);
+    optionsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    optionsScroll->setWidget(optionsScrollContents);
+    optionsScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#optionsScroll, QWidget#optionsScrollContents { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, optionsScroll, 1);
+
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
 
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog { background: $BG; }
@@ -51,7 +73,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             padding: 8px 14px;
             border: none;
         }
-        QTabBar::tab:selected { color: $WINE; }
+        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
         QTabBar::tab:hover { color: $INK; }
         QGroupBox {
             background: $PANEL_SOFT;
@@ -361,20 +383,22 @@ void OptionsDialog::handleEnabledZapChanged()
 
 void OptionsDialog::updateTorStatusLabel()
 {
+    const bool runningWithTor = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
     const bool overridden = model && model->getOverriddenByCommandLine().contains(QLatin1String("-torsetup"));
     if (overridden) {
         ui->checkboxEnabledTor->setEnabled(false);
-        ui->torStatusLabel->setText(tr("Overridden by -torsetup on the command line or in firo.conf and cannot be changed here."));
+        ui->torStatusLabel->setText(runningWithTor
+            ? tr("Tor quickstart is enabled for this session by -torsetup. It cannot be changed here.")
+            : tr("Tor quickstart is disabled for this session by -torsetup. It cannot be changed here."));
         return;
     }
 
     ui->checkboxEnabledTor->setEnabled(true);
 
     const bool checked = ui->checkboxEnabledTor->isChecked();
-    const bool runningWithTor = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
 
     if (checked && runningWithTor) {
-        ui->torStatusLabel->setText(tr("Tor quickstart is enabled and active."));
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled for this session."));
     } else if (checked && !runningWithTor) {
         ui->torStatusLabel->setText(tr("Tor quickstart is enabled. Restart the client to apply this change."));
     } else if (!checked && runningWithTor) {
@@ -386,7 +410,7 @@ void OptionsDialog::updateTorStatusLabel()
 
 void OptionsDialog::showRestartWarning(bool fPersistent)
 {
-    ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+    ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
 
     if(fPersistent)
     {
@@ -421,7 +445,7 @@ void OptionsDialog::updateProxyValidationState()
     else
     {
         setOkButtonState(false);
-        ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+        ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
         ui->statusLabel->setText(tr("The supplied proxy address is invalid."));
     }
 }

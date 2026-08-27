@@ -63,7 +63,8 @@ public:
     size_t getMempoolDynamicUsage() const;
 
     void setMasternodeList(const CDeterministicMNList& mnList);
-    CDeterministicMNList getMasternodeList() const;
+    //! Copy the cached masternode list without blocking. Returns false while the cache is busy.
+    bool tryGetMasternodeList(CDeterministicMNList& mnList) const;
     void refreshMasternodeList();
 
     quint64 getTotalBytesRecv() const;

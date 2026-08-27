@@ -20,6 +20,7 @@
 #include <QClipboard>
 
 #include <QRegularExpression>
+#include <QStyle>
 
 #include<QResizeEvent>
 
@@ -105,19 +106,40 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins QLabel#amountLabel,
         QFrame#SendCoins QLabel#messageLabel {
             color: $INK_SOFT;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
         }
         QFrame#SendCoins QLabel#sparkNameResolvedLabel {
             color: $INK_SOFT;
-            font-size: 10px;
+            font-size: 12px;
             font-weight: 700;
         }
         QFrame#SendCoins QLabel#sparkNameResolvedAddress {
             color: $TEAL;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             font-family: monospace;
+        }
+        QFrame#SendCoins QLabel#textWarning,
+        QFrame#SendCoins QLabel#messageWarning {
+            background: $GOLD_TINT;
+            border: 1px solid $GOLD;
+            border-radius: 6px;
+            color: $INK;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 6px;
+        }
+        QFrame#SendCoins QLabel#rosenBridgeDetails {
+            color: $INK_SOFT;
+        }
+        QFrame#SendCoins QLabel#rosenBridgeDetails[warning="true"] {
+            background: $WINE_TINT;
+            border: 1px solid $WINE;
+            border-radius: 6px;
+            color: $INK;
+            font-weight: 700;
+            padding: 6px;
         }
         QFrame#SendCoins QValidatedLineEdit,
         QFrame#SendCoins QLineEdit,
@@ -127,7 +149,8 @@ void SendCoinsEntry::applyTheme()
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
-            selection-background-color: $WINE;
+            selection-background-color: $WINE_DEEP;
+            selection-color: #FFFFFF;
         }
         QFrame#SendCoins QValidatedLineEdit:focus,
         QFrame#SendCoins QLineEdit:focus,
@@ -139,8 +162,9 @@ void SendCoinsEntry::applyTheme()
             color: $INK;
         }
         QFrame#SendCoins AmountSpinBox[invalidInput="true"],
-        QFrame#SendCoins QValidatedLineEdit[invalidInput="true"] {
-            border-color: #E5484D;
+        QFrame#SendCoins QValidatedLineEdit[invalidInput="true"],
+        QFrame#SendCoins QLineEdit[invalidInput="true"] {
+            border-color: $ERROR;
         }
         QFrame#SendCoins AmountSpinBox QLineEdit { %1 }
         QFrame#SendCoins QValueComboBox {
@@ -168,7 +192,7 @@ void SendCoinsEntry::applyTheme()
             color: $INK;
         }
         QFrame#SendCoins QValueComboBox::item:selected {
-            background: $WINE;
+            background: $WINE_DEEP;
             color: #FFFFFF;
         }
         QFrame#SendCoins QToolButton {
@@ -183,14 +207,14 @@ void SendCoinsEntry::applyTheme()
         }
         QFrame#SendCoins QCheckBox {
             color: $INK_SOFT;
-            font-size: 10px;
+            font-size: 12px;
             font-weight: 700;
         }
         QFrame#SendCoins QCheckBox::indicator:unchecked {
-            image: url(:/images/checkbox_normal_light);
+            image: url(:/images/checkbox_normal_$ASSET_THEME);
         }
         QFrame#SendCoins QCheckBox::indicator:checked {
-            image: url(:/images/checkbox_checked_light);
+            image: url(:/images/checkbox_checked_$ASSET_THEME);
         }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
 }
@@ -206,10 +230,13 @@ void SendCoinsEntry::on_MemoTextChanged(const QString &text)
     int maxLength = params->get_memo_bytes();
     bool isOverLimit = text.length() > maxLength;
 
+    ui->messageTextLabel->setProperty("invalidInput", isOverLimit);
+    ui->messageTextLabel->style()->unpolish(ui->messageTextLabel);
+    ui->messageTextLabel->style()->polish(ui->messageTextLabel);
+
     if (isOverLimit) {
-        ui->messageWarning->setText(QString("Message exceeds %1 bytes limit").arg(maxLength));
+        ui->messageWarning->setText(tr("Message exceeds %1 bytes limit").arg(maxLength));
         ui->messageWarning->setVisible(true);
-        ui->messageTextLabel->setStyleSheet("border: 1px solid red;");
         ui->iconMessageWarning->setVisible(true);
         ui->messageWarningRow->setVisible(true);
     } else {
@@ -221,7 +248,6 @@ void SendCoinsEntry::on_MemoTextChanged(const QString &text)
         }
         ui->messageWarning->clear();
         ui->messageWarning->setVisible(false);
-        ui->messageTextLabel->setStyleSheet("");
         ui->iconMessageWarning->setVisible(false);
         ui->messageWarningRow->setVisible(false);
     }
@@ -345,7 +371,9 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
     if (!valid) {
         ui->rosenBridgeDetails->clear();
         ui->rosenBridgeDetails->setToolTip(QString());
-        ui->rosenBridgeDetails->setStyleSheet(QString());
+        ui->rosenBridgeDetails->setProperty("warning", false);
+        ui->rosenBridgeDetails->style()->unpolish(ui->rosenBridgeDetails);
+        ui->rosenBridgeDetails->style()->polish(ui->rosenBridgeDetails);
         return;
     }
 
@@ -353,12 +381,13 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
     details += RosenBridge::FormatDetails(metadata);
     details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
 
-    if (fAnonymousMode) {
+    const bool showModeWarning = fAnonymousMode;
+    if (showModeWarning) {
         details.prepend(tr("Switch to Transparent Balance to send this Rosen Bridge transfer.\n"));
-        ui->rosenBridgeDetails->setStyleSheet(QStringLiteral("color: #aa0000;"));
-    } else {
-        ui->rosenBridgeDetails->setStyleSheet(QString());
     }
+    ui->rosenBridgeDetails->setProperty("warning", showModeWarning);
+    ui->rosenBridgeDetails->style()->unpolish(ui->rosenBridgeDetails);
+    ui->rosenBridgeDetails->style()->polish(ui->rosenBridgeDetails);
 
     ui->rosenBridgeDetails->setText(details);
     ui->rosenBridgeDetails->setToolTip(tr("This transaction includes Rosen Bridge OP_RETURN metadata."));
@@ -634,10 +663,10 @@ void SendCoinsEntry::resizeEvent(QResizeEvent* event) {
 }
 
 
-void SendCoinsEntry::adjustTextSize(int width, int height) {
-   const double fontSizeScalingFactor = 130.0;
+void SendCoinsEntry::adjustTextSize(int width, int) {
+    const double fontSizeScalingFactor = 130.0;
     int baseFontSize = width / fontSizeScalingFactor;
-    int fontSize = std::max(12,baseFontSize);
+    int fontSize = std::min(15, std::max(12, baseFontSize));
     QFont font = this->font();
     font.setPointSize(fontSize);
 

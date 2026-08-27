@@ -142,6 +142,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
+    sparkNamesPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)

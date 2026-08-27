@@ -97,6 +97,7 @@ private:
     QLabel *labelWalletEncryptionIcon;
     QLabel *labelWalletHDStatusIcon;
     GUIUtil::ClickableLabel *connectionsControl;
+    QLabel *torStatusBadge;
     GUIUtil::ClickableLabel *labelBlocksIcon;
     QLabel *progressBarLabel;
     GUIUtil::ClickableProgressBar *progressBar;
@@ -129,7 +130,7 @@ private:
     QAction *showHelpMessageAction;
     QAction *masternodeAction;
     QAction *logoAction;
-    QToolBar *toolbar;
+    QToolBar *toolbar{nullptr};
     QToolButton *navigationToggleButton{nullptr};
     bool navigationSidebarExpanded{true};
     QFrame *navigationSyncCard{nullptr};
@@ -142,7 +143,7 @@ private:
     QLabel *navigationThemeDarkLabel{nullptr};
     QAbstractButton *navigationThemeSwitch{nullptr};
     QWidget *navigationSelectionHighlight{nullptr};
-    QLabel *logoLabel;
+    QLabel *logoLabel{nullptr};
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
@@ -170,7 +171,7 @@ private:
     void updateToolbarTabWidths();
     void updateNavigationSidebarGeometry();
     void toggleNavigationSidebar();
-    void updateNavigationSyncCard(const QString& status, double progress, bool visible);
+    void updateNavigationSyncCard(const QString& status, double progress);
     bool syncInProgress() const;
     void applyNavigationTheme();
     void updateNavigationSelectionHighlight();

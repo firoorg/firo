@@ -11,9 +11,6 @@
 #include "netbase.h"
 #include "sync.h"
 #include "validation.h"
-#ifdef ENABLE_WALLET
-#include "wallet/wallet.h"
-#endif // ENABLE_WALLET
 #include "walletmodel.h"
 
 #include <univalue.h>
@@ -22,32 +19,35 @@
 #include "base58.h"
 
 #include <QApplication>
-#include <QCursor>
+#include <QComboBox>
+#include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QEvent>
 #include <QFrame>
+#include <QGridLayout>
 #include <QGraphicsDropShadowEffect>
-#include <QGuiApplication>
-#include <QHeaderView>
 #include <QHBoxLayout>
-#include <QKeyEvent>
+#include <QItemSelectionModel>
 #include <QLabel>
+#include <QListView>
 #include <QLocale>
-#include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
-#include <QScreen>
-#include <QScrollArea>
 #include <QSizePolicy>
+#include <QSortFilterProxyModel>
+#include <QStandardItemModel>
 #include <QStyle>
+#include <QStyledItemDelegate>
+#include <QStyleOptionViewItem>
 #include <QTextDocument>
 #include <QTextEdit>
 #include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QtGui/QClipboard>
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <set>
 
@@ -57,40 +57,12 @@ QString formatBlockHeight(int height, bool none)
 {
     if (none)
         return QStringLiteral("-");
-    return QLocale(QLocale::English).toString(height);
+    return QLocale::system().toString(height);
 }
 
-QString elideMiddle(const QString& text, int keepLeft, int keepRight)
+QString masternodeText(const char* sourceText)
 {
-    if (text.size() <= keepLeft + keepRight + 2)
-        return text;
-    return text.left(keepLeft) + QStringLiteral("..") + text.right(keepRight);
-}
-
-QLabel* metricCaption(const QString& text, QWidget* parent)
-{
-    auto* lab = new QLabel(text, parent);
-    lab->setObjectName(QStringLiteral("cardMetricCaption"));
-    return lab;
-}
-
-QLabel* metricValue(const QString& text, QWidget* parent)
-{
-    auto* lab = new QLabel(text, parent);
-    lab->setObjectName(QStringLiteral("cardMetricValue"));
-    return lab;
-}
-
-QWidget* metricColumn(const QString& caption, const QString& value, QWidget* parent)
-{
-    auto* wrap = new QWidget(parent);
-    wrap->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
-    auto* lay = new QVBoxLayout(wrap);
-    lay->setContentsMargins(0, 0, 10, 0);
-    lay->setSpacing(3);
-    lay->addWidget(metricCaption(caption, wrap));
-    lay->addWidget(metricValue(value, wrap));
-    return wrap;
+    return QCoreApplication::translate("MasternodeList", sourceText);
 }
 
 QPixmap masternodeGlyph()
@@ -112,36 +84,228 @@ QPixmap masternodeGlyph()
     return pm;
 }
 
-void clearLayout(QLayout* layout)
+enum MasternodeRole {
+    ServiceRole = Qt::UserRole + 1,
+    StatusRole,
+    StatusKindRole,
+    PoseScoreRole,
+    MaxPoseRole,
+    RegisteredHeightRole,
+    LastPaidHeightRole,
+    NextPaymentHeightRole,
+    NextPaymentSortRole,
+    PayoutAddressRole,
+    OperatorRewardRole,
+    OperatorRewardSortRole,
+    CollateralAmountRole,
+    CollateralAmountSortRole,
+    CollateralAddressRole,
+    OwnerAddressRole,
+    ProTxHashRole,
+    CollateralOutpointRole,
+    SearchRole
+};
+
+class MasternodeCardDelegate final : public QStyledItemDelegate
 {
-    if (!layout)
-        return;
-    while (layout->count() > 0) {
-        QLayoutItem* item = layout->takeAt(0);
-        if (QWidget* w = item->widget()) {
-            w->hide();
-            w->setParent(nullptr);
-            w->deleteLater();
-        }
-        delete item;
+public:
+    explicit MasternodeCardDelegate(QObject* parent)
+        : QStyledItemDelegate(parent)
+    {
     }
-}
+
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        Q_UNUSED(option);
+        Q_UNUSED(index);
+        return QSize(0, 210);
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        painter->setRenderHint(QPainter::TextAntialiasing, true);
+
+        const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+        const bool selected = option.state & QStyle::State_Selected;
+        const QRect card = option.rect.adjusted(5, 4, -5, -4);
+        painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
+        painter->setBrush(QColor(selected ? tc.panelSoft : tc.panel));
+        painter->drawRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
+
+        painter->drawPixmap(QRect(card.left() + 14, card.top() + 12, 36, 36), glyph());
+
+        const QString service = index.data(ServiceRole).toString();
+        const QString status = index.data(StatusRole).toString();
+        const int statusKind = index.data(StatusKindRole).toInt();
+        QColor statusBackground(tc.tealTint);
+        const QColor statusForeground(tc.ink);
+        if (statusKind == 1) {
+            statusBackground = QColor(tc.goldTint);
+        } else if (statusKind == 2) {
+            statusBackground = QColor(tc.wineTint);
+        }
+
+        QFont statusFont = option.font;
+        statusFont.setPixelSize(12);
+        statusFont.setBold(true);
+        const QFontMetrics statusMetrics(statusFont);
+        const int headerLeft = card.left() + 62;
+        const int headerRight = card.right() - 14;
+        const int headerWidth = std::max(0, headerRight - headerLeft);
+        const int statusWidth = std::min(statusMetrics.horizontalAdvance(status) + 20,
+                                         std::max(0, headerWidth / 3));
+        const QRect statusRect(headerRight - statusWidth, card.top() + 18, statusWidth, 24);
+        if (statusWidth > 0) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(statusBackground);
+            painter->drawRoundedRect(statusRect, 12, 12);
+            painter->setFont(statusFont);
+            painter->setPen(statusForeground);
+            painter->drawText(statusRect.adjusted(6, 0, -6, 0), Qt::AlignCenter,
+                              statusMetrics.elidedText(status, Qt::ElideRight,
+                                                       std::max(0, statusRect.width() - 12)));
+        }
+
+        QFont titleFont = option.font;
+        titleFont.setPixelSize(14);
+        titleFont.setBold(true);
+        painter->setFont(titleFont);
+        painter->setPen(QColor(tc.ink));
+        const bool showPose = headerWidth >= 300;
+        const int poseWidth = showPose ? 80 : 0;
+        const int titleRight = statusRect.left() - (showPose ? poseWidth + 16 : 8);
+        const QRect titleRect(headerLeft, card.top() + 13,
+                              std::max(0, titleRight - headerLeft), 24);
+        if (titleRect.width() > 0) {
+            painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter,
+                              QFontMetrics(titleFont).elidedText(service, Qt::ElideMiddle, titleRect.width()));
+
+            QFont subtitleFont = option.font;
+            subtitleFont.setPixelSize(12);
+            painter->setFont(subtitleFont);
+            painter->setPen(QColor(tc.inkSoft));
+            const QString collateral = masternodeText(
+                QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
+                .arg(index.data(CollateralOutpointRole).toString());
+            const QRect subtitleRect(titleRect.left(), card.top() + 34, titleRect.width(), 18);
+            painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
+                              QFontMetrics(subtitleFont).elidedText(collateral, Qt::ElideMiddle,
+                                                                   subtitleRect.width()));
+        }
+
+        QFont poseFont = option.font;
+        poseFont.setPixelSize(12);
+        painter->setFont(poseFont);
+        painter->setPen(QColor(tc.inkSoft));
+        if (showPose) {
+            const QRect poseRect(titleRight + 8, card.top() + 11, poseWidth, 24);
+            painter->drawText(poseRect, Qt::AlignRight | Qt::AlignVCenter,
+                              masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PoSe %1"))
+                                  .arg(index.data(PoseScoreRole).toInt()));
+
+            const int trackWidth = std::min(64, poseRect.width());
+            const QRect trackRect(poseRect.right() - trackWidth + 1, card.top() + 43, trackWidth, 4);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(QColor(tc.border));
+            painter->drawRoundedRect(trackRect, 2, 2);
+
+            const int poseScore = index.data(PoseScoreRole).toInt();
+            const int maxPose = std::max(1, index.data(MaxPoseRole).toInt());
+            const int fillWidth = statusKind == 2
+                ? std::max(18, std::min(trackWidth, trackWidth * poseScore / maxPose))
+                : (poseScore <= 0
+                       ? std::min(22, trackWidth)
+                       : std::max(10, std::min(trackWidth, trackWidth * poseScore / maxPose)));
+            painter->setBrush(QColor(statusKind == 2 ? tc.wine : tc.teal));
+            painter->drawRoundedRect(QRect(trackRect.left(), trackRect.top(), fillWidth, trackRect.height()), 2, 2);
+        }
+
+        painter->setPen(QPen(QColor(tc.border), 1));
+        painter->drawLine(card.left() + 14, card.top() + 58,
+                          card.right() - 14, card.top() + 58);
+
+        const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
+            QFont captionFont = option.font;
+            captionFont.setPixelSize(12);
+            captionFont.setBold(true);
+            painter->setFont(captionFont);
+            painter->setPen(QColor(tc.inkSoft));
+            const QRect captionRect = rect.adjusted(0, 0, -8, -20);
+            painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignVCenter,
+                              QFontMetrics(captionFont).elidedText(caption, Qt::ElideRight,
+                                                                  std::max(0, captionRect.width())));
+
+            QFont valueFont = option.font;
+            valueFont.setPixelSize(12);
+            valueFont.setBold(true);
+            painter->setFont(valueFont);
+            painter->setPen(QColor(tc.ink));
+            const QRect valueRect = rect.adjusted(0, 19, -8, 0);
+            painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
+                              QFontMetrics(valueFont).elidedText(value, Qt::ElideMiddle, valueRect.width()));
+        };
+
+        const int contentLeft = card.left() + 16;
+        const int contentWidth = card.width() - 32;
+        const int quarterWidth = contentWidth / 4;
+        const int halfWidth = contentWidth / 2;
+        const int rowOneTop = card.top() + 68;
+        for (int column = 0; column < 4; ++column) {
+            const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 40);
+            if (column == 0)
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED")), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
+            else if (column == 1)
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "LAST PAID")), formatBlockHeight(index.data(LastPaidHeightRole).toInt(), index.data(LastPaidHeightRole).toInt() < 0));
+            else if (column == 2)
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "NEXT PAYMENT")), formatBlockHeight(index.data(NextPaymentHeightRole).toInt(), index.data(NextPaymentHeightRole).toInt() < 0));
+            else
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL")), index.data(CollateralAmountRole).toString());
+        }
+
+        drawMetric(QRect(contentLeft, card.top() + 114, halfWidth, 40),
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PAYOUT ADDRESS")), index.data(PayoutAddressRole).toString());
+        drawMetric(QRect(contentLeft + halfWidth, card.top() + 114, halfWidth, 40),
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "OPERATOR REWARD")), index.data(OperatorRewardRole).toString());
+        drawMetric(QRect(contentLeft, card.top() + 160, halfWidth, 40),
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL ADDRESS")), index.data(CollateralAddressRole).toString());
+        drawMetric(QRect(contentLeft + halfWidth, card.top() + 160, halfWidth, 40),
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "OWNER ADDRESS")), index.data(OwnerAddressRole).toString());
+
+        painter->restore();
+    }
+
+private:
+    const QPixmap& glyph() const
+    {
+        const bool dark = GUIUtil::isDarkMode();
+        if (glyph_.isNull() || glyphDark_ != dark) {
+            glyph_ = masternodeGlyph();
+            glyphDark_ = dark;
+        }
+        return glyph_;
+    }
+
+    mutable QPixmap glyph_;
+    mutable bool glyphDark_{false};
+};
 
 }
 
 MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* parent) :
     QWidget(parent),
-    nTimeFilterUpdatedDIP3(0),
     nTimeUpdatedDIP3(0),
-    fFilterUpdatedDIP3(true),
     ui(new Ui::MasternodeList),
     clientModel(0),
     walletModel(0),
     mnListChanged(true),
     emptyState(0),
-    masternodeScroll(0),
-    masternodeCardsHost(0),
-    masternodeCardsLayout(0)
+    masternodeView(0),
+    masternodeModel(0),
+    masternodeProxy(0),
+    masternodeSort(0),
+    masternodeSortDirection(0)
 {
     ui->setupUi(this);
 
@@ -153,14 +317,43 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 
     auto* filterCard = new QFrame(this);
     filterCard->setObjectName(QStringLiteral("masternodeFilterCard"));
-    filterCard->setFixedHeight(64);
-    auto* filterLayout = new QHBoxLayout(filterCard);
+    auto* filterLayout = new QGridLayout(filterCard);
     filterLayout->setContentsMargins(14, 12, 14, 12);
-    filterLayout->setSpacing(12);
+    filterLayout->setHorizontalSpacing(12);
+    filterLayout->setVerticalSpacing(10);
+    filterLayout->setColumnStretch(0, 1);
+    filterLayout->setColumnStretch(1, 1);
+    filterLayout->setColumnStretch(2, 1);
 
     ui->label_filter_2->hide();
-    filterLayout->addWidget(ui->filterLineEditDIP3, 1);
-    filterLayout->addWidget(ui->checkBoxMyMasternodesOnly);
+    ui->filterLineEditDIP3->setAccessibleName(tr("Filter masternodes"));
+    filterLayout->addWidget(ui->filterLineEditDIP3, 0, 0, 1, 3);
+    filterLayout->addWidget(ui->checkBoxMyMasternodesOnly, 1, 0);
+
+    masternodeSort = new QComboBox(filterCard);
+    masternodeSort->setMinimumSize(150, 34);
+    masternodeSort->setAccessibleName(tr("Sort masternodes by"));
+    masternodeSort->setToolTip(tr("Sort the masternode list"));
+    const auto addSortOption = [this](const QString& text, int role, Qt::SortOrder order) {
+        masternodeSort->addItem(text, QVariantList{role, static_cast<int>(order)});
+    };
+    addSortOption(tr("Service"), ServiceRole, Qt::AscendingOrder);
+    addSortOption(tr("Status"), StatusRole, Qt::AscendingOrder);
+    addSortOption(tr("PoSe score"), PoseScoreRole, Qt::DescendingOrder);
+    addSortOption(tr("Registered"), RegisteredHeightRole, Qt::DescendingOrder);
+    addSortOption(tr("Last paid"), LastPaidHeightRole, Qt::DescendingOrder);
+    addSortOption(tr("Next payment"), NextPaymentSortRole, Qt::AscendingOrder);
+    addSortOption(tr("Payout address"), PayoutAddressRole, Qt::AscendingOrder);
+    addSortOption(tr("Operator reward"), OperatorRewardSortRole, Qt::DescendingOrder);
+    addSortOption(tr("Collateral amount"), CollateralAmountSortRole, Qt::DescendingOrder);
+    addSortOption(tr("Collateral address"), CollateralAddressRole, Qt::AscendingOrder);
+    addSortOption(tr("Owner address"), OwnerAddressRole, Qt::AscendingOrder);
+    filterLayout->addWidget(masternodeSort, 1, 1, 1, 2);
+
+    masternodeSortDirection = new QToolButton(filterCard);
+    masternodeSortDirection->setObjectName(QStringLiteral("masternodeSortDirection"));
+    masternodeSortDirection->setFixedSize(36, 34);
+    filterLayout->addWidget(masternodeSortDirection, 1, 3);
 
     auto* countPill = new QFrame(filterCard);
     countPill->setObjectName(QStringLiteral("nodeCountPill"));
@@ -170,10 +363,9 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     countLayout->setSpacing(4);
     countLayout->addWidget(ui->label_count_2);
     countLayout->addWidget(ui->countLabelDIP3);
-    filterLayout->addWidget(countPill);
+    filterLayout->addWidget(countPill, 0, 3);
 
     ui->topLayout->insertWidget(0, filterCard);
-    ui->masternodeContentCard->setMinimumHeight(420);
     ui->masternodeContentCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->topLayout->setStretchFactor(ui->masternodeContentCard, 1);
 
@@ -181,22 +373,31 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
         ui->masternodeContentCard->setAttribute(Qt::WA_StyledBackground, true);
     }
 
-    masternodeScroll = new QScrollArea(ui->masternodeContentCard);
-    masternodeScroll->setObjectName(QStringLiteral("masternodeScroll"));
-    masternodeScroll->setWidgetResizable(true);
-    masternodeScroll->setFrameShape(QFrame::NoFrame);
-    masternodeScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    masternodeCardsHost = new QWidget(masternodeScroll);
-    masternodeCardsHost->setObjectName(QStringLiteral("masternodeCardsHost"));
-    masternodeCardsLayout = new QVBoxLayout(masternodeCardsHost);
-    masternodeCardsLayout->setContentsMargins(0, 0, 4, 0);
-    masternodeCardsLayout->setSpacing(10);
-    masternodeCardsLayout->setAlignment(Qt::AlignTop);
-    masternodeScroll->setWidget(masternodeCardsHost);
-    ui->verticalLayoutCard->addWidget(masternodeScroll, 1);
-    masternodeScroll->viewport()->installEventFilter(this);
+    masternodeModel = new QStandardItemModel(this);
+    masternodeProxy = new QSortFilterProxyModel(this);
+    masternodeProxy->setSourceModel(masternodeModel);
+    masternodeProxy->setDynamicSortFilter(true);
+    masternodeProxy->setFilterRole(SearchRole);
+    masternodeProxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    masternodeProxy->setSortCaseSensitivity(Qt::CaseInsensitive);
 
-    emptyState = new QWidget(masternodeScroll->viewport());
+    masternodeView = new QListView(ui->masternodeContentCard);
+    masternodeView->setObjectName(QStringLiteral("masternodeView"));
+    masternodeView->setAccessibleName(tr("Masternode list"));
+    masternodeView->setModel(masternodeProxy);
+    masternodeView->setItemDelegate(new MasternodeCardDelegate(masternodeView));
+    masternodeView->setSelectionMode(QAbstractItemView::SingleSelection);
+    masternodeView->setVerticalScrollMode(QAbstractItemView::ScrollPerItem);
+    masternodeView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    masternodeView->setUniformItemSizes(true);
+    masternodeView->setResizeMode(QListView::Adjust);
+    masternodeView->setWrapping(false);
+    masternodeView->setSpacing(4);
+    masternodeView->setFrameShape(QFrame::NoFrame);
+    masternodeView->setContextMenuPolicy(Qt::CustomContextMenu);
+    ui->verticalLayoutCard->addWidget(masternodeView, 1);
+
+    emptyState = new QWidget(masternodeView->viewport());
     emptyState->setAttribute(Qt::WA_TransparentForMouseEvents);
     auto* emptyLayout = new QVBoxLayout(emptyState);
     emptyLayout->setContentsMargins(0, 0, 0, 0);
@@ -218,25 +419,32 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     emptyLayout->addWidget(emptyDescription_);
     emptyLayout->addStretch();
 
-    const auto addCardShadow = [](QWidget* card) {
-        auto* shadow = new QGraphicsDropShadowEffect(card);
-        shadow->setBlurRadius(20);
-        shadow->setOffset(0, 5);
-        shadow->setColor(QColor(65, 37, 52, 24));
-        card->setGraphicsEffect(shadow);
-    };
-    addCardShadow(filterCard);
-    addCardShadow(ui->masternodeContentCard);
+    auto* filterShadow = new QGraphicsDropShadowEffect(filterCard);
+    filterShadow->setBlurRadius(20);
+    filterShadow->setOffset(0, 5);
+    filterShadow->setColor(QColor(65, 37, 52, 24));
+    filterCard->setGraphicsEffect(filterShadow);
 
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
-    contextMenuDIP3 = new QMenu();
+    contextMenuDIP3 = new QMenu(this);
     contextMenuDIP3->addAction(copyProTxHashAction);
     contextMenuDIP3->addAction(copyCollateralOutpointAction);
     connect(copyProTxHashAction, &QAction::triggered, this, &MasternodeList::copyProTxHash_clicked);
     connect(copyCollateralOutpointAction, &QAction::triggered, this, &MasternodeList::copyCollateralOutpoint_clicked);
+    connect(masternodeSort, qOverload<int>(&QComboBox::activated),
+            this, &MasternodeList::sortMasternodes);
+    connect(masternodeSortDirection, &QToolButton::clicked,
+            this, &MasternodeList::toggleMasternodeSortOrder);
+    connect(masternodeView, &QListView::customContextMenuRequested,
+            this, &MasternodeList::showContextMenuDIP3);
+    connect(masternodeView, &QListView::activated, this, [this](const QModelIndex& index) {
+        masternodeView->setCurrentIndex(index);
+        extraInfoDIP3_clicked();
+    });
     //always start with "my znodes only" checked
     ui->checkBoxMyMasternodesOnly->setChecked(true);
+    sortMasternodes(masternodeSort->currentIndex());
     updateEmptyState();
 
     timer = new QTimer(this);
@@ -267,8 +475,9 @@ QLineEdit#filterLineEditDIP3 {
   border-radius: 9px;
   padding: 0 11px;
   color: $INK_SOFT;
-  font-size: 11px;
-  selection-background-color: $WINE;
+  font-size: 12px;
+  selection-background-color: $WINE_DEEP;
+  selection-color: #FFFFFF;
 }
 QLineEdit#filterLineEditDIP3:focus {
   background: $PANEL;
@@ -276,7 +485,7 @@ QLineEdit#filterLineEditDIP3:focus {
 }
 QCheckBox#checkBoxMyMasternodesOnly {
   color: $INK_SOFT;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   spacing: 7px;
   background: transparent;
@@ -289,8 +498,38 @@ QCheckBox#checkBoxMyMasternodesOnly::indicator {
   background: $PANEL;
 }
 QCheckBox#checkBoxMyMasternodesOnly::indicator:checked {
-  image: url(:/images/checkbox_checked_light);
+  image: url(:/images/checkbox_checked_$ASSET_THEME);
   border: none;
+}
+QComboBox {
+  min-height: 34px;
+  background: $PANEL_SOFT;
+  border: 1px solid $BORDER;
+  border-radius: 9px;
+  padding: 0 10px;
+  color: $INK_SOFT;
+  font-size: 12px;
+}
+QComboBox:focus {
+  background: $PANEL;
+  border-color: $WINE;
+}
+QComboBox::drop-down {
+  border: none;
+  width: 24px;
+}
+QToolButton#masternodeSortDirection {
+  background: $PANEL_SOFT;
+  border: 1px solid $BORDER;
+  border-radius: 9px;
+  color: $INK;
+  font-size: 16px;
+  font-weight: 700;
+}
+QToolButton#masternodeSortDirection:hover,
+QToolButton#masternodeSortDirection:focus {
+  background: $PANEL;
+  border-color: $WINE;
 }
 QFrame#nodeCountPill {
   background: $PANEL_SOFT;
@@ -300,50 +539,37 @@ QFrame#nodeCountPill {
 QFrame#nodeCountPill QLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
-QScrollArea#masternodeScroll,
-QScrollArea#masternodeScroll > QWidget,
-QWidget#masternodeCardsHost {
+QListView#masternodeView,
+QListView#masternodeView::viewport {
+  background: transparent;
+  border: none;
+  outline: none;
+}
+QListView#masternodeView::item {
   background: transparent;
   border: none;
 }
-QFrame#masternodeCard {
-  background: $PANEL;
-  border: 1px solid $BORDER;
-  border-radius: 16px;
-}
-QFrame#masternodeCard[selected="true"] {
+QScrollBar:vertical {
   background: $PANEL_SOFT;
-  border: 1px solid $WINE;
-  border-radius: 16px;
+  width: 12px;
+  border-radius: 6px;
 }
-QFrame#masternodeCard QLabel#cardTitle {
-  color: $INK; font-size: 13px; font-weight: 700;
-  background: transparent; border: none;
+QScrollBar::handle:vertical {
+  background: $INK_FAINT;
+  border-radius: 6px;
+  margin: 2px;
+  min-height: 32px;
 }
-QFrame#masternodeCard QLabel#cardSubtitle {
-  color: $INK_SOFT; font-size: 10px; font-weight: 500;
-  background: transparent; border: none;
+QScrollBar::handle:vertical:hover {
+  background: $INK_SOFT;
 }
-QFrame#masternodeCard QLabel#cardPoseLabel {
-  color: $INK_SOFT; font-size: 10px; font-weight: 600;
-  background: transparent; border: none;
-}
-QFrame#masternodeCard QFrame#cardPoseTrack {
-  background: $BORDER; border: none; border-radius: 2px;
-}
-QFrame#masternodeCard QFrame#cardDivider {
-  background: $BORDER; border: none;
-}
-QFrame#masternodeCard QLabel#cardMetricCaption {
-  color: $INK_SOFT; font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
-  background: transparent; border: none;
-}
-QFrame#masternodeCard QLabel#cardMetricValue {
-  color: $INK; font-size: 12px; font-weight: 700;
-  background: transparent; border: none;
+QScrollBar::add-line,
+QScrollBar::sub-line {
+  width: 0;
+  height: 0;
 }
     )")));
 
@@ -355,59 +581,17 @@ QFrame#masternodeCard QLabel#cardMetricValue {
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 11px; font-weight: 700;")));
+            "color: $INK_SOFT; font-size: 14px; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_FAINT; font-size: 10px;")));
+            "color: $INK_FAINT; font-size: 12px;")));
     }
 
-    restyleMasternodeCards();
-}
-
-void MasternodeList::restyleMasternodeCards()
-{
-    if (!masternodeCardsLayout)
-        return;
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    for (int i = 0; i < masternodeCardsLayout->count(); ++i) {
-        QLayoutItem* item = masternodeCardsLayout->itemAt(i);
-        auto* card = item ? qobject_cast<QFrame*>(item->widget()) : nullptr;
-        if (!card || card->objectName() != QLatin1String("masternodeCard"))
-            continue;
-
-        const bool selected = card->property("proTxHash").toString() == selectedProTxHash;
-        card->setProperty("selected", selected);
-        card->style()->unpolish(card);
-        card->style()->polish(card);
-
-        if (auto* icon = card->findChild<QLabel*>(QStringLiteral("cardIcon"))) {
-            icon->setPixmap(masternodeGlyph());
-        }
-
-        const int statusKind = card->property("statusKind").toInt();
-        QString badgeBg = tc.tealTint;
-        QString badgeFg = tc.teal;
-        if (statusKind == 1) {
-            badgeBg = tc.goldTint;
-            badgeFg = tc.gold;
-        } else if (statusKind == 2) {
-            badgeBg = tc.wineTint;
-            badgeFg = tc.wine;
-        }
-        if (auto* statusLab = card->findChild<QLabel*>(QStringLiteral("cardStatusBadge"))) {
-            statusLab->setStyleSheet(QStringLiteral(
-                "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
-                " padding: 2px 10px; font-size: 10px; font-weight: 700; }")
-                                          .arg(badgeBg, badgeFg));
-        }
-        if (auto* poseFill = card->findChild<QFrame*>(QStringLiteral("cardPoseFill"))) {
-            poseFill->setStyleSheet(QStringLiteral(
-                "QFrame { background: %1; border: none; border-radius: 2px; }")
-                                         .arg(statusKind == 2 ? tc.wine : tc.teal));
-        }
-    }
+    if (masternodeView && masternodeView->viewport())
+        masternodeView->viewport()->update();
+    QTimer::singleShot(0, this, &MasternodeList::updateEmptyState);
 }
 
 MasternodeList::~MasternodeList()
@@ -417,28 +601,101 @@ MasternodeList::~MasternodeList()
 
 void MasternodeList::setClientModel(ClientModel* model)
 {
+    if (clientModel == model)
+        return;
+    if (clientModel)
+        disconnect(clientModel, nullptr, this, nullptr);
+
     this->clientModel = model;
+    mnListChanged = true;
     if (model) {
         // try to update list when masternode count changes
-        connect(clientModel, &ClientModel::masternodeListChanged, this, &MasternodeList::handleMasternodeListChanged);
+        connect(clientModel, &ClientModel::masternodeListChanged,
+                this, &MasternodeList::handleMasternodeListChanged,
+                Qt::QueuedConnection);
     }
 }
 
 void MasternodeList::setWalletModel(WalletModel* model)
 {
     this->walletModel = model;
+    mnListChanged = true;
+    nTimeUpdatedDIP3 = 0;
+    updateDIP3ListScheduled();
 }
 
-void MasternodeList::showContextMenuDIP3(const QPoint& globalPos)
+void MasternodeList::showContextMenuDIP3(const QPoint& pos)
 {
-    if (selectedProTxHash.isEmpty())
+    if (!masternodeView)
         return;
-    contextMenuDIP3->exec(globalPos.isNull() ? QCursor::pos() : globalPos);
+
+    const bool keyboardRequest = pos.isNull() || pos.x() < 0 || pos.y() < 0;
+    QModelIndex index = keyboardRequest ? masternodeView->currentIndex()
+                                       : masternodeView->indexAt(pos);
+    QPoint menuPosition = pos;
+    if (!index.isValid())
+        return;
+    if (keyboardRequest)
+        menuPosition = masternodeView->visualRect(index).center();
+
+    masternodeView->setCurrentIndex(index);
+    contextMenuDIP3->exec(masternodeView->viewport()->mapToGlobal(menuPosition));
+}
+
+void MasternodeList::sortMasternodes(int index)
+{
+    if (!masternodeSort || index < 0)
+        return;
+
+    const QVariantList sortSpec = masternodeSort->itemData(index).toList();
+    if (sortSpec.size() != 2)
+        return;
+
+    masternodeProxy->setSortRole(sortSpec.at(0).toInt());
+    masternodeProxy->sort(0, static_cast<Qt::SortOrder>(sortSpec.at(1).toInt()));
+    updateSortDirectionButton();
+}
+
+void MasternodeList::applyMasternodeSort()
+{
+    if (!masternodeProxy || !masternodeSort || masternodeSort->currentIndex() < 0)
+        return;
+
+    const QVariantList sortSpec = masternodeSort->currentData().toList();
+    if (sortSpec.size() != 2)
+        return;
+
+    const Qt::SortOrder order = masternodeProxy->sortOrder();
+    masternodeProxy->setSortRole(sortSpec.at(0).toInt());
+    masternodeProxy->sort(0, order);
+}
+
+void MasternodeList::toggleMasternodeSortOrder()
+{
+    if (!masternodeProxy)
+        return;
+
+    const Qt::SortOrder order = masternodeProxy->sortOrder() == Qt::AscendingOrder
+        ? Qt::DescendingOrder
+        : Qt::AscendingOrder;
+    masternodeProxy->sort(0, order);
+    updateSortDirectionButton();
+}
+
+void MasternodeList::updateSortDirectionButton()
+{
+    if (!masternodeProxy || !masternodeSortDirection)
+        return;
+
+    const bool ascending = masternodeProxy->sortOrder() == Qt::AscendingOrder;
+    masternodeSortDirection->setText(ascending ? QStringLiteral("↑") : QStringLiteral("↓"));
+    const QString description = ascending ? tr("Sort ascending") : tr("Sort descending");
+    masternodeSortDirection->setAccessibleName(description);
+    masternodeSortDirection->setToolTip(description);
 }
 
 void MasternodeList::handleMasternodeListChanged()
 {
-    LOCK(cs_dip3list);
     mnListChanged = true;
 }
 
@@ -448,59 +705,49 @@ void MasternodeList::updateDIP3ListScheduled()
         return;
     }
 
-    // To prevent high cpu usage update only once in MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds
-    // after filter was last changed unless we want to force the update.
-    if (fFilterUpdatedDIP3) {
-        int64_t nSecondsToWait = nTimeFilterUpdatedDIP3 - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
-        if (nSecondsToWait <= 0) {
-            updateDIP3List();
-            fFilterUpdatedDIP3 = false;
-        }
-    } else if (mnListChanged) {
+    if (mnListChanged) {
         int64_t nMnListUpdateSecods = masternodeSync.IsBlockchainSynced() ? MASTERNODELIST_UPDATE_SECONDS : MASTERNODELIST_UPDATE_SECONDS*10;
         int64_t nSecondsToWait = nTimeUpdatedDIP3 - GetTime() + nMnListUpdateSecods;
 
         if (nSecondsToWait <= 0) {
-            updateDIP3List();
-            mnListChanged = false;
+            if (updateDIP3List())
+                mnListChanged = false;
         }
     }
 }
 
-void MasternodeList::updateDIP3List()
+bool MasternodeList::updateDIP3List()
 {
     if (!clientModel || ShutdownRequested()) {
-        return;
+        return false;
     }
 
-    auto mnList = clientModel->getMasternodeList();
-    if(mnList.GetAllMNsCount()==0){
+    CDeterministicMNList mnList;
+    if (!clientModel->tryGetMasternodeList(mnList))
+        return false;
+    if (mnList.GetAllMNsCount() == 0) {
         clientModel->refreshMasternodeList();
-        mnList = clientModel->getMasternodeList();    }
+        if (!clientModel->tryGetMasternodeList(mnList))
+            return false;
+    }
     std::map<uint256, CTxDestination> mapCollateralDests;
     std::map<uint256, CAmount> mapCollateralAmounts;
 
     {
         TRY_LOCK(cs_main, lock_main);
-        if (lock_main) {
-            mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
-                CTxDestination collateralDest;
-                Coin coin;
-                if (!GetUTXOCoin(dmn->collateralOutpoint, coin))
-                    return;
-                mapCollateralAmounts.emplace(dmn->proTxHash, coin.out.nValue);
-                if (ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
-                    mapCollateralDests.emplace(dmn->proTxHash, collateralDest);
-                }
-            });
-        }
+        if (!lock_main)
+            return false;
+        mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+            CTxDestination collateralDest;
+            Coin coin;
+            if (!GetUTXOCoin(dmn->collateralOutpoint, coin))
+                return;
+            mapCollateralAmounts.emplace(dmn->proTxHash, coin.out.nValue);
+            if (ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
+                mapCollateralDests.emplace(dmn->proTxHash, collateralDest);
+            }
+        });
     }
-
-    LOCK(cs_dip3list);
-
-    clearLayout(masternodeCardsLayout);
-
-    nTimeUpdatedDIP3 = GetTime();
 
     auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
     std::map<uint256, int> nextPayments;
@@ -510,40 +757,26 @@ void MasternodeList::updateDIP3List()
     }
 
     std::set<COutPoint> setOutpts;
-    std::set<CKeyID> setMyKeys;
-    CWallet* pWalletForFilter = nullptr;
-    if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
+    const bool filterMyMasternodes = walletModel && ui->checkBoxMyMasternodesOnly->isChecked();
+    if (filterMyMasternodes) {
         std::vector<COutPoint> vOutpts;
-        walletModel->listProTxCoins(vOutpts);
+        if (!walletModel->listProTxCoins(vOutpts))
+            return false;
         for (const auto& outpt : vOutpts) {
             setOutpts.emplace(outpt);
         }
-        pWalletForFilter = walletModel->getWallet();
-        if (pWalletForFilter)
-            pWalletForFilter->GetKeys(setMyKeys);
     }
-
-    auto isScriptMine = [&](const CScript& script) {
-        CTxDestination dest;
-        if (ExtractDestination(script, dest)) {
-            if (const CKeyID* keyID = boost::get<CKeyID>(&dest))
-                return setMyKeys.count(*keyID) > 0;
-        }
-        return walletModel->IsSpendable(script);
-    };
 
     const Consensus::Params& params = ::Params().GetConsensus();
     const int maxPose = std::max(100, mnList.CalcMaxPoSePenalty());
-    QFrame* restoreSelection = nullptr;
-    int shown = 0;
-    int matched = 0;
+    QList<QStandardItem*> modelRows;
 
     auto processMN = [&](const CDeterministicMNCPtr& dmn) {
-        if (pWalletForFilter) {
+        if (filterMyMasternodes) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
-                setMyKeys.count(dmn->pdmnState->keyIDOwner) ||
-                isScriptMine(dmn->pdmnState->scriptPayout) ||
-                isScriptMine(dmn->pdmnState->scriptOperatorPayout);
+                walletModel->IsSpendable(dmn->pdmnState->keyIDOwner) ||
+                walletModel->IsSpendable(dmn->pdmnState->scriptPayout) ||
+                walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
         }
 
@@ -572,8 +805,20 @@ void MasternodeList::updateDIP3List()
             payeeStr = QString::fromStdString(CBitcoinAddress(payeeDest).ToString());
         }
 
-        const QString operatorRewardShort =
+        const QString operatorRewardPercent =
             QString::number(dmn->nOperatorReward / 100.0, 'f', 2) + QLatin1Char('%');
+        QString operatorReward = tr("None");
+        if (dmn->nOperatorReward) {
+            if (dmn->pdmnState->scriptOperatorPayout == CScript()) {
+                operatorReward = tr("%1, not claimed").arg(operatorRewardPercent);
+            } else {
+                CTxDestination operatorDest;
+                operatorReward = ExtractDestination(dmn->pdmnState->scriptOperatorPayout, operatorDest)
+                    ? tr("%1 to %2").arg(operatorRewardPercent,
+                        QString::fromStdString(CBitcoinAddress(operatorDest).ToString()))
+                    : tr("%1 to unknown address").arg(operatorRewardPercent);
+            }
+        }
 
         QString collateralAddr = QStringLiteral("-");
         auto collateralDestIt = mapCollateralDests.find(dmn->proTxHash);
@@ -585,105 +830,154 @@ void MasternodeList::updateDIP3List()
         auto collateralAmountIt = mapCollateralAmounts.find(dmn->proTxHash);
         if (collateralAmountIt != mapCollateralAmounts.end()) {
             collateralAmount = QStringLiteral("%1 FIRO").arg(
-                QLocale(QLocale::English).toString(
+                QLocale::system().toString(
                     static_cast<qlonglong>(collateralAmountIt->second / COIN)));
         }
 
         const QString ownerStr = QString::fromStdString(CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString());
         const QString proTxHash = QString::fromStdString(dmn->proTxHash.ToString());
+        const QString collateralOutpoint = QString::fromStdString(dmn->collateralOutpoint.ToStringShort());
 
-        if (strCurrentFilterDIP3 != "") {
-            const QString strToFilter =
-                address + QLatin1Char(' ') +
-                status + QLatin1Char(' ') +
-                QString::number(dmn->pdmnState->nPoSePenalty) + QLatin1Char(' ') +
-                registered + QLatin1Char(' ') +
-                QString::number(dmn->pdmnState->nRegisteredHeight) + QLatin1Char(' ') +
-                lastPaid + QLatin1Char(' ') +
-                (lastPaidNone ? QString() : QString::number(dmn->pdmnState->nLastPaidHeight)) + QLatin1Char(' ') +
-                nextPayment + QLatin1Char(' ') +
-                (nextUnknown ? QString() : QString::number(nextPaymentIt->second)) + QLatin1Char(' ') +
-                payeeStr + QLatin1Char(' ') +
-                operatorRewardShort + QLatin1Char(' ') +
-                collateralAddr + QLatin1Char(' ') +
-                ownerStr + QLatin1Char(' ') +
-                proTxHash;
-            if (!strToFilter.contains(strCurrentFilterDIP3, Qt::CaseInsensitive))
-                return;
-        }
+        const QString searchText =
+            address + QLatin1Char(' ') +
+            status + QLatin1Char(' ') +
+            QString::number(dmn->pdmnState->nPoSePenalty) + QLatin1Char(' ') +
+            registered + QLatin1Char(' ') +
+            QString::number(dmn->pdmnState->nRegisteredHeight) + QLatin1Char(' ') +
+            lastPaid + QLatin1Char(' ') +
+            (lastPaidNone ? QString() : QString::number(dmn->pdmnState->nLastPaidHeight)) + QLatin1Char(' ') +
+            nextPayment + QLatin1Char(' ') +
+            (nextUnknown ? QString() : QString::number(nextPaymentIt->second)) + QLatin1Char(' ') +
+            payeeStr + QLatin1Char(' ') +
+            operatorReward + QLatin1Char(' ') +
+            collateralAmount + QLatin1Char(' ') +
+            collateralAddr + QLatin1Char(' ') +
+            ownerStr + QLatin1Char(' ') +
+            proTxHash + QLatin1Char(' ') +
+            collateralOutpoint;
 
-        ++matched;
-        if (shown >= MASTERNODELIST_CARD_RENDER_LIMIT)
-            return;
+        auto* item = new QStandardItem(address);
+        item->setEditable(false);
+        item->setData(address, ServiceRole);
+        item->setData(status, StatusRole);
+        item->setData(statusKind, StatusKindRole);
+        item->setData(dmn->pdmnState->nPoSePenalty, PoseScoreRole);
+        item->setData(maxPose, MaxPoseRole);
+        item->setData(dmn->pdmnState->nRegisteredHeight, RegisteredHeightRole);
+        item->setData(lastPaidNone ? -1 : dmn->pdmnState->nLastPaidHeight, LastPaidHeightRole);
+        item->setData(nextUnknown ? -1 : nextPaymentIt->second, NextPaymentHeightRole);
+        item->setData(nextUnknown ? std::numeric_limits<int>::max() : nextPaymentIt->second,
+                      NextPaymentSortRole);
+        item->setData(payeeStr, PayoutAddressRole);
+        item->setData(operatorReward, OperatorRewardRole);
+        item->setData(dmn->nOperatorReward, OperatorRewardSortRole);
+        item->setData(collateralAmount, CollateralAmountRole);
+        item->setData(collateralAmountIt == mapCollateralAmounts.end()
+                          ? static_cast<qlonglong>(-1)
+                          : static_cast<qlonglong>(collateralAmountIt->second),
+                      CollateralAmountSortRole);
+        item->setData(collateralAddr, CollateralAddressRole);
+        item->setData(ownerStr, OwnerAddressRole);
+        item->setData(proTxHash, ProTxHashRole);
+        item->setData(collateralOutpoint, CollateralOutpointRole);
+        item->setData(searchText, SearchRole);
 
-        QFrame* card = createMasternodeCard(
-            address,
-            status,
-            statusKind,
-            dmn->pdmnState->nPoSePenalty,
-            maxPose,
-            registered,
-            lastPaid,
-            nextPayment,
-            payeeStr,
-            operatorRewardShort,
-            collateralAmount,
-            collateralAddr,
-            proTxHash);
-        masternodeCardsLayout->addWidget(card);
-        if (proTxHash == selectedProTxHash)
-            restoreSelection = card;
-        ++shown;
+        const QString tooltip = tr(
+            "Service: %1\nStatus: %2\nPoSe score: %3\nRegistered: %4\nLast paid: %5\n"
+            "Next payment: %6\nPayout address: %7\nOperator reward: %8\nCollateral: %9\n"
+            "Collateral address: %10\nOwner address: %11\nProTx hash: %12\nCollateral outpoint: %13")
+            .arg(address)
+            .arg(status)
+            .arg(dmn->pdmnState->nPoSePenalty)
+            .arg(registered)
+            .arg(lastPaid)
+            .arg(nextPayment)
+            .arg(payeeStr)
+            .arg(operatorReward)
+            .arg(collateralAmount)
+            .arg(collateralAddr)
+            .arg(ownerStr)
+            .arg(proTxHash)
+            .arg(collateralOutpoint);
+        item->setToolTip(tooltip);
+        item->setData(tr("%1, %2").arg(address, status), Qt::AccessibleTextRole);
+        item->setData(tooltip, Qt::AccessibleDescriptionRole);
+        modelRows.append(item);
     };
 
     mnList.ForEachMN(false, processMN);
 
-    if (matched > shown) {
-        auto* truncationNotice = new QLabel(
-            tr("Showing the first %1 of %2 matching masternodes. Use the filter above to narrow the results.")
-                .arg(shown).arg(matched),
-            masternodeCardsHost);
-        truncationNotice->setObjectName(QStringLiteral("masternodeTruncationNotice"));
-        truncationNotice->setWordWrap(true);
-        truncationNotice->setAlignment(Qt::AlignCenter);
-        truncationNotice->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "color: $INK_SOFT; font-size: 10px; padding: 8px;")));
-        masternodeCardsLayout->addWidget(truncationNotice);
+    const QModelIndex currentIndex = masternodeView
+        ? masternodeView->currentIndex()
+        : QModelIndex();
+    const QString selectionToRestore = currentIndex.data(ProTxHashRole).toString();
+    QString topRowToRestore;
+    if (masternodeView) {
+        const QModelIndex topIndex = masternodeView->indexAt(
+            QPoint(masternodeView->spacing() + 1, masternodeView->spacing() + 1));
+        if (topIndex.isValid())
+            topRowToRestore = topIndex.data(ProTxHashRole).toString();
     }
+    masternodeProxy->setDynamicSortFilter(false);
+    masternodeModel->clear();
+    if (!modelRows.isEmpty())
+        masternodeModel->invisibleRootItem()->appendRows(modelRows);
+    masternodeProxy->setDynamicSortFilter(true);
+    applyMasternodeSort();
 
-    masternodeCardsLayout->addStretch(1);
-    ui->countLabelDIP3->setText(QString::number(matched));
-    if (restoreSelection)
-        selectMasternodeCard(restoreSelection);
-    else
-        selectedProTxHash.clear();
+    ui->countLabelDIP3->setText(QString::number(masternodeProxy->rowCount()));
+    QModelIndex restoredSelection;
+    QModelIndex restoredTopRow;
+    for (int row = 0; row < masternodeModel->rowCount(); ++row) {
+        const QModelIndex sourceIndex = masternodeModel->index(row, 0);
+        const QString proTxHash = sourceIndex.data(ProTxHashRole).toString();
+        if (proTxHash == selectionToRestore)
+            restoredSelection = masternodeProxy->mapFromSource(sourceIndex);
+        if (proTxHash == topRowToRestore)
+            restoredTopRow = masternodeProxy->mapFromSource(sourceIndex);
+    }
+    if (restoredSelection.isValid()) {
+        masternodeView->setCurrentIndex(restoredSelection);
+        masternodeView->selectionModel()->select(
+            restoredSelection, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    }
+    if (restoredTopRow.isValid())
+        masternodeView->scrollTo(restoredTopRow, QAbstractItemView::PositionAtTop);
+    nTimeUpdatedDIP3 = GetTime();
     updateEmptyState();
+    return true;
 }
 
 void MasternodeList::on_filterLineEditDIP3_textChanged(const QString& strFilterIn)
 {
-    strCurrentFilterDIP3 = strFilterIn;
-    nTimeFilterUpdatedDIP3 = GetTime();
-    fFilterUpdatedDIP3 = true;
+    masternodeProxy->setFilterFixedString(strFilterIn);
+    ui->countLabelDIP3->setText(QString::number(masternodeProxy->rowCount()));
+    updateEmptyState();
 }
 
-void MasternodeList::on_checkBoxMyMasternodesOnly_stateChanged(int state)
+void MasternodeList::on_checkBoxMyMasternodesOnly_stateChanged(int)
 {
-    // no cooldown
-    nTimeFilterUpdatedDIP3 = GetTime() - MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
-    fFilterUpdatedDIP3 = true;
+    mnListChanged = true;
+    nTimeUpdatedDIP3 = 0;
+    updateDIP3ListScheduled();
 }
 
 CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
 {
-    if (!clientModel || selectedProTxHash.isEmpty()) {
+    const QModelIndex index = masternodeView
+        ? masternodeView->currentIndex()
+        : QModelIndex();
+    const QString proTxHashString = index.data(ProTxHashRole).toString();
+    if (!clientModel || proTxHashString.isEmpty()) {
         return nullptr;
     }
 
     uint256 proTxHash;
-    proTxHash.SetHex(selectedProTxHash.toStdString());
+    proTxHash.SetHex(proTxHashString.toStdString());
 
-    auto mnList = clientModel->getMasternodeList();
+    CDeterministicMNList mnList;
+    if (!clientModel->tryGetMasternodeList(mnList))
+        return nullptr;
     return mnList.GetMN(proTxHash);
 }
 
@@ -734,14 +1028,7 @@ void MasternodeList::extraInfoDIP3_clicked()
     connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     layout->addWidget(buttonBox);
 
-    const QScreen *screen = this->screen();
-    if (!screen) {
-        screen = QGuiApplication::screenAt(QCursor::pos());
-    }
-    if (!screen) {
-        screen = QGuiApplication::primaryScreen();
-    }
-    const QSize avail = screen ? screen->availableGeometry().size() : QSize(1200, 800);
+    const QSize avail = GUIUtil::availableScreenSize(this);
     const int dialogWidth = qMin(640, avail.width() - 80);
     const int maxHeight = static_cast<int>(avail.height() * 0.85);
 
@@ -763,254 +1050,37 @@ void MasternodeList::extraInfoDIP3_clicked()
 
 void MasternodeList::copyProTxHash_clicked()
 {
-    auto dmn = GetSelectedDIP3MN();
-    if (!dmn) {
+    const QModelIndex index = masternodeView ? masternodeView->currentIndex() : QModelIndex();
+    if (!index.isValid()) {
         return;
     }
 
-    QApplication::clipboard()->setText(QString::fromStdString(dmn->proTxHash.ToString()));
+    QApplication::clipboard()->setText(index.data(ProTxHashRole).toString());
 }
 
 void MasternodeList::copyCollateralOutpoint_clicked()
 {
-    auto dmn = GetSelectedDIP3MN();
-    if (!dmn) {
+    const QModelIndex index = masternodeView ? masternodeView->currentIndex() : QModelIndex();
+    if (!index.isValid()) {
         return;
     }
 
-    QApplication::clipboard()->setText(QString::fromStdString(dmn->collateralOutpoint.ToStringShort()));
+    QApplication::clipboard()->setText(index.data(CollateralOutpointRole).toString());
 }
 
 void MasternodeList::updateEmptyState()
 {
-    if (!emptyState || !masternodeScroll)
+    if (!emptyState || !masternodeView)
         return;
 
-    emptyState->setGeometry(masternodeScroll->viewport()->rect());
-    emptyState->setVisible(masternodeCardCount() == 0);
+    emptyState->setGeometry(masternodeView->viewport()->rect());
+    emptyState->setVisible(!masternodeProxy || masternodeProxy->rowCount() == 0);
     if (emptyState->isVisible())
         emptyState->raise();
-}
-
-int MasternodeList::masternodeCardCount() const
-{
-    if (!masternodeCardsLayout)
-        return 0;
-    int count = 0;
-    for (int i = 0; i < masternodeCardsLayout->count(); ++i) {
-        QLayoutItem* item = masternodeCardsLayout->itemAt(i);
-        if (item && qobject_cast<QFrame*>(item->widget()))
-            ++count;
-    }
-    return count;
-}
-
-void MasternodeList::selectMasternodeCard(QFrame* frame)
-{
-    if (!frame || !masternodeCardsLayout)
-        return;
-    selectedProTxHash = frame->property("proTxHash").toString();
-    for (int i = 0; i < masternodeCardsLayout->count(); ++i) {
-        QLayoutItem* item = masternodeCardsLayout->itemAt(i);
-        auto* card = item ? qobject_cast<QFrame*>(item->widget()) : nullptr;
-        if (!card || card->objectName() != QLatin1String("masternodeCard"))
-            continue;
-        card->setProperty("selected", card == frame);
-        card->style()->unpolish(card);
-        card->style()->polish(card);
-    }
-}
-
-QFrame* MasternodeList::createMasternodeCard(const QString& address,
-                                            const QString& status,
-                                            int statusKind,
-                                            int poseScore,
-                                            int maxPose,
-                                            const QString& registered,
-                                            const QString& lastPaid,
-                                            const QString& nextPayment,
-                                            const QString& payout,
-                                            const QString& operatorReward,
-                                            const QString& collateral,
-                                            const QString& collateralId,
-                                            const QString& proTxHash)
-{
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    auto* frame = new QFrame(masternodeCardsHost);
-    frame->setObjectName(QStringLiteral("masternodeCard"));
-    frame->setAttribute(Qt::WA_StyledBackground, true);
-    frame->setCursor(Qt::PointingHandCursor);
-    frame->setFocusPolicy(Qt::StrongFocus);
-    frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    frame->setMinimumHeight(126);
-    frame->setProperty("proTxHash", proTxHash);
-    frame->setProperty("selected", false);
-    frame->setProperty("statusKind", statusKind);
-
-    auto* root = new QVBoxLayout(frame);
-    root->setContentsMargins(16, 14, 16, 14);
-    root->setSpacing(0);
-
-    auto* header = new QHBoxLayout();
-    header->setContentsMargins(0, 0, 0, 0);
-    header->setSpacing(12);
-
-    auto* icon = new QLabel(frame);
-    icon->setObjectName(QStringLiteral("cardIcon"));
-    icon->setFixedSize(36, 36);
-    icon->setPixmap(masternodeGlyph());
-    icon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
-    header->addWidget(icon, 0, Qt::AlignVCenter);
-
-    auto* titleCol = new QVBoxLayout();
-    titleCol->setContentsMargins(0, 0, 0, 0);
-    titleCol->setSpacing(2);
-    auto* ipLab = new QLabel(address, frame);
-    ipLab->setObjectName(QStringLiteral("cardTitle"));
-    const QString subtitle = tr("Collateral · %1")
-        .arg(elideMiddle(collateralId == QLatin1String("-") ? proTxHash : collateralId, 5, 7));
-    auto* subLab = new QLabel(subtitle, frame);
-    subLab->setObjectName(QStringLiteral("cardSubtitle"));
-    titleCol->addWidget(ipLab);
-    titleCol->addWidget(subLab);
-    header->addLayout(titleCol, 1);
-
-    QString badgeBg = tc.tealTint;
-    QString badgeFg = tc.teal;
-    if (statusKind == 1) {
-        badgeBg = tc.goldTint;
-        badgeFg = tc.gold;
-    } else if (statusKind == 2) {
-        badgeBg = tc.wineTint;
-        badgeFg = tc.wine;
-    }
-    auto* statusLab = new QLabel(status, frame);
-    statusLab->setObjectName(QStringLiteral("cardStatusBadge"));
-    statusLab->setAlignment(Qt::AlignCenter);
-    statusLab->setMinimumHeight(22);
-    statusLab->setStyleSheet(QStringLiteral(
-        "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
-        " padding: 2px 10px; font-size: 10px; font-weight: 700; }")
-                                 .arg(badgeBg, badgeFg));
-    header->addWidget(statusLab, 0, Qt::AlignVCenter);
-
-    auto* poseCol = new QVBoxLayout();
-    poseCol->setContentsMargins(0, 0, 0, 0);
-    poseCol->setSpacing(5);
-    auto* poseLab = new QLabel(QStringLiteral("PoSe %1").arg(poseScore), frame);
-    poseLab->setObjectName(QStringLiteral("cardPoseLabel"));
-    poseLab->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    auto* poseTrack = new QFrame(frame);
-    poseTrack->setObjectName(QStringLiteral("cardPoseTrack"));
-    poseTrack->setAttribute(Qt::WA_StyledBackground, true);
-    poseTrack->setFixedSize(64, 4);
-    const int fillWidth = statusKind == 2
-        ? std::max(18, std::min(64, maxPose > 0 ? 64 * poseScore / maxPose : 64))
-        : (poseScore <= 0 ? 22 : std::max(10, std::min(64, maxPose > 0 ? 64 * poseScore / maxPose : 22)));
-    auto* poseFill = new QFrame(poseTrack);
-    poseFill->setObjectName(QStringLiteral("cardPoseFill"));
-    poseFill->setGeometry(0, 0, fillWidth, 4);
-    poseFill->setStyleSheet(QStringLiteral(
-        "QFrame { background: %1; border: none; border-radius: 2px; }")
-                                .arg(statusKind == 2 ? tc.wine : tc.teal));
-    poseCol->addWidget(poseLab);
-    poseCol->addWidget(poseTrack, 0, Qt::AlignRight);
-    header->addLayout(poseCol, 0);
-
-    root->addLayout(header);
-    root->addSpacing(12);
-
-    auto* divider = new QFrame(frame);
-    divider->setObjectName(QStringLiteral("cardDivider"));
-    divider->setAttribute(Qt::WA_StyledBackground, true);
-    divider->setFixedHeight(1);
-    root->addWidget(divider);
-    root->addSpacing(12);
-
-    auto* grid = new QHBoxLayout();
-    grid->setContentsMargins(0, 0, 0, 0);
-    grid->setSpacing(4);
-    grid->addWidget(metricColumn(tr("REGISTERED"), registered, frame), 1);
-    grid->addWidget(metricColumn(tr("LAST PAID"), lastPaid, frame), 1);
-    grid->addWidget(metricColumn(tr("NEXT PAYMENT"), nextPayment, frame), 1);
-    grid->addWidget(metricColumn(tr("PAYOUT ADDRESS"), elideMiddle(payout, 18, 0), frame), 2);
-    grid->addWidget(metricColumn(tr("OPERATOR REWARD"), operatorReward, frame), 1);
-    grid->addWidget(metricColumn(tr("COLLATERAL"), collateral, frame), 1);
-    root->addLayout(grid);
-
-    frame->installEventFilter(this);
-    for (auto* child : frame->findChildren<QWidget*>())
-        child->installEventFilter(this);
-
-    return frame;
-}
-
-bool MasternodeList::eventFilter(QObject* watched, QEvent* event)
-{
-    if (masternodeScroll && watched == masternodeScroll->viewport()
-        && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
-        updateEmptyState();
-        return QWidget::eventFilter(watched, event);
-    }
-
-    QWidget* widget = qobject_cast<QWidget*>(watched);
-    QFrame* card = nullptr;
-    while (widget) {
-        card = qobject_cast<QFrame*>(widget);
-        if (card && card->objectName() == QLatin1String("masternodeCard"))
-            break;
-        card = nullptr;
-        widget = widget->parentWidget();
-    }
-
-    if (card) {
-        if (event->type() == QEvent::MouseButtonPress) {
-            auto* me = static_cast<QMouseEvent*>(event);
-            selectMasternodeCard(card);
-            if (me->button() == Qt::RightButton) {
-                showContextMenuDIP3(me->globalPosition().toPoint());
-                return true;
-            }
-        } else if (event->type() == QEvent::MouseButtonDblClick) {
-            extraInfoDIP3_clicked();
-            return true;
-        } else if (event->type() == QEvent::FocusIn) {
-            selectMasternodeCard(card);
-        } else if (event->type() == QEvent::KeyPress) {
-            auto* ke = static_cast<QKeyEvent*>(event);
-            if (ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) {
-                selectMasternodeCard(card);
-                extraInfoDIP3_clicked();
-                return true;
-            }
-            if (ke->key() == Qt::Key_Menu ||
-                (ke->key() == Qt::Key_F10 && ke->modifiers() == Qt::ShiftModifier)) {
-                selectMasternodeCard(card);
-                showContextMenuDIP3(card->mapToGlobal(card->rect().center()));
-                return true;
-            }
-        }
-    }
-
-    return QWidget::eventFilter(watched, event);
 }
 
 void MasternodeList::resizeEvent(QResizeEvent* event) 
 {
     QWidget::resizeEvent(event);
     updateEmptyState();
-}
-
-void MasternodeList::adjustTextSize(int width,int height){
-
-    const double fontSizeScalingFactor = 70.0;
-    int baseFontSize = std::min(width, height) / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
-    QFont font = this->font();
-    font.setPointSize(fontSize);
-
-    ui->label_filter_2->setFont(font);
-    ui->label_count_2->setFont(font);
-    ui->countLabelDIP3->setFont(font);
-    ui->checkBoxMyMasternodesOnly->setFont(font);
 }

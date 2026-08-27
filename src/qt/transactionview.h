@@ -9,7 +9,6 @@
 
 #include <QWidget>
 #include <QKeyEvent>
-#include <QResizeEvent>
 
 class PlatformStyle;
 class TransactionFilterProxy;
@@ -25,8 +24,8 @@ class QMenu;
 class QModelIndex;
 class QPushButton;
 class QTableView;
-class QSpacerItem;
-class QHBoxLayout;
+class QGridLayout;
+class QToolButton;
 QT_END_NAMESPACE
 
 /** Widget showing the transaction list for a wallet, including a filter row.
@@ -40,8 +39,6 @@ public:
     explicit TransactionView(const PlatformStyle *platformStyle, QWidget *parent = 0);
 
     void setModel(WalletModel *model);
-    void resizeEvent(QResizeEvent* event) override;
-    void adjustTextSize(int width, int height);
 
     // Date ranges for filter
     enum DateEnum
@@ -71,12 +68,13 @@ private:
     TransactionFilterProxy *transactionProxyModel;
     QTableView *transactionView;
 
-    QHBoxLayout * headerLayout;
-    QSpacerItem *statusSpacer;
+    QGridLayout *headerLayout;
     QComboBox *dateWidget;
     QComboBox *typeWidget;
     QComboBox *watchOnlyWidget;
     QComboBox *instantsendWidget;
+    QComboBox *sortWidget;
+    QToolButton *sortDirectionButton;
     QLineEdit *addressWidget;
     QLineEdit *amountWidget;
     QPushButton *exportButton;
@@ -100,11 +98,11 @@ private:
     void addShadow(QWidget* w);
     void updateEmptyState();
     void updateTableColumnWidths();
+    void updateSortDirectionButton(Qt::SortOrder order);
     void applyTheme();
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);
-    void updateHeaderSizes(int logicalIndex, int oldSize, int newSize);
     void dateRangeChanged();
     void showDetails();
     void openTransaction(const QModelIndex &index);
@@ -130,6 +128,8 @@ public Q_SLOTS:
     void chooseType(int idx);
     void chooseWatchonly(int idx);
     void chooseInstantSend(int idx);
+    void chooseSort(int idx);
+    void toggleSortOrder();
     void changedPrefix(const QString &prefix);
     void changedAmount(const QString &amount);
     void exportClicked();

@@ -47,11 +47,14 @@
 #include <QUrl>
 #endif
 
-// TODO: add a scrollback limit, as there is currently none
 // TODO: make it possible to filter out categories (esp debug messages when implemented)
 // TODO: receive errors and debug messages through ClientModel
 
 const int CONSOLE_HISTORY = 50;
+const int CONSOLE_SCROLLBACK_MESSAGES = 2000;
+const int CONSOLE_SCROLLBACK_MESSAGES_HIGH_WATER = 2200;
+const qint64 CONSOLE_SCROLLBACK_CHARACTERS = 4 * 1024 * 1024;
+const qint64 CONSOLE_SCROLLBACK_CHARACTERS_HIGH_WATER = 5 * 1024 * 1024;
 const int INITIAL_TRAFFIC_GRAPH_MINS = 30;
 const QSize FONT_RANGE(4, 40);
 const char fontSizeSettingsKey[] = "consoleFontSize";
@@ -489,7 +492,7 @@ void RPCConsole::applyConsoleTheme()
             padding: 8px 14px;
             border: none;
         }
-        QTabBar::tab:selected { color: $WINE; }
+        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
         QTabBar::tab:hover { color: $INK; }
         QGroupBox {
             background: $PANEL_SOFT;
@@ -530,6 +533,8 @@ void RPCConsole::applyConsoleTheme()
             color: $INK;
             font-weight: 700;
         }
+        QWidget#RPCConsole QGroupBox QFrame#line { background: $TEAL; }
+        QWidget#RPCConsole QGroupBox QFrame#line_2 { background: $WINE; }
         QPushButton {
             color: $INK;
             background: $PANEL;
@@ -555,6 +560,9 @@ void RPCConsole::applyConsoleTheme()
     ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $BORDER; border-radius: 10px; padding: 4px 8px; }"
         "QLineEdit:focus { border: 1px solid $WINE; }")));
+
+    if (consoleFontSize > 0)
+        rebuildConsoleMessages();
 }
 
 RPCConsole::~RPCConsole()
@@ -781,26 +789,17 @@ void RPCConsole::setFontSize(int newSize)
     if (newSize < FONT_RANGE.width() || newSize > FONT_RANGE.height())
         return;
 
-    // temp. store the console content
-    QString str = ui->messagesWidget->toHtml();
-
-    // replace font tags size in current content
-    str.replace(QString("font-size:%1pt").arg(consoleFontSize), QString("font-size:%1pt").arg(newSize));
-
     // store the new font size
     consoleFontSize = newSize;
     settings.setValue(fontSizeSettingsKey, consoleFontSize);
 
-    // clear console (reset icon sizes, default stylesheet) and re-add the content
-    float oldPosFactor = 1.0 / ui->messagesWidget->verticalScrollBar()->maximum() * ui->messagesWidget->verticalScrollBar()->value();
-    clear(false);
-    ui->messagesWidget->setHtml(str);
-    ui->messagesWidget->verticalScrollBar()->setValue(oldPosFactor * ui->messagesWidget->verticalScrollBar()->maximum());
+    rebuildConsoleMessages();
 }
 
 void RPCConsole::clear(bool clearHistory)
 {
-    ui->messagesWidget->clear();
+    consoleMessages.clear();
+    consoleMessageCharacters = 0;
     if(clearHistory)
     {
         history.clear();
@@ -808,6 +807,43 @@ void RPCConsole::clear(bool clearHistory)
     }
     ui->lineEdit->clear();
     ui->lineEdit->setFocus();
+
+    rebuildConsoleMessages();
+
+    message(CMD_REPLY, (tr("Welcome to the %1 RPC console.").arg(tr(PACKAGE_NAME)) + "<br>" +
+                        tr("Use up and down arrows to navigate history, and <b>Ctrl-L</b> to clear screen.") + "<br>" +
+                        tr("Type <b>help</b> for an overview of available commands.")) +
+                        "<br><span class=\"secwarning\">" +
+                        tr("WARNING: Scammers have been active, telling users to type commands here, stealing their wallet contents. Do not use this console without fully understanding the ramification of a command.") +
+                        "</span>",
+                        true);
+}
+
+void RPCConsole::updateConsoleDocumentStyle()
+{
+    QFontInfo fixedFontInfo(GUIUtil::fixedPitchFont());
+    const QString style = QStringLiteral(
+        "table { }"
+        "td.time { color: $INK_FAINT; font-size: %2; padding-top: 3px; } "
+        "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; } "
+        "td.cmd-request { color: $TEAL; } "
+        "td.cmd-error { color: $ERROR; } "
+        ".secwarning { color: $ERROR; }"
+        "b { color: $TEAL; } ")
+        .arg(fixedFontInfo.family(), QStringLiteral("%1pt").arg(consoleFontSize));
+    ui->messagesWidget->document()->setDefaultStyleSheet(GUIUtil::themed(style));
+}
+
+void RPCConsole::rebuildConsoleMessages()
+{
+    QScrollBar* scrollBar = ui->messagesWidget->verticalScrollBar();
+    const int oldMaximum = scrollBar->maximum();
+    const bool wasAtEnd = scrollBar->value() >= oldMaximum;
+    const double oldPosition = oldMaximum > 0
+        ? static_cast<double>(scrollBar->value()) / oldMaximum
+        : 1.0;
+
+    ui->messagesWidget->clear();
 
     // Add smoothly scaled icon images.
     // (when using width/height on an img, Qt uses nearest instead of linear interpolation)
@@ -819,27 +855,13 @@ void RPCConsole::clear(bool clearHistory)
                     QImage(ICON_MAPPING[i].source).scaled(QSize(consoleFontSize*2, consoleFontSize*2), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
     }
 
-    // Set default style sheet
-    QFontInfo fixedFontInfo(GUIUtil::fixedPitchFont());
-    ui->messagesWidget->document()->setDefaultStyleSheet(
-        QString(
-                "table { }"
-                "td.time { color: #808080; font-size: %2; padding-top: 3px; } "
-                "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; } "
-                "td.cmd-request { color: #006060; } "
-                "td.cmd-error { color: red; } "
-                ".secwarning { color: red; }"
-                "b { color: #006060; } "
-            ).arg(fixedFontInfo.family(), QString("%1pt").arg(consoleFontSize))
-        );
+    updateConsoleDocumentStyle();
+    for (const QString& messageHtml : consoleMessages)
+        ui->messagesWidget->append(messageHtml);
 
-    message(CMD_REPLY, (tr("Welcome to the %1 RPC console.").arg(tr(PACKAGE_NAME)) + "<br>" +
-                        tr("Use up and down arrows to navigate history, and <b>Ctrl-L</b> to clear screen.") + "<br>" +
-                        tr("Type <b>help</b> for an overview of available commands.")) +
-                        "<br><span class=\"secwarning\">" +
-                        tr("WARNING: Scammers have been active, telling users to type commands here, stealing their wallet contents. Do not use this console without fully understanding the ramification of a command.") +
-                        "</span>",
-                        true);
+    scrollBar->setValue(wasAtEnd
+        ? scrollBar->maximum()
+        : qRound(oldPosition * scrollBar->maximum()));
 }
 
 void RPCConsole::keyPressEvent(QKeyEvent *event)
@@ -863,7 +885,25 @@ void RPCConsole::message(int category, const QString &message, bool html)
     else
         out += GUIUtil::HtmlEscape(message, false);
     out += "</td></tr></table>";
-    ui->messagesWidget->append(out);
+    consoleMessages.append(out);
+    consoleMessageCharacters += out.size();
+
+    bool trimmed = false;
+    if (consoleMessages.size() > CONSOLE_SCROLLBACK_MESSAGES_HIGH_WATER
+        || consoleMessageCharacters > CONSOLE_SCROLLBACK_CHARACTERS_HIGH_WATER) {
+        while (consoleMessages.size() > 1
+               && (consoleMessages.size() > CONSOLE_SCROLLBACK_MESSAGES
+                   || consoleMessageCharacters > CONSOLE_SCROLLBACK_CHARACTERS)) {
+            consoleMessageCharacters -= consoleMessages.first().size();
+            consoleMessages.removeFirst();
+            trimmed = true;
+        }
+    }
+
+    if (trimmed)
+        rebuildConsoleMessages();
+    else
+        ui->messagesWidget->append(out);
 }
 
 void RPCConsole::updateNetworkState()

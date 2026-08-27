@@ -69,6 +69,7 @@ public Q_SLOTS:
     void displayCheckBox(int idx);
 
 protected:
+    bool eventFilter(QObject* object, QEvent* event) override;
     virtual void keyPressEvent(QKeyEvent *event) override;
 
 private:
@@ -86,6 +87,7 @@ private:
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
     void updateRequestsEmptyState();
+    void updateRequestColumnWidths();
     void applyTheme();
 private Q_SLOTS:
     void on_receiveButton_clicked();
@@ -99,6 +101,8 @@ private Q_SLOTS:
     void copyLabel();
     void copyMessage();
     void copyAmount();
+    void createSparkName();
+    void mySparkNames();
 };
 
 class RecentRequestsFilterProxy : public QSortFilterProxyModel

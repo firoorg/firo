@@ -34,13 +34,14 @@ static const ThemeColors LIGHT_COLORS{
     QStringLiteral("#ECE8F2"),
     QStringLiteral("#201C2E"),
     QStringLiteral("#6E6A80"),
-    QStringLiteral("#8C8993"),
+    QStringLiteral("#726E7B"),
     QStringLiteral("#9B1C2E"),
     QStringLiteral("#7A1830"),
     QStringLiteral("#FCE9EE"),
-    QStringLiteral("#3FA796"),
+    QStringLiteral("#237A6E"),
     QStringLiteral("#E6F5F2"),
-    QStringLiteral("#E0A458"),
+    QStringLiteral("#9B1C2E"),
+    QStringLiteral("#A66314"),
     QStringLiteral("#FBF1E3"),
 };
 
@@ -51,12 +52,13 @@ static const ThemeColors DARK_COLORS{
     QStringLiteral("#362A34"),
     QStringLiteral("#F5EFF3"),
     QStringLiteral("#B4A8B2"),
-    QStringLiteral("#8A7E88"),
+    QStringLiteral("#8D818B"),
     QStringLiteral("#DE3358"),
     QStringLiteral("#A3223F"),
     QStringLiteral("rgba(222,51,88,0.16)"),
     QStringLiteral("#4FBBA8"),
     QStringLiteral("rgba(79,187,168,0.14)"),
+    QStringLiteral("#FF708A"),
     QStringLiteral("#E7B678"),
     QStringLiteral("rgba(231,182,120,0.14)"),
 };
@@ -113,8 +115,16 @@ const ThemeColors& themeColors()
 
 QString themed(const QString& cssTemplate)
 {
-    const ThemeColors& c = themeColors();
+    return themed(cssTemplate, currentThemeMode());
+}
+
+QString themed(const QString& cssTemplate, ThemeMode mode)
+{
+    const ThemeColors& c = mode == ThemeMode::Dark ? DARK_COLORS : LIGHT_COLORS;
     QString result = cssTemplate;
+    result.replace(QLatin1String("$ASSET_THEME"), mode == ThemeMode::Dark
+                                                     ? QLatin1String("dark")
+                                                     : QLatin1String("light"));
     result.replace(QLatin1String("$BG"), c.bg);
     result.replace(QLatin1String("$PANEL_SOFT"), c.panelSoft);
     result.replace(QLatin1String("$PANEL"), c.panel);
@@ -127,6 +137,7 @@ QString themed(const QString& cssTemplate)
     result.replace(QLatin1String("$WINE"), c.wine);
     result.replace(QLatin1String("$TEAL_TINT"), c.tealTint);
     result.replace(QLatin1String("$TEAL"), c.teal);
+    result.replace(QLatin1String("$ERROR"), c.error);
     result.replace(QLatin1String("$GOLD_TINT"), c.goldTint);
     result.replace(QLatin1String("$GOLD"), c.gold);
     return result;
@@ -149,7 +160,7 @@ QString primaryButtonStyle(const QString& padding)
                                         stop:0 $WINE, stop:1 $WINE_DEEP);
         }
         QPushButton:pressed { background: $WINE_DEEP; }
-        QPushButton:disabled { background: $BORDER; color: #FFFFFF; }
+        QPushButton:disabled { background: $BORDER; color: $INK_FAINT; }
     )")).arg(padding);
 }
 
