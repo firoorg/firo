@@ -146,7 +146,7 @@ public:
         case RecentRequestsTableModel::Amount: {
             const QString amountText = index.data(Qt::DisplayRole).toString();
             QFont capFont = option.font;
-            capFont.setPixelSize(11);
+            capFont.setPixelSize(12);
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));

@@ -195,7 +195,7 @@ public:
                 ? QCoreApplication::translate("TransactionView", "RECEIVED")
                 : QCoreApplication::translate("TransactionView", "SENT");
             QFont capFont = option.font;
-            capFont.setPixelSize(11);
+            capFont.setPixelSize(12);
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
