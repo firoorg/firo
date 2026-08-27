@@ -59,7 +59,10 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
 
 void CreateSparkNamePage::applyTheme()
 {
-    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QScrollArea { background: $BG; border: none; }"
+        "QScrollArea > QWidget > QWidget { background: $BG; }")));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"));
