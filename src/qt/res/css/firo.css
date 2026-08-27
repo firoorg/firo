@@ -177,7 +177,7 @@ QCalendarWidget {
 }
 
 #qt_calendar_navigationbar {
-    background-color: #99213C;
+    background-color: #9B1C2E;
     min-height: 42px;
     border: none;
 }
@@ -217,7 +217,7 @@ QCalendarWidget {
     border: none;
     outline: none;
     gridline-color: transparent;
-    selection-background-color: #99213C;
+    selection-background-color: #9B1C2E;
     selection-color: #FFFFFF;
 }
 
@@ -232,13 +232,13 @@ QCalendarWidget QWidget {
 
 QCalendarWidget QAbstractItemView:enabled {
     color: #201C2E;
-    selection-background-color: #99213C;
+    selection-background-color: #9B1C2E;
     selection-color: #FFFFFF;
     border: 0px;
 }
 
 QCalendarWidget QAbstractItemView:disabled {
-    color: #8C8993;
+    color: #726E7B;
 }
 
 /* QCheckBox */
@@ -421,7 +421,7 @@ QHeaderView::section {
     padding-bottom: 2px;
     background-color: transparent;
     border-color: transparent;
-    color: #A4A1AA;
+    color: #6E6A80;
     font-size: 10pt;
     font-weight: 700;
 }

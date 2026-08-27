@@ -34,11 +34,11 @@ static const ThemeColors LIGHT_COLORS{
     QStringLiteral("#ECE8F2"),
     QStringLiteral("#201C2E"),
     QStringLiteral("#6E6A80"),
-    QStringLiteral("#8C8993"),
+    QStringLiteral("#726E7B"),
     QStringLiteral("#9B1C2E"),
     QStringLiteral("#7A1830"),
     QStringLiteral("#FCE9EE"),
-    QStringLiteral("#3FA796"),
+    QStringLiteral("#237A6E"),
     QStringLiteral("#E6F5F2"),
     QStringLiteral("#E0A458"),
     QStringLiteral("#FBF1E3"),
@@ -51,7 +51,7 @@ static const ThemeColors DARK_COLORS{
     QStringLiteral("#362A34"),
     QStringLiteral("#F5EFF3"),
     QStringLiteral("#B4A8B2"),
-    QStringLiteral("#8A7E88"),
+    QStringLiteral("#8D818B"),
     QStringLiteral("#DE3358"),
     QStringLiteral("#A3223F"),
     QStringLiteral("rgba(222,51,88,0.16)"),
@@ -149,7 +149,7 @@ QString primaryButtonStyle(const QString& padding)
                                         stop:0 $WINE, stop:1 $WINE_DEEP);
         }
         QPushButton:pressed { background: $WINE_DEEP; }
-        QPushButton:disabled { background: $BORDER; color: #FFFFFF; }
+        QPushButton:disabled { background: $BORDER; color: $INK_FAINT; }
     )")).arg(padding);
 }
 
