@@ -115,16 +115,16 @@ void Recover::applyTheme()
             color: $INK_FAINT;
         }
         QDialog#Recover QRadioButton::indicator:unchecked {
-            image: url(:/images/radio_normal_light);
+            image: url(:/images/radio_normal_$ASSET_THEME);
         }
         QDialog#Recover QRadioButton::indicator:checked {
-            image: url(:/images/radio_checked_light);
+            image: url(:/images/radio_checked_$ASSET_THEME);
         }
         QDialog#Recover QCheckBox::indicator:unchecked {
-            image: url(:/images/checkbox_normal_light);
+            image: url(:/images/checkbox_normal_$ASSET_THEME);
         }
         QDialog#Recover QCheckBox::indicator:checked {
-            image: url(:/images/checkbox_checked_light);
+            image: url(:/images/checkbox_checked_$ASSET_THEME);
         }
     )")));
 

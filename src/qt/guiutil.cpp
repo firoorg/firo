@@ -1019,6 +1019,80 @@ static QString darkModeOverrideCss()
         QMessageBox { background-color: $PANEL; }
         QTabWidget::pane { background-color: $PANEL; border-color: $BORDER; }
         QCheckBox, QRadioButton { color: $INK; background-color: transparent; }
+        QCheckBox::indicator:unchecked,
+        QCheckBox::indicator:unchecked:pressed,
+        QTreeWidget::indicator:unchecked,
+        QTreeWidget::indicator:unchecked:pressed {
+            image: url(:/images/checkbox_normal_dark);
+        }
+        QCheckBox::indicator:checked,
+        QCheckBox::indicator:checked:pressed,
+        QTreeWidget::indicator:checked,
+        QTreeWidget::indicator:checked:pressed {
+            image: url(:/images/checkbox_checked_dark);
+        }
+        QCheckBox::indicator:indeterminate,
+        QCheckBox::indicator:indeterminate:pressed,
+        QTreeWidget::indicator:indeterminate,
+        QTreeWidget::indicator:indeterminate:pressed {
+            image: url(:/images/checkbox_partly_checked_dark);
+        }
+        QCheckBox::indicator:hover:!pressed:unchecked,
+        QTreeWidget::indicator:hover:unchecked {
+            image: url(:/images/checkbox_normal_hover_dark);
+        }
+        QCheckBox::indicator:checked:!pressed:hover,
+        QTreeWidget::indicator:checked:hover {
+            image: url(:/images/checkbox_checked_hover_dark);
+        }
+        QCheckBox::indicator:indeterminate:hover,
+        QTreeWidget::indicator:indeterminate:!pressed:hover {
+            image: url(:/images/checkbox_partly_checked_hover_dark);
+        }
+        QCheckBox::indicator:unchecked:disabled,
+        QTreeWidget::indicator:unchecked:disabled {
+            image: url(:/images/checkbox_normal_disabled_dark);
+        }
+        QCheckBox::indicator:checked:disabled,
+        QTreeWidget::indicator:checked:disabled {
+            image: url(:/images/checkbox_checked_disabled_dark);
+        }
+        QCheckBox::indicator:indeterminate:disabled,
+        QTreeWidget::indicator:indeterminate:disabled {
+            image: url(:/images/checkbox_partly_checked_disabled_dark);
+        }
+        QRadioButton::indicator:unchecked,
+        QRadioButton::indicator:unchecked:pressed {
+            image: url(:/images/radio_normal_dark);
+        }
+        QRadioButton::indicator:checked,
+        QRadioButton::indicator:checked:pressed {
+            image: url(:/images/radio_checked_dark);
+        }
+        QRadioButton::indicator:hover:unchecked:!pressed {
+            image: url(:/images/radio_normal_hover_dark);
+        }
+        QRadioButton::indicator:checked:hover:!pressed {
+            image: url(:/images/radio_checked_hover_dark);
+        }
+        QRadioButton::indicator:unchecked:disabled {
+            image: url(:/images/radio_normal_disabled_dark);
+        }
+        QRadioButton::indicator:checked:disabled {
+            image: url(:/images/radio_checked_disabled_dark);
+        }
+        QAbstractSpinBox::up-arrow { image: url(:/images/arrow_light_up_normal); }
+        QAbstractSpinBox::up-arrow:hover { image: url(:/images/arrow_light_up_hover); }
+        QAbstractSpinBox::down-arrow { image: url(:/images/arrow_light_down_normal); }
+        QAbstractSpinBox::down-arrow:hover { image: url(:/images/arrow_light_down_hover); }
+        QComboBox::down-arrow { image: url(:/images/arrow_light_down_normal); }
+        QComboBox::down-arrow:hover { image: url(:/images/arrow_light_down_hover); }
+        QHeaderView::down-arrow { image: url(:/images/arrow_light_down_normal); }
+        QHeaderView::up-arrow { image: url(:/images/arrow_light_up_normal); }
+        QTreeWidget::branch::closed:has-children { image: url(:/images/arrow_light_right_normal); }
+        QTreeWidget::branch::closed:has-children:hover { image: url(:/images/arrow_light_right_hover); }
+        QTreeWidget::branch::open { image: url(:/images/arrow_light_down_normal); }
+        QTreeWidget::branch::open:hover { image: url(:/images/arrow_light_down_hover); }
         QWidget#RPCConsole QPushButton#promptIcon,
         QWidget#RPCConsole QPushButton#fontSmallerButton,
         QWidget#RPCConsole QPushButton#fontBiggerButton,

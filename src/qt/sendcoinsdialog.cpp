@@ -201,8 +201,8 @@ void SendCoinsDialog::applyTheme()
 
     ui->checkBoxCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }"
-        "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_light); }"
-        "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_light); }")));
+        "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_$ASSET_THEME); }"
+        "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_$ASSET_THEME); }")));
     ui->lineEditCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QValidatedLineEdit {"
         " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"

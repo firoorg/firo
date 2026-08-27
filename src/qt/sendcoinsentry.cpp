@@ -211,10 +211,10 @@ void SendCoinsEntry::applyTheme()
             font-weight: 700;
         }
         QFrame#SendCoins QCheckBox::indicator:unchecked {
-            image: url(:/images/checkbox_normal_light);
+            image: url(:/images/checkbox_normal_$ASSET_THEME);
         }
         QFrame#SendCoins QCheckBox::indicator:checked {
-            image: url(:/images/checkbox_checked_light);
+            image: url(:/images/checkbox_checked_$ASSET_THEME);
         }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
 }

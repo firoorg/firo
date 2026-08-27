@@ -505,7 +505,7 @@ QCheckBox#checkBoxMyMasternodesOnly::indicator {
   background: $PANEL;
 }
 QCheckBox#checkBoxMyMasternodesOnly::indicator:checked {
-  image: url(:/images/checkbox_checked_light);
+  image: url(:/images/checkbox_checked_$ASSET_THEME);
   border: none;
 }
 QComboBox {
