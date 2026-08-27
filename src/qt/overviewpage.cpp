@@ -43,6 +43,7 @@
 #include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QVBoxLayout>
 
 #define DECORATION_SIZE 54
@@ -181,6 +182,26 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     txdelegate(new TxViewDelegate(platformStyle, this))
 {
     ui->setupUi(this);
+
+    ui->topLayout->removeItem(ui->mainGrid);
+    ui->mainGrid->setParent(nullptr);
+
+    auto* overviewScrollContents = new QWidget(this);
+    overviewScrollContents->setObjectName(QStringLiteral("overviewScrollContents"));
+    auto* overviewScrollLayout = new QVBoxLayout(overviewScrollContents);
+    overviewScrollLayout->setContentsMargins(0, 0, 0, 0);
+    overviewScrollLayout->addLayout(ui->mainGrid);
+
+    auto* overviewScroll = new QScrollArea(this);
+    overviewScroll->setObjectName(QStringLiteral("overviewScroll"));
+    overviewScroll->setWidgetResizable(true);
+    overviewScroll->setFrameShape(QFrame::NoFrame);
+    overviewScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    overviewScroll->setFocusPolicy(Qt::NoFocus);
+    overviewScroll->setWidget(overviewScrollContents);
+    overviewScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#overviewScroll, QWidget#overviewScrollContents { background: transparent; border: none; }"));
+    ui->topLayout->addWidget(overviewScroll, 1);
 
     ui->labelTransactionsStatus->hide();
     ui->labelWalletStatus->hide();
