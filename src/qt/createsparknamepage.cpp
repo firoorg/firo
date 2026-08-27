@@ -18,6 +18,7 @@
 #include <QStyle>
 #include <QMessageBox>
 #include <QDateTime>
+#include <QLocale>
 
 #define SEND_CONFIRM_DELAY   3
 
@@ -194,7 +195,7 @@ void CreateSparkNamePage::updateFee() {
 
             label = tr("Fee: %1 FIRO. New estimated expiration: %2")
                 .arg(fee)
-                .arg(expirationDate.toString("MMMM d, yyyy"));
+                .arg(QLocale::system().toString(expirationDate.date(), QLocale::LongFormat));
         } catch (const std::runtime_error&) {
             label = tr("Extension fee: %1 FIRO. The updated expiration estimate is unavailable.")
                 .arg(fee);

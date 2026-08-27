@@ -14,6 +14,7 @@
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
@@ -337,7 +338,7 @@ void SparkNamesPage::refreshList()
         } else {
             const QDateTime expiryDate = QDateTime::currentDateTime().addSecs(
                 (qint64)remainingBlocks * 3600 / nBlocksPerHour);
-            expiry = expiryDate.toString("MMMM d, yyyy");
+            expiry = QLocale::system().toString(expiryDate.date(), QLocale::LongFormat);
             statusKind = remainingBlocks < nBlocksPerMonth ? 1 : 0;
         }
 
