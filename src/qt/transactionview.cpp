@@ -21,6 +21,7 @@
 
 #include <QComboBox>
 #include <QAbstractItemModel>
+#include <QCoreApplication>
 #include <QDateTimeEdit>
 #include <QDesktopServices>
 #include <QDoubleValidator>
@@ -190,7 +191,9 @@ public:
             break;
         }
         case TransactionTableModel::Amount: {
-            const QString caption = positive ? QObject::tr("RECEIVED") : QObject::tr("SENT");
+            const QString caption = positive
+                ? QCoreApplication::translate("TransactionView", "RECEIVED")
+                : QCoreApplication::translate("TransactionView", "SENT");
             QFont capFont = option.font;
             capFont.setPixelSize(11);
             capFont.setBold(true);

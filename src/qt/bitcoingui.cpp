@@ -47,6 +47,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDragEnterEvent>
 #include <QEasingCurve>
@@ -600,7 +601,7 @@ public:
         setCheckable(true);
         setCursor(Qt::PointingHandCursor);
         setFixedSize(40, 22);
-        setToolTip(QObject::tr("Toggle light / dark theme"));
+        setToolTip(QCoreApplication::translate("BitcoinGUI", "Toggle light / dark theme"));
 
         animation_ = new QPropertyAnimation(this, "thumbPos", this);
         animation_->setDuration(180);

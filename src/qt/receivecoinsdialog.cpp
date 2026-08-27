@@ -29,6 +29,7 @@
 #include <QStyledItemDelegate>
 #include <QTextDocument>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QScreen>
@@ -150,7 +151,8 @@ public:
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
             painter->drawText(option.rect.adjusted(8, 12, -14, -28),
-                              Qt::AlignRight | Qt::AlignVCenter, QObject::tr("REQUESTED"));
+                              Qt::AlignRight | Qt::AlignVCenter,
+                              QCoreApplication::translate("ReceiveCoinsDialog", "REQUESTED"));
 
             QFont amtFont = option.font;
             amtFont.setPixelSize(14);

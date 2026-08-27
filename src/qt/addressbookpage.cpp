@@ -21,6 +21,7 @@
 #include "bip47/paymentchannel.h"
 
 #include <QFrame>
+#include <QCoreApplication>
 #include <QHeaderView>
 #include <QIcon>
 #include <QMenu>
@@ -89,7 +90,7 @@ public:
                                  option.rect.right() - icon.right() - 18, option.rect.height());
             painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
                               QFontMetrics(font).elidedText(
-                                  text.isEmpty() ? QObject::tr("(no label)") : text,
+                                  text.isEmpty() ? QCoreApplication::translate("AddressBookPage", "(no label)") : text,
                                   Qt::ElideRight, textRect.width()));
             break;
         }
