@@ -11,9 +11,6 @@
 #include "netbase.h"
 #include "sync.h"
 #include "validation.h"
-#ifdef ENABLE_WALLET
-#include "wallet/wallet.h"
-#endif // ENABLE_WALLET
 #include "walletmodel.h"
 
 #include <univalue.h>
@@ -776,7 +773,6 @@ bool MasternodeList::updateDIP3List()
     }
 
     std::set<COutPoint> setOutpts;
-    std::set<CKeyID> setMyKeys;
     const bool filterMyMasternodes = walletModel && ui->checkBoxMyMasternodesOnly->isChecked();
     if (filterMyMasternodes) {
         std::vector<COutPoint> vOutpts;
@@ -785,18 +781,7 @@ bool MasternodeList::updateDIP3List()
         for (const auto& outpt : vOutpts) {
             setOutpts.emplace(outpt);
         }
-        if (CWallet* wallet = walletModel->getWallet())
-            wallet->GetKeys(setMyKeys);
     }
-
-    auto isScriptMine = [&](const CScript& script) {
-        CTxDestination dest;
-        if (ExtractDestination(script, dest)) {
-            if (const CKeyID* keyID = boost::get<CKeyID>(&dest))
-                return setMyKeys.count(*keyID) > 0;
-        }
-        return walletModel->IsSpendable(script);
-    };
 
     const Consensus::Params& params = ::Params().GetConsensus();
     const int maxPose = std::max(100, mnList.CalcMaxPoSePenalty());
@@ -806,9 +791,9 @@ bool MasternodeList::updateDIP3List()
     auto processMN = [&](const CDeterministicMNCPtr& dmn) {
         if (filterMyMasternodes) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
-                setMyKeys.count(dmn->pdmnState->keyIDOwner) ||
-                isScriptMine(dmn->pdmnState->scriptPayout) ||
-                isScriptMine(dmn->pdmnState->scriptOperatorPayout);
+                walletModel->IsSpendable(dmn->pdmnState->keyIDOwner) ||
+                walletModel->IsSpendable(dmn->pdmnState->scriptPayout) ||
+                walletModel->IsSpendable(dmn->pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
         }
 
