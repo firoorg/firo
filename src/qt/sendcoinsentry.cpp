@@ -663,10 +663,10 @@ void SendCoinsEntry::resizeEvent(QResizeEvent* event) {
 }
 
 
-void SendCoinsEntry::adjustTextSize(int width, int height) {
-   const double fontSizeScalingFactor = 130.0;
+void SendCoinsEntry::adjustTextSize(int width, int) {
+    const double fontSizeScalingFactor = 130.0;
     int baseFontSize = width / fontSizeScalingFactor;
-    int fontSize = std::max(12,baseFontSize);
+    int fontSize = std::min(15, std::max(12, baseFontSize));
     QFont font = this->font();
     font.setPointSize(fontSize);
 
