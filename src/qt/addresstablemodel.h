@@ -37,7 +37,9 @@ public:
     };
 
     enum RoleIndex {
-        TypeRole = Qt::UserRole /**< Type of address (#Send or #Receive) */
+        TypeRole = Qt::UserRole, /**< Type of address (#Send or #Receive) */
+        AddressTypeRole,         /**< Address family (#Transparent, #Spark, #SparkName, or #RAP) */
+        IsMineRole               /**< Whether the wallet owns the address */
     };
 
     /** Return status of edit/insert operation */

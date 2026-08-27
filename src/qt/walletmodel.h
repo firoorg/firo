@@ -139,6 +139,7 @@ public:
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
     void setClientModel(ClientModel* client_model);
+    ClientModel *getClientModel() const { return _client_model; }
 
     CWallet *getWallet() const { return wallet; }
 

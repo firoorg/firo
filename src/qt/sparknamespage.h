@@ -15,7 +15,6 @@ class QLabel;
 class QVBoxLayout;
 class QScrollArea;
 class QFrame;
-class QShowEvent;
 QT_END_NAMESPACE
 
 /** Page listing the wallet's own registered Spark Names, their expiry, and letting the user create new ones. */
@@ -28,9 +27,6 @@ public:
     ~SparkNamesPage();
 
     void setModel(WalletModel *model);
-
-protected:
-    void showEvent(QShowEvent *event) override;
 
 private:
     Ui::SparkNamesPage *ui;

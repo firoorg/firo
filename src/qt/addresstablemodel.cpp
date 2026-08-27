@@ -450,6 +450,14 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
         default: break;
         }
     }
+    else if (role == AddressTypeRole)
+    {
+        return rec->addressType;
+    }
+    else if (role == IsMineRole)
+    {
+        return rec->isMine;
+    }
     return QVariant();
 }
 

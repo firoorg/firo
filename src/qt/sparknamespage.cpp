@@ -1,12 +1,13 @@
 #include "sparknamespage.h"
 #include "ui_sparknamespage.h"
 
+#include "addresstablemodel.h"
+#include "clientmodel.h"
 #include "createsparknamepage.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "sparkname.h"
-#include "validation.h"
 #include "walletmodel.h"
 
 #include <QDateTime>
@@ -17,11 +18,14 @@
 #include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QShowEvent>
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
 
 namespace {
 
@@ -230,12 +234,6 @@ void SparkNamesPage::setModel(WalletModel *_model)
     refreshList();
 }
 
-void SparkNamesPage::showEvent(QShowEvent *event)
-{
-    QWidget::showEvent(event);
-    refreshList();
-}
-
 void SparkNamesPage::on_createSparkNameButton_clicked()
 {
     if (!model)
@@ -257,24 +255,53 @@ void SparkNamesPage::refreshList()
         return;
     }
 
-    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
-    std::vector<CSparkNameBlockIndexData> sparkNames;
-    int currentHeight = 0;
-    {
-        LOCK(cs_main);
-        sparkNames = sparkNameManager->DumpSparkNameData();
-        currentHeight = chainActive.Height();
+    AddressTableModel *addressModel = model->getAddressTableModel();
+    if (!addressModel) {
+        updateEmptyState();
+        return;
     }
+
+    struct SparkNameDisplayData {
+        QString name;
+        QString address;
+        uint64_t validityHeight;
+        QString additionalInfo;
+    };
+
+    std::vector<SparkNameDisplayData> sparkNames;
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    for (int row = 0; row < addressModel->rowCount(QModelIndex()); ++row) {
+        const QModelIndex labelIndex = addressModel->index(row, AddressTableModel::Label, QModelIndex());
+        if (labelIndex.data(AddressTableModel::AddressTypeRole).toString() != AddressTableModel::SparkName ||
+            !labelIndex.data(AddressTableModel::IsMineRole).toBool()) {
+            continue;
+        }
+
+        const QString displayName = labelIndex.data(Qt::DisplayRole).toString();
+        const QString rawName = displayName.startsWith('@') ? displayName.mid(1) : displayName;
+        try {
+            sparkNames.push_back({
+                displayName,
+                addressModel->index(row, AddressTableModel::Address, QModelIndex()).data(Qt::DisplayRole).toString(),
+                sparkNameManager->GetSparkNameBlockHeight(rawName.toStdString()),
+                QString::fromStdString(sparkNameManager->GetSparkNameAdditionalData(rawName.toStdString()))});
+        } catch (const std::runtime_error&) {
+            // The address cache may briefly outlive a name removed by a new block or reorg.
+        }
+    }
+
+    std::sort(sparkNames.begin(), sparkNames.end(), [](const auto& left, const auto& right) {
+        return QString::localeAwareCompare(left.name, right.name) < 0;
+    });
+
+    const ClientModel *clientModel = model->getClientModel();
+    const int currentHeight = clientModel ? clientModel->getNumBlocks() : 0;
 
     constexpr int nBlocksPerHour = 24;
     constexpr int nBlocksPerMonth = nBlocksPerHour * 24 * 30;
 
     for (const auto &entry : sparkNames) {
-        const QString address = QString::fromStdString(entry.sparkAddress);
-        if (!model->isSparkAddressMine(address))
-            continue;
-
-        const int remainingBlocks = (int)entry.sparkNameValidityHeight - currentHeight;
+        const qint64 remainingBlocks = static_cast<qint64>(entry.validityHeight) - currentHeight;
         QString expiry;
         int statusKind;
         if (remainingBlocks <= 0) {
@@ -288,8 +315,7 @@ void SparkNamesPage::refreshList()
         }
 
         QFrame *card = createSparkNameCard(
-            QStringLiteral("@") + QString::fromStdString(entry.name),
-            address, expiry, statusKind, QString::fromStdString(entry.additionalInfo));
+            entry.name, entry.address, expiry, statusKind, entry.additionalInfo);
         namesCardsLayout->addWidget(card);
     }
 
