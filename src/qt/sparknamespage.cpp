@@ -120,6 +120,7 @@ QLabel* metricValue(const QString& text, QWidget* parent)
 {
     auto* lab = new QLabel(text, parent);
     lab->setObjectName(QStringLiteral("cardMetricValue"));
+    lab->setTextFormat(Qt::PlainText);
     lab->setWordWrap(true);
     return lab;
 }
@@ -386,8 +387,11 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     titleCol->setSpacing(2);
     auto* nameLab = new QLabel(name, frame);
     nameLab->setObjectName(QStringLiteral("cardTitle"));
+    nameLab->setTextFormat(Qt::PlainText);
     auto* addressLab = new QLabel(elideMiddle(address, 12, 8), frame);
     addressLab->setObjectName(QStringLiteral("cardSubtitle"));
+    addressLab->setTextFormat(Qt::PlainText);
+    addressLab->setToolTip(address);
     titleCol->addWidget(nameLab);
     titleCol->addWidget(addressLab);
     header->addLayout(titleCol, 1);
