@@ -34,10 +34,10 @@
         <item>
          <widget class="QLabel" name="addressTypeLabel">
            <property name="toolTip">
-             <string>An optional label to associate with the new receiving address.</string>
+             <string>Choose Spark or Transparent for the payment request address.</string>
            </property>
            <property name="text">
-             <string>ADDRESS</string>
+             <string>ADDRESS TYPE</string>
            </property>
          </widget>
         </item>
@@ -45,16 +45,6 @@
           <layout class="QHBoxLayout" name="addressTypeHorizontalLayout">
             <item>
               <widget class="QComboBox" name="addressTypeCombobox">
-              </widget>
-            </item>
-            <item>
-              <widget class="QLabel" name="label_5">
-                <property name="text">
-                  <string>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;. Default address is &lt;b&gt;spark&lt;/b&gt;. </string>
-                </property>
-                <property name="wordWrap">
-                  <bool>true</bool>
-                </property>
               </widget>
             </item>
             <item>
