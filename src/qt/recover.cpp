@@ -56,7 +56,8 @@ void Recover::applyTheme()
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
-            selection-background-color: $WINE;
+            selection-background-color: $WINE_DEEP;
+            selection-color: #FFFFFF;
         }
         QDialog#Recover QLineEdit:focus,
         QDialog#Recover QDateEdit:focus,
@@ -117,12 +118,12 @@ void Recover::applyTheme()
             #qt_calendar_calendarview {
                 background: $PANEL; border: none; outline: none;
                 gridline-color: transparent;
-                selection-background-color: $WINE; selection-color: #FFFFFF;
+                selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
             }
             QCalendarWidget QWidget { alternate-background-color: $PANEL_SOFT; }
             QCalendarWidget QToolButton::menu-indicator { image: none; }
             QCalendarWidget QAbstractItemView:enabled {
-                color: $INK; selection-background-color: $WINE; selection-color: #FFFFFF;
+                color: $INK; selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
             }
             QCalendarWidget QAbstractItemView:disabled { color: $INK_FAINT; }
             QCalendarWidget QMenu {

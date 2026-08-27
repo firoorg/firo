@@ -484,7 +484,8 @@ QLineEdit#filterLineEditDIP3 {
   padding: 0 11px;
   color: $INK_SOFT;
   font-size: 12px;
-  selection-background-color: $WINE;
+  selection-background-color: $WINE_DEEP;
+  selection-color: #FFFFFF;
 }
 QLineEdit#filterLineEditDIP3:focus {
   background: $PANEL;

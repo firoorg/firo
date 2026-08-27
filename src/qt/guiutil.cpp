@@ -957,7 +957,7 @@ static QString darkModeOverrideCss()
         QTabBar::tab:hover:!selected { background-color: $PANEL_SOFT; color: $INK; }
         QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QAbstractSpinBox {
             background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
-            selection-background-color: $WINE;
+            selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
         }
         QSpinBox::up-button, QSpinBox::down-button,
         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
@@ -971,7 +971,7 @@ static QString darkModeOverrideCss()
         }
         QComboBox QAbstractItemView {
             background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
-            selection-background-color: $WINE; selection-color: $INK;
+            selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
         }
         QComboBox QListView {
             background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
@@ -983,7 +983,7 @@ static QString darkModeOverrideCss()
             background-color: $PANEL; color: $INK;
         }
         QComboBox::item:selected {
-            background-color: $WINE; color: $INK;
+            background-color: $WINE_DEEP; color: #FFFFFF;
         }
         QMenu {
             background-color: $PANEL; color: $INK; border: 1px solid $BORDER;

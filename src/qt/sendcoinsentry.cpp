@@ -149,7 +149,8 @@ void SendCoinsEntry::applyTheme()
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
-            selection-background-color: $WINE;
+            selection-background-color: $WINE_DEEP;
+            selection-color: #FFFFFF;
         }
         QFrame#SendCoins QValidatedLineEdit:focus,
         QFrame#SendCoins QLineEdit:focus,
