@@ -359,6 +359,14 @@ void ModalOverlay::showHide(bool hide, bool userRequested)
     if (!isVisible() && !hide)
         setVisible(true);
 
+    // The initial sync state is set before the main window is shown. Place the
+    // overlay directly instead of animating inside a window that is still hidden.
+    if (!hide && !window()->isVisible()) {
+        setGeometry(0, 0, width(), height());
+        layerIsVisible = true;
+        return;
+    }
+
     setGeometry(0, hide ? 0 : height(), width(), height());
 
     QPropertyAnimation* animation = new QPropertyAnimation(this, "pos");
