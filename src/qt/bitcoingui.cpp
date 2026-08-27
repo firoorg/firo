@@ -1113,10 +1113,12 @@ void BitcoinGUI::updateNavigationSyncCard(
 
     QString fullStatus = status;
     const bool networkActive = clientModel && clientModel->getNetworkActive();
-    const bool fullySynced = networkActive && !syncInProgress();
+    const bool hasPeers = clientModel && clientModel->getNumConnections() > 0;
+    const bool fullySynced = networkActive && hasPeers && !syncInProgress();
     if (clientModel && !networkActive) {
         fullStatus = tr("Network activity disabled");
-        progress = 0.0;
+    } else if (clientModel && !hasPeers) {
+        fullStatus = tr("Connecting to peers...");
     } else if (fullySynced) {
         fullStatus = tr("Synced");
         progress = 1.0;
@@ -1624,10 +1626,14 @@ void BitcoinGUI::setNetworkActive(bool networkActive)
 {
     updateNetworkState();
 
-    if (!networkActive)
-        updateNavigationSyncCard(tr("Network activity disabled"), 0.0);
-    else if (clientModel)
+    if (!networkActive) {
+        const double progress = navigationSyncProgress
+            ? navigationSyncProgress->value() / 100.0
+            : 0.0;
+        updateNavigationSyncCard(tr("Network activity disabled"), progress);
+    } else if (clientModel) {
         setNumConnections(clientModel->getNumConnections());
+    }
 }
 
 void BitcoinGUI::updateHeadersSyncProgressLabel()
