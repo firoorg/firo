@@ -558,4 +558,7 @@ QFrame#sparkNameCard QToolButton#cardActionButton:hover {
             "background: transparent; border: none;"
             "color: $INK_FAINT; font-size: 10px;")));
     }
+
+    if (model)
+        scheduleRefreshList();
 }
