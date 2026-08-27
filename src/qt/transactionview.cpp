@@ -1262,12 +1262,3 @@ void TransactionView::updateWatchOnlyColumn(bool fHaveWatchOnly)
     watchOnlyWidget->setVisible(fHaveWatchOnly);
     transactionView->setColumnHidden(TransactionTableModel::Watchonly, true);
 }
-
-// Handles resize events for the TransactionView widget by adjusting internal component sizes.
-void TransactionView::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-
-    updateTableColumnWidths();
-    updateEmptyState();
-}
