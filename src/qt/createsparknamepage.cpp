@@ -41,8 +41,16 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->setupUi(this);
 
     feeText = ui->feeTextLabel->text();
+    int nextBlockHeight;
+    {
+        LOCK(cs_main);
+        nextBlockHeight = chainActive.Height() + 1;
+    }
+    const int maximumYears = nextBlockHeight >= Params().GetConsensus().nSparkNamesV21StartBlock
+        ? 15
+        : 10;
     ui->numberOfYearsEdit->setValue(1);
-    ui->numberOfYearsEdit->setRange(1, 15);
+    ui->numberOfYearsEdit->setRange(1, maximumYears);
     updateFee();
 
     ui->numberOfYearsEdit->setMinimumWidth(96);
