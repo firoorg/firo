@@ -91,7 +91,7 @@ foreverHidden(false)
 void ModalOverlay::applyTheme()
 {
     ui->bgWidget->setStyleSheet(QStringLiteral(
-        "#bgWidget { background-color: rgba(15, 23, 42, 148); }"));
+        "#bgWidget { background-color: rgba(17, 12, 18, 148); }"));
 
     ui->contentWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
 #contentWidget {
@@ -106,7 +106,8 @@ void ModalOverlay::applyTheme()
 }
 #contentWidget QLabel#titleLabel {
     color: $INK;
-    font-size: 23px;
+    font-family: 'Saira SemiCondensed';
+    font-size: 24px;
     font-weight: 700;
 }
 #contentWidget QLabel#infoText {
@@ -128,7 +129,7 @@ void ModalOverlay::applyTheme()
 #contentWidget QLabel#labelSyncDone,
 #contentWidget QLabel#labelProgressIncrease,
 #contentWidget QLabel#labelEstimatedTimeLeft {
-    color: $INK_FAINT;
+    color: $INK_SOFT;
     font-weight: 700;
     font-size: 13px;
 }

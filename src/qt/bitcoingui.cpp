@@ -885,8 +885,8 @@ void BitcoinGUI::applyNavigationTheme()
             " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 14px;"
             "}"
             "QFrame#navigationThemeRow QLabel {"
-            " background: transparent; border: none; color: $INK_FAINT;"
-            " font-size: 11px; font-weight: 700;"
+            " background: transparent; border: none; color: $INK_SOFT;"
+            " font-size: 12px; font-weight: 700;"
             "}")));
     }
 
@@ -901,11 +901,11 @@ void BitcoinGUI::applyNavigationTheme()
                 background: transparent;
                 border: none;
                 color: $INK_SOFT;
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 700;
             }
             QLabel#navigationSyncLabel {
-                font-size: 10px;
+                font-size: 12px;
             }
             QProgressBar {
                 background: $BORDER;
