@@ -98,6 +98,14 @@ static QString stylesheetDirectory = ":css";
 static QString firoTheme = "firoTheme";
 static CCriticalSection cs_css;
 
+QSize availableScreenSize(const QWidget* widget)
+{
+    const QScreen* screen = widget ? widget->screen() : QApplication::primaryScreen();
+    if (!screen)
+        screen = QApplication::primaryScreen();
+    return screen ? screen->availableGeometry().size() : QSize(1200, 800);
+}
+
 void runWalletOperation(const std::function<void()>& operation)
 {
     std::exception_ptr exception;
