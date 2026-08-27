@@ -5,7 +5,6 @@
 #include "createsparknamepage.h"
 #include "ui_createsparkname.h"
 #include "sendcoinsdialog.h"
-#include "addresstablemodel.h"
 
 #include "guitheme.h"
 #include "platformstyle.h"
@@ -302,14 +301,6 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
             return false;
         }
 
-        if (model->getEncryptionStatus() != WalletModel::Unencrypted) {
-            model->getAddressTableModel()->addRow(
-                AddressTableModel::Send,
-                QString::fromStdString(name),
-                "",
-                QString::fromStdString(address)
-            );
-        }
     }
     catch (const std::exception &) {
         QMessageBox::critical(
