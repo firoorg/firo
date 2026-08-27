@@ -250,7 +250,6 @@ void OverviewPage::applyOverviewRedesign()
     ui->activityCardLayout->setSpacing(8);
     addShadow(ui->balancesCard);
     addShadow(ui->detailsCard);
-    addShadow(ui->activityCard);
 
     ui->detailsCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     ui->activityCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
