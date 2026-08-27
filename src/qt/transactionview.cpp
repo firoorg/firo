@@ -496,8 +496,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     applyTheme();
 
     addShadow(filterCard);
-    addShadow(tableCard);
-    addShadow(dateRangeWidget);
 
     auto *exportShadow = new QGraphicsDropShadowEffect(exportButton);
     exportShadow->setBlurRadius(20);
