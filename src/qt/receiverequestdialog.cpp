@@ -19,6 +19,8 @@
 #include <QMouseEvent>
 #include <QPixmap>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QVBoxLayout>
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
@@ -97,6 +99,25 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    ui->verticalLayout_3->removeWidget(ui->lblQRCode);
+    ui->verticalLayout_3->removeWidget(ui->outUri);
+    auto* scrollContents = new QWidget(this);
+    auto* scrollLayout = new QVBoxLayout(scrollContents);
+    scrollLayout->setContentsMargins(0, 0, 0, 0);
+    scrollLayout->setSpacing(14);
+    scrollLayout->addWidget(ui->lblQRCode);
+    scrollLayout->addWidget(ui->outUri);
+
+    auto* scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("paymentRequestScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(scrollContents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#paymentRequestScroll { background: transparent; border: none; }"));
+    ui->verticalLayout_3->insertWidget(0, scroll, 1);
+
 #ifndef USE_QRCODE
     ui->btnSaveAs->setVisible(false);
     ui->lblQRCode->setVisible(false);
@@ -156,7 +177,6 @@ void ReceiveRequestDialog::update()
 {
     if(!model || !walletModel)
         return;
-    resize(width(), 760);
     QString target = info.label;
     if(target.isEmpty())
         target = info.address;
