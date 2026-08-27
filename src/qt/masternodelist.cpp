@@ -741,10 +741,13 @@ bool MasternodeList::updateDIP3List()
         return false;
     }
 
-    auto mnList = clientModel->getMasternodeList();
+    CDeterministicMNList mnList;
+    if (!clientModel->tryGetMasternodeList(mnList))
+        return false;
     if (mnList.GetAllMNsCount() == 0) {
         clientModel->refreshMasternodeList();
-        mnList = clientModel->getMasternodeList();
+        if (!clientModel->tryGetMasternodeList(mnList))
+            return false;
     }
     std::map<uint256, CTxDestination> mapCollateralDests;
     std::map<uint256, CAmount> mapCollateralAmounts;
@@ -1002,7 +1005,9 @@ CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
     uint256 proTxHash;
     proTxHash.SetHex(selectedProTxHash.toStdString());
 
-    auto mnList = clientModel->getMasternodeList();
+    CDeterministicMNList mnList;
+    if (!clientModel->tryGetMasternodeList(mnList))
+        return nullptr;
     return mnList.GetMN(proTxHash);
 }
 
