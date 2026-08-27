@@ -18,8 +18,10 @@
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSettings>
 #include <QMessageBox>
+#include <QVBoxLayout>
 
 Recover::Recover(QWidget *parent) :
     QDialog(parent),
@@ -30,6 +32,36 @@ Recover::Recover(QWidget *parent) :
     GUIUtil::loadTheme();
     
     ui->setupUi(this);
+
+    auto* scrollContents = new QWidget(this);
+    scrollContents->setObjectName(QStringLiteral("recoverScrollContents"));
+    auto* scrollLayout = new QVBoxLayout(scrollContents);
+    scrollLayout->setContentsMargins(0, 0, 0, 0);
+    scrollLayout->setSpacing(ui->verticalLayout->spacing());
+    while (ui->verticalLayout->count() > 1) {
+        QLayoutItem* item = ui->verticalLayout->takeAt(0);
+        if (QWidget* widget = item->widget()) {
+            widget->setParent(scrollContents);
+            scrollLayout->addWidget(widget);
+            delete item;
+        } else if (QLayout* layout = item->layout()) {
+            layout->setParent(nullptr);
+            scrollLayout->addLayout(layout);
+        } else {
+            scrollLayout->addItem(item);
+        }
+    }
+
+    auto* scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("recoverScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(scrollContents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#recoverScroll, QWidget#recoverScrollContents { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, scroll, 1);
+
     applyTheme();
     setCreateNew();
     thread = new QThread(this);
