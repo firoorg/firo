@@ -35,7 +35,7 @@ public:
 
 private:
     Ui::CreateSparkNamePage *ui;
-    WalletModel *model;
+    WalletModel *model{nullptr};
     
     bool CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo);
     void checkSparkBalance();

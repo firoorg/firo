@@ -121,6 +121,9 @@ void CreateSparkNamePage::setExtendMode(const QString &name, const QString &addr
 
 void CreateSparkNamePage::on_generateButton_clicked()
 {
+    if (!model)
+        return;
+
     QString newSparkAddress = model->generateSparkAddress();
     ui->sparkAddressEdit->setText(newSparkAddress);
 }
@@ -137,6 +140,11 @@ void CreateSparkNamePage::on_numberOfYearsEdit_valueChanged(int value)
 
 void CreateSparkNamePage::accept()
 {
+    if (!model) {
+        QMessageBox::critical(this, tr("Error"), tr("The wallet is not available."));
+        return;
+    }
+
     if (!model->sparkNamesAllowed()) {
         QMessageBox::critical(this, tr("Error"), tr("Spark names are not yet allowed"));
         return;
