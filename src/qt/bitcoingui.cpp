@@ -1098,8 +1098,12 @@ void BitcoinGUI::updateNavigationSyncCard(
         return;
 
     QString fullStatus = status;
-    const bool fullySynced = clientModel && !syncInProgress();
-    if (fullySynced) {
+    const bool networkActive = clientModel && clientModel->getNetworkActive();
+    const bool fullySynced = networkActive && !syncInProgress();
+    if (clientModel && !networkActive) {
+        fullStatus = tr("Network activity disabled");
+        progress = 0.0;
+    } else if (fullySynced) {
         fullStatus = tr("Synced");
         progress = 1.0;
     }
