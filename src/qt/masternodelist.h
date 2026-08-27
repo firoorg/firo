@@ -75,7 +75,7 @@ private:
 
     CDeterministicMNCPtr GetSelectedDIP3MN();
 
-    void updateDIP3List();
+    bool updateDIP3List();
     void updateEmptyState();
     void applyTheme();
     void restyleMasternodeCards();

@@ -453,24 +453,24 @@ void MasternodeList::updateDIP3ListScheduled()
     if (fFilterUpdatedDIP3) {
         int64_t nSecondsToWait = nTimeFilterUpdatedDIP3 - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
         if (nSecondsToWait <= 0) {
-            updateDIP3List();
-            fFilterUpdatedDIP3 = false;
+            if (updateDIP3List())
+                fFilterUpdatedDIP3 = false;
         }
     } else if (mnListChanged) {
         int64_t nMnListUpdateSecods = masternodeSync.IsBlockchainSynced() ? MASTERNODELIST_UPDATE_SECONDS : MASTERNODELIST_UPDATE_SECONDS*10;
         int64_t nSecondsToWait = nTimeUpdatedDIP3 - GetTime() + nMnListUpdateSecods;
 
         if (nSecondsToWait <= 0) {
-            updateDIP3List();
-            mnListChanged = false;
+            if (updateDIP3List())
+                mnListChanged = false;
         }
     }
 }
 
-void MasternodeList::updateDIP3List()
+bool MasternodeList::updateDIP3List()
 {
     if (!clientModel || ShutdownRequested()) {
-        return;
+        return false;
     }
 
     auto mnList = clientModel->getMasternodeList();
@@ -482,18 +482,18 @@ void MasternodeList::updateDIP3List()
 
     {
         TRY_LOCK(cs_main, lock_main);
-        if (lock_main) {
-            mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
-                CTxDestination collateralDest;
-                Coin coin;
-                if (!GetUTXOCoin(dmn->collateralOutpoint, coin))
-                    return;
-                mapCollateralAmounts.emplace(dmn->proTxHash, coin.out.nValue);
-                if (ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
-                    mapCollateralDests.emplace(dmn->proTxHash, collateralDest);
-                }
-            });
-        }
+        if (!lock_main)
+            return false;
+        mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+            CTxDestination collateralDest;
+            Coin coin;
+            if (!GetUTXOCoin(dmn->collateralOutpoint, coin))
+                return;
+            mapCollateralAmounts.emplace(dmn->proTxHash, coin.out.nValue);
+            if (ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
+                mapCollateralDests.emplace(dmn->proTxHash, collateralDest);
+            }
+        });
     }
 
     LOCK(cs_dip3list);
@@ -514,7 +514,8 @@ void MasternodeList::updateDIP3List()
     CWallet* pWalletForFilter = nullptr;
     if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
         std::vector<COutPoint> vOutpts;
-        walletModel->listProTxCoins(vOutpts);
+        if (!walletModel->listProTxCoins(vOutpts))
+            return false;
         for (const auto& outpt : vOutpts) {
             setOutpts.emplace(outpt);
         }
@@ -658,6 +659,7 @@ void MasternodeList::updateDIP3List()
     else
         selectedProTxHash.clear();
     updateEmptyState();
+    return true;
 }
 
 void MasternodeList::on_filterLineEditDIP3_textChanged(const QString& strFilterIn)
