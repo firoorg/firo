@@ -577,7 +577,6 @@ void TransactionView::applyTheme()
         "}"
 
         "QComboBox::drop-down { border: none; width: 24px; }"
-        "QComboBox::down-arrow { width: 12px; height: 12px; image: url(:/icons/arrow_down); }"
 
         "QToolButton#transactionSortDirection {"
         " background:$PANEL_SOFT; border:1px solid $BORDER; border-radius:9px;"
