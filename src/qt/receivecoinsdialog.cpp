@@ -309,8 +309,6 @@ void ReceiveCoinsDialog::applyTheme()
     for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
-    ui->label_5->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     ui->label_6->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }")));
 
@@ -830,7 +828,6 @@ void ReceiveCoinsDialog::adjustTextSize(int width,int height){
     ui->reuseAddress->setFont(font);
     ui->label_3->setFont(font);
     ui->addressTypeLabel->setFont(font);
-    ui->label_5->setFont(font);
     ui->label_2->setFont(font);
     ui->label->setFont(font);
     ui->label_6->setFont(font);

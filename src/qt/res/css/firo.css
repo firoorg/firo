@@ -1185,7 +1185,6 @@ QWidget#contentWidget {
     border-color: #878787;
 }
 
-QWidget#contentWidget QLabel#infoTextStrong,
 QWidget#contentWidget QLabel#labelNumberOfBlocksLeft,
 QWidget#contentWidget QLabel#labelLastBlockTime,
 QWidget#contentWidget QLabel#labelSyncDone,

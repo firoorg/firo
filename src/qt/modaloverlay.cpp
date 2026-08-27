@@ -78,12 +78,6 @@ foreverHidden(false)
     ui->warningIcon->setFocusPolicy(Qt::NoFocus);
     ui->warningIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-    auto* contentShadow = new QGraphicsDropShadowEffect(ui->contentWidget);
-    contentShadow->setBlurRadius(30);
-    contentShadow->setOffset(0, 10);
-    contentShadow->setColor(QColor(35, 24, 32, 70));
-    ui->contentWidget->setGraphicsEffect(contentShadow);
-
     auto* buttonShadow = new QGraphicsDropShadowEffect(ui->closeButton);
     buttonShadow->setBlurRadius(20);
     buttonShadow->setOffset(0, 6);
@@ -135,11 +129,6 @@ void ModalOverlay::applyTheme()
 #contentWidget QLabel#infoText {
     color: $INK_SOFT;
     font-size: 14px;
-}
-#contentWidget QLabel#infoTextStrong {
-    color: $INK;
-    font-weight: 700;
-    font-size: 13px;
 }
 #contentWidget QFrame#syncStatsCard {
     background: $PANEL_SOFT;
@@ -363,6 +352,14 @@ void ModalOverlay::showHide(bool hide, bool userRequested)
 
     if (!isVisible() && !hide)
         setVisible(true);
+
+    // The initial sync state is set before the main window is shown. Place the
+    // overlay directly instead of animating inside a window that is still hidden.
+    if (!hide && !window()->isVisible()) {
+        setGeometry(0, 0, width(), height());
+        layerIsVisible = true;
+        return;
+    }
 
     setGeometry(0, hide ? 0 : height(), width(), height());
 

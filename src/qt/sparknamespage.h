@@ -1,6 +1,8 @@
 #ifndef BITCOIN_QT_SPARKNAMESPAGE_H
 #define BITCOIN_QT_SPARKNAMESPAGE_H
 
+#include <cstdint>
+
 #include <QWidget>
 
 namespace Ui {
@@ -49,11 +51,13 @@ private:
 
     void refreshList();
     void scheduleRefreshList();
+    void updateCardStatuses(int currentHeight);
+    void updateCardStatus(QFrame *card, int currentHeight);
     void updateEmptyState();
     bool eventFilter(QObject *object, QEvent *event) override;
     void applyTheme();
-    QFrame *createSparkNameCard(const QString &name, const QString &address, const QString &expiry,
-                                 int statusKind, const QString &additionalInfo);
+    QFrame *createSparkNameCard(const QString &name, const QString &address, uint64_t validityHeight,
+                                 const QString &additionalInfo, int currentHeight);
     void extendSparkName(const QString &name, const QString &address);
 
 private Q_SLOTS:

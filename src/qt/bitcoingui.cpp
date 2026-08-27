@@ -1211,35 +1211,37 @@ void BitcoinGUI::updateNavigationSidebarGeometry()
 
     const bool compact = centralWidget()->height() < 600;
     const bool ultraCompact = centralWidget()->height() < 450;
-    bool densityChanged = false;
-    if (toolbar->property("compact").toBool() != compact) {
-        toolbar->setProperty("compact", compact);
-        densityChanged = true;
-    }
-    if (toolbar->property("ultraCompact").toBool() != ultraCompact) {
-        toolbar->setProperty("ultraCompact", ultraCompact);
-        densityChanged = true;
-    }
+    const bool densityChanged = !toolbar->property("compact").isValid()
+        || !toolbar->property("ultraCompact").isValid()
+        || toolbar->property("compact").toBool() != compact
+        || toolbar->property("ultraCompact").toBool() != ultraCompact;
     if (densityChanged) {
+        toolbar->setProperty("compact", compact);
+        toolbar->setProperty("ultraCompact", ultraCompact);
         toolbar->style()->unpolish(toolbar);
         toolbar->style()->polish(toolbar);
-    }
-    if (logoLabel) {
-        logoLabel->setVisible(!ultraCompact);
-        logoLabel->setFixedHeight(compact ? 54 : 88);
-    }
-    if (navigationThemeRow) {
-        navigationThemeRow->setMinimumHeight(compact ? 34 : 0);
-        navigationThemeRow->setMaximumHeight(compact ? 34 : QWIDGETSIZE_MAX);
-        if (QLayout* layout = navigationThemeRow->layout())
-            layout->setContentsMargins(12, compact ? 4 : 8, 12, compact ? 4 : 8);
-    }
-    if (navigationSyncCard) {
-        navigationSyncCard->setMinimumHeight(compact ? 58 : 76);
-        navigationSyncCard->setMaximumHeight(compact ? 58 : QWIDGETSIZE_MAX);
-        if (QLayout* layout = navigationSyncCard->layout()) {
-            layout->setContentsMargins(10, compact ? 6 : 11, 14, compact ? 6 : 11);
-            layout->setSpacing(compact ? 4 : 8);
+
+        if (logoLabel) {
+            logoLabel->setVisible(!ultraCompact);
+            logoLabel->setFixedHeight(compact ? 54 : 88);
+        }
+        if (navigationThemeRow) {
+            navigationThemeRow->setMinimumHeight(compact ? 34 : 0);
+            navigationThemeRow->setMaximumHeight(compact ? 34 : QWIDGETSIZE_MAX);
+            if (QLayout* layout = navigationThemeRow->layout())
+                layout->setContentsMargins(12, compact ? 4 : 8, 12, compact ? 4 : 8);
+        }
+        if (navigationSyncCard) {
+            navigationSyncCard->setMinimumHeight(compact ? 58 : 76);
+            navigationSyncCard->setMaximumHeight(compact ? 58 : QWIDGETSIZE_MAX);
+            if (QLayout* layout = navigationSyncCard->layout()) {
+                layout->setContentsMargins(10, compact ? 6 : 11, 14, compact ? 6 : 11);
+                layout->setSpacing(compact ? 4 : 8);
+            }
+        }
+        if (QLayout* layout = toolbar->layout()) {
+            layout->invalidate();
+            layout->activate();
         }
     }
 
@@ -1258,10 +1260,6 @@ void BitcoinGUI::updateNavigationSidebarGeometry()
         ? NAVIGATION_SIDEBAR_WIDTH - NAVIGATION_TOGGLE_WIDTH / 2
         : 8;
     navigationToggleButton->move(toggleX, 20);
-    if (QLayout* layout = toolbar->layout()) {
-        layout->invalidate();
-        layout->activate();
-    }
     updateNavigationSelectionHighlight();
     toolbar->raise();
     navigationToggleButton->raise();
@@ -1769,7 +1767,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         if(walletFrame)
         {
             walletFrame->showOutOfSyncWarning(true);
-            modalOverlay->showHide();
         }
 #endif // ENABLE_WALLET
 
@@ -2222,7 +2219,6 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     } else {
         masternodeAction->setVisible(true);
     }
-    updateToolbarTabWidths();
 }
 
 void BitcoinGUI::checkSparkNamesVisibility(int numBlocks) {
@@ -2234,7 +2230,6 @@ void BitcoinGUI::checkSparkNamesVisibility(int numBlocks) {
     const bool visible = spark::IsSparkAllowed(nextBlockHeight) &&
         nextBlockHeight >= params.nSparkNamesStartBlock;
     sparkNamesAction->setVisible(visible);
-    updateToolbarTabWidths();
 }
 
 void BitcoinGUI::toggleNetworkActive()
@@ -2320,6 +2315,5 @@ void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
 // Handles resize events for the BitcoinGUI widget by adjusting internal component sizes.
 void BitcoinGUI::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
-    updateToolbarTabWidths();
     updateNavigationSidebarGeometry();
 }

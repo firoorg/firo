@@ -250,7 +250,6 @@ void OverviewPage::applyOverviewRedesign()
     ui->activityCardLayout->setSpacing(8);
     addShadow(ui->balancesCard);
     addShadow(ui->detailsCard);
-    addShadow(ui->activityCard);
 
     ui->detailsCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     ui->activityCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
@@ -823,7 +822,7 @@ void OverviewPage::updateBalanceSplitLabels()
             .arg(BitcoinUnits::formatWithUnit(unit, privateTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(privatePercent)
             .arg(tc.teal, tc.inkSoft, tc.ink)
-            .arg(tr("Private")));
+            .arg(tr("Private (Spark):")));
 }
 
 void OverviewPage::updatePrivateTransparentSplitBar()
@@ -832,7 +831,7 @@ void OverviewPage::updatePrivateTransparentSplitBar()
         return;
     privateSplitProgress->setValue(privateBarSplitPercent_);
     privateSplitProgress->setToolTip(
-        tr("Private %1%  ·  Transparent %2%")
+        tr("Private (Spark) %1%  ·  Transparent %2%")
             .arg(privateBarSplitPercent_)
             .arg(100 - privateBarSplitPercent_));
 }
