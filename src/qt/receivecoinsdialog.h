@@ -69,6 +69,7 @@ public Q_SLOTS:
     void displayCheckBox(int idx);
 
 protected:
+    bool eventFilter(QObject* object, QEvent* event) override;
     virtual void keyPressEvent(QKeyEvent *event) override;
 
 private:

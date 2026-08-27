@@ -20,6 +20,7 @@
 
 #include <QAction>
 #include <QCursor>
+#include <QEvent>
 #include <QItemSelection>
 #include <QLabel>
 #include <QMessageBox>
@@ -185,6 +186,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     recentRequestsProxyModel(0)
 {
     ui->setupUi(this);
+    ui->recentRequestsView->viewport()->installEventFilter(this);
 
     ui->verticalLayout->removeWidget(ui->frame2);
     auto* requestFormContents = new QWidget(this);
@@ -786,7 +788,16 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     const int newHeight = event->size().height();
     
     adjustTextSize(newWidth,newHeight);
-    updateRequestColumnWidths();
+}
+
+bool ReceiveCoinsDialog::eventFilter(QObject* object, QEvent* event)
+{
+    if (object == ui->recentRequestsView->viewport()
+        && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
+        updateRequestColumnWidths();
+    }
+
+    return QDialog::eventFilter(object, event);
 }
 
 void ReceiveCoinsDialog::updateRequestColumnWidths()
