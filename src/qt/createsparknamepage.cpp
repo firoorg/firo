@@ -45,6 +45,20 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->numberOfYearsEdit->setRange(1, 15);
     updateFee();
 
+    ui->numberOfYearsEdit->setMinimumWidth(96);
+    ui->numberOfYearsEdit->setAlignment(Qt::AlignCenter);
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setText(tr("Register"));
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &CreateSparkNamePage::applyTheme);
+    applyTheme();
+}
+
+void CreateSparkNamePage::applyTheme()
+{
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
@@ -72,8 +86,6 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->sparkNameEdit->setStyleSheet(fieldStyle);
     ui->additionalInfoEdit->setStyleSheet(fieldStyle);
 
-    ui->numberOfYearsEdit->setMinimumWidth(96);
-    ui->numberOfYearsEdit->setAlignment(Qt::AlignCenter);
     ui->numberOfYearsEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QSpinBox {"
         " background: $PANEL_SOFT; color: $INK;"
@@ -85,11 +97,8 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
     ui->generateButton->setStyleSheet(secondaryButtonStyle);
-    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
-        okButton->setText(tr("Register"));
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
         okButton->setStyleSheet(primaryButtonStyle);
-        GUIUtil::applyPrimaryButtonShadow(okButton);
-    }
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(secondaryButtonStyle);
 }

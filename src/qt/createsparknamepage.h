@@ -39,6 +39,7 @@ private:
     WalletModel *model{nullptr};
     
     bool CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo);
+    void applyTheme();
     void checkSparkBalance();
     void updateFee();
 
