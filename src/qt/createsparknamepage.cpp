@@ -98,6 +98,12 @@ void CreateSparkNamePage::setExtendMode(const QString &name, const QString &addr
     ui->sparkAddressEdit->setText(address);
     ui->sparkAddressEdit->setEnabled(false);
     ui->generateButton->setEnabled(false);
+    try {
+        ui->additionalInfoEdit->setPlainText(QString::fromStdString(
+            CSparkNameManager::GetInstance()->GetSparkNameAdditionalData(name.toStdString())));
+    } catch (const std::runtime_error&) {
+        ui->additionalInfoEdit->clear();
+    }
     this->setWindowTitle(tr("Extend Spark Name"));
     updateFee();
 }
