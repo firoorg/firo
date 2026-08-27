@@ -13,7 +13,6 @@
 #include <QResizeEvent>
 
 #define MASTERNODELIST_UPDATE_SECONDS 3
-#define MASTERNODELIST_FILTER_COOLDOWN_SECONDS 3
 namespace Ui
 {
 class MasternodeList;
@@ -46,16 +45,12 @@ public:
     void resizeEvent(QResizeEvent*) override;
 private:
     QMenu* contextMenuDIP3;
-    int64_t nTimeFilterUpdatedDIP3;
     int64_t nTimeUpdatedDIP3;
-    bool fFilterUpdatedDIP3;
 
     QTimer* timer;
     Ui::MasternodeList* ui;
     ClientModel* clientModel;
     WalletModel* walletModel;
-
-    QString strCurrentFilterDIP3;
 
     bool mnListChanged;
     QWidget* emptyState;

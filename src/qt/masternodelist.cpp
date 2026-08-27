@@ -105,7 +105,8 @@ enum MasternodeRole {
     CollateralAddressRole,
     OwnerAddressRole,
     ProTxHashRole,
-    CollateralOutpointRole
+    CollateralOutpointRole,
+    SearchRole
 };
 
 class MasternodeCardDelegate final : public QStyledItemDelegate
@@ -297,9 +298,7 @@ private:
 
 MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* parent) :
     QWidget(parent),
-    nTimeFilterUpdatedDIP3(0),
     nTimeUpdatedDIP3(0),
-    fFilterUpdatedDIP3(true),
     ui(new Ui::MasternodeList),
     clientModel(0),
     walletModel(0),
@@ -381,6 +380,8 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     masternodeProxy = new QSortFilterProxyModel(this);
     masternodeProxy->setSourceModel(masternodeModel);
     masternodeProxy->setDynamicSortFilter(true);
+    masternodeProxy->setFilterRole(SearchRole);
+    masternodeProxy->setFilterCaseSensitivity(Qt::CaseInsensitive);
     masternodeProxy->setSortCaseSensitivity(Qt::CaseInsensitive);
 
     masternodeView = new QListView(ui->masternodeContentCard);
@@ -626,8 +627,9 @@ void MasternodeList::setClientModel(ClientModel* model)
 void MasternodeList::setWalletModel(WalletModel* model)
 {
     this->walletModel = model;
-    nTimeFilterUpdatedDIP3 = GetTime() - MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
-    fFilterUpdatedDIP3 = true;
+    mnListChanged = true;
+    nTimeUpdatedDIP3 = GetTime() - MASTERNODELIST_UPDATE_SECONDS * 10;
+    updateDIP3ListScheduled();
 }
 
 void MasternodeList::showContextMenuDIP3(const QPoint& pos)
@@ -713,15 +715,7 @@ void MasternodeList::updateDIP3ListScheduled()
         return;
     }
 
-    // To prevent high cpu usage update only once in MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds
-    // after filter was last changed unless we want to force the update.
-    if (fFilterUpdatedDIP3) {
-        int64_t nSecondsToWait = nTimeFilterUpdatedDIP3 - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
-        if (nSecondsToWait <= 0) {
-            if (updateDIP3List())
-                fFilterUpdatedDIP3 = false;
-        }
-    } else if (mnListChanged) {
+    if (mnListChanged) {
         int64_t nMnListUpdateSecods = masternodeSync.IsBlockchainSynced() ? MASTERNODELIST_UPDATE_SECONDS : MASTERNODELIST_UPDATE_SECONDS*10;
         int64_t nSecondsToWait = nTimeUpdatedDIP3 - GetTime() + nMnListUpdateSecods;
 
@@ -786,7 +780,6 @@ bool MasternodeList::updateDIP3List()
     const Consensus::Params& params = ::Params().GetConsensus();
     const int maxPose = std::max(100, mnList.CalcMaxPoSePenalty());
     QList<QStandardItem*> modelRows;
-    int matched = 0;
 
     auto processMN = [&](const CDeterministicMNCPtr& dmn) {
         if (filterMyMasternodes) {
@@ -855,29 +848,24 @@ bool MasternodeList::updateDIP3List()
         const QString proTxHash = QString::fromStdString(dmn->proTxHash.ToString());
         const QString collateralOutpoint = QString::fromStdString(dmn->collateralOutpoint.ToStringShort());
 
-        if (strCurrentFilterDIP3 != "") {
-            const QString strToFilter =
-                address + QLatin1Char(' ') +
-                status + QLatin1Char(' ') +
-                QString::number(dmn->pdmnState->nPoSePenalty) + QLatin1Char(' ') +
-                registered + QLatin1Char(' ') +
-                QString::number(dmn->pdmnState->nRegisteredHeight) + QLatin1Char(' ') +
-                lastPaid + QLatin1Char(' ') +
-                (lastPaidNone ? QString() : QString::number(dmn->pdmnState->nLastPaidHeight)) + QLatin1Char(' ') +
-                nextPayment + QLatin1Char(' ') +
-                (nextUnknown ? QString() : QString::number(nextPaymentIt->second)) + QLatin1Char(' ') +
-                payeeStr + QLatin1Char(' ') +
-                operatorReward + QLatin1Char(' ') +
-                collateralAmount + QLatin1Char(' ') +
-                collateralAddr + QLatin1Char(' ') +
-                ownerStr + QLatin1Char(' ') +
-                proTxHash + QLatin1Char(' ') +
-                collateralOutpoint;
-            if (!strToFilter.contains(strCurrentFilterDIP3, Qt::CaseInsensitive))
-                return;
-        }
+        const QString searchText =
+            address + QLatin1Char(' ') +
+            status + QLatin1Char(' ') +
+            QString::number(dmn->pdmnState->nPoSePenalty) + QLatin1Char(' ') +
+            registered + QLatin1Char(' ') +
+            QString::number(dmn->pdmnState->nRegisteredHeight) + QLatin1Char(' ') +
+            lastPaid + QLatin1Char(' ') +
+            (lastPaidNone ? QString() : QString::number(dmn->pdmnState->nLastPaidHeight)) + QLatin1Char(' ') +
+            nextPayment + QLatin1Char(' ') +
+            (nextUnknown ? QString() : QString::number(nextPaymentIt->second)) + QLatin1Char(' ') +
+            payeeStr + QLatin1Char(' ') +
+            operatorReward + QLatin1Char(' ') +
+            collateralAmount + QLatin1Char(' ') +
+            collateralAddr + QLatin1Char(' ') +
+            ownerStr + QLatin1Char(' ') +
+            proTxHash + QLatin1Char(' ') +
+            collateralOutpoint;
 
-        ++matched;
         auto* item = new QStandardItem(address);
         item->setEditable(false);
         item->setData(address, ServiceRole);
@@ -902,6 +890,7 @@ bool MasternodeList::updateDIP3List()
         item->setData(ownerStr, OwnerAddressRole);
         item->setData(proTxHash, ProTxHashRole);
         item->setData(collateralOutpoint, CollateralOutpointRole);
+        item->setData(searchText, SearchRole);
 
         const QString tooltip = tr(
             "Service: %1\nStatus: %2\nPoSe score: %3\nRegistered: %4\nLast paid: %5\n"
@@ -943,7 +932,7 @@ bool MasternodeList::updateDIP3List()
     masternodeProxy->setDynamicSortFilter(true);
     applyMasternodeSort();
 
-    ui->countLabelDIP3->setText(QString::number(matched));
+    ui->countLabelDIP3->setText(QString::number(masternodeProxy->rowCount()));
     QModelIndex restoredSelection;
     QModelIndex restoredTopRow;
     for (int row = 0; row < masternodeModel->rowCount(); ++row) {
@@ -970,16 +959,16 @@ bool MasternodeList::updateDIP3List()
 
 void MasternodeList::on_filterLineEditDIP3_textChanged(const QString& strFilterIn)
 {
-    strCurrentFilterDIP3 = strFilterIn;
-    nTimeFilterUpdatedDIP3 = GetTime();
-    fFilterUpdatedDIP3 = true;
+    masternodeProxy->setFilterFixedString(strFilterIn);
+    ui->countLabelDIP3->setText(QString::number(masternodeProxy->rowCount()));
+    updateEmptyState();
 }
 
-void MasternodeList::on_checkBoxMyMasternodesOnly_stateChanged(int state)
+void MasternodeList::on_checkBoxMyMasternodesOnly_stateChanged(int)
 {
-    // no cooldown
-    nTimeFilterUpdatedDIP3 = GetTime() - MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
-    fFilterUpdatedDIP3 = true;
+    mnListChanged = true;
+    nTimeUpdatedDIP3 = GetTime() - MASTERNODELIST_UPDATE_SECONDS * 10;
+    updateDIP3ListScheduled();
 }
 
 CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
