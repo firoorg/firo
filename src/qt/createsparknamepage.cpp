@@ -40,6 +40,10 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
 {
     ui->setupUi(this);
 
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
+
     feeText = ui->feeTextLabel->text();
     int nextBlockHeight;
     {

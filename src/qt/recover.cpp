@@ -62,6 +62,10 @@ Recover::Recover(QWidget *parent) :
         "QScrollArea#recoverScroll, QWidget#recoverScrollContents { background: transparent; border: none; }"));
     ui->verticalLayout->insertWidget(0, scroll, 1);
 
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
+
     applyTheme();
     setCreateNew();
     thread = new QThread(this);
