@@ -113,7 +113,12 @@ const ThemeColors& themeColors()
 
 QString themed(const QString& cssTemplate)
 {
-    const ThemeColors& c = themeColors();
+    return themed(cssTemplate, currentThemeMode());
+}
+
+QString themed(const QString& cssTemplate, ThemeMode mode)
+{
+    const ThemeColors& c = mode == ThemeMode::Dark ? DARK_COLORS : LIGHT_COLORS;
     QString result = cssTemplate;
     result.replace(QLatin1String("$BG"), c.bg);
     result.replace(QLatin1String("$PANEL_SOFT"), c.panelSoft);

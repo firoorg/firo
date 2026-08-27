@@ -58,6 +58,7 @@ namespace GUIUtil
     const ThemeColors& themeColors();
 
     QString themed(const QString& cssTemplate);
+    QString themed(const QString& cssTemplate, ThemeMode mode);
 
     QString primaryButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
     QString secondaryButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
