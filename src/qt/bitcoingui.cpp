@@ -761,18 +761,20 @@ void BitcoinGUI::createToolBars()
         navigationSyncCard->setToolTip(tr("Show synchronization details"));
         navigationSyncCard->installEventFilter(this);
         auto* syncLayout = new QVBoxLayout(navigationSyncCard);
-        syncLayout->setContentsMargins(14, 11, 14, 11);
+        syncLayout->setContentsMargins(10, 11, 14, 11);
         syncLayout->setSpacing(8);
         auto* syncHeader = new QHBoxLayout();
         syncHeader->setContentsMargins(0, 0, 0, 0);
+        syncHeader->setSpacing(6);
         navigationSyncLabel = new QLabel(tr("Syncing..."), navigationSyncCard);
         navigationSyncPercent = new QLabel(QStringLiteral("0%"), navigationSyncCard);
+        navigationSyncLabel->setObjectName(QStringLiteral("navigationSyncLabel"));
         navigationSyncLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
         navigationSyncPercent->setAttribute(Qt::WA_TransparentForMouseEvents);
         navigationSyncPercent->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        syncHeader->addWidget(navigationSyncLabel);
-        syncHeader->addStretch();
-        syncHeader->addWidget(navigationSyncPercent);
+        navigationSyncPercent->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+        syncHeader->addWidget(navigationSyncLabel, 1);
+        syncHeader->addWidget(navigationSyncPercent, 0);
         syncLayout->addLayout(syncHeader);
         navigationSyncProgress = new QProgressBar(navigationSyncCard);
         navigationSyncProgress->setRange(0, 100);
@@ -893,6 +895,9 @@ void BitcoinGUI::applyNavigationTheme()
                 color: $INK_SOFT;
                 font-size: 11px;
                 font-weight: 700;
+            }
+            QLabel#navigationSyncLabel {
+                font-size: 10px;
             }
             QProgressBar {
                 background: $BORDER;
@@ -1077,8 +1082,16 @@ void BitcoinGUI::updateNavigationSyncCard(
     visible = visible && syncInProgress();
 
     const double clampedProgress = qBound(0.0, progress, 1.0);
-    navigationSyncLabel->setText(status.isEmpty() ? tr("Syncing...") : status);
-    navigationSyncPercent->setText(QString::number(clampedProgress * 100.0, 'f', 2) + "%");
+    const QString fullStatus = status.isEmpty() ? tr("Syncing...") : status;
+    const QString percentText = QString::number(clampedProgress * 100.0, 'f', 2) + "%";
+    navigationSyncPercent->setText(percentText);
+
+    const int percentWidth = QFontMetrics(navigationSyncPercent->font()).horizontalAdvance(percentText);
+    const int availableWidth = navigationSyncCard->width() - 10 - 14 - 6 - percentWidth;
+    const QFontMetrics labelMetrics(navigationSyncLabel->font());
+    navigationSyncLabel->setText(labelMetrics.elidedText(fullStatus, Qt::ElideRight, availableWidth));
+    navigationSyncLabel->setToolTip(fullStatus);
+
     navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
     if (navigationSyncCardAction)
         navigationSyncCardAction->setVisible(visible);

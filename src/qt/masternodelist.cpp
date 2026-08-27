@@ -444,18 +444,6 @@ void MasternodeList::handleMasternodeListChanged()
 
 void MasternodeList::updateDIP3ListScheduled()
 {
-    TRY_LOCK(cs_main, fMainAcquired);
-    if (!fMainAcquired) return;
-
-#ifdef ENABLE_WALLET
-    if (!pwalletMain) return;
-    TRY_LOCK(pwalletMain->cs_wallet, fWalletAcquired);
-    if (!fWalletAcquired) return;
-#endif
-
-    TRY_LOCK(cs_dip3list, fLockAcquired);
-    if (!fLockAcquired) return;
-
     if (!clientModel || ShutdownRequested()) {
         return;
     }
@@ -493,21 +481,19 @@ void MasternodeList::updateDIP3List()
     std::map<uint256, CAmount> mapCollateralAmounts;
 
     {
-        // Get all UTXOs for each MN collateral in one go so that we can reduce locking overhead for cs_main
-        // We also do this outside of the below Qt list update loop to reduce cs_main locking time to a minimum
-        TRY_LOCK(cs_main,lock_main);
-        if (!lock_main)
-            return;
-        mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
-            CTxDestination collateralDest;
-            Coin coin;
-            if (!GetUTXOCoin(dmn->collateralOutpoint, coin))
-                return;
-            mapCollateralAmounts.emplace(dmn->proTxHash, coin.out.nValue);
-            if (ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
-                mapCollateralDests.emplace(dmn->proTxHash, collateralDest);
-            }
-        });
+        TRY_LOCK(cs_main, lock_main);
+        if (lock_main) {
+            mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+                CTxDestination collateralDest;
+                Coin coin;
+                if (!GetUTXOCoin(dmn->collateralOutpoint, coin))
+                    return;
+                mapCollateralAmounts.emplace(dmn->proTxHash, coin.out.nValue);
+                if (ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
+                    mapCollateralDests.emplace(dmn->proTxHash, collateralDest);
+                }
+            });
+        }
     }
 
     LOCK(cs_dip3list);
