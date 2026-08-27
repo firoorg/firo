@@ -33,6 +33,7 @@
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QScreen>
+#include <QScrollArea>
 #include <QVBoxLayout>
 #include <QVector>
 
@@ -185,6 +186,21 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
 {
     ui->setupUi(this);
 
+    ui->verticalLayout->removeWidget(ui->frame2);
+    auto* requestFormContents = new QWidget(this);
+    auto* requestFormLayout = new QVBoxLayout(requestFormContents);
+    requestFormLayout->setContentsMargins(0, 0, 0, 0);
+    requestFormLayout->addWidget(ui->frame2);
+    auto* requestFormScroll = new QScrollArea(this);
+    requestFormScroll->setObjectName(QStringLiteral("requestFormScroll"));
+    requestFormScroll->setWidgetResizable(true);
+    requestFormScroll->setFrameShape(QFrame::NoFrame);
+    requestFormScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    requestFormScroll->setWidget(requestFormContents);
+    requestFormScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#requestFormScroll { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, requestFormScroll);
+
     if (!_platformStyle->getImagesOnButtons()) {
         ui->clearButton->setIcon(QIcon());
         ui->receiveButton->setIcon(QIcon());
@@ -209,6 +225,10 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
     ui->addressTypeHistoryCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeHistoryCombobox->addItem(tr("Transparent"), Transparent);
+    ui->addressTypeCombobox->setMinimumWidth(130);
+    ui->addressTypeHistoryCombobox->setMinimumWidth(130);
+    ui->addressTypeCombobox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    ui->addressTypeHistoryCombobox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
     // context menu actions
     QAction *copyURIAction = new QAction(tr("Copy URI"), this);
@@ -415,7 +435,8 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setColumnWidth(RecentRequestsTableModel::AddressType, ADDRESSTYPE_COLUMN_WIDTH);
         tableView->setColumnWidth(RecentRequestsTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
         tableView->horizontalHeader()->setMinimumSectionSize(23);
-        tableView->horizontalHeader()->setStretchLastSection(true);
+        tableView->horizontalHeader()->setStretchLastSection(false);
+        updateRequestColumnWidths();
 
         auto wallet = _model->getWallet();
         if (!wallet || !wallet->sparkWallet) {
@@ -765,60 +786,26 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
     const int newHeight = event->size().height();
     
     adjustTextSize(newWidth,newHeight);
-    // Set fixed, minimum, and maximum sizes for ComboBoxes
-    int comboBoxMinHeight = 20;
-    int comboBoxMaxHeight = 40;
-    FIRO_UNUSED int comboBoxWidth = newWidth * 0.08;
-    int comboBoxMinWidth = newWidth * 0.05; 
-    int comboBoxMaxWidth = newWidth * 0.1; 
+    updateRequestColumnWidths();
+}
 
-    ui->addressTypeCombobox->setMinimumWidth(comboBoxMinWidth);
-    ui->addressTypeCombobox->setMaximumWidth(comboBoxMaxWidth);
-    ui->addressTypeCombobox->setMinimumHeight(comboBoxMinHeight);
-    ui->addressTypeCombobox->setMaximumHeight(comboBoxMaxHeight);
+void ReceiveCoinsDialog::updateRequestColumnWidths()
+{
+    const int availableWidth = ui->recentRequestsView->viewport()->width();
+    if (availableWidth <= 0)
+        return;
 
-    ui->addressTypeHistoryCombobox->setMinimumWidth(comboBoxMinWidth);
-    ui->addressTypeHistoryCombobox->setMaximumWidth(comboBoxMaxWidth);
-    ui->addressTypeHistoryCombobox->setMinimumHeight(comboBoxMinHeight);
-    ui->addressTypeHistoryCombobox->setMaximumHeight(comboBoxMaxHeight);
+    const int dateWidth = availableWidth * 23 / 100;
+    const int labelWidth = availableWidth * 17 / 100;
+    const int addressTypeWidth = availableWidth * 17 / 100;
+    const int messageWidth = availableWidth * 20 / 100;
+    const int amountWidth = availableWidth - dateWidth - labelWidth - addressTypeWidth - messageWidth;
 
-    // Set sizes for buttons dynamically
-    int buttonMinHeight = 20;
-    int buttonMaxHeight = 35;
-    FIRO_UNUSED int buttonWidth = newWidth * 0.15;
-    int buttonMinWidth = newWidth * 0.1; 
-    int buttonMaxWidth = newWidth * 0.4; 
-
-    ui->clearButton->setMinimumWidth(buttonMinWidth);
-    ui->clearButton->setMaximumWidth(buttonMaxWidth);
-    ui->clearButton->setMinimumHeight(buttonMinHeight);
-    ui->clearButton->setMaximumHeight(buttonMaxHeight);
-
-    ui->receiveButton->setMinimumWidth(buttonMinWidth);
-    ui->receiveButton->setMaximumWidth(buttonMaxWidth);
-    ui->receiveButton->setMinimumHeight(buttonMinHeight);
-    ui->receiveButton->setMaximumHeight(buttonMaxHeight);
-
-    ui->showRequestButton->setMinimumWidth(buttonMinWidth);
-    ui->showRequestButton->setMaximumWidth(buttonMaxWidth);
-    ui->showRequestButton->setMinimumHeight(buttonMinHeight);
-    ui->showRequestButton->setMaximumHeight(buttonMaxHeight);
-
-    ui->removeRequestButton->setMinimumWidth(buttonMinWidth);
-    ui->removeRequestButton->setMaximumWidth(buttonMaxWidth);
-    ui->removeRequestButton->setMinimumHeight(buttonMinHeight);
-    ui->removeRequestButton->setMaximumHeight(buttonMaxHeight);
-
-    // Adjust column widths proportionally
-    int dateColumnWidth = newWidth * 0.25;
-    int labelColumnWidth = newWidth * 0.25;
-    int addressTypeColumnWidth = newWidth * 0.25;
-    int amountColumnWidth = newWidth * 0.25;
-
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Date, dateColumnWidth);
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Label, labelColumnWidth);
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeColumnWidth);
-    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountColumnWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Date, dateWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Label, labelWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Message, messageWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountWidth);
 }
 void ReceiveCoinsDialog::adjustTextSize(int width,int height){
 

@@ -52,6 +52,9 @@
                 <property name="text">
                   <string>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;. Default address is &lt;b&gt;spark&lt;/b&gt;. </string>
                 </property>
+                <property name="wordWrap">
+                  <bool>true</bool>
+                </property>
               </widget>
             </item>
             <item>

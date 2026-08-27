@@ -86,6 +86,7 @@ private:
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
     void updateRequestsEmptyState();
+    void updateRequestColumnWidths();
     void applyTheme();
 private Q_SLOTS:
     void on_receiveButton_clicked();
