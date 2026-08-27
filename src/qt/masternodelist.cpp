@@ -370,7 +370,6 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     filterLayout->addWidget(countPill, 0, 3);
 
     ui->topLayout->insertWidget(0, filterCard);
-    ui->masternodeContentCard->setMinimumHeight(420);
     ui->masternodeContentCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->topLayout->setStretchFactor(ui->masternodeContentCard, 1);
 

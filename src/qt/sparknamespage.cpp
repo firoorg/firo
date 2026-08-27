@@ -169,7 +169,6 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
 {
     ui->setupUi(this);
 
-    ui->sparkNamesContentCard->setMinimumHeight(420);
     ui->sparkNamesContentCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->topLayout->setStretchFactor(ui->sparkNamesContentCard, 1);
     ui->sparkNamesContentCard->setAttribute(Qt::WA_StyledBackground, true);

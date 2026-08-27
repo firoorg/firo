@@ -420,7 +420,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     exportLayout->addWidget(exportButton);
     tableLayout->addLayout(exportLayout);
 
-    tableCard->setMinimumHeight(420);
     tableCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     vlayout->addWidget(tableCard, 1);
 
