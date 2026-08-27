@@ -1717,7 +1717,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkZnodeVisibility(count);
-    checkSparkNamesVisibility(count);
+    if (!header)
+        checkSparkNamesVisibility(count);
     if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
         sparkAddressbookUpdated = walletFrame->updateAddressbook();
     }
@@ -2142,7 +2143,9 @@ void BitcoinGUI::checkSparkNamesVisibility(int numBlocks) {
         return;
 
     const Consensus::Params& params = ::Params().GetConsensus();
-    const bool visible = spark::IsSparkAllowed(numBlocks) && numBlocks >= params.nSparkNamesStartBlock;
+    const int nextBlockHeight = numBlocks + 1;
+    const bool visible = spark::IsSparkAllowed(nextBlockHeight) &&
+        nextBlockHeight >= params.nSparkNamesStartBlock;
     sparkNamesAction->setVisible(visible);
     updateToolbarTabWidths();
 }
