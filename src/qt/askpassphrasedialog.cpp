@@ -46,6 +46,7 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, const QStr
     ui->passEdit1->installEventFilter(this);
     ui->passEdit2->installEventFilter(this);
     ui->passEdit3->installEventFilter(this);
+    ui->capsLabel->hide();
 
     switch(mode)
     {
@@ -242,6 +243,7 @@ bool AskPassphraseDialog::event(QEvent *event)
         } else {
             ui->capsLabel->clear();
         }
+        ui->capsLabel->setVisible(fCapsLock);
     }
     return QWidget::event(event);
 }
@@ -267,6 +269,7 @@ bool AskPassphraseDialog::eventFilter(QObject *object, QEvent *event)
                 fCapsLock = false;
                 ui->capsLabel->clear();
             }
+            ui->capsLabel->setVisible(fCapsLock);
         }
     }
     return QDialog::eventFilter(object, event);
@@ -322,11 +325,13 @@ void AskPassphraseDialog::applyTheme()
             border: 1px solid $WINE;
         }
         QLabel#capsLabel {
-            color: $GOLD;
+            color: $INK;
             font-size: 9pt;
             font-weight: 700;
-            background: transparent;
-            padding: 4px 0 0 0;
+            background: $GOLD_TINT;
+            border: 1px solid $GOLD;
+            border-radius: 6px;
+            padding: 6px 8px;
         }
         QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }
     )")));
