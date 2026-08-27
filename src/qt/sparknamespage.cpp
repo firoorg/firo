@@ -18,6 +18,7 @@
 #include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -156,6 +157,8 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     ui(new Ui::SparkNamesPage),
     platformStyle(_platformStyle),
     model(nullptr),
+    addressModel(nullptr),
+    refreshScheduled(false),
     emptyState(nullptr),
     namesScroll(nullptr),
     namesCardsHost(nullptr),
@@ -230,8 +233,34 @@ SparkNamesPage::~SparkNamesPage()
 
 void SparkNamesPage::setModel(WalletModel *_model)
 {
+    if (addressModel)
+        disconnect(addressModel, nullptr, this, nullptr);
+
     this->model = _model;
+    addressModel = model ? model->getAddressTableModel() : nullptr;
+    if (addressModel) {
+        connect(addressModel, &QAbstractItemModel::rowsInserted,
+                this, &SparkNamesPage::scheduleRefreshList);
+        connect(addressModel, &QAbstractItemModel::rowsRemoved,
+                this, &SparkNamesPage::scheduleRefreshList);
+        connect(addressModel, &QAbstractItemModel::dataChanged,
+                this, &SparkNamesPage::scheduleRefreshList);
+        connect(addressModel, &QAbstractItemModel::modelReset,
+                this, &SparkNamesPage::scheduleRefreshList);
+    }
     refreshList();
+}
+
+void SparkNamesPage::scheduleRefreshList()
+{
+    if (refreshScheduled)
+        return;
+
+    refreshScheduled = true;
+    QTimer::singleShot(0, this, [this]() {
+        refreshScheduled = false;
+        refreshList();
+    });
 }
 
 void SparkNamesPage::on_createSparkNameButton_clicked()
@@ -242,7 +271,6 @@ void SparkNamesPage::on_createSparkNameButton_clicked()
     CreateSparkNamePage *dialog = new CreateSparkNamePage(platformStyle, this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModel(model);
-    connect(dialog, &QDialog::accepted, this, &SparkNamesPage::refreshList);
     dialog->show();
 }
 
@@ -255,7 +283,6 @@ void SparkNamesPage::refreshList()
         return;
     }
 
-    AddressTableModel *addressModel = model->getAddressTableModel();
     if (!addressModel) {
         updateEmptyState();
         return;
@@ -441,7 +468,6 @@ void SparkNamesPage::extendSparkName(const QString &name, const QString &address
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModel(model);
     dialog->setExtendMode(name, address);
-    connect(dialog, &QDialog::accepted, this, &SparkNamesPage::refreshList);
     dialog->show();
 }
 

@@ -9,6 +9,7 @@ namespace Ui {
 
 class PlatformStyle;
 class WalletModel;
+class AddressTableModel;
 
 QT_BEGIN_NAMESPACE
 class QLabel;
@@ -32,6 +33,8 @@ private:
     Ui::SparkNamesPage *ui;
     const PlatformStyle *platformStyle;
     WalletModel *model;
+    AddressTableModel *addressModel;
+    bool refreshScheduled;
 
     QWidget *emptyState;
     QLabel *emptyIcon_;
@@ -42,6 +45,7 @@ private:
     QVBoxLayout *namesCardsLayout;
 
     void refreshList();
+    void scheduleRefreshList();
     void updateEmptyState();
     void applyTheme();
     QFrame *createSparkNameCard(const QString &name, const QString &address, const QString &expiry,
