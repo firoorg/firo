@@ -1681,12 +1681,6 @@ QDialog#SignVerifyMessageDialog .QToolButton {
     border: 0;
 }
 
-/* ShutdownWindow */
-
-QWidget#ShutdownWindow {
-    background-color: #f4f4f4;
-}
-
 /* TransactionView */
 
 TransactionView QLineEdit#addressWidget {
