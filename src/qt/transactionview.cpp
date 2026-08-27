@@ -369,7 +369,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     QTableView *view = new QTableView(this);
     transactionView = view;
 
-    transactionView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    transactionView->setVerticalScrollMode(QAbstractItemView::ScrollPerItem);
     transactionView->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     transactionView->setShowGrid(false);
     transactionView->setAlternatingRowColors(false);
@@ -569,11 +569,11 @@ void TransactionView::applyTheme()
         "QTableView::item:selected { background: transparent; color: $INK; }"
 
         "QScrollBar:vertical { background:$PANEL_SOFT; width:12px; border-radius:6px; }"
-        "QScrollBar::handle:vertical { background:$BORDER; border-radius:6px; margin:2px; }"
-        "QScrollBar::handle:vertical:hover { background:$BORDER; }"
+        "QScrollBar::handle:vertical { background:$INK_FAINT; border-radius:6px; margin:2px; min-height:32px; }"
+        "QScrollBar::handle:vertical:hover { background:$INK_SOFT; }"
         "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
         "QScrollBar:horizontal { background:$PANEL_SOFT; height:12px; border-radius:6px; }"
-        "QScrollBar::handle:horizontal { background:$BORDER; border-radius:6px; margin:2px; }"
+        "QScrollBar::handle:horizontal { background:$INK_FAINT; border-radius:6px; margin:2px; min-width:32px; }"
 
         "QMenu { background:$PANEL; border:1px solid $BORDER; padding:6px; font-size:10pt; border-radius:10px; }"
         "QMenu::item:selected { background:$PANEL_SOFT; color:$INK; }"
