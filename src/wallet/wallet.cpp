@@ -1240,6 +1240,17 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
         }
     }
 
+    if ((fInsertedNew || fUpdated) && !wtx.tx->HasNoRegularInputs()) {
+        // Adding a spender or changing its chain state can change whether its
+        // input transactions have available credit.
+        for (const CTxIn& txin : wtx.tx->vin) {
+            std::map<uint256, CWalletTx>::iterator mi = mapWallet.find(txin.prevout.hash);
+            if (mi != mapWallet.end()) {
+                mi->second.MarkDirty();
+            }
+        }
+    }
+
     //// debug print
     LogPrintf("AddToWallet %s  %s%s\n", wtxIn.GetHash().ToString(), (fInsertedNew ? "new" : ""), (fUpdated ? "update" : ""));
 
@@ -3840,8 +3851,10 @@ bool CWallet::EraseFromWallet(uint256 hash) {
         return false;
     {
         LOCK(cs_wallet);
-        if (mapWallet.erase(hash))
+        if (mapWallet.erase(hash)) {
+            MarkDirty();
             CWalletDB(strWalletFile).EraseTx(hash);
+        }
     }
     return true;
 }
@@ -4095,6 +4108,9 @@ DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256
     if (!fFileBacked)
         return DB_LOAD_OK;
     DBErrors nZapSelectTxRet = CWalletDB(strWalletFile,"cr+").ZapSelectTx(this, vHashIn, vHashOut);
+    // ZapSelectTx can remove in-memory transactions before reporting a
+    // database error, so invalidate caches regardless of its return value.
+    MarkDirty();
     if (nZapSelectTxRet == DB_NEED_REWRITE)
     {
         if (CDB::Rewrite(strWalletFile, "\x04pool"))
@@ -4110,8 +4126,6 @@ DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256
 
     if (nZapSelectTxRet != DB_LOAD_OK)
         return nZapSelectTxRet;
-
-    MarkDirty();
 
     return DB_LOAD_OK;
 
@@ -4242,6 +4256,8 @@ bool CWallet::NewKeyPool()
             return false;
 
         int64_t nKeys = std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), (int64_t)0);
+        if (nKeys > 0)
+            MarkDirty();
         for (int i = 0; i < nKeys; i++)
         {
             int64_t nIndex = i+1;
@@ -4272,6 +4288,8 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
         else
             nTargetSize = std::max(GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), (int64_t) 0);
 
+        if (setKeyPool.size() < (nTargetSize + 1))
+            MarkDirty();
         while (setKeyPool.size() < (nTargetSize + 1))
         {
             int64_t nEnd = 1;
@@ -4349,6 +4367,7 @@ bool CWallet::GetKeyFromPool(CPubKey& result)
         if (nIndex == -1)
         {
             if (IsLocked()) return false;
+            MarkDirty();
             result = GenerateNewKey();
             return true;
         }
@@ -5327,6 +5346,8 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
     {
         bip47::MyAddrContT addrs = newAcc.getMyNextAddresses();
         LOCK(cs_wallet);
+        if (!addrs.empty())
+            MarkDirty();
         for(bip47::MyAddrContT::value_type const & addr : addrs) {
             AddKey(addr.second);
         }
