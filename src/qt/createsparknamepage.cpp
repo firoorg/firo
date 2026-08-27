@@ -20,8 +20,19 @@
 #include <QPointer>
 #include <QDateTime>
 #include <QLocale>
+#include <QSignalBlocker>
+
+#include <algorithm>
+#include <cstdint>
 
 #define SEND_CONFIRM_DELAY   3
+
+namespace {
+
+constexpr int64_t SPARK_NAME_BLOCKS_PER_YEAR = 365LL * 24 * 24;
+constexpr int64_t MAXIMUM_SPARK_NAME_VALIDITY = 15 * SPARK_NAME_BLOCKS_PER_YEAR;
+
+}
 
 CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
@@ -108,15 +119,66 @@ void CreateSparkNamePage::setExtendMode(const QString &name, const QString &addr
     ui->sparkAddressEdit->setText(address);
     ui->sparkAddressEdit->setEnabled(false);
     ui->generateButton->setEnabled(false);
-    try {
-        ui->additionalInfoEdit->setPlainText(QString::fromStdString(
-            CSparkNameManager::GetInstance()->GetSparkNameAdditionalData(name.toStdString())));
-    } catch (const std::runtime_error&) {
-        ui->additionalInfoEdit->clear();
-    }
-    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
+    QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok);
+    if (okButton)
         okButton->setText(tr("Extend"));
     this->setWindowTitle(tr("Extend Spark Name"));
+
+    try {
+        CSparkNameManager* sparkNameManager = CSparkNameManager::GetInstance();
+        ui->additionalInfoEdit->setPlainText(QString::fromStdString(
+            sparkNameManager->GetSparkNameAdditionalData(name.toStdString())));
+
+        int nextBlockHeight;
+        {
+            LOCK(cs_main);
+            nextBlockHeight = chainActive.Height() + 1;
+        }
+        const int64_t expirationHeight = static_cast<int64_t>(
+            sparkNameManager->GetSparkNameBlockHeight(
+                CSparkNameManager::ToUpper(name.toStdString())));
+
+        int maximumYears = 10;
+        if (nextBlockHeight >= Params().GetConsensus().nSparkNamesV21StartBlock) {
+            const int64_t remainingBlocks = std::max<int64_t>(
+                0, expirationHeight - nextBlockHeight);
+            const int64_t availableBlocks = std::max<int64_t>(
+                0, MAXIMUM_SPARK_NAME_VALIDITY - remainingBlocks);
+            maximumYears = static_cast<int>(availableBlocks / SPARK_NAME_BLOCKS_PER_YEAR);
+        }
+
+        {
+            const QSignalBlocker blocker(ui->numberOfYearsEdit);
+            if (maximumYears > 0) {
+                ui->numberOfYearsEdit->setRange(1, maximumYears);
+                ui->numberOfYearsEdit->setValue(
+                    std::min(ui->numberOfYearsEdit->value(), maximumYears));
+                ui->numberOfYearsEdit->setEnabled(true);
+                extensionUnavailableReason.clear();
+            } else {
+                ui->numberOfYearsEdit->setRange(0, 0);
+                ui->numberOfYearsEdit->setEnabled(false);
+                extensionUnavailableReason =
+                    tr("This Spark Name cannot be extended by a full year yet.");
+            }
+        }
+    } catch (const std::runtime_error&) {
+        ui->additionalInfoEdit->clear();
+        const QSignalBlocker blocker(ui->numberOfYearsEdit);
+        ui->numberOfYearsEdit->setRange(0, 0);
+        ui->numberOfYearsEdit->setEnabled(false);
+        extensionUnavailableReason =
+            tr("This Spark Name could not be found and cannot be extended.");
+    }
+
+    if (okButton)
+        okButton->setEnabled(extensionUnavailableReason.isEmpty());
+    if (!extensionUnavailableReason.isEmpty()) {
+        ui->balanceWarningLabel->clear();
+        ui->balanceWarningLabel->setVisible(false);
+    } else {
+        checkSparkBalance();
+    }
     updateFee();
 }
 
@@ -143,6 +205,11 @@ void CreateSparkNamePage::accept()
 {
     if (!model) {
         QMessageBox::critical(this, tr("Error"), tr("The wallet is not available."));
+        return;
+    }
+
+    if (extendMode && !extensionUnavailableReason.isEmpty()) {
+        QMessageBox::warning(this, tr("Extension unavailable"), extensionUnavailableReason);
         return;
     }
 
@@ -180,10 +247,16 @@ void CreateSparkNamePage::accept()
 }
 
 void CreateSparkNamePage::updateFee() {
+    if (extendMode && !extensionUnavailableReason.isEmpty()) {
+        ui->feeTextLabel->setText(extensionUnavailableReason);
+        return;
+    }
+
     QString sparkName = ui->sparkNameEdit->text();
     int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) || numberOfYears == 0 || numberOfYears > 15) {
+    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) ||
+        numberOfYears == 0 || numberOfYears > ui->numberOfYearsEdit->maximum()) {
         ui->feeTextLabel->setText(feeText.arg("?"));
         return;
     }
@@ -194,16 +267,22 @@ void CreateSparkNamePage::updateFee() {
     if (extendMode) {
         try {
             constexpr int nBlocksPerHour = 24;
-            int newValidityBlocks = numberOfYears * 365 * 24 * nBlocksPerHour;
+            const int64_t newValidityBlocks = numberOfYears * SPARK_NAME_BLOCKS_PER_YEAR;
 
-            LOCK(cs_main);
-            int currentHeight = chainActive.Height();
-            int currentExpirationHeight = CSparkNameManager::GetInstance()->GetSparkNameBlockHeight(
-                CSparkNameManager::ToUpper(sparkName.toStdString()));
+            int nextBlockHeight;
+            {
+                LOCK(cs_main);
+                nextBlockHeight = chainActive.Height() + 1;
+            }
+            const int64_t currentExpirationHeight = static_cast<int64_t>(
+                CSparkNameManager::GetInstance()->GetSparkNameBlockHeight(
+                    CSparkNameManager::ToUpper(sparkName.toStdString())));
 
-            int remainingBlocks = currentExpirationHeight - currentHeight;
-            int totalValidityBlocks = newValidityBlocks + std::max(0, remainingBlocks);
-            int blocksFromNow = totalValidityBlocks;
+            int64_t blocksFromNow = newValidityBlocks;
+            if (nextBlockHeight >= Params().GetConsensus().nSparkNamesV21StartBlock) {
+                blocksFromNow += std::max<int64_t>(
+                    0, currentExpirationHeight - nextBlockHeight);
+            }
 
             QDateTime expirationDate = QDateTime::currentDateTime().addSecs(
                 (qint64)blocksFromNow * 3600 / nBlocksPerHour);
@@ -249,7 +328,8 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         sparkNameData.name = name;
         sparkNameData.sparkAddress = address;
         sparkNameData.additionalInfo = additionalInfo;
-        sparkNameData.sparkNameValidityBlocks = numberOfYears*365*24*24;
+        sparkNameData.sparkNameValidityBlocks = static_cast<uint32_t>(
+            numberOfYears * SPARK_NAME_BLOCKS_PER_YEAR);
 
         std::string strError;
 

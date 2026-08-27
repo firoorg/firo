@@ -21,6 +21,7 @@ class CreateSparkNamePage : public QDialog
 
 private:
     QString feeText;
+    QString extensionUnavailableReason;
     bool extendMode = false;
 
 public:
