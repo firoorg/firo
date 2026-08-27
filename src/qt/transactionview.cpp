@@ -721,6 +721,14 @@ void TransactionView::setModel(WalletModel *_model)
     {
         transactionProxyModel = new TransactionFilterProxy(this);
         transactionProxyModel->setSourceModel(_model->getTransactionTableModel());
+        connect(transactionProxyModel, &QAbstractItemModel::dataChanged,
+                this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight) {
+                    if (topLeft.column() <= TransactionTableModel::InstantSend &&
+                        bottomRight.column() >= TransactionTableModel::Status) {
+                        // The row delegate paints this metadata in the Date cell.
+                        transactionView->viewport()->update();
+                    }
+                });
         transactionProxyModel->setDynamicSortFilter(true);
         transactionProxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
         transactionProxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
