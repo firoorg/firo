@@ -130,7 +130,7 @@ private:
     QAction *showHelpMessageAction;
     QAction *masternodeAction;
     QAction *logoAction;
-    QToolBar *toolbar;
+    QToolBar *toolbar{nullptr};
     QToolButton *navigationToggleButton{nullptr};
     bool navigationSidebarExpanded{true};
     QFrame *navigationSyncCard{nullptr};
@@ -143,7 +143,7 @@ private:
     QLabel *navigationThemeDarkLabel{nullptr};
     QAbstractButton *navigationThemeSwitch{nullptr};
     QWidget *navigationSelectionHighlight{nullptr};
-    QLabel *logoLabel;
+    QLabel *logoLabel{nullptr};
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
