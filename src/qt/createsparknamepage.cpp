@@ -7,6 +7,7 @@
 #include "sendcoinsdialog.h"
 
 #include "guitheme.h"
+#include "guiutil.h"
 #include "platformstyle.h"
 #include "validation.h"
 #include "sparkname.h"
@@ -16,6 +17,7 @@
 #include <QPushButton>
 #include <QStyle>
 #include <QMessageBox>
+#include <QPointer>
 #include <QDateTime>
 #include <QLocale>
 
@@ -159,13 +161,19 @@ void CreateSparkNamePage::accept()
     else if (!model->validateSparkNameData(sparkName, sparkAddress, additionalInfo, strError))
         QMessageBox::critical(this, tr("Error"), tr("Error details: ") + strError);
     else {
+        QPointer<CreateSparkNamePage> page(this);
+        const bool extending = extendMode;
         if (CreateSparkNameTransaction(sparkName.toStdString(), sparkAddress.toStdString(), numberOfYears, additionalInfo.toStdString())) {
+            if (!page)
+                return;
             QMessageBox::information(
-                this,
+                page.data(),
                 tr("Transaction submitted"),
-                extendMode
+                extending
                     ? tr("The updated expiry will appear after the extension transaction is confirmed.")
                     : tr("The Spark Name will appear after the registration transaction is confirmed."));
+            if (!page)
+                return;
             QDialog::accept();
         }
     }
@@ -216,6 +224,12 @@ void CreateSparkNamePage::updateFee() {
 
 bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo)
 {
+    QPointer<CreateSparkNamePage> page(this);
+    WalletModel* const walletModel = model;
+    const bool extending = extendMode;
+    if (!walletModel)
+        return false;
+
     try {
         const auto &consensusParams = Params().GetConsensus();
         CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
@@ -240,7 +254,7 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         std::string strError;
 
         if (!sparkNameManager->ValidateSparkNameData(sparkNameData, strError)) {
-            QMessageBox::critical(this, tr("Error validating Spark Name parameter"), strError.c_str());
+            QMessageBox::critical(page.data(), tr("Error validating Spark Name parameter"), strError.c_str());
             return false;
         }
 
@@ -249,37 +263,47 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         CAmount sparkNameFee = consensusParams.nSparkNamesFee[name.length()]*COIN*numberOfYears;
         FIRO_UNUSED CAmount txFee;
 
-        WalletModelTransaction tx = model->initSparkNameTransaction(sparkNameFee);
+        WalletModelTransaction tx = walletModel->initSparkNameTransaction(sparkNameFee);
 
         using UnlockContext = WalletModel::UnlockContext;
-        std::unique_ptr<UnlockContext> ctx = std::unique_ptr<UnlockContext>(new UnlockContext(model->requestUnlock()));
-        if (!ctx->isValid())
+        std::unique_ptr<UnlockContext> ctx = std::unique_ptr<UnlockContext>(new UnlockContext(walletModel->requestUnlock()));
+        if (!page || !ctx->isValid())
             return false;
 
-        WalletModel::SendCoinsReturn prepareStatus = model->prepareSparkNameTransaction(
-            tx, sparkNameData, sparkNameFee, nullptr, nextBlockHeight);
+        WalletModel::SendCoinsReturn prepareStatus;
+        GUIUtil::runWalletOperation([walletModel, &prepareStatus, &tx, &sparkNameData, sparkNameFee, nextBlockHeight] {
+            prepareStatus = walletModel->prepareSparkNameTransaction(
+                tx, sparkNameData, sparkNameFee, nullptr, nextBlockHeight);
+        });
+        if (!page)
+            return false;
         if (prepareStatus.status != WalletModel::StatusCode::OK) {
-            QString errorText = extendMode
+            QString errorText = extending
                 ? tr("Failed to prepare the Spark Name extension transaction.")
                 : tr("Failed to prepare the Spark Name registration transaction.");
             if (!prepareStatus.reasonCommitFailed.isEmpty())
                 errorText.append(QStringLiteral("\n\n") + prepareStatus.reasonCommitFailed);
             QMessageBox::critical(
-                this,
+                page.data(),
                 tr("Error"),
                 errorText);
             return false;
         }
 
-        QString questionString = extendMode
+        QString questionString = extending
             ? tr("Are you sure you want to extend this Spark Name?")
             : tr("Are you sure you want to register this Spark Name?");
         questionString.append(tr(" You are sending FIRO from a Spark address to the Spark Name fee address."));
 
+        // Keep this stack dialog independent: the modeless page may be deleted while
+        // a nested event loop is running.
         SendConfirmationDialog confirmationDialog(
-            extendMode ? tr("Confirm Spark Name extension") : tr("Confirm Spark Name registration"),
-            questionString, SEND_CONFIRM_DELAY, this);
+            extending ? tr("Confirm Spark Name extension") : tr("Confirm Spark Name registration"),
+            questionString, SEND_CONFIRM_DELAY, nullptr);
         confirmationDialog.exec();
+
+        if (!page)
+            return false;
 
         QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
 
@@ -287,15 +311,20 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
             return false;
         }
 
-        WalletModel::SendCoinsReturn sendStatus = model->spendSparkCoins(tx);
+        WalletModel::SendCoinsReturn sendStatus;
+        GUIUtil::runWalletOperation([walletModel, &sendStatus, &tx] {
+            sendStatus = walletModel->spendSparkCoins(tx);
+        });
+        if (!page)
+            return false;
         if (sendStatus.status != WalletModel::StatusCode::OK) {
-            QString errorText = extendMode
+            QString errorText = extending
                 ? tr("Failed to submit the Spark Name extension transaction.")
                 : tr("Failed to submit the Spark Name registration transaction.");
             if (!sendStatus.reasonCommitFailed.isEmpty())
                 errorText.append(QStringLiteral("\n\n") + sendStatus.reasonCommitFailed);
             QMessageBox::critical(
-                this,
+                page.data(),
                 tr("Error"),
                 errorText);
             return false;
@@ -303,12 +332,14 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
 
     }
     catch (const std::exception &) {
-        QMessageBox::critical(
-            this,
-            tr("Error"),
-            extendMode
-                ? tr("Failed to extend the Spark Name.")
-                : tr("Failed to register the Spark Name."));
+        if (page) {
+            QMessageBox::critical(
+                page.data(),
+                tr("Error"),
+                extending
+                    ? tr("Failed to extend the Spark Name.")
+                    : tr("Failed to register the Spark Name."));
+        }
         return false;
     }
 
