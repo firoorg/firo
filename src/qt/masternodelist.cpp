@@ -422,14 +422,11 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     emptyLayout->addWidget(emptyDescription_);
     emptyLayout->addStretch();
 
-    const auto addCardShadow = [](QWidget* card) {
-        auto* shadow = new QGraphicsDropShadowEffect(card);
-        shadow->setBlurRadius(20);
-        shadow->setOffset(0, 5);
-        shadow->setColor(QColor(65, 37, 52, 24));
-        card->setGraphicsEffect(shadow);
-    };
-    addCardShadow(filterCard);
+    auto* filterShadow = new QGraphicsDropShadowEffect(filterCard);
+    filterShadow->setBlurRadius(20);
+    filterShadow->setOffset(0, 5);
+    filterShadow->setColor(QColor(65, 37, 52, 24));
+    filterCard->setGraphicsEffect(filterShadow);
 
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
