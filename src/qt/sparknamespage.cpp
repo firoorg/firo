@@ -21,6 +21,7 @@
 #include <QScrollArea>
 #include <QTimer>
 #include <QToolButton>
+#include <QVariant>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -253,12 +254,12 @@ void SparkNamesPage::setClientModel(ClientModel *_clientModel)
     clientModel = _clientModel;
     if (clientModel) {
         connect(clientModel, &ClientModel::numBlocksChanged,
-                this, [this](int, const QDateTime&, double, bool header) {
+                this, [this](int count, const QDateTime&, double, bool header) {
                     if (!header && clientModel && !clientModel->inInitialBlockDownload())
-                        scheduleRefreshList();
+                        updateCardStatuses(count);
                 });
     }
-    refreshList();
+    updateCardStatuses(clientModel ? clientModel->getNumBlocks() : 0);
 }
 
 void SparkNamesPage::scheduleRefreshList()
@@ -333,40 +334,24 @@ void SparkNamesPage::refreshList()
 
     const int currentHeight = clientModel ? clientModel->getNumBlocks() : 0;
 
-    constexpr int nBlocksPerHour = 24;
-    constexpr int nBlocksPerMonth = nBlocksPerHour * 24 * 30;
-
     for (const auto &entry : sparkNames) {
-        const qint64 remainingBlocks = static_cast<qint64>(entry.validityHeight) - currentHeight;
-        QString expiry;
-        int statusKind;
-        if (remainingBlocks <= 0) {
-            expiry = tr("Expired");
-            statusKind = 2;
-        } else {
-            const QDateTime expiryDate = QDateTime::currentDateTime().addSecs(
-                (qint64)remainingBlocks * 3600 / nBlocksPerHour);
-            expiry = QLocale::system().toString(expiryDate.date(), QLocale::LongFormat);
-            statusKind = remainingBlocks < nBlocksPerMonth ? 1 : 0;
-        }
-
         QFrame *card = createSparkNameCard(
-            entry.name, entry.address, expiry, statusKind, entry.additionalInfo);
+            entry.name, entry.address, entry.validityHeight, entry.additionalInfo, currentHeight);
         namesCardsLayout->addWidget(card);
     }
 
     updateEmptyState();
 }
 
-QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &address, const QString &expiry,
-                                             int statusKind, const QString &additionalInfo)
+QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &address, uint64_t validityHeight,
+                                             const QString &additionalInfo, int currentHeight)
 {
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     auto* frame = new QFrame(namesCardsHost);
     frame->setObjectName(QStringLiteral("sparkNameCard"));
     frame->setAttribute(Qt::WA_StyledBackground, true);
     frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     frame->setMinimumHeight(126);
+    frame->setProperty("validityHeight", QVariant::fromValue<qulonglong>(validityHeight));
 
     auto* root = new QVBoxLayout(frame);
     root->setContentsMargins(16, 14, 16, 14);
@@ -397,23 +382,10 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     titleCol->addWidget(addressLab);
     header->addLayout(titleCol, 1);
 
-    QString badgeBg = tc.tealTint;
-    QString statusText = tr("Active");
-    if (statusKind == 1) {
-        badgeBg = tc.goldTint;
-        statusText = tr("Expiring Soon");
-    } else if (statusKind == 2) {
-        badgeBg = tc.wineTint;
-        statusText = tr("Expired");
-    }
-    auto* statusLab = new QLabel(statusText, frame);
+    auto* statusLab = new QLabel(frame);
     statusLab->setObjectName(QStringLiteral("cardStatusBadge"));
     statusLab->setAlignment(Qt::AlignCenter);
     statusLab->setMinimumHeight(22);
-    statusLab->setStyleSheet(QStringLiteral(
-        "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
-        " padding: 2px 10px; font-size: 12px; font-weight: 700; }")
-                                 .arg(badgeBg, tc.ink));
     header->addWidget(statusLab, 0, Qt::AlignVCenter);
 
     root->addLayout(header);
@@ -429,7 +401,9 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     auto* grid = new QHBoxLayout();
     grid->setContentsMargins(0, 0, 0, 0);
     grid->setSpacing(4);
-    grid->addWidget(metricColumn(tr("EXPIRES"), expiry, frame), 1);
+    auto* expiryMetric = metricColumn(tr("EXPIRES"), QString(), frame);
+    expiryMetric->setObjectName(QStringLiteral("cardExpiryMetric"));
+    grid->addWidget(expiryMetric, 1);
     if (!additionalInfo.isEmpty())
         grid->addWidget(metricColumn(tr("ADDITIONAL INFO"), additionalInfo, frame), 2);
     grid->addStretch(additionalInfo.isEmpty() ? 2 : 0);
@@ -459,7 +433,74 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
 
     root->addLayout(actionsRow);
 
+    updateCardStatus(frame, currentHeight);
     return frame;
+}
+
+void SparkNamesPage::updateCardStatuses(int currentHeight)
+{
+    if (!namesCardsLayout)
+        return;
+
+    for (int i = 0; i < namesCardsLayout->count(); ++i) {
+        if (QFrame* card = qobject_cast<QFrame*>(namesCardsLayout->itemAt(i)->widget()))
+            updateCardStatus(card, currentHeight);
+    }
+}
+
+void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
+{
+    const QVariant validity = card->property("validityHeight");
+    auto* statusLabel = card->findChild<QLabel*>(QStringLiteral("cardStatusBadge"));
+    auto* expiryMetric = card->findChild<QWidget*>(QStringLiteral("cardExpiryMetric"));
+    auto* expiryLabel = expiryMetric
+        ? expiryMetric->findChild<QLabel*>(QStringLiteral("cardMetricValue"))
+        : nullptr;
+    if (!validity.isValid() || !statusLabel || !expiryLabel)
+        return;
+
+    constexpr int blocksPerHour = 24;
+    constexpr int blocksPerMonth = blocksPerHour * 24 * 30;
+    const qint64 remainingBlocks = static_cast<qint64>(validity.toULongLong()) - currentHeight;
+
+    QString expiry;
+    QString statusText;
+    int statusKind;
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    QString badgeBackground;
+    if (remainingBlocks <= 0) {
+        expiry = tr("Expired");
+        statusText = tr("Expired");
+        statusKind = 2;
+        badgeBackground = tc.wineTint;
+    } else {
+        const QDateTime expiryDate = QDateTime::currentDateTime().addSecs(
+            remainingBlocks * 3600 / blocksPerHour);
+        expiry = QLocale::system().toString(expiryDate.date(), QLocale::LongFormat);
+        if (remainingBlocks < blocksPerMonth) {
+            statusText = tr("Expiring Soon");
+            statusKind = 1;
+            badgeBackground = tc.goldTint;
+        } else {
+            statusText = tr("Active");
+            statusKind = 0;
+            badgeBackground = tc.tealTint;
+        }
+    }
+
+    if (expiryLabel->text() != expiry)
+        expiryLabel->setText(expiry);
+
+    const QVariant displayedStatusKind = statusLabel->property("statusKind");
+    if (!displayedStatusKind.isValid() || displayedStatusKind.toInt() != statusKind
+        || statusLabel->text() != statusText) {
+        statusLabel->setText(statusText);
+        statusLabel->setStyleSheet(QStringLiteral(
+            "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
+            " padding: 2px 10px; font-size: 12px; font-weight: 700; }")
+                                       .arg(badgeBackground, tc.ink));
+        statusLabel->setProperty("statusKind", statusKind);
+    }
 }
 
 void SparkNamesPage::extendSparkName(const QString &name, const QString &address)
