@@ -1063,26 +1063,35 @@ bool BitcoinGUI::syncInProgress() const
     if (!clientModel)
         return false;
 
+    if (!masternodeSync.IsSynced())
+        return true;
+
     if (clientModel->inInitialBlockDownload())
         return true;
 
     if (clientModel->getLastBlockDate().secsTo(QDateTime::currentDateTime()) >= MAX_SYNCED_TIP_AGE_SECS)
         return true;
 
-    return !masternodeSync.IsSynced() && clientModel->getNumConnections() > 0;
+    return false;
 }
 
 void BitcoinGUI::updateNavigationSyncCard(
-    const QString& status, double progress, bool visible)
+    const QString& status, double progress)
 {
     if (!navigationSyncCard || !navigationSyncLabel ||
         !navigationSyncPercent || !navigationSyncProgress)
         return;
 
-    visible = visible && syncInProgress();
+    QString fullStatus = status;
+    const bool fullySynced = clientModel && !syncInProgress();
+    if (fullySynced) {
+        fullStatus = tr("Synced");
+        progress = 1.0;
+    }
 
     const double clampedProgress = qBound(0.0, progress, 1.0);
-    const QString fullStatus = status.isEmpty() ? tr("Syncing...") : status;
+    if (fullStatus.isEmpty())
+        fullStatus = tr("Syncing...");
     const QString percentText = QString::number(clampedProgress * 100.0, 'f', 2) + "%";
     navigationSyncPercent->setText(percentText);
 
@@ -1094,8 +1103,8 @@ void BitcoinGUI::updateNavigationSyncCard(
 
     navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
     if (navigationSyncCardAction)
-        navigationSyncCardAction->setVisible(visible);
-    navigationSyncCard->setVisible(visible);
+        navigationSyncCardAction->setVisible(clientModel != nullptr);
+    navigationSyncCard->setVisible(clientModel != nullptr);
 }
 
 void BitcoinGUI::updateToolbarTabWidths()
@@ -1531,19 +1540,32 @@ void BitcoinGUI::updateNetworkState()
 void BitcoinGUI::setNumConnections(int count)
 {
     updateNetworkState();
+
+    if (!navigationSyncProgress || !navigationSyncLabel)
+        return;
+
+    const double progress = navigationSyncProgress->value() / 100.0;
+    const QString status = count == 0 && syncInProgress()
+        ? tr("Connecting to peers...")
+        : QString();
+    updateNavigationSyncCard(status, progress);
 }
 
 void BitcoinGUI::setNetworkActive(bool networkActive)
 {
     updateNetworkState();
+
+    if (!networkActive)
+        updateNavigationSyncCard(tr("Network activity disabled"), 0.0);
+    else if (clientModel)
+        setNumConnections(clientModel->getNumConnections());
 }
 
 void BitcoinGUI::updateHeadersSyncProgressLabel()
 {
     if (modalOverlay->isHeaderSyncPending())
         progressBarLabel->setText(tr("Syncing Headers..."));
-    updateNavigationSyncCard(progressBarLabel->text(), modalOverlay->currentVerificationProgress(),
-                              !masternodeSync.IsSynced());
+    updateNavigationSyncCard(progressBarLabel->text(), modalOverlay->currentVerificationProgress());
 }
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
@@ -1622,9 +1644,9 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         progressBar->setValue(nVerificationProgress * 1000000000.0 + 0.5);
         progressBar->setVisible(false);
         if (blockSource != BLOCK_SOURCE_NETWORK && blockSource != BLOCK_SOURCE_NONE)
-            updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress, true);
+            updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress);
         else if (blockSource == BLOCK_SOURCE_NONE)
-            updateNavigationSyncCard(QString(), 0.0, false);
+            updateNavigationSyncCard(progressBarLabel->text(), 0.0);
 
         tooltip = tr("Catching up...") + QString("<br>") + tooltip;
         if(count != prevBlocks)
@@ -1651,7 +1673,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     } else if (fLiteMode) {
         setAdditionalDataSyncProgress(1);
     } else if (masternodeSync.IsSynced()) {
-        updateNavigationSyncCard(QString(), 1.0, false);
+        updateNavigationSyncCard(QString(), 1.0);
 #ifdef ENABLE_WALLET
         if (walletFrame)
             walletFrame->showOutOfSyncWarning(false);
@@ -1701,7 +1723,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
     if(masternodeSync.IsSynced()) {
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
-        updateNavigationSyncCard(QString(), 1.0, false);
+        updateNavigationSyncCard(QString(), 1.0);
         labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
     } else {
 
@@ -1718,7 +1740,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
     strSyncStatus = QString(masternodeSync.GetSyncStatus().c_str());
     progressBarLabel->setText(strSyncStatus);
     if (!masternodeSync.IsSynced())
-        updateNavigationSyncCard(strSyncStatus, nSyncProgress, true);
+        updateNavigationSyncCard(strSyncStatus, nSyncProgress);
     tooltip = strSyncStatus + QString("<br>") + tooltip;
 
     // Don't word-wrap this (fixed-width) tooltip
@@ -2023,15 +2045,11 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
 
 void BitcoinGUI::updateProgressBarLabel(const QString& text)
 {
-    if (progressBarLabel)
-    {
-        progressBarLabel->setVisible(false);
-        progressBarLabel->setText(text);
-        const double progress = navigationSyncProgress
-            ? navigationSyncProgress->value() / 100.0
-            : 0.0;
-        updateNavigationSyncCard(text, progress, !text.isEmpty());
-    }
+    if (!progressBarLabel)
+        return;
+
+    progressBarLabel->setVisible(!text.isEmpty());
+    progressBarLabel->setText(text);
 }
 
 void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)

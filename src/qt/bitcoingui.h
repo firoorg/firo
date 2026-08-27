@@ -170,7 +170,7 @@ private:
     void updateToolbarTabWidths();
     void updateNavigationSidebarGeometry();
     void toggleNavigationSidebar();
-    void updateNavigationSyncCard(const QString& status, double progress, bool visible);
+    void updateNavigationSyncCard(const QString& status, double progress);
     bool syncInProgress() const;
     void applyNavigationTheme();
     void updateNavigationSelectionHighlight();
