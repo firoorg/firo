@@ -95,9 +95,8 @@ public:
         }
         case AddressTableModel::Address: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            QFont font = option.font;
-            font.setFamily(QStringLiteral("Menlo"));
-            font.setPixelSize(11);
+            QFont font = GUIUtil::fixedPitchFont();
+            font.setPixelSize(12);
             painter->setFont(font);
             painter->setPen(QColor(tc.inkSoft));
             painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
@@ -108,7 +107,7 @@ public:
             const QString text = index.data(Qt::DisplayRole).toString();
             const bool spark = text.compare(QLatin1String("spark"), Qt::CaseInsensitive) == 0;
             QFont badgeFont = option.font;
-            badgeFont.setPixelSize(10);
+            badgeFont.setPixelSize(12);
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const int w = qMin(option.rect.width() - 16, QFontMetrics(badgeFont).boundingRect(text).width() + 18);
@@ -229,12 +228,12 @@ void AddressBookPage::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
     ui->labelExplanation->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     ui->tableView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
-        " background: transparent; border: none; color: $INK_FAINT;"
-        " font-size: 10px; font-weight: 700; padding: 6px;"
+        " background: transparent; border: none; color: $INK_SOFT;"
+        " font-size: 12px; font-weight: 700; padding: 6px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->tableView->viewport())

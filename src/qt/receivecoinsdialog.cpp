@@ -96,7 +96,7 @@ public:
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
             QFont timeFont = option.font;
-            timeFont.setPixelSize(10);
+            timeFont.setPixelSize(12);
             painter->setFont(timeFont);
             painter->setPen(QColor(tc.inkFaint));
             painter->drawText(QRect(dateRect.left(), dateRect.bottom() - 2, dateRect.width(), 16),
@@ -118,7 +118,7 @@ public:
             const QString text = index.data(Qt::DisplayRole).toString();
             const bool spark = text.compare(QLatin1String("spark"), Qt::CaseInsensitive) == 0;
             QFont badgeFont = option.font;
-            badgeFont.setPixelSize(10);
+            badgeFont.setPixelSize(12);
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const int w = qMin(option.rect.width() - 16, QFontMetrics(badgeFont).boundingRect(text).width() + 18);
@@ -133,7 +133,7 @@ public:
         case RecentRequestsTableModel::Message: {
             const QString text = index.data(Qt::DisplayRole).toString();
             QFont font = option.font;
-            font.setPixelSize(11);
+            font.setPixelSize(12);
             painter->setFont(font);
             painter->setPen(QColor(tc.inkSoft));
             painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
@@ -143,7 +143,7 @@ public:
         case RecentRequestsTableModel::Amount: {
             const QString amountText = index.data(Qt::DisplayRole).toString();
             QFont capFont = option.font;
-            capFont.setPixelSize(8);
+            capFont.setPixelSize(11);
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
@@ -151,7 +151,7 @@ public:
                               Qt::AlignRight | Qt::AlignVCenter, QObject::tr("REQUESTED"));
 
             QFont amtFont = option.font;
-            amtFont.setPixelSize(13);
+            amtFont.setPixelSize(14);
             amtFont.setBold(true);
             painter->setFont(amtFont);
             painter->setPen(QColor(tc.ink));
@@ -274,14 +274,14 @@ void ReceiveCoinsDialog::applyTheme()
     ui->frame->setStyleSheet(cardStyle);
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"));
     for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
     ui->label_5->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     ui->label_6->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 15px; font-weight: 700; }")));
+        "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }")));
 
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QLineEdit, AmountSpinBox {"
@@ -348,8 +348,8 @@ void ReceiveCoinsDialog::applyTheme()
     ui->recentRequestsView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
-        " background: transparent; border: none; color: $INK_FAINT;"
-        " font-size: 10px; font-weight: 700; padding: 6px;"
+        " background: transparent; border: none; color: $INK_SOFT;"
+        " font-size: 12px; font-weight: 700; padding: 6px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->recentRequestsView->viewport())
@@ -362,11 +362,11 @@ void ReceiveCoinsDialog::applyTheme()
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }")));
+            "QLabel { background: transparent; color: $INK; font-size: 14px; font-weight: 700; }")));
     }
     if (emptyHint_) {
         emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_FAINT; font-size: 9px; }")));
+            "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     }
 }
 
