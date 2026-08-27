@@ -282,13 +282,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     statusBar()->addPermanentWidget(frameBlocks);
     statusBar()->addWidget(framePending);
 
-    QTimer* syncStatusWatchdog = new QTimer(this);
-    connect(syncStatusWatchdog, &QTimer::timeout, this, [this]() {
-        if (walletFrame && masternodeSync.IsSynced())
-            walletFrame->showOutOfSyncWarning(false);
-    });
-    syncStatusWatchdog->start(2000);
-
     // Install event filter to be able to catch status tip events (QEvent::StatusTip)
     this->installEventFilter(this);
 #ifdef ENABLE_WALLET

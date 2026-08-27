@@ -335,6 +335,11 @@ void OverviewPage::applyOverviewTheme()
     ui->detailsCard->setStyleSheet(cardStyle);
     ui->activityCard->setStyleSheet(cardStyle);
 
+    const QString syncWarningStyle = QStringLiteral(
+        "QPushButton { background: transparent; border: none; padding: 0px; }");
+    ui->labelWalletStatus->setStyleSheet(syncWarningStyle);
+    ui->labelTransactionsStatus->setStyleSheet(syncWarningStyle);
+
     if (networkBadge_) {
         networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#networkBadge {"
@@ -927,6 +932,8 @@ void OverviewPage::updateAlerts(const QString &warnings)
 
 void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
+    ui->labelWalletStatus->setVisible(fShow);
+    ui->labelTransactionsStatus->setVisible(fShow);
     updateActivityEmptyState();
 }
 
