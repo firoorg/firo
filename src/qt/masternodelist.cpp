@@ -188,7 +188,7 @@ public:
                               QFontMetrics(titleFont).elidedText(service, Qt::ElideMiddle, titleRect.width()));
 
             QFont subtitleFont = option.font;
-            subtitleFont.setPixelSize(11);
+            subtitleFont.setPixelSize(12);
             painter->setFont(subtitleFont);
             painter->setPen(QColor(tc.inkSoft));
             const QString collateral = masternodeText(
@@ -233,7 +233,7 @@ public:
 
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
             QFont captionFont = option.font;
-            captionFont.setPixelSize(11);
+            captionFont.setPixelSize(12);
             captionFont.setBold(true);
             painter->setFont(captionFont);
             painter->setPen(QColor(tc.inkSoft));
