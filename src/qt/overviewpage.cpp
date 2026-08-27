@@ -283,7 +283,8 @@ void OverviewPage::applyOverviewRedesign()
 
     ui->receiveButton->setText(tr("↙  Receive"));
 
-    ui->anonymizeButton->setText(tr("Make Private..."));
+    ui->anonymizeButton->setText(tr("Make Private"));
+    GUIUtil::applyPrimaryButtonShadow(ui->anonymizeButton);
 
     connect(ui->sendButton, &QPushButton::clicked, this, &OverviewPage::gotoSendCoinsPage);
     connect(ui->receiveButton, &QPushButton::clicked, this, &OverviewPage::gotoReceiveCoinsPage);
@@ -412,19 +413,8 @@ void OverviewPage::applyOverviewTheme()
         QPushButton:pressed { background: $PANEL_SOFT; }
     )")));
 
-    ui->anonymizeButton->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
-        QPushButton {
-            color: $INK_SOFT;
-            background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
-            border-radius: 12px;
-            padding: 10px 20px;
-            font-size: 13px;
-            font-weight: 700;
-        }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; color: $INK; }
-        QPushButton:disabled { color: $INK_FAINT; background: $PANEL_SOFT; }
-    )")));
+    ui->anonymizeButton->setStyleSheet(
+        GUIUtil::primaryButtonStyle(QStringLiteral("10px 20px")));
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 15px; font-weight: 700; }"));
