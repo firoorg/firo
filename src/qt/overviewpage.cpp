@@ -121,7 +121,7 @@ public:
         const int textLeft = iconRect.right() + 12;
         const int amountWidth = 168;
         QFont dateFont = iconFont;
-        dateFont.setPixelSize(11);
+        dateFont.setPixelSize(12);
         dateFont.setWeight(QFont::DemiBold);
         painter->setFont(dateFont);
         painter->setPen(QColor(tc.ink));
@@ -131,7 +131,7 @@ public:
                                          : GUIUtil::dateTimeStr(date));
 
         QFont addrFont = dateFont;
-        addrFont.setPixelSize(10);
+        addrFont.setPixelSize(12);
         addrFont.setBold(false);
         painter->setFont(addrFont);
         painter->setPen(QColor(tc.inkFaint));
@@ -143,7 +143,7 @@ public:
         if (!confirmed)
             amountText = QString("[") + amountText + QString("]");
         QFont amountFont = dateFont;
-        amountFont.setPixelSize(12);
+        amountFont.setPixelSize(14);
         amountFont.setBold(true);
         painter->setFont(amountFont);
         painter->setPen(amount < 0 ? QColor(tc.wine) : QColor(tc.teal));
@@ -336,6 +336,13 @@ void OverviewPage::applyOverviewTheme()
     ui->detailsCard->setStyleSheet(cardStyle);
     ui->activityCard->setStyleSheet(cardStyle);
 
+    ui->warningFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QFrame#warningFrame { background: $GOLD_TINT; border: 1px solid $GOLD; border-radius: 10px; }"
+        "QFrame#warningFrame QLabel { background: transparent; color: $INK; font-size: 14px; }")));
+    ui->labelAlerts->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel#labelAlerts { background: $GOLD_TINT; color: $INK;"
+        " border: 1px solid $GOLD; border-radius: 10px; padding: 8px 12px; }")));
+
     const QString syncWarningStyle = QStringLiteral(
         "QPushButton { background: transparent; border: none; padding: 0px; }");
     ui->labelWalletStatus->setStyleSheet(syncWarningStyle);
@@ -345,13 +352,13 @@ void OverviewPage::applyOverviewTheme()
         networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#networkBadge {"
             " color: $WINE; background: $WINE_TINT; border: none;"
-            " border-radius: 9px; padding: 2px 8px; font-size: 9px; font-weight: 700;"
+            " border-radius: 9px; padding: 2px 8px; font-size: 12px; font-weight: 700;"
             "}")));
     }
 
     ui->labelPrimaryText->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT;"
-        " font-size: 13px; font-weight: 700; }")));
+        " font-size: 14px; font-weight: 700; }")));
 
     ui->labelTotal->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK;"
@@ -377,7 +384,7 @@ void OverviewPage::applyOverviewTheme()
         "}")));
 
     const QString splitLabelStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 600; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 13px; font-weight: 600; }"));
     ui->labelPrivateSplit->setStyleSheet(splitLabelStyle);
     ui->labelTransparentSplit->setStyleSheet(splitLabelStyle);
 
@@ -417,14 +424,14 @@ void OverviewPage::applyOverviewTheme()
         GUIUtil::primaryButtonStyle(QStringLiteral("10px 20px")));
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 15px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }"));
     ui->label_5->setStyleSheet(sectionTitleStyle);
     ui->label->setStyleSheet(sectionTitleStyle);
     ui->label_4->setStyleSheet(sectionTitleStyle);
     ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 600; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 13px; font-weight: 600; }"));
     for (QLabel* caption : {ui->labelPrivateText, ui->labelUnconfirmedPrivateText,
                             ui->labelAnonymizableText, ui->labelBalanceText,
                             ui->labelPendingText, ui->labelImmatureText,
@@ -434,7 +441,7 @@ void OverviewPage::applyOverviewTheme()
     }
 
     const QString amountStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 12px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK; font-size: 14px; font-weight: 700; }"));
     for (QLabel* amount : {ui->labelPrivate, ui->labelUnconfirmedPrivate, ui->labelAnonymizable,
                            ui->labelBalance, ui->labelUnconfirmed, ui->labelImmature,
                            ui->labelWatchAvailable, ui->labelWatchPending,
@@ -456,11 +463,11 @@ void OverviewPage::applyOverviewTheme()
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }")));
+            "QLabel { background: transparent; color: $INK; font-size: 14px; font-weight: 700; }")));
     }
     if (emptyHint_) {
         emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_FAINT; font-size: 9px; }")));
+            "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     }
 
     updateBalanceSplitLabels();
