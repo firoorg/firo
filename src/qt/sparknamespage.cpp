@@ -12,7 +12,6 @@
 
 #include <QDateTime>
 #include <QEvent>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
@@ -212,15 +211,6 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     emptyLayout->addStretch();
     namesScroll->viewport()->installEventFilter(this);
 
-    const auto addCardShadow = [](QWidget* card) {
-        auto* shadow = new QGraphicsDropShadowEffect(card);
-        shadow->setBlurRadius(20);
-        shadow->setOffset(0, 5);
-        shadow->setColor(QColor(65, 37, 52, 24));
-        card->setGraphicsEffect(shadow);
-    };
-    addCardShadow(ui->sparkNamesContentCard);
-
     ui->createSparkNameButton->setStyleSheet(GUIUtil::primaryButtonStyle());
     GUIUtil::applyPrimaryButtonShadow(ui->createSparkNameButton);
 
@@ -377,12 +367,6 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     frame->setAttribute(Qt::WA_StyledBackground, true);
     frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     frame->setMinimumHeight(126);
-
-    auto* shadow = new QGraphicsDropShadowEffect(frame);
-    shadow->setBlurRadius(16);
-    shadow->setOffset(0, 3);
-    shadow->setColor(QColor(65, 37, 52, 18));
-    frame->setGraphicsEffect(shadow);
 
     auto* root = new QVBoxLayout(frame);
     root->setContentsMargins(16, 14, 16, 14);
