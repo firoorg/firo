@@ -11,6 +11,7 @@
 #endif
 
 #include <QFileDialog>
+#include <QFont>
 #include <QSettings>
 #include <QMessageBox>
 #include <QAbstractButton>
@@ -34,7 +35,7 @@ void NotifyMnemonic::applyTheme()
         QWizard#NotifyMnemonic { background: $BG; }
         QWizard#NotifyMnemonic QWizardPage { background: $BG; }
         QWizard#NotifyMnemonic QLabel { background: transparent; color: $INK; }
-        QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_SOFT; font-size: 11px; font-weight: 700; }
+        QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_SOFT; font-size: 12px; font-weight: 700; }
         QWizard#NotifyMnemonic QLabel#errorMessage { color: #E5484D; font-weight: 700; }
         QWizard#NotifyMnemonic QFrame#mnemonicBox {
             background: $WINE_TINT;
@@ -43,8 +44,6 @@ void NotifyMnemonic::applyTheme()
         }
         QWizard#NotifyMnemonic QLabel#mnemonic {
             color: $INK;
-            font-family: 'Menlo', 'Courier New', monospace;
-            font-size: 13px;
         }
         QWizard#NotifyMnemonic QTextEdit {
             background: $PANEL_SOFT;
@@ -54,6 +53,10 @@ void NotifyMnemonic::applyTheme()
             color: $INK;
         }
     )")));
+
+    QFont mnemonicFont = GUIUtil::fixedPitchFont();
+    mnemonicFont.setPixelSize(13);
+    ui->mnemonic->setFont(mnemonicFont);
 
     if (QAbstractButton* nextButton = QWizard::button(QWizard::NextButton))
         nextButton->setStyleSheet(GUIUtil::primaryButtonStyle());
