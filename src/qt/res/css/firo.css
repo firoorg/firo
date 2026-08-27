@@ -1496,11 +1496,11 @@ QWidget#RPCConsole .QToolButton {
 }
 
 QWidget#RPCConsole .QGroupBox #line {
-    background-color: #5e8c41;
+    background-color: #237A6E;
 }
 
 QWidget#RPCConsole .QGroupBox #line_2 {
-    background-color: #a84832;
+    background-color: #9B1C2E;
 }
 
 #rpcAutoCompleter QListView {

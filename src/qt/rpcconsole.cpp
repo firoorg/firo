@@ -530,6 +530,8 @@ void RPCConsole::applyConsoleTheme()
             color: $INK;
             font-weight: 700;
         }
+        QWidget#RPCConsole QGroupBox QFrame#line { background: $TEAL; }
+        QWidget#RPCConsole QGroupBox QFrame#line_2 { background: $WINE; }
         QPushButton {
             color: $INK;
             background: $PANEL;
