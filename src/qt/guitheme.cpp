@@ -8,11 +8,10 @@
 #include <QApplication>
 #include <QColor>
 #include <QGraphicsDropShadowEffect>
-#include <QHash>
 #include <QIcon>
 #include <QPainter>
-#include <QPair>
 #include <QPixmap>
+#include <QPixmapCache>
 #include <QSettings>
 #include <QSize>
 #include <QWidget>
@@ -202,6 +201,16 @@ QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
     if (!isDarkMode() || source.isNull())
         return source;
 
+    const QString cacheKey = QStringLiteral("firo-themed-status:%1:%2x%3:%4:%5")
+                                 .arg(source.cacheKey())
+                                 .arg(source.width())
+                                 .arg(source.height())
+                                 .arg(source.devicePixelRatio())
+                                 .arg(themeColors().inkSoft);
+    QPixmap cached;
+    if (QPixmapCache::find(cacheKey, &cached))
+        return cached;
+
     QImage img = source.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
     const QColor tint(themeColors().inkSoft);
     for (int y = 0; y < img.height(); ++y) {
@@ -214,6 +223,7 @@ QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
 
     QPixmap result = QPixmap::fromImage(img);
     result.setDevicePixelRatio(source.devicePixelRatio());
+    QPixmapCache::insert(cacheKey, result);
     return result;
 }
 
