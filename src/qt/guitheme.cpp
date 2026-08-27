@@ -40,7 +40,7 @@ static const ThemeColors LIGHT_COLORS{
     QStringLiteral("#FCE9EE"),
     QStringLiteral("#237A6E"),
     QStringLiteral("#E6F5F2"),
-    QStringLiteral("#E0A458"),
+    QStringLiteral("#A66314"),
     QStringLiteral("#FBF1E3"),
 };
 
