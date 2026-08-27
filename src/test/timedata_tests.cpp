@@ -7,6 +7,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <limits>
+
 BOOST_FIXTURE_TEST_SUITE(timedata_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(util_MedianFilter)
@@ -32,6 +34,25 @@ BOOST_AUTO_TEST_CASE(util_MedianFilter)
 
     filter.input(0); // [0 3 7 18 30]
     BOOST_CHECK_EQUAL(filter.median(), 7);
+}
+
+BOOST_AUTO_TEST_CASE(time_offset_range)
+{
+    const int64_t nMaxAdjustment = DEFAULT_MAX_TIME_ADJUSTMENT;
+    const int64_t nSignedMax = std::numeric_limits<int64_t>::max();
+
+    BOOST_CHECK(IsTimeOffsetWithinRange(0, nMaxAdjustment));
+    BOOST_CHECK(IsTimeOffsetWithinRange(nMaxAdjustment, nMaxAdjustment));
+    BOOST_CHECK(IsTimeOffsetWithinRange(-nMaxAdjustment, nMaxAdjustment));
+    BOOST_CHECK(!IsTimeOffsetWithinRange(nMaxAdjustment + 1, nMaxAdjustment));
+    BOOST_CHECK(!IsTimeOffsetWithinRange(-nMaxAdjustment - 1, nMaxAdjustment));
+    BOOST_CHECK(!IsTimeOffsetWithinRange(std::numeric_limits<int64_t>::min(), nMaxAdjustment));
+    BOOST_CHECK(!IsTimeOffsetWithinRange(nSignedMax, nMaxAdjustment));
+
+    BOOST_CHECK(IsTimeOffsetWithinRange(nSignedMax, nSignedMax));
+    BOOST_CHECK(IsTimeOffsetWithinRange(-nSignedMax, nSignedMax));
+    BOOST_CHECK(!IsTimeOffsetWithinRange(std::numeric_limits<int64_t>::min(), nSignedMax));
+    BOOST_CHECK(!IsTimeOffsetWithinRange(0, -1));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

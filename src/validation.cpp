@@ -4824,8 +4824,6 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
         if (!fHasMoreWork) return true;     // Don't process less-work chains
         if (fTooFarAhead) return true;      // Block height is too high
     }
-    if (fNewBlock) *fNewBlock = true;
-
     if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false) ||
         !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
@@ -4843,6 +4841,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     int nHeight = pindex->nHeight;
 
     // Write block to history file
+    if (fNewBlock) *fNewBlock = true;
     try {
         unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
         CDiskBlockPos blockPos;

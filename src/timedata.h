@@ -70,6 +70,9 @@ public:
     }
 };
 
+/** Return whether a time offset is within an inclusive, non-negative maximum. */
+bool IsTimeOffsetWithinRange(int64_t nTimeOffset, int64_t nMaxTimeOffset);
+
 /** Functions to keep track of adjusted P2P time */
 int64_t GetTimeOffset();
 int64_t GetAdjustedTime();
