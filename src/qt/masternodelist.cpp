@@ -946,7 +946,7 @@ bool MasternodeList::updateDIP3List()
     QString topRowToRestore;
     if (masternodeView) {
         const QModelIndex topIndex = masternodeView->indexAt(
-            QPoint(1, masternodeView->spacing() + 1));
+            QPoint(masternodeView->spacing() + 1, masternodeView->spacing() + 1));
         if (topIndex.isValid())
             topRowToRestore = topIndex.data(ProTxHashRole).toString();
     }
