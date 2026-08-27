@@ -164,7 +164,7 @@ public:
             painter->setPen(Qt::NoPen);
             painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
             painter->drawRoundedRect(badge, 11, 11);
-            painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
+            painter->setPen(QColor(tc.ink));
             painter->drawText(badge, Qt::AlignCenter, text);
             break;
         }
@@ -211,7 +211,7 @@ public:
             amtFont.setPixelSize(14);
             amtFont.setBold(true);
             painter->setFont(amtFont);
-            painter->setPen(amount < 0 ? QColor(tc.wine) : QColor(tc.teal));
+            painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
             const QRect amtRect = option.rect.adjusted(8, 28, -14, -12);
             painter->drawText(amtRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
             break;
@@ -583,7 +583,7 @@ void TransactionView::applyTheme()
         " color:$INK_SOFT; font-size:15px; font-weight:700;"
         "}"
         "QToolButton#transactionSortDirection:hover, QToolButton#transactionSortDirection:focus {"
-        " border-color:$WINE; color:$WINE;"
+        " border-color:$WINE; color:$INK;"
         "}"
 
         "QDateTimeEdit { background:$PANEL; border-radius:10px; border:1px solid $BORDER; padding:7px 11px; }"

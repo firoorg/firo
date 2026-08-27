@@ -45,7 +45,7 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
             padding: 8px 14px;
             border: none;
         }
-        QTabBar::tab:selected { color: $WINE; }
+        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
         QTabBar::tab:hover { color: $INK; }
         QLineEdit, QPlainTextEdit, QTextEdit {
             background: $PANEL_SOFT;

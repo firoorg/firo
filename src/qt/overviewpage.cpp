@@ -147,7 +147,7 @@ public:
         amountFont.setPixelSize(14);
         amountFont.setBold(true);
         painter->setFont(amountFont);
-        painter->setPen(amount < 0 ? QColor(tc.wine) : QColor(tc.teal));
+        painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
         const QRect amountRect(card.right() - amountWidth - 14, card.top(), amountWidth, card.height());
         painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
 

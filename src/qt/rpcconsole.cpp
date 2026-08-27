@@ -489,7 +489,7 @@ void RPCConsole::applyConsoleTheme()
             padding: 8px 14px;
             border: none;
         }
-        QTabBar::tab:selected { color: $WINE; }
+        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
         QTabBar::tab:hover { color: $INK; }
         QGroupBox {
             background: $PANEL_SOFT;

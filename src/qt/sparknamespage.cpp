@@ -552,7 +552,7 @@ QFrame#sparkNameCard QToolButton#cardActionButton {
   padding: 4px 10px; font-size: 12px; font-weight: 600;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton:hover {
-  color: $WINE; border-color: $WINE;
+  color: $INK; border-color: $WINE;
 }
     )")));
 

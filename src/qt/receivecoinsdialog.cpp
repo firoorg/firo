@@ -130,7 +130,7 @@ public:
             painter->setPen(Qt::NoPen);
             painter->setBrush(spark ? QColor(tc.wineTint) : QColor(tc.border));
             painter->drawRoundedRect(badge, 11, 11);
-            painter->setPen(spark ? QColor(tc.wine) : QColor(tc.inkSoft));
+            painter->setPen(spark ? QColor(tc.ink) : QColor(tc.inkSoft));
             painter->drawText(badge, Qt::AlignCenter, text);
             break;
         }
