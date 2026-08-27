@@ -215,7 +215,7 @@ void CoinControlDialog::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 700; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
     const QString valueStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }"
@@ -236,8 +236,8 @@ void CoinControlDialog::applyTheme()
     ui->frame->setAttribute(Qt::WA_StyledBackground, true);
     ui->frame->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 600; }"
-        "QRadioButton { background: transparent; color: $INK_SOFT; font-size: 11px; font-weight: 600; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }"
+        "QRadioButton { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
 
     ui->pushButtonSelectAll->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px")));
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
@@ -254,7 +254,7 @@ void CoinControlDialog::applyTheme()
         "QTreeWidget::item:selected { background: $WINE_TINT; color: $INK; }"
         "QHeaderView::section {"
         " background: $PANEL_SOFT; border: none; border-bottom: 1px solid $BORDER;"
-        " color: $INK_SOFT; font-size: 10px; font-weight: 700; padding: 6px;"
+        " color: $INK_SOFT; font-size: 12px; font-weight: 700; padding: 6px;"
         "}")));
 }
 
