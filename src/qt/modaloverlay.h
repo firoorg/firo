@@ -36,7 +36,7 @@ public Q_SLOTS:
     void hideForever();
     bool isLayerVisible() { return layerIsVisible; }
     void applyTheme();
-    double currentVerificationProgress() const { return lastVerificationProgress; }
+    double headerSyncProgress() const;
     bool isHeaderSyncPending() const { return headerSyncPending; }
 
 protected:
@@ -48,7 +48,6 @@ private:
     int bestHeaderHeight; //best known height (based on the headers)
     QDateTime bestHeaderDate;
     QVector<QPair<qint64, double> > blockProcessTime;
-    double lastVerificationProgress{0.0};
     bool headerSyncPending{true};
     bool layerIsVisible;
     bool userClosed;

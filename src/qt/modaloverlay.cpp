@@ -240,7 +240,21 @@ void ModalOverlay::setKnownBestHeight(int count, const QDateTime& blockDate)
     if (count > bestHeaderHeight) {
         bestHeaderHeight = count;
         bestHeaderDate = blockDate;
+        const qint64 estimatedHeadersLeft = qMax<qint64>(0, blockDate.secsTo(QDateTime::currentDateTime())) /
+                                            Params().GetConsensus().nPowTargetSpacing;
+        headerSyncPending = estimatedHeadersLeft >= HEADER_HEIGHT_DELTA_SYNC;
     }
+}
+
+double ModalOverlay::headerSyncProgress() const
+{
+    if (bestHeaderHeight <= 0 || !bestHeaderDate.isValid())
+        return 0.0;
+
+    const qint64 secondsBehind = qMax<qint64>(0, bestHeaderDate.secsTo(QDateTime::currentDateTime()));
+    const double estimatedHeadersLeft = static_cast<double>(secondsBehind) /
+                                        Params().GetConsensus().nPowTargetSpacing;
+    return qBound(0.0, bestHeaderHeight / (bestHeaderHeight + estimatedHeadersLeft), 1.0);
 }
 
 void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVerificationProgress)
@@ -285,8 +299,6 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
 
     // show the last block date
     ui->newestBlockDate->setText(blockDate.toString());
-
-    lastVerificationProgress = nVerificationProgress;
 
     // show the percentage done according to nVerificationProgress
     ui->percentageProgress->setText(QString::number(nVerificationProgress*100, 'f', 2)+"%");
