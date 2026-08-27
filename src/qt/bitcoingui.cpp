@@ -54,6 +54,7 @@
 #include <QFrame>
 #include <QGraphicsDropShadowEffect>
 #include <QIcon>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLinearGradient>
 #include <QListWidget>
@@ -761,6 +762,8 @@ void BitcoinGUI::createToolBars()
         navigationSyncCard->setMinimumHeight(76);
         navigationSyncCard->setCursor(Qt::PointingHandCursor);
         navigationSyncCard->setToolTip(tr("Show synchronization details"));
+        navigationSyncCard->setAccessibleName(tr("Show synchronization details"));
+        navigationSyncCard->setFocusPolicy(Qt::StrongFocus);
         navigationSyncCard->installEventFilter(this);
         auto* syncLayout = new QVBoxLayout(navigationSyncCard);
         syncLayout->setContentsMargins(10, 11, 14, 11);
@@ -897,6 +900,9 @@ void BitcoinGUI::applyNavigationTheme()
                 background: $PANEL_SOFT;
                 border: 1px solid $BORDER;
                 border-radius: 14px;
+            }
+            QFrame#navigationSyncCard:focus {
+                border-color: $WINE;
             }
             QLabel {
                 background: transparent;
@@ -2008,6 +2014,14 @@ bool BitcoinGUI::eventFilter(QObject *object, QEvent *event)
     {
         auto* mouseEvent = static_cast<QMouseEvent*>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
+            showModalOverlay();
+            return true;
+        }
+    }
+    if (object == navigationSyncCard && event->type() == QEvent::KeyPress) {
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Return ||
+            keyEvent->key() == Qt::Key_Space) {
             showModalOverlay();
             return true;
         }
