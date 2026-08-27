@@ -366,12 +366,12 @@ void OverviewPage::applyOverviewTheme()
 
     ui->privateTransparentBarFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#privateTransparentBarFrame {"
-        " background: $BORDER;"
-        " border: none;"
+        " background: $PANEL_SOFT;"
+        " border: 1px solid $INK_FAINT;"
         " border-radius: 7px;"
         "}"
         "QFrame#privateTransparentBarFrame QProgressBar {"
-        " background: $BORDER;"
+        " background: $PANEL_SOFT;"
         " border: none;"
         " border-radius: 7px;"
         " min-height: 14px; max-height: 14px;"
@@ -793,7 +793,7 @@ void OverviewPage::updateBalanceSplitLabels()
                        "<span style=\"color:%5; font-weight:700\">%1 (%2%)</span>")
             .arg(BitcoinUnits::formatWithUnit(unit, transparentTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(100 - privatePercent)
-            .arg(tc.border, tc.inkSoft, tc.ink)
+            .arg(tc.inkFaint, tc.inkSoft, tc.ink)
             .arg(tr("Transparent")));
     ui->labelPrivateSplit->setText(
         QStringLiteral("<span style=\"color:%3\">●</span>&nbsp; "
