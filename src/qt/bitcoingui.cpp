@@ -35,6 +35,7 @@
 #include "chainparams.h"
 #include "init.h"
 #include "util.h"
+#include "validation.h"
 
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
@@ -107,6 +108,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     labelWalletEncryptionIcon(0),
     labelWalletHDStatusIcon(0),
     connectionsControl(0),
+    torStatusBadge(0),
     labelBlocksIcon(0),
     progressBarLabel(0),
     progressBar(0),
@@ -237,6 +239,10 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     labelWalletEncryptionIcon = new QLabel();
     labelWalletHDStatusIcon = new QLabel();
     connectionsControl = new GUIUtil::ClickableLabel();
+    torStatusBadge = new QLabel(tr("Tor"));
+    torStatusBadge->setObjectName(QStringLiteral("torStatusBadge"));
+    torStatusBadge->setVisible(GetBoolArg("-torsetup", DEFAULT_TOR_SETUP));
+    torStatusBadge->setToolTip(tr("Tor quickstart is enabled for this session. This confirms configuration, not Tor bootstrap or routing health. Manual proxy settings may override affected routes."));
     labelBlocksIcon = new GUIUtil::ClickableLabel();
     if(enableWallet)
     {
@@ -246,6 +252,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
         frameBlocksLayout->addWidget(labelWalletEncryptionIcon);
         frameBlocksLayout->addWidget(labelWalletHDStatusIcon);
     }
+    frameBlocksLayout->addStretch();
+    frameBlocksLayout->addWidget(torStatusBadge);
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(connectionsControl);
     frameBlocksLayout->addStretch();
@@ -863,6 +871,13 @@ void BitcoinGUI::applyNavigationTheme()
         updateNetworkState();
     if (labelBlocksIcon && masternodeSync.IsSynced())
         labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+    if (torStatusBadge) {
+        torStatusBadge->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel#torStatusBadge {"
+            " color: $WINE; background: $WINE_TINT; border: none;"
+            " border-radius: 8px; padding: 2px 7px; font-size: 12px; font-weight: 700;"
+            "}")));
+    }
 
     if (navigationThemeRow) {
         navigationThemeRow->setStyleSheet(GUIUtil::themed(QStringLiteral(

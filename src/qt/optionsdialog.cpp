@@ -361,20 +361,22 @@ void OptionsDialog::handleEnabledZapChanged()
 
 void OptionsDialog::updateTorStatusLabel()
 {
+    const bool runningWithTor = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
     const bool overridden = model && model->getOverriddenByCommandLine().contains(QLatin1String("-torsetup"));
     if (overridden) {
         ui->checkboxEnabledTor->setEnabled(false);
-        ui->torStatusLabel->setText(tr("Overridden by -torsetup on the command line or in firo.conf and cannot be changed here."));
+        ui->torStatusLabel->setText(runningWithTor
+            ? tr("Tor quickstart is enabled for this session by -torsetup. It cannot be changed here.")
+            : tr("Tor quickstart is disabled for this session by -torsetup. It cannot be changed here."));
         return;
     }
 
     ui->checkboxEnabledTor->setEnabled(true);
 
     const bool checked = ui->checkboxEnabledTor->isChecked();
-    const bool runningWithTor = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
 
     if (checked && runningWithTor) {
-        ui->torStatusLabel->setText(tr("Tor quickstart is enabled and active."));
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled for this session."));
     } else if (checked && !runningWithTor) {
         ui->torStatusLabel->setText(tr("Tor quickstart is enabled. Restart the client to apply this change."));
     } else if (!checked && runningWithTor) {

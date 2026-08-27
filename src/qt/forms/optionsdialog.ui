@@ -536,7 +536,7 @@
        <item>
         <widget class="QCheckBox" name="checkboxEnabledTor">
          <property name="toolTip">
-          <string>Automatically launch and route your connection through an embedded Tor instance. This is a quickstart alternative to the manual SOCKS5 proxy settings above, and requires a client restart to take effect.</string>
+          <string>Automatically launch an embedded Tor instance and configure Firo to use it. Manual proxy settings above can override routing for affected connection types. A client restart is required.</string>
          </property>
          <property name="text">
           <string>Route connection through Tor (quickstart)</string>

@@ -97,6 +97,7 @@ private:
     QLabel *labelWalletEncryptionIcon;
     QLabel *labelWalletHDStatusIcon;
     GUIUtil::ClickableLabel *connectionsControl;
+    QLabel *torStatusBadge;
     GUIUtil::ClickableLabel *labelBlocksIcon;
     QLabel *progressBarLabel;
     GUIUtil::ClickableProgressBar *progressBar;
