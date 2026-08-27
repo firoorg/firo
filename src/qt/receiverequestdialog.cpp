@@ -166,7 +166,7 @@ void ReceiveRequestDialog::update()
     ui->btnSaveAs->setEnabled(false);
 
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    const QString captionStyle = QStringLiteral("color:%1; font-size:12px; font-weight:700;").arg(tc.wine);
+    const QString captionStyle = QStringLiteral("color:%1; font-size:12px; font-weight:700;").arg(tc.inkSoft);
     const QString valueStyle = QStringLiteral(
         "color:%1; font-family:monospace; font-size:12px;").arg(tc.ink);
     const auto section = [&](const QString& caption, const QString& value) {
