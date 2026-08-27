@@ -87,6 +87,8 @@ void CreateSparkNamePage::applyTheme()
         "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }")));
     ui->feeTextLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT; }")));
+    ui->balanceWarningLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
 
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QLineEdit, QTextEdit {"

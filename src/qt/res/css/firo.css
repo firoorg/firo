@@ -81,7 +81,7 @@ BitcoinAmountField[invalidInput="true"],
 QAbstractSpinBox[invalidInput="true"],
 QPlainTextEdit[invalidInput="true"],
 QLineEdit[invalidInput="true"] {
-    border-color: #E5484D;
+    border-color: #9B1C2E;
 }
 
 BitcoinAmountField:disabled,

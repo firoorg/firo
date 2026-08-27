@@ -82,7 +82,7 @@ void Recover::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog#Recover { background: $BG; }
         QDialog#Recover QLabel { background: transparent; color: $INK; }
-        QDialog#Recover QLabel#errorMessage { color: #E5484D; font-weight: 700; }
+        QDialog#Recover QLabel#errorMessage { color: $ERROR; font-weight: 700; }
         QDialog#Recover QFrame { background: transparent; }
         QDialog#Recover QLineEdit,
         QDialog#Recover QDateEdit,

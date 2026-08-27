@@ -974,6 +974,12 @@ static QString darkModeOverrideCss()
         QAbstractSpinBox QLineEdit {
             background-color: transparent; border: none;
         }
+        BitcoinAmountField[invalidInput="true"],
+        QAbstractSpinBox[invalidInput="true"],
+        QPlainTextEdit[invalidInput="true"],
+        QLineEdit[invalidInput="true"] {
+            border-color: $ERROR;
+        }
         QComboBox {
             background-color: $PANEL; color: $INK; border: 1px solid $BORDER;
         }

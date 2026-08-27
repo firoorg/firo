@@ -132,9 +132,6 @@
               <bold>true</bold>
              </font>
             </property>
-            <property name="styleSheet">
-             <string notr="true">color:red;font-weight:bold;</string>
-            </property>
             <property name="text">
              <string>Insufficient funds!</string>
             </property>

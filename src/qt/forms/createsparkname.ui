@@ -339,9 +339,6 @@
            <property name="visible">
             <bool>false</bool>
            </property>
-           <property name="styleSheet">
-            <string notr="true">color: orange; font-weight: bold;</string>
-           </property>
            <property name="wordWrap">
             <bool>true</bool>
            </property>

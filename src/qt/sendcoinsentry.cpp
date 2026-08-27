@@ -164,7 +164,7 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins AmountSpinBox[invalidInput="true"],
         QFrame#SendCoins QValidatedLineEdit[invalidInput="true"],
         QFrame#SendCoins QLineEdit[invalidInput="true"] {
-            border-color: $WINE;
+            border-color: $ERROR;
         }
         QFrame#SendCoins AmountSpinBox QLineEdit { %1 }
         QFrame#SendCoins QValueComboBox {

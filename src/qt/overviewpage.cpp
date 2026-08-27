@@ -565,7 +565,7 @@ void OverviewPage::on_anonymizeButton_clicked()
             color: $INK;
         }
         QAbstractSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
-        QAbstractSpinBox[invalidInput="true"] { border-color: #E5484D; }
+        QAbstractSpinBox[invalidInput="true"] { border-color: $ERROR; }
     )")));
     auto maxButton = new QPushButton(tr("Max"), &amountDialog);
     maxButton->setStyleSheet(GUIUtil::primaryButtonStyle());

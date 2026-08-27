@@ -410,7 +410,7 @@ void OptionsDialog::updateTorStatusLabel()
 
 void OptionsDialog::showRestartWarning(bool fPersistent)
 {
-    ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+    ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
 
     if(fPersistent)
     {
@@ -445,7 +445,7 @@ void OptionsDialog::updateProxyValidationState()
     else
     {
         setOkButtonState(false);
-        ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+        ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
         ui->statusLabel->setText(tr("The supplied proxy address is invalid."));
     }
 }

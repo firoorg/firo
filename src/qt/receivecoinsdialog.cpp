@@ -322,7 +322,7 @@ void ReceiveCoinsDialog::applyTheme()
         "}"
         "AmountSpinBox QLineEdit { %1 }"
         "QLineEdit[invalidInput=\"true\"], AmountSpinBox[invalidInput=\"true\"] {"
-        " border-color: #E5484D;"
+        " border-color: $ERROR;"
         "}"
         "QLineEdit:focus, AmountSpinBox:focus {"
         " background: $PANEL_SOFT;"

@@ -177,8 +177,8 @@ void SendCoinsDialog::applyTheme()
     ui->labelCoinControlAutomaticallySelected->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
         " padding: 4px 10px; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
-    ui->labelCoinControlInsuffFunds->setStyleSheet(QStringLiteral(
-        "QLabel { background: transparent; color: #E5484D; font-weight: 700; }"));
+    ui->labelCoinControlInsuffFunds->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
 
     const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
@@ -209,7 +209,7 @@ void SendCoinsDialog::applyTheme()
         " padding: 8px 12px; color: $INK;"
         "}"
         "QValidatedLineEdit:focus { border: 1px solid $WINE; }"
-        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: #E5484D; }")));
+        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }")));
     ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; }")));
 }
@@ -1435,7 +1435,8 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
     {
         // Default to no change address until verified
         CoinControlDialog::coinControl->destChange = CNoDestination();
-        ui->labelCoinControlChangeLabel->setStyleSheet(QStringLiteral("QLabel{background:transparent;color:#E5484D;}"));
+        ui->labelCoinControlChangeLabel->setStyleSheet(
+            GUIUtil::themed(QStringLiteral("QLabel{background:transparent;color:$ERROR;}")));
 
         CBitcoinAddress addr = CBitcoinAddress(text.toStdString());
 

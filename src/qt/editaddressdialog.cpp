@@ -91,7 +91,7 @@ void EditAddressDialog::applyTheme()
         " padding: 8px 12px; color: $INK;"
         "}"
         "QLineEdit:focus, QValidatedLineEdit:focus { border: 1px solid $WINE; }"
-        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: #E5484D; }"));
+        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }"));
     ui->labelEdit->setStyleSheet(fieldStyle);
     ui->addressEdit->setStyleSheet(fieldStyle);
 

@@ -38,7 +38,7 @@ void OpenURIDialog::applyTheme()
         " padding: 8px 12px; color: $INK;"
         "}"
         "QValidatedLineEdit:focus { border: 1px solid $WINE; }"
-        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: #E5484D; }")));
+        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }")));
 
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
