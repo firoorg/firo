@@ -127,7 +127,7 @@ public:
                                            : index.data(Qt::DisplayRole).toString());
 
             QFont timeFont = option.font;
-            timeFont.setPixelSize(10);
+            timeFont.setPixelSize(12);
             timeFont.setBold(false);
             painter->setFont(timeFont);
             painter->setPen(QColor(tc.inkFaint));
@@ -150,7 +150,7 @@ public:
         case TransactionTableModel::Type: {
             const QString displayText = index.data(Qt::DisplayRole).toString();
             QFont badgeFont = option.font;
-            badgeFont.setPixelSize(10);
+            badgeFont.setPixelSize(12);
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const QFontMetrics fm(badgeFont);
@@ -177,9 +177,8 @@ public:
             painter->drawLine(iconRect.left() + 3, iconRect.top() + 8,
                               iconRect.right() - 3, iconRect.top() + 8);
 
-            QFont addrFont = option.font;
-            addrFont.setFamily(QStringLiteral("Menlo"));
-            addrFont.setPixelSize(11);
+            QFont addrFont = GUIUtil::fixedPitchFont();
+            addrFont.setPixelSize(12);
             painter->setFont(addrFont);
             painter->setPen(QColor(tc.ink));
             const QRect textRect(iconRect.right() + 8, option.rect.top(),
@@ -192,7 +191,7 @@ public:
         case TransactionTableModel::Amount: {
             const QString caption = positive ? QObject::tr("RECEIVED") : QObject::tr("SENT");
             QFont capFont = option.font;
-            capFont.setPixelSize(8);
+            capFont.setPixelSize(11);
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
@@ -205,7 +204,7 @@ public:
             if (amount > 0 && !amountText.startsWith(QLatin1Char('+')))
                 amountText.prepend(QLatin1Char('+'));
             QFont amtFont = option.font;
-            amtFont.setPixelSize(13);
+            amtFont.setPixelSize(14);
             amtFont.setBold(true);
             painter->setFont(amtFont);
             painter->setPen(amount < 0 ? QColor(tc.wine) : QColor(tc.teal));
@@ -529,7 +528,7 @@ void TransactionView::applyTheme()
         "   border-radius: 9px;"
         "   border: 1px solid $BORDER;"
         "   padding: 0 11px;"
-        "   font-size: 11px;"
+        "   font-size: 13px;"
         "   color: $INK_SOFT;"
         "}"
         "QLineEdit:!focus { color: $INK_FAINT; }"
@@ -568,7 +567,7 @@ void TransactionView::applyTheme()
         "QTableView {"
         "   background: $PANEL;"
         "   border: none;"
-        "   font-size: 10px;"
+        "   font-size: 12px;"
         "   gridline-color: transparent;"
         "   selection-background-color: transparent;"
         "   outline: 0;"
@@ -576,7 +575,7 @@ void TransactionView::applyTheme()
 
         "QHeaderView::section {"
         " background:$PANEL; padding:9px 6px; border:none;"
-        " font-size:9px; font-weight:700; color:$INK_SOFT;"
+        " font-size:12px; font-weight:700; color:$INK_SOFT;"
         "}"
         "QHeaderView::section:hover { background:$PANEL; }"
         "QTableView::item { background: transparent; border: none; padding: 0; }"
@@ -614,7 +613,7 @@ void TransactionView::applyTheme()
 
     if (exportButton) {
         exportButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("4px 8px")) +
-            QStringLiteral("QPushButton { font-size: 11px; }"));
+            QStringLiteral("QPushButton { font-size: 12px; }"));
     }
 
     if (emptyIcon_) {
@@ -623,10 +622,10 @@ void TransactionView::applyTheme()
             "font-size: 20px; font-weight: 700;"));
     }
     if (emptyTitle_) {
-        emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK_SOFT; font-size: 11px; font-weight: 700;"));
+        emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-size: 14px; font-weight: 700;"));
     }
     if (emptyDescription_) {
-        emptyDescription_->setStyleSheet(GUIUtil::themed("color: $INK_FAINT; font-size: 10px;"));
+        emptyDescription_->setStyleSheet(GUIUtil::themed("color: $INK_SOFT; font-size: 12px;"));
     }
 
     if (transactionView && transactionView->viewport())
