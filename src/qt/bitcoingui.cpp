@@ -999,6 +999,19 @@ void BitcoinGUI::applyNavigationTheme()
             color: $INK_FAINT;
             background: transparent;
         }
+
+        QToolBar#navigationSidebar[compact="true"] {
+            spacing: 2px;
+            padding: 6px 12px;
+        }
+
+        QToolBar#navigationSidebar[compact="true"] QToolButton,
+        QToolBar#navigationSidebar[compact="true"] QToolButton:checked,
+        QToolBar#navigationSidebar[compact="true"] QToolButton:checked:hover {
+            min-height: 26px;
+            max-height: 26px;
+            padding: 1px 14px;
+        }
         )")).arg(NAVIGATION_ACTION_WIDTH));
 
     toolbar->style()->unpolish(toolbar);
@@ -1173,6 +1186,29 @@ void BitcoinGUI::updateNavigationSidebarGeometry()
     if (!toolbar || !navigationToggleButton || !centralWidget() || !walletFrame)
         return;
 
+    const bool compact = centralWidget()->height() < 600;
+    if (toolbar->property("compact").toBool() != compact) {
+        toolbar->setProperty("compact", compact);
+        toolbar->style()->unpolish(toolbar);
+        toolbar->style()->polish(toolbar);
+    }
+    if (logoLabel)
+        logoLabel->setFixedHeight(compact ? 54 : 88);
+    if (navigationThemeRow) {
+        navigationThemeRow->setMinimumHeight(compact ? 34 : 0);
+        navigationThemeRow->setMaximumHeight(compact ? 34 : QWIDGETSIZE_MAX);
+        if (QLayout* layout = navigationThemeRow->layout())
+            layout->setContentsMargins(12, compact ? 4 : 8, 12, compact ? 4 : 8);
+    }
+    if (navigationSyncCard) {
+        navigationSyncCard->setMinimumHeight(compact ? 58 : 76);
+        navigationSyncCard->setMaximumHeight(compact ? 58 : QWIDGETSIZE_MAX);
+        if (QLayout* layout = navigationSyncCard->layout()) {
+            layout->setContentsMargins(10, compact ? 6 : 11, 14, compact ? 6 : 11);
+            layout->setSpacing(compact ? 4 : 8);
+        }
+    }
+
     const int drawerX = navigationSidebarExpanded ? 0 : -NAVIGATION_SIDEBAR_WIDTH;
     toolbar->setGeometry(
         drawerX, 0, NAVIGATION_SIDEBAR_WIDTH, centralWidget()->height());
@@ -1188,6 +1224,11 @@ void BitcoinGUI::updateNavigationSidebarGeometry()
         ? NAVIGATION_SIDEBAR_WIDTH - NAVIGATION_TOGGLE_WIDTH / 2
         : 8;
     navigationToggleButton->move(toggleX, 20);
+    if (QLayout* layout = toolbar->layout()) {
+        layout->invalidate();
+        layout->activate();
+    }
+    updateNavigationSelectionHighlight();
     toolbar->raise();
     navigationToggleButton->raise();
 }
