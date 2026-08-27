@@ -78,12 +78,6 @@ foreverHidden(false)
     ui->warningIcon->setFocusPolicy(Qt::NoFocus);
     ui->warningIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-    auto* contentShadow = new QGraphicsDropShadowEffect(ui->contentWidget);
-    contentShadow->setBlurRadius(30);
-    contentShadow->setOffset(0, 10);
-    contentShadow->setColor(QColor(35, 24, 32, 70));
-    ui->contentWidget->setGraphicsEffect(contentShadow);
-
     auto* buttonShadow = new QGraphicsDropShadowEffect(ui->closeButton);
     buttonShadow->setBlurRadius(20);
     buttonShadow->setOffset(0, 6);
