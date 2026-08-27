@@ -18,6 +18,7 @@
 #include <QLabel>
 #include <QPropertyAnimation>
 #include <QSizePolicy>
+#include <QStyle>
 #include <QVBoxLayout>
 
 ModalOverlay::ModalOverlay(QWidget *parent) :
@@ -150,7 +151,11 @@ void ModalOverlay::applyTheme()
 #contentWidget QProgressBar::chunk {
     border-radius: 5px;
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                                stop:0 $WINE, stop:1 $WINE_DEEP);
+                                stop:0 $GOLD, stop:1 $GOLD);
+}
+#contentWidget QProgressBar[synced="true"]::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 $TEAL, stop:1 $TEAL);
 }
 #contentWidget QPushButton#closeButton {
     min-width: 112px;
@@ -188,6 +193,16 @@ void ModalOverlay::applyTheme()
 ModalOverlay::~ModalOverlay()
 {
     delete ui;
+}
+
+void ModalOverlay::setSyncComplete(bool complete)
+{
+    if (ui->progressBar->property("synced").toBool() == complete)
+        return;
+
+    ui->progressBar->setProperty("synced", complete);
+    ui->progressBar->style()->unpolish(ui->progressBar);
+    ui->progressBar->style()->polish(ui->progressBar);
 }
 
 bool ModalOverlay::eventFilter(QObject * obj, QEvent * ev) {

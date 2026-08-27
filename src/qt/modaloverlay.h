@@ -27,6 +27,7 @@ public:
 public Q_SLOTS:
     void tipUpdate(int count, const QDateTime& blockDate, double nVerificationProgress);
     void setKnownBestHeight(int count, const QDateTime& blockDate);
+    void setSyncComplete(bool complete);
 
     void toggleVisibility();
     // will show or hide the modal layer

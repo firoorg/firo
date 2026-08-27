@@ -901,6 +901,13 @@ void BitcoinGUI::applyNavigationTheme()
             }
             QProgressBar::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                            stop:0 $GOLD,
+                                            stop:1 $GOLD);
+                border: 1px solid transparent;
+                border-radius: 5px;
+            }
+            QProgressBar[synced="true"]::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                                             stop:0 $TEAL,
                                             stop:1 $TEAL);
                 border: 1px solid transparent;
@@ -1081,6 +1088,14 @@ void BitcoinGUI::updateNavigationSyncCard(
         fullStatus = tr("Synced");
         progress = 1.0;
     }
+
+    if (navigationSyncProgress->property("synced").toBool() != fullySynced) {
+        navigationSyncProgress->setProperty("synced", fullySynced);
+        navigationSyncProgress->style()->unpolish(navigationSyncProgress);
+        navigationSyncProgress->style()->polish(navigationSyncProgress);
+    }
+    if (modalOverlay)
+        modalOverlay->setSyncComplete(fullySynced);
 
     const double clampedProgress = qBound(0.0, progress, 1.0);
     if (fullStatus.isEmpty())
