@@ -11,6 +11,7 @@
 #include "walletmodel.h"
 
 #include <QDateTime>
+#include <QEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -209,6 +210,7 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     emptyDescription_->setWordWrap(true);
     emptyLayout->addWidget(emptyDescription_);
     emptyLayout->addStretch();
+    namesScroll->viewport()->installEventFilter(this);
 
     const auto addCardShadow = [](QWidget* card) {
         auto* shadow = new QGraphicsDropShadowEffect(card);
@@ -498,6 +500,16 @@ void SparkNamesPage::updateEmptyState()
     }
     if (namesCardsHost)
         namesCardsHost->setVisible(hasEntries);
+}
+
+bool SparkNamesPage::eventFilter(QObject *object, QEvent *event)
+{
+    if (object == namesScroll->viewport()
+        && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
+        updateEmptyState();
+    }
+
+    return QWidget::eventFilter(object, event);
 }
 
 void SparkNamesPage::applyTheme()

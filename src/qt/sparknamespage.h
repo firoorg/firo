@@ -50,6 +50,7 @@ private:
     void refreshList();
     void scheduleRefreshList();
     void updateEmptyState();
+    bool eventFilter(QObject *object, QEvent *event) override;
     void applyTheme();
     QFrame *createSparkNameCard(const QString &name, const QString &address, const QString &expiry,
                                  int statusKind, const QString &additionalInfo);
