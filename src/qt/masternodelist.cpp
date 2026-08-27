@@ -145,13 +145,11 @@ public:
         const QString status = index.data(StatusRole).toString();
         const int statusKind = index.data(StatusKindRole).toInt();
         QColor statusBackground(tc.tealTint);
-        QColor statusForeground(tc.teal);
+        const QColor statusForeground(tc.ink);
         if (statusKind == 1) {
             statusBackground = QColor(tc.goldTint);
-            statusForeground = QColor(tc.gold);
         } else if (statusKind == 2) {
             statusBackground = QColor(tc.wineTint);
-            statusForeground = QColor(tc.wine);
         }
 
         QFont statusFont = option.font;
@@ -193,7 +191,8 @@ public:
             subtitleFont.setPixelSize(11);
             painter->setFont(subtitleFont);
             painter->setPen(QColor(tc.inkSoft));
-            const QString collateral = masternodeText("Collateral · %1")
+            const QString collateral = masternodeText(
+                QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
                 .arg(index.data(CollateralOutpointRole).toString());
             const QRect subtitleRect(titleRect.left(), card.top() + 34, titleRect.width(), 18);
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
@@ -208,7 +207,8 @@ public:
         if (showPose) {
             const QRect poseRect(titleRight + 8, card.top() + 11, poseWidth, 24);
             painter->drawText(poseRect, Qt::AlignRight | Qt::AlignVCenter,
-                              masternodeText("PoSe %1").arg(index.data(PoseScoreRole).toInt()));
+                              masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PoSe %1"))
+                                  .arg(index.data(PoseScoreRole).toInt()));
 
             const int trackWidth = std::min(64, poseRect.width());
             const QRect trackRect(poseRect.right() - trackWidth + 1, card.top() + 43, trackWidth, 4);
@@ -260,23 +260,23 @@ public:
         for (int column = 0; column < 4; ++column) {
             const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 40);
             if (column == 0)
-                drawMetric(rect, masternodeText("REGISTERED"), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED")), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
             else if (column == 1)
-                drawMetric(rect, masternodeText("LAST PAID"), formatBlockHeight(index.data(LastPaidHeightRole).toInt(), index.data(LastPaidHeightRole).toInt() < 0));
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "LAST PAID")), formatBlockHeight(index.data(LastPaidHeightRole).toInt(), index.data(LastPaidHeightRole).toInt() < 0));
             else if (column == 2)
-                drawMetric(rect, masternodeText("NEXT PAYMENT"), formatBlockHeight(index.data(NextPaymentHeightRole).toInt(), index.data(NextPaymentHeightRole).toInt() < 0));
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "NEXT PAYMENT")), formatBlockHeight(index.data(NextPaymentHeightRole).toInt(), index.data(NextPaymentHeightRole).toInt() < 0));
             else
-                drawMetric(rect, masternodeText("COLLATERAL"), index.data(CollateralAmountRole).toString());
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL")), index.data(CollateralAmountRole).toString());
         }
 
         drawMetric(QRect(contentLeft, card.top() + 114, halfWidth, 40),
-                   masternodeText("PAYOUT ADDRESS"), index.data(PayoutAddressRole).toString());
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PAYOUT ADDRESS")), index.data(PayoutAddressRole).toString());
         drawMetric(QRect(contentLeft + halfWidth, card.top() + 114, halfWidth, 40),
-                   masternodeText("OPERATOR REWARD"), index.data(OperatorRewardRole).toString());
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "OPERATOR REWARD")), index.data(OperatorRewardRole).toString());
         drawMetric(QRect(contentLeft, card.top() + 160, halfWidth, 40),
-                   masternodeText("COLLATERAL ADDRESS"), index.data(CollateralAddressRole).toString());
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL ADDRESS")), index.data(CollateralAddressRole).toString());
         drawMetric(QRect(contentLeft + halfWidth, card.top() + 160, halfWidth, 40),
-                   masternodeText("OWNER ADDRESS"), index.data(OwnerAddressRole).toString());
+                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "OWNER ADDRESS")), index.data(OwnerAddressRole).toString());
 
         painter->restore();
     }
