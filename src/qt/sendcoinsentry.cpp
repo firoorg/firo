@@ -192,7 +192,7 @@ void SendCoinsEntry::applyTheme()
             color: $INK;
         }
         QFrame#SendCoins QValueComboBox::item:selected {
-            background: $WINE;
+            background: $WINE_DEEP;
             color: #FFFFFF;
         }
         QFrame#SendCoins QToolButton {

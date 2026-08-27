@@ -340,7 +340,7 @@ void ReceiveCoinsDialog::applyTheme()
         " color: $INK;"
         "}"
         "QComboBox::item:selected {"
-        " background: $WINE;"
+        " background: $WINE_DEEP;"
         " color: #FFFFFF;"
         "}"));
     ui->addressTypeCombobox->setStyleSheet(comboStyle);
