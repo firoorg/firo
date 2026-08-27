@@ -47,11 +47,14 @@
 #include <QUrl>
 #endif
 
-// TODO: add a scrollback limit, as there is currently none
 // TODO: make it possible to filter out categories (esp debug messages when implemented)
 // TODO: receive errors and debug messages through ClientModel
 
 const int CONSOLE_HISTORY = 50;
+const int CONSOLE_SCROLLBACK_MESSAGES = 2000;
+const int CONSOLE_SCROLLBACK_MESSAGES_HIGH_WATER = 2200;
+const qint64 CONSOLE_SCROLLBACK_CHARACTERS = 4 * 1024 * 1024;
+const qint64 CONSOLE_SCROLLBACK_CHARACTERS_HIGH_WATER = 5 * 1024 * 1024;
 const int INITIAL_TRAFFIC_GRAPH_MINS = 30;
 const QSize FONT_RANGE(4, 40);
 const char fontSizeSettingsKey[] = "consoleFontSize";
@@ -796,6 +799,7 @@ void RPCConsole::setFontSize(int newSize)
 void RPCConsole::clear(bool clearHistory)
 {
     consoleMessages.clear();
+    consoleMessageCharacters = 0;
     if(clearHistory)
     {
         history.clear();
@@ -882,7 +886,24 @@ void RPCConsole::message(int category, const QString &message, bool html)
         out += GUIUtil::HtmlEscape(message, false);
     out += "</td></tr></table>";
     consoleMessages.append(out);
-    ui->messagesWidget->append(out);
+    consoleMessageCharacters += out.size();
+
+    bool trimmed = false;
+    if (consoleMessages.size() > CONSOLE_SCROLLBACK_MESSAGES_HIGH_WATER
+        || consoleMessageCharacters > CONSOLE_SCROLLBACK_CHARACTERS_HIGH_WATER) {
+        while (consoleMessages.size() > 1
+               && (consoleMessages.size() > CONSOLE_SCROLLBACK_MESSAGES
+                   || consoleMessageCharacters > CONSOLE_SCROLLBACK_CHARACTERS)) {
+            consoleMessageCharacters -= consoleMessages.first().size();
+            consoleMessages.removeFirst();
+            trimmed = true;
+        }
+    }
+
+    if (trimmed)
+        rebuildConsoleMessages();
+    else
+        ui->messagesWidget->append(out);
 }
 
 void RPCConsole::updateNetworkState()

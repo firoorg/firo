@@ -157,6 +157,7 @@ private:
     QMenu *banTableContextMenu;
     int consoleFontSize{0};
     QStringList consoleMessages;
+    qint64 consoleMessageCharacters{0};
     QCompleter *autoCompleter;
     QThread thread;
 
