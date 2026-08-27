@@ -47,20 +47,27 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
         "QLabel { background: transparent; color: $INK_SOFT; }")));
 
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
-        "QLineEdit, QSpinBox, QTextEdit {"
+        "QLineEdit, QTextEdit {"
         " background: $PANEL_SOFT;"
         " border: 1px solid $BORDER;"
         " border-radius: 10px;"
         " padding: 8px 12px;"
         " color: $INK;"
         "}"
-        "QSpinBox QLineEdit { %1 }"
-        "QLineEdit:focus, QSpinBox:focus, QTextEdit:focus { border: 1px solid $WINE; }"))
-        .arg(GUIUtil::spinBoxInnerLineEditReset());
+        "QLineEdit:focus, QTextEdit:focus { border: 1px solid $WINE; }"));
     ui->sparkAddressEdit->setStyleSheet(fieldStyle);
     ui->sparkNameEdit->setStyleSheet(fieldStyle);
-    ui->numberOfYearsEdit->setStyleSheet(fieldStyle);
     ui->additionalInfoEdit->setStyleSheet(fieldStyle);
+
+    ui->numberOfYearsEdit->setMinimumWidth(96);
+    ui->numberOfYearsEdit->setAlignment(Qt::AlignCenter);
+    ui->numberOfYearsEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QSpinBox {"
+        " background: $PANEL_SOFT; color: $INK;"
+        " border: 1px solid $BORDER; border-radius: 10px;"
+        " min-height: 34px;"
+        "}"
+        "QSpinBox:focus { border: 1px solid $WINE; }")));
 
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
