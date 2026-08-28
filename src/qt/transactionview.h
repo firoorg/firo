@@ -39,6 +39,7 @@ public:
     explicit TransactionView(const PlatformStyle *platformStyle, QWidget *parent = 0);
 
     void setModel(WalletModel *model);
+    void showOutOfSyncWarning(bool fShow);
 
     // Date ranges for filter
     enum DateEnum
@@ -82,6 +83,7 @@ private:
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyDescription_{nullptr};
+    bool outOfSync_{false};
 
     QMenu *contextMenu;
     QWidget* dateRangeWidget;

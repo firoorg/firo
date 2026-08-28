@@ -681,14 +681,22 @@ void TransactionView::updateEmptyState()
         const bool walletEmpty = !transactionProxyModel || !transactionProxyModel->sourceModel()
             || transactionProxyModel->sourceModel()->rowCount() == 0;
         if (walletEmpty) {
-            emptyTitle_->setText(tr("No transactions yet"));
-            emptyDescription_->setText(tr("Your history will appear here after the first transfer"));
+            emptyTitle_->setText(outOfSync_ ? tr("Wallet is still syncing") : tr("No transactions yet"));
+            emptyDescription_->setText(outOfSync_
+                ? tr("Transactions will appear here as synchronization completes")
+                : tr("Your history will appear here after the first transfer"));
         } else {
             emptyTitle_->setText(tr("No matching transactions"));
             emptyDescription_->setText(tr("Try adjusting the filters above"));
         }
     }
     emptyState->raise();
+}
+
+void TransactionView::showOutOfSyncWarning(bool fShow)
+{
+    outOfSync_ = fShow;
+    updateEmptyState();
 }
 
 void TransactionView::updateTableColumnWidths()
