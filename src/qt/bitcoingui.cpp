@@ -1697,7 +1697,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
                 return;
             }
             progressBarLabel->setText(tr("Synchronizing with network..."));
-            updateHeadersSyncProgressLabel();
+            updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress);
             break;
         case BLOCK_SOURCE_DISK:
             if (header) {
