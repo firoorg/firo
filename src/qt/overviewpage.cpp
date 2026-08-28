@@ -118,12 +118,14 @@ public:
 
         const int textLeft = iconRect.right() + 12;
         const int amountWidth = 168;
+        const int amountLeft = card.right() - amountWidth - 14;
+        const int textWidth = std::max(0, amountLeft - textLeft - 12);
         QFont dateFont = iconFont;
         dateFont.setPixelSize(12);
         dateFont.setWeight(QFont::DemiBold);
         painter->setFont(dateFont);
         painter->setPen(QColor(tc.ink));
-        const QRect dateRect(textLeft, card.top() + 12, card.width() - textLeft - amountWidth - 16, 16);
+        const QRect dateRect(textLeft, card.top() + 12, textWidth, 16);
         painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
                           date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
                                          : GUIUtil::dateTimeStr(date));
@@ -145,7 +147,7 @@ public:
         amountFont.setBold(true);
         painter->setFont(amountFont);
         painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
-        const QRect amountRect(card.right() - amountWidth - 14, card.top(), amountWidth, card.height());
+        const QRect amountRect(amountLeft, card.top(), amountWidth, card.height());
         painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
 
         painter->restore();
