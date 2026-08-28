@@ -40,6 +40,7 @@ QT_BEGIN_NAMESPACE
 class QAbstractButton;
 class QAction;
 class QFrame;
+class QParallelAnimationGroup;
 class QProgressBar;
 class QProgressDialog;
 class QToolButton;
@@ -133,6 +134,7 @@ private:
     QToolBar *toolbar{nullptr};
     QToolButton *navigationToggleButton{nullptr};
     bool navigationSidebarExpanded{true};
+    QParallelAnimationGroup *navigationSidebarAnimation{nullptr};
     QFrame *navigationSyncCard{nullptr};
     QAction *navigationSyncCardAction{nullptr};
     QLabel *navigationSyncLabel{nullptr};

@@ -1280,6 +1280,12 @@ void BitcoinGUI::toggleNavigationSidebar()
     if (!toolbar || !navigationToggleButton || !centralWidget() || !walletFrame)
         return;
 
+    if (navigationSidebarAnimation) {
+        navigationSidebarAnimation->stop();
+        delete navigationSidebarAnimation;
+        navigationSidebarAnimation = nullptr;
+    }
+
     navigationSidebarExpanded = !navigationSidebarExpanded;
     navigationToggleButton->setArrowType(
         navigationSidebarExpanded ? Qt::LeftArrow : Qt::RightArrow);
@@ -1306,6 +1312,7 @@ void BitcoinGUI::toggleNavigationSidebar()
         centralWidget()->height());
 
     auto* animations = new QParallelAnimationGroup(this);
+    navigationSidebarAnimation = animations;
     auto* drawerAnimation = new QPropertyAnimation(toolbar, "geometry", animations);
     drawerAnimation->setDuration(220);
     drawerAnimation->setStartValue(toolbar->geometry());
@@ -1326,7 +1333,13 @@ void BitcoinGUI::toggleNavigationSidebar()
 
     toolbar->raise();
     navigationToggleButton->raise();
-    animations->start(QAbstractAnimation::DeleteWhenStopped);
+    connect(animations, &QParallelAnimationGroup::finished, this, [this, animations] {
+        if (navigationSidebarAnimation == animations)
+            navigationSidebarAnimation = nullptr;
+        updateNavigationSidebarGeometry();
+        animations->deleteLater();
+    });
+    animations->start();
 }
 
 void BitcoinGUI::setClientModel(ClientModel *_clientModel)
