@@ -656,24 +656,27 @@ void AddressBookPage::chooseAddressType(int idx)
 }
 
 AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :
-    QSortFilterProxyModel(parent)
+    QSortFilterProxyModel(parent),
+    typeFilter(AddressBookPage::Transparent)
 {
 }
 
 bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
-    QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
-    QString dataStr = sourceModel()->data(index).toString();
+    const QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
+    const QString addressType = sourceModel()->data(
+        index, AddressTableModel::AddressTypeRole).toString();
     
     switch (typeFilter) {
     case (int)AddressBookPage::Spark:
-        return dataStr == "spark";
+        return addressType == AddressTableModel::Spark;
     case (int)AddressBookPage::Transparent:
-        return dataStr == "transparent";
+        return addressType == AddressTableModel::Transparent;
     case (int)AddressBookPage::SparkName:
-        return dataStr.contains("spark name");
+        return addressType == AddressTableModel::SparkName;
     case (int)AddressBookPage::SparkNameMine:
-        return dataStr == "own spark name";
+        return addressType == AddressTableModel::SparkName &&
+               sourceModel()->data(index, AddressTableModel::IsMineRole).toBool();
     default:
         return false;
     }
