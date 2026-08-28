@@ -15,7 +15,6 @@
 
 #include <QMessageBox>
 #include <QTimer>
-#include <QResizeEvent>
 
 
 class ClientModel;
@@ -47,7 +46,6 @@ public:
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
-    void resizeEvent(QResizeEvent* event) override;
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
@@ -99,7 +97,6 @@ private:
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
 
-    void adjustTextSize(int width,int height);
     void applyOverviewRedesign();
     void applyOverviewTheme();
     void addShadow(QWidget *w, int blurRadius = 18, int yOffset = 4, int alpha = 60);

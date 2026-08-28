@@ -361,7 +361,7 @@ void OverviewPage::applyOverviewTheme()
         "QFrame#warningFrame QLabel { background: transparent; color: $INK; font-size: 14px; }")));
     ui->labelAlerts->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel#labelAlerts { background: $GOLD_TINT; color: $INK;"
-        " border: 1px solid $GOLD; border-radius: 10px; padding: 8px 12px; }")));
+        " border: 1px solid $GOLD; border-radius: 10px; padding: 8px 12px; font-size: 14px; }")));
 
     const QString syncWarningStyle = QStringLiteral(
         "QPushButton { background: transparent; border: none; padding: 0px; }");
@@ -507,14 +507,6 @@ void OverviewPage::handleOutOfSyncWarningClicks()
 OverviewPage::~OverviewPage()
 {
     delete ui;
-}
-
-void OverviewPage::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-
-    adjustTextSize(event->size().width(), event->size().height());
-    updatePrivateTransparentSplitBar();
 }
 
 void OverviewPage::on_anonymizeButton_clicked()
@@ -957,24 +949,6 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
         ? tr("Transactions will appear here as synchronization completes")
         : tr("Your history will appear here after the first transfer"));
     updateActivityEmptyState();
-}
-
-void OverviewPage::adjustTextSize(int width, int)
-{
-    const double fontSizeScalingFactor = 133.0;
-    int baseFontSize = width / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
-
-    QFont textFont = ui->textWarning1->font();
-    textFont.setPointSize(fontSize);
-    textFont.setBold(false);
-
-    QFont labelFont = textFont;
-    labelFont.setBold(true);
-
-    ui->textWarning1->setFont(textFont);
-    ui->textWarning2->setFont(textFont);
-    ui->labelAlerts->setFont(labelFont);
 }
 
 void OverviewPage::updateSparkAnonymizeRowVisibility()
