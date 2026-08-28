@@ -27,16 +27,16 @@ ThemeNotifier& ThemeNotifier::instance()
 }
 
 static const ThemeColors LIGHT_COLORS{
-    QStringLiteral("#F7F5F8"),
+    QStringLiteral("#F4F4F4"),
     QStringLiteral("#FFFFFF"),
-    QStringLiteral("#FBFAFD"),
-    QStringLiteral("#ECE8F2"),
-    QStringLiteral("#201C2E"),
+    QStringLiteral("#F7F0F1"),
+    QStringLiteral("#CFCCCC"),
+    QStringLiteral("#110202"),
+    QStringLiteral("#3D3939"),
     QStringLiteral("#6E6A80"),
-    QStringLiteral("#726E7B"),
     QStringLiteral("#9B1C2E"),
-    QStringLiteral("#7A1830"),
-    QStringLiteral("#FCE9EE"),
+    QStringLiteral("#7C1624"),
+    QStringLiteral("#F7F0F1"),
     QStringLiteral("#237A6E"),
     QStringLiteral("#E6F5F2"),
     QStringLiteral("#9B1C2E"),
