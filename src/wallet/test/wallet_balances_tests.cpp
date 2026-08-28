@@ -5,6 +5,7 @@
 #include "wallet/wallet.h"
 
 #include "amount.h"
+#include "base58.h"
 #include "rpc/server.h"
 #include "script/standard.h"
 #include "test/test_bitcoin.h"
@@ -15,11 +16,14 @@
 #include "validation.h"
 #include "wallet/test/wallet_test_fixture.h"
 
+#include <boost/lexical_cast.hpp>
 #include <boost/test/unit_test.hpp>
 
+#include <fstream>
 #include <vector>
 
 extern UniValue addmultisigaddress(const JSONRPCRequest& request);
+extern UniValue importwallet(const JSONRPCRequest& request);
 
 namespace
 {
@@ -288,6 +292,45 @@ BOOST_AUTO_TEST_CASE(keypool_generation_invalidates_cached_ownership)
 
     BOOST_REQUIRE(pwalletMain->TopUpKeyPool());
     BOOST_REQUIRE(pwalletMain->HaveKey(futurePubKey.GetID()));
+    BOOST_CHECK(!wtx.fAvailableCreditCached);
+    CheckBalances(8 * COIN, 0, 0, 8 * COIN);
+}
+
+BOOST_AUTO_TEST_CASE(importwallet_partial_failure_invalidates_cached_ownership)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    const CPubKey masterPubKey = pwalletMain->GenerateNewHDMasterKey();
+    BOOST_REQUIRE(pwalletMain->SetHDMasterKey(masterPubKey, CHDChain::VERSION_WITH_BIP44));
+
+    CKey importedKey;
+    importedKey.MakeNewKey(true);
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    tx.vin[0].prevout = ForeignOutPoint(1);
+    tx.vout.resize(2);
+    tx.vout[0] = CTxOut(1 * COIN, walletScript);
+    tx.vout[1] = CTxOut(7 * COIN, GetScriptForDestination(importedKey.GetPubKey().GetID()));
+    const CWalletTx& wtx = AddTx(tx, true);
+    BOOST_CHECK_EQUAL(wtx.GetAvailableCredit(), 1 * COIN);
+
+    CKey malformedKey;
+    malformedKey.MakeNewKey(true);
+    const auto dumpPath = pathTemp / "partial-import.dump";
+    {
+        std::ofstream dump(dumpPath.string());
+        BOOST_REQUIRE(dump.is_open());
+        dump << CBitcoinSecret(importedKey).ToString() << " 1970-01-01T00:00:01Z\n";
+        dump << CBitcoinSecret(malformedKey).ToString()
+             << " 1970-01-01T00:00:01Z hdKeypath=m/44'/136'/0'/x/0\n";
+    }
+
+    JSONRPCRequest request;
+    request.params = UniValue(UniValue::VARR);
+    request.params.push_back(dumpPath.string());
+    BOOST_CHECK_THROW(importwallet(request), boost::bad_lexical_cast);
+
+    BOOST_REQUIRE(pwalletMain->HaveKey(importedKey.GetPubKey().GetID()));
     BOOST_CHECK(!wtx.fAvailableCreditCached);
     CheckBalances(8 * COIN, 0, 0, 8 * COIN);
 }
