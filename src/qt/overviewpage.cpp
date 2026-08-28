@@ -83,9 +83,8 @@ public:
 
         const int txType = index.data(TransactionTableModel::TypeRole).toInt();
         const qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
-        const bool mined = txType == TransactionRecord::Generated;
         const bool incoming =
-            mined ||
+            txType == TransactionRecord::Generated ||
             txType == TransactionRecord::RecvWithAddress ||
             txType == TransactionRecord::RecvFromOther ||
             txType == TransactionRecord::RecvWithPcode ||
@@ -102,9 +101,7 @@ public:
         painter->setFont(iconFont);
         painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
         painter->drawText(iconRect, Qt::AlignCenter,
-                          mined ? QStringLiteral("↗")
-                                : incoming ? QStringLiteral("↙")
-                                           : QStringLiteral("↗"));
+                          incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
 
         const QRect statusRect(iconRect.right() - 6, iconRect.bottom() - 12, 14, 14);
         const QVariant statusDec = index.sibling(index.row(), TransactionTableModel::Status)

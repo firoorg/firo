@@ -79,8 +79,7 @@ public:
         const int txType = index.data(TransactionTableModel::TypeRole).toInt();
         const qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
         const bool incoming = isIncoming(txType);
-        const bool mined = txType == TransactionRecord::Generated;
-        const bool positive = incoming || mined || amount > 0;
+        const bool positive = incoming || amount > 0;
 
         painter->fillRect(option.rect, QColor(tc.panel));
 
@@ -109,9 +108,7 @@ public:
             painter->setFont(iconFont);
             painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
             painter->drawText(icon, Qt::AlignCenter,
-                              mined ? QStringLiteral("↗")
-                                    : incoming ? QStringLiteral("↙")
-                                               : QStringLiteral("↗"));
+                              incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
 
             const QDateTime dt = index.data(TransactionTableModel::DateRole).toDateTime();
             QFont dateFont = option.font;
