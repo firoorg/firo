@@ -13,7 +13,6 @@
 #include <QResizeEvent>
 #include <QFrame>
 #include <QFormLayout>
-#include <QGraphicsDropShadowEffect>
 #include <QIcon>
 #include <QLabel>
 #include <QPropertyAnimation>
@@ -90,11 +89,7 @@ foreverHidden(false)
     ui->warningIcon->setFocusPolicy(Qt::NoFocus);
     ui->warningIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-    auto* buttonShadow = new QGraphicsDropShadowEffect(ui->closeButton);
-    buttonShadow->setBlurRadius(20);
-    buttonShadow->setOffset(0, 6);
-    buttonShadow->setColor(QColor(139, 26, 58, 70));
-    ui->closeButton->setGraphicsEffect(buttonShadow);
+    GUIUtil::applyPrimaryButtonShadow(ui->closeButton);
 
     connect(ui->closeButton, &QPushButton::clicked, this, &ModalOverlay::closeClicked);
     if (parent) {

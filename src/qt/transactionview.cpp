@@ -520,12 +520,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     applyTheme();
 
     addShadow(filterCard);
-
-    auto *exportShadow = new QGraphicsDropShadowEffect(exportButton);
-    exportShadow->setBlurRadius(20);
-    exportShadow->setOffset(0, 6);
-    exportShadow->setColor(QColor(139, 26, 58, 70));
-    exportButton->setGraphicsEffect(exportShadow);
+    GUIUtil::applyPrimaryButtonShadow(exportButton);
     updateEmptyState();
 }
 

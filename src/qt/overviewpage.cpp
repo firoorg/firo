@@ -295,11 +295,7 @@ void OverviewPage::applyOverviewRedesign()
     ui->labelTransparentSplit->setTextFormat(Qt::RichText);
 
     ui->sendButton->setText(tr("↗  Send"));
-    auto *sendShadow = new QGraphicsDropShadowEffect(ui->sendButton);
-    sendShadow->setBlurRadius(20);
-    sendShadow->setOffset(0, 6);
-    sendShadow->setColor(QColor(139, 26, 58, 70));
-    ui->sendButton->setGraphicsEffect(sendShadow);
+    GUIUtil::applyPrimaryButtonShadow(ui->sendButton);
 
     ui->receiveButton->setText(tr("↙  Receive"));
 
