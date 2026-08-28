@@ -548,7 +548,6 @@ void TransactionView::applyTheme()
         "   font-size: 13px;"
         "   color: $INK_SOFT;"
         "}"
-        "QLineEdit:!focus { color: $INK_FAINT; }"
         "QLineEdit:focus, QComboBox:focus { border: 1px solid $WINE; }"
 
         "QComboBox QAbstractItemView {"
