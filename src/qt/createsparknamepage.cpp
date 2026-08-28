@@ -109,7 +109,9 @@ void CreateSparkNamePage::applyTheme()
         " border: 1px solid $BORDER; border-radius: 10px;"
         " min-height: 34px;"
         "}"
-        "QSpinBox:focus { border: 1px solid $WINE; }")));
+        "QSpinBox:focus { border: 1px solid $WINE; }"
+        "QSpinBox QLineEdit { %1 }"))
+        .arg(GUIUtil::spinBoxInnerLineEditReset()));
 
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();

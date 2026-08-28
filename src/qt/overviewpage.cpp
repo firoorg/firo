@@ -564,7 +564,8 @@ void OverviewPage::on_anonymizeButton_clicked()
         }
         QAbstractSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
         QAbstractSpinBox[invalidInput="true"] { border-color: $ERROR; }
-    )")));
+        QAbstractSpinBox QLineEdit { %1 }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
     auto maxButton = new QPushButton(tr("Max"), &amountDialog);
     maxButton->setStyleSheet(GUIUtil::primaryButtonStyle());
     amountLayout->addWidget(amountField);
