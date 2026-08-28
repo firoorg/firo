@@ -392,7 +392,7 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     masternodeView->setModel(masternodeProxy);
     masternodeView->setItemDelegate(new MasternodeCardDelegate(masternodeView));
     masternodeView->setSelectionMode(QAbstractItemView::SingleSelection);
-    masternodeView->setVerticalScrollMode(QAbstractItemView::ScrollPerItem);
+    masternodeView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     masternodeView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     masternodeView->setUniformItemSizes(true);
     masternodeView->setResizeMode(QListView::Adjust);
