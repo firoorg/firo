@@ -1954,8 +1954,8 @@ UniValue addmultisigaddress(const JSONRPCRequest& request)
     // Construct using pay-to-script-hash:
     CScript inner = _createmultisig_redeemScript(pwallet, request.params);
     CScriptID innerID(inner);
-    pwallet->AddCScript(inner);
     pwallet->MarkDirty();
+    pwallet->AddCScript(inner);
 
     pwallet->SetAddressBook(innerID, strAccount, "send");
     return CBitcoinAddress(innerID).ToString();
@@ -2052,15 +2052,14 @@ UniValue addwitnessaddress(const JSONRPCRequest& request)
     CTxDestination dest = address.Get();
     {
         LOCK(pwallet->cs_wallet);
+        pwallet->MarkDirty();
         bool ret = boost::apply_visitor(w, dest);
         if (!ret) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Public key or redeemscript not known to wallet, or the key is uncompressed");
         }
 
-        pwallet->MarkDirty();
+        pwallet->SetAddressBook(w.result, "", "receive");
     }
-
-    pwallet->SetAddressBook(w.result, "", "receive");
 
     return CBitcoinAddress(w.result).ToString();
 }
