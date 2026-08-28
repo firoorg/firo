@@ -356,7 +356,8 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
     RosenBridge::Metadata metadata;
     const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
 
-    const bool subtractFeeAllowed = !fAnonymousMode && !valid;
+    const bool subtractFeeAllowed =
+        (!fAnonymousMode || (model && model->versionedSparkSpendsAllowed())) && !valid;
 
     ui->rosenBridgeLabel->setVisible(valid);
     ui->rosenBridgeDetails->setVisible(valid);
@@ -609,15 +610,6 @@ bool SendCoinsEntry::isPayToPcode() const
 void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
 {
     this->fAnonymousMode = fAnonymousMode;
-
-    const bool subtractFeeSupported =
-        !fAnonymousMode ||
-        (model && model->versionedSparkSpendsAllowed());
-    if (!subtractFeeSupported) {
-        ui->checkboxSubtractFeeFromAmount->setCheckState(Qt::Unchecked);
-    }
-    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeSupported);
-
     updateRosenBridgeDisplay();
 }
 
