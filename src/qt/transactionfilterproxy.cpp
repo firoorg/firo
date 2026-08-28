@@ -32,34 +32,41 @@ TransactionFilterProxy::TransactionFilterProxy(QObject *parent) :
 
 bool TransactionFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
+    if (showInactive && typeFilter == ALL_TYPES &&
+        watchOnlyFilter == WatchOnlyFilter_All && instantsendFilter == InstantSendFilter_All &&
+        dateFrom == MIN_DATE && dateTo == MAX_DATE && addrPrefix.isEmpty() && minAmount <= 0)
+        return true;
+
     QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
 
-    int type = index.data(TransactionTableModel::TypeRole).toInt();
-    QDateTime datetime = index.data(TransactionTableModel::DateRole).toDateTime();
-    bool involvesWatchAddress = index.data(TransactionTableModel::WatchonlyRole).toBool();
-    bool lockedByInstantSend = index.data(TransactionTableModel::InstantSendRole).toBool();
-    QString address = index.data(TransactionTableModel::AddressRole).toString();
-    QString label = index.data(TransactionTableModel::LabelRole).toString();
-    qint64 amount = llabs(index.data(TransactionTableModel::AmountRole).toLongLong());
-    int status = index.data(TransactionTableModel::StatusRole).toInt();
-
-    if(!showInactive && status == TransactionStatus::Conflicted)
+    if (!showInactive && index.data(TransactionTableModel::StatusRole).toInt() == TransactionStatus::Conflicted)
         return false;
-    if(!(TYPE(type) & typeFilter))
+    if (typeFilter != ALL_TYPES && !(TYPE(index.data(TransactionTableModel::TypeRole).toInt()) & typeFilter))
         return false;
-    if (involvesWatchAddress && watchOnlyFilter == WatchOnlyFilter_No)
-        return false;
-    if (!involvesWatchAddress && watchOnlyFilter == WatchOnlyFilter_Yes)
-        return false;
-    if (lockedByInstantSend && instantsendFilter == InstantSendFilter_No)
-        return false;
-    if (!lockedByInstantSend && instantsendFilter == InstantSendFilter_Yes)
-        return false;
-    if(datetime < dateFrom || datetime > dateTo)
-        return false;
-    if (!address.contains(addrPrefix, Qt::CaseInsensitive) && !label.contains(addrPrefix, Qt::CaseInsensitive))
-        return false;
-    if(amount < minAmount)
+    if (watchOnlyFilter != WatchOnlyFilter_All) {
+        const bool involvesWatchAddress = index.data(TransactionTableModel::WatchonlyRole).toBool();
+        if ((involvesWatchAddress && watchOnlyFilter == WatchOnlyFilter_No) ||
+            (!involvesWatchAddress && watchOnlyFilter == WatchOnlyFilter_Yes))
+            return false;
+    }
+    if (instantsendFilter != InstantSendFilter_All) {
+        const bool lockedByInstantSend = index.data(TransactionTableModel::InstantSendRole).toBool();
+        if ((lockedByInstantSend && instantsendFilter == InstantSendFilter_No) ||
+            (!lockedByInstantSend && instantsendFilter == InstantSendFilter_Yes))
+            return false;
+    }
+    if (dateFrom != MIN_DATE || dateTo != MAX_DATE) {
+        const QDateTime datetime = index.data(TransactionTableModel::DateRole).toDateTime();
+        if (datetime < dateFrom || datetime > dateTo)
+            return false;
+    }
+    if (!addrPrefix.isEmpty()) {
+        const QString address = index.data(TransactionTableModel::AddressRole).toString();
+        const QString label = index.data(TransactionTableModel::LabelRole).toString();
+        if (!address.contains(addrPrefix, Qt::CaseInsensitive) && !label.contains(addrPrefix, Qt::CaseInsensitive))
+            return false;
+    }
+    if (minAmount > 0 && llabs(index.data(TransactionTableModel::AmountRole).toLongLong()) < minAmount)
         return false;
 
     return true;
