@@ -146,15 +146,16 @@ class AbandonConflictTest(BitcoinTestFramework):
         assert_equal(newbalance, balance + Decimal("20"))
         balance = newbalance
 
-        # There is currently a minor bug around this and so this test doesn't work.  See Issue #7315
-        # Invalidate the block with the double spend and B's 10 BTC output should no longer be available
-        # Don't think C's should either
-        self.nodes[0].invalidateblock(self.nodes[0].getbestblockhash())
+        # Invalidate the block with the double spend. AB1 and its child are no longer
+        # conflicted, so B's and C's 10 BTC outputs are spent by them again.
+        conflict_block = self.nodes[0].getbestblockhash()
+        self.nodes[0].invalidateblock(conflict_block)
         newbalance = self.nodes[0].getbalance()
-        #assert_equal(newbalance, balance - Decimal("10"))
-        print("If balance has not declined after invalidateblock then out of mempool wallet tx which is no longer")
-        print("conflicted has not resumed causing its inputs to be seen as spent.  See Issue #7315")
-        print(str(balance) + " -> " + str(newbalance) + " ?")
+        assert_equal(newbalance, balance - Decimal("20"))
+
+        # Reconnecting the same conflict must release both outputs again.
+        self.nodes[0].reconsiderblock(conflict_block)
+        assert_equal(self.nodes[0].getbalance(), balance)
 
 if __name__ == '__main__':
     AbandonConflictTest().main()

@@ -3330,6 +3330,13 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         }
     }
 #endif
+
+#ifdef ENABLE_WALLET
+    // A disconnect can unconflict wallet transactions that are not otherwise
+    // notified, changing whether their inputs are spent.
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain)
+        pwalletMain->MarkDirty();
+#endif
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     for (const auto& tx : block.vtx) {

@@ -1497,13 +1497,16 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
         assert(mapWallet.count(now));
         CWalletTx& wtx = mapWallet[now];
         int currentconfirm = wtx.GetDepthInMainChain();
-        if (conflictconfirms < currentconfirm) {
-            // Block is 'more conflicted' than current confirm; update.
-            // Mark transaction as conflicted with this block.
-            wtx.nIndex = -1;
-            wtx.hashBlock = hashBlock;
+        const bool fSameConflict = conflictconfirms == currentconfirm && wtx.hashBlock == hashBlock;
+        if (conflictconfirms < currentconfirm || fSameConflict) {
+            // Reapplying the same conflict must also dirty descendants' inputs,
+            // but does not require another database write.
             wtx.MarkDirty();
-            walletdb.WriteTx(wtx);
+            if (!fSameConflict) {
+                wtx.nIndex = -1;
+                wtx.hashBlock = hashBlock;
+                walletdb.WriteTx(wtx);
+            }
             // Iterate over all its outputs, and mark transactions in the wallet that spend them conflicted too
             TxSpends::const_iterator iter = mapTxSpends.lower_bound(COutPoint(now, 0));
             while (iter != mapTxSpends.end() && iter->first.hash == now) {
