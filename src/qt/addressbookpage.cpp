@@ -69,25 +69,13 @@ public:
 
         switch (index.column()) {
         case AddressTableModel::Label: {
-            QRect icon(option.rect.left() + 12, option.rect.center().y() - 14, 28, 28);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.wineTint));
-            painter->drawRoundedRect(icon, 9, 9);
-            QFont iconFont = option.font;
-            iconFont.setPixelSize(12);
-            iconFont.setBold(true);
-            painter->setFont(iconFont);
-            painter->setPen(QColor(tc.wine));
-            painter->drawText(icon, Qt::AlignCenter, QStringLiteral("@"));
-
             const QString text = index.data(Qt::DisplayRole).toString();
             QFont font = option.font;
             font.setPixelSize(12);
             font.setBold(true);
             painter->setFont(font);
             painter->setPen(QColor(tc.ink));
-            const QRect textRect(icon.right() + 10, option.rect.top(),
-                                 option.rect.right() - icon.right() - 18, option.rect.height());
+            const QRect textRect = option.rect.adjusted(12, 0, -8, 0);
             painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
                               QFontMetrics(font).elidedText(
                                   text.isEmpty() ? QCoreApplication::translate("AddressBookPage", "(no label)") : text,
@@ -106,7 +94,9 @@ public:
         }
         case AddressTableModel::AddressType: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            const bool spark = text.compare(QLatin1String("spark"), Qt::CaseInsensitive) == 0;
+            const QString addressType = index.data(AddressTableModel::AddressTypeRole).toString();
+            const bool spark = addressType == AddressTableModel::Spark ||
+                               addressType == AddressTableModel::SparkName;
             QFont badgeFont = option.font;
             badgeFont.setPixelSize(12);
             badgeFont.setBold(true);
