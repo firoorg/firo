@@ -159,6 +159,7 @@ public:
     bool validateSparkAddress(const QString &address);
     bool isSparkAddressMine(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
+    CAmount getCachedPrivateBalance() const { return cachedPrivateBalance; }
 
     // Sign a message with a Spark address held by this wallet. Returns the ownership proof
     // as hex, or a null QString with `error` set to a message fit to show the user.

@@ -129,6 +129,10 @@ CreateSparkNamePage::~CreateSparkNamePage()
 
 void CreateSparkNamePage::setModel(WalletModel *model)
 {
+    if (this->model) {
+        disconnect(this->model, &WalletModel::balanceChanged,
+                   this, &CreateSparkNamePage::checkSparkBalance);
+    }
     this->model = model;
 
     connect(ui->sparkAddressEdit, &QLineEdit::textChanged,
@@ -137,6 +141,11 @@ void CreateSparkNamePage::setModel(WalletModel *model)
             this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
     connect(ui->numberOfYearsEdit, qOverload<int>(&QSpinBox::valueChanged),
             this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
+    if (model) {
+        connect(model, &WalletModel::balanceChanged,
+                this, &CreateSparkNamePage::checkSparkBalance, Qt::UniqueConnection);
+    }
+    checkSparkBalance();
 }
 
 void CreateSparkNamePage::setExtendMode(const QString &name, const QString &address)
@@ -475,7 +484,7 @@ void CreateSparkNamePage::checkSparkBalance()
     }
 
     CAmount requiredFee = Params().GetConsensus().nSparkNamesFee[sparkName.length()] * COIN * numberOfYears;
-    CAmount available = model->getSparkBalance().first;
+    CAmount available = model->getCachedPrivateBalance();
 
     if (available < requiredFee) {
         ui->balanceWarningLabel->setText(
