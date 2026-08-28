@@ -560,17 +560,17 @@ static QPixmap ColorizeNavigationIcon(const QPixmap& centeredSource, const QColo
 
 static QIcon NavigationIcon(const QString& resource)
 {
-    constexpr int iconSize = 22;
     const QPixmap source(resource);
     if (source.isNull())
         return QIcon();
 
-    const QPixmap scaled =
-        source.scaled(iconSize, iconSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    QPixmap centered(iconSize, iconSize);
+    const int canvasSize = qMax(source.width(), source.height());
+    QPixmap centered(canvasSize, canvasSize);
     centered.fill(Qt::transparent);
     QPainter centerPainter(&centered);
-    centerPainter.drawPixmap((iconSize - scaled.width()) / 2, (iconSize - scaled.height()) / 2, scaled);
+    centerPainter.drawPixmap((canvasSize - source.width()) / 2,
+                             (canvasSize - source.height()) / 2,
+                             source);
     centerPainter.end();
 
     const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
