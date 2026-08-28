@@ -633,7 +633,7 @@ Qt::ItemFlags AddressTableModel::flags(const QModelIndex &index) const
     Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     // Can edit address and label for sending addresses,
     // and only label for receiving addresses.
-    if(rec->type == AddressTableEntry::Sending ||
+    if((rec->type == AddressTableEntry::Sending && rec->addressType != SparkName) ||
       (rec->type == AddressTableEntry::Receiving && index.column()==Label))
     {
         retval |= Qt::ItemIsEditable;
