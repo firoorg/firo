@@ -28,6 +28,7 @@
 
 #include <QFontMetrics>
 #include <QMessageBox>
+#include <QResizeEvent>
 #include <QScrollBar>
 #include <QSettings>
 #include <QTextDocument>
