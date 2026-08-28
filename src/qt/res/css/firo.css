@@ -411,7 +411,6 @@ QHeaderView::section > .QLabel {
 }
 
 QHeaderView::section {
-    qproperty-alignment: left;
     min-height: 25px;
     outline: 0;
     border: 0px solid;
