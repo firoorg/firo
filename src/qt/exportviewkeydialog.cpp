@@ -8,13 +8,14 @@
 #include <QEvent>
 #include <QPushButton>
 #include <QTextEdit>
+#include <QTextOption>
 
 ExportViewKeyDialog::ExportViewKeyDialog(QWidget *parent, std::string sparkViewKeyStr) : QDialog(parent), ui(new Ui::ExportViewKeyDialog)
 {
     ui->setupUi(this);
-    QString text(QString::fromStdString(sparkViewKeyStr));
-    const int mid = text.size() / 2;
-    ui->key->setPlainText(text.left(mid) + QChar('\n') + text.mid(mid));
+    ui->key->setLineWrapMode(QTextEdit::WidgetWidth);
+    ui->key->setWordWrapMode(QTextOption::WrapAnywhere);
+    ui->key->setPlainText(QString::fromStdString(sparkViewKeyStr));
     ui->key->setAlignment(Qt::AlignCenter);
     ui->key->viewport()->installEventFilter(this);
 
