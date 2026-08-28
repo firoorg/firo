@@ -283,6 +283,7 @@ void OverviewPage::applyOverviewRedesign()
         privateSplitProgress->setRange(0, 100);
         privateSplitProgress->setValue(0);
         privateSplitProgress->setTextVisible(false);
+        privateSplitProgress->setInvertedAppearance(true);
         privateSplitProgress->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         privateSplitProgress->setFixedHeight(14);
         ui->privateTransparentBarSegmentsLayout->addWidget(privateSplitProgress);
