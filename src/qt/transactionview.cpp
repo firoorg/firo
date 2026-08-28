@@ -369,7 +369,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     QTableView *view = new QTableView(this);
     transactionView = view;
 
-    transactionView->setVerticalScrollMode(QAbstractItemView::ScrollPerItem);
+    transactionView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     transactionView->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     transactionView->setShowGrid(false);
     transactionView->setAlternatingRowColors(false);
