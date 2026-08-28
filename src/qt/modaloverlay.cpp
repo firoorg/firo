@@ -8,7 +8,7 @@
 #include "guitheme.h"
 #include "guiutil.h"
 
-#include "chainparams.h"
+#include "primitives/block.h"
 
 #include <QResizeEvent>
 #include <QFrame>
@@ -21,6 +21,18 @@
 #include <QScrollArea>
 #include <QStyle>
 #include <QVBoxLayout>
+
+namespace {
+
+int targetBlockSpacing(int height, const QDateTime& date)
+{
+    CBlockHeader header;
+    header.nHeight = height;
+    header.nTime = static_cast<uint32_t>(date.toSecsSinceEpoch());
+    return qMax(1, header.GetTargetBlocksSpacing());
+}
+
+}
 
 ModalOverlay::ModalOverlay(QWidget *parent) :
 QWidget(parent),
@@ -252,8 +264,9 @@ void ModalOverlay::setKnownBestHeight(int count, const QDateTime& blockDate)
     if (count > bestHeaderHeight) {
         bestHeaderHeight = count;
         bestHeaderDate = blockDate;
-        const qint64 estimatedHeadersLeft = qMax<qint64>(0, blockDate.secsTo(QDateTime::currentDateTime())) /
-                                            Params().GetConsensus().nPowTargetSpacing;
+        const QDateTime currentDate = QDateTime::currentDateTime();
+        const qint64 estimatedHeadersLeft = qMax<qint64>(0, blockDate.secsTo(currentDate)) /
+                                            targetBlockSpacing(count, currentDate);
         headerSyncPending = estimatedHeadersLeft >= HEADER_HEIGHT_DELTA_SYNC;
     }
 }
@@ -263,9 +276,10 @@ double ModalOverlay::headerSyncProgress() const
     if (bestHeaderHeight <= 0 || !bestHeaderDate.isValid())
         return 0.0;
 
-    const qint64 secondsBehind = qMax<qint64>(0, bestHeaderDate.secsTo(QDateTime::currentDateTime()));
+    const QDateTime currentDate = QDateTime::currentDateTime();
+    const qint64 secondsBehind = qMax<qint64>(0, bestHeaderDate.secsTo(currentDate));
     const double estimatedHeadersLeft = static_cast<double>(secondsBehind) /
-                                        Params().GetConsensus().nPowTargetSpacing;
+                                        targetBlockSpacing(bestHeaderHeight, currentDate);
     return qBound(0.0, bestHeaderHeight / (bestHeaderHeight + estimatedHeadersLeft), 1.0);
 }
 
@@ -320,9 +334,10 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
         // not syncing
         return;
 
-    // estimate the number of headers left based on nPowTargetSpacing
+    // estimate the number of headers left based on the active target spacing
     // and check if the gui is not aware of the the best header (happens rarely)
-    int estimateNumHeadersLeft = bestHeaderDate.secsTo(currentDate) / Params().GetConsensus().nPowTargetSpacing;
+    int estimateNumHeadersLeft = bestHeaderDate.secsTo(currentDate) /
+                                 targetBlockSpacing(bestHeaderHeight, currentDate);
     bool hasBestHeader = bestHeaderHeight >= count;
 
     // show remaining number of blocks
