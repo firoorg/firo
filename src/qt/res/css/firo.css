@@ -852,28 +852,6 @@ QTextEdit {
 }
 
 
-/* QToolBar / QToolButton */
-
-QToolBar {
-    border: none;
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    spacing: 0;
-    min-height: 2em;
-    background-color: #f4f4f4;
-    font: 12pt 'Source Sans Pro';
-}
-
-QToolBar QLabel#lblToolbarLogo {
-    padding: 2px;
-    image: url(':/images/firo_logo_toolbar');
-    height: 2em;
-    min-height: 1em;
-    background-color: #f4f4f4;
-    min-width: 120px;
-}
-
 QToolButton#qt_toolbar_ext_button {
     min-width: -1px;
     min-height: -1px;
