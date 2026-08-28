@@ -17,6 +17,7 @@
 #include <QLocale>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPixmapCache>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QTimer>
@@ -55,9 +56,19 @@ QPainterPath sparklePath(const QPointF& center, qreal outerR, qreal innerR)
     return star;
 }
 
-QPixmap sparkNameGlyph(int size = 36)
+QPixmap sparkNameGlyph(int size, qreal devicePixelRatio)
 {
-    QPixmap pm(size, size);
+    const qreal dpr = qMax<qreal>(1.0, devicePixelRatio);
+    const QString cacheKey = QStringLiteral("spark-name-glyph:%1:%2:%3")
+                                 .arg(size)
+                                 .arg(dpr, 0, 'f', 2)
+                                 .arg(GUIUtil::isDarkMode());
+    QPixmap pm;
+    if (QPixmapCache::find(cacheKey, &pm))
+        return pm;
+
+    pm = QPixmap(qRound(size * dpr), qRound(size * dpr));
+    pm.setDevicePixelRatio(dpr);
     pm.fill(Qt::transparent);
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QPainter p(&pm);
@@ -93,6 +104,7 @@ QPixmap sparkNameGlyph(int size = 36)
     p.setPen(QColor("#FFFFFF"));
     p.drawText(badgeRect, Qt::AlignCenter, QStringLiteral("@"));
 
+    QPixmapCache::insert(cacheKey, pm);
     return pm;
 }
 
@@ -364,7 +376,7 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     auto* icon = new QLabel(frame);
     icon->setObjectName(QStringLiteral("cardIcon"));
     icon->setFixedSize(36, 36);
-    icon->setPixmap(sparkNameGlyph());
+    icon->setPixmap(sparkNameGlyph(36, icon->devicePixelRatioF()));
     icon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     header->addWidget(icon, 0, Qt::AlignVCenter);
 
@@ -595,7 +607,7 @@ QFrame#sparkNameCard QToolButton#cardActionButton:hover {
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
-        emptyIcon_->setPixmap(sparkNameGlyph(48));
+        emptyIcon_->setPixmap(sparkNameGlyph(48, emptyIcon_->devicePixelRatioF()));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
