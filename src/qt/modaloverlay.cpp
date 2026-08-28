@@ -216,12 +216,32 @@ ModalOverlay::~ModalOverlay()
 
 void ModalOverlay::setSyncComplete(bool complete)
 {
-    if (ui->progressBar->property("synced").toBool() == complete)
-        return;
-
-    ui->progressBar->setProperty("synced", complete);
-    ui->progressBar->style()->unpolish(ui->progressBar);
-    ui->progressBar->style()->polish(ui->progressBar);
+    if (ui->progressBar->property("synced").toBool() != complete) {
+        ui->progressBar->setProperty("synced", complete);
+        ui->progressBar->style()->unpolish(ui->progressBar);
+        ui->progressBar->style()->polish(ui->progressBar);
+        ui->warningIcon->setVisible(!complete);
+        ui->titleLabel->setText(complete
+            ? tr("Wallet is synchronized")
+            : tr("Wallet is still syncing"));
+        ui->infoText->setText(complete
+            ? tr("The wallet is up to date with the Firo network.")
+            : tr("Recent transactions may not yet be visible, and your balance might be incorrect until the wallet finishes synchronizing with the Firo network."));
+        if (!complete) {
+            ui->progressIncreasePerH->setText(QStringLiteral("—"));
+            ui->expectedTimeLeft->setText(tr("Unknown..."));
+            blockProcessTime.clear();
+        }
+    }
+    if (complete) {
+        ui->percentageProgress->setText(QStringLiteral("100.00%"));
+        ui->progressBar->setValue(100);
+        ui->numberOfBlocksLeft->setText(QStringLiteral("0"));
+        ui->progressIncreasePerH->setText(QStringLiteral("—"));
+        ui->expectedTimeLeft->setText(tr("Complete"));
+        blockProcessTime.clear();
+        headerSyncPending = false;
+    }
 }
 
 bool ModalOverlay::eventFilter(QObject * obj, QEvent * ev) {
