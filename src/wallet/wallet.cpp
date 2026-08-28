@@ -2955,6 +2955,13 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain(false);
+            // Do not offer conflicted outputs or unconfirmed outputs absent from
+            // both local pools, unless InstantSend makes them trusted.
+            if (nDepth < 0 ||
+                (!fOnlyConfirmed && nDepth == 0 && !pcoin->InMempool() && !pcoin->InStempool() &&
+                 !pcoin->IsLockedByLLMQInstantSend()))
+                continue;
+
             // do not use IX for inputs that have less then nInstantSendConfirmationsRequired blockchain confirmations
             if (fUseInstantSend && nDepth < nInstantSendConfirmationsRequired)
                 continue;
