@@ -39,7 +39,9 @@ void ManualMintDialog::applyTheme()
         " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 8px;"
         " padding: 4px 8px; color: $INK;"
         "}"
-        "QSpinBox:focus { border: 1px solid $WINE; }")));
+        "QSpinBox:focus { border: 1px solid $WINE; }"
+        "QSpinBox QLineEdit { %1 }"))
+        .arg(GUIUtil::spinBoxInnerLineEditReset()));
     ui->availableAmount->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     ui->totalAmount->setStyleSheet(GUIUtil::themed(QStringLiteral(

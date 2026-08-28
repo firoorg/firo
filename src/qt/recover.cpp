@@ -105,6 +105,7 @@ void Recover::applyTheme()
         QDialog#Recover QSpinBox:disabled {
             color: $INK_FAINT;
         }
+        QDialog#Recover QAbstractSpinBox QLineEdit { %1 }
         QDialog#Recover QRadioButton,
         QDialog#Recover QCheckBox {
             background: transparent;
@@ -126,7 +127,7 @@ void Recover::applyTheme()
         QDialog#Recover QCheckBox::indicator:checked {
             image: url(:/images/checkbox_checked_$ASSET_THEME);
         }
-    )")));
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
 
     const QString primaryStyle = GUIUtil::primaryButtonStyle();
     const QString secondaryStyle = GUIUtil::secondaryButtonStyle();
