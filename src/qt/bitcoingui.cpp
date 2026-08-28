@@ -603,6 +603,8 @@ public:
         setCursor(Qt::PointingHandCursor);
         setFixedSize(40, 22);
         setToolTip(QCoreApplication::translate("BitcoinGUI", "Toggle light / dark theme"));
+        setAccessibleName(QCoreApplication::translate("BitcoinGUI", "Light or dark theme"));
+        setFocusPolicy(Qt::StrongFocus);
 
         animation_ = new QPropertyAnimation(this, "thumbPos", this);
         animation_->setDuration(180);

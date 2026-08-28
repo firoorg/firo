@@ -278,9 +278,13 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     pillify(watchOnlyWidget);
     watchOnlyWidget->setFixedWidth(48);
     watchOnlyWidget->setToolTip(tr("Filter by watch-only involvement"));
+    watchOnlyWidget->setAccessibleName(tr("Watch-only filter"));
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_plus"), "", TransactionFilterProxy::WatchOnlyFilter_Yes);
     watchOnlyWidget->addItem(platformStyle->SingleColorIcon(":/icons/eye_minus"), "", TransactionFilterProxy::WatchOnlyFilter_No);
+    watchOnlyWidget->setItemData(0, tr("All transactions"), Qt::AccessibleTextRole);
+    watchOnlyWidget->setItemData(1, tr("Watch-only transactions"), Qt::AccessibleTextRole);
+    watchOnlyWidget->setItemData(2, tr("Non-watch-only transactions"), Qt::AccessibleTextRole);
     headerLayout->addWidget(watchOnlyWidget, 0, 0);
 
     instantsendWidget = new QComboBox(this);
