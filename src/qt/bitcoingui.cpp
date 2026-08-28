@@ -1071,6 +1071,7 @@ void BitcoinGUI::applyNavigationTheme()
                 background: $PANEL_SOFT;
                 border-color: $INK_FAINT;
             }
+            QToolButton#navigationDrawerToggle:focus { border-color: $WINE; }
             QToolButton#navigationDrawerToggle:pressed {
                 background: $BORDER;
             }
