@@ -55,6 +55,7 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
             color: $INK;
         }
         QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus { border: 1px solid $WINE; }
+        QLineEdit[invalidInput="true"] { border-color: $ERROR; }
         QCheckBox { color: $INK_SOFT; }
         QPushButton {
             color: $INK;
