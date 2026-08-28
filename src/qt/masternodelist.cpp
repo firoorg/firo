@@ -65,9 +65,11 @@ QString masternodeText(const char* sourceText)
     return QCoreApplication::translate("MasternodeList", sourceText);
 }
 
-QPixmap masternodeGlyph()
+QPixmap masternodeGlyph(qreal devicePixelRatio)
 {
-    QPixmap pm(36, 36);
+    const qreal dpr = qMax<qreal>(1.0, devicePixelRatio);
+    QPixmap pm(qRound(36 * dpr), qRound(36 * dpr));
+    pm.setDevicePixelRatio(dpr);
     pm.fill(Qt::transparent);
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QPainter p(&pm);
@@ -134,7 +136,8 @@ public:
         painter->setBrush(QColor(selected ? tc.panelSoft : tc.panel));
         painter->drawRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
 
-        painter->drawPixmap(QRect(card.left() + 14, card.top() + 12, 36, 36), glyph());
+        const qreal dpr = option.widget ? option.widget->devicePixelRatioF() : 1.0;
+        painter->drawPixmap(QRect(card.left() + 14, card.top() + 12, 36, 36), glyph(dpr));
 
         const QString service = index.data(ServiceRole).toString();
         const QString status = index.data(StatusRole).toString();
@@ -277,18 +280,20 @@ public:
     }
 
 private:
-    const QPixmap& glyph() const
+    const QPixmap& glyph(qreal dpr) const
     {
         const bool dark = GUIUtil::isDarkMode();
-        if (glyph_.isNull() || glyphDark_ != dark) {
-            glyph_ = masternodeGlyph();
+        if (glyph_.isNull() || glyphDark_ != dark || !qFuzzyCompare(glyphDpr_, dpr)) {
+            glyph_ = masternodeGlyph(dpr);
             glyphDark_ = dark;
+            glyphDpr_ = dpr;
         }
         return glyph_;
     }
 
     mutable QPixmap glyph_;
     mutable bool glyphDark_{false};
+    mutable qreal glyphDpr_{0.0};
 };
 
 }
