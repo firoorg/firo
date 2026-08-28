@@ -659,6 +659,12 @@ protected:
         const qreal x = xOff + (xOn - xOff) * thumbPos_;
         p.setBrush(QColor("#FFFFFF"));
         p.drawEllipse(QRectF(x, track.top() + 3, d, d));
+
+        if (hasFocus()) {
+            p.setBrush(Qt::NoBrush);
+            p.setPen(QPen(QColor(c.wine), 2));
+            p.drawRoundedRect(track.adjusted(1, 1, -1, -1), track.height() / 2, track.height() / 2);
+        }
     }
 
 private:
@@ -827,6 +833,7 @@ void BitcoinGUI::createToolBars()
         navigationToggleButton->setCursor(Qt::PointingHandCursor);
         navigationToggleButton->setFixedSize(NAVIGATION_TOGGLE_WIDTH, 46);
         navigationToggleButton->setToolTip(tr("Hide navigation"));
+        navigationToggleButton->setAccessibleName(tr("Hide navigation"));
         connect(navigationToggleButton, &QToolButton::clicked,
                 this, &BitcoinGUI::toggleNavigationSidebar);
 
@@ -1275,8 +1282,10 @@ void BitcoinGUI::toggleNavigationSidebar()
     navigationSidebarExpanded = !navigationSidebarExpanded;
     navigationToggleButton->setArrowType(
         navigationSidebarExpanded ? Qt::LeftArrow : Qt::RightArrow);
-    navigationToggleButton->setToolTip(
-        navigationSidebarExpanded ? tr("Hide navigation") : tr("Show navigation"));
+    const QString toggleDescription =
+        navigationSidebarExpanded ? tr("Hide navigation") : tr("Show navigation");
+    navigationToggleButton->setToolTip(toggleDescription);
+    navigationToggleButton->setAccessibleName(toggleDescription);
 
     const QRect drawerEnd(
         navigationSidebarExpanded ? 0 : -NAVIGATION_SIDEBAR_WIDTH,
