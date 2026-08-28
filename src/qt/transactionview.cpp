@@ -653,6 +653,7 @@ void TransactionView::applyTheme()
         emptyDescription_->setStyleSheet(GUIUtil::themed("color: $INK_SOFT; font-size: 12px;"));
     }
 
+    updateCalendarWidgets();
     if (transactionView && transactionView->viewport())
         transactionView->viewport()->update();
 }
@@ -1212,7 +1213,7 @@ void TransactionView::updateCalendarWidgets()
 {
     auto adjustWeekEndColors = [](QCalendarWidget* w) {
         QTextCharFormat format = w->weekdayTextFormat(Qt::Saturday);
-        format.setForeground(QBrush(QColor(61,57,57), Qt::SolidPattern));
+        format.setForeground(QBrush(QColor(GUIUtil::themeColors().inkSoft), Qt::SolidPattern));
 
         w->setWeekdayTextFormat(Qt::Saturday, format);
         w->setWeekdayTextFormat(Qt::Sunday, format);
