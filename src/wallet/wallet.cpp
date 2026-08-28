@@ -1152,6 +1152,16 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
     bool fInsertedNew = ret.second;
     if (fInsertedNew)
     {
+        // A previously known spender can gain debit when its missing parent arrives.
+        TxSpends::const_iterator iter = mapTxSpends.lower_bound(COutPoint(hash, 0));
+        while (iter != mapTxSpends.end() && iter->first.hash == hash) {
+            std::map<uint256, CWalletTx>::iterator mi = mapWallet.find(iter->second);
+            if (mi != mapWallet.end()) {
+                mi->second.MarkDirty();
+            }
+            ++iter;
+        }
+
         wtx.nTimeReceived = GetAdjustedTime();
         wtx.nOrderPos = IncOrderPosNext(&walletdb);
         wtxOrdered.insert(make_pair(wtx.nOrderPos, TxPair(&wtx, (CAccountingEntry*)0)));

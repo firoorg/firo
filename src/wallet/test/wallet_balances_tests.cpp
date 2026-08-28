@@ -188,6 +188,35 @@ BOOST_AUTO_TEST_CASE(add_to_wallet_invalidates_input_credit)
     CheckBalances(9 * COIN, 0, 0, 9 * COIN);
 }
 
+BOOST_AUTO_TEST_CASE(add_to_wallet_parent_invalidates_spender_debit)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CMutableTransaction parent;
+    parent.vin.resize(1);
+    parent.vin[0].prevout = ForeignOutPoint(1);
+    parent.vout.resize(1);
+    parent.vout[0] = CTxOut(10 * COIN, walletScript);
+
+    CMutableTransaction child;
+    child.vin.resize(1);
+    child.vin[0].prevout = COutPoint(parent.GetHash(), 0);
+    child.vout.resize(1);
+    child.vout[0] = CTxOut(9 * COIN, walletScript);
+    const CWalletTx& childWtx = AddTx(child, false);
+    AddToMempool(child);
+
+    CheckBalances(0, 9 * COIN, 0, 0);
+    BOOST_REQUIRE(childWtx.fDebitCached);
+    BOOST_CHECK_EQUAL(childWtx.nDebitCached, 0);
+
+    AddTx(parent, true);
+
+    BOOST_CHECK(!childWtx.fDebitCached);
+    BOOST_CHECK_EQUAL(childWtx.GetDebit(ISMINE_SPENDABLE), 10 * COIN);
+    CheckBalances(9 * COIN, 0, 0, 9 * COIN);
+}
+
 BOOST_AUTO_TEST_CASE(add_to_wallet_update_invalidates_input_credit)
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
