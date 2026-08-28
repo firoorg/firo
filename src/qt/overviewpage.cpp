@@ -32,6 +32,7 @@
 #include <algorithm>
 
 #include <QAbstractItemDelegate>
+#include <QAbstractItemView>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -209,9 +210,12 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     ui->listTransactions->setItemDelegate(txdelegate);
     ui->listTransactions->setIconSize(QSize(ACTIVITY_ICON_SIZE, ACTIVITY_ICON_SIZE));
     ui->listTransactions->setMinimumHeight(NUM_ITEMS * (ACTIVITY_CARD_HEIGHT + 10));
+    ui->listTransactions->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
+    ui->listTransactions->setAccessibleName(tr("Recent transactions"));
 
     connect(ui->listTransactions, &QListView::clicked, this, &OverviewPage::handleTransactionClicked);
+    connect(ui->listTransactions, &QListView::activated, this, &OverviewPage::handleTransactionClicked);
 
     applyOverviewRedesign();
 
