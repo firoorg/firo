@@ -6,6 +6,7 @@
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
+import os
 import urllib.parse
 
 class AbandonConflictTest(BitcoinTestFramework):
@@ -71,11 +72,10 @@ class AbandonConflictTest(BitcoinTestFramework):
         assert_equal(newbalance, balance - Decimal("30") + Decimal("24.9996"))
         balance = newbalance
 
-        # Restart the node with a higher min relay fee so the parent tx is no longer in mempool
-        # TODO: redo with eviction
-        # Note had to make sure tx did not have AllowFree priority
+        # Discard the persisted mempool and disable wallet reacceptance.
         stop_node(self.nodes[0],0)
-        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-minrelaytxfee=0.0001"])
+        os.remove(log_filename(self.options.tmpdir, 0, "mempool.dat"))
+        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-walletbroadcast=0"])
 
         # Verify txs no longer in mempool
         assert_equal(len(self.nodes[0].getrawmempool()), 0)
@@ -119,9 +119,10 @@ class AbandonConflictTest(BitcoinTestFramework):
         assert_equal(newbalance, balance - Decimal("10") - Decimal("14.99998") + Decimal("24.9996"))
         balance = newbalance
 
-        # Remove using high relay fee again
+        # Remove from the mempool the same way again.
         stop_node(self.nodes[0],0)
-        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-minrelaytxfee=0.0001"])
+        os.remove(log_filename(self.options.tmpdir, 0, "mempool.dat"))
+        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-walletbroadcast=0"])
         assert_equal(len(self.nodes[0].getrawmempool()), 0)
         newbalance = self.nodes[0].getbalance()
         assert_equal(newbalance, balance - Decimal("24.9996"))
