@@ -211,12 +211,12 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     connect(ui->listTransactions, &QListView::clicked, this, &OverviewPage::handleTransactionClicked);
 
+    applyOverviewRedesign();
+
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
     connect(ui->labelWalletStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
-
-    applyOverviewRedesign();
 }
 
 void OverviewPage::addShadow(QWidget *w, int blurRadius, int yOffset, int alpha)
@@ -948,6 +948,10 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+    emptyTitle_->setText(fShow ? tr("Wallet is still syncing") : tr("No transactions yet"));
+    emptyHint_->setText(fShow
+        ? tr("Transactions will appear here as synchronization completes")
+        : tr("Your history will appear here after the first transfer"));
     updateActivityEmptyState();
 }
 
