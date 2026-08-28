@@ -883,6 +883,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
         filter->setShowInactive(false);
         filter->sort(TransactionTableModel::Date, Qt::DescendingOrder);
 
+        // The row delegate paints status metadata in the address column.
+        connect(filter.get(), &QAbstractItemModel::dataChanged, this, [this] {
+            ui->listTransactions->viewport()->update();
+        });
+
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 

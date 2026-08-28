@@ -299,14 +299,12 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
 
 void TransactionTableModel::updateConfirmations()
 {
-    // Blocks came in since last poll.
-    // Invalidate status (number of confirmations) and (possibly) description
-    //  for all rows. Qt is smart enough to only actually request the data for the
-    //  visible rows.
+    // Status roles can affect filters and sorting, so invalidate every row.
+    // Keep the range off the default Date sort column; card views repaint their
+    // visible rows when this signal reaches their proxy.
     if (priv->size() > 0) {
         const int last = priv->size() - 1;
         Q_EMIT dataChanged(index(0, Status), index(last, InstantSend));
-        Q_EMIT dataChanged(index(0, ToAddress), index(last, Amount));
     }
 
     // Process any cached transactions that couldn't be processed due to lock contention
