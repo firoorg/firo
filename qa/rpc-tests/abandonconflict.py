@@ -6,6 +6,7 @@
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
+import os
 import urllib.parse
 
 class AbandonConflictTest(BitcoinTestFramework):
@@ -71,11 +72,10 @@ class AbandonConflictTest(BitcoinTestFramework):
         assert_equal(newbalance, balance - Decimal("30") + Decimal("24.9996"))
         balance = newbalance
 
-        # Restart the node with a higher min relay fee so the parent tx is no longer in mempool
-        # TODO: redo with eviction
-        # Note had to make sure tx did not have AllowFree priority
+        # Discard the persisted mempool and disable wallet reacceptance.
         stop_node(self.nodes[0],0)
-        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-minrelaytxfee=0.0001"])
+        os.remove(log_filename(self.options.tmpdir, 0, "mempool.dat"))
+        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-walletbroadcast=0"])
 
         # Verify txs no longer in mempool
         assert_equal(len(self.nodes[0].getrawmempool()), 0)
@@ -119,9 +119,10 @@ class AbandonConflictTest(BitcoinTestFramework):
         assert_equal(newbalance, balance - Decimal("10") - Decimal("14.99998") + Decimal("24.9996"))
         balance = newbalance
 
-        # Remove using high relay fee again
+        # Remove from the mempool the same way again.
         stop_node(self.nodes[0],0)
-        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-minrelaytxfee=0.0001"])
+        os.remove(log_filename(self.options.tmpdir, 0, "mempool.dat"))
+        self.nodes[0]=start_node(0, self.options.tmpdir, ["-debug","-logtimemicros","-walletbroadcast=0"])
         assert_equal(len(self.nodes[0].getrawmempool()), 0)
         newbalance = self.nodes[0].getbalance()
         assert_equal(newbalance, balance - Decimal("24.9996"))
@@ -146,15 +147,16 @@ class AbandonConflictTest(BitcoinTestFramework):
         assert_equal(newbalance, balance + Decimal("20"))
         balance = newbalance
 
-        # There is currently a minor bug around this and so this test doesn't work.  See Issue #7315
-        # Invalidate the block with the double spend and B's 10 BTC output should no longer be available
-        # Don't think C's should either
-        self.nodes[0].invalidateblock(self.nodes[0].getbestblockhash())
+        # Invalidate the block with the double spend. AB1 and its child are no longer
+        # conflicted, so B's and C's 10 BTC outputs are spent by them again.
+        conflict_block = self.nodes[0].getbestblockhash()
+        self.nodes[0].invalidateblock(conflict_block)
         newbalance = self.nodes[0].getbalance()
-        #assert_equal(newbalance, balance - Decimal("10"))
-        print("If balance has not declined after invalidateblock then out of mempool wallet tx which is no longer")
-        print("conflicted has not resumed causing its inputs to be seen as spent.  See Issue #7315")
-        print(str(balance) + " -> " + str(newbalance) + " ?")
+        assert_equal(newbalance, balance - Decimal("20"))
+
+        # Reconnecting the same conflict must release both outputs again.
+        self.nodes[0].reconsiderblock(conflict_block)
+        assert_equal(self.nodes[0].getbalance(), balance)
 
 if __name__ == '__main__':
     AbandonConflictTest().main()
