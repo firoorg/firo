@@ -1397,6 +1397,11 @@ QWidget#ReceiveCoinsDialog .QFrame#frame .QLabel#label_6 {
     min-width: 0px;
 }
 
+QWidget#ReceiveCoinsDialog QPushButton,
+QDialog#ReceiveRequestDialog QPushButton {
+    min-width: 0px;
+}
+
 ReceiveCoinsDialog#label_6 {
     font-weight: bold;
 }
