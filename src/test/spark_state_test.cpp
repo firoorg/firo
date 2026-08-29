@@ -1,11 +1,18 @@
 #include "../chainparams.h"
+#include "../hash.h"
 #include "../spark/state.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "fixtures.h"
 #include "test_bitcoin.h"
 
+#include <climits>
+#include <map>
+
 #include <boost/test/unit_test.hpp>
+
+extern CCriticalSection cs_args;
+extern std::map<std::string, std::string> mapArgs;
 
 namespace std
 {
@@ -28,6 +35,34 @@ static std::vector<unsigned char> random_char_vector() {
 
     return result;
 }
+
+class ScopedMobileMode
+{
+public:
+    ScopedMobileMode()
+    {
+        LOCK(cs_args);
+        const auto it = mapArgs.find("-mobile");
+        if (it != mapArgs.end()) {
+            wasSet = true;
+            previous = it->second;
+        }
+        mapArgs["-mobile"] = "1";
+    }
+
+    ~ScopedMobileMode()
+    {
+        LOCK(cs_args);
+        if (wasSet)
+            mapArgs["-mobile"] = previous;
+        else
+            mapArgs.erase("-mobile");
+    }
+
+private:
+    bool wasSet{false};
+    std::string previous;
+};
 
 class SparkStateTests : public SparkTestingSetup
 {
@@ -147,6 +182,317 @@ BOOST_AUTO_TEST_CASE(add_mints_to_state)
 
     sparkState->Reset();
     mempool.clear();
+}
+
+BOOST_AUTO_TEST_CASE(mobile_missing_mint_context_is_ignored)
+{
+    GenerateBlocks(500);
+
+    std::vector<CMutableTransaction> txs;
+    const auto mintMetas = GenerateMints({1 * COIN}, txs);
+    BOOST_REQUIRE_EQUAL(mintMetas.size(), 1U);
+    const auto mintMeta = mintMetas.front();
+    const auto mint = pwalletMain->sparkWallet->getCoinFromMeta(mintMeta);
+    CBlockIndex *index = GenerateBlock({});
+    BOOST_REQUIRE(index != nullptr);
+    CBlock block = GetCBlock(index);
+    PopulateSparkTxInfo(block, {mint}, {});
+
+    ScopedMobileMode mobileMode;
+    sparkState->AddMintsToStateAndBlockIndex(index, &block);
+
+    BOOST_CHECK(sparkState->HasCoin(mint));
+    BOOST_CHECK(index->privacyData().sparkTxHashContext.empty());
+    mempool.clear();
+}
+
+BOOST_AUTO_TEST_CASE(reconnect_clears_derived_privacy_data)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    sparkNameManager->Reset();
+
+    CBlockIndex *index = GenerateBlock({});
+    BOOST_REQUIRE(index != nullptr);
+    CBlock block = GetCBlock(index);
+    PopulateSparkTxInfo(block, {}, {});
+
+    {
+        GroupElement group;
+        group.randomize();
+        auto& pd = index->ensurePrivacyData();
+        pd.sparkMintedCoins[1] = {};
+        pd.spentLTags[group] = 1;
+        pd.sparkSetHash[1] = {1};
+        pd.sparkTxHashContext[group] = {uint256S("01"), {1}};
+        pd.ltagTxhash[uint256S("02")] = uint256S("03");
+        pd.addedSparkNames["added"] =
+            CSparkNameBlockIndexData("added", "address", 1, "");
+        pd.removedSparkNames["removed"] =
+            CSparkNameBlockIndexData("removed", "address", 1, "");
+        pd.activeDisablingSporks.emplace(
+            "feature", std::make_pair(10, 20));
+    }
+
+    CValidationState state;
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(state, Params(), index, &block, true));
+    {
+        const auto& checked = index->privacyData();
+        BOOST_CHECK_EQUAL(checked.sparkMintedCoins.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.spentLTags.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.sparkSetHash.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.sparkTxHashContext.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.ltagTxhash.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.addedSparkNames.size(), 1U);
+        BOOST_CHECK_EQUAL(checked.removedSparkNames.size(), 1U);
+    }
+
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(state, Params(), index, &block, false));
+
+    BOOST_REQUIRE(index->hasPrivacyData());
+    const auto& rebuilt = index->privacyData();
+    BOOST_CHECK(rebuilt.sparkMintedCoins.empty());
+    BOOST_CHECK(rebuilt.spentLTags.empty());
+    BOOST_CHECK(rebuilt.sparkSetHash.empty());
+    BOOST_CHECK(rebuilt.sparkTxHashContext.empty());
+    BOOST_CHECK(rebuilt.ltagTxhash.empty());
+    BOOST_CHECK(rebuilt.addedSparkNames.empty());
+    BOOST_CHECK_EQUAL(rebuilt.removedSparkNames.size(), 1U);
+    BOOST_CHECK(
+        rebuilt.removedSparkNames.find("removed") !=
+        rebuilt.removedSparkNames.end());
+    BOOST_CHECK_EQUAL(rebuilt.activeDisablingSporks.size(), 1U);
+
+    // Removed names are undo data. A replay against already-applied name state
+    // cannot rediscover an expiry entry, but a later disconnect must restore it.
+    std::string restoredAddress;
+    BOOST_CHECK(sparkNameManager->RemoveBlock(index));
+    BOOST_CHECK(
+        sparkNameManager->GetSparkAddress("removed", restoredAddress));
+    BOOST_CHECK_EQUAL(restoredAddress, "address");
+    sparkNameManager->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(reconnect_preserves_spark_name_transfer_undo)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    struct ResetSparkNames {
+        CSparkNameManager* manager;
+
+        ~ResetSparkNames()
+        {
+            manager->Reset();
+        }
+    } resetSparkNames{sparkNameManager};
+    sparkNameManager->Reset();
+
+    const int height = Params().GetConsensus().nSparkNamesV21StartBlock;
+    BOOST_REQUIRE(height != INT_MAX);
+
+    const std::string name = "reconnect-transfer";
+    const std::string nameKey = CSparkNameManager::ToUpper(name);
+    const std::string oldAddress = "old-address";
+    const std::string newAddress = "new-address";
+    const uint32_t oldExpiration =
+        static_cast<uint32_t>(height + 100);
+    const uint64_t transferredExpiration = oldExpiration + 50;
+    BOOST_REQUIRE(sparkNameManager->AddSparkName(
+        name, oldAddress, oldExpiration, "original"));
+
+    CSparkNameTxData transfer;
+    transfer.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    transfer.operationType =
+        static_cast<uint8_t>(CSparkNameTxData::opTransfer);
+    transfer.name = name;
+    transfer.oldSparkAddress = oldAddress;
+    transfer.sparkAddress = newAddress;
+    transfer.sparkNameValidityBlocks = 50;
+    transfer.additionalInfo = "transferred";
+
+    CBlock block;
+    PopulateSparkTxInfo(block, {}, {});
+    block.sparkTxInfo->sparkNames.emplace(nameKey, transfer);
+
+    CBlockIndex index;
+    index.nHeight = height;
+    CValidationState connectState;
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(
+            connectState, Params(), &index, &block, false));
+
+    std::string resolved;
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, newAddress);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name),
+        transferredExpiration);
+
+    CValidationState reconnectState;
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(
+            reconnectState, Params(), &index, &block, false));
+
+    const auto& data = index.privacyData();
+    const auto removed = data.removedSparkNames.find(nameKey);
+    const auto added = data.addedSparkNames.find(nameKey);
+    BOOST_REQUIRE(removed != data.removedSparkNames.end());
+    BOOST_REQUIRE(added != data.addedSparkNames.end());
+    BOOST_CHECK_EQUAL(removed->second.sparkAddress, oldAddress);
+    BOOST_CHECK_EQUAL(
+        removed->second.sparkNameValidityHeight, oldExpiration);
+    BOOST_CHECK_EQUAL(removed->second.additionalInfo, "original");
+    BOOST_CHECK_EQUAL(added->second.sparkAddress, newAddress);
+    BOOST_CHECK_EQUAL(
+        added->second.sparkNameValidityHeight, transferredExpiration);
+    BOOST_CHECK_EQUAL(added->second.additionalInfo, "transferred");
+
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, newAddress);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name),
+        transferredExpiration);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameAdditionalData(name), "transferred");
+    BOOST_CHECK(!sparkNameManager->GetSparkNameByAddress(oldAddress, resolved));
+    BOOST_CHECK(sparkNameManager->GetSparkNameByAddress(newAddress, resolved));
+
+    BOOST_REQUIRE(sparkNameManager->RemoveBlock(&index));
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, oldAddress);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name), oldExpiration);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameAdditionalData(name), "original");
+    std::string reverseName;
+    BOOST_REQUIRE(
+        sparkNameManager->GetSparkNameByAddress(oldAddress, reverseName));
+    BOOST_CHECK_EQUAL(reverseName, name);
+    BOOST_CHECK(
+        !sparkNameManager->GetSparkNameByAddress(newAddress, reverseName));
+}
+
+BOOST_AUTO_TEST_CASE(reconnect_does_not_create_registration_undo)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    struct ResetSparkNames {
+        CSparkNameManager* manager;
+
+        ~ResetSparkNames()
+        {
+            manager->Reset();
+        }
+    } resetSparkNames{sparkNameManager};
+    sparkNameManager->Reset();
+
+    const int height = Params().GetConsensus().nSparkNamesV21StartBlock;
+    BOOST_REQUIRE(height != INT_MAX);
+
+    const std::string name = "reconnect-registration";
+    const std::string nameKey = CSparkNameManager::ToUpper(name);
+    const std::string address = "registered-address";
+
+    CSparkNameTxData registration;
+    registration.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    registration.operationType =
+        static_cast<uint8_t>(CSparkNameTxData::opRegister);
+    registration.name = name;
+    registration.sparkAddress = address;
+    registration.sparkNameValidityBlocks = 50;
+    registration.additionalInfo = "registered";
+
+    CBlock block;
+    PopulateSparkTxInfo(block, {}, {});
+    block.sparkTxInfo->sparkNames.emplace(nameKey, registration);
+
+    CBlockIndex index;
+    index.nHeight = height;
+    CValidationState connectState;
+    BOOST_REQUIRE(spark::ConnectBlockSpark(
+        connectState, Params(), &index, &block, false));
+    CValidationState reconnectState;
+    BOOST_REQUIRE(spark::ConnectBlockSpark(
+        reconnectState, Params(), &index, &block, false));
+
+    std::string resolved;
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, address);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name), height + 50);
+    BOOST_CHECK(index.privacyData().removedSparkNames.empty());
+
+    BOOST_REQUIRE(sparkNameManager->RemoveBlock(&index));
+    BOOST_CHECK(!sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK(!sparkNameManager->GetSparkNameByAddress(address, resolved));
+}
+
+BOOST_AUTO_TEST_CASE(invalid_previous_set_hash_is_not_hashed)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    struct ResetState {
+        spark::CSparkState* sparkState;
+        CSparkNameManager* sparkNameManager;
+
+        ~ResetState()
+        {
+            sparkState->Reset();
+            sparkNameManager->Reset();
+        }
+    } resetState{sparkState, sparkNameManager};
+
+    const int h2Height = Params().GetConsensus().nSparkChaumV2StartBlock;
+    BOOST_REQUIRE(h2Height != INT_MAX);
+
+    const std::vector<std::vector<unsigned char>> previousHashes{{}, {1}};
+    for (const auto& previousHash : previousHashes) {
+        sparkState->Reset();
+        sparkNameManager->Reset();
+
+        const spark::Coin seedMint =
+            CreateCoin(spark::COIN_TYPE_MINT, COIN);
+        CBlockIndex seedIndex;
+        seedIndex.nHeight = h2Height - 1;
+        {
+            auto& seedData = seedIndex.ensurePrivacyData();
+            seedData.sparkMintedCoins[2] = {seedMint};
+            if (!previousHash.empty())
+                seedData.sparkSetHash[2] = previousHash;
+        }
+        sparkState->AddBlock(&seedIndex);
+        BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
+
+        const spark::Coin mint =
+            CreateCoin(spark::COIN_TYPE_MINT, 2 * COIN);
+        CBlock block;
+        PopulateSparkTxInfo(block, {mint}, {});
+        CBlockIndex index;
+        index.pprev = &seedIndex;
+        index.nHeight = h2Height;
+
+        CValidationState state;
+        BOOST_REQUIRE(
+            spark::ConnectBlockSpark(
+                state, Params(), &index, &block, false));
+
+        CDataStream encoded(SER_NETWORK, 0);
+        encoded << mint;
+        const std::vector<unsigned char> bytes(
+            encoded.begin(), encoded.end());
+        CHash256 hasher;
+        hasher.Write(bytes.data(), bytes.size());
+        unsigned char expectedBytes[CSHA256::OUTPUT_SIZE];
+        hasher.Finalize(expectedBytes);
+        const std::vector<unsigned char> expected(
+            expectedBytes, expectedBytes + CSHA256::OUTPUT_SIZE);
+
+        const auto& setHashes = index.privacyData().sparkSetHash;
+        const auto setHash = setHashes.find(2);
+        BOOST_REQUIRE(setHash != setHashes.end());
+        BOOST_CHECK(setHash->second == expected);
+
+        sparkState->Reset();
+        sparkNameManager->Reset();
+    }
 }
 
 BOOST_AUTO_TEST_CASE(lTag_adding)
@@ -403,7 +749,8 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_legacy_disconnect)
     sparkState->AddMintsToStateAndBlockIndex(&duplicateIndex, &duplicateBlock);
 
     BOOST_REQUIRE_EQUAL(sparkState->GetTotalCoins(), 1U);
-    BOOST_REQUIRE_EQUAL(duplicateIndex.sparkMintedCoins.at(1).size(), 2U);
+    BOOST_REQUIRE_EQUAL(
+        duplicateIndex.privacyData().sparkMintedCoins.at(1).size(), 2U);
 
     sparkState->RemoveBlock(&duplicateIndex);
 
@@ -434,10 +781,13 @@ BOOST_AUTO_TEST_CASE(duplicate_mint_legacy_disconnect)
 
     // A later duplicate can also be indexed in a different anonymity-set
     // group. Disconnecting that group must still preserve the earlier mint.
-    firstIndex.sparkMintedCoins.clear();
-    duplicateIndex.sparkMintedCoins.clear();
-    firstIndex.sparkMintedCoins[1].push_back(mint);
-    duplicateIndex.sparkMintedCoins[2].push_back(mint);
+    auto& firstMints = firstIndex.ensurePrivacyData().sparkMintedCoins;
+    auto& duplicateMints =
+        duplicateIndex.ensurePrivacyData().sparkMintedCoins;
+    firstMints.clear();
+    duplicateMints.clear();
+    firstMints[1].push_back(mint);
+    duplicateMints[2].push_back(mint);
     sparkState->AddBlock(&firstIndex);
     sparkState->AddBlock(&duplicateIndex);
     BOOST_REQUIRE_EQUAL(sparkState->GetLatestCoinID(), 2);
@@ -501,7 +851,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto index3 = GenerateBlock({});
     auto block3 = GetCBlock(index3);
     PopulateSparkTxInfo(block3, {}, {{lTag1, 1}, {lTag2, 1}});
-    index3->spentLTags = block3.sparkTxInfo->spentLTags;
+    index3->ensurePrivacyData().spentLTags = block3.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index3);
 
@@ -518,7 +868,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     auto block4 = GetCBlock(index4);
     PopulateSparkTxInfo(block4, {pwalletMain->sparkWallet->getCoinFromMeta(mint3)}, {{lTag3, 1}});
     sparkState->AddMintsToStateAndBlockIndex(index4, &block4);
-    index4->spentLTags = block4.sparkTxInfo->spentLTags;
+    index4->ensurePrivacyData().spentLTags = block4.sparkTxInfo->spentLTags;
 
     sparkState->AddBlock(index4);
 
@@ -570,7 +920,9 @@ BOOST_AUTO_TEST_CASE(remove_block_preserves_legacy_duplicate_mint)
 
         BOOST_REQUIRE_EQUAL(state.GetTotalCoins(), 1U);
         BOOST_REQUIRE_EQUAL(
-            duplicateIndex.sparkMintedCoins.at(duplicateGroupId).size(), 1U);
+            duplicateIndex.privacyData().sparkMintedCoins
+                .at(duplicateGroupId).size(),
+            1U);
 
         state.RemoveBlock(&duplicateIndex);
         BOOST_CHECK(
@@ -624,7 +976,7 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     auto sparkState = new spark::CSparkState(maxSize, startCoin);
 
     auto addMintsToState = [&](CBlockIndex* index, CBlock const& block) {
-        index->sparkMintedCoins.clear();
+        if (index->hasPrivacyData()) index->ensurePrivacyData().sparkMintedCoins.clear();
         sparkState->AddMintsToStateAndBlockIndex(index, &block);
     };
 
@@ -760,6 +1112,43 @@ BOOST_AUTO_TEST_CASE(get_coin_group)
     sparkState->RemoveBlock(indexes[5]);
     verifyGroup(2, 6, indexes[2], indexes[4]);
     verifyGroup(1, 6, indexes[0], indexes[2], 1);
+
+    sparkState->Reset();
+}
+
+// Blocks carrying no privacy transactions must not allocate CBlockIndexPrivacyData.
+// The block index keeps every entry alive for the lifetime of the process, so a
+// stray unconditional ensurePrivacyData() on the connect path costs hundreds of
+// megabytes over a full chain.
+//
+// The chain is generated past nSparkStartBlock and into the evo spork range so
+// that the spark and spork connect paths are actually exercised; below those
+// heights only the sigma/lelantus paths run and the check is nearly vacuous.
+// nSparkNamesStartBlock is far too high to reach in a unit test, so the spark
+// name path is not covered here.
+BOOST_AUTO_TEST_CASE(no_privacy_data_for_empty_blocks)
+{
+    const Consensus::Params &consensus = ::Params().GetConsensus();
+
+    // one block past the start of the evo spork range, which is the last of the
+    // protocol activations this test can reach
+    const int targetHeight = consensus.nEvoSporkStartBlock + 1;
+    BOOST_REQUIRE(targetHeight > consensus.nSparkStartBlock);
+    BOOST_REQUIRE(targetHeight < consensus.nEvoSporkStopBlock);
+
+    std::vector<int> allocatedAt;
+    while (chainActive.Height() < targetHeight) {
+        CBlockIndex *index = GenerateBlock({});
+        BOOST_REQUIRE(index != nullptr);
+        if (index->hasPrivacyData())
+            allocatedAt.push_back(index->nHeight);
+    }
+
+    // report the offending heights rather than just a count, so a regression
+    // points straight at the activation that started allocating
+    BOOST_CHECK_MESSAGE(allocatedAt.empty(),
+        "privacy data allocated for " << allocatedAt.size() << " empty block(s), first at height "
+        << (allocatedAt.empty() ? 0 : allocatedAt.front()));
 
     sparkState->Reset();
 }

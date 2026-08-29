@@ -1,12 +1,18 @@
 #include "txdb.h"
 #include "uint256.h"
 #include "random.h"
+#include "pow.h"
 #include "test/test_bitcoin.h"
 #include "base58.h"
+
+#include <map>
+#include <memory>
 
 #include <boost/assert.hpp>
 #include <boost/test/unit_test.hpp>
 
+extern CCriticalSection cs_args;
+extern std::map<std::string, std::string> mapArgs;
 
 struct TxdbTestingSetup : public TestingSetup
 {
@@ -22,6 +28,34 @@ BOOST_FIXTURE_TEST_SUITE(txdb_tests, TxdbTestingSetup)
 
 namespace
 {
+class ScopedMobileMode
+{
+public:
+    ScopedMobileMode()
+    {
+        LOCK(cs_args);
+        const auto it = mapArgs.find("-mobile");
+        if (it != mapArgs.end()) {
+            wasSet = true;
+            previous = it->second;
+        }
+        mapArgs["-mobile"] = "1";
+    }
+
+    ~ScopedMobileMode()
+    {
+        LOCK(cs_args);
+        if (wasSet)
+            mapArgs["-mobile"] = previous;
+        else
+            mapArgs.erase("-mobile");
+    }
+
+private:
+    bool wasSet{false};
+    std::string previous;
+};
+
 CTransaction TxFromStr(std::string const & str)
 {
     CDataStream stream(ParseHex(str), SER_NETWORK, PROTOCOL_VERSION);
@@ -35,6 +69,218 @@ void AddTxToView(CTransaction const & tx, int height, CCoinsViewCache & viewCach
     for (size_t i=0; i<tx.vout.size(); i++)
         viewCache.AddCoin(COutPoint(tx.GetHash(), i), Coin(tx.vout[i], height, tx.IsCoinBase()), false);
 }
+}
+
+BOOST_AUTO_TEST_CASE(block_index_copy_deep_copies_privacy_data)
+{
+    CBlockIndex original;
+    original.nHeight = 42;
+    original.reserved[0] = uint256S("01");
+    original.ensurePrivacyData().sparkSetHash[1] = {1, 2, 3};
+
+    CBlockIndex copy(original);
+    original.nHeight = 43;
+    original.reserved[0] = uint256S("02");
+    original.ensurePrivacyData().sparkSetHash[1][0] = 9;
+
+    BOOST_CHECK_EQUAL(copy.nHeight, 42);
+    BOOST_CHECK(copy.reserved[0] == uint256S("01"));
+    BOOST_REQUIRE_EQUAL(copy.privacyData().sparkSetHash.at(1).size(), 3U);
+    BOOST_CHECK_EQUAL(copy.privacyData().sparkSetHash.at(1)[0], 1);
+}
+
+BOOST_AUTO_TEST_CASE(active_sporks_preserve_lazy_privacy_ownership)
+{
+    ActiveSporkMap activeSporks;
+    activeSporks.emplace("feature", std::make_pair(10, 20));
+
+    CBlockIndex index;
+    index.SetActiveDisablingSporks(activeSporks);
+    BOOST_REQUIRE(index.hasPrivacyData());
+
+    index.SetActiveDisablingSporks({});
+    BOOST_CHECK(!index.hasPrivacyData());
+
+    index.ensurePrivacyData().sparkSetHash[1] = {1};
+    index.SetActiveDisablingSporks(activeSporks);
+    index.SetActiveDisablingSporks({});
+
+    BOOST_REQUIRE(index.hasPrivacyData());
+    BOOST_CHECK(index.privacyData().activeDisablingSporks.empty());
+    BOOST_CHECK_EQUAL(index.privacyData().sparkSetHash.at(1).size(), 1U);
+}
+
+BOOST_AUTO_TEST_CASE(disk_only_privacy_data_roundtrip_without_live_allocation)
+{
+    const auto& consensus = Params().GetConsensus();
+    // At the stop height, the evo-spork payload is no longer serialized.
+    const int legacyHeight = consensus.nEvoSporkStopBlock;
+    BOOST_REQUIRE(legacyHeight >= consensus.nLelantusFixesStartBlock);
+    BOOST_REQUIRE(legacyHeight < consensus.nSparkStartBlock);
+    BOOST_REQUIRE(legacyHeight < consensus.nSparkNamesStartBlock);
+
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 1;
+    header.nBits = UintToArith256(consensus.powLimit).GetCompact();
+    while (!CheckProofOfWork(header.GetHash(), header.nBits, consensus))
+        ++header.nNonce;
+
+    const uint256 blockHash = header.GetHash();
+    CBlockIndex liveIndex(header);
+    liveIndex.phashBlock = &blockHash;
+    liveIndex.nHeight = legacyHeight;
+
+    CDiskBlockIndex original(&liveIndex);
+    original.mintedPubCoins[{1, 2}].push_back(CBigNum(11));
+    original.sigmaMintedPubCoins[{sigma::CoinDenomination::SIGMA_DENOM_1, 3}] = {};
+    original.lelantusMintedPubCoins[4] = {};
+    original.anonymitySetHash[5] = {6, 7, 8};
+
+    CDataStream encoded(SER_DISK, CLIENT_VERSION);
+    encoded << original;
+
+    CDiskBlockIndex decoded;
+    encoded >> decoded;
+
+    BOOST_CHECK(!decoded.hasPrivacyData());
+    BOOST_CHECK_EQUAL(decoded.mintedPubCoins.size(), 1U);
+    BOOST_CHECK_EQUAL(decoded.sigmaMintedPubCoins.size(), 1U);
+    BOOST_CHECK_EQUAL(decoded.lelantusMintedPubCoins.size(), 1U);
+    BOOST_CHECK(decoded.anonymitySetHash.at(5) == std::vector<unsigned char>({6, 7, 8}));
+
+    CBlockTreeDB db(1 << 20, true, true);
+    BOOST_REQUIRE(db.Write(std::make_pair('b', blockHash), decoded));
+
+    std::map<uint256, std::unique_ptr<CBlockIndex>> loadedIndexes;
+    auto insertBlockIndex = [&loadedIndexes](const uint256& hash) -> CBlockIndex* {
+        if (hash.IsNull())
+            return nullptr;
+
+        auto& index = loadedIndexes[hash];
+        if (!index) {
+            index = std::make_unique<CBlockIndex>();
+            index->phashBlock = &loadedIndexes.find(hash)->first;
+        }
+        return index.get();
+    };
+
+    BOOST_REQUIRE(db.LoadBlockIndexGuts(insertBlockIndex));
+    BOOST_REQUIRE_EQUAL(loadedIndexes.size(), 1U);
+    BOOST_CHECK(!loadedIndexes.at(blockHash)->hasPrivacyData());
+}
+
+BOOST_AUTO_TEST_CASE(block_index_rewrite_preserves_disk_only_privacy_data)
+{
+    ScopedMobileMode mobileMode;
+
+    const auto& consensus = Params().GetConsensus();
+    const int legacyHeight = consensus.nEvoSporkStopBlock;
+    BOOST_REQUIRE(legacyHeight >= consensus.nLelantusFixesStartBlock);
+    BOOST_REQUIRE(legacyHeight < consensus.nLelantusGracefulPeriod);
+
+    CBlockHeader header;
+    header.nVersion = 1;
+    header.nTime = 1;
+    header.nBits = 1;
+    header.nNonce = 1;
+    const uint256 blockHash = header.GetHash();
+
+    CBlockIndex liveIndex(header);
+    liveIndex.phashBlock = &blockHash;
+    liveIndex.nHeight = legacyHeight;
+    liveIndex.nTx = 1;
+
+    const auto mintKey = std::make_pair(1, 2);
+    const auto accumulatorKey = std::make_pair(2, 3);
+    const auto sigmaMintKey =
+        std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_1, 4);
+    const Scalar sigmaSerial{uint64_t{14}};
+    const Scalar lelantusSerial{uint64_t{15}};
+    GroupElement lelantusMintKey;
+    lelantusMintKey.set_base_g();
+
+    lelantus::MintValueData mintData;
+    mintData.isJMint = true;
+    mintData.amount = 16;
+    mintData.encryptedValue = {17, 18};
+    mintData.txHash = uint256S("19");
+
+    CDiskBlockIndex storedIndex(&liveIndex);
+    storedIndex.mintedPubCoins[mintKey].push_back(CBigNum(11));
+    storedIndex.accumulatorChanges[accumulatorKey] =
+        std::make_pair(CBigNum(12), 13);
+    storedIndex.spentSerials.insert(CBigNum(14));
+    storedIndex.sigmaMintedPubCoins[sigmaMintKey] = {};
+    storedIndex.sigmaSpentSerials.emplace(
+        sigmaSerial,
+        sigma::CSpendCoinInfo{
+            sigma::CoinDenomination::SIGMA_DENOM_10, 15});
+    storedIndex.lelantusMintedPubCoins[4] = {};
+    storedIndex.lelantusMintData.emplace(lelantusMintKey, mintData);
+    storedIndex.anonymitySetHash[5] = {6, 7, 8};
+    storedIndex.lelantusSpentSerials.emplace(lelantusSerial, 20);
+    BOOST_REQUIRE(storedIndex.GetBlockHash() == blockHash);
+
+    CBlockTreeDB db(1 << 20, true, true);
+    const auto key = std::make_pair('b', blockHash);
+    BOOST_REQUIRE(db.Write(key, storedIndex));
+
+    liveIndex.nTx = 2;
+    BOOST_REQUIRE(db.WriteBatchSync({}, 0, {&liveIndex}));
+
+    CDiskBlockIndex rewrittenIndex;
+    BOOST_REQUIRE(db.Read(key, rewrittenIndex));
+    BOOST_CHECK_EQUAL(rewrittenIndex.nTx, 2U);
+
+    BOOST_REQUIRE_EQUAL(rewrittenIndex.mintedPubCoins.size(), 1U);
+    BOOST_REQUIRE_EQUAL(
+        rewrittenIndex.mintedPubCoins.at(mintKey).size(), 1U);
+    BOOST_CHECK(
+        rewrittenIndex.mintedPubCoins.at(mintKey).front() == CBigNum(11));
+
+    BOOST_REQUIRE_EQUAL(rewrittenIndex.accumulatorChanges.size(), 1U);
+    BOOST_CHECK(
+        rewrittenIndex.accumulatorChanges.at(accumulatorKey).first ==
+        CBigNum(12));
+    BOOST_CHECK_EQUAL(
+        rewrittenIndex.accumulatorChanges.at(accumulatorKey).second, 13);
+
+    BOOST_CHECK_EQUAL(rewrittenIndex.spentSerials.count(CBigNum(14)), 1U);
+
+    BOOST_REQUIRE_EQUAL(rewrittenIndex.sigmaMintedPubCoins.size(), 1U);
+    BOOST_CHECK(rewrittenIndex.sigmaMintedPubCoins.at(sigmaMintKey).empty());
+
+    BOOST_REQUIRE_EQUAL(
+        rewrittenIndex.sigmaSpentSerials.count(sigmaSerial), 1U);
+    BOOST_CHECK(
+        rewrittenIndex.sigmaSpentSerials.at(sigmaSerial).denomination ==
+        sigma::CoinDenomination::SIGMA_DENOM_10);
+    BOOST_CHECK_EQUAL(
+        rewrittenIndex.sigmaSpentSerials.at(sigmaSerial).coinGroupId, 15);
+
+    BOOST_REQUIRE_EQUAL(rewrittenIndex.lelantusMintedPubCoins.size(), 1U);
+    BOOST_CHECK(rewrittenIndex.lelantusMintedPubCoins.at(4).empty());
+
+    BOOST_REQUIRE_EQUAL(
+        rewrittenIndex.lelantusMintData.count(lelantusMintKey), 1U);
+    const auto& rewrittenMintData =
+        rewrittenIndex.lelantusMintData.at(lelantusMintKey);
+    BOOST_CHECK(rewrittenMintData.isJMint);
+    BOOST_CHECK_EQUAL(rewrittenMintData.amount, 16U);
+    BOOST_CHECK(
+        rewrittenMintData.encryptedValue ==
+        std::vector<unsigned char>({17, 18}));
+    BOOST_CHECK(rewrittenMintData.txHash == uint256S("19"));
+
+    BOOST_CHECK(
+        rewrittenIndex.anonymitySetHash.at(5) ==
+        std::vector<unsigned char>({6, 7, 8}));
+
+    BOOST_REQUIRE_EQUAL(
+        rewrittenIndex.lelantusSpentSerials.count(lelantusSerial), 1U);
+    BOOST_CHECK_EQUAL(
+        rewrittenIndex.lelantusSpentSerials.at(lelantusSerial), 20);
 }
 
 BOOST_AUTO_TEST_CASE(dbindexhelper_coinbase)

@@ -49,18 +49,26 @@ bool CSparkNameManager::AddBlock(
     bool notify)
 {
     LOCK(cs_spark_name);
-    for (const auto &entry : pindex->removedSparkNames) {
+    // Nothing to do when no privacy data was allocated: both name maps are empty.
+    // Returning early also lets us bind a mutable reference below without forcing
+    // an allocation, and guarantees ensurePrivacyData() cannot reallocate (and so
+    // invalidate that reference) while we are iterating through it.
+    if (!pindex->hasPrivacyData())
+        return true;
+
+    auto& pd = pindex->ensurePrivacyData();
+    for (const auto &entry : pd.removedSparkNames) {
         sparkNameAddresses.erase(entry.second.sparkAddress);
         sparkNames.erase(ToUpper(entry.first));
         if (notify)
             uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
-    for (const auto &entry : pindex->addedSparkNames) {
+    for (const auto &entry : pd.addedSparkNames) {
         std::string upperName = ToUpper(entry.first);
         auto it = sparkNames.find(upperName);
         if (it != sparkNames.end() && fBackupRewrittenEntries)
-            pindex->removedSparkNames[upperName] = it->second;
+            pd.removedSparkNames.emplace(upperName, it->second);
         sparkNames[upperName] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = upperName;
         if (notify)
@@ -73,14 +81,15 @@ bool CSparkNameManager::AddBlock(
 bool CSparkNameManager::RemoveBlock(CBlockIndex *pindex, bool notify)
 {
     LOCK(cs_spark_name);
-    for (const auto &entry : pindex->addedSparkNames) {
+    const auto& pd = pindex->privacyData();
+    for (const auto &entry : pd.addedSparkNames) {
         sparkNames.erase(ToUpper(entry.first));
         sparkNameAddresses.erase(entry.second.sparkAddress);
         if (notify)
             uiInterface.NotifySparkNameRemoved(entry.second);
     }
 
-    for (const auto &entry : pindex->removedSparkNames) {
+    for (const auto &entry : pd.removedSparkNames) {
         sparkNames[ToUpper(entry.first)] = entry.second;
         sparkNameAddresses[entry.second.sparkAddress] = ToUpper(entry.first);
         if (notify)
