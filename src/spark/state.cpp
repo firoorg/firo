@@ -507,6 +507,30 @@ bool ConnectBlockSpark(
             return true;
         }
 
+        // Complete per-block name data distinguishes a replayed registration
+        // from a renewal of the manager's current record.
+        bool fSparkNamesAlreadyIndexed =
+            !pblock->sparkTxInfo->sparkNames.empty() &&
+            pindexNew->hasPrivacyData();
+        if (fSparkNamesAlreadyIndexed) {
+            const auto& pd = pindexNew->privacyData();
+            for (const auto& sparkName : pblock->sparkTxInfo->sparkNames) {
+                const uint8_t opType = sparkName.second.nVersion >= 2 ?
+                    sparkName.second.operationType :
+                    static_cast<uint8_t>(CSparkNameTxData::opRegister);
+                const bool indexed =
+                    opType == CSparkNameTxData::opUnregister ?
+                        pd.removedSparkNames.find(sparkName.first) !=
+                            pd.removedSparkNames.end() :
+                        pd.addedSparkNames.find(sparkName.first) !=
+                            pd.addedSparkNames.end();
+                if (!indexed) {
+                    fSparkNamesAlreadyIndexed = false;
+                    break;
+                }
+            }
+        }
+
         // Reconnecting an existing index entry rebuilds transaction-derived
         // Spark metadata. Keep active sporks and removed Spark names: the
         // latter also contains expiry undo data that cannot be reconstructed
@@ -578,7 +602,19 @@ bool ConnectBlockSpark(
                     const auto& consensusParams = ::Params().GetConsensus();
                     if (pindexNew->nHeight >= consensusParams.nSparkNamesV21StartBlock) {
                         try {
-                            int existingExpirationHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
+                            // On replay, the manager can already contain post-block
+                            // state. Retained undo is the authoritative prior expiry.
+                            const auto& removedNames =
+                                pindexNew->privacyData().removedSparkNames;
+                            const auto removedName =
+                                removedNames.find(sparkName.first);
+                            int existingExpirationHeight = pindexNew->nHeight;
+                            if (removedName != removedNames.end())
+                                existingExpirationHeight =
+                                    removedName->second.sparkNameValidityHeight;
+                            else if (!fSparkNamesAlreadyIndexed)
+                                existingExpirationHeight =
+                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
                             int remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
                             if (remainingBlocks > 0)
                                 validityBlocks += remainingBlocks;
@@ -598,11 +634,20 @@ bool ConnectBlockSpark(
 
                         case CSparkNameTxData::opTransfer:
                             // old name data goes to removed list
-                            pindexNew->ensurePrivacyData().removedSparkNames[sparkName.first] =
-                                CSparkNameBlockIndexData(sparkName.second.name,
-                                    sparkName.second.oldSparkAddress,
-                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
-                                    sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
+                            {
+                                auto& removedNames =
+                                    pindexNew->ensurePrivacyData().removedSparkNames;
+                                if (removedNames.find(sparkName.first) ==
+                                    removedNames.end()) {
+                                    removedNames.emplace(
+                                        sparkName.first,
+                                        CSparkNameBlockIndexData(
+                                            sparkName.second.name,
+                                            sparkName.second.oldSparkAddress,
+                                            sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                            sparkNameManager->GetSparkNameAdditionalData(sparkName.first)));
+                                }
+                            }
 
                             pindexNew->ensurePrivacyData().addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
@@ -613,11 +658,20 @@ bool ConnectBlockSpark(
                             break;
 
                         case CSparkNameTxData::opUnregister:
-                            pindexNew->ensurePrivacyData().removedSparkNames[sparkName.first] =
-                                CSparkNameBlockIndexData(sparkName.second.name,
-                                    sparkName.second.sparkAddress,
-                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
-                                    sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
+                            {
+                                auto& removedNames =
+                                    pindexNew->ensurePrivacyData().removedSparkNames;
+                                if (removedNames.find(sparkName.first) ==
+                                    removedNames.end()) {
+                                    removedNames.emplace(
+                                        sparkName.first,
+                                        CSparkNameBlockIndexData(
+                                            sparkName.second.name,
+                                            sparkName.second.sparkAddress,
+                                            sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                            sparkNameManager->GetSparkNameAdditionalData(sparkName.first)));
+                                }
+                            }
                             break;
 
                         default:
@@ -632,7 +686,7 @@ bool ConnectBlockSpark(
             }
 
             // names were added, backup rewritten names if necessary
-            fBackupRewrittenSparkNames = true;
+            fBackupRewrittenSparkNames = !fSparkNamesAlreadyIndexed;
         }
 
         // generate hash if we need it
@@ -652,7 +706,7 @@ bool ConnectBlockSpark(
 
     auto removedNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
     for (const auto &name: removedNames)
-        pindexNew->ensurePrivacyData().removedSparkNames[name.first] = name.second;
+        pindexNew->ensurePrivacyData().removedSparkNames.emplace(name.first, name.second);
     
     sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
 

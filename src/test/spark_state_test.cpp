@@ -274,6 +274,158 @@ BOOST_AUTO_TEST_CASE(reconnect_clears_derived_privacy_data)
     sparkNameManager->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(reconnect_preserves_spark_name_transfer_undo)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    struct ResetSparkNames {
+        CSparkNameManager* manager;
+
+        ~ResetSparkNames()
+        {
+            manager->Reset();
+        }
+    } resetSparkNames{sparkNameManager};
+    sparkNameManager->Reset();
+
+    const int height = Params().GetConsensus().nSparkNamesV21StartBlock;
+    BOOST_REQUIRE(height != INT_MAX);
+
+    const std::string name = "reconnect-transfer";
+    const std::string nameKey = CSparkNameManager::ToUpper(name);
+    const std::string oldAddress = "old-address";
+    const std::string newAddress = "new-address";
+    const uint32_t oldExpiration =
+        static_cast<uint32_t>(height + 100);
+    const uint64_t transferredExpiration = oldExpiration + 50;
+    BOOST_REQUIRE(sparkNameManager->AddSparkName(
+        name, oldAddress, oldExpiration, "original"));
+
+    CSparkNameTxData transfer;
+    transfer.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    transfer.operationType =
+        static_cast<uint8_t>(CSparkNameTxData::opTransfer);
+    transfer.name = name;
+    transfer.oldSparkAddress = oldAddress;
+    transfer.sparkAddress = newAddress;
+    transfer.sparkNameValidityBlocks = 50;
+    transfer.additionalInfo = "transferred";
+
+    CBlock block;
+    PopulateSparkTxInfo(block, {}, {});
+    block.sparkTxInfo->sparkNames.emplace(nameKey, transfer);
+
+    CBlockIndex index;
+    index.nHeight = height;
+    CValidationState connectState;
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(
+            connectState, Params(), &index, &block, false));
+
+    std::string resolved;
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, newAddress);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name),
+        transferredExpiration);
+
+    CValidationState reconnectState;
+    BOOST_REQUIRE(
+        spark::ConnectBlockSpark(
+            reconnectState, Params(), &index, &block, false));
+
+    const auto& data = index.privacyData();
+    const auto removed = data.removedSparkNames.find(nameKey);
+    const auto added = data.addedSparkNames.find(nameKey);
+    BOOST_REQUIRE(removed != data.removedSparkNames.end());
+    BOOST_REQUIRE(added != data.addedSparkNames.end());
+    BOOST_CHECK_EQUAL(removed->second.sparkAddress, oldAddress);
+    BOOST_CHECK_EQUAL(
+        removed->second.sparkNameValidityHeight, oldExpiration);
+    BOOST_CHECK_EQUAL(removed->second.additionalInfo, "original");
+    BOOST_CHECK_EQUAL(added->second.sparkAddress, newAddress);
+    BOOST_CHECK_EQUAL(
+        added->second.sparkNameValidityHeight, transferredExpiration);
+    BOOST_CHECK_EQUAL(added->second.additionalInfo, "transferred");
+
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, newAddress);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name),
+        transferredExpiration);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameAdditionalData(name), "transferred");
+    BOOST_CHECK(!sparkNameManager->GetSparkNameByAddress(oldAddress, resolved));
+    BOOST_CHECK(sparkNameManager->GetSparkNameByAddress(newAddress, resolved));
+
+    BOOST_REQUIRE(sparkNameManager->RemoveBlock(&index));
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, oldAddress);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name), oldExpiration);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameAdditionalData(name), "original");
+    std::string reverseName;
+    BOOST_REQUIRE(
+        sparkNameManager->GetSparkNameByAddress(oldAddress, reverseName));
+    BOOST_CHECK_EQUAL(reverseName, name);
+    BOOST_CHECK(
+        !sparkNameManager->GetSparkNameByAddress(newAddress, reverseName));
+}
+
+BOOST_AUTO_TEST_CASE(reconnect_does_not_create_registration_undo)
+{
+    auto* sparkNameManager = CSparkNameManager::GetInstance();
+    struct ResetSparkNames {
+        CSparkNameManager* manager;
+
+        ~ResetSparkNames()
+        {
+            manager->Reset();
+        }
+    } resetSparkNames{sparkNameManager};
+    sparkNameManager->Reset();
+
+    const int height = Params().GetConsensus().nSparkNamesV21StartBlock;
+    BOOST_REQUIRE(height != INT_MAX);
+
+    const std::string name = "reconnect-registration";
+    const std::string nameKey = CSparkNameManager::ToUpper(name);
+    const std::string address = "registered-address";
+
+    CSparkNameTxData registration;
+    registration.nVersion = CSparkNameTxData::CURRENT_VERSION;
+    registration.operationType =
+        static_cast<uint8_t>(CSparkNameTxData::opRegister);
+    registration.name = name;
+    registration.sparkAddress = address;
+    registration.sparkNameValidityBlocks = 50;
+    registration.additionalInfo = "registered";
+
+    CBlock block;
+    PopulateSparkTxInfo(block, {}, {});
+    block.sparkTxInfo->sparkNames.emplace(nameKey, registration);
+
+    CBlockIndex index;
+    index.nHeight = height;
+    CValidationState connectState;
+    BOOST_REQUIRE(spark::ConnectBlockSpark(
+        connectState, Params(), &index, &block, false));
+    CValidationState reconnectState;
+    BOOST_REQUIRE(spark::ConnectBlockSpark(
+        reconnectState, Params(), &index, &block, false));
+
+    std::string resolved;
+    BOOST_REQUIRE(sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK_EQUAL(resolved, address);
+    BOOST_CHECK_EQUAL(
+        sparkNameManager->GetSparkNameBlockHeight(name), height + 50);
+    BOOST_CHECK(index.privacyData().removedSparkNames.empty());
+
+    BOOST_REQUIRE(sparkNameManager->RemoveBlock(&index));
+    BOOST_CHECK(!sparkNameManager->GetSparkAddress(name, resolved));
+    BOOST_CHECK(!sparkNameManager->GetSparkNameByAddress(address, resolved));
+}
+
 BOOST_AUTO_TEST_CASE(invalid_previous_set_hash_is_not_hashed)
 {
     auto* sparkNameManager = CSparkNameManager::GetInstance();
