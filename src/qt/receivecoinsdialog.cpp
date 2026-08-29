@@ -218,12 +218,6 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui->addressTypeCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeCombobox->addItem(tr("Transparent"), Transparent);
 
-    if(ui->addressTypeCombobox->currentData().toInt() == Spark){
-        ui->reuseAddress->hide();
-    } else {
-        ui->reuseAddress->show();
-    }
-
     ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
     ui->addressTypeHistoryCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeHistoryCombobox->addItem(tr("Transparent"), Transparent);
@@ -506,14 +500,22 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
     QString label = ui->reqLabel->text();
     QString addressType = ui->addressTypeCombobox->currentText();
     const int selectedAddressType = ui->addressTypeCombobox->currentData().toInt();
-    if(ui->reuseAddress->isChecked() && selectedAddressType == Transparent)
+    if(ui->reuseAddress->isChecked())
     {
         /* Choose existing receiving address */
         AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
+        if (selectedAddressType == Spark)
+            dlg.setInitialAddressType(AddressBookPage::Spark);
         dlg.setModel(model->getAddressTableModel());
         if(dlg.exec())
         {
             address = dlg.getReturnValue();
+            if (selectedAddressType == Spark && !model->isSparkAddressMine(address)) {
+                QMessageBox::critical(
+                    this, tr("Error"),
+                    tr("The selected Spark address does not belong to this wallet."));
+                return;
+            }
             if(label.isEmpty()) /* If no label provided, use the previously used label */
             {
                 label = model->getAddressTableModel()->labelForAddress(address);
@@ -704,7 +706,17 @@ void ReceiveCoinsDialog::copyAmount()
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
     const bool sparkSelected = idx >= 0 && ui->addressTypeCombobox->itemData(idx).toInt() == Spark;
-    ui->reuseAddress->setVisible(!sparkSelected);
+    ui->reuseAddress->setChecked(false);
+    ui->reuseAddress->setVisible(true);
+    if (sparkSelected) {
+        ui->reuseAddress->setText(tr("&Use an existing Spark address"));
+        ui->reuseAddress->setToolTip(tr(
+            "Spark addresses can safely receive multiple payments, although sharing one address can link those requests."));
+    } else {
+        ui->reuseAddress->setText(tr("R&euse an existing transparent address (not recommended)"));
+        ui->reuseAddress->setToolTip(tr(
+            "Reusing transparent addresses has security and privacy risks. Only use this to recreate an earlier payment request."));
+    }
     ui->sparkNameActions->setVisible(sparkSelected);
 }
 
@@ -726,7 +738,7 @@ void ReceiveCoinsDialog::mySparkNames()
 
     AddressBookPage dialog(
         platformStyle, AddressBookPage::ForSelection,
-        AddressBookPage::ReceivingTab, this, false);
+        AddressBookPage::ReceivingTab, this);
     dialog.setInitialAddressType(AddressBookPage::SparkNameMine);
     dialog.setModel(model->getAddressTableModel());
     if (!dialog.exec())
@@ -738,6 +750,7 @@ void ReceiveCoinsDialog::mySparkNames()
     if (!label.startsWith(QLatin1Char('@')))
         label.prepend(QLatin1Char('@'));
 
+    ui->reuseAddress->setChecked(false);
     ui->reqLabel->setText(label);
 }
 

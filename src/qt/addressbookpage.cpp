@@ -267,8 +267,12 @@ void AddressBookPage::populateAddressTypes(bool sparkAllowed)
             ui->addressType->addItem(tr("My own spark names"), SparkNameMine);
         }
     } else {
-        ui->addressType->addItem(tr(""), Transparent);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
+        if (sparkAllowed && initialAddressType == Spark)
+            ui->addressType->addItem(tr("Spark"), Spark);
+        else if (sparkAllowed && initialAddressType == SparkNameMine)
+            ui->addressType->addItem(tr("My own spark names"), SparkNameMine);
+        else
+            ui->addressType->addItem(tr("Transparent"), Transparent);
         ui->addressType->hide();
     }
 }
@@ -618,6 +622,12 @@ void AddressBookPage::chooseAddressType(int idx)
         return;
 
     const int selectedType = ui->addressType->itemData(idx).toInt();
+
+    if (tab == ReceivingTab) {
+        ui->labelExplanation->setText(selectedType == Transparent
+            ? tr("These are your Firo addresses for receiving payments. It is recommended to use a new receiving address for each transaction.")
+            : tr("Spark addresses can safely receive multiple payments, although reusing one can link those requests."));
+    }
 
     if (isSparkNameType(selectedType)) {
         model->ProcessPendingSparkNameChanges();
