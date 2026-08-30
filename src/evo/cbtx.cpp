@@ -227,7 +227,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                 llmq::CFinalCommitment qc;
                 uint256 minedBlockHash;
                 bool found = llmq::quorumBlockProcessor->GetMinedCommitment(p.first, p2->GetBlockHash(), qc, minedBlockHash);
-                assert(found);
+                if (!found) return state.DoS(100, false, REJECT_INVALID, "commitment-not-found");
                 v.emplace_back(::SerializeHash(qc));
                 hashCount++;
             }
@@ -247,7 +247,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
         if (tx->nVersion == 3 && tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
             llmq::CFinalCommitmentTxPayload qc;
             if (!GetTxPayload(*tx, qc)) {
-                assert(false);
+                return state.DoS(100, false, REJECT_INVALID, "bad-qc-payload");
             }
             if (qc.commitment.IsNull()) {
                 continue;
@@ -260,7 +260,9 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
             }
             v.emplace_back(qcHash);
             hashCount++;
-            assert(cmp::less_equal(v.size(), params.signingActiveQuorumCount));
+            if (cmp::greater(v.size(), params.signingActiveQuorumCount)) {
+                return state.DoS(100, false, REJECT_INVALID, "excess-quorums");
+            }
         }
     }
 
