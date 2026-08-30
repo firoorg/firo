@@ -726,6 +726,10 @@ CBLSPublicKey CBLSWorker::BuildPubKeyShare(const BLSVerificationVectorPtr& vvec,
 void CBLSWorker::AsyncVerifyContributionShares(const CBLSId& forId, const std::vector<BLSVerificationVectorPtr>& vvecs, const BLSSecretKeyVector& skShares,
                                                bool parallel, bool aggregated, std::function<void(const std::vector<bool>&)> doneCallback)
 {
+    if (vvecs.empty()) {
+        doneCallback(std::vector<bool>{});
+        return;
+    }
     if (!forId.IsValid() || !VerifyVerificationVectors(vvecs)) {
         std::vector<bool> result;
         result.assign(vvecs.size(), false);
