@@ -830,6 +830,50 @@ void CWallet::AddToSpends(const uint256& wtxid)
     }
 }
 
+void CWallet::RemoveFromWallet(const uint256& hash)
+{
+    AssertLockHeld(cs_main);
+    AssertLockHeld(cs_wallet);
+
+    auto walletIt = mapWallet.find(hash);
+    if (walletIt == mapWallet.end())
+        return;
+
+    CWalletTx& wtx = walletIt->second;
+
+    for (auto it = wtxOrdered.begin(); it != wtxOrdered.end();) {
+        if (it->second.first == &wtx)
+            it = wtxOrdered.erase(it);
+        else
+            ++it;
+    }
+
+    for (auto it = mapTxSpends.begin(); it != mapTxSpends.end();) {
+        if (it->second == hash)
+            it = mapTxSpends.erase(it);
+        else
+            ++it;
+    }
+
+    if (!wtx.IsCoinBase() && !wtx.tx->HasNoRegularInputs()) {
+        for (const CTxIn& txin : wtx.tx->vin) {
+            auto parentIt = mapWallet.find(txin.prevout.hash);
+            if (parentIt == mapWallet.end() || txin.prevout.n >= parentIt->second.tx->vout.size())
+                continue;
+
+            if (IsMine(parentIt->second.tx->vout[txin.prevout.n], *parentIt->second.tx) &&
+                !IsSpent(txin.prevout.hash, txin.prevout.n)) {
+                setWalletUTXO.insert(txin.prevout);
+            }
+        }
+    }
+
+    for (size_t i = 0; i < wtx.tx->vout.size(); ++i)
+        setWalletUTXO.erase(COutPoint(hash, i));
+
+    mapWallet.erase(walletIt);
+}
+
 bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
 {
     if (IsCrypted())
@@ -3899,11 +3943,15 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CCon
 bool CWallet::EraseFromWallet(uint256 hash) {
     if (!fFileBacked)
         return false;
-    {
-        LOCK(cs_wallet);
-        if (mapWallet.erase(hash))
-            CWalletDB(strWalletFile).EraseTx(hash);
-    }
+
+    LOCK2(cs_main, cs_wallet);
+    if (!mapWallet.count(hash))
+        return true;
+    if (!CWalletDB(strWalletFile).EraseTx(hash))
+        return false;
+
+    RemoveFromWallet(hash);
+    MarkDirty();
     return true;
 }
 
@@ -4213,7 +4261,20 @@ DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256
 {
     if (!fFileBacked)
         return DB_LOAD_OK;
-    DBErrors nZapSelectTxRet = CWalletDB(strWalletFile,"cr+").ZapSelectTx(this, vHashIn, vHashOut);
+
+    std::vector<uint256> deleted;
+    DBErrors nZapSelectTxRet;
+    {
+        LOCK2(cs_main, cs_wallet);
+        nZapSelectTxRet = CWalletDB(strWalletFile,"cr+").ZapSelectTx(this, vHashIn, deleted);
+        if (nZapSelectTxRet == DB_LOAD_OK) {
+            for (const uint256& hash : deleted)
+                RemoveFromWallet(hash);
+            if (!deleted.empty())
+                MarkDirty();
+        }
+    }
+
     if (nZapSelectTxRet == DB_NEED_REWRITE)
     {
         if (CDB::Rewrite(strWalletFile, "\x04pool"))
@@ -4230,7 +4291,7 @@ DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256
     if (nZapSelectTxRet != DB_LOAD_OK)
         return nZapSelectTxRet;
 
-    MarkDirty();
+    vHashOut.insert(vHashOut.end(), deleted.begin(), deleted.end());
 
     return DB_LOAD_OK;
 
