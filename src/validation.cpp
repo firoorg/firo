@@ -3988,11 +3988,12 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                 for (unsigned int i = 0; i < block.vtx.size(); i++)
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
-            BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-            batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
-            if (!VerifyPendingSparkBatch(state, "connecting new tip"))
-                return false;
         }
+
+        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+        batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
+        if (!VerifyPendingSparkBatch(state, "connecting new tip"))
+            return false;
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
