@@ -13,10 +13,16 @@
 #include "univalue.h"
 #include "unordered_lru_cache.h"
 
+#include <functional>
 #include <unordered_map>
 
 namespace llmq
 {
+
+static constexpr size_t MAX_PENDING_RECSIGS_PER_NODE{1000};
+static constexpr size_t MAX_PENDING_RECSIGS_TOTAL{10000};
+
+struct CSigningManagerTestAccess;
 
 class CRecoveredSig
 {
@@ -111,6 +117,7 @@ public:
 class CSigningManager
 {
     friend class CSigSharesManager;
+    friend struct CSigningManagerTestAccess;
     static const int64_t DEFAULT_MAX_RECOVERED_SIGS_AGE = 60 * 60 * 24 * 7; // keep them for a week
 
     // when selecting a quorum for signing and verification, we use CQuorumManager::SelectQuorum with this offset as
@@ -125,6 +132,8 @@ private:
 
     // Incoming and not verified yet
     std::unordered_map<NodeId, std::list<CRecoveredSig>> pendingRecoveredSigs;
+    // Running total across pendingRecoveredSigs, protected by cs.
+    size_t pendingRecoveredSigsCount{0};
     std::list<std::pair<CRecoveredSig, CQuorumCPtr>> pendingReconstructedRecoveredSigs;
 
     // must be protected by cs
@@ -152,6 +161,7 @@ public:
 
 private:
     void ProcessMessageRecoveredSig(CNode* pfrom, const CRecoveredSig& recoveredSig, CConnman& connman);
+    void PushPendingRecoveredSig(NodeId from, const CRecoveredSig& recoveredSig);
     bool PreVerifyRecoveredSig(NodeId nodeId, const CRecoveredSig& recoveredSig, bool& retBan);
 
     void CollectPendingRecoveredSigsToVerify(size_t maxUniqueSessions,
@@ -164,6 +174,7 @@ private:
 
 public:
     // public interface
+    void RemoveNodesIf(const std::function<bool(NodeId)>& predicate);
     void RegisterRecoveredSigsListener(CRecoveredSigsListener* l);
     void UnregisterRecoveredSigsListener(CRecoveredSigsListener* l);
 

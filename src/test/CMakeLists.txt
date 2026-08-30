@@ -63,6 +63,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/net_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/pmt_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/prevector_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quorums_signing_queue_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/raii_event_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/random_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/reverselock_tests.cpp
