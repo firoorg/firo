@@ -7,7 +7,7 @@ Extract _("...") strings for translation and convert to Qt stringdefs so that
 they can be picked up by Qt linguist.
 '''
 from __future__ import division,print_function,unicode_literals
-from subprocess import Popen, PIPE
+from subprocess import run, PIPE
 import operator
 import os
 import sys
@@ -59,8 +59,7 @@ if not XGETTEXT:
     print('Cannot extract strings: xgettext utility is not installed or not configured.',file=sys.stderr)
     print('Please install package "gettext" and re-run \'./configure\'.',file=sys.stderr)
     exit(1)
-child = Popen([XGETTEXT,'--output=-','-n','--keyword=_'] + files, stdout=PIPE)
-(out, err) = child.communicate()
+out = run([XGETTEXT,'--output=-','-n','--keyword=_'] + files, stdout=PIPE, check=True).stdout
 
 messages = parse_po(out.decode('utf-8'))
 
