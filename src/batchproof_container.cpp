@@ -4,8 +4,78 @@
 #include "util.h"
 
 #include <boost/filesystem.hpp>
+#include <set>
+#include <unordered_map>
 
 extern bool fReindex;
+
+namespace {
+
+bool VerifySparkBatch(
+    const std::vector<spark::SpendTransaction>& sparkTransactions,
+    const std::vector<uint256>& sparkTxIds,
+    const std::vector<spark::SpendTransaction>& historicalSparkTransactions,
+    const std::vector<uint256>& historicalSparkTxIds,
+    const std::unordered_map<uint64_t, std::vector<spark::Coin>>& coverSets)
+{
+    if (sparkTransactions.empty() && historicalSparkTransactions.empty())
+        return true;
+
+    LogPrintf("Spark batch verification started.\n");
+    uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
+
+    auto* params = spark::Params::get_default();
+
+    bool passed = true;
+    try {
+        if (!sparkTransactions.empty()) {
+            passed = spark::SpendTransaction::verify(
+                params, sparkTransactions, coverSets);
+        }
+        if (passed && !historicalSparkTransactions.empty()) {
+            passed = spark::SpendTransaction::verifyHistorical(
+                params, historicalSparkTransactions, coverSets);
+        }
+    } catch (const std::exception &) {
+        passed = false;
+    }
+
+    if (!passed) {
+        // Re-verify the retained proofs individually so the operator can see
+        // exactly which spends are invalid without a diagnostic reindex.
+        for (std::size_t i = 0; i < sparkTransactions.size(); ++i) {
+            bool fProofValid;
+            try {
+                fProofValid = spark::SpendTransaction::verify(
+                    params, {sparkTransactions[i]}, coverSets);
+            } catch (const std::exception &) {
+                fProofValid = false;
+            }
+            if (!fProofValid) {
+                LogPrintf("Spark batch verification failed for spend transaction %s.\n", sparkTxIds[i].ToString());
+            }
+        }
+        for (std::size_t i = 0; i < historicalSparkTransactions.size(); ++i) {
+            bool fProofValid;
+            try {
+                fProofValid = spark::SpendTransaction::verifyHistorical(
+                    params, {historicalSparkTransactions[i]}, coverSets);
+            } catch (const std::exception &) {
+                fProofValid = false;
+            }
+            if (!fProofValid) {
+                LogPrintf("Spark batch verification failed for spend transaction %s.\n", historicalSparkTxIds[i].ToString());
+            }
+        }
+        LogPrintf("Spark batch verification failed.\n");
+        return false;
+    }
+
+    LogPrintf("Spark batch verification finished successfully.\n");
+    return true;
+}
+
+} // namespace
 
 std::unique_ptr<BatchProofContainer> BatchProofContainer::instance;
 
@@ -46,6 +116,7 @@ BatchProofContainer* BatchProofContainer::get_instance() {
 }
 
 void BatchProofContainer::init() {
+    LOCK(cs_batch);
     tempSparkTransactions.clear();
     tempSparkTxIds.clear();
     tempHistoricalSparkTransactions.clear();
@@ -55,6 +126,7 @@ void BatchProofContainer::init() {
 }
 
 void BatchProofContainer::finalize() {
+    LOCK(cs_batch);
     if (fCollectProofs) {
         sparkTransactions.insert(sparkTransactions.end(), tempSparkTransactions.begin(), tempSparkTransactions.end());
         sparkTxIds.insert(sparkTxIds.end(), tempSparkTxIds.begin(), tempSparkTxIds.end());
@@ -75,31 +147,103 @@ void BatchProofContainer::finalize() {
 }
 
 bool BatchProofContainer::verify_pending() {
-    bool passed = true;
-    if (!fCollectProofs) {
-        init();
-        passed = batch_spark();
-        if (!passed)
-            WriteRecoveryMarker();
-        else if (!fReindex)
-            RemoveRecoveryMarker();
+    {
+        LOCK(cs_batch);
+        if (fCollectProofs) {
+            fCollectProofs = false;
+            return true;
+        }
     }
-    fCollectProofs = false;
-    return passed;
+
+    while (true) {
+        std::vector<spark::SpendTransaction> snapshotTransactions;
+        std::vector<uint256> snapshotTxIds;
+        std::vector<spark::SpendTransaction> snapshotHistoricalTransactions;
+        std::vector<uint256> snapshotHistoricalTxIds;
+        std::size_t batchSize = 0;
+        std::size_t historicalBatchSize = 0;
+        {
+            LOCK(cs_batch);
+            init();
+            if (fBatchFailed) {
+                fCollectProofs = false;
+                return false;
+            }
+            if (sparkTransactions.empty() && historicalSparkTransactions.empty()) {
+                fCollectProofs = false;
+                return true;
+            }
+
+            snapshotTransactions = sparkTransactions;
+            snapshotTxIds = sparkTxIds;
+            snapshotHistoricalTransactions = historicalSparkTransactions;
+            snapshotHistoricalTxIds = historicalSparkTxIds;
+            batchSize = sparkTransactions.size();
+            historicalBatchSize = historicalSparkTransactions.size();
+        }
+
+        std::set<uint64_t> coverSetIds;
+        for (auto& tx : snapshotTransactions) {
+            for (uint64_t id : tx.getCoinGroupIds())
+                coverSetIds.insert(id);
+        }
+        for (auto& tx : snapshotHistoricalTransactions) {
+            for (uint64_t id : tx.getCoinGroupIds())
+                coverSetIds.insert(id);
+        }
+        std::unordered_map<uint64_t, std::vector<spark::Coin>> coverSets;
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        for (uint64_t id : coverSetIds) {
+            std::vector<spark::Coin> coins;
+            sparkState->GetCoinSet(static_cast<int32_t>(id), coins);
+            coverSets.emplace(id, std::move(coins));
+        }
+
+        const bool passed = VerifySparkBatch(
+            snapshotTransactions,
+            snapshotTxIds,
+            snapshotHistoricalTransactions,
+            snapshotHistoricalTxIds,
+            coverSets);
+
+        LOCK(cs_batch);
+        if (sparkTransactions.size() != batchSize ||
+            historicalSparkTransactions.size() != historicalBatchSize) {
+            continue;
+        }
+
+        fCollectProofs = false;
+        if (passed) {
+            if (!fReindex)
+                RemoveRecoveryMarker();
+            sparkTransactions.clear();
+            sparkTxIds.clear();
+            historicalSparkTransactions.clear();
+            historicalSparkTxIds.clear();
+            return true;
+        }
+
+        WriteRecoveryMarker();
+        fBatchFailed = true;
+        return false;
+    }
 }
 
 void BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& txHash) {
+    LOCK(cs_batch);
     tempSparkTransactions.push_back(tx);
     tempSparkTxIds.push_back(txHash);
 }
 
 void BatchProofContainer::addHistorical(
     const spark::SpendTransaction& tx, const uint256& txHash) {
+    LOCK(cs_batch);
     tempHistoricalSparkTransactions.push_back(tx);
     tempHistoricalSparkTxIds.push_back(txHash);
 }
 
 void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
+    LOCK(cs_batch);
     bool fBatchChanged = false;
     for (std::size_t i = sparkTransactions.size(); i-- > 0;) {
         if (sparkTransactions[i].getUsedLTags() == tx.getUsedLTags()) {
@@ -116,81 +260,6 @@ void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
         }
     }
     if (fBatchChanged) {
-        // the pending batch changed, so a previous failure verdict no longer applies
         fBatchFailed = false;
     }
-}
-
-bool BatchProofContainer::batch_spark() {
-    if (sparkTransactions.empty() && historicalSparkTransactions.empty())
-        return true;
-    if (fBatchFailed)
-        return false;
-
-    LogPrintf("Spark batch verification started.\n");
-    uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
-
-    spark::CSparkState* sparkState = spark::CSparkState::GetState();
-    std::vector<spark::Coin> loadedCoverSet;
-    const spark::SpendTransaction::CoverSetProvider coverSetProvider =
-        [sparkState, &loadedCoverSet](uint64_t id)
-            -> const std::vector<spark::Coin>& {
-        loadedCoverSet.clear();
-        sparkState->GetCoinSet(static_cast<int32_t>(id), loadedCoverSet);
-        return loadedCoverSet;
-    };
-    auto* params = spark::Params::get_default();
-
-    bool passed = true;
-    try {
-        if (!sparkTransactions.empty()) {
-            passed = spark::SpendTransaction::verify(
-                params, sparkTransactions, coverSetProvider);
-        }
-        if (passed && !historicalSparkTransactions.empty()) {
-            passed = spark::SpendTransaction::verifyHistorical(
-                params, historicalSparkTransactions, coverSetProvider);
-        }
-    } catch (const std::exception &) {
-        passed = false;
-    }
-
-    if (!passed) {
-        // Re-verify the retained proofs individually so the operator can see
-        // exactly which spends are invalid without a diagnostic reindex.
-        for (std::size_t i = 0; i < sparkTransactions.size(); ++i) {
-            bool fProofValid;
-            try {
-                fProofValid = spark::SpendTransaction::verify(
-                    params, {sparkTransactions[i]}, coverSetProvider);
-            } catch (const std::exception &) {
-                fProofValid = false;
-            }
-            if (!fProofValid) {
-                LogPrintf("Spark batch verification failed for spend transaction %s.\n", sparkTxIds[i].ToString());
-            }
-        }
-        for (std::size_t i = 0; i < historicalSparkTransactions.size(); ++i) {
-            bool fProofValid;
-            try {
-                fProofValid = spark::SpendTransaction::verifyHistorical(
-                    params, {historicalSparkTransactions[i]}, coverSetProvider);
-            } catch (const std::exception &) {
-                fProofValid = false;
-            }
-            if (!fProofValid) {
-                LogPrintf("Spark batch verification failed for spend transaction %s.\n", historicalSparkTxIds[i].ToString());
-            }
-        }
-        LogPrintf("Spark batch verification failed.\n");
-        fBatchFailed = true;
-        return false;
-    }
-
-    LogPrintf("Spark batch verification finished successfully.\n");
-    sparkTransactions.clear();
-    sparkTxIds.clear();
-    historicalSparkTransactions.clear();
-    historicalSparkTxIds.clear();
-    return true;
 }
