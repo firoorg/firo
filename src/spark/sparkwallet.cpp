@@ -110,14 +110,28 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 }
 
 CSparkWallet::~CSparkWallet() {
+    LOCK(cs_thread_pool);
     delete (ParallelOpThreadPool<void>*)threadPool;
     threadPool = nullptr;
 }
 
 void CSparkWallet::FinishTasks() {
+    LOCK(cs_thread_pool);
     if (threadPool) {
         ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
     }
+}
+
+void CSparkWallet::WaitForPendingTasks() {
+    LOCK(cs_thread_pool);
+    if (!threadPool)
+        return;
+
+    auto* pool = (ParallelOpThreadPool<void>*)threadPool;
+    if (pool->IsPoolShutdown())
+        return;
+
+    pool->PostTask([]() {}).wait();
 }
 
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
