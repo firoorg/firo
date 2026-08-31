@@ -268,13 +268,6 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    {
-        LOCK(cs_main);
-        BatchProofContainer::get_instance()->finalize();
-        CValidationState state;
-        VerifyPendingSparkBatch(state, "shutdown");
-    }
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -775,15 +768,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
-        }
-        {
-            LOCK(cs_main);
-            BatchProofContainer::get_instance()->finalize();
-            CValidationState state;
-            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
-                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
-                return;
-            }
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
@@ -1972,11 +1956,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 7b: load block chain
 
-    // If the previous run aborted on a failed Spark batch verification, or
-    // crashed while Spark proofs were still being collected, drop chainstate
-    // and verify Spark proofs block by block on this run. Checked here rather
-    // than in LoadBlockIndexDB() because a run restarted with -reindex wipes
-    // the block tree database and never calls LoadBlockIndexDB().
+    // Honor recovery markers left by versions that allowed Spark batches to
+    // outlive ConnectBlock. Checked here rather than in LoadBlockIndexDB()
+    // because a run restarted with -reindex wipes the block tree database and
+    // never calls LoadBlockIndexDB().
     if (BatchProofContainer::HasRecoveryMarker()) {
         LogPrintf("Previous run did not finish Spark batch verification, disabling -batching and forcing -reindex for this run\n");
         ForceSetArg("-batching", "0");

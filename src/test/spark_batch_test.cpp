@@ -1,5 +1,6 @@
 #include "../batchproof_container.h"
 #include "../spark/state.h"
+#include "../ui_interface.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "fixtures.h"
@@ -37,16 +38,16 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
 
     // With batching active the spend must be deferred into the container
     // instead of being verified inline.
-    auto collectSpend = [&]() {
+    auto addValidSpend = [&]() {
         LOCK(cs_main);
         CValidationState state;
         spark::CSparkTxInfo info;
-        container->init(true);
         BOOST_CHECK(spark::CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
-        container->finalize();
     };
-    collectSpend();
+    container->init(true);
+    addValidSpend();
+    container->finalize();
 
     // The pending batch holds a valid proof and verifies successfully.
     BOOST_CHECK(container->verify_pending());
@@ -55,10 +56,35 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
 
     // A raw-parsed spend lacks the out-coin/cover-set/vout data the binding
     // hash commits to, so its Chaum proof can never verify: an invalid batch
-    // member whose serialized lTags still identify it for removal.
+    // member.
     spark::SpendTransaction invalidSpend = spark::ParseSparkSpend(spendTxB);
     invalidSpend.setVout(0);
     BOOST_REQUIRE(invalidSpend.getUsedLTags() != spark::ParseSparkSpend(spendTx).getUsedLTags());
+
+    // Replacing a finalized batch while its snapshot is being verified must
+    // not let the old verdict clear or validate the replacement.
+    container->init(true);
+    addValidSpend();
+    container->finalize();
+    bool replacementAdded = false;
+    bool replaced = false;
+    boost::signals2::scoped_connection replaceBatch(
+        uiInterface.UpdateProgressBarLabel.connect(
+            [&](const std::string&) {
+                if (replaced)
+                    return;
+                replaced = true;
+                container->init(true);
+                replacementAdded = container->add(
+                    invalidSpend, spendTxB.GetHash());
+                container->finalize();
+            }));
+    BOOST_CHECK(container->verify_pending());
+    replaceBatch.disconnect();
+    BOOST_REQUIRE(replaced);
+    BOOST_REQUIRE(replacementAdded);
+    BOOST_CHECK(!container->verify_pending());
+    BOOST_CHECK(container->verify_pending());
 
     // Checking a pending batch while collection is active must not close the
     // collection window. Otherwise a proof can be skipped without being
@@ -68,37 +94,31 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     BOOST_CHECK(container->add(invalidSpend, spendTxB.GetHash()));
     container->finalize();
     BOOST_CHECK(!container->verify_pending());
-    container->remove(invalidSpend);
+    // A failed block-local batch is consumed, so it cannot poison the next
+    // block.
     BOOST_CHECK(container->verify_pending());
 
-    collectSpend();
     container->init(true);
+    addValidSpend();
     BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
     container->finalize();
 
-    // A batch holding a valid and an invalid proof fails and latches.
+    // A batch holding a valid and an invalid proof fails closed.
     BOOST_CHECK(!container->verify_pending());
-    BOOST_CHECK(!container->verify_pending());
-
-    // Removing only the offending spend (as a disconnect would) clears the
-    // latch even though the batch stays non-empty: the remaining valid proof
-    // must verify again.
-    container->remove(invalidSpend);
     BOOST_CHECK(container->verify_pending());
 
     // Re-collect the same spend, then wipe the Spark state so the cover sets
     // it references can no longer be built: verification must fail closed.
-    collectSpend();
+    container->init(true);
+    addValidSpend();
+    container->finalize();
     spark::CSparkState::GetState()->Reset();
     BOOST_CHECK(!container->verify_pending());
 
-    // The failed batch is retained and keeps failing.
-    BOOST_CHECK(!container->verify_pending());
-
-    // Only removing the offending spend (as a disconnect would) empties the
-    // batch and lets verification pass again.
-    container->remove(spark::ParseSparkSpend(spendTx));
+    // No new recovery marker is needed because verification now precedes
+    // block-state publication.
     BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

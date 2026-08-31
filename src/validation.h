@@ -303,12 +303,6 @@ bool IsInitialBlockDownload();
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
-/**
- * Verify the pending Spark batch when proofs are not being collected.
- * On failure the node is aborted, a datadir marker is written so the next
- * start disables batching and reindexes, and false is returned (no throw).
- */
-bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason);
 CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params& consensusParams, bool fMTP, bool fShorterBlockDistance);
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams, int nTime = 1475020800);
 CAmount GetMasternodePayment(int nHeight, int nTime, CAmount blockValue);

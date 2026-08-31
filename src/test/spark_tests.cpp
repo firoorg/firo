@@ -2,6 +2,7 @@
 #include "../batchproof_container.h"
 #include "../pow.h"
 #include "../consensus/consensus.h"
+#include "../consensus/merkle.h"
 #include "../script/sign.h"
 #include "../script/standard.h"
 #include "../validation.h"
@@ -2989,7 +2990,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     BOOST_REQUIRE_EQUAL(selectedMints.size(), 2U);
     const CTransaction multiInputSpend(
         GenerateCustomSparkSpend(selectedMints, 9 * COIN));
-    SpendTransaction parsedMultiInput = ParseSparkSpend(multiInputSpend);
     constexpr uint64_t groupIdAliasOffset = uint64_t{1} << 32;
     const CTransaction aliasedSpend(GenerateCustomSparkSpend(
         {selectedMints.front()}, 4 * COIN, groupIdAliasOffset));
@@ -3017,7 +3017,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         &historicalInfo));
     batch->finalize();
     BOOST_CHECK(batch->verify_pending());
-    batch->remove(parsedMultiInput);
 
 
     // Pre-activation blocks retain the deployed 32-bit group ID
@@ -3048,7 +3047,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         &legacyBatchInfo));
     batch->finalize();
     BOOST_CHECK(batch->verify_pending());
-    batch->remove(parsedAlias);
 
     // Exercise the post-single-input batch as well; it has a separate
     // collection and verification path.
@@ -3067,7 +3065,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         &currentBatchInfo));
     batch->finalize();
     BOOST_CHECK(batch->verify_pending());
-    batch->remove(parsedAlias);
 
     // Upgraded mempools reject aliases before consensus activation.
     CValidationState mempoolAliasState;
@@ -3153,26 +3150,50 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
     CMutableTransaction invalidSpend(
         GenerateSparkSpend({4 * COIN}, {}, nullptr));
     BOOST_REQUIRE(!invalidSpend.vout.empty());
-    ++invalidSpend.vout.front().nValue;
     mempool.clear();
 
     CBlock candidate = CreateBlock({invalidSpend}, script);
+    ++invalidSpend.vout.front().nValue;
+    candidate.vtx.back() = MakeTransactionRef(invalidSpend);
+    candidate.hashMerkleRoot = BlockMerkleRoot(candidate);
+    if (candidate.IsProgPow()) {
+        while (!CheckProofOfWork(
+            progpow_hash_full(candidate.GetProgPowHeader(), candidate.mix_hash),
+            candidate.nBits,
+            consensus)) {
+            ++candidate.nNonce64;
+        }
+    } else {
+        while (!CheckProofOfWork(candidate.GetHash(), candidate.nBits, consensus))
+            ++candidate.nNonce;
+    }
+    const auto usedLTags = ParseSparkSpend(*candidate.vtx.back()).getUsedLTags();
+    BOOST_REQUIRE(!usedLTags.empty());
     uint256 candidateHash = candidate.GetHash();
     CBlockIndex candidateIndex(candidate);
     candidateIndex.phashBlock = &candidateHash;
     candidateIndex.pprev = chainActive.Tip();
     candidateIndex.nHeight = chainActive.Height() + 1;
-    // Use a recent block time so ConnectBlock verifies proofs inline instead
-    // of deferring them (master IBD batching path).
-    candidateIndex.nTime = GetSystemTimeInSeconds();
+    // Use an old block time so ConnectBlock takes the batching path.
+    candidateIndex.nTime = GetSystemTimeInSeconds() - 86401;
 
     CValidationState state;
     CCoinsViewCache view(pcoinsTip);
     {
         LOCK(cs_main);
+        for (const auto& lTag : usedLTags)
+            BOOST_REQUIRE(!sparkState->IsUsedLTag(lTag));
         BOOST_CHECK(!ConnectBlock(
-            candidate, state, &candidateIndex, view, ::Params(), true));
+            candidate, state, &candidateIndex, view, ::Params(), false));
+        BOOST_CHECK(chainActive.Tip() == candidateIndex.pprev);
+        BOOST_CHECK(
+            view.GetBestBlock() == candidateIndex.pprev->GetBlockHash());
+        BOOST_CHECK(candidateIndex.GetUndoPos().IsNull());
+        BOOST_CHECK(!candidateIndex.IsValid(BLOCK_VALID_SCRIPTS));
+        for (const auto& lTag : usedLTags)
+            BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
     }
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-spark-batch-proof");
 
     // VerifyDB must avoid tip-state mutation without skipping the proof.
     CValidationState verifyState;
@@ -3214,7 +3235,6 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     CMutableTransaction invalidSpend(
         GenerateSparkSpend({4 * COIN}, {}, nullptr));
     BOOST_REQUIRE(!invalidSpend.vout.empty());
-    ++invalidSpend.vout.front().nValue;
 
     CMutableTransaction missingInput;
     missingInput.vin.emplace_back(COutPoint(uint256S("01"), 0));
@@ -3222,13 +3242,16 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     mempool.clear();
 
     CBlock candidate = CreateBlock({invalidSpend, missingInput}, script);
+    ++invalidSpend.vout.front().nValue;
+    candidate.vtx[candidate.vtx.size() - 2] = MakeTransactionRef(invalidSpend);
+    candidate.hashMerkleRoot = BlockMerkleRoot(candidate);
     uint256 candidateHash = candidate.GetHash();
     CBlockIndex candidateIndex(candidate);
     candidateIndex.phashBlock = &candidateHash;
     candidateIndex.pprev = chainActive.Tip();
     candidateIndex.nHeight = chainActive.Height() + 1;
-    // Old enough to enable deferred batching while ConnectBlock still fails
-    // on the missing transparent input before finalize.
+    // Old enough to enable batching while ConnectBlock still fails on the
+    // missing transparent input before finalization.
     candidateIndex.nTime = GetSystemTimeInSeconds() - 86401;
 
     CValidationState state;
@@ -3239,9 +3262,10 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
             candidate, state, &candidateIndex, view, ::Params(), true));
     }
 
-    // Master deferred batching does not abort() on ConnectBlock failure; the
-    // next ConnectBlock init() (or an explicit init here) drops temps.
-    batch->init();
+    // Scope cleanup must discard the partially collected proof. Closing a
+    // leftover collection window would otherwise expose it here.
+    BOOST_CHECK(batch->verify_pending());
+    batch->finalize();
     BOOST_CHECK(batch->verify_pending());
 
     mempool.clear();
