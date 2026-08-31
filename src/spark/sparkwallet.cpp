@@ -110,17 +110,20 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
 }
 
 CSparkWallet::~CSparkWallet() {
+    LOCK(cs_thread_pool);
     delete (ParallelOpThreadPool<void>*)threadPool;
     threadPool = nullptr;
 }
 
 void CSparkWallet::FinishTasks() {
+    LOCK(cs_thread_pool);
     if (threadPool) {
         ((ParallelOpThreadPool<void>*)threadPool)->Shutdown();
     }
 }
 
 void CSparkWallet::WaitForPendingTasks() {
+    LOCK(cs_thread_pool);
     if (!threadPool)
         return;
 

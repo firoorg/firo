@@ -269,6 +269,7 @@ private:
     const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
 
+    CCriticalSection cs_thread_pool;
     void* threadPool;
 };
 
