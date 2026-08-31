@@ -120,6 +120,17 @@ void CSparkWallet::FinishTasks() {
     }
 }
 
+void CSparkWallet::WaitForPendingTasks() {
+    if (!threadPool)
+        return;
+
+    auto* pool = (ParallelOpThreadPool<void>*)threadPool;
+    if (pool->IsPoolShutdown())
+        return;
+
+    pool->PostTask([]() {}).wait();
+}
+
 void CSparkWallet::resetDiversifierFromDB(CWalletDB& walletdb) {
     LOCK(cs_spark_wallet);
     walletdb.readDiversifier(lastDiversifier);

@@ -221,6 +221,8 @@ public:
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
+    /** Wait for all Spark wallet tasks queued before this call. */
+    void WaitForPendingTasks();
     void FinishTasks();
 
 public:

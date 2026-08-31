@@ -25,6 +25,7 @@
 #include "ui_interface.h"
 #include "rpc/server.h"
 #include "rpc/register.h"
+#include "spark/state.h"
 
 #include "test/testutil.h"
 #include "test/fixtures.h"
@@ -313,5 +314,5 @@ CTransaction SparkTestingSetup::GenerateSparkSpend(
 
 SparkTestingSetup::~SparkTestingSetup()
 {
-    pwalletMain->sparkWallet->FinishTasks();
+    spark::CSparkState::GetState()->Reset();
 }
