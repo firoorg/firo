@@ -1528,7 +1528,6 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         }
         ~ResetActivationHeights()
         {
-            BatchProofContainer::get_instance()->fCollectProofs = false;
             BatchProofContainer::get_instance()->init();
             consensus.nSparkNamesStartBlock = sparkNamesStartBlock;
         }
@@ -1709,8 +1708,7 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
         &activeV2Info));
 
     BatchProofContainer* batch = BatchProofContainer::get_instance();
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     CValidationState batchedV2State;
     CSparkTxInfo batchedV2Info;
     BOOST_REQUIRE(CheckSparkTransaction(
@@ -2105,13 +2103,11 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
     referencedBlock->sparkSetHash.erase(groupId);
 
     BatchProofContainer* batch = BatchProofContainer::get_instance();
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     struct RestoreBatchCollection {
         BatchProofContainer* batch;
         ~RestoreBatchCollection()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } restoreBatch{batch};
@@ -2970,7 +2966,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         }
         ~ResetBatchAndActivation()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } reset{batch};
@@ -3008,8 +3003,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         parsedAlias.getCoinGroupIds().front() >
         static_cast<uint64_t>(std::numeric_limits<int32_t>::max()));
 
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     CValidationState historicalState;
     CSparkTxInfo historicalInfo;
     BOOST_REQUIRE(CheckSparkTransaction(
@@ -3040,8 +3034,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
         true,
         &legacyAliasInfo));
 
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     CValidationState legacyBatchState;
     CSparkTxInfo legacyBatchInfo;
     BOOST_REQUIRE(CheckSparkTransaction(
@@ -3060,8 +3053,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     // Exercise the post-single-input batch as well; it has a separate
     // collection and verification path.
     UpdateRegtestSparkSingleInputHeight(chainActive.Height());
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     CValidationState currentBatchState;
     CSparkTxInfo currentBatchInfo;
     BOOST_REQUIRE(CheckSparkTransaction(
@@ -3108,8 +3100,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     BOOST_REQUIRE(activeAliasState.IsInvalid(activeAliasDoS));
     BOOST_CHECK_EQUAL(activeAliasDoS, 100);
 
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     CValidationState activeBatchAliasState;
     CSparkTxInfo activeBatchAliasInfo;
     BOOST_CHECK(!CheckSparkTransaction(
@@ -3124,8 +3115,7 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     batch->finalize();
     BOOST_CHECK(batch->verify_pending());
 
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     CValidationState activeState;
     CSparkTxInfo activeInfo;
     BOOST_CHECK(!CheckSparkTransaction(
@@ -3149,7 +3139,6 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
         BatchProofContainer* batch;
         ~ResetBatch()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } reset{batch};
@@ -3211,7 +3200,6 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
         BatchProofContainer* batch;
         ~ResetBatch()
         {
-            batch->fCollectProofs = false;
             batch->init();
         }
     } reset{batch};
@@ -3254,7 +3242,6 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     // Master deferred batching does not abort() on ConnectBlock failure; the
     // next ConnectBlock init() (or an explicit init here) drops temps.
     batch->init();
-    batch->fCollectProofs = false;
     BOOST_CHECK(batch->verify_pending());
 
     mempool.clear();
@@ -3263,7 +3250,6 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
 
 BOOST_AUTO_TEST_CASE(verifydb_level_four_reconnects_spark_spend_and_mints)
 {
-    BatchProofContainer::get_instance()->fCollectProofs = false;
     BatchProofContainer::get_instance()->init();
 
     GenerateBlocks(500);
@@ -3286,7 +3272,6 @@ BOOST_AUTO_TEST_CASE(verifydb_level_four_reconnects_spark_spend_and_mints)
 
 BOOST_AUTO_TEST_CASE(verifydb_rejects_invalid_standalone_spark_mint)
 {
-    BatchProofContainer::get_instance()->fCollectProofs = false;
     BatchProofContainer::get_instance()->init();
 
     GenerateBlocks(500);
@@ -3323,7 +3308,6 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_invalid_standalone_spark_mint)
 
 BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
 {
-    BatchProofContainer::get_instance()->fCollectProofs = false;
     BatchProofContainer::get_instance()->init();
 
     GenerateBlocks(500);
@@ -3392,7 +3376,6 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
 
 BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
 {
-    BatchProofContainer::get_instance()->fCollectProofs = false;
     BatchProofContainer::get_instance()->init();
 
     GenerateBlocks(500);
@@ -3874,7 +3857,7 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
     UpdateRegtestSparkChaumV2Height(exactReferencesHeight);
 
     BatchProofContainer* batch = BatchProofContainer::get_instance();
-    batch->fCollectProofs = false;
+    batch->init();
     CValidationState legacyExtraReferenceState;
     CSparkTxInfo legacyExtraReferenceInfo;
     BOOST_REQUIRE(CheckSparkTransaction(
@@ -3887,8 +3870,7 @@ BOOST_AUTO_TEST_CASE(spark_unknown_cover_set_reference_is_not_mempool_admissible
         true,
         &legacyExtraReferenceInfo));
 
-    batch->init();
-    batch->fCollectProofs = true;
+    batch->init(true);
     CValidationState legacyBatchedExtraReferenceState;
     CSparkTxInfo legacyBatchedExtraReferenceInfo;
     BOOST_REQUIRE(CheckSparkTransaction(

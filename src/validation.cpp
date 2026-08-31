@@ -2799,8 +2799,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     bool isMainNet = chainparams.GetConsensus().IsMain();
     // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindex);
-    batchProofContainer->init();
+    batchProofContainer->init(ShouldBatchSparkProofs(pindex));
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -3990,9 +3989,8 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
             }
         }
 
-        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-        batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
-        if (!VerifyPendingSparkBatch(state, "connecting new tip"))
+        if (!ShouldBatchSparkProofs(pindexNewTip) &&
+            !VerifyPendingSparkBatch(state, "connecting new tip"))
             return false;
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).

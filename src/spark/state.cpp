@@ -1066,7 +1066,7 @@ bool CheckSparkSpendTransaction(
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
+    bool useBatching = !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
         const uint64_t wireGroupId = idAndHash.first;
@@ -1214,13 +1214,14 @@ bool CheckSparkSpendTransaction(
     
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
+    bool addedToBatch = false;
     if (useBatching) {
+        addedToBatch = isChaumV2 || requireChaumV1SingleInput
+            ? batchProofContainer->add(*spend, hashTx)
+            : batchProofContainer->addHistorical(*spend, hashTx);
+    }
+    if (addedToBatch) {
         passVerify = true;
-        if (isChaumV2 || requireChaumV1SingleInput) {
-            batchProofContainer->add(*spend, hashTx);
-        } else {
-            batchProofContainer->addHistorical(*spend, hashTx);
-        }
     } else {
         try {
             bool haveCachedSuccess = false;

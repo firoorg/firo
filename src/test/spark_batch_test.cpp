@@ -41,8 +41,7 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
         LOCK(cs_main);
         CValidationState state;
         spark::CSparkTxInfo info;
-        container->fCollectProofs = true;
-        container->init();
+        container->init(true);
         BOOST_CHECK(spark::CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
         container->finalize();
@@ -61,10 +60,20 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     invalidSpend.setVout(0);
     BOOST_REQUIRE(invalidSpend.getUsedLTags() != spark::ParseSparkSpend(spendTx).getUsedLTags());
 
+    // Checking a pending batch while collection is active must not close the
+    // collection window. Otherwise a proof can be skipped without being
+    // enqueued at the old-to-recent batching boundary.
+    container->init(true);
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(container->add(invalidSpend, spendTxB.GetHash()));
+    container->finalize();
+    BOOST_CHECK(!container->verify_pending());
+    container->remove(invalidSpend);
+    BOOST_CHECK(container->verify_pending());
+
     collectSpend();
-    container->fCollectProofs = true;
-    container->init();
-    container->add(invalidSpend, spendTxB.GetHash());
+    container->init(true);
+    BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
     container->finalize();
 
     // A batch holding a valid and an invalid proof fails and latches.

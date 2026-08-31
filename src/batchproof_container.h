@@ -12,14 +12,14 @@ class BatchProofContainer {
 public:
     static BatchProofContainer* get_instance();
 
-    void init();
+    void init(bool collectProofs = false);
 
     void finalize();
 
     /**
      * Verify the finalized pending Spark batch when proofs are not being
-     * collected. Matches master's verify() gate: a no-op while fCollectProofs
-     * is set, so IBD keeps accumulating until a recent tip.
+     * collected. A no-op while collection is active, so IBD keeps
+     * accumulating until a recent tip.
      *
      * @return true if collecting, if no batch is pending, or if the batch
      *         verifies; false on verification failure (pending proofs kept).
@@ -29,15 +29,14 @@ public:
     static bool HasRecoveryMarker();
     static void RemoveRecoveryMarker();
 
-    void add(const spark::SpendTransaction& tx, const uint256& txHash);
-    void addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
+    bool add(const spark::SpendTransaction& tx, const uint256& txHash);
+    bool addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);
-
-    bool fCollectProofs = false;
 
 private:
     static std::unique_ptr<BatchProofContainer> instance;
     mutable CCriticalSection cs_batch;
+    bool fCollectProofs = false;
     bool fBatchFailed = false;
     std::vector<spark::SpendTransaction> tempSparkTransactions;
     std::vector<uint256> tempSparkTxIds;

@@ -115,12 +115,13 @@ BatchProofContainer* BatchProofContainer::get_instance() {
     }
 }
 
-void BatchProofContainer::init() {
+void BatchProofContainer::init(bool collectProofs) {
     LOCK(cs_batch);
     tempSparkTransactions.clear();
     tempSparkTxIds.clear();
     tempHistoricalSparkTransactions.clear();
     tempHistoricalSparkTxIds.clear();
+    fCollectProofs = collectProofs;
     if (fCollectProofs)
         WriteRecoveryMarker();
 }
@@ -150,7 +151,6 @@ bool BatchProofContainer::verify_pending() {
     {
         LOCK(cs_batch);
         if (fCollectProofs) {
-            fCollectProofs = false;
             return true;
         }
     }
@@ -229,17 +229,23 @@ bool BatchProofContainer::verify_pending() {
     }
 }
 
-void BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& txHash) {
+bool BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& txHash) {
     LOCK(cs_batch);
+    if (!fCollectProofs)
+        return false;
     tempSparkTransactions.push_back(tx);
     tempSparkTxIds.push_back(txHash);
+    return true;
 }
 
-void BatchProofContainer::addHistorical(
+bool BatchProofContainer::addHistorical(
     const spark::SpendTransaction& tx, const uint256& txHash) {
     LOCK(cs_batch);
+    if (!fCollectProofs)
+        return false;
     tempHistoricalSparkTransactions.push_back(tx);
     tempHistoricalSparkTxIds.push_back(txHash);
+    return true;
 }
 
 void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
