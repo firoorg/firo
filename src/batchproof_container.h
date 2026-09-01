@@ -12,12 +12,18 @@ class BatchProofContainer {
 public:
     static BatchProofContainer* get_instance();
 
-    void init(bool collectProofs = false);
+    void init(bool collectProofs = false, bool fDeferredBatch = true);
 
     void finalize();
 
     /** Drop in-flight per-block temps without merging into the deferred batch. */
     void discard_temps();
+
+    /**
+     * Verify Spark proofs collected for the current block only. Clears temps on
+     * success or failure and does not touch the deferred cross-block batch.
+     */
+    bool verify_block_batch();
 
     /**
      * Verify the finalized pending Spark batch when proofs are not being

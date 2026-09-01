@@ -82,6 +82,40 @@ bool VerifySparkBatch(
     return true;
 }
 
+bool VerifySparkBatchSnapshot(
+    std::vector<spark::SpendTransaction>& sparkTransactions,
+    const std::vector<uint256>& sparkTxIds,
+    std::vector<spark::SpendTransaction>& historicalSparkTransactions,
+    const std::vector<uint256>& historicalSparkTxIds)
+{
+    if (sparkTransactions.empty() && historicalSparkTransactions.empty())
+        return true;
+
+    std::set<uint64_t> coverSetIds;
+    for (auto& tx : sparkTransactions) {
+        for (uint64_t id : tx.getCoinGroupIds())
+            coverSetIds.insert(id);
+    }
+    for (auto& tx : historicalSparkTransactions) {
+        for (uint64_t id : tx.getCoinGroupIds())
+            coverSetIds.insert(id);
+    }
+    std::unordered_map<uint64_t, std::vector<spark::Coin>> coverSets;
+    spark::CSparkState* sparkState = spark::CSparkState::GetState();
+    for (uint64_t id : coverSetIds) {
+        std::vector<spark::Coin> coins;
+        sparkState->GetCoinSet(static_cast<int32_t>(id), coins);
+        coverSets.emplace(id, std::move(coins));
+    }
+
+    return VerifySparkBatch(
+        sparkTransactions,
+        sparkTxIds,
+        historicalSparkTransactions,
+        historicalSparkTxIds,
+        coverSets);
+}
+
 } // namespace
 
 std::unique_ptr<BatchProofContainer> BatchProofContainer::instance;
@@ -122,14 +156,14 @@ BatchProofContainer* BatchProofContainer::get_instance() {
     }
 }
 
-void BatchProofContainer::init(bool collectProofs) {
+void BatchProofContainer::init(bool collectProofs, bool fDeferredBatch) {
     LOCK(cs_batch);
     tempSparkTransactions.clear();
     tempSparkTxIds.clear();
     tempHistoricalSparkTransactions.clear();
     tempHistoricalSparkTxIds.clear();
     fCollectProofs = collectProofs;
-    if (fCollectProofs)
+    if (fCollectProofs && fDeferredBatch)
         WriteRecoveryMarker();
 }
 
@@ -164,6 +198,33 @@ void BatchProofContainer::discard_temps()
     fCollectProofs = false;
 }
 
+bool BatchProofContainer::verify_block_batch()
+{
+    std::vector<spark::SpendTransaction> snapshotTransactions;
+    std::vector<uint256> snapshotTxIds;
+    std::vector<spark::SpendTransaction> snapshotHistoricalTransactions;
+    std::vector<uint256> snapshotHistoricalTxIds;
+    {
+        LOCK(cs_batch);
+        if (tempSparkTransactions.empty() && tempHistoricalSparkTransactions.empty()) {
+            fCollectProofs = false;
+            return true;
+        }
+
+        snapshotTransactions.swap(tempSparkTransactions);
+        snapshotTxIds.swap(tempSparkTxIds);
+        snapshotHistoricalTransactions.swap(tempHistoricalSparkTransactions);
+        snapshotHistoricalTxIds.swap(tempHistoricalSparkTxIds);
+        fCollectProofs = false;
+    }
+
+    return VerifySparkBatchSnapshot(
+        snapshotTransactions,
+        snapshotTxIds,
+        snapshotHistoricalTransactions,
+        snapshotHistoricalTxIds);
+}
+
 bool BatchProofContainer::verify_pending() {
     {
         LOCK(cs_batch);
@@ -195,29 +256,11 @@ bool BatchProofContainer::verify_pending() {
             snapshotHistoricalTxIds.swap(historicalSparkTxIds);
         }
 
-        std::set<uint64_t> coverSetIds;
-        for (auto& tx : snapshotTransactions) {
-            for (uint64_t id : tx.getCoinGroupIds())
-                coverSetIds.insert(id);
-        }
-        for (auto& tx : snapshotHistoricalTransactions) {
-            for (uint64_t id : tx.getCoinGroupIds())
-                coverSetIds.insert(id);
-        }
-        std::unordered_map<uint64_t, std::vector<spark::Coin>> coverSets;
-        spark::CSparkState* sparkState = spark::CSparkState::GetState();
-        for (uint64_t id : coverSetIds) {
-            std::vector<spark::Coin> coins;
-            sparkState->GetCoinSet(static_cast<int32_t>(id), coins);
-            coverSets.emplace(id, std::move(coins));
-        }
-
-        const bool passed = VerifySparkBatch(
+        const bool passed = VerifySparkBatchSnapshot(
             snapshotTransactions,
             snapshotTxIds,
             snapshotHistoricalTransactions,
-            snapshotHistoricalTxIds,
-            coverSets);
+            snapshotHistoricalTxIds);
 
         LOCK(cs_batch);
         if (!sparkTransactions.empty() || !historicalSparkTransactions.empty()) {

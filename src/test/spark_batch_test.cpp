@@ -90,6 +90,20 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     container->remove(invalidSpend);
     BOOST_CHECK(container->verify_pending());
 
+    // Recent blocks verify collected proofs per block without touching the
+    // deferred cross-block batch.
+    container->init(true, false);
+    addValidSpend();
+    BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(container->verify_pending());
+
+    container->init(true, false);
+    BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
+    BOOST_CHECK(!container->verify_block_batch());
+    BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(container->verify_pending());
+
     // Checking a pending batch while collection is active must not close the
     // collection window. Otherwise a proof can be skipped without being
     // enqueued at the old-to-recent batching boundary.

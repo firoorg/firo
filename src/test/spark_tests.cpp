@@ -2,6 +2,7 @@
 #include "../batchproof_container.h"
 #include "../pow.h"
 #include "../consensus/consensus.h"
+#include "../consensus/merkle.h"
 #include "../script/sign.h"
 #include "../script/standard.h"
 #include "../validation.h"
@@ -3153,26 +3154,50 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
     CMutableTransaction invalidSpend(
         GenerateSparkSpend({4 * COIN}, {}, nullptr));
     BOOST_REQUIRE(!invalidSpend.vout.empty());
-    ++invalidSpend.vout.front().nValue;
     mempool.clear();
 
     CBlock candidate = CreateBlock({invalidSpend}, script);
+    ++invalidSpend.vout.front().nValue;
+    candidate.vtx.back() = MakeTransactionRef(invalidSpend);
+    candidate.hashMerkleRoot = BlockMerkleRoot(candidate);
+    if (candidate.IsProgPow()) {
+        while (!CheckProofOfWork(
+            progpow_hash_full(candidate.GetProgPowHeader(), candidate.mix_hash),
+            candidate.nBits,
+            consensus)) {
+            ++candidate.nNonce64;
+        }
+    } else {
+        while (!CheckProofOfWork(candidate.GetHash(), candidate.nBits, consensus))
+            ++candidate.nNonce;
+    }
+    const auto usedLTags = ParseSparkSpend(*candidate.vtx.back()).getUsedLTags();
+    BOOST_REQUIRE(!usedLTags.empty());
     uint256 candidateHash = candidate.GetHash();
     CBlockIndex candidateIndex(candidate);
     candidateIndex.phashBlock = &candidateHash;
     candidateIndex.pprev = chainActive.Tip();
     candidateIndex.nHeight = chainActive.Height() + 1;
-    // Use a recent block time so ConnectBlock verifies proofs inline instead
-    // of deferring them (master IBD batching path).
+    // Recent blocks batch proofs per block and verify before state is committed.
     candidateIndex.nTime = GetSystemTimeInSeconds();
 
     CValidationState state;
     CCoinsViewCache view(pcoinsTip);
     {
         LOCK(cs_main);
+        for (const auto& lTag : usedLTags)
+            BOOST_REQUIRE(!sparkState->IsUsedLTag(lTag));
         BOOST_CHECK(!ConnectBlock(
-            candidate, state, &candidateIndex, view, ::Params(), true));
+            candidate, state, &candidateIndex, view, ::Params(), false));
+        BOOST_CHECK(chainActive.Tip() == candidateIndex.pprev);
+        BOOST_CHECK(
+            view.GetBestBlock() == candidateIndex.pprev->GetBlockHash());
+        BOOST_CHECK(candidateIndex.GetUndoPos().IsNull());
+        BOOST_CHECK(!candidateIndex.IsValid(BLOCK_VALID_SCRIPTS));
+        for (const auto& lTag : usedLTags)
+            BOOST_CHECK(!sparkState->IsUsedLTag(lTag));
     }
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-spark-batch-proof");
 
     // VerifyDB must avoid tip-state mutation without skipping the proof.
     CValidationState verifyState;

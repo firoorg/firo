@@ -2307,10 +2307,15 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
-static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
+static bool ShouldDeferSparkBatchVerification(const CBlockIndex* pindex)
 {
     // Defer Spark proof verification for blocks older than a day, which means we are syncing or reindexing
     return ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+}
+
+static bool ShouldCollectSparkProofs()
+{
+    return GetBoolArg("-batching", true);
 }
 
 bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
@@ -2797,9 +2802,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
-    // Defer Spark proof verification for blocks older than a day while syncing or reindexing.
+    // Batch Spark proofs when enabled; old blocks defer verify, recent blocks verify per block.
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->init(ShouldBatchSparkProofs(pindex));
+    const bool fDeferBatchVerify = ShouldDeferSparkBatchVerification(pindex);
+    const bool fCollectSparkProofs =
+        ShouldCollectSparkProofs() && !fJustCheck && !isVerifyDB;
+    batchProofContainer->init(fCollectSparkProofs, fDeferBatchVerify);
     struct BatchTempCleanup
     {
         BatchProofContainer* container;
@@ -3000,6 +3008,24 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
+    if (fCollectSparkProofs && !fDeferBatchVerify) {
+        batchTempCleanup.merged = true;
+        bool batchVerified = false;
+        try {
+            batchVerified = batchProofContainer->verify_block_batch();
+        } catch (const std::bad_alloc&) {
+            return state.Error(
+                "ConnectBlock(): memory allocation failed during Spark batch verification");
+        }
+        if (!batchVerified) {
+            return state.DoS(
+                100,
+                error("ConnectBlock(): Spark batch proof verification failed"),
+                REJECT_INVALID,
+                "bad-spark-batch-proof");
+        }
+    }
+
     if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
@@ -3125,7 +3151,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     view.SetBestBlock(pindex->GetBlockHash());
 
     // Merge this block's collected Spark proofs into the deferred batch.
-    batchProofContainer->finalize();
+    if (fDeferBatchVerify)
+        batchProofContainer->finalize();
     batchTempCleanup.merged = true;
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
@@ -4000,7 +4027,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
             }
         }
 
-        if (!ShouldBatchSparkProofs(pindexNewTip) &&
+        if (!ShouldDeferSparkBatchVerification(pindexNewTip) &&
             !VerifyPendingSparkBatch(state, "connecting new tip"))
             return false;
 
