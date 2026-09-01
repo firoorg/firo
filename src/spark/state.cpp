@@ -1922,7 +1922,7 @@ void CSparkState::GetCoinSet(
         std::vector<spark::Coin>& coins_out) {
     uint256 blockHash;
     std::vector<unsigned char> setHash;
-    FIRO_UNUSED const auto &params = ::Params().GetConsensus();
+    FIRO_UNUSED const auto& params = ::Params().GetConsensus();
     LOCK(cs_main);
     int maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
     GetCoinSetForSpend(

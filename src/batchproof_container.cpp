@@ -7,7 +7,8 @@
 #include <set>
 #include <unordered_map>
 
-namespace {
+namespace
+{
 
 bool VerifySparkBatch(
     const std::vector<spark::SpendTransaction>& sparkTransactions,
@@ -34,7 +35,7 @@ bool VerifySparkBatch(
             passed = spark::SpendTransaction::verifyHistorical(
                 params, historicalSparkTransactions, coverSets);
         }
-    } catch (const std::bad_alloc &) {
+    } catch (const std::bad_alloc&) {
         throw;
     } catch (const std::exception &) {
         passed = false;
@@ -48,7 +49,7 @@ bool VerifySparkBatch(
             try {
                 fProofValid = spark::SpendTransaction::verify(
                     params, {sparkTransactions[i]}, coverSets);
-            } catch (const std::bad_alloc &) {
+            } catch (const std::bad_alloc&) {
                 throw;
             } catch (const std::exception &) {
                 fProofValid = false;
@@ -62,7 +63,7 @@ bool VerifySparkBatch(
             try {
                 fProofValid = spark::SpendTransaction::verifyHistorical(
                     params, {historicalSparkTransactions[i]}, coverSets);
-            } catch (const std::bad_alloc &) {
+            } catch (const std::bad_alloc&) {
                 throw;
             } catch (const std::exception &) {
                 fProofValid = false;
@@ -98,7 +99,8 @@ void BatchProofContainer::RemoveRecoveryMarker()
     boost::filesystem::remove(RecoveryMarkerPath());
 }
 
-BatchProofContainer* BatchProofContainer::get_instance() {
+BatchProofContainer* BatchProofContainer::get_instance()
+{
     if (instance) {
         return instance.get();
     } else {
@@ -107,7 +109,8 @@ BatchProofContainer* BatchProofContainer::get_instance() {
     }
 }
 
-void BatchProofContainer::init(bool collectProofs) {
+void BatchProofContainer::init(bool collectProofs)
+{
     LOCK(cs_batch);
     sparkTransactions.clear();
     sparkTxIds.clear();
@@ -116,16 +119,19 @@ void BatchProofContainer::init(bool collectProofs) {
     fCollectProofs = collectProofs;
 }
 
-void BatchProofContainer::abort() {
+void BatchProofContainer::abort()
+{
     init();
 }
 
-void BatchProofContainer::finalize() {
+void BatchProofContainer::finalize()
+{
     LOCK(cs_batch);
     fCollectProofs = false;
 }
 
-bool BatchProofContainer::verify_pending() {
+bool BatchProofContainer::verify_pending()
+{
     std::vector<spark::SpendTransaction> snapshotTransactions;
     std::vector<uint256> snapshotTxIds;
     std::vector<spark::SpendTransaction> snapshotHistoricalTransactions;
@@ -166,7 +172,8 @@ bool BatchProofContainer::verify_pending() {
         coverSets);
 }
 
-bool BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& txHash) {
+bool BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& txHash)
+{
     LOCK(cs_batch);
     if (!fCollectProofs)
         return false;
@@ -176,7 +183,8 @@ bool BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& 
 }
 
 bool BatchProofContainer::addHistorical(
-    const spark::SpendTransaction& tx, const uint256& txHash) {
+    const spark::SpendTransaction& tx, const uint256& txHash)
+{
     LOCK(cs_batch);
     if (!fCollectProofs)
         return false;
