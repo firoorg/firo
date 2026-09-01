@@ -53,9 +53,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
             assert tr_type == 'mint', 'Unexpected transaction type: {}'.format(tr_type)
             # assert(self.wait_for_instantlock(tr, self.nodes[0]))
 
-        self.nodes[0].generate(1)
-        self.sync_all()
-
+        # Unconfirmed mints cannot be spent (wallet treats nHeight < 1 as immature).
         res = False
         firoAddress = self.nodes[0].getnewaddress()
         try:
@@ -65,7 +63,8 @@ class SparkMintSpendTest(BitcoinTestFramework):
 
         assert not res, 'Did not raise spend exception, but should be.'
 
-        # generate last confirmation block - now all transactions should be confimed
+        # One confirmation is enough to spend (ZC_MINT_CONFIRMATIONS == 1), and
+        # two minted coins make a valid cover set.
         self.nodes[0].generate(1)
         self.sync_all()
 
