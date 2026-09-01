@@ -66,23 +66,23 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     container->init(true);
     addValidSpend();
     container->finalize();
-    bool replacementAdded = false;
-    bool replaced = false;
+    bool fReplacementAdded = false;
+    bool fReplaced = false;
     boost::signals2::scoped_connection replaceBatch(
         uiInterface.UpdateProgressBarLabel.connect(
             [&](const std::string&) {
-                if (replaced)
+                if (fReplaced)
                     return;
-                replaced = true;
+                fReplaced = true;
                 container->init(true);
-                replacementAdded = container->add(
+                fReplacementAdded = container->add(
                     invalidSpend, spendTxB.GetHash());
                 container->finalize();
             }));
     BOOST_CHECK(container->verify_pending());
     replaceBatch.disconnect();
-    BOOST_REQUIRE(replaced);
-    BOOST_REQUIRE(replacementAdded);
+    BOOST_REQUIRE(fReplaced);
+    BOOST_REQUIRE(fReplacementAdded);
     BOOST_CHECK(!container->verify_pending());
     BOOST_CHECK(container->verify_pending());
 
