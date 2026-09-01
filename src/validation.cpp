@@ -2309,8 +2309,18 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
 
 static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
 {
-    // Batch Spark proofs in old blocks while syncing or reindexing.
+    // Defer Spark proof verification for blocks older than a day, which means we are syncing or reindexing
     return ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+}
+
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
+{
+    if (!BatchProofContainer::get_instance()->verify_pending()) {
+        return AbortNode(state,
+                         strprintf("Spark batch verification failed before %s", reason),
+                         _("Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block."));
+    }
+    return true;
 }
 
 enum DisconnectResult
@@ -2787,17 +2797,19 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
-    // Batch Spark proofs within old blocks while syncing or reindexing.
+    // Defer Spark proof verification for blocks older than a day while syncing or reindexing.
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     batchProofContainer->init(ShouldBatchSparkProofs(pindex));
-    struct BatchProofCleanup
+    struct BatchTempCleanup
     {
         BatchProofContainer* container;
-        ~BatchProofCleanup()
+        bool merged = false;
+        ~BatchTempCleanup()
         {
-            container->abort();
+            if (!merged)
+                container->discard_temps();
         }
-    } batchProofCleanup{batchProofContainer};
+    } batchTempCleanup{batchProofContainer};
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -2988,25 +3000,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    // Batch within this block, but verify under cs_main before any global or
-    // persistent block state is updated. This bounds the lock hold to one
-    // block instead of one accumulated IBD batch.
-    batchProofContainer->finalize();
-    bool batchVerified = false;
-    try {
-        batchVerified = batchProofContainer->verify_pending();
-    } catch (const std::bad_alloc&) {
-        return state.Error(
-            "ConnectBlock(): memory allocation failed during Spark batch verification");
-    }
-    if (!batchVerified) {
-        return state.DoS(
-            100,
-            error("ConnectBlock(): Spark batch proof verification failed"),
-            REJECT_INVALID,
-            "bad-spark-batch-proof");
-    }
-
     if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
@@ -3130,6 +3123,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
+
+    // Merge this block's collected Spark proofs into the deferred batch.
+    batchProofContainer->finalize();
+    batchTempCleanup.merged = true;
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);
@@ -3415,6 +3412,26 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
         return AbortNode(state, "Failed to read block");
 
 
+    // retrieve all mints
+    block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
+
+    std::vector<spark::SpendTransaction> sparkTransactionsToRemove;
+    for (CTransactionRef tx : block.vtx) {
+        CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
+            false, false, block.sparkTxInfo.get());
+        if(GetBoolArg("-batching", true)) {
+            if (tx->IsSparkSpend()) {
+                try {
+                    spark::SpendTransaction spendTransaction = spark::ParseSparkSpend(*tx);
+                    sparkTransactionsToRemove.push_back(spendTransaction);
+                }
+                catch (CBadTxIn &) {
+                    continue;
+                }
+            }
+        }
+    }
+
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
@@ -3430,6 +3447,12 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
     spark::DisconnectTipSpark(block, pindexDelete);
+
+    BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
+
+    for (auto& sparkTransaction : sparkTransactionsToRemove) {
+        batchProofContainer->remove(sparkTransaction);
+    }
 
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());
@@ -3976,6 +3999,10 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
         }
+
+        if (!ShouldBatchSparkProofs(pindexNewTip) &&
+            !VerifyPendingSparkBatch(state, "connecting new tip"))
+            return false;
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 

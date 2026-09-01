@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Test per-block Spark batch proof verification (-batching) across reindex.
+"""Test deferred Spark batch proof verification (-batching) across reindex.
 
 All blocks are mined with timestamps more than a day in the past, so a
 later reindex takes the old-block batching path: Spark spend proofs are
-collected and verified within each block before its validation state is
-persisted.
+collected into the batch container and must batch-verify before the node
+persists validation state and clears the reindex flag.
 """
 import os
 import time
@@ -38,7 +38,9 @@ class SparkBatchingTest(BitcoinTestFramework):
         open(os.path.join(self.options.tmpdir, "node0", "regtest", "debug.log"), "w").close()
         extra_args = [["-reindex", "-batching=" + ("1" if batching else "0")]]
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, extra_args)
-        # Require proof that the reindex exercised the batching path.
+        # The tip can reach the target height while the final deferred batch
+        # is still pending, so a batched reindex is only complete once the
+        # batch verification success marker is in the log as well.
         deadline = time.time() + 300
         while True:
             if self.nodes[0].getblockcount() >= blockcount and \
@@ -64,7 +66,7 @@ class SparkBatchingTest(BitcoinTestFramework):
 
     def run_test(self):
         # Mine everything with old timestamps so a later reindex treats the
-        # whole chain as old blocks and batches Spark proof verification.
+        # whole chain as old blocks and defers Spark proof verification.
         set_node_times(self.nodes, int(time.time()) - 2 * 86400)
 
         self.nodes[0].generate(501)
