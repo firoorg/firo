@@ -92,22 +92,35 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
 
     // Recent blocks verify collected proofs per block without touching the
     // deferred cross-block batch.
-    container->init(true, false);
+    container->init(true);
     addValidSpend();
     BOOST_CHECK(container->verify_block_batch());
     BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
     BOOST_CHECK(container->verify_pending());
 
-    container->init(true, false);
+    container->init(true);
     BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
     BOOST_CHECK(!container->verify_block_batch());
     BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
     BOOST_CHECK(container->verify_pending());
 
-    // Checking a pending batch while collection is active must not close the
-    // collection window. Otherwise a proof can be skipped without being
-    // enqueued at the old-to-recent batching boundary.
+    // Empty deferred finalize must not write sparkbatchfailed.
     container->init(true);
+    container->finalize();
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+
+    collectSpend();
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+
+    // Checking a pending batch while collection is active must not close the
+    // collection window or drop temps already enqueued.
+    container->init(true);
+    BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
     BOOST_CHECK(container->verify_pending());
     BOOST_CHECK(container->add(invalidSpend, spendTxB.GetHash()));
     container->finalize();

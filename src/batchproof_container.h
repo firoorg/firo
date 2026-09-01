@@ -12,7 +12,7 @@ class BatchProofContainer {
 public:
     static BatchProofContainer* get_instance();
 
-    void init(bool collectProofs = false, bool fDeferredBatch = true);
+    void init(bool collectProofs = false);
 
     void finalize();
 

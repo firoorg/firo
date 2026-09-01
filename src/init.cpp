@@ -1973,12 +1973,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 7b: load block chain
 
-    // Deferred Spark batching writes sparkbatchfailed when collection starts and
-    // removes it after a successful verify. A failed batch verify or crash while
-    // proofs are still pending leaves the marker; force -reindex with -batching=0
-    // so chainstate is rebuilt with per-block verification. Checked here rather
-    // than in LoadBlockIndexDB() because a run restarted with -reindex wipes the
-    // block tree database and never calls LoadBlockIndexDB().
+    // Deferred Spark batching writes sparkbatchfailed when a non-empty batch is
+    // finalized and removes it after a successful verify. A failed batch verify
+    // or crash while proofs are still pending leaves the marker; force -reindex
+    // with -batching=0 so chainstate is rebuilt with per-block verification.
+    // Checked here rather than in LoadBlockIndexDB() because a run restarted
+    // with -reindex wipes the block tree database and never calls LoadBlockIndexDB().
     if (BatchProofContainer::HasRecoveryMarker()) {
         LogPrintf("Previous run did not finish Spark batch verification, disabling -batching and forcing -reindex for this run\n");
         ForceSetArg("-batching", "0");

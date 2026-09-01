@@ -3179,7 +3179,7 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
     candidateIndex.pprev = chainActive.Tip();
     candidateIndex.nHeight = chainActive.Height() + 1;
     // Recent blocks batch proofs per block and verify before state is committed.
-    candidateIndex.nTime = GetSystemTimeInSeconds();
+    candidateIndex.nTime = GetTime();
 
     CValidationState state;
     CCoinsViewCache view(pcoinsTip);
@@ -3254,7 +3254,7 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     candidateIndex.nHeight = chainActive.Height() + 1;
     // Old enough to enable deferred batching while ConnectBlock still fails
     // on the missing transparent input before finalize.
-    candidateIndex.nTime = GetSystemTimeInSeconds() - 86401;
+    candidateIndex.nTime = GetTime() - 86401;
 
     CValidationState state;
     CCoinsViewCache view(pcoinsTip);

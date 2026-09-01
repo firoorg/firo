@@ -72,8 +72,8 @@ class SparkMintSpendTest(BitcoinTestFramework):
             info = self.nodes[0].gettransaction(tr[0])
             confrms = info['confirmations']
             assert confrms >= 1, \
-              'Confirmations should be 3, ' \
-              'due to 3 blocks was generated after transaction was created,' \
+              'Confirmations should be 1, ' \
+              'due to 1 block was generated after transaction was created,' \
               'but was {}.'.format(confrms)
             tr_type = info['details'][0]['category']
             assert tr_type == 'mint', 'Unexpected transaction type'

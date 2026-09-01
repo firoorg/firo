@@ -156,15 +156,13 @@ BatchProofContainer* BatchProofContainer::get_instance() {
     }
 }
 
-void BatchProofContainer::init(bool collectProofs, bool fDeferredBatch) {
+void BatchProofContainer::init(bool collectProofs) {
     LOCK(cs_batch);
     tempSparkTransactions.clear();
     tempSparkTxIds.clear();
     tempHistoricalSparkTransactions.clear();
     tempHistoricalSparkTxIds.clear();
     fCollectProofs = collectProofs;
-    if (fCollectProofs && fDeferredBatch)
-        WriteRecoveryMarker();
 }
 
 void BatchProofContainer::finalize() {
@@ -186,6 +184,8 @@ void BatchProofContainer::finalize() {
     tempHistoricalSparkTransactions.clear();
     tempHistoricalSparkTxIds.clear();
     fCollectProofs = false;
+    if (!sparkTransactions.empty() || !historicalSparkTransactions.empty())
+        WriteRecoveryMarker();
 }
 
 void BatchProofContainer::discard_temps()
@@ -226,13 +226,6 @@ bool BatchProofContainer::verify_block_batch()
 }
 
 bool BatchProofContainer::verify_pending() {
-    {
-        LOCK(cs_batch);
-        if (fCollectProofs) {
-            return true;
-        }
-    }
-
     while (true) {
         std::vector<spark::SpendTransaction> snapshotTransactions;
         std::vector<uint256> snapshotTxIds;
@@ -240,13 +233,13 @@ bool BatchProofContainer::verify_pending() {
         std::vector<uint256> snapshotHistoricalTxIds;
         {
             LOCK(cs_batch);
-            init();
-            if (fBatchFailed) {
-                fCollectProofs = false;
+            if (fCollectProofs)
+                return true;
+            if (fBatchFailed)
                 return false;
-            }
             if (sparkTransactions.empty() && historicalSparkTransactions.empty()) {
-                fCollectProofs = false;
+                if (!fReindex)
+                    RemoveRecoveryMarker();
                 return true;
             }
 
@@ -283,7 +276,6 @@ bool BatchProofContainer::verify_pending() {
             continue;
         }
 
-        fCollectProofs = false;
         if (passed) {
             if (!fReindex)
                 RemoveRecoveryMarker();

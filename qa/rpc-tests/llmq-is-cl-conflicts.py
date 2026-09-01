@@ -96,7 +96,7 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         block = self.create_block(self.nodes[0], [rawtx2_obj])
         if test_block_conflict:
             submit_result = self.nodes[0].submitblock(ToHex(block))
-            assert(submit_result == "conflict-tx-lock")
+            assert submit_result == "conflict-tx-lock", submit_result
 
         cl = self.create_chainlock(self.nodes[0].getblockcount() + 1, block.sha256)
         self.test_node.send_clsig(cl)

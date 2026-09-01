@@ -2309,8 +2309,10 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
 
 static bool ShouldDeferSparkBatchVerification(const CBlockIndex* pindex)
 {
-    // Defer Spark proof verification for blocks older than a day, which means we are syncing or reindexing
-    return ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+    // Defer Spark proof verification for blocks older than a day (IBD/reindex).
+    // GetTime() is mockable so -mocktime RPC tests use the same recent vs deferred
+    // split as a live node; wall-clock time would treat 2014 mocktime chains as IBD.
+    return ((GetTime() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
 }
 
 static bool ShouldCollectSparkProofs()
@@ -2807,7 +2809,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     const bool fDeferBatchVerify = ShouldDeferSparkBatchVerification(pindex);
     const bool fCollectSparkProofs =
         ShouldCollectSparkProofs() && !fJustCheck && !isVerifyDB;
-    batchProofContainer->init(fCollectSparkProofs, fDeferBatchVerify);
+    batchProofContainer->init(fCollectSparkProofs);
     struct BatchTempCleanup
     {
         BatchProofContainer* container;
@@ -3008,24 +3010,6 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    if (fCollectSparkProofs && !fDeferBatchVerify) {
-        batchTempCleanup.merged = true;
-        bool batchVerified = false;
-        try {
-            batchVerified = batchProofContainer->verify_block_batch();
-        } catch (const std::bad_alloc&) {
-            return state.Error(
-                "ConnectBlock(): memory allocation failed during Spark batch verification");
-        }
-        if (!batchVerified) {
-            return state.DoS(
-                100,
-                error("ConnectBlock(): Spark batch proof verification failed"),
-                REJECT_INVALID,
-                "bad-spark-batch-proof");
-        }
-    }
-
     if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
@@ -3055,6 +3039,27 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return state.DoS(10, error("ConnectBlock(DASH): transaction %s conflicts with transaction lock %s", tx->GetHash().ToString(), conflictLock->txid.ToString()),
                                  REJECT_INVALID, "conflict-tx-lock");
             }
+        }
+    }
+
+    // After InstantSend filtering so a conflicting block still returns
+    // conflict-tx-lock instead of a Spark-batch reject, and collection stays
+    // open through ProcessSpecialTxsInBlock as it did on master.
+    if (fCollectSparkProofs && !fDeferBatchVerify) {
+        batchTempCleanup.merged = true;
+        bool batchVerified = false;
+        try {
+            batchVerified = batchProofContainer->verify_block_batch();
+        } catch (const std::bad_alloc&) {
+            return state.Error(
+                "ConnectBlock(): memory allocation failed during Spark batch verification");
+        }
+        if (!batchVerified) {
+            return state.DoS(
+                100,
+                error("ConnectBlock(): Spark batch proof verification failed"),
+                REJECT_INVALID,
+                "bad-spark-batch-proof");
         }
     }
 
