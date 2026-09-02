@@ -1020,8 +1020,8 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
 
         consensus.nSparkStartBlock = 1500;
-        consensus.nSparkSingleInputStartBlock = INT_MAX;
-        consensus.nSparkChaumV2StartBlock = INT_MAX;
+        consensus.nSparkSingleInputStartBlock = 3600; // H1: ~87 blocks / ~7h15m after devnet height 3513
+        consensus.nSparkChaumV2StartBlock = 3700;      // H2: ~187 blocks / ~15h35m after devnet height 3513
         consensus.nLelantusGracefulPeriod = 6000;
         consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
