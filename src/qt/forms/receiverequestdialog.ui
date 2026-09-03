@@ -6,11 +6,26 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>487</width>
-    <height>426</height>
+    <width>1200</width>
+    <height>640</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_3">
+   <property name="spacing">
+    <number>14</number>
+   </property>
+   <property name="leftMargin">
+    <number>20</number>
+   </property>
+   <property name="topMargin">
+    <number>20</number>
+   </property>
+   <property name="rightMargin">
+    <number>20</number>
+   </property>
+   <property name="bottomMargin">
+    <number>20</number>
+   </property>
    <item>
     <widget class="QRImageWidget" name="lblQRCode">
      <property name="sizePolicy">
@@ -50,7 +65,7 @@
      <property name="minimumSize">
       <size>
        <width>0</width>
-       <height>50</height>
+       <height>240</height>
       </size>
      </property>
      <property name="frameShape">
@@ -68,7 +83,7 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QVBoxLayout" name="actionButtonsLayout">
      <item>
       <widget class="QPushButton" name="btnCopyURI">
        <property name="text">
@@ -99,8 +114,22 @@
        </property>
       </widget>
      </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayoutClose">
      <item>
-      <spacer name="horizontalSpacer_2">
+      <widget class="QPushButton" name="closeButton">
+       <property name="text">
+        <string>&amp;Close</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_3">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -111,13 +140,6 @@
         </size>
        </property>
       </spacer>
-     </item>
-     <item>
-      <widget class="QDialogButtonBox" name="buttonBox">
-       <property name="standardButtons">
-        <set>QDialogButtonBox::Close</set>
-       </property>
-      </widget>
      </item>
     </layout>
    </item>
@@ -131,38 +153,5 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>rejected()</signal>
-   <receiver>ReceiveRequestDialog</receiver>
-   <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>452</x>
-     <y>573</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>243</x>
-     <y>298</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>accepted()</signal>
-   <receiver>ReceiveRequestDialog</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>452</x>
-     <y>573</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>243</x>
-     <y>298</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

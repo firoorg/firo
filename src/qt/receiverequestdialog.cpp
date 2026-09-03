@@ -7,6 +7,7 @@
 
 #include "bitcoinunits.h"
 #include "guiconstants.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
@@ -17,6 +18,9 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPixmap>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QVBoxLayout>
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
@@ -95,12 +99,63 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    ui->verticalLayout_3->removeWidget(ui->lblQRCode);
+    ui->verticalLayout_3->removeWidget(ui->outUri);
+    auto* scrollContents = new QWidget(this);
+    auto* scrollLayout = new QVBoxLayout(scrollContents);
+    scrollLayout->setContentsMargins(0, 0, 0, 0);
+    scrollLayout->setSpacing(14);
+    scrollLayout->addWidget(ui->lblQRCode);
+    scrollLayout->addWidget(ui->outUri);
+
+    auto* scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("paymentRequestScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(scrollContents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#paymentRequestScroll { background: transparent; border: none; }"));
+    ui->verticalLayout_3->insertWidget(0, scroll, 1);
+
+    scrollContents->layout()->activate();
+    scroll->setMinimumHeight(scrollContents->sizeHint().height());
+
+    const QSize available = GUIUtil::availableScreenSize(this);
+    const QSize target = sizeHint();
+    resize(qMin(target.width(), qMax(1, available.width() - 40)),
+           qMin(target.height(), qMax(1, available.height() - 40)));
+
 #ifndef USE_QRCODE
     ui->btnSaveAs->setVisible(false);
     ui->lblQRCode->setVisible(false);
 #endif
 
     connect(ui->btnSaveAs, &QPushButton::clicked, ui->lblQRCode, &QRImageWidget::saveImage);
+    connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::accept);
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &ReceiveRequestDialog::applyTheme);
+    applyTheme();
+}
+
+void ReceiveRequestDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+    ui->lblQRCode->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: $PANEL; border: 1px solid $BORDER; border-radius: 18px; color: $INK; }")));
+    ui->outUri->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QTextEdit { background: $WINE_TINT; border: 1.5px solid $WINE; border-radius: 16px;"
+        " padding: 14px 16px; color: $INK; }")));
+
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
+    ui->btnCopyURI->setStyleSheet(secondaryButtonStyle);
+    ui->btnCopyAddress->setStyleSheet(secondaryButtonStyle);
+    ui->btnSaveAs->setStyleSheet(secondaryButtonStyle);
+    ui->closeButton->setStyleSheet(primaryButtonStyle);
+
+    update();
 }
 
 ReceiveRequestDialog::~ReceiveRequestDialog()
@@ -130,7 +185,6 @@ void ReceiveRequestDialog::update()
 {
     if(!model || !walletModel)
         return;
-    resize(width(), 600);
     QString target = info.label;
     if(target.isEmpty())
         target = info.address;
@@ -138,27 +192,33 @@ void ReceiveRequestDialog::update()
 
     QString uri = GUIUtil::formatBitcoinURI(info);
     ui->btnSaveAs->setEnabled(false);
-    QString html;
-    html += "<html><font face='verdana, arial, helvetica, sans-serif'>";
-    html += "<b>"+tr("Payment information")+"</b><br>";
-    html += "<b>"+tr("URI")+"</b>: ";
-    html += "<a href=\""+uri+"\">" + GUIUtil::HtmlEscape(uri) + "</a><br>";
-    html += "<b>"+tr("Address")+"</b>: " + GUIUtil::HtmlEscape(info.address) + "<br>";
-    if(info.amount)
-        html += "<b>"+tr("Amount")+"</b>: " + BitcoinUnits::formatHtmlWithUnit(model->getDisplayUnit(), info.amount) + "<br>";
-    if(!info.label.isEmpty())
-        html += "<b>"+tr("Label")+"</b>: " + GUIUtil::HtmlEscape(info.label) + "<br>";
-    if(walletModel->validateAddress(info.address))
-    {
-        html += "<b>"+tr("Address Type")+"</b>: " + tr("transparent") + "<br>";
+
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    const QString captionStyle = QStringLiteral("color:%1; font-size:12px; font-weight:700;").arg(tc.inkSoft);
+    const QString valueStyle = QStringLiteral(
+        "color:%1; font-family:monospace; font-size:12px;").arg(tc.ink);
+    const auto section = [&](const QString& caption, const QString& value) {
+        return QStringLiteral("<p style=\"margin:0 0 4px 0;\"><span style=\"%1\">%2</span></p>"
+                              "<p style=\"margin:0 0 14px 0;\"><span style=\"%3\">%4</span></p>")
+            .arg(captionStyle, caption.toUpper(), valueStyle, value);
+    };
+
+    QString html = QStringLiteral("<html><body style=\"margin:0;\">");
+    html += section(tr("Payment URI"), GUIUtil::HtmlEscape(uri));
+    html += section(tr("Address"), GUIUtil::HtmlEscape(info.address));
+    if (info.amount)
+        html += section(tr("Amount"), BitcoinUnits::formatHtmlWithUnit(model->getDisplayUnit(), info.amount));
+    if (!info.label.isEmpty())
+        html += section(tr("Label"), GUIUtil::HtmlEscape(info.label));
+    if (walletModel->validateAddress(info.address)) {
+        html += section(tr("Address Type"), tr("transparent"));
+    } else if (walletModel->validateSparkAddress(info.address)) {
+        html += section(tr("Address Type"), tr("spark"));
     }
-    else if(walletModel->validateSparkAddress(info.address))
-    {
-        html += "<b>"+tr("Address Type")+"</b>: " + tr("spark") + "<br>";
-    }
-    if(!info.message.isEmpty())
-        html += "<b>"+tr("Message")+"</b>: " + GUIUtil::HtmlEscape(info.message) + "<br>";
-    ui->outUri->setText(html);
+    if (!info.message.isEmpty())
+        html += section(tr("Message"), GUIUtil::HtmlEscape(info.message));
+    html += QStringLiteral("</body></html>");
+    ui->outUri->setHtml(html);
 
 #ifdef USE_QRCODE
     ui->lblQRCode->setText("");

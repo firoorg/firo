@@ -1610,11 +1610,11 @@
     </message>
     <message>
         <source>Use up and down arrows to navigate history, and &lt;b&gt;Ctrl-L&lt;/b&gt; to clear screen.</source>
-        <translation>Utilitza les fletxes d'amunt i avall per navegar per l'historial, i &lt;b&gt;Ctrl-L&lt;\b&gt; per netejar la pantalla.</translation>
+        <translation>Utilitza les fletxes d'amunt i avall per navegar per l'historial, i &lt;b&gt;Ctrl-L&lt;/b&gt; per netejar la pantalla.</translation>
     </message>
     <message>
         <source>Type &lt;b&gt;help&lt;/b&gt; for an overview of available commands.</source>
-        <translation>Escriviu &lt;b&gt;help&lt;\b&gt; per a obtenir un llistat de les ordres disponibles.</translation>
+        <translation>Escriviu &lt;b&gt;help&lt;/b&gt; per a obtenir un llistat de les ordres disponibles.</translation>
     </message>
     <message>
         <source>%1 B</source>

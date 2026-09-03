@@ -299,13 +299,13 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
 
 void TransactionTableModel::updateConfirmations()
 {
-    // Blocks came in since last poll.
-    // Invalidate status (number of confirmations) and (possibly) description
-    //  for all rows. Qt is smart enough to only actually request the data for the
-    //  visible rows.
-    int numRows = std::min(100, priv->size()-1);
-    Q_EMIT dataChanged(index(0, Status), index(numRows, Status));
-    Q_EMIT dataChanged(index(0, ToAddress), index(numRows, ToAddress));
+    // Status roles can affect filters and sorting, so invalidate every row.
+    // Keep the range off the default Date sort column; card views repaint their
+    // visible rows when this signal reaches their proxy.
+    if (priv->size() > 0) {
+        const int last = priv->size() - 1;
+        Q_EMIT dataChanged(index(0, Status), index(last, InstantSend));
+    }
 
     // Process any cached transactions that couldn't be processed due to lock contention
     // This ensures transactions are eventually added even if wallet updates are infrequent
@@ -314,6 +314,9 @@ void TransactionTableModel::updateConfirmations()
 
 void TransactionTableModel::updateNumISLocks(int numISLocks)
 {
+    if (cachedNumISLocks == numISLocks)
+        return;
+
     cachedNumISLocks = numISLocks;
 }
 
@@ -649,6 +652,10 @@ QString TransactionTableModel::formatTooltip(const TransactionRecord *rec) const
     {
         tooltip += QString(" ") + formatTxToAddress(rec, true);
     }
+    if (rec->involvesWatchAddress)
+        tooltip += QString("\n") + tr("Involves a watch-only address.");
+    if (rec->status.lockedByInstantSend)
+        tooltip += QString("\n") + tr("Locked by InstantSend.");
     return tooltip;
 }
 
@@ -850,7 +857,7 @@ QModelIndex TransactionTableModel::index(int row, int column, const QModelIndex 
     TransactionRecord *data = priv->index(row);
     if(data)
     {
-        return createIndex(row, column, priv->index(row));
+        return createIndex(row, column, data);
     }
     return QModelIndex();
 }

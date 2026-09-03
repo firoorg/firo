@@ -14,15 +14,113 @@
 #include "csvmodelwriter.h"
 #include "editaddressdialog.h"
 #include "createsparknamepage.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "bip47/paymentcode.h"
 #include "bip47/paymentchannel.h"
 
+#include <QFrame>
+#include <QCoreApplication>
+#include <QHeaderView>
 #include <QIcon>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPainterPath>
 #include <QSortFilterProxyModel>
+#include <QStyledItemDelegate>
+#include <QTableView>
+
+namespace {
+
+class AddressBookCardDelegate final : public QStyledItemDelegate
+{
+public:
+    explicit AddressBookCardDelegate(QTableView* view)
+        : QStyledItemDelegate(view)
+        , view_(view)
+    {
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        painter->setRenderHint(QPainter::TextAntialiasing, true);
+        painter->setClipRect(option.rect, Qt::IntersectClip);
+
+        const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+        const bool selected = option.state & QStyle::State_Selected;
+        painter->fillRect(option.rect, QColor(tc.panel));
+
+        if (view_) {
+            const QRect left = view_->visualRect(index.sibling(index.row(), AddressTableModel::Label));
+            const QRect right = view_->visualRect(index.sibling(index.row(), AddressTableModel::AddressType));
+            const QRect card(left.left() + 4, option.rect.top() + 4,
+                             qMax(40, right.right() - left.left() - 8),
+                             option.rect.height() - 8);
+            QPainterPath cardPath;
+            cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 12, 12);
+            painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
+            painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
+            painter->drawPath(cardPath);
+        }
+
+        switch (index.column()) {
+        case AddressTableModel::Label: {
+            const QString text = index.data(Qt::DisplayRole).toString();
+            QFont font = option.font;
+            font.setPixelSize(12);
+            font.setBold(true);
+            painter->setFont(font);
+            painter->setPen(QColor(tc.ink));
+            const QRect textRect = option.rect.adjusted(12, 0, -8, 0);
+            painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
+                              QFontMetrics(font).elidedText(
+                                  text.isEmpty() ? QCoreApplication::translate("AddressBookPage", "(no label)") : text,
+                                  Qt::ElideRight, textRect.width()));
+            break;
+        }
+        case AddressTableModel::Address: {
+            const QString text = index.data(Qt::DisplayRole).toString();
+            QFont font = GUIUtil::fixedPitchFont();
+            font.setPixelSize(12);
+            painter->setFont(font);
+            painter->setPen(QColor(tc.inkSoft));
+            painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
+                              QFontMetrics(font).elidedText(text, Qt::ElideMiddle, option.rect.width() - 18));
+            break;
+        }
+        case AddressTableModel::AddressType: {
+            const QString text = index.data(Qt::DisplayRole).toString();
+            const QString addressType = index.data(AddressTableModel::AddressTypeRole).toString();
+            const bool spark = addressType == AddressTableModel::Spark ||
+                               addressType == AddressTableModel::SparkName;
+            QFont badgeFont = option.font;
+            badgeFont.setPixelSize(12);
+            badgeFont.setBold(true);
+            painter->setFont(badgeFont);
+            const int w = qMin(option.rect.width() - 16, QFontMetrics(badgeFont).boundingRect(text).width() + 18);
+            const QRect badge(option.rect.left() + 8, option.rect.center().y() - 11, w, 22);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(spark ? QColor(tc.wineTint) : QColor(tc.border));
+            painter->drawRoundedRect(badge, 11, 11);
+            painter->setPen(spark ? QColor(tc.ink) : QColor(tc.inkSoft));
+            painter->drawText(badge, Qt::AlignCenter, text);
+            break;
+        }
+        default:
+            break;
+        }
+        painter->restore();
+    }
+
+private:
+    QTableView* view_;
+};
+
+}
 
 AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
@@ -111,6 +209,43 @@ AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode
     connect(ui->tableView, &QWidget::customContextMenuRequested, this, &AddressBookPage::contextualMenu);
 
     connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::accept);
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &AddressBookPage::applyTheme);
+    applyTheme();
+}
+
+void AddressBookPage::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+    ui->labelExplanation->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
+    ui->tableView->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
+        "QHeaderView::section {"
+        " background: transparent; border: none; color: $INK_SOFT;"
+        " font-size: 12px; font-weight: 700; padding: 6px;"
+        "}"
+        "QTableView::item { padding: 6px; }")));
+    if (ui->tableView->viewport())
+        ui->tableView->viewport()->update();
+    ui->addressType->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QComboBox {"
+        " background: $PANEL;"
+        " border: 1px solid $BORDER;"
+        " border-radius: 10px;"
+        " padding: 8px 12px;"
+        " color: $INK;"
+        "}")));
+
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
+    ui->newAddress->setStyleSheet(primaryButtonStyle);
+    ui->closeButton->setStyleSheet(primaryButtonStyle);
+    ui->extendAddress->setStyleSheet(secondaryButtonStyle);
+    ui->copyAddress->setStyleSheet(secondaryButtonStyle);
+    ui->deleteAddress->setStyleSheet(secondaryButtonStyle);
+    ui->exportButton->setStyleSheet(secondaryButtonStyle);
 }
 
 AddressBookPage::~AddressBookPage()
@@ -132,8 +267,12 @@ void AddressBookPage::populateAddressTypes(bool sparkAllowed)
             ui->addressType->addItem(tr("My own spark names"), SparkNameMine);
         }
     } else {
-        ui->addressType->addItem(tr(""), Transparent);
-        ui->addressType->addItem(tr("Transparent"), Transparent);
+        if (sparkAllowed && initialAddressType == Spark)
+            ui->addressType->addItem(tr("Spark"), Spark);
+        else if (sparkAllowed && initialAddressType == SparkNameMine)
+            ui->addressType->addItem(tr("My own spark names"), SparkNameMine);
+        else
+            ui->addressType->addItem(tr("Transparent"), Transparent);
         ui->addressType->hide();
     }
 }
@@ -186,6 +325,11 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     fproxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     fproxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
     ui->tableView->setModel(fproxyModel);
+    ui->tableView->setShowGrid(false);
+    ui->tableView->setFrameShape(QFrame::NoFrame);
+    ui->tableView->setAlternatingRowColors(false);
+    ui->tableView->verticalHeader()->setDefaultSectionSize(56);
+    ui->tableView->setItemDelegate(new AddressBookCardDelegate(ui->tableView));
     // Set column widths
     #if QT_VERSION < 0x050000
         ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
@@ -479,6 +623,12 @@ void AddressBookPage::chooseAddressType(int idx)
 
     const int selectedType = ui->addressType->itemData(idx).toInt();
 
+    if (tab == ReceivingTab) {
+        ui->labelExplanation->setText(selectedType == Transparent
+            ? tr("These are your Firo addresses for receiving payments. It is recommended to use a new receiving address for each transaction.")
+            : tr("Spark addresses can safely receive multiple payments, although reusing one can link those requests."));
+    }
+
     if (isSparkNameType(selectedType)) {
         model->ProcessPendingSparkNameChanges();
         ui->deleteAddress->setEnabled(false);
@@ -516,24 +666,27 @@ void AddressBookPage::chooseAddressType(int idx)
 }
 
 AddressBookFilterProxy::AddressBookFilterProxy(QObject *parent) :
-    QSortFilterProxyModel(parent)
+    QSortFilterProxyModel(parent),
+    typeFilter(AddressBookPage::Transparent)
 {
 }
 
 bool AddressBookFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
-    QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
-    QString dataStr = sourceModel()->data(index).toString();
+    const QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
+    const QString addressType = sourceModel()->data(
+        index, AddressTableModel::AddressTypeRole).toString();
     
     switch (typeFilter) {
     case (int)AddressBookPage::Spark:
-        return dataStr == "spark";
+        return addressType == AddressTableModel::Spark;
     case (int)AddressBookPage::Transparent:
-        return dataStr == "transparent";
+        return addressType == AddressTableModel::Transparent;
     case (int)AddressBookPage::SparkName:
-        return dataStr.contains("spark name");
+        return addressType == AddressTableModel::SparkName;
     case (int)AddressBookPage::SparkNameMine:
-        return dataStr == "own spark name";
+        return addressType == AddressTableModel::SparkName &&
+               sourceModel()->data(index, AddressTableModel::IsMineRole).toBool();
     default:
         return false;
     }

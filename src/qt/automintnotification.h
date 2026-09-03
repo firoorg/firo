@@ -21,6 +21,7 @@ public:
 
 public:
     void setModel(WalletModel *model);
+    void applyTheme();
 
 Q_SIGNALS:
     void ackMintSparkAll(AutoMintSparkAck, CAmount, QString);

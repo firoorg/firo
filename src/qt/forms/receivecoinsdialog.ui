@@ -27,75 +27,39 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
-       <layout class="QGridLayout" name="gridLayout">
-        <item row="7" column="2">
-         <widget class="QCheckBox" name="reuseAddress">
-          <property name="toolTip">
-           <string>Reuse one of the previously used receiving addresses. Reusing addresses has security and privacy issues. Do not use this unless re-generating a payment request made before.</string>
-          </property>
-          <property name="text">
-           <string>R&amp;euse an existing receiving address (not recommended)</string>
-          </property>
+       <layout class="QFormLayout" name="gridLayout">
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::ExpandingFieldsGrow</enum>
+        </property>
+        <property name="rowWrapPolicy">
+         <enum>QFormLayout::WrapLongRows</enum>
+        </property>
+        <property name="labelAlignment">
+         <set>Qt::AlignLeft|Qt::AlignVCenter</set>
+        </property>
+        <property name="formAlignment">
+         <set>Qt::AlignLeft|Qt::AlignTop</set>
+        </property>
+        <property name="horizontalSpacing">
+         <number>12</number>
+        </property>
+        <property name="verticalSpacing">
+         <number>8</number>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="addressTypeLabel">
+           <property name="toolTip">
+             <string>Choose Spark or Transparent for the payment request address.</string>
+           </property>
+           <property name="text">
+             <string>ADDRESS TYPE</string>
+           </property>
          </widget>
         </item>
-        <item row="7" column="0">
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="0">
-         <widget class="QLabel" name="label_3">
-          <property name="toolTip">
-           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</string>
-          </property>
-          <property name="text">
-           <string>&amp;Message:</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-          </property>
-          <property name="buddy">
-           <cstring>reqMessage</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="2">
-         <widget class="QLineEdit" name="reqLabel">
-          <property name="toolTip">
-           <string>An optional label to associate with the new receiving address.</string>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="2">
-         <widget class="QLineEdit" name="reqMessage">
-          <property name="toolTip">
-           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-          <widget class="QLabel" name="addressTypeLabel">
-            <property name="toolTip">
-              <string>An optional label to associate with the new receiving address.</string>
-            </property>
-            <property name="text">
-              <string>Address:</string>
-            </property>
-          </widget>
-        </item>
-        <item row="3" column="2">
+        <item row="0" column="1">
           <layout class="QHBoxLayout" name="addressTypeHorizontalLayout">
             <item>
               <widget class="QComboBox" name="addressTypeCombobox">
-              </widget>
-            </item>
-            <item>
-              <widget class="QLabel" name="label_5">
-                <property name="text">
-                  <string>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;. Default address is &lt;b&gt;spark&lt;/b&gt;. </string>
-                </property>
               </widget>
             </item>
             <item>
@@ -113,39 +77,89 @@
             </item>
           </layout>
         </item>
-        <item row="4" column="0">
+        <item row="1" column="0" colspan="2">
+         <widget class="QWidget" name="sparkNameActions" native="true">
+          <layout class="QHBoxLayout" name="sparkNameActionsLayout">
+           <property name="leftMargin"><number>0</number></property>
+           <property name="topMargin"><number>0</number></property>
+           <property name="rightMargin"><number>0</number></property>
+           <property name="bottomMargin"><number>0</number></property>
+           <item>
+            <widget class="QPushButton" name="mySparkNamesButton">
+             <property name="toolTip">
+              <string>Choose one of this wallet's Spark Names for the payment request.</string>
+             </property>
+             <property name="text">
+              <string>Use My Spark Name</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="createSparkNameButton">
+             <property name="toolTip">
+              <string>Register a new Spark Name.</string>
+             </property>
+             <property name="text">
+              <string>Register Spark Name</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="sparkNameActionsSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="2" column="0">
          <widget class="QLabel" name="label_2">
           <property name="toolTip">
            <string>An optional label to associate with the new receiving address.</string>
           </property>
           <property name="text">
-           <string>&amp;Label:</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           <string>LABEL</string>
           </property>
           <property name="buddy">
            <cstring>reqLabel</cstring>
           </property>
          </widget>
         </item>
-        <item row="5" column="0">
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="reqLabel">
+          <property name="toolTip">
+           <string>An optional label to associate with the new receiving address.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
          <widget class="QLabel" name="label">
           <property name="toolTip">
            <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
           </property>
           <property name="text">
-           <string>&amp;Amount:</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           <string>AMOUNT</string>
           </property>
           <property name="buddy">
            <cstring>reqAmount</cstring>
           </property>
          </widget>
         </item>
-        <item row="5" column="2">
+        <item row="3" column="1">
          <widget class="BitcoinAmountField" name="reqAmount">
           <property name="minimumSize">
            <size>
@@ -158,7 +172,37 @@
           </property>
          </widget>
         </item>
-        <item row="8" column="2">
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="toolTip">
+           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</string>
+          </property>
+          <property name="text">
+           <string>MESSAGE</string>
+          </property>
+          <property name="buddy">
+           <cstring>reqMessage</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QLineEdit" name="reqMessage">
+          <property name="toolTip">
+           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0" colspan="2">
+         <widget class="QCheckBox" name="reuseAddress">
+          <property name="toolTip">
+           <string>Reuse one of the previously used receiving addresses. Reusing addresses has security and privacy issues. Do not use this unless re-generating a payment request made before.</string>
+          </property>
+          <property name="text">
+           <string>R&amp;euse an existing receiving address (not recommended)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0" colspan="2">
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QPushButton" name="receiveButton">
@@ -205,52 +249,7 @@
             </property>
            </spacer>
           </item>
-          <item>
-           <widget class="QPushButton" name="mySparkNamesButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Browse your spark names to use as label.</string>
-            </property>
-            <property name="text">
-             <string>My Spark names</string>
-            </property>
-            <property name="autoDefault">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="createSparkNameButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Create new spark name.</string>
-            </property>
-            <property name="text">
-             <string>Create Spark name</string>
-            </property>
-            <property name="autoDefault">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
          </layout>
-        </item>
-        <item row="8" column="0">
-         <widget class="QLabel" name="label_7">
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
         </item>
        </layout>
       </item>

@@ -30,6 +30,8 @@ QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QComboBox;
 class QHBoxLayout;
+class QLabel;
+class QScrollArea;
 class QSortFilterProxyModel;
 QT_END_NAMESPACE
 
@@ -68,6 +70,7 @@ public Q_SLOTS:
     void displayCheckBox(int idx);
 
 protected:
+    bool eventFilter(QObject* object, QEvent* event) override;
     virtual void keyPressEvent(QKeyEvent *event) override;
 
 private:
@@ -80,12 +83,20 @@ private:
     void copyColumnToClipboard(int column);
     RecentRequestsFilterProxy *recentRequestsProxyModel;
     void adjustTextSize(int width,int height);
+    QWidget *requestsEmptyState;
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyHint_{nullptr};
+    void updateRequestsEmptyState();
+    void updateRequestColumnWidths();
+    void applyTheme();
+    QWidget *requestFormContents{nullptr};
+    QScrollArea *requestFormScroll{nullptr};
+    void updateRequestFormScrollHeight();
 private Q_SLOTS:
     void on_receiveButton_clicked();
     void on_showRequestButton_clicked();
     void on_removeRequestButton_clicked();
-    void createSparkName();
-    void mySparkNames();
     void on_recentRequestsView_doubleClicked(const QModelIndex &index);
     void recentRequestsView_selectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
     void updateDisplayUnit();
@@ -94,6 +105,8 @@ private Q_SLOTS:
     void copyLabel();
     void copyMessage();
     void copyAmount();
+    void createSparkName();
+    void mySparkNames();
 };
 
 class RecentRequestsFilterProxy : public QSortFilterProxyModel

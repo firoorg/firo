@@ -364,6 +364,13 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         }
         break;
 
+        case TorSetup:
+            if (settings.value("fTorSetup") != value) {
+                settings.setValue("fTorSetup", value.toBool());
+                setRestartRequired(true);
+            }
+            break;
+
         // separate Tor proxy
         case ProxyUseTor:
             if (settings.value("fUseSeparateProxyTor") != value) {

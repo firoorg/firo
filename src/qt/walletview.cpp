@@ -19,6 +19,7 @@
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
+#include "sparknamespage.h"
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
@@ -47,6 +48,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
+    sparkNamesPage = new SparkNamesPage(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this, false);
 
@@ -62,6 +64,7 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     addWidget(overviewPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
+    addWidget(sparkNamesPage);
     addWidget(sendCoinsPage);
     addWidget(masternodeListPage);
 
@@ -80,35 +83,15 @@ void WalletView::setupTransactionPage()
 
     connect(firoTransactionList, &TransactionView::message, this, &WalletView::message);
 
-    // Create export panel for Firo transactions
-    auto exportButton = new QPushButton(tr("&Export"));
-
-    exportButton->setToolTip(tr("Export the data in the current tab to a file"));
-
-    if (platformStyle->getImagesOnButtons()) {
-        exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
-    }
-
-    connect(exportButton, &QPushButton::clicked, firoTransactionList, &TransactionView::exportClicked);
-
-    auto exportLayout = new QHBoxLayout();
-    exportLayout->addStretch();
-    exportLayout->addWidget(exportButton);
-
-    // Compose transaction list and export panel together
-    auto firoLayout = new QVBoxLayout();
-    firoLayout->addWidget(firoTransactionList);
-    firoLayout->addLayout(exportLayout);
-    // TODO: fix this
     connect(overviewPage, &OverviewPage::transactionClicked, firoTransactionList, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
     connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
-    firoTransactionsView = new QWidget();
-    firoTransactionsView->setLayout(firoLayout);
+    firoTransactionsView = firoTransactionList;
 
     // Set layout for transaction page
     auto pageLayout = new QVBoxLayout();
-        pageLayout->addWidget(firoTransactionsView);
+    pageLayout->setContentsMargins(0, 0, 0, 0);
+    pageLayout->addWidget(firoTransactionsView);
 
     transactionsPage->setLayout(pageLayout);
 }
@@ -133,6 +116,9 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
         // Clicking on a transaction on the overview page simply sends you to transaction history page
         connect(overviewPage, &OverviewPage::transactionClicked, gui, &BitcoinGUI::gotoHistoryPage);
 
+        connect(overviewPage, &OverviewPage::gotoSendCoinsPage, gui, [gui] { gui->gotoSendCoinsPage(); });
+        connect(overviewPage, &OverviewPage::gotoReceiveCoinsPage, gui, &BitcoinGUI::gotoReceiveCoinsPage);
+
         // Receive and report messages
         connect(this, &WalletView::message, [gui](const QString &title, const QString &message, unsigned int style) {
             gui->message(title, message, style);
@@ -156,6 +142,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
+    sparkNamesPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)
@@ -166,6 +153,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
+    sparkNamesPage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
@@ -261,6 +249,11 @@ void WalletView::gotoReceiveCoinsPage()
     setCurrentWidget(receiveCoinsPage);
 }
 
+void WalletView::gotoSparkNamesPage()
+{
+    setCurrentWidget(sparkNamesPage);
+}
+
 void WalletView::gotoSendCoinsPage(QString addr)
 {
     setCurrentWidget(sendCoinsPage);
@@ -302,6 +295,7 @@ bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
 void WalletView::showOutOfSyncWarning(bool fShow)
 {
     overviewPage->showOutOfSyncWarning(fShow);
+    firoTransactionList->showOutOfSyncWarning(fShow);
 }
 
 void WalletView::updateEncryptionStatus()
