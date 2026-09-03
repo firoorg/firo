@@ -31,6 +31,7 @@ class QModelIndex;
 class QComboBox;
 class QHBoxLayout;
 class QLabel;
+class QScrollArea;
 class QSortFilterProxyModel;
 QT_END_NAMESPACE
 
@@ -89,6 +90,9 @@ private:
     void updateRequestsEmptyState();
     void updateRequestColumnWidths();
     void applyTheme();
+    QWidget *requestFormContents{nullptr};
+    QScrollArea *requestFormScroll{nullptr};
+    void updateRequestFormScrollHeight();
 private Q_SLOTS:
     void on_receiveButton_clicked();
     void on_showRequestButton_clicked();

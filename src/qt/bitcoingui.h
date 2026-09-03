@@ -175,6 +175,7 @@ private:
     void toggleNavigationSidebar();
     void updateNavigationSyncCard(const QString& status, double progress);
     bool syncInProgress() const;
+    bool isActivelySyncing() const;
     void applyNavigationTheme();
     void updateNavigationSelectionHighlight();
     /** Create system tray icon and notification */

@@ -841,7 +841,7 @@ void BitcoinGUI::createToolBars()
                 this, &BitcoinGUI::applyNavigationTheme);
 
         auto* syncStateTimer = new QTimer(this);
-        syncStateTimer->setInterval(60 * 1000);
+        syncStateTimer->setInterval(2 * 1000);
         connect(syncStateTimer, &QTimer::timeout, this, [this] {
             if (!clientModel || !navigationSyncProgress)
                 return;
@@ -1135,6 +1135,24 @@ bool BitcoinGUI::syncInProgress() const
     return false;
 }
 
+bool BitcoinGUI::isActivelySyncing() const
+{
+    if (!clientModel)
+        return false;
+
+    const enum BlockSource blockSource = clientModel->getBlockSource();
+    if (blockSource == BLOCK_SOURCE_REINDEX || blockSource == BLOCK_SOURCE_DISK)
+        return true;
+
+    if (::Params().NetworkIDString() == CBaseChainParams::REGTEST)
+        return false;
+
+    if (modalOverlay && modalOverlay->isHeaderSyncPending())
+        return true;
+
+    return clientModel->inInitialBlockDownload();
+}
+
 void BitcoinGUI::updateNavigationSyncCard(
     const QString& status, double progress)
 {
@@ -1176,9 +1194,10 @@ void BitcoinGUI::updateNavigationSyncCard(
     navigationSyncLabel->setToolTip(fullStatus);
 
     navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
+    const bool showSyncCard = isActivelySyncing();
     if (navigationSyncCardAction)
-        navigationSyncCardAction->setVisible(clientModel != nullptr);
-    navigationSyncCard->setVisible(clientModel != nullptr);
+        navigationSyncCardAction->setVisible(showSyncCard);
+    navigationSyncCard->setVisible(showSyncCard);
 }
 
 void BitcoinGUI::updateToolbarTabWidths()
@@ -1695,7 +1714,8 @@ void BitcoinGUI::updateHeadersSyncProgressLabel()
 {
     if (modalOverlay->isHeaderSyncPending())
         progressBarLabel->setText(tr("Syncing Headers..."));
-    updateNavigationSyncCard(progressBarLabel->text(), modalOverlay->headerSyncProgress());
+    const double progress = navigationSyncProgress ? navigationSyncProgress->value() / 100.0 : 0.0;
+    updateNavigationSyncCard(progressBarLabel->text(), progress);
 }
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
@@ -1768,13 +1788,21 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     {
         QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
 
+        double displayVerificationProgress = nVerificationProgress;
+        if ((blockSource == BLOCK_SOURCE_REINDEX || blockSource == BLOCK_SOURCE_DISK) &&
+            ::Params().NetworkIDString() == CBaseChainParams::REGTEST) {
+            const int headerHeight = clientModel->getHeaderTipHeight();
+            if (headerHeight > 0)
+                displayVerificationProgress = qBound(0.0, static_cast<double>(count) / headerHeight, 1.0);
+        }
+
         progressBarLabel->setVisible(false);
         progressBar->setFormat(tr("%1 behind").arg(timeBehindText));
         progressBar->setMaximum(1000000000);
-        progressBar->setValue(nVerificationProgress * 1000000000.0 + 0.5);
+        progressBar->setValue(displayVerificationProgress * 1000000000.0 + 0.5);
         progressBar->setVisible(false);
         if (blockSource != BLOCK_SOURCE_NETWORK && blockSource != BLOCK_SOURCE_NONE)
-            updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress);
+            updateNavigationSyncCard(progressBarLabel->text(), displayVerificationProgress);
         else if (blockSource == BLOCK_SOURCE_NONE)
             updateNavigationSyncCard(progressBarLabel->text(), 0.0);
 

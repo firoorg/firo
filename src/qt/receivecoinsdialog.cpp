@@ -189,11 +189,11 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui->recentRequestsView->viewport()->installEventFilter(this);
 
     ui->verticalLayout->removeWidget(ui->frame2);
-    auto* requestFormContents = new QWidget(this);
+    requestFormContents = new QWidget(this);
     auto* requestFormLayout = new QVBoxLayout(requestFormContents);
     requestFormLayout->setContentsMargins(0, 0, 0, 0);
     requestFormLayout->addWidget(ui->frame2);
-    auto* requestFormScroll = new QScrollArea(this);
+    requestFormScroll = new QScrollArea(this);
     requestFormScroll->setObjectName(QStringLiteral("requestFormScroll"));
     requestFormScroll->setWidgetResizable(true);
     requestFormScroll->setFrameShape(QFrame::NoFrame);
@@ -289,6 +289,12 @@ void ReceiveCoinsDialog::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
 
+    const QString scrollBgStyle = GUIUtil::themed(QStringLiteral("background: $BG;"));
+    if (requestFormScroll)
+        requestFormScroll->viewport()->setStyleSheet(scrollBgStyle);
+    if (requestFormContents)
+        requestFormContents->setStyleSheet(scrollBgStyle);
+
     const QString cardStyle = GUIUtil::themed(QStringLiteral(
         "QFrame#frame2, QFrame#frame {"
         " background: $PANEL;"
@@ -305,6 +311,9 @@ void ReceiveCoinsDialog::applyTheme()
     }
     ui->label_6->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }")));
+
+    ui->reuseAddress->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QCheckBox { background: transparent; color: $INK; }")));
 
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QLineEdit, AmountSpinBox {"
@@ -393,6 +402,17 @@ void ReceiveCoinsDialog::applyTheme()
         emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
     }
+
+    updateRequestFormScrollHeight();
+}
+
+void ReceiveCoinsDialog::updateRequestFormScrollHeight()
+{
+    if (!requestFormScroll || !requestFormContents)
+        return;
+
+    requestFormContents->layout()->activate();
+    requestFormScroll->setMinimumHeight(requestFormContents->sizeHint().height());
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -718,6 +738,7 @@ void ReceiveCoinsDialog::displayCheckBox(int idx)
             "Reusing transparent addresses has security and privacy risks. Only use this to recreate an earlier payment request."));
     }
     ui->sparkNameActions->setVisible(sparkSelected);
+    updateRequestFormScrollHeight();
 }
 
 void ReceiveCoinsDialog::createSparkName()
@@ -853,4 +874,6 @@ void ReceiveCoinsDialog::adjustTextSize(int width,int height){
     ui->recentRequestsView->setFont(font);
     ui->recentRequestsView->horizontalHeader()->setFont(font);
     ui->recentRequestsView->verticalHeader()->setFont(font);
+
+    updateRequestFormScrollHeight();
 }

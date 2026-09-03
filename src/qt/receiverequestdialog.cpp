@@ -118,9 +118,13 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
         "QScrollArea#paymentRequestScroll { background: transparent; border: none; }"));
     ui->verticalLayout_3->insertWidget(0, scroll, 1);
 
+    scrollContents->layout()->activate();
+    scroll->setMinimumHeight(scrollContents->sizeHint().height());
+
     const QSize available = GUIUtil::availableScreenSize(this);
-    resize(qMin(width(), qMax(1, available.width() - 40)),
-           qMin(height(), qMax(1, available.height() - 40)));
+    const QSize target = sizeHint();
+    resize(qMin(target.width(), qMax(1, available.width() - 40)),
+           qMin(target.height(), qMax(1, available.height() - 40)));
 
 #ifndef USE_QRCODE
     ui->btnSaveAs->setVisible(false);
