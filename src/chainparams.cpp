@@ -747,8 +747,8 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
-        consensus.nSparkSingleInputStartBlock = INT_MAX;
-        consensus.nSparkChaumV2StartBlock = INT_MAX;
+        consensus.nSparkSingleInputStartBlock = 210700; // H1
+        consensus.nSparkChaumV2StartBlock = 210800;     // H2: 100 blocks after H1
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
