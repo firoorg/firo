@@ -2248,7 +2248,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Ping</source>
-        <translation> </translation>
+        <translation>Ping</translation>
     </message>
 </context>
 <context>
