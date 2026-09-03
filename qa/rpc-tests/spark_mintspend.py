@@ -63,6 +63,10 @@ class SparkMintSpendTest(BitcoinTestFramework):
 
         assert not res, 'Did not raise spend exception, but should be.'
 
+        # This test has no quorum to InstantLock the mints, so age them past
+        # WAIT_FOR_ISLOCK_TIMEOUT before mining their first confirmation.
+        set_node_times(self.nodes, int(time()) + 10 * 60 + 1)
+
         # One confirmation is enough to spend (ZC_MINT_CONFIRMATIONS == 1), and
         # two minted coins make a valid cover set.
         self.nodes[0].generate(1)
