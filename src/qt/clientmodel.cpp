@@ -38,7 +38,7 @@ ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
 {
     cachedBestHeaderHeight = -1;
     cachedBestHeaderTime = -1;
-    cachedNumBlocks = 0;
+    cachedNumBlocks = g_connman ? g_connman->GetBestHeight() : 0;
     cachedLastBlockDate = QDateTime();
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
@@ -360,12 +360,12 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
         now = GetTimeMillis();
 
     int64_t& nLastUpdateNotification = fHeader ? nLastHeaderTipUpdateNotification : nLastBlockTipUpdateNotification;
-    clientmodel->cachedNumBlocks = pIndex->nHeight;
-
     if (fHeader) {
         // cache best headers time and height to reduce future cs_main locks
         clientmodel->cachedBestHeaderHeight = pIndex->nHeight;
         clientmodel->cachedBestHeaderTime = pIndex->GetBlockTime();
+    } else {
+        clientmodel->cachedNumBlocks = pIndex->nHeight;
     }
     // if we are in-sync, update the UI regardless of last update time
     if (!initialSync || now - nLastUpdateNotification > MODEL_UPDATE_DELAY) {
