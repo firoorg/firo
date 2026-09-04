@@ -4086,7 +4086,7 @@ bool InvalidateBlock(CValidationState& state, const CChainParams& chainparams, C
     InvalidChainFound(pindex);
     txpools.removeForReorg(pcoinsTip, chainActive.Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
     GetMainSignals().UpdatedBlockTip(chainActive.Tip(), NULL, IsInitialBlockDownload());
-    uiInterface.NotifyBlockTip(IsInitialBlockDownload(), pindex->pprev);
+    uiInterface.NotifyBlockTip(IsInitialBlockDownload(), chainActive.Tip());
     return true;
 }
 
