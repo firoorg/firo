@@ -137,7 +137,10 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
         CBlock *pblock = &pblocktemplate->block;
         {
             LOCK(cs_main);
-            IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
+            const CBlockIndex* pindexPrev = chainActive.Tip();
+            if (pblock->hashPrevBlock != pindexPrev->GetBlockHash())
+                continue;
+            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
         }
 
         /**
@@ -149,9 +152,10 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
          */
 
         if (pblock->IsProgPow()) {
+            const auto header_hash = progpow_header_hash(pblock->GetProgPowHeader());
             while (nMaxTries > 0 && pblock->nNonce64 < nInnerLoopCount) {
                 uint256 mix_hash;
-                auto final_hash{progpow_hash_full(pblock->GetProgPowHeader(), mix_hash)};
+                auto final_hash{progpow_hash_full(header_hash, pblock->nHeight, pblock->nNonce64, mix_hash)};
                 if (CheckProofOfWork(final_hash, pblock->nBits, Params().GetConsensus()))
                 {
                     pblock->mix_hash = mix_hash;
