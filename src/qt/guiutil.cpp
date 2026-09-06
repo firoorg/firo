@@ -1005,6 +1005,7 @@ static QString darkModeOverrideCss()
         QMenu::item { color: $INK; }
         QMenu::item:selected { background-color: $BORDER; color: $INK; }
         QMenu::item:disabled { color: $INK_FAINT; }
+        QMenuBar::item { color: $INK; }
         QMenuBar::item:selected { background-color: $BORDER; }
         QTableView, QTreeView, QListView {
             background-color: $PANEL; color: $INK;

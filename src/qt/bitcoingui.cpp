@@ -507,7 +507,6 @@ void BitcoinGUI::createMenuBar()
 #else
     // Get the main window's menu bar on other platforms
     appMenuBar = menuBar();
-    appMenuBar->setStyleSheet(GUIUtil::themed(QStringLiteral("QMenuBar::item { color: $INK; }")));
 #endif
 
     // Configure the menus

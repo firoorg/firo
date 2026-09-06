@@ -491,6 +491,10 @@ QMenuBar {
     background-color: #f4f4f4;
 }
 
+QMenuBar::item {
+    color: #110202;
+}
+
 /* QProgressBar */
 
 QProgressBar {
