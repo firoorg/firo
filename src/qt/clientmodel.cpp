@@ -220,7 +220,13 @@ void ClientModel::updateAlert()
 
 bool ClientModel::inInitialBlockDownload() const
 {
-    return IsInitialBlockDownload();
+    if (cachedInitialBlockDownload) {
+        // Populate the cache at startup even if no new tip has arrived.
+        TRY_LOCK(cs_main, lock);
+        if (lock)
+            cachedInitialBlockDownload = IsInitialBlockDownload();
+    }
+    return cachedInitialBlockDownload;
 }
 
 enum BlockSource ClientModel::getBlockSource() const
@@ -353,6 +359,10 @@ static void BannedListChanged(ClientModel *clientmodel)
 
 static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CBlockIndex *pIndex, bool fHeader)
 {
+    // Like core, latch false so delayed notifications cannot restore initial sync.
+    if (!initialSync)
+        clientmodel->cachedInitialBlockDownload = false;
+
     // lock free async UI updates in case we have a new block tip
     // during initial sync, only update the UI if the last update
     // was > 250ms (MODEL_UPDATE_DELAY) ago
@@ -361,12 +371,12 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
         now = GetTimeMillis();
 
     int64_t& nLastUpdateNotification = fHeader ? nLastHeaderTipUpdateNotification : nLastBlockTipUpdateNotification;
-    clientmodel->cachedNumBlocks = pIndex->nHeight;
-
     if (fHeader) {
         // cache best headers time and height to reduce future cs_main locks
         clientmodel->cachedBestHeaderHeight = pIndex->nHeight;
         clientmodel->cachedBestHeaderTime = pIndex->GetBlockTime();
+    } else {
+        clientmodel->cachedNumBlocks = pIndex->nHeight;
     }
     // if we are in-sync, update the UI regardless of last update time
     if (!initialSync || now - nLastUpdateNotification > MODEL_UPDATE_DELAY) {

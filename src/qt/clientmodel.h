@@ -73,7 +73,7 @@ public:
     double getVerificationProgress(const CBlockIndex *tip) const;
     QDateTime getLastBlockDate() const;
 
-    //! Return true if core is doing initial block download
+    //! Return the cached initial block download state without waiting for validation.
     bool inInitialBlockDownload() const;
     //! Returns enum BlockSource of the current importing/syncing state
     enum BlockSource getBlockSource() const;
@@ -96,6 +96,7 @@ public:
 
     mutable std::atomic<int> cachedNumBlocks;
     mutable QDateTime cachedLastBlockDate;
+    mutable std::atomic<bool> cachedInitialBlockDownload{true};
 
 
 private:
