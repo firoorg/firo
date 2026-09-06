@@ -201,7 +201,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     requestFormScroll->setWidget(requestFormContents);
     requestFormScroll->setStyleSheet(QStringLiteral(
         "QScrollArea#requestFormScroll { background: transparent; border: none; }"));
-    ui->verticalLayout->insertWidget(0, requestFormScroll);
+    ui->verticalLayout->insertWidget(0, requestFormScroll, 1);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->clearButton->setIcon(QIcon());
@@ -411,8 +411,9 @@ void ReceiveCoinsDialog::updateRequestFormScrollHeight()
     if (!requestFormScroll || !requestFormContents)
         return;
 
+    ui->frame2->layout()->activate();
     requestFormContents->layout()->activate();
-    requestFormScroll->setMinimumHeight(requestFormContents->sizeHint().height());
+    requestFormScroll->setMaximumHeight(requestFormContents->sizeHint().height());
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)

@@ -7,11 +7,14 @@
 #include "bitcoingui.h"
 #include "chainparams.h"
 #include "clientmodel.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "masternode-sync.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
 #include "platformstyle.h"
+#include "receivecoinsdialog.h"
+#include "receiverequestdialog.h"
 #include "ui_interface.h"
 #include "util.h"
 #include "validation.h"
@@ -20,7 +23,10 @@
 #include <QFrame>
 #include <QLabel>
 #include <QProgressBar>
+#include <QPushButton>
 #include <QScopeGuard>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QTest>
 #include <QTimer>
 
@@ -188,4 +194,70 @@ void WalletUiTests::synchronizationProgress()
     QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
     QVERIFY(node.progressBarLabel->isHidden());
     QVERIFY(node.progressBar->isHidden());
+}
+
+void WalletUiTests::paymentRequestFitsSmallScreen()
+{
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        GUIUtil::loadTheme();
+        ReceiveRequestDialog dialog;
+        dialog.setAttribute(Qt::WA_DontShowOnScreen);
+        dialog.show();
+        dialog.resize(640, 480);
+        QCoreApplication::processEvents();
+
+        QVERIFY(dialog.height() <= 480);
+        auto* scroll = dialog.findChild<QScrollArea*>("paymentRequestScroll");
+        QVERIFY(scroll);
+        QVERIFY(scroll->viewport()->height() > 0);
+        if (scroll->widget()->minimumSizeHint().height() > scroll->viewport()->height()) {
+            QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
+        }
+        for (const char* name : {"btnCopyURI", "btnCopyAddress", "closeButton"}) {
+            auto* button = dialog.findChild<QPushButton*>(name);
+            QVERIFY(button);
+            QVERIFY(button->isVisible());
+            QVERIFY(dialog.rect().contains(QRect(button->mapTo(&dialog, QPoint()), button->size())));
+        }
+    }
+}
+
+void WalletUiTests::receiveFormFitsSmallScreen()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
+    QVERIFY(platformStyle);
+    ReceiveCoinsDialog dialog(platformStyle.get());
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    dialog.resize(640, 480);
+    QCoreApplication::processEvents();
+
+    QVERIFY(dialog.height() <= 480);
+    auto* scroll = dialog.findChild<QScrollArea*>("requestFormScroll");
+    auto* button = dialog.findChild<QPushButton*>("receiveButton");
+    QVERIFY(scroll);
+    QVERIFY(button);
+    scroll->ensureWidgetVisible(button, 0, 0);
+    QCoreApplication::processEvents();
+    QVERIFY(scroll->viewport()->rect().contains(QRect(button->mapTo(scroll->viewport(), QPoint()), button->size())));
+
+    dialog.resize(900, 1200);
+    QTRY_COMPARE(scroll->verticalScrollBar()->maximum(), 0);
+}
+
+void WalletUiTests::receiveMnemonics()
+{
+    const std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
+    QVERIFY(platformStyle);
+    ReceiveCoinsDialog dialog(platformStyle.get());
+    for (const char* name : {"label_2", "label", "label_3"}) {
+        auto* label = dialog.findChild<QLabel*>(name);
+        QVERIFY(label);
+        QVERIFY(label->buddy());
+        QVERIFY(label->text().contains(QLatin1Char('&')));
+    }
 }

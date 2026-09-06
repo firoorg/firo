@@ -132,7 +132,7 @@
            <string>An optional label to associate with the new receiving address.</string>
           </property>
           <property name="text">
-           <string>LABEL</string>
+           <string>&amp;LABEL</string>
           </property>
           <property name="buddy">
            <cstring>reqLabel</cstring>
@@ -152,7 +152,7 @@
            <string>An optional amount to request. Leave this empty or zero to not request a specific amount.</string>
           </property>
           <property name="text">
-           <string>AMOUNT</string>
+           <string>&amp;AMOUNT</string>
           </property>
           <property name="buddy">
            <cstring>reqAmount</cstring>
@@ -178,7 +178,7 @@
            <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</string>
           </property>
           <property name="text">
-           <string>MESSAGE</string>
+           <string>&amp;MESSAGE</string>
           </property>
           <property name="buddy">
            <cstring>reqMessage</cstring>

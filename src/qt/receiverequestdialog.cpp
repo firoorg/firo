@@ -118,14 +118,6 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
         "QScrollArea#paymentRequestScroll { background: transparent; border: none; }"));
     ui->verticalLayout_3->insertWidget(0, scroll, 1);
 
-    scrollContents->layout()->activate();
-    scroll->setMinimumHeight(scrollContents->sizeHint().height());
-
-    const QSize available = GUIUtil::availableScreenSize(this);
-    const QSize target = sizeHint();
-    resize(qMin(target.width(), qMax(1, available.width() - 40)),
-           qMin(target.height(), qMax(1, available.height() - 40)));
-
 #ifndef USE_QRCODE
     ui->btnSaveAs->setVisible(false);
     ui->lblQRCode->setVisible(false);
@@ -137,6 +129,14 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, &ReceiveRequestDialog::applyTheme);
     applyTheme();
+
+    scrollContents->layout()->activate();
+    const QSize available = GUIUtil::availableScreenSize(this);
+    QSize target = sizeHint();
+    // Prefer showing the full request, but let the viewport shrink on small screens.
+    target.setHeight(target.height() + scrollContents->sizeHint().height() - scroll->sizeHint().height());
+    resize(qMin(target.width(), qMax(1, available.width() - 40)),
+           qMin(target.height(), qMax(1, available.height() - 40)));
 }
 
 void ReceiveRequestDialog::applyTheme()
