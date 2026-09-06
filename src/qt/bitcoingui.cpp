@@ -840,15 +840,6 @@ void BitcoinGUI::createToolBars()
         connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
                 this, &BitcoinGUI::applyNavigationTheme);
 
-        auto* syncStateTimer = new QTimer(this);
-        syncStateTimer->setInterval(2 * 1000);
-        connect(syncStateTimer, &QTimer::timeout, this, [this] {
-            if (!clientModel || !navigationSyncProgress)
-                return;
-            updateNavigationSyncCard(QString(), navigationSyncProgress->value() / 100.0);
-        });
-        syncStateTimer->start();
-
         applyNavigationTheme();
 
         updateNavigationSidebarGeometry();
@@ -857,6 +848,26 @@ void BitcoinGUI::createToolBars()
         navigationToggleButton->show();
         navigationToggleButton->raise();
     }
+
+    auto* syncStateTimer = new QTimer(this);
+    syncStateTimer->setObjectName(QStringLiteral("syncStateTimer"));
+    syncStateTimer->setInterval(2 * 1000);
+    connect(syncStateTimer, &QTimer::timeout, this, [this] {
+        if (!clientModel)
+            return;
+        // Retry caches that were busy when the GUI first attached to the node.
+        modalOverlay->setKnownBestHeight(clientModel->getHeaderTipHeight(),
+            QDateTime::fromSecsSinceEpoch(clientModel->getHeaderTipTime()));
+        if (modalOverlay->isHeaderSyncPending()) {
+            updateHeadersSyncProgressLabel();
+        } else if (!navigationSyncCard && !syncInProgress()) {
+            progressBarLabel->hide();
+            progressBar->hide();
+        } else {
+            updateNavigationSyncCard(progressBarLabel->text(), navigationSyncFraction);
+        }
+    });
+    syncStateTimer->start();
 }
 
 void BitcoinGUI::applyNavigationTheme()
@@ -1118,24 +1129,7 @@ void BitcoinGUI::updateNavigationSelectionHighlight()
     navigationSelectionHighlight->update();
 }
 
-bool BitcoinGUI::syncInProgress() const
-{
-    if (!clientModel)
-        return false;
-
-    if (!masternodeSync.IsSynced())
-        return true;
-
-    if (clientModel->inInitialBlockDownload())
-        return true;
-
-    if (clientModel->getLastBlockDate().secsTo(QDateTime::currentDateTime()) >= MAX_SYNCED_TIP_AGE_SECS)
-        return true;
-
-    return false;
-}
-
-bool BitcoinGUI::isActivelySyncing() const
+bool BitcoinGUI::blockchainSyncInProgress() const
 {
     if (!clientModel)
         return false;
@@ -1150,7 +1144,24 @@ bool BitcoinGUI::isActivelySyncing() const
     if (modalOverlay && modalOverlay->isHeaderSyncPending())
         return true;
 
-    return clientModel->inInitialBlockDownload();
+    if (clientModel->inInitialBlockDownload())
+        return true;
+
+    if (clientModel->getLastBlockDate().secsTo(QDateTime::currentDateTime()) >= MAX_SYNCED_TIP_AGE_SECS)
+        return true;
+
+    return false;
+}
+
+bool BitcoinGUI::syncInProgress() const
+{
+    return clientModel && (blockchainSyncInProgress() || !masternodeSync.IsSynced());
+}
+
+bool BitcoinGUI::isActivelySyncing() const
+{
+    return blockchainSyncInProgress() ||
+        (clientModel && ::Params().NetworkIDString() != CBaseChainParams::REGTEST && !masternodeSync.IsSynced());
 }
 
 void BitcoinGUI::updateNavigationSyncCard(
@@ -1164,6 +1175,13 @@ void BitcoinGUI::updateNavigationSyncCard(
     const bool networkActive = clientModel && clientModel->getNetworkActive();
     const bool hasPeers = clientModel && clientModel->getNumConnections() > 0;
     const bool fullySynced = networkActive && hasPeers && !syncInProgress();
+    if (clientModel && progress >= 1.0 && blockchainSyncInProgress() &&
+        (clientModel->getBlockSource() == BLOCK_SOURCE_NETWORK || clientModel->getBlockSource() == BLOCK_SOURCE_NONE)) {
+        // A completed percentage is stale when the tip falls behind after sleep.
+        fullStatus = tr("Catching up...");
+        progressBarLabel->setText(fullStatus);
+        progress = clientModel->getVerificationProgress(nullptr);
+    }
     if (clientModel && !networkActive) {
         fullStatus = tr("Network activity disabled");
     } else if (clientModel && !hasPeers) {
@@ -1182,6 +1200,7 @@ void BitcoinGUI::updateNavigationSyncCard(
         modalOverlay->setSyncComplete(fullySynced);
 
     const double clampedProgress = qBound(0.0, progress, 1.0);
+    navigationSyncFraction = clampedProgress;
     if (fullStatus.isEmpty())
         fullStatus = tr("Syncing...");
     const QString percentText = QString::number(clampedProgress * 100.0, 'f', 2) + "%";
@@ -1689,10 +1708,10 @@ void BitcoinGUI::setNumConnections(int count)
     if (!navigationSyncProgress || !navigationSyncLabel)
         return;
 
-    const double progress = navigationSyncProgress->value() / 100.0;
+    const double progress = navigationSyncFraction;
     const QString status = count == 0 && syncInProgress()
         ? tr("Connecting to peers...")
-        : QString();
+        : progressBarLabel->text();
     updateNavigationSyncCard(status, progress);
 }
 
@@ -1701,10 +1720,7 @@ void BitcoinGUI::setNetworkActive(bool networkActive)
     updateNetworkState();
 
     if (!networkActive) {
-        const double progress = navigationSyncProgress
-            ? navigationSyncProgress->value() / 100.0
-            : 0.0;
-        updateNavigationSyncCard(tr("Network activity disabled"), progress);
+        updateNavigationSyncCard(tr("Network activity disabled"), navigationSyncFraction);
     } else if (clientModel) {
         setNumConnections(clientModel->getNumConnections());
     }
@@ -1712,9 +1728,19 @@ void BitcoinGUI::setNetworkActive(bool networkActive)
 
 void BitcoinGUI::updateHeadersSyncProgressLabel()
 {
-    if (modalOverlay->isHeaderSyncPending())
+    const auto blockSource = clientModel->getBlockSource();
+    const bool syncingHeaders = modalOverlay->isHeaderSyncPending() &&
+        blockSource != BLOCK_SOURCE_REINDEX && blockSource != BLOCK_SOURCE_DISK;
+    if (syncingHeaders)
         progressBarLabel->setText(tr("Syncing Headers..."));
-    const double progress = navigationSyncProgress ? navigationSyncProgress->value() / 100.0 : 0.0;
+    const double progress = syncingHeaders ? modalOverlay->headerSyncProgress() : navigationSyncFraction;
+    if (!navigationSyncCard && syncingHeaders) {
+        progressBarLabel->show();
+        progressBar->setFormat(QStringLiteral("%p%"));
+        progressBar->setMaximum(1000000000);
+        progressBar->setValue(qRound(progress * 1000000000.0));
+        progressBar->show();
+    }
     updateNavigationSyncCard(progressBarLabel->text(), progress);
 }
 
@@ -1784,7 +1810,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     }
 #endif // ENABLE_WALLET
 
-    if (!masternodeSync.IsBlockchainSynced())
+    if (blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
     {
         QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
 
@@ -1796,11 +1822,11 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
                 displayVerificationProgress = qBound(0.0, static_cast<double>(count) / headerHeight, 1.0);
         }
 
-        progressBarLabel->setVisible(false);
+        progressBarLabel->setVisible(!navigationSyncCard);
         progressBar->setFormat(tr("%1 behind").arg(timeBehindText));
         progressBar->setMaximum(1000000000);
         progressBar->setValue(displayVerificationProgress * 1000000000.0 + 0.5);
-        progressBar->setVisible(false);
+        progressBar->setVisible(!navigationSyncCard);
         if (blockSource != BLOCK_SOURCE_NETWORK && blockSource != BLOCK_SOURCE_NONE)
             updateNavigationSyncCard(progressBarLabel->text(), displayVerificationProgress);
         else if (blockSource == BLOCK_SOURCE_NONE)
@@ -1830,6 +1856,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     } else if (fLiteMode) {
         setAdditionalDataSyncProgress(1);
     } else if (masternodeSync.IsSynced()) {
+        progressBarLabel->hide();
+        progressBar->hide();
         updateNavigationSyncCard(QString(), 1.0);
 #ifdef ENABLE_WALLET
         if (walletFrame)
@@ -1861,7 +1889,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         return;
 
     // No additional data sync should be happening while blockchain is not synced, nothing to update
-    if(!masternodeSync.IsBlockchainSynced())
+    if(blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
         return;
 
     // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbelled text)
@@ -1893,6 +1921,8 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         progressBar->setFormat(tr("Synchronizing additional data: %p%"));
         progressBar->setMaximum(1000000000);
         progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
+        progressBarLabel->setVisible(!navigationSyncCard);
+        progressBar->setVisible(!navigationSyncCard);
     }
 
     strSyncStatus = QString(masternodeSync.GetSyncStatus().c_str());

@@ -4,14 +4,27 @@
 
 #include "walletuitests.h"
 
+#include "bitcoingui.h"
+#include "chainparams.h"
 #include "clientmodel.h"
+#include "guiutil.h"
+#include "masternode-sync.h"
+#include "modaloverlay.h"
+#include "networkstyle.h"
+#include "platformstyle.h"
 #include "ui_interface.h"
 #include "util.h"
 #include "validation.h"
 
 #include <QElapsedTimer>
+#include <QFrame>
+#include <QLabel>
+#include <QProgressBar>
+#include <QScopeGuard>
 #include <QTest>
+#include <QTimer>
 
+#include <memory>
 #include <chrono>
 #include <future>
 #include <thread>
@@ -47,4 +60,132 @@ void WalletUiTests::initialSyncQueryDoesNotBlock()
     uiInterface.NotifyBlockTip(true, &header);
     QVERIFY(!model.inInitialBlockDownload());
     QCOMPARE(model.cachedNumBlocks.load(), 100);
+}
+
+void WalletUiTests::synchronizationProgress()
+{
+    const auto oldDisableWallet = GetArg("-disablewallet", "0");
+    const auto oldNetwork = Params().NetworkIDString();
+    const auto oldMasternodeSync = masternodeSync;
+    CBlockIndex* oldTip = chainActive.Tip();
+    const bool oldReindex = fReindex;
+    const auto restoreNode = qScopeGuard([&] {
+        ForceSetArg("-disablewallet", oldDisableWallet);
+        SelectParams(oldNetwork);
+        masternodeSync = oldMasternodeSync;
+        fReindex = oldReindex;
+        LOCK(cs_main);
+        chainActive.SetTip(oldTip);
+    });
+    SelectParams(CBaseChainParams::TESTNET);
+    fReindex = false;
+    CBlockIndex tip;
+    tip.nHeight = 0;
+    const auto now = QDateTime::currentDateTime();
+    tip.nTime = now.addDays(-1).toSecsSinceEpoch();
+    {
+        LOCK(cs_main);
+        chainActive.SetTip(&tip);
+    }
+
+    CConnman connections(0, 0);
+    masternodeSync.Reset();
+    masternodeSync.SwitchToNextAsset(connections);
+    masternodeSync.SwitchToNextAsset(connections);
+    QVERIFY(masternodeSync.IsSynced());
+
+    const std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
+    const std::unique_ptr<const NetworkStyle> networkStyle(NetworkStyle::instantiate("test"));
+    QVERIFY(platformStyle);
+    QVERIFY(networkStyle);
+    ClientModel model(nullptr);
+    model.cachedInitialBlockDownload = false;
+    ForceSetArg("-disablewallet", "0");
+    {
+        BitcoinGUI gui(platformStyle.get(), networkStyle.get());
+        gui.clientModel = &model;
+        gui.modalOverlay->setKnownBestHeight(100, now);
+        // Headers are current and IBD has ended, but the validated tip is a day old.
+        gui.updateNavigationSyncCard(QString(), 0.6251);
+        QVERIFY(!gui.navigationSyncCard->isHidden());
+        QCOMPARE(gui.navigationSyncPercent->text(), QStringLiteral("62.51%"));
+        gui.setAdditionalDataSyncProgress(1.0);
+        QCOMPARE(gui.navigationSyncPercent->text(), QStringLiteral("62.51%"));
+        gui.setNumBlocks(0, now.addDays(-1), 0.6251, false);
+        QVERIFY(!gui.navigationSyncCard->isHidden());
+        QVERIFY(gui.navigationSyncFraction < 1.0);
+        gui.modalOverlay->setKnownBestHeight(101, now.addDays(-10));
+        gui.updateHeadersSyncProgressLabel();
+        const double firstProgress = gui.navigationSyncFraction;
+        gui.modalOverlay->setKnownBestHeight(102, now.addDays(-5));
+        gui.updateHeadersSyncProgressLabel();
+        QVERIFY(gui.navigationSyncFraction > firstProgress);
+        QVERIFY(gui.navigationSyncFraction < 1.0);
+
+        fReindex = true;
+        gui.setNumBlocks(0, now.addDays(-1), 0.25, false);
+        const QString reindexStatus = gui.progressBarLabel->text();
+        gui.updateHeadersSyncProgressLabel();
+        QCOMPARE(gui.navigationSyncFraction, 0.25);
+        QCOMPARE(gui.progressBarLabel->text(), reindexStatus);
+        fReindex = false;
+
+        tip.nTime = now.toSecsSinceEpoch();
+        ClientModel alreadySynced(nullptr);
+        QVERIFY(!alreadySynced.inInitialBlockDownload());
+        gui.modalOverlay->setKnownBestHeight(103, now);
+        gui.updateNavigationSyncCard(QString(), 1.0);
+        QVERIFY(gui.navigationSyncCard->isHidden());
+        tip.nTime = now.addDays(-1).toSecsSinceEpoch();
+        auto* refreshTimer = gui.findChild<QTimer*>("syncStateTimer");
+        QVERIFY(refreshTimer);
+        QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
+        QVERIFY(!gui.navigationSyncCard->isHidden());
+        QVERIFY(gui.navigationSyncFraction < 1.0);
+        const QString catchUpStatus = gui.progressBarLabel->text();
+        QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
+        QCOMPARE(gui.progressBarLabel->text(), catchUpStatus);
+
+        SelectParams(CBaseChainParams::REGTEST);
+        QVERIFY(!gui.isActivelySyncing());
+        fReindex = true;
+        QVERIFY(gui.isActivelySyncing());
+        fReindex = false;
+        SelectParams(CBaseChainParams::TESTNET);
+    }
+
+    ForceSetArg("-disablewallet", "1");
+    BitcoinGUI node(platformStyle.get(), networkStyle.get());
+    node.clientModel = &model;
+    QVERIFY(!node.navigationSyncCard);
+    node.modalOverlay->setKnownBestHeight(100, now.addDays(-10));
+    node.updateHeadersSyncProgressLabel();
+    QVERIFY(!node.progressBar->isHidden());
+    const int headerProgress = node.progressBar->value();
+    node.modalOverlay->setKnownBestHeight(101, now.addDays(-5));
+    node.updateHeadersSyncProgressLabel();
+    QVERIFY(node.progressBar->value() > headerProgress);
+    fReindex = true;
+    node.setNumBlocks(0, now.addDays(-1), 0.25, false);
+    QVERIFY(!node.progressBarLabel->isHidden());
+    QVERIFY(!node.progressBar->isHidden());
+    QCOMPARE(node.progressBar->value(), 250000000);
+    fReindex = false;
+    node.modalOverlay->setKnownBestHeight(102, now);
+    tip.nTime = now.toSecsSinceEpoch();
+    node.setNumBlocks(0, now, 1.0, false);
+    QVERIFY(node.progressBarLabel->isHidden());
+    QVERIFY(node.progressBar->isHidden());
+
+    // Retry a header cache that was unavailable when a node-only GUI attached.
+    node.modalOverlay->setKnownBestHeight(103, now.addDays(-5));
+    node.updateHeadersSyncProgressLabel();
+    QVERIFY(!node.progressBar->isHidden());
+    model.cachedBestHeaderHeight = 104;
+    model.cachedBestHeaderTime = now.toSecsSinceEpoch();
+    auto* refreshTimer = node.findChild<QTimer*>("syncStateTimer");
+    QVERIFY(refreshTimer);
+    QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
+    QVERIFY(node.progressBarLabel->isHidden());
+    QVERIFY(node.progressBar->isHidden());
 }

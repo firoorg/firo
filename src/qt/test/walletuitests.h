@@ -13,6 +13,7 @@ class WalletUiTests : public QObject
 
 private Q_SLOTS:
     void initialSyncQueryDoesNotBlock();
+    void synchronizationProgress();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H

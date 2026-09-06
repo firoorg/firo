@@ -91,6 +91,8 @@ protected:
     bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
+    friend class WalletUiTests;
+
     ClientModel *clientModel;
     WalletFrame *walletFrame;
 
@@ -140,6 +142,7 @@ private:
     QLabel *navigationSyncLabel{nullptr};
     QLabel *navigationSyncPercent{nullptr};
     QProgressBar *navigationSyncProgress{nullptr};
+    double navigationSyncFraction{0.0};
     QFrame *navigationThemeRow{nullptr};
     QLabel *navigationThemeLightLabel{nullptr};
     QLabel *navigationThemeDarkLabel{nullptr};
@@ -174,6 +177,7 @@ private:
     void updateNavigationSidebarGeometry();
     void toggleNavigationSidebar();
     void updateNavigationSyncCard(const QString& status, double progress);
+    bool blockchainSyncInProgress() const;
     bool syncInProgress() const;
     bool isActivelySyncing() const;
     void applyNavigationTheme();
