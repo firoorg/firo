@@ -16,6 +16,7 @@
 #include "createsparknamepage.h"
 #include "guiutil.h"
 #include "platformstyle.h"
+#include "validation.h"
 #include "bip47/paymentcode.h"
 #include "bip47/paymentchannel.h"
 
@@ -219,7 +220,14 @@ void AddressBookPage::setModel(AddressTableModel *_model)
 
 bool AddressBookPage::updateSpark()
 {
-    const bool sparkAllowed = model && model->IsSparkAllowed();
+    bool sparkAllowed;
+    {
+        // Leave the current choices intact; the next block-tip update retries.
+        TRY_LOCK(cs_main, lockMain);
+        if (!lockMain)
+            return false;
+        sparkAllowed = model && model->IsSparkAllowed();
+    }
     populateAddressTypes(sparkAllowed);
 
     chooseAddressType(0);

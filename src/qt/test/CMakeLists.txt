@@ -14,6 +14,7 @@ add_executable(test_firo-qt
   ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/uritests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_sendcoinsentry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodeltests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../../test/test_bitcoin.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../../test/testutil.cpp
 )

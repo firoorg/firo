@@ -13,6 +13,7 @@
 #include "uritests.h"
 #include "compattests.h"
 #include "test_sendcoinsentry.h"
+#include "sparkmodeltests.h"
 #include <QApplication>
 #include <QObject>
 #include <openssl/ssl.h>
@@ -57,6 +58,10 @@ int main(int argc, char *argv[])
 
     CompatTests test4;
     if (QTest::qExec(&test4) != 0)
+        fInvalid = true;
+
+    SparkModelTests sparkModelTests;
+    if (QTest::qExec(&sparkModelTests) != 0)
         fInvalid = true;
 
     ECC_Stop();
