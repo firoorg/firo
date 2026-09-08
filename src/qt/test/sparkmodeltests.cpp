@@ -94,8 +94,8 @@ void SparkModelTests::addressBookDefers()
     QCOMPARE(types->count(), originalCount + 1);
     QCOMPARE(types->currentIndex(), originalCount);
 
-    page.updateSpark();
-    QCOMPARE(types->count(), originalCount);
+    // Retry independently of another page or block-tip notification.
+    QTRY_COMPARE(types->count(), originalCount);
 }
 
 void SparkModelTests::autoMintDefers()

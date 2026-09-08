@@ -14,6 +14,7 @@
 #include "csvmodelwriter.h"
 #include "editaddressdialog.h"
 #include "createsparknamepage.h"
+#include "guiconstants.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "validation.h"
@@ -24,6 +25,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
+#include <QTimer>
 
 AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
@@ -222,10 +224,12 @@ bool AddressBookPage::updateSpark()
 {
     bool sparkAllowed;
     {
-        // Leave the current choices intact; the next block-tip update retries.
         TRY_LOCK(cs_main, lockMain);
-        if (!lockMain)
+        if (!lockMain) {
+            // Retry this page even if another page completes the shared refresh.
+            QTimer::singleShot(MODEL_UPDATE_DELAY, this, &AddressBookPage::updateSpark);
             return false;
+        }
         sparkAllowed = model && model->IsSparkAllowed();
     }
     populateAddressTypes(sparkAllowed);
