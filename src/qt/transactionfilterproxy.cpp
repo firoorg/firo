@@ -120,6 +120,21 @@ void TransactionFilterProxy::setShowInactive(bool _showInactive)
     invalidateFilter();
 }
 
+void TransactionFilterProxy::refreshConfirmations()
+{
+    if (instantsendFilter != InstantSendFilter_All ||
+        sortColumn() == TransactionTableModel::Status ||
+        sortColumn() == TransactionTableModel::InstantSend) {
+        invalidate();
+    }
+    // Ordinary confirmations do not change the date order or conflict filter.
+    // Notify the view directly so repainting does not refilter the source wallet.
+    if (rowCount() > 0) {
+        Q_EMIT dataChanged(index(0, TransactionTableModel::Status),
+                           index(rowCount() - 1, TransactionTableModel::InstantSend));
+    }
+}
+
 int TransactionFilterProxy::rowCount(const QModelIndex &parent) const
 {
     if(limitRows != -1)

@@ -40,6 +40,35 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 static const CWallet wallet;
 static vector<COutput> vCoins;
 
+BOOST_AUTO_TEST_CASE(conflict_notifications_include_descendants)
+{
+    CMutableTransaction parent;
+    parent.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    parent.vout.emplace_back(COIN, CScript());
+    const auto parentTx = MakeTransactionRef(parent);
+    CMutableTransaction child;
+    child.vin.emplace_back(COutPoint(parentTx->GetHash(), 0));
+    child.vout.emplace_back(COIN, CScript());
+    const auto childTx = MakeTransactionRef(child);
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(pwalletMain, parentTx)));
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(pwalletMain, childTx)));
+
+    std::vector<uint256> changed;
+    boost::signals2::scoped_connection connection(pwalletMain->NotifyTransactionChanged.connect(
+        [&](CWallet* changedWallet, const uint256& hash, ChangeType status) {
+            BOOST_CHECK(changedWallet == pwalletMain);
+            BOOST_CHECK(status == CT_UPDATED);
+            changed.push_back(hash);
+        }));
+    pwalletMain->MarkConflicted(chainActive.Tip()->GetBlockHash(), parentTx->GetHash());
+    BOOST_REQUIRE_EQUAL(changed.size(), 2);
+    const std::set<uint256> expected{parentTx->GetHash(), childTx->GetHash()};
+    BOOST_CHECK(std::set<uint256>(changed.begin(), changed.end()) == expected);
+
+    pwalletMain->MarkConflicted(chainActive.Tip()->GetBlockHash(), parentTx->GetHash());
+    BOOST_CHECK_EQUAL(changed.size(), 2);
+}
+
 FIRO_UNUSED static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
 {
     static int nextLockTime = 0;

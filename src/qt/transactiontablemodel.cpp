@@ -24,6 +24,7 @@
 #include <QDebug>
 #include <QIcon>
 #include <QList>
+#include <QTimer>
 
 #include <boost/foreach.hpp>
 
@@ -74,6 +75,7 @@ public:
      */
     QList<TransactionRecord> cachedWallet;
     std::vector<std::pair<uint256, std::pair<int, bool>>> cachedUpdatedTx;
+    const CBlockIndex* cachedTip = nullptr;
 
     /* Query entire wallet anew from core.
      */
@@ -83,6 +85,7 @@ public:
         cachedWallet.clear();
         {
             LOCK2(cs_main, wallet->cs_wallet);
+            cachedTip = chainActive.Tip();
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
                 if(TransactionRecord::showTransaction(it->second))
@@ -176,9 +179,26 @@ public:
             parent->endRemoveRows();
             break;
         case CT_UPDATED:
-            // Miscellaneous updates -- nothing to do, status update will take care of this, and is only computed for
-            // visible transactions.
+        {
+            if (!inModel)
+                break;
+            TRY_LOCK(cs_main, lockMain);
+            TRY_LOCK(wallet->cs_wallet, lockWallet);
+            if (!lockMain || !lockWallet) {
+                cachedUpdatedTx.push_back(std::make_pair(hash, std::make_pair(status, showTransaction)));
+                return;
+            }
+            const auto mi = wallet->mapWallet.find(hash);
+            if (mi == wallet->mapWallet.end())
+                break;
+            // A transaction can change without a new block (for example, abandonment).
+            // Update every output row before notifying filters, even at the same height.
+            for (auto it = lower; it != upper; ++it)
+                it->updateStatus(mi->second, parent->getNumISLocks(), parent->getChainLockHeight());
+            Q_EMIT parent->dataChanged(parent->index(lowerIndex, TransactionTableModel::Status),
+                                       parent->index(upperIndex - 1, TransactionTableModel::Amount));
             break;
+        }
         }
     }
 
@@ -251,12 +271,16 @@ TransactionTableModel::TransactionTableModel(const PlatformStyle *_platformStyle
         walletModel(parent),
         priv(new TransactionTablePriv(_wallet, this)),
         fProcessingQueuedTransactions(false),
-        platformStyle(_platformStyle)
+        platformStyle(_platformStyle),
+        confirmationTimer(new QTimer(this))
 {
     columns << QString() << QString() << QString() << tr("Date") << tr("Type") << tr("Address / Label") << BitcoinUnits::getAmountColumnTitle(walletModel->getOptionsModel()->getDisplayUnit());
     priv->refreshWallet();
 
     connect(walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &TransactionTableModel::updateDisplayUnit);
+    confirmationTimer->setSingleShot(true);
+    confirmationTimer->setInterval(MODEL_UPDATE_DELAY);
+    connect(confirmationTimer, &QTimer::timeout, this, &TransactionTableModel::updateConfirmations);
     
     subscribeToCoreSignals();
 }
@@ -295,21 +319,38 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
     updated.SetHex(hash.toStdString());
     priv->cachedUpdatedTx.push_back(std::make_pair(updated, std::make_pair(status, showTransaction)));
     processCachedTransactions();
+    if (!priv->cachedUpdatedTx.empty())
+        confirmationTimer->start();
 }
 
 void TransactionTableModel::updateConfirmations()
 {
-    // Status roles can affect filters and sorting, so invalidate every row.
-    // Keep the range off the default Date sort column; card views repaint their
-    // visible rows when this signal reaches their proxy.
-    if (priv->size() > 0) {
-        const int last = priv->size() - 1;
-        Q_EMIT dataChanged(index(0, Status), index(last, InstantSend));
+    confirmationTimer->stop();
+    {
+        TRY_LOCK(cs_main, lockMain);
+        TRY_LOCK(wallet->cs_wallet, lockWallet);
+        if (!lockMain || !lockWallet) {
+            confirmationTimer->start();
+            return;
+        }
+        // A reorg can undo conflicts on transactions outside the disconnected block.
+        // Invalidate cached statuses even when the replacement tip has the same height.
+        if (priv->cachedTip && !chainActive.Contains(priv->cachedTip)) {
+            for (auto& rec : priv->cachedWallet)
+                rec.status.cur_num_blocks = -1;
+            if (priv->size() > 0)
+                Q_EMIT dataChanged(index(0, Status), index(priv->size() - 1, InstantSend));
+        }
+        priv->cachedTip = chainActive.Tip();
     }
+
+    Q_EMIT confirmationsChanged();
 
     // Process any cached transactions that couldn't be processed due to lock contention
     // This ensures transactions are eventually added even if wallet updates are infrequent
     processCachedTransactions();
+    if (!priv->cachedUpdatedTx.empty())
+        confirmationTimer->start();
 }
 
 void TransactionTableModel::updateNumISLocks(int numISLocks)

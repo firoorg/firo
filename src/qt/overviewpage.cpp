@@ -877,6 +877,8 @@ void OverviewPage::setWalletModel(WalletModel *model)
         // Set up transaction list
         filter.reset(new TransactionFilterProxy());
         filter->setSourceModel(model->getTransactionTableModel());
+        connect(model->getTransactionTableModel(), &TransactionTableModel::confirmationsChanged,
+                filter.get(), &TransactionFilterProxy::refreshConfirmations);
         filter->setLimit(NUM_ITEMS);
         filter->setDynamicSortFilter(true);
         filter->setSortRole(Qt::EditRole);

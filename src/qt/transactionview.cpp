@@ -723,6 +723,8 @@ void TransactionView::setModel(WalletModel *_model)
     {
         transactionProxyModel = new TransactionFilterProxy(this);
         transactionProxyModel->setSourceModel(_model->getTransactionTableModel());
+        connect(_model->getTransactionTableModel(), &TransactionTableModel::confirmationsChanged,
+                transactionProxyModel, &TransactionFilterProxy::refreshConfirmations);
         connect(transactionProxyModel, &QAbstractItemModel::dataChanged,
                 this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight) {
                     if (topLeft.column() <= TransactionTableModel::InstantSend &&
