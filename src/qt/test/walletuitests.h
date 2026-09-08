@@ -18,6 +18,7 @@ private Q_SLOTS:
     void receiveFormFitsSmallScreen();
     void receiveMnemonics();
     void confirmationRefresh();
+    void themeTintColors();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H

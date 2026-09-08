@@ -54,12 +54,12 @@ static const ThemeColors DARK_COLORS{
     QStringLiteral("#8D818B"),
     QStringLiteral("#DE3358"),
     QStringLiteral("#A3223F"),
-    QStringLiteral("rgba(222,51,88,0.16)"),
+    QStringLiteral("#29DE3358"),
     QStringLiteral("#4FBBA8"),
-    QStringLiteral("rgba(79,187,168,0.14)"),
+    QStringLiteral("#244FBBA8"),
     QStringLiteral("#FF708A"),
     QStringLiteral("#E7B678"),
-    QStringLiteral("rgba(231,182,120,0.14)"),
+    QStringLiteral("#24E7B678"),
 };
 
 static bool g_darkMode = false;

@@ -22,6 +22,7 @@
 #include "util.h"
 #include "validation.h"
 
+#include <QColor>
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QLabel>
@@ -115,6 +116,26 @@ void WalletUiTests::confirmationRefresh()
     history.newestStatusRow = 17;
     proxy.refreshConfirmations();
     QCOMPARE(proxy.mapToSource(proxy.index(0, 0)).row(), 17);
+}
+
+void WalletUiTests::themeTintColors()
+{
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        const auto& colors = GUIUtil::themeColors();
+        for (const auto& tint : {colors.wineTint, colors.tealTint, colors.goldTint}) {
+            const QColor color(tint);
+            QVERIFY2(color.isValid(), qPrintable(tint));
+            QVERIFY(color.alpha() > 0);
+            QCOMPARE(color.alpha() < 255, mode == GUIUtil::ThemeMode::Dark);
+            QWidget swatch;
+            swatch.setStyleSheet(QStringLiteral("background-color: %1;").arg(tint));
+            swatch.ensurePolished();
+            QCOMPARE(swatch.palette().color(QPalette::Window), color);
+        }
+    }
 }
 
 void WalletUiTests::initialSyncQueryDoesNotBlock()
