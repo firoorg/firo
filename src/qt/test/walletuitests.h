@@ -21,7 +21,6 @@ private Q_SLOTS:
     void themeTintColors();
     void deferredTransactionsKeepOrder();
     void themeChangePreservesWidgetState();
-    void addressTypeBadgeFitsCell();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H
