@@ -14,6 +14,7 @@ class QPainter;
 class QPixmap;
 class QRect;
 class QSize;
+class QStyleOptionViewItem;
 class QWidget;
 QT_END_NAMESPACE
 
@@ -67,6 +68,9 @@ namespace GUIUtil
     QString spinBoxInnerLineEditReset();
 
     void applyPrimaryButtonShadow(QWidget* button);
+
+    void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
+                              const QString& text, bool isPrivate);
 
     void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect);
 

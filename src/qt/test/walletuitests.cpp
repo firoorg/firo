@@ -28,13 +28,17 @@
 #include <QColor>
 #include <QElapsedTimer>
 #include <QFrame>
+#include <QImage>
 #include <QLabel>
+#include <QPainter>
+#include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSignalSpy>
+#include <QStyleOptionViewItem>
 #include <QTest>
 #include <QTimer>
 
@@ -191,6 +195,46 @@ void WalletUiTests::deferredTransactionsKeepOrder()
     QCOMPARE(inserted.count(), 1);
     QCOMPARE(removed.count(), 1);
     QCOMPARE(table->rowCount(QModelIndex()), 0);
+}
+
+void WalletUiTests::themeChangePreservesWidgetState()
+{
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    QWidget enabled, disabled;
+    disabled.setUpdatesEnabled(false);
+    QPointer<QWidget> destroyed = new QWidget;
+    QObject receiver;
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged, &receiver, [&] {
+        delete destroyed.data();
+    });
+    GUIUtil::setThemeMode(previousTheme == GUIUtil::ThemeMode::Light ? GUIUtil::ThemeMode::Dark : GUIUtil::ThemeMode::Light);
+    QVERIFY(enabled.updatesEnabled());
+    QVERIFY(!disabled.updatesEnabled());
+    QVERIFY(destroyed.isNull());
+}
+
+void WalletUiTests::addressTypeBadgeFitsCell()
+{
+    for (const int width : {0, 8, 16, 80}) {
+        QImage image(120, 60, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        QStyleOptionViewItem option;
+        option.rect = QRect(10, 5, width, 48);
+        QPainter painter(&image);
+        GUIUtil::paintAddressTypeBadge(&painter, option, QStringLiteral("Spark"), true);
+        painter.end();
+        bool painted = false;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                if (qAlpha(image.pixel(x, y)) != 0) {
+                    QVERIFY(option.rect.contains(x, y));
+                    painted = true;
+                }
+            }
+        }
+        QCOMPARE(painted, width > 16);
+    }
 }
 
 void WalletUiTests::initialSyncQueryDoesNotBlock()

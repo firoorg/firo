@@ -7,15 +7,17 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QFontMetrics>
 #include <QGraphicsDropShadowEffect>
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
 #include <QPixmapCache>
+#include <QPointer>
 #include <QSettings>
 #include <QSize>
+#include <QStyleOptionViewItem>
 #include <QWidget>
-#include <QWidgetList>
 
 namespace GUIUtil
 {
@@ -96,15 +98,22 @@ void setThemeMode(ThemeMode mode)
     QSettings settings;
     settings.setValue("fDarkMode", g_darkMode);
 
-    const QWidgetList topLevels = QApplication::topLevelWidgets();
-    for (QWidget* w : topLevels)
-        w->setUpdatesEnabled(false);
+    QList<QPointer<QWidget>> pausedWidgets;
+    for (QWidget* widget : QApplication::topLevelWidgets()) {
+        if (widget->updatesEnabled()) {
+            pausedWidgets.append(widget);
+            widget->setUpdatesEnabled(false);
+        }
+    }
 
     loadTheme();
     Q_EMIT ThemeNotifier::instance().themeChanged();
 
-    for (QWidget* w : topLevels)
-        w->setUpdatesEnabled(true);
+    // Theme callbacks may destroy windows. Restore only widgets we paused.
+    for (const auto& widget : pausedWidgets) {
+        if (widget)
+            widget->setUpdatesEnabled(true);
+    }
 }
 
 const ThemeColors& themeColors()
@@ -193,6 +202,25 @@ void applyPrimaryButtonShadow(QWidget* button)
     shadow->setOffset(0, 6);
     shadow->setColor(QColor(139, 26, 58, 70));
     button->setGraphicsEffect(shadow);
+}
+
+void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
+                          const QString& text, bool isPrivate)
+{
+    if (option.rect.width() <= 16)
+        return;
+    const auto& colors = themeColors();
+    QFont font = option.font;
+    font.setPixelSize(12);
+    font.setBold(true);
+    painter->setFont(font);
+    const int width = qMin(option.rect.width() - 16, QFontMetrics(font).boundingRect(text).width() + 18);
+    const QRect badge(option.rect.left() + 8, option.rect.center().y() - 11, width, 22);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(isPrivate ? colors.wineTint : colors.border));
+    painter->drawRoundedRect(badge, 11, 11);
+    painter->setPen(QColor(isPrivate ? colors.ink : colors.inkSoft));
+    painter->drawText(badge, Qt::AlignCenter, text);
 }
 
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)

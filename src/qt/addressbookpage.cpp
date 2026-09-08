@@ -97,17 +97,7 @@ public:
             const QString addressType = index.data(AddressTableModel::AddressTypeRole).toString();
             const bool spark = addressType == AddressTableModel::Spark ||
                                addressType == AddressTableModel::SparkName;
-            QFont badgeFont = option.font;
-            badgeFont.setPixelSize(12);
-            badgeFont.setBold(true);
-            painter->setFont(badgeFont);
-            const int w = qMin(option.rect.width() - 16, QFontMetrics(badgeFont).boundingRect(text).width() + 18);
-            const QRect badge(option.rect.left() + 8, option.rect.center().y() - 11, w, 22);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(spark ? QColor(tc.wineTint) : QColor(tc.border));
-            painter->drawRoundedRect(badge, 11, 11);
-            painter->setPen(spark ? QColor(tc.ink) : QColor(tc.inkSoft));
-            painter->drawText(badge, Qt::AlignCenter, text);
+            GUIUtil::paintAddressTypeBadge(painter, option, text, spark);
             break;
         }
         default:
