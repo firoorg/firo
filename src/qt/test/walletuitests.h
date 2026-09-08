@@ -19,6 +19,7 @@ private Q_SLOTS:
     void receiveMnemonics();
     void confirmationRefresh();
     void themeTintColors();
+    void deferredTransactionsKeepOrder();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H

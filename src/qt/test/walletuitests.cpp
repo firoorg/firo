@@ -12,6 +12,7 @@
 #include "masternode-sync.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
+#include "optionsmodel.h"
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
@@ -21,6 +22,8 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "validation.h"
+#include "wallet/wallet.h"
+#include "walletmodel.h"
 
 #include <QColor>
 #include <QElapsedTimer>
@@ -136,6 +139,58 @@ void WalletUiTests::themeTintColors()
             QCOMPARE(swatch.palette().color(QPalette::Window), color);
         }
     }
+}
+
+void WalletUiTests::deferredTransactionsKeepOrder()
+{
+    CWallet wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    WalletModel model(style.get(), &wallet, &options);
+    auto* table = model.getTransactionTableModel();
+    QSignalSpy inserted(table, &QAbstractItemModel::rowsInserted);
+    QSignalSpy removed(table, &QAbstractItemModel::rowsRemoved);
+
+    // A metadata-only wallet entry is sufficient; this test never reads status roles.
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    tx.vout.emplace_back(COIN, CScript());
+    const auto transaction = MakeTransactionRef(tx);
+    wallet.mapWallet.emplace(transaction->GetHash(), CWalletTx(&wallet, transaction));
+    const QString hash = QString::fromStdString(transaction->GetHash().GetHex());
+
+    std::promise<void> locked, release;
+    auto ready = locked.get_future();
+    auto done = release.get_future();
+    std::thread validation([&] {
+        LOCK(cs_main);
+        locked.set_value();
+        done.wait_for(std::chrono::seconds(2));
+    });
+    ready.wait();
+    QElapsedTimer timer;
+    timer.start();
+    table->updateTransaction(hash, CT_NEW, true);
+    table->updateTransaction(hash, CT_DELETED, false);
+    const auto elapsed = timer.elapsed();
+    release.set_value();
+    validation.join();
+    QVERIFY(elapsed < 1000);
+    QTRY_COMPARE(inserted.count(), 1);
+    QCOMPARE(removed.count(), 1);
+    QCOMPARE(table->rowCount(QModelIndex()), 0);
+
+    // A synchronous view callback may enqueue another update while insertion finishes.
+    inserted.clear();
+    removed.clear();
+    connect(table, &QAbstractItemModel::rowsInserted, &model, [&] {
+        table->updateTransaction(hash, CT_DELETED, false);
+    });
+    table->updateTransaction(hash, CT_NEW, true);
+    QCOMPARE(inserted.count(), 1);
+    QCOMPARE(removed.count(), 1);
+    QCOMPARE(table->rowCount(QModelIndex()), 0);
 }
 
 void WalletUiTests::initialSyncQueryDoesNotBlock()
