@@ -60,12 +60,15 @@ BOOST_AUTO_TEST_CASE(conflict_notifications_include_descendants)
             BOOST_CHECK(status == CT_UPDATED);
             changed.push_back(hash);
         }));
-    pwalletMain->MarkConflicted(chainActive.Tip()->GetBlockHash(), parentTx->GetHash());
+    CMutableTransaction conflicting(parent);
+    conflicting.vout[0].nValue = COIN / 2;
+    const CTransaction conflictingTx(conflicting);
+    pwalletMain->SyncTransaction(conflictingTx, chainActive.Tip(), 0);
     BOOST_REQUIRE_EQUAL(changed.size(), 2);
     const std::set<uint256> expected{parentTx->GetHash(), childTx->GetHash()};
     BOOST_CHECK(std::set<uint256>(changed.begin(), changed.end()) == expected);
 
-    pwalletMain->MarkConflicted(chainActive.Tip()->GetBlockHash(), parentTx->GetHash());
+    pwalletMain->SyncTransaction(conflictingTx, chainActive.Tip(), 0);
     BOOST_CHECK_EQUAL(changed.size(), 2);
 }
 
