@@ -79,7 +79,7 @@ void SparkModelTests::addressBookDefers()
     AddressTableModel model(&wallet);
     const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
     QVERIFY(style);
-    AddressBookPage page(style.get(), AddressBookPage::ForEditing, AddressBookPage::SendingTab);
+    AddressBookPage page(style.get(), AddressBookPage::ForEditing, AddressBookPage::SendingTab, nullptr);
     page.setModel(&model);
     QComboBox* types = page.findChild<QComboBox*>("addressType");
     QVERIFY(types);
