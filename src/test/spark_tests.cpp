@@ -471,8 +471,6 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 {
     // util function
     auto reconnect = [](CBlock const &block) {
-        LOCK(cs_main);
-
         std::shared_ptr<CBlock const> sharedBlock =
                 std::make_shared<CBlock const>(block);
 
@@ -1976,7 +1974,6 @@ BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
     }
     BOOST_CHECK(!mempool.exists(v2MultiAtFork.GetHash()));
     {
-        LOCK(cs_main);
         CValidationState reconnectState;
         BOOST_REQUIRE(ActivateBestChain(
             reconnectState,
@@ -3548,7 +3545,6 @@ BOOST_AUTO_TEST_CASE(spark_single_input_block_boundary_and_reorg)
     BOOST_REQUIRE_EQUAL(chainActive.Height(), baseHeight);
 
     const auto reconnect = [](const CBlock& block) {
-        LOCK(cs_main);
         CValidationState state;
         const auto shared = std::make_shared<const CBlock>(block);
         BOOST_REQUIRE(ActivateBestChain(state, ::Params(), shared));
@@ -4009,9 +4005,6 @@ BOOST_AUTO_TEST_CASE(coingroup)
 
     // util function
     auto reconnect = [](CBlock const &block) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
-        LOCK(mempool.cs);
-
         std::shared_ptr<CBlock const> sharedBlock =
                 std::make_shared<CBlock const>(block);
 

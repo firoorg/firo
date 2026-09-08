@@ -1020,6 +1020,35 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman& connma
 
 void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParams, CConnman& connman, const std::atomic<bool>& interruptMsgProc)
 {
+    if (pfrom->fPauseSend || interruptMsgProc)
+        return;
+
+    // At most one block is served below. Activate it before taking the serving
+    // lock: activation may wait for a verifier that needs cs_main to finish.
+    for (const CInv& inv : pfrom->vRecvGetData) {
+        if (inv.type != MSG_BLOCK && inv.type != MSG_FILTERED_BLOCK &&
+            inv.type != MSG_CMPCT_BLOCK && inv.type != MSG_WITNESS_BLOCK)
+            continue;
+        bool activate;
+        {
+            LOCK(cs_main);
+            auto mi = mapBlockIndex.find(inv.hash);
+            activate = mi != mapBlockIndex.end() && mi->second->nChainTx &&
+                !mi->second->IsValid(BLOCK_VALID_SCRIPTS) && mi->second->IsValid(BLOCK_VALID_TREE);
+        }
+        if (activate) {
+            std::shared_ptr<const CBlock> recentBlock;
+            {
+                LOCK(cs_most_recent_block);
+                recentBlock = most_recent_block;
+            }
+            CValidationState state;
+            if (!ActivateBestChain(state, Params(), recentBlock))
+                return;
+        }
+        break;
+    }
+
     std::deque<CInv>::iterator it = pfrom->vRecvGetData.begin();
     std::vector<CInv> vNotFound;
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
@@ -1043,21 +1072,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
                 if (mi != mapBlockIndex.end())
                 {
-                    if (mi->second->nChainTx && !mi->second->IsValid(BLOCK_VALID_SCRIPTS) &&
-                            mi->second->IsValid(BLOCK_VALID_TREE)) {
-                        // If we have the block and all of its parents, but have not yet validated it,
-                        // we might be in the middle of connecting it (ie in the unlock of cs_main
-                        // before ActivateBestChain but after AcceptBlock).
-                        // In this case, we need to run ActivateBestChain prior to checking the relay
-                        // conditions below.
-                        std::shared_ptr<const CBlock> a_recent_block;
-                        {
-                            LOCK(cs_most_recent_block);
-                            a_recent_block = most_recent_block;
-                        }
-                        CValidationState dummy;
-                        ActivateBestChain(dummy, Params(), a_recent_block);
-                    }
                     if (chainActive.Contains(mi->second)) {
                         send = true;
                     } else {
@@ -2082,7 +2096,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             inv.type = State(pfrom->GetId())->fWantsCmpctWitness ? MSG_WITNESS_BLOCK : MSG_BLOCK;
             inv.hash = req.blockhash;
             pfrom->vRecvGetData.push_back(inv);
-            ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
+            // ProcessMessages serves this queued request without cs_main.
             return true;
         }
 

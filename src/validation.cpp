@@ -3691,24 +3691,26 @@ bool DisconnectBlocks(int blocks) {
 }
 
 void ReprocessBlocks(int nBlocks) {
-    LOCK(cs_main);
+    {
+        LOCK(cs_main);
 
-    std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
-    while (it != mapRejectedBlocks.end()) {
-        //use a window twice as large as is usual for the nBlocks we want to reset
-        if ((*it).second > GetTime() - (nBlocks * 60 * 5)) {
-            BlockMap::iterator mi = mapBlockIndex.find((*it).first);
-            if (mi != mapBlockIndex.end() && (*mi).second) {
+        std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
+        while (it != mapRejectedBlocks.end()) {
+            //use a window twice as large as is usual for the nBlocks we want to reset
+            if ((*it).second > GetTime() - (nBlocks * 60 * 5)) {
+                BlockMap::iterator mi = mapBlockIndex.find((*it).first);
+                if (mi != mapBlockIndex.end() && (*mi).second) {
 
-                CBlockIndex *pindex = (*mi).second;
-                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+                    CBlockIndex *pindex = (*mi).second;
+                    LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
 
-                ResetBlockFailureFlags(pindex);            }
+                    ResetBlockFailureFlags(pindex);            }
+            }
+            ++it;
         }
-        ++it;
-    }
 
-    DisconnectBlocks(nBlocks);
+        DisconnectBlocks(nBlocks);
+    }
 
     CValidationState state;
     ActivateBestChain(state, Params());
