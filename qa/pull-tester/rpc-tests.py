@@ -154,6 +154,7 @@ testScripts = [
     'decodescript.py',
     # 'blockchain.py',
     'disablewallet.py',
+    'dbcache.py',
     'keypool.py',
     'p2p-mempool.py',
     # 'prioritise_transaction.py',

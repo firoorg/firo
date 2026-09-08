@@ -2003,8 +2003,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                                     (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nCoinDBCache = std::min(nCoinDBCache, nMaxCoinsDBCache << 20); // cap total coins db cache
     nTotalCache -= nCoinDBCache;
-//    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
-    nCoinCacheUsage = nTotalCache / 300;
+    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache, in bytes
     int64_t nMempoolSizeMax = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     int64_t nEvoDbCache = 1024 * 1024 * 16; // TODO
     LogPrintf("Cache configuration:\n");
