@@ -2803,10 +2803,20 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
-    // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->init(ShouldBatchSparkProofs(pindex)
-        ? BatchProofContainer::Mode::Deferred : BatchProofContainer::Mode::Disabled);
+    // Keep accumulated historical batches, but verify recent blocks before
+    // publishing state. Check-only paths must verify proofs directly.
+    auto batchMode = BatchProofContainer::Mode::Disabled;
+    if (!fJustCheck && GetBoolArg("-batching", true)) {
+        batchMode = ShouldBatchSparkProofs(pindex)
+            ? BatchProofContainer::Mode::Deferred : BatchProofContainer::Mode::Block;
+    }
+    batchProofContainer->init(batchMode);
+    struct ResetSparkBatch
+    {
+        BatchProofContainer* container;
+        ~ResetSparkBatch() { container->init(); }
+    } resetSparkBatch{batchProofContainer};
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -2997,6 +3007,15 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
+    // Special transaction processing can publish notifications and cache
+    // changes. A recent block's proofs must pass before any of those effects.
+    try {
+        if (!batchProofContainer->verify_block_batch())
+            return state.DoS(100, false, REJECT_INVALID, "bad-spark-batch-proof");
+    } catch (const std::bad_alloc&) {
+        return state.Error("ConnectBlock(): memory allocation failed while verifying Spark batch");
+    }
+
     if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
@@ -3121,7 +3140,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
 
-    // do batch verification if remains a day or collect proofs
+    // Only historical blocks contribute to the deferred batch.
     batchProofContainer->finalize();
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;

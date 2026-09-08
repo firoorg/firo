@@ -10,13 +10,18 @@ extern CChain chainActive;
 
 class BatchProofContainer {
 public:
-    enum class Mode { Disabled, Deferred };
+    enum class Mode { Disabled, Deferred, Block };
 
     static BatchProofContainer* get_instance();
 
     void init(Mode mode = Mode::Disabled);
 
     void finalize();
+
+    bool is_deferred() const;
+
+    /** Verify this block's temps under cs_main, without touching pending proofs. */
+    bool verify_block_batch();
 
     /**
      * Verify a retained snapshot, retrying if the pending batch or active tip

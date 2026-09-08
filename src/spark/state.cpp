@@ -1212,27 +1212,21 @@ bool CheckSparkSpendTransaction(
         return loadedCoverSet;
     };
     
-    // if we are collecting proofs, skip verification and collect proofs
-    // add proofs into container
-    const bool fAddedToBatch = fCanBatch && ((isChaumV2 || requireChaumV1SingleInput)
+    // Recent blocks retain the mempool cache fast path. Historical batches
+    // still collect every proof, and VerifyDB always re-verifies its own view.
+    bool haveCachedSuccess = false;
+    if (!isVerifyDB && (!fCanBatch || !batchProofContainer->is_deferred())) {
+        LOCK(cs_checkedSparkSpendTransactions);
+        haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
+    }
+    const bool fAddedToBatch = !haveCachedSuccess && fCanBatch && ((isChaumV2 || requireChaumV1SingleInput)
         ? batchProofContainer->add(*spend, hashTx)
         : batchProofContainer->addHistorical(*spend, hashTx));
-    if (fAddedToBatch) {
+    if (haveCachedSuccess || fAddedToBatch) {
         passVerify = true;
     } else {
         try {
-            bool haveCachedSuccess = false;
-            // The cache is txid-only. VerifyDB reconstructs cover sets at the
-            // historical height, so a mempool success must not skip re-verify.
-            if (!isVerifyDB) {
-                LOCK(cs_checkedSparkSpendTransactions);
-                haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
-            }
-            if (haveCachedSuccess) {
-                LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
-                passVerify = true;
-            }
-            else if (isMempoolAcceptance) {
+            if (isMempoolAcceptance) {
                 passVerify = spark::SpendTransaction::verify(
                     spark::Params::get_default(),
                     {*spend},

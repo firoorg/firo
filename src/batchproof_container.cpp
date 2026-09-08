@@ -24,8 +24,15 @@ CoverSets LoadCoverSets(
             for (uint64_t id : tx.getCoinGroupIds()) {
                 const int32_t stateId = static_cast<int32_t>(id);
                 auto entry = coverSets.try_emplace(stateId);
-                if (entry.second)
-                    spark::CSparkState::GetState()->GetCoinSet(stateId, entry.first->second);
+                if (entry.second) {
+                    uint256 blockHash;
+                    std::vector<unsigned char> setHash;
+                    // Consensus can reference newer coins than the wallet's
+                    // confirmation window. Snapshot the whole active group.
+                    spark::CSparkState::GetState()->GetCoinSetForSpend(
+                        &chainActive, chainActive.Height(), stateId,
+                        blockHash, entry.first->second, setHash);
+                }
             }
         }
     }
@@ -158,6 +165,7 @@ void BatchProofContainer::init(Mode nextMode)
 void BatchProofContainer::finalize()
 {
     LOCK(cs_main);
+    assert(mode != Mode::Block);
     if (mode == Mode::Deferred) {
         const auto size = sparkTransactions.size();
         const auto historicalSize = historicalSparkTransactions.size();
@@ -177,6 +185,26 @@ void BatchProofContainer::finalize()
         ++generation;
     }
     init();
+}
+
+bool BatchProofContainer::is_deferred() const
+{
+    LOCK(cs_main);
+    return mode == Mode::Deferred;
+}
+
+bool BatchProofContainer::verify_block_batch()
+{
+    AssertLockHeld(cs_main);
+    if (mode != Mode::Block)
+        return true;
+
+    const auto coverSets = LoadCoverSets(tempSparkTransactions, tempHistoricalSparkTransactions);
+    const bool passed = VerifySparkBatch(
+        tempSparkTransactions, tempSparkTxIds,
+        tempHistoricalSparkTransactions, tempHistoricalSparkTxIds, coverSets);
+    init();
+    return passed;
 }
 
 bool BatchProofContainer::verify_pending()

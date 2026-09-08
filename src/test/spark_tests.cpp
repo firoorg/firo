@@ -13,6 +13,7 @@
 #include "../miner.h"
 #include "../policy/policy.h"
 #include "../hash.h"
+#include "../ui_interface.h"
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
@@ -3129,6 +3130,90 @@ BOOST_AUTO_TEST_CASE(spark_single_input_historical_batch_verification)
     BOOST_CHECK_EQUAL(activeDoS, 100);
 }
 
+BOOST_AUTO_TEST_CASE(recent_spark_blocks_preserve_batch_and_cache_semantics)
+{
+    RestoreSparkActivationHeights resetActivationHeights;
+    auto* batch = BatchProofContainer::get_instance();
+    struct ResetBatch {
+        BatchProofContainer* batch;
+        ~ResetBatch() { batch->init(); }
+    } reset{batch};
+    GenerateBlocks(500);
+
+    for (auto version : {SpendTransactionVersion::V1, SpendTransactionVersion::V2}) {
+        if (version == SpendTransactionVersion::V2)
+            UpdateRegtestSparkChaumV2Height(chainActive.Height() + 1);
+
+        std::vector<CMutableTransaction> mintTransactions;
+        const auto mints = GenerateMints({5 * COIN, 10 * COIN}, mintTransactions);
+        mempool.clear();
+        BOOST_REQUIRE(GenerateBlock(mintTransactions));
+        BOOST_REQUIRE_EQUAL(mints.size(), 2U);
+
+        // These valid proofs reference the latest block, outside the wallet's
+        // confirmation window. Batching must use the same consensus cover set.
+        const CTransaction first = GenerateCustomSparkSpend(
+            {pwalletMain->sparkWallet->getMintMeta(mints[0].k)}, COIN,
+            0, version, 0, chainActive.Height());
+        const CTransaction second = GenerateCustomSparkSpend(
+            {pwalletMain->sparkWallet->getMintMeta(mints[1].k)}, 2 * COIN,
+            0, version, 0, chainActive.Height());
+        ClearSparkSpendProofCache();
+        int verifications = 0;
+        boost::signals2::scoped_connection observe = uiInterface.UpdateProgressBarLabel.connect(
+            [&](const std::string& label) {
+                if (label == "Batch verifying Spark Proofs...")
+                    ++verifications;
+            });
+        auto check = [&](const CTransaction& tx, CSparkTxInfo* info) {
+            CValidationState state;
+            return CheckSparkTransaction(tx, state, tx.GetHash(), false,
+                info ? chainActive.Height() + 1 : INT_MAX, false, true, info);
+        };
+
+        {
+            LOCK(cs_main);
+            batch->init(BatchProofContainer::Mode::Deferred);
+            CSparkTxInfo historicalInfo;
+            BOOST_REQUIRE(check(first, &historicalInfo));
+            batch->finalize();
+            BOOST_CHECK_EQUAL(verifications, 0);
+
+            // Verifying a recent block must neither consume nor clear the
+            // recovery marker for a separate historical pending batch.
+            batch->init(BatchProofContainer::Mode::Block);
+            CSparkTxInfo blockInfo;
+            BOOST_REQUIRE(check(second, &blockInfo));
+            BOOST_CHECK(batch->verify_block_batch());
+            BOOST_CHECK_EQUAL(verifications, 1);
+            BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+        }
+        BOOST_CHECK(batch->verify_pending());
+        BOOST_CHECK_EQUAL(verifications, 2);
+        BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+
+        {
+            LOCK(cs_main);
+            // Populate the normal mempool proof cache, then check that a
+            // cached spend requires no additional per-block batch work.
+            BOOST_REQUIRE(check(first, nullptr));
+            batch->init(BatchProofContainer::Mode::Block);
+            CSparkTxInfo cachedInfo;
+            BOOST_REQUIRE(check(first, &cachedInfo));
+            BOOST_CHECK(batch->verify_block_batch());
+            BOOST_CHECK_EQUAL(verifications, 2);
+        }
+        ClearSparkSpendProofCache();
+
+        // Exercise the real ConnectBlock path with two uncached spends.
+        BOOST_REQUIRE(GenerateBlock({CMutableTransaction(first), CMutableTransaction(second)}));
+        BOOST_CHECK_EQUAL(verifications, 3);
+        BOOST_CHECK(batch->verify_pending());
+        BOOST_CHECK_EQUAL(verifications, 3);
+        BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+    }
+}
+
 BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
 {
     BatchProofContainer* batch = BatchProofContainer::get_instance();
@@ -3159,8 +3244,7 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
     candidateIndex.phashBlock = &candidateHash;
     candidateIndex.pprev = chainActive.Tip();
     candidateIndex.nHeight = chainActive.Height() + 1;
-    // Use a recent block time so ConnectBlock verifies proofs inline instead
-    // of deferring them (master IBD batching path).
+    // Use a recent block time so ConnectBlock verifies this block's batch.
     candidateIndex.nTime = GetSystemTimeInSeconds();
 
     CValidationState state;
@@ -3168,7 +3252,16 @@ BOOST_AUTO_TEST_CASE(batched_spark_proofs_are_verified_inside_connect_block)
     {
         LOCK(cs_main);
         BOOST_CHECK(!ConnectBlock(
-            candidate, state, &candidateIndex, view, ::Params(), true));
+            candidate, state, &candidateIndex, view, ::Params(), false));
+    }
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-spark-batch-proof");
+
+    CValidationState checkOnlyState;
+    CCoinsViewCache checkOnlyView(pcoinsTip);
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!ConnectBlock(
+            candidate, checkOnlyState, &candidateIndex, checkOnlyView, ::Params(), true));
     }
 
     // VerifyDB must avoid tip-state mutation without skipping the proof.
@@ -3233,12 +3326,11 @@ BOOST_AUTO_TEST_CASE(abandoned_connect_block_clears_batched_spark_proofs)
     {
         LOCK(cs_main);
         BOOST_CHECK(!ConnectBlock(
-            candidate, state, &candidateIndex, view, ::Params(), true));
+            candidate, state, &candidateIndex, view, ::Params(), false));
     }
 
-    // Master deferred batching does not abort() on ConnectBlock failure; the
-    // next ConnectBlock init() (or an explicit init here) drops temps.
-    batch->init();
+    // Even a later finalize cannot enqueue proofs from an abandoned block.
+    batch->finalize();
     BOOST_CHECK(batch->verify_pending());
 
     mempool.clear();
