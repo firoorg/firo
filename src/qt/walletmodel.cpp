@@ -1718,8 +1718,7 @@ bool WalletModel::sparkNamesAllowed() const
 
 bool WalletModel::versionedSparkSpendsAllowed() const
 {
-    LOCK(cs_main);
-    return chainActive.Height() + 1 >=
+    return _client_model && _client_model->getNumBlocks() + 1 >=
         Params().GetConsensus().nSparkChaumV2StartBlock;
 }
 

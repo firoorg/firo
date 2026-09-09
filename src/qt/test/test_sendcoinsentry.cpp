@@ -1,8 +1,11 @@
 #include "test_sendcoinsentry.h"
 
+#include "chain.h"
+#include "clientmodel.h"
 #include "coincontroldialog.h"
 #include "platformstyle.h"
 #include "sendcoinsdialog.h"
+#include "ui_interface.h"
 
 #include <QCheckBox>
 
@@ -74,4 +77,24 @@ void TestSendCoinsEntry::testSparkCoinControlSizeEstimate()
             std::numeric_limits<size_t>::max(),
             true),
         std::numeric_limits<unsigned int>::max());
+}
+
+void TestSendCoinsEntry::testBlockHeightCacheIgnoresHeaders()
+{
+    ClientModel client(nullptr);
+    CBlockIndex block;
+    block.nHeight = 100;
+    uiInterface.NotifyBlockTip(false, &block);
+    QCOMPARE(client.cachedNumBlocks.load(), 100);
+
+    // Spark send controls must not use a header-only activation height.
+    CBlockIndex header;
+    header.nHeight = 200;
+    uiInterface.NotifyHeaderTip(false, &header);
+    QCOMPARE(client.cachedBestHeaderHeight.load(), 200);
+    QCOMPARE(client.cachedNumBlocks.load(), 100);
+
+    block.nHeight = 99;
+    uiInterface.NotifyBlockTip(false, &block);
+    QCOMPARE(client.cachedNumBlocks.load(), 99);
 }

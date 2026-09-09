@@ -148,6 +148,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
 void WalletView::setWalletModel(WalletModel *_walletModel)
 {
     this->walletModel = _walletModel;
+    walletModel->setClientModel(clientModel);
 
     // Put transaction list in tabs
     firoTransactionList->setModel(_walletModel);
@@ -194,7 +195,6 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
             connect(autoMintSparkModel, &AutoMintSparkModel::requireShowAutomintSparkNotification, this, &WalletView::showAutomintSparkNotification);
             connect(autoMintSparkModel, &AutoMintSparkModel::closeAutomintSparkNotification, this, &WalletView::closeAutomintSparkNotification);
         }
-        walletModel->setClientModel(clientModel);
     }
 }
 

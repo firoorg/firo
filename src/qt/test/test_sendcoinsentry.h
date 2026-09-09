@@ -14,6 +14,7 @@ private Q_SLOTS:
     void testTransactionCreationErrorDetails();
     void testPrivateModeUpdatesExistingEntries();
     void testSparkCoinControlSizeEstimate();
+    void testBlockHeightCacheIgnoresHeaders();
 };
 
 #endif // BITCOIN_QT_TEST_SENDCOINSENTRY_H

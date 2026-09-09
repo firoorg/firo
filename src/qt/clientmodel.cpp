@@ -38,7 +38,7 @@ ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
 {
     cachedBestHeaderHeight = -1;
     cachedBestHeaderTime = -1;
-    cachedNumBlocks = 0;
+    cachedNumBlocks = g_connman ? g_connman->GetBestHeight() : 0;
     cachedLastBlockDate = QDateTime();
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
