@@ -21,6 +21,7 @@ add_executable(test_firo-qt
 # Add this to skip specific files from UIC processing
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../test/test_bitcoin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sendcoinsentry.cpp
     PROPERTIES SKIP_AUTOUIC ON 
 )
 
