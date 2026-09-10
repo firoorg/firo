@@ -4,6 +4,7 @@
 
 #include "bls/bls.h"
 #include "bls/bls_batchverifier.h"
+#include "bls/bls_worker.h"
 #include "test/test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
@@ -152,6 +153,30 @@ BOOST_AUTO_TEST_CASE(batch_verifier_tests)
     // last message invalid from one source
     AddMessage(msgs, 1, 7, 1, false);
     Verify(msgs);
+}
+
+BOOST_AUTO_TEST_CASE(bls_verify_contribution_shares_empty_vvecs_tests)
+{
+    CBLSWorker worker;
+    worker.Start();
+
+    const CBLSId id{uint256S("1")};
+    BOOST_REQUIRE(id.IsValid());
+
+    const std::vector<BLSVerificationVectorPtr> vvecs;
+    const BLSSecretKeyVector skShares;
+
+    for (const bool aggregated : {true, false}) {
+        bool completed = false;
+        worker.AsyncVerifyContributionShares(id, vvecs, skShares, true, aggregated,
+            [&](const std::vector<bool>& result) {
+                BOOST_CHECK(result.empty());
+                completed = true;
+            });
+        BOOST_CHECK(completed);
+    }
+
+    worker.Stop();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
