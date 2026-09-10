@@ -86,9 +86,9 @@ public:
         if (view_) {
             const QRect left = view_->visualRect(index.sibling(index.row(), TransactionTableModel::Date));
             const QRect right = view_->visualRect(index.sibling(index.row(), TransactionTableModel::Amount));
-            const QRect card(left.left() + 4, option.rect.top() + 5,
+            const QRect card(left.left() + 4, option.rect.top() + 3,
                              std::max(40, right.right() - left.left() - 8),
-                             option.rect.height() - 10);
+                             option.rect.height() - 6);
             QPainterPath cardPath;
             cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
             painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
@@ -119,7 +119,7 @@ public:
             const int metadataWidth = 30 +
                 (index.data(TransactionTableModel::InstantSendRole).toBool() ? 20 : 0) +
                 (index.data(TransactionTableModel::WatchonlyRole).toBool() ? 20 : 0);
-            const QRect dateRect(icon.right() + 10, option.rect.top() + 14,
+            const QRect dateRect(icon.right() + 10, option.rect.center().y() - 18,
                                  option.rect.right() - icon.right() - metadataWidth, 18);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.date(), QLocale::ShortFormat)
@@ -130,7 +130,7 @@ public:
             timeFont.setBold(false);
             painter->setFont(timeFont);
             painter->setPen(QColor(tc.inkFaint));
-            const QRect timeRect(dateRect.left(), dateRect.bottom() - 2, dateRect.width(), 16);
+            const QRect timeRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), 18);
             painter->drawText(timeRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.time(), QLocale::ShortFormat) : QString());
 
@@ -196,7 +196,8 @@ public:
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
-            const QRect capRect = option.rect.adjusted(8, 12, -14, -28);
+            const QRect capRect(option.rect.left() + 8, option.rect.center().y() - 18,
+                                option.rect.width() - 22, 18);
             painter->drawText(capRect, Qt::AlignRight | Qt::AlignVCenter, caption);
 
             QString amountText = index.data(Qt::DisplayRole).toString();
@@ -209,7 +210,7 @@ public:
             amtFont.setBold(true);
             painter->setFont(amtFont);
             painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
-            const QRect amtRect = option.rect.adjusted(8, 28, -14, -12);
+            const QRect amtRect(capRect.left(), capRect.bottom() + 1, capRect.width(), 20);
             painter->drawText(amtRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
             break;
         }
@@ -268,11 +269,11 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     filterCard->setObjectName("filterCard");
 
     headerLayout = new QGridLayout(filterCard);
-    headerLayout->setContentsMargins(14,14,14,14);
+    headerLayout->setContentsMargins(10,8,10,8);
     headerLayout->setHorizontalSpacing(12);
-    headerLayout->setVerticalSpacing(10);
+    headerLayout->setVerticalSpacing(6);
 
-    auto pillify = [](QComboBox* cb){ cb->setMinimumHeight(36); cb->setIconSize(QSize(16,16)); };
+    auto pillify = [](QComboBox* cb){ cb->setMinimumHeight(32); cb->setIconSize(QSize(16,16)); };
 
     watchOnlyWidget = new QComboBox(this);
     pillify(watchOnlyWidget);
@@ -336,12 +337,12 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->addWidget(typeWidget, 0, 3);
 
     addressWidget = new QLineEdit(this);
-    addressWidget->setMinimumHeight(36);
+    addressWidget->setMinimumHeight(32);
     addressWidget->setPlaceholderText(tr("Enter address or label to search"));
     headerLayout->addWidget(addressWidget, 1, 0, 1, 3);
 
     amountWidget = new QLineEdit(this);
-    amountWidget->setMinimumHeight(36);
+    amountWidget->setMinimumHeight(32);
     amountWidget->setMinimumWidth(110);
     amountWidget->setPlaceholderText(tr("Min amount"));
     amountWidget->setValidator(new QDoubleValidator(0, 1e20, 8, this));
@@ -352,11 +353,10 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     headerLayout->setColumnStretch(3, 1);
 
     QVBoxLayout *vlayout = new QVBoxLayout(this);
-    vlayout->setContentsMargins(24,20,24,20);
-    vlayout->setSpacing(14);
+    vlayout->setContentsMargins(16,12,16,12);
+    vlayout->setSpacing(10);
 
     vlayout->addWidget(filterCard);
-    filterCard->setMinimumHeight(116);
     filterCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     dateRangeWidget = createDateRangeWidget();
@@ -367,7 +367,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     tableCard->setObjectName("tableCard");
 
     QVBoxLayout* tableLayout = new QVBoxLayout(tableCard);
-    tableLayout->setContentsMargins(14,10,14,14);
+    tableLayout->setContentsMargins(10,6,10,8);
     tableLayout->setSpacing(8);
 
     QTableView *view = new QTableView(this);
@@ -382,7 +382,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     transactionView->setCornerButtonEnabled(false);
     transactionView->setFrameShape(QFrame::NoFrame);
     transactionView->setMouseTracking(true);
-    transactionView->verticalHeader()->setDefaultSectionSize(78);
+    transactionView->verticalHeader()->setDefaultSectionSize(52);
 
     view->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     view->horizontalHeader()->setHighlightSections(false);
@@ -597,7 +597,7 @@ void TransactionView::applyTheme()
         "}"
 
         "QHeaderView::section {"
-        " background:$PANEL; padding:9px 6px; border:none;"
+        " background:$PANEL; padding:5px 6px; border:none;"
         " font-size:12px; font-weight:700; color:$INK_SOFT;"
         "}"
         "QHeaderView::section:hover { background:$PANEL; }"

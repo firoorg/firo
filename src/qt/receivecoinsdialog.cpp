@@ -30,7 +30,6 @@
 #include <QStyledItemDelegate>
 #include <QTextDocument>
 #include <QComboBox>
-#include <QCoreApplication>
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QScreen>
@@ -96,7 +95,7 @@ public:
             dateFont.setBold(true);
             painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
-            const QRect dateRect(icon.right() + 10, option.rect.top() + 14,
+            const QRect dateRect(icon.right() + 10, option.rect.center().y() - 16,
                                  option.rect.right() - icon.right() - 16, 18);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
@@ -137,21 +136,12 @@ public:
         }
         case RecentRequestsTableModel::Amount: {
             const QString amountText = index.data(Qt::DisplayRole).toString();
-            QFont capFont = option.font;
-            capFont.setPixelSize(12);
-            capFont.setBold(true);
-            painter->setFont(capFont);
-            painter->setPen(QColor(tc.inkFaint));
-            painter->drawText(option.rect.adjusted(8, 12, -14, -28),
-                              Qt::AlignRight | Qt::AlignVCenter,
-                              QCoreApplication::translate("ReceiveCoinsDialog", "REQUESTED"));
-
             QFont amtFont = option.font;
             amtFont.setPixelSize(14);
             amtFont.setBold(true);
             painter->setFont(amtFont);
             painter->setPen(QColor(tc.ink));
-            painter->drawText(option.rect.adjusted(8, 28, -14, -12),
+            painter->drawText(option.rect.adjusted(8, 0, -14, 0),
                               Qt::AlignRight | Qt::AlignVCenter,
                               QFontMetrics(amtFont).elidedText(amountText, Qt::ElideLeft, option.rect.width() - 24));
             break;
@@ -310,7 +300,7 @@ void ReceiveCoinsDialog::applyTheme()
         " background: $PANEL_SOFT;"
         " border: 1px solid $BORDER;"
         " border-radius: 10px;"
-        " padding: 8px 12px;"
+        " padding: 4px 12px;"
         " color: $INK;"
         "}"
         "AmountSpinBox QLineEdit { %1 }"
@@ -321,7 +311,7 @@ void ReceiveCoinsDialog::applyTheme()
         " background: $PANEL_SOFT;"
         " border: 1px solid $WINE;"
         " border-radius: 10px;"
-        " padding: 8px 12px;"
+        " padding: 4px 12px;"
         " color: $INK;"
         "}")).arg(GUIUtil::spinBoxInnerLineEditReset());
     ui->reqLabel->setStyleSheet(fieldStyle);
@@ -333,7 +323,7 @@ void ReceiveCoinsDialog::applyTheme()
         " background: $PANEL;"
         " border: 1px solid $BORDER;"
         " border-radius: 10px;"
-        " padding: 8px 12px;"
+        " padding: 4px 12px;"
         " color: $INK;"
         "}"
         "QComboBox QAbstractItemView {"
@@ -359,8 +349,8 @@ void ReceiveCoinsDialog::applyTheme()
     ui->addressTypeCombobox->setStyleSheet(comboStyle);
     ui->addressTypeHistoryCombobox->setStyleSheet(comboStyle);
 
-    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("10px 18px"));
-    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("10px 18px"));
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("6px 14px"));
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px"));
     ui->receiveButton->setStyleSheet(primaryButtonStyle);
     GUIUtil::applyPrimaryButtonShadow(ui->receiveButton);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
@@ -431,7 +421,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setAlternatingRowColors(false);
         tableView->setShowGrid(false);
         tableView->setFrameShape(QFrame::NoFrame);
-        tableView->verticalHeader()->setDefaultSectionSize(72);
+        tableView->verticalHeader()->setDefaultSectionSize(52);
         tableView->setItemDelegate(new PaymentRequestCardDelegate(tableView));
         tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);

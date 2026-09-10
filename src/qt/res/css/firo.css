@@ -752,7 +752,7 @@ QStatusBar {
     padding-right: 10px;
     min-height: 30px;
     background-color: #f4f4f4;
-    color: #cfcccc;
+    color: #3d3939;
 }
 
 QStatusBar QLabel {

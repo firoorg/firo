@@ -7,7 +7,6 @@
 
 #include "evo/deterministicmns.h"
 
-#include <QMenu>
 #include <QTimer>
 #include <QWidget>
 #include <QResizeEvent>
@@ -44,7 +43,6 @@ public:
     void setWalletModel(WalletModel* walletModel);
     void resizeEvent(QResizeEvent*) override;
 private:
-    QMenu* contextMenuDIP3;
     int64_t nTimeUpdatedDIP3;
 
     QTimer* timer;
@@ -64,6 +62,7 @@ private:
     QToolButton* masternodeSortDirection;
 
     CDeterministicMNCPtr GetSelectedDIP3MN();
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
     bool updateDIP3List();
     void updateEmptyState();
@@ -74,7 +73,6 @@ private:
     void updateSortDirectionButton();
 
 private Q_SLOTS:
-    void showContextMenuDIP3(const QPoint&);
     void on_filterLineEditDIP3_textChanged(const QString& strFilterIn);
     void on_checkBoxMyMasternodesOnly_stateChanged(int state);
 

@@ -18,8 +18,10 @@
 #include "amount.h"
 #include "base58.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -120,7 +122,7 @@ public:
     {
         Q_UNUSED(option);
         Q_UNUSED(index);
-        return QSize(0, 210);
+        return QSize(0, 96);
     }
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
@@ -137,7 +139,7 @@ public:
         painter->drawRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
 
         const qreal dpr = option.widget ? option.widget->devicePixelRatioF() : 1.0;
-        painter->drawPixmap(QRect(card.left() + 14, card.top() + 12, 36, 36), glyph(dpr));
+        painter->drawPixmap(QRect(card.left() + 14, card.top() + 4, 36, 36), glyph(dpr));
 
         const QString service = index.data(ServiceRole).toString();
         const QString status = index.data(StatusRole).toString();
@@ -159,7 +161,7 @@ public:
         const int headerWidth = std::max(0, headerRight - headerLeft);
         const int statusWidth = std::min(statusMetrics.horizontalAdvance(status) + 20,
                                          std::max(0, headerWidth / 3));
-        const QRect statusRect(headerRight - statusWidth, card.top() + 18, statusWidth, 24);
+        const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, 24);
         if (statusWidth > 0) {
             painter->setPen(Qt::NoPen);
             painter->setBrush(statusBackground);
@@ -179,8 +181,8 @@ public:
         const bool showPose = headerWidth >= 300;
         const int poseWidth = showPose ? 80 : 0;
         const int titleRight = statusRect.left() - (showPose ? poseWidth + 16 : 8);
-        const QRect titleRect(headerLeft, card.top() + 13,
-                              std::max(0, titleRight - headerLeft), 24);
+        const QRect titleRect(headerLeft, card.top() + 3,
+                              std::max(0, titleRight - headerLeft), 20);
         if (titleRect.width() > 0) {
             painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(titleFont).elidedText(service, Qt::ElideMiddle, titleRect.width()));
@@ -192,7 +194,7 @@ public:
             const QString collateral = masternodeText(
                 QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
                 .arg(index.data(CollateralOutpointRole).toString());
-            const QRect subtitleRect(titleRect.left(), card.top() + 34, titleRect.width(), 18);
+            const QRect subtitleRect(titleRect.left(), card.top() + 23, titleRect.width(), 18);
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(subtitleFont).elidedText(collateral, Qt::ElideMiddle,
                                                                    subtitleRect.width()));
@@ -203,13 +205,13 @@ public:
         painter->setFont(poseFont);
         painter->setPen(QColor(tc.inkSoft));
         if (showPose) {
-            const QRect poseRect(titleRight + 8, card.top() + 11, poseWidth, 24);
+            const QRect poseRect(titleRight + 8, card.top() + 3, poseWidth, 24);
             painter->drawText(poseRect, Qt::AlignRight | Qt::AlignVCenter,
                               masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PoSe %1"))
                                   .arg(index.data(PoseScoreRole).toInt()));
 
             const int trackWidth = std::min(64, poseRect.width());
-            const QRect trackRect(poseRect.right() - trackWidth + 1, card.top() + 43, trackWidth, 4);
+            const QRect trackRect(poseRect.right() - trackWidth + 1, card.top() + 33, trackWidth, 4);
             painter->setPen(Qt::NoPen);
             painter->setBrush(QColor(tc.border));
             painter->drawRoundedRect(trackRect, 2, 2);
@@ -226,8 +228,8 @@ public:
         }
 
         painter->setPen(QPen(QColor(tc.border), 1));
-        painter->drawLine(card.left() + 14, card.top() + 58,
-                          card.right() - 14, card.top() + 58);
+        painter->drawLine(card.left() + 14, card.top() + 44,
+                          card.right() - 14, card.top() + 44);
 
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
             QFont captionFont = option.font;
@@ -235,7 +237,7 @@ public:
             captionFont.setBold(true);
             painter->setFont(captionFont);
             painter->setPen(QColor(tc.inkSoft));
-            const QRect captionRect = rect.adjusted(0, 0, -8, -20);
+            const QRect captionRect = rect.adjusted(0, 0, -8, -16);
             painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(captionFont).elidedText(caption, Qt::ElideRight,
                                                                   std::max(0, captionRect.width())));
@@ -245,7 +247,7 @@ public:
             valueFont.setBold(true);
             painter->setFont(valueFont);
             painter->setPen(QColor(tc.ink));
-            const QRect valueRect = rect.adjusted(0, 19, -8, 0);
+            const QRect valueRect = rect.adjusted(0, 16, -8, 0);
             painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(valueFont).elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
@@ -253,10 +255,9 @@ public:
         const int contentLeft = card.left() + 16;
         const int contentWidth = card.width() - 32;
         const int quarterWidth = contentWidth / 4;
-        const int halfWidth = contentWidth / 2;
-        const int rowOneTop = card.top() + 68;
+        const int rowOneTop = card.top() + 48;
         for (int column = 0; column < 4; ++column) {
-            const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 40);
+            const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 32);
             if (column == 0)
                 drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED")), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
             else if (column == 1)
@@ -266,15 +267,6 @@ public:
             else
                 drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL")), index.data(CollateralAmountRole).toString());
         }
-
-        drawMetric(QRect(contentLeft, card.top() + 114, halfWidth, 40),
-                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PAYOUT ADDRESS")), index.data(PayoutAddressRole).toString());
-        drawMetric(QRect(contentLeft + halfWidth, card.top() + 114, halfWidth, 40),
-                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "OPERATOR REWARD")), index.data(OperatorRewardRole).toString());
-        drawMetric(QRect(contentLeft, card.top() + 160, halfWidth, 40),
-                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL ADDRESS")), index.data(CollateralAddressRole).toString());
-        drawMetric(QRect(contentLeft + halfWidth, card.top() + 160, halfWidth, 40),
-                   masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "OWNER ADDRESS")), index.data(OwnerAddressRole).toString());
 
         painter->restore();
     }
@@ -314,18 +306,18 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 {
     ui->setupUi(this);
 
-    ui->topLayout->setContentsMargins(24, 20, 24, 20);
-    ui->topLayout->setSpacing(14);
+    ui->topLayout->setContentsMargins(16, 12, 16, 12);
+    ui->topLayout->setSpacing(10);
     ui->verticalLayoutCard->removeItem(ui->horizontalLayout_4);
-    ui->verticalLayoutCard->setContentsMargins(14, 10, 14, 14);
+    ui->verticalLayoutCard->setContentsMargins(10, 6, 10, 8);
     ui->verticalLayoutCard->setSpacing(8);
 
     auto* filterCard = new QFrame(this);
     filterCard->setObjectName(QStringLiteral("masternodeFilterCard"));
     auto* filterLayout = new QGridLayout(filterCard);
-    filterLayout->setContentsMargins(14, 12, 14, 12);
+    filterLayout->setContentsMargins(10, 8, 10, 8);
     filterLayout->setHorizontalSpacing(12);
-    filterLayout->setVerticalSpacing(10);
+    filterLayout->setVerticalSpacing(6);
     filterLayout->setColumnStretch(0, 1);
     filterLayout->setColumnStretch(1, 1);
     filterLayout->setColumnStretch(2, 1);
@@ -397,9 +389,11 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     masternodeView->setUniformItemSizes(true);
     masternodeView->setResizeMode(QListView::Adjust);
     masternodeView->setWrapping(false);
-    masternodeView->setSpacing(4);
+    masternodeView->setSpacing(2);
     masternodeView->setFrameShape(QFrame::NoFrame);
-    masternodeView->setContextMenuPolicy(Qt::CustomContextMenu);
+    masternodeView->setContextMenuPolicy(Qt::ActionsContextMenu);
+    masternodeView->installEventFilter(this);
+    masternodeView->viewport()->installEventFilter(this);
     ui->verticalLayoutCard->addWidget(masternodeView, 1);
 
     emptyState = new QWidget(masternodeView->viewport());
@@ -430,19 +424,19 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     filterShadow->setColor(QColor(65, 37, 52, 24));
     filterCard->setGraphicsEffect(filterShadow);
 
+    QAction* detailsAction = new QAction(tr("Details..."), this);
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
-    contextMenuDIP3 = new QMenu(this);
-    contextMenuDIP3->addAction(copyProTxHashAction);
-    contextMenuDIP3->addAction(copyCollateralOutpointAction);
+    masternodeView->addAction(detailsAction);
+    masternodeView->addAction(copyProTxHashAction);
+    masternodeView->addAction(copyCollateralOutpointAction);
+    connect(detailsAction, &QAction::triggered, this, &MasternodeList::extraInfoDIP3_clicked);
     connect(copyProTxHashAction, &QAction::triggered, this, &MasternodeList::copyProTxHash_clicked);
     connect(copyCollateralOutpointAction, &QAction::triggered, this, &MasternodeList::copyCollateralOutpoint_clicked);
     connect(masternodeSort, qOverload<int>(&QComboBox::activated),
             this, &MasternodeList::sortMasternodes);
     connect(masternodeSortDirection, &QToolButton::clicked,
             this, &MasternodeList::toggleMasternodeSortOrder);
-    connect(masternodeView, &QListView::customContextMenuRequested,
-            this, &MasternodeList::showContextMenuDIP3);
     connect(masternodeView, &QListView::activated, this, [this](const QModelIndex& index) {
         masternodeView->setCurrentIndex(index);
         extraInfoDIP3_clicked();
@@ -629,22 +623,24 @@ void MasternodeList::setWalletModel(WalletModel* model)
     updateDIP3ListScheduled();
 }
 
-void MasternodeList::showContextMenuDIP3(const QPoint& pos)
+bool MasternodeList::eventFilter(QObject* watched, QEvent* event)
 {
-    if (!masternodeView)
-        return;
+    if (event->type() != QEvent::ContextMenu || !masternodeView ||
+        (watched != masternodeView && watched != masternodeView->viewport()))
+        return QWidget::eventFilter(watched, event);
 
-    const bool keyboardRequest = pos.isNull() || pos.x() < 0 || pos.y() < 0;
-    QModelIndex index = keyboardRequest ? masternodeView->currentIndex()
-                                       : masternodeView->indexAt(pos);
-    QPoint menuPosition = pos;
-    if (!index.isValid())
-        return;
-    if (keyboardRequest)
-        menuPosition = masternodeView->visualRect(index).center();
-
-    masternodeView->setCurrentIndex(index);
-    contextMenuDIP3->exec(masternodeView->viewport()->mapToGlobal(menuPosition));
+    auto* contextEvent = static_cast<QContextMenuEvent*>(event);
+    if (contextEvent->reason() == QContextMenuEvent::Mouse) {
+        const QPoint pos = watched == masternodeView->viewport()
+            ? contextEvent->pos()
+            : masternodeView->viewport()->mapFrom(masternodeView, contextEvent->pos());
+        const QModelIndex index = masternodeView->indexAt(pos);
+        if (!index.isValid())
+            return true;
+        masternodeView->setCurrentIndex(index);
+    }
+    return !masternodeView->currentIndex().isValid() ||
+           !masternodeView->selectionModel()->isSelected(masternodeView->currentIndex());
 }
 
 void MasternodeList::sortMasternodes(int index)

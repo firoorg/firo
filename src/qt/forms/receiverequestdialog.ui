@@ -65,7 +65,7 @@
      <property name="minimumSize">
       <size>
        <width>0</width>
-       <height>240</height>
+       <height>160</height>
       </size>
      </property>
      <property name="frameShape">
@@ -83,8 +83,8 @@
     </widget>
    </item>
    <item>
-    <layout class="QVBoxLayout" name="actionButtonsLayout">
-     <item>
+    <layout class="QGridLayout" name="actionButtonsLayout">
+     <item row="0" column="0">
       <widget class="QPushButton" name="btnCopyURI">
        <property name="text">
         <string>Copy &amp;URI</string>
@@ -94,7 +94,7 @@
        </property>
       </widget>
      </item>
-     <item>
+     <item row="0" column="1">
       <widget class="QPushButton" name="btnCopyAddress">
        <property name="text">
         <string>Copy &amp;Address</string>
@@ -104,7 +104,7 @@
        </property>
       </widget>
      </item>
-     <item>
+     <item row="1" column="0">
       <widget class="QPushButton" name="btnSaveAs">
        <property name="text">
         <string>&amp;Save Image...</string>
@@ -114,11 +114,7 @@
        </property>
       </widget>
      </item>
-    </layout>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayoutClose">
-     <item>
+     <item row="1" column="1">
       <widget class="QPushButton" name="closeButton">
        <property name="text">
         <string>&amp;Close</string>
@@ -127,19 +123,6 @@
         <bool>false</bool>
        </property>
       </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_3">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </item>
