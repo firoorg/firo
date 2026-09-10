@@ -5,12 +5,15 @@
 // Unit tests for denial-of-service detection/prevention code
 
 #include "chainparams.h"
+#include "evo/mnauth.h"
 #include "keystore.h"
+#include "masternode-sync.h"
 #include "net.h"
 #include "net_processing.h"
 #include "pow.h"
 #include "script/sign.h"
 #include "serialize.h"
+#include "streams.h"
 #include "util.h"
 #include "validation.h"
 
@@ -44,6 +47,25 @@ CService ip(uint32_t i)
 static NodeId id = 0;
 
 BOOST_FIXTURE_TEST_SUITE(DoS_tests, TestingSetup)
+
+BOOST_AUTO_TEST_CASE(DoS_mnauth_ignored_while_unsynced)
+{
+    masternodeSync.Reset();
+    BOOST_REQUIRE(!masternodeSync.IsBlockchainSynced());
+
+    CAddress addr(ip(0xa0b0c001), NODE_NONE);
+    CNode dummyNode(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr, 0, 0, "", true);
+
+    for (int i = 0; i < 2; ++i) {
+        CMNAuth mnauth;
+        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+        stream << mnauth;
+        const auto messageSize = stream.size();
+
+        BOOST_CHECK_NO_THROW(CMNAuth::ProcessMessage(&dummyNode, NetMsgType::MNAUTH, stream, *connman));
+        BOOST_CHECK_EQUAL(stream.size(), messageSize);
+    }
+}
 
 BOOST_AUTO_TEST_CASE(DoS_banning)
 {
