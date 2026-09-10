@@ -132,7 +132,7 @@ testScripts = [
     # 'mempool_limit.py',
     # 'merkle_blocks.py',
     'receivedby.py',
-    # 'abandonconflict.py',
+    'abandonconflict.py',
     # 'bip68-112-113-p2p.py',
     # 'rawtransactions.py',
     # vv Tests less than 30s vv

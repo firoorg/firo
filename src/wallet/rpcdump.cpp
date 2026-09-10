@@ -484,6 +484,8 @@ UniValue importwallet(const JSONRPCRequest& request)
     CKeyID masterKeyID = pwallet->GetHDChain().masterKeyID;
 
     pwallet->ShowProgress(_("Importing..."), 0); // show progress dialog in GUI
+    // A later malformed line can fail after earlier keys were imported.
+    pwallet->MarkDirty();
     while (file.good()) {
         pwallet->ShowProgress("", std::max(1, std::min(99, (int)(((double)file.tellg() / (double)nFilesize) * 100))));
         std::string line;
@@ -564,7 +566,6 @@ UniValue importwallet(const JSONRPCRequest& request)
 
     LogPrintf("Rescanning last %i blocks\n", pindex ? chainActive.Height() - pindex->nHeight + 1 : 0);
     pwallet->ScanForWalletTransactions(pindex);
-    pwallet->MarkDirty();
 
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");

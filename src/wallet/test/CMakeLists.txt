@@ -11,6 +11,7 @@ target_sources(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/mnemonic_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark_batch_planner_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/spark_wallet_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/wallet_balances_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/wallet_test_fixture.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/wallet_tests.cpp
 )
