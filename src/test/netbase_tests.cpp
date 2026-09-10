@@ -7,12 +7,110 @@
 #include "protocol.h"
 #include "utilstrencodings.h"
 
+#ifndef WIN32
+#include <future>
+#endif
 #include <string>
 
 #include <boost/assign/list_of.hpp>
 #include <boost/test/unit_test.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(netbase_tests, BasicTestingSetup)
+
+#ifndef WIN32
+struct Socks5TestResult {
+    bool connected;
+    bool proxy_ok;
+};
+
+static bool RecvAll(SOCKET socket, uint8_t* data, size_t size)
+{
+    while (size > 0) {
+        const ssize_t received = recv(socket, reinterpret_cast<char*>(data), size, 0);
+        if (received <= 0) {
+            return false;
+        }
+        data += received;
+        size -= received;
+    }
+    return true;
+}
+
+static bool SendAll(SOCKET socket, const std::vector<uint8_t>& data)
+{
+    size_t sent = 0;
+    while (sent < data.size()) {
+        const ssize_t result = send(
+            socket,
+            reinterpret_cast<const char*>(data.data() + sent),
+            data.size() - sent,
+            0);
+        if (result <= 0) {
+            return false;
+        }
+        sent += result;
+    }
+    return true;
+}
+
+static Socks5TestResult TestSocks5DomainReply(uint8_t domain_length, size_t payload_size, bool include_port)
+{
+    int sockets[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) != 0) {
+        return {false, false};
+    }
+
+    SOCKET client_socket = sockets[0];
+    SOCKET proxy_socket = sockets[1];
+    if (!SetSocketNonBlocking(client_socket, true)) {
+        CloseSocket(client_socket);
+        CloseSocket(proxy_socket);
+        return {false, false};
+    }
+
+    auto proxy = std::async(std::launch::async, [&] {
+        const auto finish = [&](bool result) {
+            CloseSocket(proxy_socket);
+            return result;
+        };
+
+        uint8_t greeting[3];
+        if (!RecvAll(proxy_socket, greeting, sizeof(greeting)) ||
+            greeting[0] != 0x05 || greeting[1] != 0x01 || greeting[2] != 0x00) {
+            return finish(false);
+        }
+        if (!SendAll(proxy_socket, {0x05, 0x00})) {
+            return finish(false);
+        }
+
+        uint8_t request_header[5];
+        if (!RecvAll(proxy_socket, request_header, sizeof(request_header)) ||
+            request_header[0] != 0x05 || request_header[1] != 0x01 ||
+            request_header[2] != 0x00 || request_header[3] != 0x03) {
+            return finish(false);
+        }
+        std::vector<uint8_t> request_body(request_header[4] + 2);
+        if (!RecvAll(proxy_socket, request_body.data(), request_body.size())) {
+            return finish(false);
+        }
+
+        std::vector<uint8_t> reply{0x05, 0x00, 0x00, 0x03, domain_length};
+        reply.insert(reply.end(), payload_size, 0x41);
+        if (include_port) {
+            reply.push_back(0x20);
+            reply.push_back(0x8d);
+        }
+        return finish(SendAll(proxy_socket, reply));
+    });
+
+    InterruptSocks5(false);
+    const bool connected = Socks5("example.test", 8333, nullptr, client_socket);
+    if (client_socket != INVALID_SOCKET) {
+        CloseSocket(client_socket);
+    }
+    return {connected, proxy.get()};
+}
+#endif
 
 static CNetAddr ResolveIP(const char* ip)
 {
@@ -314,6 +412,25 @@ BOOST_AUTO_TEST_CASE(netbase_getgroup)
     BOOST_CHECK(ResolveIP("2001:470:abcd:9999:9999:9999:9999:9999").GetGroup(asmap) == boost::assign::list_of((unsigned char)NET_IPV6)(32)(1)(4)(112)(175)); //he.net
     BOOST_CHECK(ResolveIP("2001:2001:9999:9999:9999:9999:9999:9999").GetGroup(asmap) == boost::assign::list_of((unsigned char)NET_IPV6)(32)(1)(32)(1)); //IPv6
 
+}
+
+BOOST_AUTO_TEST_CASE(socks5_domain_reply_length)
+{
+#ifndef WIN32
+    const Socks5TestResult below_signed_boundary = TestSocks5DomainReply(127, 127, true);
+    BOOST_REQUIRE(below_signed_boundary.proxy_ok);
+    BOOST_CHECK(below_signed_boundary.connected);
+
+    const Socks5TestResult above_signed_boundary = TestSocks5DomainReply(128, 128, true);
+    BOOST_REQUIRE(above_signed_boundary.proxy_ok);
+    BOOST_CHECK(above_signed_boundary.connected);
+
+    const Socks5TestResult truncated_maximum = TestSocks5DomainReply(255, 32, false);
+    BOOST_REQUIRE(truncated_maximum.proxy_ok);
+    BOOST_CHECK(!truncated_maximum.connected);
+#else
+    BOOST_TEST_MESSAGE("SOCKS5 socket-pair boundary coverage is unavailable on Windows");
+#endif
 }
 
 // Note: netbase_dont_resolve_strings_with_embedded_nul_characters test from Bitcoin PR #19628

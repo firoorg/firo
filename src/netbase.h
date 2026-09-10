@@ -37,6 +37,13 @@ public:
     bool randomize_credentials;
 };
 
+/** Credentials for proxy authentication. */
+struct ProxyCredentials
+{
+    std::string username;
+    std::string password;
+};
+
 enum Network ParseNetwork(std::string net);
 std::string GetNetworkName(enum Network net);
 void SplitHostPort(std::string in, int &portOut, std::string &hostOut);
@@ -53,6 +60,7 @@ CService LookupNumeric(const char *pszName, int portDefault = 0);
 bool LookupSubNet(const char *pszName, CSubNet& subnet);
 bool ConnectSocket(const CService &addr, SOCKET& hSocketRet, int nTimeout, bool *outProxyConnectionFailed = 0);
 bool ConnectSocketByName(CService &addr, SOCKET& hSocketRet, const char *pszDest, int portDefault, int nTimeout, bool *outProxyConnectionFailed = 0);
+bool Socks5(const std::string& strDest, int port, const ProxyCredentials* auth, SOCKET& hSocket);
 /** Return readable error string for a network error code */
 std::string NetworkErrorString(int err);
 /** Close socket and set hSocket to INVALID_SOCKET */
