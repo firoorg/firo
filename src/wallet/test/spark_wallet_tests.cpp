@@ -264,6 +264,53 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
 }
 
 
+BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_pending_spends)
+{
+    GenerateBlocks(500);
+    std::vector<CMutableTransaction> mintTransactions;
+    GenerateMints({5 * COIN, COIN}, mintTransactions);
+    txpools.clear();
+    const auto* index = GenerateBlock(mintTransactions);
+    BOOST_REQUIRE(index);
+    const CBlock block = GetCBlock(index);
+    GenerateBlocks(10);
+
+    auto* wallet = pwalletMain->sparkWallet.get();
+    wallet->FinishTasks();
+    const CTransaction spend = GenerateSparkSpend({4 * COIN}, {}, nullptr);
+    const auto lTags = spark::GetSparkUsedTags(spend);
+    BOOST_REQUIRE_EQUAL(lTags.size(), 1);
+    const uint256 lTagHash = primitives::GetLTagHash(lTags[0]);
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    for (auto* pool : {&mempool, &txpools.getStemTxPool()}) {
+        txpools.clear();
+        {
+            LOCK(cs_main);
+            CValidationState state;
+            BOOST_REQUIRE(AcceptToMemoryPool(*pool, state, MakeTransactionRef(spend), false, nullptr));
+        }
+        wallet->FinishTasks();
+
+        // Rediscover the mint after its spend notification has already been processed.
+        wallet->eraseMint(lTagHash, walletdb);
+        walletdb.EraseSparkSpendEntry(lTags[0]);
+        wallet->UpdateMintStateFromBlock(block);
+        wallet->FinishTasks();
+
+        BOOST_CHECK(wallet->getMintMeta(lTagHash).isUsed);
+        CSparkMintMeta persisted;
+        BOOST_REQUIRE(walletdb.ReadSparkMint(lTagHash, persisted));
+        BOOST_CHECK(persisted.isUsed);
+        CSparkSpendEntry entry;
+        BOOST_REQUIRE(walletdb.ReadSparkSpendEntry(lTags[0], entry));
+        BOOST_CHECK(entry.hashTx == spend.GetHash());
+        BOOST_CHECK_EQUAL(entry.amount, persisted.v);
+    }
+    txpools.clear();
+    spark::CSparkState::GetState()->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
