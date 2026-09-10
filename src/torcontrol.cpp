@@ -231,6 +231,8 @@ bool TorControlConnection::Disconnect()
     if (b_conn)
         bufferevent_free(b_conn);
     b_conn = 0;
+    message.Clear();
+    reply_handlers.clear();
     return true;
 }
 
