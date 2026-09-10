@@ -473,11 +473,13 @@ jobs:
 
           download "${TAR}" \
             "https://ftpmirror.gnu.org/gnu/guix/${TAR}" \
-            "https://ftp.gnu.org/gnu/guix/${TAR}"
+            "https://ftp.gnu.org/gnu/guix/${TAR}" \
+            "https://mirrors.ocf.berkeley.edu/gnu/guix/${TAR}"
           echo "${GUIX_TAR_SHA256}  ${TAR}" | sha256sum -c -
           download "${TAR}.sig" \
             "https://ftpmirror.gnu.org/gnu/guix/${TAR}.sig" \
-            "https://ftp.gnu.org/gnu/guix/${TAR}.sig"
+            "https://ftp.gnu.org/gnu/guix/${TAR}.sig" \
+            "https://mirrors.ocf.berkeley.edu/gnu/guix/${TAR}.sig"
           echo "::endgroup::"
 
           # 2. Best-effort import each trusted key into an isolated keyring.

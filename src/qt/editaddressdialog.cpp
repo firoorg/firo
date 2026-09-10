@@ -6,11 +6,15 @@
 #include "ui_editaddressdialog.h"
 
 #include "addresstablemodel.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "bip47/paymentcode.h"
 
 #include <QDataWidgetMapper>
+#include <QDialogButtonBox>
+#include <QLabel>
 #include <QMessageBox>
+#include <QPushButton>
 
 EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
     QDialog(parent),
@@ -68,6 +72,37 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
 
     mapper = new QDataWidgetMapper(this);
     mapper->setSubmitPolicy(QDataWidgetMapper::ManualSubmit);
+
+    applyTheme();
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &EditAddressDialog::applyTheme);
+}
+
+void EditAddressDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+    for (QLabel* caption : {ui->label, ui->label_2}) {
+        caption->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }")));
+    }
+    const QString fieldStyle = GUIUtil::themed(QStringLiteral(
+        "QLineEdit, QValidatedLineEdit {"
+        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " padding: 8px 12px; color: $INK;"
+        "}"
+        "QLineEdit:focus, QValidatedLineEdit:focus { border: 1px solid $WINE; }"
+        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }"));
+    ui->labelEdit->setStyleSheet(fieldStyle);
+    ui->addressEdit->setStyleSheet(fieldStyle);
+
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(primaryButtonStyle);
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(secondaryButtonStyle);
 }
 
 EditAddressDialog::~EditAddressDialog()

@@ -108,6 +108,7 @@ MacDockIconHandler *MacDockIconHandler::instance()
 void MacDockIconHandler::cleanup()
 {
     delete s_instance;
+    s_instance = nullptr;
 }
 
 void MacDockIconHandler::handleDockIconClickEvent()

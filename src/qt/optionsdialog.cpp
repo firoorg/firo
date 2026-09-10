@@ -10,12 +10,14 @@
 #include "ui_optionsdialog.h"
 
 #include "bitcoinunits.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 
 #include "validation.h" // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
 #include "netbase.h"
 #include "txdb.h" // for -dbcache defaults
+#include "util.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h" // for CWallet::GetRequiredFee()
@@ -29,7 +31,9 @@
 #include <QIntValidator>
 #include <QLocale>
 #include <QMessageBox>
+#include <QScrollArea>
 #include <QTimer>
+#include <QVBoxLayout>
 
 OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     QDialog(parent),
@@ -38,6 +42,83 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     mapper(0)
 {
     ui->setupUi(this);
+
+    ui->verticalLayout->removeWidget(ui->tabWidget);
+    auto* optionsScrollContents = new QWidget(this);
+    optionsScrollContents->setObjectName(QStringLiteral("optionsScrollContents"));
+    auto* optionsScrollLayout = new QVBoxLayout(optionsScrollContents);
+    optionsScrollLayout->setContentsMargins(0, 0, 0, 0);
+    optionsScrollLayout->addWidget(ui->tabWidget);
+    auto* optionsScroll = new QScrollArea(this);
+    optionsScroll->setObjectName(QStringLiteral("optionsScroll"));
+    optionsScroll->setWidgetResizable(true);
+    optionsScroll->setFrameShape(QFrame::NoFrame);
+    optionsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    optionsScroll->setWidget(optionsScrollContents);
+    optionsScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#optionsScroll, QWidget#optionsScrollContents { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, optionsScroll, 1);
+
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
+
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
+        QTabBar::tab {
+            background: transparent;
+            color: $INK_SOFT;
+            font-weight: 700;
+            padding: 8px 14px;
+            border: none;
+        }
+        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
+        QTabBar::tab:hover { color: $INK; }
+        QGroupBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 12px;
+            font-weight: 700;
+            color: $INK;
+            margin-top: 10px;
+            padding-top: 12px;
+        }
+        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_SOFT; background-color: $PANEL; }
+        QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 8px;
+            padding: 4px 8px;
+            color: $INK;
+        }
+        QSpinBox QLineEdit { %1 }
+        QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
+        QLineEdit[invalidInput="true"] { border-color: $ERROR; }
+        QCheckBox { color: $INK_SOFT; }
+        QLabel#torStatusLabel { color: $INK_SOFT; }
+        QPushButton {
+            color: $INK;
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            font-weight: 700;
+            padding: 7px 16px;
+        }
+        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
+        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton#okButton {
+            color: #FFFFFF;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            border: none;
+        }
+        QPushButton#okButton:hover:enabled {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+        }
+        QPushButton#okButton:pressed { background: $WINE_DEEP; }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
 
     /* Main elements init */
     ui->databaseCache->setMinimum(nMinDbCache);
@@ -160,6 +241,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
         mapper->toFirst();
 
         updateDefaultProxyNets();
+        updateTorStatusLabel();
     }
 
     /* warn when one of the following settings changes by user action (placed here so init via mapper doesn't trigger them) */
@@ -176,6 +258,8 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->allowIncoming, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocksTor, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
+    connect(ui->checkboxEnabledTor, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
+    connect(ui->checkboxEnabledTor, &QCheckBox::clicked, this, &OptionsDialog::updateTorStatusLabel);
     /* Display */
     connect(ui->lang, qOverload<>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
     connect(ui->thirdPartyTxUrls, &QLineEdit::textChanged, [this]{ showRestartWarning(); });
@@ -215,6 +299,8 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->connectSocksTor, OptionsModel::ProxyUseTor);
     mapper->addMapping(ui->proxyIpTor, OptionsModel::ProxyIPTor);
     mapper->addMapping(ui->proxyPortTor, OptionsModel::ProxyPortTor);
+
+    mapper->addMapping(ui->checkboxEnabledTor, OptionsModel::TorSetup);
 
     /* Window */
 #ifndef Q_OS_MAC
@@ -296,9 +382,36 @@ void OptionsDialog::handleEnabledZapChanged()
     }
 }
 
+void OptionsDialog::updateTorStatusLabel()
+{
+    const bool runningWithTor = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    const bool overridden = model && model->getOverriddenByCommandLine().contains(QLatin1String("-torsetup"));
+    if (overridden) {
+        ui->checkboxEnabledTor->setEnabled(false);
+        ui->torStatusLabel->setText(runningWithTor
+            ? tr("Tor quickstart is enabled for this session by -torsetup. It cannot be changed here.")
+            : tr("Tor quickstart is disabled for this session by -torsetup. It cannot be changed here."));
+        return;
+    }
+
+    ui->checkboxEnabledTor->setEnabled(true);
+
+    const bool checked = ui->checkboxEnabledTor->isChecked();
+
+    if (checked && runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled for this session."));
+    } else if (checked && !runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled. Restart the client to apply this change."));
+    } else if (!checked && runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is disabled. Restart the client to apply this change."));
+    } else {
+        ui->torStatusLabel->setText(tr("Tor quickstart is disabled."));
+    }
+}
+
 void OptionsDialog::showRestartWarning(bool fPersistent)
 {
-    ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+    ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
 
     if(fPersistent)
     {
@@ -333,7 +446,7 @@ void OptionsDialog::updateProxyValidationState()
     else
     {
         setOkButtonState(false);
-        ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+        ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
         ui->statusLabel->setText(tr("The supplied proxy address is invalid."));
     }
 }

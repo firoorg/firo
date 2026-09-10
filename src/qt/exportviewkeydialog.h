@@ -16,6 +16,11 @@ public:
     ExportViewKeyDialog(QWidget *parent, std::string sparkViewKeyStr);
     ~ExportViewKeyDialog();
 
+    void applyTheme();
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     Ui::ExportViewKeyDialog *ui;
     QDialog *viewkey;

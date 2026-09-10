@@ -3,6 +3,8 @@
 #include "automintdialog.h"
 #include "automintmodel.h"
 #include "bitcoinunits.h"
+#include "guitheme.h"
+#include "guiutil.h"
 #include "sparkmodel.h"
 #include "ui_automintdialog.h"
 
@@ -25,6 +27,29 @@ AutoMintSparkDialog::AutoMintSparkDialog(AutoMintSparkMode mode, QWidget *parent
     ui->setupUi(this);
     ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Make Private"));
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
+
+    applyTheme();
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &AutoMintSparkDialog::applyTheme);
+}
+
+void AutoMintSparkDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QLabel { background: transparent; color: $INK_SOFT; }"
+        "QLineEdit {"
+        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " padding: 8px 12px; color: $INK;"
+        "}"
+        "QLineEdit:focus { border: 1px solid $WINE; }"
+        "QCheckBox { background: transparent; color: $INK_SOFT; }")));
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 AutoMintSparkDialog::~AutoMintSparkDialog()
@@ -150,6 +175,7 @@ void AutoMintSparkDialog::paintEvent(QPaintEvent *event)
     if (progress != AutoMintSparkProgress::Start) {
         auto progressMessage = progress == AutoMintSparkProgress::Unlocking ? tr("Unlocking wallet...") : tr("Making funds private...");
         auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
+        painter.setPen(QColor(GUIUtil::themeColors().ink));
         painter.drawText(
             (width() - size.width()) / 2,
             (height() - size.height()) / 2,

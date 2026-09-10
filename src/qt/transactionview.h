@@ -9,7 +9,6 @@
 
 #include <QWidget>
 #include <QKeyEvent>
-#include <QResizeEvent>
 
 class PlatformStyle;
 class TransactionFilterProxy;
@@ -19,12 +18,14 @@ QT_BEGIN_NAMESPACE
 class QComboBox;
 class QDateTimeEdit;
 class QFrame;
+class QLabel;
 class QLineEdit;
 class QMenu;
 class QModelIndex;
+class QPushButton;
 class QTableView;
-class QSpacerItem;
-class QHBoxLayout;
+class QGridLayout;
+class QToolButton;
 QT_END_NAMESPACE
 
 /** Widget showing the transaction list for a wallet, including a filter row.
@@ -38,8 +39,7 @@ public:
     explicit TransactionView(const PlatformStyle *platformStyle, QWidget *parent = 0);
 
     void setModel(WalletModel *model);
-    void resizeEvent(QResizeEvent* event) override;
-    void adjustTextSize(int width, int height);
+    void showOutOfSyncWarning(bool fShow);
 
     // Date ranges for filter
     enum DateEnum
@@ -69,18 +69,24 @@ private:
     TransactionFilterProxy *transactionProxyModel;
     QTableView *transactionView;
 
-    QHBoxLayout * headerLayout;
-    QSpacerItem *statusSpacer;
+    QGridLayout *headerLayout;
     QComboBox *dateWidget;
     QComboBox *typeWidget;
     QComboBox *watchOnlyWidget;
     QComboBox *instantsendWidget;
+    QComboBox *sortWidget;
+    QToolButton *sortDirectionButton;
     QLineEdit *addressWidget;
     QLineEdit *amountWidget;
+    QPushButton *exportButton;
+    QWidget *emptyState;
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyDescription_{nullptr};
+    bool outOfSync_{false};
 
     QMenu *contextMenu;
-
-    QFrame *dateRangeWidget;
+    QWidget* dateRangeWidget;
     QDateTimeEdit *dateFrom;
     QDateTimeEdit *dateTo;
     QAction *copyLabelAction;
@@ -91,12 +97,17 @@ private:
     void updateCalendarWidgets();
 
     bool eventFilter(QObject *obj, QEvent *event) override;
+    void addShadow(QWidget* w);
+    void updateEmptyState();
+    void updateTableColumnWidths();
+    void updateSortDirectionButton(Qt::SortOrder order);
+    void applyTheme();
 
 private Q_SLOTS:
     void contextualMenu(const QPoint &);
-    void updateHeaderSizes(int logicalIndex, int oldSize, int newSize);
     void dateRangeChanged();
     void showDetails();
+    void openTransaction(const QModelIndex &index);
     void copyAddress();
     void editLabel();
     void copyLabel();
@@ -119,6 +130,8 @@ public Q_SLOTS:
     void chooseType(int idx);
     void chooseWatchonly(int idx);
     void chooseInstantSend(int idx);
+    void chooseSort(int idx);
+    void toggleSortOrder();
     void changedPrefix(const QString &prefix);
     void changedAmount(const QString &amount);
     void exportClicked();

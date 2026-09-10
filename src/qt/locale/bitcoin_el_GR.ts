@@ -1173,7 +1173,7 @@
     </message>
     <message>
         <source>Copy &amp;URI</source>
-        <translation>Αντιγραφη της επιλεγμενης διεύθυνσης στο πρόχειρο του συστηματος</translation>
+        <translation>Αντιγραφή &amp;URI</translation>
     </message>
     <message>
         <source>Copy &amp;Address</source>

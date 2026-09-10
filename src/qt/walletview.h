@@ -23,6 +23,7 @@ class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
 class SendCoinsRecipient;
+class SparkNamesPage;
 class TransactionView;
 class WalletModel;
 class AddressBookPage;
@@ -76,6 +77,7 @@ private:
     QWidget *transactionsPage;
     QWidget *smartPropertyPage;
     ReceiveCoinsDialog *receiveCoinsPage;
+    SparkNamesPage *sparkNamesPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
     QWidget *sendCoinsPage;
@@ -102,6 +104,8 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 

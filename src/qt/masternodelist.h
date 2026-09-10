@@ -3,19 +3,15 @@
 
 #include "platformstyle.h"
 #include "primitives/transaction.h"
-#include "sync.h"
 #include "util.h"
 
 #include "evo/deterministicmns.h"
 
-#include <QMenu>
 #include <QTimer>
 #include <QWidget>
 #include <QResizeEvent>
 
 #define MASTERNODELIST_UPDATE_SECONDS 3
-#define MASTERNODELIST_FILTER_COOLDOWN_SECONDS 3
-
 namespace Ui
 {
 class MasternodeList;
@@ -26,6 +22,12 @@ class WalletModel;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
+class QComboBox;
+class QLabel;
+class QListView;
+class QSortFilterProxyModel;
+class QStandardItemModel;
+class QToolButton;
 QT_END_NAMESPACE
 
 /** Masternode Manager page widget */
@@ -40,35 +42,37 @@ public:
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
     void resizeEvent(QResizeEvent*) override;
-    void adjustTextSize(int width,int height);
 private:
-    QMenu* contextMenuDIP3;
-    int64_t nTimeFilterUpdatedDIP3;
     int64_t nTimeUpdatedDIP3;
-    int64_t numColumn;
-    bool fFilterUpdatedDIP3;
 
     QTimer* timer;
     Ui::MasternodeList* ui;
     ClientModel* clientModel;
     WalletModel* walletModel;
 
-    // Protects tableWidgetMasternodesDIP3
-    CCriticalSection cs_dip3list;
-
-    QString strCurrentFilterDIP3;
-
     bool mnListChanged;
+    QWidget* emptyState;
+    QLabel* emptyIcon_{nullptr};
+    QLabel* emptyTitle_{nullptr};
+    QLabel* emptyDescription_{nullptr};
+    QListView* masternodeView;
+    QStandardItemModel* masternodeModel;
+    QSortFilterProxyModel* masternodeProxy;
+    QComboBox* masternodeSort;
+    QToolButton* masternodeSortDirection;
 
     CDeterministicMNCPtr GetSelectedDIP3MN();
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
-    void updateDIP3List();
-
-Q_SIGNALS:
-    void doubleClicked(const QModelIndex&);
+    bool updateDIP3List();
+    void updateEmptyState();
+    void applyTheme();
+    void sortMasternodes(int index);
+    void applyMasternodeSort();
+    void toggleMasternodeSortOrder();
+    void updateSortDirectionButton();
 
 private Q_SLOTS:
-    void showContextMenuDIP3(const QPoint&);
     void on_filterLineEditDIP3_textChanged(const QString& strFilterIn);
     void on_checkBoxMyMasternodesOnly_stateChanged(int state);
 

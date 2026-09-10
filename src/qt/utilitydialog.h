@@ -33,6 +33,7 @@ private:
 
 private Q_SLOTS:
     void on_okButton_accepted();
+    void applyTheme();
 };
 
 

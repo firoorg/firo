@@ -13,10 +13,8 @@
 
 #include "walletmodel.h"
 
-#include <QSettings>
 #include <QMessageBox>
 #include <QTimer>
-#include <QResizeEvent>
 
 
 class ClientModel;
@@ -31,6 +29,8 @@ namespace Ui {
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
+class QProgressBar;
+class QLabel;
 QT_END_NAMESPACE
 
 /** Overview ("home") page widget */
@@ -46,7 +46,6 @@ public:
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
-    void resizeEvent(QResizeEvent* event) override;
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
@@ -64,8 +63,9 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
-    void enabledTorChanged();
     void outOfSyncWarningClicked();
+    void gotoSendCoinsPage();
+    void gotoReceiveCoinsPage();
 private:
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
@@ -80,8 +80,6 @@ private:
     CAmount currentUnconfirmedPrivateBalance;
     CAmount currentAnonymizableBalance;
 
-    QSettings settings;
-
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
 
@@ -90,11 +88,24 @@ private:
     QString migrationWindowClosesIn;
     QString blocksRemaining;
     QString migrateAmount;
-    void adjustTextSize(int width,int height);
+
+    int privateBarSplitPercent_{0};
+    QProgressBar *privateSplitProgress{nullptr};
+    QWidget *activityEmptyState_{nullptr};
+    QLabel *networkBadge_{nullptr};
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyHint_{nullptr};
+
+    void applyOverviewRedesign();
+    void applyOverviewTheme();
+    void addShadow(QWidget *w, int blurRadius = 18, int yOffset = 4, int alpha = 60);
+    void updatePrivateTransparentSplitBar();
+    void updateBalanceSplitLabels();
+    void updateActivityEmptyState();
 private Q_SLOTS:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
-    void handleEnabledTorChanged();
     void updateAlerts(const QString &warnings);
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();

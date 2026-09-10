@@ -133,7 +133,7 @@
     </message>
     <message>
         <source>Enter the new passphrase to the wallet.&lt;br/&gt;Please use a passphrase of &lt;b&gt;ten or more random characters&lt;/b&gt;, or &lt;b&gt;eight or more words&lt;/b&gt;.</source>
-        <translation>지갑에 새로운 비밀문구를 입력하세요.&lt;br/&gt;비밀문구를 &lt;b&gt;열 개 이상의 무작위 글자&lt;/b&gt; 혹은 &lt;b&gt;여덟개 이상의 단어로&lt;b&gt; 정하세요.</translation>
+        <translation>지갑에 새로운 비밀문구를 입력하세요.&lt;br/&gt;비밀문구를 &lt;b&gt;열 개 이상의 무작위 글자&lt;/b&gt; 혹은 &lt;b&gt;여덟개 이상의 단어로&lt;/b&gt; 정하세요.</translation>
     </message>
     <message>
         <source>Encrypt wallet</source>
@@ -1425,7 +1425,7 @@
     </message>
     <message numerus="yes">
         <source>%n day(s)</source>
-        <translation><numerusform>&amp;n 일</numerusform></translation>
+        <translation><numerusform>%n 일</numerusform></translation>
     </message>
     <message numerus="yes">
         <source>%n week(s)</source>

@@ -13,8 +13,11 @@
 #include "uritests.h"
 #include "compattests.h"
 #include "test_sendcoinsentry.h"
+#include "walletuitests.h"
 #include <QApplication>
 #include <QObject>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <openssl/ssl.h>
 
 #if defined(QT_STATICPLUGIN) && QT_VERSION < 0x050000
@@ -39,7 +42,12 @@ int main(int argc, char *argv[])
     bool fInvalid = false;
 
     QApplication app(argc, argv);
+    Q_INIT_RESOURCE(bitcoin);
     app.setApplicationName("Firo-Qt-test");
+    app.setOrganizationName("FiroTest");
+    QTemporaryDir settingsDirectory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDirectory.path());
 
     SSL_library_init();
 
@@ -57,6 +65,10 @@ int main(int argc, char *argv[])
 
     CompatTests test4;
     if (QTest::qExec(&test4) != 0)
+        fInvalid = true;
+
+    WalletUiTests walletUiTests;
+    if (QTest::qExec(&walletUiTests) != 0)
         fInvalid = true;
 
     ECC_Stop();

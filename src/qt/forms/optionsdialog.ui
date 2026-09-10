@@ -534,6 +534,26 @@
         </layout>
        </item>
        <item>
+        <widget class="QCheckBox" name="checkboxEnabledTor">
+         <property name="toolTip">
+          <string>Automatically launch an embedded Tor instance and configure Firo to use it. Manual proxy settings above can override routing for affected connection types. A client restart is required.</string>
+         </property>
+         <property name="text">
+          <string>Route connection through Tor (quickstart)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="torStatusLabel">
+         <property name="text">
+          <string notr="true">TextLabel</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer_Network">
          <property name="orientation">
           <enum>Qt::Vertical</enum>

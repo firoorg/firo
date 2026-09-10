@@ -11,6 +11,7 @@
 #include "bitcoinunits.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
@@ -34,25 +35,39 @@
 #include "chainparams.h"
 #include "init.h"
 #include "util.h"
+#include "validation.h"
 
 #include "evo/deterministicmns.h"
 #include "masternode-sync.h"
 #include "masternodelist.h"
+#include "spark/state.h"
 #include <iostream>
 
+#include <QAbstractButton>
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDragEnterEvent>
+#include <QEasingCurve>
+#include <QFrame>
+#include <QGraphicsDropShadowEffect>
 #include <QIcon>
+#include <QKeyEvent>
 #include <QLabel>
+#include <QLinearGradient>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPixmap>
 #include <QProgressDialog>
+#include <QProgressBar>
+#include <QPropertyAnimation>
 #include <QScreen>
 #include <QSettings>
 #include <QShortcut>
@@ -61,6 +76,7 @@
 #include <QStyle>
 #include <QTimer>
 #include <QToolBar>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #if QT_VERSION < 0x050000
@@ -93,6 +109,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     labelWalletEncryptionIcon(0),
     labelWalletHDStatusIcon(0),
     connectionsControl(0),
+    torStatusBadge(0),
     labelBlocksIcon(0),
     progressBarLabel(0),
     progressBar(0),
@@ -110,6 +127,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     aboutAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
+    sparkNamesAction(0),
     optionsAction(0),
     toggleHideAction(0),
     encryptWalletAction(0),
@@ -118,6 +136,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     changePassphraseAction(0),
     aboutQtAction(0),
     openRPCConsoleAction(0),
+    consoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
     masternodeAction(0),
@@ -174,9 +193,11 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
 #ifdef ENABLE_WALLET
     if(enableWallet)
     {
-        /** Create wallet frame and make it the central widget */
+        auto* walletContainer = new QWidget(this);
+        walletContainer->setObjectName(QStringLiteral("walletContainer"));
         walletFrame = new WalletFrame(_platformStyle, this);
-        setCentralWidget(walletFrame);
+        walletFrame->setParent(walletContainer);
+        setCentralWidget(walletContainer);
     } else
 #endif // ENABLE_WALLET
     {
@@ -219,6 +240,10 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     labelWalletEncryptionIcon = new QLabel();
     labelWalletHDStatusIcon = new QLabel();
     connectionsControl = new GUIUtil::ClickableLabel();
+    torStatusBadge = new QLabel(tr("Tor"));
+    torStatusBadge->setObjectName(QStringLiteral("torStatusBadge"));
+    torStatusBadge->setVisible(GetBoolArg("-torsetup", DEFAULT_TOR_SETUP));
+    torStatusBadge->setToolTip(tr("Tor quickstart is enabled for this session. This confirms configuration, not Tor bootstrap or routing health. Manual proxy settings may override affected routes."));
     labelBlocksIcon = new GUIUtil::ClickableLabel();
     if(enableWallet)
     {
@@ -228,6 +253,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
         frameBlocksLayout->addWidget(labelWalletEncryptionIcon);
         frameBlocksLayout->addWidget(labelWalletHDStatusIcon);
     }
+    frameBlocksLayout->addStretch();
+    frameBlocksLayout->addWidget(torStatusBadge);
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(connectionsControl);
     frameBlocksLayout->addStretch();
@@ -344,6 +371,13 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(QString("Alt+%1").arg(key++)));
 	tabGroup->addAction(historyAction);
 
+	sparkNamesAction = new QAction(tr("&Spark Names"), this);
+	sparkNamesAction->setStatusTip(tr("Manage your registered Spark Names"));
+	sparkNamesAction->setToolTip(sparkNamesAction->statusTip());
+	sparkNamesAction->setCheckable(true);
+	sparkNamesAction->setShortcut(QKeySequence(QString("Alt+%1").arg(key++)));
+	tabGroup->addAction(sparkNamesAction);
+
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
@@ -374,6 +408,8 @@ void BitcoinGUI::createActions()
 	connect(receiveCoinsMenuAction, &QAction::triggered, this, &BitcoinGUI::gotoReceiveCoinsPage);
 	connect(historyAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
 	connect(historyAction, &QAction::triggered, this, &BitcoinGUI::gotoHistoryPage);
+	connect(sparkNamesAction, &QAction::triggered, this, [this]{ showNormalIfMinimized(); });
+	connect(sparkNamesAction, &QAction::triggered, this, &BitcoinGUI::gotoSparkNamesPage);
 
 #endif // ENABLE_WALLET
 
@@ -415,6 +451,10 @@ void BitcoinGUI::createActions()
     // initially disable the debug window menu item
     openRPCConsoleAction->setEnabled(false);
 
+    consoleAction = new QAction(tr("&Console"), this);
+    consoleAction->setStatusTip(tr("Open the console in the debug window"));
+    consoleAction->setEnabled(false);
+
     usedSendingAddressesAction = new QAction(tr("&Sending addresses..."), this);
     usedSendingAddressesAction->setStatusTip(tr("Show the list of used sending addresses and labels"));
     usedReceivingAddressesAction = new QAction( tr("&Receiving addresses..."), this);
@@ -434,6 +474,8 @@ void BitcoinGUI::createActions()
     connect(toggleHideAction, &QAction::triggered, this, &BitcoinGUI::toggleHidden);
     connect(showHelpMessageAction, &QAction::triggered, this, &BitcoinGUI::showHelpMessageClicked);
     connect(openRPCConsoleAction, &QAction::triggered, this, &BitcoinGUI::showDebugWindow);
+    connect(consoleAction, &QAction::triggered,
+            this, &BitcoinGUI::showDebugWindowActivateConsole);
     // prevents an open debug window from becoming stuck/unusable on client shutdown
     connect(quitAction, &QAction::triggered, rpcConsole, &QWidget::hide);
 
@@ -464,7 +506,6 @@ void BitcoinGUI::createMenuBar()
 #else
     // Get the main window's menu bar on other platforms
     appMenuBar = menuBar();
-    appMenuBar->setStyleSheet("QMenuBar::item { color: #000000; }");
 #endif
 
     // Configure the menus
@@ -503,30 +544,791 @@ void BitcoinGUI::createMenuBar()
     help->addAction(aboutQtAction);
 }
 
+static QPixmap ColorizeNavigationIcon(const QPixmap& centeredSource, const QColor& color)
+{
+    QPixmap result(centeredSource.size());
+    result.fill(Qt::transparent);
+
+    QPainter painter(&result);
+    painter.drawPixmap(0, 0, centeredSource);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(result.rect(), color);
+    return result;
+}
+
+static QIcon NavigationIcon(const QString& resource)
+{
+    const QPixmap source(resource);
+    if (source.isNull())
+        return QIcon();
+
+    const int canvasSize = qMax(source.width(), source.height());
+    QPixmap centered(canvasSize, canvasSize);
+    centered.fill(Qt::transparent);
+    QPainter centerPainter(&centered);
+    centerPainter.drawPixmap((canvasSize - source.width()) / 2,
+                             (canvasSize - source.height()) / 2,
+                             source);
+    centerPainter.end();
+
+    const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
+    QIcon icon;
+    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.inkSoft)),
+                   QIcon::Normal, QIcon::Off);
+    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF"))),
+                   QIcon::Normal, QIcon::On);
+    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.ink)),
+                   QIcon::Active, QIcon::Off);
+    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF"))),
+                   QIcon::Active, QIcon::On);
+    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF"))),
+                   QIcon::Selected, QIcon::On);
+    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.inkFaint)),
+                   QIcon::Disabled, QIcon::Off);
+    return icon;
+}
+
+namespace {
+class ThemeToggleSwitch : public QAbstractButton
+{
+    Q_OBJECT
+    Q_PROPERTY(qreal thumbPos READ thumbPos WRITE setThumbPos)
+
+public:
+    explicit ThemeToggleSwitch(QWidget* parent = nullptr) : QAbstractButton(parent)
+    {
+        setCheckable(true);
+        setCursor(Qt::PointingHandCursor);
+        setFixedSize(40, 22);
+        setToolTip(QCoreApplication::translate("BitcoinGUI", "Toggle light / dark theme"));
+        setAccessibleName(QCoreApplication::translate("BitcoinGUI", "Light or dark theme"));
+        setFocusPolicy(Qt::StrongFocus);
+
+        animation_ = new QPropertyAnimation(this, "thumbPos", this);
+        animation_->setDuration(180);
+        animation_->setEasingCurve(QEasingCurve::InOutCubic);
+
+        connect(this, &QAbstractButton::toggled, this, [this](bool checked) {
+            animation_->stop();
+            animation_->setStartValue(thumbPos_);
+            animation_->setEndValue(checked ? 1.0 : 0.0);
+            animation_->start();
+            QTimer::singleShot(0, this, [checked]() {
+                GUIUtil::setThemeMode(checked ? GUIUtil::ThemeMode::Dark : GUIUtil::ThemeMode::Light);
+            });
+        });
+    }
+
+    qreal thumbPos() const { return thumbPos_; }
+    void setThumbPos(qreal pos)
+    {
+        thumbPos_ = pos;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
+        const QRectF track = rect().adjusted(0, 0, -1, -1);
+        p.setPen(Qt::NoPen);
+
+        QColor trackColor;
+        if (thumbPos_ <= 0.0) {
+            trackColor = QColor(c.border);
+        } else if (thumbPos_ >= 1.0) {
+            trackColor = QColor(c.wineDeep);
+        } else {
+            QColor off(c.border);
+            QColor on(c.wineDeep);
+            trackColor = QColor(
+                off.red()   + (on.red()   - off.red())   * thumbPos_,
+                off.green() + (on.green() - off.green()) * thumbPos_,
+                off.blue()  + (on.blue()  - off.blue())  * thumbPos_);
+        }
+        p.setBrush(trackColor);
+        p.drawRoundedRect(track, track.height() / 2, track.height() / 2);
+
+        const qreal d = track.height() - 6;
+        const qreal xOff = track.left() + 3;
+        const qreal xOn = track.right() - d - 3;
+        const qreal x = xOff + (xOn - xOff) * thumbPos_;
+        p.setBrush(QColor("#FFFFFF"));
+        p.drawEllipse(QRectF(x, track.top() + 3, d, d));
+
+        if (hasFocus()) {
+            p.setBrush(Qt::NoBrush);
+            p.setPen(QPen(QColor(c.wine), 2));
+            p.drawRoundedRect(track.adjusted(1, 1, -1, -1), track.height() / 2, track.height() / 2);
+        }
+    }
+
+private:
+    qreal thumbPos_ = 0.0;
+    QPropertyAnimation* animation_ = nullptr;
+};
+
+class NavigationSelectionHighlight : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit NavigationSelectionHighlight(QWidget* parent = nullptr) : QWidget(parent)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(Qt::NoPen);
+        QLinearGradient grad(rect().topLeft(), rect().topRight());
+        grad.setColorAt(0, QColor(c.wine));
+        grad.setColorAt(1, QColor(c.wineDeep));
+        p.setBrush(grad);
+        p.drawRoundedRect(rect(), 12, 12);
+    }
+};
+}
+
+#include "bitcoingui.moc"
+
+static constexpr int MAX_SYNCED_TIP_AGE_SECS = 45 * 60;
+
+static constexpr int NAVIGATION_SIDEBAR_WIDTH = 220;
+static constexpr int NAVIGATION_COLLAPSED_WIDTH = 80;
+static constexpr int NAVIGATION_ACTION_WIDTH = 190;
+static constexpr int NAVIGATION_TOGGLE_WIDTH = 30;
+
 void BitcoinGUI::createToolBars()
 {
     if(walletFrame)
     {
-        toolbar = addToolBar(tr("Tabs toolbar"));
+        toolbar = new QToolBar(tr("Wallet navigation"), centralWidget());
+        toolbar->setObjectName(QStringLiteral("navigationSidebar"));
         toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
-        toolbar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        toolbar->setOrientation(Qt::Vertical);
+        toolbar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
         toolbar->setMovable(false);
+        toolbar->setFloatable(false);
+        toolbar->setIconSize(QSize(22, 22));
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+
+        logoLabel = new QLabel(toolbar);
+        logoLabel->setObjectName(QStringLiteral("navigationLogo"));
+        logoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        logoLabel->setFixedHeight(88);
+        logoAction = toolbar->addWidget(logoLabel);
+
+        overviewAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_overview")));
+        sendCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_send")));
+        receiveCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_receive")));
+        historyAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_transactions")));
+        sparkNamesAction->setIcon(NavigationIcon(QStringLiteral(":/icons/spark")));
+        masternodeAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_masternodes")));
+        consoleAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_console")));
+        optionsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_options")));
+        consoleAction->setIconText(tr("Console"));
+        optionsAction->setIconText(tr("Options"));
+
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
+        toolbar->addAction(sparkNamesAction);
         toolbar->addAction(masternodeAction);
 
-        logoLabel = new QLabel();
-        logoLabel->setObjectName("lblToolbarLogo");
-        logoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        
-        toolbar->addWidget(logoLabel);
+        auto* navigationSpacer = new QWidget(toolbar);
+        navigationSpacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+        toolbar->addWidget(navigationSpacer);
+
+        navigationThemeRow = new QFrame(toolbar);
+        navigationThemeRow->setObjectName(QStringLiteral("navigationThemeRow"));
+        navigationThemeRow->setFixedWidth(NAVIGATION_ACTION_WIDTH);
+        auto* themeRowLayout = new QHBoxLayout(navigationThemeRow);
+        themeRowLayout->setContentsMargins(12, 8, 12, 8);
+        themeRowLayout->setSpacing(6);
+        navigationThemeLightLabel = new QLabel(tr("Light"), navigationThemeRow);
+        navigationThemeSwitch = new ThemeToggleSwitch(navigationThemeRow);
+        navigationThemeDarkLabel = new QLabel(tr("Dark"), navigationThemeRow);
+        themeRowLayout->addWidget(navigationThemeLightLabel);
+        themeRowLayout->addWidget(navigationThemeSwitch);
+        themeRowLayout->addStretch();
+        themeRowLayout->addWidget(navigationThemeDarkLabel);
+        navigationThemeSwitch->setChecked(GUIUtil::isDarkMode());
+        toolbar->addWidget(navigationThemeRow);
+
+        navigationSyncCard = new QFrame(toolbar);
+        navigationSyncCard->setObjectName(QStringLiteral("navigationSyncCard"));
+        navigationSyncCard->setFixedWidth(NAVIGATION_ACTION_WIDTH);
+        navigationSyncCard->setMinimumHeight(76);
+        navigationSyncCard->setCursor(Qt::PointingHandCursor);
+        navigationSyncCard->setToolTip(tr("Show synchronization details"));
+        navigationSyncCard->setAccessibleName(tr("Show synchronization details"));
+        navigationSyncCard->setFocusPolicy(Qt::StrongFocus);
+        navigationSyncCard->installEventFilter(this);
+        auto* syncLayout = new QVBoxLayout(navigationSyncCard);
+        syncLayout->setContentsMargins(10, 11, 14, 11);
+        syncLayout->setSpacing(8);
+        auto* syncHeader = new QHBoxLayout();
+        syncHeader->setContentsMargins(0, 0, 0, 0);
+        syncHeader->setSpacing(6);
+        navigationSyncLabel = new QLabel(tr("Syncing..."), navigationSyncCard);
+        navigationSyncPercent = new QLabel(QStringLiteral("0%"), navigationSyncCard);
+        navigationSyncLabel->setObjectName(QStringLiteral("navigationSyncLabel"));
+        navigationSyncLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+        navigationSyncPercent->setAttribute(Qt::WA_TransparentForMouseEvents);
+        navigationSyncPercent->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        navigationSyncPercent->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+        syncHeader->addWidget(navigationSyncLabel, 1);
+        syncHeader->addWidget(navigationSyncPercent, 0);
+        syncLayout->addLayout(syncHeader);
+        navigationSyncProgress = new QProgressBar(navigationSyncCard);
+        navigationSyncProgress->setRange(0, 100);
+        navigationSyncProgress->setValue(0);
+        navigationSyncProgress->setTextVisible(false);
+        navigationSyncProgress->setAttribute(Qt::WA_TransparentForMouseEvents);
+        syncLayout->addWidget(navigationSyncProgress);
+        navigationSyncCardAction = toolbar->addWidget(navigationSyncCard);
+        navigationSyncCardAction->setVisible(false);
+
+        toolbar->addAction(consoleAction);
+        toolbar->addAction(optionsAction);
+
+        navigationSelectionHighlight = new NavigationSelectionHighlight(toolbar);
+        navigationSelectionHighlight->lower();
+        auto* highlightShadow = new QGraphicsDropShadowEffect(navigationSelectionHighlight);
+        highlightShadow->setBlurRadius(20);
+        highlightShadow->setOffset(0, 6);
+        highlightShadow->setColor(QColor(130, 24, 51, 65));
+        navigationSelectionHighlight->setGraphicsEffect(highlightShadow);
 
         overviewAction->setChecked(true);
+
+        const QList<QAction*> navigationActions = {
+            overviewAction,
+            sendCoinsAction,
+            receiveCoinsAction,
+            historyAction,
+            sparkNamesAction,
+            masternodeAction
+        };
+        for (QAction* action : navigationActions) {
+            connect(action, &QAction::toggled, this,
+                    [this](bool) { updateNavigationSelectionHighlight(); });
+        }
+        updateNavigationSelectionHighlight();
+
+        updateToolbarTabWidths();
+
+        navigationToggleButton = new QToolButton(centralWidget());
+        navigationToggleButton->setObjectName(QStringLiteral("navigationDrawerToggle"));
+        navigationToggleButton->setArrowType(Qt::LeftArrow);
+        navigationToggleButton->setCursor(Qt::PointingHandCursor);
+        navigationToggleButton->setFixedSize(NAVIGATION_TOGGLE_WIDTH, 46);
+        navigationToggleButton->setToolTip(tr("Collapse navigation"));
+        navigationToggleButton->setAccessibleName(tr("Collapse navigation"));
+        connect(navigationToggleButton, &QToolButton::clicked,
+                this, &BitcoinGUI::toggleNavigationSidebar);
+
+        connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+                this, &BitcoinGUI::applyNavigationTheme);
+
+        applyNavigationTheme();
+
+        updateNavigationSidebarGeometry();
+        toolbar->show();
+        toolbar->raise();
+        navigationToggleButton->show();
+        navigationToggleButton->raise();
     }
+
+    auto* syncStateTimer = new QTimer(this);
+    syncStateTimer->setObjectName(QStringLiteral("syncStateTimer"));
+    syncStateTimer->setInterval(2 * 1000);
+    connect(syncStateTimer, &QTimer::timeout, this, [this] {
+        if (!clientModel)
+            return;
+        // Retry caches that were busy when the GUI first attached to the node.
+        modalOverlay->setKnownBestHeight(clientModel->getHeaderTipHeight(),
+            QDateTime::fromSecsSinceEpoch(clientModel->getHeaderTipTime()));
+        if (modalOverlay->isHeaderSyncPending()) {
+            updateHeadersSyncProgressLabel();
+        } else if (!navigationSyncCard && !syncInProgress()) {
+            progressBarLabel->hide();
+            progressBar->hide();
+        } else {
+            updateNavigationSyncCard(progressBarLabel->text(), navigationSyncFraction);
+        }
+    });
+    syncStateTimer->start();
+}
+
+void BitcoinGUI::applyNavigationTheme()
+{
+    if (!toolbar)
+        return;
+
+    if (navigationThemeSwitch) {
+        QSignalBlocker blocker(navigationThemeSwitch);
+        navigationThemeSwitch->setChecked(GUIUtil::isDarkMode());
+        navigationThemeSwitch->update();
+    }
+
+    if (logoLabel) {
+        const QString logoResource = !navigationSidebarExpanded
+            ? QStringLiteral(":/icons/firo_svg")
+            : GUIUtil::isDarkMode()
+                ? QStringLiteral(":/images/firo_logo_toolbar_dark")
+                : QStringLiteral(":/images/firo_logo_toolbar");
+        const QSize logoSize = navigationSidebarExpanded ? QSize(145, logoLabel->height()) : QSize(32, 32);
+        logoLabel->setPixmap(QIcon(logoResource).pixmap(logoSize, devicePixelRatioF()));
+    }
+
+    overviewAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_overview")));
+    sendCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_send")));
+    receiveCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_receive")));
+    historyAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_transactions")));
+    sparkNamesAction->setIcon(NavigationIcon(QStringLiteral(":/icons/spark")));
+    masternodeAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_masternodes")));
+    consoleAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_console")));
+    optionsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_options")));
+
+    if (labelWalletHDStatusIcon)
+        setHDStatus(labelWalletHDStatusIcon->isEnabled());
+    if (cachedEncryptionStatus >= 0)
+        setEncryptionStatus(cachedEncryptionStatus);
+    if (clientModel && connectionsControl)
+        updateNetworkState();
+    if (labelBlocksIcon && masternodeSync.IsSynced())
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+    if (torStatusBadge) {
+        torStatusBadge->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel#torStatusBadge {"
+            " color: $INK; background: $WINE_TINT; border: none;"
+            " border-radius: 8px; padding: 2px 7px; font-size: 12px; font-weight: 700;"
+            "}")));
+    }
+
+    if (navigationThemeRow) {
+        navigationThemeRow->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QFrame#navigationThemeRow {"
+            " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 14px;"
+            "}"
+            "QFrame#navigationThemeRow QLabel {"
+            " background: transparent; border: none; color: $INK_SOFT;"
+            " font-size: 12px; font-weight: 700;"
+            "}")));
+    }
+
+    if (navigationSyncCard) {
+        navigationSyncCard->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+            QFrame#navigationSyncCard {
+                background: $PANEL_SOFT;
+                border: 1px solid $BORDER;
+                border-radius: 14px;
+            }
+            QFrame#navigationSyncCard:focus {
+                border-color: $WINE;
+            }
+            QLabel {
+                background: transparent;
+                border: none;
+                color: $INK_SOFT;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QLabel#navigationSyncLabel {
+                font-size: 12px;
+            }
+            QProgressBar {
+                background: $BORDER;
+                border: 1px solid transparent;
+                border-radius: 5px;
+                min-height: 10px;
+                max-height: 10px;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                            stop:0 $GOLD,
+                                            stop:1 $GOLD);
+                border: 1px solid transparent;
+                border-radius: 5px;
+            }
+            QProgressBar[synced="true"]::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                            stop:0 $TEAL,
+                                            stop:1 $TEAL);
+                border: 1px solid transparent;
+                border-radius: 5px;
+            }
+        )")));
+    }
+
+    toolbar->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QToolBar#navigationSidebar {
+            background: $PANEL;
+            border: none;
+            border-right: 1px solid $BORDER;
+            spacing: 6px;
+            padding: 14px 12px;
+            min-height: 0;
+            font: 11pt 'Source Sans Pro';
+        }
+
+        QToolBar#navigationSidebar QLabel#navigationLogo {
+            background: transparent;
+            border: none;
+            padding-left: 10px;
+        }
+
+        QToolBar#navigationSidebar QToolButton {
+            background: transparent;
+            color: $INK_SOFT;
+            border: none;
+            border-radius: 12px;
+            min-height: 32px;
+            max-height: 32px;
+            font-size: 11pt;
+            font-weight: 700;
+            padding: 3px 14px;
+            margin: 0;
+            text-align: left;
+        }
+
+        QToolBar#navigationSidebar QToolButton:hover {
+            background: $PANEL_SOFT;
+            color: $INK;
+        }
+
+        QToolBar#navigationSidebar QToolButton:checked {
+            background: transparent;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 12px;
+            min-height: 32px;
+            max-height: 32px;
+            padding: 3px 14px;
+            font-weight: 700;
+        }
+
+        QToolBar#navigationSidebar QToolButton:checked:hover {
+            background: transparent;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 12px;
+            min-height: 32px;
+            max-height: 32px;
+            padding: 3px 14px;
+        }
+
+        QToolBar#navigationSidebar QToolButton:disabled {
+            color: $INK_FAINT;
+            background: transparent;
+        }
+
+        QToolBar#navigationSidebar[compact="true"] {
+            spacing: 2px;
+            padding: 6px 12px;
+        }
+
+        QToolBar#navigationSidebar[compact="true"] QToolButton,
+        QToolBar#navigationSidebar[compact="true"] QToolButton:checked,
+        QToolBar#navigationSidebar[compact="true"] QToolButton:checked:hover {
+            min-height: 26px;
+            max-height: 26px;
+            padding: 1px 14px;
+        }
+
+        QToolBar#navigationSidebar[ultraCompact="true"] {
+            spacing: 0;
+            padding: 4px 12px;
+        }
+        QToolBar#navigationSidebar[collapsed="true"] QLabel#navigationLogo {
+            padding-left: 0;
+        }
+        QToolBar#navigationSidebar[collapsed="true"] QToolButton,
+        QToolBar#navigationSidebar[collapsed="true"] QToolButton:checked,
+        QToolBar#navigationSidebar[collapsed="true"] QToolButton:checked:hover {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        )")));
+
+    toolbar->style()->unpolish(toolbar);
+    toolbar->style()->polish(toolbar);
+    if (QLayout* toolbarLayout = toolbar->layout()) {
+        toolbarLayout->invalidate();
+        toolbarLayout->activate();
+    }
+    QTimer::singleShot(0, this, [this] {
+        if (!toolbar)
+            return;
+        if (QLayout* toolbarLayout = toolbar->layout()) {
+            toolbarLayout->invalidate();
+            toolbarLayout->activate();
+        }
+    });
+
+    if (navigationToggleButton) {
+        navigationToggleButton->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+            QToolButton#navigationDrawerToggle {
+                background: $PANEL;
+                border: 1px solid $BORDER;
+                border-radius: 14px;
+                color: $INK_SOFT;
+            }
+            QToolButton#navigationDrawerToggle:hover {
+                background: $PANEL_SOFT;
+                border-color: $INK_FAINT;
+            }
+            QToolButton#navigationDrawerToggle:focus { border-color: $WINE; }
+            QToolButton#navigationDrawerToggle:pressed {
+                background: $BORDER;
+            }
+        )")));
+    }
+
+    updateNavigationSelectionHighlight();
+    QTimer::singleShot(0, this, [this] { updateNavigationSelectionHighlight(); });
+}
+
+void BitcoinGUI::updateNavigationSelectionHighlight()
+{
+    if (!toolbar || !navigationSelectionHighlight)
+        return;
+
+    const QList<QAction*> navigationActions = {
+        overviewAction,
+        sendCoinsAction,
+        receiveCoinsAction,
+        historyAction,
+        sparkNamesAction,
+        masternodeAction
+    };
+
+    QWidget* checkedWidget = nullptr;
+    for (QAction* action : navigationActions) {
+        if (action->isChecked()) {
+            checkedWidget = toolbar->widgetForAction(action);
+            break;
+        }
+    }
+
+    if (!checkedWidget) {
+        navigationSelectionHighlight->hide();
+        return;
+    }
+
+    QRect geometry = checkedWidget->geometry();
+    if (geometry.width() > NAVIGATION_ACTION_WIDTH)
+        geometry.setWidth(NAVIGATION_ACTION_WIDTH);
+    navigationSelectionHighlight->setGeometry(geometry);
+    navigationSelectionHighlight->lower();
+    navigationSelectionHighlight->show();
+    navigationSelectionHighlight->update();
+}
+
+bool BitcoinGUI::blockchainSyncInProgress() const
+{
+    if (!clientModel)
+        return false;
+
+    const enum BlockSource blockSource = clientModel->getBlockSource();
+    if (blockSource == BLOCK_SOURCE_REINDEX || blockSource == BLOCK_SOURCE_DISK)
+        return true;
+
+    if (::Params().NetworkIDString() == CBaseChainParams::REGTEST)
+        return false;
+
+    if (modalOverlay && modalOverlay->isHeaderSyncPending())
+        return true;
+
+    if (clientModel->inInitialBlockDownload())
+        return true;
+
+    if (clientModel->getLastBlockDate().secsTo(QDateTime::currentDateTime()) >= MAX_SYNCED_TIP_AGE_SECS)
+        return true;
+
+    return false;
+}
+
+bool BitcoinGUI::syncInProgress() const
+{
+    return clientModel && (blockchainSyncInProgress() || !masternodeSync.IsSynced());
+}
+
+bool BitcoinGUI::isActivelySyncing() const
+{
+    return blockchainSyncInProgress() ||
+        (clientModel && ::Params().NetworkIDString() != CBaseChainParams::REGTEST && !masternodeSync.IsSynced());
+}
+
+void BitcoinGUI::updateNavigationSyncCard(
+    const QString& status, double progress)
+{
+    if (!navigationSyncCard || !navigationSyncLabel ||
+        !navigationSyncPercent || !navigationSyncProgress)
+        return;
+
+    QString fullStatus = status;
+    const bool networkActive = clientModel && clientModel->getNetworkActive();
+    const bool hasPeers = clientModel && clientModel->getNumConnections() > 0;
+    const bool fullySynced = networkActive && hasPeers && !syncInProgress();
+    if (clientModel && progress >= 1.0 && blockchainSyncInProgress() &&
+        (clientModel->getBlockSource() == BLOCK_SOURCE_NETWORK || clientModel->getBlockSource() == BLOCK_SOURCE_NONE)) {
+        // A completed percentage is stale when the tip falls behind after sleep.
+        fullStatus = tr("Catching up...");
+        progressBarLabel->setText(fullStatus);
+        progress = clientModel->getVerificationProgress(nullptr);
+    }
+    if (clientModel && !networkActive) {
+        fullStatus = tr("Network activity disabled");
+    } else if (clientModel && !hasPeers) {
+        fullStatus = tr("Connecting to peers...");
+    } else if (fullySynced) {
+        fullStatus = tr("Synced");
+        progress = 1.0;
+    }
+
+    if (navigationSyncProgress->property("synced").toBool() != fullySynced) {
+        navigationSyncProgress->setProperty("synced", fullySynced);
+        navigationSyncProgress->style()->unpolish(navigationSyncProgress);
+        navigationSyncProgress->style()->polish(navigationSyncProgress);
+    }
+    if (modalOverlay)
+        modalOverlay->setSyncComplete(fullySynced);
+
+    const double clampedProgress = qBound(0.0, progress, 1.0);
+    navigationSyncFraction = clampedProgress;
+    if (fullStatus.isEmpty())
+        fullStatus = tr("Syncing...");
+    const QString percentText = QString::number(clampedProgress * 100.0, 'f', 2) + "%";
+    navigationSyncPercent->setText(percentText);
+
+    const int percentWidth = QFontMetrics(navigationSyncPercent->font()).horizontalAdvance(percentText);
+    const int availableWidth = navigationSyncCard->width() - 10 - 14 - 6 - percentWidth;
+    const QFontMetrics labelMetrics(navigationSyncLabel->font());
+    navigationSyncLabel->setText(labelMetrics.elidedText(fullStatus, Qt::ElideRight, availableWidth));
+    navigationSyncLabel->setToolTip(fullStatus);
+    const QString syncDescription = fullStatus + QStringLiteral(" (") + percentText + QLatin1Char(')');
+    navigationSyncCard->setToolTip(tr("Show synchronization details") + QLatin1Char('\n') + syncDescription);
+    navigationSyncCard->setAccessibleDescription(syncDescription);
+
+    navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
+    const bool showSyncCard = isActivelySyncing();
+    if (navigationSyncCardAction)
+        navigationSyncCardAction->setVisible(showSyncCard);
+    navigationSyncCard->setVisible(showSyncCard);
+}
+
+void BitcoinGUI::updateToolbarTabWidths()
+{
+    if (!toolbar)
+        return;
+
+    const int sidebarWidth = navigationSidebarExpanded ? NAVIGATION_SIDEBAR_WIDTH : NAVIGATION_COLLAPSED_WIDTH;
+    const int actionWidth = sidebarWidth - (NAVIGATION_SIDEBAR_WIDTH - NAVIGATION_ACTION_WIDTH);
+    toolbar->setFixedWidth(sidebarWidth);
+    toolbar->setToolButtonStyle(navigationSidebarExpanded ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
+    for (QAction* action : toolbar->actions()) {
+        if (QWidget* widget = toolbar->widgetForAction(action))
+            widget->setFixedWidth(actionWidth);
+    }
+    logoLabel->setAlignment((navigationSidebarExpanded ? Qt::AlignLeft : Qt::AlignHCenter) | Qt::AlignVCenter);
+    navigationThemeLightLabel->setVisible(navigationSidebarExpanded);
+    navigationThemeDarkLabel->setVisible(navigationSidebarExpanded);
+    navigationSyncLabel->setVisible(navigationSidebarExpanded);
+    navigationSyncPercent->setVisible(navigationSidebarExpanded);
+}
+
+void BitcoinGUI::updateNavigationSidebarGeometry()
+{
+    if (!toolbar || !navigationToggleButton || !centralWidget() || !walletFrame)
+        return;
+
+    const bool compact = centralWidget()->height() < 600;
+    const bool ultraCompact = centralWidget()->height() < 450;
+    const bool collapsed = !navigationSidebarExpanded;
+    const bool densityChanged = !toolbar->property("compact").isValid()
+        || !toolbar->property("ultraCompact").isValid()
+        || !toolbar->property("collapsed").isValid()
+        || toolbar->property("compact").toBool() != compact
+        || toolbar->property("ultraCompact").toBool() != ultraCompact
+        || toolbar->property("collapsed").toBool() != collapsed;
+    if (densityChanged) {
+        toolbar->setProperty("compact", compact);
+        toolbar->setProperty("ultraCompact", ultraCompact);
+        toolbar->setProperty("collapsed", collapsed);
+        toolbar->style()->unpolish(toolbar);
+        toolbar->style()->polish(toolbar);
+
+        if (logoLabel) {
+            logoAction->setVisible(!ultraCompact);
+            logoLabel->setFixedHeight(compact || !navigationSidebarExpanded ? 54 : 88);
+        }
+        if (navigationThemeRow) {
+            navigationThemeRow->setMinimumHeight(compact ? 34 : 0);
+            navigationThemeRow->setMaximumHeight(compact ? 34 : QWIDGETSIZE_MAX);
+            if (QLayout* layout = navigationThemeRow->layout()) {
+                const int sideMargin = navigationSidebarExpanded ? 12 : 4;
+                layout->setContentsMargins(sideMargin, compact ? 4 : 8, sideMargin, compact ? 4 : 8);
+            }
+        }
+        if (navigationSyncCard) {
+            const int syncHeight = navigationSidebarExpanded ? (compact ? 58 : 76) : 34;
+            navigationSyncCard->setMinimumHeight(syncHeight);
+            navigationSyncCard->setMaximumHeight(compact || !navigationSidebarExpanded ? syncHeight : QWIDGETSIZE_MAX);
+            if (QLayout* layout = navigationSyncCard->layout()) {
+                const int verticalMargin = compact || !navigationSidebarExpanded ? 6 : 11;
+                layout->setContentsMargins(navigationSidebarExpanded ? 10 : 6, verticalMargin,
+                                          navigationSidebarExpanded ? 14 : 6, verticalMargin);
+                layout->setSpacing(compact ? 4 : 8);
+            }
+        }
+        if (QLayout* layout = toolbar->layout()) {
+            layout->invalidate();
+            layout->activate();
+        }
+    }
+
+    const int contentX = navigationSidebarExpanded ? NAVIGATION_SIDEBAR_WIDTH : NAVIGATION_COLLAPSED_WIDTH;
+    toolbar->setGeometry(0, 0, contentX, centralWidget()->height());
+    walletFrame->setGeometry(
+        contentX,
+        0,
+        qMax(0, centralWidget()->width() - contentX),
+        centralWidget()->height());
+
+    navigationToggleButton->move(contentX - NAVIGATION_TOGGLE_WIDTH / 2, 20);
+    updateNavigationSelectionHighlight();
+    toolbar->raise();
+    navigationToggleButton->raise();
+    if (densityChanged)
+        applyNavigationTheme();
+}
+
+void BitcoinGUI::toggleNavigationSidebar()
+{
+    if (!toolbar || !navigationToggleButton || !centralWidget() || !walletFrame)
+        return;
+
+    navigationSidebarExpanded = !navigationSidebarExpanded;
+    navigationToggleButton->setArrowType(
+        navigationSidebarExpanded ? Qt::LeftArrow : Qt::RightArrow);
+    const QString toggleDescription =
+        navigationSidebarExpanded ? tr("Collapse navigation") : tr("Expand navigation");
+    navigationToggleButton->setToolTip(toggleDescription);
+    navigationToggleButton->setAccessibleName(toggleDescription);
+
+    updateToolbarTabWidths();
+    updateNavigationSidebarGeometry();
+    updateNavigationSyncCard(navigationSyncLabel->toolTip(), navigationSyncFraction);
 }
 
 void BitcoinGUI::setClientModel(ClientModel *_clientModel)
@@ -583,6 +1385,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #ifdef ENABLE_WALLET
             auto blocks = clientModel->getNumBlocks();
             checkZnodeVisibility(blocks);
+            checkSparkNamesVisibility(blocks);
 #endif // ENABLE_WALLET
         }
     } else {
@@ -646,6 +1449,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
+    sparkNamesAction->setEnabled(enabled);
     masternodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -796,6 +1600,12 @@ void BitcoinGUI::gotoReceiveCoinsPage()
     if (walletFrame) walletFrame->gotoReceiveCoinsPage();
 }
 
+void BitcoinGUI::gotoSparkNamesPage()
+{
+    sparkNamesAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoSparkNamesPage();
+}
+
 void BitcoinGUI::gotoSendCoinsPage(QString addr)
 {
     sendCoinsAction->setChecked(true);
@@ -839,26 +1649,50 @@ void BitcoinGUI::updateNetworkState()
     tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
     connectionsControl->setToolTip(tooltip);
 
-    connectionsControl->setPixmap(QIcon(icon).pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+    connectionsControl->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(icon), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
 }
 
 void BitcoinGUI::setNumConnections(int count)
 {
     updateNetworkState();
+
+    if (!navigationSyncProgress || !navigationSyncLabel)
+        return;
+
+    const double progress = navigationSyncFraction;
+    const QString status = count == 0 && syncInProgress()
+        ? tr("Connecting to peers...")
+        : progressBarLabel->text();
+    updateNavigationSyncCard(status, progress);
 }
 
 void BitcoinGUI::setNetworkActive(bool networkActive)
 {
     updateNetworkState();
+
+    if (!networkActive) {
+        updateNavigationSyncCard(tr("Network activity disabled"), navigationSyncFraction);
+    } else if (clientModel) {
+        setNumConnections(clientModel->getNumConnections());
+    }
 }
 
 void BitcoinGUI::updateHeadersSyncProgressLabel()
 {
-    int64_t headersTipTime = clientModel->getHeaderTipTime();
-    int headersTipHeight = clientModel->getHeaderTipHeight();
-    int estHeadersLeft = (GetTime() - headersTipTime) / Params().GetConsensus().nPowTargetSpacing;
-    if (estHeadersLeft > HEADER_HEIGHT_DELTA_SYNC)
-        progressBarLabel->setText(tr("Syncing Headers (%1%)...").arg(QString::number(100.0 / (headersTipHeight+estHeadersLeft)*headersTipHeight, 'f', 1)));
+    const auto blockSource = clientModel->getBlockSource();
+    const bool syncingHeaders = modalOverlay->isHeaderSyncPending() &&
+        blockSource != BLOCK_SOURCE_REINDEX && blockSource != BLOCK_SOURCE_DISK;
+    if (syncingHeaders)
+        progressBarLabel->setText(tr("Syncing Headers..."));
+    const double progress = syncingHeaders ? modalOverlay->headerSyncProgress() : navigationSyncFraction;
+    if (!navigationSyncCard && syncingHeaders) {
+        progressBarLabel->show();
+        progressBar->setFormat(QStringLiteral("%p%"));
+        progressBar->setMaximum(1000000000);
+        progressBar->setValue(qRound(progress * 1000000000.0));
+        progressBar->show();
+    }
+    updateNavigationSyncCard(progressBarLabel->text(), progress);
 }
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
@@ -885,7 +1719,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
                 return;
             }
             progressBarLabel->setText(tr("Synchronizing with network..."));
-            updateHeadersSyncProgressLabel();
+            updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress);
             break;
         case BLOCK_SOURCE_DISK:
             if (header) {
@@ -915,7 +1749,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 #ifdef ENABLE_WALLET
     if(walletFrame)
     {
-        if (secs < 45*60) {
+        if (secs < MAX_SYNCED_TIP_AGE_SECS) {
             modalOverlay->showHide(true, true);
             // TODO instead of hiding it forever, we should add meaningful information about MN sync to the overlay
             modalOverlay->hideForever();
@@ -927,22 +1761,34 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     }
 #endif // ENABLE_WALLET
 
-    if (!masternodeSync.IsBlockchainSynced())
+    if (blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
     {
         QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
 
-        progressBarLabel->setVisible(true);
+        double displayVerificationProgress = nVerificationProgress;
+        if ((blockSource == BLOCK_SOURCE_REINDEX || blockSource == BLOCK_SOURCE_DISK) &&
+            ::Params().NetworkIDString() == CBaseChainParams::REGTEST) {
+            const int headerHeight = clientModel->getHeaderTipHeight();
+            if (headerHeight > 0)
+                displayVerificationProgress = qBound(0.0, static_cast<double>(count) / headerHeight, 1.0);
+        }
+
+        progressBarLabel->setVisible(!navigationSyncCard);
         progressBar->setFormat(tr("%1 behind").arg(timeBehindText));
         progressBar->setMaximum(1000000000);
-        progressBar->setValue(nVerificationProgress * 1000000000.0 + 0.5);
-        progressBar->setVisible(true);
+        progressBar->setValue(displayVerificationProgress * 1000000000.0 + 0.5);
+        progressBar->setVisible(!navigationSyncCard);
+        if (blockSource != BLOCK_SOURCE_NETWORK && blockSource != BLOCK_SOURCE_NONE)
+            updateNavigationSyncCard(progressBarLabel->text(), displayVerificationProgress);
+        else if (blockSource == BLOCK_SOURCE_NONE)
+            updateNavigationSyncCard(progressBarLabel->text(), 0.0);
 
         tooltip = tr("Catching up...") + QString("<br>") + tooltip;
         if(count != prevBlocks)
         {
-            labelBlocksIcon->setPixmap(QIcon(QString(
-                ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0')))
-                .pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
+                ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
+                QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
             spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
         }
         prevBlocks = count;
@@ -951,7 +1797,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         if(walletFrame)
         {
             walletFrame->showOutOfSyncWarning(true);
-            modalOverlay->showHide();
         }
 #endif // ENABLE_WALLET
 
@@ -961,6 +1806,14 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         tooltip += tr("Transactions after this will not yet be visible.");
     } else if (fLiteMode) {
         setAdditionalDataSyncProgress(1);
+    } else if (masternodeSync.IsSynced()) {
+        progressBarLabel->hide();
+        progressBar->hide();
+        updateNavigationSyncCard(QString(), 1.0);
+#ifdef ENABLE_WALLET
+        if (walletFrame)
+            walletFrame->showOutOfSyncWarning(false);
+#endif // ENABLE_WALLET
     }
 
     // Don't word-wrap this (fixed-width) tooltip
@@ -972,6 +1825,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
 #ifdef ENABLE_WALLET
     checkZnodeVisibility(count);
+    if (!header)
+        checkSparkNamesVisibility(count);
     if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
         sparkAddressbookUpdated = walletFrame->updateAddressbook();
     }
@@ -985,7 +1840,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
         return;
 
     // No additional data sync should be happening while blockchain is not synced, nothing to update
-    if(!masternodeSync.IsBlockchainSynced())
+    if(blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
         return;
 
     // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbelled text)
@@ -1005,21 +1860,26 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
     if(masternodeSync.IsSynced()) {
         progressBarLabel->setVisible(false);
         progressBar->setVisible(false);
-        labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        updateNavigationSyncCard(QString(), 1.0);
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
     } else {
 
-        labelBlocksIcon->setPixmap(QIcon(QString(
-                        ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0')))
-                                            .pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
+                        ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
+                                            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
         spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
 
         progressBar->setFormat(tr("Synchronizing additional data: %p%"));
         progressBar->setMaximum(1000000000);
         progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
+        progressBarLabel->setVisible(!navigationSyncCard);
+        progressBar->setVisible(!navigationSyncCard);
     }
 
     strSyncStatus = QString(masternodeSync.GetSyncStatus().c_str());
     progressBarLabel->setText(strSyncStatus);
+    if (!masternodeSync.IsSynced())
+        updateNavigationSyncCard(strSyncStatus, nSyncProgress);
     tooltip = strSyncStatus + QString("<br>") + tooltip;
 
     // Don't word-wrap this (fixed-width) tooltip
@@ -1136,8 +1996,12 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 {
     // enable the debug window when the main window shows up
     openRPCConsoleAction->setEnabled(true);
+    consoleAction->setEnabled(true);
     aboutAction->setEnabled(true);
     optionsAction->setEnabled(true);
+
+    updateNavigationSidebarGeometry();
+    applyNavigationTheme();
 }
 
 #ifdef ENABLE_WALLET
@@ -1187,6 +2051,23 @@ void BitcoinGUI::dropEvent(QDropEvent *event)
 
 bool BitcoinGUI::eventFilter(QObject *object, QEvent *event)
 {
+    if (object == navigationSyncCard && event->type() == QEvent::MouseButtonRelease)
+    {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            showModalOverlay();
+            return true;
+        }
+    }
+    if (object == navigationSyncCard && event->type() == QEvent::KeyPress) {
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Return ||
+            keyEvent->key() == Qt::Key_Space) {
+            showModalOverlay();
+            return true;
+        }
+    }
+
     // Catch status tip events
     if (event->type() == QEvent::StatusTip)
     {
@@ -1212,7 +2093,8 @@ bool BitcoinGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
 
 void BitcoinGUI::setHDStatus(int hdEnabled)
 {
-    labelWalletHDStatusIcon->setPixmap(QIcon(hdEnabled ? ":/icons/hd_enabled" : ":/icons/hd_disabled").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+    labelWalletHDStatusIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
+        QIcon(hdEnabled ? ":/icons/hd_enabled" : ":/icons/hd_disabled"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
     labelWalletHDStatusIcon->setToolTip(hdEnabled ? tr("HD key generation is <b>enabled</b>") : tr("HD key generation is <b>disabled</b>"));
 
     // eventually disable the QLabel to set its opacity to 50%
@@ -1221,6 +2103,7 @@ void BitcoinGUI::setHDStatus(int hdEnabled)
 
 void BitcoinGUI::setEncryptionStatus(int status)
 {
+    cachedEncryptionStatus = status;
     switch(status)
     {
     case WalletModel::Unencrypted:
@@ -1231,7 +2114,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         break;
     case WalletModel::Unlocked:
         labelWalletEncryptionIcon->show();
-        labelWalletEncryptionIcon->setPixmap(QIcon(":/icons/lock_open").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelWalletEncryptionIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/lock_open"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
         labelWalletEncryptionIcon->setToolTip(tr("Wallet is <b>encrypted</b> and currently <b>unlocked</b>"));
         encryptWalletAction->setChecked(true);
         changePassphraseAction->setEnabled(true);
@@ -1239,7 +2122,7 @@ void BitcoinGUI::setEncryptionStatus(int status)
         break;
     case WalletModel::Locked:
         labelWalletEncryptionIcon->show();
-        labelWalletEncryptionIcon->setPixmap(QIcon(":/icons/lock_closed").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelWalletEncryptionIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/lock_closed"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
         labelWalletEncryptionIcon->setToolTip(tr("Wallet is <b>encrypted</b> and currently <b>locked</b>"));
         encryptWalletAction->setChecked(true);
         changePassphraseAction->setEnabled(true);
@@ -1308,11 +2191,11 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
 
 void BitcoinGUI::updateProgressBarLabel(const QString& text)
 {
-    if (progressBarLabel) 
-    {
-        progressBarLabel->setVisible(!text.isEmpty());
-        progressBarLabel->setText(text);
-    }
+    if (!progressBarLabel)
+        return;
+
+    progressBarLabel->setVisible(!text.isEmpty());
+    progressBarLabel->setText(text);
 }
 
 void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)
@@ -1325,7 +2208,7 @@ void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)
 
 void BitcoinGUI::showModalOverlay()
 {
-    if (modalOverlay && (progressBar->isVisible() || modalOverlay->isLayerVisible()))
+    if (modalOverlay)
         modalOverlay->toggleVisibility();
 }
 
@@ -1369,6 +2252,17 @@ void BitcoinGUI::checkZnodeVisibility(int numBlocks) {
     } else {
         masternodeAction->setVisible(true);
     }
+}
+
+void BitcoinGUI::checkSparkNamesVisibility(int numBlocks) {
+    if (!sparkNamesAction)
+        return;
+
+    const Consensus::Params& params = ::Params().GetConsensus();
+    const int nextBlockHeight = numBlocks + 1;
+    const bool visible = spark::IsSparkAllowed(nextBlockHeight) &&
+        nextBlockHeight >= params.nSparkNamesStartBlock;
+    sparkNamesAction->setVisible(visible);
 }
 
 void BitcoinGUI::toggleNetworkActive()
@@ -1453,24 +2347,6 @@ void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
 
 // Handles resize events for the BitcoinGUI widget by adjusting internal component sizes.
 void BitcoinGUI::resizeEvent(QResizeEvent* event) {
-    QMainWindow::resizeEvent(event);  
-
-    // Retrieve new dimensions from the resize event
-    int newWidth = event->size().width();
-    int actionWidth = newWidth / 6;
-
-    if (toolbar) {
-        // Set widths for each action dynamically
-        QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
-        QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
-        QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
-        QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
-        QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
-
-        if (overviewWidget) overviewWidget->setMinimumWidth(actionWidth);
-        if (receiveWidget) receiveWidget->setMinimumWidth(actionWidth);
-        if (historyWidget) historyWidget->setMinimumWidth(actionWidth);
-        if (sendCoinsWidget) sendCoinsWidget->setMinimumWidth(actionWidth);
-        if (masternodeWidget) masternodeWidget->setMinimumWidth(actionWidth);
-    }
+    QMainWindow::resizeEvent(event);
+    updateNavigationSidebarGeometry();
 }

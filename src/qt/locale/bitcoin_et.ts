@@ -133,7 +133,7 @@
     </message>
     <message>
         <source>Enter the new passphrase to the wallet.&lt;br/&gt;Please use a passphrase of &lt;b&gt;ten or more random characters&lt;/b&gt;, or &lt;b&gt;eight or more words&lt;/b&gt;.</source>
-        <translation>Sisesta uus salafraas rahakotti.&lt;br/&gt;Kasuta salafraasi millles on&lt;b&gt;kümme või rohkem juhuslikku sümbolit&lt;b&gt;,või&lt;b&gt;kaheksa või rohkem sõna&lt;b/&gt;.</translation>
+        <translation>Sisesta uus salafraas rahakotti.&lt;br/&gt;Kasuta salafraasi milles on &lt;b&gt;kümme või rohkem juhuslikku sümbolit&lt;/b&gt;, või &lt;b&gt;kaheksa või rohkem sõna&lt;/b&gt;.</translation>
     </message>
     <message>
         <source>Encrypt wallet</source>
