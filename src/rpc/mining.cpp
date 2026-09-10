@@ -47,6 +47,9 @@ extern CTxPoolAggregate txpools;
  */
 std::map<std::string, CBlock> mapPPBlockTemplates;
 
+/** Maximum length in bytes of a miner-supplied coinbase message (getblocktemplate "coinbase_message") */
+static const size_t MAX_COINBASE_MESSAGE_SIZE = 80;
+
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
  * or from the last difficulty change if 'lookup' is nonpositive.
@@ -435,7 +438,8 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             "       \"rules\":[            (array, optional) A list of strings\n"
             "           \"support\"          (string) client side supported softfork deployment\n"
             "           ,...\n"
-            "       ]\n"
+            "       ],\n"
+            "       \"coinbase_message\":\"text\" (string, optional) text (at most 80 UTF-8 bytes) to put in the coinbase of the block built for pprpcsb; needs reward_address\n"
             "     }\n"
             "2. reward_address          (string, optional) address for reward in coinbase (meaningful only if block solution is later submitter with pprpcsb)\n"
             "\n"
@@ -493,7 +497,8 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             "  },\n"
             "  \"znode_payments_started\" :  true|false, (boolean) true, if znode payments started\n"
             "  \"znode_payments_enforced\" : true|false, (boolean) true, if znode payments are enforced\n"
-            "  \"coinbase_payload\" : \"xxxxxxxx\"    (string) coinbase transaction payload data encoded in hexadecimal\n"
+            "  \"coinbase_payload\" : \"xxxxxxxx\",   (string) coinbase transaction payload data encoded in hexadecimal\n"
+            "  \"coinbase_message\" : \"text\"        (string) the coinbase message that was applied (only present when requested)\n"
             "}\n"
 
             "\nExamples:\n"
@@ -507,6 +512,8 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     UniValue lpval = NullUniValue;
     std::set<std::string> setClientRules;
     int64_t nMaxVersionPreVB = -1;
+    std::string strCoinbaseMessage;
+    bool fCoinbaseMessageSet = false;
     if (request.params.size() > 0)
     {
         const auto oparam = request.params[0].get_obj();
@@ -563,6 +570,16 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             if (uvMaxVersion.isNum()) {
                 nMaxVersionPreVB = uvMaxVersion.get_int64();
             }
+        }
+
+        const auto msgval = find_value(oparam, "coinbase_message");
+        if (msgval.isStr()) {
+            strCoinbaseMessage = msgval.get_str();
+            fCoinbaseMessageSet = true;
+            if (strCoinbaseMessage.size() > MAX_COINBASE_MESSAGE_SIZE)
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("coinbase_message is too long (%u bytes, maximum is %u)", strCoinbaseMessage.size(), MAX_COINBASE_MESSAGE_SIZE));
+        } else if (!msgval.isNull()) {
+            throw JSONRPCError(RPC_TYPE_ERROR, "coinbase_message must be a string");
         }
     }
 
@@ -664,7 +681,9 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         // Need to update only after we know CreateNewBlock succeeded
         pindexPrev = pindexPrevNew;
     }
-    CBlock* pblock = &pblocktemplate->block; // pointer for convenience
+    // Work on a copy of the shared template: the coinbase is customised per request below
+    CBlock block = pblocktemplate->block;
+    CBlock* pblock = &block; // pointer for convenience
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // Update nTime
@@ -684,6 +703,16 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         pblock->vtx[0] = MakeTransactionRef(CTransaction(coinbaseTx));
 
         fRewardAddressSet = true;
+    }
+
+    // Append the coinbase message to the coinbase input script, after whatever CreateNewBlock put there
+    if (!strCoinbaseMessage.empty()) {
+        CMutableTransaction coinbaseTx = *pblock->vtx[0];
+        coinbaseTx.vin[0].scriptSig << std::vector<unsigned char>(strCoinbaseMessage.begin(), strCoinbaseMessage.end());
+        // consensus limits the coinbase input script to 100 bytes (see CheckTransaction)
+        if (coinbaseTx.vin[0].scriptSig.size() > 100)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "coinbase_message does not fit in the coinbase script");
+        pblock->vtx[0] = MakeTransactionRef(CTransaction(coinbaseTx));
     }
 
     // TODO: support segwit
@@ -859,21 +888,28 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         result.push_back(Pair("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment.begin(), pblocktemplate->vchCoinbaseCommitment.end())));
     }
 
+    if (fCoinbaseMessageSet)
+        result.pushKV("coinbase_message", strCoinbaseMessage);
+
     if (pblock->IsProgPow()) {
-        static std::string lastHeader{};
-        if (mapPPBlockTemplates.count(lastHeader) && ((pblock->nTime - 30) < mapPPBlockTemplates.at(lastHeader).nTime))
-        {
-            result.pushKV("pprpcheader", lastHeader);
-            result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));
-            return result;
+        // Reuse a fresh job that was built for the same coinbase (reward address and message).
+        // Jobs of other callers stay in the cache so that they can still be submitted with pprpcsb.
+        std::string header;
+        for (const auto& entry : mapPPBlockTemplates) {
+            if (entry.second.vtx[0]->GetHash() == pblock->vtx[0]->GetHash() && (pblock->nTime - 30) < entry.second.nTime) {
+                header = entry.first;
+                break;
+            }
         }
-        pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
-        lastHeader = pblock->GetProgPowHeaderHash().GetHex();
-        result.pushKV("pprpcheader", lastHeader);
+        if (header.empty()) {
+            pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
+            header = pblock->GetProgPowHeaderHash().GetHex();
+            if (fRewardAddressSet)
+                // don't bother to save block unless reward address is set
+                mapPPBlockTemplates[header] = *pblock;
+        }
+        result.pushKV("pprpcheader", header);
         result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));
-        if (fRewardAddressSet)
-            // don't bother to save block unless reward address is set
-            mapPPBlockTemplates[lastHeader] = *pblock;
     }
 
     return result;
@@ -931,13 +967,16 @@ UniValue pprpcsb(const JSONRPCRequest& request)
     }
     
     // Check provided header_hash is in cache
-    if (!mapPPBlockTemplates.count(header_hex))
-    {
-        throw JSONRPCError(RPC_INVALID_PARAMS, "Job not found");
-    }
-
     std::shared_ptr<CBlock> blockptr = std::make_shared<CBlock>();
-    *blockptr = mapPPBlockTemplates.at(header_hex);
+    {
+        LOCK(cs_main); // the cache is maintained by getblocktemplate under cs_main
+        const auto it = mapPPBlockTemplates.find(header_hex);
+        if (it == mapPPBlockTemplates.end())
+        {
+            throw JSONRPCError(RPC_INVALID_PARAMS, "Job not found");
+        }
+        *blockptr = it->second;
+    }
     blockptr->nNonce64 = nonce;
 
     // Check provided solution is formally valid

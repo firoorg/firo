@@ -786,7 +786,10 @@ Returns estimated network hashes per second.
 Returns data needed to construct a block for mining.
 
 **Arguments:**
-1. `template_request` (json object, optional) - BIP 22/23 compliant request
+1. `template_request` (json object, optional) - BIP 22/23 compliant request. Firo additionally accepts
+   `"coinbase_message": "text"` (at most 80 UTF-8 bytes), which is put into the coinbase of the block
+   the node builds for `pprpcsb` and echoed back as `coinbase_message`. Needs `reward_address`.
+2. `reward_address` (string, optional) - Address paid by the coinbase of the block the node builds for `pprpcsb`
 
 **Result:**
 ```json
