@@ -613,9 +613,13 @@ BOOST_FIXTURE_TEST_CASE(dip3_invalidate_pure_disconnect_notification_updates_tip
     auto preRemovalTip = chainActive.Tip();
     auto spendTx = CreateCollateralSpendTx(COutPoint(dmnHashes[0], 0), payoutScript, coinbaseKey);
     ProcessBlockAndUpdateMNManager(*this, {spendTx}, coinbaseKey);
+    auto removalTip = chainActive.Tip();
 
     std::vector<uint256> afterSpend{dmnHashes.begin() + 1, dmnHashes.end()};
     AssertTipMNSet(afterSpend);
+
+    InvalidateBlockUsingValidationSignals(removalTip->GetBlockHash());
+    BOOST_REQUIRE(chainActive.Tip() == preRemovalTip);
 
     ExposedDSNotificationInterface notificationInterface(*connman);
     notificationInterface.UpdatedBlockTipForTest(preRemovalTip, preRemovalTip, false);
@@ -648,7 +652,12 @@ BOOST_FIXTURE_TEST_CASE(dip3_repeated_invalidate_signal_restores_each_intermedia
     }
 
     for (size_t i = 0; i < expectedAfterDisconnect.size(); ++i) {
-        InvalidateBlockUsingValidationSignals(chainActive.Tip()->GetBlockHash());
+        const CBlockIndex* staleTip = chainActive.Tip();
+        InvalidateBlockUsingValidationSignals(staleTip->GetBlockHash());
+        AssertTipMNSet(expectedAfterDisconnect[i]);
+
+        // A delayed notification must not restore an obsolete chain tip.
+        deterministicMNManager->UpdatedBlockTip(staleTip);
         AssertTipMNSet(expectedAfterDisconnect[i]);
     }
 }
