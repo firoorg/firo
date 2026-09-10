@@ -3,7 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-"""Check that the remaining -dbcache budget is assigned to the UTXO cache."""
+"""Check that all database caches and the UTXO cache share the -dbcache budget."""
 
 import os
 
@@ -25,14 +25,22 @@ class DbCacheTest(BitcoinTestFramework):
         ])
 
     def run_test(self):
-        # The block-index and coin database caches are deducted first.
-        for node, expected_mib in enumerate(['440.0', '2038.0', '1.8', '385.8']):
+        # Reserve EvoDB inside the budget, including at the 4 MiB minimum.
+        cache_names = ['in-memory UTXO set', 'block index database',
+                       'EvoDB database', 'chain state database']
+        for node, allocations in enumerate([
+            ['424.0', '2.0', '16.0', '8.0'],
+            ['2022.0', '2.0', '16.0', '8.0'],
+            ['1.5', '0.5', '0.4', '1.5'],
+            ['369.8', '56.2', '16.0', '8.0'],
+        ]):
             log_path = os.path.join(self.options.tmpdir, 'node' + str(node),
                                     'regtest', 'debug.log')
             with open(log_path, encoding='utf-8') as log_file:
                 log = log_file.read()
-            expected = '* Using {}MiB for in-memory UTXO set'.format(expected_mib)
-            assert expected in log, 'node {}: missing cache allocation: {}'.format(node, expected)
+            for expected_mib, cache_name in zip(allocations, cache_names):
+                expected = '* Using {}MiB for {}'.format(expected_mib, cache_name)
+                assert expected in log, 'node {}: missing cache allocation: {}'.format(node, expected)
 
 
 if __name__ == '__main__':
