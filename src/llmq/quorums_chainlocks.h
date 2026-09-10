@@ -8,6 +8,7 @@
 #include "llmq/quorums.h"
 #include "llmq/quorums_signing.h"
 
+#include "limitedmap.h"
 #include "net.h"
 #include "chainparams.h"
 
@@ -19,6 +20,8 @@ class CScheduler;
 
 namespace llmq
 {
+
+struct CChainLocksHandlerTestAccess;
 
 class CChainLockSig
 {
@@ -43,8 +46,11 @@ public:
 
 class CChainLocksHandler : public CRecoveredSigsListener
 {
+    friend struct CChainLocksHandlerTestAccess;
+
     static const int64_t CLEANUP_INTERVAL = 1000 * 30;
     static const int64_t CLEANUP_SEEN_TIMEOUT = 24 * 60 * 60 * 1000;
+    static constexpr size_t MAX_SEEN_CHAINLOCKS{1024};
 
     // how long to wait for ixlocks until we consider a block with non-ixlocked TXs to be safe to sign
     static const int64_t WAIT_FOR_ISLOCK_TIMEOUT = 10 * 60;
@@ -72,7 +78,7 @@ private:
     BlockTxs blockTxs;
     std::unordered_map<uint256, int64_t> txFirstSeenTime;
 
-    std::map<uint256, int64_t> seenChainLocks;
+    limitedmap<uint256, int64_t> seenChainLocks;
 
     int64_t lastCleanupTime{0};
 
