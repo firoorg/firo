@@ -859,7 +859,8 @@ CAmount CSparkWallet::getMySpendAmount(const std::vector<GroupElement>& lTags) c
     return result;
 }
 
-CSparkWallet::IdentifiedMint CSparkWallet::IdentifyMint(spark::Coin coin, const uint256& txHash) const {
+CSparkWallet::IdentifiedMint CSparkWallet::IdentifyMint(spark::Coin coin, const uint256& txHash) const
+{
     // These keys are initialized before the wallet worker starts and never change.
     const auto identified = coin.identify(viewKey);
     const auto recovered = coin.recover(fullViewKey, identified);
@@ -877,7 +878,8 @@ CSparkWallet::IdentifiedMint CSparkWallet::IdentifyMint(spark::Coin coin, const 
     return mint;
 }
 
-void CSparkWallet::RecordMint(IdentifiedMint mint, CWalletDB& walletdb) {
+void CSparkWallet::RecordMint(IdentifiedMint mint, CWalletDB& walletdb)
+{
     auto& mintMeta = mint.meta;
     const auto heightAndId = spark::CSparkState::GetState()->GetMintedCoinHeightAndId(mintMeta.coin);
     mintMeta.nHeight = heightAndId.first;
@@ -900,7 +902,8 @@ void CSparkWallet::RecordMint(IdentifiedMint mint, CWalletDB& walletdb) {
     }
 }
 
-void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash, CWalletDB& walletdb) {
+void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const uint256& txHash, CWalletDB& walletdb)
+{
     for (auto coin : coins) {
         try {
             RecordMint(IdentifyMint(std::move(coin), txHash), walletdb);

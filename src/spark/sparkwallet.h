@@ -228,7 +228,8 @@ public:
     mutable CCriticalSection cs_spark_wallet;
 
 private:
-    struct IdentifiedMint {
+    struct IdentifiedMint
+    {
         CSparkMintMeta meta;
         GroupElement lTag;
     };
