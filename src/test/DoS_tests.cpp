@@ -16,6 +16,7 @@
 
 #include "test/test_bitcoin.h"
 
+#include <algorithm>
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
@@ -56,10 +57,14 @@ BOOST_AUTO_TEST_CASE(DoS_banning)
     GetNodeSignals().InitializeNode(&dummyNode1, *connman);
     dummyNode1.nVersion = 1;
     dummyNode1.fSuccessfullyConnected = true;
-    Misbehaving(dummyNode1.GetId(), 100); // Should get banned
+    Misbehaving(dummyNode1.GetId(), 100); // Should get discouraged
     SendMessages(&dummyNode1, *connman, interruptDummy);
-    BOOST_CHECK(connman->IsBanned(addr1));
-    BOOST_CHECK(!connman->IsBanned(ip(0xa0b0c001|0x0000ff00))); // Different IP, not banned
+    banmap_t banmap;
+    connman->GetBanned(banmap);
+    BOOST_CHECK(banmap.empty());
+    BOOST_CHECK(connman->IsDiscouraged(addr1));
+    BOOST_CHECK(!connman->IsDiscouraged(ip(0xa0b0c001 | 0x0000ff00))); // Different IP, not discouraged
+    BOOST_CHECK(!connman->IsBanned(addr1));
 
     CAddress addr2(ip(0xa0b0c002), NODE_NONE);
     CNode dummyNode2(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr2, 1, 1, "", true);
@@ -69,11 +74,133 @@ BOOST_AUTO_TEST_CASE(DoS_banning)
     dummyNode2.fSuccessfullyConnected = true;
     Misbehaving(dummyNode2.GetId(), 50);
     SendMessages(&dummyNode2, *connman, interruptDummy);
-    BOOST_CHECK(!connman->IsBanned(addr2)); // 2 not banned yet...
-    BOOST_CHECK(connman->IsBanned(addr1));  // ... but 1 still should be
+    BOOST_CHECK(!connman->IsDiscouraged(addr2)); // 2 not discouraged yet...
+    BOOST_CHECK(connman->IsDiscouraged(addr1));  // ... but 1 still should be
     Misbehaving(dummyNode2.GetId(), 50);
     SendMessages(&dummyNode2, *connman, interruptDummy);
-    BOOST_CHECK(connman->IsBanned(addr2));
+    BOOST_CHECK(connman->IsDiscouraged(addr2));
+    connman->GetBanned(banmap);
+    BOOST_CHECK(banmap.empty());
+}
+
+BOOST_AUTO_TEST_CASE(DoS_discouragement_disconnects_address)
+{
+    std::atomic<bool> interruptDummy(false);
+
+    connman->ClearBanned();
+    CAddress addr(ip(0xa0b0c001), NODE_NONE);
+    CAddress sameAddr(CService(addr, Params().GetDefaultPort() + 1), NODE_NONE);
+    CAddress otherAddr(ip(0xa0b0c002), NODE_NONE);
+    CNode offender(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr, 2, 2, "", true);
+    CNode sameAddressPeer(id++, NODE_NETWORK, 0, INVALID_SOCKET, sameAddr, 3, 3, "", true);
+    CNode otherPeer(id++, NODE_NETWORK, 0, INVALID_SOCKET, otherAddr, 4, 4, "", true);
+
+    offender.SetSendVersion(PROTOCOL_VERSION);
+    GetNodeSignals().InitializeNode(&offender, *connman);
+    offender.nVersion = 1;
+    offender.fSuccessfullyConnected = true;
+
+    {
+        LOCK(connman->cs_vNodes);
+        BOOST_REQUIRE(connman->vNodes.empty());
+        connman->vNodes.push_back(&offender);
+        connman->vNodes.push_back(&sameAddressPeer);
+        connman->vNodes.push_back(&otherPeer);
+    }
+
+    Misbehaving(offender.GetId(), 100);
+    SendMessages(&offender, *connman, interruptDummy);
+
+    BOOST_CHECK(offender.fDisconnect);
+    BOOST_CHECK(sameAddressPeer.fDisconnect);
+    BOOST_CHECK(!otherPeer.fDisconnect);
+    BOOST_CHECK(connman->IsDiscouraged(addr));
+    BOOST_CHECK(!connman->IsDiscouraged(otherAddr));
+    BOOST_CHECK(!connman->IsBanned(addr));
+    banmap_t banmap;
+    connman->GetBanned(banmap);
+    BOOST_CHECK(banmap.empty());
+
+    {
+        LOCK(connman->cs_vNodes);
+        for (CNode* node : {&offender, &sameAddressPeer, &otherPeer}) {
+            connman->vNodes.erase(std::remove(connman->vNodes.begin(), connman->vNodes.end(), node), connman->vNodes.end());
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(DoS_discouragement_disconnects_non_ip_address)
+{
+    std::atomic<bool> interruptDummy(false);
+
+    connman->ClearBanned();
+    const std::string onionAddresses[] = {
+        "6hzph5hv6337r6p2.onion",
+        "pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion",
+    };
+
+    for (const std::string& onionString : onionAddresses) {
+        CNetAddr onion;
+        BOOST_REQUIRE(onion.SetSpecial(onionString));
+        CAddress addr(CService(onion, Params().GetDefaultPort()), NODE_NONE);
+        CAddress sameAddr(CService(onion, Params().GetDefaultPort() + 1), NODE_NONE);
+        CAddress otherAddr(ip(0xa0b0c002), NODE_NONE);
+        CNode offender(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr, 5, 5, "", false);
+        CNode sameAddressPeer(id++, NODE_NETWORK, 0, INVALID_SOCKET, sameAddr, 6, 6, "", false);
+        CNode otherPeer(id++, NODE_NETWORK, 0, INVALID_SOCKET, otherAddr, 7, 7, "", false);
+
+        offender.SetSendVersion(PROTOCOL_VERSION);
+        GetNodeSignals().InitializeNode(&offender, *connman);
+        offender.nVersion = 1;
+        offender.fSuccessfullyConnected = true;
+
+        {
+            LOCK(connman->cs_vNodes);
+            BOOST_REQUIRE(connman->vNodes.empty());
+            connman->vNodes.push_back(&offender);
+            connman->vNodes.push_back(&sameAddressPeer);
+            connman->vNodes.push_back(&otherPeer);
+        }
+
+        Misbehaving(offender.GetId(), 100);
+        SendMessages(&offender, *connman, interruptDummy);
+
+        BOOST_CHECK(offender.fDisconnect);
+        BOOST_CHECK(sameAddressPeer.fDisconnect);
+        BOOST_CHECK(!otherPeer.fDisconnect);
+        BOOST_CHECK(connman->IsDiscouraged(onion));
+        BOOST_CHECK(!connman->IsBanned(onion));
+
+        {
+            LOCK(connman->cs_vNodes);
+            for (CNode* node : {&offender, &sameAddressPeer, &otherPeer}) {
+                connman->vNodes.erase(std::remove(connman->vNodes.begin(), connman->vNodes.end(), node), connman->vNodes.end());
+            }
+        }
+    }
+
+    CAddress invalidAddr;
+    BOOST_REQUIRE(!invalidAddr.IsValid());
+    CNode invalidPeer(id++, NODE_NETWORK, 0, INVALID_SOCKET, invalidAddr, 8, 8, "unresolved.example", false);
+    invalidPeer.SetSendVersion(PROTOCOL_VERSION);
+    GetNodeSignals().InitializeNode(&invalidPeer, *connman);
+    invalidPeer.nVersion = 1;
+    invalidPeer.fSuccessfullyConnected = true;
+
+    {
+        LOCK(connman->cs_vNodes);
+        BOOST_REQUIRE(connman->vNodes.empty());
+        connman->vNodes.push_back(&invalidPeer);
+    }
+
+    Misbehaving(invalidPeer.GetId(), 100);
+    SendMessages(&invalidPeer, *connman, interruptDummy);
+    BOOST_CHECK(invalidPeer.fDisconnect);
+
+    {
+        LOCK(connman->cs_vNodes);
+        connman->vNodes.erase(std::remove(connman->vNodes.begin(), connman->vNodes.end(), &invalidPeer), connman->vNodes.end());
+    }
 }
 
 BOOST_AUTO_TEST_CASE(DoS_banscore)
@@ -90,17 +217,18 @@ BOOST_AUTO_TEST_CASE(DoS_banscore)
     dummyNode1.fSuccessfullyConnected = true;
     Misbehaving(dummyNode1.GetId(), 100);
     SendMessages(&dummyNode1, *connman, interruptDummy);
-    BOOST_CHECK(!connman->IsBanned(addr1));
+    BOOST_CHECK(!connman->IsDiscouraged(addr1));
     Misbehaving(dummyNode1.GetId(), 10);
     SendMessages(&dummyNode1, *connman, interruptDummy);
-    BOOST_CHECK(!connman->IsBanned(addr1));
+    BOOST_CHECK(!connman->IsDiscouraged(addr1));
     Misbehaving(dummyNode1.GetId(), 1);
     SendMessages(&dummyNode1, *connman, interruptDummy);
-    BOOST_CHECK(connman->IsBanned(addr1));
+    BOOST_CHECK(connman->IsDiscouraged(addr1));
+    BOOST_CHECK(!connman->IsBanned(addr1));
     ForceSetArg("-banscore", std::to_string(DEFAULT_BANSCORE_THRESHOLD));
 }
 
-BOOST_AUTO_TEST_CASE(DoS_bantime)
+BOOST_AUTO_TEST_CASE(DoS_discouragement_does_not_expire_by_time)
 {
     std::atomic<bool> interruptDummy(false);
 
@@ -117,13 +245,35 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
 
     Misbehaving(dummyNode.GetId(), 100);
     SendMessages(&dummyNode, *connman, interruptDummy);
-    BOOST_CHECK(connman->IsBanned(addr));
+    BOOST_CHECK(connman->IsDiscouraged(addr));
+    BOOST_CHECK(!connman->IsBanned(addr));
 
     SetMockTime(nStartTime+60*60);
+    BOOST_CHECK(connman->IsDiscouraged(addr));
+
+    SetMockTime(nStartTime + 60 * 60 * 24 + 1);
+    BOOST_CHECK(connman->IsDiscouraged(addr));
+    SetMockTime(0);
+}
+
+BOOST_AUTO_TEST_CASE(DoS_manual_bantime)
+{
+    connman->ClearBanned();
+    int64_t nStartTime = GetTime();
+    SetMockTime(nStartTime);
+
+    CAddress addr(ip(0xa0b0c001), NODE_NONE);
+    connman->Ban(addr, BanReasonManuallyAdded);
     BOOST_CHECK(connman->IsBanned(addr));
+
+    banmap_t banmap;
+    connman->GetBanned(banmap);
+    BOOST_REQUIRE_EQUAL(banmap.size(), 1U);
+    BOOST_CHECK_EQUAL(banmap.begin()->second.banReason, BanReasonManuallyAdded);
 
     SetMockTime(nStartTime+60*60*24+1);
     BOOST_CHECK(!connman->IsBanned(addr));
+    SetMockTime(0);
 }
 
 CTransactionRef RandomOrphan()
