@@ -301,10 +301,11 @@ void ThreadScriptCheck();
 bool IsInitialBlockDownload();
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
-/** Find the best known block, and make it the tip of the block chain */
+/** Find and activate the best known block. Call without cs_main. */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
 /**
  * Verify the pending Spark batch when proofs are not being collected.
+ * Call without cs_main so concurrent verification can wait without deadlocking.
  * On failure the node is aborted, a datadir marker is written so the next
  * start disables batching and reindexes, and false is returned (no throw).
  */

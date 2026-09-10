@@ -4,8 +4,12 @@
 #include "../wallet/wallet.h"
 #include "fixtures.h"
 #include "test_bitcoin.h"
+#include "../ui_interface.h"
 
 #include <boost/test/unit_test.hpp>
+#include <atomic>
+#include <chrono>
+#include <future>
 
 BOOST_FIXTURE_TEST_SUITE(spark_batch_tests, SparkTestingSetup)
 
@@ -41,8 +45,7 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
         LOCK(cs_main);
         CValidationState state;
         spark::CSparkTxInfo info;
-        container->fCollectProofs = true;
-        container->init();
+        container->init(BatchProofContainer::Mode::Deferred);
         BOOST_CHECK(spark::CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
         container->finalize();
@@ -62,8 +65,7 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     BOOST_REQUIRE(invalidSpend.getUsedLTags() != spark::ParseSparkSpend(spendTx).getUsedLTags());
 
     collectSpend();
-    container->fCollectProofs = true;
-    container->init();
+    container->init(BatchProofContainer::Mode::Deferred);
     container->add(invalidSpend, spendTxB.GetHash());
     container->finalize();
 
@@ -90,6 +92,84 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     // batch and lets verification pass again.
     container->remove(spark::ParseSparkSpend(spendTx));
     BOOST_CHECK(container->verify_pending());
+}
+
+BOOST_AUTO_TEST_CASE(spark_batch_concurrent_verification)
+{
+    GenerateBlocks(501);
+    std::vector<CMutableTransaction> mintTxs;
+    GenerateMints({10 * COIN, 20 * COIN}, mintTxs);
+    GenerateBlock(mintTxs);
+    GenerateBlocks(6);
+
+    CAmount fee;
+    const CTransaction firstSpend(*pwalletMain->CreateSparkSpendTransaction(
+        {{GetScriptForDestination(GenerateAddress().GetID()), COIN, false}}, {}, fee, nullptr).tx);
+    const CTransaction secondSpend(*pwalletMain->CreateSparkSpendTransaction(
+        {{GetScriptForDestination(GenerateAddress().GetID()), 15 * COIN, false}}, {}, fee, nullptr).tx);
+    auto* container = BatchProofContainer::get_instance();
+    auto collect = [&](const CTransaction& tx) {
+        LOCK(cs_main);
+        CValidationState state;
+        spark::CSparkTxInfo info;
+        container->init(BatchProofContainer::Mode::Deferred);
+        const bool collected = spark::CheckSparkTransaction(
+            tx, state, tx.GetHash(), false, chainActive.Height(), false, true, &info);
+        container->finalize();
+        return collected;
+    };
+    BOOST_REQUIRE(collect(firstSpend));
+
+    std::promise<void> started, release, secondStarted;
+    auto ready = started.get_future();
+    auto released = release.get_future();
+    auto secondReady = secondStarted.get_future();
+    std::atomic<int> snapshots{0};
+    std::atomic<bool> timedOut{false};
+    boost::signals2::scoped_connection pause = uiInterface.UpdateProgressBarLabel.connect(
+        [&](const std::string&) {
+            if (snapshots.fetch_add(1) == 0) {
+                started.set_value();
+                timedOut = released.wait_for(std::chrono::seconds(10)) != std::future_status::ready;
+            }
+        });
+    auto first = std::async(std::launch::async, [&] { return container->verify_pending(); });
+    const bool paused = ready.wait_for(std::chrono::seconds(5)) == std::future_status::ready;
+    BOOST_CHECK(paused);
+    if (paused) {
+        // Verification releases cs_main, and a disconnect can still remove the
+        // retained proof. Replace it with a different, equally-sized batch.
+        container->remove(spark::ParseSparkSpend(firstSpend));
+        BOOST_CHECK(collect(secondSpend));
+    }
+    auto second = std::async(std::launch::async, [&] {
+        secondStarted.set_value();
+        return container->verify_pending();
+    });
+    secondReady.wait();
+    BOOST_CHECK(second.wait_for(std::chrono::milliseconds(100)) == std::future_status::timeout);
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    release.set_value();
+    BOOST_CHECK(first.get());
+    BOOST_CHECK(second.get());
+    BOOST_CHECK(!timedOut);
+    BOOST_CHECK_EQUAL(snapshots.load(), 2);
+    pause.disconnect();
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+
+    // An allocation failure must leave the pending batch available to retry.
+    BOOST_REQUIRE(collect(secondSpend));
+    snapshots = 0;
+    boost::signals2::scoped_connection failOnce = uiInterface.UpdateProgressBarLabel.connect(
+        [&](const std::string&) {
+            if (snapshots.fetch_add(1) == 0)
+                throw std::bad_alloc();
+        });
+    BOOST_CHECK_THROW(container->verify_pending(), std::bad_alloc);
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK_EQUAL(snapshots.load(), 2);
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
