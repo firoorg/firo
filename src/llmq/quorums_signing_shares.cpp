@@ -1419,6 +1419,12 @@ void CSigSharesManager::MarkNodeBanned(NodeId nodeId)
         return;
     }
 
+    if (quorumSigningManager) {
+        quorumSigningManager->RemoveNodesIf([nodeId](NodeId pendingNodeId) {
+            return pendingNodeId == nodeId;
+        });
+    }
+
     LOCK(cs);
     auto it = nodeStates.find(nodeId);
     if (it == nodeStates.end()) {
@@ -1472,6 +1478,17 @@ void CSigSharesManager::WorkThreadMain()
         // remaining per-node state for banned peers.
         if (GetTimeMillis() - lastRemoveBannedNodeStatesTime > 30000 /* 30s */) {
             RemoveBannedNodeStates();
+
+            std::unordered_set<NodeId> connectedNodes;
+            g_connman->ForEachNode([&](CNode* pnode) {
+                if (!pnode->fDisconnect) {
+                    connectedNodes.emplace(pnode->id);
+                }
+            });
+            quorumSigningManager->RemoveNodesIf([&](NodeId nodeId) {
+                return !connectedNodes.count(nodeId);
+            });
+
             lastRemoveBannedNodeStatesTime = GetTimeMillis();
         }
 
