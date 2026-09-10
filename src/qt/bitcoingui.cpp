@@ -63,7 +63,6 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMouseEvent>
-#include <QParallelAnimationGroup>
 #include <QPainter>
 #include <QPixmap>
 #include <QProgressDialog>
@@ -702,6 +701,7 @@ protected:
 static constexpr int MAX_SYNCED_TIP_AGE_SECS = 45 * 60;
 
 static constexpr int NAVIGATION_SIDEBAR_WIDTH = 220;
+static constexpr int NAVIGATION_COLLAPSED_WIDTH = 80;
 static constexpr int NAVIGATION_ACTION_WIDTH = 190;
 static constexpr int NAVIGATION_TOGGLE_WIDTH = 30;
 
@@ -723,7 +723,7 @@ void BitcoinGUI::createToolBars()
         logoLabel->setObjectName(QStringLiteral("navigationLogo"));
         logoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         logoLabel->setFixedHeight(88);
-        toolbar->addWidget(logoLabel);
+        logoAction = toolbar->addWidget(logoLabel);
 
         overviewAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_overview")));
         sendCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_send")));
@@ -831,8 +831,8 @@ void BitcoinGUI::createToolBars()
         navigationToggleButton->setArrowType(Qt::LeftArrow);
         navigationToggleButton->setCursor(Qt::PointingHandCursor);
         navigationToggleButton->setFixedSize(NAVIGATION_TOGGLE_WIDTH, 46);
-        navigationToggleButton->setToolTip(tr("Hide navigation"));
-        navigationToggleButton->setAccessibleName(tr("Hide navigation"));
+        navigationToggleButton->setToolTip(tr("Collapse navigation"));
+        navigationToggleButton->setAccessibleName(tr("Collapse navigation"));
         connect(navigationToggleButton, &QToolButton::clicked,
                 this, &BitcoinGUI::toggleNavigationSidebar);
 
@@ -881,10 +881,13 @@ void BitcoinGUI::applyNavigationTheme()
     }
 
     if (logoLabel) {
-        const QString logoResource = GUIUtil::isDarkMode()
-            ? QStringLiteral(":/images/firo_logo_toolbar_dark")
-            : QStringLiteral(":/images/firo_logo_toolbar");
-        logoLabel->setPixmap(QPixmap(logoResource).scaledToWidth(145, Qt::SmoothTransformation));
+        const QString logoResource = !navigationSidebarExpanded
+            ? QStringLiteral(":/icons/firo_svg")
+            : GUIUtil::isDarkMode()
+                ? QStringLiteral(":/images/firo_logo_toolbar_dark")
+                : QStringLiteral(":/images/firo_logo_toolbar");
+        const QSize logoSize = navigationSidebarExpanded ? QSize(145, logoLabel->height()) : QSize(32, 32);
+        logoLabel->setPixmap(QIcon(logoResource).pixmap(logoSize, devicePixelRatioF()));
     }
 
     overviewAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_overview")));
@@ -991,8 +994,6 @@ void BitcoinGUI::applyNavigationTheme()
             border-radius: 12px;
             min-height: 32px;
             max-height: 32px;
-            min-width: %1px;
-            max-width: %1px;
             font-size: 11pt;
             font-weight: 700;
             padding: 3px 14px;
@@ -1012,8 +1013,6 @@ void BitcoinGUI::applyNavigationTheme()
             border-radius: 12px;
             min-height: 32px;
             max-height: 32px;
-            min-width: %1px;
-            max-width: %1px;
             padding: 3px 14px;
             font-weight: 700;
         }
@@ -1025,8 +1024,6 @@ void BitcoinGUI::applyNavigationTheme()
             border-radius: 12px;
             min-height: 32px;
             max-height: 32px;
-            min-width: %1px;
-            max-width: %1px;
             padding: 3px 14px;
         }
 
@@ -1052,7 +1049,16 @@ void BitcoinGUI::applyNavigationTheme()
             spacing: 0;
             padding: 4px 12px;
         }
-        )")).arg(NAVIGATION_ACTION_WIDTH));
+        QToolBar#navigationSidebar[collapsed="true"] QLabel#navigationLogo {
+            padding-left: 0;
+        }
+        QToolBar#navigationSidebar[collapsed="true"] QToolButton,
+        QToolBar#navigationSidebar[collapsed="true"] QToolButton:checked,
+        QToolBar#navigationSidebar[collapsed="true"] QToolButton:checked:hover {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        )")));
 
     toolbar->style()->unpolish(toolbar);
     toolbar->style()->polish(toolbar);
@@ -1210,6 +1216,9 @@ void BitcoinGUI::updateNavigationSyncCard(
     const QFontMetrics labelMetrics(navigationSyncLabel->font());
     navigationSyncLabel->setText(labelMetrics.elidedText(fullStatus, Qt::ElideRight, availableWidth));
     navigationSyncLabel->setToolTip(fullStatus);
+    const QString syncDescription = fullStatus + QStringLiteral(" (") + percentText + QLatin1Char(')');
+    navigationSyncCard->setToolTip(tr("Show synchronization details") + QLatin1Char('\n') + syncDescription);
+    navigationSyncCard->setAccessibleDescription(syncDescription);
 
     navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
     const bool showSyncCard = isActivelySyncing();
@@ -1223,32 +1232,19 @@ void BitcoinGUI::updateToolbarTabWidths()
     if (!toolbar)
         return;
 
-    toolbar->setMinimumWidth(NAVIGATION_SIDEBAR_WIDTH);
-    toolbar->setMaximumWidth(NAVIGATION_SIDEBAR_WIDTH);
-
-    QWidget* overviewWidget = overviewAction ? toolbar->widgetForAction(overviewAction) : nullptr;
-    QWidget* receiveWidget = receiveCoinsAction ? toolbar->widgetForAction(receiveCoinsAction) : nullptr;
-    QWidget* historyWidget = historyAction ? toolbar->widgetForAction(historyAction) : nullptr;
-    QWidget* sparkNamesWidget = sparkNamesAction ? toolbar->widgetForAction(sparkNamesAction) : nullptr;
-    QWidget* sendCoinsWidget = sendCoinsAction ? toolbar->widgetForAction(sendCoinsAction) : nullptr;
-    QWidget* masternodeWidget = masternodeAction ? toolbar->widgetForAction(masternodeAction) : nullptr;
-    QWidget* consoleWidget = consoleAction ? toolbar->widgetForAction(consoleAction) : nullptr;
-    QWidget* optionsWidget = optionsAction ? toolbar->widgetForAction(optionsAction) : nullptr;
-
-    const auto setActionWidth = [](QWidget* widget) {
-        if (!widget)
-            return;
-        widget->setMinimumWidth(NAVIGATION_ACTION_WIDTH);
-        widget->setMaximumWidth(NAVIGATION_ACTION_WIDTH);
-    };
-    setActionWidth(overviewWidget);
-    setActionWidth(receiveWidget);
-    setActionWidth(historyWidget);
-    setActionWidth(sparkNamesWidget);
-    setActionWidth(sendCoinsWidget);
-    setActionWidth(masternodeWidget);
-    setActionWidth(consoleWidget);
-    setActionWidth(optionsWidget);
+    const int sidebarWidth = navigationSidebarExpanded ? NAVIGATION_SIDEBAR_WIDTH : NAVIGATION_COLLAPSED_WIDTH;
+    const int actionWidth = sidebarWidth - (NAVIGATION_SIDEBAR_WIDTH - NAVIGATION_ACTION_WIDTH);
+    toolbar->setFixedWidth(sidebarWidth);
+    toolbar->setToolButtonStyle(navigationSidebarExpanded ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
+    for (QAction* action : toolbar->actions()) {
+        if (QWidget* widget = toolbar->widgetForAction(action))
+            widget->setFixedWidth(actionWidth);
+    }
+    logoLabel->setAlignment((navigationSidebarExpanded ? Qt::AlignLeft : Qt::AlignHCenter) | Qt::AlignVCenter);
+    navigationThemeLightLabel->setVisible(navigationSidebarExpanded);
+    navigationThemeDarkLabel->setVisible(navigationSidebarExpanded);
+    navigationSyncLabel->setVisible(navigationSidebarExpanded);
+    navigationSyncPercent->setVisible(navigationSidebarExpanded);
 }
 
 void BitcoinGUI::updateNavigationSidebarGeometry()
@@ -1258,31 +1254,40 @@ void BitcoinGUI::updateNavigationSidebarGeometry()
 
     const bool compact = centralWidget()->height() < 600;
     const bool ultraCompact = centralWidget()->height() < 450;
+    const bool collapsed = !navigationSidebarExpanded;
     const bool densityChanged = !toolbar->property("compact").isValid()
         || !toolbar->property("ultraCompact").isValid()
+        || !toolbar->property("collapsed").isValid()
         || toolbar->property("compact").toBool() != compact
-        || toolbar->property("ultraCompact").toBool() != ultraCompact;
+        || toolbar->property("ultraCompact").toBool() != ultraCompact
+        || toolbar->property("collapsed").toBool() != collapsed;
     if (densityChanged) {
         toolbar->setProperty("compact", compact);
         toolbar->setProperty("ultraCompact", ultraCompact);
+        toolbar->setProperty("collapsed", collapsed);
         toolbar->style()->unpolish(toolbar);
         toolbar->style()->polish(toolbar);
 
         if (logoLabel) {
-            logoLabel->setVisible(!ultraCompact);
-            logoLabel->setFixedHeight(compact ? 54 : 88);
+            logoAction->setVisible(!ultraCompact);
+            logoLabel->setFixedHeight(compact || !navigationSidebarExpanded ? 54 : 88);
         }
         if (navigationThemeRow) {
             navigationThemeRow->setMinimumHeight(compact ? 34 : 0);
             navigationThemeRow->setMaximumHeight(compact ? 34 : QWIDGETSIZE_MAX);
-            if (QLayout* layout = navigationThemeRow->layout())
-                layout->setContentsMargins(12, compact ? 4 : 8, 12, compact ? 4 : 8);
+            if (QLayout* layout = navigationThemeRow->layout()) {
+                const int sideMargin = navigationSidebarExpanded ? 12 : 4;
+                layout->setContentsMargins(sideMargin, compact ? 4 : 8, sideMargin, compact ? 4 : 8);
+            }
         }
         if (navigationSyncCard) {
-            navigationSyncCard->setMinimumHeight(compact ? 58 : 76);
-            navigationSyncCard->setMaximumHeight(compact ? 58 : QWIDGETSIZE_MAX);
+            const int syncHeight = navigationSidebarExpanded ? (compact ? 58 : 76) : 34;
+            navigationSyncCard->setMinimumHeight(syncHeight);
+            navigationSyncCard->setMaximumHeight(compact || !navigationSidebarExpanded ? syncHeight : QWIDGETSIZE_MAX);
             if (QLayout* layout = navigationSyncCard->layout()) {
-                layout->setContentsMargins(10, compact ? 6 : 11, 14, compact ? 6 : 11);
+                const int verticalMargin = compact || !navigationSidebarExpanded ? 6 : 11;
+                layout->setContentsMargins(navigationSidebarExpanded ? 10 : 6, verticalMargin,
+                                          navigationSidebarExpanded ? 14 : 6, verticalMargin);
                 layout->setSpacing(compact ? 4 : 8);
             }
         }
@@ -1292,24 +1297,20 @@ void BitcoinGUI::updateNavigationSidebarGeometry()
         }
     }
 
-    const int drawerX = navigationSidebarExpanded ? 0 : -NAVIGATION_SIDEBAR_WIDTH;
-    toolbar->setGeometry(
-        drawerX, 0, NAVIGATION_SIDEBAR_WIDTH, centralWidget()->height());
-
-    const int contentX = navigationSidebarExpanded ? NAVIGATION_SIDEBAR_WIDTH : 0;
+    const int contentX = navigationSidebarExpanded ? NAVIGATION_SIDEBAR_WIDTH : NAVIGATION_COLLAPSED_WIDTH;
+    toolbar->setGeometry(0, 0, contentX, centralWidget()->height());
     walletFrame->setGeometry(
         contentX,
         0,
         qMax(0, centralWidget()->width() - contentX),
         centralWidget()->height());
 
-    const int toggleX = navigationSidebarExpanded
-        ? NAVIGATION_SIDEBAR_WIDTH - NAVIGATION_TOGGLE_WIDTH / 2
-        : 8;
-    navigationToggleButton->move(toggleX, 20);
+    navigationToggleButton->move(contentX - NAVIGATION_TOGGLE_WIDTH / 2, 20);
     updateNavigationSelectionHighlight();
     toolbar->raise();
     navigationToggleButton->raise();
+    if (densityChanged)
+        applyNavigationTheme();
 }
 
 void BitcoinGUI::toggleNavigationSidebar()
@@ -1317,66 +1318,17 @@ void BitcoinGUI::toggleNavigationSidebar()
     if (!toolbar || !navigationToggleButton || !centralWidget() || !walletFrame)
         return;
 
-    if (navigationSidebarAnimation) {
-        navigationSidebarAnimation->stop();
-        delete navigationSidebarAnimation;
-        navigationSidebarAnimation = nullptr;
-    }
-
     navigationSidebarExpanded = !navigationSidebarExpanded;
     navigationToggleButton->setArrowType(
         navigationSidebarExpanded ? Qt::LeftArrow : Qt::RightArrow);
     const QString toggleDescription =
-        navigationSidebarExpanded ? tr("Hide navigation") : tr("Show navigation");
+        navigationSidebarExpanded ? tr("Collapse navigation") : tr("Expand navigation");
     navigationToggleButton->setToolTip(toggleDescription);
     navigationToggleButton->setAccessibleName(toggleDescription);
 
-    const QRect drawerEnd(
-        navigationSidebarExpanded ? 0 : -NAVIGATION_SIDEBAR_WIDTH,
-        0,
-        NAVIGATION_SIDEBAR_WIDTH,
-        centralWidget()->height());
-    const QPoint toggleEnd(
-        navigationSidebarExpanded
-            ? NAVIGATION_SIDEBAR_WIDTH - NAVIGATION_TOGGLE_WIDTH / 2
-            : 8,
-        20);
-    const int contentX = navigationSidebarExpanded ? NAVIGATION_SIDEBAR_WIDTH : 0;
-    const QRect walletEnd(
-        contentX,
-        0,
-        qMax(0, centralWidget()->width() - contentX),
-        centralWidget()->height());
-
-    auto* animations = new QParallelAnimationGroup(this);
-    navigationSidebarAnimation = animations;
-    auto* drawerAnimation = new QPropertyAnimation(toolbar, "geometry", animations);
-    drawerAnimation->setDuration(220);
-    drawerAnimation->setStartValue(toolbar->geometry());
-    drawerAnimation->setEndValue(drawerEnd);
-    drawerAnimation->setEasingCurve(QEasingCurve::InOutCubic);
-
-    auto* toggleAnimation = new QPropertyAnimation(navigationToggleButton, "pos", animations);
-    toggleAnimation->setDuration(220);
-    toggleAnimation->setStartValue(navigationToggleButton->pos());
-    toggleAnimation->setEndValue(toggleEnd);
-    toggleAnimation->setEasingCurve(QEasingCurve::InOutCubic);
-
-    auto* walletAnimation = new QPropertyAnimation(walletFrame, "geometry", animations);
-    walletAnimation->setDuration(220);
-    walletAnimation->setStartValue(walletFrame->geometry());
-    walletAnimation->setEndValue(walletEnd);
-    walletAnimation->setEasingCurve(QEasingCurve::InOutCubic);
-
-    toolbar->raise();
-    navigationToggleButton->raise();
-    connect(animations, &QParallelAnimationGroup::finished, this, [this, animations] {
-        if (navigationSidebarAnimation == animations)
-            navigationSidebarAnimation = nullptr;
-        updateNavigationSidebarGeometry();
-        animations->deleteLater();
-    });
-    animations->start();
+    updateToolbarTabWidths();
+    updateNavigationSidebarGeometry();
+    updateNavigationSyncCard(navigationSyncLabel->toolTip(), navigationSyncFraction);
 }
 
 void BitcoinGUI::setClientModel(ClientModel *_clientModel)

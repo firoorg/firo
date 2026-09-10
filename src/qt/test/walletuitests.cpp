@@ -25,6 +25,7 @@
 #include "wallet/wallet.h"
 #include "walletmodel.h"
 
+#include <QAction>
 #include <QColor>
 #include <QElapsedTimer>
 #include <QFrame>
@@ -38,6 +39,8 @@
 #include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
+#include <QToolBar>
+#include <QToolButton>
 
 #include <memory>
 #include <chrono>
@@ -370,6 +373,50 @@ void WalletUiTests::synchronizationProgress()
     QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
     QVERIFY(node.progressBarLabel->isHidden());
     QVERIFY(node.progressBar->isHidden());
+}
+
+void WalletUiTests::collapsedNavigationRemainsUsable()
+{
+    const auto oldDisableWallet = GetArg("-disablewallet", "0");
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restore = qScopeGuard([&] {
+        ForceSetArg("-disablewallet", oldDisableWallet);
+        GUIUtil::setThemeMode(previousTheme);
+    });
+    ForceSetArg("-disablewallet", "0");
+    const std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
+    const std::unique_ptr<const NetworkStyle> networkStyle(NetworkStyle::instantiate("regtest"));
+    QVERIFY(platformStyle);
+    QVERIFY(networkStyle);
+    BitcoinGUI gui(platformStyle.get(), networkStyle.get());
+    gui.setAttribute(Qt::WA_DontShowOnScreen);
+    gui.setWalletActionsEnabled(true);
+    gui.resize(900, 700);
+    gui.show();
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        const int expandedWidth = gui.toolbar->width();
+        QTest::mouseClick(gui.navigationToggleButton, Qt::LeftButton);
+        QCoreApplication::processEvents();
+        QVERIFY(gui.toolbar->width() < expandedWidth);
+        QVERIFY(gui.centralWidget()->rect().contains(gui.toolbar->geometry()));
+        for (auto* action : {gui.overviewAction, gui.sendCoinsAction, gui.receiveCoinsAction,
+                             gui.historyAction, gui.sparkNamesAction, gui.masternodeAction}) {
+            auto* button = qobject_cast<QToolButton*>(gui.toolbar->widgetForAction(action));
+            QVERIFY(button);
+            QVERIFY(button->isVisible());
+            QVERIFY(gui.toolbar->rect().contains(button->geometry()));
+            QCOMPARE(button->toolButtonStyle(), Qt::ToolButtonIconOnly);
+            QVERIFY(!button->toolTip().isEmpty());
+        }
+        QSignalSpy triggered(gui.historyAction, &QAction::triggered);
+        QTest::mouseClick(gui.toolbar->widgetForAction(gui.historyAction), Qt::LeftButton);
+        QCOMPARE(triggered.count(), 1);
+        QVERIFY(gui.historyAction->isChecked());
+        QTest::mouseClick(gui.navigationToggleButton, Qt::LeftButton);
+        QCOMPARE(gui.toolbar->width(), expandedWidth);
+        QVERIFY(gui.historyAction->isChecked());
+    }
 }
 
 void WalletUiTests::paymentRequestFitsSmallScreen()
