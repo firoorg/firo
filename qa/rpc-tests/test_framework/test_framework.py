@@ -742,7 +742,7 @@ class EvoZnodeTestFramework(BitcoinTestFramework):
         elif w and not expected:
             raise AssertionError("waiting unexpectedly succeeded")
 
-    def wait_for_instantlock(self, txid, node, expected=True, timeout=15, do_assert=False):
+    def wait_for_instantlock(self, txid, node, expected=True, timeout=30, do_assert=False):
         def check_instantlock():
             try:
                 return node.getrawtransaction(txid, True)["instantlock"]

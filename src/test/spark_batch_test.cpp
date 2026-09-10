@@ -1,5 +1,6 @@
 #include "../batchproof_container.h"
 #include "../spark/state.h"
+#include "../ui_interface.h"
 #include "../validation.h"
 #include "../wallet/wallet.h"
 #include "fixtures.h"
@@ -37,14 +38,16 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
 
     // With batching active the spend must be deferred into the container
     // instead of being verified inline.
-    auto collectSpend = [&]() {
+    auto addValidSpend = [&]() {
         LOCK(cs_main);
         CValidationState state;
         spark::CSparkTxInfo info;
-        container->fCollectProofs = true;
-        container->init();
         BOOST_CHECK(spark::CheckSparkTransaction(
             spendTx, state, spendTx.GetHash(), false, chainActive.Height(), false, true, &info));
+    };
+    auto collectSpend = [&]() {
+        container->init(true);
+        addValidSpend();
         container->finalize();
     };
     collectSpend();
@@ -61,10 +64,73 @@ BOOST_AUTO_TEST_CASE(spark_batch_fail_closed)
     invalidSpend.setVout(0);
     BOOST_REQUIRE(invalidSpend.getUsedLTags() != spark::ParseSparkSpend(spendTx).getUsedLTags());
 
+    // Replacing the deferred batch while its snapshot is being verified must
+    // retry and fail on the replacement, not clear or validate it from the
+    // old snapshot's verdict.
+    container->init(true);
+    addValidSpend();
+    container->finalize();
+    bool fReplacementAdded = false;
+    bool fReplaced = false;
+    boost::signals2::scoped_connection replaceBatch(
+        uiInterface.UpdateProgressBarLabel.connect(
+            [&](const std::string&) {
+                if (fReplaced)
+                    return;
+                fReplaced = true;
+                container->init(true);
+                fReplacementAdded = container->add(
+                    invalidSpend, spendTxB.GetHash());
+                container->finalize();
+            }));
+    BOOST_CHECK(!container->verify_pending());
+    replaceBatch.disconnect();
+    BOOST_REQUIRE(fReplaced);
+    BOOST_REQUIRE(fReplacementAdded);
+    container->remove(invalidSpend);
+    BOOST_CHECK(container->verify_pending());
+
+    // Recent blocks verify collected proofs per block without touching the
+    // deferred cross-block batch.
+    container->init(true);
+    addValidSpend();
+    BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+
+    container->init(true);
+    BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
+    BOOST_CHECK(!container->verify_block_batch());
+    BOOST_CHECK(container->verify_block_batch());
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+
+    // Empty deferred finalize must not write sparkbatchfailed.
+    container->init(true);
+    container->finalize();
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+
     collectSpend();
-    container->fCollectProofs = true;
-    container->init();
-    container->add(invalidSpend, spendTxB.GetHash());
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+
+    // Checking a pending batch while collection is active must not close the
+    // collection window or drop temps already enqueued.
+    container->init(true);
+    BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(container->add(invalidSpend, spendTxB.GetHash()));
+    container->finalize();
+    BOOST_CHECK(!container->verify_pending());
+    container->remove(invalidSpend);
+    BOOST_CHECK(container->verify_pending());
+
+    collectSpend();
+    container->init(true);
+    BOOST_REQUIRE(container->add(invalidSpend, spendTxB.GetHash()));
     container->finalize();
 
     // A batch holding a valid and an invalid proof fails and latches.

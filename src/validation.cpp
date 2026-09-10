@@ -2307,10 +2307,17 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
-static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
+static bool ShouldDeferSparkBatchVerification(const CBlockIndex* pindex)
 {
-    // Defer Spark proof verification for blocks older than a day, which means we are syncing or reindexing
-    return ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+    // Defer Spark proof verification for blocks older than a day (IBD/reindex).
+    // GetTime() is mockable so -mocktime RPC tests use the same recent vs deferred
+    // split as a live node; wall-clock time would treat 2014 mocktime chains as IBD.
+    return ((GetTime() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+}
+
+static bool ShouldCollectSparkProofs()
+{
+    return GetBoolArg("-batching", true);
 }
 
 bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
@@ -2797,10 +2804,22 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
-    // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
+    // Batch Spark proofs when enabled; old blocks defer verify, recent blocks verify per block.
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindex);
-    batchProofContainer->init();
+    const bool fDeferBatchVerify = ShouldDeferSparkBatchVerification(pindex);
+    const bool fCollectSparkProofs =
+        ShouldCollectSparkProofs() && !fJustCheck && !isVerifyDB;
+    batchProofContainer->init(fCollectSparkProofs);
+    struct BatchTempCleanup
+    {
+        BatchProofContainer* container;
+        bool merged = false;
+        ~BatchTempCleanup()
+        {
+            if (!merged)
+                container->discard_temps();
+        }
+    } batchTempCleanup{batchProofContainer};
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -3023,6 +3042,27 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
+    // After InstantSend filtering so a conflicting block still returns
+    // conflict-tx-lock instead of a Spark-batch reject, and collection stays
+    // open through ProcessSpecialTxsInBlock as it did on master.
+    if (fCollectSparkProofs && !fDeferBatchVerify) {
+        batchTempCleanup.merged = true;
+        bool batchVerified = false;
+        try {
+            batchVerified = batchProofContainer->verify_block_batch();
+        } catch (const std::bad_alloc&) {
+            return state.Error(
+                "ConnectBlock(): memory allocation failed during Spark batch verification");
+        }
+        if (!batchVerified) {
+            return state.DoS(
+                100,
+                error("ConnectBlock(): Spark batch proof verification failed"),
+                REJECT_INVALID,
+                "bad-spark-batch-proof");
+        }
+    }
+
     int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
     LogPrint("bench", "      - IS filter: %.2fms [%.2fs]\n", 0.001 * (nTime5_1 - nTime4), nTimeISFilter * 0.000001);
 
@@ -3115,8 +3155,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
 
-    // do batch verification if remains a day or collect proofs
-    batchProofContainer->finalize();
+    // Merge this block's collected Spark proofs into the deferred batch.
+    if (fDeferBatchVerify)
+        batchProofContainer->finalize();
+    batchTempCleanup.merged = true;
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint("bench", "    - Index writing: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeIndex * 0.000001);
@@ -3988,11 +4030,11 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                 for (unsigned int i = 0; i < block.vtx.size(); i++)
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
-            BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-            batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
-            if (!VerifyPendingSparkBatch(state, "connecting new tip"))
-                return false;
         }
+
+        if (!ShouldDeferSparkBatchVerification(pindexNewTip) &&
+            !VerifyPendingSparkBatch(state, "connecting new tip"))
+            return false;
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 

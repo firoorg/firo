@@ -53,9 +53,7 @@ class SparkMintSpendTest(BitcoinTestFramework):
             assert tr_type == 'mint', 'Unexpected transaction type: {}'.format(tr_type)
             # assert(self.wait_for_instantlock(tr, self.nodes[0]))
 
-        self.nodes[0].generate(1)
-        self.sync_all()
-
+        # Unconfirmed mints cannot be spent (wallet treats nHeight < 1 as immature).
         res = False
         firoAddress = self.nodes[0].getnewaddress()
         try:
@@ -65,7 +63,12 @@ class SparkMintSpendTest(BitcoinTestFramework):
 
         assert not res, 'Did not raise spend exception, but should be.'
 
-        # generate last confirmation block - now all transactions should be confimed
+        # This test has no quorum to InstantLock the mints, so age them past
+        # WAIT_FOR_ISLOCK_TIMEOUT before mining their first confirmation.
+        set_node_times(self.nodes, int(time()) + 10 * 60 + 1)
+
+        # One confirmation is enough to spend (ZC_MINT_CONFIRMATIONS == 1), and
+        # two minted coins make a valid cover set.
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -73,8 +76,8 @@ class SparkMintSpendTest(BitcoinTestFramework):
             info = self.nodes[0].gettransaction(tr[0])
             confrms = info['confirmations']
             assert confrms >= 1, \
-              'Confirmations should be 3, ' \
-              'due to 3 blocks was generated after transaction was created,' \
+              'Confirmations should be 1, ' \
+              'due to 1 block was generated after transaction was created,' \
               'but was {}.'.format(confrms)
             tr_type = info['details'][0]['category']
             assert tr_type == 'mint', 'Unexpected transaction type'

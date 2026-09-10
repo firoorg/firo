@@ -33,8 +33,10 @@ class LLMQ_IS_RetroactiveSigning(EvoZnodeTestFramework):
 
         self.log.info("trying normal IS lock")
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
-        # 3 nodes should be enough to create an IS lock even if nodes 4 and 5 (which have no tx itself)
-        # are the only "neighbours" in intra-quorum connections for one of them.
+        # Nodes 4 and 5 reject the tx (high minrelaytxfee). The remaining 3
+        # quorum members must see it before an IS lock can form.
+        for node in self.nodes[1:4]:
+            self.wait_for_tx(txid, node)
         self.wait_for_instantlock(txid, self.nodes[0], do_assert=True)
         set_mocktime(get_mocktime() + 1)
         set_node_times(self.nodes, get_mocktime())

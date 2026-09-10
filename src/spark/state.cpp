@@ -1066,7 +1066,7 @@ bool CheckSparkSpendTransaction(
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
+    bool fUseBatching = !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
         const uint64_t wireGroupId = idAndHash.first;
@@ -1214,13 +1214,14 @@ bool CheckSparkSpendTransaction(
     
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
-    if (useBatching) {
+    bool fAddedToBatch = false;
+    if (fUseBatching) {
+        fAddedToBatch = isChaumV2 || requireChaumV1SingleInput
+            ? batchProofContainer->add(*spend, hashTx)
+            : batchProofContainer->addHistorical(*spend, hashTx);
+    }
+    if (fAddedToBatch) {
         passVerify = true;
-        if (isChaumV2 || requireChaumV1SingleInput) {
-            batchProofContainer->add(*spend, hashTx);
-        } else {
-            batchProofContainer->addHistorical(*spend, hashTx);
-        }
     } else {
         try {
             bool haveCachedSuccess = false;
@@ -1919,14 +1920,11 @@ CSparkState* CSparkState::GetState() {
 void CSparkState::GetCoinSet(
         int coinGroupID,
         std::vector<spark::Coin>& coins_out) {
-    int maxHeight;
     uint256 blockHash;
     std::vector<unsigned char> setHash;
-    {
-        FIRO_UNUSED const auto &params = ::Params().GetConsensus();
-        LOCK(cs_main);
-        maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
-    }
+    FIRO_UNUSED const auto& params = ::Params().GetConsensus();
+    LOCK(cs_main);
+    int maxHeight = chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1);
     GetCoinSetForSpend(
             &chainActive,
             maxHeight,
