@@ -601,6 +601,28 @@ BOOST_FIXTURE_TEST_CASE(dip3_invalidate_does_not_reuse_cached_descendant_mn_list
     BOOST_CHECK_EQUAL(deterministicMNManager->GetListForBlock(chainActive.Tip()).GetAllMNsCount(), dmnHashes.size());
 }
 
+BOOST_FIXTURE_TEST_CASE(dip3_invalidate_preserves_orphan_mn_list, TestChainDIP3Setup)
+{
+    auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
+    auto payoutScript = GetCoinbaseKeyScript(coinbaseKey);
+    int port = 12500;
+
+    auto dmnHashes = RegisterDeterministicMNs(*this, utxos, 3, port, payoutScript);
+    auto orphanTip = chainActive.Tip();
+    const auto orphanHash = orphanTip->GetBlockHash();
+    const auto orphanHeight = orphanTip->nHeight;
+
+    InvalidateBlockAndUpdateMNManager(orphanHash);
+
+    const auto orphanList = deterministicMNManager->GetListForBlock(orphanTip);
+    BOOST_CHECK_EQUAL(orphanList.GetBlockHash().ToString(), orphanHash.ToString());
+    BOOST_CHECK_EQUAL(orphanList.GetHeight(), orphanHeight);
+    BOOST_REQUIRE_EQUAL(orphanList.GetAllMNsCount(), dmnHashes.size());
+    for (const auto& proTxHash : dmnHashes) {
+        BOOST_CHECK(orphanList.HasMN(proTxHash));
+    }
+}
+
 BOOST_FIXTURE_TEST_CASE(dip3_invalidate_pure_disconnect_notification_updates_tip_list, TestChainDIP3Setup)
 {
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
