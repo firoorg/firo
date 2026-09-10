@@ -228,6 +228,14 @@ public:
     mutable CCriticalSection cs_spark_wallet;
 
 private:
+    struct IdentifiedMint {
+        CSparkMintMeta meta;
+        GroupElement lTag;
+    };
+
+    IdentifiedMint IdentifyMint(spark::Coin coin, const uint256& txHash) const;
+    void RecordMint(IdentifiedMint mint, CWalletDB& walletdb);
+
     std::string strWalletFile;
     // this is latest used diversifier
     int32_t lastDiversifier GUARDED_BY(cs_spark_wallet);

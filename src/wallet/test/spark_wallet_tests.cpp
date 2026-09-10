@@ -190,6 +190,79 @@ BOOST_AUTO_TEST_CASE(list_spark_mints)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
+{
+    GenerateBlocks(1001);
+    auto* wallet = pwalletMain->sparkWallet.get();
+    const spark::SpendKey foreignSpendKey(params);
+    const spark::FullViewKey foreignFullViewKey(foreignSpendKey);
+    const spark::IncomingViewKey foreignViewKey(foreignFullViewKey);
+    const std::vector<spark::MintedCoinData> outputs = {
+        {wallet->getDefaultAddress(), 2 * COIN, "wallet mint"},
+        {spark::Address(foreignViewKey, 0), 3 * COIN, "foreign mint"},
+    };
+    std::vector<std::pair<CWalletTx, CAmount>> transactions;
+    BOOST_REQUIRE_EQUAL(pwalletMain->MintAndStoreSpark(outputs, transactions, false, true), "");
+    BOOST_REQUIRE_EQUAL(transactions.size(), 1);
+    const auto* index = GenerateBlock({CMutableTransaction(*transactions[0].first.tx)});
+    BOOST_REQUIRE(index);
+    const CBlock block = GetCBlock(index);
+    wallet->FinishTasks();
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    const auto initial = wallet->getMintMap();
+    BOOST_REQUIRE_EQUAL(initial.size(), 1);
+    const auto lTagHash = initial.begin()->first;
+    const auto expected = initial.begin()->second;
+
+    // Rediscover the owned output through the block worker, without cached metadata.
+    wallet->eraseMint(lTagHash, walletdb);
+    wallet->UpdateMintStateFromBlock(block);
+    wallet->FinishTasks();
+    const auto scanned = wallet->getMintMap();
+    BOOST_REQUIRE_EQUAL(scanned.size(), 1);
+    BOOST_REQUIRE(scanned.count(lTagHash));
+    const auto& actual = scanned.at(lTagHash);
+    BOOST_CHECK_EQUAL(actual.nHeight, index->nHeight);
+    BOOST_CHECK_EQUAL(actual.nId, expected.nId);
+    BOOST_CHECK_EQUAL(actual.v, 2 * COIN);
+    BOOST_CHECK_EQUAL(actual.memo, "wallet mint");
+    BOOST_CHECK(actual.txid == expected.txid);
+    BOOST_CHECK(actual.coin == expected.coin);
+    BOOST_CHECK(actual.serial_context == expected.serial_context);
+    BOOST_CHECK(!actual.isUsed);
+    BOOST_CHECK(wallet->validateLookupIndexes());
+    CSparkMintMeta persisted;
+    BOOST_REQUIRE(walletdb.ReadSparkMint(lTagHash, persisted));
+    BOOST_CHECK_EQUAL(persisted.nHeight, actual.nHeight);
+    BOOST_CHECK_EQUAL(persisted.v, actual.v);
+    BOOST_CHECK(persisted.coin == actual.coin);
+
+    // The worker may identify coins now, but cannot record them until cs_main is released.
+    // Disconnect first: a queued scan must not resurrect the removed wallet mint.
+    {
+        LOCK(cs_main);
+        wallet->UpdateMintStateFromBlock(block);
+        BOOST_REQUIRE(DisconnectBlocks(1));
+        // Discard the resurrected mempool mint as well, leaving only the stale block job.
+        mempool.clear();
+        txpools.getStemTxPool().clear();
+        wallet->eraseMint(lTagHash, walletdb);
+    }
+    wallet->FinishTasks();
+    BOOST_CHECK(wallet->getMintMap().empty());
+    BOOST_CHECK(!walletdb.ReadSparkMint(lTagHash, persisted));
+    BOOST_CHECK(wallet->validateLookupIndexes());
+
+    CValidationState state;
+    BOOST_REQUIRE(ActivateBestChain(state, ::Params(), std::make_shared<CBlock>(block)));
+    wallet->FinishTasks();
+    BOOST_CHECK_EQUAL(wallet->getMintMap().size(), 1);
+    BOOST_REQUIRE(walletdb.ReadSparkMint(lTagHash, persisted));
+    BOOST_CHECK_EQUAL(persisted.nHeight, index->nHeight);
+    spark::CSparkState::GetState()->Reset();
+}
+
 
 BOOST_AUTO_TEST_CASE(spend)
 {
