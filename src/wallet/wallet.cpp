@@ -1623,6 +1623,10 @@ isminetype CWallet::IsMine(const CTxOut &txout, const CTransaction& tx) const
 {
     LOCK(cs_wallet);
 
+    // SMint values are authenticated by the containing Spark spend proof.
+    if (txout.scriptPubKey.IsSparkSMint() && !tx.IsSparkSpend())
+        return ISMINE_NO;
+
     if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
         if (serialContext.empty())
@@ -1675,6 +1679,8 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const CTransaction& tx, const is
         throw std::runtime_error(std::string(__func__) + ": value out of range");
 
     if (txout.scriptPubKey.IsSparkSMint()) {
+        if (!tx.IsSparkSpend())
+            return 0;
         if (!(filter & ISMINE_SPENDABLE))
             return 0;
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
@@ -1734,6 +1740,8 @@ bool CWallet::IsMine(const CTransaction& tx) const
             return false;
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
         for (const auto& txout : tx.vout) {
+            if (txout.scriptPubKey.IsSparkSMint() && !tx.IsSparkSpend())
+                continue;
             if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
                 spark::Coin coin(spark::Params::get_default());
                 try {
