@@ -396,7 +396,8 @@ std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
         std::vector<unsigned char> serial_context = getSerialContext(tx);
         for (const auto& vout : tx.vout) {
             const auto& script = vout.scriptPubKey;
-            if (script.IsSparkMint() || script.IsSparkSMint()) {
+            if (script.IsSparkMint() ||
+                    (script.IsSparkSMint() && tx.IsSparkSpend())) {
                 try {
                     spark::Coin coin(Params::get_default());
                     ParseSparkMintCoin(script, coin);
@@ -1478,7 +1479,8 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
     for (CTransactionRef tx : block.vtx){
         uint32_t nIndex = 0;
         for (const CTxOut &txout : tx->vout) {
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
+            if (txout.scriptPubKey.IsSparkMint() ||
+                    (txout.scriptPubKey.IsSparkSMint() && tx->IsSparkSpend())) {
                 try {
                     ParseSparkMintCoin(txout.scriptPubKey, txCoin);
                 }
