@@ -35,6 +35,9 @@ class GetBlockTemplateCoinbaseMessageTest(BitcoinTestFramework):
 
     def run_test(self):
         node = self.nodes[0]
+        now = int(time.time())
+        for peer in self.nodes:
+            peer.setmocktime(now)
         node.generate(1)  # getblocktemplate refuses to work on a stale tip
         sync_blocks(self.nodes)
         address = node.getnewaddress()
@@ -52,19 +55,52 @@ class GetBlockTemplateCoinbaseMessageTest(BitcoinTestFramework):
         world = node.getblocktemplate({'coinbase_message': 'world'}, address)
         assert world['pprpcheader'] not in (plain['pprpcheader'], hello['pprpcheader'])
 
+        other = node.getblocktemplate({'coinbase_message': 'hello'}, node.getnewaddress())
+        assert other['pprpcheader'] != hello['pprpcheader']
+        assert_equal(node.getblocktemplate({'coinbase_message': 'hello'}, address)['pprpcheader'], hello['pprpcheader'])
+
         # An empty message gives back the job built from the original coinbase
         assert_equal(node.getblocktemplate({'coinbase_message': ''}, address)['pprpcheader'], plain['pprpcheader'])
 
-        # Every job handed out can still be submitted: a wrong solution is a bad solution, not an unknown job
-        for header in (plain['pprpcheader'], hello['pprpcheader'], world['pprpcheader']):
-            assert_raises_jsonrpc(RPC_INVALID_PARAMS, 'Bad solution', node.pprpcsb, header, '00' * 32, '0x1')
+        # A message without a reward address is echoed, but its job is not saved
+        unsaved = node.getblocktemplate({'coinbase_message': 'hello'})
+        assert_equal(unsaved['coinbase_message'], 'hello')
+        assert_raises_jsonrpc(RPC_INVALID_PARAMS, 'Job not found', node.pprpcsb, unsaved['pprpcheader'], '00' * 32, '0x1')
 
         # 80 UTF-8 bytes fit, more do not, and the value must be a string
         longest = 'a' * 80
-        assert_equal(node.getblocktemplate({'coinbase_message': longest}, address)['coinbase_message'], longest)
+        ascii_limit = node.getblocktemplate({'coinbase_message': longest}, address)
+        assert_equal(ascii_limit['coinbase_message'], longest)
+        utf8_limit = node.getblocktemplate({'coinbase_message': 'é' * 40}, address)
+        assert_equal(utf8_limit['coinbase_message'], 'é' * 40)
         assert_raises_jsonrpc(RPC_INVALID_PARAMETER, 'too long', node.getblocktemplate, {'coinbase_message': longest + 'a'}, address)
         assert_raises_jsonrpc(RPC_INVALID_PARAMETER, 'too long', node.getblocktemplate, {'coinbase_message': 'é' * 41}, address)
         assert_raises_jsonrpc(RPC_TYPE_ERROR, 'must be a string', node.getblocktemplate, {'coinbase_message': 1}, address)
+
+        # Saved jobs reach solution checking, including both 80-byte message encodings
+        for job in (plain, hello, world, other, ascii_limit, utf8_limit):
+            assert_raises_jsonrpc(RPC_INVALID_PARAMS, 'Bad solution', node.pprpcsb, job['pprpcheader'], '00' * 32, '0x1')
+
+        # Start with an empty cache and give each of its 64 jobs a distinct timestamp
+        node.setmocktime(now + 1)
+        node.generate(1)
+        sync_blocks(self.nodes)
+        headers = []
+        for i in range(64):
+            node.setmocktime(now + 2 + i)
+            headers.append(node.getblocktemplate({'coinbase_message': str(i)}, address)['pprpcheader'])
+
+        # Reusing a job or requesting an unsaved job must not evict anything at capacity
+        node.setmocktime(now + 66)
+        assert_equal(node.getblocktemplate({'coinbase_message': '63'}, address)['pprpcheader'], headers[-1])
+        node.getblocktemplate({'coinbase_message': 'unsaved'})
+        assert_raises_jsonrpc(RPC_INVALID_PARAMS, 'Bad solution', node.pprpcsb, headers[0], '00' * 32, '0x1')
+
+        # Saving one more job evicts only the oldest timestamp
+        newest = node.getblocktemplate({'coinbase_message': 'overflow'}, address)['pprpcheader']
+        assert_raises_jsonrpc(RPC_INVALID_PARAMS, 'Job not found', node.pprpcsb, headers[0], '00' * 32, '0x1')
+        for header in (headers[1], headers[-1], newest):
+            assert_raises_jsonrpc(RPC_INVALID_PARAMS, 'Bad solution', node.pprpcsb, header, '00' * 32, '0x1')
 
 
 if __name__ == '__main__':

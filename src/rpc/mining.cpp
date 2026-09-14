@@ -31,6 +31,7 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 
+#include <algorithm>
 #include <utility>      // std::pair
 #include <memory>
 #include <stdint.h>
@@ -46,6 +47,9 @@ extern CTxPoolAggregate txpools;
  * ProgPow
  */
 std::map<std::string, CBlock> mapPPBlockTemplates;
+
+/** Bound retained jobs and cache scans while holding cs_main. */
+static constexpr size_t MAX_PP_BLOCK_TEMPLATES = 64;
 
 /** Maximum length in bytes of a miner-supplied coinbase message (getblocktemplate "coinbase_message") */
 static const size_t MAX_COINBASE_MESSAGE_SIZE = 80;
@@ -439,7 +443,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             "           \"support\"          (string) client side supported softfork deployment\n"
             "           ,...\n"
             "       ],\n"
-            "       \"coinbase_message\":\"text\" (string, optional) text (at most 80 UTF-8 bytes) to put in the coinbase of the block built for pprpcsb; needs reward_address\n"
+            "       \"coinbase_message\":\"text\" (string, optional) text (at most 80 UTF-8 bytes) to put in the coinbase; reward_address is required to retain the job for pprpcsb\n"
             "     }\n"
             "2. reward_address          (string, optional) address for reward in coinbase (meaningful only if block solution is later submitter with pprpcsb)\n"
             "\n"
@@ -893,7 +897,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
     if (pblock->IsProgPow()) {
         // Reuse a fresh job that was built for the same coinbase (reward address and message).
-        // Jobs of other callers stay in the cache so that they can still be submitted with pprpcsb.
+        // Retain other jobs for pprpcsb until the template is rebuilt or the cache is full.
         std::string header;
         for (const auto& entry : mapPPBlockTemplates) {
             if (entry.second.vtx[0]->GetHash() == pblock->vtx[0]->GetHash() && (pblock->nTime - 30) < entry.second.nTime) {
@@ -904,9 +908,14 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         if (header.empty()) {
             pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
             header = pblock->GetProgPowHeaderHash().GetHex();
-            if (fRewardAddressSet)
-                // don't bother to save block unless reward address is set
+            if (fRewardAddressSet) {
+                if (mapPPBlockTemplates.size() >= MAX_PP_BLOCK_TEMPLATES) {
+                    const auto oldest = std::min_element(mapPPBlockTemplates.begin(), mapPPBlockTemplates.end(),
+                        [](const auto& a, const auto& b) { return a.second.nTime < b.second.nTime; });
+                    mapPPBlockTemplates.erase(oldest);
+                }
                 mapPPBlockTemplates[header] = *pblock;
+            }
         }
         result.pushKV("pprpcheader", header);
         result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));

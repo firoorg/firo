@@ -39,7 +39,10 @@ RPC
 
 - `getblocktemplate`: the template request accepts `coinbase_message`, a text of
   at most 80 UTF-8 bytes that is put into the coinbase of the block the node
-  builds for `pprpcsb`. The result echoes it as `coinbase_message`.
+  builds for `pprpcsb`. The result echoes it as `coinbase_message` even without
+  a `reward_address`, which is required to retain the job for submission.
+  Up to 64 jobs are kept; adding a job at this limit evicts the job with the
+  oldest block timestamp, and rebuilding the template drops all jobs.
 
 - `getsparknametxdetails`: For confirmed Spark name transactions, `validUntil`
   reports the expiry height recorded in the containing block
