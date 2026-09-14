@@ -5599,6 +5599,412 @@ UniValue listrapaddresses(const JSONRPCRequest& request)
     return result;
 }
 
+UniValue listbip47addresses(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() > 2)
+        throw std::runtime_error(
+            "listbip47addresses ( \"rapaddress\" include_unused )\n"
+            "\nLists every individual address derived from the BIP47 (RAP) payment codes known to this wallet.\n"
+            "\nBoth sides of every payment channel are reported: the addresses this wallet derives for itself in\n"
+            "order to receive payments from a counterparty, and the addresses it derives for a counterparty in\n"
+            "order to pay them. Use listrapaddresses to list the payment codes themselves.\n"
+            "\nArguments:\n"
+            "1. \"rapaddress\"        (string, optional) Only list addresses belonging to this payment code. Matches\n"
+            "                       either one of our own receiving RAP addresses or a counterparty's RAP address.\n"
+            "2. include_unused      (boolean, optional, default=true) Include addresses that have not been used yet:\n"
+            "                       the lookahead window on the receiving side, the next payment address on the sending side.\n"
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"address\": \"addr\",            (string) The derived Firo address\n"
+            "    \"purpose\": \"receive|send\",    (string) \"receive\" if this wallet derived the address for itself,\n"
+            "                                   \"send\" if it belongs to the counterparty\n"
+            "    \"type\": \"payment|notification\", (string) Payment addresses carry funds; a notification address only\n"
+            "                                   establishes the payment channel\n"
+            "    \"label\": \"label\",             (string) Label of the payment code the address belongs to\n"
+            "    \"account\": n,                 (numeric) BIP47 account number\n"
+            "    \"ismine\": true|false,         (boolean) Whether this wallet currently holds the private key\n"
+            "    \"used\": true|false,           (boolean) Whether the address is marked as used (payment addresses only)\n"
+            "    \"index\": n,                   (numeric) Derivation index within the payment channel (payment addresses only)\n"
+            "    \"myrapaddress\": \"pcode\",      (string) Our own payment code the address was derived for (receive side only)\n"
+            "    \"theirrapaddress\": \"pcode\",   (string) The counterparty payment code the address was derived with\n"
+            "    \"notificationtxid\": \"txid\"    (string) Notification transaction id (sending notification addresses only)\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listbip47addresses", "")
+            + HelpExampleCli("listbip47addresses", "\"PM8TJhRurmJyQdwJPqbetJCEnZP4t2Wr5WbeFo5Q8uTxfk2LcHkTQRYkNHQZDpBtqE7JAo1WYX5zS7yhxRQEDA9Z1ExtpvEA6rDAhSDeZE1qjTLoMRcB\" false")
+            + HelpExampleRpc("listbip47addresses", "\"PM8TJhRurmJyQdwJPqbetJCEnZP4t2Wr5WbeFo5Q8uTxfk2LcHkTQRYkNHQZDpBtqE7JAo1WYX5zS7yhxRQEDA9Z1ExtpvEA6rDAhSDeZE1qjTLoMRcB\", false")
+        );
+
+    std::string pcodeFilter;
+    if (request.params.size() > 0 && !request.params[0].isNull()) {
+        pcodeFilter = request.params[0].get_str();
+        if (!pcodeFilter.empty() && !bip47::CPaymentCode::validate(pcodeFilter))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid RAP address: " + pcodeFilter);
+    }
+
+    bool includeUnused = true;
+    if (request.params.size() > 1 && !request.params[1].isNull())
+        includeUnused = request.params[1].get_bool();
+
+    UniValue result(UniValue::VARR);
+
+    LOCK(pwallet->cs_wallet);
+
+    std::shared_ptr<bip47::CWallet const> const bip47wallet = pwallet->GetBip47Wallet();
+    if (!bip47wallet)
+        return result;
+
+    auto pcodeMatches = [&pcodeFilter](bip47::CPaymentCode const & pcode)->bool {
+        return pcodeFilter.empty() || pcode.toString() == pcodeFilter;
+    };
+
+    auto makeEntry = [pwallet](CBitcoinAddress const & address, char const * purpose, char const * type, std::string const & label, uint32_t accountNum)->UniValue {
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("address", address.ToString()));
+        entry.push_back(Pair("purpose", purpose));
+        entry.push_back(Pair("type", type));
+        entry.push_back(Pair("label", label));
+        entry.push_back(Pair("account", uint64_t(accountNum)));
+        entry.push_back(Pair("ismine", IsMine(*pwallet, address.Get()) != ISMINE_NO));
+        return entry;
+    };
+
+    /* Receiving side: one account per payment code we published, one payment channel per
+     * counterparty that sent us a notification transaction. */
+    bip47wallet->enumerateReceivers(
+        [&](bip47::CAccountReceiver const & receiver)->bool
+        {
+            bip47::CPaymentCode const & myPcode = receiver.getMyPcode();
+            bool const myPcodeMatches = pcodeMatches(myPcode);
+
+            if (myPcodeMatches) {
+                UniValue entry = makeEntry(receiver.getMyNotificationAddress(), "receive", "notification", receiver.getLabel(), receiver.getAccountNum());
+                entry.push_back(Pair("myrapaddress", myPcode.toString()));
+                result.push_back(entry);
+            }
+
+            for (bip47::CPaymentChannel const & pchannel : receiver.getPchannels()) {
+                bip47::CPaymentCode const & theirPcode = pchannel.getTheirPcode();
+                if (!myPcodeMatches && !pcodeMatches(theirPcode))
+                    continue;
+
+                size_t index = 0;
+                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyUsedAddresses()) {
+                    UniValue entry = makeEntry(addr.first, "receive", "payment", receiver.getLabel(), receiver.getAccountNum());
+                    entry.push_back(Pair("used", true));
+                    entry.push_back(Pair("index", uint64_t(index++)));
+                    entry.push_back(Pair("myrapaddress", myPcode.toString()));
+                    entry.push_back(Pair("theirrapaddress", theirPcode.toString()));
+                    result.push_back(entry);
+                }
+
+                if (!includeUnused)
+                    continue;
+
+                /* The lookahead window continues right after the last used address. */
+                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyNextAddresses()) {
+                    UniValue entry = makeEntry(addr.first, "receive", "payment", receiver.getLabel(), receiver.getAccountNum());
+                    entry.push_back(Pair("used", false));
+                    entry.push_back(Pair("index", uint64_t(index++)));
+                    entry.push_back(Pair("myrapaddress", myPcode.toString()));
+                    entry.push_back(Pair("theirrapaddress", theirPcode.toString()));
+                    result.push_back(entry);
+                }
+            }
+            return true;
+        }
+    );
+
+    /* Sending side: one account per counterparty payment code we pay to. These addresses
+     * belong to the counterparty, so the wallet never holds their keys. */
+    bip47wallet->enumerateSenders(
+        [&](bip47::CAccountSender const & sender)->bool
+        {
+            bip47::CPaymentCode const & theirPcode = sender.getTheirPcode();
+            if (!pcodeMatches(theirPcode))
+                return true;
+
+            std::string const label = pwallet->GetSendingPcodeLabel(theirPcode);
+
+            UniValue notification = makeEntry(theirPcode.getNotificationAddress(), "send", "notification", label, sender.getAccountNum());
+            notification.push_back(Pair("theirrapaddress", theirPcode.toString()));
+            uint256 const notificationTxId = sender.getNotificationTxId();
+            if (!notificationTxId.IsNull())
+                notification.push_back(Pair("notificationtxid", notificationTxId.ToString()));
+            result.push_back(notification);
+
+            size_t index = 0;
+            for (bip47::TheirAddrContT::value_type const & addr : sender.getTheirUsedAddresses()) {
+                UniValue entry = makeEntry(addr, "send", "payment", label, sender.getAccountNum());
+                entry.push_back(Pair("used", true));
+                entry.push_back(Pair("index", uint64_t(index++)));
+                entry.push_back(Pair("theirrapaddress", theirPcode.toString()));
+                result.push_back(entry);
+            }
+
+            if (includeUnused) {
+                UniValue entry = makeEntry(sender.getTheirNextSecretAddress(), "send", "payment", label, sender.getAccountNum());
+                entry.push_back(Pair("used", false));
+                entry.push_back(Pair("index", uint64_t(index)));
+                entry.push_back(Pair("theirrapaddress", theirPcode.toString()));
+                result.push_back(entry);
+            }
+            return true;
+        }
+    );
+
+    return result;
+}
+
+namespace {
+/**
+ * Collects the scriptPubKeys of every address the wallet derives for itself from its BIP47
+ * accounts: the notification address of each receiving account, plus the used and lookahead
+ * addresses of each of that account's payment channels. Addresses derived for a counterparty
+ * belong to them, not to us, so they are deliberately left out.
+ */
+std::set<CScript> GetBip47OwnScripts(CWallet * const pwallet)
+{
+    std::set<CScript> scripts;
+
+    std::shared_ptr<bip47::CWallet const> const bip47wallet = pwallet->GetBip47Wallet();
+    if (!bip47wallet)
+        return scripts;
+
+    bip47wallet->enumerateReceivers(
+        [&scripts](bip47::CAccountReceiver const & receiver)->bool
+        {
+            scripts.insert(GetScriptForDestination(receiver.getMyNotificationAddress().Get()));
+            for (bip47::CPaymentChannel const & pchannel : receiver.getPchannels()) {
+                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyUsedAddresses())
+                    scripts.insert(GetScriptForDestination(addr.first.Get()));
+                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyNextAddresses())
+                    scripts.insert(GetScriptForDestination(addr.first.Get()));
+            }
+            return true;
+        }
+    );
+    return scripts;
+}
+}
+
+UniValue sweepbip47addresses(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+        throw std::runtime_error(
+            "sweepbip47addresses \"address\" ( include_locked )\n"
+            "\nSpends every available output held on this wallet's BIP47 (RAP) addresses to a single destination.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nThe destination may be a transparent Firo address or a Spark address; sending to a Spark address\n"
+            "mints the swept funds into Spark. The whole balance is sent, so the transaction fee is always taken\n"
+            "out of the swept amount and no change is left behind.\n"
+            "\nOnly addresses this wallet derived for itself are swept, never the ones derived for a counterparty.\n"
+            "\nArguments:\n"
+            "1. \"address\"         (string, required) The transparent Firo address or Spark address to send to\n"
+            "2. include_locked    (boolean, optional, default=false) Also spend locked BIP47 outputs. The wallet\n"
+            "                     locks the output of every notification transaction it receives, so those funds\n"
+            "                     stay put unless this is set. Locks are restored if the sweep fails.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"destination\": \"address\",   (string) The address the funds were sent to\n"
+            "  \"destinationtype\": \"type\",  (string) \"transparent\" or \"spark\"\n"
+            "  \"amount\": n,                (numeric) The total value of the swept outputs, before the fee\n"
+            "  \"fee\": n,                   (numeric) The fee taken out of that amount\n"
+            "  \"inputs\": n,                (numeric) How many outputs were spent\n"
+            "  \"txids\": [                  (array) The transaction ids\n"
+            "    \"txid\",                    (string)\n"
+            "    ...\n"
+            "  ],\n"
+            "  \"skippedlocked\": {          (object, optional) Present when locked outputs were left behind\n"
+            "    \"count\": n,               (numeric) How many locked outputs were skipped\n"
+            "    \"amount\": n               (numeric) Their total value\n"
+            "  }\n"
+            "}\n"
+            "\nExamples:\n"
+            "\nSweep every BIP47 address to a transparent address:\n"
+            + HelpExampleCli("sweepbip47addresses", "\"THhFWpJTDNyo6vL75kpob7UWVfwwp8t6kD\"") +
+            "\nSweep into Spark, including the locked notification outputs:\n"
+            + HelpExampleCli("sweepbip47addresses", "\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\" true")
+            + HelpExampleRpc("sweepbip47addresses", "\"THhFWpJTDNyo6vL75kpob7UWVfwwp8t6kD\", false")
+        );
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    std::string const destStr = request.params[0].get_str();
+
+    bool includeLocked = false;
+    if (request.params.size() > 1 && !request.params[1].isNull())
+        includeLocked = request.params[1].get_bool();
+
+    /* A Spark address is bech32m and fails to decode as anything else, so try it first and
+     * fall back to a transparent address. */
+    spark::Address sparkDest(spark::Params::get_default());
+    bool isSpark = false;
+    {
+        unsigned char coinNetwork = 0;
+        try {
+            coinNetwork = sparkDest.decode(destStr);
+            isSpark = true;
+        } catch (std::exception const &) {
+            isSpark = false;
+        }
+        if (isSpark && coinNetwork != spark::GetNetworkType())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + destStr);
+    }
+
+    CBitcoinAddress transparentDest;
+    if (isSpark) {
+        EnsureSparkWalletIsAvailable();
+        if (!spark::IsSparkAllowed())
+            throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    } else {
+        transparentDest = CBitcoinAddress(destStr);
+        if (!transparentDest.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo or Spark address: ") + destStr);
+    }
+
+    if (pwallet->GetBroadcastTransactions() && !g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
+    CCoinControl coinControl;
+    std::vector<COutPoint> unlockedForSweep;
+    CAmount nTotal = 0, lockedAmount = 0;
+    size_t nInputs = 0, lockedCount = 0;
+
+    {
+        LOCK2(cs_main, pwallet->cs_wallet);
+
+        std::set<CScript> const bip47Scripts = GetBip47OwnScripts(pwallet);
+        if (bip47Scripts.empty())
+            throw JSONRPCError(RPC_WALLET_ERROR, "This wallet has no BIP47 addresses");
+
+        /* AvailableCoins skips locked outputs, so any BIP47 output that is locked has to be
+         * released first to take part in the sweep. */
+        std::vector<COutPoint> locked;
+        pwallet->ListLockedCoins(locked);
+        for (COutPoint const & outpoint : locked) {
+            std::map<uint256, CWalletTx>::const_iterator it = pwallet->mapWallet.find(outpoint.hash);
+            if (it == pwallet->mapWallet.end() || outpoint.n >= it->second.tx->vout.size())
+                continue;
+            CTxOut const & txout = it->second.tx->vout[outpoint.n];
+            if (!bip47Scripts.count(txout.scriptPubKey) || pwallet->IsSpent(outpoint.hash, outpoint.n))
+                continue;
+            ++lockedCount;
+            lockedAmount += txout.nValue;
+            if (includeLocked)
+                unlockedForSweep.push_back(outpoint);
+        }
+        for (COutPoint const & outpoint : unlockedForSweep)
+            pwallet->UnlockCoin(outpoint);
+
+        std::vector<COutput> vCoins;
+        pwallet->AvailableCoins(vCoins, true);
+        for (COutput const & out : vCoins) {
+            if (!out.fSpendable)
+                continue;
+            CTxOut const & txout = out.tx->tx->vout[out.i];
+            if (!bip47Scripts.count(txout.scriptPubKey))
+                continue;
+            coinControl.Select(COutPoint(out.tx->GetHash(), out.i));
+            nTotal += txout.nValue;
+            ++nInputs;
+        }
+    }
+
+    if (nTotal == 0) {
+        LOCK(pwallet->cs_wallet);
+        for (COutPoint const & outpoint : unlockedForSweep)
+            pwallet->LockCoin(outpoint);
+        if (lockedCount > 0)
+            throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strprintf("No spendable funds on BIP47 addresses. %d locked output(s) holding %s were skipped; pass include_locked to spend them too.", lockedCount, FormatMoney(lockedAmount)));
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "No spendable funds on BIP47 addresses");
+    }
+
+    UniValue txids(UniValue::VARR);
+    CAmount nFee = 0;
+
+    try {
+        if (isSpark) {
+            spark::MintedCoinData output;
+            output.address = sparkDest;
+            output.memo = "";
+            output.v = nTotal;
+
+            std::vector<spark::MintedCoinData> outputs{output};
+            std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+            /* fSplit stays off so the whole selection goes into one transaction. */
+            std::string const strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, false, false, false, &coinControl);
+            if (!strError.empty())
+                throw JSONRPCError(RPC_WALLET_ERROR, strError);
+            for (std::pair<CWalletTx, CAmount> const & wtx : wtxAndFee) {
+                txids.push_back(wtx.first.GetHash().GetHex());
+                nFee += wtx.second;
+            }
+        } else {
+            CWalletTx wtxNew;
+            CReserveKey reservekey(pwallet);
+            int nChangePosRet = -1;
+            std::string strError;
+            std::vector<CRecipient> vecSend;
+            CRecipient recipient = {GetScriptForDestination(transparentDest.Get()), nTotal, true};
+            vecSend.push_back(recipient);
+
+            if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFee, nChangePosRet, strError, &coinControl))
+                throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+            /* CTxOut::IsDust() is hardcoded to false in Firo, which also disables the check
+             * inside CreateTransaction that rejects an output driven to or below zero once the
+             * fee has been subtracted from it. Catch that here, before anything is committed. */
+            if (nFee >= nTotal)
+                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strprintf("The swept amount of %s is too small to pay the transaction fee of %s", FormatMoney(nTotal), FormatMoney(nFee)));
+            for (CTxOut const & txout : wtxNew.tx->vout) {
+                if (txout.nValue <= 0)
+                    throw JSONRPCError(RPC_WALLET_ERROR, "Sweep would create an output with no value");
+            }
+
+            CValidationState state;
+            if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state))
+                throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason()));
+
+            txids.push_back(wtxNew.GetHash().GetHex());
+        }
+    } catch (...) {
+        /* Nothing was spent, so put back the locks the sweep lifted. */
+        LOCK(pwallet->cs_wallet);
+        for (COutPoint const & outpoint : unlockedForSweep)
+            pwallet->LockCoin(outpoint);
+        throw;
+    }
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("destination", destStr));
+    result.push_back(Pair("destinationtype", isSpark ? "spark" : "transparent"));
+    result.push_back(Pair("amount", ValueFromAmount(nTotal)));
+    result.push_back(Pair("fee", ValueFromAmount(nFee)));
+    result.push_back(Pair("inputs", uint64_t(nInputs)));
+    result.push_back(Pair("txids", txids));
+    if (!includeLocked && lockedCount > 0) {
+        UniValue skipped(UniValue::VOBJ);
+        skipped.push_back(Pair("count", uint64_t(lockedCount)));
+        skipped.push_back(Pair("amount", ValueFromAmount(lockedAmount)));
+        result.push_back(Pair("skippedlocked", skipped));
+    }
+    return result;
+}
+
 UniValue createrapaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5839,6 +6245,8 @@ static const CRPCCommand commands[] =
     { "bip47",              "createrapaddress",         &createrapaddress,         true,   {} },
     { "bip47",              "sendtorapaddress",         &sendtorapaddress,         true,   {} },
     { "bip47",              "listrapaddresses",         &listrapaddresses,         true,   {} },
+    { "bip47",              "listbip47addresses",       &listbip47addresses,       true,   {"rapaddress","include_unused"} },
+    { "bip47",              "sweepbip47addresses",      &sweepbip47addresses,      false,  {"address","include_locked"} },
     { "bip47",              "setusednumber",            &setusednumber,            true,   {} }
 };
 
