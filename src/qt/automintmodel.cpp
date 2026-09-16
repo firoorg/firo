@@ -111,8 +111,14 @@ void IncomingFundNotifier::check()
 
 void IncomingFundNotifier::importTransactions()
 {
-    LOCK2(cs_main, cs);
-    LOCK(wallet->cs_wallet);
+    TRY_LOCK(cs_main, lockMain);
+    TRY_LOCK(cs, lock);
+    TRY_LOCK(wallet->cs_wallet, lockWallet);
+    if (!lockMain || !lock || !lockWallet) {
+        // This queued startup scan must retry after long-running validation.
+        QTimer::singleShot(MODEL_UPDATE_DELAY, this, &IncomingFundNotifier::importTransactions);
+        return;
+    }
 
     for (auto const &tx : wallet->mapWallet) {
         if (tx.second.GetAvailableCredit() > 0 || tx.second.GetImmatureCredit() > 0) {
@@ -247,6 +253,10 @@ void AutoMintSparkModel::checkAutoMintSpark(bool force)
             return;
         }
 
+        // The periodic check can try again on its next timer tick.
+        TRY_LOCK(cs_main, lockMain);
+        if (!lockMain)
+            return;
         bool allowed = spark::IsSparkAllowed();
         if (!allowed) {
             return;

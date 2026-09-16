@@ -14,8 +14,10 @@
 #include "csvmodelwriter.h"
 #include "editaddressdialog.h"
 #include "createsparknamepage.h"
+#include "guiconstants.h"
 #include "guiutil.h"
 #include "platformstyle.h"
+#include "validation.h"
 #include "bip47/paymentcode.h"
 #include "bip47/paymentchannel.h"
 
@@ -23,6 +25,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
+#include <QTimer>
 
 AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
@@ -219,7 +222,16 @@ void AddressBookPage::setModel(AddressTableModel *_model)
 
 bool AddressBookPage::updateSpark()
 {
-    const bool sparkAllowed = model && model->IsSparkAllowed();
+    bool sparkAllowed;
+    {
+        TRY_LOCK(cs_main, lockMain);
+        if (!lockMain) {
+            // Retry this page even if another page completes the shared refresh.
+            QTimer::singleShot(MODEL_UPDATE_DELAY, this, &AddressBookPage::updateSpark);
+            return false;
+        }
+        sparkAllowed = model && model->IsSparkAllowed();
+    }
     populateAddressTypes(sparkAllowed);
 
     chooseAddressType(0);
