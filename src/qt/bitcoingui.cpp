@@ -23,6 +23,8 @@
 #include "utilitydialog.h"
 
 #ifdef ENABLE_WALLET
+#include "bip47sweepdialog.h"
+#include "bip47sweepmodel.h"
 #include "walletframe.h"
 #include "walletmodel.h"
 #endif // ENABLE_WALLET
@@ -45,8 +47,11 @@
 #include <QApplication>
 #include <QDateTime>
 #include <QDragEnterEvent>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QPushButton>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMenu>
@@ -128,6 +133,11 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     rpcConsole(0),
     helpMessageDialog(0),
     modalOverlay(0),
+#ifdef ENABLE_WALLET
+    bip47Banner(0),
+    bip47BannerLabel(0),
+    bip47WalletModel(0),
+#endif
     prevBlocks(0),
     spinnerFrame(0),
 #ifdef ENABLE_WALLET
@@ -174,9 +184,10 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
 #ifdef ENABLE_WALLET
     if(enableWallet)
     {
-        /** Create wallet frame and make it the central widget */
+        /** Create wallet frame and make it the central widget, with the bip47 reminder banner
+            above it */
         walletFrame = new WalletFrame(_platformStyle, this);
-        setCentralWidget(walletFrame);
+        setCentralWidget(createBip47Banner(walletFrame));
     } else
 #endif // ENABLE_WALLET
     {
@@ -606,6 +617,69 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 }
 
 #ifdef ENABLE_WALLET
+QWidget *BitcoinGUI::createBip47Banner(QWidget *walletFrameWidget)
+{
+    bip47Banner = new QFrame();
+    bip47Banner->setObjectName("bip47Banner");
+    bip47Banner->setStyleSheet("QFrame#bip47Banner { background-color: #fdf1d6; border-bottom: 2px solid #9b1c2e; }");
+    bip47Banner->setVisible(false);
+
+    bip47BannerLabel = new QLabel(tr("This wallet still uses BIP47 (RAP) addresses. You can move everything held on them to a single address of your own."));
+    bip47BannerLabel->setWordWrap(true);
+
+    QPushButton *sweepButton = new QPushButton(tr("Move funds..."));
+    QPushButton *dismissButton = new QPushButton(tr("Don't remind me"));
+    connect(sweepButton, &QPushButton::clicked, this, &BitcoinGUI::bip47SweepClicked);
+    connect(dismissButton, &QPushButton::clicked, this, &BitcoinGUI::bip47DismissClicked);
+
+    QHBoxLayout *bannerLayout = new QHBoxLayout(bip47Banner);
+    bannerLayout->setContentsMargins(12, 6, 12, 6);
+    bannerLayout->setSpacing(12);
+    bannerLayout->addWidget(bip47BannerLabel, 1);
+    bannerLayout->addWidget(sweepButton);
+    bannerLayout->addWidget(dismissButton);
+
+    QWidget *container = new QWidget();
+    QVBoxLayout *containerLayout = new QVBoxLayout(container);
+    containerLayout->setContentsMargins(0, 0, 0, 0);
+    containerLayout->setSpacing(0);
+    containerLayout->addWidget(bip47Banner);
+    containerLayout->addWidget(walletFrameWidget, 1);
+    return container;
+}
+
+void BitcoinGUI::showBip47Banner()
+{
+    if (bip47Banner && bip47WalletModel)
+        bip47Banner->setVisible(true);
+}
+
+void BitcoinGUI::bip47SweepClicked()
+{
+    if (!bip47WalletModel)
+        return;
+
+    Bip47SweepDialog dlg(platformStyle, this);
+    dlg.setModel(bip47WalletModel);
+    if (dlg.exec() == QDialog::Accepted)
+        bip47Banner->setVisible(false);
+}
+
+void BitcoinGUI::bip47DismissClicked()
+{
+    if (!bip47WalletModel)
+        return;
+
+    QMessageBox::StandardButton const reply = QMessageBox::question(this, tr("Move funds off RAP addresses"),
+        tr("The funds on your BIP47 (RAP) addresses will stay where they are, and this reminder will not come back.") + "\n\n" + tr("Continue?"),
+        QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+    if (reply != QMessageBox::Yes)
+        return;
+
+    bip47WalletModel->getBip47SweepModel()->dismiss();
+    bip47Banner->setVisible(false);
+}
+
 bool BitcoinGUI::addWallet(const QString& name, WalletModel *walletModel)
 {
     if(!walletFrame)
@@ -614,6 +688,14 @@ bool BitcoinGUI::addWallet(const QString& name, WalletModel *walletModel)
     const bool walletAdded = walletFrame->addWallet(name, walletModel);
     if (walletAdded && clientModel && !sparkAddressbookUpdated) {
         sparkAddressbookUpdated = walletFrame->updateAddressbook();
+    }
+    if (walletAdded && walletModel && !bip47WalletModel) {
+        /* Looking for bip47 transactions means going through the whole wallet, so it waits for
+         * the chain to be synced and then runs on a thread of its own. */
+        bip47WalletModel = walletModel;
+        Bip47SweepModel *sweepModel = walletModel->getBip47SweepModel();
+        connect(sweepModel, &Bip47SweepModel::bip47TransactionsFound, this, &BitcoinGUI::showBip47Banner);
+        sweepModel->start();
     }
     return walletAdded;
 }
@@ -634,6 +716,9 @@ void BitcoinGUI::removeAllWallets()
     if(!walletFrame)
         return;
     setWalletActionsEnabled(false);
+    bip47WalletModel = 0;
+    if (bip47Banner)
+        bip47Banner->setVisible(false);
     walletFrame->removeAllWallets();
 }
 #endif // ENABLE_WALLET

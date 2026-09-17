@@ -649,6 +649,52 @@ private:
 extern boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
 /**
+ * Everything the bip47 scan reads out of a wallet, copied out under cs_wallet so that the scan
+ * itself can run on a background thread without holding the lock. Transactions are held by
+ * reference, so the copy costs a pointer per wallet transaction rather than a transaction.
+ */
+struct CBip47ScanSnapshot
+{
+    /** Set while taking the snapshot when a bip47 transaction was identified by id already. */
+    bool fFound;
+    std::set<CScript> scripts;
+    std::vector<CTransactionRef> txs;
+
+    CBip47ScanSnapshot(): fFound(false) {}
+};
+
+/** Why a bip47 sweep did not go through, or OK when it did. */
+enum class Bip47SweepStatus
+{
+    OK,
+    InvalidAddress,     //!< The destination is neither a transparent nor a spark address
+    WrongNetwork,       //!< The destination is a spark address of another network
+    SparkUnavailable,   //!< This wallet holds no spark wallet
+    SparkNotActivated,  //!< Spark is not active on the chain yet
+    P2PDisabled,        //!< Broadcasting is on but peer-to-peer functionality is missing
+    NoAddresses,        //!< This wallet has no bip47 addresses
+    NoFunds,            //!< Nothing spendable is held on them
+    FeeExceedsAmount,   //!< The swept amount does not cover the fee
+    Failed              //!< Creating or committing the transaction failed, see strError
+};
+
+/** What a bip47 sweep did, or would do. */
+struct CBip47SweepResult
+{
+    bool fSpark;          //!< Whether the destination is a spark address
+    CAmount amount;       //!< Total value of the outputs swept, before the fee
+    CAmount fee;          //!< Fee taken out of that amount
+    size_t inputs;        //!< How many outputs were spent
+    std::vector<uint256> txids;
+    size_t lockedCount;   //!< Locked bip47 outputs found, swept or skipped
+    CAmount lockedAmount; //!< Their total value
+    bool fLockedSkipped;  //!< Whether those outputs were left behind
+    std::string strError; //!< Set when the status is Failed
+
+    CBip47SweepResult(): fSpark(false), amount(0), fee(0), inputs(0), lockedCount(0), lockedAmount(0), fLockedSkipped(false) {}
+};
+
+/**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
@@ -1370,6 +1416,28 @@ public:
     /* Checks whether any transaction of this wallet pays to or spends from a bip47 address, on
      * either side of a payment channel. Notification transactions are included. */
     bool HasBip47Transactions() const;
+
+    /* Copies out what the check above reads, holding cs_wallet only for the copy. */
+    CBip47ScanSnapshot GetBip47ScanSnapshot() const;
+
+    /* Runs the check above over a snapshot, holding no lock at all. */
+    static bool HasBip47Transactions(CBip47ScanSnapshot const & snapshot);
+
+    /* Sums up what is held on the bip47 addresses this wallet derived for itself. Locked outputs,
+     * which is what the output of every received notification transaction is, are reported apart
+     * from the spendable ones. */
+    void GetBip47Balance(CAmount & available, size_t & outputs, CAmount & locked, size_t & lockedOutputs);
+
+    /* Spends everything held on those addresses to a single transparent or spark destination.
+     * The whole balance is sent, so the fee always comes out of the swept amount and no change is
+     * left behind. Locked outputs take part only if fIncludeLocked is set; their locks are
+     * restored if the sweep fails. Requires an unlocked wallet. */
+    Bip47SweepStatus SweepBip47(std::string const & strDest, bool fIncludeLocked, CBip47SweepResult & result);
+
+    /* Whether the user asked not to be reminded about the funds on their bip47 addresses. Stored
+     * in the wallet, so the reminder stays gone across restarts. */
+    bool IsBip47SweepDismissed() const;
+    void SetBip47SweepDismissed(bool fDismissed);
 
     boost::optional<bip47::CPaymentCodeDescription> FindPcode(bip47::CPaymentCode const & pcode) const;
     boost::optional<bip47::CPaymentCodeDescription> FindPcode(CBitcoinAddress const & address) const;

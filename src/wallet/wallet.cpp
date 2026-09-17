@@ -5442,10 +5442,11 @@ bip47::CPaymentCode CWallet::GeneratePcode(std::string const & label)
     if (!bip47wallet)
         throw WalletError("BIP47 wallet was not created during the initialization");
 
+    LOCK(cs_wallet);
+
     bip47::CAccountReceiver & newAcc = bip47wallet->createReceivingAccount(label);
     {
         bip47::MyAddrContT addrs = newAcc.getMyNextAddresses();
-        LOCK(cs_wallet);
         for(bip47::MyAddrContT::value_type const & addr : addrs) {
             AddKey(addr.second);
         }
@@ -5460,6 +5461,8 @@ std::vector<bip47::CPaymentCodeDescription> CWallet::ListPcodes()
     std::vector<bip47::CPaymentCodeDescription> result;
     if (!bip47wallet)
         return result;
+
+    LOCK(cs_wallet);
 
     bip47wallet->enumerateReceivers(
         [&result](bip47::CAccountReceiver const & acc)->bool
@@ -5476,6 +5479,7 @@ bip47::CPaymentChannel & CWallet::SetupPchannel(bip47::CPaymentCode const & thei
     if (!bip47wallet)
         throw WalletError("BIP47 wallet was not created during the initialization");
 
+    LOCK(cs_wallet);
     bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
     CWalletDB(strWalletFile).WriteBip47Account(sender);
     return sender.getPaymentChannel();
@@ -5486,6 +5490,7 @@ void CWallet::SetNotificationTxId(bip47::CPaymentCode const & theirPcode, uint25
     if (!bip47wallet)
         throw WalletError("BIP47 wallet was not created during the initialization");
 
+    LOCK(cs_wallet);
     bip47::CAccountSender & sender = bip47wallet->provideSendingAccount(theirPcode);
     sender.setNotificationTxId(txid);
     CWalletDB(strWalletFile).WriteBip47Account(sender);
@@ -5525,6 +5530,7 @@ CBitcoinAddress CWallet::GetTheirNextAddress(bip47::CPaymentCode const & theirPc
     if (!bip47wallet)
         throw WalletError("BIP47 wallet was not created during the initialization");
 
+    LOCK(cs_wallet);
     return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, false);
 }
 
@@ -5533,6 +5539,7 @@ CBitcoinAddress CWallet::GenerateTheirNextAddress(bip47::CPaymentCode const & th
     if (!bip47wallet)
         throw WalletError("BIP47 wallet was not created during the initialization");
 
+    LOCK(cs_wallet);
     return HandleTheirNextAddress(*bip47wallet, strWalletFile, theirPcode, true);
 }
 
@@ -5591,38 +5598,55 @@ std::set<CScript> CWallet::GetBip47Scripts(bool fIncludeTheirs) const
     return scripts;
 }
 
-bool CWallet::HasBip47Transactions() const
+CBip47ScanSnapshot CWallet::GetBip47ScanSnapshot() const
 {
+    CBip47ScanSnapshot snapshot;
+
     LOCK(cs_wallet);
 
     std::shared_ptr<bip47::CWallet const> const bip47w = bip47wallet;
     if (!bip47w || mapWallet.empty())
-        return false;
+        return snapshot;
 
     /* The id of every notification transaction we sent is stored in its sending account, so it
-     * can be looked up without deriving a single address. */
-    bool found = false;
+     * can be looked up without deriving a single address or copying anything. */
     bip47w->enumerateSenders(
-        [this, &found](bip47::CAccountSender const & sender)->bool
+        [this, &snapshot](bip47::CAccountSender const & sender)->bool
         {
             uint256 const notificationTxId = sender.getNotificationTxId();
-            found = !notificationTxId.IsNull() && mapWallet.count(notificationTxId) > 0;
-            return !found;
+            snapshot.fFound = !notificationTxId.IsNull() && mapWallet.count(notificationTxId) > 0;
+            return !snapshot.fFound;
         }
     );
-    if (found)
-        return true;
+    if (snapshot.fFound)
+        return snapshot;
 
-    std::set<CScript> const scripts = GetBip47Scripts(true);
-    if (scripts.empty())
+    /* Deriving an address mutates the caches of the payment channel it belongs to, so it has to
+     * happen here, under the lock, rather than on the thread that runs the scan. */
+    snapshot.scripts = GetBip47Scripts(true);
+    if (snapshot.scripts.empty())
+        return snapshot;
+
+    snapshot.txs.reserve(mapWallet.size());
+    for (std::pair<uint256 const, CWalletTx> const & item : mapWallet)
+        snapshot.txs.push_back(item.second.tx);
+
+    return snapshot;
+}
+
+bool CWallet::HasBip47Transactions(CBip47ScanSnapshot const & snapshot)
+{
+    if (snapshot.fFound)
+        return true;
+    if (snapshot.scripts.empty())
         return false;
 
     /* Wallet transactions are not indexed by address, so every output has to be looked at. An
      * output spent from a bip47 address needs no check of its own: the transaction that created
      * it is in the wallet too, and is found by the scan below. */
-    for (std::pair<uint256 const, CWalletTx> const & item : mapWallet) {
-        for (CTxOut const & txout : item.second.tx->vout) {
-            if (scripts.count(txout.scriptPubKey))
+    for (CTransactionRef const & tx : snapshot.txs) {
+        for (CTxOut const & txout : tx->vout) {
+            if (snapshot.scripts.count(txout.scriptPubKey))
                 return true;
         }
     }
@@ -5630,11 +5654,232 @@ bool CWallet::HasBip47Transactions() const
     return false;
 }
 
+bool CWallet::HasBip47Transactions() const
+{
+    return HasBip47Transactions(GetBip47ScanSnapshot());
+}
+
+namespace {
+/**
+ * Goes through the outputs held on the given bip47 addresses. The spendable ones are added up in
+ * nTotal and, when coinControl is given, selected in it. The locked ones, which is what the output
+ * of every received notification transaction is, are added up apart; when they are to take part in
+ * a sweep they are unlocked here and listed in unlockedForSweep, so that the caller can put the
+ * locks back if the sweep does not go through.
+ * Both cs_main and cs_wallet have to be held.
+ */
+void SelectBip47Coins(CWallet & wallet, std::set<CScript> const & scripts, bool fIncludeLocked, CCoinControl * coinControl, CAmount & nTotal, size_t & nInputs, std::vector<COutPoint> & unlockedForSweep, CAmount & lockedAmount, size_t & lockedCount)
+{
+    /* AvailableCoins skips locked outputs, so a locked bip47 output has to be released before it
+     * can take part in the sweep. */
+    std::vector<COutPoint> locked;
+    wallet.ListLockedCoins(locked);
+    for (COutPoint const & outpoint : locked) {
+        std::map<uint256, CWalletTx>::const_iterator it = wallet.mapWallet.find(outpoint.hash);
+        if (it == wallet.mapWallet.end() || outpoint.n >= it->second.tx->vout.size())
+            continue;
+        CTxOut const & txout = it->second.tx->vout[outpoint.n];
+        if (!scripts.count(txout.scriptPubKey) || wallet.IsSpent(outpoint.hash, outpoint.n))
+            continue;
+        ++lockedCount;
+        lockedAmount += txout.nValue;
+        if (fIncludeLocked && coinControl)
+            unlockedForSweep.push_back(outpoint);
+    }
+    for (COutPoint const & outpoint : unlockedForSweep)
+        wallet.UnlockCoin(outpoint);
+
+    std::vector<COutput> vCoins;
+    wallet.AvailableCoins(vCoins, true);
+    for (COutput const & out : vCoins) {
+        if (!out.fSpendable)
+            continue;
+        CTxOut const & txout = out.tx->tx->vout[out.i];
+        if (!scripts.count(txout.scriptPubKey))
+            continue;
+        if (coinControl)
+            coinControl->Select(COutPoint(out.tx->GetHash(), out.i));
+        nTotal += txout.nValue;
+        ++nInputs;
+    }
+}
+}
+
+void CWallet::GetBip47Balance(CAmount & available, size_t & outputs, CAmount & locked, size_t & lockedOutputs)
+{
+    available = 0;
+    locked = 0;
+    outputs = 0;
+    lockedOutputs = 0;
+
+    LOCK2(cs_main, cs_wallet);
+
+    /* Only the addresses the wallet derived for itself hold funds of ours; the ones derived for a
+     * counterparty belong to them. */
+    std::set<CScript> const scripts = GetBip47Scripts();
+    if (scripts.empty())
+        return;
+
+    std::vector<COutPoint> unlockedForSweep;
+    SelectBip47Coins(*this, scripts, false, NULL, available, outputs, unlockedForSweep, locked, lockedOutputs);
+}
+
+Bip47SweepStatus CWallet::SweepBip47(std::string const & strDest, bool fIncludeLocked, CBip47SweepResult & result)
+{
+    /* A spark address is bech32m and fails to decode as anything else, so try it first and fall
+     * back to a transparent address. */
+    spark::Address sparkDest(spark::Params::get_default());
+    {
+        unsigned char coinNetwork = 0;
+        try {
+            coinNetwork = sparkDest.decode(strDest);
+            result.fSpark = true;
+        } catch (std::exception const &) {
+            result.fSpark = false;
+        }
+        if (result.fSpark && coinNetwork != spark::GetNetworkType())
+            return Bip47SweepStatus::WrongNetwork;
+    }
+
+    CBitcoinAddress transparentDest;
+    if (result.fSpark) {
+        if (!sparkWallet)
+            return Bip47SweepStatus::SparkUnavailable;
+        if (!spark::IsSparkAllowed())
+            return Bip47SweepStatus::SparkNotActivated;
+    } else {
+        transparentDest = CBitcoinAddress(strDest);
+        if (!transparentDest.IsValid())
+            return Bip47SweepStatus::InvalidAddress;
+    }
+
+    if (GetBroadcastTransactions() && !g_connman)
+        return Bip47SweepStatus::P2PDisabled;
+
+    CCoinControl coinControl;
+    std::vector<COutPoint> unlockedForSweep;
+
+    {
+        LOCK2(cs_main, cs_wallet);
+
+        /* Only the addresses the wallet derived for itself are swept; the ones derived for a
+         * counterparty belong to them, not to us. */
+        std::set<CScript> const scripts = GetBip47Scripts();
+        if (scripts.empty())
+            return Bip47SweepStatus::NoAddresses;
+
+        SelectBip47Coins(*this, scripts, fIncludeLocked, &coinControl, result.amount, result.inputs, unlockedForSweep, result.lockedAmount, result.lockedCount);
+    }
+    result.fLockedSkipped = !fIncludeLocked && result.lockedCount > 0;
+
+    if (result.amount == 0) {
+        LOCK(cs_wallet);
+        for (COutPoint const & outpoint : unlockedForSweep)
+            LockCoin(outpoint);
+        return Bip47SweepStatus::NoFunds;
+    }
+
+    Bip47SweepStatus status = Bip47SweepStatus::OK;
+    try {
+        if (result.fSpark) {
+            spark::MintedCoinData output;
+            output.address = sparkDest;
+            output.memo = "";
+            output.v = result.amount;
+
+            std::vector<spark::MintedCoinData> outputs{output};
+            std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+            /* fSplit stays off so the whole selection goes into one transaction. */
+            result.strError = MintAndStoreSpark(outputs, wtxAndFee, true, false, false, false, &coinControl);
+            if (!result.strError.empty())
+                status = Bip47SweepStatus::Failed;
+            for (std::pair<CWalletTx, CAmount> const & wtx : wtxAndFee) {
+                result.txids.push_back(wtx.first.GetHash());
+                result.fee += wtx.second;
+            }
+        } else {
+            CWalletTx wtxNew;
+            CReserveKey reservekey(this);
+            int nChangePosRet = -1;
+            std::vector<CRecipient> vecSend;
+            CRecipient recipient = {GetScriptForDestination(transparentDest.Get()), result.amount, true};
+            vecSend.push_back(recipient);
+
+            if (!CreateTransaction(vecSend, wtxNew, reservekey, result.fee, nChangePosRet, result.strError, &coinControl))
+                status = Bip47SweepStatus::Failed;
+
+            /* CTxOut::IsDust() is hardcoded to false in Firo, which also disables the check inside
+             * CreateTransaction that rejects an output driven to or below zero once the fee has
+             * been subtracted from it. Catch that here, before anything is committed. */
+            if (status == Bip47SweepStatus::OK && result.fee >= result.amount)
+                status = Bip47SweepStatus::FeeExceedsAmount;
+            if (status == Bip47SweepStatus::OK) {
+                for (CTxOut const & txout : wtxNew.tx->vout) {
+                    if (txout.nValue <= 0) {
+                        result.strError = _("Sweep would create an output with no value");
+                        status = Bip47SweepStatus::Failed;
+                        break;
+                    }
+                }
+            }
+
+            if (status == Bip47SweepStatus::OK) {
+                CValidationState state;
+                if (!CommitTransaction(wtxNew, reservekey, g_connman.get(), state)) {
+                    result.strError = strprintf(_("Error: The transaction was rejected! Reason given: %s"), state.GetRejectReason());
+                    status = Bip47SweepStatus::Failed;
+                } else {
+                    result.txids.push_back(wtxNew.GetHash());
+                }
+            }
+        }
+    } catch (std::exception const & e) {
+        result.strError = e.what();
+        status = Bip47SweepStatus::Failed;
+    }
+
+    if (status != Bip47SweepStatus::OK && result.txids.empty()) {
+        /* Nothing was spent, so put back the locks the sweep lifted. */
+        LOCK(cs_wallet);
+        for (COutPoint const & outpoint : unlockedForSweep)
+            LockCoin(outpoint);
+    }
+
+    return status;
+}
+
+namespace {
+std::string const bip47SweepDismissedKey = "bip47_sweep_dismissed";
+}
+
+bool CWallet::IsBip47SweepDismissed() const
+{
+    LOCK(cs_wallet);
+    std::multimap<std::string, std::string>::const_iterator iter = mapCustomKeyValues.find(bip47SweepDismissedKey);
+    return iter != mapCustomKeyValues.end() && iter->second == "1";
+}
+
+void CWallet::SetBip47SweepDismissed(bool fDismissed)
+{
+    CWalletDB walletDb(strWalletFile);
+    {
+        LOCK(cs_wallet);
+        mapCustomKeyValues.erase(bip47SweepDismissedKey);
+        if (fDismissed)
+            mapCustomKeyValues.insert(std::make_pair(bip47SweepDismissedKey, "1"));
+    }
+    walletDb.EraseKV(bip47SweepDismissedKey);
+    if (fDismissed)
+        walletDb.WriteKV(bip47SweepDismissedKey, "1");
+}
+
 boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(bip47::CPaymentCode const & pcode) const
 {
     boost::optional<bip47::CPaymentCodeDescription> result;
     if (!bip47wallet)
         return result;
+
+    LOCK(cs_wallet);
 
     bip47wallet->enumerateReceivers(
         [&pcode, &result](bip47::CAccountReceiver & rec)->bool
@@ -5672,6 +5917,8 @@ boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(CBitcoinAddre
     boost::optional<bip47::CPaymentCodeDescription> result;
     if (!bip47wallet)
         return result;
+
+    LOCK(cs_wallet);
 
     bip47wallet->enumerateReceivers(
         [&address, &result](bip47::CAccountReceiver & rec)->bool
@@ -5719,6 +5966,8 @@ bip47::CAccountReceiver const * CWallet::AddressUsed(CBitcoinAddress const & add
     if(!bip47wallet)
         return result;
 
+    LOCK(cs_wallet);
+
     bip47wallet->enumerateReceivers(
         [&address, &result](bip47::CAccountReceiver & rec)->bool
         {
@@ -5739,6 +5988,8 @@ bip47::CAccountReceiver const * CWallet::AddressUsed(CBitcoinAddress const & add
 
 void CWallet::HandleBip47Transaction(CWalletTx const & wtx)
 {
+    LOCK(cs_wallet);
+
     bip47::Bytes masked = bip47::utils::GetMaskedPcode(wtx.tx);
     CKey key;
     bip47::CAccountReceiver * accFound = nullptr;
@@ -5895,6 +6146,8 @@ void CWallet::LabelReceivingPcode(bip47::CPaymentCode const & pcode, std::string
 
 size_t CWallet::SetUsedAddressNumber(bip47::CPaymentCode const & pcode, size_t number)
 {
+    LOCK(cs_wallet);
+
     boost::optional<size_t> resultSnd, resutRec;
     bip47wallet->enumerateSenders(
         [&pcode, &number, &resultSnd](bip47::CAccountSender & sender)->bool

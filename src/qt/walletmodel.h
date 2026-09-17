@@ -19,6 +19,7 @@
 #include <QObject>
 
 class AddressTableModel;
+class Bip47SweepModel;
 class PcodeAddressTableModel;
 class SparkModel;
 class OptionsModel;
@@ -135,6 +136,7 @@ public:
     AddressTableModel *getAddressTableModel();
     PcodeAddressTableModel *getPcodeAddressTableModel();
     SparkModel *getSparkModel();
+    Bip47SweepModel *getBip47SweepModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
 
@@ -317,6 +319,16 @@ public:
 
     CAmount GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const;
 
+    /* bip47 */
+    /** Sums up what is held on the bip47 addresses this wallet derived for itself. */
+    void getBip47Balance(CAmount &available, size_t &outputs, CAmount &locked, size_t &lockedOutputs);
+
+    /** Moves all of it to a single transparent or spark destination. Needs an unlocked wallet. */
+    Bip47SweepStatus sweepBip47(const QString &destination, bool includeLocked, CBip47SweepResult &result);
+
+    /** Puts the reminder about those funds away for good. */
+    void dismissBip47Sweep();
+
 private:
     CWallet *wallet;
 
@@ -330,6 +342,7 @@ private:
     ClientModel *_client_model;
 
     AddressTableModel *addressTableModel;
+    Bip47SweepModel *bip47SweepModel;
     PcodeAddressTableModel *pcodeAddressTableModel;
     SparkModel *sparkModel;
     TransactionTableModel *transactionTableModel;

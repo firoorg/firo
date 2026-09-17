@@ -5817,159 +5817,47 @@ UniValue sweepbip47addresses(const JSONRPCRequest& request)
     if (request.params.size() > 1 && !request.params[1].isNull())
         includeLocked = request.params[1].get_bool();
 
-    /* A Spark address is bech32m and fails to decode as anything else, so try it first and
-     * fall back to a transparent address. */
-    spark::Address sparkDest(spark::Params::get_default());
-    bool isSpark = false;
-    {
-        unsigned char coinNetwork = 0;
-        try {
-            coinNetwork = sparkDest.decode(destStr);
-            isSpark = true;
-        } catch (std::exception const &) {
-            isSpark = false;
-        }
-        if (isSpark && coinNetwork != spark::GetNetworkType())
-            throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + destStr);
-    }
-
-    CBitcoinAddress transparentDest;
-    if (isSpark) {
-        EnsureSparkWalletIsAvailable();
-        if (!spark::IsSparkAllowed())
-            throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
-    } else {
-        transparentDest = CBitcoinAddress(destStr);
-        if (!transparentDest.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo or Spark address: ") + destStr);
-    }
-
-    if (pwallet->GetBroadcastTransactions() && !g_connman)
+    CBip47SweepResult sweep;
+    switch (pwallet->SweepBip47(destStr, includeLocked, sweep)) {
+    case Bip47SweepStatus::OK:
+        break;
+    case Bip47SweepStatus::InvalidAddress:
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo or Spark address: ") + destStr);
+    case Bip47SweepStatus::WrongNetwork:
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + destStr);
+    case Bip47SweepStatus::SparkUnavailable:
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet is not available for this wallet (legacy or disabled)");
+    case Bip47SweepStatus::SparkNotActivated:
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    case Bip47SweepStatus::P2PDisabled:
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-
-    CCoinControl coinControl;
-    std::vector<COutPoint> unlockedForSweep;
-    CAmount nTotal = 0, lockedAmount = 0;
-    size_t nInputs = 0, lockedCount = 0;
-
-    {
-        LOCK2(cs_main, pwallet->cs_wallet);
-
-        /* Only the addresses the wallet derived for itself are swept; the ones derived for a
-         * counterparty belong to them, not to us. */
-        std::set<CScript> const bip47Scripts = pwallet->GetBip47Scripts();
-        if (bip47Scripts.empty())
-            throw JSONRPCError(RPC_WALLET_ERROR, "This wallet has no BIP47 addresses");
-
-        /* AvailableCoins skips locked outputs, so any BIP47 output that is locked has to be
-         * released first to take part in the sweep. */
-        std::vector<COutPoint> locked;
-        pwallet->ListLockedCoins(locked);
-        for (COutPoint const & outpoint : locked) {
-            std::map<uint256, CWalletTx>::const_iterator it = pwallet->mapWallet.find(outpoint.hash);
-            if (it == pwallet->mapWallet.end() || outpoint.n >= it->second.tx->vout.size())
-                continue;
-            CTxOut const & txout = it->second.tx->vout[outpoint.n];
-            if (!bip47Scripts.count(txout.scriptPubKey) || pwallet->IsSpent(outpoint.hash, outpoint.n))
-                continue;
-            ++lockedCount;
-            lockedAmount += txout.nValue;
-            if (includeLocked)
-                unlockedForSweep.push_back(outpoint);
-        }
-        for (COutPoint const & outpoint : unlockedForSweep)
-            pwallet->UnlockCoin(outpoint);
-
-        std::vector<COutput> vCoins;
-        pwallet->AvailableCoins(vCoins, true);
-        for (COutput const & out : vCoins) {
-            if (!out.fSpendable)
-                continue;
-            CTxOut const & txout = out.tx->tx->vout[out.i];
-            if (!bip47Scripts.count(txout.scriptPubKey))
-                continue;
-            coinControl.Select(COutPoint(out.tx->GetHash(), out.i));
-            nTotal += txout.nValue;
-            ++nInputs;
-        }
-    }
-
-    if (nTotal == 0) {
-        LOCK(pwallet->cs_wallet);
-        for (COutPoint const & outpoint : unlockedForSweep)
-            pwallet->LockCoin(outpoint);
-        if (lockedCount > 0)
-            throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strprintf("No spendable funds on BIP47 addresses. %d locked output(s) holding %s were skipped; pass include_locked to spend them too.", lockedCount, FormatMoney(lockedAmount)));
+    case Bip47SweepStatus::NoAddresses:
+        throw JSONRPCError(RPC_WALLET_ERROR, "This wallet has no BIP47 addresses");
+    case Bip47SweepStatus::NoFunds:
+        if (sweep.lockedCount > 0)
+            throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strprintf("No spendable funds on BIP47 addresses. %d locked output(s) holding %s were skipped; pass include_locked to spend them too.", sweep.lockedCount, FormatMoney(sweep.lockedAmount)));
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "No spendable funds on BIP47 addresses");
+    case Bip47SweepStatus::FeeExceedsAmount:
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strprintf("The swept amount of %s is too small to pay the transaction fee of %s", FormatMoney(sweep.amount), FormatMoney(sweep.fee)));
+    case Bip47SweepStatus::Failed:
+        throw JSONRPCError(RPC_WALLET_ERROR, sweep.strError);
     }
 
     UniValue txids(UniValue::VARR);
-    CAmount nFee = 0;
-
-    try {
-        if (isSpark) {
-            spark::MintedCoinData output;
-            output.address = sparkDest;
-            output.memo = "";
-            output.v = nTotal;
-
-            std::vector<spark::MintedCoinData> outputs{output};
-            std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-            /* fSplit stays off so the whole selection goes into one transaction. */
-            std::string const strError = pwallet->MintAndStoreSpark(outputs, wtxAndFee, true, false, false, false, &coinControl);
-            if (!strError.empty())
-                throw JSONRPCError(RPC_WALLET_ERROR, strError);
-            for (std::pair<CWalletTx, CAmount> const & wtx : wtxAndFee) {
-                txids.push_back(wtx.first.GetHash().GetHex());
-                nFee += wtx.second;
-            }
-        } else {
-            CWalletTx wtxNew;
-            CReserveKey reservekey(pwallet);
-            int nChangePosRet = -1;
-            std::string strError;
-            std::vector<CRecipient> vecSend;
-            CRecipient recipient = {GetScriptForDestination(transparentDest.Get()), nTotal, true};
-            vecSend.push_back(recipient);
-
-            if (!pwallet->CreateTransaction(vecSend, wtxNew, reservekey, nFee, nChangePosRet, strError, &coinControl))
-                throw JSONRPCError(RPC_WALLET_ERROR, strError);
-
-            /* CTxOut::IsDust() is hardcoded to false in Firo, which also disables the check
-             * inside CreateTransaction that rejects an output driven to or below zero once the
-             * fee has been subtracted from it. Catch that here, before anything is committed. */
-            if (nFee >= nTotal)
-                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strprintf("The swept amount of %s is too small to pay the transaction fee of %s", FormatMoney(nTotal), FormatMoney(nFee)));
-            for (CTxOut const & txout : wtxNew.tx->vout) {
-                if (txout.nValue <= 0)
-                    throw JSONRPCError(RPC_WALLET_ERROR, "Sweep would create an output with no value");
-            }
-
-            CValidationState state;
-            if (!pwallet->CommitTransaction(wtxNew, reservekey, g_connman.get(), state))
-                throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Error: The transaction was rejected! Reason given: %s", state.GetRejectReason()));
-
-            txids.push_back(wtxNew.GetHash().GetHex());
-        }
-    } catch (...) {
-        /* Nothing was spent, so put back the locks the sweep lifted. */
-        LOCK(pwallet->cs_wallet);
-        for (COutPoint const & outpoint : unlockedForSweep)
-            pwallet->LockCoin(outpoint);
-        throw;
-    }
+    for (uint256 const & txid : sweep.txids)
+        txids.push_back(txid.GetHex());
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("destination", destStr));
-    result.push_back(Pair("destinationtype", isSpark ? "spark" : "transparent"));
-    result.push_back(Pair("amount", ValueFromAmount(nTotal)));
-    result.push_back(Pair("fee", ValueFromAmount(nFee)));
-    result.push_back(Pair("inputs", uint64_t(nInputs)));
+    result.push_back(Pair("destinationtype", sweep.fSpark ? "spark" : "transparent"));
+    result.push_back(Pair("amount", ValueFromAmount(sweep.amount)));
+    result.push_back(Pair("fee", ValueFromAmount(sweep.fee)));
+    result.push_back(Pair("inputs", uint64_t(sweep.inputs)));
     result.push_back(Pair("txids", txids));
-    if (!includeLocked && lockedCount > 0) {
+    if (sweep.fLockedSkipped) {
         UniValue skipped(UniValue::VOBJ);
-        skipped.push_back(Pair("count", uint64_t(lockedCount)));
-        skipped.push_back(Pair("amount", ValueFromAmount(lockedAmount)));
+        skipped.push_back(Pair("count", uint64_t(sweep.lockedCount)));
+        skipped.push_back(Pair("amount", ValueFromAmount(sweep.lockedAmount)));
         result.push_back(Pair("skippedlocked", skipped));
     }
     return result;

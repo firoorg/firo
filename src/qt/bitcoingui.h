@@ -133,6 +133,13 @@ private:
     HelpMessageDialog *helpMessageDialog;
     ModalOverlay *modalOverlay;
 
+#ifdef ENABLE_WALLET
+    /** Banner across the top of the window, offering to move the funds held on bip47 addresses */
+    QFrame *bip47Banner;
+    QLabel *bip47BannerLabel;
+    WalletModel *bip47WalletModel;
+#endif
+
     /** Keep track of previous number of blocks, to detect progress */
     int prevBlocks;
     int spinnerFrame;
@@ -148,6 +155,10 @@ private:
     void createMenuBar();
     /** Create the toolbars */
     void createToolBars();
+#ifdef ENABLE_WALLET
+    /** Create the bip47 reminder banner. It sits above the wallet frame and starts out hidden. */
+    QWidget *createBip47Banner(QWidget *walletFrameWidget);
+#endif
     void resizeEvent(QResizeEvent*) override;
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
@@ -234,6 +245,13 @@ public Q_SLOTS:
 
     /** Show open dialog */
     void openClicked();
+
+    /** Raise the reminder that funds are held on bip47 addresses */
+    void showBip47Banner();
+    /** Offer to move those funds away */
+    void bip47SweepClicked();
+    /** Put the reminder away for good */
+    void bip47DismissClicked();
 #endif // ENABLE_WALLET
     /** Show configuration dialog */
     void optionsClicked();
