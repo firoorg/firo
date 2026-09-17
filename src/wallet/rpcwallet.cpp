@@ -5764,38 +5764,6 @@ UniValue listbip47addresses(const JSONRPCRequest& request)
     return result;
 }
 
-namespace {
-/**
- * Collects the scriptPubKeys of every address the wallet derives for itself from its BIP47
- * accounts: the notification address of each receiving account, plus the used and lookahead
- * addresses of each of that account's payment channels. Addresses derived for a counterparty
- * belong to them, not to us, so they are deliberately left out.
- */
-std::set<CScript> GetBip47OwnScripts(CWallet * const pwallet)
-{
-    std::set<CScript> scripts;
-
-    std::shared_ptr<bip47::CWallet const> const bip47wallet = pwallet->GetBip47Wallet();
-    if (!bip47wallet)
-        return scripts;
-
-    bip47wallet->enumerateReceivers(
-        [&scripts](bip47::CAccountReceiver const & receiver)->bool
-        {
-            scripts.insert(GetScriptForDestination(receiver.getMyNotificationAddress().Get()));
-            for (bip47::CPaymentChannel const & pchannel : receiver.getPchannels()) {
-                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyUsedAddresses())
-                    scripts.insert(GetScriptForDestination(addr.first.Get()));
-                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyNextAddresses())
-                    scripts.insert(GetScriptForDestination(addr.first.Get()));
-            }
-            return true;
-        }
-    );
-    return scripts;
-}
-}
-
 UniValue sweepbip47addresses(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5887,7 +5855,9 @@ UniValue sweepbip47addresses(const JSONRPCRequest& request)
     {
         LOCK2(cs_main, pwallet->cs_wallet);
 
-        std::set<CScript> const bip47Scripts = GetBip47OwnScripts(pwallet);
+        /* Only the addresses the wallet derived for itself are swept; the ones derived for a
+         * counterparty belong to them, not to us. */
+        std::set<CScript> const bip47Scripts = pwallet->GetBip47Scripts();
         if (bip47Scripts.empty())
             throw JSONRPCError(RPC_WALLET_ERROR, "This wallet has no BIP47 addresses");
 

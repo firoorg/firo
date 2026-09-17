@@ -1359,6 +1359,18 @@ public:
 
     std::shared_ptr<bip47::CWallet const>  GetBip47Wallet() const;
 
+    /* Collects the scriptPubKeys of the addresses belonging to the bip47 accounts of this wallet.
+     * Our own addresses are the notification address of every receiving account plus the used and
+     * the lookahead addresses of that account's payment channels. Their addresses belong to the
+     * counterparties we pay: the notification address of every sending account plus the addresses
+     * derived for the counterparty. Deriving an address requires an ecdh operation, so this is not
+     * a cheap call for a wallet holding many payment channels. */
+    std::set<CScript> GetBip47Scripts(bool fIncludeTheirs = false) const;
+
+    /* Checks whether any transaction of this wallet pays to or spends from a bip47 address, on
+     * either side of a payment channel. Notification transactions are included. */
+    bool HasBip47Transactions() const;
+
     boost::optional<bip47::CPaymentCodeDescription> FindPcode(bip47::CPaymentCode const & pcode) const;
     boost::optional<bip47::CPaymentCodeDescription> FindPcode(CBitcoinAddress const & address) const;
 

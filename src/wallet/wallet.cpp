@@ -5546,6 +5546,90 @@ std::shared_ptr<bip47::CWallet const> CWallet::GetBip47Wallet() const
     return bip47wallet;
 }
 
+std::set<CScript> CWallet::GetBip47Scripts(bool fIncludeTheirs) const
+{
+    std::set<CScript> scripts;
+
+    std::shared_ptr<bip47::CWallet const> const bip47w = bip47wallet;
+    if (!bip47w)
+        return scripts;
+
+    LOCK(cs_wallet);
+
+    /* One receiving account per payment code we published, one payment channel in it per
+     * counterparty that sent us a notification transaction. */
+    bip47w->enumerateReceivers(
+        [&scripts](bip47::CAccountReceiver const & receiver)->bool
+        {
+            scripts.insert(GetScriptForDestination(receiver.getMyNotificationAddress().Get()));
+            for (bip47::CPaymentChannel const & pchannel : receiver.getPchannels()) {
+                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyUsedAddresses())
+                    scripts.insert(GetScriptForDestination(addr.first.Get()));
+                for (bip47::MyAddrContT::value_type const & addr : pchannel.generateMyNextAddresses())
+                    scripts.insert(GetScriptForDestination(addr.first.Get()));
+            }
+            return true;
+        }
+    );
+
+    if (!fIncludeTheirs)
+        return scripts;
+
+    /* One sending account per counterparty payment code we pay to. The next address is included
+     * because it is only counted as used after the payment to it has been sent. */
+    bip47w->enumerateSenders(
+        [&scripts](bip47::CAccountSender const & sender)->bool
+        {
+            scripts.insert(GetScriptForDestination(sender.getTheirPcode().getNotificationAddress().Get()));
+            for (bip47::TheirAddrContT::value_type const & addr : sender.getTheirUsedAddresses())
+                scripts.insert(GetScriptForDestination(addr.Get()));
+            scripts.insert(GetScriptForDestination(sender.getTheirNextSecretAddress().Get()));
+            return true;
+        }
+    );
+
+    return scripts;
+}
+
+bool CWallet::HasBip47Transactions() const
+{
+    LOCK(cs_wallet);
+
+    std::shared_ptr<bip47::CWallet const> const bip47w = bip47wallet;
+    if (!bip47w || mapWallet.empty())
+        return false;
+
+    /* The id of every notification transaction we sent is stored in its sending account, so it
+     * can be looked up without deriving a single address. */
+    bool found = false;
+    bip47w->enumerateSenders(
+        [this, &found](bip47::CAccountSender const & sender)->bool
+        {
+            uint256 const notificationTxId = sender.getNotificationTxId();
+            found = !notificationTxId.IsNull() && mapWallet.count(notificationTxId) > 0;
+            return !found;
+        }
+    );
+    if (found)
+        return true;
+
+    std::set<CScript> const scripts = GetBip47Scripts(true);
+    if (scripts.empty())
+        return false;
+
+    /* Wallet transactions are not indexed by address, so every output has to be looked at. An
+     * output spent from a bip47 address needs no check of its own: the transaction that created
+     * it is in the wallet too, and is found by the scan below. */
+    for (std::pair<uint256 const, CWalletTx> const & item : mapWallet) {
+        for (CTxOut const & txout : item.second.tx->vout) {
+            if (scripts.count(txout.scriptPubKey))
+                return true;
+        }
+    }
+
+    return false;
+}
+
 boost::optional<bip47::CPaymentCodeDescription> CWallet::FindPcode(bip47::CPaymentCode const & pcode) const
 {
     boost::optional<bip47::CPaymentCodeDescription> result;
