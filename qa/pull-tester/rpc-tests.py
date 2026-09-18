@@ -121,6 +121,7 @@ testScripts = [
     'wallet.py',
     'wallet-encryption.py',
     'wallet-hd.py',
+    'wallet-internalchain.py',
     'wallet-dump.py',
     'walletbackup.py',
     # 'wallet-accounts.py',

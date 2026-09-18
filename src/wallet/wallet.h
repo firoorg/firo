@@ -97,6 +97,10 @@ const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 const uint32_t BIP44_INDEX = 0x2C;
 const uint32_t BIP44_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
 const uint32_t BIP44_FIRO_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
+/* The bip44 internal (change) chain. Firo takes both its addresses and its change from the
+ * external chain, so nothing is ever generated here, but wallets that follow bip44 more
+ * closely do put change on it, and a wallet restored from such a seed has to see it. */
+const uint32_t BIP44_INTERNAL_INDEX = 0x1;
 const uint32_t BIP44_MINT_INDEX = 0x2;
 
 const uint32_t BIP44_MINT_VALUE_INDEX = 0x5;
@@ -710,6 +714,14 @@ private:
 
     std::map<CKeyID, int64_t> m_pool_key_to_index;
 
+    /* Child index of every key this wallet holds on the bip44 internal chain. Those keys are
+     * watched and spendable but never handed out, so unlike the keypool they are not indexed
+     * by a pool entry. */
+    std::map<CKeyID, uint32_t> m_internal_chain_keys;
+
+    /* Records the key in the map above if its keypath places it on the internal chain. */
+    void RegisterInternalChainKey(const CTxDestination& dest, const CKeyMetadata& metadata);
+
     int64_t nTimeFirstKey;
 
     std::shared_ptr<bip47::CWallet> bip47wallet;
@@ -1122,6 +1134,28 @@ public:
      */
     void MarkReserveKeysAsUsed(int64_t keypool_id);
     const std::map<CKeyID, int64_t>& GetAllReserveKeys() const { return m_pool_key_to_index; }
+
+    /**
+     * Derives keys on the bip44 internal chain, m/44'/<coin>'/0'/1/<n>, and adds them to the
+     * wallet. They are watched so that coins another bip44 wallet sent there are seen and
+     * stay spendable; they are kept out of the keypool, so this wallet keeps taking both its
+     * addresses and its change from the external chain.
+     * @param[in] nSize  How many keys the chain should hold, 0 for the default lookahead.
+     * @return whether any key was added.
+     */
+    bool TopUpInternalChain(uint32_t nSize = 0);
+    /**
+     * Extends the internal chain past keyid when it turns out to have been used, the way a
+     * used keypool key tops the keypool up. No-op for a key that is not on that chain.
+     */
+    void MarkInternalChainKeyUsed(const CKeyID& keyid);
+    /**
+     * Whether the internal chain was derived after the wallet had already been used, which
+     * leaves the chain to be rescanned for what was received on it. Kept in the wallet, so an
+     * interrupted rescan is resumed on the next start.
+     */
+    bool IsInternalChainRescanPending() const;
+    void SetInternalChainRescanPending(bool fPending);
 
     spark::FullViewKey GetSparkViewKey();
     std::string GetSparkViewKeyStr();
