@@ -136,7 +136,9 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
 
 void SendCoinsDialog::applyTheme()
 {
-    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QDialog#SendCoinsDialog > QPushButton { min-width: 0; }")));
     ui->scrollArea->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; border: none; }"));
     ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("background: transparent;"));
 
@@ -1596,18 +1598,6 @@ void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
     // Retrieve new dimensions from the resize event
     const int newWidth = event->size().width();
     const int newHeight = event->size().height();
-
-    const int labelMinWidth = static_cast<int>(newWidth * 0.15);
-
-    // Resize and adjust components
-    ui->sendButton->setMinimumWidth(labelMinWidth);
-    ui->clearButton->setMinimumWidth(labelMinWidth);
-    ui->addButton->setMinimumWidth(labelMinWidth);
-    ui->buttonChooseFee->setMinimumWidth(labelMinWidth);
-    ui->buttonMinimizeFee->setMinimumWidth(labelMinWidth);
-    ui->switchFundButton->setMinimumWidth(labelMinWidth);
-    ui->pushButtonCoinControl->setMinimumWidth(labelMinWidth);
-
 
     // Dynamically adjust text sizes based on the new dimensions
     adjustTextSize(newWidth, newHeight);
