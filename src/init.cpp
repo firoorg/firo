@@ -268,13 +268,6 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    {
-        LOCK(cs_main);
-        BatchProofContainer::get_instance()->finalize();
-        CValidationState state;
-        VerifyPendingSparkBatch(state, "shutdown");
-    }
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -302,6 +295,14 @@ void Shutdown()
     // cleanup; the embedded Tor itself is torn down by process exit.
     g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
+
+    {
+        LOCK(cs_main);
+        BatchProofContainer::get_instance()->finalize();
+    }
+    CValidationState state;
+    VerifyPendingSparkBatch(state, "shutdown");
+
     if (fDumpMempoolLater)
         DumpMempool();
 
@@ -779,11 +780,11 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         {
             LOCK(cs_main);
             BatchProofContainer::get_instance()->finalize();
-            CValidationState state;
-            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
-                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
-                return;
-            }
+        }
+        CValidationState state;
+        if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+            return;
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
@@ -1972,11 +1973,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 7b: load block chain
 
-    // If the previous run aborted on a failed Spark batch verification, or
-    // crashed while Spark proofs were still being collected, drop chainstate
-    // and verify Spark proofs block by block on this run. Checked here rather
-    // than in LoadBlockIndexDB() because a run restarted with -reindex wipes
-    // the block tree database and never calls LoadBlockIndexDB().
+    // Deferred Spark batching writes sparkbatchfailed when a non-empty batch is
+    // finalized and removes it after a successful verify. A failed batch verify
+    // or crash while proofs are still pending leaves the marker; force -reindex
+    // with -batching=0 so chainstate is rebuilt with per-block verification.
+    // Checked here rather than in LoadBlockIndexDB() because a run restarted
+    // with -reindex wipes the block tree database and never calls LoadBlockIndexDB().
     if (BatchProofContainer::HasRecoveryMarker()) {
         LogPrintf("Previous run did not finish Spark batch verification, disabling -batching and forcing -reindex for this run\n");
         ForceSetArg("-batching", "0");
