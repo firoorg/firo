@@ -67,6 +67,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/random_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/reverselock_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpc_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quorums_instantsend_request_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sanity_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/scheduler_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/scriptnum10.h
