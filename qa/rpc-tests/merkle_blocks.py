@@ -23,8 +23,8 @@ class MerkleBlockTest(BitcoinTestFramework):
         self.nodes.append(start_node(0, self.options.tmpdir, ["-debug"]))
         self.nodes.append(start_node(1, self.options.tmpdir, ["-debug"]))
         # Nodes 2/3 are used for testing
-        self.nodes.append(start_node(2, self.options.tmpdir, ["-debug"]))
-        self.nodes.append(start_node(3, self.options.tmpdir, ["-debug", "-txindex"]))
+        self.nodes.append(start_node(2, self.options.tmpdir, ["-debug", "-txindex=0"]))
+        self.nodes.append(start_node(3, self.options.tmpdir, ["-debug", "-txindex=1"]))
         connect_nodes(self.nodes[0], 1)
         connect_nodes(self.nodes[0], 2)
         connect_nodes(self.nodes[0], 3)
@@ -43,9 +43,11 @@ class MerkleBlockTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].getbalance(), 0)
 
         node0utxos = self.nodes[0].listunspent(1)
-        tx1 = self.nodes[0].createrawtransaction([node0utxos.pop()], {self.nodes[1].getnewaddress(): 49.99})
+        txin1 = node0utxos.pop()
+        tx1 = self.nodes[0].createrawtransaction([txin1], {self.nodes[1].getnewaddress(): txin1["amount"] - Decimal("0.01")})
         txid1 = self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransaction(tx1)["hex"])
-        tx2 = self.nodes[0].createrawtransaction([node0utxos.pop()], {self.nodes[1].getnewaddress(): 49.99})
+        txin2 = node0utxos.pop()
+        tx2 = self.nodes[0].createrawtransaction([txin2], {self.nodes[1].getnewaddress(): txin2["amount"] - Decimal("0.01")})
         txid2 = self.nodes[0].sendrawtransaction(self.nodes[0].signrawtransaction(tx2)["hex"])
         assert_raises(JSONRPCException, self.nodes[0].gettxoutproof, [txid1])
 
@@ -58,12 +60,13 @@ class MerkleBlockTest(BitcoinTestFramework):
         txlist.append(blocktxn[1])
         txlist.append(blocktxn[2])
 
-        assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid1])), [txid1])
-        assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid1, txid2])), txlist)
+        assert_raises(JSONRPCException, self.nodes[2].gettxoutproof, [txid1])
+        assert_raises(JSONRPCException, self.nodes[2].gettxoutproof, [txid1, txid2])
         assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid1, txid2], blockhash)), txlist)
+        assert_equal(self.nodes[3].verifytxoutproof(self.nodes[3].gettxoutproof([txid1, txid2])), txlist)
 
         txin_spent = self.nodes[1].listunspent(1).pop()
-        tx3 = self.nodes[1].createrawtransaction([txin_spent], {self.nodes[0].getnewaddress(): 49.98})
+        tx3 = self.nodes[1].createrawtransaction([txin_spent], {self.nodes[0].getnewaddress(): txin_spent["amount"] - Decimal("0.01")})
         self.nodes[0].sendrawtransaction(self.nodes[1].signrawtransaction(tx3)["hex"])
         self.nodes[0].generate(1)
         self.sync_all()
@@ -71,18 +74,12 @@ class MerkleBlockTest(BitcoinTestFramework):
         txid_spent = txin_spent["txid"]
         txid_unspent = txid1 if txin_spent["txid"] != txid1 else txid2
 
-        # We can't find the block from a fully-spent tx
+        # Without -txindex, the block hash is required for spent and unspent transactions.
         assert_raises(JSONRPCException, self.nodes[2].gettxoutproof, [txid_spent])
-        # ...but we can if we specify the block
+        assert_raises(JSONRPCException, self.nodes[2].gettxoutproof, [txid_unspent])
         assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid_spent], blockhash)), [txid_spent])
-        # ...or if the first tx is not fully-spent
-        assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid_unspent])), [txid_unspent])
-        try:
-            assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid1, txid2])), txlist)
-        except JSONRPCException:
-            assert_equal(self.nodes[2].verifytxoutproof(self.nodes[2].gettxoutproof([txid2, txid1])), txlist)
-        # ...or if we have a -txindex
-        assert_equal(self.nodes[2].verifytxoutproof(self.nodes[3].gettxoutproof([txid_spent])), [txid_spent])
+        # With -txindex, the block is found for a fully-spent transaction.
+        assert_equal(self.nodes[3].verifytxoutproof(self.nodes[3].gettxoutproof([txid_spent])), [txid_spent])
 
 if __name__ == '__main__':
     MerkleBlockTest().main()

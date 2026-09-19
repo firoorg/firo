@@ -360,10 +360,7 @@ UniValue gettxoutproof(const JSONRPCRequest& request)
         throw std::runtime_error(
             "gettxoutproof [\"txid\",...] ( blockhash )\n"
             "\nReturns a hex-encoded proof that \"txid\" was included in a block.\n"
-            "\nNOTE: By default this function only works sometimes. This is when there is an\n"
-            "unspent output in the utxo for this transaction. To make it always work,\n"
-            "you need to maintain a transaction index, using the -txindex command line option or\n"
-            "specify the block in which the transaction is included manually (by blockhash).\n"
+            "\nWithout a blockhash, this requires the transaction index enabled with -txindex.\n"
             "\nArguments:\n"
             "1. \"txids\"       (string) A json array of txids to filter\n"
             "    [\n"
@@ -400,17 +397,16 @@ UniValue gettxoutproof(const JSONRPCRequest& request)
         if (!mapBlockIndex.count(hashBlock))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         pblockindex = mapBlockIndex[hashBlock];
-    } else {
-        const Coin& coin = AccessByTxid(*pcoinsTip, oneTxid);
-        if (!coin.IsSpent() && coin.nHeight > 0 && coin.nHeight <= chainActive.Height()) {
-            pblockindex = chainActive[coin.nHeight];
-        }
     }
 
     if (pblockindex == NULL)
     {
         CTransactionRef tx;
-        if (!GetTransaction(oneTxid, tx, Params().GetConsensus(), hashBlock, false) || hashBlock.IsNull())
+        if (!GetTransaction(oneTxid, tx, Params().GetConsensus(), hashBlock))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, fTxIndex
+                ? "Transaction not found"
+                : "Transaction not found. Use -txindex or provide a block hash");
+        if (hashBlock.IsNull())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not yet in block");
         if (!mapBlockIndex.count(hashBlock))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Transaction index corrupt");

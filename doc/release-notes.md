@@ -44,6 +44,8 @@ RPC
   earlier confirmed registration. Unconfirmed transactions report the pending
   expiry if they are included in the next block.
 
+- `gettxoutproof` now requires either `-txindex` or an explicit block hash.
+
 
 Detailed release notes follow. This overview includes changes that affect
 behavior, not code moves, refactors and string updates. For convenience in locating
