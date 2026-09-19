@@ -54,6 +54,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mempool_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/merkle_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/miner_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mtp_halving_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mtp_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mtp_trans_tests.cpp
