@@ -48,9 +48,9 @@
 #include <QVBoxLayout>
 
 #define DECORATION_SIZE 54
-#define NUM_ITEMS 5
+#define NUM_ITEMS 8
 #define ACTIVITY_ICON_SIZE 42
-#define ACTIVITY_CARD_HEIGHT 72
+#define ACTIVITY_CARD_HEIGHT 44
 
 class TxViewDelegate : public QAbstractItemDelegate
 {
@@ -72,7 +72,7 @@ public:
 
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = (option.state & QStyle::State_Selected);
-        const QRect card = option.rect.adjusted(2, 4, -2, -4);
+        const QRect card = option.rect.adjusted(2, 3, -2, -3);
         if (card.width() <= 0 || card.height() <= 0) {
             painter->restore();
             return;
@@ -117,40 +117,47 @@ public:
         QString address = index.data(Qt::DisplayRole).toString();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
 
-        const int amountWidth = 168;
-        const int amountLeft = card.right() - amountWidth - 14;
-        int textLeft = iconRect.right() + 12;
-        const QIcon instantSendIcon = qvariant_cast<QIcon>(index.data(TransactionTableModel::InstantSendDecorationRole));
-        if (!instantSendIcon.isNull() && amountLeft - textLeft >= 20) {
-            GUIUtil::paintThemedStatusIcon(painter, instantSendIcon, QRect(textLeft, card.top() + 12, 16, 16));
-            textLeft += 20;
-        }
-        const int textWidth = std::max(0, amountLeft - textLeft - 12);
         QFont dateFont = iconFont;
         dateFont.setPixelSize(12);
         dateFont.setWeight(QFont::DemiBold);
+        QFont amountFont = dateFont;
+        amountFont.setPixelSize(14);
+        amountFont.setBold(true);
+        QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
+        if (!confirmed)
+            amountText = QString("[") + amountText + QString("]");
+        const int amountWidth = std::max(168, QFontMetrics(amountFont).horizontalAdvance(amountText));
+        const int amountLeft = card.right() - amountWidth - 14;
+        const int metadataLeft = iconRect.right() + 12;
+        // Reserve the lock slot so dates and labels stay aligned across rows.
+        const int textLeft = metadataLeft + 20;
+        const int textWidth = std::max(0, amountLeft - textLeft - 12);
+        const QString dateText = date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
+                                               : GUIUtil::dateTimeStr(date);
+        const int dateWidth = std::max(144, QFontMetrics(dateFont).horizontalAdvance(dateText));
+        const bool inlineAddress = textWidth >= dateWidth + 12 + 96;
+        const QRect dateRect(textLeft, inlineAddress ? card.top() : card.center().y() - 16,
+                             inlineAddress ? dateWidth : textWidth, inlineAddress ? card.height() : 16);
+        const QRect addressRect = inlineAddress
+            ? QRect(dateRect.right() + 13, card.top(), textWidth - dateWidth - 12, card.height())
+            : QRect(textLeft, dateRect.bottom() + 1, textWidth, 16);
+        const QIcon instantSendIcon = qvariant_cast<QIcon>(index.data(TransactionTableModel::InstantSendDecorationRole));
+        if (!instantSendIcon.isNull() && amountLeft - metadataLeft >= 20)
+            GUIUtil::paintThemedStatusIcon(painter, instantSendIcon,
+                                         QRect(metadataLeft, inlineAddress ? card.center().y() - 8 : dateRect.top(), 16, 16));
         painter->setFont(dateFont);
         painter->setPen(QColor(tc.ink));
-        const QRect dateRect(textLeft, card.top() + 12, textWidth, 16);
         painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
-                          date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
-                                         : GUIUtil::dateTimeStr(date));
+                          QFontMetrics(dateFont).elidedText(dateText, Qt::ElideRight, dateRect.width()));
 
         QFont addrFont = dateFont;
         addrFont.setPixelSize(12);
         addrFont.setBold(false);
         painter->setFont(addrFont);
         painter->setPen(QColor(tc.inkFaint));
-        const QRect addressRect(textLeft, dateRect.bottom() + 1, dateRect.width(), 16);
         painter->drawText(addressRect, Qt::AlignLeft | Qt::AlignVCenter,
                           QFontMetrics(addrFont).elidedText(address, Qt::ElideMiddle, addressRect.width()));
 
-        QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
-        if (!confirmed)
-            amountText = QString("[") + amountText + QString("]");
-        QFont amountFont = dateFont;
-        amountFont.setPixelSize(14);
-        amountFont.setBold(true);
         painter->setFont(amountFont);
         painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
         const QRect amountRect(amountLeft, card.top(), amountWidth, card.height());
@@ -214,7 +221,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     // Recent transactions
     ui->listTransactions->setItemDelegate(txdelegate);
     ui->listTransactions->setIconSize(QSize(ACTIVITY_ICON_SIZE, ACTIVITY_ICON_SIZE));
-    ui->listTransactions->setMinimumHeight(NUM_ITEMS * (ACTIVITY_CARD_HEIGHT + 10));
+    ui->listTransactions->setMinimumHeight(NUM_ITEMS * ACTIVITY_CARD_HEIGHT);
     ui->listTransactions->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
     ui->listTransactions->setAccessibleName(tr("Recent transactions"));

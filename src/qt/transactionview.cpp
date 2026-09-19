@@ -382,7 +382,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     transactionView->setCornerButtonEnabled(false);
     transactionView->setFrameShape(QFrame::NoFrame);
     transactionView->setMouseTracking(true);
-    transactionView->verticalHeader()->setDefaultSectionSize(52);
+    transactionView->verticalHeader()->setDefaultSectionSize(44);
 
     view->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     view->horizontalHeader()->setHighlightSections(false);
