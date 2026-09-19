@@ -586,9 +586,9 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(NodeId nodeId, const CSigShare
 }
 
 void CSigSharesManager::CollectPendingSigSharesToVerify(
-        size_t maxUniqueSessions,
-        std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
-        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
+    size_t maxShares,
+    std::unordered_map<NodeId, std::vector<CSigShare> >& retSigShares,
+    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
 {
     {
         LOCK(cs);
@@ -596,16 +596,11 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
             return;
         }
 
-        // This will iterate node states in random order and pick one sig share at a time. This avoids processing
-        // of large batches at once from the same node while other nodes also provided shares. If we wouldn't do this,
-        // other nodes would be able to poison us with a large batch with N-1 valid shares and the last one being
-        // invalid, making batch verification fail and revert to per-share verification, which in turn would slow down
-        // the whole verification process
-
-        std::unordered_set<std::pair<NodeId, uint256>, StaticSaltedHasher> uniqueSignHashes;
-        CLLMQUtils::IterateNodesRandom(nodeStates, [&]() {
-            return uniqueSignHashes.size() < maxUniqueSessions;
-        }, [&](NodeId nodeId, CSigSharesNodeState& ns) {
+        // Iterate node states in random order and pick one sig share at a time. This avoids processing large batches
+        // from one node while other nodes also provided shares. Bound the batch by actual share count so one session
+        // cannot inflate the batch and force expensive per-share fallback verification.
+        size_t sharesAdded{0};
+        CLLMQUtils::IterateNodesRandom(nodeStates, [&]() { return sharesAdded < maxShares; }, [&](NodeId nodeId, CSigSharesNodeState& ns) {
             if (ns.banned) {
                 ns.pendingIncomingSigShares.Clear();
                 return false;
@@ -617,12 +612,11 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
 
             bool alreadyHave = this->sigShares.Has(sigShare.GetKey());
             if (!alreadyHave) {
-                uniqueSignHashes.emplace(nodeId, sigShare.GetSignHash());
                 retSigShares[nodeId].emplace_back(sigShare);
+                ++sharesAdded;
             }
             ns.pendingIncomingSigShares.Erase(sigShare.GetKey());
-            return !ns.pendingIncomingSigShares.Empty();
-        }, rnd);
+            return !ns.pendingIncomingSigShares.Empty(); }, rnd);
 
         if (retSigShares.empty()) {
             return;
