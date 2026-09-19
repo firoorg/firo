@@ -236,7 +236,9 @@ void WalletUiTests::failedAbandonKeepsTransactionVisible()
     QVERIFY(!model.abandonTransaction(hash));
     TransactionView view(style.get());
     view.setModel(&model);
-    auto* list = view.findChild<QTableView*>();
+    auto* tableCard = view.findChild<QFrame*>(QStringLiteral("tableCard"));
+    QVERIFY(tableCard);
+    auto* list = tableCard->findChild<QTableView*>();
     QVERIFY(list);
     QCOMPARE(list->model()->rowCount(), 1);
     list->selectRow(0);
