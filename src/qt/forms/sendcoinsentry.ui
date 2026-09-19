@@ -23,7 +23,16 @@
    <property name="frameShape">
     <enum>QFrame::NoFrame</enum>
    </property>
-   <layout class="QVBoxLayout" name="gridLayout">
+   <layout class="QFormLayout" name="gridLayout">
+    <property name="fieldGrowthPolicy">
+     <enum>QFormLayout::ExpandingFieldsGrow</enum>
+    </property>
+    <property name="rowWrapPolicy">
+     <enum>QFormLayout::WrapLongRows</enum>
+    </property>
+    <property name="labelAlignment">
+     <set>Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
     <property name="spacing">
      <number>10</number>
     </property>
@@ -33,7 +42,7 @@
     <property name="bottomMargin">
      <number>10</number>
     </property>
-    <item>
+    <item row="0" column="0">
      <widget class="QLabel" name="payToLabel">
       <property name="text">
        <string>PAY &amp;TO</string>
@@ -43,7 +52,7 @@
       </property>
      </widget>
     </item>
-    <item>
+    <item row="0" column="1">
      <layout class="QHBoxLayout" name="payToLayout">
       <property name="spacing">
        <number>0</number>
@@ -129,7 +138,7 @@
       </item>
      </layout>
     </item>
-    <item>
+    <item row="1" column="0" colspan="2">
      <widget class="QWidget" name="sparkNameResolvedRow" native="true">
      <property name="visible">
       <bool>false</bool>
@@ -171,7 +180,7 @@
      </layout>
      </widget>
     </item>
-    <item>
+    <item row="2" column="0" colspan="2">
      <widget class="QWidget" name="addressWarningRow" native="true">
      <property name="visible">
       <bool>false</bool>
@@ -207,6 +216,9 @@
       </item>
       <item>
         <widget class="QLabel" name="textWarning">
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
           <property name="text">
           <string></string>
           </property>
@@ -215,7 +227,7 @@
      </layout>
      </widget>
     </item>
-    <item>
+    <item row="3" column="0">
      <widget class="QLabel" name="labellLabel">
       <property name="text">
        <string>&amp;LABEL</string>
@@ -225,7 +237,7 @@
       </property>
      </widget>
     </item>
-    <item>
+    <item row="3" column="1">
      <widget class="QLineEdit" name="addAsLabel">
       <property name="minimumSize">
        <size>
@@ -238,7 +250,7 @@
       </property>
      </widget>
     </item>
-    <item>
+    <item row="4" column="0">
      <widget class="QLabel" name="amountLabel">
       <property name="text">
        <string>A&amp;MOUNT</string>
@@ -248,14 +260,14 @@
       </property>
      </widget>
     </item>
-    <item>
+    <item row="4" column="1">
      <layout class="QHBoxLayout" name="horizontalLayoutAmount" stretch="1">
       <item>
        <widget class="BitcoinAmountField" name="payAmount"/>
       </item>
      </layout>
     </item>
-    <item>
+    <item row="5" column="0" colspan="2">
      <layout class="QHBoxLayout" name="horizontalLayoutSubtractFee">
       <item>
        <widget class="QCheckBox" name="checkboxSubtractFeeFromAmount">
@@ -282,7 +294,7 @@
       </item>
      </layout>
     </item>
-    <item>
+    <item row="6" column="0" colspan="2">
      <widget class="QWidget" name="rosenBridgeRow" native="true">
      <property name="visible">
       <bool>false</bool>
@@ -314,21 +326,21 @@
      </layout>
      </widget>
     </item>
-    <item>
+    <item row="7" column="0">
      <widget class="QLabel" name="messageLabel">
       <property name="text">
        <string>MESSAGE</string>
       </property>
      </widget>
     </item>
-    <item>
+    <item row="7" column="1">
      <widget class="QLineEdit" name="messageTextLabel">
       <property name="toolTip">
       <string>Optional message for this transaction</string>
       </property>
     </widget>
     </item>
-    <item>
+    <item row="8" column="0" colspan="2">
      <widget class="QWidget" name="messageWarningRow" native="true">
      <property name="visible">
       <bool>false</bool>
@@ -364,6 +376,9 @@
       </item>
       <item>
         <widget class="QLabel" name="messageWarning">
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
           <property name="text">
           <string></string>
           </property>
@@ -372,7 +387,7 @@
      </layout>
      </widget>
     </item>
-    <item>
+    <item row="9" column="0" colspan="2">
      <widget class="Line" name="line">
       <property name="visible">
        <bool>false</bool>

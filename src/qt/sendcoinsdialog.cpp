@@ -29,7 +29,6 @@
 #include <QFontMetrics>
 #include <QMessageBox>
 #include <QResizeEvent>
-#include <QScrollBar>
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
@@ -49,6 +48,14 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     platformStyle(_platformStyle)
 {
     ui->setupUi(this);
+
+    // Let the form scroll as one unit while keeping the send actions visible.
+    ui->verticalLayout->removeWidget(ui->frameCoinControl);
+    ui->verticalLayout_2->insertWidget(0, ui->frameCoinControl);
+    ui->verticalLayout->removeWidget(ui->frameFee);
+    ui->verticalLayout_2->insertWidget(2, ui->frameFee);
+    ui->frameCoinControl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    ui->frameFee->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->addButton->setIcon(QIcon());
@@ -138,7 +145,7 @@ void SendCoinsDialog::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QDialog { background: $BG; }"
-        "QDialog#SendCoinsDialog > QPushButton { min-width: 0; }")));
+        "QDialog#SendCoinsDialog QPushButton { min-width: 0; }")));
     ui->scrollArea->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; border: none; }"));
     ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("background: transparent;"));
 
@@ -933,9 +940,8 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
     entry->setFocus();
     ui->scrollAreaWidgetContents->resize(ui->scrollAreaWidgetContents->sizeHint());
     qApp->processEvents();
-    QScrollBar* bar = ui->scrollArea->verticalScrollBar();
-    if(bar)
-        bar->setSliderPosition(bar->maximum());
+    ui->scrollAreaWidgetContents->layout()->activate();
+    ui->scrollArea->ensureWidgetVisible(entry->focusWidget() ? entry->focusWidget() : entry);
 
     updateTabsAndLabels();
     updateRosenBridgeState();

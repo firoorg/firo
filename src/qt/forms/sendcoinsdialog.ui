@@ -186,7 +186,7 @@
             <number>0</number>
            </property>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayoutCoinControl3" stretch="0,0,0,1">
+            <layout class="QGridLayout" name="horizontalLayoutCoinControl3" columnstretch="1,1">
              <property name="spacing">
               <number>20</number>
              </property>
@@ -196,7 +196,7 @@
              <property name="bottomMargin">
               <number>10</number>
              </property>
-             <item>
+             <item row="0" column="0">
               <layout class="QFormLayout" name="formLayoutCoinControl1">
                <property name="horizontalSpacing">
                 <number>10</number>
@@ -279,7 +279,7 @@
                </item>
               </layout>
              </item>
-             <item>
+             <item row="0" column="1">
               <layout class="QFormLayout" name="formLayoutCoinControl2">
                <property name="horizontalSpacing">
                 <number>10</number>
@@ -359,7 +359,7 @@
                </item>
               </layout>
              </item>
-             <item>
+             <item row="1" column="0">
               <layout class="QFormLayout" name="formLayoutCoinControl3">
                <property name="horizontalSpacing">
                 <number>10</number>
@@ -410,7 +410,7 @@
                </item>
               </layout>
              </item>
-             <item>
+             <item row="1" column="1">
               <layout class="QFormLayout" name="formLayoutCoinControl4">
                <property name="horizontalSpacing">
                 <number>10</number>
@@ -563,7 +563,7 @@
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>800</width>
+            <width>1</width>
             <height>1</height>
            </size>
           </property>
@@ -674,6 +674,9 @@
         </property>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayoutFee1">
+          <property name="spacing">
+           <number>8</number>
+          </property>
           <property name="bottomMargin">
            <number>0</number>
           </property>
@@ -771,7 +774,7 @@
              <string>Warning: Fee estimation is currently not possible.</string>
             </property>
             <property name="wordWrap">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -822,7 +825,13 @@
             <number>0</number>
            </property>
            <item>
-            <layout class="QGridLayout" name="gridLayoutFee">
+            <layout class="QFormLayout" name="gridLayoutFee">
+             <property name="rowWrapPolicy">
+              <enum>QFormLayout::WrapLongRows</enum>
+             </property>
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::ExpandingFieldsGrow</enum>
+             </property>
              <property name="topMargin">
               <number>10</number>
              </property>
@@ -1020,6 +1029,9 @@
                  </item>
                  <item>
                   <widget class="QLabel" name="labelSmartFee2">
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
                    <property name="text">
                     <string>(Smart fee not initialized yet. This usually takes a few blocks...)</string>
                    </property>
@@ -1187,7 +1199,7 @@
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>800</width>
+            <width>1</width>
             <height>1</height>
            </size>
           </property>

@@ -16,6 +16,7 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
+#include "sendcoinsdialog.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
@@ -36,11 +37,13 @@
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
+#include <QVariant>
 
 #include <memory>
 #include <chrono>
@@ -476,6 +479,52 @@ void WalletUiTests::receiveFormFitsSmallScreen()
 
     dialog.resize(900, 1200);
     QTRY_COMPARE(scroll->verticalScrollBar()->maximum(), 0);
+}
+
+void WalletUiTests::sendFormFitsSmallScreen()
+{
+    QSettings settings;
+    QVariantMap previousFeeSettings;
+    for (const char* key : {"fFeeSectionMinimized", "nFeeRadio", "nCustomFeeRadio",
+                            "nSmartFeeSliderPosition", "nTransactionFee", "fPayOnlyMinFee"})
+        previousFeeSettings.insert(key, settings.value(key));
+    const auto restore = qScopeGuard([&] {
+        for (auto it = previousFeeSettings.cbegin(); it != previousFeeSettings.cend(); ++it) {
+            if (it.value().isValid())
+                settings.setValue(it.key(), it.value());
+            else
+                settings.remove(it.key());
+        }
+    });
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    SendCoinsDialog dialog(style.get());
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    dialog.resize(964, 480);
+    auto* scroll = dialog.findChild<QScrollArea*>("scrollArea");
+    QVERIFY(scroll);
+    dialog.addEntry();
+    QVERIFY(QMetaObject::invokeMethod(&dialog, "on_buttonChooseFee_clicked"));
+    QCoreApplication::processEvents();
+    QVERIFY(dialog.height() <= 480);
+    QVERIFY(dialog.width() <= 964);
+    for (const char* name : {"sendButton", "clearButton", "addButton", "switchFundButton"}) {
+        auto* button = dialog.findChild<QPushButton*>(name);
+        QVERIFY(button);
+        QVERIFY(button->isVisible());
+        QVERIFY(button->width() >= button->minimumSizeHint().width());
+        QVERIFY(dialog.rect().contains(QRect(button->mapTo(&dialog, QPoint()), button->size())));
+    }
+    for (const char* name : {"payTo", "payAmount", "customFee", "buttonMinimizeFee"}) {
+        auto* field = dialog.findChild<QWidget*>(name);
+        QVERIFY(field);
+        scroll->ensureWidgetVisible(field);
+        QCoreApplication::processEvents();
+        QVERIFY(field->isVisible());
+        QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
+    }
 }
 
 void WalletUiTests::receiveMnemonics()

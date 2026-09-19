@@ -17,6 +17,7 @@ private Q_SLOTS:
     void collapsedNavigationRemainsUsable();
     void paymentRequestFitsSmallScreen();
     void receiveFormFitsSmallScreen();
+    void sendFormFitsSmallScreen();
     void receiveMnemonics();
     void confirmationRefresh();
     void themeTintColors();
