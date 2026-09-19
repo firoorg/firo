@@ -1,9 +1,13 @@
 #include <../../test/fixtures.h>
 #include "../../chainparams.h"
+#include "../../policy/policy.h"
+#include "../../spark/state.h"
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
+#include "../../streams.h"
 #include "../../validation.h"
 
+#include <algorithm>
 #include <boost/test/unit_test.hpp>
 
 static std::vector<unsigned char> random_char_vector()
@@ -39,6 +43,93 @@ void ExtractSpend(CTransaction const &tx,
 }
 
 BOOST_FIXTURE_TEST_SUITE(spark_wallet_tests, SparkTestingSetup)
+
+BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
+{
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint(uint256S("01"), 0));
+
+    const std::vector<unsigned char> serialContext =
+        spark::getSerialContext(CTransaction(tx));
+    BOOST_REQUIRE(!serialContext.empty());
+
+    Scalar k;
+    k.randomize();
+    spark::Coin coin(
+        params,
+        spark::COIN_TYPE_SPEND,
+        k,
+        pwalletMain->sparkWallet->getDefaultAddress(),
+        100 * COIN,
+        "standalone smint regression",
+        serialContext);
+
+    CDataStream encoded(SER_NETWORK, PROTOCOL_VERSION);
+    encoded << coin;
+
+    CScript smint;
+    smint << OP_SPARKSMINT;
+    smint.insert(smint.end(), encoded.begin(), encoded.end());
+    tx.vout.emplace_back(0, smint);
+
+    const CTransaction standalone(tx);
+    BOOST_REQUIRE(!standalone.IsSparkTransaction());
+
+    std::string reason;
+    BOOST_CHECK(!IsStandardTx(standalone, reason));
+    BOOST_CHECK_EQUAL(reason, "spark-smint-without-spend");
+    BOOST_CHECK_EQUAL(
+        pwalletMain->IsMine(standalone.vout[0], standalone),
+        ISMINE_NO);
+    BOOST_CHECK_EQUAL(
+        pwalletMain->GetCredit(
+            standalone.vout[0], standalone, ISMINE_SPENDABLE),
+        0);
+
+    spark::SpendKey foreignSpendKey(params);
+    spark::FullViewKey foreignViewKey(foreignSpendKey);
+    spark::IncomingViewKey foreignIncomingViewKey(foreignViewKey);
+    spark::MintedCoinData mintData;
+    mintData.address = spark::Address(foreignIncomingViewKey, 0);
+    mintData.v = COIN;
+    const auto recipients = CSparkWallet::CreateSparkMintRecipients(
+        {mintData}, serialContext, true);
+    BOOST_REQUIRE_EQUAL(recipients.size(), 1U);
+
+    CMutableTransaction mixed(tx);
+    mixed.vout.emplace_back(
+        recipients.front().nAmount, recipients.front().scriptPubKey);
+    const CTransaction mixedTransaction(mixed);
+    BOOST_REQUIRE(mixedTransaction.IsSparkTransaction());
+    BOOST_REQUIRE(!mixedTransaction.IsSparkSpend());
+
+    CValidationState validationState;
+    spark::CSparkTxInfo info;
+    BOOST_REQUIRE(CheckTransaction(
+        mixedTransaction, validationState, true, mixedTransaction.GetHash(),
+        false, ::Params().GetConsensus().nSparkChaumV2StartBlock,
+        false, true, &info));
+    BOOST_REQUIRE_EQUAL(info.mints.size(), 1U);
+
+    const auto mixedCoins = spark::GetSparkMintCoins(mixedTransaction);
+    BOOST_REQUIRE_EQUAL(mixedCoins.size(), 1U);
+    BOOST_CHECK(
+        mixedCoins.front().getHash() == info.mints.front().getHash());
+
+    CBlock mixedBlock;
+    mixedBlock.vtx.push_back(MakeTransactionRef(mixedTransaction));
+    COutPoint outPoint;
+    BOOST_CHECK(!spark::GetOutPointFromBlock(outPoint, coin, mixedBlock));
+    BOOST_REQUIRE(spark::GetOutPointFromBlock(
+        outPoint, info.mints.front(), mixedBlock));
+    BOOST_CHECK(outPoint == COutPoint(mixedTransaction.GetHash(), 1));
+    BOOST_CHECK(!pwalletMain->IsMine(mixedTransaction));
+
+    LOCK(pwalletMain->cs_wallet);
+    BOOST_CHECK(!pwalletMain->AddToWalletIfInvolvingMe(
+        standalone, nullptr, -1, false));
+    BOOST_CHECK(!pwalletMain->mapWallet.count(standalone.GetHash()));
+}
 
 BOOST_AUTO_TEST_CASE(create_mint_recipient)
 {
@@ -223,6 +314,17 @@ BOOST_AUTO_TEST_CASE(spend)
     wtxAndFee.clear();
 
     auto spTx = GenerateSparkSpend({1 * COIN}, {}, nullptr);
+
+    BOOST_REQUIRE(spTx.IsSparkSpend());
+    const auto smint = std::find_if(
+        spTx.vout.begin(), spTx.vout.end(),
+        [](const CTxOut& output) {
+            return output.scriptPubKey.IsSparkSMint();
+        });
+    BOOST_REQUIRE(smint != spTx.vout.end());
+    BOOST_CHECK(pwalletMain->IsMine(*smint, spTx) & ISMINE_SPENDABLE);
+    BOOST_CHECK_GT(
+        pwalletMain->GetCredit(*smint, spTx, ISMINE_SPENDABLE), 0);
 
     std::vector<spark::Coin> coins;
     std::vector<GroupElement> tags;
