@@ -662,7 +662,7 @@ QVariant TransactionTableModel::txWatchonlyDecoration(const TransactionRecord *w
 QVariant TransactionTableModel::txInstantSendDecoration(const TransactionRecord *wtx) const
 {
     if (wtx->status.lockedByInstantSend) {
-        return QIcon(":/icons/verify");
+        return QIcon(":/icons/instantsend");
     }
     return QVariant();
 }

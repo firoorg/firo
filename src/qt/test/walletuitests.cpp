@@ -127,6 +127,12 @@ void WalletUiTests::confirmationRefresh()
 
 void WalletUiTests::themeTintColors()
 {
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    const QIcon instantSendIcon(":/icons/instantsend");
+    QVERIFY(!instantSendIcon.isNull());
+    QVERIFY(!style->TextColorIcon(instantSendIcon).isNull());
+
     const auto previousTheme = GUIUtil::currentThemeMode();
     const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
     for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {

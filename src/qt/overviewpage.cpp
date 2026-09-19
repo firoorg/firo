@@ -117,9 +117,14 @@ public:
         QString address = index.data(Qt::DisplayRole).toString();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
 
-        const int textLeft = iconRect.right() + 12;
         const int amountWidth = 168;
         const int amountLeft = card.right() - amountWidth - 14;
+        int textLeft = iconRect.right() + 12;
+        const QIcon instantSendIcon = qvariant_cast<QIcon>(index.data(TransactionTableModel::InstantSendDecorationRole));
+        if (!instantSendIcon.isNull() && amountLeft - textLeft >= 20) {
+            GUIUtil::paintThemedStatusIcon(painter, instantSendIcon, QRect(textLeft, card.top() + 12, 16, 16));
+            textLeft += 20;
+        }
         const int textWidth = std::max(0, amountLeft - textLeft - 12);
         QFont dateFont = iconFont;
         dateFont.setPixelSize(12);
