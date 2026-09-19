@@ -59,7 +59,7 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
         ui->detailsButton->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
     });
 
-    const QString nameHelp = tr("A memorable name, such as @sparky, that people can use to send FIRO to your Spark address.");
+    const QString nameHelp = tr("A memorable name, such as @sparky, that people can use to send FIRO to your Spark address while preserving your transaction privacy.");
     ui->nameHelpButton->setToolTip(nameHelp);
     ui->nameHelpButton->setAccessibleDescription(nameHelp);
     ui->nameLabel->setToolTip(nameHelp);
