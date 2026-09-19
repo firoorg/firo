@@ -1579,10 +1579,8 @@ bool AcceptToMemoryPool(CTxPoolAggregate& poolAggregate, CValidationState &state
 
 
 /** Return transaction in txOut, and if it was found inside a block, its hash is placed in hashBlock */
-bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus::Params& consensusParams, uint256 &hashBlock, bool fAllowSlow)
+bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus::Params&, uint256 &hashBlock)
 {
-    CBlockIndex *pindexSlow = NULL;
-
     LOCK(cs_main);
 
     CTransactionRef ptx = txpools.get(hash);
@@ -1610,24 +1608,6 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
             if (txOut->GetHash() != hash)
                 return error("%s: txid mismatch", __func__);
             return true;
-        }
-    }
-
-    if (fAllowSlow) { // use coin database to locate block that contains transaction, and scan it
-        const Coin& coin = AccessByTxid(*pcoinsTip, hash);
-        if (!coin.IsSpent()) pindexSlow = chainActive[coin.nHeight];
-    }
-
-    if (pindexSlow) {
-        CBlock block;
-        if (ReadBlockFromDisk(block, pindexSlow, consensusParams)) {
-            for (const auto& tx : block.vtx) {
-                if (tx->GetHash() == hash) {
-                    txOut = tx;
-                    hashBlock = pindexSlow->GetBlockHash();
-                    return true;
-                }
-            }
         }
     }
 
@@ -4546,7 +4526,7 @@ bool IsBlockHashInChain(const uint256& hashBlock)
 bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransactionRef & tx)
 {
     uint256 hashBlock;
-    if (!GetTransaction(txId, tx, Params().GetConsensus(), hashBlock, true))
+    if (!GetTransaction(txId, tx, Params().GetConsensus(), hashBlock))
         return false;
     if (!IsBlockHashInChain(hashBlock))
         return false;
