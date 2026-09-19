@@ -226,9 +226,16 @@ SendCoinsEntry::~SendCoinsEntry()
 
 void SendCoinsEntry::on_MemoTextChanged(const QString &text)
 {
+    QString sanitized = text;
+    sanitized.remove(QRegularExpression("[\\x00-\\x1F\\x7F]"));
+    if (sanitized != text) {
+        ui->messageTextLabel->setText(sanitized);
+        return;
+    }
+
     const spark::Params* params = spark::Params::get_default();
     int maxLength = params->get_memo_bytes();
-    bool isOverLimit = text.length() > maxLength;
+    bool isOverLimit = text.toUtf8().size() > maxLength;
 
     ui->messageTextLabel->setProperty("invalidInput", isOverLimit);
     ui->messageTextLabel->style()->unpolish(ui->messageTextLabel);
@@ -240,12 +247,6 @@ void SendCoinsEntry::on_MemoTextChanged(const QString &text)
         ui->iconMessageWarning->setVisible(true);
         ui->messageWarningRow->setVisible(true);
     } else {
-        QString sanitized = text;
-        sanitized.remove(QRegularExpression("[\\x00-\\x1F\\x7F]"));
-        if (sanitized != text) {
-            ui->messageTextLabel->setText(sanitized);
-            return;
-        }
         ui->messageWarning->clear();
         ui->messageWarning->setVisible(false);
         ui->iconMessageWarning->setVisible(false);
@@ -493,16 +494,23 @@ bool SendCoinsEntry::validate()
     }
 
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
+    bool isSparkAddress = model->validateSparkAddress(ui->payTo->text());
 
     if (ui->payTo->text().startsWith("@") && cmp::less_equal(ui->payTo->text().size(), CSparkNameManager::maximumSparkNameLength+1)) {
         const bool nameResolves = !model->getSparkNameAddress(ui->payTo->text().mid(1)).isEmpty();
+        isSparkAddress = nameResolves;
         ui->payTo->setValid(nameResolves);
         if (!nameResolves)
             retval = false;
     }
-    else if (!(model->validateAddress(ui->payTo->text()) || model->validateSparkAddress(ui->payTo->text()) || isPcodeEntry))
+    else if (!(model->validateAddress(ui->payTo->text()) || isSparkAddress || isPcodeEntry))
     {
         ui->payTo->setValid(false);
+        retval = false;
+    }
+
+    if (isSparkAddress && cmp::greater(ui->messageTextLabel->text().toUtf8().size(),
+                                     spark::Params::get_default()->get_memo_bytes())) {
         retval = false;
     }
 
