@@ -782,11 +782,15 @@ Returns estimated network hashes per second.
 
 ---
 
-#### `getblocktemplate [template_request]`
+#### `getblocktemplate [template_request] [reward_address]`
 Returns data needed to construct a block for mining.
 
 **Arguments:**
-1. `template_request` (json object, optional) - BIP 22/23 compliant request
+1. `template_request` (json object, optional) - BIP 22/23 compliant request. Firo additionally accepts
+   `"coinbase_message": "text"` (at most 80 UTF-8 bytes), which is put into the coinbase of the block
+   the node builds and echoed back as `coinbase_message` when supplied.
+2. `reward_address` (string, optional) - Address paid by the coinbase of the block the node builds for `pprpcsb`.
+   Required to retain a ProgPoW job for `pprpcsb`; the message is still accepted and echoed without it.
 
 **Result:**
 ```json
@@ -810,6 +814,13 @@ Returns data needed to construct a block for mining.
   "znode_payments_enforced": true
 }
 ```
+
+For ProgPoW blocks, the result also includes `pprpcheader` (job header hash) and
+`pprpcepoch` (ProgPoW epoch).
+
+The node retains up to 64 jobs with reward addresses. Adding a job at this limit
+evicts the job with the oldest block timestamp. Jobs are also dropped when the
+block template is rebuilt. `pprpcsb` returns `Job not found` for dropped jobs.
 
 ---
 
