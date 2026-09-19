@@ -1003,11 +1003,8 @@ void TransactionView::abandonTx()
     QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
     hash.SetHex(hashQStr.toStdString());
 
-    // Abandon the wallet transaction over the walletModel
+    // Successful abandonment refreshes the row through the wallet notification.
     model->abandonTransaction(hash);
-
-    // Update the table
-    model->getTransactionTableModel()->updateTransaction(hashQStr, CT_UPDATED, false);
 }
 
 void TransactionView::rebroadcastTx()

@@ -22,6 +22,7 @@ private Q_SLOTS:
     void confirmationRefresh();
     void themeTintColors();
     void deferredTransactionsKeepOrder();
+    void failedAbandonKeepsTransactionVisible();
     void themeChangePreservesWidgetState();
 };
 

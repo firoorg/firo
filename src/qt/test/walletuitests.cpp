@@ -20,6 +20,8 @@
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
+#include "transactionview.h"
+#include "txmempool.h"
 #include "ui_interface.h"
 #include "util.h"
 #include "validation.h"
@@ -39,6 +41,7 @@
 #include <QScrollBar>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QTableView>
 #include <QTest>
 #include <QTimer>
 #include <QToolBar>
@@ -204,6 +207,44 @@ void WalletUiTests::deferredTransactionsKeepOrder()
     QCOMPARE(inserted.count(), 1);
     QCOMPARE(removed.count(), 1);
     QCOMPARE(table->rowCount(QModelIndex()), 0);
+}
+
+void WalletUiTests::failedAbandonKeepsTransactionVisible()
+{
+    CWallet wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    WalletModel model(style.get(), &wallet, &options);
+    auto* table = model.getTransactionTableModel();
+
+    // A non-final record can display its status without initializing LLMQ services.
+    CMutableTransaction tx;
+    tx.nLockTime = 100;
+    tx.vin.emplace_back(COutPoint(uint256S("01"), 0), CScript(), 0);
+    tx.vout.emplace_back(COIN, CScript());
+    const auto transaction = MakeTransactionRef(tx);
+    const auto hash = transaction->GetHash();
+    wallet.mapWallet.emplace(hash, CWalletTx(&wallet, transaction));
+    table->updateTransaction(QString::fromStdString(hash.GetHex()), CT_NEW, true);
+
+    // Model a transaction entering the mempool after the context menu was opened.
+    const auto removeTransaction = qScopeGuard([&] { mempool.removeRecursive(*transaction); });
+    QVERIFY(mempool.addUnchecked(hash, CTxMemPoolEntry(transaction, 0, 0, 0, 0, false, 0, LockPoints()), false));
+    QVERIFY(!model.abandonTransaction(hash));
+    TransactionView view(style.get());
+    view.setModel(&model);
+    auto* list = view.findChild<QTableView*>();
+    QVERIFY(list);
+    QCOMPARE(list->model()->rowCount(), 1);
+    list->selectRow(0);
+    QVERIFY(!list->selectionModel()->selectedRows().isEmpty());
+    QSignalSpy removed(table, &QAbstractItemModel::rowsRemoved);
+
+    QVERIFY(QMetaObject::invokeMethod(&view, "abandonTx", Qt::DirectConnection));
+    QCOMPARE(removed.count(), 0);
+    QCOMPARE(table->rowCount(QModelIndex()), 1);
+    QCOMPARE(list->model()->rowCount(), 1);
 }
 
 void WalletUiTests::themeChangePreservesWidgetState()
