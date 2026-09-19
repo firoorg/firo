@@ -20,7 +20,7 @@ struct TransactionLookupSetup : TestChain100Setup {
 
 BOOST_FIXTURE_TEST_SUITE(main_tests, TestingSetup)
 
-BOOST_AUTO_TEST_CASE(gettransaction_txindex_miss)
+BOOST_AUTO_TEST_CASE(gettransaction_does_not_scan_utxo_set)
 {
     LOCK(cs_main);
     struct CountingCoinsView : CCoinsView {
@@ -46,14 +46,8 @@ BOOST_AUTO_TEST_CASE(gettransaction_txindex_miss)
     for (bool indexed : {true, false}) {
         fTxIndex = indexed;
         view.reads = 0;
-        BOOST_CHECK(!GetTransaction(missing, tx, Params().GetConsensus(), hashBlock, false));
+        BOOST_CHECK(!GetTransaction(missing, tx, Params().GetConsensus(), hashBlock));
         BOOST_CHECK_EQUAL(view.reads, 0U);
-        BOOST_CHECK(!GetTransaction(missing, tx, Params().GetConsensus(), hashBlock, true));
-        if (indexed) {
-            BOOST_CHECK_EQUAL(view.reads, 0U);
-        } else {
-            BOOST_CHECK_GT(view.reads, 0U);
-        }
     }
 }
 
@@ -68,17 +62,13 @@ BOOST_FIXTURE_TEST_CASE(gettransaction_lookup_paths, TransactionLookupSetup)
     CTransactionRef tx;
     uint256 hashBlock;
 
-    // Indexed lookup does not need the UTXO fallback.
-    BOOST_REQUIRE(GetTransaction(confirmed, tx, Params().GetConsensus(), hashBlock, false));
+    BOOST_REQUIRE(GetTransaction(confirmed, tx, Params().GetConsensus(), hashBlock));
     BOOST_CHECK(tx->GetHash() == confirmed);
     BOOST_CHECK(hashBlock == block.GetHash());
 
-    // Without an index, confirmed transactions with unspent outputs remain retrievable.
+    // Confirmed transactions are not reconstructed from the UTXO set.
     fTxIndex = false;
-    BOOST_CHECK(!GetTransaction(confirmed, tx, Params().GetConsensus(), hashBlock, false));
-    BOOST_REQUIRE(GetTransaction(confirmed, tx, Params().GetConsensus(), hashBlock, true));
-    BOOST_CHECK(tx->GetHash() == confirmed);
-    BOOST_CHECK(hashBlock == block.GetHash());
+    BOOST_CHECK(!GetTransaction(confirmed, tx, Params().GetConsensus(), hashBlock));
 
     CMutableTransaction pending;
     pending.vin.emplace_back(COutPoint(confirmed, 0));
@@ -88,10 +78,8 @@ BOOST_FIXTURE_TEST_CASE(gettransaction_lookup_paths, TransactionLookupSetup)
         pool->addUnchecked(pending.GetHash(), TestMemPoolEntryHelper().FromTx(pending));
         for (bool indexed : {false, true}) {
             fTxIndex = indexed;
-            for (bool allowSlow : {false, true}) {
-                BOOST_REQUIRE(GetTransaction(pending.GetHash(), tx, Params().GetConsensus(), hashBlock, allowSlow));
-                BOOST_CHECK(tx->GetHash() == pending.GetHash());
-            }
+            BOOST_REQUIRE(GetTransaction(pending.GetHash(), tx, Params().GetConsensus(), hashBlock));
+            BOOST_CHECK(tx->GetHash() == pending.GetHash());
         }
     }
 }

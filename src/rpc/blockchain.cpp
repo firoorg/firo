@@ -329,7 +329,7 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
 
     CTransactionRef txRef;
     uint256 hashBlock;
-    if(!GetTransaction(txid, txRef, Params().GetConsensus(), hashBlock, true))
+    if(!GetTransaction(txid, txRef, Params().GetConsensus(), hashBlock))
         throw JSONRPCError(RPC_TRANSACTION_ERROR, "Unknown transaction.");
 
     CSparkNameTxData sparkNameData;

@@ -41,6 +41,7 @@ class MerkleBlockTest(BitcoinTestFramework):
         assert_equal(chain_height, 105)
         assert_equal(self.nodes[1].getbalance(), 0)
         assert_equal(self.nodes[2].getbalance(), 0)
+        assert_raises_message(JSONRPCException, "requires -txindex", self.nodes[2].getCVE17144amount)
 
         node0utxos = self.nodes[0].listunspent(1)
         txin1 = node0utxos.pop()

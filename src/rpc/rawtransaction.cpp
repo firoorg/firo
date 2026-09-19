@@ -131,7 +131,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
 
             CTransactionRef prevTx;
             uint256 hashBlock;
-            if (GetTransaction(txin.prevout.hash, prevTx, Params().GetConsensus(), hashBlock, true)) {
+            if (GetTransaction(txin.prevout.hash, prevTx, Params().GetConsensus(), hashBlock)) {
                 CTxOut const & txOut = prevTx->vout.at(txin.prevout.n);
 
                 in.push_back(Pair("value", ValueFromAmount(txOut.nValue)));
@@ -246,9 +246,8 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
         throw std::runtime_error(
             "getrawtransaction \"txid\" ( verbose )\n"
 
-            "\nNOTE: By default this function only works for mempool transactions. If the -txindex option is\n"
-            "enabled, it also works for blockchain transactions.\n"
-            "DEPRECATED: for now, it also works for transactions with unspent outputs.\n"
+            "\nWith -txindex=0, this function only works for transactions in the transaction pools.\n"
+            "With -txindex enabled, it also works for blockchain transactions.\n"
 
             "\nReturn the raw transaction data.\n"
             "\nIf verbose is 'true', returns an Object with information about 'txid'.\n"
@@ -338,7 +337,7 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
 
     CTransactionRef tx;
     uint256 hashBlock;
-    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
+    if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string(fTxIndex ? "No such mempool or blockchain transaction"
             : "No such mempool transaction. Use -txindex to enable blockchain transaction queries") +
             ". Use gettransaction for wallet transactions.");

@@ -46,6 +46,11 @@ RPC
 
 - `gettxoutproof` now requires either `-txindex` or an explicit block hash.
 
+- `getrawtransaction` and `/rest/tx/` no longer search the UTXO set. With
+  `-txindex=0`, they only return transactions from the transaction pools.
+  `gettotalsupply` and `getCVE17144amount` now require `-txindex` and report
+  an error if a required historical transaction cannot be retrieved.
+
 
 Detailed release notes follow. This overview includes changes that affect
 behavior, not code moves, refactors and string updates. For convenience in locating
