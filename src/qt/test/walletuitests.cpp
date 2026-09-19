@@ -8,6 +8,7 @@
 #include "bitcoingui.h"
 #include "chainparams.h"
 #include "clientmodel.h"
+#include "createsparknamepage.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "masternode-sync.h"
@@ -35,6 +36,8 @@
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QLabel>
+#include <QLineEdit>
+#include <QLocale>
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
@@ -43,11 +46,14 @@
 #include <QScrollBar>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QSpinBox>
 #include <QTableView>
 #include <QTest>
+#include <QTextEdit>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVariant>
 
 #include <memory>
@@ -294,6 +300,58 @@ void WalletUiTests::sparkNamesRefreshAfterModelDestruction()
     QVERIFY(!page.model);
     QVERIFY(!page.addressModel);
     QTRY_VERIFY(!page.refreshScheduled);
+}
+
+void WalletUiTests::sparkNameRegistrationDetails()
+{
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    CreateSparkNamePage dialog(style.get());
+    auto* name = dialog.findChild<QLineEdit*>("sparkNameEdit");
+    auto* years = dialog.findChild<QSpinBox*>("numberOfYearsEdit");
+    auto* fee = dialog.findChild<QLabel*>("feeTextLabel");
+    auto* detailsButton = dialog.findChild<QToolButton*>("detailsButton");
+    auto* details = dialog.findChild<QWidget*>("detailsWidget");
+    auto* additionalInfo = dialog.findChild<QTextEdit*>("additionalInfoEdit");
+    QVERIFY(name && years && fee && detailsButton && details && additionalInfo);
+
+    struct FeeTier { int length; int annualFee; };
+    for (const auto tier : {FeeTier{1, 1000}, {2, 100}, {3, 10}, {5, 10}, {6, 1}, {20, 1}}) {
+        name->setText(QString(tier.length, QLatin1Char('a')));
+        for (const int period : {1, 3}) {
+            years->setValue(period);
+            QString displayedFee = fee->text();
+            QVERIFY(displayedFee.endsWith(QStringLiteral(" FIRO")));
+            displayedFee.chop(5);
+            bool parsed = false;
+            QCOMPARE(QLocale().toInt(displayedFee, &parsed), tier.annualFee * period);
+            QVERIFY(parsed);
+        }
+    }
+    for (const auto& invalidName : {QString(), QStringLiteral("bad name"), QStringLiteral("@sparky")}) {
+        name->setText(invalidName);
+        QVERIFY(!fee->text().contains(QStringLiteral("FIRO")));
+    }
+
+    const QString metadata = QStringLiteral("Public details to retain");
+    QVERIFY(details->isHidden());
+    detailsButton->click();
+    QVERIFY(!details->isHidden());
+    additionalInfo->setPlainText(metadata);
+    detailsButton->click();
+    QVERIFY(details->isHidden());
+    detailsButton->click();
+    QCOMPARE(additionalInfo->toPlainText(), metadata);
+
+    const auto hideTooltip = qScopeGuard([] { QToolTip::hideText(); });
+    for (const char* objectName : {"nameHelpButton", "feeHelpButton"}) {
+        auto* help = dialog.findChild<QToolButton*>(objectName);
+        QVERIFY(help);
+        QVERIFY(!help->toolTip().isEmpty());
+        QVERIFY(help->focusPolicy() & Qt::TabFocus);
+        QTest::keyClick(help, Qt::Key_Space);
+        QCOMPARE(QToolTip::text(), help->toolTip());
+    }
 }
 
 void WalletUiTests::initialSyncQueryDoesNotBlock()

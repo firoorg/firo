@@ -5,15 +5,19 @@
 #include "createsparknamepage.h"
 #include "ui_createsparkname.h"
 #include "sendcoinsdialog.h"
+#include "addressbookpage.h"
 
 #include "guitheme.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "validation.h"
 #include "sparkname.h"
-#include "compat_layer.h"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QDialogButtonBox>
+#include <QEvent>
+#include <QMenu>
 #include <QPushButton>
 #include <QStyle>
 #include <QMessageBox>
@@ -21,6 +25,8 @@
 #include <QDateTime>
 #include <QLocale>
 #include <QSignalBlocker>
+#include <QToolButton>
+#include <QToolTip>
 
 #include <algorithm>
 #include <cstdint>
@@ -36,7 +42,8 @@ constexpr int64_t MAXIMUM_SPARK_NAME_VALIDITY = 15 * SPARK_NAME_BLOCKS_PER_YEAR;
 
 CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::CreateSparkNamePage)
+    ui(new Ui::CreateSparkNamePage),
+    platformStyle(platformStyle)
 {
     ui->setupUi(this);
 
@@ -44,7 +51,57 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     resize(qMin(width(), qMax(1, available.width() - 40)),
            qMin(height(), qMax(1, available.height() - 40)));
 
-    feeText = ui->feeTextLabel->text();
+    ui->detailsWidget->hide();
+    ui->expiryLabel->hide();
+    ui->balanceWarningLabel->hide();
+    connect(ui->detailsButton, &QToolButton::toggled, this, [this](bool expanded) {
+        ui->detailsWidget->setVisible(expanded);
+        ui->detailsButton->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
+    });
+
+    const QString nameHelp = tr("A memorable name, such as @sparky, that people can use to send FIRO to your Spark address.");
+    ui->nameHelpButton->setToolTip(nameHelp);
+    ui->nameHelpButton->setAccessibleDescription(nameHelp);
+    ui->nameLabel->setToolTip(nameHelp);
+    ui->sparkNameEdit->setToolTip(tr("Use 1–20 letters (A–Z), numbers, hyphens or periods. Names are not case-sensitive."));
+
+    // Derive the displayed tiers from the same schedule used to calculate the fee.
+    const auto& fees = Params().GetConsensus().nSparkNamesFee;
+    QString feeRows;
+    for (size_t first = 1; first < fees.size();) {
+        size_t last = first;
+        while (last + 1 < fees.size() && fees[last + 1] == fees[first])
+            ++last;
+        const QString length = first == last
+            ? (first == 1 ? tr("1 character") : tr("%1 characters").arg(first))
+            : tr("%1–%2 characters").arg(first).arg(last);
+        feeRows += QStringLiteral("<tr><td>%1</td><td align=\"right\">%2</td></tr>")
+            .arg(length.toHtmlEscaped(), QLocale().toString(fees[first]));
+        first = last + 1;
+    }
+    ui->feeHelpButton->setToolTip(QStringLiteral("<p>%1</p><table cellspacing=\"6\"><tr><th>%2</th><th>%3</th></tr>%4</table><p>%5</p>")
+        .arg(tr("Shorter names cost more. The registration fee depends on your name’s length and the number of years selected.").toHtmlEscaped(),
+             tr("Name length").toHtmlEscaped(), tr("FIRO per year").toHtmlEscaped(), feeRows,
+             tr("The network fee is additional.").toHtmlEscaped()));
+    ui->feeHelpButton->setAccessibleDescription(tr("Fees are charged per year based on the length of the name. The network fee is additional."));
+    ui->feeLabel->setToolTip(ui->feeHelpButton->toolTip());
+    for (QToolButton* button : {ui->nameHelpButton, ui->feeHelpButton}) {
+        button->installEventFilter(this);
+        connect(button, &QToolButton::clicked, this, [button] {
+            QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())), button->toolTip(), button);
+        });
+    }
+
+    auto* addressMenu = new QMenu(ui->addressOptionsButton);
+    addressMenu->addAction(tr("Choose existing address…"), this, &CreateSparkNamePage::chooseExistingAddress);
+    addressMenu->addAction(tr("Generate new address"), this, &CreateSparkNamePage::generateSparkAddress);
+    addressMenu->addAction(tr("Paste address"), this, [this] {
+        if (!extendMode) {
+            ui->sparkAddressEdit->setText(QApplication::clipboard()->text().trimmed());
+            ui->sparkAddressEdit->setFocus();
+        }
+    });
+    ui->addressOptionsButton->setMenu(addressMenu);
     int nextBlockHeight;
     {
         LOCK(cs_main);
@@ -57,8 +114,8 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->numberOfYearsEdit->setRange(1, maximumYears);
     updateFee();
 
-    ui->numberOfYearsEdit->setMinimumWidth(96);
-    ui->numberOfYearsEdit->setAlignment(Qt::AlignCenter);
+    ui->numberOfYearsEdit->setMinimumWidth(120);
+    ui->numberOfYearsEdit->setAlignment(Qt::AlignLeft);
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setText(tr("Register"));
         GUIUtil::applyPrimaryButtonShadow(okButton);
@@ -72,54 +129,54 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
 void CreateSparkNamePage::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QDialog { background: $BG; }"
-        "QScrollArea { background: $BG; border: none; }"
-        "QScrollArea > QWidget > QWidget { background: $BG; }")));
-
-    const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"));
-    for (QLabel* caption : {ui->label_6, ui->label_2, ui->label_5, ui->label_3}) {
-        caption->setStyleSheet(captionStyle);
-    }
-    ui->label->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; }")));
-    ui->label_7->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }")));
-    ui->feeTextLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; }")));
-    ui->balanceWarningLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
-
-    const QString fieldStyle = GUIUtil::themed(QStringLiteral(
-        "QLineEdit, QTextEdit {"
-        " background: $PANEL_SOFT;"
-        " border: 1px solid $BORDER;"
-        " border-radius: 10px;"
-        " padding: 8px 12px;"
-        " color: $INK;"
-        "}"
-        "QLineEdit:focus, QTextEdit:focus { border: 1px solid $WINE; }"));
-    ui->sparkAddressEdit->setStyleSheet(fieldStyle);
-    ui->sparkNameEdit->setStyleSheet(fieldStyle);
-    ui->additionalInfoEdit->setStyleSheet(fieldStyle);
+        "QDialog#CreateSparkNamePage, QScrollArea, QScrollArea > QWidget > QWidget { background: $PANEL; border: none; }"
+        "QLabel { background: transparent; color: $INK; font-size: 14px; }"
+        "QLabel#titleLabel { font-size: 22px; font-weight: 700; }"
+        "QLabel#nameLabel, QLabel#addressLabel, QLabel#periodLabel, QLabel#feeLabel { font-weight: 600; }"
+        "QLabel#feeTextLabel { font-size: 18px; font-weight: 600; }"
+        "QLabel#feeHintLabel, QLabel#detailsHintLabel, QLabel#expiryLabel { color: $INK_SOFT; font-size: 12px; }"
+        "QLabel#balanceWarningLabel { color: $ERROR; font-size: 13px; font-weight: 600; }"
+        "QLabel#namePrefix { color: $WINE; font-size: 18px; }"
+        "QFrame#nameField, QFrame#addressField { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px; }"
+        "QLineEdit { background: transparent; color: $INK; border: 1px solid transparent; border-radius: 4px; padding: 4px 0; min-height: 28px; font-size: 16px; }"
+        "QLineEdit:focus { border-bottom-color: $WINE; }"
+        "QLineEdit:disabled { color: $INK_SOFT; }"
+        "QTextEdit { background: $PANEL_SOFT; color: $INK; border: 1px solid $BORDER; border-radius: 10px; padding: 6px 10px; font-size: 14px; }"
+        "QTextEdit:focus { border-color: $WINE; }"
+        "QToolButton { color: $INK_SOFT; background: transparent; border: 1px solid transparent; padding: 0; font-size: 13px; }"
+        "QToolButton:hover, QToolButton:focus { color: $INK; border-color: $WINE; }"
+        "QToolButton#nameHelpButton, QToolButton#feeHelpButton { border-color: $BORDER; border-radius: 10px; min-width: 18px; max-width: 18px; min-height: 18px; max-height: 18px; font-weight: 600; }"
+        "QToolButton#nameHelpButton:hover, QToolButton#feeHelpButton:hover, QToolButton#nameHelpButton:focus, QToolButton#feeHelpButton:focus { border-color: $WINE; }"
+        "QToolButton#addressOptionsButton { min-width: 28px; min-height: 28px; border-radius: 6px; }"
+        "QToolButton#addressOptionsButton::menu-indicator { image: none; }"
+        "QFrame#divider { background: $BORDER; border: none; max-height: 1px; }")));
 
     ui->numberOfYearsEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QSpinBox {"
         " background: $PANEL_SOFT; color: $INK;"
         " border: 1px solid $BORDER; border-radius: 10px;"
-        " min-height: 34px;"
+        " min-height: 36px; font-size: 16px;"
         "}"
         "QSpinBox:focus { border: 1px solid $WINE; }"
         "QSpinBox QLineEdit { %1 }"))
         .arg(GUIUtil::spinBoxInnerLineEditReset()));
 
-    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
-    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
-    ui->generateButton->setStyleSheet(secondaryButtonStyle);
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("5px 14px"));
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("5px 14px"));
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
         okButton->setStyleSheet(primaryButtonStyle);
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(secondaryButtonStyle);
+}
+
+bool CreateSparkNamePage::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::FocusIn &&
+        (watched == ui->nameHelpButton || watched == ui->feeHelpButton)) {
+        auto* button = qobject_cast<QToolButton*>(watched);
+        QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())), button->toolTip(), button);
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 CreateSparkNamePage::~CreateSparkNamePage()
@@ -130,7 +187,7 @@ CreateSparkNamePage::~CreateSparkNamePage()
 void CreateSparkNamePage::setModel(WalletModel *model)
 {
     if (this->model) {
-        disconnect(this->model, &WalletModel::balanceChanged,
+        disconnect(this->model.data(), &WalletModel::balanceChanged,
                    this, &CreateSparkNamePage::checkSparkBalance);
     }
     this->model = model;
@@ -155,7 +212,10 @@ void CreateSparkNamePage::setExtendMode(const QString &name, const QString &addr
     ui->sparkNameEdit->setEnabled(false);
     ui->sparkAddressEdit->setText(address);
     ui->sparkAddressEdit->setEnabled(false);
-    ui->generateButton->setEnabled(false);
+    ui->addressOptionsButton->setEnabled(false);
+    ui->titleLabel->setText(tr("Extend Spark Name"));
+    ui->periodLabel->setText(tr("Extend by"));
+    ui->feeLabel->setText(tr("Extension fee"));
     QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok);
     if (okButton)
         okButton->setText(tr("Extend"));
@@ -165,6 +225,7 @@ void CreateSparkNamePage::setExtendMode(const QString &name, const QString &addr
         CSparkNameManager* sparkNameManager = CSparkNameManager::GetInstance();
         ui->additionalInfoEdit->setPlainText(QString::fromStdString(
             sparkNameManager->GetSparkNameAdditionalData(name.toStdString())));
+        ui->detailsButton->setChecked(!ui->additionalInfoEdit->toPlainText().isEmpty());
 
         int nextBlockHeight;
         {
@@ -219,13 +280,43 @@ void CreateSparkNamePage::setExtendMode(const QString &name, const QString &addr
     updateFee();
 }
 
-void CreateSparkNamePage::on_generateButton_clicked()
+void CreateSparkNamePage::chooseExistingAddress()
 {
-    if (!model)
+    if (!model || extendMode)
         return;
 
+    QPointer<CreateSparkNamePage> page(this);
+    const QPointer<WalletModel> walletModel(model);
+    // The page can close during the picker's nested event loop.
+    AddressBookPage picker(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, nullptr);
+    picker.setInitialAddressType(AddressBookPage::Spark);
+    picker.setModel(walletModel->getAddressTableModel());
+    connect(this, &QObject::destroyed, &picker, &QDialog::reject);
+    connect(walletModel.data(), &QObject::destroyed, &picker, &QDialog::reject);
+    if (picker.exec() != QDialog::Accepted || !page || !walletModel || model != walletModel || extendMode)
+        return;
+
+    const QString address = picker.getReturnValue();
+    if (!model->validateSparkAddress(address) || !model->isSparkAddressMine(address)) {
+        QMessageBox::warning(this, tr("Invalid address"), tr("Choose a Spark address that belongs to this wallet."));
+        return;
+    }
+    QString existingName;
+    if (model->GetSparkNameByAddress(address, existingName)) {
+        QMessageBox::warning(this, tr("Address already registered"),
+            tr("This address is already registered as @%1. Extend that name from the Spark Names page, or choose another address.").arg(existingName));
+        return;
+    }
+    ui->sparkAddressEdit->setText(address);
+}
+
+void CreateSparkNamePage::generateSparkAddress()
+{
+    if (!model || extendMode)
+        return;
     QString newSparkAddress = model->generateSparkAddress();
-    ui->sparkAddressEdit->setText(newSparkAddress);
+    if (!newSparkAddress.isEmpty())
+        ui->sparkAddressEdit->setText(newSparkAddress);
 }
 
 void CreateSparkNamePage::on_sparkNameEdit_textChanged(const QString &text)
@@ -255,13 +346,15 @@ void CreateSparkNamePage::accept()
         return;
     }
     QString sparkName = ui->sparkNameEdit->text();
-    QString sparkAddress = ui->sparkAddressEdit->text();
+    QString sparkAddress = ui->sparkAddressEdit->text().trimmed();
     int numberOfYears = ui->numberOfYearsEdit->value();
     QString additionalInfo = ui->additionalInfoEdit->toPlainText();
     QString strError;
 
     if (!model->validateSparkAddress(sparkAddress))
         QMessageBox::critical(this, tr("Error"), tr("Invalid spark address"));
+    else if (!model->isSparkAddressMine(sparkAddress))
+        QMessageBox::critical(this, tr("Error"), tr("The Spark address does not belong to this wallet."));
     else if (!model->validateSparkNameData(sparkName, sparkAddress, additionalInfo, strError))
         QMessageBox::critical(this, tr("Error"), tr("Error details: ") + strError);
     else {
@@ -284,22 +377,26 @@ void CreateSparkNamePage::accept()
 }
 
 void CreateSparkNamePage::updateFee() {
+    const int numberOfYears = ui->numberOfYearsEdit->value();
+    ui->numberOfYearsEdit->setSuffix(numberOfYears == 1 ? tr(" year") : tr(" years"));
+    ui->expiryLabel->clear();
+    ui->expiryLabel->setVisible(extendMode);
     if (extendMode && !extensionUnavailableReason.isEmpty()) {
-        ui->feeTextLabel->setText(extensionUnavailableReason);
+        ui->feeTextLabel->setText(tr("Unavailable"));
+        ui->expiryLabel->setText(extensionUnavailableReason);
         return;
     }
 
     QString sparkName = ui->sparkNameEdit->text();
-    int numberOfYears = ui->numberOfYearsEdit->value();
 
-    if (sparkName.isEmpty() || cmp::greater(sparkName.length(), CSparkNameManager::maximumSparkNameLength) ||
+    if (!CSparkNameManager::IsSparkNameValid(sparkName.toStdString()) ||
         numberOfYears == 0 || numberOfYears > ui->numberOfYearsEdit->maximum()) {
-        ui->feeTextLabel->setText(feeText.arg("?"));
+        ui->feeTextLabel->setText(sparkName.isEmpty() ? tr("Enter a name") : tr("Enter a valid name"));
         return;
     }
 
     int fee = Params().GetConsensus().nSparkNamesFee[sparkName.length()] * numberOfYears;
-    QString label;
+    ui->feeTextLabel->setText(tr("%1 FIRO").arg(QLocale().toString(fee)));
 
     if (extendMode) {
         try {
@@ -327,18 +424,12 @@ void CreateSparkNamePage::updateFee() {
             QDateTime expirationDate = QDateTime::currentDateTime().addSecs(
                 (qint64)blocksFromNow * 3600 / nBlocksPerHour);
 
-            label = tr("Fee: %1 FIRO. New estimated expiration: %2")
-                .arg(fee)
-                .arg(QLocale::system().toString(expirationDate.date(), QLocale::LongFormat));
+            ui->expiryLabel->setText(tr("New estimated expiration: %1")
+                .arg(QLocale::system().toString(expirationDate.date(), QLocale::LongFormat)));
         } catch (const std::runtime_error&) {
-            label = tr("Extension fee: %1 FIRO. The updated expiration estimate is unavailable.")
-                .arg(fee);
+            ui->expiryLabel->setText(tr("The updated expiration estimate is unavailable."));
         }
-    } else {
-        label = feeText.arg(QString::number(fee));
     }
-
-    ui->feeTextLabel->setText(label);
 }
 
 bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, const std::string &address, int numberOfYears, const std::string &additionalInfo)

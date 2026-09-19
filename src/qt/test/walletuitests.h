@@ -25,6 +25,7 @@ private Q_SLOTS:
     void failedAbandonKeepsTransactionVisible();
     void themeChangePreservesWidgetState();
     void sparkNamesRefreshAfterModelDestruction();
+    void sparkNameRegistrationDetails();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H

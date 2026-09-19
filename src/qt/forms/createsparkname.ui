@@ -9,30 +9,18 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>860</width>
-    <height>480</height>
+    <width>560</width>
+    <height>460</height>
    </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-    <horstretch>1</horstretch>
-    <verstretch>1</verstretch>
-   </sizepolicy>
   </property>
   <property name="minimumSize">
    <size>
-    <width>480</width>
-    <height>360</height>
-   </size>
-  </property>
-  <property name="baseSize">
-   <size>
-    <width>860</width>
-    <height>480</height>
+    <width>360</width>
+    <height>320</height>
    </size>
   </property>
   <property name="windowTitle">
-   <string>Create spark name</string>
+   <string>Register Spark Name</string>
   </property>
   <property name="sizeGripEnabled">
    <bool>true</bool>
@@ -40,7 +28,22 @@
   <property name="modal">
    <bool>true</bool>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <property name="spacing">
+    <number>18</number>
+   </property>
+   <property name="leftMargin">
+    <number>24</number>
+   </property>
+   <property name="topMargin">
+    <number>22</number>
+   </property>
+   <property name="rightMargin">
+    <number>24</number>
+   </property>
+   <property name="bottomMargin">
+    <number>22</number>
+   </property>
    <item>
     <widget class="QScrollArea" name="scrollArea">
      <property name="frameShape">
@@ -50,15 +53,10 @@
       <bool>true</bool>
      </property>
      <widget class="QWidget" name="scrollAreaWidgetContents">
-      <property name="geometry">
-       <rect>
-        <x>0</x>
-        <y>0</y>
-        <width>838</width>
-        <height>458</height>
-       </rect>
-      </property>
-      <layout class="QVBoxLayout" name="scrollAreaLayout">
+      <layout class="QVBoxLayout" name="formLayout">
+       <property name="spacing">
+        <number>18</number>
+       </property>
        <property name="leftMargin">
         <number>0</number>
        </property>
@@ -72,272 +70,264 @@
         <number>0</number>
        </property>
        <item>
-        <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,1">
-     <property name="sizeConstraint">
-      <enum>QLayout::SetDefaultConstraint</enum>
-     </property>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_12">
-       <property name="bottomMargin">
-        <number>20</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="label">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
+        <widget class="QLabel" name="titleLabel">
          <property name="text">
-          <string>Spark Names serve as a convenient way to associate your Spark Address with a memorable name of your choice. This way you can share your Spark Names to other users for them to send funds to you (for e.g. @sparky) instead of a long Spark Address while protecting your privacy.</string>
+          <string>Register Spark Name</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
          </property>
         </widget>
        </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,2">
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
-         <property name="sizeConstraint">
-          <enum>QLayout::SetDefaultConstraint</enum>
+        <layout class="QVBoxLayout" name="nameLayout">
+         <property name="spacing">
+          <number>6</number>
          </property>
          <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+          <layout class="QHBoxLayout" name="nameCaptionLayout">
+           <property name="spacing">
+            <number>6</number>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
+           <item>
+            <widget class="QLabel" name="nameLabel">
+             <property name="text">
+              <string>Spark Name</string>
+             </property>
+             <property name="buddy">
+              <cstring>sparkNameEdit</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="nameHelpButton">
+             <property name="focusPolicy">
+              <enum>Qt::StrongFocus</enum>
+             </property>
+             <property name="accessibleName">
+              <string>About Spark Names</string>
+             </property>
+             <property name="text">
+              <string notr="true">i</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="nameCaptionSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
          </item>
          <item>
-          <widget class="QLabel" name="label_6">
-           <property name="text">
-            <string>Spark address:</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-           </property>
+          <widget class="QFrame" name="nameField">
+           <layout class="QHBoxLayout" name="nameFieldLayout">
+            <property name="spacing">
+             <number>4</number>
+            </property>
+            <property name="leftMargin">
+             <number>12</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>12</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="namePrefix">
+              <property name="text">
+               <string notr="true">@</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="sparkNameEdit">
+              <property name="placeholderText">
+               <string>e.g. sparky</string>
+              </property>
+              <property name="accessibleName">
+               <string>Spark Name</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
         </layout>
        </item>
        <item>
-        <widget class="QLineEdit" name="sparkAddressEdit"/>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_6">
-       <property name="bottomMargin">
-        <number>10</number>
-       </property>
-       <item>
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QPushButton" name="generateButton">
-         <property name="text">
-          <string>Generate new</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,2">
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="sizeConstraint">
-          <enum>QLayout::SetFixedSize</enum>
+        <layout class="QVBoxLayout" name="addressLayout">
+         <property name="spacing">
+          <number>6</number>
          </property>
          <item>
-          <spacer name="horizontalSpacer_3">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+          <widget class="QLabel" name="addressLabel">
+           <property name="text">
+            <string>Receiving address</string>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
+           <property name="buddy">
+            <cstring>sparkAddressEdit</cstring>
            </property>
-          </spacer>
+          </widget>
          </item>
          <item>
-          <widget class="QLabel" name="label_2">
-           <property name="text">
-            <string>Spark name:</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-           </property>
+          <widget class="QFrame" name="addressField">
+           <layout class="QHBoxLayout" name="addressFieldLayout">
+            <property name="spacing">
+             <number>4</number>
+            </property>
+            <property name="leftMargin">
+             <number>12</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>4</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLineEdit" name="sparkAddressEdit">
+              <property name="placeholderText">
+               <string>Choose or paste a Spark address…</string>
+              </property>
+              <property name="accessibleName">
+               <string>Receiving Spark address</string>
+              </property>
+              <property name="toolTip">
+               <string>Use a Spark address that belongs to this wallet.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QToolButton" name="addressOptionsButton">
+              <property name="focusPolicy">
+               <enum>Qt::StrongFocus</enum>
+              </property>
+              <property name="accessibleName">
+               <string>Choose a Spark address</string>
+              </property>
+              <property name="toolTip">
+               <string>Choose an existing address, generate a new one, or paste an address.</string>
+              </property>
+              <property name="popupMode">
+               <enum>QToolButton::InstantPopup</enum>
+              </property>
+              <property name="arrowType">
+               <enum>Qt::DownArrow</enum>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_3">
-         <item>
-          <widget class="QLineEdit" name="sparkNameEdit"/>
-         </item>
-         <item>
-          <widget class="QLabel" name="label_3">
+        <layout class="QGridLayout" name="feeLayout" columnstretch="0,1">
+         <property name="horizontalSpacing">
+          <number>32</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>6</number>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="periodLabel">
            <property name="text">
-            <string>1-20 characters</string>
+            <string>Registration period</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+           <property name="buddy">
+            <cstring>numberOfYearsEdit</cstring>
            </property>
           </widget>
          </item>
-         <item>
-          <spacer name="horizontalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+         <item row="0" column="1">
+          <layout class="QHBoxLayout" name="feeCaptionLayout">
+           <property name="spacing">
+            <number>6</number>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
+           <item>
+            <widget class="QLabel" name="feeLabel">
+             <property name="text">
+              <string>Registration fee</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="feeHelpButton">
+             <property name="focusPolicy">
+              <enum>Qt::StrongFocus</enum>
+             </property>
+             <property name="accessibleName">
+              <string>About registration fees</string>
+             </property>
+             <property name="text">
+              <string notr="true">i</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="feeCaptionSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
          </item>
-        </layout>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,2">
-       <property name="bottomMargin">
-        <number>30</number>
-       </property>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_9">
-         <item>
-          <spacer name="horizontalSpacer_5">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+         <item row="1" column="0" alignment="Qt::AlignLeft">
+          <widget class="QSpinBox" name="numberOfYearsEdit">
+           <property name="minimum">
+            <number>1</number>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
+           <property name="maximum">
+            <number>15</number>
            </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QLabel" name="label_5">
-           <property name="text">
-            <string>Number of years:</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           <property name="accessibleName">
+            <string>Registration period in years</string>
            </property>
           </widget>
          </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_10">
-         <item>
-          <widget class="QSpinBox" name="numberOfYearsEdit"/>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_6">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_11" stretch="1,0">
-       <property name="bottomMargin">
-        <number>20</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="feeTextLabel">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="textFormat">
-          <enum>Qt::RichText</enum>
-         </property>
-         <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To get this spark name you must pay a fee of &lt;span style=&quot; font-weight:600;&quot;&gt;%1 FIRO(s)&lt;/span&gt;. Fee depends on spark name lengths, shorter names are more expensive. Fee can be paid only with private funds.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_warning">
-         <property name="sizeConstraint">
-          <enum>QLayout::SetMinimumSize</enum>
-         </property>
-         <item>
-          <spacer name="horizontalSpacer_warn">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QLabel" name="balanceWarningLabel">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
+         <item row="1" column="1">
+          <widget class="QLabel" name="feeTextLabel">
            <property name="text">
-            <string/>
+            <string>Enter a name</string>
            </property>
-           <property name="visible">
-            <bool>false</bool>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0" colspan="2">
+          <widget class="QLabel" name="feeHintLabel">
+           <property name="text">
+            <string>Paid from your private balance. Network fee additional.</string>
            </property>
            <property name="wordWrap">
             <bool>true</bool>
@@ -346,53 +336,128 @@
          </item>
         </layout>
        </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_13">
        <item>
-        <widget class="QLabel" name="label_7">
+        <widget class="QLabel" name="expiryLabel">
          <property name="text">
-          <string>Additional information you want to associate with this spark name (max. 1024 symbols):</string>
+          <string/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_14">
-       <property name="bottomMargin">
-        <number>20</number>
-       </property>
        <item>
-        <widget class="QTextEdit" name="additionalInfoEdit">
-         <property name="minimumSize">
+        <widget class="QLabel" name="balanceWarningLabel">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="detailsLayout">
+         <property name="spacing">
+          <number>6</number>
+         </property>
+         <item alignment="Qt::AlignLeft">
+          <widget class="QToolButton" name="detailsButton">
+           <property name="text">
+            <string>Public details (optional)</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="toolButtonStyle">
+            <enum>Qt::ToolButtonTextBesideIcon</enum>
+           </property>
+           <property name="arrowType">
+            <enum>Qt::RightArrow</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QWidget" name="detailsWidget" native="true">
+           <layout class="QVBoxLayout" name="detailsContentsLayout">
+            <property name="spacing">
+             <number>6</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="detailsHintLabel">
+              <property name="text">
+               <string>This information is public. Maximum 1024 UTF-8 bytes.</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QTextEdit" name="additionalInfoEdit">
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>80</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>120</height>
+               </size>
+              </property>
+              <property name="acceptRichText">
+               <bool>false</bool>
+              </property>
+              <property name="accessibleName">
+               <string>Public details</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="bottomSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint">
           <size>
            <width>0</width>
-           <height>50</height>
+           <height>0</height>
           </size>
          </property>
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>16777215</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-        </layout>
+        </spacer>
        </item>
       </layout>
      </widget>
     </widget>
    </item>
    <item>
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+    <widget class="QFrame" name="divider">
+     <property name="frameShape">
+      <enum>QFrame::HLine</enum>
      </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
      <property name="standardButtons">
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
@@ -400,6 +465,17 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>sparkNameEdit</tabstop>
+  <tabstop>nameHelpButton</tabstop>
+  <tabstop>sparkAddressEdit</tabstop>
+  <tabstop>addressOptionsButton</tabstop>
+  <tabstop>numberOfYearsEdit</tabstop>
+  <tabstop>feeHelpButton</tabstop>
+  <tabstop>detailsButton</tabstop>
+  <tabstop>additionalInfoEdit</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
@@ -407,32 +483,12 @@
    <signal>accepted()</signal>
    <receiver>CreateSparkNamePage</receiver>
    <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
    <receiver>CreateSparkNamePage</receiver>
    <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
  </connections>
 </ui>
