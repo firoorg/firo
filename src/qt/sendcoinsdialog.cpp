@@ -55,7 +55,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->verticalLayout->removeWidget(ui->frameFee);
     ui->verticalLayout_2->insertWidget(2, ui->frameFee);
     ui->frameCoinControl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
-    ui->frameFee->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    ui->frameFee->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->addButton->setIcon(QIcon());
@@ -1184,7 +1184,6 @@ void SendCoinsDialog::minimizeFeeSection(bool fMinimize)
     ui->buttonChooseFee  ->setVisible(fMinimize);
     ui->buttonMinimizeFee->setVisible(!fMinimize);
     ui->frameFeeSelection->setVisible(!fMinimize);
-    ui->horizontalLayoutSmartFee->setContentsMargins(0, (fMinimize ? 0 : 6), 0, 0);
     fFeeMinimized = fMinimize;
 }
 
@@ -1332,6 +1331,7 @@ void SendCoinsDialog::updateSmartFeeLabel()
     int nBlocksToConfirm = ui->sliderSmartFee->maximum() - ui->sliderSmartFee->value() + 2;
     int estimateFoundAtBlocks = nBlocksToConfirm;
     CFeeRate feeRate = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlocks);
+    ui->labelFeeEstimation->setVisible(feeRate > CFeeRate(0));
     if (feeRate <= CFeeRate(0)) // not enough data => minfee
     {
         ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(
