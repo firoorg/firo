@@ -94,6 +94,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/evospork_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/evo_deterministicmns_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/evo_simplifiedmns_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quorums_signing_pending_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/progpow_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bls_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkmessage_tests.cpp
