@@ -1066,7 +1066,7 @@ bool CheckSparkSpendTransaction(
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
+    const bool fCanBatch = !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
         const uint64_t wireGroupId = idAndHash.first;
@@ -1212,29 +1212,21 @@ bool CheckSparkSpendTransaction(
         return loadedCoverSet;
     };
     
-    // if we are collecting proofs, skip verification and collect proofs
-    // add proofs into container
-    if (useBatching) {
+    // Recent blocks retain the mempool cache fast path. Historical batches
+    // still collect every proof, and VerifyDB always re-verifies its own view.
+    bool haveCachedSuccess = false;
+    if (!isVerifyDB && (!fCanBatch || !batchProofContainer->is_deferred())) {
+        LOCK(cs_checkedSparkSpendTransactions);
+        haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
+    }
+    const bool fAddedToBatch = !haveCachedSuccess && fCanBatch && ((isChaumV2 || requireChaumV1SingleInput)
+        ? batchProofContainer->add(*spend, hashTx)
+        : batchProofContainer->addHistorical(*spend, hashTx));
+    if (haveCachedSuccess || fAddedToBatch) {
         passVerify = true;
-        if (isChaumV2 || requireChaumV1SingleInput) {
-            batchProofContainer->add(*spend, hashTx);
-        } else {
-            batchProofContainer->addHistorical(*spend, hashTx);
-        }
     } else {
         try {
-            bool haveCachedSuccess = false;
-            // The cache is txid-only. VerifyDB reconstructs cover sets at the
-            // historical height, so a mempool success must not skip re-verify.
-            if (!isVerifyDB) {
-                LOCK(cs_checkedSparkSpendTransactions);
-                haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
-            }
-            if (haveCachedSuccess) {
-                LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
-                passVerify = true;
-            }
-            else if (isMempoolAcceptance) {
+            if (isMempoolAcceptance) {
                 passVerify = spark::SpendTransaction::verify(
                     spark::Params::get_default(),
                     {*spend},

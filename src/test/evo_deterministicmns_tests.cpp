@@ -355,12 +355,12 @@ BOOST_FIXTURE_TEST_CASE(dip3_activation, TestChainDIP3BeforeActivationSetup)
 
     // This block should activate DIP3
     CreateAndProcessBlock({}, coinbaseKey);
-    LOCK(cs_main);
     BOOST_ASSERT(chainActive.Height() == nHeight + 1);
 
     // Mining a block with a DIP3 transaction should succeed now
     block = std::make_shared<CBlock>(CreateBlock(txns, coinbaseKey));
     ProcessNewBlock(Params(), block, true, nullptr);
+    LOCK(cs_main);
     deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
 
     BOOST_ASSERT(chainActive.Height() == nHeight + 2);
