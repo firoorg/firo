@@ -343,6 +343,26 @@ void WalletUiTests::sparkNameRegistrationDetails()
     detailsButton->click();
     QCOMPARE(additionalInfo->toPlainText(), metadata);
 
+    // Extensions can reveal existing details before the first show. Fit the
+    // editor unless the available screen height requires scrolling.
+    dialog.setAttribute(Qt::WA_DontShowOnScreen);
+    dialog.show();
+    QCoreApplication::processEvents();
+    auto* scroll = dialog.findChild<QScrollArea*>("scrollArea");
+    QVERIFY(scroll);
+    const int maximumHeight = qMax(dialog.minimumHeight(), GUIUtil::availableScreenSize(&dialog).height() - 40
+        - (dialog.frameGeometry().height() - dialog.height()));
+    QVERIFY(scroll->verticalScrollBar()->maximum() == 0 || dialog.height() == maximumHeight);
+    detailsButton->click();
+    dialog.resize(dialog.width(), qMin(460, dialog.height()));
+    detailsButton->click();
+    QCoreApplication::processEvents();
+    QVERIFY(scroll->verticalScrollBar()->maximum() == 0 || dialog.height() == maximumHeight);
+    const int expandedHeight = dialog.height();
+    detailsButton->click();
+    detailsButton->click();
+    QCOMPARE(dialog.height(), expandedHeight);
+
     const auto hideTooltip = qScopeGuard([] { QToolTip::hideText(); });
     for (const char* objectName : {"nameHelpButton", "feeHelpButton"}) {
         auto* help = dialog.findChild<QToolButton*>(objectName);

@@ -36,6 +36,7 @@ public:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
     Ui::CreateSparkNamePage *ui;
@@ -48,6 +49,7 @@ private:
     void updateFee();
     void chooseExistingAddress();
     void generateSparkAddress();
+    void expandForPublicDetails();
 
 private Q_SLOTS:
     void on_sparkNameEdit_textChanged(const QString &text);

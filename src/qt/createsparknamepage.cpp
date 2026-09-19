@@ -25,6 +25,8 @@
 #include <QDateTime>
 #include <QLocale>
 #include <QSignalBlocker>
+#include <QScreen>
+#include <QShowEvent>
 #include <QToolButton>
 #include <QToolTip>
 
@@ -57,6 +59,8 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     connect(ui->detailsButton, &QToolButton::toggled, this, [this](bool expanded) {
         ui->detailsWidget->setVisible(expanded);
         ui->detailsButton->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
+        if (expanded)
+            expandForPublicDetails();
     });
 
     const QString nameHelp = tr("A memorable name, such as @sparky, that people can use to send FIRO to your Spark address while preserving your transaction privacy.");
@@ -167,6 +171,34 @@ void CreateSparkNamePage::applyTheme()
         okButton->setStyleSheet(primaryButtonStyle);
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(secondaryButtonStyle);
+}
+
+void CreateSparkNamePage::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    // Extensions can open with details already expanded, before the first layout.
+    if (ui->detailsButton->isChecked())
+        expandForPublicDetails();
+}
+
+void CreateSparkNamePage::expandForPublicDetails()
+{
+    if (!isVisible() || !screen())
+        return;
+
+    layout()->activate();
+    ui->formLayout->activate();
+    const int formHeight = ui->formLayout->hasHeightForWidth()
+        ? ui->formLayout->totalHeightForWidth(ui->scrollArea->viewport()->width())
+        : ui->formLayout->totalSizeHint().height();
+    const int requiredHeight = height() + qMax(0, formHeight - ui->scrollArea->viewport()->height());
+    const QRect available = screen()->availableGeometry().adjusted(0, 20, 0, -20);
+    const int frameHeight = frameGeometry().height() - height();
+    resize(width(), qMin(requiredHeight, qMax(minimumHeight(), available.height() - frameHeight)));
+
+    // Growing a window near the bottom of a monitor must keep its buttons visible.
+    const int top = qMax(available.top(), qMin(frameGeometry().top(), available.bottom() - frameGeometry().height() + 1));
+    move(pos() + QPoint(0, top - frameGeometry().top()));
 }
 
 bool CreateSparkNamePage::eventFilter(QObject *watched, QEvent *event)
