@@ -572,17 +572,15 @@ static QIcon NavigationIcon(const QString& resource)
     centerPainter.end();
 
     const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
+    const QPixmap checked = ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF")));
     QIcon icon;
     icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.inkSoft)),
                    QIcon::Normal, QIcon::Off);
-    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF"))),
-                   QIcon::Normal, QIcon::On);
+    icon.addPixmap(checked, QIcon::Normal, QIcon::On);
     icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.ink)),
                    QIcon::Active, QIcon::Off);
-    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF"))),
-                   QIcon::Active, QIcon::On);
-    icon.addPixmap(ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF"))),
-                   QIcon::Selected, QIcon::On);
+    icon.addPixmap(checked, QIcon::Active, QIcon::On);
+    icon.addPixmap(checked, QIcon::Selected, QIcon::On);
     icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.inkFaint)),
                    QIcon::Disabled, QIcon::Off);
     return icon;
@@ -725,14 +723,6 @@ void BitcoinGUI::createToolBars()
         logoLabel->setFixedHeight(88);
         logoAction = toolbar->addWidget(logoLabel);
 
-        overviewAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_overview")));
-        sendCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_send")));
-        receiveCoinsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_receive")));
-        historyAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_transactions")));
-        sparkNamesAction->setIcon(NavigationIcon(QStringLiteral(":/icons/spark")));
-        masternodeAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_masternodes")));
-        consoleAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_console")));
-        optionsAction->setIcon(NavigationIcon(QStringLiteral(":/icons/sidebar_options")));
         consoleAction->setIconText(tr("Console"));
         optionsAction->setIconText(tr("Options"));
 

@@ -42,7 +42,6 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     clientModel(0),
     walletModel(0),
     overviewPage(0),
-    firoTransactionsView(0),
     platformStyle(_platformStyle)
 {
     overviewPage = new OverviewPage(platformStyle);
@@ -86,12 +85,10 @@ void WalletView::setupTransactionPage()
     connect(overviewPage, &OverviewPage::transactionClicked, firoTransactionList, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
     connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
-    firoTransactionsView = firoTransactionList;
-
     // Set layout for transaction page
     auto pageLayout = new QVBoxLayout();
     pageLayout->setContentsMargins(0, 0, 0, 0);
-    pageLayout->addWidget(firoTransactionsView);
+    pageLayout->addWidget(firoTransactionList);
 
     transactionsPage->setLayout(pageLayout);
 }

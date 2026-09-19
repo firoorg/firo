@@ -83,7 +83,6 @@ private:
     QWidget *sendCoinsPage;
     SendCoinsDialog *sendFiroView;
     TransactionView *firoTransactionList;
-    QWidget *firoTransactionsView;
     MasternodeList *masternodeListPage;
 
     QProgressDialog *progressDialog;

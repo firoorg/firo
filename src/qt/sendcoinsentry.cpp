@@ -44,10 +44,6 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
 
     setCurrentWidget(ui->SendCoins);
 
-    updatePageSizePolicies();
-    connect(this, &QStackedWidget::currentChanged,
-            this, [this](int) { updatePageSizePolicies(); });
-
     if (platformStyle->getUseExtraSpacing())
         ui->payToLayout->setSpacing(4);
 #if QT_VERSION >= 0x040700
@@ -74,19 +70,6 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
             this, &SendCoinsEntry::applyTheme);
     applyTheme();
     ui->payAmount->setExpanding(true, 420);
-}
-
-void SendCoinsEntry::updatePageSizePolicies()
-{
-    for (int i = 0; i < count(); ++i) {
-        QWidget* page = widget(i);
-        if (!page)
-            continue;
-        page->setSizePolicy(QSizePolicy::Preferred,
-                            i == currentIndex() ? QSizePolicy::Preferred
-                                                : QSizePolicy::Ignored);
-    }
-    updateGeometry();
 }
 
 void SendCoinsEntry::applyTheme()

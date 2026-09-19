@@ -1133,11 +1133,7 @@ void TransactionView::showDetails()
         return;
     QModelIndexList selection = transactionView->selectionModel()->selectedRows();
     if(!selection.isEmpty())
-    {
-        TransactionDescDialog *dlg = new TransactionDescDialog(selection.at(0), this);
-        dlg->setAttribute(Qt::WA_DeleteOnClose);
-        dlg->show();
-    }
+        openTransaction(selection.at(0));
 }
 
 void TransactionView::openTransaction(const QModelIndex &index)

@@ -381,13 +381,11 @@ bool CreateSparkNamePage::CreateSparkNameTransaction(const std::string &name, co
         assert(!name.empty() && name.length() <= CSparkNameManager::maximumSparkNameLength);
 
         CAmount sparkNameFee = consensusParams.nSparkNamesFee[name.length()]*COIN*numberOfYears;
-        FIRO_UNUSED CAmount txFee;
 
         WalletModelTransaction tx = walletModel->initSparkNameTransaction(sparkNameFee);
 
-        using UnlockContext = WalletModel::UnlockContext;
-        std::unique_ptr<UnlockContext> ctx = std::unique_ptr<UnlockContext>(new UnlockContext(walletModel->requestUnlock()));
-        if (!page || !ctx->isValid())
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+        if (!page || !ctx.isValid())
             return false;
 
         WalletModel::SendCoinsReturn prepareStatus;
