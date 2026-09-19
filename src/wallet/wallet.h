@@ -788,6 +788,9 @@ public:
 
     ~CWallet()
     {
+        // Spark jobs can notify subscribers that access this wallet's members.
+        if (sparkWallet)
+            sparkWallet->FinishTasks();
         delete pwalletdbEncryption;
         pwalletdbEncryption = NULL;
     }

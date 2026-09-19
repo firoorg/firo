@@ -733,7 +733,7 @@ void CSparkWallet::UpdateSpendState(const GroupElement& lTag, const uint256& txH
 
 void CSparkWallet::UpdateSpendStateFromMempool(const std::vector<GroupElement>& lTags, const uint256& txHash, bool fUpdateMint) {
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() {
-        LOCK(cs_spark_wallet);
+        LOCK2(cs_main, cs_spark_wallet);
         if (!mempool.exists(txHash) && !txpools.getStemTxPool().exists(txHash))
             return;
         for (const auto& lTag : lTags) {
@@ -916,17 +916,54 @@ void CSparkWallet::UpdateMintState(const std::vector<spark::Coin>& coins, const 
 
 void CSparkWallet::UpdateMintStateFromMempool(const std::vector<spark::Coin>& coins, const uint256& txHash) {
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() mutable {
-        LOCK(cs_spark_wallet);
+        std::vector<IdentifiedMint> mints;
+        for (const auto& coin : coins) {
+            try {
+                mints.push_back(IdentifyMint(coin, txHash));
+            } catch (const std::runtime_error&) {
+                continue;
+            }
+        }
+        // Match block processing's lock order before consulting either pool.
+        LOCK2(cs_main, cs_spark_wallet);
         if (!mempool.exists(txHash) && !txpools.getStemTxPool().exists(txHash))
             return;
         CWalletDB walletdb(strWalletFile);
-        UpdateMintState(coins, txHash, walletdb);
+        for (auto& mint : mints) {
+            try {
+                RecordMint(std::move(mint), walletdb);
+            } catch (const std::runtime_error&) {
+                continue;
+            }
+        }
     });
 }
 
 void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
-    std::vector<CTransactionRef> vtxCopy = block.vtx;
     const uint256 blockHash = block.GetHash();
+    {
+        LOCK2(cs_main, cs_spark_wallet);
+        auto it = mapBlockIndex.find(blockHash);
+        if (it == mapBlockIndex.end() || !chainActive.Contains(it->second))
+            return;
+
+        // Confirm known mints before block notifications reach balance/spend callers.
+        // Unknown outputs are still identified by the worker below.
+        CWalletDB walletdb(strWalletFile);
+        for (const auto& tx : block.vtx) {
+            for (const auto& coin : spark::GetSparkMintCoins(*tx)) {
+                const auto* known = findMintMeta(coin);
+                if (!known)
+                    continue;
+                auto mint = *known;
+                std::tie(mint.nHeight, mint.nId) =
+                    spark::CSparkState::GetState()->GetMintedCoinHeightAndId(coin);
+                const uint256 lTagHash = coinLookup.at(primitives::GetSparkCoinHash(coin));
+                addOrUpdateMint(mint, lTagHash, walletdb);
+            }
+        }
+    }
+    std::vector<CTransactionRef> vtxCopy = block.vtx;
     ((ParallelOpThreadPool<void>*)threadPool)->PostTask([=, this]() mutable {
         std::vector<IdentifiedMint> mints;
         for (const auto& tx : vtxCopy) {
@@ -945,18 +982,29 @@ void CSparkWallet::UpdateMintStateFromBlock(const CBlock& block) {
             return;
 
         // Identification can overlap a reorg. Only record mints still on the active chain.
-        LOCK2(cs_main, cs_spark_wallet);
+        LOCK(cs_main);
         auto it = mapBlockIndex.find(blockHash);
         if (it == mapBlockIndex.end() || !chainActive.Contains(it->second))
             return;
-        CWalletDB walletdb(strWalletFile);
-        for (auto& mint : mints) {
-            try {
-                RecordMint(std::move(mint), walletdb);
-            } catch (const std::runtime_error&) {
-                continue;
+        std::set<uint256> updatedTransactions;
+        {
+            LOCK(cs_spark_wallet);
+            CWalletDB walletdb(strWalletFile);
+            for (auto& mint : mints) {
+                try {
+                    const uint256 txid = mint.meta.txid;
+                    RecordMint(std::move(mint), walletdb);
+                    updatedTransactions.insert(txid);
+                } catch (const std::runtime_error&) {
+                    continue;
+                }
             }
         }
+        // Balance polling may have consumed the block notification during identification.
+        // NotifyTransactionChanged requires cs_wallet; acquire it after releasing Spark's lock.
+        LOCK(pwalletMain->cs_wallet);
+        for (const auto& txid : updatedTransactions)
+            pwalletMain->NotifyTransactionChanged(pwalletMain, txid, CT_UPDATED);
     });
 }
 

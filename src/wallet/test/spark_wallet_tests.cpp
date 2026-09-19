@@ -204,8 +204,17 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
     std::vector<std::pair<CWalletTx, CAmount>> transactions;
     BOOST_REQUIRE_EQUAL(pwalletMain->MintAndStoreSpark(outputs, transactions, false, true), "");
     BOOST_REQUIRE_EQUAL(transactions.size(), 1);
-    const auto* index = GenerateBlock({CMutableTransaction(*transactions[0].first.tx)});
-    BOOST_REQUIRE(index);
+    wallet->FinishTasks();
+    const CBlockIndex* index;
+    {
+        // Keep the worker's record phase blocked while reading the connected block.
+        LOCK(cs_main);
+        index = GenerateBlock({CMutableTransaction(*transactions[0].first.tx)});
+        BOOST_REQUIRE(index);
+        BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 2 * COIN);
+        BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+        BOOST_CHECK_EQUAL(wallet->GetAvailableSparkCoins().size(), 1);
+    }
     const CBlock block = GetCBlock(index);
     wallet->FinishTasks();
 
@@ -217,8 +226,21 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
 
     // Rediscover the owned output through the block worker, without cached metadata.
     wallet->eraseMint(lTagHash, walletdb);
+    int notifications = 0;
+    CAmount notifiedBalance = 0;
+    boost::signals2::scoped_connection connection(
+        pwalletMain->NotifyTransactionChanged.connect(
+            [&](CWallet*, const uint256& txid, ChangeType status) {
+                if (txid == expected.txid && status == CT_UPDATED) {
+                    ++notifications;
+                    notifiedBalance = wallet->getAvailableBalance();
+                }
+            }));
     wallet->UpdateMintStateFromBlock(block);
     wallet->FinishTasks();
+    connection.disconnect();
+    BOOST_CHECK_EQUAL(notifications, 1);
+    BOOST_CHECK_EQUAL(notifiedBalance, 2 * COIN);
     const auto scanned = wallet->getMintMap();
     BOOST_REQUIRE_EQUAL(scanned.size(), 1);
     BOOST_REQUIRE(scanned.count(lTagHash));
