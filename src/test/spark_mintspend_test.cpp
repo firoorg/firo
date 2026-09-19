@@ -87,6 +87,9 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
     GenerateBlocks(2);
 
+    // Block and mempool updates reach the Spark wallet asynchronously. Drain
+    // them before deliberately rewinding the wallet and chain spend state.
+    pwalletMain->sparkWallet->WaitForPendingTasks();
     auto tempTags = sparkState->usedLTags;
     sparkState->usedLTags.clear();
 
