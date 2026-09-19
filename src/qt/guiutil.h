@@ -14,6 +14,7 @@
 #include <QMessageBox>
 #include <QObject>
 #include <QProgressBar>
+#include <QSize>
 #include <QString>
 #include <QTableView>
 #include <QLabel>
@@ -37,6 +38,9 @@ QT_END_NAMESPACE
  */
 namespace GUIUtil
 {
+    /** Return the usable size of the screen containing a widget. */
+    QSize availableScreenSize(const QWidget* widget);
+
     /** Run a slow wallet operation on a worker while the GUI repaints.
      * User input is excluded until completion and exceptions are rethrown. */
     void runWalletOperation(const std::function<void()>& operation);

@@ -44,6 +44,7 @@ private:
 private Q_SLOTS:
     void textChanged();
     void secureClearPassFields();
+    void applyTheme();
 
 protected:
     bool event(QEvent *event) override;

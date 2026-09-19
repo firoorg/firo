@@ -79,7 +79,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     if (!lock_wallet)
         return strHTML;
     strHTML.reserve(4000);
-    strHTML += "<html><font face='verdana, arial, helvetica, sans-serif'>";
+    strHTML += "<html>";
 
     int64_t nTime = wtx.GetTxTime();
     CAmount nCredit = wtx.GetCredit(ISMINE_ALL);
@@ -414,6 +414,6 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
         strHTML += "</ul>";
     }
 
-    strHTML += "</font></html>";
+    strHTML += "</html>";
     return strHTML;
 }

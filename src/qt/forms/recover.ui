@@ -3,7 +3,7 @@
  <class>Recover</class>
  <widget class="QDialog" name="Recover">
   <property name="sizePolicy">
-   <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
@@ -23,7 +23,7 @@
    <item>
     <widget class="QLabel" name="textLabel">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -45,7 +45,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
       </string>
      </property>
      <property name="wordWrap">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="margin">
       <number>10</number>
@@ -269,9 +269,6 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
      <property name="text">
       <string/>
      </property>
-     <property name="styleSheet">
-      <string notr="true">color:red;</string>
-     </property>
      <property name="wordWrap">
       <bool>true</bool>
      </property>
@@ -280,7 +277,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
    <item>
     <widget class="QLabel" name="textLabelPcodes">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -289,7 +286,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
       <string>If you use RAP addresses, and are restoring a wallet, enter the number of RAP addresses you have created to recover funds received using RAP addresses.</string>
      </property>
      <property name="wordWrap">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="margin">
       <number>10</number>

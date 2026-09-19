@@ -1485,6 +1485,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
             wtx.hashBlock = hashBlock;
             wtx.MarkDirty();
             walletdb.WriteTx(wtx);
+            NotifyTransactionChanged(this, now, CT_UPDATED);
             // Iterate over all its outputs, and mark transactions in the wallet that spend them conflicted too
             TxSpends::const_iterator iter = mapTxSpends.lower_bound(COutPoint(now, 0));
             while (iter != mapTxSpends.end() && iter->first.hash == now) {

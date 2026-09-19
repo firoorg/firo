@@ -54,6 +54,7 @@ private Q_SLOTS:
 
     void showRestartWarning(bool fPersistent = false);
     void handleEnabledZapChanged();
+    void updateTorStatusLabel();
     void clearStatusLabel();
     void updateProxyValidationState();
     /* query the networks, for which the default proxy is used */

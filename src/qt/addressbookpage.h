@@ -60,6 +60,7 @@ public:
     void setInitialAddressType(AddressTypeEnum type);
 
     bool updateSpark();
+    void applyTheme();
 
 public Q_SLOTS:
     void done(int retval) override;
