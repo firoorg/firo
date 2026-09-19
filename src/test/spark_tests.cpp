@@ -564,8 +564,8 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     auto sTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
 
-    // wait while another thread updates mint status in wallet, and then continue
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // Finish queued updates before forcing the input unspent for a duplicate.
+    pwalletMain->sparkWallet->FinishTasks();
 
     // Update isused status
     {
@@ -2781,12 +2781,7 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
         {{script, COIN, false}}, {}, fee, &conflictingControl);
     BOOST_REQUIRE(mempool.exists(accepted.GetHash()));
 
-    for (int attempt = 0;
-         attempt < 500 &&
-             !pwalletMain->sparkWallet->getMintMeta(mints[0].k).isUsed;
-         ++attempt) {
-        MilliSleep(10);
-    }
+    pwalletMain->sparkWallet->FinishTasks();
     BOOST_REQUIRE(
         pwalletMain->sparkWallet->getMintMeta(mints[0].k).isUsed);
 
@@ -2929,6 +2924,7 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_persists_outputs_before_mempool)
     const std::vector<GroupElement> usedTags =
         ParseSparkSpend(*spend.tx).getUsedLTags();
     BOOST_REQUIRE(!usedTags.empty());
+    pwalletMain->sparkWallet->FinishTasks();
     pwalletMain->sparkWallet->setCoinUnused(usedTags.front());
 
     CAmount conflictFee = 0;
@@ -3345,6 +3341,7 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
 
     const CMutableTransaction firstSpend(
         GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    pwalletMain->sparkWallet->FinishTasks();
     CSparkMintMeta mintMeta =
         pwalletMain->sparkWallet->getMintMeta(mints[0].k);
     BOOST_REQUIRE(mintMeta != CSparkMintMeta());
@@ -3414,6 +3411,7 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
 
     const CTransaction firstSpend(
         GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    pwalletMain->sparkWallet->FinishTasks();
     CSparkMintMeta mintMeta =
         pwalletMain->sparkWallet->getMintMeta(mints[0].k);
     BOOST_REQUIRE(mintMeta != CSparkMintMeta());
