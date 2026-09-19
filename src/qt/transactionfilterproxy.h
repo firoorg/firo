@@ -57,6 +57,9 @@ public:
     /** Set whether to show conflicted transactions. */
     void setShowInactive(bool showInactive);
 
+    /** Repaint confirmations, rebuilding only status-dependent filters and sorts. */
+    void refreshConfirmations();
+
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
 
 protected:

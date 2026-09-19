@@ -7,6 +7,7 @@
 #include "bitcoinunits.h"
 #include "guiconstants.h"
 #include "qvaluecombobox.h"
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include <QApplication>
@@ -14,6 +15,7 @@
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLineEdit>
+#include <QStyle>
 
 /** QSpinBox that uses fixed-point numbers internally and uses our own
  * formatting/parsing functions.
@@ -29,6 +31,7 @@ public:
         singleStep(10000) // satoshis
     {
         setAlignment(Qt::AlignRight);
+        setButtonSymbols(QAbstractSpinBox::NoButtons);
 
         connect(lineEdit(), &QLineEdit::textEdited, this, &AmountSpinBox::valueChanged);
     }
@@ -229,6 +232,17 @@ void BitcoinAmountField::clear()
     unit->setCurrentIndex(0);
 }
 
+void BitcoinAmountField::setExpanding(bool expanding, int maximumWidth)
+{
+    QBoxLayout *hlayout = qobject_cast<QBoxLayout *>(layout());
+    if (!hlayout)
+        return;
+
+    amount->setMaximumWidth(expanding ? maximumWidth : 170);
+    hlayout->setStretch(0, expanding ? 1 : 0);
+    hlayout->setStretch(2, expanding ? 0 : 1);
+}
+
 void BitcoinAmountField::setEnabled(bool fEnabled)
 {
     amount->setEnabled(fEnabled);
@@ -245,10 +259,10 @@ bool BitcoinAmountField::validate()
 
 void BitcoinAmountField::setValid(bool valid)
 {
-    if (valid)
-        amount->setStyleSheet("");
-    else
-        amount->setStyleSheet(STYLE_INVALID);
+    amount->setProperty("invalidInput", !valid);
+    amount->style()->unpolish(amount);
+    amount->style()->polish(amount);
+    amount->update();
 }
 
 bool BitcoinAmountField::eventFilter(QObject *object, QEvent *event)

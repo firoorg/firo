@@ -18,8 +18,6 @@ namespace Ui {
 
 /**
  * A single entry in the dialog for sending bitcoins.
- * Stacked widget, with different UIs for payment requests
- * with a strong payee identity.
  */
 class SendCoinsEntry : public QStackedWidget
 {
@@ -52,6 +50,7 @@ public:
     void setWarning(bool fAnonymousMode);
     void setfAnonymousMode(bool fAnonymousMode);
     static QString generateWarningText(const QString& address, const bool fAnonymousMode);
+    void applyTheme();
 
 public Q_SLOTS:
     void clear();
@@ -82,6 +81,7 @@ private:
     bool applyPaymentURI(const QString& uri);
     void clearRosenBridgeData();
     void updateRosenBridgeDisplay();
+    void updateSparkNameResolution();
     void resizeEvent(QResizeEvent* event) override;
     void adjustTextSize(int width, int height);
     

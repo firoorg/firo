@@ -1334,7 +1334,7 @@
     </message>
     <message>
         <source>Type &lt;b&gt;help&lt;/b&gt; for an overview of available commands.</source>
-        <translation>Въведeте &lt;/b&gt;помощ&lt;/b&gt; за да видите наличните команди.</translation>
+        <translation>Напишете &lt;b&gt;help&lt;/b&gt;, за да прегледате възможните команди.</translation>
     </message>
     <message>
         <source>%1 B</source>

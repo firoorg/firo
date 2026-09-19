@@ -15,6 +15,7 @@
 WalletFrame::WalletFrame(const PlatformStyle *_platformStyle, BitcoinGUI *_gui) :
     QFrame(_gui),
     gui(_gui),
+    bOutOfSync(true),
     platformStyle(_platformStyle)
 {
     // Leave HBox hook for adding a list view later
@@ -144,6 +145,13 @@ void WalletFrame::gotoReceiveCoinsPage()
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoReceiveCoinsPage();
+}
+
+void WalletFrame::gotoSparkNamesPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoSparkNamesPage();
 }
 
 void WalletFrame::gotoSendCoinsPage(QString addr)

@@ -7,6 +7,7 @@
 
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "guitheme.h"
 #include "chainparams.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
@@ -29,8 +30,11 @@
 #include <QDialogButtonBox>
 #include <QFlags>
 #include <QIcon>
+#include <QLabel>
+#include <QPushButton>
 #include <QSettings>
 #include <QString>
+#include <QStyle>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 
@@ -201,6 +205,60 @@ CoinControlDialog::CoinControlDialog(bool anonymousMode, const PlatformStyle *_p
         ui->radioTreeMode->click();
     if (settings.contains("nCoinControlSortColumn") && settings.contains("nCoinControlSortOrder"))
         sortView(settings.value("nCoinControlSortColumn").toInt(), ((Qt::SortOrder)settings.value("nCoinControlSortOrder").toInt()));
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &CoinControlDialog::applyTheme);
+    applyTheme();
+}
+
+void CoinControlDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+
+    const QString captionStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    const QString valueStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }"
+        "QLabel[dust=\"true\"] { color: $ERROR; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    for (QLabel* caption : {ui->labelCoinControlQuantityText, ui->labelCoinControlBytesText,
+                            ui->labelCoinControlAmountText, ui->labelCoinControlLowOutputText,
+                            ui->labelCoinControlFeeText, ui->labelCoinControlAfterFeeText,
+                            ui->labelCoinControlChangeText}) {
+        caption->setStyleSheet(captionStyle);
+    }
+    for (QLabel* value : {ui->labelCoinControlQuantity, ui->labelCoinControlBytes,
+                          ui->labelCoinControlAmount, ui->labelCoinControlLowOutput,
+                          ui->labelCoinControlFee, ui->labelCoinControlAfterFee,
+                          ui->labelCoinControlChange}) {
+        value->setStyleSheet(valueStyle);
+    }
+
+    ui->frame->setAttribute(Qt::WA_StyledBackground, true);
+    ui->frame->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QFrame { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }"
+        "QRadioButton { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
+
+    ui->pushButtonSelectAll->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px")));
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+
+    ui->treeWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QTreeWidget {"
+        " background: $PANEL; border: 1px solid $BORDER; border-radius: 12px;"
+        " outline: none; color: $INK; alternate-background-color: $PANEL_SOFT;"
+        "}"
+        "QTreeWidget::item { padding: 5px 2px; border: none; color: $INK; }"
+        "QTreeWidget::item:disabled { color: $INK_FAINT; }"
+        "QTreeWidget::item:selected { background: $WINE_TINT; color: $INK; }"
+        "QHeaderView::section {"
+        " background: $PANEL_SOFT; border: none; border-bottom: 1px solid $BORDER;"
+        " color: $INK_SOFT; font-size: 12px; font-weight: 700; padding: 6px;"
+        "}")));
 }
 
 CoinControlDialog::~CoinControlDialog()
@@ -729,8 +787,13 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
             l8->setText(ASYMP_UTF8 + l8->text());
     }
 
-    // turn label red when dust
-    l7->setStyleSheet((fDust) ? "color:red;" : "");
+    // Preserve the summary-value style and let the current theme color the warning.
+    if (l7->property("dust").toBool() != fDust) {
+        l7->setProperty("dust", fDust);
+        l7->style()->unpolish(l7);
+        l7->style()->polish(l7);
+        l7->update();
+    }
 
     // tool tips
     QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");

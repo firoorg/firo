@@ -14,6 +14,7 @@
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "intro.h"
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include "clientversion.h"
@@ -35,6 +36,10 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
     ui(new Ui::HelpMessageDialog)
 {
     ui->setupUi(this);
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &HelpMessageDialog::applyTheme);
+    applyTheme();
 
     QString version = tr(PACKAGE_NAME) + " " + tr("version") + " " + QString::fromStdString(FormatFullVersion());
     /* On x86 add a bit specifier to the version so that users can distinguish between
@@ -155,11 +160,45 @@ void HelpMessageDialog::on_okButton_accepted()
     close();
 }
 
+void HelpMessageDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QTextEdit, QLabel#aboutMessage {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+            padding: 10px 12px;
+            color: $INK;
+        }
+        QScrollArea { background: transparent; border: none; }
+        QScrollArea > QWidget > QWidget { background: transparent; }
+        QDialogButtonBox QPushButton {
+            color: #FFFFFF;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            padding: 8px 18px;
+        }
+        QDialogButtonBox QPushButton:hover:enabled {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+        }
+        QDialogButtonBox QPushButton:pressed { background: $WINE_DEEP; }
+    )")));
+}
+
 
 /** "Shutdown" window */
 ShutdownWindow::ShutdownWindow(QWidget *parent, Qt::WindowFlags f):
     QWidget(parent, f)
 {
+    setObjectName(QStringLiteral("ShutdownWindow"));
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QWidget#ShutdownWindow { background: $BG; }"
+        "QWidget#ShutdownWindow QLabel { background: transparent; color: $INK; }")));
     QVBoxLayout *layout = new QVBoxLayout();
     layout->addWidget(new QLabel(
         tr("%1 is shutting down...").arg(tr(PACKAGE_NAME)) + "<br /><br />" +

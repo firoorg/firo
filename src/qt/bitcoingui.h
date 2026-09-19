@@ -37,9 +37,13 @@ class ModalOverlay;
 class CWallet;
 
 QT_BEGIN_NAMESPACE
+class QAbstractButton;
 class QAction;
+class QFrame;
 class QProgressBar;
 class QProgressDialog;
+class QPushButton;
+class QToolButton;
 QT_END_NAMESPACE
 
 namespace GUIUtil {
@@ -87,6 +91,8 @@ protected:
     bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
+    friend class WalletUiTests;
+
     ClientModel *clientModel;
     WalletFrame *walletFrame;
 
@@ -94,6 +100,7 @@ private:
     QLabel *labelWalletEncryptionIcon;
     QLabel *labelWalletHDStatusIcon;
     GUIUtil::ClickableLabel *connectionsControl;
+    QLabel *torStatusBadge;
     GUIUtil::ClickableLabel *labelBlocksIcon;
     QLabel *progressBarLabel;
     GUIUtil::ClickableProgressBar *progressBar;
@@ -112,6 +119,7 @@ private:
     QAction *aboutAction;
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
+    QAction *sparkNamesAction;
     QAction *optionsAction;
     QAction *toggleHideAction;
     QAction *encryptWalletAction;
@@ -120,12 +128,26 @@ private:
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
+    QAction *consoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *masternodeAction;
     QAction *logoAction;
-    QToolBar *toolbar;
-    QLabel *logoLabel;
+    QToolBar *toolbar{nullptr};
+    QToolButton *navigationToggleButton{nullptr};
+    bool navigationSidebarExpanded{true};
+    QFrame *navigationSyncCard{nullptr};
+    QAction *navigationSyncCardAction{nullptr};
+    QLabel *navigationSyncLabel{nullptr};
+    QLabel *navigationSyncPercent{nullptr};
+    QProgressBar *navigationSyncProgress{nullptr};
+    double navigationSyncFraction{0.0};
+    QFrame *navigationThemeRow{nullptr};
+    QLabel *navigationThemeLightLabel{nullptr};
+    QLabel *navigationThemeDarkLabel{nullptr};
+    QAbstractButton *navigationThemeSwitch{nullptr};
+    QWidget *navigationSelectionHighlight{nullptr};
+    QLabel *logoLabel{nullptr};
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
@@ -134,9 +156,11 @@ private:
     ModalOverlay *modalOverlay;
 
 #ifdef ENABLE_WALLET
-    /** Banner across the top of the window, offering to move the funds held on bip47 addresses */
+    /** Banner across the top of the wallet pages, offering to move the funds held on bip47 addresses */
     QFrame *bip47Banner;
     QLabel *bip47BannerLabel;
+    QPushButton *bip47SweepButton;
+    QPushButton *bip47DismissButton;
     WalletModel *bip47WalletModel;
 #endif
 
@@ -146,6 +170,7 @@ private:
 #ifdef ENABLE_WALLET
     bool sparkAddressbookUpdated;
 #endif
+    int cachedEncryptionStatus{-1};
 
     const PlatformStyle *platformStyle;
 
@@ -156,10 +181,23 @@ private:
     /** Create the toolbars */
     void createToolBars();
 #ifdef ENABLE_WALLET
-    /** Create the bip47 reminder banner. It sits above the wallet frame and starts out hidden. */
-    QWidget *createBip47Banner(QWidget *walletFrameWidget);
+    /** Create the bip47 reminder banner. It starts out hidden; once shown it sits above the
+        wallet frame, to the right of the navigation sidebar. */
+    void createBip47Banner(QWidget *parent);
+    void applyBip47BannerTheme();
+    /** Height the banner takes up at the given width, or 0 while it is hidden */
+    int bip47BannerHeight(int width) const;
 #endif
     void resizeEvent(QResizeEvent*) override;
+    void updateToolbarTabWidths();
+    void updateNavigationSidebarGeometry();
+    void toggleNavigationSidebar();
+    void updateNavigationSyncCard(const QString& status, double progress);
+    bool blockchainSyncInProgress() const;
+    bool syncInProgress() const;
+    bool isActivelySyncing() const;
+    void applyNavigationTheme();
+    void updateNavigationSelectionHighlight();
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
     /** Create system tray menu (or setup the dock menu) */
@@ -175,6 +213,9 @@ private:
 
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
+
+    /** Updates Spark Names tab visibility */
+    void checkSparkNamesVisibility(int numBlocks);
 
     /** Update UI with latest network info from model. */
     void updateNetworkState();
@@ -235,6 +276,8 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 

@@ -76,6 +76,8 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 
