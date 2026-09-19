@@ -195,6 +195,7 @@ void SendCoinsDialog::applyTheme()
         "QLabel:disabled { color: $INK_FAINT; }"));
     const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }"
+        "QLabel[dust=\"true\"] { color: $ERROR; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
     for (QLabel* caption : {ui->labelCoinControlQuantityText, ui->labelCoinControlBytesText,
                             ui->labelCoinControlAmountText, ui->labelCoinControlLowOutputText,
@@ -213,13 +214,18 @@ void SendCoinsDialog::applyTheme()
         "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }"
         "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_$ASSET_THEME); }"
         "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_$ASSET_THEME); }")));
-    ui->lineEditCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QValidatedLineEdit {"
+    const QString fieldStyle = GUIUtil::themed(QStringLiteral(
+        "QValidatedLineEdit, AmountSpinBox, QValueComboBox {"
         " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
-        " padding: 8px 12px; color: $INK;"
+        " padding: 4px 12px; color: $INK;"
         "}"
-        "QValidatedLineEdit:focus { border: 1px solid $WINE; }"
-        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }")));
+        "AmountSpinBox QLineEdit { %1 }"
+        "QValidatedLineEdit:focus, AmountSpinBox:focus, QValueComboBox:focus { border: 1px solid $WINE; }"
+        "QValidatedLineEdit[invalidInput=\"true\"], AmountSpinBox[invalidInput=\"true\"] { border-color: $ERROR; }"
+        "QValidatedLineEdit:disabled, AmountSpinBox:disabled, QValueComboBox:disabled { color: $INK_FAINT; }"
+    )).arg(GUIUtil::spinBoxInnerLineEditReset());
+    ui->lineEditCoinControlChange->setStyleSheet(fieldStyle);
+    ui->customFee->setStyleSheet(fieldStyle);
     ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; }")));
 }

@@ -580,12 +580,12 @@ QScrollBar::sub-line {
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 14px; font-weight: 700;")));
+            "color: $INK; font-size: 14px; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_FAINT; font-size: 12px;")));
+            "color: $INK_SOFT; font-size: 12px;")));
     }
 
     if (masternodeView && masternodeView->viewport())

@@ -277,7 +277,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     watchOnlyWidget = new QComboBox(this);
     pillify(watchOnlyWidget);
-    watchOnlyWidget->setFixedWidth(48);
+    watchOnlyWidget->setFixedWidth(64);
     watchOnlyWidget->setToolTip(tr("Filter by watch-only involvement"));
     watchOnlyWidget->setAccessibleName(tr("Watch-only filter"));
     watchOnlyWidget->addItem("", TransactionFilterProxy::WatchOnlyFilter_All);
@@ -394,7 +394,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     auto* sortLabel = new QLabel(tr("Sort by"), tableCard);
     exportLayout->addWidget(sortLabel);
     sortWidget = new QComboBox(tableCard);
-    sortWidget->setMinimumSize(160, 28);
+    sortWidget->setMinimumSize(160, 32);
     sortWidget->setAccessibleName(tr("Sort transactions by"));
     sortWidget->setToolTip(tr("Sort the transaction history"));
     const auto addSortOption = [this](const QString& text, int column, Qt::SortOrder order) {
@@ -411,12 +411,12 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     sortDirectionButton = new QToolButton(tableCard);
     sortDirectionButton->setObjectName(QStringLiteral("transactionSortDirection"));
-    sortDirectionButton->setFixedSize(32, 28);
+    sortDirectionButton->setFixedSize(32, 32);
     exportLayout->addWidget(sortDirectionButton);
     updateSortDirectionButton(Qt::DescendingOrder);
     exportLayout->addStretch();
     exportButton = new QPushButton(tr("Export"), tableCard);
-    exportButton->setFixedSize(80, 28);
+    exportButton->setMinimumSize(80, 32);
     exportButton->setToolTip(tr("Export the data in the current tab to a file"));
     exportLayout->addWidget(exportButton);
     tableLayout->addLayout(exportLayout);
@@ -538,13 +538,14 @@ void TransactionView::applyTheme()
         "   border: 1px solid $BORDER;"
         "}"
 
-        "QLabel { color: $INK; background: transparent; }"
+        "QLabel { color: $INK; background: transparent; font-size: 13px; }"
 
         "QLineEdit, QComboBox {"
         "   background: $PANEL_SOFT;"
         "   border-radius: 9px;"
         "   border: 1px solid $BORDER;"
         "   padding: 0 11px;"
+        "   min-height: 30px;"
         "   font-size: 13px;"
         "   color: $INK_SOFT;"
         "}"
@@ -581,7 +582,8 @@ void TransactionView::applyTheme()
         " border-color:$WINE; color:$INK;"
         "}"
 
-        "QDateTimeEdit { background:$PANEL; border-radius:10px; border:1px solid $BORDER; padding:7px 11px; }"
+        "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:9px; border:1px solid $BORDER; padding:0 11px; min-height:30px; font-size:13px; }"
+        "QDateTimeEdit:focus { border-color:$WINE; }"
 
         "QCalendarWidget QWidget { background:$PANEL; }"
         "QCalendarWidget QAbstractItemView { selection-background-color:$PANEL_SOFT; border:none; }"
@@ -614,29 +616,11 @@ void TransactionView::applyTheme()
 
         "QMenu { background:$PANEL; border:1px solid $BORDER; padding:6px; font-size:10pt; border-radius:10px; }"
         "QMenu::item:selected { background:$PANEL_SOFT; color:$INK; }"
-
-        "QPushButton {"
-        "   color:#FFFFFF;"
-        "   font-weight:700;"
-        "   border:none;"
-        "   border-radius:12px;"
-        "   padding:10px 20px;"
-        "   font-size:13px;"
-        "   min-height:38px;"
-        "   background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-        "                               stop:0 $WINE, stop:1 $WINE_DEEP);"
-        "}"
-        "QPushButton:hover {"
-        "   background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-        "                               stop:0 $WINE, stop:1 $WINE_DEEP);"
-        "}"
-        "QPushButton:pressed { background:$WINE_DEEP; }"
-        "QPushButton:disabled { background:$PANEL_SOFT; color:$INK_FAINT; border:1px solid $BORDER; }"
     ));
 
     if (exportButton) {
         exportButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("4px 8px")) +
-            QStringLiteral("QPushButton { font-size: 12px; }"));
+            QStringLiteral("QPushButton { font-size: 13px; min-height: 22px; min-width: 62px; }"));
     }
 
     if (emptyIcon_) {
@@ -1162,7 +1146,6 @@ QWidget *TransactionView::createDateRangeWidget()
 
     QFrame* frame = new QFrame(dateRangeWidget);
     frame->setObjectName("filterCard");
-    frame->setContentsMargins(10, 10, 10, 10);
 
     QHBoxLayout* outer = new QHBoxLayout(dateRangeWidget);
     outer->setContentsMargins(0, 0, 0, 0);
@@ -1172,13 +1155,13 @@ QWidget *TransactionView::createDateRangeWidget()
     layout->setContentsMargins(10, 10, 10, 10);
     layout->setSpacing(10);
 
-    layout->addSpacing(23);
     layout->addWidget(new QLabel(tr("Range:")));
 
     dateFrom = new QDateTimeEdit(this);
     dateFrom->setDisplayFormat("dd/MM/yy");
     dateFrom->setCalendarPopup(true);
     dateFrom->setMinimumWidth(100);
+    dateFrom->setMinimumHeight(32);
     dateFrom->setDate(QDate::currentDate().addDays(-7));
     layout->addWidget(dateFrom);
     layout->addWidget(new QLabel(tr("to")));
@@ -1187,6 +1170,7 @@ QWidget *TransactionView::createDateRangeWidget()
     dateTo->setDisplayFormat("dd/MM/yy");
     dateTo->setCalendarPopup(true);
     dateTo->setMinimumWidth(100);
+    dateTo->setMinimumHeight(32);
     dateTo->setDate(QDate::currentDate());
     layout->addWidget(dateTo);
     layout->addStretch();

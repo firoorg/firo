@@ -64,9 +64,9 @@ public:
         if (view_) {
             const QRect left = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Date));
             const QRect right = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Amount));
-            const QRect card(left.left() + 4, option.rect.top() + 5,
+            const QRect card(left.left() + 4, option.rect.top() + 3,
                              qMax(40, right.right() - left.left() - 8),
-                             option.rect.height() - 10);
+                             option.rect.height() - 6);
             QPainterPath cardPath;
             cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
             painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
@@ -95,7 +95,7 @@ public:
             dateFont.setBold(true);
             painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
-            const QRect dateRect(icon.right() + 10, option.rect.center().y() - 16,
+            const QRect dateRect(icon.right() + 10, option.rect.center().y() - 18,
                                  option.rect.right() - icon.right() - 16, 18);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
@@ -103,7 +103,7 @@ public:
             timeFont.setPixelSize(12);
             painter->setFont(timeFont);
             painter->setPen(QColor(tc.inkFaint));
-            painter->drawText(QRect(dateRect.left(), dateRect.bottom() - 2, dateRect.width(), 16),
+            painter->drawText(QRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), 18),
                               Qt::AlignLeft | Qt::AlignVCenter, timeText);
             break;
         }
@@ -283,6 +283,7 @@ void ReceiveCoinsDialog::applyTheme()
         "}"));
     ui->frame2->setStyleSheet(cardStyle);
     ui->frame->setStyleSheet(cardStyle);
+    ui->sparkNameActions->setStyleSheet(QStringLiteral("background: transparent;"));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"));
@@ -296,7 +297,7 @@ void ReceiveCoinsDialog::applyTheme()
         "QCheckBox { background: transparent; color: $INK; }")));
 
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
-        "QLineEdit, AmountSpinBox {"
+        "QLineEdit, AmountSpinBox, QValueComboBox {"
         " background: $PANEL_SOFT;"
         " border: 1px solid $BORDER;"
         " border-radius: 10px;"
@@ -307,7 +308,7 @@ void ReceiveCoinsDialog::applyTheme()
         "QLineEdit[invalidInput=\"true\"], AmountSpinBox[invalidInput=\"true\"] {"
         " border-color: $ERROR;"
         "}"
-        "QLineEdit:focus, AmountSpinBox:focus {"
+        "QLineEdit:focus, AmountSpinBox:focus, QValueComboBox:focus {"
         " background: $PANEL_SOFT;"
         " border: 1px solid $WINE;"
         " border-radius: 10px;"
@@ -421,7 +422,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setAlternatingRowColors(false);
         tableView->setShowGrid(false);
         tableView->setFrameShape(QFrame::NoFrame);
-        tableView->verticalHeader()->setDefaultSectionSize(52);
+        tableView->verticalHeader()->setDefaultSectionSize(44);
         tableView->setItemDelegate(new PaymentRequestCardDelegate(tableView));
         tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);

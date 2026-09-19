@@ -420,40 +420,11 @@ void OverviewPage::applyOverviewTheme()
     ui->labelPrivateSplit->setStyleSheet(splitLabelStyle);
     ui->labelTransparentSplit->setStyleSheet(splitLabelStyle);
 
-    ui->sendButton->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
-        QPushButton {
-            color: #FFFFFF;
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
-            border: none;
-            border-radius: 12px;
-            padding: 10px 20px;
-            font-size: 13px;
-            font-weight: 700;
-        }
-        QPushButton:hover {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
-        }
-        QPushButton:pressed { background: $WINE_DEEP; }
-    )")));
-
-    ui->receiveButton->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
-        QPushButton {
-            color: $INK;
-            background: $PANEL;
-            border: 1px solid $BORDER;
-            border-radius: 12px;
-            padding: 10px 20px;
-            font-size: 13px;
-            font-weight: 700;
-        }
-        QPushButton:hover { background: $PANEL_SOFT; border-color: $BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
-    )")));
-
-    ui->anonymizeButton->setStyleSheet(
-        GUIUtil::primaryButtonStyle(QStringLiteral("10px 20px")));
+    const QString actionFontStyle = QStringLiteral("QPushButton { font-size: 13px; min-height: 20px; }");
+    const QString primaryActionStyle = GUIUtil::primaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle;
+    ui->sendButton->setStyleSheet(primaryActionStyle);
+    ui->receiveButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle);
+    ui->anonymizeButton->setStyleSheet(primaryActionStyle);
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }"));

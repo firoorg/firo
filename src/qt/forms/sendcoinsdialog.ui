@@ -670,7 +670,13 @@
          <number>10</number>
         </property>
         <property name="topMargin">
-         <number>0</number>
+         <number>10</number>
+        </property>
+        <property name="rightMargin">
+         <number>10</number>
+        </property>
+        <property name="bottomMargin">
+         <number>10</number>
         </property>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayoutFee1" stretch="0,1,0,0">

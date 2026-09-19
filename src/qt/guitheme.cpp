@@ -158,8 +158,9 @@ QString primaryButtonStyle(const QString& padding)
             color: #FFFFFF;
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                         stop:0 $WINE, stop:1 $WINE_DEEP);
-            border: none;
+            border: 1px solid transparent;
             border-radius: 12px;
+            min-width: 0;
             font-weight: 700;
             padding: %1;
         }
@@ -180,6 +181,7 @@ QString secondaryButtonStyle(const QString& padding)
             background: $PANEL;
             border: 1px solid $BORDER;
             border-radius: 12px;
+            min-width: 0;
             font-weight: 700;
             padding: %1;
         }

@@ -32,6 +32,8 @@
 #include <QLocale>
 #include <QMessageBox>
 #include <QScrollArea>
+#include <QStyle>
+#include <QStyleOption>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -70,6 +72,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             background: transparent;
             color: $INK_SOFT;
             font-weight: 700;
+            min-width: 0;
             padding: 8px 14px;
             border: none;
         }
@@ -103,6 +106,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             border: 1px solid $BORDER;
             border-radius: 10px;
             font-weight: 700;
+            min-width: 0;
             padding: 7px 16px;
         }
         QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
@@ -111,7 +115,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             color: #FFFFFF;
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                         stop:0 $WINE, stop:1 $WINE_DEEP);
-            border: none;
+            border: 1px solid transparent;
         }
         QPushButton#okButton:hover:enabled {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -119,6 +123,16 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         }
         QPushButton#okButton:pressed { background: $WINE_DEEP; }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+
+    for (QLineEdit* port : {ui->proxyPort, ui->proxyPortTor}) {
+        port->ensurePolished();
+        QStyleOptionFrame option;
+        option.initFrom(port);
+        const QFontMetrics metrics = port->fontMetrics();
+        // Include QLineEdit's two-pixel internal margin on each side.
+        const QSize contents(metrics.horizontalAdvance(QStringLiteral("65535")) + 4, metrics.height());
+        port->setFixedWidth(port->style()->sizeFromContents(QStyle::CT_LineEdit, &option, contents, port).width());
+    }
 
     /* Main elements init */
     ui->databaseCache->setMinimum(nMinDbCache);

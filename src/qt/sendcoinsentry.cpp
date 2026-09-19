@@ -130,7 +130,7 @@ void SendCoinsEntry::applyTheme()
             background: $PANEL_SOFT;
             border: 1px solid $BORDER;
             border-radius: 10px;
-            padding: 8px 12px;
+            padding: 4px 12px;
             color: $INK;
             selection-background-color: $WINE_DEEP;
             selection-color: #FFFFFF;
@@ -141,7 +141,7 @@ void SendCoinsEntry::applyTheme()
             background: $PANEL_SOFT;
             border: 1px solid $WINE;
             border-radius: 10px;
-            padding: 8px 12px;
+            padding: 4px 12px;
             color: $INK;
         }
         QFrame#SendCoins AmountSpinBox[invalidInput="true"],
@@ -154,7 +154,7 @@ void SendCoinsEntry::applyTheme()
             background: $PANEL_SOFT;
             border: 1px solid $BORDER;
             border-radius: 10px;
-            padding: 6px 10px;
+            padding: 4px 12px;
             color: $INK;
         }
         QFrame#SendCoins QValueComboBox QAbstractItemView {

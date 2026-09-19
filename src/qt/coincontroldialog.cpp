@@ -34,6 +34,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QString>
+#include <QStyle>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 
@@ -219,6 +220,7 @@ void CoinControlDialog::applyTheme()
         "QLabel:disabled { color: $INK_FAINT; }"));
     const QString valueStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }"
+        "QLabel[dust=\"true\"] { color: $ERROR; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
     for (QLabel* caption : {ui->labelCoinControlQuantityText, ui->labelCoinControlBytesText,
                             ui->labelCoinControlAmountText, ui->labelCoinControlLowOutputText,
@@ -250,7 +252,8 @@ void CoinControlDialog::applyTheme()
         " background: $PANEL; border: 1px solid $BORDER; border-radius: 12px;"
         " outline: none; color: $INK; alternate-background-color: $PANEL_SOFT;"
         "}"
-        "QTreeWidget::item { padding: 5px 2px; border: none; }"
+        "QTreeWidget::item { padding: 5px 2px; border: none; color: $INK; }"
+        "QTreeWidget::item:disabled { color: $INK_FAINT; }"
         "QTreeWidget::item:selected { background: $WINE_TINT; color: $INK; }"
         "QHeaderView::section {"
         " background: $PANEL_SOFT; border: none; border-bottom: 1px solid $BORDER;"
@@ -784,8 +787,13 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
             l8->setText(ASYMP_UTF8 + l8->text());
     }
 
-    // Highlight the dust warning without hard-coding a theme-specific color.
-    l7->setStyleSheet(fDust ? GUIUtil::themed(QStringLiteral("color: $ERROR;")) : QString());
+    // Preserve the summary-value style and let the current theme color the warning.
+    if (l7->property("dust").toBool() != fDust) {
+        l7->setProperty("dust", fDust);
+        l7->style()->unpolish(l7);
+        l7->style()->polish(l7);
+        l7->update();
+    }
 
     // tool tips
     QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");

@@ -214,7 +214,7 @@ void AddressBookPage::applyTheme()
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
         " background: transparent; border: none; color: $INK_SOFT;"
-        " font-size: 12px; font-weight: 700; padding: 6px;"
+        " font-size: 12px; font-weight: 700; padding: 6px 12px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->tableView->viewport())
@@ -318,7 +318,8 @@ void AddressBookPage::setModel(AddressTableModel *_model)
     ui->tableView->setShowGrid(false);
     ui->tableView->setFrameShape(QFrame::NoFrame);
     ui->tableView->setAlternatingRowColors(false);
-    ui->tableView->verticalHeader()->setDefaultSectionSize(56);
+    ui->tableView->verticalHeader()->setDefaultSectionSize(44);
+    ui->tableView->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     ui->tableView->setItemDelegate(new AddressBookCardDelegate(ui->tableView));
     // Set column widths
     #if QT_VERSION < 0x050000
