@@ -4,6 +4,7 @@
 
 #include "walletuitests.h"
 
+#include "addresstablemodel.h"
 #include "bitcoingui.h"
 #include "chainparams.h"
 #include "clientmodel.h"
@@ -17,6 +18,7 @@
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
 #include "sendcoinsdialog.h"
+#include "sparknamespage.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
@@ -262,6 +264,34 @@ void WalletUiTests::themeChangePreservesWidgetState()
     QVERIFY(enabled.updatesEnabled());
     QVERIFY(!disabled.updatesEnabled());
     QVERIFY(destroyed.isNull());
+}
+
+void WalletUiTests::sparkNamesRefreshAfterModelDestruction()
+{
+    CWallet wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    auto model = std::make_unique<WalletModel>(style.get(), &wallet, &options);
+    auto client = std::make_unique<ClientModel>(&options);
+    SparkNamesPage page(style.get());
+    page.setModel(model.get());
+    page.setClientModel(client.get());
+
+    Q_EMIT model->getAddressTableModel()->dataChanged(QModelIndex(), QModelIndex());
+    QVERIFY(page.refreshScheduled);
+    client.reset();
+    QVERIFY(!page.clientModel);
+    QTRY_VERIFY(!page.refreshScheduled);
+
+    // Shutdown removes wallet tabs before destroying their models, leaving a
+    // pending page callback alive after the address-table sender is destroyed.
+    Q_EMIT model->getAddressTableModel()->dataChanged(QModelIndex(), QModelIndex());
+    QVERIFY(page.refreshScheduled);
+    model.reset();
+    QVERIFY(!page.model);
+    QVERIFY(!page.addressModel);
+    QTRY_VERIFY(!page.refreshScheduled);
 }
 
 void WalletUiTests::initialSyncQueryDoesNotBlock()

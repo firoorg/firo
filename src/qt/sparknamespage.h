@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include <QPointer>
 #include <QWidget>
 
 namespace Ui {
@@ -25,6 +26,7 @@ QT_END_NAMESPACE
 class SparkNamesPage : public QWidget
 {
     Q_OBJECT
+    friend class WalletUiTests;
 
 public:
     explicit SparkNamesPage(const PlatformStyle *platformStyle, QWidget *parent = 0);
@@ -36,9 +38,9 @@ public:
 private:
     Ui::SparkNamesPage *ui;
     const PlatformStyle *platformStyle;
-    WalletModel *model;
-    AddressTableModel *addressModel;
-    ClientModel *clientModel;
+    QPointer<WalletModel> model;
+    QPointer<AddressTableModel> addressModel;
+    QPointer<ClientModel> clientModel;
     bool refreshScheduled;
 
     QWidget *emptyState;

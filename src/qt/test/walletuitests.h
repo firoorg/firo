@@ -24,6 +24,7 @@ private Q_SLOTS:
     void deferredTransactionsKeepOrder();
     void failedAbandonKeepsTransactionVisible();
     void themeChangePreservesWidgetState();
+    void sparkNamesRefreshAfterModelDestruction();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H
