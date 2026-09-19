@@ -279,6 +279,27 @@ BOOST_AUTO_TEST_CASE(is_spark_allowed)
     BOOST_CHECK(IsSparkAllowed(start + 1));
 }
 
+BOOST_AUTO_TEST_CASE(wallet_address_ownership)
+{
+    auto params = Params::get_default();
+    CSparkWallet* wallet = pwalletMain->sparkWallet.get();
+    Address ownAddress = wallet->generateNewAddress();
+
+    BOOST_CHECK(wallet->isAddressMine(ownAddress));
+    BOOST_CHECK(wallet->isAddressMine(ownAddress.encode(GetNetworkType())));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getAddress(123)));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getChangeAddress()));
+
+    const SpendKey foreignSpendKey(params);
+    const FullViewKey foreignFullViewKey(foreignSpendKey);
+    const IncomingViewKey foreignViewKey(foreignFullViewKey);
+    const Address foreignAddress(foreignViewKey, 1);
+
+    BOOST_CHECK(!wallet->isAddressMine(foreignAddress));
+    BOOST_CHECK(!wallet->isAddressMine(foreignAddress.encode(GetNetworkType())));
+    BOOST_CHECK(!wallet->isAddressMine("not a Spark address"));
+}
+
 BOOST_AUTO_TEST_CASE(parse_spark_mintscript)
 {
     auto params = Params::get_default();
