@@ -46,19 +46,13 @@ void CMNAuth::PushMNAUTH(CNode* pnode, CConnman& connman)
 
 void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (strCommand != NetMsgType::MNAUTH)
+    if (strCommand != NetMsgType::MNAUTH || !masternodeSync.IsBlockchainSynced()) {
+        // we can't verify MNAUTH messages when we don't have the latest MN list
         return;
+    }
 
     CMNAuth mnauth;
     vRecv >> mnauth;
-
-    if (!masternodeSync.IsBlockchainSynced()) {
-        // we can't really verify MNAUTH messages when we don't have the latest MN list
-        // save verification for later
-        LOCK(pnode->cs_mnauth);
-        pnode->pendingMNVerification = new CMNAuth(mnauth);
-        return;
-    }
 
     ProcessMNAUTH(pnode, mnauth, connman);
 }
