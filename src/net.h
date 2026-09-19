@@ -879,6 +879,8 @@ public:
     CAmount lastSentFeeFilter;
     int64_t nextSendTimeFeeFilter;
 
+    std::set<uint256> orphan_work_set;
+
     // Challenge sent in VERSION to be answered with MNAUTH (only happens between MNs)
     mutable CCriticalSection cs_mnauth;
     uint256 sentMNAuthChallenge;

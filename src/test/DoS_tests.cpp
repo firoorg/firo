@@ -215,4 +215,56 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
     BOOST_CHECK(mapOrphanTransactions.empty());
 }
 
+BOOST_AUTO_TEST_CASE(DoS_orphan_processing_is_interrupted)
+{
+    std::atomic<bool> interrupt(false);
+    PeerLogicValidation peerLogic(connman);
+    CAddress addr(ip(0xa0b0c003), NODE_NONE);
+    CNode node(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr, 5, 5, "", true);
+    node.SetSendVersion(PROTOCOL_VERSION);
+    GetNodeSignals().InitializeNode(&node, *connman);
+    node.nVersion = PROTOCOL_VERSION;
+    node.fSuccessfullyConnected = true;
+
+    CKey key;
+    key.MakeNewKey(true);
+    const CScript scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
+
+    CMutableTransaction prevTx;
+    prevTx.vout.resize(1);
+    prevTx.vout[0].nValue = COIN;
+    prevTx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    const COutPoint prevout(prevTx.GetHash(), 0);
+    const COutPoint missingPrevout(GetRandHash(), 0);
+    {
+        LOCK(cs_main);
+        pcoinsTip->AddCoin(prevout, Coin(prevTx.vout[0], 0, false), false);
+        for (int i = 0; i < 2; ++i) {
+            CMutableTransaction tx;
+            tx.vin.resize(2);
+            tx.vin[0].prevout = prevout;
+            tx.vin[1].prevout = missingPrevout;
+            tx.vout.resize(1);
+            tx.vout[0].nValue = (i + 1) * CENT;
+            tx.vout[0].scriptPubKey = scriptPubKey;
+            CTransactionRef orphan = MakeTransactionRef(tx);
+            BOOST_REQUIRE(AddOrphanTx(orphan, node.GetId()));
+            node.orphan_work_set.insert(orphan->GetHash());
+        }
+    }
+
+    BOOST_CHECK(ProcessMessages(&node, *connman, interrupt));
+    BOOST_CHECK_EQUAL(node.orphan_work_set.size(), 1);
+    BOOST_CHECK_EQUAL(mapOrphanTransactions.size(), 2);
+
+    BOOST_CHECK(!ProcessMessages(&node, *connman, interrupt));
+    BOOST_CHECK(node.orphan_work_set.empty());
+    BOOST_CHECK_EQUAL(mapOrphanTransactions.size(), 2);
+    {
+        LOCK(cs_main);
+        LimitOrphanTxSize(0);
+    }
+    BOOST_CHECK(mapOrphanTransactions.empty());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
