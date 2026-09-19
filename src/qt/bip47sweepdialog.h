@@ -24,6 +24,7 @@ public:
     ~Bip47SweepDialog();
 
     void setModel(WalletModel *model);
+    void applyTheme();
 
 private Q_SLOTS:
     void on_pasteButton_clicked();

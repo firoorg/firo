@@ -4,6 +4,7 @@
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -36,6 +37,46 @@ Bip47SweepDialog::Bip47SweepDialog(const PlatformStyle *_platformStyle, QWidget 
     connect(ui->newSpark, &QRadioButton::toggled, this, &Bip47SweepDialog::destinationChanged);
     connect(ui->existing, &QRadioButton::toggled, this, &Bip47SweepDialog::destinationChanged);
     connect(ui->address, &QValidatedLineEdit::textChanged, this, &Bip47SweepDialog::destinationChanged);
+
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
+        okButton->setText(tr("Move funds"));
+
+    applyTheme();
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &Bip47SweepDialog::applyTheme);
+}
+
+void Bip47SweepDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QLabel { background: transparent; color: $INK_SOFT; }"
+        "QLabel#introLabel { color: $INK; }"
+        "QLabel#availableTextLabel, QLabel#lockedTextLabel, QLabel#destinationLabel {"
+        " color: $INK_SOFT; font-size: 12px; font-weight: 700;"
+        "}"
+        "QLabel#availableLabel, QLabel#lockedLabel { color: $INK; font-weight: 700; }"
+        "QLabel#noteLabel { color: $INK_FAINT; font-size: 12px; }"
+        "QRadioButton, QCheckBox { background: transparent; color: $INK; }"
+        "QFrame#separator { background: $BORDER; border: none; min-height: 1px; max-height: 1px; }"
+        "QValidatedLineEdit {"
+        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " padding: 8px 12px; color: $INK;"
+        "}"
+        "QValidatedLineEdit:focus { border: 1px solid $WINE; }"
+        "QValidatedLineEdit:disabled { color: $INK_FAINT; }"
+        "QValidatedLineEdit[invalidInput=\"true\"] { border-color: $ERROR; }"
+        "QToolButton {"
+        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 8px; padding: 4px;"
+        "}"
+        "QToolButton:disabled { background: $PANEL; }")));
+
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 Bip47SweepDialog::~Bip47SweepDialog()
