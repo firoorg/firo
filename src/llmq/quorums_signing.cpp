@@ -476,8 +476,41 @@ void CSigningManager::ProcessMessageRecoveredSig(CNode* pfrom, const CRecoveredS
     LogPrint("llmq", "CSigningManager::%s -- signHash=%s, id=%s, msgHash=%s, node=%d\n", __func__,
             CLLMQUtils::BuildSignHash(recoveredSig).ToString(), recoveredSig.id.ToString(), recoveredSig.msgHash.ToString(), pfrom->GetId());
 
+    PushPendingRecoveredSig(pfrom->id, recoveredSig);
+}
+
+void CSigningManager::PushPendingRecoveredSig(NodeId from, const CRecoveredSig& recoveredSig)
+{
     LOCK(cs);
-    pendingRecoveredSigs[pfrom->id].emplace_back(recoveredSig);
+
+    if (pendingRecoveredSigsCount >= MAX_PENDING_RECSIGS_TOTAL) {
+        LogPrint("llmq", "CSigningManager::%s -- global pending recovered sigs cap reached (%u), dropping sig from node=%d\n",
+            __func__, static_cast<unsigned int>(MAX_PENDING_RECSIGS_TOTAL), from);
+        return;
+    }
+
+    auto nodeIt = pendingRecoveredSigs.find(from);
+    if (nodeIt != pendingRecoveredSigs.end() && nodeIt->second.size() >= MAX_PENDING_RECSIGS_PER_NODE) {
+        LogPrint("llmq", "CSigningManager::%s -- per-node pending recovered sigs cap reached (%u), dropping sig from node=%d\n",
+            __func__, static_cast<unsigned int>(MAX_PENDING_RECSIGS_PER_NODE), from);
+        return;
+    }
+
+    pendingRecoveredSigs[from].emplace_back(recoveredSig);
+    ++pendingRecoveredSigsCount;
+}
+
+void CSigningManager::RemoveNodesIf(const std::function<bool(NodeId)>& predicate)
+{
+    LOCK(cs);
+    for (auto it = pendingRecoveredSigs.begin(); it != pendingRecoveredSigs.end();) {
+        if (predicate(it->first)) {
+            pendingRecoveredSigsCount -= it->second.size();
+            it = pendingRecoveredSigs.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 bool CSigningManager::PreVerifyRecoveredSig(NodeId nodeId, const CRecoveredSig& recoveredSig, bool& retBan)
@@ -516,6 +549,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
         }
 
         std::unordered_set<std::pair<NodeId, uint256>, StaticSaltedHasher> uniqueSignHashes;
+        size_t erasedCount = 0;
         CLLMQUtils::IterateNodesRandom(pendingRecoveredSigs, [&]() {
             return uniqueSignHashes.size() < maxUniqueSessions;
         }, [&](NodeId nodeId, std::list<CRecoveredSig>& ns) {
@@ -530,8 +564,18 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
                 retSigShares[nodeId].emplace_back(recSig);
             }
             ns.erase(ns.begin());
+            ++erasedCount;
             return !ns.empty();
         }, rnd);
+        pendingRecoveredSigsCount -= erasedCount;
+
+        for (auto it = pendingRecoveredSigs.begin(); it != pendingRecoveredSigs.end();) {
+            if (it->second.empty()) {
+                it = pendingRecoveredSigs.erase(it);
+            } else {
+                ++it;
+            }
+        }
 
         if (retSigShares.empty()) {
             return;
