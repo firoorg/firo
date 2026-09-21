@@ -220,12 +220,28 @@ void AddressBookPage::applyTheme()
     if (ui->tableView->viewport())
         ui->tableView->viewport()->update();
     ui->addressType->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QComboBox, QComboBox QAbstractItemView, QComboBox::item {"
+        " font-size: 13px; font-weight: 400;"
+        "}"
         "QComboBox {"
         " background: $PANEL;"
         " border: 1px solid $BORDER;"
         " border-radius: 10px;"
         " padding: 8px 12px;"
         " color: $INK;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        " background: $PANEL; color: $INK;"
+        " border: 1px solid $BORDER; border-radius: 9px;"
+        " padding: 4px; outline: 0;"
+        " selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;"
+        "}"
+        "QComboBox QAbstractItemView::item {"
+        " margin: 0; padding: 7px 6px; border-radius: 7px;"
+        " background: $PANEL; color: $INK;"
+        "}"
+        "QComboBox QAbstractItemView::item:selected {"
+        " background: $WINE_DEEP; color: #FFFFFF;"
         "}")));
 
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();

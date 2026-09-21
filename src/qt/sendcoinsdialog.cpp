@@ -147,7 +147,7 @@ void SendCoinsDialog::applyTheme()
         "QDialog { background: $BG; }"
         "QDialog#SendCoinsDialog QPushButton { min-width: 0; }")));
     ui->scrollArea->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; border: none; }"));
-    ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("background: transparent;"));
+    ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("QWidget#scrollAreaWidgetContents { background: transparent; }"));
 
     const QString cardStyle = GUIUtil::themed(QStringLiteral(
         "QFrame#frameFee, QFrame#frameCoinControl {"
