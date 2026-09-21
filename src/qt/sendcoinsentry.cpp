@@ -24,6 +24,12 @@
 
 #include<QResizeEvent>
 
+/**
+ * Build one recipient entry and connect its amount, memo and removal controls.
+ * @param _platformStyle Borrowed platform styling that must outlive this entry.
+ * @param parent Optional Qt parent that owns this entry.
+ * @pre Called on the GUI thread with a QApplication and non-null _platformStyle.
+ */
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
     ui(new Ui::SendCoinsEntry),
@@ -72,6 +78,10 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->payAmount->setExpanding(true, 420);
 }
 
+/**
+ * Restyle recipient inputs, warnings and fee subtraction for the active theme.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
 void SendCoinsEntry::applyTheme()
 {
     ui->SendCoins->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
@@ -189,6 +199,7 @@ void SendCoinsEntry::applyTheme()
             background: $PANEL_SOFT;
         }
         QFrame#SendCoins QCheckBox {
+            background: transparent;
             color: $INK_SOFT;
             font-size: 12px;
             font-weight: 700;

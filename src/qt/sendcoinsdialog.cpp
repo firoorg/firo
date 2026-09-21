@@ -37,6 +37,12 @@
 
 #define SEND_CONFIRM_DELAY   3
 
+/**
+ * Build the send form, connect its controls and restore the saved fee settings.
+ * @param _platformStyle Borrowed platform styling that must outlive this dialog.
+ * @param parent Optional Qt parent that owns this dialog.
+ * @pre Called on the GUI thread with the wallet application initialized and non-null _platformStyle.
+ */
 SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SendCoinsDialog),
@@ -54,7 +60,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->verticalLayout_2->insertWidget(0, ui->frameCoinControl);
     ui->verticalLayout->removeWidget(ui->frameFee);
     ui->verticalLayout_2->insertWidget(2, ui->frameFee);
-    ui->frameCoinControl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    ui->frameCoinControl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     ui->frameFee->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     if (!_platformStyle->getImagesOnButtons()) {
@@ -141,13 +147,17 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     minimizeFeeSection(settings.value("fFeeSectionMinimized").toBool());
 }
 
+/**
+ * Apply the active theme to the send form, coin-control summary and fee controls.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
 void SendCoinsDialog::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QDialog { background: $BG; }"
         "QDialog#SendCoinsDialog QPushButton { min-width: 0; }")));
     ui->scrollArea->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; border: none; }"));
-    ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("background: transparent;"));
+    ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("QWidget#scrollAreaWidgetContents { background: transparent; }"));
 
     const QString cardStyle = GUIUtil::themed(QStringLiteral(
         "QFrame#frameFee, QFrame#frameCoinControl {"
@@ -183,15 +193,16 @@ void SendCoinsDialog::applyTheme()
 
     ui->labelCoinControlFeatures->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 13px; font-weight: 700; }")));
-    ui->pushButtonCoinControl->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    ui->pushButtonCoinControl->setStyleSheet(secondaryButtonStyle);
     ui->labelCoinControlAutomaticallySelected->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
         " padding: 4px 10px; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
     ui->labelCoinControlInsuffFunds->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
 
+    // Include the caption/value gap in the size hint used by QFormLayout's wrapping.
     const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; padding-right: 10px; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
     const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }"

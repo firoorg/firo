@@ -31,8 +31,10 @@
 #include "wallet/wallet.h"
 #include "walletmodel.h"
 
+#include <QAbstractSpinBox>
 #include <QAction>
 #include <QColor>
+#include <QComboBox>
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QLabel>
@@ -579,6 +581,10 @@ void WalletUiTests::collapsedNavigationRemainsUsable()
     }
 }
 
+/**
+ * Verify payment-request details can scroll while copy and close actions stay visible in both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
 void WalletUiTests::paymentRequestFitsSmallScreen()
 {
     const auto previousTheme = GUIUtil::currentThemeMode();
@@ -608,6 +614,10 @@ void WalletUiTests::paymentRequestFitsSmallScreen()
     }
 }
 
+/**
+ * Verify request controls remain reachable in small windows and fit in both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
 void WalletUiTests::receiveFormFitsSmallScreen()
 {
     GUIUtil::loadTheme();
@@ -628,10 +638,20 @@ void WalletUiTests::receiveFormFitsSmallScreen()
     QCoreApplication::processEvents();
     QVERIFY(scroll->viewport()->rect().contains(QRect(button->mapTo(scroll->viewport(), QPoint()), button->size())));
 
-    dialog.resize(900, 1200);
-    QTRY_COMPARE(scroll->verticalScrollBar()->maximum(), 0);
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    dialog.resize(944, 625);
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        QTRY_COMPARE(scroll->verticalScrollBar()->maximum(), 0);
+        QVERIFY(scroll->viewport()->rect().contains(QRect(button->mapTo(scroll->viewport(), QPoint()), button->size())));
+    }
 }
 
+/**
+ * Verify send controls fit or remain reachable with long labels, multiple recipients and both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
 void WalletUiTests::sendFormFitsSmallScreen()
 {
     QSettings settings;
@@ -650,14 +670,68 @@ void WalletUiTests::sendFormFitsSmallScreen()
     GUIUtil::loadTheme();
     const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
     QVERIFY(style);
+    settings.setValue("fFeeSectionMinimized", true);
     SendCoinsDialog dialog(style.get());
     dialog.setAttribute(Qt::WA_DontShowOnScreen);
     dialog.show();
-    dialog.resize(964, 480);
+    dialog.resize(944, 625);
     auto* scroll = dialog.findChild<QScrollArea*>("scrollArea");
     QVERIFY(scroll);
+
+    // A single recipient, selected inputs, privacy warning and memo should fit without scrolling.
+    auto* automatic = dialog.findChild<QLabel*>("labelCoinControlAutomaticallySelected");
+    auto* warning = dialog.findChild<QLabel*>("textWarning");
+    QVERIFY(automatic);
+    QVERIFY(warning);
+    automatic->hide();
+    warning->setText(QStringLiteral("You are sending Firo from a transparent address to a Spark address."));
+    for (const char* name : {"frameCoinControl", "widgetCoinControl", "addressWarningRow",
+                            "textWarning", "iconWarning", "messageLabel", "messageTextLabel"}) {
+        auto* field = dialog.findChild<QWidget*>(name);
+        QVERIFY(field);
+        field->show();
+    }
+    for (const char* name : {"labelCoinControlAmount", "labelCoinControlFee",
+                            "labelCoinControlAfterFee", "labelCoinControlChange"}) {
+        auto* value = dialog.findChild<QLabel*>(name);
+        QVERIFY(value);
+        value->setText(QStringLiteral("1234.12345678 FIRO"));
+    }
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        QCoreApplication::processEvents();
+        for (const char* name : {"labelCoinControlQuantity", "labelCoinControlBytes",
+                                "labelCoinControlAmount", "labelCoinControlLowOutput",
+                                "labelCoinControlFee", "labelCoinControlAfterFee", "labelCoinControlChange"}) {
+            auto* value = dialog.findChild<QLabel*>(name);
+            QVERIFY(value);
+            QTRY_VERIFY2(value->height() >= value->minimumSizeHint().height() &&
+                         value->width() >= value->minimumSizeHint().width(), name);
+        }
+        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() == 0 && scroll->horizontalScrollBar()->maximum() == 0);
+        for (const char* name : {"payAmount", "checkboxSubtractFeeFromAmount", "messageTextLabel", "buttonChooseFee"}) {
+            auto* field = dialog.findChild<QWidget*>(name);
+            QVERIFY(field);
+            QVERIFY(field->isVisible());
+            QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
+        }
+        auto* amount = dialog.findChild<QWidget*>("payAmount");
+        QVERIFY(amount);
+        // The composite amount widget must not clip the styled input or unit selector.
+        for (auto* child : {static_cast<QWidget*>(amount->findChild<QAbstractSpinBox*>()),
+                            static_cast<QWidget*>(amount->findChild<QComboBox*>())}) {
+            QVERIFY(child);
+            QVERIFY(amount->rect().contains(QRect(child->mapTo(amount, QPoint()), child->size())));
+        }
+    }
+
+    dialog.resize(964, 480);
     dialog.addEntry();
-    QVERIFY(QMetaObject::invokeMethod(&dialog, "on_buttonChooseFee_clicked"));
+    auto* chooseFee = dialog.findChild<QPushButton*>("buttonChooseFee");
+    QVERIFY(chooseFee);
+    chooseFee->click();
     QCoreApplication::processEvents();
     QVERIFY(dialog.height() <= 480);
     QVERIFY(dialog.width() <= 964);
@@ -675,6 +749,39 @@ void WalletUiTests::sendFormFitsSmallScreen()
         QCoreApplication::processEvents();
         QVERIFY(field->isVisible());
         QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
+    }
+
+    // Long translated captions must not force the coin-control columns off screen.
+    auto* quantityCaption = dialog.findChild<QLabel*>("labelCoinControlQuantityText");
+    auto* afterFeeCaption = dialog.findChild<QLabel*>("labelCoinControlAfterFeeText");
+    QVERIFY(quantityCaption);
+    QVERIFY(afterFeeCaption);
+    quantityCaption->setText(QStringLiteral("Anzahl der ausgewählten Eingaben:"));
+    afterFeeCaption->setText(QStringLiteral("Betrag nach Abzug der Transaktionsgebühren:"));
+    for (const char* name : {"labelCoinControlAmount", "labelCoinControlFee",
+                            "labelCoinControlAfterFee", "labelCoinControlChange"}) {
+        auto* value = dialog.findChild<QLabel*>(name);
+        QVERIFY(value);
+        value->setText(QStringLiteral("21000000.00000000 FIRO"));
+    }
+    auto* minimizeFee = dialog.findChild<QPushButton*>("buttonMinimizeFee");
+    auto* coinControl = dialog.findChild<QWidget*>("widgetCoinControl");
+    QVERIFY(minimizeFee);
+    QVERIFY(coinControl);
+    minimizeFee->click();
+    dialog.resize(844, 480);
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        QCoreApplication::processEvents();
+        QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        for (auto* label : coinControl->findChildren<QLabel*>()) {
+            QTRY_VERIFY2(label->width() >= label->minimumSizeHint().width() &&
+                         label->height() >= label->minimumSizeHint().height(), qPrintable(label->objectName()));
+            scroll->ensureWidgetVisible(label);
+            QCoreApplication::processEvents();
+            QVERIFY2(scroll->viewport()->rect().contains(QRect(label->mapTo(scroll->viewport(), QPoint()), label->size())),
+                     qPrintable(label->objectName()));
+        }
     }
 }
 
