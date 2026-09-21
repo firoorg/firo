@@ -880,11 +880,13 @@ CSparkWallet::IdentifiedMint CSparkWallet::IdentifyMint(spark::Coin coin, const 
 
 void CSparkWallet::RecordMint(IdentifiedMint mint, CWalletDB& walletdb)
 {
+    LOCK2(cs_main, cs_spark_wallet);
     auto& mintMeta = mint.meta;
-    const auto heightAndId = spark::CSparkState::GetState()->GetMintedCoinHeightAndId(mintMeta.coin);
+    auto* sparkState = spark::CSparkState::GetState();
+    const auto heightAndId = sparkState->GetMintedCoinHeightAndId(mintMeta.coin);
     mintMeta.nHeight = heightAndId.first;
     mintMeta.nId = heightAndId.second;
-    mintMeta.isUsed = false;
+    mintMeta.isUsed = sparkState->IsUsedLTag(mint.lTag);
     uint256 spendTxHash;
     for (auto* pool : {&mempool, &txpools.getStemTxPool()}) {
         LOCK(pool->cs);
@@ -898,7 +900,8 @@ void CSparkWallet::RecordMint(IdentifiedMint mint, CWalletDB& walletdb)
     const uint256 lTagHash = primitives::GetLTagHash(mint.lTag);
     addOrUpdateMint(mintMeta, lTagHash, walletdb);
 
-    if (mintMeta.isUsed) {
+    // Preserve the confirmed spend's txid when neither pool contains it.
+    if (!spendTxHash.IsNull()) {
         UpdateSpendState(mint.lTag, lTagHash, spendTxHash, false);
     }
 }

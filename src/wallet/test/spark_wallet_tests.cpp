@@ -286,7 +286,7 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
 }
 
 
-BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_pending_spends)
+BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_spends)
 {
     GenerateBlocks(500);
     std::vector<CMutableTransaction> mintTransactions;
@@ -330,6 +330,21 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_preserves_pending_spends)
         BOOST_CHECK_EQUAL(entry.amount, persisted.v);
     }
     txpools.clear();
+
+    // A rescan must also keep confirmed spends used after they leave both pools.
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(spend)}));
+    wallet->FinishTasks();
+    BOOST_REQUIRE(wallet->getMintMeta(lTagHash).isUsed);
+    wallet->eraseMint(lTagHash, walletdb);
+    wallet->UpdateMintStateFromBlock(block);
+    wallet->FinishTasks();
+    BOOST_CHECK(wallet->getMintMeta(lTagHash).isUsed);
+    CSparkMintMeta persisted;
+    BOOST_REQUIRE(walletdb.ReadSparkMint(lTagHash, persisted));
+    BOOST_CHECK(persisted.isUsed);
+    CSparkSpendEntry entry;
+    BOOST_REQUIRE(walletdb.ReadSparkSpendEntry(lTags[0], entry));
+    BOOST_CHECK(entry.hashTx == spend.GetHash());
     spark::CSparkState::GetState()->Reset();
 }
 

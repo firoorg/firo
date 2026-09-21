@@ -4007,8 +4007,7 @@ BOOST_AUTO_TEST_CASE(coingroup)
 
     // util function
     auto reconnect = [](CBlock const &block) {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
-        LOCK(mempool.cs);
+        LOCK(cs_main);
 
         std::shared_ptr<CBlock const> sharedBlock =
                 std::make_shared<CBlock const>(block);
