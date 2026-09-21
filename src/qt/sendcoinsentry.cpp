@@ -189,6 +189,7 @@ void SendCoinsEntry::applyTheme()
             background: $PANEL_SOFT;
         }
         QFrame#SendCoins QCheckBox {
+            background: transparent;
             color: $INK_SOFT;
             font-size: 12px;
             font-weight: 700;

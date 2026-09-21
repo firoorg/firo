@@ -14,6 +14,18 @@
    <string>Send Coins</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>10</number>
+   </property>
+   <property name="topMargin">
+    <number>10</number>
+   </property>
+   <property name="rightMargin">
+    <number>10</number>
+   </property>
    <property name="bottomMargin">
     <number>8</number>
    </property>
@@ -54,7 +66,7 @@
        <number>6</number>
       </property>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayoutCoinControl" stretch="0,0,0,0,1">
+       <layout class="QVBoxLayout" name="verticalLayoutCoinControl" stretch="0,0,0,1">
         <property name="spacing">
          <number>0</number>
         </property>
@@ -65,9 +77,12 @@
          <number>10</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl1">
+         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0,0,1">
+          <property name="spacing">
+           <number>8</number>
+          </property>
           <property name="bottomMargin">
-           <number>15</number>
+           <number>6</number>
           </property>
           <item>
            <widget class="QLabel" name="labelCoinControlFeatures">
@@ -91,16 +106,6 @@
             </property>
            </widget>
           </item>
-         </layout>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0,0">
-          <property name="spacing">
-           <number>8</number>
-          </property>
-          <property name="bottomMargin">
-           <number>10</number>
-          </property>
           <item>
            <widget class="QPushButton" name="pushButtonCoinControl">
             <property name="styleSheet">
@@ -186,29 +191,29 @@
             <number>0</number>
            </property>
            <item>
-            <layout class="QGridLayout" name="horizontalLayoutCoinControl3" columnstretch="1,1">
+            <layout class="QGridLayout" name="horizontalLayoutCoinControl3" columnstretch="1,1,1">
              <property name="spacing">
-              <number>20</number>
+              <number>6</number>
              </property>
              <property name="topMargin">
               <number>0</number>
              </property>
              <property name="bottomMargin">
-              <number>10</number>
+              <number>6</number>
              </property>
-             <item row="0" column="0">
+             <item row="0" column="0" rowspan="2">
               <layout class="QFormLayout" name="formLayoutCoinControl1">
                <property name="horizontalSpacing">
                 <number>10</number>
                </property>
                <property name="verticalSpacing">
-                <number>14</number>
+                <number>4</number>
                </property>
                <property name="leftMargin">
                 <number>10</number>
                </property>
                <property name="topMargin">
-                <number>4</number>
+                <number>0</number>
                </property>
                <property name="rightMargin">
                 <number>6</number>
@@ -279,19 +284,19 @@
                </item>
               </layout>
              </item>
-             <item row="0" column="1">
+             <item row="0" column="1" rowspan="2">
               <layout class="QFormLayout" name="formLayoutCoinControl2">
                <property name="horizontalSpacing">
                 <number>10</number>
                </property>
                <property name="verticalSpacing">
-                <number>14</number>
+                <number>4</number>
                </property>
                <property name="leftMargin">
                 <number>6</number>
                </property>
                <property name="topMargin">
-                <number>4</number>
+                <number>0</number>
                </property>
                <property name="rightMargin">
                 <number>6</number>
@@ -359,19 +364,19 @@
                </item>
               </layout>
              </item>
-             <item row="1" column="0">
+             <item row="0" column="2">
               <layout class="QFormLayout" name="formLayoutCoinControl3">
                <property name="horizontalSpacing">
                 <number>10</number>
                </property>
                <property name="verticalSpacing">
-                <number>14</number>
+                <number>4</number>
                </property>
                <property name="leftMargin">
                 <number>6</number>
                </property>
                <property name="topMargin">
-                <number>4</number>
+                <number>0</number>
                </property>
                <property name="rightMargin">
                 <number>6</number>
@@ -410,19 +415,19 @@
                </item>
               </layout>
              </item>
-             <item row="1" column="1">
+             <item row="1" column="2">
               <layout class="QFormLayout" name="formLayoutCoinControl4">
                <property name="horizontalSpacing">
                 <number>10</number>
                </property>
                <property name="verticalSpacing">
-                <number>14</number>
+                <number>4</number>
                </property>
                <property name="leftMargin">
                 <number>6</number>
                </property>
                <property name="topMargin">
-                <number>4</number>
+                <number>0</number>
                </property>
                <property name="rightMargin">
                 <number>6</number>
@@ -504,7 +509,7 @@
            <enum>QLayout::SetDefaultConstraint</enum>
           </property>
           <property name="topMargin">
-           <number>5</number>
+           <number>0</number>
           </property>
           <property name="rightMargin">
            <number>5</number>
@@ -589,6 +594,9 @@
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
+       <property name="spacing">
+        <number>6</number>
+       </property>
        <property name="leftMargin">
         <number>0</number>
        </property>
@@ -616,7 +624,7 @@
          <property name="sizeHint" stdset="0">
           <size>
            <width>20</width>
-           <height>40</height>
+           <height>0</height>
           </size>
          </property>
         </spacer>

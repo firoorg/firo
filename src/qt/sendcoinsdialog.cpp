@@ -183,7 +183,7 @@ void SendCoinsDialog::applyTheme()
 
     ui->labelCoinControlFeatures->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 13px; font-weight: 700; }")));
-    ui->pushButtonCoinControl->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    ui->pushButtonCoinControl->setStyleSheet(secondaryButtonStyle);
     ui->labelCoinControlAutomaticallySelected->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
         " padding: 4px 10px; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
