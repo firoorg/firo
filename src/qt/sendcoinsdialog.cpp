@@ -54,7 +54,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->verticalLayout_2->insertWidget(0, ui->frameCoinControl);
     ui->verticalLayout->removeWidget(ui->frameFee);
     ui->verticalLayout_2->insertWidget(2, ui->frameFee);
-    ui->frameCoinControl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    ui->frameCoinControl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     ui->frameFee->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     if (!_platformStyle->getImagesOnButtons()) {

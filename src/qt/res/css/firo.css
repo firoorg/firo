@@ -1515,10 +1515,6 @@ QDialog#SendCoinsDialog #scrollArea {
     border-color: #cfcccc;
 }
 
-QDialog#SendCoinsDialog .QFrame#frameCoinControl .QWidget#widgetCoinControl > .QLabel {
-    padding: 2px;
-}
-
 QDialog#SendCoinsDialog .QFrame#frameCoinControl .QLabel#labelCoinControlChangeLabel {
     margin-right: 112px;
 }

@@ -689,8 +689,16 @@ void WalletUiTests::sendFormFitsSmallScreen()
     const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
     for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
         GUIUtil::setThemeMode(mode);
-        QTRY_COMPARE(scroll->verticalScrollBar()->maximum(), 0);
-        QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        QCoreApplication::processEvents();
+        for (const char* name : {"labelCoinControlQuantity", "labelCoinControlBytes",
+                                "labelCoinControlAmount", "labelCoinControlLowOutput",
+                                "labelCoinControlFee", "labelCoinControlAfterFee", "labelCoinControlChange"}) {
+            auto* value = dialog.findChild<QLabel*>(name);
+            QVERIFY(value);
+            QTRY_VERIFY2(value->height() >= value->minimumSizeHint().height() &&
+                         value->width() >= value->minimumSizeHint().width(), name);
+        }
+        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() == 0 && scroll->horizontalScrollBar()->maximum() == 0);
         for (const char* name : {"payAmount", "checkboxSubtractFeeFromAmount", "messageTextLabel", "buttonChooseFee"}) {
             auto* field = dialog.findChild<QWidget*>(name);
             QVERIFY(field);
