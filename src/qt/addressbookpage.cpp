@@ -112,6 +112,15 @@ private:
 
 }
 
+/**
+ * Build an address book for selection or editing of sending or receiving addresses.
+ * @param _platformStyle Borrowed platform styling that must outlive this dialog.
+ * @param _mode Whether addresses are selected or edited.
+ * @param _tab Whether to display sending or receiving addresses.
+ * @param parent Optional Qt parent that owns this dialog.
+ * @param isReused Whether receiving-address selection is for address reuse.
+ * @pre Called on the GUI thread with a QApplication and non-null _platformStyle.
+ */
 AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),

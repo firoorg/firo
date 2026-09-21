@@ -581,6 +581,10 @@ void WalletUiTests::collapsedNavigationRemainsUsable()
     }
 }
 
+/**
+ * Verify payment-request details can scroll while copy and close actions stay visible in both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
 void WalletUiTests::paymentRequestFitsSmallScreen()
 {
     const auto previousTheme = GUIUtil::currentThemeMode();
