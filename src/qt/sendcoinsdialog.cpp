@@ -37,6 +37,12 @@
 
 #define SEND_CONFIRM_DELAY   3
 
+/**
+ * Build the send form, connect its controls and restore the saved fee settings.
+ * @param _platformStyle Borrowed platform styling that must outlive this dialog.
+ * @param parent Optional Qt parent that owns this dialog.
+ * @pre Called on the GUI thread with the wallet application initialized and non-null _platformStyle.
+ */
 SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SendCoinsDialog),
@@ -141,6 +147,10 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     minimizeFeeSection(settings.value("fFeeSectionMinimized").toBool());
 }
 
+/**
+ * Apply the active theme to the send form, coin-control summary and fee controls.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
 void SendCoinsDialog::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral(

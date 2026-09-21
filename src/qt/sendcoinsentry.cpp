@@ -72,6 +72,10 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->payAmount->setExpanding(true, 420);
 }
 
+/**
+ * Restyle recipient inputs, warnings and fee subtraction for the active theme.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
 void SendCoinsEntry::applyTheme()
 {
     ui->SendCoins->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(

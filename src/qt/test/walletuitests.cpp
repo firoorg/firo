@@ -610,6 +610,10 @@ void WalletUiTests::paymentRequestFitsSmallScreen()
     }
 }
 
+/**
+ * Verify request controls remain reachable in small windows and fit in both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
 void WalletUiTests::receiveFormFitsSmallScreen()
 {
     GUIUtil::loadTheme();
@@ -640,6 +644,10 @@ void WalletUiTests::receiveFormFitsSmallScreen()
     }
 }
 
+/**
+ * Verify send controls fit or remain reachable with long labels, multiple recipients and both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
 void WalletUiTests::sendFormFitsSmallScreen()
 {
     QSettings settings;

@@ -189,6 +189,12 @@ private:
 
 }
 
+/**
+ * Build the payment-request form and history, reserving space for the form first.
+ * @param _platformStyle Borrowed platform styling that must outlive this dialog.
+ * @param parent Optional Qt parent that owns this dialog.
+ * @pre Called on the GUI thread with a QApplication and non-null _platformStyle.
+ */
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ReceiveCoinsDialog),

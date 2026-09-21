@@ -205,6 +205,10 @@ AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode
     applyTheme();
 }
 
+/**
+ * Restyle the address table, buttons and address-type popup for the active theme.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
 void AddressBookPage::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
