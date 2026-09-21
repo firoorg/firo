@@ -46,6 +46,10 @@ class RequestFormScrollArea final : public QScrollArea
 public:
     using QScrollArea::QScrollArea;
 
+    /**
+     * @pre Called on the GUI thread.
+     * @return The content widget's preferred size, or QScrollArea's hint when empty.
+     */
     QSize sizeHint() const override
     {
         // QScrollArea caps its hint, which can make the form scroll while the list has spare room.
@@ -53,6 +57,12 @@ public:
     }
 
 protected:
+    /**
+     * Notify the parent layout when the content's size requirements change.
+     * @param event The event delivered by Qt.
+     * @pre event is non-null and the caller is on the GUI thread.
+     * @return Whether QScrollArea handled the event.
+     */
     bool event(QEvent* event) override
     {
         const bool handled = QScrollArea::event(event);
