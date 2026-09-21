@@ -738,6 +738,39 @@ void WalletUiTests::sendFormFitsSmallScreen()
         QVERIFY(field->isVisible());
         QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
     }
+
+    // Long translated captions must not force the coin-control columns off screen.
+    auto* quantityCaption = dialog.findChild<QLabel*>("labelCoinControlQuantityText");
+    auto* afterFeeCaption = dialog.findChild<QLabel*>("labelCoinControlAfterFeeText");
+    QVERIFY(quantityCaption);
+    QVERIFY(afterFeeCaption);
+    quantityCaption->setText(QStringLiteral("Anzahl der ausgewählten Eingaben:"));
+    afterFeeCaption->setText(QStringLiteral("Betrag nach Abzug der Transaktionsgebühren:"));
+    for (const char* name : {"labelCoinControlAmount", "labelCoinControlFee",
+                            "labelCoinControlAfterFee", "labelCoinControlChange"}) {
+        auto* value = dialog.findChild<QLabel*>(name);
+        QVERIFY(value);
+        value->setText(QStringLiteral("21000000.00000000 FIRO"));
+    }
+    auto* minimizeFee = dialog.findChild<QPushButton*>("buttonMinimizeFee");
+    auto* coinControl = dialog.findChild<QWidget*>("widgetCoinControl");
+    QVERIFY(minimizeFee);
+    QVERIFY(coinControl);
+    minimizeFee->click();
+    dialog.resize(844, 480);
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        QCoreApplication::processEvents();
+        QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        for (auto* label : coinControl->findChildren<QLabel*>()) {
+            QTRY_VERIFY2(label->width() >= label->minimumSizeHint().width() &&
+                         label->height() >= label->minimumSizeHint().height(), qPrintable(label->objectName()));
+            scroll->ensureWidgetVisible(label);
+            QCoreApplication::processEvents();
+            QVERIFY2(scroll->viewport()->rect().contains(QRect(label->mapTo(scroll->viewport(), QPoint()), label->size())),
+                     qPrintable(label->objectName()));
+        }
+    }
 }
 
 void WalletUiTests::receiveMnemonics()

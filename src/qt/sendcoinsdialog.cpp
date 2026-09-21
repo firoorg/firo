@@ -190,8 +190,9 @@ void SendCoinsDialog::applyTheme()
     ui->labelCoinControlInsuffFunds->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
 
+    // Include the caption/value gap in the size hint used by QFormLayout's wrapping.
     const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; padding-right: 10px; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
     const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }"
