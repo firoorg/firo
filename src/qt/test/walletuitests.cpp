@@ -630,8 +630,14 @@ void WalletUiTests::receiveFormFitsSmallScreen()
     QCoreApplication::processEvents();
     QVERIFY(scroll->viewport()->rect().contains(QRect(button->mapTo(scroll->viewport(), QPoint()), button->size())));
 
-    dialog.resize(900, 1200);
-    QTRY_COMPARE(scroll->verticalScrollBar()->maximum(), 0);
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    dialog.resize(944, 625);
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        QTRY_COMPARE(scroll->verticalScrollBar()->maximum(), 0);
+        QVERIFY(scroll->viewport()->rect().contains(QRect(button->mapTo(scroll->viewport(), QPoint()), button->size())));
+    }
 }
 
 void WalletUiTests::sendFormFitsSmallScreen()

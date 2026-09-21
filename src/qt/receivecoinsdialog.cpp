@@ -41,6 +41,27 @@
 
 namespace {
 
+class RequestFormScrollArea final : public QScrollArea
+{
+public:
+    using QScrollArea::QScrollArea;
+
+    QSize sizeHint() const override
+    {
+        // QScrollArea caps its hint, which can make the form scroll while the list has spare room.
+        return widget() ? widget()->sizeHint() : QScrollArea::sizeHint();
+    }
+
+protected:
+    bool event(QEvent* event) override
+    {
+        const bool handled = QScrollArea::event(event);
+        if (event->type() == QEvent::LayoutRequest)
+            updateGeometry();
+        return handled;
+    }
+};
+
 class PaymentRequestCardDelegate final : public QStyledItemDelegate
 {
 public:
@@ -173,7 +194,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     auto* requestFormLayout = new QVBoxLayout(requestFormContents);
     requestFormLayout->setContentsMargins(0, 0, 0, 0);
     requestFormLayout->addWidget(ui->frame2);
-    requestFormScroll = new QScrollArea(this);
+    requestFormScroll = new RequestFormScrollArea(this);
     requestFormScroll->setObjectName(QStringLiteral("requestFormScroll"));
     requestFormScroll->setWidgetResizable(true);
     requestFormScroll->setFrameShape(QFrame::NoFrame);
@@ -181,7 +202,8 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     requestFormScroll->setWidget(requestFormContents);
     requestFormScroll->setStyleSheet(QStringLiteral(
         "QScrollArea#requestFormScroll { background: transparent; border: none; }"));
-    ui->verticalLayout->insertWidget(0, requestFormScroll, 1);
+    requestFormScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->verticalLayout->insertWidget(0, requestFormScroll);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->clearButton->setIcon(QIcon());
