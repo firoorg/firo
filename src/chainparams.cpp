@@ -292,6 +292,7 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 284400; // Approximately July 13 2020, 12:00 UTC
         consensus.DIP0003EnforcementHash = uint256S("0x8b8d7c05bb2d75f8c5e076cb6c10ef464e94ddcda2744740db03aeda2d6cc006");
         consensus.DIP0008Height = 341100; // Approximately Jan 28 2021, 11:00 UTC
@@ -636,6 +637,7 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 3340;
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 3800;
         consensus.DIP0003EnforcementHash.SetNull();
 
@@ -925,6 +927,7 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 800;
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 820;
         consensus.DIP0003EnforcementHash.SetNull();
 
@@ -1170,6 +1173,7 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 500;
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 550;
         consensus.DIP0003EnforcementHash.SetNull();
 

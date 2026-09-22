@@ -775,6 +775,12 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
 bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+
+    if (nHeight >= consensusParams.nRejectNegativeTxVersionStartBlock &&
+        tx.nVersion < 0) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-txns-version");
+    }
+
     bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
 
     if (fDIP0003Active_context) {

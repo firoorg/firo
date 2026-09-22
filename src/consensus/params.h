@@ -429,6 +429,10 @@ struct Params {
     /** block to start accepting pro reg txs for evo znodes */
     int DIP0003Height;
 
+    /** At and after this height, reject negative transaction versions.
+     * INT_MAX leaves the rule inactive for coordinated deployment. */
+    int nRejectNegativeTxVersionStartBlock;
+
     /** block to switch to evo znode payments */
     int DIP0003EnforcementHeight;
     uint256 DIP0003EnforcementHash;

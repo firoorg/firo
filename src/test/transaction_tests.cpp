@@ -9,6 +9,7 @@
 #include "noui.h"
 
 #include "clientversion.h"
+#include "chainparams.h"
 #include "checkqueue.h"
 #include "consensus/validation.h"
 #include "core_io.h"
@@ -96,6 +97,82 @@ std::string FormatScriptFlags(unsigned int flags)
 extern bool AppInit(int argc, char* argv[]);
 
 BOOST_FIXTURE_TEST_SUITE(transaction_tests, BasicTestingSetup)
+
+BOOST_AUTO_TEST_CASE(negative_version_consensus_activation)
+{
+    CMutableTransaction tx;
+    tx.nVersion = -32768;
+    tx.vin.emplace_back(uint256S("01"), 0);
+    tx.vout.emplace_back(1, CScript() << OP_TRUE);
+
+    CDataStream canonicalStream(SER_NETWORK, PROTOCOL_VERSION);
+    canonicalStream << tx;
+    std::vector<unsigned char> rawBytes(
+        canonicalStream.begin(), canonicalStream.end());
+    BOOST_REQUIRE_GE(rawBytes.size(), 4U);
+    BOOST_CHECK_EQUAL(
+        HexStr(rawBytes.begin(), rawBytes.begin() + 4), "0080ffff");
+    rawBytes[2] = 0;
+    rawBytes[3] = 0;
+
+    CDataStream rawStream(rawBytes, SER_NETWORK, PROTOCOL_VERSION);
+    CMutableTransaction rawTx;
+    rawStream >> rawTx;
+    BOOST_CHECK_EQUAL(rawTx.nVersion, -32768);
+    BOOST_CHECK_EQUAL(rawTx.nType, TRANSACTION_NORMAL);
+
+    CMutableTransaction canonicalTx;
+    canonicalStream >> canonicalTx;
+    BOOST_CHECK_EQUAL(canonicalTx.nVersion, -32768);
+    BOOST_CHECK_EQUAL(canonicalTx.nType, -1);
+
+    const CTransaction rawTransaction(rawTx);
+    CValidationState basicState;
+    BOOST_CHECK(CheckTransaction(
+        rawTransaction,
+        basicState,
+        true,
+        rawTransaction.GetHash(),
+        false,
+        INT_MAX));
+
+    const CTransaction canonicalTransaction(canonicalTx);
+    BOOST_CHECK(rawTransaction.GetHash() == canonicalTransaction.GetHash());
+
+    Consensus::Params consensus = Params().GetConsensus();
+    consensus.DIP0003Height = 1;
+    consensus.nRejectNegativeTxVersionStartBlock = 100;
+
+    CBlockIndex pindexPrev;
+    pindexPrev.nHeight = 98;
+    CValidationState preActivationState;
+    BOOST_CHECK(ContextualCheckTransaction(
+        rawTransaction, preActivationState, consensus, &pindexPrev));
+
+    CValidationState canonicalPreActivationState;
+    BOOST_CHECK(!ContextualCheckTransaction(
+        canonicalTransaction,
+        canonicalPreActivationState,
+        consensus,
+        &pindexPrev));
+    BOOST_CHECK_EQUAL(
+        canonicalPreActivationState.GetRejectReason(), "bad-txns-type");
+
+    pindexPrev.nHeight = 99;
+    CValidationState activationState;
+    BOOST_CHECK(!ContextualCheckTransaction(
+        rawTransaction, activationState, consensus, &pindexPrev));
+    BOOST_CHECK_EQUAL(activationState.GetRejectReason(), "bad-txns-version");
+
+    CValidationState canonicalActivationState;
+    BOOST_CHECK(!ContextualCheckTransaction(
+        canonicalTransaction,
+        canonicalActivationState,
+        consensus,
+        &pindexPrev));
+    BOOST_CHECK_EQUAL(
+        canonicalActivationState.GetRejectReason(), "bad-txns-version");
+}
 
 BOOST_AUTO_TEST_CASE(tx_valid)
 {
