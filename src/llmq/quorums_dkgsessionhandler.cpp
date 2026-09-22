@@ -333,23 +333,11 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
         }
 
         // are all messages from the same node?
-        NodeId firstNodeId = 0;
-        first = true;
-        bool nodeIdsAllSame = true;
-        for (auto it = messages.begin(); it != messages.end(); ++it) {
-            if (first) {
-                firstNodeId = it->first;
-            } else {
-                first = false;
-                if (it->first != firstNodeId) {
-                    nodeIdsAllSame = false;
-                    break;
-                }
-            }
-        }
+        const bool nodeIdsAllSame = detail::BatchNodeIdsAllSame(messages);
+
         // if yes, take a short path and return a set with only him
         if (nodeIdsAllSame) {
-            ret.emplace(firstNodeId);
+            ret.emplace(messages[0].first);
             return ret;
         }
         // different nodes, let's figure out who are the bad ones
