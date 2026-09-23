@@ -5,6 +5,9 @@ pipeline {
             alwaysPull true
         }
     }
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '50', artifactNumToKeepStr: '3'))
+    }
     environment {
         CCACHE_DIR = '/tmp/.ccache'
         HOST = 'x86_64-linux-gnu'
