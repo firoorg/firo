@@ -109,6 +109,7 @@ testScripts = [
     'mempool_doublesend_oneblock.py',
     'mempool_reorg.py',
     'mempool_spendcoinbase.py',
+    'negative_tx_version.py',
     # longest test should go first, to favor running tests in parallel
     # vv Tests less than 5m vv
     # 'p2p-fullblocktest.py',

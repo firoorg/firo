@@ -172,6 +172,33 @@ BOOST_AUTO_TEST_CASE(negative_version_consensus_activation)
         &pindexPrev));
     BOOST_CHECK_EQUAL(
         canonicalActivationState.GetRejectReason(), "bad-txns-version");
+
+    CMutableTransaction edgeTx(rawTx);
+    edgeTx.nVersion = -1;
+    edgeTx.nType = TRANSACTION_NORMAL;
+
+    pindexPrev.nHeight = 98;
+    CValidationState minusOnePreActivationState;
+    BOOST_CHECK(ContextualCheckTransaction(
+        CTransaction(edgeTx),
+        minusOnePreActivationState,
+        consensus,
+        &pindexPrev));
+
+    pindexPrev.nHeight = 99;
+    CValidationState minusOneActivationState;
+    BOOST_CHECK(!ContextualCheckTransaction(
+        CTransaction(edgeTx),
+        minusOneActivationState,
+        consensus,
+        &pindexPrev));
+    BOOST_CHECK_EQUAL(
+        minusOneActivationState.GetRejectReason(), "bad-txns-version");
+
+    edgeTx.nVersion = 0;
+    CValidationState zeroActivationState;
+    BOOST_CHECK(ContextualCheckTransaction(
+        CTransaction(edgeTx), zeroActivationState, consensus, &pindexPrev));
 }
 
 BOOST_AUTO_TEST_CASE(tx_valid)
@@ -839,6 +866,130 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
     BOOST_CHECK(!IsStandardTx(t, reason));
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+
+struct RestoreNegativeVersionTestState {
+    Consensus::Params& consensus;
+    int activationHeight;
+    bool requireStandard;
+
+    RestoreNegativeVersionTestState()
+        : consensus(const_cast<Consensus::Params&>(::Params().GetConsensus()))
+        , activationHeight(consensus.nRejectNegativeTxVersionStartBlock)
+        , requireStandard(fRequireStandard)
+    {
+    }
+
+    ~RestoreNegativeVersionTestState()
+    {
+        mempool.clear();
+        consensus.nRejectNegativeTxVersionStartBlock = activationHeight;
+        fRequireStandard = requireStandard;
+    }
+};
+
+CMutableTransaction SpendCoinbaseWithVersion(
+    const CTransaction& coinbase,
+    const CKey& coinbaseKey,
+    int16_t version)
+{
+    CMutableTransaction tx;
+    tx.nVersion = version;
+    tx.nType = TRANSACTION_NORMAL;
+    tx.vin.emplace_back(coinbase.GetHash(), 0);
+    tx.vout.emplace_back(
+        coinbase.vout[0].nValue - COIN / 10,
+        coinbase.vout[0].scriptPubKey);
+
+    CBasicKeyStore keystore;
+    keystore.AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
+    if (!SignSignature(keystore, coinbase, tx, 0, SIGHASH_ALL)) {
+        throw std::runtime_error("Failed to sign negative-version test transaction");
+    }
+    return tx;
+}
+
+} // namespace
+
+BOOST_AUTO_TEST_SUITE(negative_version_chain_tests)
+
+BOOST_FIXTURE_TEST_CASE(
+    mempool_and_block_activation_boundary,
+    TestChain100Setup)
+{
+    RestoreNegativeVersionTestState restore;
+    fRequireStandard = false;
+
+    BOOST_REQUIRE(CreateAndProcessBlock({}, coinbaseKey).GetHash() ==
+                  chainActive.Tip()->GetBlockHash());
+    BOOST_REQUIRE(CreateAndProcessBlock({}, coinbaseKey).GetHash() ==
+                  chainActive.Tip()->GetBlockHash());
+
+    const int activationHeight = chainActive.Height() + 2;
+    UpdateRegtestRejectNegativeTxVersionHeight(activationHeight);
+
+    const CTransactionRef policyTx = MakeTransactionRef(
+        SpendCoinbaseWithVersion(coinbaseTxns[0], coinbaseKey, -32768));
+    CValidationState policyState;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool, policyState, policyTx, true, nullptr));
+    }
+    int policyDoS = -1;
+    BOOST_CHECK(policyState.IsInvalid(policyDoS));
+    BOOST_CHECK_EQUAL(policyDoS, 0);
+    BOOST_CHECK_EQUAL(policyState.GetRejectCode(), REJECT_NONSTANDARD);
+    BOOST_CHECK_EQUAL(policyState.GetRejectReason(), "version");
+    BOOST_CHECK(!mempool.exists(policyTx->GetHash()));
+
+    const CMutableTransaction historicalTx = SpendCoinbaseWithVersion(
+        coinbaseTxns[1], coinbaseKey, -32768);
+    bool historicalAccepted = false;
+    CreateAndProcessBlock({historicalTx}, coinbaseKey, &historicalAccepted);
+    BOOST_REQUIRE(historicalAccepted);
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), activationHeight - 1);
+
+    const CTransactionRef activationTx = MakeTransactionRef(
+        SpendCoinbaseWithVersion(coinbaseTxns[2], coinbaseKey, -32768));
+    CValidationState activationState;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool, activationState, activationTx, true, nullptr));
+    }
+    int activationDoS = -1;
+    BOOST_CHECK(activationState.IsInvalid(activationDoS));
+    BOOST_CHECK_EQUAL(activationDoS, 100);
+    BOOST_CHECK_EQUAL(activationState.GetRejectReason(), "bad-txns-version");
+
+    const CBlock invalidBlock = CreateBlock(
+        {CMutableTransaction(*activationTx)}, coinbaseKey);
+    CValidationState blockState;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!TestBlockValidity(
+            blockState,
+            Params(),
+            invalidBlock,
+            chainActive.Tip(),
+            false,
+            false));
+    }
+    BOOST_CHECK_EQUAL(blockState.GetRejectReason(), "bad-txns-version");
+
+    const int tipHeight = chainActive.Height();
+    BOOST_CHECK(!ProcessNewBlock(
+        Params(), std::make_shared<const CBlock>(invalidBlock), true, nullptr));
+    BOOST_CHECK_EQUAL(chainActive.Height(), tipHeight);
+
+    const CScript scriptPubKey = CScript()
+        << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+    BOOST_CHECK(BlockAssembler(Params()).CreateNewBlock(scriptPubKey));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -118,6 +118,33 @@ void static RandomTransaction(CMutableTransaction &tx, bool fSingle) {
 
 BOOST_FIXTURE_TEST_SUITE(sighash_tests, BasicTestingSetup)
 
+BOOST_AUTO_TEST_CASE(legacy_version_type_packing)
+{
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint(uint256(), 0));
+    tx.vout.emplace_back(1, CScript() << OP_TRUE);
+
+    const CScript scriptCode = CScript() << OP_TRUE;
+    const auto signatureHash = [&](int16_t version, int16_t type) {
+        tx.nVersion = version;
+        tx.nType = type;
+        return SignatureHash(
+            scriptCode, tx, 0, SIGHASH_ALL, 0, SIGVERSION_BASE);
+    };
+
+    BOOST_CHECK_EQUAL(
+        signatureHash(1, 0).GetHex(),
+        "c82197de1de88af9dbf2c8347dcee0b33a8f861044198c89ce694cb8f806f6ce");
+    const uint256 negativeNormal = signatureHash(-32768, 0);
+    BOOST_CHECK_EQUAL(
+        negativeNormal.GetHex(),
+        "79e3b650914203b40942ef4702ec476a5722e854588a85ac80e2b5ef82d61f62");
+    BOOST_CHECK(signatureHash(-32768, -1) == negativeNormal);
+    BOOST_CHECK_EQUAL(
+        signatureHash(1, -1).GetHex(),
+        "08ca517009e96099fc0f3c567a1b3134338f6f814ff8c6be3949fad4eb553d66");
+}
+
 BOOST_AUTO_TEST_CASE(sighash_test)
 {
     seed_insecure_rand(false);
