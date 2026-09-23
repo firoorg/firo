@@ -999,6 +999,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (!ContextualCheckTransaction(tx, state, Params().GetConsensus(), chainActive.Tip()))
         return error("%s: ContextualCheckTransaction: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
 
+    // A negative nVersion does not survive a serialization round trip. Keep
+    // such transactions out of the mempool at every height so they are never
+    // relayed or mined, even before nRejectNegativeTxVersionStartBlock.
+    if (tx.nVersion < 0)
+        return state.DoS(0, false, REJECT_NONSTANDARD, "version");
+
     if (!pool.IsTransactionAllowed(tx, state)) {
         LogPrintf("AcceptToMemoryPool() can't accept transaction because of active mempool spork\n");
         return false;
@@ -1021,8 +1027,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
-    if (tx.nVersion < 0)
-        return state.DoS(0, false, REJECT_NONSTANDARD, "version");
     if (fRequireStandard && !IsStandardTx(tx, reason, witnessEnabled))
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
 
