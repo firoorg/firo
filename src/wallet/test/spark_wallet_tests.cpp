@@ -403,11 +403,13 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     }
 
     auto generateBlocksPerScripts = [&](size_t blocks, size_t blocksPerScript) -> std::vector<CScript> {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
         std::vector<CScript> scripts;
         while (blocks != 0) {
             CPubKey key;
-            key = pwalletMain->GenerateNewKey();
+            {
+                LOCK(pwalletMain->cs_wallet);
+                key = pwalletMain->GenerateNewKey();
+            }
             scripts.push_back(GetScriptForDestination(key.GetID()));
             auto blockCount = std::min(blocksPerScript, blocks);
             GenerateBlocks(blockCount, &scripts.back());
