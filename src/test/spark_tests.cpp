@@ -946,7 +946,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
             std::make_shared<const CBlock>(activeMismatchBlock),
             false,
             &activeMismatchNewBlock));
-        BOOST_CHECK(activeMismatchNewBlock);
+        BOOST_CHECK(!activeMismatchNewBlock);
         BOOST_CHECK_EQUAL(activeMismatchResult.calls, 1);
         BOOST_CHECK_EQUAL(activeMismatchResult.dos, 100);
         BOOST_CHECK_EQUAL(
