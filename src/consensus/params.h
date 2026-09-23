@@ -276,10 +276,6 @@ struct Params {
 
     int nSparkStartBlock;
 
-    /** At and after this height, reject negative transaction versions.
-     * INT_MAX leaves the rule inactive for coordinated deployment. */
-    int nRejectNegativeTxVersionStartBlock;
-
     // Activation height for the single-input Spark spend rule.
     int nSparkSingleInputStartBlock;
 
@@ -289,6 +285,10 @@ struct Params {
     // and coin group identifiers must be canonical 32-bit values.
     // INT_MAX is the deployment blocker.
     int nSparkChaumV2StartBlock;
+
+    /** At and after this height, reject negative transaction versions.
+     * INT_MAX leaves the rule inactive for coordinated deployment. */
+    int nRejectNegativeTxVersionStartBlock;
 
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
