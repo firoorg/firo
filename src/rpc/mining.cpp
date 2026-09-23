@@ -1022,10 +1022,9 @@ UniValue pprpcsb(const JSONRPCRequest& request)
             {
                 return "duplicate-invalid";
             }
-            
+            // Otherwise, we might only have the header - process the block before returning
+            fBlockPresent = true;
         }
-        // Otherwise, we might only have the header - process the block before returning
-        fBlockPresent = true;
 
         mi = mapBlockIndex.find(blockptr->hashPrevBlock);
         if (mi != mapBlockIndex.end()) {
