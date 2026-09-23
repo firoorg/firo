@@ -292,7 +292,6 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
-        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 284400; // Approximately July 13 2020, 12:00 UTC
         consensus.DIP0003EnforcementHash = uint256S("0x8b8d7c05bb2d75f8c5e076cb6c10ef464e94ddcda2744740db03aeda2d6cc006");
         consensus.DIP0008Height = 341100; // Approximately Jan 28 2021, 11:00 UTC
@@ -420,6 +419,7 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.nSparkSingleInputStartBlock = 1355970;
         consensus.nSparkChaumV2StartBlock = 1371000; // Approximately September 4 2026, 10:00 UTC
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
@@ -637,7 +637,6 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 3340;
-        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 3800;
         consensus.DIP0003EnforcementHash.SetNull();
 
@@ -749,6 +748,7 @@ public:
         consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.nSparkSingleInputStartBlock = 210700; // H1
         consensus.nSparkChaumV2StartBlock = 210800;     // H2: 100 blocks after H1
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
@@ -927,7 +927,6 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 800;
-        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 820;
         consensus.DIP0003EnforcementHash.SetNull();
 
@@ -1023,6 +1022,7 @@ public:
         consensus.nLelantusFixesStartBlock = 1;
 
         consensus.nSparkStartBlock = 1500;
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.nSparkSingleInputStartBlock = 3600; // H1: ~87 blocks / ~7h15m after devnet height 3513
         consensus.nSparkChaumV2StartBlock = 3700;      // H2: ~187 blocks / ~15h35m after devnet height 3513
         consensus.nLelantusGracefulPeriod = 6000;
@@ -1173,7 +1173,6 @@ public:
 
         // evo znodes
         consensus.DIP0003Height = 500;
-        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.DIP0003EnforcementHeight = 550;
         consensus.DIP0003EnforcementHash.SetNull();
 
@@ -1277,6 +1276,7 @@ public:
         consensus.nLelantusStartBlock = 1;
         consensus.nLelantusFixesStartBlock = 1;
         consensus.nSparkStartBlock = 100;
+        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
         consensus.nSparkSingleInputStartBlock = 500;
         consensus.nSparkChaumV2StartBlock = 700;
         consensus.nExchangeAddressStartBlock = 1000;

@@ -276,6 +276,10 @@ struct Params {
 
     int nSparkStartBlock;
 
+    /** At and after this height, reject negative transaction versions.
+     * INT_MAX leaves the rule inactive for coordinated deployment. */
+    int nRejectNegativeTxVersionStartBlock;
+
     // Activation height for the single-input Spark spend rule.
     int nSparkSingleInputStartBlock;
 
@@ -428,10 +432,6 @@ struct Params {
 
     /** block to start accepting pro reg txs for evo znodes */
     int DIP0003Height;
-
-    /** At and after this height, reject negative transaction versions.
-     * INT_MAX leaves the rule inactive for coordinated deployment. */
-    int nRejectNegativeTxVersionStartBlock;
 
     /** block to switch to evo znode payments */
     int DIP0003EnforcementHeight;
