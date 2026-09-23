@@ -873,13 +873,11 @@ BOOST_AUTO_TEST_SUITE_END()
 namespace {
 
 struct RestoreNegativeVersionTestState {
-    Consensus::Params& consensus;
     int activationHeight;
     bool requireStandard;
 
     RestoreNegativeVersionTestState()
-        : consensus(const_cast<Consensus::Params&>(::Params().GetConsensus()))
-        , activationHeight(consensus.nRejectNegativeTxVersionStartBlock)
+        : activationHeight(::Params().GetConsensus().nRejectNegativeTxVersionStartBlock)
         , requireStandard(fRequireStandard)
     {
     }
@@ -887,7 +885,7 @@ struct RestoreNegativeVersionTestState {
     ~RestoreNegativeVersionTestState()
     {
         mempool.clear();
-        consensus.nRejectNegativeTxVersionStartBlock = activationHeight;
+        UpdateRegtestRejectNegativeTxVersionHeight(activationHeight);
         fRequireStandard = requireStandard;
     }
 };
