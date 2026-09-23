@@ -1021,6 +1021,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
+    if (tx.nVersion < 0)
+        return state.DoS(0, false, REJECT_NONSTANDARD, "version");
     if (fRequireStandard && !IsStandardTx(tx, reason, witnessEnabled))
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
 
