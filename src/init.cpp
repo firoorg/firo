@@ -558,6 +558,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end", "Use given start/end times for specified BIP9 deployment (regtest-only)");
         strUsage += HelpMessageOpt("-sparksingleinputheight=<n>", "Activate single-input Spark V1 rules at height <n> (regtest-only)");
         strUsage += HelpMessageOpt("-sparkchaumv2height=<n>", "Activate versioned Spark Chaum V2 spends at height <n> (regtest-only; must not precede the single-input height)");
+        strUsage += HelpMessageOpt("-rejectnegativetxversionheight=<n>", "Reject negative transaction versions at height <n> (regtest-only)");
     }
     const std::string debugCategories = LogInstance().LogCategoriesString(); // Don't translate category names.
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
@@ -1488,10 +1489,11 @@ bool AppInitParameterInteraction()
         }
     }
     if (IsArgSet("-sparksingleinputheight") ||
-        IsArgSet("-sparkchaumv2height")) {
+        IsArgSet("-sparkchaumv2height") ||
+        IsArgSet("-rejectnegativetxversionheight")) {
         if (!chainparams.MineBlocksOnDemand()) {
             return InitError(
-                "Spark activation heights may only be overridden on regtest.");
+                "Consensus activation heights may only be overridden on regtest.");
         }
 
         const auto parseActivationHeight = [](const char* argument,
@@ -1508,6 +1510,7 @@ bool AppInitParameterInteraction()
         try {
             int singleInputHeight = 0;
             int chaumV2Height = 0;
+            int rejectNegativeTxVersionHeight = 0;
             const int* pSingleInputHeight = nullptr;
             const int* pChaumV2Height = nullptr;
 
@@ -1526,6 +1529,16 @@ bool AppInitParameterInteraction()
                         "Invalid -sparkchaumv2height value.");
                 }
                 pChaumV2Height = &chaumV2Height;
+            }
+            if (IsArgSet("-rejectnegativetxversionheight")) {
+                if (!parseActivationHeight(
+                        "-rejectnegativetxversionheight",
+                        rejectNegativeTxVersionHeight)) {
+                    return InitError(
+                        "Invalid -rejectnegativetxversionheight value.");
+                }
+                UpdateRegtestRejectNegativeTxVersionHeight(
+                    rejectNegativeTxVersionHeight);
             }
             UpdateRegtestSparkActivationHeights(
                 pSingleInputHeight, pChaumV2Height);

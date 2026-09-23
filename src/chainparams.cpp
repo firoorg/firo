@@ -1278,7 +1278,7 @@ public:
         consensus.nSparkStartBlock = 100;
         consensus.nSparkSingleInputStartBlock = 500;
         consensus.nSparkChaumV2StartBlock = 700;
-        consensus.nRejectNegativeTxVersionStartBlock = INT_MAX;
+        consensus.nRejectNegativeTxVersionStartBlock = 500; // Activate with DIP3 on regtest.
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
@@ -1353,6 +1353,11 @@ public:
     {
         consensus.nSparkChaumV2StartBlock = height;
     }
+
+    void UpdateRejectNegativeTxVersionHeight(int height)
+    {
+        consensus.nRejectNegativeTxVersionStartBlock = height;
+    }
 };
 static CRegTestParams regTestParams;
 
@@ -1406,6 +1411,11 @@ void UpdateRegtestSparkSingleInputHeight(int height)
 void UpdateRegtestSparkChaumV2Height(int height)
 {
     UpdateRegtestSparkActivationHeights(nullptr, &height);
+}
+
+void UpdateRegtestRejectNegativeTxVersionHeight(int height)
+{
+    regTestParams.UpdateRejectNegativeTxVersionHeight(height);
 }
 
 void UpdateRegtestSparkActivationHeights(
