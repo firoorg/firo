@@ -3,6 +3,11 @@
 # file COPYING or https://opensource.org/license/mit/.
 
 include(GenerateHeaders)
+
+# Supplies real proofs for getblocktemplate_coinbase.py.
+add_executable(progpow_test_miner progpow_test_miner.cpp)
+target_link_libraries(progpow_test_miner PRIVATE core_interface bitcoin_util ethash)
+
 generate_header_from_json(data/base58_encode_decode.json)
 generate_header_from_json(data/base58_keys_invalid.json)
 generate_header_from_json(data/base58_keys_valid.json)
