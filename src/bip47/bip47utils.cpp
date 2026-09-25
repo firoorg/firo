@@ -201,8 +201,10 @@ std::string ShortenPcode(CPaymentCode const & pcode)
 
 void AddReceiverSecretAddresses(CAccountReceiver const & receiver, ::CWallet & wallet)
 {
-    bip47::MyAddrContT addrs = receiver.getMyNextAddresses();
+    /* Deriving an address updates the caches of the account it belongs to, so it has to happen
+     * under the same lock that guards every other access to the bip47 accounts. */
     LOCK(wallet.cs_wallet);
+    bip47::MyAddrContT addrs = receiver.getMyNextAddresses();
     for (bip47::MyAddrContT::value_type const & addr : addrs) {
         CPubKey pubkey = addr.second.GetPubKey();
         CKeyID vchAddress = pubkey.GetID();

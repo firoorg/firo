@@ -203,6 +203,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "spork", 2, "features"},
     /* BIP47 */
     { "listrapaddresses", 0, "verbose"},
+    { "listbip47addresses", 1, "include_unused"},
+    { "sweepbip47addresses", 1, "include_locked"},
 };
 
 class CRPCConvertTable

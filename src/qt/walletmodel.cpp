@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "walletmodel.h"
+
+#include "bip47sweepmodel.h"
 #include "clientmodel.h"
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
@@ -81,7 +83,7 @@ CAmount EstimateSingleInputSparkFee(
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, OptionsModel *_optionsModel, QObject *parent) :
     QObject(parent), wallet(_wallet), optionsModel(_optionsModel), _client_model(0),
-    addressTableModel(0), pcodeAddressTableModel(0), sparkModel(0),
+    addressTableModel(0), bip47SweepModel(0), pcodeAddressTableModel(0), sparkModel(0),
     transactionTableModel(0),
     recentRequestsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
@@ -95,6 +97,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     fForceCheckBalanceChanged = false;
 
     addressTableModel = new AddressTableModel(wallet, this);
+    bip47SweepModel = new Bip47SweepModel(wallet, this);
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
     sparkModel = new SparkModel(platformStyle, wallet, _optionsModel, this);
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
@@ -517,6 +520,26 @@ AddressTableModel *WalletModel::getAddressTableModel()
 PcodeAddressTableModel *WalletModel::getPcodeAddressTableModel()
 {
     return pcodeAddressTableModel;
+}
+
+Bip47SweepModel *WalletModel::getBip47SweepModel()
+{
+    return bip47SweepModel;
+}
+
+void WalletModel::getBip47Balance(CAmount &available, size_t &outputs, CAmount &locked, size_t &lockedOutputs)
+{
+    wallet->GetBip47Balance(available, outputs, locked, lockedOutputs);
+}
+
+Bip47SweepStatus WalletModel::sweepBip47(const QString &destination, bool includeLocked, CBip47SweepResult &result)
+{
+    return wallet->SweepBip47(destination.toStdString(), includeLocked, result);
+}
+
+void WalletModel::dismissBip47Sweep()
+{
+    bip47SweepModel->dismiss();
 }
 
 SparkModel *WalletModel::getSparkModel()
