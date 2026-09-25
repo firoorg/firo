@@ -49,14 +49,14 @@ jobs:
         build_type: [RelWithDebInfo, Debug]
         include:
           - platform: linux
-            runs_on: ubuntu-22.04
+            runs_on: ubuntu-26.04
             is_linux: true
             is_windows: false
             is_mac: false
             bin_ext: ''
             ccache_path: ~/.ccache
           - platform: windows
-            runs_on: ubuntu-latest
+            runs_on: ubuntu-26.04
             is_linux: false
             is_windows: true
             is_mac: false
@@ -333,7 +333,7 @@ jobs:
   guix-build:
     needs: get-commit-hash
     name: guix-${{ matrix.host }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
