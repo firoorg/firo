@@ -540,9 +540,9 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
     CTransactionRef tx;
     uint256 hashBlock;
     // this relies on enabled txindex and won't work if we ever try to remove the requirement for txindex for masternodes
-    if (!GetTransaction(outpoint.hash, tx, params, hashBlock, false)) {
+    if (!GetTransaction(outpoint.hash, tx, params, hashBlock, false) || hashBlock.IsNull()) {
         if (printDebug) {
-            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: failed to find parent TX %s\n", __func__,
+            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: failed to find mined parent TX %s\n", __func__,
                      txHash.ToString(), outpoint.hash.ToString());
         }
         return false;
