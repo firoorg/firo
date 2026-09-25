@@ -4,14 +4,12 @@
 
 #include "progpow.h"
 
-#include <chainparams.h>
-#include <crypto/progpow/helpers.hpp>
 #include <crypto/progpow/lib/ethash/endianness.hpp>
 #include <crypto/progpow/include/ethash/ethash.hpp>
 #include <hash.h>
-#include <primitives/block.h>
 
-#include <sstream>
+#include <cassert>
+#include <stdexcept>
 
 static inline ethash::hash256 U256ToH256(const uint256& in) {
 
@@ -40,15 +38,23 @@ static inline uint256 H256ToU256(const ethash::hash256& in) {
 
 uint256 progpow_hash_full(const CProgPowHeader& header, uint256& mix_hash)
 {
-    static ethash::epoch_context_ptr epochContext{nullptr,nullptr};
-    if (!epochContext || epochContext->epoch_number != ethash::get_epoch_number(header.nHeight))
-    {
-        epochContext.reset();
-        epochContext = ethash::create_epoch_context(ethash::get_epoch_number(header.nHeight));
-    }
+    return progpow_hash_full(progpow_header_hash(header), header.nHeight, header.nNonce64, mix_hash);
+}
 
-    const auto header_h256{U256ToH256(SerializeHash(header))};
-    const auto result = progpow::hash(*epochContext, header.nHeight, header_h256, header.nNonce64);
+ethash::hash256 progpow_header_hash(const CProgPowHeader& header)
+{
+    return U256ToH256(SerializeHash(header));
+}
+
+uint256 progpow_hash_full(const ethash::hash256& header_hash, uint32_t height, uint64_t nonce, uint256& mix_hash)
+{
+    // The managed cache keeps this context alive in the calling thread, including across
+    // epoch changes in other threads. Hashing only reads the light cache.
+    const auto* epochContext = ethash_get_global_epoch_context(ethash::get_epoch_number(height));
+    if (!epochContext)
+        throw std::runtime_error("Unable to allocate FiroPoW epoch context");
+
+    const auto result = progpow::hash(*epochContext, height, header_hash, nonce);
     mix_hash = H256ToU256(result.mix_hash);
     return H256ToU256(result.final_hash);
 }
