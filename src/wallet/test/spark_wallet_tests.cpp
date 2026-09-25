@@ -3,8 +3,14 @@
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
 #include "../../validation.h"
+#include "rpc/server.h"
+
+#include <chrono>
+#include <future>
 
 #include <boost/test/unit_test.hpp>
+
+extern UniValue setsparkmintstatus(const JSONRPCRequest& request);
 
 static std::vector<unsigned char> random_char_vector()
 {                                                    
@@ -39,6 +45,58 @@ void ExtractSpend(CTransaction const &tx,
 }
 
 BOOST_FIXTURE_TEST_SUITE(spark_wallet_tests, SparkTestingSetup)
+
+BOOST_AUTO_TEST_CASE(manual_status_after_queued_mint)
+{
+    GenerateBlocks(501);
+    pwalletMain->SetBroadcastTransactions(true);
+    std::vector<CMutableTransaction> transactions;
+    GenerateMints({COIN}, transactions);
+    auto* wallet = pwalletMain->sparkWallet.get();
+    wallet->WaitForPendingTasks();
+    const auto mints = wallet->getMintMap();
+    BOOST_REQUIRE_EQUAL(mints.size(), 1);
+    const auto hash = mints.begin()->first;
+    const auto mint = mints.begin()->second;
+
+    JSONRPCRequest request;
+    request.params = UniValue(UniValue::VARR);
+    request.params.push_back(hash.GetHex());
+    request.params.push_back(true);
+    std::promise<void> started;
+    auto startedFuture = started.get_future();
+    std::future<UniValue> setter;
+    {
+        // Hold the old notification before its record phase, but let the RPC run.
+        LOCK(cs_main);
+        wallet->UpdateMintStateFromMempool({mint.coin}, mint.txid);
+        setter = std::async(std::launch::async, [&] {
+            started.set_value();
+            return setsparkmintstatus(request);
+        });
+        startedFuture.wait();
+        const bool finished = setter.wait_for(std::chrono::milliseconds(200)) ==
+                              std::future_status::ready;
+        BOOST_TEST_MESSAGE("Setter finished before old notification: " << finished);
+        BOOST_CHECK_MESSAGE(!finished, "Setter returned before an earlier notification finished");
+    }
+    setter.get();
+    wallet->WaitForPendingTasks();
+    BOOST_CHECK_MESSAGE(wallet->getMintMeta(hash).isUsed,
+                        "Queued mint notification undid the successful setter");
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    CSparkMintMeta persisted;
+    BOOST_REQUIRE(walletdb.ReadSparkMint(hash, persisted));
+    BOOST_CHECK_MESSAGE(persisted.isUsed, "The overwritten flag was persisted");
+
+    request.params = UniValue(UniValue::VARR);
+    request.params.push_back(hash.GetHex());
+    request.params.push_back(false);
+    setsparkmintstatus(request);
+    BOOST_CHECK(!wallet->getMintMeta(hash).isUsed);
+    BOOST_REQUIRE(walletdb.ReadSparkMint(hash, persisted));
+    BOOST_CHECK(!persisted.isUsed);
+}
 
 BOOST_AUTO_TEST_CASE(create_mint_recipient)
 {

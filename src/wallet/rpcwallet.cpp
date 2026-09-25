@@ -4111,6 +4111,9 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
     fStatus = request.params[1].get_bool();
 
     EnsureWalletIsUnlocked(pwallet);
+    // Earlier mint notifications must finish before applying the manual override.
+    pwallet->sparkWallet->WaitForPendingTasks();
+    LOCK(pwallet->sparkWallet->cs_spark_wallet);
     CWalletDB walletdb(pwallet->strWalletFile);
     CSparkMintMeta coinMeta = pwallet->sparkWallet->getMintMeta(lTagHash);
 
