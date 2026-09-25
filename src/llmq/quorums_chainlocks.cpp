@@ -29,7 +29,8 @@ std::string CChainLockSig::ToString() const
 }
 
 CChainLocksHandler::CChainLocksHandler(CScheduler* _scheduler) :
-    scheduler(_scheduler)
+    scheduler(_scheduler),
+    seenChainLocks(MAX_SEEN_CHAINLOCKS)
 {
 }
 
@@ -61,7 +62,8 @@ void CChainLocksHandler::Stop()
 bool CChainLocksHandler::AlreadyHave(const CInv& inv)
 {
     LOCK(cs);
-    return seenChainLocks.count(inv.hash) != 0;
+    return seenChainLocks.count(inv.hash) != 0 ||
+           (bestChainLock.nHeight != -1 && inv.hash == bestChainLockHash);
 }
 
 bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLockSig& ret)
@@ -101,9 +103,10 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
 
     {
         LOCK(cs);
-        if (!seenChainLocks.emplace(hash, GetTimeMillis()).second) {
+        if (seenChainLocks.count(hash) != 0) {
             return;
         }
+        seenChainLocks.insert(std::make_pair(hash, GetTimeMillis()));
 
         if (bestChainLock.nHeight != -1 && clsig.nHeight <= bestChainLock.nHeight) {
             // no need to process/relay older CLSIGs
@@ -687,7 +690,9 @@ void CChainLocksHandler::Cleanup()
 
     for (auto it = seenChainLocks.begin(); it != seenChainLocks.end(); ) {
         if (GetTimeMillis() - it->second >= CLEANUP_SEEN_TIMEOUT) {
-            it = seenChainLocks.erase(it);
+            const uint256 hash = it->first;
+            ++it;
+            seenChainLocks.erase(hash);
         } else {
             ++it;
         }
@@ -735,4 +740,3 @@ bool IsChainlocksEnabled()
     if (!llmq::chainLocksHandler) return false;
     return llmq::chainLocksHandler->IsChainlocksEnabled();
 }
-
