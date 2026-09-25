@@ -107,10 +107,19 @@ public:
         }
 
         CWalletTx sparkNameWalletTx = pwalletMain->sparkWallet->CreateSparkNameTransaction(sparkNameData, sparkNameFee, txFee, nullptr);
+        for (const auto& tag : spark::GetSparkUsedTags(*sparkNameWalletTx.tx)) {
+            BOOST_TEST_MESSAGE(strprintf("Selected name=%s tag=%s chain_used=%d normal_used=%d stem_used=%d",
+                sparkNameData.name, tag.tostring(), sparkState->IsUsedLTag(tag),
+                mempool.sparkState.HasLTag(tag), txpools.getStemTxPool().sparkState.HasLTag(tag)));
+        }
         if (fCommit) {
             CReserveKey reserveKey(pwalletMain);
             lastState = CValidationState();
-            pwalletMain->CommitTransaction(sparkNameWalletTx, reserveKey, g_connman.get(), lastState);
+            const bool accepted = pwalletMain->CommitTransaction(sparkNameWalletTx, reserveKey, g_connman.get(), lastState, true);
+            BOOST_TEST_MESSAGE(strprintf("Name=%s tx=%s commit=%d state=%s normal=%d stem=%d",
+                sparkNameData.name, sparkNameWalletTx.GetHash().GetHex(), accepted,
+                FormatStateMessage(lastState), mempool.exists(sparkNameWalletTx.GetHash()),
+                txpools.getStemTxPool().exists(sparkNameWalletTx.GetHash())));
         }
         return CMutableTransaction(*sparkNameWalletTx.tx);
     }
@@ -609,6 +618,8 @@ BOOST_AUTO_TEST_CASE(unconfirmed_details_report_pending_validity)
 
 BOOST_AUTO_TEST_CASE(general)
 {
+    // Exercise delayed wallet notifications deterministically.
+    auto pausedNotifications = std::make_unique<CCriticalBlock>(cs_main, "cs_main", __FILE__, __LINE__);
     Initialize();
     
     std::string txaddress = GenerateSparkAddress();
@@ -682,11 +693,19 @@ BOOST_AUTO_TEST_CASE(general)
     // test using the same spark address now
     CMutableTransaction tx3 = CreateSparkNameTx("testname3", txaddress, 3, "x", true);
     BOOST_CHECK(!lastState.IsValid());
+    {
+        LOCK(pwalletMain->cs_wallet);
+        BOOST_CHECK_EQUAL(pwalletMain->mapWallet.count(tx3.GetHash()), 0);
+    }
 
     // shouldn't get into the block as well
     int oldHeight = chainActive.Height();
     GenerateBlock({tx3});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight);
+
+    pausedNotifications.reset();
+    pwalletMain->sparkWallet->WaitForPendingTasks();
+    pausedNotifications = std::make_unique<CCriticalBlock>(cs_main, "cs_main", __FILE__, __LINE__);
 
     // one more block and testname should be gone
     GenerateBlock({});
@@ -696,6 +715,12 @@ BOOST_AUTO_TEST_CASE(general)
     // tx3 should go ahead now
     GenerateBlock({tx3});
     BOOST_CHECK_EQUAL(chainActive.Height(), oldHeight+1);
+
+    for (const auto& tag : spark::GetSparkUsedTags(tx3)) {
+        const auto hash = primitives::GetLTagHash(tag);
+        BOOST_CHECK_MESSAGE(pwalletMain->sparkWallet->getMintMeta(hash).isUsed,
+            "Mined tx3 input is incorrectly available before queued reconciliation");
+    }
 
     // check insufficient fee
     CMutableTransaction tx4 = CreateSparkNameTx("tt", GenerateSparkAddress(), 3, "x", true, 1*COIN);
@@ -707,7 +732,7 @@ BOOST_AUTO_TEST_CASE(general)
 
     // now check the number of years is calculated correctly and yearly fee is checked
     CMutableTransaction tx5 = CreateSparkNameTx("testname5", GenerateSparkAddress(), 24*24*365*2, "x", true, 2*COIN);
-    BOOST_CHECK(lastState.IsValid());
+    BOOST_CHECK_MESSAGE(lastState.IsValid(), FormatStateMessage(lastState));
 
     CMutableTransaction tx6 = CreateSparkNameTx("testname6", GenerateSparkAddress(), 24*24*365*2, "x", true, 1*COIN);
     BOOST_CHECK(!lastState.IsValid());
