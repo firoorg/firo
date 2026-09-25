@@ -883,8 +883,8 @@ DBErrors CWalletDB::ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vTxHashI
     std::sort(vTxHash.begin(), vTxHash.end());
     std::sort(vTxHashIn.begin(), vTxHashIn.end());
 
-    // erase each matching wallet TX
-    bool delerror = false;
+    // Find each matching wallet TX before changing the database.
+    std::vector<uint256> matches;
     std::vector<uint256>::iterator it = vTxHashIn.begin();
     BOOST_FOREACH (uint256 hash, vTxHash) {
         while (it < vTxHashIn.end() && (*it) < hash) {
@@ -894,18 +894,32 @@ DBErrors CWalletDB::ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vTxHashI
             break;
         }
         else if ((*it) == hash) {
-            pwallet->mapWallet.erase(hash);
-            if(!EraseTx(hash)) {
-                LogPrint("db", "Transaction was found for deletion but returned database error: %s\n", hash.GetHex());
-                delerror = true;
-            }
-            vTxHashOut.push_back(hash);
+            matches.push_back(hash);
         }
     }
 
-    if (delerror) {
+    if (matches.empty())
+        return DB_LOAD_OK;
+
+    if (!TxnBegin()) {
+        LogPrint("db", "Failed to begin transaction while deleting wallet transactions\n");
         return DB_CORRUPT;
     }
+
+    for (const uint256& hash : matches) {
+        if (!EraseTx(hash)) {
+            LogPrint("db", "Transaction was found for deletion but returned database error: %s\n", hash.GetHex());
+            TxnAbort();
+            return DB_CORRUPT;
+        }
+    }
+
+    if (!TxnCommit()) {
+        LogPrint("db", "Failed to commit deletion of wallet transactions\n");
+        return DB_CORRUPT;
+    }
+
+    vTxHashOut.insert(vTxHashOut.end(), matches.begin(), matches.end());
     return DB_LOAD_OK;
 }
 
