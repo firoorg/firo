@@ -775,6 +775,12 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
 bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+
+    if (nHeight >= consensusParams.nRejectNegativeTxVersionStartBlock &&
+        tx.nVersion < 0) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-txns-version");
+    }
+
     bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
 
     if (fDIP0003Active_context) {
@@ -992,6 +998,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
     if (!ContextualCheckTransaction(tx, state, Params().GetConsensus(), chainActive.Tip()))
         return error("%s: ContextualCheckTransaction: %s, %s", __func__, hash.ToString(), FormatStateMessage(state));
+
+    // A negative nVersion does not survive a serialization round trip. Keep
+    // such transactions out of the mempool at every height so they are never
+    // relayed or mined, even before nRejectNegativeTxVersionStartBlock.
+    if (tx.nVersion < 0)
+        return state.DoS(0, false, REJECT_NONSTANDARD, "version");
 
     if (!pool.IsTransactionAllowed(tx, state)) {
         LogPrintf("AcceptToMemoryPool() can't accept transaction because of active mempool spork\n");

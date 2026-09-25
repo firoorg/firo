@@ -1138,7 +1138,9 @@ public:
     template<typename S>
     void Serialize(S &s) const {
         // Serialize nVersion
-        int32_t n32bitVersion = txTo.nVersion | (txTo.nType << 16);
+        // Preserve the transaction serializer's legacy sign extension.
+        uint32_t n32bitVersion = static_cast<uint32_t>(txTo.nVersion) |
+                                 (static_cast<uint32_t>(txTo.nType) << 16);
         ::Serialize(s, n32bitVersion);
         // Serialize vin
         unsigned int nInputs = fAnyoneCanPay ? 1 : txTo.vin.size();
