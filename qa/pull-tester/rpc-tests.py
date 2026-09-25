@@ -131,7 +131,7 @@ testScripts = [
     # 'sendheaders.py',
     # 'importmulti.py',
     # 'mempool_limit.py',
-    # 'merkle_blocks.py',
+    'merkle_blocks.py',
     'receivedby.py',
     # 'abandonconflict.py',
     # 'bip68-112-113-p2p.py',

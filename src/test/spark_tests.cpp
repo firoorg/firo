@@ -1163,8 +1163,7 @@ BOOST_AUTO_TEST_CASE(spark_duplicate_mint_policy_and_block_activation)
             mintTransactions[1].vin[input].prevout.hash,
             previousTransaction,
             ::Params().GetConsensus(),
-            previousBlock,
-            true));
+            previousBlock));
         LOCK(pwalletMain->cs_wallet);
         BOOST_REQUIRE(SignSignature(
             *pwalletMain,
