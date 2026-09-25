@@ -5,9 +5,11 @@ on:
   push:
     paths:
       - 'Dockerfile'
+      - '.github/workflows/test-dockerfile.yml'
   pull_request:
     paths:
       - 'Dockerfile'
+      - '.github/workflows/test-dockerfile.yml'
 
 jobs:
   build:
