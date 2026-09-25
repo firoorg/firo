@@ -5629,11 +5629,17 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     continue;
                 }
                 // process in case the block isn't known yet
+                std::shared_ptr<const CBlock> pblockToConnect;
                 if (mapBlockIndex.count(hash) == 0 || (mapBlockIndex[hash]->nStatus & BLOCK_HAVE_DATA) == 0) {
                     LOCK(cs_main);
                     CValidationState state;
-                    if (AcceptBlock(pblock, state, chainparams, NULL, true, dbp, NULL))
+                    bool fNewBlock = false;
+                    if (AcceptBlock(pblock, state, chainparams, NULL, true, dbp, &fNewBlock)) {
                         nLoaded++;
+                        // Already-known blocks may return success without checking this copy.
+                        if (fNewBlock && state.IsValid())
+                            pblockToConnect = pblock;
+                    }
                     if (state.IsError()) {
                         LogPrintf("LoadBlockIndex: block %s rejected: %s\n", hash.ToString(), FormatStateMessage(state));
                         break;
@@ -5646,7 +5652,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
 // We should call it for every block as our tx verification algos rely on the real block heights.
 //                if (hash == chainparams.GetConsensus().hashGenesisBlock) {
                     CValidationState state;
-                    if (!ActivateBestChain(state, chainparams)) {
+                    if (!ActivateBestChain(state, chainparams, pblockToConnect)) {
                         break;
                     }
 
