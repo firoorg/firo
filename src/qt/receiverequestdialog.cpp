@@ -144,9 +144,10 @@ void ReceiveRequestDialog::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
     ui->lblQRCode->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: $PANEL; border: 1px solid $BORDER; border-radius: 18px; color: $INK; }")));
+    const QString outUriBg = GUIUtil::isDarkMode() ? QStringLiteral("$PANEL") : QStringLiteral("$WINE_TINT");
     ui->outUri->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QTextEdit { background: $PANEL; border: 1.5px solid $WINE; border-radius: 16px;"
-        " padding: 14px 16px; color: $INK; }")));
+        "QTextEdit { background: %1; border: 1.5px solid $WINE; border-radius: 16px;"
+        " padding: 14px 16px; color: $INK; }").arg(outUriBg)));
 
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
