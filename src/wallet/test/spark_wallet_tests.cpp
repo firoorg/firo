@@ -5,6 +5,7 @@
 #include "../../validation.h"
 
 #include <boost/test/unit_test.hpp>
+#include <limits>
 
 static std::vector<unsigned char> random_char_vector()
 {                                                    
@@ -57,6 +58,35 @@ BOOST_AUTO_TEST_CASE(create_mint_recipient)
 
     BOOST_CHECK(recipients[0].scriptPubKey.IsSparkMint());
     BOOST_CHECK_EQUAL(recipients[0].nAmount, v);
+}
+
+BOOST_AUTO_TEST_CASE(reject_out_of_range_mint_amounts)
+{
+    spark::MintedCoinData data;
+    data.address = pwalletMain->sparkWallet->getDefaultAddress();
+
+    const auto checkRejected = [&](const std::vector<spark::MintedCoinData>& outputs) {
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        BOOST_CHECK_EQUAL(pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, false),
+            "Spark mint amount out of range");
+
+        CAmount fee = 0;
+        std::list<CReserveKey> reservekeys;
+        int changePos = -1;
+        std::string error;
+        BOOST_CHECK(!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, fee,
+            reservekeys, changePos, false, error, false, nullptr));
+        BOOST_CHECK_EQUAL(error, "Spark mint amount out of range");
+        BOOST_CHECK(wtxAndFee.empty());
+    };
+
+    data.v = std::numeric_limits<uint64_t>::max();
+    checkRejected({data});
+
+    data.v = MAX_MONEY;
+    spark::MintedCoinData extra = data;
+    extra.v = 1;
+    checkRejected({data, extra});
 }
 
 BOOST_AUTO_TEST_CASE(mint_and_store_spark)
