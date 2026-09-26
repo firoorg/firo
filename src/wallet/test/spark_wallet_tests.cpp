@@ -102,6 +102,9 @@ BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
     const CTransaction mixedTransaction(mixed);
     BOOST_REQUIRE(mixedTransaction.IsSparkTransaction());
     BOOST_REQUIRE(!mixedTransaction.IsSparkSpend());
+    reason.clear();
+    BOOST_CHECK(!IsStandardTx(mixedTransaction, reason));
+    BOOST_CHECK_EQUAL(reason, "spark-smint-without-spend");
 
     CValidationState validationState;
     spark::CSparkTxInfo info;
@@ -125,10 +128,30 @@ BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
     BOOST_CHECK(outPoint == COutPoint(mixedTransaction.GetHash(), 1));
     BOOST_CHECK(!pwalletMain->IsMine(mixedTransaction));
 
-    LOCK(pwalletMain->cs_wallet);
-    BOOST_CHECK(!pwalletMain->AddToWalletIfInvolvingMe(
-        standalone, nullptr, -1, false));
-    BOOST_CHECK(!pwalletMain->mapWallet.count(standalone.GetHash()));
+    {
+        LOCK(pwalletMain->cs_wallet);
+        BOOST_CHECK(!pwalletMain->AddToWalletIfInvolvingMe(
+            standalone, nullptr, -1, false));
+        BOOST_CHECK(!pwalletMain->mapWallet.count(standalone.GetHash()));
+    }
+
+    // Reproduce metadata written by an older wallet for the mixed transaction.
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(
+        pwalletMain, MakeTransactionRef(mixedTransaction))));
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        pwalletMain->sparkWallet->UpdateMintState(
+            {coin}, mixedTransaction.GetHash(), walletdb);
+        BOOST_REQUIRE_EQUAL(walletdb.ListSparkMints().size(), 1U);
+    }
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getUnconfirmedBalance(), 100 * COIN);
+
+    pwalletMain->sparkWallet->FinishTasks();
+    pwalletMain->sparkWallet.reset();
+    pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getUnconfirmedBalance(), 0);
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    BOOST_CHECK(walletdb.ListSparkMints().empty());
 }
 
 BOOST_AUTO_TEST_CASE(create_mint_recipient)
