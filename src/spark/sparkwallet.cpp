@@ -1771,11 +1771,11 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
             selectedCoins = std::move(estimated.second);
 
-            // V1 construction retains the single-input selection rule.
+            // V1 spends take one input. Chaum V2 spends may use several,
+            // up to spark::MAX_CHAUM_V2_INPUTS.
             if (!useChaumV2 && selectedCoins.size() != 1) {
                 throw InsufficientFunds(_(
-                    "Spark multi-input spends are temporarily disabled. "
-                    "No single available Spark coin can fund this transaction."));
+                    "No single available Spark coin can fund this Spark V1 spend."));
             }
 
             bool remainderSubtracted = false;

@@ -351,8 +351,7 @@ void SendCoinsEntry::updateRosenBridgeDisplay()
     RosenBridge::Metadata metadata;
     const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
 
-    const bool subtractFeeAllowed =
-        (!fAnonymousMode || (model && model->versionedSparkSpendsAllowed())) && !valid;
+    const bool subtractFeeAllowed = !valid;
 
     ui->rosenBridgeLabel->setVisible(valid);
     ui->rosenBridgeDetails->setVisible(valid);

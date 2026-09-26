@@ -832,6 +832,9 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
     std::vector<CMutableTransaction> txs;
     auto mint1 = GenerateMints({1 * COIN}, txs)[0];
     auto mint2 = GenerateMints({2 * COIN}, txs)[0];
+    // These coins are injected into the state below, so their mint
+    // transactions must not reach a block template.
+    ::mempool.clear();
 
     auto index2 = GenerateBlock({});
     auto block2 = GetCBlock(index2);
@@ -860,6 +863,7 @@ BOOST_AUTO_TEST_CASE(add_remove_block)
 
     // both mint and lTag
     auto mint3 = GenerateMints({3 * COIN}, txs)[0];
+    ::mempool.clear();
 
     GroupElement lTag3;
     lTag3.randomize();

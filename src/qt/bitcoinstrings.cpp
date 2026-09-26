@@ -215,27 +215,12 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Sets the serialization of raw transaction or block hex returned in non-"
 "verbose mode, non-segwit(0) or segwit(1) (default: %d)"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"Spark Coin Control temporarily supports selecting at most one coin. Clear "
-"the selection to let the wallet split the payment automatically."),
-QT_TRANSLATE_NOOP("firo-core", ""
 "Spark batch verification failed. The invalid spend transactions are listed "
 "in debug.log. Restart the node: batching is disabled and a reindex is "
 "started automatically so chainstate is rebuilt and Spark proofs are checked "
 "block by block."),
 QT_TRANSLATE_NOOP("firo-core", ""
-"Spark multi-input spends are temporarily disabled. No single available Spark "
-"coin can fund this transaction."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Spark spend batch failed after committing %u of %u transactions: %s. Do not "
-"retry the whole payment. Already sent: %s"),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Subtracting the fee from the amount is temporarily unavailable when a Spark "
-"spend must be split across multiple transactions."),
-QT_TRANSLATE_NOOP("firo-core", ""
 "Support filtering of blocks and transaction with bloom filters (default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", ""
-"The available Spark coins cannot cover the amount and the required "
-"transaction fees."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "The block database contains a block which appears to be from the future. "
 "This may be due to your computer's date and time being set incorrectly. Only "
@@ -347,7 +332,6 @@ QT_TRANSLATE_NOOP("firo-core", "(default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "-maxmempool must be at least %d MB"),
 QT_TRANSLATE_NOOP("firo-core", "-wallet parameter must only specify a filename (not a path)"),
 QT_TRANSLATE_NOOP("firo-core", "<category> can be:"),
-QT_TRANSLATE_NOOP("firo-core", "A Spark payment may use at most %u transactions."),
 QT_TRANSLATE_NOOP("firo-core", "Accept command line and JSON-RPC commands"),
 QT_TRANSLATE_NOOP("firo-core", "Accept public REST requests (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Add Pay To n-of-m Multi-sig output to TX. n = REQUIRED, m = PUBKEYS"),
@@ -461,6 +445,7 @@ QT_TRANSLATE_NOOP("firo-core", "Maximum per-connection receive buffer, <n>*1000 
 QT_TRANSLATE_NOOP("firo-core", "Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Need to specify a port with -whitebind: '%s'"),
 QT_TRANSLATE_NOOP("firo-core", "No Spark spend recipients were provided."),
+QT_TRANSLATE_NOOP("firo-core", "No single available Spark coin can fund this Spark V1 spend."),
 QT_TRANSLATE_NOOP("firo-core", "No such coin in set"),
 QT_TRANSLATE_NOOP("firo-core", "Node relay options:"),
 QT_TRANSLATE_NOOP("firo-core", "Not enough fee estimated"),
@@ -510,7 +495,6 @@ QT_TRANSLATE_NOOP("firo-core", "Signing transaction failed"),
 QT_TRANSLATE_NOOP("firo-core", "Spark V2 spends are limited to %1% inputs"),
 QT_TRANSLATE_NOOP("firo-core", "Spark address doesn't belong to the wallet"),
 QT_TRANSLATE_NOOP("firo-core", "Spark coin selection changed during transaction construction; retry"),
-QT_TRANSLATE_NOOP("firo-core", "Spark fee estimate did not match the wallet (planned %s, wallet %s)."),
 QT_TRANSLATE_NOOP("firo-core", "Spark name transaction size is out of range"),
 QT_TRANSLATE_NOOP("firo-core", "Spark shielded output limit exceeded."),
 QT_TRANSLATE_NOOP("firo-core", "Spark spend amount is out of range"),
@@ -555,7 +539,6 @@ QT_TRANSLATE_NOOP("firo-core", "Transaction not allowed in mempool"),
 QT_TRANSLATE_NOOP("firo-core", "Transaction too large for fee policy"),
 QT_TRANSLATE_NOOP("firo-core", "Unable to bind to %s on this computer (bind returned error %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Unable to bind to %s on this computer. %s is probably already running."),
-QT_TRANSLATE_NOOP("firo-core", "Unable to create a single-input Spark transaction."),
 QT_TRANSLATE_NOOP("firo-core", "Unable to create a valid Spark name transaction"),
 QT_TRANSLATE_NOOP("firo-core", "Unable to create spend transaction."),
 QT_TRANSLATE_NOOP("firo-core", "Unable to estimate the final Spark name transaction fee"),

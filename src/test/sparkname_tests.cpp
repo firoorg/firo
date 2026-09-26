@@ -747,12 +747,6 @@ BOOST_AUTO_TEST_CASE(hfblocknumber)
 {
     Initialize(1000);   // stay below HF block number for a time being
 
-    // This lifecycle test creates several large name payments. Exercise it
-    // with V2 enabled so the single-input rule does not make its legacy
-    // multi-input wallet setup fail before the Spark Names assertions run.
-    mutableConsensus.nSparkSingleInputStartBlock = 1;
-    mutableConsensus.nSparkChaumV2StartBlock = 1;
-
     // Push V2.1 activation past the end of the graceful period so fee-tag
     // requirements don't interfere with the address-transition test below.
     mutableConsensus.nSparkNamesV21StartBlock = INT_MAX;
@@ -1212,6 +1206,11 @@ BOOST_AUTO_TEST_CASE(v2_mempool_spark_name_parse_failure_does_not_score_peer)
     nameData.sparkAddress = GenerateSparkAddress();
     nameData.sparkNameValidityBlocks = nBlockPerYear;
 
+    // Regtest activates Chaum V2 at height 1. Hold it back so this spend is V1.
+    const int deferredHeight = chainActive.Height() + 20;
+    mutableConsensus.nSparkSingleInputStartBlock = deferredHeight;
+    mutableConsensus.nSparkChaumV2StartBlock = deferredHeight;
+
     // Construct a valid pre-activation V1 Spark Name spend, then remove its
     // optional metadata suffix while retaining the tagged name-fee output. This form is
     // accepted below activation but becomes noncanonical at the boundary.
@@ -1360,6 +1359,11 @@ BOOST_AUTO_TEST_CASE(v2_mempool_nested_name_proof_failure_does_not_score_peer)
     nameData.nVersion = 1;
     nameData.sparkAddress = GenerateSparkAddress();
     nameData.sparkNameValidityBlocks = nBlockPerYear;
+
+    // Regtest activates Chaum V2 at height 1. Hold it back so this spend is V1.
+    const int deferredHeight = chainActive.Height() + 20;
+    mutableConsensus.nSparkSingleInputStartBlock = deferredHeight;
+    mutableConsensus.nSparkChaumV2StartBlock = deferredHeight;
 
     // A V1 ownership-proof vector may contain an ignored suffix. Keep that
     // historically valid encoding non-punitive when next-block policy first

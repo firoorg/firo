@@ -1273,8 +1273,8 @@ public:
         consensus.nLelantusStartBlock = 1;
         consensus.nLelantusFixesStartBlock = 1;
         consensus.nSparkStartBlock = 100;
-        consensus.nSparkSingleInputStartBlock = 500;
-        consensus.nSparkChaumV2StartBlock = 700;
+        consensus.nSparkSingleInputStartBlock = 1;
+        consensus.nSparkChaumV2StartBlock = 1;
         consensus.nExchangeAddressStartBlock = 1000;
         consensus.nLelantusGracefulPeriod = 600;
         consensus.nSigmaEndBlock = 1;
