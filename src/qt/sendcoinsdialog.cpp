@@ -455,16 +455,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             exchangeAddressCount++;
     }
 
-    if (fAnonymousMode && exchangeAddressCount > 0) {
-        QMessageBox::critical(
-            this,
-            tr("Error"),
-            tr("Sending private funds to an exchange address is temporarily unavailable. "
-               "Move the funds to a transparent address first, then send from there."));
-        fNewRecipientAllowed = true;
-        return;
-    }
-
     bool fGoThroughTransparentAddress = false;
     __decltype(recipients) exchangeRecipients;
     CScript intermediateAddressScript;
@@ -757,18 +747,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         }
     }
 
-    // Before versioned construction is active, a payment that needs several
-    // coins is sent as several transactions. Make the fee and partial-commit
-    // behavior explicit before confirmation.
-    if (isSparkSpend && sparkSpendTransactions.size() > 1) {
-        questionString.append("<hr />");
-        questionString.append(tr("This payment does not fit in one Spark coin and will be sent as "
-                                 "%1 separate transactions. Each pays its own fee, they can be "
-                                 "linked to each other, and if one of them is rejected the "
-                                 "recipients will have been paid only in part.")
-                                  .arg(sparkSpendTransactions.size()));
-    }
-
     // add total amount in all subdivision units
     questionString.append("<hr />");
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
@@ -811,7 +789,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if (isSparkSpend) {
         sendStatus = runWalletOperation([&] {
-            return model->spendSparkCoins(sparkSpendTransactions);
+            return model->spendSparkCoins(sparkSpendTransactions.front());
         });
     } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
         sendStatus = runWalletOperation([&] {
@@ -846,15 +824,6 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     // Launch the second stage of the transaction if needed
     if (fGoThroughTransparentAddress) {
-        if (sparkSpendTransactions.size() != 1) {
-            sendStatus.status = WalletModel::TransactionCreationFailed;
-            sendStatus.reasonCommitFailed =
-                tr("Private transaction staging produced an unexpected transaction count");
-            processSendCoinsReturn(sendStatus);
-            fNewRecipientAllowed = true;
-            return;
-        }
-
         WalletModelTransaction& firstStage = sparkSpendTransactions.front();
         // prepare the coin control so the transaction will use (by default) only the transparent address
         // created in the first stage
@@ -986,13 +955,6 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         ui->switchFundButton->setEnabled(false);
     }
 
-    for (int i = 0; i < ui->entries->count(); ++i) {
-        SendCoinsEntry* sendEntry = qobject_cast<SendCoinsEntry*>(
-            ui->entries->itemAt(i)->widget());
-        if (sendEntry) {
-            sendEntry->setfAnonymousMode(fAnonymousMode);
-        }
-    }
     coinControlUpdateLabels();
 }
 

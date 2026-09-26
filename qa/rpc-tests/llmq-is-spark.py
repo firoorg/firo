@@ -31,8 +31,7 @@ class LLMQ_IS_Spark(EvoZnodeTestFramework):
         self.nodes[0].generate(501 - self.nodes[0].getblockcount())
 
         sparkaddress = self.nodes[0].getnewsparkaddress()[0]
-        # Mint a few larger single coins so spendspark can cover amount+fee from
-        # one coin (multi-input Spark spends are disabled).
+        # Mint coins large enough that spendspark covers amount and fee.
         for i in range(0, 3):
             mintTxids = self.nodes[0].mintspark({sparkaddress: {"amount": 5, "memo":"Test memo"}})
 
