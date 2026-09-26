@@ -3938,11 +3938,17 @@ std::string CWallet::MintAndStoreSpark(
         return strError;
     }
 
-    uint64_t value = 0;
-    for (auto& output : outputs)
-        value += output.v;
+    CAmount value = 0;
+    for (const auto& output : outputs) {
+        if (output.v > static_cast<uint64_t>(MAX_MONEY - value))
+            return _("Spark mint amount out of range");
+        value += static_cast<CAmount>(output.v);
+    }
 
-    if (cmp::greater((value + payTxFee.GetFeePerK()), GetBalance()))
+    const CAmount feePerK = payTxFee.GetFeePerK();
+    if (!MoneyRange(feePerK) || feePerK > MAX_MONEY - value)
+        return _("Spark mint amount out of range");
+    if (value + feePerK > GetBalance())
         return _("Insufficient funds");
 
     LogPrintf("payTxFee.GetFeePerK()=%d\n", payTxFee.GetFeePerK());
