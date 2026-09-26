@@ -76,14 +76,31 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
              addresses[lastDiversifier] = generateNextAddress();
          }
 
-         // get the list of coin metadata from db
+        // Remove legacy SMints whose containing wallet transaction has no Spark spend.
+        auto loadedMints = walletdb.ListSparkMints();
+        {
+            LOCK(pwalletMain->cs_wallet);
+            for (auto it = loadedMints.begin(); it != loadedMints.end();) {
+                auto& mint = it->second;
+                if (mint.type == spark::COIN_TYPE_SPEND) {
+                    auto parent = pwalletMain->mapWallet.find(mint.txid);
+                    if (parent != pwalletMain->mapWallet.end() && !parent->second.tx->IsSparkSpend()) {
+                        if (!walletdb.EraseSparkMint(it->first))
+                            throw std::runtime_error("Failed to remove unauthenticated Spark mint from wallet");
+                        it = loadedMints.erase(it);
+                        continue;
+                    }
+                }
+                ++it;
+            }
+        }
         {
             LOCK(cs_spark_wallet);
-            coinMeta = walletdb.ListSparkMints();
-            for (auto& coin : coinMeta) {
-                coin.second.coin.setParams(params);
-                coin.second.coin.setSerialContext(coin.second.serial_context);
-                addToLookups(coin.first, coin.second);
+            coinMeta = std::move(loadedMints);
+            for (auto& mint : coinMeta) {
+                mint.second.coin.setParams(params);
+                mint.second.coin.setSerialContext(mint.second.serial_context);
+                addToLookups(mint.first, mint.second);
             }
         }
 

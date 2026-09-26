@@ -3174,29 +3174,18 @@ void static RemoveConflictingSparkMintsFromMempool(CTxMemPool& pool, const CBloc
     LOCK(pool.cs);
 
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
-        BOOST_FOREACH(const CTxOut &txout, tx->vout)
-        {
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
-                try {
-                    const spark::Params* params = spark::Params::get_default();
-
-                    spark::Coin txCoin(params);
-                    spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
-                    const uint256 conflictingTxHash =
-                        pool.sparkState.GetMempoolConflictingMintTxHash(txCoin);
-                    if (!conflictingTxHash.IsNull() && conflictingTxHash != tx->GetHash()) {
-                        auto pTx = pool.get(conflictingTxHash);
-                        if (pTx)
-                            pool.removeRecursive(
-                                *pTx, MemPoolRemovalReason::CONFLICT);
-                        LogPrintf("ConnectBlock: removed conflicting Spark mint tx %s from the mempool\n",
-                                  conflictingTxHash.ToString());
-                    }
-                    pool.sparkState.RemoveMintFromMempool(txCoin);
-                } catch (std::invalid_argument&) {
-                    // nothing
-                }
+        for (const auto& coin : spark::GetSparkMintCoins(*tx)) {
+            const uint256 conflictingTxHash =
+                pool.sparkState.GetMempoolConflictingMintTxHash(coin);
+            if (!conflictingTxHash.IsNull() && conflictingTxHash != tx->GetHash()) {
+                auto pTx = pool.get(conflictingTxHash);
+                if (pTx)
+                    pool.removeRecursive(
+                        *pTx, MemPoolRemovalReason::CONFLICT);
+                LogPrintf("ConnectBlock: removed conflicting Spark mint tx %s from the mempool\n",
+                          conflictingTxHash.ToString());
             }
+            pool.sparkState.RemoveMintFromMempool(coin);
         }
     }
 }
