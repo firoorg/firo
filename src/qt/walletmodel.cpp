@@ -104,7 +104,7 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
     uiInterface.InitMessage(tr("Loading receive requests...").toStdString());
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
-    uiInterface.InitMessage(tr("Preparing wallet window...").toStdString());
+    uiInterface.InitMessage(tr("Reticulating splines...").toStdString());
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
