@@ -2991,6 +2991,106 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
     }
 }
 
+std::map<CTxDestination, std::vector<COutPoint>> CWallet::GetConsolidationCoins() const
+{
+    LOCK2(cs_main, cs_wallet);
+    std::vector<COutput> available;
+    AvailableCoins(available);
+    std::map<CTxDestination, std::vector<COutPoint>> groups;
+    for (const auto& coin : available) {
+        const auto& script = coin.tx->tx->vout[coin.i].scriptPubKey;
+        CTxDestination destination;
+        // Do not follow change ancestry or combine different scripts that decode
+        // to the same address (e.g. bare public keys and Spark Name fee outputs).
+        if (coin.fSpendable && coin.nDepth > 0 && ExtractDestination(script, destination) &&
+            script == GetScriptForDestination(destination)) {
+            groups[destination].emplace_back(coin.tx->GetHash(), coin.i);
+        }
+    }
+    return groups;
+}
+
+bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
+                                           CReserveKey& reserveKey, CAmount& fee, std::string& error)
+{
+    LOCK2(cs_main, cs_wallet);
+    auto groups = GetConsolidationCoins();
+    auto group = groups.find(destination);
+    if (group == groups.end() || group->second.size() < 2) {
+        error = _("There are fewer than two eligible outputs at this address.");
+        return false;
+    }
+    auto& coins = group->second;
+    const auto output = [&](const COutPoint& coin) -> const CTxOut& {
+        return mapWallet.at(coin.hash).tx->vout[coin.n];
+    };
+    // Prefer larger outputs so a batch can pay its own fee without borrowing
+    // from another address. Ties keep deterministic outpoint order.
+    std::sort(coins.begin(), coins.end(), [&](const COutPoint& a, const COutPoint& b) {
+        return output(a).nValue != output(b).nValue ? output(a).nValue > output(b).nValue : a < b;
+    });
+
+    // Even an unsigned input needs this much weight. Bound the sizing work for
+    // wallets with more outputs than could possibly fit in one transaction.
+    coins.resize(std::min(coins.size(), size_t(MAX_NEW_TX_WEIGHT /
+        (WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxIn(), SER_NETWORK, PROTOCOL_VERSION)))));
+    const CScript script = GetScriptForDestination(destination);
+    CMutableTransaction sized;
+    sized.vout.emplace_back(0, script);
+    std::vector<std::pair<const CWalletTx*, unsigned int>> inputs;
+    CCoinsView emptyView;
+    CCoinsViewCache view(&emptyView);
+    for (const auto& coin : coins) {
+        sized.vin.emplace_back(coin);
+        inputs.emplace_back(&mapWallet.at(coin.hash), coin.n);
+        view.AddCoin(coin, Coin(output(coin), 0, false), false);
+    }
+    if (!DummySignTx(sized, inputs)) {
+        error = _("Signing transaction failed");
+        return false;
+    }
+
+    // Find the largest prefix that fits, using maximum-size signatures and the
+    // real serialization (including CompactSize boundaries), plus the sigop cap.
+    const auto signedInputs = std::move(sized.vin);
+    size_t low = 0, high = coins.size();
+    while (low < high) {
+        const size_t count = low + (high - low + 1) / 2;
+        sized.vin.assign(signedInputs.begin(), signedInputs.begin() + count);
+        const CTransaction candidate(sized);
+        if (GetTransactionWeight(candidate) < MAX_NEW_TX_WEIGHT &&
+            GetTransactionSigOpCost(candidate, view, STANDARD_SCRIPT_VERIFY_FLAGS) <= MAX_STANDARD_TX_SIGOPS_COST) {
+            low = count;
+        } else {
+            high = count - 1;
+        }
+    }
+    if (low < 2) {
+        error = _("Too few outputs fit within the transaction limits.");
+        return false;
+    }
+
+    CCoinControl control;
+    control.destChange = destination;
+    CAmount total = 0;
+    for (size_t i = 0; i < low; ++i) {
+        control.Select(coins[i]);
+        total += output(coins[i]).nValue;
+    }
+    int changePosition = -1;
+    if (!CreateTransaction({{script, total, true}}, transaction, reserveKey, fee, changePosition, error, &control))
+        return false;
+
+    const auto& tx = *transaction.tx;
+    if (tx.vout.size() != 1 || tx.vout[0].scriptPubKey != script || tx.vout[0].nValue != total - fee ||
+        tx.vin.size() != low || GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT ||
+        !std::all_of(tx.vin.begin(), tx.vin.end(), [&](const CTxIn& input) { return control.IsSelected(input.prevout); })) {
+        error = _("Unable to create a same-address consolidation transaction.");
+        return false;
+    }
+    return true;
+}
+
 void CWallet::AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const
 {
     valueAndUTXO.clear();

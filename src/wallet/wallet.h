@@ -843,6 +843,9 @@ public:
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, bool fForUseInInstantSend = false) const;
 
+    /** Confirmed, spendable, unlocked coins grouped by their exact destination script. */
+    std::map<CTxDestination, std::vector<COutPoint>> GetConsolidationCoins() const;
+
     void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
 
     bool IsHDSeedAvailable() { return !hdChain.masterKeyID.IsNull(); }
@@ -982,6 +985,10 @@ public:
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false);
+
+    /** Prepare one size-limited self-transfer, deducting the fee from its only output. Does not commit. */
+    bool CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
+                                       CReserveKey& reserveKey, CAmount& fee, std::string& error);
 
     /**
      * Add Mint and Spend functions

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "rpc/server.h"
+#include "policy/policy.h"
 #include "test/test_bitcoin.h"
 #include "validation.h"
 #include "wallet/test/wallet_test_fixture.h"
@@ -39,6 +40,178 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 
 static const CWallet wallet;
 static vector<COutput> vCoins;
+
+BOOST_AUTO_TEST_CASE(consolidation_preserves_address_and_eligibility)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    CKey key, otherKey, watchKey;
+    key.MakeNewKey(true);
+    otherKey.MakeNewKey(true);
+    watchKey.MakeNewKey(true);
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(otherKey, otherKey.GetPubKey()));
+    const CTxDestination address = key.GetPubKey().GetID();
+    const CScript script = GetScriptForDestination(address);
+    const CScript otherScript = GetScriptForDestination(otherKey.GetPubKey().GetID());
+    const CScript watchScript = GetScriptForDestination(watchKey.GetPubKey().GetID());
+    BOOST_REQUIRE(pwalletMain->AddWatchOnly(watchScript));
+
+    CMutableTransaction funding;
+    funding.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    funding.vout = {{COIN, script}, {2 * COIN, script}, {3 * COIN, script}, {4 * COIN, otherScript},
+                    {COIN, watchScript}, {0, script}, {COIN, GetScriptForRawPubKey(key.GetPubKey())}};
+    CWalletTx received(pwalletMain, MakeTransactionRef(funding));
+    received.hashBlock = chainActive.Tip()->GetBlockHash();
+    received.nIndex = 1;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(received));
+    const COutPoint locked(received.GetHash(), 2);
+    pwalletMain->LockCoin(locked);
+    auto groups = pwalletMain->GetConsolidationCoins();
+    BOOST_REQUIRE_EQUAL(groups.size(), 2);
+    BOOST_REQUIRE_EQUAL(groups.at(address).size(), 2);
+    BOOST_CHECK_EQUAL(groups.at(otherKey.GetPubKey().GetID()).size(), 1);
+
+    CWalletTx consolidated;
+    CReserveKey reserveKey(pwalletMain);
+    CAmount fee = 0;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error), error);
+    BOOST_REQUIRE_EQUAL(consolidated.tx->vin.size(), 2);
+    BOOST_REQUIRE_EQUAL(consolidated.tx->vout.size(), 1);
+    BOOST_CHECK(consolidated.tx->vout[0].scriptPubKey == script);
+    BOOST_CHECK_EQUAL(consolidated.tx->vout[0].nValue + fee, 3 * COIN);
+    BOOST_CHECK_GT(fee, 0);
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 0)); // Preparation/cancellation does not spend.
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 1));
+    for (size_t i = 0; i < consolidated.tx->vin.size(); ++i) {
+        const auto& input = consolidated.tx->vin[i];
+        BOOST_CHECK(input.prevout.hash == received.GetHash());
+        BOOST_CHECK(input.prevout.n < 2);
+        const auto& prevout = received.tx->vout[input.prevout.n];
+        BOOST_CHECK(VerifyScript(input.scriptSig, script, &input.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS,
+            TransactionSignatureChecker(consolidated.tx.get(), i, prevout.nValue)));
+    }
+
+    // These wallet-only inputs are absent from the chain UTXO set. Rejection
+    // must leave both the transaction history and its inputs untouched.
+    CValidationState state;
+    BOOST_CHECK(!pwalletMain->CommitTransaction(consolidated, reserveKey, nullptr, state, true));
+    BOOST_CHECK(!pwalletMain->mapWallet.count(consolidated.GetHash()));
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 0));
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 1));
+
+    // A same-wallet change output belongs to its actual address, not its ancestor's.
+    CMutableTransaction change;
+    change.vin.emplace_back(COutPoint(received.GetHash(), 0));
+    change.vout.emplace_back(COIN / 2, otherScript);
+    CWalletTx changed(pwalletMain, MakeTransactionRef(change));
+    changed.hashBlock = received.hashBlock;
+    changed.nIndex = 2;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(changed));
+    groups = pwalletMain->GetConsolidationCoins();
+    BOOST_CHECK_EQUAL(groups.at(address).size(), 1);
+    BOOST_CHECK_EQUAL(groups.at(otherKey.GetPubKey().GetID()).size(), 2);
+    BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error));
+
+    // Unconfirmed and immature outputs are not candidates, even at this address.
+    CMutableTransaction pending;
+    pending.vin.emplace_back(COutPoint(uint256S("02"), 0));
+    pending.vout.assign(50, CTxOut(COIN, script));
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(pwalletMain, MakeTransactionRef(pending))));
+    pending.vin[0].prevout.SetNull();
+    CWalletTx immature(pwalletMain, MakeTransactionRef(pending));
+    immature.hashBlock = received.hashBlock;
+    immature.nIndex = 0;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(immature));
+    BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationCoins().at(address).size(), 1);
+    BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(CNoDestination(), consolidated, reserveKey, fee, error));
+}
+
+BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    // Compressed, uncompressed, exchange, and multisig addresses need different
+    // input sizes. Each batch must fit and the next maximum-size input must not.
+    for (int kind = 0; kind < 4; ++kind) {
+        CKey key;
+        key.MakeNewKey(kind != 1);
+        BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
+        CTxDestination address = key.GetPubKey().GetID();
+        if (kind == 2)
+            address = CExchangeKeyID(key.GetPubKey().GetID());
+        if (kind == 3) {
+            const CScript redeem = GetScriptForMultisig(1, std::vector<CPubKey>(15, key.GetPubKey()));
+            BOOST_REQUIRE(pwalletMain->AddCScript(redeem));
+            address = CScriptID(redeem);
+        }
+        const CScript script = GetScriptForDestination(address);
+        CMutableTransaction funding;
+        funding.vin.emplace_back(COutPoint(uint256S("03"), kind));
+        funding.vout.assign(2000, CTxOut(COIN, script));
+        CWalletTx received(pwalletMain, MakeTransactionRef(funding));
+        received.hashBlock = chainActive.Tip()->GetBlockHash();
+        received.nIndex = 1;
+        BOOST_REQUIRE(pwalletMain->AddToWallet(received));
+
+        CWalletTx consolidated;
+        CReserveKey reserveKey(pwalletMain);
+        CAmount fee = 0;
+        std::string error;
+        BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error), error);
+        BOOST_REQUIRE_GT(consolidated.tx->vin.size(), 252);
+        BOOST_REQUIRE_LT(consolidated.tx->vin.size(), funding.vout.size());
+        BOOST_REQUIRE_EQUAL(consolidated.tx->vout.size(), 1);
+        BOOST_CHECK(consolidated.tx->vout[0].scriptPubKey == script);
+        BOOST_CHECK_EQUAL(consolidated.tx->vout[0].nValue + fee, CAmount(consolidated.tx->vin.size()) * COIN);
+        BOOST_CHECK_LT(GetTransactionWeight(*consolidated.tx), MAX_NEW_TX_WEIGHT);
+        BOOST_CHECK(IsStandardTx(*consolidated.tx, error));
+
+        CCoinsView emptyView;
+        CCoinsViewCache view(&emptyView);
+        std::set<COutPoint> selected;
+        std::vector<std::pair<const CWalletTx*, unsigned int>> inputs;
+        for (const auto& input : consolidated.tx->vin) {
+            BOOST_CHECK(input.prevout.hash == received.GetHash());
+            selected.insert(input.prevout);
+            inputs.emplace_back(&received, input.prevout.n);
+            view.AddCoin(input.prevout, Coin(funding.vout[input.prevout.n], 0, false), false);
+        }
+        BOOST_CHECK_EQUAL(selected.size(), consolidated.tx->vin.size());
+        BOOST_CHECK_LE(GetTransactionSigOpCost(*consolidated.tx, view, STANDARD_SCRIPT_VERIFY_FLAGS), MAX_STANDARD_TX_SIGOPS_COST);
+        CMutableTransaction sized(*consolidated.tx);
+        BOOST_REQUIRE(pwalletMain->DummySignTx(sized, inputs));
+        BOOST_CHECK_LT(GetTransactionWeight(sized), MAX_NEW_TX_WEIGHT);
+        unsigned int next = 0;
+        while (selected.count(COutPoint(received.GetHash(), next))) ++next;
+        const COutPoint extra(received.GetHash(), next);
+        sized.vin.emplace_back(extra);
+        inputs.emplace_back(&received, next);
+        view.AddCoin(extra, Coin(funding.vout[next], 0, false), false);
+        BOOST_REQUIRE(pwalletMain->DummySignTx(sized, inputs));
+        BOOST_CHECK(GetTransactionWeight(sized) >= MAX_NEW_TX_WEIGHT ||
+            GetTransactionSigOpCost(CTransaction(sized), view, STANDARD_SCRIPT_VERIFY_FLAGS) > MAX_STANDARD_TX_SIGOPS_COST);
+    }
+
+    CKey dustKey;
+    dustKey.MakeNewKey(true);
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(dustKey, dustKey.GetPubKey()));
+    const CTxDestination dustAddress = dustKey.GetPubKey().GetID();
+    CMutableTransaction dust;
+    dust.vin.emplace_back(COutPoint(uint256S("04"), 0));
+    dust.vout.assign(50, CTxOut(100, GetScriptForDestination(dustAddress)));
+    CWalletTx receivedDust(pwalletMain, MakeTransactionRef(dust));
+    receivedDust.hashBlock = chainActive.Tip()->GetBlockHash();
+    receivedDust.nIndex = 1;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(receivedDust));
+    CWalletTx failed;
+    CReserveKey reserveKey(pwalletMain);
+    CAmount fee = 0;
+    std::string error;
+    // The combined amount is above dust but cannot pay even the relay fee.
+    // Other addresses have ample funds, but must never subsidize this batch.
+    BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(dustAddress, failed, reserveKey, fee, error));
+    BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationCoins().at(dustAddress).size(), 50);
+}
 
 BOOST_AUTO_TEST_CASE(conflict_notifications_include_descendants)
 {
