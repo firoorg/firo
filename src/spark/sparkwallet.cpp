@@ -355,7 +355,7 @@ bool CSparkWallet::isAddressMine(const spark::Address& address) {
         return false;
     }
 
-    spark::Address newAddr = getAddress(int32_t(d));
+    spark::Address newAddr(viewKey, d);
     if (newAddr.get_Q1() == address.get_Q1() && newAddr.get_Q2() == address.get_Q2())
         return true;
 

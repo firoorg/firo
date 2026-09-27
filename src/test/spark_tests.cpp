@@ -280,6 +280,12 @@ BOOST_AUTO_TEST_CASE(wallet_address_ownership)
     BOOST_CHECK(wallet->isAddressMine(wallet->getAddress(123)));
     BOOST_CHECK(wallet->isAddressMine(wallet->getChangeAddress()));
 
+    const FullViewKey ownFullViewKey(wallet->generateSpendKey(Params::get_default()));
+    const IncomingViewKey ownViewKey(ownFullViewKey);
+    const Address highDiversifierAddress(ownViewKey, uint64_t{1} << 31);
+    BOOST_CHECK(wallet->isAddressMine(highDiversifierAddress));
+    BOOST_CHECK(wallet->isAddressMine(highDiversifierAddress.encode(GetNetworkType())));
+
     const SpendKey foreignSpendKey(Params::get_default());
     const FullViewKey foreignFullViewKey(foreignSpendKey);
     const IncomingViewKey foreignViewKey(foreignFullViewKey);
