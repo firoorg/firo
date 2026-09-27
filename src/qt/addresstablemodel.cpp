@@ -896,7 +896,7 @@ static void NotifyPcodeLabeled(PcodeAddressTableModel *walletmodel, std::string 
 PcodeAddressTableModel::PcodeAddressTableModel(CWallet *wallet_, WalletModel *parent)
 :AddressTableModel(wallet_, parent, false)
 {
-    // columns[AddressTableModel::Address] = tr("RAP payment code");
+    columns = { tr("Label"), tr("RAP payment code") };
     updatePcodeData();
     wallet->NotifyPcodeLabeled.connect(boost::bind(NotifyPcodeLabeled, this, _1, _2, _3));
 }

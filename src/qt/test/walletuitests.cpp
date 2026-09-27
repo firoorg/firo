@@ -174,9 +174,11 @@ void WalletUiTests::paymentCodeIndexesWithoutAddressCache()
     CWallet wallet;
     wallet.mapCustomKeyValues.emplace(bip47::PcodeLabel() + "test-payment-code", "Test label");
     PcodeAddressTableModel model(&wallet);
+    QCOMPARE(model.columnCount(QModelIndex()), 2);
     const auto index = model.index(0, 1);
     QVERIFY(index.isValid());
     QCOMPARE(model.data(index, Qt::DisplayRole).toString(), QString("test-payment-code"));
+    QVERIFY(!model.index(0, 2).isValid());
     QVERIFY(!model.index(1, 0).isValid());
     QVERIFY(!model.index(0, 0, index).isValid());
 }
