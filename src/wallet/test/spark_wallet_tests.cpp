@@ -149,6 +149,9 @@ BOOST_AUTO_TEST_CASE(mint_and_store_spark)
 BOOST_AUTO_TEST_CASE(mint_subtract_fee)
 {
     pwalletMain->SetBroadcastTransactions(true);
+    uint160 externalKey;
+    GetRandBytes(externalKey.begin(), externalKey.size());
+    CScript externalScript = GetScriptForDestination(CKeyID(externalKey));
     GenerateBlocks(1001, &externalScript);
     GenerateBlocks(1);
     GenerateBlocks(100, &externalScript);
