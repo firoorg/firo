@@ -84,9 +84,23 @@ BOOST_AUTO_TEST_CASE(reject_out_of_range_mint_amounts)
     checkRejected({data});
 
     data.v = MAX_MONEY;
+    checkRejected(std::vector<spark::MintedCoinData>(
+        std::numeric_limits<CAmount>::max() / MAX_MONEY + 1, data));
+
     spark::MintedCoinData extra = data;
     extra.v = 1;
-    checkRejected({data, extra});
+    std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+    BOOST_CHECK_EQUAL(pwalletMain->MintAndStoreSpark({data, extra}, wtxAndFee, false, true),
+        "Insufficient funds");
+
+    CAmount fee = 0;
+    std::list<CReserveKey> reservekeys;
+    int changePos = -1;
+    std::string error;
+    BOOST_CHECK(!pwalletMain->CreateSparkMintTransactions({data, extra}, wtxAndFee, fee,
+        reservekeys, changePos, false, error, true, nullptr));
+    BOOST_CHECK(error != "Spark mint amount out of range");
+    BOOST_CHECK(wtxAndFee.empty());
 }
 
 BOOST_AUTO_TEST_CASE(mint_and_store_spark)
@@ -135,11 +149,14 @@ BOOST_AUTO_TEST_CASE(mint_and_store_spark)
 BOOST_AUTO_TEST_CASE(mint_subtract_fee)
 {
     pwalletMain->SetBroadcastTransactions(true);
-    GenerateBlocks(1001);
+    GenerateBlocks(1001, &externalScript);
+    GenerateBlocks(1);
+    GenerateBlocks(100, &externalScript);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
 
-    const uint64_t v = 1 * COIN;
+    const uint64_t v = pwalletMain->GetBalance();
+    BOOST_REQUIRE_GT(v, 0);
     spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
 
     spark::MintedCoinData data;
@@ -150,7 +167,10 @@ BOOST_AUTO_TEST_CASE(mint_subtract_fee)
     std::vector<spark::MintedCoinData> mintedCoins;
     mintedCoins.push_back(data);
 
+    const CFeeRate savedFee = payTxFee;
+    payTxFee = CFeeRate(1000);
     std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, true, true);
+    payTxFee = savedFee;
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
