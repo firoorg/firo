@@ -33,6 +33,7 @@
 
 #include <QAbstractItemDelegate>
 #include <QAbstractItemView>
+#include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -228,6 +229,20 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     connect(ui->listTransactions, &QListView::clicked, this, &OverviewPage::handleTransactionClicked);
     connect(ui->listTransactions, &QListView::activated, this, &OverviewPage::handleTransactionClicked);
+
+    consolidationHint = new QLabel(tr("One of your transparent addresses has many unspent outputs. Consolidating them can make future sends smaller."), ui->balancesCard);
+    consolidationHint->setObjectName(QStringLiteral("consolidationHint"));
+    consolidationHint->setWordWrap(true);
+    consolidationHint->hide();
+    consolidateButton = new QPushButton(tr("Consolidate outputs..."), ui->balancesCard);
+    consolidateButton->setObjectName(QStringLiteral("consolidateButton"));
+    consolidateButton->setToolTip(tr("Combine outputs from one transparent address and return the funds to that same address. A network fee applies."));
+    consolidateButton->hide();
+    ui->balancesCardLayout->addWidget(consolidationHint);
+    ui->balancesCardLayout->addWidget(consolidateButton, 0, Qt::AlignLeft);
+    connect(consolidateButton, &QPushButton::clicked, this, &OverviewPage::consolidateCoins);
+    consolidationTimer.setSingleShot(true);
+    connect(&consolidationTimer, &QTimer::timeout, this, &OverviewPage::updateConsolidationOffer);
 
     applyOverviewRedesign();
 
@@ -425,6 +440,7 @@ void OverviewPage::applyOverviewTheme()
     ui->sendButton->setStyleSheet(primaryActionStyle);
     ui->receiveButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle);
     ui->anonymizeButton->setStyleSheet(primaryActionStyle);
+    consolidateButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle);
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }"));
@@ -439,7 +455,7 @@ void OverviewPage::applyOverviewTheme()
                             ui->labelAnonymizableText, ui->labelBalanceText,
                             ui->labelPendingText, ui->labelImmatureText,
                             ui->labelWatchAvailableText, ui->labelWatchPendingText,
-                            ui->labelWatchImmatureText, ui->labelWatchTotalText}) {
+                            ui->labelWatchImmatureText, ui->labelWatchTotalText, consolidationHint}) {
         caption->setStyleSheet(captionStyle);
     }
 
@@ -854,6 +870,7 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
+    consolidationAddresses.clear();
     ui->warningFrame->hide();
     if(model && model->getOptionsModel())
     {
@@ -906,6 +923,7 @@ void OverviewPage::setWalletModel(WalletModel *model)
 
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();
+    updateConsolidationOffer();
 }
 
 void OverviewPage::updateDisplayUnit()
@@ -932,6 +950,8 @@ void OverviewPage::updateAlerts(const QString &warnings)
 
 void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
+    const bool wasOutOfSync = outOfSync;
+    outOfSync = fShow;
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
     emptyTitle_->setText(fShow ? tr("Wallet is still syncing") : tr("No transactions yet"));
@@ -939,6 +959,146 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
         ? tr("Transactions will appear here as synchronization completes")
         : tr("Your history will appear here after the first transfer"));
     updateActivityEmptyState();
+    if (fShow || wasOutOfSync)
+        updateConsolidationOffer();
+}
+
+void OverviewPage::updateConsolidationOffer()
+{
+    if (!walletModel || outOfSync) {
+        consolidationTimer.stop();
+        consolidationHint->hide();
+        consolidateButton->hide();
+        return;
+    }
+    if (!walletModel->pollConsolidationAddresses(consolidationAddresses)) {
+        consolidationTimer.start(250);
+        return;
+    }
+    consolidationTimer.start(60000);
+    const bool manyOutputs = std::any_of(consolidationAddresses.begin(), consolidationAddresses.end(), [](const auto& entry) {
+        return entry.second >= 50;
+    });
+    consolidationHint->setVisible(manyOutputs);
+    // Keep the action available for a small remainder after a size-limited batch.
+    consolidateButton->setVisible(!consolidationAddresses.empty());
+}
+
+void OverviewPage::consolidateCoins()
+{
+    if (!walletModel || outOfSync)
+        return;
+    if (consolidationAddresses.empty())
+        return;
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Consolidate Outputs"));
+    auto* layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 24, 24, 24);
+    layout->setSpacing(16);
+    auto* contents = new QWidget(&dialog);
+    contents->setObjectName(QStringLiteral("consolidationContents"));
+    auto* contentLayout = new QVBoxLayout(contents);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(16);
+    auto* explanation = new QLabel(tr("Choose one transparent address. As many confirmed, spendable outputs as fit within one transaction will be combined into one output at this same address.\n\n"
+        "Coins from different addresses are never combined. The transaction remains public and incurs a network fee. Any remaining outputs can be consolidated in another transaction."), contents);
+    explanation->setWordWrap(true);
+    contentLayout->addWidget(explanation);
+    auto* addressChoice = new QComboBox(contents);
+    addressChoice->setAccessibleName(tr("Address to consolidate"));
+    addressChoice->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    addressChoice->setMinimumContentsLength(1);
+    for (const auto& entry : consolidationAddresses)
+        addressChoice->addItem(tr("%1 (%2 outputs)").arg(entry.first).arg(qulonglong(entry.second)), entry.first);
+    contentLayout->addWidget(addressChoice);
+    auto* scroll = new QScrollArea(&dialog);
+    scroll->setObjectName(QStringLiteral("consolidationScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(contents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#consolidationScroll, QWidget#consolidationContents { background: transparent; border: none; }"));
+    layout->addWidget(scroll, 1);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, &dialog);
+    auto* reviewButton = buttons->addButton(tr("Review transaction"), QDialogButtonBox::AcceptRole);
+    reviewButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    buttons->button(QDialogButtonBox::Cancel)->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    connect(reviewButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    dialog.ensurePolished();
+    const QSize available = GUIUtil::availableScreenSize(&dialog);
+    const QMargins margins = layout->contentsMargins();
+    const int width = qMin(contents->sizeHint().width() + margins.left() + margins.right(), qMax(1, available.width() - 40));
+    // Show the full explanation when it fits; keep the buttons outside the scroll area.
+    const int height = layout->sizeHint().height() - scroll->sizeHint().height()
+        + contentLayout->totalHeightForWidth(width - margins.left() - margins.right());
+    dialog.resize(width, qMin(height, qMax(1, available.height() - 40)));
+    if (dialog.exec() != QDialog::Accepted || !walletModel || outOfSync)
+        return;
+
+    const QString address = addressChoice->currentData().toString();
+    WalletModelTransaction transaction{QList<SendCoinsRecipient>()};
+    WalletModel::SendCoinsReturn result;
+    {
+        WalletModel::UnlockContext unlock(walletModel->requestUnlock());
+        if (!unlock.isValid())
+            return;
+        GUIUtil::runWalletOperation([&] {
+            result = walletModel->prepareConsolidationTransaction(transaction, address);
+        });
+    }
+    if (!walletModel)
+        return;
+    if (result.status != WalletModel::OK) {
+        QMessageBox::warning(this, tr("Unable to Consolidate Outputs"), result.reasonCommitFailed);
+        return;
+    }
+
+    const auto& tx = *transaction.getTransaction()->tx;
+    const int unit = walletModel->getOptionsModel()->getDisplayUnit();
+    QMessageBox confirmation(QMessageBox::Question, tr("Review Consolidation"),
+        tr("Address: %1\nOutputs combined: %2\nAmount returned to this address: %3\nNetwork fee: %4\nTransaction size: %5 bytes")
+            .arg(address).arg(qulonglong(tx.vin.size()))
+            .arg(BitcoinUnits::formatWithUnit(unit, tx.vout[0].nValue))
+            .arg(BitcoinUnits::formatWithUnit(unit, transaction.getTransactionFee()))
+            .arg(tx.GetTotalSize()),
+        QMessageBox::Cancel, this);
+    confirmation.setTextFormat(Qt::PlainText);
+    auto* confirmButton = confirmation.addButton(tr("Consolidate"), QMessageBox::AcceptRole);
+    confirmButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    confirmation.button(QMessageBox::Cancel)->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    confirmation.setDefaultButton(QMessageBox::Cancel);
+    confirmation.exec();
+    if (confirmation.clickedButton() != confirmButton || !walletModel || outOfSync)
+        return;
+
+    size_t remainingOutputs = 0;
+    GUIUtil::runWalletOperation([&] { result = walletModel->sendConsolidationTransaction(transaction, remainingOutputs); });
+    updateConsolidationOffer();
+    if (result.status != WalletModel::OK) {
+        QMessageBox::warning(this, tr("Consolidation Failed"),
+            tr("The transaction could not be submitted. Check the Transactions tab before trying again.\n%1").arg(result.reasonCommitFailed));
+        return;
+    }
+    showConsolidationResult(remainingOutputs);
+}
+
+void OverviewPage::showConsolidationResult(qulonglong remainingOutputs)
+{
+    QString message = tr("The consolidated funds will be available at the same address after confirmation.")
+        + "\n\n" + tr("Eligible outputs remaining at this address: %1").arg(remainingOutputs);
+    if (remainingOutputs >= 2) {
+        message += "\n\n" + tr("You can consolidate another batch now using Consolidate outputs on the Overview page.");
+    } else if (remainingOutputs == 1) {
+        message += "\n\n" + tr("Wait for the consolidated output to confirm, then combine it with the remaining output at this same address.");
+    } else {
+        message += "\n\n" + tr("If you submitted multiple batches, wait for them to confirm before combining their outputs at this same address.");
+    }
+    message += "\n\n" + tr("Each additional consolidation requires your confirmation and a network fee.");
+    QMessageBox::information(this, tr("Consolidation Submitted"), message);
 }
 
 void OverviewPage::updateSparkAnonymizeRowVisibility()

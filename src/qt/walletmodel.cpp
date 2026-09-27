@@ -447,6 +447,75 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
+bool WalletModel::pollConsolidationAddresses(std::map<QString, size_t>& addresses)
+{
+    if (!consolidationScan.valid()) {
+        consolidationScan = std::async(std::launch::async, [coreWallet = wallet]() -> std::optional<std::map<QString, size_t>> {
+            TRY_LOCK(cs_main, lockMain);
+            if (!lockMain) return std::nullopt;
+            TRY_LOCK(coreWallet->cs_wallet, lockWallet);
+            if (!lockWallet) return std::nullopt;
+            std::map<QString, size_t> result;
+            for (const auto& group : coreWallet->GetConsolidationCoins()) {
+                if (group.second.size() >= 2)
+                    result.emplace(QString::fromStdString(CBitcoinAddress(group.first).ToString()), group.second.size());
+            }
+            return result;
+        });
+    }
+    if (consolidationScan.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready)
+        return false;
+    auto result = consolidationScan.get();
+    if (result)
+        addresses = std::move(*result);
+    return true;
+}
+
+WalletModel::SendCoinsReturn WalletModel::prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address)
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    transaction.newPossibleKeyChange(wallet);
+    CAmount fee = 0;
+    std::string error;
+    if (!wallet->CreateConsolidationTransaction(CBitcoinAddress(address.toStdString()).Get(),
+            *transaction.getTransaction(), *transaction.getPossibleKeyChange(), fee, error)) {
+        return SendCoinsReturn(TransactionCreationFailed, QString::fromStdString(error));
+    }
+    transaction.setTransactionFee(fee);
+    if (fee > maxTxFee)
+        return SendCoinsReturn(AbsurdFee, tr("The network fee exceeds the maximum configured fee."));
+    return OK;
+}
+
+WalletModel::SendCoinsReturn WalletModel::sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs)
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    auto& newTx = *transaction.getTransaction();
+    for (const auto& input : newTx.tx->vin) {
+        if (wallet->IsLockedCoin(input.prevout.hash, input.prevout.n))
+            return SendCoinsReturn(TransactionCommitFailed, tr("An output was locked after this transaction was prepared. Please try again."));
+    }
+    // Validate before recording the self-transfer or marking its inputs spent.
+    CValidationState state;
+    if (!wallet->CommitTransaction(newTx, *transaction.getPossibleKeyChange(), g_connman.get(), state, true)) {
+        const QString reason = QString::fromStdString(state.GetRejectReason());
+        return SendCoinsReturn(TransactionCommitFailed, reason.isEmpty()
+            ? tr("The selected outputs are no longer available. Please try again.") : reason);
+    }
+    // Count again after committing; the wallet may have changed during review.
+    // GetConsolidationCoins excludes the new output until it confirms.
+    remainingOutputs = 0;
+    CTxDestination destination;
+    if (ExtractDestination(newTx.tx->vout[0].scriptPubKey, destination)) {
+        const auto groups = wallet->GetConsolidationCoins();
+        const auto group = groups.find(destination);
+        if (group != groups.end())
+            remainingOutputs = group->second.size();
+    }
+    QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
+    return OK;
+}
+
 WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &transaction)
 {
     QByteArray transaction_array; /* store serialized transaction */

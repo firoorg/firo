@@ -13,7 +13,9 @@
 #endif // ENABLE_WALLET
 #include "wallet/coincontrol.h"
 
+#include <future>
 #include <map>
+#include <optional>
 #include <vector>
 
 #include <QObject>
@@ -185,6 +187,11 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    // Start/poll a background scan. A busy wallet preserves the previous result.
+    bool pollConsolidationAddresses(std::map<QString, size_t>& addresses);
+    SendCoinsReturn prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address);
+    SendCoinsReturn sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs);
+
     SendCoinsReturn prepareMintSparkTransaction(
         std::vector<WalletModelTransaction> &transactions,
         QList<SendCoinsRecipient> recipients,
@@ -320,6 +327,8 @@ public:
 
 private:
     CWallet *wallet;
+    // Destruction joins the scan before the core wallet is released.
+    std::future<std::optional<std::map<QString, size_t>>> consolidationScan;
 
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;

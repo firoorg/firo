@@ -9,6 +9,7 @@
 #include "uint256.h"
 
 #include <QWidget>
+#include <QPointer>
 #include <memory>
 
 #include "walletmodel.h"
@@ -31,6 +32,7 @@ QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QProgressBar;
 class QLabel;
+class QPushButton;
 QT_END_NAMESPACE
 
 /** Overview ("home") page widget */
@@ -69,7 +71,7 @@ Q_SIGNALS:
 private:
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
-    WalletModel *walletModel;
+    QPointer<WalletModel> walletModel;
     CAmount currentBalance;
     CAmount currentUnconfirmedBalance;
     CAmount currentImmatureBalance;
@@ -96,6 +98,11 @@ private:
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
+    QLabel *consolidationHint{nullptr};
+    QPushButton *consolidateButton{nullptr};
+    QTimer consolidationTimer;
+    std::map<QString, size_t> consolidationAddresses;
+    bool outOfSync{true};
 
     void applyOverviewRedesign();
     void applyOverviewTheme();
@@ -110,6 +117,9 @@ private Q_SLOTS:
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
     void updateSparkAnonymizeRowVisibility();
+    void updateConsolidationOffer();
+    void consolidateCoins();
+    void showConsolidationResult(qulonglong remainingOutputs);
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

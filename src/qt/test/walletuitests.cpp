@@ -15,6 +15,7 @@
 #include "modaloverlay.h"
 #include "networkstyle.h"
 #include "optionsmodel.h"
+#include "overviewpage.h"
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
@@ -35,6 +36,7 @@
 #include <QAction>
 #include <QColor>
 #include <QComboBox>
+#include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QLabel>
@@ -88,6 +90,137 @@ public:
         return QVariant();
     }
 };
+}
+
+void WalletUiTests::consolidationSuggestion()
+{
+    CWallet wallet;
+    CWallet* previousWallet = pwalletMain;
+    CBlockIndex* previousTip = chainActive.Tip();
+    const uint256 blockHash = uint256S("777");
+    CBlockIndex tip;
+    tip.phashBlock = &blockHash;
+    tip.nHeight = 0;
+    {
+        LOCK(cs_main);
+        QVERIFY(!mapBlockIndex.count(blockHash));
+    }
+    const auto restore = qScopeGuard([&] {
+        LOCK(cs_main);
+        chainActive.SetTip(previousTip);
+        mapBlockIndex.erase(blockHash);
+        pwalletMain = previousWallet;
+    });
+    {
+        LOCK(cs_main);
+        mapBlockIndex.emplace(blockHash, &tip);
+        chainActive.SetTip(&tip);
+        pwalletMain = &wallet;
+    }
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    auto model = std::make_unique<WalletModel>(style.get(), &wallet, &options);
+    CKey key;
+    key.MakeNewKey(true);
+    QVERIFY(wallet.AddKeyPubKey(key, key.GetPubKey()));
+    CMutableTransaction funding;
+    funding.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    funding.vout.assign(50, CTxOut(COIN, GetScriptForDestination(key.GetPubKey().GetID())));
+    CWalletTx received(&wallet, MakeTransactionRef(funding));
+    received.hashBlock = blockHash;
+    received.nIndex = 1;
+    wallet.mapWallet.emplace(received.GetHash(), received);
+
+    OverviewPage page(style.get());
+    page.setWalletModel(model.get());
+    auto* hint = page.findChild<QLabel*>("consolidationHint");
+    auto* button = page.findChild<QPushButton*>("consolidateButton");
+    QVERIFY(hint && button);
+    QVERIFY(hint->isHidden());
+    QVERIFY(button->isHidden());
+    page.showOutOfSyncWarning(false);
+    QTRY_VERIFY(!hint->isHidden());
+    QVERIFY(!button->isHidden());
+
+    QTimer::singleShot(0, &page, [&] {
+        auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        const auto close = qScopeGuard([&] { dialog->reject(); });
+        const QSize available = GUIUtil::availableScreenSize(dialog);
+        QVERIFY(dialog->width() <= available.width());
+        QVERIFY(dialog->height() <= available.height());
+        dialog->resize(400, 220);
+        QCoreApplication::processEvents();
+        auto* scroll = dialog->findChild<QScrollArea*>("consolidationScroll");
+        auto* buttons = dialog->findChild<QDialogButtonBox*>();
+        QVERIFY(scroll && buttons);
+        QVERIFY(dialog->rect().contains(buttons->geometry()));
+        QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
+        QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        auto* explanation = scroll->findChild<QLabel*>();
+        QVERIFY(explanation);
+        QVERIFY(explanation->height() >= explanation->heightForWidth(explanation->width()));
+    });
+    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+
+    std::map<QString, size_t> cached{{"previous scan", 50}};
+    {
+        LOCK(wallet.cs_wallet);
+        // The GUI can poll a busy wallet without waiting or hiding its offer.
+        bool scanFinished = false;
+        QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
+        QCOMPARE(cached.size(), size_t(1));
+        QVERIFY(cached.count("previous scan"));
+    }
+
+    {
+        LOCK(wallet.cs_wallet);
+        wallet.LockCoin(COutPoint(received.GetHash(), 0));
+    }
+    WalletModelTransaction transaction{QList<SendCoinsRecipient>()};
+    CMutableTransaction prepared;
+    prepared.vin.emplace_back(COutPoint(received.GetHash(), 0));
+    *transaction.getTransaction() = CWalletTx(&wallet, MakeTransactionRef(prepared));
+    size_t remainingOutputs = 0;
+    QCOMPARE(model->sendConsolidationTransaction(transaction, remainingOutputs).status, WalletModel::TransactionCommitFailed);
+    QVERIFY(!wallet.IsSpent(received.GetHash(), 0));
+    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
+    QTRY_VERIFY(hint->isHidden()); // 49 eligible outputs: no automatic suggestion.
+    QVERIFY(!button->isHidden()); // Small remainders remain manually accessible.
+    {
+        LOCK(wallet.cs_wallet);
+        for (unsigned int i = 1; i < 50; ++i)
+            wallet.LockCoin(COutPoint(received.GetHash(), i));
+    }
+    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
+    QTRY_VERIFY(button->isHidden());
+    model.reset();
+    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
+    QVERIFY(hint->isHidden());
+    QVERIFY(button->isHidden());
+}
+
+void WalletUiTests::consolidationResult()
+{
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    OverviewPage page(style.get());
+    for (qulonglong remaining : {0ULL, 1ULL, 2ULL, 320ULL}) {
+        QString message;
+        QTimer::singleShot(0, &page, [&] {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                message = box->text();
+                box->accept();
+            }
+        });
+        QVERIFY(QMetaObject::invokeMethod(&page, "showConsolidationResult", Qt::DirectConnection, Q_ARG(qulonglong, remaining)));
+        QVERIFY(message.contains(QString("Eligible outputs remaining at this address: %1").arg(remaining)));
+        QCOMPARE(message.contains("another batch now"), remaining >= 2);
+        QCOMPARE(message.contains("remaining output at this same address"), remaining == 1);
+        QCOMPARE(message.contains("multiple batches"), remaining == 0);
+        QVERIFY(message.contains("requires your confirmation and a network fee"));
+    }
 }
 
 void WalletUiTests::confirmationRefresh()

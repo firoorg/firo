@@ -20,6 +20,8 @@ private Q_SLOTS:
     void sendFormFitsSmallScreen();
     void receiveMnemonics();
     void confirmationRefresh();
+    void consolidationSuggestion();
+    void consolidationResult();
     void themeTintColors();
     void deferredTransactionsKeepOrder();
     void failedAbandonKeepsTransactionVisible();
