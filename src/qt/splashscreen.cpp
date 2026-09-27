@@ -72,6 +72,9 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashSc
     pixPaint.end();
 
     this->setPixmap(newPixmap);
+    auto* animationTimer = new QTimer(this);
+    connect(animationTimer, &QTimer::timeout, this, qOverload<>(&SplashScreen::update));
+    animationTimer->start(50);
     subscribeToCoreSignals();
 }
 
@@ -203,7 +206,7 @@ void SplashScreen::slotFinish(QWidget *mainWin)
 static void InitMessage(SplashScreen *splash, const std::string &message)
 {
     QMetaObject::invokeMethod(splash, "showMessage",
-        Qt::QueuedConnection,
+        Qt::AutoConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
         Q_ARG(QColor, QColor(255,255,255)));
@@ -249,7 +252,8 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
     curMessage = message;
     curAlignment = alignment;
     curColor = color;
-    update();
+    // Paint immediately without QSplashScreen::repaint() processing queued events.
+    QWidget::repaint();
 }
 
 void SplashScreen::paintEvent(QPaintEvent *event)
@@ -281,8 +285,6 @@ void SplashScreen::paintEvent(QPaintEvent *event)
 
         painter.drawEllipse(QPoint(dx, dy), radius, radius);
     }
-
-    QTimer::singleShot(50, this, SLOT(update()));
 }
 
 void SplashScreen::closeEvent(QCloseEvent *event)

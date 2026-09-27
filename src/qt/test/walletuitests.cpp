@@ -6,6 +6,7 @@
 
 #include "addresstablemodel.h"
 #include "bitcoingui.h"
+#include "bip47/defs.h"
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "createsparknamepage.h"
@@ -20,6 +21,7 @@
 #include "receiverequestdialog.h"
 #include "sendcoinsdialog.h"
 #include "sparknamespage.h"
+#include "splashscreen.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
@@ -165,6 +167,35 @@ void WalletUiTests::themeTintColors()
             QCOMPARE(swatch.palette().color(QPalette::Window), color);
         }
     }
+}
+
+void WalletUiTests::paymentCodeIndexesWithoutAddressCache()
+{
+    CWallet wallet;
+    wallet.mapCustomKeyValues.emplace(bip47::PcodeLabel() + "test-payment-code", "Test label");
+    PcodeAddressTableModel model(&wallet);
+    const auto index = model.index(0, 1);
+    QVERIFY(index.isValid());
+    QCOMPARE(model.data(index, Qt::DisplayRole).toString(), QString("test-payment-code"));
+    QVERIFY(!model.index(1, 0).isValid());
+    QVERIFY(!model.index(0, 0, index).isValid());
+}
+
+void WalletUiTests::splashMessageDoesNotProcessEvents()
+{
+    auto* splash = new SplashScreen;
+    const auto cleanup = qScopeGuard([splash] {
+        splash->slotFinish(nullptr);
+        QCoreApplication::sendPostedEvents(splash, QEvent::DeferredDelete);
+    });
+    bool callbackRan = false;
+    QObject receiver;
+    QMetaObject::invokeMethod(&receiver, [&callbackRan] { callbackRan = true; }, Qt::QueuedConnection);
+
+    splash->showMessage("Loading wallet...", Qt::AlignBottom | Qt::AlignHCenter, Qt::white);
+    QVERIFY(!callbackRan);
+    QCoreApplication::processEvents();
+    QVERIFY(callbackRan);
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()
