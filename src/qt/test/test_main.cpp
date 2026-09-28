@@ -8,6 +8,7 @@
 
 #include "chainparams.h"
 #include "key.h"
+#include "guitheme.h"
 #include "rpcnestedtests.h"
 #include "util.h"
 #include "uritests.h"
@@ -43,6 +44,7 @@ int main(int argc, char *argv[])
 
     QApplication app(argc, argv);
     Q_INIT_RESOURCE(bitcoin);
+    GUIUtil::loadBrandFonts();
     app.setApplicationName("Firo-Qt-test");
     app.setOrganizationName("FiroTest");
     QTemporaryDir settingsDirectory;

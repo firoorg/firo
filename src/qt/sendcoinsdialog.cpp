@@ -169,9 +169,9 @@ void SendCoinsDialog::applyTheme()
     ui->frameCoinControl->setStyleSheet(cardStyle);
 
     ui->labelFeeHeadline->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 13px; font-weight: 700; }")));
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     ui->labelFeeMinimized->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-family: monospace; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; }")));
 
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("5px 14px"));
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("5px 14px"));
@@ -188,21 +188,21 @@ void SendCoinsDialog::applyTheme()
     ui->balancePill->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#balancePill { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
         "QFrame#balancePill QLabel { background: transparent; border: none; }"
-        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
+        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-weight: 700; }"
         "QFrame#balancePill QLabel#labelBalance { color: $INK; font-weight: 700; }")));
 
     ui->labelCoinControlFeatures->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 13px; font-weight: 700; }")));
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     ui->pushButtonCoinControl->setStyleSheet(secondaryButtonStyle);
     ui->labelCoinControlAutomaticallySelected->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
-        " padding: 4px 10px; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
+        " padding: 4px 10px; color: $INK_SOFT; font-weight: 700; }")));
     ui->labelCoinControlInsuffFunds->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
 
     // Include the caption/value gap in the size hint used by QFormLayout's wrapping.
     const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; padding-right: 10px; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; padding-right: 10px; }"
         "QLabel:disabled { color: $INK_FAINT; }"));
     const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }"
@@ -222,7 +222,7 @@ void SendCoinsDialog::applyTheme()
     }
 
     ui->checkBoxCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QCheckBox { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }"
+        "QCheckBox { background: transparent; color: $INK_SOFT; font-weight: 700; }"
         "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_$ASSET_THEME); }"
         "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_$ASSET_THEME); }")));
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
@@ -635,8 +635,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
             amount.append("</b>");
-            // generate monospace address string
-            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            QString address = "<span>" + rcp.address;
             address.append("</span>");
             QString recipientElement;
             {
@@ -658,8 +657,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
             amount.append("</b>");
-            // generate monospace address string
-            QString address = "<span style='font-family: monospace;'>" + rcp.address;
+            QString address = "<span>" + rcp.address;
             address.append("</span>");
 
             QString recipientElement;
@@ -680,7 +678,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     if (fGoThroughTransparentAddress) {
-        QString transparentAddress = "<span style='font-family: monospace;'>" + recipients[recipients.size()-1].address + "</span>";
+        QString transparentAddress = "<span>" + recipients[recipients.size()-1].address + "</span>";
         formatted.append("<br />");
         formatted.append(tr("EX-addresses can only receive FIRO from transparent addresses.<br /><br />"
             "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(transparentAddress));
@@ -739,7 +737,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     if(txFee > 0)
     {
         // append fee string if a fee is required
-        questionString.append("<hr /><span style='font-weight:600;'>");
+        questionString.append("<hr /><span style='font-weight: 700;'>");
         questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
         questionString.append("</span> ");
         questionString.append(tr("added as transaction fee"));
@@ -749,7 +747,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         if (fGoThroughTransparentAddress) {
             QString feeString;
-            feeString.append("<span style='font-weight:600;'>");
+            feeString.append("<span style='font-weight: 700;'>");
             feeString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
             feeString.append("</span>");
             
@@ -792,7 +790,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
     questionString.append(tr("Total Amount %1")
         .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
-    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
+    questionString.append(QString("<span style='font-weight:normal;'><br />(=%2)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
     SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
@@ -1613,77 +1611,4 @@ void SendConfirmationDialog::updateYesButton()
         yesButton->setEnabled(true);
         yesButton->setText(tr("Yes"));
     }
-}
-
-void SendCoinsDialog::resizeEvent(QResizeEvent* event) {
-    QWidget::resizeEvent(event);
-
-    // Retrieve new dimensions from the resize event
-    const int newWidth = event->size().width();
-    const int newHeight = event->size().height();
-
-    // Dynamically adjust text sizes based on the new dimensions
-    adjustTextSize(newWidth, newHeight);
-}
-
-void SendCoinsDialog::adjustTextSize(int width, int height) {
-    const double fontSizeScalingFactor = 131.3;
-    int baseFontSize = width / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
-
-    QFont font =  ui->labelBalance->font();
-    font.setPointSize(fontSize);
-
-    QFont textFont = font;
-    textFont.setBold(true);
-
-    // Set font size for all labels
-    ui->labelBalance->setFont(font);
-    ui->lineEditCoinControlChange->setFont(font);
-    ui->labelFeeEstimation->setFont(font);
-    ui->labelFeeHeadline->setFont(font);
-    ui->labelCoinControlFeatures->setFont(textFont);
-    ui->labelCoinControlAutomaticallySelected->setFont(font);
-    ui->labelCoinControlInsuffFunds->setFont(font);
-    ui->labelCoinControlQuantity->setFont(font);
-    ui->labelCoinControlBytes->setFont(font);
-    ui->labelCoinControlAmount->setFont(font);
-    ui->labelCoinControlLowOutput->setFont(font);
-    ui->labelCoinControlFee->setFont(font);
-    ui->labelCoinControlAfterFee->setFont(font);
-    ui->labelCoinControlChange->setFont(font);
-    ui->labelFeeMinimized->setFont(font);
-    ui->labelBalance->setFont(font);
-    ui->radioSmartFee->setFont(font);
-    ui->radioCustomPerKilobyte->setFont(font);
-    ui->radioCustomFee->setFont(font);
-    ui->radioCustomAtLeast->setFont(font);
-    ui->labelBalanceText->setFont(font);
-    ui->labelFeeEstimation->setFont(font);
-    ui->labelSmartFee->setFont(font);
-    ui->labelSmartFee2->setFont(font);
-    ui->labelSmartFee3->setFont(font);
-    ui->labelSmartFeeNormal->setFont(font);
-    ui->labelSmartFeeFast->setFont(font);
-    ui->labelCoinControlQuantityText->setFont(font);
-    ui->labelCoinControlBytesText->setFont(font);
-    ui->labelCoinControlAmountText->setFont(font);
-    ui->labelCoinControlLowOutputText->setFont(font);
-    ui->labelCoinControlFeeText->setFont(font);
-    ui->labelCoinControlAfterFeeText->setFont(font);
-    ui->labelCoinControlChangeText->setFont(font);
-    ui->labelCoinControlChangeLabel->setFont(font);
-    ui->labelMinFeeWarning->setFont(font);
-    ui->fallbackFeeWarningLabel->setFont(font);
-    ui->checkBoxMinimumFee->setFont(font);
-    ui->checkBoxCoinControlChange->setFont(font);
-    ui->confirmationTargetLabel->setFont(font);
-
-
-    // Adjust font for all buttons 
-    ui->sendButton->setFont(font);
-    ui->clearButton->setFont(font);
-    ui->addButton->setFont(font);
-    ui->pushButtonCoinControl->setFont(font);
-    ui->customFee->setFont(font);
 }

@@ -477,15 +477,6 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             }
         }
     }
-    else if (role == Qt::FontRole)
-    {
-        QFont font;
-        if(index.column() == Address)
-        {
-            font = GUIUtil::fixedPitchFont();
-        }
-        return font;
-    }
     else if (role == TypeRole)
     {
         switch(rec->type)
@@ -927,15 +918,6 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
             case ColumnIndex::Pcode:
                 return QString::fromStdString(pcodeData[row].first);
         }
-    }
-    else if (role == Qt::FontRole)
-    {
-        QFont font;
-        if(ColumnIndex(index.column()) == ColumnIndex::Pcode)
-        {
-            font = GUIUtil::fixedPitchFont();
-        }
-        return font;
     }
     return QVariant();
 }

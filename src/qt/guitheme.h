@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_GUITHEME_H
 #define BITCOIN_QT_GUITHEME_H
 
+#include <QFont>
 #include <QObject>
 #include <QString>
 
@@ -20,6 +21,12 @@ QT_END_NAMESPACE
 
 namespace GUIUtil
 {
+    enum class TextStyle { Body, Heading1, Heading2, Heading3 };
+
+    // Brand sizes are logical pixels; Qt scales fonts and widget geometry together.
+    QFont brandFont(TextStyle style = TextStyle::Body);
+    void loadBrandFonts();
+
     enum class ThemeMode {
         Light,
         Dark

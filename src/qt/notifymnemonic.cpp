@@ -35,7 +35,7 @@ void NotifyMnemonic::applyTheme()
         QWizard#NotifyMnemonic { background: $BG; }
         QWizard#NotifyMnemonic QWizardPage { background: $BG; }
         QWizard#NotifyMnemonic QLabel { background: transparent; color: $INK; }
-        QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_SOFT; font-size: 12px; font-weight: 700; }
+        QWizard#NotifyMnemonic QLabel#textLabel4 { color: $INK_SOFT; font-weight: 700; }
         QWizard#NotifyMnemonic QLabel#errorMessage { color: $ERROR; font-weight: 700; }
         QWizard#NotifyMnemonic QFrame#mnemonicBox {
             background: $WINE_TINT;
@@ -53,10 +53,6 @@ void NotifyMnemonic::applyTheme()
             color: $INK;
         }
     )")));
-
-    QFont mnemonicFont = GUIUtil::fixedPitchFont();
-    mnemonicFont.setPixelSize(13);
-    ui->mnemonic->setFont(mnemonicFont);
 
     if (QAbstractButton* nextButton = QWizard::button(QWizard::NextButton))
         nextButton->setStyleSheet(GUIUtil::primaryButtonStyle());

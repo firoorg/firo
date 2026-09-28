@@ -82,7 +82,6 @@ private:
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
     RecentRequestsFilterProxy *recentRequestsProxyModel;
-    void adjustTextSize(int width,int height);
     QWidget *requestsEmptyState;
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};

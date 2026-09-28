@@ -39,7 +39,7 @@ void ExportViewKeyDialog::applyTheme()
     ui->key->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTextEdit {"
         " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
-        " padding: 10px 12px; color: $INK; font-family: monospace; font-size: 12px;"
+        " padding: 10px 12px; color: $INK; font-family: monospace;"
         "}")));
 }
 

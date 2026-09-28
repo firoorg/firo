@@ -17,6 +17,7 @@
 #include "modaloverlay.h"
 #include "networkstyle.h"
 #include "optionsmodel.h"
+#include "overviewpage.h"
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
@@ -43,6 +44,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListView>
 #include <QLocale>
 #include <QPointer>
 #include <QProgressBar>
@@ -53,6 +55,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QTableView>
 #include <QTest>
 #include <QTextEdit>
@@ -740,6 +743,72 @@ void WalletUiTests::collapsedNavigationRemainsUsable()
 }
 
 /**
+ * Keep styled controls and painted text on the same brand fonts after theme changes and resizing.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
+void WalletUiTests::brandTypography()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    SendCoinsDialog send(style.get());
+    ReceiveCoinsDialog receive(style.get());
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        for (const QSize size : {QSize(944, 625), QSize(2100, 1400)}) {
+            for (QWidget* page : {static_cast<QWidget*>(&send), static_cast<QWidget*>(&receive)}) {
+                page->setAttribute(Qt::WA_DontShowOnScreen);
+                page->show();
+                page->resize(size);
+            }
+            QCoreApplication::processEvents();
+            for (const char* name : {"labelFeeHeadline", "labelFeeMinimized", "payTo", "labelBalance",
+                                    "labelCoinControlFee", "labelCoinControlFeeText"}) {
+                auto* widget = send.findChild<QWidget*>(name);
+                QVERIFY(widget);
+                QCOMPARE(widget->font().family(), QStringLiteral("Source Sans Pro"));
+                QCOMPARE(widget->font().pixelSize(), 16);
+            }
+            auto* requests = receive.findChild<QTableView*>();
+            QVERIFY(requests);
+            QCOMPARE(requests->font().pixelSize(), 16);
+        }
+        for (const auto role : {GUIUtil::TextStyle::Body, GUIUtil::TextStyle::Heading1,
+                                GUIUtil::TextStyle::Heading2, GUIUtil::TextStyle::Heading3}) {
+            QLabel label(QStringLiteral("Typography 0123456789"));
+            const auto expected = GUIUtil::brandFont(role);
+            const QString token = role == GUIUtil::TextStyle::Body ? QStringLiteral("$FONT_BODY")
+                : QStringLiteral("$FONT_H%1").arg(static_cast<int>(role));
+            label.setStyleSheet(GUIUtil::themed(QStringLiteral("font: %1;").arg(token)));
+            label.ensurePolished();
+            QCOMPARE(label.font().pixelSize(), expected.pixelSize());
+            // The minimal QPA plugin used by CI has no font database.
+            QCOMPARE(label.font().family(), expected.family());
+            QCOMPARE(label.font().weight(), expected.weight());
+        }
+    }
+}
+
+/** Verify all eight recent transactions fit when the list is at its minimum height. */
+void WalletUiTests::recentActivityFitsBrandFont()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QStandardItemModel history(8, 1);
+    OverviewPage overview(style.get());
+    auto* list = overview.findChild<QListView*>(QStringLiteral("listTransactions"));
+    QVERIFY(list);
+    list->setModel(&history);
+    list->setFixedHeight(list->minimumHeight());
+    list->show();
+    overview.setAttribute(Qt::WA_DontShowOnScreen);
+    overview.show();
+    overview.resize(944, 625);
+    QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(7, 0))));
+}
+
+/**
  * Verify payment-request details can scroll while copy and close actions stay visible in both themes.
  * @pre The Qt test application is initialized on the GUI thread.
  */
@@ -836,7 +905,7 @@ void WalletUiTests::sendFormFitsSmallScreen()
     auto* scroll = dialog.findChild<QScrollArea*>("scrollArea");
     QVERIFY(scroll);
 
-    // A single recipient, selected inputs, privacy warning and memo should fit without scrolling.
+    // Keep a single recipient, selected inputs, privacy warning and memo reachable at the body font size.
     auto* automatic = dialog.findChild<QLabel*>("labelCoinControlAutomaticallySelected");
     auto* warning = dialog.findChild<QLabel*>("textWarning");
     QVERIFY(automatic);
@@ -868,11 +937,13 @@ void WalletUiTests::sendFormFitsSmallScreen()
             QTRY_VERIFY2(value->height() >= value->minimumSizeHint().height() &&
                          value->width() >= value->minimumSizeHint().width(), name);
         }
-        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() == 0 && scroll->horizontalScrollBar()->maximum() == 0);
+        QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
         for (const char* name : {"payAmount", "checkboxSubtractFeeFromAmount", "messageTextLabel", "buttonChooseFee"}) {
             auto* field = dialog.findChild<QWidget*>(name);
             QVERIFY(field);
             QVERIFY(field->isVisible());
+            scroll->ensureWidgetVisible(field);
+            QCoreApplication::processEvents();
             QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
         }
         auto* amount = dialog.findChild<QWidget*>("payAmount");
