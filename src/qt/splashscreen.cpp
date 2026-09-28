@@ -24,7 +24,6 @@
 #include <QEasingCurve>
 #include <QFont>
 #include <QFontMetrics>
-#include <QHelpEvent>
 #include <QIcon>
 #include <QMouseEvent>
 #include <QPainter>
@@ -33,7 +32,7 @@
 #include <QStyle>
 #include <QThread>
 #include <QTimer>
-#include <QToolTip>
+#include <QToolButton>
 #include <QWindow>
 
 namespace
@@ -68,11 +67,20 @@ QFont SplashFont(int pixelSize, bool bold = false)
 } // namespace
 
 SplashScreen::SplashScreen(const NetworkStyle *networkStyle) :
-    animationTimer(new QTimer(this))
+    animationTimer(new QTimer(this)),
+    closeButton(new QToolButton(this))
 {
     setWindowTitle(QStringLiteral("%1 %2").arg(tr(PACKAGE_NAME), networkStyle->getTitleAddText()).trimmed());
-    setMouseTracking(true);
     setPixmap(renderArtwork(networkStyle));
+
+    closeButton->setGeometry(QStyle::visualRect(layoutDirection(), rect(), CLOSE_BUTTON));
+    closeButton->setIcon(QIcon(GUIUtil::themedStatusIconPixmap(style()->standardIcon(QStyle::SP_TitleBarCloseButton), closeButton->iconSize())));
+    closeButton->setAutoRaise(true);
+    closeButton->setCursor(Qt::PointingHandCursor);
+    closeButton->setToolTip(tr("Quit application"));
+    closeButton->setAccessibleName(closeButton->toolTip());
+    closeButton->setFocusPolicy(Qt::StrongFocus);
+    connect(closeButton, &QToolButton::clicked, this, &SplashScreen::requestShutdown);
 
     animationTimer->setInterval(ANIMATION_INTERVAL_MS);
     connect(animationTimer, &QTimer::timeout, this, [this] { update(PROGRESS_TRACK.adjusted(-1, -1, 1, 1)); });
@@ -193,37 +201,7 @@ void SplashScreen::drawContents(QPainter *painter)
     painter->fillPath(fill, QColor(colors.wine));
     painter->setClipping(false);
 
-    if (!shutdownRequested) {
-        const QRectF button(closeButtonRect());
-        if (closeHovered) {
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(colors.panelSoft));
-            painter->drawEllipse(button);
-        }
-        painter->setPen(QPen(QColor(closeHovered ? colors.ink : colors.inkFaint), 1.5, Qt::SolidLine, Qt::RoundCap));
-        const QPointF center = button.center();
-        painter->drawLine(center + QPointF(-5, -5), center + QPointF(5, 5));
-        painter->drawLine(center + QPointF(-5, 5), center + QPointF(5, -5));
-    }
-
     painter->restore();
-}
-
-QRect SplashScreen::closeButtonRect() const
-{
-    return QStyle::visualRect(layoutDirection(), rect(), CLOSE_BUTTON);
-}
-
-void SplashScreen::setCloseHovered(bool hovered)
-{
-    if (hovered == closeHovered)
-        return;
-    closeHovered = hovered;
-    if (hovered)
-        setCursor(Qt::PointingHandCursor);
-    else
-        unsetCursor();
-    update(closeButtonRect());
 }
 
 void SplashScreen::showStatus(const QString &text)
@@ -266,7 +244,7 @@ void SplashScreen::requestShutdown()
     shutdownRequested = true;
     statusText = tr("Shutting down...");
     progress = -1;
-    setCloseHovered(false);
+    closeButton->hide();
     update();
     updateAnimation();
 }
@@ -335,19 +313,6 @@ void SplashScreen::unsubscribeFromCoreSignals()
 #endif
 }
 
-bool SplashScreen::event(QEvent *event)
-{
-    if (event->type() == QEvent::ToolTip) {
-        const QHelpEvent *help = static_cast<QHelpEvent*>(event);
-        if (!shutdownRequested && closeButtonRect().contains(help->pos()))
-            QToolTip::showText(help->globalPos(), tr("Quit application"), this, closeButtonRect());
-        else
-            QToolTip::hideText();
-        return true;
-    }
-    return QSplashScreen::event(event);
-}
-
 void SplashScreen::closeEvent(QCloseEvent *event)
 {
     requestShutdown(); // allows an "emergency" shutdown during startup
@@ -356,26 +321,9 @@ void SplashScreen::closeEvent(QCloseEvent *event)
 
 void SplashScreen::mousePressEvent(QMouseEvent *event)
 {
-    // Unlike QSplashScreen, don't hide on click: the close button shuts down,
-    // the rest of the (frameless) window moves it
-    if (event->button() != Qt::LeftButton)
-        return;
-    if (!shutdownRequested && closeButtonRect().contains(event->position().toPoint()))
-        requestShutdown();
-    else if (windowHandle())
+    // Unlike QSplashScreen, don't hide on click; drag the frameless window.
+    if (event->button() == Qt::LeftButton && windowHandle())
         windowHandle()->startSystemMove();
-}
-
-void SplashScreen::mouseMoveEvent(QMouseEvent *event)
-{
-    setCloseHovered(!shutdownRequested && closeButtonRect().contains(event->position().toPoint()));
-    QSplashScreen::mouseMoveEvent(event);
-}
-
-void SplashScreen::leaveEvent(QEvent *event)
-{
-    setCloseHovered(false);
-    QSplashScreen::leaveEvent(event);
 }
 
 void SplashScreen::showEvent(QShowEvent *event)

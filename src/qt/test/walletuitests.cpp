@@ -254,6 +254,21 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
     QCOMPARE(splash->paints, paintsBeforeProgress);
     QCoreApplication::processEvents();
     QVERIFY(splash->paints > paintsBeforeProgress);
+
+    auto* timer = splash->findChild<QTimer*>();
+    QVERIFY(timer);
+    QVERIFY(timer->isActive());
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(!timer->isActive());
+    splash->showProgress("", 100);
+    QVERIFY(timer->isActive());
+    splash->hide();
+    QVERIFY(!timer->isActive());
+
+    auto* closeButton = splash->findChild<QToolButton*>();
+    QVERIFY(closeButton);
+    QVERIFY(!closeButton->accessibleName().isEmpty());
+    QCOMPARE(closeButton->focusPolicy(), Qt::StrongFocus);
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()
