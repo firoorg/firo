@@ -244,6 +244,44 @@ BOOST_AUTO_TEST_CASE(compactsize)
     }
 }
 
+BOOST_AUTO_TEST_CASE(vector_count_does_not_preallocate)
+{
+    CDataStream truncated(SER_NETWORK, PROTOCOL_VERSION);
+    WriteCompactSize(truncated, MAX_SIZE);
+    std::vector<uint64_t> values;
+    BOOST_CHECK_THROW(truncated >> values, std::ios_base::failure);
+    BOOST_CHECK(values.capacity() < 1024U);
+
+    CDataStream truncated_bytes(SER_NETWORK, PROTOCOL_VERSION);
+    WriteCompactSize(truncated_bytes, MAX_SIZE);
+    std::vector<unsigned char> bytes;
+    BOOST_CHECK_THROW(truncated_bytes >> bytes, std::ios_base::failure);
+    BOOST_CHECK(bytes.capacity() < 65536U);
+
+    CDataStream truncated_script(SER_NETWORK, PROTOCOL_VERSION);
+    WriteCompactSize(truncated_script, MAX_SIZE);
+    prevector<28, unsigned char> script;
+    BOOST_CHECK_THROW(truncated_script >> script, std::ios_base::failure);
+    BOOST_CHECK(script.capacity() <= 4096U);
+
+    CDataStream valid(SER_NETWORK, PROTOCOL_VERSION);
+    valid << std::vector<uint64_t>{1, 2};
+    valid >> values;
+    BOOST_CHECK(values == (std::vector<uint64_t>{1, 2}));
+
+    std::vector<unsigned char> payload(5000, 0x5a);
+    CDataStream valid_bytes(SER_NETWORK, PROTOCOL_VERSION);
+    valid_bytes << payload;
+    valid_bytes >> bytes;
+    BOOST_CHECK(bytes == payload);
+
+    prevector<28, unsigned char> expected_script(payload.begin(), payload.end());
+    CDataStream valid_script(SER_NETWORK, PROTOCOL_VERSION);
+    valid_script << expected_script;
+    valid_script >> script;
+    BOOST_CHECK(script == expected_script);
+}
+
 static bool isCanonicalException(const std::ios_base::failure& ex)
 {
     std::ios_base::failure expectedException("non-canonical ReadCompactSize()");
