@@ -8,6 +8,7 @@
 #include "../validation.h"
 #include "../policy/policy.h"
 #include "../script/sign.h"
+#include "../script/standard.h"
 #include "state.h"
 #include "../libspark/spats/spend_transaction.h"
 #include "sparkname.h"
@@ -1853,12 +1854,13 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
     if (!assetData.Verify())
         throw std::runtime_error(_("Invalid spark asset data"));
 
-    if (!assetData.isValidSparkAddress())
-        throw std::runtime_error(_("Invalid spark address"));
-
-    if (!isAddressMine(assetData.getAdminPublicAddress()))
-        throw std::runtime_error(_("Spark asset public address is not mine"));
-
+    bool isTransparent = false;
+    if (assetData.isValidRegularAddress())
+		isTransparent = true;
+	else if (assetData.isValidSparkAddress())
+        isTransparent = false;
+    else
+        throw std::runtime_error(_("Invalid admin public address"));
 
     const auto &consensusParams = Params().GetConsensus();
     int nHeight;
@@ -1874,37 +1876,94 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
 
     std::string payoutAddress = consensusParams.stage3CommunityFundAddress;
     CAmount sparkAssetFee = consensusParams.nSparkNamesFee[assetData.getSymbol().size()] * COIN;
-    if (assetData.getOperationType() == (uint8_t)spark::CSparkAssetTxData::opRegister) {
+    if (assetData.isRegister()) {
         if (!sparkState->GetAssetState().CanRegister(assetData))
             throw std::runtime_error(_("Unable to register, state conflict"));
+
     }
-    if (assetData.getOperationType() == (uint8_t)spark::CSparkAssetTxData::opModify) {
+
+    if (assetData.isModify()) {
         if (!sparkState->GetAssetState().CanModify(assetData))
             throw std::runtime_error(_("Unable to modify, state conflict"));
     }
+
+    if (assetData.isTransfer()) {
+        if (!sparkState->GetAssetState().CanTransfer(assetData))
+            throw std::runtime_error(_("Unable to transfer, state conflict"));
+    }
+
 
     CRecipient devPayout;
     devPayout.nAmount = sparkAssetFee;
     devPayout.scriptPubKey = GetScriptForDestination(CBitcoinAddress(payoutAddress).Get());
     devPayout.fSubtractFeeFromAmount = false;
 
-    const size_t assetPayloadSize = GetSerializeSize(assetData, SER_NETWORK, PROTOCOL_VERSION)
+
+
+    CWalletTx wtx;
+
+    if (!isTransparent) {
+    	if (!isAddressMine(assetData.getAdminPublicAddress()))
+   			throw std::runtime_error(_("Spark asset public address is not mine"));
+
+        Scalar m = spark::GetSpatsRegistreM(assetData);
+    	spark::OwnershipProof ownershipProof;
+    	spark::SpendKey spendKey = ensureSpendKey();
+    	assetData.getAdminSparkAddress().prove_own(m, spendKey, viewKey, ownershipProof);
+    	assetData.setOwnershipProof(ownershipProof);
+
+        const size_t assetPayloadSize = GetSerializeSize(assetData, SER_NETWORK, PROTOCOL_VERSION)
         + 20 /* add a little bit to the fee to be on the safe side */;
-    CWalletTx wtxSparkSpend = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, {}, coinConrol, assetPayloadSize, getSpatsCreateExtraHash(assetData));
+    	wtx = CreateSparkSpendTransaction({devPayout}, {}, {}, txFee, {}, coinConrol, assetPayloadSize, getSpatsCreateExtraHash(assetData));
 
+    	CMutableTransaction tx = CMutableTransaction(*wtx.tx);
+    	CDataStream serializedAsset(SER_NETWORK, PROTOCOL_VERSION);
+    	serializedAsset << assetData;
+   	 	tx.vExtraPayload.insert(tx.vExtraPayload.end(), serializedAsset.begin(), serializedAsset.end());
+    	wtx.tx = MakeTransactionRef(std::move(tx));
+	} else {
+        CBitcoinAddress address(assetData.getAdminBitcoinAddress());
+        const CTxDestination adminDest = address.Get();
+        if (!(::IsMine(*pwalletMain, adminDest) & ISMINE_SPENDABLE))
+            throw std::runtime_error(_("Transparent asset public address is not mine"));
 
-    Scalar m = spark::GetSpatsRegistreM(assetData);
-    spark::OwnershipProof ownershipProof;
-     spark::SpendKey spendKey = ensureSpendKey();
-    assetData.getAdminSparkAddress().prove_own(m, spendKey, viewKey, ownershipProof);
-    assetData.setOwnershipProof(ownershipProof);
+        CCoinControl control;
+        if (coinConrol)
+            control = *coinConrol;
+        control.fAllowOtherInputs = true;
 
-    CMutableTransaction tx = CMutableTransaction(*wtxSparkSpend.tx);
-    CDataStream serializedAsset(SER_NETWORK, PROTOCOL_VERSION);
-    serializedAsset << assetData;
-    tx.vExtraPayload.insert(tx.vExtraPayload.end(), serializedAsset.begin(), serializedAsset.end());
-    wtxSparkSpend.tx = MakeTransactionRef(std::move(tx));
-    return wtxSparkSpend;
+        bool foundAdminInput = false;
+        {
+            LOCK2(cs_main, pwalletMain->cs_wallet);
+            std::vector<COutput> coins;
+            pwalletMain->AvailableCoins(coins, true, &control);
+            for (const COutput& out : coins) {
+                if (!out.fSpendable)
+                    continue;
+                CTxDestination dest;
+                if (!ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, dest))
+                    continue;
+                if (dest != adminDest)
+                    continue;
+                control.Select(COutPoint(out.tx->GetHash(), out.i));
+                foundAdminInput = true;
+                break;
+            }
+        }
+        if (!foundAdminInput)
+            throw std::runtime_error(_("Transparent asset public address has no available output"));
+
+        std::vector<uint8_t> vExtraPayload;
+        CDataStream serializedAsset(SER_NETWORK, PROTOCOL_VERSION);
+    	serializedAsset << assetData;
+   	 	vExtraPayload.insert(vExtraPayload.end(), serializedAsset.begin(), serializedAsset.end());
+        CReserveKey reservekey(pwalletMain);
+        std::string strFailReason;
+        int nChangePosInOut = -1;
+		if (!pwalletMain->CreateTransaction({devPayout}, wtx, reservekey, txFee, nChangePosInOut, strFailReason, &control, true, static_cast<int>(vExtraPayload.size()), false, vExtraPayload))
+        	throw std::runtime_error(strFailReason);
+	}
+    return wtx;
 }
 
 template<typename Iterator>
@@ -2140,3 +2199,12 @@ std::list<CSparkMintMeta> CSparkWallet::GetAvailableSparkCoins(const std::pair<S
 
     return coins;
 }
+
+uint64_t CSparkWallet::GetNFTIdentifier(const std::string& symbol) const {
+    return spark::CSparkState::GetState()->GetAssetState().NextNFTIdentifier(symbol);
+}
+
+bool CSparkWallet::NFTIdentifierExists(const std::string& symbol , const std::uint64_t& identifier) const {
+    return spark::CSparkState::GetState()->GetAssetState().HasNFTIdentifier(symbol, identifier);
+}
+

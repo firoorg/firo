@@ -31,6 +31,7 @@
 #include "bip47/account.h"
 #include "wallet/coincontrol.h"
 #include "rpcdump.h"
+#include "spark/assetstate.h"
 
 #include <stdint.h>
 
@@ -3841,32 +3842,97 @@ UniValue createsparkasset(const JSONRPCRequest& request) {
         return NullUniValue;
     }
 
-    if (request.fHelp || request.params.size() != 2)
+    if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "createsparkasset"
             + HelpRequiringPassphrase(pwallet) + "\n"
-                                                 "\nArguments:\n"
-                                                 " \"symbol\"   (string)\n"
-                                                 " \"memo\"   (string) memo\n"
-                                                 " \"amount\"   (numeric) amount to mint\n"
-                                                 " \"a\"   (numeric)\n"
-                                                 " \"iota\"   (numeric)\n"
-                                                 "\nResult:\n"
-                                                 "\"txid\" (string) The transaction id for the send. Only 1 transaction is created.\n"
-                                                "\nExamples:\n"
-                                                "\nSend two amounts to two different spark addresses:\n"
-            + HelpExampleCli("createsparkasset", "\"\\\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\\\":{\\\"amount\\\":0.01, \\\"a\\\":1,\\\"iota\\\":1,\\\"memo\\\":\\\"test_memo\\\"}\"")
-            + HelpExampleRpc("createsparkasset", "\"\"sr1xtw3yd6v4ghgz873exv2r5nzfwryufxjzzz4xr48gl4jmh7fxml4568xr0nsdd7s4l5as2h50gakzjqrqpm7yrecne8ut8ylxzygj8klttsgm37tna4jk06acl2azph0dq4yxdqqgwa60\":{\"amount\":1, \\\"a\\\":1,\\\"iota\\\":1,}\"")
+            "\nRegister a Spark asset.\n"
+            "\nArguments:\n"
+            "1. asset                 (object, required)\n"
+            "   {\n"
+            "     \"symbol\": \"xxx\",       (string, required) ASCII letters only\n"
+            "     \"name\": \"xxx\",         (string, required)\n"
+            "     \"maxSupply\": n,          (numeric, required) raw units; 0 = no cap\n"
+            "     \"adminAddress\": \"xxx\", (string, optional) Spark or transparent admin; default is the wallet Spark address\n"
+            "     \"description\": \"xxx\",  (string, optional)\n"
+            "     \"metadata\": \"xxx\",     (string, optional)\n"
+            "     \"precision\": n,          (numeric, optional, default 8, maximum 8)\n"
+            "     \"isNFT\": true|false,     (boolean, optional, default false)\n"
+            "     \"identifier\": n          (numeric, optional) NFT id; only valid when isNFT is true\n"
+            "   }\n"
+            "\nResult:\n"
+            "\"txid\"                      (string) transaction id\n"
+            "\nExamples:\n"
+            + HelpExampleCli("createsparkasset", "'{\"symbol\":\"FIROX\",\"name\":\"Example\",\"maxSupply\":1000000}'")
+            + HelpExampleRpc("createsparkasset", "{\"symbol\":\"FIROX\",\"name\":\"Example\",\"maxSupply\":1000000}")
         );
     EnsureWalletIsUnlocked(pwallet);
     EnsureSparkWalletIsAvailable();
 
+    UniValue arguments = request.params[0].get_obj();
+    if (!arguments.exists("symbol"))
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("symbol is a required argument"));
+    std::string symbol = arguments["symbol"].get_str();
+    if (!arguments.exists("name"))
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("name is a required argument"));
+
+    unsigned char network = spark::GetNetworkType();
+    std::string adminAddress = pwallet->sparkWallet->getDefaultAddress().encode(network);
+    if (arguments.exists("adminAddress"))
+		adminAddress = arguments["adminAddress"].get_str();
+    bool isNFT = false;
+    if (arguments.exists("isNFT"))
+        isNFT = arguments["isNFT"].get_bool();
+
+    std::uint64_t identifier = 0;
+    if (isNFT) {
+    	if (arguments.exists("identifier")) {
+        	identifier = arguments["identifier"].get_uint64();
+            if (pwallet->sparkWallet->NFTIdentifierExists(symbol, identifier))
+                throw JSONRPCError(RPC_WALLET_ERROR, strprintf("identifier already exists"));
+    	} else {
+            identifier = pwallet->sparkWallet->GetNFTIdentifier(symbol);
+    	}
+    } else {
+        if (arguments.exists("identifier")) {
+        	throw JSONRPCError(RPC_WALLET_ERROR, strprintf("identifier is needed only for NFTs"));
+        }
+    }
+
     spark::CSparkAssetTxData assetData;
-    CAmount txFee;
-
+    assetData.setSymbol(symbol);
+    assetData.setName(arguments["name"].get_str());
+    assetData.setAdminPublicAddress(adminAddress);
     assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opRegister);
+    assetData.setIdentifier(identifier);
+    if (isNFT)
+        assetData.setAssetKind(spark::AssetKind::NonFungible);
+
+    if (arguments.exists("description"))
+		assetData.setDescription(arguments["description"].get_str());
+
+    if (arguments.exists("metadata"))
+		assetData.setMetadata(arguments["metadata"].get_str());
+
+    int precision = 8;
+    if (arguments.exists("precision"))
+        precision = arguments["precision"].get_int();
+    if (precision < 0 || precision > 8)
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("precision could be up to 8"));
+    else
+	    assetData.setPrecision(precision);
+
+    if (arguments.exists("maxSupply"))
+		assetData.setMaxSupply(arguments["maxSupply"].get_uint64());
+    else
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("maxSupply is a required argument"));
+
+    std::string error;
+    if (!assetData.Verify(error))
+        throw JSONRPCError(RPC_WALLET_ERROR, error);
 
 
+    CAmount txFee;
     CWalletTx wtx;
     try {
        wtx = pwallet->CreateAndStoreAsset(assetData, txFee);
@@ -3877,11 +3943,282 @@ UniValue createsparkasset(const JSONRPCRequest& request) {
     return wtx.GetHash().GetHex();
 }
 
-UniValue modifysparkasset(const JSONRPCRequest& request) {
+UniValue modifysparkassetname(const JSONRPCRequest& request) {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
         return NullUniValue;
     }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "modifysparkassetname"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nChange the name of a Spark asset.\n"
+            "\nArguments:\n"
+            "1. asset            (object, required)\n"
+            "   {\n"
+            "     \"symbol\": \"xxx\",  (string, required)\n"
+            "     \"name\": \"xxx\"     (string, required) new name\n"
+            "   }\n"
+            "\nResult:\n"
+            "\"txid\"                 (string) transaction id\n"
+            "\nExamples:\n"
+            + HelpExampleCli("modifysparkassetname", "'{\"symbol\":\"FIROX\",\"name\":\"New name\"}'")
+            + HelpExampleRpc("modifysparkassetname", "{\"symbol\":\"FIROX\",\"name\":\"New name\"}")
+        );
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    UniValue arguments = request.params[0].get_obj();
+    if (!arguments.exists("symbol"))
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("symbol is a required argument"));
+    std::string symbol = arguments["symbol"].get_str();
+
+    spark::CSparkAssetTxData assetData;
+    assetData.setSymbol(symbol);
+    assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opModifyName);
+
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    if (!assetType.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
+
+    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    if (!assetEntry.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
+
+
+
+    if (!arguments.exists("name")) {
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("New name is not provided"));
+    } else
+        assetData.setName(arguments["name"].get_str());
+
+    assetData.setDataFromDBentry(assetEntry.value());
+
+    std::string error;
+    if (!assetData.Verify(error))
+        throw JSONRPCError(RPC_WALLET_ERROR, error);
+
+    CAmount txFee;
+    CWalletTx wtx;
+    try {
+       wtx = pwallet->CreateAndStoreAsset(assetData, txFee);
+    } catch (const std::exception& e) {
+       throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset modify failed: %s", e.what()));
+    }
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue modifysparkassetmetadata(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "modifysparkassetmetadata"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nChange the metadata of a Spark asset.\n"
+            "\nArguments:\n"
+            "1. asset               (object, required)\n"
+            "   {\n"
+            "     \"symbol\": \"xxx\",     (string, required)\n"
+            "     \"metadata\": \"xxx\"    (string, required)\n"
+            "   }\n"
+            "\nResult:\n"
+            "\"txid\"                    (string) transaction id\n"
+            "\nExamples:\n"
+            + HelpExampleCli("modifysparkassetmetadata", "'{\"symbol\":\"FIROX\",\"metadata\":\"{}\"}'")
+            + HelpExampleRpc("modifysparkassetmetadata", "{\"symbol\":\"FIROX\",\"metadata\":\"{}\"}")
+        );
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    UniValue arguments = request.params[0].get_obj();
+    if (!arguments.exists("symbol"))
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("symbol is a required argument"));
+    std::string symbol = arguments["symbol"].get_str();
+
+    spark::CSparkAssetTxData assetData;
+    assetData.setSymbol(symbol);
+    assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opModifyMetadata);
+
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    if (!assetType.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
+
+    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    if (!assetEntry.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
+
+
+
+    if (!arguments.exists("metadata")) {
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Metadata is not provided"));
+    } else
+        assetData.setMetadata(arguments["metadata"].get_str());
+
+    assetData.setDataFromDBentry(assetEntry.value());
+
+    std::string error;
+    if (!assetData.Verify(error))
+        throw JSONRPCError(RPC_WALLET_ERROR, error);
+
+    CAmount txFee;
+    CWalletTx wtx;
+    try {
+       wtx = pwallet->CreateAndStoreAsset(assetData, txFee);
+    } catch (const std::exception& e) {
+       throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset modify failed: %s", e.what()));
+    }
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue modifysparkassetdescription(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "modifysparkassetdescription"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nChange the description of a Spark asset.\n"
+            "\nArguments:\n"
+            "1. asset                  (object, required)\n"
+            "   {\n"
+            "     \"symbol\": \"xxx\",        (string, required)\n"
+            "     \"description\": \"xxx\"    (string, required)\n"
+            "   }\n"
+            "\nResult:\n"
+            "\"txid\"                       (string) transaction id\n"
+            "\nExamples:\n"
+            + HelpExampleCli("modifysparkassetdescription", "'{\"symbol\":\"FIROX\",\"description\":\"Updated\"}'")
+            + HelpExampleRpc("modifysparkassetdescription", "{\"symbol\":\"FIROX\",\"description\":\"Updated\"}")
+        );
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    UniValue arguments = request.params[0].get_obj();
+    if (!arguments.exists("symbol"))
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("symbol is a required argument"));
+    std::string symbol = arguments["symbol"].get_str();
+
+    spark::CSparkAssetTxData assetData;
+    assetData.setSymbol(symbol);
+    assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opModifyDescription);
+
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    if (!assetType.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
+
+    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    if (!assetEntry.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
+
+
+
+    if (!arguments.exists("description")) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Description is not provided");
+    } else
+        assetData.setDescription(arguments["description"].get_str());
+
+    assetData.setDataFromDBentry(assetEntry.value());
+
+    std::string error;
+    if (!assetData.Verify(error))
+        throw JSONRPCError(RPC_WALLET_ERROR, error);
+
+    CAmount txFee;
+    CWalletTx wtx;
+    try {
+       wtx = pwallet->CreateAndStoreAsset(assetData, txFee);
+    } catch (const std::exception& e) {
+       throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset modify failed: %s", e.what()));
+    }
+
+    return wtx.GetHash().GetHex();
+}
+
+UniValue sparkassettransfer(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "sparkassettransfer"
+            + HelpRequiringPassphrase(pwallet) + "\n"
+            "\nTransfer administration of a Spark asset.\n"
+            "\nArguments:\n"
+            "1. asset               (object, required)\n"
+            "   {\n"
+            "     \"symbol\": \"xxx\",     (string, required)\n"
+            "     \"address\": \"xxx\",    (string, required) new admin address\n"
+            "     \"signature\": \"xxx\"   (string, required) receiver ownership proof\n"
+            "   }\n"
+            "\nResult:\n"
+            "\"txid\"                    (string) transaction id\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sparkassettransfer", "'{\"symbol\":\"FIROX\",\"address\":\"aNewAdmin\",\"signature\":\"proof\"}'")
+            + HelpExampleRpc("sparkassettransfer", "{\"symbol\":\"FIROX\",\"address\":\"aNewAdmin\",\"signature\":\"proof\"}")
+        );
+    EnsureWalletIsUnlocked(pwallet);
+    EnsureSparkWalletIsAvailable();
+
+    UniValue arguments = request.params[0].get_obj();
+    if (!arguments.exists("symbol"))
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("symbol is a required argument"));
+    std::string symbol = arguments["symbol"].get_str();
+
+    spark::CSparkAssetTxData assetData;
+    assetData.setSymbol(symbol);
+    assetData.setOperationType(spark::CSparkAssetTxData::OperationType::opTransfer);
+
+    spark::CSparkState *sparkState = spark::CSparkState::GetState();
+    std::optional<std::uint64_t> assetType = sparkState->GetAssetState().GetAssetTypeBySymbol(symbol);
+    if (!assetType.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this symbol does not exist"));
+
+    std::optional<spark::CSparkAssetDBEntry> assetEntry = sparkState->GetAssetState().Get(assetType.value());
+    if (!assetEntry.has_value())
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset by this assetType does not exist"));
+
+
+
+    if (!arguments.exists("address")) {
+        throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Address is not provided"));
+    } else
+        assetData.setTransferAddress(arguments["address"].get_str());
+
+    if (!arguments.exists("signature")) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Receiver signature is not provided");
+    } else
+        assetData.setRecieverProof(arguments["signature"].get_str());
+
+    assetData.setDataFromDBentry(assetEntry.value());
+
+    std::string error;
+    if (!assetData.Verify(error))
+        throw JSONRPCError(RPC_WALLET_ERROR, error);
+
+    CAmount txFee;
+    CWalletTx wtx;
+    try {
+       wtx = pwallet->CreateAndStoreAsset(assetData, txFee);
+    } catch (const std::exception& e) {
+       throw JSONRPCError(RPC_WALLET_ERROR, strprintf("Asset transfer failed: %s", e.what()));
+    }
+
+    return wtx.GetHash().GetHex();
 }
 
 UniValue automintspark(const JSONRPCRequest& request) {
@@ -5621,7 +5958,10 @@ static const CRPCCommand commands[] =
     { "wallet",             "mintspark",              &mintspark,              true,  {} },
     { "wallet",             "mintspats",              &mintspats,              false },
     { "wallet",             "createsparkasset",       &createsparkasset,       false, {} },
-    { "wallet",             "modifysparkasset",       &modifysparkasset,       false, {} },
+    { "wallet",             "modifysparkassetname",   &modifysparkassetname,   false, {} },
+    { "wallet",             "modifysparkassetmetadata", &modifysparkassetmetadata, false, {} },
+    { "wallet",             "modifysparkassetdescription", &modifysparkassetdescription, false, {} },
+    { "wallet",             "sparkassettransfer",     &sparkassettransfer, false, {} },
     { "wallet",             "automintspark",          &automintspark,          false, {} },
     { "wallet",             "spendspark",             &spendspark,             false, {} },
     { "wallet",             "lelantustospark",        &lelantustospark,        false, {} },

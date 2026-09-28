@@ -3921,7 +3921,7 @@ bool CWallet::ConvertList(std::vector <CTxIn> vecTxIn, std::vector <CAmount> &ve
 
 bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
                                 int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, int nExtraPayloadSize, bool fUseInstantSend,
-                                const spark::MintedCoinData* pSpatsMintTransparent)
+                                const std::vector<uint8_t>& vExtraPayload, const spark::MintedCoinData* pSpatsMintTransparent)
 {
     CAmount nFeePay = 0;
 
@@ -3978,6 +3978,13 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
     // nLockTime that preclude a fix later.
 
     txNew.nLockTime = chainActive.Height();
+
+    if (!vExtraPayload.empty()) {
+        // vExtraPayload is serialized and covered by the sighash only for version 3 special transactions.
+        txNew.nVersion = 3;
+        txNew.nType = TRANSACTION_SPARK;
+        txNew.vExtraPayload = vExtraPayload;
+    }
 
     // Secondly occasionally randomly pick a nLockTime even further back, so
     // that transactions that are delayed after signing for whatever reason,
@@ -4171,8 +4178,9 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 
                 unsigned int nBytes = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
 
-                if (nExtraPayloadSize != 0) {
-                    // account for extra payload in fee calculation
+                if (nExtraPayloadSize != 0 && txNew.vExtraPayload.empty()) {
+                    // Payload is not on the tx yet; account for it in the fee.
+                    // When vExtraPayload is already set, GetSerializeSize includes it.
                     nBytes += GetSizeOfCompactSize(nExtraPayloadSize) + nExtraPayloadSize;
                 }
 
@@ -4967,7 +4975,7 @@ CWalletTx CWallet::CreateSpatsMintTransparentTransaction(
     vecSend[0].scriptPubKey = CScript();
     vecSend[0].fSubtractFeeFromAmount = false;
 
-    if (!CreateTransaction(vecSend, wtxNew, reservekey, feeRet, nChangePosInOut, strFailReason, coinControl, true, 0, false, &mintData))
+    if (!CreateTransaction(vecSend, wtxNew, reservekey, feeRet, nChangePosInOut, strFailReason, coinControl, true, 0, false, {}, &mintData))
         throw std::runtime_error(strFailReason);
     return wtxNew;
 }

@@ -995,7 +995,7 @@ public:
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = nullptr, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false,
-                           const spark::MintedCoinData* pSpatsMintTransparent = nullptr);
+                           const std::vector<uint8_t>& vExtraPayload = {} , const spark::MintedCoinData* pSpatsMintTransparent = nullptr);
 
     /** Transparent inputs/outputs plus one OP_SPATSMINT||mint vout (no Spark spend; ECDSA on inputs authorizes the tx). */
     CWalletTx CreateSpatsMintTransparentTransaction(

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,6 +21,8 @@
 namespace spark {
 
 Scalar GetSpatsRegistreM(const CSparkAssetTxData& assetData);
+
+std::string NormalizeSymbol(const std::string& symbol);
 
 /**
  * In-memory registry of Spark asset definitions (payload from asset-registration
@@ -48,6 +51,8 @@ public:
     {
         entries_.clear();
         symbolToAssetType_.clear();
+        isNonFungable.clear();
+        nftIdentifiers_.clear();
         nextAssetType_ = 1;
         circulating_supply_.clear();
     }
@@ -83,6 +88,11 @@ public:
 
     bool CanRegister(const CSparkAssetTxData& assetData) const;
     bool CanModify(const CSparkAssetTxData& assetData) const;
+    bool CanTransfer(const CSparkAssetTxData& assetData) const;
+
+    /** Next unused NFT id for this symbol. 1 when the symbol has no NFT yet. */
+    std::uint64_t NextNFTIdentifier(const std::string& symbol) const;
+    bool HasNFTIdentifier(const std::string& symbol, std::uint64_t identifier) const;
 
 private:
     void RebuildSymbolIndex();
@@ -92,7 +102,9 @@ private:
     /** Normalized symbol (uppercase ASCII) -> asset type id. */
     std::map<std::string, std::uint64_t> symbolToAssetType_;
 
-    std::map<std::uint64_t, bool> isNonFungable;;
+    std::map<std::uint64_t, bool> isNonFungable;
+    /** NFT instance ids already registered for an asset type. */
+    std::map<std::uint64_t, std::set<std::uint64_t>> nftIdentifiers_;
 
     /** Next asset type to assign; must stay strictly greater than all keys in entries_. */
     std::uint64_t nextAssetType_ = 1;

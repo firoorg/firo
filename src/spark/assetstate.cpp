@@ -9,8 +9,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace {
-
+namespace spark {
 /** Uppercase ASCII for symbol uniqueness (tickers are case-insensitive). */
 std::string NormalizeSymbol(const std::string& symbol)
 {
@@ -25,26 +24,26 @@ std::string NormalizeSymbol(const std::string& symbol)
     return out;
 }
 
-} // namespace
-
-namespace spark {
-
 Scalar GetSpatsRegistreM(const CSparkAssetTxData& assetData)
 {
+    // The ownership proof is of this scalar, so the message must not include the proof.
+    CSparkAssetTxData message = assetData;
+    message.setOwnershipProof(OwnershipProof());
     spark::Hash hash("SpatsRegistreM");
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-    serialized << assetData;
+    serialized << message;
     hash.include(serialized);
     return hash.finalize_scalar();
 }
 
 void CAssetState::RebuildSymbolIndex()
 {
-//    symbolToAssetType_.clear();
-//    for (const auto& [assetType, entry] : entries_) {
-//        const std::string norm = NormalizeSymbol(entry.symbol);
-//        symbolToAssetType_[norm] = assetType;
-//    }
+    symbolToAssetType_.clear();
+    for (const auto& [assetType, entries] : entries_) {
+        if (entries.empty())
+            continue;
+        symbolToAssetType_[NormalizeSymbol(entries.front().symbol)] = assetType;
+    }
 }
 
 void CAssetState::EnsureCounterPastMaxKey()
@@ -61,52 +60,93 @@ void CAssetState::EnsureCounterPastMaxKey()
         nextAssetType_ = 1;
 }
 
+namespace {
+
+std::optional<std::uint64_t> FindAssetByRegisteringTxid(
+    const std::map<std::uint64_t, std::vector<CSparkAssetDBEntry>>& entries,
+    const uint256& registeringTxid)
+{
+    for (const auto& [assetType, list] : entries) {
+        if (!list.empty() && list.front().registeringTxid == registeringTxid)
+            return assetType;
+    }
+    return std::nullopt;
+}
+
+bool AdminMatches(const CSparkAssetDBEntry& entry, const CSparkAssetTxData& assetData)
+{
+    return entry.adminPublicAddress == assetData.getAdminPublicAddress();
+}
+
+} // namespace
+
 std::optional<std::uint64_t> CAssetState::Put(
     CSparkAssetTxData data,
     const uint256& registeringTxid,
     int nHeight)
 {
-    //TODO levon
-//    const std::string normSym = NormalizeSymbol(data.getSymbol());
-//
-//    for (const auto& [assetType, entry] : entries_) {
-//        if (entry.registeringTxid == registeringTxid) {
-//            const std::string oldNorm = NormalizeSymbol(entry.data.getSymbol());
-//            if (oldNorm != normSym) {
-//                const auto oldSit = symbolToAssetType_.find(oldNorm);
-//                if (oldSit != symbolToAssetType_.end() && oldSit->second == assetType)
-//                    symbolToAssetType_.erase(oldSit);
-//            }
-//            entries_[assetType] = Entry{std::move(data), registeringTxid, nHeight};
-//            symbolToAssetType_[normSym] = assetType;
-//            return assetType;
-//        }
-//    }
-//
-//    if (const auto symIt = symbolToAssetType_.find(normSym); symIt != symbolToAssetType_.end())
-//        return std::nullopt;
-//
-//    const std::uint64_t assetType = nextAssetType_++;
-//    entries_[assetType] = Entry{std::move(data), registeringTxid, nHeight};
-//    symbolToAssetType_[normSym] = assetType;
-//    return assetType;
+    if (data.isRegister()) {
+        if (const auto existing = FindAssetByRegisteringTxid(entries_, registeringTxid))
+            return *existing;
+
+        const std::string normSym = NormalizeSymbol(data.getSymbol());
+        if (symbolToAssetType_.find(normSym) != symbolToAssetType_.end())
+            return std::nullopt;
+
+        EnsureCounterPastMaxKey();
+        const std::uint64_t assetType = nextAssetType_++;
+        CSparkAssetDBEntry entry(data);
+        entry.registeringTxid = registeringTxid;
+        entry.nHeight = nHeight;
+        entries_[assetType] = {std::move(entry)};
+        symbolToAssetType_[normSym] = assetType;
+        const bool nonFungible = data.getAssetKind() == AssetKind::NonFungible;
+        isNonFungable[assetType] = nonFungible;
+        if (nonFungible && data.getIdentifier() != 0)
+            nftIdentifiers_[assetType].insert(data.getIdentifier());
+        return assetType;
+    }
+
+    const auto assetType = GetAssetTypeBySymbol(data.getSymbol());
+    if (!assetType || entries_[*assetType].empty())
+        return std::nullopt;
+
+    CSparkAssetDBEntry& current = entries_[*assetType].front();
+    if (!AdminMatches(current, data))
+        return std::nullopt;
+
+    if (data.isNameModify())
+        current.name = data.getName();
+    else if (data.isDescriptionModify())
+        current.description = data.getDescription();
+    else if (data.isMetadataModify())
+        current.metadata = data.getMetadata();
+    else if (data.isTransfer()) {
+        if (data.getTransferAddress().empty())
+            return std::nullopt;
+        current.adminPublicAddress = data.getTransferAddress();
+    } else
+        return std::nullopt;
+
+    return *assetType;
 }
 
 bool CAssetState::Erase(std::uint64_t assetType)
 {
-//    const auto it = entries_.find(assetType);
-//    if (it == entries_.end())
-//        return false;
-//    const std::string norm = NormalizeSymbol(it->second.data.getSymbol());
-//    const auto sit = symbolToAssetType_.find(norm);
-//    if (sit != symbolToAssetType_.end() && sit->second == assetType)
-//        symbolToAssetType_.erase(sit);
-//    entries_.erase(it);
-//    for (auto sit = circulating_supply_.lower_bound({assetType, 0});
-//         sit != circulating_supply_.end() && sit->first.first == assetType; ) {
-//        sit = circulating_supply_.erase(sit);
-//    }
-//    asset_modifying_txids_.erase(assetType);
+    const auto it = entries_.find(assetType);
+    if (it == entries_.end() || it->second.empty())
+        return false;
+    const std::string norm = NormalizeSymbol(it->second.front().symbol);
+    const auto sit = symbolToAssetType_.find(norm);
+    if (sit != symbolToAssetType_.end() && sit->second == assetType)
+        symbolToAssetType_.erase(sit);
+    entries_.erase(it);
+    isNonFungable.erase(assetType);
+    nftIdentifiers_.erase(assetType);
+    for (auto supply = circulating_supply_.lower_bound({assetType, 0});
+         supply != circulating_supply_.end() && supply->first.first == assetType; ) {
+        supply = circulating_supply_.erase(supply);
+    }
     return true;
 }
 
@@ -118,9 +158,9 @@ bool CAssetState::Contains(std::uint64_t assetType) const
 std::optional<CSparkAssetDBEntry> CAssetState::Get(std::uint64_t assetType) const
 {
     const auto it = entries_.find(assetType);
-    if (it == entries_.end())
+    if (it == entries_.end() || it->second.empty())
         return std::nullopt;
-    return it->second[0];
+    return it->second.front();
 }
 
 std::optional<std::uint64_t> CAssetState::GetAssetTypeBySymbol(const std::string& symbol) const
@@ -196,14 +236,54 @@ void CAssetState::SubCirculatingSupply(std::uint64_t assetType, std::uint64_t id
 
 bool CAssetState::CanRegister(const CSparkAssetTxData& assetData) const
 {
-    //TODO levon
-    return true;
+    return assetData.isRegister() && !IsSymbolTaken(assetData.getSymbol());
 }
 
 bool CAssetState::CanModify(const CSparkAssetTxData& assetData) const
 {
-    //TODO levon
-    return true;
+    if (!assetData.isModify())
+        return false;
+    const auto assetType = GetAssetTypeBySymbol(assetData.getSymbol());
+    if (!assetType)
+        return false;
+    const auto entry = Get(*assetType);
+    return entry && AdminMatches(*entry, assetData);
+}
+
+bool CAssetState::CanTransfer(const CSparkAssetTxData& assetData) const
+{
+    if (!assetData.isTransfer() || assetData.getTransferAddress().empty())
+        return false;
+    const auto assetType = GetAssetTypeBySymbol(assetData.getSymbol());
+    if (!assetType)
+        return false;
+    const auto entry = Get(*assetType);
+    return entry && AdminMatches(*entry, assetData);
+}
+
+std::uint64_t CAssetState::NextNFTIdentifier(const std::string& symbol) const
+{
+    const auto assetType = GetAssetTypeBySymbol(symbol);
+    if (!assetType)
+        return 1;
+    const auto it = nftIdentifiers_.find(*assetType);
+    if (it == nftIdentifiers_.end() || it->second.empty())
+        return 1;
+    const std::uint64_t highest = *it->second.rbegin();
+    if (highest == std::numeric_limits<std::uint64_t>::max())
+        return highest;
+    return highest + 1;
+}
+
+bool CAssetState::HasNFTIdentifier(const std::string& symbol, std::uint64_t identifier) const
+{
+    if (identifier == 0)
+        return false;
+    const auto assetType = GetAssetTypeBySymbol(symbol);
+    if (!assetType)
+        return false;
+    const auto it = nftIdentifiers_.find(*assetType);
+    return it != nftIdentifiers_.end() && it->second.count(identifier) != 0;
 }
 
 } //namespace spark

@@ -228,6 +228,11 @@ public:
 
     void FinishTasks();
 
+    uint64_t GetNFTIdentifier(const std::string& symbol) const;
+
+    bool NFTIdentifierExists(const std::string& symbol , const std::uint64_t& identifier) const;
+
+
 public:
     // to protect coinMeta
     mutable CCriticalSection cs_spark_wallet;
@@ -247,6 +252,9 @@ private:
 
     // map lTagHash to coin meta
     std::unordered_map<uint256, CSparkMintMeta> coinMeta;
+
+    // map asset symbol to
+//    std::unordered_map<std::string, std> coinMeta;
 
     void* threadPool;
 };

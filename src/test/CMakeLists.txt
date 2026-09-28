@@ -132,6 +132,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/spend_transaction_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/spats/test/type_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../test/sparkasset_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_state_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../test/spark_mintspend_test.cpp
 )

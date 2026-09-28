@@ -45,8 +45,16 @@ bool SymbolIsAsciiLatinLettersOnly(const std::string& s)
 namespace spark {
 
 CSparkAssetDBEntry::CSparkAssetDBEntry(const CSparkAssetTxData& assetTxData_)
+    : assetKind(static_cast<uint8_t>(assetTxData_.getAssetKind())),
+      identifier(assetTxData_.getIdentifier()),
+      name(assetTxData_.getName()),
+      symbol(assetTxData_.getSymbol()),
+      description(assetTxData_.getDescription()),
+      metadata(assetTxData_.getMetadata()),
+      adminPublicAddress(assetTxData_.getAdminPublicAddress()),
+      precision(assetTxData_.getPrecision()),
+      maxSupply(assetTxData_.getMaxSupply())
 {
-    //TODO levon
 }
 
 CSparkAssetTxData::CSparkAssetTxData(std::uint32_t version_,
@@ -57,7 +65,7 @@ CSparkAssetTxData::CSparkAssetTxData(std::uint32_t version_,
                                      std::string description_,
                                      std::string metadata_,
                                      std::string adminPublicAddress_,
-                                     unsigned precision_,
+                                     uint8_t precision_,
                                      std::uint64_t maxSupply_)
     : version(version_),
       assetKind(assetKind_),
@@ -73,6 +81,23 @@ CSparkAssetTxData::CSparkAssetTxData(std::uint32_t version_,
     if (!Verify())
         throw std::invalid_argument("CSparkAssetTxData: asset internals verification failed");
 }
+
+void CSparkAssetTxData::setDataFromDBentry(const CSparkAssetDBEntry& dbEntry) {
+      assetKind = (AssetKind)dbEntry.assetKind;
+      identifier = dbEntry.identifier;
+
+      if (!isNameModify())
+          name = dbEntry.name;
+      symbol = dbEntry.symbol;
+      if (!isDescriptionModify())
+          description = dbEntry.description;
+      if (!isMetadataModify())
+          metadata = dbEntry.metadata;
+      adminPublicAddress = dbEntry.adminPublicAddress;
+      precision = dbEntry.precision;
+      maxSupply = dbEntry.maxSupply;
+}
+
 
 spark::Address CSparkAssetTxData::getAdminSparkAddress() const
 {
@@ -92,11 +117,16 @@ CBitcoinAddress CSparkAssetTxData::getAdminBitcoinAddress() const
 
 bool CSparkAssetTxData::isValidSparkAddress() const
 {
+    return isValidSparkAddress(adminPublicAddress);
+}
+
+bool CSparkAssetTxData::isValidSparkAddress(const std::string& address) const
+{
     const spark::Params* params = spark::Params::get_default();
     unsigned char network = spark::GetNetworkType();
     spark::Address addr(params);
     try {
-        unsigned char coinNetwork = addr.decode(adminPublicAddress);
+        unsigned char coinNetwork = addr.decode(address);
         return network == coinNetwork;
     } catch (const std::exception&) {
         return false;
@@ -122,42 +152,75 @@ void CSparkAssetTxData::validateAdminPublicAddress() const
 
 bool CSparkAssetTxData::Verify() const
 {
-    if (name.size() > MAX_NAME_BYTES)
+    std::string error;
+    return Verify(error);
+}
+
+bool CSparkAssetTxData::Verify(std::string& error) const
+{
+    if (name.size() > MAX_NAME_BYTES) {
+    	error = "Name too long";
         return false;
-    if (symbol.size() > MAX_SYMBOL_BYTES)
+    }
+    if (symbol.size() > MAX_SYMBOL_BYTES) {
+        error = "Symbol too long";
         return false;
-    if (!SymbolIsAsciiLatinLettersOnly(symbol))
+    }
+    if (!SymbolIsAsciiLatinLettersOnly(symbol)) {
+        error = "Symbol contains unsupported characters.";
         return false;
-    if (description.size() > MAX_DESCRIPTION_BYTES)
+    }
+    if (description.size() > MAX_DESCRIPTION_BYTES) {
+        error = "Description too long";
         return false;
-    if (metadata.size() > MAX_METADATA_BYTES)
+    }
+    if (metadata.size() > MAX_METADATA_BYTES) {
+     	error = "Metadata too long";
         return false;
-    if (adminPublicAddress.size() > MAX_ADMIN_PUBLIC_ADDRESS_BYTES)
+    }
+    if (adminPublicAddress.size() > MAX_ADMIN_PUBLIC_ADDRESS_BYTES) {
+     	error = "Private address too long";
         return false;
-    if (maxSupply > 0 && maxSupply > static_cast<std::uint64_t>(MAX_MONEY))
+    }
+    if (maxSupply < 0 || maxSupply > static_cast<std::uint64_t>(MAX_ASSET_MONEY)) {
+     	error = "Maximum money too high";
         return false;
-    if (assetKind == AssetKind::Fungible && identifier != 0)
+    }
+    if (assetKind == AssetKind::Fungible && identifier != 0) {
+     	error = "Identifier should be 0 for fungable asset";
         return false;
-    if (assetKind == AssetKind::NonFungible && identifier == 0)
+    }
+
+    if (assetKind == AssetKind::NonFungible && identifier == 0) {
+     	error = "Identifier should be non-zero for non-fungible asset";
         return false;
-    if (assetKind == AssetKind::NonFungible && maxSupply != 0)
+    }
+//    if (assetKind == AssetKind::NonFungible && maxSupply != 0) {
+    //TODO levon finilize this idea
+//        return false;
+//    }
+
+    if (precision > 8) {
+     	error = "Precision too large for fungible asset";
         return false;
+    }
+
     try {
         validateAdminPublicAddress();
     } catch (const std::invalid_argument&) {
+        error = "Invalid address!";
         return false;
     }
     return true;
 }
 
-void CSparkAssetTxData::setOwnershipProof(const spark::OwnershipProof& ownershipProof) {
-    //TODO levon
+void CSparkAssetTxData::setOwnershipProof(const spark::OwnershipProof& proof)
+{
+    ownershipProof = proof;
 }
 
 void CSparkAssetTxData::setOperationType(OperationType operationType_)
 {
     this->operationType = (uint8_t)operationType_;
 }
-
-
 }
