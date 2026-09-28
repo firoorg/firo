@@ -5,31 +5,49 @@
 #ifndef BITCOIN_QT_SPLASHSCREEN_H
 #define BITCOIN_QT_SPLASHSCREEN_H
 
+#include <QElapsedTimer>
+#include <QList>
 #include <QSplashScreen>
-#include <QMouseEvent>
 
 class CWallet;
 class NetworkStyle;
 
-/** Splash screen with startup messages from the running client. */
+QT_BEGIN_NAMESPACE
+class QTimer;
+QT_END_NAMESPACE
+
+/** Splash screen with startup status from the running client.
+ *
+ * Everything that stays the same while it is shown (themed background, logo,
+ * network badge, version) is rendered once into the QSplashScreen pixmap;
+ * drawContents() only paints the status line, progress track and close button.
+ */
 class SplashScreen : public QSplashScreen
 {
     Q_OBJECT
 
 public:
-    explicit SplashScreen(const NetworkStyle *networkStyle, Qt::WindowFlags f = Qt::WindowFlags());
+    explicit SplashScreen(const NetworkStyle *networkStyle);
 
 protected:
-    void paintEvent(QPaintEvent *event) override;
+    void drawContents(QPainter *painter) override;
+    bool event(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
-    void mousePressEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void leaveEvent(QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
 
 public Q_SLOTS:
     /** Slot to call finish() method as it's not defined as slot */
     void slotFinish(QWidget *mainWin);
 
-    /** Show message and progress */
-    void showMessage(const QString &message, int alignment, const QColor &color);
+    /** Show a startup step; clears the percentage of a previous task */
+    void showStatus(const QString &text);
+
+    /** Show a long-running task and how far along it is (0-100) */
+    void showProgress(const QString &title, int percent);
 
 private:
     /** Connect core signals to splash screen */
@@ -39,12 +57,23 @@ private:
     /** Connect wallet signals to splash screen */
     void ConnectWallet(CWallet*);
 
-    QPixmap logo;
-    QString networkLabel;
-    QString curMessage;
-    QColor curColor;
-    int curAlignment;
-    int rotation;
+    /** Paint everything that doesn't change while the splash is shown */
+    QPixmap renderArtwork(const NetworkStyle *networkStyle) const;
+    /** Close button area, mirrored for right-to-left layouts */
+    QRect closeButtonRect() const;
+    void setCloseHovered(bool hovered);
+    /** Run the indeterminate progress animation only while it can be seen */
+    void updateAnimation();
+    /** Start shutdown and say so on the splash */
+    void requestShutdown();
+
+    QTimer *animationTimer;
+    QElapsedTimer animationClock;
+    /** Kept here instead of QSplashScreen::showMessage(), which repaints synchronously and spins the event loop */
+    QString statusText;
+    int progress = -1; //!< Percentage of the running task, -1 while unknown
+    bool closeHovered = false;
+    bool shutdownRequested = false;
 
     QList<CWallet*> connectedWallets;
 };
