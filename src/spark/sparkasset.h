@@ -10,10 +10,14 @@
 
 #include "serialize.h"
 #include "../base58.h"
+#include "../uint256.h"
 #include "../libspark/keys.h"
 
 namespace spark {
 class CSparkAssetTxData;
+
+/** Domain-separated hash of an asset payload. Used as the Spark V2 extension commitment. */
+uint256 GetSpatsAssetBindHash(const CSparkAssetTxData& assetData);
 
 static const CAmount MAX_ASSET_MONEY = 90000000000 * COIN;
 

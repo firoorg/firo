@@ -30,9 +30,12 @@ SpendTransaction::SpendTransaction(
     const uint64_t vout,
     const uint64_t burn,
     const std::vector<spark::OutputCoinData>& outputs,
-    const uint256& extraDataHash)
+    const uint256& extraDataHash,
+    const std::map<uint64_t, uint256>& blockHashes)
 {
     this->params = params;
+    this->extraDataHash = extraDataHash;
+    this->set_id_blockHash = blockHashes;
 
     Scalar asset_type = ZERO;
     Scalar identifier = ZERO;
@@ -342,14 +345,21 @@ SpendTransaction::SpendTransaction(
         this->params->get_G(),
         this->params->get_H(),
         this->params->get_U());
-    chaum.prove(
+    chaum.prove_v2(
         mu,
+        spark::SpendTransaction::GetChaumV2Context(
+            this->out_coins,
+            this->f,
+            vout,
+            this->extraDataHash,
+            this->cover_set_ids,
+            this->set_id_blockHash),
         chaum_x,
         chaum_y,
         chaum_z,
         this->S1,
         this->T,
-        this->chaum_proof);
+        this->chaum_proof_v2);
 }
 
 SpendTransaction::~SpendTransaction() {}
@@ -421,6 +431,10 @@ bool SpendTransaction::verify(
         const std::size_t t = tx.out_coins.size();                                                     // number of generated coins
         const std::size_t N = (std::size_t)std::pow(params->get_n_grootle(), params->get_m_grootle()); // size of cover sets
 
+        if (w == 0 || w > spark::MAX_CHAUM_V2_INPUTS) {
+            return false;
+        }
+
         // Consumed coin semantics
         if (tx.S1.size() != w ||
                 tx.C1.size() != w ||
@@ -486,7 +500,19 @@ bool SpendTransaction::verify(
             tx.params->get_G(),
             tx.params->get_H(),
             tx.params->get_U());
-        if (!chaum.verify(mu, tx.S1, tx.T, tx.chaum_proof)) {
+        const bool chaum_valid = chaum.verify_v2(
+            mu,
+            spark::SpendTransaction::GetChaumV2Context(
+                tx.out_coins,
+                tx.f,
+                tx.vout,
+                tx.extraDataHash,
+                tx.cover_set_ids,
+                tx.set_id_blockHash),
+            tx.S1,
+            tx.T,
+            tx.chaum_proof_v2);
+        if (!chaum_valid) {
             return false;
         }
 

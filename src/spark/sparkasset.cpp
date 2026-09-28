@@ -9,6 +9,7 @@
 #include "state.h"
 #include "../libspark/keys.h"
 #include "../libspark/util.h"
+#include "../hash.h"
 
 #include <stdexcept>
 
@@ -43,6 +44,14 @@ bool SymbolIsAsciiLatinLettersOnly(const std::string& s)
 } // namespace
 
 namespace spark {
+
+uint256 GetSpatsAssetBindHash(const CSparkAssetTxData& assetData)
+{
+    CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
+    hashStream << LABEL_SPATS_ASSET_BIND;
+    hashStream << assetData;
+    return hashStream.GetHash();
+}
 
 CSparkAssetDBEntry::CSparkAssetDBEntry(const CSparkAssetTxData& assetTxData_)
     : assetKind(static_cast<uint8_t>(assetTxData_.getAssetKind())),

@@ -42,7 +42,8 @@ public:
         uint64_t vout,
         uint64_t burn,
         const std::vector<spark::OutputCoinData>& outputs,
-        const uint256& extraDataHash = uint256());
+        const uint256& extraDataHash = uint256(),
+        const std::map<uint64_t, uint256>& blockHashes = {});
 
     ~SpendTransaction();
 
@@ -89,7 +90,7 @@ public:
         READWRITE(C1);
         READWRITE(T);
         READWRITE(grootle_proofs);
-        READWRITE(chaum_proof);
+        READWRITE(chaum_proof_v2);
         READWRITE(range_proof);
         READWRITE(rep_proof);
         READWRITE(inputBase);
@@ -159,7 +160,7 @@ private:
     uint64_t f;
     std::vector<GroupElement> S1, C1, T;
     std::vector<spark::GrootleProof> grootle_proofs;
-    spark::ChaumProof chaum_proof;
+    spark::ChaumProofV2 chaum_proof_v2;
     spark::SchnorrProof rep_proof;
     BPPlusProof range_proof;
     BaseAssetProof base_proof;

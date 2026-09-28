@@ -135,6 +135,7 @@ BOOST_AUTO_TEST_CASE(ownership_proof_is_stored_and_excluded_from_registre_messag
 
     const secp_primitives::Scalar message = spark::GetSpatsRegistreM(asset);
     const std::vector<unsigned char> rawBefore = SerializeAsset(asset);
+    const uint256 bindBefore = spark::GetSpatsAssetBindHash(asset);
 
     spark::OwnershipProof proof;
     proof.t1 = secp_primitives::Scalar(uint64_t(7));
@@ -142,6 +143,7 @@ BOOST_AUTO_TEST_CASE(ownership_proof_is_stored_and_excluded_from_registre_messag
 
     const std::vector<unsigned char> rawAfter = SerializeAsset(asset);
     BOOST_CHECK(rawBefore != rawAfter);
+    BOOST_CHECK(spark::GetSpatsAssetBindHash(asset) != bindBefore);
     BOOST_CHECK(spark::GetSpatsRegistreM(asset) == message);
 
     const spark::CSparkAssetTxData out = RoundTrip(asset);

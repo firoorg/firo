@@ -2,6 +2,7 @@
 #include "state.h"
 #include "compat_layer.h"
 #include "sparkname.h"
+#include "sparkasset.h"
 #include "../validation.h"
 #include "../batchproof_container.h"
 #include "../libspark/keys.h"
@@ -411,27 +412,66 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
                     "Missing committed Spark V2 extension");
             }
         } else {
-            CSparkNameTxData nameData;
-            serialized >> nameData;
-            if (!serialized.empty()) {
-                throw std::invalid_argument(
-                    "Trailing data in Spark V2 extension");
+            const std::vector<unsigned char> extension(
+                tx.vExtraPayload.begin() + static_cast<std::ptrdiff_t>(spendSize),
+                tx.vExtraPayload.end());
+            const uint256& commitment = spendTransaction.getExtensionCommitment();
+            auto canonical = [](const CDataStream& encoded, const std::vector<unsigned char>& raw) {
+                return encoded.size() == raw.size() &&
+                    std::equal(
+                        encoded.begin(), encoded.end(), raw.begin(),
+                        [](char left, unsigned char right) {
+                            return static_cast<unsigned char>(left) == right;
+                        });
+            };
+
+            bool accepted = false;
+            try {
+                CDataStream nameStream(extension, SER_NETWORK, PROTOCOL_VERSION);
+                CSparkNameTxData nameData;
+                nameStream >> nameData;
+                if (nameStream.empty()) {
+                    CDataStream canonicalName(SER_NETWORK, PROTOCOL_VERSION);
+                    canonicalName << nameData;
+                    accepted = canonical(canonicalName, extension) &&
+                        !commitment.IsNull() &&
+                        commitment == CSparkNameManager::GetSparkNameCommitment(nameData);
+                }
+            } catch (const std::bad_alloc&) {
+                throw;
+            } catch (const std::exception&) {
             }
 
-            CDataStream canonicalName(SER_NETWORK, PROTOCOL_VERSION);
-            canonicalName << nameData;
-            const auto nameBegin = tx.vExtraPayload.begin() + spendSize;
-            if (canonicalName.size() != tx.vExtraPayload.size() - spendSize ||
-                !std::equal(
-                    canonicalName.begin(), canonicalName.end(), nameBegin,
-                    [](char left, unsigned char right) {
-                        return static_cast<unsigned char>(left) == right;
-                    }) ||
-                spendTransaction.getExtensionCommitment().IsNull() ||
-                spendTransaction.getExtensionCommitment() !=
-                    CSparkNameManager::GetSparkNameCommitment(nameData)) {
-                throw std::invalid_argument(
-                    "Invalid committed Spark V2 extension");
+            if (!accepted) {
+                try {
+                    CDataStream assetStream(extension, SER_NETWORK, PROTOCOL_VERSION);
+                    CSparkAssetTxData assetData;
+                    assetStream >> assetData;
+                    if (!assetStream.empty()) {
+                        throw std::invalid_argument(
+                            "Trailing data in Spark V2 extension");
+                    }
+                    CDataStream canonicalAsset(SER_NETWORK, PROTOCOL_VERSION);
+                    canonicalAsset << assetData;
+                    if (!canonical(canonicalAsset, extension) ||
+                        commitment.IsNull() ||
+                        commitment != GetSpatsAssetBindHash(assetData)) {
+                        throw std::invalid_argument(
+                            "Invalid committed Spark V2 extension");
+                    }
+                    accepted = true;
+                } catch (const std::bad_alloc&) {
+                    throw;
+                } catch (const std::invalid_argument&) {
+                    throw;
+                } catch (const std::exception&) {
+                    throw std::invalid_argument(
+                        "Invalid committed Spark V2 extension");
+                }
+                if (!accepted) {
+                    throw std::invalid_argument(
+                        "Invalid committed Spark V2 extension");
+                }
             }
         }
     }
@@ -445,7 +485,8 @@ spats::SpendTransaction ParseSpatsSpend(const CTransaction &tx)
     }
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
 
-    if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND && tx.nVersion >= 3 && tx.nType == TRANSACTION_SPARK) {
+    if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND && tx.nVersion >= 3 &&
+        (tx.nType == TRANSACTION_SPARK || tx.nType == TRANSACTION_SPARK_V2)) {
         serialized.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     }
     else {

@@ -1817,11 +1817,18 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             }
             selectedCoins = std::move(estimated.second);
 
-            // V1 construction retains the single-input selection rule.
+            // Legacy Spark stays single-input until Chaum V2. SPATS always uses Chaum V2.
+            const std::size_t spendInputCount =
+                selectedCoins.size() + (spatsSpend ? spatsSpendCoins.size() : 0);
             if (!spatsSpend && !useChaumV2 && selectedCoins.size() != 1) {
                 throw InsufficientFunds(_(
                     "Spark multi-input spends are temporarily disabled. "
                     "No single available Spark coin can fund this transaction."));
+            }
+            if ((spatsSpend || useChaumV2) && spendInputCount > spark::MAX_CHAUM_V2_INPUTS) {
+                throw std::invalid_argument(boost::str(
+                    boost::format(_("Spark V2 spends are limited to %1% inputs")) %
+                        spark::MAX_CHAUM_V2_INPUTS));
             }
 
             bool remainderSubtracted = false;
@@ -1993,7 +2000,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
 
             // set correct type of transaction (this affects metadata hash)
             tx.nVersion = 3;
-            tx.nType = (!spatsSpend && useChaumV2)
+            tx.nType = useChaumV2
                 ? TRANSACTION_SPARK_V2
                 : TRANSACTION_SPARK;
 
@@ -2030,7 +2037,7 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
                         throw std::runtime_error(
                                 _("Has to have at least two mint coins with at least 1 confirmation in order to spend a coin"));
 
-                    if (!spatsSpend && enforceBoundCoverSetHash &&
+                    if (enforceBoundCoverSetHash &&
                             setHash.size() != CSHA256::OUTPUT_SIZE) {
                         throw std::runtime_error(_(
                             "Selected Spark cover set is not yet bound to a canonical state hash"));
@@ -2122,7 +2129,8 @@ CWalletTx CSparkWallet::CreateSparkSpendTransaction(
             transparentOut,
             burnAsset.first,
             privOutputs,
-            extraDataHash);
+            extraDataHash,
+            idAndBlockHashes);
         spendTransaction.setBlockHashes(idAndBlockHashes);
         CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
         serialized << spendTransaction;
@@ -2447,13 +2455,6 @@ CWalletTx CSparkWallet::CreateSparkNameTransaction(
         "Unable to estimate the final Spark name transaction fee"));
 }
 
-uint256 getSpatsCreateExtraHash(const spark::CSparkAssetTxData& assetData) {
-        CHashWriter hashStream(SER_GETHASH, PROTOCOL_VERSION);
-        hashStream << spark::LABEL_SPATS_ASSET_BIND;
-        hashStream << assetData;
-        return hashStream.GetHash();
-}
-
 CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& assetData, CAmount &txFee, const CCoinControl *coinConrol) {
     if (!assetData.Verify())
         throw std::runtime_error(_("Invalid spark asset data"));
@@ -2518,10 +2519,16 @@ CWalletTx CSparkWallet::CreateSparkAssetTransaction(spark::CSparkAssetTxData& as
 
         const size_t assetPayloadSize = GetSerializeSize(assetData, SER_NETWORK, PROTOCOL_VERSION)
         + 20 /* add a little bit to the fee to be on the safe side */;
+        const uint256 assetBind = spark::GetSpatsAssetBindHash(assetData);
+        // After Chaum V2 the bytes following a spend are a committed extension.
+        // Before that, the same hash is bound inside a SPATS spend.
+        const bool useChaumV2 = nHeight + 1 >= consensusParams.nSparkChaumV2StartBlock;
+        const uint256 extensionCommitment = useChaumV2 ? assetBind : uint256();
+        const uint256 extraDataHash = useChaumV2 ? uint256() : assetBind;
     	wtx = CreateSparkSpendTransaction(
             {devPayout}, {}, {}, txFee, std::pair<CAmount, std::pair<Scalar, Scalar>>{},
-            coinConrol, assetPayloadSize, uint256(), -1, nullptr,
-            getSpatsCreateExtraHash(assetData));
+            coinConrol, assetPayloadSize, extensionCommitment, -1, nullptr,
+            extraDataHash);
 
     	CMutableTransaction tx = CMutableTransaction(*wtx.tx);
     	CDataStream serializedAsset(SER_NETWORK, PROTOCOL_VERSION);
