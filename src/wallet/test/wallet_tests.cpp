@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(consolidation_preserves_address_and_eligibility)
     const CScript script = GetScriptForDestination(address);
     const CScript otherScript = GetScriptForDestination(otherKey.GetPubKey().GetID());
     const CScript watchScript = GetScriptForDestination(watchKey.GetPubKey().GetID());
-    BOOST_REQUIRE(pwalletMain->AddWatchOnly(watchScript));
+    BOOST_REQUIRE(pwalletMain->AddWatchOnly(watchScript, 0));
 
     CMutableTransaction funding;
     funding.vin.emplace_back(COutPoint(uint256S("01"), 0));

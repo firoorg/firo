@@ -123,14 +123,20 @@ void WalletUiTests::consolidationSuggestion()
     auto model = std::make_unique<WalletModel>(style.get(), &wallet, &options);
     CKey key;
     key.MakeNewKey(true);
-    QVERIFY(wallet.AddKeyPubKey(key, key.GetPubKey()));
+    {
+        LOCK(wallet.cs_wallet);
+        QVERIFY(wallet.AddKeyPubKey(key, key.GetPubKey()));
+    }
     CMutableTransaction funding;
     funding.vin.emplace_back(COutPoint(uint256S("01"), 0));
     funding.vout.assign(50, CTxOut(COIN, GetScriptForDestination(key.GetPubKey().GetID())));
     CWalletTx received(&wallet, MakeTransactionRef(funding));
     received.hashBlock = blockHash;
     received.nIndex = 1;
-    wallet.mapWallet.emplace(received.GetHash(), received);
+    {
+        LOCK(wallet.cs_wallet);
+        wallet.mapWallet.emplace(received.GetHash(), received);
+    }
 
     OverviewPage page(style.get());
     page.setWalletModel(model.get());
