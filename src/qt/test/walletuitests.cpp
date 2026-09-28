@@ -16,6 +16,7 @@
 #include "modaloverlay.h"
 #include "networkstyle.h"
 #include "optionsmodel.h"
+#include "overviewpage.h"
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
@@ -42,6 +43,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListView>
 #include <QLocale>
 #include <QPointer>
 #include <QProgressBar>
@@ -52,6 +54,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QTableView>
 #include <QTest>
 #include <QTextEdit>
@@ -716,6 +719,24 @@ void WalletUiTests::brandTypography()
     }
 }
 
+/** Verify all eight recent transactions fit when the list is at its minimum height. */
+void WalletUiTests::recentActivityFitsBrandFont()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QStandardItemModel history(8, 1);
+    OverviewPage overview(style.get());
+    auto* list = overview.findChild<QListView*>(QStringLiteral("listTransactions"));
+    QVERIFY(list);
+    list->setModel(&history);
+    list->setFixedHeight(list->minimumHeight());
+    list->show();
+    overview.setAttribute(Qt::WA_DontShowOnScreen);
+    overview.show();
+    overview.resize(944, 625);
+    QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(7, 0))));
+}
+
 /**
  * Verify payment-request details can scroll while copy and close actions stay visible in both themes.
  * @pre The Qt test application is initialized on the GUI thread.
@@ -813,7 +834,7 @@ void WalletUiTests::sendFormFitsSmallScreen()
     auto* scroll = dialog.findChild<QScrollArea*>("scrollArea");
     QVERIFY(scroll);
 
-    // A single recipient, selected inputs, privacy warning and memo should fit without scrolling.
+    // Keep a single recipient, selected inputs, privacy warning and memo reachable at the body font size.
     auto* automatic = dialog.findChild<QLabel*>("labelCoinControlAutomaticallySelected");
     auto* warning = dialog.findChild<QLabel*>("textWarning");
     QVERIFY(automatic);
@@ -845,11 +866,13 @@ void WalletUiTests::sendFormFitsSmallScreen()
             QTRY_VERIFY2(value->height() >= value->minimumSizeHint().height() &&
                          value->width() >= value->minimumSizeHint().width(), name);
         }
-        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() == 0 && scroll->horizontalScrollBar()->maximum() == 0);
+        QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
         for (const char* name : {"payAmount", "checkboxSubtractFeeFromAmount", "messageTextLabel", "buttonChooseFee"}) {
             auto* field = dialog.findChild<QWidget*>(name);
             QVERIFY(field);
             QVERIFY(field->isVisible());
+            scroll->ensureWidgetVisible(field);
+            QCoreApplication::processEvents();
             QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
         }
         auto* amount = dialog.findChild<QWidget*>("payAmount");

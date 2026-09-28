@@ -682,11 +682,20 @@ void TransactionView::updateTableColumnWidths()
         return;
 
     const int tableWidth = transactionView->viewport()->width();
-    if (tableWidth < 400)
+    if (tableWidth <= 0)
         return;
 
+    QFont dateFont = transactionView->font();
+    dateFont.setBold(true);
+    const QFontMetrics metrics(dateFont);
+    const QLocale locale = QLocale::system();
+    const int dateTextWidth = std::max(
+        metrics.horizontalAdvance(locale.toString(QDate(2000, 12, 31), QLocale::ShortFormat)),
+        metrics.horizontalAdvance(locale.toString(QTime(23, 59), QLocale::ShortFormat)));
+    // Leave room for the direction icon, gaps and all three status icons.
+    const int minimumDateWidth = dateTextWidth + 126;
     transactionView->setColumnWidth(
-        TransactionTableModel::Date, static_cast<int>(tableWidth * 0.22));
+        TransactionTableModel::Date, std::max(minimumDateWidth, static_cast<int>(tableWidth * 0.22)));
     transactionView->setColumnWidth(
         TransactionTableModel::Type, static_cast<int>(tableWidth * 0.16));
     transactionView->setColumnWidth(

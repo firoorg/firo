@@ -45,6 +45,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QStyleOptionViewItem>
 #include <QVBoxLayout>
 
 #define DECORATION_SIZE 54
@@ -138,7 +139,7 @@ public:
                              inlineAddress ? dateWidth : textWidth, inlineAddress ? card.height() : lineHeight);
         const QRect addressRect = inlineAddress
             ? QRect(dateRect.right() + 13, card.top(), textWidth - dateWidth - 12, card.height())
-            : QRect(textLeft, dateRect.bottom() + 1, textWidth, lineHeight);
+            : QRect(textLeft, dateRect.bottom() + 1, card.right() - textLeft - 14, lineHeight);
         const QIcon instantSendIcon = qvariant_cast<QIcon>(index.data(TransactionTableModel::InstantSendDecorationRole));
         if (!instantSendIcon.isNull() && amountLeft - metadataLeft >= 20)
             GUIUtil::paintThemedStatusIcon(painter, instantSendIcon,
@@ -157,7 +158,8 @@ public:
 
         painter->setFont(amountFont);
         painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
-        const QRect amountRect(amountLeft, card.top(), amountWidth, card.height());
+        const QRect amountRect(amountLeft, inlineAddress ? card.top() : dateRect.top(),
+                               amountWidth, inlineAddress ? card.height() : lineHeight);
         painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
 
         painter->restore();
@@ -218,7 +220,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     // Recent transactions
     ui->listTransactions->setItemDelegate(txdelegate);
     ui->listTransactions->setIconSize(QSize(ACTIVITY_ICON_SIZE, ACTIVITY_ICON_SIZE));
-    ui->listTransactions->setMinimumHeight(NUM_ITEMS * ACTIVITY_CARD_HEIGHT);
     ui->listTransactions->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
     ui->listTransactions->setAccessibleName(tr("Recent transactions"));
@@ -453,6 +454,9 @@ void OverviewPage::applyOverviewTheme()
         "QListView, QListView::viewport { background: transparent; border: none; }"
         "QListView::item { border: none; padding: 0px; }"
         "QListView::item:selected { background: transparent; }"));
+    QStyleOptionViewItem activityOption;
+    activityOption.initFrom(ui->listTransactions);
+    ui->listTransactions->setMinimumHeight(NUM_ITEMS * txdelegate->sizeHint(activityOption, QModelIndex()).height());
     if (ui->listTransactions->viewport())
         ui->listTransactions->viewport()->update();
 
