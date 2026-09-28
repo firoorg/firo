@@ -59,6 +59,40 @@ BOOST_AUTO_TEST_CASE(create_mint_recipient)
     BOOST_CHECK_EQUAL(recipients[0].nAmount, v);
 }
 
+BOOST_AUTO_TEST_CASE(mint_output_metadata_waits_for_commit)
+{
+    pwalletMain->SetBroadcastTransactions(false);
+    GenerateBlocks(1001);
+
+    spark::MintedCoinData mint;
+    mint.address = pwalletMain->sparkWallet->getDefaultAddress();
+    mint.v = COIN;
+    mint.memo = "Prepared mint";
+
+    std::vector<std::pair<CWalletTx, CAmount>> transactions;
+    CAmount fee = 0;
+    std::list<CReserveKey> reserveKeys;
+    int changePos = -1;
+    std::string error;
+    BOOST_REQUIRE(pwalletMain->CreateSparkMintTransactions(
+        {mint}, transactions, fee, reserveKeys, changePos, false, error,
+        false, nullptr, false));
+    BOOST_REQUIRE_EQUAL(transactions.size(), 1U);
+
+    CWalletTx& transaction = transactions.front().first;
+    BOOST_REQUIRE_EQUAL(transaction.pendingSparkOutputRecords.size(), 1U);
+    const CScript script = transaction.pendingSparkOutputRecords.front().first;
+    CSparkOutputTx output;
+    BOOST_CHECK(!pwalletMain->GetSparkOutputTx(script, output));
+
+    CValidationState state;
+    BOOST_REQUIRE(pwalletMain->CommitTransaction(
+        transaction, reserveKeys.front(), nullptr, state));
+    BOOST_REQUIRE(pwalletMain->GetSparkOutputTx(script, output));
+    BOOST_CHECK_EQUAL(output.amount, mint.v);
+    BOOST_CHECK_EQUAL(output.memo, mint.memo);
+}
+
 BOOST_AUTO_TEST_CASE(mint_and_store_spark)
 {
     pwalletMain->SetBroadcastTransactions(true);
