@@ -3077,6 +3077,23 @@ bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, 
         control.Select(coins[i]);
         total += output(coins[i]).nValue;
     }
+    // A size-fitting batch may still be unable to pay its fee. Drop the
+    // smallest outputs until it can, using the same fee policy as construction.
+    sized.vin.assign(signedInputs.begin(), signedInputs.begin() + low);
+    while (low >= 2) {
+        const unsigned int bytes = ::GetSerializeSize(sized, SER_NETWORK, PROTOCOL_VERSION);
+        const CAmount requiredFee = GetMinimumFee(bytes, &control, mempool);
+        if (total > requiredFee && requiredFee >= ::minRelayTxFee.GetFee(bytes))
+            break;
+        control.UnSelect(coins[--low]);
+        total -= output(coins[low]).nValue;
+        sized.vin.pop_back();
+    }
+    if (low < 2) {
+        error = _("The transaction amount is too small to pay the fee");
+        return false;
+    }
+
     int changePosition = -1;
     if (!CreateTransaction({{script, total, true}}, transaction, reserveKey, fee, changePosition, error, &control))
         return false;
