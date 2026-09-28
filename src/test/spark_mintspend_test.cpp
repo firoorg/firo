@@ -114,6 +114,9 @@ BOOST_AUTO_TEST_CASE(spark_mintspend_test)
          BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
     }
     
+    // The new mempool transaction queued another mint scan. Finish it before
+    // replacing the spent-tag map read by the Spark wallet worker.
+    pwalletMain->sparkWallet->WaitForPendingTasks();
     sparkState->usedLTags = tempTags;
     BOOST_CHECK_EXCEPTION(GenerateBlock({CMutableTransaction(*result.tx)}), std::runtime_error, no_check);
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
