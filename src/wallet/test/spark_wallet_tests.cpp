@@ -66,9 +66,9 @@ BOOST_AUTO_TEST_CASE(reject_out_of_range_mint_amounts)
     spark::MintedCoinData data;
     data.address = pwalletMain->sparkWallet->getDefaultAddress();
 
-    const auto checkRejected = [&](const std::vector<spark::MintedCoinData>& outputs) {
+    const auto checkRejected = [&](const std::vector<spark::MintedCoinData>& outputs, bool fSplit = false) {
         std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        BOOST_CHECK_EQUAL(pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, false),
+        BOOST_CHECK_EQUAL(pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, fSplit),
             "Spark mint amount out of range");
 
         CAmount fee = 0;
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(reject_out_of_range_mint_amounts)
         int changePos = -1;
         std::string error;
         BOOST_CHECK(!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, fee,
-            reservekeys, changePos, false, error, false, nullptr));
+            reservekeys, changePos, false, error, fSplit, nullptr));
         BOOST_CHECK_EQUAL(error, "Spark mint amount out of range");
         BOOST_CHECK(wtxAndFee.empty());
     };
@@ -88,6 +88,7 @@ BOOST_AUTO_TEST_CASE(reject_out_of_range_mint_amounts)
     spark::MintedCoinData extra = data;
     extra.v = 1;
     checkRejected({data, extra});
+    checkRejected({data, extra}, true);
 }
 
 BOOST_AUTO_TEST_CASE(mint_and_store_spark)
