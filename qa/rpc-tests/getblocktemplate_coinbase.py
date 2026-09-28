@@ -117,7 +117,10 @@ class GetBlockTemplateCoinbaseMessageTest(BitcoinTestFramework):
             return job['pprpcheader'], mix, hex(int(nonce))
 
         # Submit real proofs across DIP3 activation, including an 80-byte UTF-8 message.
-        node.generate(498 - node.getblockcount())
+        # Avoid putting all Debug-build mining work under one RPC deadline.
+        for _ in range(498 - node.getblockcount()):
+            node.generate(1)
+        assert_equal(node.getblockcount(), 498)
         sync_blocks(self.nodes)
         for message in ('a' * 80, 'é' * 40, ''):
             job = node.getblocktemplate({'coinbase_message': message}, address)
