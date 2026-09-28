@@ -53,8 +53,9 @@ public:
     explicit ReceiveRequestDialog(QWidget *parent = 0);
     ~ReceiveRequestDialog();
 
-    void setModel(OptionsModel *model);
+    void setModel(WalletModel *model);
     void setInfo(const SendCoinsRecipient &info);
+    void applyTheme();
 
 private Q_SLOTS:
     void on_btnCopyURI_clicked();

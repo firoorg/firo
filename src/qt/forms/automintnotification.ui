@@ -26,7 +26,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Anonymize Funds</string>
+   <string>Make Funds Private</string>
   </property>
   <property name="modal">
    <bool>true</bool>
@@ -51,7 +51,7 @@
    <item>
     <widget class="QLabel" name="lockWarningLabel">
      <property name="text">
-      <string>Do you want to anonymize all transparent funds?</string>
+      <string>Make all available transparent funds private with Spark?</string>
      </property>
     </widget>
    </item>

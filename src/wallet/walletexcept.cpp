@@ -30,3 +30,24 @@ InsufficientFunds::InsufficientFunds(const char *what) : WalletError(what)
 InsufficientFunds::InsufficientFunds(const std::string& what) : WalletError(what)
 {
 }
+
+InsufficientFunds::InsufficientFunds(CAmount requiredFee)
+    : WalletError(_("Insufficient funds")), nRequiredFee(requiredFee)
+{
+}
+
+// SparkFundsFragmented
+
+SparkFundsFragmented::SparkFundsFragmented() : WalletError(_(
+    "Spark multi-input spends are temporarily disabled. "
+    "No single available Spark coin can fund this transaction."))
+{
+}
+
+SparkFundsFragmented::SparkFundsFragmented(const char *what) : WalletError(what)
+{
+}
+
+SparkFundsFragmented::SparkFundsFragmented(const std::string& what) : WalletError(what)
+{
+}

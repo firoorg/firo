@@ -31,8 +31,12 @@
 
 #include <machine/endian.h>
 
-#define bswap32 __builtin_bswap32
-#define bswap64 __builtin_bswap64
+#ifndef bswap32
+#define bswap32(x) __builtin_bswap32(x)
+#endif
+#ifndef bswap64
+#define bswap64(x) __builtin_bswap64(x)
+#endif
 
 #ifndef __BYTE_ORDER
 #ifdef BYTE_ORDER

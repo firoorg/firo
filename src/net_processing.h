@@ -17,6 +17,8 @@ static const int64_t ORPHAN_TX_EXPIRE_TIME = 20 * 60;
 static const int64_t ORPHAN_TX_EXPIRE_INTERVAL = 5 * 60;
 /** Default number of orphan+recently-replaced txn to keep around for block reconstruction */
 static const unsigned int DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN = 100;
+/** Default interval in seconds for rebroadcasting InstantSend-locked mempool transactions (0 = disabled) */
+static const int DEFAULT_REBROADCAST_ISLOCK_INTERVAL = 2 * 60 * 60;
 
 /** The maximum rate of address records we're willing to process on average.
  * Is bypassed for whitelisted connections. */
@@ -38,6 +40,7 @@ private:
 
 public:
     PeerLogicValidation(CConnman* connmanIn);
+    virtual ~PeerLogicValidation() = default;
 
     virtual void SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int nPosInBlock) override;
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) override;
@@ -59,6 +62,9 @@ void Misbehaving(NodeId nodeid, int howmuch);
 
 bool IsBanned(NodeId nodeid);
 
+/** Return the maximum number of live transaction announcements for one trickle cycle. */
+size_t GetInventoryBroadcastMax(size_t inventorySize);
+
 /** Process protocol messages received from a given node */
 bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& interrupt);
 /**
@@ -70,5 +76,8 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& i
  * @return                      True if there is more work to be done
  */
 bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interrupt);
+
+/** Rebroadcast InstantSend-locked transactions in the mempool to all peers */
+void RebroadcastISLockedMempool(CConnman& connman);
 
 #endif // BITCOIN_NET_PROCESSING_H

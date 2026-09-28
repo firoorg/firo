@@ -352,7 +352,7 @@ void AutoMintSparkModel::processAutoMintSparkAck(AutoMintSparkAck ack, CAmount m
     switch (ack)
     {
     case AutoMintSparkAck::Success:
-        msgParams.first = tr("Successfully anonymized %1")
+        msgParams.first = tr("Successfully made %1 private with Spark")
             .arg(BitcoinUnits::formatWithUnit(optionsModel->getDisplayUnit(), minted));
         msgParams.second = CClientUIInterface::MSG_INFORMATION;
         break;
@@ -371,5 +371,5 @@ void AutoMintSparkModel::processAutoMintSparkAck(AutoMintSparkAck ack, CAmount m
         return;
     };
 
-    Q_EMIT message(tr("Auto Anonymize"), msgParams.first, msgParams.second);
+    Q_EMIT message(tr("Automatic Spark Privacy"), msgParams.first, msgParams.second);
 }

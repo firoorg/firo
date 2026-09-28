@@ -8,6 +8,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 
+#include "netbase.h" // for GetNetworkName
 #include "validation.h" // for cs_main
 #include "sync.h"
 
@@ -29,6 +30,14 @@ bool NodeLessThan::operator()(const CNodeCombinedStats &left, const CNodeCombine
         return pLeft->nodeid < pRight->nodeid;
     case PeerTableModel::Address:
         return pLeft->addrName.compare(pRight->addrName) < 0;
+    case PeerTableModel::Network:
+    {
+        const std::string leftNet = GetNetworkName(
+            pLeft->m_inbound_onion ? NET_ONION : pLeft->addr.GetNetwork());
+        const std::string rightNet = GetNetworkName(
+            pRight->m_inbound_onion ? NET_ONION : pRight->addr.GetNetwork());
+        return leftNet.compare(rightNet) < 0;
+    }
     case PeerTableModel::Subversion:
         return pLeft->cleanSubVer.compare(pRight->cleanSubVer) < 0;
     case PeerTableModel::Ping:
@@ -114,7 +123,7 @@ PeerTableModel::PeerTableModel(ClientModel *parent) :
     clientModel(parent),
     timer(0)
 {
-    columns << tr("NodeId") << tr("Node/Service") << tr("User Agent") << tr("Ping");
+    columns << tr("NodeId") << tr("Node/Service") << tr("Network") << tr("User Agent") << tr("Ping");
     priv.reset(new PeerTablePriv());
     // default to unsorted
     priv->sortColumn = -1;
@@ -169,6 +178,13 @@ QVariant PeerTableModel::data(const QModelIndex &index, int role) const
             return (qint64)rec->nodeStats.nodeid;
         case Address:
             return QString::fromStdString(rec->nodeStats.addrName);
+        case Network:
+            // Match the classification used by getpeerinfo: a peer that
+            // reached us via our Tor hidden service is reported as "onion"
+            // even though the socket-level address is 127.0.0.1.
+            return QString::fromStdString(GetNetworkName(
+                rec->nodeStats.m_inbound_onion ? NET_ONION
+                                               : rec->nodeStats.addr.GetNetwork()));
         case Subversion:
             return QString::fromStdString(rec->nodeStats.cleanSubVer);
         case Ping:

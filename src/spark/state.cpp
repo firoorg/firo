@@ -1,4 +1,4 @@
-#include "../liblelantus/threadpool.h"
+#include "threadpool.h"
 #include "state.h"
 #include "compat_layer.h"
 #include "sparkname.h"
@@ -7,47 +7,134 @@
 #include "../libspark/keys.h"
 #include "../libspark/ownership_proof.h"
 #include "../libspark/spats/spend_transaction.h"
+#include "../saltedhasher.h"
+#include "../sync.h"
+#include "../unordered_lru_cache.h"
 
+#include <algorithm>
+#include <limits>
+#include <memory>
 #include <set>
+#include <unordered_set>
 
 namespace spark {
 
-struct ProofCheckState {
-    // if this is true, then the proof was already checked, no need to check again
-    bool fChecked;
-
-    // result of the check (if fChecked is true)
-    bool fResult;
-
-    // if this is non-null, then the proof is being checked right now
-    std::shared_ptr<boost::future<bool>> checkInProgress;
-};
-
-// map from transaction hash to the state of checking its proofs
-static std::map<uint256, ProofCheckState> gCheckedSparkSpendTransactions;
+// Bound the mempool-acceptance proof cache to successful verifications. Failed
+// proofs are not stored, so a later relay of the same payload is verified again.
+// DisconnectTipSpark clears the cache on reorg; entries are also removed when
+// the mempool drops the transaction.
+static constexpr size_t MAX_CHECKED_SPARK_SPEND_TRANSACTIONS = 10000;
 static CCriticalSection cs_checkedSparkSpendTransactions;
+static unordered_lru_cache<uint256, bool, StaticSaltedHasher, MAX_CHECKED_SPARK_SPEND_TRANSACTIONS>
+    gCheckedSparkSpendTransactions(MAX_CHECKED_SPARK_SPEND_TRANSACTIONS);
 
-static ParallelOpThreadPool<bool> gCheckProofThreadPool(boost::thread::hardware_concurrency());
+void EraseCheckedSparkSpendTransaction(const uint256& hashTx)
+{
+    LOCK(cs_checkedSparkSpendTransactions);
+    gCheckedSparkSpendTransactions.erase(hashTx);
+}
+
+void ClearSparkSpendProofCache()
+{
+    LOCK(cs_checkedSparkSpendTransactions);
+    gCheckedSparkSpendTransactions.clear();
+}
+
+std::size_t GetSparkSpendProofCacheSize()
+{
+    LOCK(cs_checkedSparkSpendTransactions);
+    return gCheckedSparkSpendTransactions.size();
+}
 
 static CSparkState sparkState;
+static thread_local CSparkVerifyDBContext* activeVerifyDBContext = nullptr;
+
+static CSparkState& SparkStateForValidation(bool isVerifyDB)
+{
+    if (isVerifyDB && activeVerifyDBContext) {
+        return activeVerifyDBContext->GetSparkState();
+    }
+    return sparkState;
+}
+
+static CSparkNameManager* SparkNameManagerForValidation(bool isVerifyDB)
+{
+    if (isVerifyDB && activeVerifyDBContext) {
+        return &activeVerifyDBContext->GetSparkNameManager();
+    }
+    return CSparkNameManager::GetInstance();
+}
+
+CSparkVerifyDBContext::CSparkVerifyDBContext(CBlockIndex* tip) :
+    previous(activeVerifyDBContext)
+{
+    state.CopyFrom(sparkState);
+    sparkNameManager.CopyFrom(*CSparkNameManager::GetInstance());
+    for (CBlockIndex* index = chainActive.Tip();
+         index && index != tip;
+         index = index->pprev) {
+        state.RemoveBlock(index);
+        sparkNameManager.RemoveBlock(index, false);
+    }
+    activeVerifyDBContext = this;
+}
+
+CSparkVerifyDBContext::~CSparkVerifyDBContext()
+{
+    activeVerifyDBContext = previous;
+}
+
+void CSparkVerifyDBContext::AddBlock(CBlockIndex* index)
+{
+    state.AddBlock(index);
+    sparkNameManager.AddBlock(index, false, false);
+}
+
+CSparkVerifyDBContext* CSparkVerifyDBContext::GetActive()
+{
+    return activeVerifyDBContext;
+}
+
+bool CheckSparkMintDuplicates(
+        CValidationState& state,
+        const std::vector<spark::Coin>& mints,
+        int nHeight)
+{
+    std::unordered_set<uint256> blockMints;
+    for (const auto& mint : mints) {
+        const auto mintedCoinHeightAndId =
+            sparkState.GetMintedCoinHeightAndId(mint);
+        if (!blockMints.insert(mint.getHash()).second ||
+                (mintedCoinHeightAndId.first >= 0 &&
+                 mintedCoinHeightAndId.first < nHeight)) {
+            return state.DoS(100, false, REJECT_INVALID,
+                             "bad-txns-spark-mint-duplicate");
+        }
+    }
+
+    return true;
+}
 
 static bool CheckLTag(
         CValidationState &state,
         CSparkTxInfo *sparkTxInfo,
         const GroupElement& lTag,
         int nHeight,
-        bool fConnectTip) {
+        bool fConnectTip,
+        CSparkState& validationState) {
     // check for Spark transaction in this block as well
     if (sparkTxInfo &&
         !sparkTxInfo->fInfoIsComplete &&
             sparkTxInfo->spentLTags.find(lTag) != sparkTxInfo->spentLTags.end())
-        return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same linking tag in the same block"));
+        return state.DoS(0, false, REJECT_INVALID,
+            "bad-spark-linking-tag-duplicate");
 
     // check for used linking tags in state
-    if (sparkState.IsUsedLTag(lTag)) {
+    if (validationState.IsUsedLTag(lTag)) {
         // Proceed with checks ONLY if we're accepting tx into the memory pool or connecting block to the existing blockchain
         if (nHeight == INT_MAX || fConnectTip) {
-            return state.DoS(0, error("CTransaction::CheckTransaction() : The Spark coin has been used"));
+            return state.DoS(0, false, REJECT_INVALID,
+                "bad-spark-linking-tag-used");
         }
     }
     return true;
@@ -136,14 +223,29 @@ size_t GetSpatsMintSerializedMintPayloadByteCount(const CScript& script, const s
 } // namespace
 
 /*
- * Util funtions
+ * Util functions
  */
 size_t CountCoinInBlock(CBlockIndex *index, int id) {
-    return index->sparkMintedCoins.count(id) > 0
-    ? index->sparkMintedCoins[id].size() : 0;
+    const auto& pd = index->privacyData();
+    auto it = pd.sparkMintedCoins.find(id);
+    return it != pd.sparkMintedCoins.end() ? it->second.size() : 0;
 }
 
-std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false) {
+static int NextBlockHeight(CChain* chain)
+{
+    return (chain && chain->Tip()) ? chain->Height() + 1 : 0;
+}
+
+// After Chaum V2, cover-set hash lookup includes the group's first mint block.
+// INT_MAX / negative values are mempool sentinels, not consensus heights.
+static bool IncludeFirstBlockSetHash(int height)
+{
+    if (height < 0 || height == INT_MAX)
+        return false;
+    return height >= ::Params().GetConsensus().nSparkChaumV2StartBlock;
+}
+
+std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id, bool generation = false, bool includeFirstBlock = false) {
     std::vector<unsigned char> out_hash;
 
     CSparkState::SparkCoinGroupInfo coinGroup;
@@ -153,11 +255,16 @@ std::vector<unsigned char> GetAnonymitySetHash(CBlockIndex *index, int group_id,
     if ((coinGroup.firstBlock == coinGroup.lastBlock && generation) || (coinGroup.nCoins == 0))
         return out_hash;
 
-    while (index != coinGroup.firstBlock) {
-        if (index->sparkSetHash.count(group_id) > 0) {
-            out_hash = index->sparkSetHash[group_id];
+    // Pre-V2: stop before firstBlock so one-block groups report an empty hash.
+    while (index != coinGroup.firstBlock || includeFirstBlock) {
+        const auto& pd = index->privacyData();
+        auto it = pd.sparkSetHash.find(group_id);
+        if (it != pd.sparkSetHash.end()) {
+            out_hash = it->second;
             break;
         }
+        if (index == coinGroup.firstBlock)
+            break;
         index = index->pprev;
     }
     return out_hash;
@@ -186,6 +293,8 @@ void ParseSparkMintTransaction(const std::vector<CScript>& scripts, MintTransact
     }
     try {
         mintTransaction.setMintTransaction(serializedCoins);
+    } catch (const std::bad_alloc &) {
+        throw;
     } catch (const std::exception &) {
         throw std::invalid_argument("Unable to deserialize Spark mint transaction");
     }
@@ -248,6 +357,8 @@ void ParseSparkMintCoin(const CScript& script, spark::Coin& txCoin)
 
     try {
         stream >> txCoin;
+    } catch (const std::bad_alloc &) {
+        throw;
     } catch (const std::exception &) {
         throw std::invalid_argument("Unable to deserialize Spark mint");
     }
@@ -260,15 +371,70 @@ spark::SpendTransaction ParseSparkSpend(const CTransaction &tx)
     }
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
 
-    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND && tx.nVersion >= 3 && tx.nType == TRANSACTION_SPARK) {
+    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND && tx.nVersion >= 3 &&
+        (tx.nType == TRANSACTION_SPARK || tx.nType == TRANSACTION_SPARK_V2)) {
         serialized.write((const char *)tx.vExtraPayload.data(), tx.vExtraPayload.size());
     }
     else {
         throw CBadTxIn();
     }
     const spark::Params* params = spark::Params::get_default();
-    spark::SpendTransaction spendTransaction(params);
+    const auto version = tx.nType == TRANSACTION_SPARK_V2
+        ? SpendTransactionVersion::V2
+        : SpendTransactionVersion::V1;
+    const std::size_t private_output_count = std::count_if(
+        tx.vout.begin(), tx.vout.end(), [](const CTxOut& output) {
+            return output.scriptPubKey.IsSparkSMint();
+        });
+    spark::SpendTransaction spendTransaction(
+        params, version, private_output_count);
     serialized >> spendTransaction;
+    if (version == SpendTransactionVersion::V2) {
+        const std::size_t spendSize =
+            tx.vExtraPayload.size() - serialized.size();
+        CDataStream canonicalSpend(SER_NETWORK, PROTOCOL_VERSION);
+        canonicalSpend << spendTransaction;
+        if (canonicalSpend.size() != spendSize ||
+            !std::equal(
+                canonicalSpend.begin(), canonicalSpend.end(),
+                tx.vExtraPayload.begin(),
+                [](char left, unsigned char right) {
+                    return static_cast<unsigned char>(left) == right;
+                })) {
+            throw std::invalid_argument(
+                "Non-canonical Spark V2 spend payload");
+        }
+
+        if (serialized.empty()) {
+            if (!spendTransaction.getExtensionCommitment().IsNull()) {
+                throw std::invalid_argument(
+                    "Missing committed Spark V2 extension");
+            }
+        } else {
+            CSparkNameTxData nameData;
+            serialized >> nameData;
+            if (!serialized.empty()) {
+                throw std::invalid_argument(
+                    "Trailing data in Spark V2 extension");
+            }
+
+            CDataStream canonicalName(SER_NETWORK, PROTOCOL_VERSION);
+            canonicalName << nameData;
+            const auto nameBegin = tx.vExtraPayload.begin() + spendSize;
+            if (canonicalName.size() != tx.vExtraPayload.size() - spendSize ||
+                !std::equal(
+                    canonicalName.begin(), canonicalName.end(), nameBegin,
+                    [](char left, unsigned char right) {
+                        return static_cast<unsigned char>(left) == right;
+                    }) ||
+                spendTransaction.getExtensionCommitment().IsNull() ||
+                spendTransaction.getExtensionCommitment() !=
+                    CSparkNameManager::GetSparkNameCommitment(nameData)) {
+                throw std::invalid_argument(
+                    "Invalid committed Spark V2 extension");
+            }
+        }
+    }
     return spendTransaction;
 }
 
@@ -312,21 +478,29 @@ Scalar GetSpatsMintM(const CTransaction& tx)
     return hash.finalize_scalar();
 }
 
+CAmount GetSparkSpendFee(const CTransaction& tx)
+{
+    const uint64_t fee = ParseSparkSpend(tx).getFee();
+    if (fee > static_cast<uint64_t>(MAX_MONEY)) {
+        throw std::invalid_argument("Spark spend fee is out of range");
+    }
+    return static_cast<CAmount>(fee);
+}
+
+
 std::vector<GroupElement> GetSparkUsedTags(const CTransaction &tx)
 {
-    const spark::Params* params = spark::Params::get_default();
-
-    if (tx.vin[0].scriptSig[0] == OP_SPARKSPEND) {
-        spark::SpendTransaction spendTransaction(params);
-        spendTransaction = ParseSparkSpend(tx);
-        return  spendTransaction.getUsedLTags();
-    } else if (tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
-        spats::SpendTransaction spendTransaction(params);
-        spendTransaction = ParseSpatsSpend(tx);
-        return  spendTransaction.getUsedLTags();
+    try {
+        if (!tx.vin.empty() && !tx.vin[0].scriptSig.empty() &&
+            tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
+            return ParseSpatsSpend(tx).getUsedLTags();
+        }
+        return ParseSparkSpend(tx).getUsedLTags();
+    } catch (const std::bad_alloc &) {
+        throw;
+    } catch (const std::exception &) {
+        return std::vector<GroupElement>();
     }
-
-    return std::vector<GroupElement>();
 }
 
 CAmount GetSparkFee(const CTransaction &tx)
@@ -375,6 +549,8 @@ std::vector<spark::Coin> GetSparkMintCoins(const CTransaction &tx)
                     ParseSparkMintCoin(script, coin);
                     coin.setSerialContext(serial_context);
                     result.push_back(coin);
+                } catch (const std::bad_alloc &) {
+                    throw;
                 } catch (const std::exception &) {
                     //Continue
                 }
@@ -400,6 +576,39 @@ CAmount GetSpendTransparentAmount(const CTransaction& tx) {
     return result;
 }
 
+bool IsSparkSpendFormatAllowed(const CTransaction& tx, int height)
+{
+    if (!tx.IsSparkSpend()) {
+        return true;
+    }
+
+    const auto& consensus = ::Params().GetConsensus();
+    if (tx.IsSparkSpendV2()) {
+        return height >= consensus.nSparkChaumV2StartBlock;
+    }
+
+    const int singleInputActivation = std::min(
+        consensus.nSparkSingleInputStartBlock,
+        consensus.nSparkChaumV2StartBlock);
+    if (height < singleInputActivation) {
+        return true;
+    }
+
+    try {
+        // The deployed V1 layout starts with the input-reference vector size.
+        // Inspect only that dimension here: block assembly and reorg cleanup
+        // need a cheap format check, while full deserialization is performed
+        // by transaction validation.
+        CDataStream payload(SER_NETWORK, PROTOCOL_VERSION);
+        payload.write(
+            reinterpret_cast<const char*>(tx.vExtraPayload.data()),
+            tx.vExtraPayload.size());
+        return ReadCompactSize(payload) == 1;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
@@ -409,54 +618,92 @@ bool ConnectBlockSpark(
         const CChainParams &chainparams,
         CBlockIndex *pindexNew,
         const CBlock *pblock,
-        bool fJustCheck) {
+        bool fJustCheck,
+        bool isVerifyDB) {
 
     bool fBackupRewrittenSparkNames = false;
     
     // Add spark transaction information to index
     if (pblock && pblock->sparkTxInfo) {
-        if (!fJustCheck) {
-            pindexNew->sparkMintedCoins.clear();
-            pindexNew->spentLTags.clear();
-            pindexNew->sparkSetHash.clear();
-        }
-
-        if (!CheckSparkBlock(state, *pblock)) {
+        if (!CheckSparkBlock(state, *pblock, pindexNew->nHeight)) {
             return false;
         }
 
         BOOST_FOREACH(auto& lTag, pblock->sparkTxInfo->spentLTags) {
+            CSparkState& validationState =
+                SparkStateForValidation(isVerifyDB);
             if (!CheckLTag(
                     state,
                     pblock->sparkTxInfo.get(),
                     lTag.first,
                     pindexNew->nHeight,
-                    true /* fConnectTip */
+                    !isVerifyDB || activeVerifyDBContext,
+                    validationState
             )) {
                 return false;
             }
         }
 
-        if (!fJustCheck) {
-            BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
-                pindexNew->spentLTags.insert(lTag);
-                sparkState.AddSpend(lTag.first, lTag.second);
+        if (fJustCheck) {
+            if (isVerifyDB && activeVerifyDBContext) {
+                activeVerifyDBContext->AddBlock(pindexNew);
             }
-
-            if (GetBoolArg("-mobile", false)) {
-                BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
-                    pindexNew->ltagTxhash.insert(lTag);
-                    sparkState.AddLTagTxHash(lTag.first, lTag.second);
-                }
-            }
-        }
-        else {
             return true;
         }
 
-        FIRO_UNUSED const auto& params = ::Params().GetConsensus();
+        // Complete per-block name data distinguishes a replayed registration
+        // from a renewal of the manager's current record.
+        bool fSparkNamesAlreadyIndexed =
+            !pblock->sparkTxInfo->sparkNames.empty() &&
+            pindexNew->hasPrivacyData();
+        if (fSparkNamesAlreadyIndexed) {
+            const auto& pd = pindexNew->privacyData();
+            for (const auto& sparkName : pblock->sparkTxInfo->sparkNames) {
+                const uint8_t opType = sparkName.second.nVersion >= 2 ?
+                    sparkName.second.operationType :
+                    static_cast<uint8_t>(CSparkNameTxData::opRegister);
+                const bool indexed =
+                    opType == CSparkNameTxData::opUnregister ?
+                        pd.removedSparkNames.find(sparkName.first) !=
+                            pd.removedSparkNames.end() :
+                        pd.addedSparkNames.find(sparkName.first) !=
+                            pd.addedSparkNames.end();
+                if (!indexed) {
+                    fSparkNamesAlreadyIndexed = false;
+                    break;
+                }
+            }
+        }
+
+        // Reconnecting an existing index entry rebuilds transaction-derived
+        // Spark metadata. Keep active sporks and removed Spark names: the
+        // latter also contains expiry undo data that cannot be reconstructed
+        // when replaying against an already-applied name state.
+        if (pindexNew->hasPrivacyData()) {
+            auto& pd = pindexNew->ensurePrivacyData();
+            pd.sparkMintedCoins.clear();
+            pd.spentLTags.clear();
+            pd.sparkSetHash.clear();
+            pd.sparkTxHashContext.clear();
+            pd.ltagTxhash.clear();
+            pd.addedSparkNames.clear();
+        }
+
+        // Allocate privacy data only if this block has something to store.
+        BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->spentLTags) {
+            pindexNew->ensurePrivacyData().spentLTags.insert(lTag);
+            sparkState.AddSpend(lTag.first, lTag.second);
+        }
+        if (GetBoolArg("-mobile", false)) {
+            BOOST_FOREACH (auto& lTag, pblock->sparkTxInfo->ltagTxhash) {
+                pindexNew->ensurePrivacyData().ltagTxhash.insert(lTag);
+                sparkState.AddLTagTxHash(lTag.first, lTag.second);
+            }
+        }
+
         CHash256 hash;
         bool updateHash = false;
+        const bool includeFirstBlock = IncludeFirstBlockSetHash(pindexNew->nHeight);
 
         if (!pblock->sparkTxInfo->mints.empty()) {
             sparkState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
@@ -464,22 +711,27 @@ bool ConnectBlockSpark(
             // add  coins into hasher, for generating set hash
             updateHash = true;
             // get previous hash of the set, if there is no such, don't write anything
-            std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true);
-            if (!prev_hash.empty())
-                hash.Write(prev_hash.data(), 32);
-            else {
-                if (latestCoinId > 1) {
-                    prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true);
-                    hash.Write(prev_hash.data(), 32);
-                }
-            }
+            std::vector<unsigned char> prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId, true, includeFirstBlock);
+            if (prev_hash.empty() && latestCoinId > 1)
+                prev_hash = GetAnonymitySetHash(pindexNew->pprev, latestCoinId - 1, true, includeFirstBlock);
 
-            for (auto &coin : pindexNew->sparkMintedCoins[latestCoinId]) {
-                CDataStream serializedCoin(SER_NETWORK, 0);
-                serializedCoin << coin;
-                std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
-                hash.Write(data.data(), data.size());
-            }
+            if (prev_hash.size() == CSHA256::OUTPUT_SIZE)
+                hash.Write(prev_hash.data(), prev_hash.size());
+            else if (!prev_hash.empty())
+                LogPrintf("ConnectBlockSpark: ignoring malformed previous set hash of size %u\n", static_cast<unsigned int>(prev_hash.size()));
+
+            const auto& mintedCoins =
+                pindexNew->privacyData().sparkMintedCoins;
+            const auto mintedCoinsIt = mintedCoins.find(latestCoinId);
+            if (mintedCoinsIt != mintedCoins.end()) {
+                for (const auto &coin : mintedCoinsIt->second) {
+                    CDataStream serializedCoin(SER_NETWORK, 0);
+                    serializedCoin << coin;
+                    std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
+                    hash.Write(data.data(), data.size());
+                }
+            } else
+                LogPrintf("ConnectBlockSpark: missing minted coins for group %d\n", latestCoinId);
         }
 
         if (!pblock->sparkTxInfo->sparkNames.empty()) {
@@ -488,38 +740,82 @@ bool ConnectBlockSpark(
             try {
                 for (const auto &sparkName : pblock->sparkTxInfo->sparkNames) {
                     uint8_t opType = sparkName.second.nVersion >= 2 ?
-                                                    sparkName.second.operationType : CSparkNameTxData::opRegister;
+                                                    sparkName.second.operationType : static_cast<uint8_t>(CSparkNameTxData::opRegister);
+                    // For V2.1+, renewals and transfers preserve remaining validity
+                    int validityBlocks = sparkName.second.sparkNameValidityBlocks;
+                    const auto& consensusParams = ::Params().GetConsensus();
+                    if (pindexNew->nHeight >= consensusParams.nSparkNamesV21StartBlock) {
+                        try {
+                            // On replay, the manager can already contain post-block
+                            // state. Retained undo is the authoritative prior expiry.
+                            const auto& removedNames =
+                                pindexNew->privacyData().removedSparkNames;
+                            const auto removedName =
+                                removedNames.find(sparkName.first);
+                            int existingExpirationHeight = pindexNew->nHeight;
+                            if (removedName != removedNames.end())
+                                existingExpirationHeight =
+                                    removedName->second.sparkNameValidityHeight;
+                            else if (!fSparkNamesAlreadyIndexed)
+                                existingExpirationHeight =
+                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first);
+                            int remainingBlocks = existingExpirationHeight - pindexNew->nHeight;
+                            if (remainingBlocks > 0)
+                                validityBlocks += remainingBlocks;
+                        } catch (const std::runtime_error&) {
+                            // name doesn't exist yet, no adjustment needed
+                        }
+                    }
+
                     switch (opType) {
                         case CSparkNameTxData::opRegister:
-                            pindexNew->addedSparkNames[sparkName.first] =
+                            pindexNew->ensurePrivacyData().addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    pindexNew->nHeight + validityBlocks,
                                     sparkName.second.additionalInfo);
                             break;
 
                         case CSparkNameTxData::opTransfer:
                             // old name data goes to removed list
-                            pindexNew->removedSparkNames[sparkName.first] = 
-                                CSparkNameBlockIndexData(sparkName.second.name,
-                                    sparkName.second.oldSparkAddress,
-                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
-                                    sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
+                            {
+                                auto& removedNames =
+                                    pindexNew->ensurePrivacyData().removedSparkNames;
+                                if (removedNames.find(sparkName.first) ==
+                                    removedNames.end()) {
+                                    removedNames.emplace(
+                                        sparkName.first,
+                                        CSparkNameBlockIndexData(
+                                            sparkName.second.name,
+                                            sparkName.second.oldSparkAddress,
+                                            sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                            sparkNameManager->GetSparkNameAdditionalData(sparkName.first)));
+                                }
+                            }
 
-                            pindexNew->addedSparkNames[sparkName.first] =
+                            pindexNew->ensurePrivacyData().addedSparkNames[sparkName.first] =
                                 CSparkNameBlockIndexData(sparkName.second.name,
                                     sparkName.second.sparkAddress,
-                                    pindexNew->nHeight + sparkName.second.sparkNameValidityBlocks,
+                                    pindexNew->nHeight + validityBlocks,
                                     sparkName.second.additionalInfo);
 
                             break;
 
                         case CSparkNameTxData::opUnregister:
-                            pindexNew->removedSparkNames[sparkName.first] =
-                                CSparkNameBlockIndexData(sparkName.second.name,
-                                    sparkName.second.sparkAddress,
-                                    sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
-                                    sparkNameManager->GetSparkNameAdditionalData(sparkName.first));
+                            {
+                                auto& removedNames =
+                                    pindexNew->ensurePrivacyData().removedSparkNames;
+                                if (removedNames.find(sparkName.first) ==
+                                    removedNames.end()) {
+                                    removedNames.emplace(
+                                        sparkName.first,
+                                        CSparkNameBlockIndexData(
+                                            sparkName.second.name,
+                                            sparkName.second.sparkAddress,
+                                            sparkNameManager->GetSparkNameBlockHeight(sparkName.first),
+                                            sparkNameManager->GetSparkNameAdditionalData(sparkName.first)));
+                                }
+                            }
                             break;
 
                         default:
@@ -534,14 +830,14 @@ bool ConnectBlockSpark(
             }
 
             // names were added, backup rewritten names if necessary
-            fBackupRewrittenSparkNames = true;
+            fBackupRewrittenSparkNames = !fSparkNamesAlreadyIndexed;
         }
 
         // generate hash if we need it
         if (updateHash) {
             unsigned char hash_result[CSHA256::OUTPUT_SIZE];
             hash.Finalize(hash_result);
-            auto &out_hash = pindexNew->sparkSetHash[sparkState.GetLatestCoinID()];
+            auto &out_hash = pindexNew->ensurePrivacyData().sparkSetHash[sparkState.GetLatestCoinID()];
             out_hash.clear();
             out_hash.insert(out_hash.begin(), std::begin(hash_result), std::end(hash_result));
         }
@@ -554,9 +850,15 @@ bool ConnectBlockSpark(
 
     auto removedNames = sparkNameManager->RemoveSparkNamesLosingValidity(pindexNew->nHeight);
     for (const auto &name: removedNames)
-        pindexNew->removedSparkNames[name.first] = name.second;
+        pindexNew->ensurePrivacyData().removedSparkNames.emplace(name.first, name.second);
     
     sparkNameManager->AddBlock(pindexNew, fBackupRewrittenSparkNames);
+
+    if (!fJustCheck &&
+        pindexNew->nHeight + 1 ==
+            chainparams.GetConsensus().nSparkChaumV2StartBlock) {
+        ClearSparkSpendProofCache();
+    }
 
     return true;
 }
@@ -605,27 +907,31 @@ void DisconnectTipSpark(CBlock& block, CBlockIndex *pindexDelete) {
 
     sparkState.RemoveBlock(pindexDelete);
 
+    // Spark verification depends on active-chain cover-set data. Refresh all
+    // cached results after a disconnect so they use the current chain context.
+    ClearSparkSpendProofCache();
+
     // Also remove from mempool spends that reference given block hash.
     RemoveSpendReferencingBlock(mempool, pindexDelete);
     RemoveSpendReferencingBlock(txpools.getStemTxPool(), pindexDelete);
 }
 
-bool CheckSparkBlock(CValidationState &state, const CBlock& block) {
+bool CheckSparkBlock(CValidationState &state, const CBlock& block, int nBlockHeight) {
     auto& consensus = ::Params().GetConsensus();
 
-    size_t blockSpendsValue = 0;
+    CAmount blockSpendsValue = 0;
 
     for (const auto& tx : block.vtx) {
         auto txSpendsValue =  GetSpendTransparentAmount(*tx);
 
-        if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(block.nHeight)) {
+        if (txSpendsValue > consensus.GetMaxValueSparkSpendPerTransaction(nBlockHeight)) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-spark-spend-invalid");
         }
         blockSpendsValue += txSpendsValue;
     }
 
-    if (cmp::greater(blockSpendsValue, consensus.GetMaxValueSparkSpendPerBlock(block.nHeight))) {
+    if (cmp::greater(blockSpendsValue, consensus.GetMaxValueSparkSpendPerBlock(nBlockHeight))) {
         return state.DoS(100, false, REJECT_INVALID,
                          "bad-txns-spark-spend-invalid");
     }
@@ -689,11 +995,12 @@ bool CheckSparkMintTransaction(
 //                             REJECT_INVALID,
 //                             "CTransaction::CheckTransaction() : Spark Mint is out of limit.");
 
-        if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
-            // Update coin list in the info
-            sparkTxInfo->mints.push_back(coin);
-            sparkTxInfo->spTransactions.insert(hashTx);
-        }
+    }
+
+    if (sparkTxInfo != NULL && !sparkTxInfo->fInfoIsComplete) {
+        sparkTxInfo->mints.insert(
+            sparkTxInfo->mints.end(), coins.begin(), coins.end());
+        sparkTxInfo->spTransactions.insert(hashTx);
     }
 
     return true;
@@ -785,6 +1092,9 @@ bool CheckSparkSMintTransaction(
                 spark::Coin coin(Params::get_default());
                 ParseSparkMintCoin(script, coin);
                 out_coins.emplace_back(coin);
+            } catch (const std::bad_alloc &) {
+                return state.Error(
+                    "CheckSparkSMintTransaction: memory allocation failed while parsing output");
             } catch (const std::exception &) {
                 return state.DoS(100,
                          false,
@@ -824,11 +1134,26 @@ bool CheckSparkSpendTransaction(
     }
 
     Consensus::Params const & params = ::Params().GetConsensus();
-    const int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+    int height = nHeight == INT_MAX ? chainActive.Height()+1 : nHeight;
+    const bool isMempoolAcceptance = !sparkTxInfo && nHeight == INT_MAX;
+    const bool isChaumV2 = tx.nType == TRANSACTION_SPARK_V2;
+    if (fStatefulSigmaCheck && isMempoolAcceptance && isChaumV2 &&
+        height < params.nSparkChaumV2StartBlock) {
+        // Do not parse or score a format that cannot enter the next block.
+        // This also keeps malformed premature payloads from affecting a peer's
+        // ban score before the format is active.
+        return state.DoS(
+            0,
+            false,
+            REJECT_NONSTANDARD,
+            "CheckSparkSpendTransaction: CHAUM_V2 is not active");
+    }
     if (!isVerifyDB) {
             if (height >= params.nSparkStartBlock) {
                 // data should be moved to v3 payload
-                if (tx.nVersion < 3 || tx.nType != TRANSACTION_SPARK)
+                if (tx.nVersion < 3 ||
+                    (tx.nType != TRANSACTION_SPARK &&
+                     tx.nType != TRANSACTION_SPARK_V2))
                     return state.DoS(100, false, NSEQUENCE_INCORRECT,
                                      "CheckSparkSpendTransaction: spark data should reside in transaction payload");
             }
@@ -866,7 +1191,10 @@ bool CheckSparkSpendTransaction(
     std::unique_ptr<spark::BaseSpendTransaction> spend;
 
     try {
-        if (spatsStarted)
+        const bool isSpatsSpend = !tx.vin.empty() &&
+            !tx.vin[0].scriptSig.empty() &&
+            tx.vin[0].scriptSig[0] == OP_SPATSSPEND;
+        if (isSpatsSpend)
             spend = std::make_unique<spats::SpendTransaction>(ParseSpatsSpend(tx));
         else
             spend = std::make_unique<spark::SpendTransaction>(ParseSparkSpend(tx));
@@ -876,6 +1204,10 @@ bool CheckSparkSpendTransaction(
                          false,
                          REJECT_MALFORMED,
                          "CheckSparkSpendTransaction: invalid spend transaction");
+    }
+    catch (const std::bad_alloc &) {
+        return state.Error(
+            "CheckSparkSpendTransaction: memory allocation failed while parsing spend");
     }
     catch (const std::exception &) {
         return state.DoS(100,
@@ -888,26 +1220,138 @@ bool CheckSparkSpendTransaction(
     // Obtain the hash of the transaction sans the Spark part
     CMutableTransaction txTemp = tx;
     txTemp.vExtraPayload.clear();
-    std::erase_if(txTemp.vout, [] (const CTxOut& out) { return out.scriptPubKey.IsSparkSMint() || out.scriptPubKey.IsSpatsMint() || out.scriptPubKey.IsSpatsBurnAmount(); });
+    txTemp.vout.erase(
+        std::remove_if(
+            txTemp.vout.begin(),
+            txTemp.vout.end(),
+            [](const CTxOut& output) {
+                return output.scriptPubKey.IsSparkSMint() ||
+                    output.scriptPubKey.IsSpatsMint() ||
+                    output.scriptPubKey.IsSpatsBurnAmount();
+            }),
+        txTemp.vout.end());
     txHashForMetadata = txTemp.GetHash();
 
     LogPrintf("CheckSparkSpendTransaction: tx metadata hash=%s\n", txHashForMetadata.ToString());
 
+    if (!fStatefulSigmaCheck)
+        return true;
+    if (isChaumV2 && height < params.nSparkChaumV2StartBlock) {
+        return state.DoS(isMempoolAcceptance ? 0 : 100,
+                         false,
+                         isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                         "CheckSparkSpendTransaction: CHAUM_V2 is not active");
+    }
+    const int singleInputActivation = std::min(
+        params.nSparkSingleInputStartBlock,
+        params.nSparkChaumV2StartBlock);
+    const bool enforceChaumV1SingleInput =
+        !isChaumV2 && height >= singleInputActivation;
+    const bool enforceCanonicalGroupIds = isMempoolAcceptance ||
+        height >= params.nSparkChaumV2StartBlock;
+
+    const bool requireChaumV1SingleInput =
+        !isChaumV2 && (isMempoolAcceptance
+            ? height >= (singleInputActivation - 10)
+            : enforceChaumV1SingleInput);
+    // Mempool policy leads consensus by 10 blocks so stale unbound proofs are
+    // drained before H2. Consensus itself binds only from H2 onward.
+    const bool enforceBoundCoverSetHash = isMempoolAcceptance
+        ? height >= (params.nSparkChaumV2StartBlock - 10)
+        : height >= params.nSparkChaumV2StartBlock;
+    const bool useBoundCoverSetHash =
+        height >= params.nSparkChaumV2StartBlock;
+    if (requireChaumV1SingleInput &&
+        spend->getUsedLTags().size() != 1) {
+        return state.DoS(isMempoolAcceptance ? 0 : 100,
+                         false,
+                         isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                         "CheckSparkSpendTransaction: multi-input Spark spends are disabled");
+    }
+
+    const auto& idAndBlockHashes = spend->getBlockHashes();
+    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
+    const auto isInvalidGroupId = [](uint64_t id) {
+        return id == 0 || id > static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
+    };
+    if (enforceCanonicalGroupIds &&
+        (std::any_of(ids.begin(), ids.end(), isInvalidGroupId) ||
+         std::any_of(idAndBlockHashes.begin(), idAndBlockHashes.end(),
+                     [&isInvalidGroupId](const auto& item) { return isInvalidGroupId(item.first); }))) {
+        return state.DoS(isMempoolAcceptance ? 0 : 100,
+                         false,
+                         isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                         "CheckSparkSpendTransaction: invalid coin group id");
+    }
+    const bool enforceExactCoverSetReferences = isMempoolAcceptance ||
+        height >= params.nSparkChaumV2StartBlock;
+    if (enforceExactCoverSetReferences) {
+        bool referencesMatchIds = false;
+        if (ids.size() == spend->getUsedLTags().size()) {
+            const std::set<uint64_t> uniqueIds(ids.begin(), ids.end());
+            referencesMatchIds =
+                idAndBlockHashes.size() == uniqueIds.size() &&
+                std::equal(
+                    uniqueIds.begin(), uniqueIds.end(), idAndBlockHashes.begin(),
+                    [](uint64_t id, const auto& item) { return id == item.first; });
+        }
+        if (!referencesMatchIds) {
+            return state.DoS(isMempoolAcceptance ? 0 : 100,
+                             false,
+                             isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                             "CheckSparkSpendTransaction: invalid cover set references");
+        }
+    }
+    if (spend->getFee() > static_cast<uint64_t>(MAX_MONEY)) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSparkSpendTransaction: fee out of range");
+    }
     bool passVerify = false;
 
     uint64_t Vout = 0;
     uint64_t burn = 0;
     std::optional<std::pair<Scalar, Scalar>> burn_asset_id;
     std::size_t private_num = 0;
+    bool sawPrivateOutput = false;
     for (const CTxOut &txout : tx.vout) {
         const auto& script = txout.scriptPubKey;
         if (!script.empty() && script.IsSparkSMint()) {
             private_num++;
+            sawPrivateOutput = true;
+            if (isChaumV2) {
+                if (txout.nValue != 0) {
+                    return state.DoS(100, false, REJECT_INVALID,
+                        "CheckSparkSpendTransaction: nonzero Spark V2 private output");
+                }
+                try {
+                    spark::Coin coin(Params::get_default());
+                    ParseSparkMintCoin(script, coin);
+                    CDataStream canonical(SER_NETWORK, PROTOCOL_VERSION);
+                    canonical << coin;
+                    if (script.size() != canonical.size() + 1 ||
+                        !std::equal(
+                            canonical.begin(), canonical.end(),
+                            script.begin() + 1,
+                            [](char left, unsigned char right) {
+                                return static_cast<unsigned char>(left) == right;
+                            })) {
+                        return state.DoS(100, false, REJECT_INVALID,
+                            "CheckSparkSpendTransaction: non-canonical Spark V2 private output");
+                    }
+                } catch (const std::bad_alloc &) {
+                    return state.Error(
+                        "CheckSparkSpendTransaction: memory allocation failed while parsing output");
+                } catch (const std::exception &) {
+                    return state.DoS(100, false, REJECT_INVALID,
+                        "CheckSparkSpendTransaction: invalid Spark V2 private output");
+                }
+            }
         } else if (script.IsSparkMint() ||
                 script.IsLelantusMint() ||
                 script.IsLelantusJMint() ||
                 script.IsSigmaMint()) {
-            return false;
+            return state.DoS(100, false, REJECT_INVALID,
+                "CheckSparkSpendTransaction: incompatible private output type");
         } else if (script.IsSpatsMint()) {
             continue;
         } else if (script.IsSpatsBurnAmount()) {
@@ -924,34 +1368,61 @@ bool CheckSparkSpendTransaction(
             }
             burn_asset_id = asset_id_scalars;
         } else {
-            Vout += txout.nValue;
+            if (isChaumV2 && sawPrivateOutput) {
+                return state.DoS(100, false, REJECT_INVALID,
+                    "CheckSparkSpendTransaction: non-canonical Spark V2 output order");
+            }
+            if (txout.nValue < 0 ||
+                static_cast<uint64_t>(txout.nValue) >
+                    std::numeric_limits<uint64_t>::max() - Vout) {
+                return state.DoS(100, false, REJECT_INVALID,
+                                 "CheckSparkSpendTransaction: transparent output overflow");
+            }
+            Vout += static_cast<uint64_t>(txout.nValue);
         }
     }
 
-    if (private_num > ::Params().GetConsensus().nMaxSparkOutLimitPerTx)
-        return false;
+    if (private_num > ::Params().GetConsensus().nMaxSparkOutLimitPerTx) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSparkSpendTransaction: too many private outputs");
+    }
 
     std::vector<Coin> out_coins;
     out_coins.reserve(private_num);
     if (!CheckSparkSMintTransaction(tx.vout, state, hashTx, fStatefulSigmaCheck, out_coins, sparkTxInfo))
         return false;
     spend->setOutCoins(out_coins);
-    std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
+    struct CoverSetSource {
+        int stateId;
+        int previousStateId;
+        CBlockIndex* referenceBlock;
+        CBlockIndex* firstBlock;
+        std::size_t size;
+    };
+    std::unordered_map<uint64_t, CoverSetSource> coverSetSources;
     std::unordered_map<uint64_t, CoverSetData> cover_set_data;
-    const auto idAndBlockHashes = spend->getBlockHashes();
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
     bool useBatching = batchProofContainer->fCollectProofs && !isVerifyDB && !isCheckWallet && sparkTxInfo && !sparkTxInfo->fInfoIsComplete;
 
     for (const auto& idAndHash : idAndBlockHashes) {
+        const uint64_t wireGroupId = idAndHash.first;
+
+        // Preserve the deployed 32-bit interpretation for historical blocks.
+        // Canonical ID rejection is gated on Chaum V2 so this lookup still
+        // matches pre-activation spends that wrap at 32 bits.
+        const int stateGroupId = static_cast<int32_t>(wireGroupId);
+        const int previousStateGroupId = static_cast<int32_t>(wireGroupId - 1);
         CSparkState::SparkCoinGroupInfo coinGroup;
-        if (!sparkState.GetCoinGroupInfo(idAndHash.first, coinGroup)) {
-            if (fStatefulSigmaCheck)
-                return state.DoS(100, false, NO_MINT_ZEROCOIN,
-                                 "CheckSparkSpendTransaction: Error: no coins were minted with such parameters");
-            else
-                // soft error, will check the proof later
-                return true;
+        CSparkState& validationSparkState =
+            SparkStateForValidation(isVerifyDB);
+        if (!validationSparkState.GetCoinGroupInfo(
+                stateGroupId, coinGroup)) {
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                false,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : NO_MINT_ZEROCOIN,
+                "CheckSparkSpendTransaction: no matching cover set");
         }
 
         CBlockIndex *index = coinGroup.lastBlock;
@@ -959,36 +1430,42 @@ bool CheckSparkSpendTransaction(
         while (index != coinGroup.firstBlock && index->GetBlockHash() != idAndHash.second)
             index = index->pprev;
 
-        if (index->GetBlockHash() != idAndHash.second && !fStatefulSigmaCheck)
-            // if fStatefulSigmaCheck is false, we are in the mempool acceptance code, it's a soft error
-            // just return true. If fStatefulSigmaCheck is true, use coinGroup.firstBlock as a reference block
-            return true;
+        const bool unknownReference =
+            index->GetBlockHash() != idAndHash.second;
+        if (unknownReference &&
+            (isMempoolAcceptance || isChaumV2 || enforceChaumV1SingleInput)) {
+            // Mempool admission is a non-punitive policy failure. Consensus
+            // retains the deployed first-block fallback only for historical
+            // V1 blocks before the single-input activation. V2 and later V1
+            // validation fail closed.
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                false,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                "CheckSparkSpendTransaction: unknown cover-set reference");
+        }
 
         // take the hash from last block of anonymity set
-        std::vector<unsigned char> set_hash = GetAnonymitySetHash(index, idAndHash.first);
+        std::vector<unsigned char> set_hash =
+            GetAnonymitySetHash(index, stateGroupId, false, useBoundCoverSetHash);
+        CBlockIndex* referenceBlock = index;
 
-        std::vector<Coin> cover_set;
-        cover_set.reserve(coinGroup.nCoins);
         std::size_t set_size = 0;
         // Build a vector with all the public coins with given id before
         // the block on which the spend occurred.
         // This list of public coins is required by function "Verify" of spend.
         while (true) {
             int id = 0;
-            if (CountCoinInBlock(index, idAndHash.first)) {
-                id = idAndHash.first;
-            } else if (CountCoinInBlock(index, idAndHash.first - 1)) {
-                id = idAndHash.first - 1;
+            if (CountCoinInBlock(index, stateGroupId)) {
+                id = stateGroupId;
+            } else if (CountCoinInBlock(index, previousStateGroupId)) {
+                id = previousStateGroupId;
             }
             if (id) {
-                if (index->sparkMintedCoins.count(id) > 0) {
-                    BOOST_FOREACH(
-                    const auto& coin,
-                    index->sparkMintedCoins[id]) {
-                        set_size++;
-                        if (!useBatching)
-                            cover_set.push_back(coin);
-                    }
+                const auto& mintedCoins = index->privacyData().sparkMintedCoins;
+                auto minted = mintedCoins.find(id);
+                if (minted != mintedCoins.end()) {
+                    set_size += minted->second.size();
                 }
             }
 
@@ -997,19 +1474,38 @@ bool CheckSparkSpendTransaction(
             index = index->pprev;
         }
 
+        // After Chaum V2 (and H2-10 for mempool), nonempty cover sets must
+        // commit the canonical 32-byte cumulative hash.
+        if (enforceBoundCoverSetHash &&
+            set_size > 0 &&
+            set_hash.size() != CSHA256::OUTPUT_SIZE) {
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                false,
+                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                "CheckSparkSpendTransaction: cover set is not bound to a canonical state hash");
+        }
+
         CoverSetData setData;
         setData.cover_set_size = set_size;
         if (!set_hash.empty())
             setData.cover_set_representation = set_hash;
         setData.cover_set_representation.insert(setData.cover_set_representation.end(), txHashForMetadata.begin(), txHashForMetadata.end());
 
-        cover_sets[idAndHash.first] = std::move(cover_set);
-        cover_set_data [idAndHash.first] = setData;
+        coverSetSources.emplace(
+            wireGroupId,
+            CoverSetSource{
+                stateGroupId,
+                previousStateGroupId,
+                referenceBlock,
+                coinGroup.firstBlock,
+                set_size});
+        cover_set_data[wireGroupId] = setData;
     }
     spend->setCoverSets(cover_set_data);
     spend->setVout(Vout);
     spend->setBurn(burn);
-    if (spatsStarted && burn > 0) {
+    if (spend->isSpats() && burn > 0) {
         if (!burn_asset_id) {
             return false;
         }
@@ -1017,124 +1513,120 @@ bool CheckSparkSpendTransaction(
         spats_spend->setBurnAssetId(burn_asset_id->first, burn_asset_id->second);
     }
 
-    const std::vector<uint64_t>& ids = spend->getCoinGroupIds();
     for (const auto& id : ids) {
-        if (!cover_sets.count(id) || !cover_set_data.count(id))
-            return fStatefulSigmaCheck ? state.DoS(100,
-                             error("CheckSparkSpendTransaction: No cover set found.")) : true;
+        if (!coverSetSources.count(id) || !cover_set_data.count(id))
+            return state.DoS(
+                isMempoolAcceptance ? 0 : 100,
+                error("CheckSparkSpendTransaction: No cover set found."),
+                isMempoolAcceptance ? REJECT_NONSTANDARD : REJECT_INVALID,
+                "bad-spark-cover-set-missing");
     }
+
+    std::vector<Coin> loadedCoverSet;
+    const SpendTransaction::CoverSetProvider coverSetProvider =
+        [&coverSetSources, &loadedCoverSet](uint64_t wireId)
+            -> const std::vector<Coin>& {
+        const auto source = coverSetSources.find(wireId);
+        if (source == coverSetSources.end()) {
+            throw std::invalid_argument("Cover set missing");
+        }
+
+        loadedCoverSet.clear();
+        loadedCoverSet.reserve(source->second.size);
+        CBlockIndex* index = source->second.referenceBlock;
+        while (true) {
+            int id = 0;
+            if (CountCoinInBlock(index, source->second.stateId)) {
+                id = source->second.stateId;
+            } else if (CountCoinInBlock(
+                    index, source->second.previousStateId)) {
+                id = source->second.previousStateId;
+            }
+            const auto& mintedCoins = index->privacyData().sparkMintedCoins;
+            const auto coinsIt = mintedCoins.find(id);
+            if (id && coinsIt != mintedCoins.end()) {
+                const auto& coins = coinsIt->second;
+                loadedCoverSet.insert(
+                    loadedCoverSet.end(), coins.begin(), coins.end());
+            }
+            if (index == source->second.firstBlock) {
+                break;
+            }
+            index = index->pprev;
+        }
+        if (loadedCoverSet.size() != source->second.size) {
+            throw std::invalid_argument("Cover set size changed");
+        }
+        return loadedCoverSet;
+    };
     
     // if we are collecting proofs, skip verification and collect proofs
     // add proofs into container
     if (useBatching) {
         passVerify = true;
-        batchProofContainer->add(*spend);
+        if (spend->isSpats()) {
+            batchProofContainer->add(
+                *static_cast<spats::SpendTransaction*>(spend.get()));
+        } else if (isChaumV2 || requireChaumV1SingleInput) {
+            batchProofContainer->add(
+                *static_cast<spark::SpendTransaction*>(spend.get()), hashTx);
+        } else {
+            batchProofContainer->addHistorical(
+                *static_cast<spark::SpendTransaction*>(spend.get()), hashTx);
+        }
     } else {
-        bool fChecked = false;
-
         try {
-            bool fRecheckNeeded;
-            do {
-                fRecheckNeeded = false;
-
+            bool haveCachedSuccess = false;
+            // The cache is txid-only. VerifyDB reconstructs cover sets at the
+            // historical height, so a mempool success must not skip re-verify.
+            if (!isVerifyDB && !spend->isSpats()) {
                 LOCK(cs_checkedSparkSpendTransactions);
-                if (gCheckedSparkSpendTransactions.count(hashTx)) {
-                    auto& checkState = gCheckedSparkSpendTransactions[hashTx];
-                    if (checkState.fChecked) {
-                        if (!checkState.fResult)
-                            return state.DoS(100, false, REJECT_INVALID,
-                                             "CheckSparkSpendTransaction: previously checked and failed");
-                        else {
-                            LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
-                            fChecked = true;
-                        }
-                    }
-                    // If the check is in progress and we are doing a stateful check, we need to wait
-                    else if (checkState.checkInProgress && fStatefulSigmaCheck) {
-                        // wait for the check to complete
-                        auto future = checkState.checkInProgress;
-                        cs_checkedSparkSpendTransactions.unlock();
-                        bool result = future->get();
-                        cs_checkedSparkSpendTransactions.lock();
-
-                        checkState.fChecked = true;
-                        checkState.fResult = result;
-                        checkState.checkInProgress = nullptr;
-
-                        if (!result) {
-                            // unfortunately, it's possible that the proof was checked and failed
-                            // because the anonymity set was incomplete at the time of checking. We need
-                            // to recheck the proof again
-                            fRecheckNeeded = true;
-                            gCheckedSparkSpendTransactions.erase(hashTx);
-                        }
-                        else
-                            fChecked = true;
-                    }
-                }
-                else if (!fStatefulSigmaCheck && !gCheckProofThreadPool.IsPoolShutdown()) {
-                    // not an urgent check, put the proof into the thread pool for verification
-                    if (spatsStarted) {
-                        spats::SpendTransaction typed = *static_cast<spats::SpendTransaction*>(spend.get());;
-                        auto future = gCheckProofThreadPool.PostTask([typed, cover_sets]() {
-                            try {
-                                return spats::SpendTransaction::verify(typed, cover_sets);
-                            } catch (const std::exception &) {
-                                return false;
-                            }
-                        });
-                        auto &checkState = gCheckedSparkSpendTransactions[hashTx];
-                        checkState.fChecked = false;
-                        checkState.fResult = false;
-                        checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
-                    } else {
-                        spark::SpendTransaction typed = *static_cast<spark::SpendTransaction*>(spend.get());;
-                        auto future = gCheckProofThreadPool.PostTask([typed, cover_sets]() {
-                            try {
-                                return spark::SpendTransaction::verify(typed, cover_sets);
-                            } catch (const std::exception &) {
-                                return false;
-                            }
-                        });
-                        auto &checkState = gCheckedSparkSpendTransactions[hashTx];
-                        checkState.fChecked = false;
-                        checkState.fResult = false;
-                        checkState.checkInProgress = std::make_shared<boost::future<bool>>(std::move(future));
-                    }
-                }
+                haveCachedSuccess = gCheckedSparkSpendTransactions.exists(hashTx);
             }
-            while (fRecheckNeeded);
-    
-            if (fChecked) {
-                // if we are here, then the proof was already checked and it passed
+            if (haveCachedSuccess) {
+                LogPrintf("CheckSparkSpendTransaction: already checked tx %s\n", hashTx.ToString());
                 passVerify = true;
             }
-            else {
-                if (fStatefulSigmaCheck) {
-                    // we need the answer now, so verify and execute
-                    if (spatsStarted) {
-                        auto* typed = static_cast<spats::SpendTransaction*>(spend.get());
-                        passVerify = spats::SpendTransaction::verify(*typed, cover_sets);
-                    } else {
-                        auto* typed = static_cast<spark::SpendTransaction*>(spend.get());
-                        passVerify = spark::SpendTransaction::verify(*typed, cover_sets);
-                    }
+            else if (spend->isSpats()) {
+                std::unordered_map<uint64_t, std::vector<Coin>> cover_sets;
+                for (uint64_t id : ids) {
+                    cover_sets.emplace(id, coverSetProvider(id));
                 }
-                else {
-                    // return true for now, the result will be processed later
-                    return true;
+                passVerify = spats::SpendTransaction::verify(
+                    *static_cast<spats::SpendTransaction*>(spend.get()),
+                    cover_sets);
+            }
+            else if (isMempoolAcceptance) {
+                passVerify = spark::SpendTransaction::verify(
+                    spark::Params::get_default(),
+                    {*static_cast<spark::SpendTransaction*>(spend.get())},
+                    coverSetProvider);
+                if (passVerify) {
+                    LOCK(cs_checkedSparkSpendTransactions);
+                    gCheckedSparkSpendTransactions.insert(hashTx, true);
                 }
             }
+            else {
+                // we need the answer now, so verify and execute
+                passVerify = (isChaumV2 || requireChaumV1SingleInput)
+                    ? spark::SpendTransaction::verify(
+                        spark::Params::get_default(),
+                        {*static_cast<spark::SpendTransaction*>(spend.get())},
+                        coverSetProvider)
+                    : spark::SpendTransaction::verifyHistorical(
+                        spark::Params::get_default(),
+                        {*static_cast<spark::SpendTransaction*>(spend.get())},
+                        coverSetProvider);
+            }
+        }
+        catch (const std::bad_alloc &) {
+            return state.Error(
+                "CheckSparkSpendTransaction: memory allocation failed while verifying spend");
         }
         catch (const std::exception &) {
             passVerify = false;
         }
-
     }
-
-    if (!fStatefulSigmaCheck)
-        // nothing more to do
-        return true;
 
     if (passVerify) {
         const std::vector<GroupElement>& lTags = spend->getUsedLTags();
@@ -1146,8 +1638,18 @@ bool CheckSparkSpendTransaction(
 
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
         if (!(sparkTxInfo && sparkTxInfo->spTransactions.count(hashTx) > 0)) {
+            const bool fConnectTip = sparkTxInfo &&
+                (!isVerifyDB || activeVerifyDBContext);
+            CSparkState& validationSparkState =
+                SparkStateForValidation(isVerifyDB);
             for (size_t i = 0; i < lTags.size(); ++i) {
-                    if (!CheckLTag(state, sparkTxInfo, lTags[i], nHeight, false)) {
+                    if (!CheckLTag(
+                            state,
+                            sparkTxInfo,
+                            lTags[i],
+                            nHeight,
+                            fConnectTip,
+                            validationSparkState)) {
                         LogPrintf("CheckSparkSpendTransaction: lTag check failed, ltag=%s\n", lTags[i]);
                         return false;
                     }
@@ -1162,11 +1664,12 @@ bool CheckSparkSpendTransaction(
             }
         }
 
-        if (!isVerifyDB && !isCheckWallet) {
+        if (!isCheckWallet) {
             // add spend information to the index
             if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                 for (size_t i = 0; i < lTags.size(); i++) {
-                    sparkTxInfo->spentLTags.insert(std::make_pair(lTags[i], ids[i]));
+                    sparkTxInfo->spentLTags.insert(std::make_pair(
+                        lTags[i], static_cast<int32_t>(ids[i])));
                     if (GetBoolArg("-mobile", false)) {
                         sparkTxInfo->ltagTxhash.insert(std::make_pair(primitives::GetLTagHash(lTags[i]), hashTx));
                     }
@@ -1176,7 +1679,8 @@ bool CheckSparkSpendTransaction(
     }
     else {
         LogPrintf("CheckSparkSpendTransaction: verification failed at block %d\n", nHeight);
-        return false;
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSparkSpendTransaction: proof verification failed");
     }
 //TODO levon
 //    // Check Spats
@@ -1215,7 +1719,7 @@ bool CheckSparkSpendTransaction(
 //        }
 //    }
 
-    if (!isVerifyDB && !isCheckWallet) {
+    if (!isCheckWallet) {
         if (sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
 //            if (action) {
 //                for (auto&& coin : get_coins(*action))
@@ -1241,10 +1745,16 @@ bool CheckSparkTransaction(
 {
     Consensus::Params const & consensus = ::Params().GetConsensus();
 
-    bool const allowSpark = IsSparkAllowed();
+    int nRealHeight = nHeight;
+    if (nRealHeight == INT_MAX) {
+        LOCK(cs_main);
+        nRealHeight = chainActive.Height() + 1;
+    }
+
+    bool const allowSpark = IsSparkAllowed(nRealHeight);
 
     // Check Spark Mint Transaction
-    if (allowSpark && !isVerifyDB && tx.IsSparkMint()) {
+    if (allowSpark && tx.IsSparkMint()) {
         std::vector<CTxOut> txOuts;
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSparkMint()) {
@@ -1253,7 +1763,12 @@ bool CheckSparkTransaction(
         }
         if (!txOuts.empty()) {
             try {
-                if (!CheckSparkMintTransaction(txOuts, state, hashTx, fStatefulSigmaCheck, sparkTxInfo)) {
+                if (!CheckSparkMintTransaction(
+                        txOuts,
+                        state,
+                        hashTx,
+                        fStatefulSigmaCheck,
+                        sparkTxInfo)) {
                     LogPrintf("CheckSparkTransaction::Mint verification failed.\n");
                     return false;
                 }
@@ -1301,29 +1816,29 @@ bool CheckSparkTransaction(
 
     // Check Spark Spend
     if (tx.IsSparkSpend()) {
-        int nRealHeight = nHeight;
-        if (nRealHeight == INT_MAX)  // if height is not set, use chainActive height
-        {
-            LOCK(cs_main);
-            nRealHeight = chainActive.Height();
-        }
         if (GetSpendTransparentAmount(tx) > consensus.GetMaxValueSparkSpendPerTransaction(nRealHeight)) {
             return state.DoS(100, false,
                              REJECT_INVALID,
                              "bad-txns-spend-invalid");
         }
 
-        if (!isVerifyDB) {
-            try {
-                if (!CheckSparkSpendTransaction(
-                        tx, state, hashTx, isVerifyDB, nHeight,
-                        isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
-                    return false;
-                }
+        try {
+            if (!CheckSparkSpendTransaction(
+                    tx, state, hashTx, isVerifyDB, nHeight,
+                    isCheckWallet, fStatefulSigmaCheck, sparkTxInfo)) {
+                return false;
+            }
 
-                CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            if (!isVerifyDB || activeVerifyDBContext) {
+                CSparkNameManager *sparkNameManager =
+                    SparkNameManagerForValidation(isVerifyDB);
                 CSparkNameTxData sparkTxData;
-                if (sparkNameManager->CheckSparkNameTx(tx, nRealHeight, state, &sparkTxData)) {
+                if (sparkNameManager->CheckSparkNameTx(
+                        tx,
+                        nRealHeight,
+                        state,
+                        &sparkTxData,
+                        /* nContextualFailureDoS */ nHeight == INT_MAX ? 0 : 100)) {
                     if (!sparkTxData.name.empty() && sparkTxInfo && !sparkTxInfo->fInfoIsComplete) {
                         // Check if the block already contains conflicting spark name
                         if (CSparkNameManager::IsInConflict(sparkTxData, sparkTxInfo->sparkNames,
@@ -1338,19 +1853,18 @@ bool CheckSparkTransaction(
                 else {
                     return false;
                 }
-
             }
-            catch (const std::exception &x) {
-                return state.Error(x.what());
-            }
+        }
+        catch (const std::bad_alloc &) {
+            return state.Error(
+                "CheckSparkTransaction: memory allocation failed while checking spend");
+        }
+        catch (const std::exception &x) {
+            return state.Error(x.what());
         }
     }
 
     return true;
-}
-
-void ShutdownSparkState() {
-    gCheckProofThreadPool.Shutdown();
 }
 
 uint256 GetTxHashFromCoin(const spark::Coin& coin) {
@@ -1392,7 +1906,10 @@ bool GetOutPoint(COutPoint& outPoint, const uint256& coinHash)
     return GetOutPoint(outPoint, coin);
 }
 
-bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block) {
+bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CBlock &block, CTransactionRef* txOut) {
+    if (txOut)
+        txOut->reset();
+
     spark::Coin txCoin(coin.params);
     // cycle transaction hashes, looking for this coin
     for (CTransactionRef tx : block.vtx){
@@ -1407,6 +1924,8 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
                 }
                 if (coin == txCoin) {
                     outPoint = COutPoint(tx->GetHash(), nIndex);
+                    if (txOut)
+                        *txOut = tx;
                     return true;
                 }
             }
@@ -1419,7 +1938,19 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const spark::Coin& coin, const CB
 std::vector<unsigned char> getSerialContext(const CTransaction &tx) {
     CDataStream serialContextStream(SER_NETWORK, PROTOCOL_VERSION);
     if (tx.IsSparkSpend()) {
-        serialContextStream << GetSparkUsedTags(tx);
+        try {
+            if (!tx.vin.empty() && !tx.vin[0].scriptSig.empty() &&
+                tx.vin[0].scriptSig[0] == OP_SPATSSPEND) {
+                serialContextStream << ParseSpatsSpend(tx).getUsedLTags();
+            } else {
+                spark::SpendTransaction spend = ParseSparkSpend(tx);
+                serialContextStream << spend.getUsedLTags();
+            }
+        } catch (const std::bad_alloc &) {
+            throw;
+        } catch (const std::exception &) {
+            return std::vector<unsigned char>();
+        }
     } else {
         for (auto input: tx.vin) {
             input.scriptSig.clear();
@@ -1462,16 +1993,42 @@ CSparkState::CSparkState(
         size_t startGroupSize)
         :
         maxCoinInGroup(maxCoinInGroup),
-        startGroupSize(startGroupSize)
+        startGroupSize(startGroupSize),
+        latestCoinId(0)
 {
-    Reset();
+}
+
+void CSparkState::CopyFrom(const CSparkState& other)
+{
+    std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> coins;
+    {
+        LOCK(other.cs_minted_coins);
+        coins = other.mintedCoins;
+    }
+
+    LOCK(cs_minted_coins);
+    maxCoinInGroup = other.maxCoinInGroup;
+    startGroupSize = other.startGroupSize;
+    latestCoinId = other.latestCoinId;
+    coinGroups = other.coinGroups;
+    mintedCoins = std::move(coins);
+    usedLTags = other.usedLTags;
+    mobileUsedLTags = other.mobileUsedLTags;
+    ltagTxhash = other.ltagTxhash;
+    extendedMintMetaInfo = other.extendedMintMetaInfo;
+    mintMetaInfo = other.mintMetaInfo;
+    spendMetaInfo = other.spendMetaInfo;
 }
 
 void CSparkState::Reset() {
+    ClearSparkSpendProofCache();
     ShutdownWallet();
     coinGroups.clear();
     latestCoinId = 0;
-    mintedCoins.clear();
+    {
+        LOCK(cs_minted_coins);
+        mintedCoins.clear();
+    }
     usedLTags.clear();
     mobileUsedLTags.clear();
     mintMetaInfo.clear();
@@ -1480,6 +2037,7 @@ void CSparkState::Reset() {
 }
 
 std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coin) {
+    LOCK(cs_minted_coins);
     auto coinIt = mintedCoins.find(coin);
 
     if (coinIt != mintedCoins.end()) {
@@ -1489,11 +2047,13 @@ std::pair<int, int> CSparkState::GetMintedCoinHeightAndId(const spark::Coin& coi
 }
 
 bool CSparkState::HasCoin(const spark::Coin& coin) {
+    LOCK(cs_minted_coins);
     return mintedCoins.find(coin) != mintedCoins.end();
 
 }
 
 bool CSparkState::HasCoinHash(spark::Coin& coin, const uint256& coinHash) {
+    LOCK(cs_minted_coins);
     for (auto it = mintedCoins.begin(); it != mintedCoins.end(); ++it ){
         const spark::Coin& coin_ = (*it).first;
         if (primitives::GetSparkCoinHash(coin_) == coinHash) {
@@ -1543,17 +2103,37 @@ bool CSparkState::CanAddMintToMempool(const spark::Coin& coin){
     return !HasCoin(coin) && !mempool.sparkState.HasMint(coin);
 }
 
-void CSparkState::AddMint(const spark::Coin& coin, const CMintedCoinInfo& coinInfo) {
-    mintedCoins.insert(std::make_pair(coin, coinInfo));
-    mintMetaInfo[coinInfo.coinGroupId] += 1;
+bool CSparkState::AddMint(
+        const spark::Coin& coin,
+        const CMintedCoinInfo& coinInfo) {
+    LOCK(cs_minted_coins);
+    const auto inserted = mintedCoins.emplace(coin, coinInfo).second;
+    if (inserted) {
+        mintMetaInfo[coinInfo.coinGroupId] += 1;
+    }
+    return inserted;
 }
 
-void CSparkState::RemoveMint(const spark::Coin& coin) {
+bool CSparkState::RemoveMint(
+        const spark::Coin& coin,
+        int expectedGroupId,
+        int expectedHeight) {
+    LOCK(cs_minted_coins);
+
     auto iter = mintedCoins.find(coin);
-    if (iter != mintedCoins.end()) {
-        mintMetaInfo[iter->second.coinGroupId] -= 1;
-        mintedCoins.erase(iter);
+    if (iter == mintedCoins.end() ||
+            iter->second.coinGroupId != expectedGroupId ||
+            iter->second.nHeight != expectedHeight) {
+        return false;
     }
+
+    auto metaIt = mintMetaInfo.find(expectedGroupId);
+    if (metaIt != mintMetaInfo.end() && metaIt->second > 0) {
+        --metaIt->second;
+    }
+
+    mintedCoins.erase(iter);
+    return true;
 }
 
 void CSparkState::AddMintsToStateAndBlockIndex(
@@ -1590,18 +2170,22 @@ void CSparkState::AddMintsToStateAndBlockIndex(
     }
 
     for (const auto& mint : blockMints) {
-        AddMint(mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
-        LogPrintf("AddMintsToStateAndBlockIndex: Spark mint added id=%d\n", latestCoinId);
-        index->sparkMintedCoins[latestCoinId].push_back(mint);
+        const bool inserted = AddMint(
+            mint, CMintedCoinInfo::make(latestCoinId, index->nHeight));
+        LogPrintf(
+            "AddMintsToStateAndBlockIndex: Spark mint %s id=%d\n",
+            inserted ? "added" : "already present",
+            latestCoinId);
+        auto& pd = index->ensurePrivacyData();
+        pd.sparkMintedCoins[latestCoinId].push_back(mint);
         if (GetBoolArg("-mobile", false)) {
             COutPoint outPoint;
-            GetOutPointFromBlock(outPoint, mint, *pblock);
             CTransactionRef tx;
-            for (CTransactionRef itr : pblock->vtx) {
-                if (outPoint.hash == itr->GetHash())
-                    tx = itr;
+            if (!GetOutPointFromBlock(outPoint, mint, *pblock, &tx)) {
+                LogPrintf("AddMintsToStateAndBlockIndex: unable to locate Spark mint transaction in block %s\n", pblock->GetHash().ToString());
+                continue;
             }
-            index->sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
+            pd.sparkTxHashContext[mint.S] = {outPoint.hash, getSerialContext(*tx)};
         }
     }
 }
@@ -1637,7 +2221,8 @@ void CSparkState::RemoveSpend(const GroupElement& lTag) {
 }
 
 void CSparkState::AddBlock(CBlockIndex *index) {
-    for (auto const& coins : index->sparkMintedCoins) {
+    const auto& pd = index->privacyData();
+    for (auto const& coins : pd.sparkMintedCoins) {
         if (coins.second.empty())
             continue;
 
@@ -1661,11 +2246,11 @@ void CSparkState::AddBlock(CBlockIndex *index) {
         }
     }
 
-    for (auto const &lTags : index->spentLTags) {
+    for (auto const &lTags : pd.spentLTags) {
         AddSpend(lTags.first, lTags.second);
     }
     if (GetBoolArg("-mobile", false)) {
-        for (auto const &elem : index->ltagTxhash) {
+        for (auto const &elem : pd.ltagTxhash) {
             AddLTagTxHash(elem.first, elem.second);
         }
     }
@@ -1673,7 +2258,8 @@ void CSparkState::AddBlock(CBlockIndex *index) {
 
 void CSparkState::RemoveBlock(CBlockIndex *index) {
     // roll back coin group updates
-    for (auto &coins : index->sparkMintedCoins)
+    const auto& pd = index->privacyData();
+    for (auto &coins : pd.sparkMintedCoins)
     {
         if (coinGroups.count(coins.first) == 0)
             continue;
@@ -1713,29 +2299,28 @@ void CSparkState::RemoveBlock(CBlockIndex *index) {
             // roll back lastBlock to previous position
             assert(coinGroup.lastBlock == index);
 
-            do {
+            while (true) {
                 assert(coinGroup.lastBlock != coinGroup.firstBlock);
                 coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-            } while (coinGroup.lastBlock->sparkMintedCoins.count(coins.first) == 0);
+                const auto& mintedCoins =
+                    coinGroup.lastBlock->privacyData().sparkMintedCoins;
+                if (mintedCoins.find(coins.first) != mintedCoins.end())
+                    break;
+            }
         }
     }
 
     // roll back mints
-    for (auto const&coins : index->sparkMintedCoins) {
+    for (auto const&coins : pd.sparkMintedCoins) {
         for (auto const& coin : coins.second) {
-            auto mintCoins = GetMints().equal_range(coin);
-            auto coinIt = find_if(
-                    mintCoins.first, mintCoins.second,
-                    [&coins](const std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash>::value_type& v) {
-                        return v.second.coinGroupId == coins.first;
-                    });
-            assert(coinIt != mintCoins.second);
-            RemoveMint(coinIt->first);
+            // A legacy index may contain a duplicate that never entered
+            // mintedCoins. Height/group must match so an older occurrence stays.
+            RemoveMint(coin, coins.first, index->nHeight);
         }
     }
 
     // roll back spends
-    for (auto const& lTag : index->spentLTags) {
+    for (auto const& lTag : pd.spentLTags) {
         RemoveSpend(lTag.first);
     }
 }
@@ -1759,10 +2344,12 @@ void CSparkState::RemoveSpendFromMempool(const std::vector<GroupElement>& lTags)
     }
 }
 
-void CSparkState::AddMintsToMempool(const std::vector<spark::Coin>& coins) {
+void CSparkState::AddMintsToMempool(
+        const std::vector<spark::Coin>& coins,
+        const uint256& txHash) {
     LOCK(mempool.cs);
     for (const auto& coin : coins) {
-        mempool.sparkState.AddMintToMempool(coin);
+        mempool.sparkState.AddMintToMempool(coin, txHash);
     }
 }
 
@@ -1837,13 +2424,14 @@ int CSparkState::GetCoinSetForSpend(
                 // latest block satisfying given conditions
                 // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                setHash_out =  GetAnonymitySetHash(block, id);
+                setHash_out =  GetAnonymitySetHash(block, id, false, IncludeFirstBlockSetHash(NextBlockHeight(chain)));
             }
-            numberOfCoins += block->sparkMintedCoins[id].size();
-            if (block->sparkMintedCoins.count(id) > 0) {
-                for (const auto &coin : block->sparkMintedCoins[id]) {
+            const auto& bpd = block->privacyData();
+            auto it = bpd.sparkMintedCoins.find(id);
+            if (it != bpd.sparkMintedCoins.end()) {
+                numberOfCoins += it->second.size();
+                for (const auto &coin : it->second)
                     coins_out.push_back(coin);
-                }
             }
         }
 
@@ -1889,14 +2477,17 @@ void CSparkState::GetCoinsForRecovery(
                 // latest block satisfying given conditions
                 // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                setHash_out =  GetAnonymitySetHash(block, id);
+                setHash_out =  GetAnonymitySetHash(block, id, false, IncludeFirstBlockSetHash(NextBlockHeight(chain)));
             }
-            numberOfCoins += block->sparkMintedCoins[id].size();
-            if (block->sparkMintedCoins.count(id) > 0) {
-                for (const auto &coin : block->sparkMintedCoins[id]) {
+            const auto& bpd = block->privacyData();
+            auto it = bpd.sparkMintedCoins.find(id);
+            if (it != bpd.sparkMintedCoins.end()) {
+                numberOfCoins += it->second.size();
+                for (const auto &coin : it->second) {
                     std::pair<uint256, std::vector<unsigned char>> txHashContext;
-                    if (block->sparkTxHashContext.count(coin.S))
-                        txHashContext = block->sparkTxHashContext[coin.S];
+                    auto ctx = bpd.sparkTxHashContext.find(coin.S);
+                    if (ctx != bpd.sparkTxHashContext.end())
+                        txHashContext = ctx->second;
                     coins.push_back({coin, txHashContext});
                 }
             }
@@ -1932,9 +2523,11 @@ void CSparkState::GetAnonSetMetaData(
                 // latest block satisfying given conditions
                 // remember block hash and set hash
                 blockHash_out = block->GetBlockHash();
-                setHash_out =  GetAnonymitySetHash(block, id);
+                setHash_out =  GetAnonymitySetHash(block, id, false, IncludeFirstBlockSetHash(NextBlockHeight(chain)));
             }
-            size += block->sparkMintedCoins[id].size();
+            auto it = block->privacyData().sparkMintedCoins.find(id);
+            if (it != block->privacyData().sparkMintedCoins.end())
+                size += it->second.size();
         }
         if (block == coinGroup.firstBlock) {
             break ;
@@ -1978,8 +2571,10 @@ void CSparkState::GetCoinsForRecovery(
             id = coinGroupID - 1;
         }
         if (id) {
-            if (block->sparkMintedCoins.count(id) > 0) {
-                for (const auto &coin : block->sparkMintedCoins[id]) {
+            const auto& bpd = block->privacyData();
+            auto it = bpd.sparkMintedCoins.find(id);
+            if (it != bpd.sparkMintedCoins.end()) {
+                for (const auto &coin : it->second) {
                     if (cmp::less(counter, startIndex)) {
                         ++counter;
                         continue;
@@ -1988,8 +2583,9 @@ void CSparkState::GetCoinsForRecovery(
                         break;
                     }
                     std::pair<uint256, std::vector<unsigned char>> txHashContext;
-                    if (block->sparkTxHashContext.count(coin.S))
-                        txHashContext = block->sparkTxHashContext[coin.S];
+                    auto ctx = bpd.sparkTxHashContext.find(coin.S);
+                    if (ctx != bpd.sparkTxHashContext.end())
+                        txHashContext = ctx->second;
                     coins.push_back({coin, txHashContext});
                     ++counter;
                 }
@@ -2001,9 +2597,16 @@ void CSparkState::GetCoinsForRecovery(
     }
 }
 
-std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> const & CSparkState::GetMints() const {
+std::unordered_map<spark::Coin, CMintedCoinInfo, spark::CoinHash> CSparkState::GetMints() const {
+    LOCK(cs_minted_coins);
     return mintedCoins;
 }
+
+std::size_t CSparkState::GetTotalCoins() const {
+    LOCK(cs_minted_coins);
+    return mintedCoins.size();
+}
+
 std::unordered_map<GroupElement, int, spark::CLTagHash> const & CSparkState::GetSpends() const {
     return usedLTags;
 }
@@ -2037,9 +2640,10 @@ size_t CSparkState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &
                 ; coins < required && block
                 ; block = block->pprev) {
 
-            size_t inBlock;
-            if (block->sparkMintedCoins.count(groupId)
-                && (inBlock = block->sparkMintedCoins[groupId].size())) {
+            size_t inBlock = 0;
+            const auto& mintedCoins = block->privacyData().sparkMintedCoins;
+            auto it = mintedCoins.find(groupId);
+            if (it != mintedCoins.end() && (inBlock = it->second.size())) {
 
                 coins += inBlock;
                 first = block;
@@ -2052,15 +2656,20 @@ size_t CSparkState::CountLastNCoins(int groupId, size_t required, CBlockIndex* &
 
 // CSparkMempoolState
 bool CSparkMempoolState::HasMint(const spark::Coin& coin) {
-    return mempoolMints.count(coin) > 0;
+    return mempoolMints.count(coin.getHash()) > 0;
 }
 
-void CSparkMempoolState::AddMintToMempool(const spark::Coin& coin) {
-    mempoolMints.insert(coin);
+void CSparkMempoolState::AddMintToMempool(const spark::Coin& coin, const uint256& txHash) {
+    mempoolMints.emplace(coin.getHash(), txHash);
 }
 
 void CSparkMempoolState::RemoveMintFromMempool(const spark::Coin& coin) {
-    mempoolMints.erase(coin);
+    mempoolMints.erase(coin.getHash());
+}
+
+uint256 CSparkMempoolState::GetMempoolConflictingMintTxHash(const spark::Coin& coin) {
+    const auto it = mempoolMints.find(coin.getHash());
+    return it == mempoolMints.end() ? uint256() : it->second;
 }
 
 bool CSparkMempoolState::HasLTag(const GroupElement& lTag) {

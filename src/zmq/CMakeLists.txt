@@ -16,6 +16,7 @@ target_compile_definitions(firo_zmq
 target_link_libraries(firo_zmq
   PRIVATE
     core_interface
+    warn_interface
     univalue
     zeromq
     secp256k1

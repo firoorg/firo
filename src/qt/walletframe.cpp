@@ -15,6 +15,7 @@
 WalletFrame::WalletFrame(const PlatformStyle *_platformStyle, BitcoinGUI *_gui) :
     QFrame(_gui),
     gui(_gui),
+    bOutOfSync(true),
     platformStyle(_platformStyle)
 {
     // Leave HBox hook for adding a list view later
@@ -146,6 +147,13 @@ void WalletFrame::gotoReceiveCoinsPage()
         i.value()->gotoReceiveCoinsPage();
 }
 
+void WalletFrame::gotoSparkNamesPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoSparkNamesPage();
+}
+
 void WalletFrame::gotoSendCoinsPage(QString addr)
 {
     QMap<QString, WalletView*>::const_iterator i;
@@ -226,9 +234,15 @@ void WalletFrame::outOfSyncWarningClicked()
     Q_EMIT requestedSyncWarningInfo();
 }
 
-void WalletFrame::updateAddressbook() {
-    WalletView *walletView = currentWalletView();
+bool WalletFrame::updateAddressbook()
+{
+    bool updated = false;
 
-    if (walletView)
-        walletView->updateAddressbook();
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i) {
+        if (i.value()->updateAddressbook())
+            updated = true;
+    }
+
+    return updated;
 }

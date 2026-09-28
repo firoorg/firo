@@ -85,6 +85,10 @@ public:
 class CSigSharesInv
 {
 public:
+    // One inventory bit is stored for each quorum member. The largest quorum
+    // configured on any current network has 400 members.
+    static constexpr uint64_t MAX_INV_SIZE = 400;
+
     uint32_t sessionId{(uint32_t)-1};
     std::vector<bool> inv;
 
@@ -98,6 +102,9 @@ public:
 
         READWRITE(VARINT(sessionId));
         READWRITE(COMPACTSIZE(invSize));
+        if (invSize > MAX_INV_SIZE) {
+            throw std::ios_base::failure("CSigSharesInv::inv size exceeds maximum quorum size");
+        }
         READWRITE(AUTOBITSET(inv, (size_t)invSize));
     }
 
@@ -307,8 +314,9 @@ public:
         CSigSharesInv announced;
         CSigSharesInv requested;
         CSigSharesInv knows;
+
+        bool fReceivedAnnouncement{false};
     };
-    // TODO limit number of sessions per node
     std::unordered_map<uint256, Session, StaticSaltedHasher> sessions;
 
     std::unordered_map<uint32_t, Session*> sessionByRecvId;
@@ -321,6 +329,10 @@ public:
 
     Session& GetOrCreateSessionFromShare(const CSigShare& sigShare);
     Session& GetOrCreateSessionFromAnn(const CSigSesAnn& ann);
+    bool CanCreateSessionFromAnn(const CSigSesAnn& ann, size_t maxSessions) const;
+    size_t GetSessionCount() const;
+    size_t GetSessionCount(Consensus::LLMQType llmqType) const;
+    size_t GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const;
     Session* GetSessionBySignHash(const uint256& signHash);
     Session* GetSessionByRecvId(uint32_t sessionId);
     bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);
@@ -379,6 +391,7 @@ public:
     void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
     void Sign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
     void ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
+    void MarkNodeBanned(NodeId nodeId);
 
     void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override;
 

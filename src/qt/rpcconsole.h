@@ -12,6 +12,7 @@
 
 #include <QWidget>
 #include <QCompleter>
+#include <QStringList>
 #include <QThread>
 
 class ClientModel;
@@ -124,6 +125,9 @@ Q_SIGNALS:
     void cmdRequest(const QString &command);
 
 private:
+    void applyConsoleTheme();
+    void updateConsoleDocumentStyle();
+    void rebuildConsoleMessages();
     static QString FormatBytes(quint64 bytes);
     void startExecutor();
     void setTrafficGraphRange(int mins);
@@ -135,6 +139,7 @@ private:
         ADDRESS_COLUMN_WIDTH = 200,
         SUBVERSION_COLUMN_WIDTH = 150,
         PING_COLUMN_WIDTH = 80,
+        NETWORK_COLUMN_WIDTH = 80,
         BANSUBNET_COLUMN_WIDTH = 200,
         BANTIME_COLUMN_WIDTH = 250
 
@@ -150,7 +155,9 @@ private:
     RPCTimerInterface *rpcTimerInterface;
     QMenu *peersTableContextMenu;
     QMenu *banTableContextMenu;
-    int consoleFontSize;
+    int consoleFontSize{0};
+    QStringList consoleMessages;
+    qint64 consoleMessageCharacters{0};
     QCompleter *autoCompleter;
     QThread thread;
 

@@ -27,6 +27,7 @@ public:
 public Q_SLOTS:
     void tipUpdate(int count, const QDateTime& blockDate, double nVerificationProgress);
     void setKnownBestHeight(int count, const QDateTime& blockDate);
+    void setSyncComplete(bool complete);
 
     void toggleVisibility();
     // will show or hide the modal layer
@@ -34,6 +35,9 @@ public Q_SLOTS:
     void closeClicked();
     void hideForever();
     bool isLayerVisible() { return layerIsVisible; }
+    void applyTheme();
+    double headerSyncProgress() const;
+    bool isHeaderSyncPending() const { return headerSyncPending; }
 
 protected:
     bool eventFilter(QObject * obj, QEvent * ev) override;
@@ -44,6 +48,7 @@ private:
     int bestHeaderHeight; //best known height (based on the headers)
     QDateTime bestHeaderDate;
     QVector<QPair<qint64, double> > blockProcessTime;
+    bool headerSyncPending{true};
     bool layerIsVisible;
     bool userClosed;
     bool foreverHidden;

@@ -23,7 +23,7 @@
 
 #include <cxxabi.h>
 
-#if WIN32
+#if defined(WIN32)
 #include <windows.h>
 #include <dbghelp.h>
 #else
@@ -32,14 +32,14 @@
 #include <signal.h>
 #endif
 
-#if !WIN32
+#if !defined(WIN32)
 #include <dlfcn.h>
-#if !__APPLE__
+#if !defined(__APPLE__)
 #include <link.h>
 #endif
 #endif
 
-#if __APPLE__
+#if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #include <mach/mach_init.h>
 #include <sys/sysctl.h>
@@ -51,7 +51,7 @@
 
 std::string DemangleSymbol(const std::string& name)
 {
-#if __GNUC__ || __clang__
+#if defined(__GNUC__) || defined(__clang__)
     int status = -4; // some arbitrary value to eliminate the compiler warning
     char* str = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
     if (status != 0) {
@@ -73,7 +73,7 @@ static std::atomic<bool> skipAbortSignal(false);
 
 static ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
 {
-#if WIN32
+#if defined(WIN32)
     std::vector<TCHAR> tmp(bufSize);
     DWORD len = GetModuleFileName(nullptr, tmp.data(), bufSize);
     if (len >= bufSize) {
@@ -83,7 +83,7 @@ static ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
         buf[i] = (char)tmp[i];
     }
     return len;
-#elif __APPLE__
+#elif defined(__APPLE__)
     uint32_t bufSize2 = (uint32_t)bufSize;
     if (_NSGetExecutablePath(buf, &bufSize2) != 0) {
         // it's not entirely clear if the value returned by _NSGetExecutablePath includes the null character
@@ -108,7 +108,7 @@ static std::string GetExeFileName()
         if (len < 0) {
             return "";
         }
-        if (len < buf.size()) {
+        if (static_cast<size_t>(len) < buf.size()) {
             return std::string(buf.begin(), buf.begin() + len);
         }
         buf.resize(buf.size() * 2);
@@ -118,51 +118,68 @@ static std::string GetExeFileName()
 static std::string g_exeFileName = GetExeFileName();
 static std::string g_exeFileBaseName = fs::path(g_exeFileName).filename().string();
 
-static void my_backtrace_error_callback (void *data, const char *msg,
-                                  int errnum)
+static void my_backtrace_error_callback (void *data, const char *msg, int errnum)
 {
+    if (msg) {
+        LogPrintf("libbacktrace error: %s (errno: %d)\n", msg, errnum);
+    }
 }
 
 static backtrace_state* GetLibBacktraceState()
 {
-#if WIN32
-    // libbacktrace is not able to handle the DWARF debuglink in the .exe
-    // but luckily we can just specify the .dbg file here as it's a valid PE/XCOFF file
+#if defined(WIN32)
     static std::string debugFileName = g_exeFileName + ".dbg";
     static const char* exeFileNamePtr = fs::exists(debugFileName) ? debugFileName.c_str() : g_exeFileName.c_str();
 #else
     static const char* exeFileNamePtr = g_exeFileName.empty() ? nullptr : g_exeFileName.c_str();
 #endif
-    static backtrace_state* st = backtrace_create_state(exeFileNamePtr, 1, my_backtrace_error_callback, nullptr);
+    static bool logged = false;
+    static backtrace_state* st = [](){ 
+        if (!logged) {
+            LogPrintf("libbacktrace using executable: %s\n", exeFileNamePtr ? exeFileNamePtr : "(nullptr)");
+            logged = true;
+        }
+        return backtrace_create_state(exeFileNamePtr, 1, my_backtrace_error_callback, nullptr);
+    }();
     return st;
 }
 
-#if WIN32
+#if defined(WIN32)
 static uint64_t GetBaseAddress()
 {
     return 0;
 }
 
-// PC addresses returned by StackWalk64 are in the real mapped space, while libbacktrace expects them to be in the
-// default mapped space starting at 0x400000. This method converts the address.
-// TODO this is probably the same reason libbacktrace is not able to gather the stacktrace on Windows (returns pointers like 0x1 or 0xfffffff)
-// If they ever fix this problem, we might end up converting to invalid addresses here
+static uint64_t GetPreferredBaseAddress()
+{
+    HMODULE hModule = GetModuleHandle(nullptr);
+    if (!hModule) return 0;
+
+    PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)hModule;
+    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((BYTE*)hModule + dosHeader->e_lfanew);
+
+    return ntHeaders->OptionalHeader.ImageBase;
+}
+
 static uint64_t ConvertAddress(uint64_t addr)
 {
-    MEMORY_BASIC_INFORMATION mbi;
+    static uint64_t preferredBase = GetPreferredBaseAddress();
 
+    MEMORY_BASIC_INFORMATION mbi;
     if (!VirtualQuery((PVOID)addr, &mbi, sizeof(mbi)))
         return 0;
 
-    uint64_t hMod = (uint64_t)mbi.AllocationBase;
-    uint64_t offset = addr - hMod;
-    return 0x400000 + offset;
+    uint64_t actualBase = (uint64_t)mbi.AllocationBase;
+    uint64_t offset = addr - actualBase;
+    return preferredBase + offset;
 }
+
 
 static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t skip, size_t max_frames, const CONTEXT* pContext = nullptr)
 {
     // We can't use libbacktrace for stack unwinding on Windows as it returns invalid addresses (like 0x1 or 0xffffffff)
     static BOOL symInitialized = SymInitialize(GetCurrentProcess(), nullptr, TRUE);
+    (void)symInitialized;
 
     // dbghelp is not thread safe
     static std::mutex m;
@@ -192,6 +209,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
     stackframe.AddrFrame.Mode = AddrModeFlat;
     stackframe.AddrStack.Offset = context.Esp;
     stackframe.AddrStack.Mode = AddrModeFlat;
+    const size_t skip_frames = skip;
 #elif __x86_64__
     image = IMAGE_FILE_MACHINE_AMD64;
     stackframe.AddrPC.Offset = context.Rip;
@@ -200,9 +218,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
     stackframe.AddrFrame.Mode = AddrModeFlat;
     stackframe.AddrStack.Offset = context.Rsp;
     stackframe.AddrStack.Mode = AddrModeFlat;
-    if (!pContext) {
-        skip++; // skip this method
-    }
+    const size_t skip_frames = pContext ? skip : skip + 1; // skip this method
 #else
 #error unsupported architecture
 #endif
@@ -219,7 +235,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
         if (!result) {
             break;
         }
-        if (i >= skip) {
+        if (i >= skip_frames) {
             uint64_t pc = ConvertAddress(stackframe.AddrPC.Offset);
             if (pc == 0) {
                 pc = stackframe.AddrPC.Offset;
@@ -233,7 +249,7 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
 }
 #else
 
-#if __APPLE__
+#if defined(__APPLE__)
 static uint64_t GetBaseAddress()
 {
     mach_port_name_t target_task;
@@ -411,9 +427,9 @@ static std::string GetCrashInfoStrNoDebugInfo(crash_info ci)
     ci.ConvertAddresses(-(int64_t)basePtr);
     ds << ci;
 
-    auto ciStr = EncodeBase32((const unsigned char*)ds.data(), ds.size());
+    auto ciStr = EncodeBase32(MakeUCharSpan(ds));
     std::string s = ci.crashDescription + "\n";
-    s += strprintf("No debug information available for stacktrace. You should add debug information and then run:\n"
+    s += strprintf("Add debug information and then run:\n"
                    "%s -printcrashinfo=%s\n", g_exeFileBaseName, ciStr);
     return s;
 }
@@ -468,9 +484,7 @@ std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr)
 
 static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
 {
-    if (ci.stackframeInfos.empty()) {
-        return GetCrashInfoStrNoDebugInfo(ci);
-    }
+    std::string s = GetCrashInfoStrNoDebugInfo(ci) + "\n";
 
     std::string sp;
     for (size_t i = 0; i < spaces; i++) {
@@ -497,11 +511,14 @@ static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
     }
 
     // get max "filename:line" length so we can better format it
-    size_t lstrlen = std::max_element(lstrs.begin(), lstrs.end(), [](const std::string& a, const std::string& b) { return a.size() < b.size(); })->size();
+    size_t lstrlen = lstrs.empty() ? 0 : std::max_element(lstrs.begin(), lstrs.end(),
+        [](const std::string& a, const std::string& b) {
+            return a.size() < b.size();
+        })->size();
 
     std::string fmtStr = strprintf("%%2d#: (0x%%08X) %%-%ds - %%s\n", lstrlen);
 
-    std::string s = ci.crashDescription + "\n";
+    s += ci.crashDescription + "\n";
     for (size_t i = 0; i < ci.stackframeInfos.size(); i++) {
         auto& si = ci.stackframeInfos[i];
 
@@ -539,12 +556,12 @@ static std::map<void*, std::shared_ptr<std::vector<uint64_t>>> g_stacktraces;
 // It only works on GCC
 extern "C" void* __real___cxa_allocate_exception(size_t thrown_size);
 extern "C" void __real___cxa_free_exception(void * thrown_exception);
-#if __clang__ && defined(WIN32)
+#if defined(__clang__) && defined(WIN32)
 #error not supported on WIN32 (no dlsym support)
-#elif WIN32
+#elif defined(WIN32)
 extern "C" void __real__assert(const char *assertion, const char *file, unsigned int line);
 extern "C" void __real__wassert(const wchar_t *assertion, const wchar_t *file, unsigned int line);
-#elif __APPLE__
+#elif defined(__APPLE__)
 extern "C" void __real___assert_rtn(const char *function, const char *file, int line, const char *assertion);
 #else
 extern "C" void __real___assert_fail(const char *assertion, const char *file, unsigned int line, const char *function);
@@ -562,13 +579,13 @@ extern "C" void __real___cxa_free_exception(void * thrown_exception)
     static auto f = (void(*)(void*))dlsym(RTLD_NEXT, "__cxa_free_exception");
     return f(thrown_exception);
 }
-#if __clang__
+#if defined(__APPLE__)
 extern "C" void __attribute__((noreturn)) __real___assert_rtn(const char *function, const char *file, int line, const char *assertion)
 {
     static auto f = (void(__attribute__((noreturn)) *) (const char*, const char*, int, const char*))dlsym(RTLD_NEXT, "__assert_rtn");
     f(function, file, line, assertion);
 }
-#elif WIN32
+#elif defined(WIN32)
 #error not supported on WIN32 (no dlsym support)
 #else
 extern "C" void __real___assert_fail(const char *assertion, const char *file, unsigned int line, const char *function)
@@ -627,7 +644,7 @@ static __attribute__((noinline)) crash_info GetCrashInfoFromAssertion(const char
     return ci;
 }
 
-#if __clang__
+#if defined(__APPLE__)
 extern "C" void __attribute__((noinline)) WRAPPED_NAME(__assert_rtn)(const char *function, const char *file, int line, const char *assertion)
 {
     auto ci = GetCrashInfoFromAssertion(assertion, file, line, function);
@@ -635,7 +652,7 @@ extern "C" void __attribute__((noinline)) WRAPPED_NAME(__assert_rtn)(const char 
     skipAbortSignal = true;
     __real___assert_rtn(function, file, line, assertion);
 }
-#elif WIN32
+#elif defined(WIN32)
 extern "C" void __attribute__((noinline)) WRAPPED_NAME(_assert)(const char *assertion, const char *file, unsigned int line)
 {
     auto ci = GetCrashInfoFromAssertion(assertion, file, line, nullptr);
@@ -765,7 +782,7 @@ void RegisterPrettyTerminateHander()
     std::set_terminate(stacktraces_terminate_handler);
 }
 
-#if !WIN32
+#if !defined(WIN32)
 static void HandlePosixSignal(int s)
 {
     if (s == SIGABRT && skipAbortSignal) {
@@ -842,7 +859,7 @@ LONG WINAPI HandleWindowsException(EXCEPTION_POINTERS * ExceptionInfo)
 
 void RegisterPrettySignalHandlers()
 {
-#if WIN32
+#if defined(WIN32)
     SetUnhandledExceptionFilter(HandleWindowsException);
 #else
     const std::vector<int> posix_signals = {
@@ -858,7 +875,7 @@ void RegisterPrettySignalHandlers()
             SIGTRAP,    // Trace/breakpoint trap
             SIGXCPU,    // CPU time limit exceeded (4.2BSD)
             SIGXFSZ,    // File size limit exceeded (4.2BSD)
-#if __APPLE__
+#if defined(__APPLE__)
             SIGEMT,     // emulation instruction executed
 #endif
     };

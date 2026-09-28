@@ -204,6 +204,10 @@ bool PaymentServer::eventFilter(QObject *object, QEvent *event)
 
 void PaymentServer::uiReady()
 {
+    saveURIs = false;
+    for (const QString& request : savedPaymentRequests) {
+        handleURIOrFile(request);
+    }
     savedPaymentRequests.clear();
 }
 

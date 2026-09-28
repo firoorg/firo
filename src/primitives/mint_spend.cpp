@@ -1,24 +1,4 @@
 #include "mint_spend.h"
-#include "../liblelantus/coin.h"
-
-GroupElement const & MintMeta::GetPubCoinValue() const {
-    return pubCoinValue;
-}
-
-
-void MintMeta::SetPubCoinValue(GroupElement const & other) {
-    if (other == pubCoinValue)
-        return;
-    pubCoinValueHash.reset();
-    pubCoinValue = other;
-}
-
-
-uint256 MintMeta::GetPubCoinValueHash() const {
-    if(!pubCoinValueHash)
-        pubCoinValueHash.reset(primitives::GetPubCoinValueHash(pubCoinValue));
-    return *pubCoinValueHash;
-}
 
 namespace primitives {
 

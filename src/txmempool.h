@@ -6,6 +6,10 @@
 #ifndef BITCOIN_TXMEMPOOL_H
 #define BITCOIN_TXMEMPOOL_H
 
+// Include C++ <random> before any other headers to avoid macro conflicts with
+// project headers (e.g. util.h, random.h) that break standard library parsing.
+#include <random>
+
 #include <memory>
 #include <set>
 #include "addressindex.h"
@@ -23,7 +27,6 @@
 #include "random.h"
 #include "netaddress.h"
 #include "bls/bls.h"
-#include "lelantus.h"
 #include "spark/state.h"
 
 #include "evo/spork.h"
@@ -522,7 +525,6 @@ public:
     const setEntries & GetMemPoolParents(txiter entry) const;
     const setEntries & GetMemPoolChildren(txiter entry) const;
 
-    lelantus::CLelantusMempoolState lelantusState;
     spark::CSparkMempoolState sparkState;
 
     std::map<std::string, std::pair<std::string, uint256>> sparkNames;       // used to rule out duplicate names

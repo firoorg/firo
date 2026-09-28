@@ -3,9 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "dbwrapper.h"
-#include "uint256.h"
+#include "evo/evodb.h"
 #include "random.h"
 #include "test/test_bitcoin.h"
+#include "uint256.h"
 
 #include <boost/assign/std/vector.hpp> // for 'operator+=()'
 #include <boost/assert.hpp>
@@ -22,7 +23,19 @@ bool is_null_key(const std::vector<unsigned char>& key) {
 }
  
 BOOST_FIXTURE_TEST_SUITE(dbwrapper_tests, BasicTestingSetup)
-                       
+
+BOOST_AUTO_TEST_CASE(evodb_verify_best_block)
+{
+    CEvoDB testEvoDb(1 << 20, true, true);
+    const uint256 storedHash = uint256S("01");
+    const uint256 mismatchedHash = uint256S("02");
+
+    BOOST_CHECK(!testEvoDb.VerifyBestBlock(storedHash));
+    testEvoDb.WriteBestBlock(storedHash);
+    BOOST_CHECK(testEvoDb.VerifyBestBlock(storedHash));
+    BOOST_CHECK(!testEvoDb.VerifyBestBlock(mismatchedHash));
+}
+
 BOOST_AUTO_TEST_CASE(dbwrapper)
 {
     // Perform tests both obfuscated and non-obfuscated.
@@ -271,14 +284,11 @@ struct StringContentsSerializer {
 
 BOOST_AUTO_TEST_CASE(iterator_string_ordering)
 {
-    char buf[10];
-
     boost::filesystem::path ph = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path();
     CDBWrapper dbw(ph, (1 << 20), true, false, false);
     for (int x=0x00; x<10; ++x) {
         for (int y = 0; y < 10; y++) {
-            sprintf(buf, "%d", x);
-            StringContentsSerializer key(buf);
+            StringContentsSerializer key(std::to_string(x));
             for (int z = 0; z < y; z++)
                 key += key;
             uint32_t value = x*x;
@@ -293,13 +303,11 @@ BOOST_AUTO_TEST_CASE(iterator_string_ordering)
             seek_start = 0;
         else
             seek_start = 5;
-        sprintf(buf, "%d", seek_start);
-        StringContentsSerializer seek_key(buf);
+        StringContentsSerializer seek_key(std::to_string(seek_start));
         it->Seek(seek_key);
         for (int x=seek_start; x<10; ++x) {
             for (int y = 0; y < 10; y++) {
-                sprintf(buf, "%d", x);
-                std::string exp_key(buf);
+                std::string exp_key = std::to_string(x);
                 for (int z = 0; z < y; z++)
                     exp_key += exp_key;
                 StringContentsSerializer key;

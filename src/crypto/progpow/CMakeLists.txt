@@ -24,6 +24,6 @@ target_link_libraries(ethash
 )
 
 target_include_directories(ethash
-  PUBLIC
+  SYSTEM PUBLIC
   ${Boost_INCLUDE_DIR}
 )

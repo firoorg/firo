@@ -14,6 +14,7 @@
 #include "base58.h"
 
 #include <stdint.h>
+#include <utility>
 
 #include <boost/thread.hpp>
 
@@ -193,8 +194,22 @@ bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockF
         batch.Write(std::make_pair(DB_BLOCK_FILES, it->first), *it->second);
     }
     batch.Write(DB_LAST_BLOCK, nLastFile);
+    const auto& consensus = Params().GetConsensus();
     for (std::vector<const CBlockIndex*>::const_iterator it=blockinfo.begin(); it != blockinfo.end(); it++) {
-        batch.Write(std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash()), CDiskBlockIndex(*it));
+        const auto key = std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash());
+        CDiskBlockIndex diskIndex(*it);
+
+        // Preserve retired protocol data when an existing historical record is
+        // dirtied for an unrelated reason. No such data is valid at or after the
+        // Lelantus graceful-period height, so current tip writes avoid this read.
+        if ((*it)->nHeight < consensus.nLelantusGracefulPeriod && Exists(key)) {
+            CDiskBlockIndex storedIndex;
+            if (!Read(key, storedIndex))
+                return error("WriteBatchSync: failed to read existing block index %s", (*it)->GetBlockHash().ToString());
+            diskIndex.TakeDiskOnlyPrivacyData(std::move(storedIndex));
+        }
+
+        batch.Write(key, diskIndex);
     }
     return WriteBatch(batch, true);
 }
@@ -439,23 +454,11 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                     pindexNew->reserved[1] = diskindex.reserved[1];
                 }
 
-                pindexNew->sigmaMintedPubCoins   = diskindex.sigmaMintedPubCoins;
-                pindexNew->sigmaSpentSerials     = diskindex.sigmaSpentSerials;
-
-                pindexNew->lelantusMintedPubCoins   = diskindex.lelantusMintedPubCoins;
-                pindexNew->lelantusMintData         = diskindex.lelantusMintData;
-                pindexNew->lelantusSpentSerials     = diskindex.lelantusSpentSerials;
-                pindexNew->anonymitySetHash         = diskindex.anonymitySetHash;
-
-                pindexNew->sparkMintedCoins   = diskindex.sparkMintedCoins;
-                pindexNew->sparkSetHash       = diskindex.sparkSetHash;
-                pindexNew->spentLTags         = diskindex.spentLTags;
-                pindexNew->sparkTxHashContext = diskindex.sparkTxHashContext;
-                pindexNew->ltagTxhash         = diskindex.ltagTxhash;
-
-                pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
-                pindexNew->addedSparkNames = diskindex.addedSparkNames;
-                pindexNew->removedSparkNames = diskindex.removedSparkNames;
+                if (diskindex.hasPrivacyData()) {
+                    auto& dpd = diskindex.ensurePrivacyData();
+                    if (!dpd.IsEmpty())
+                        pindexNew->ensurePrivacyData() = std::move(dpd);
+                }
 
                 if (fCheckPoWForAllBlocks) {
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
@@ -574,7 +577,7 @@ std::pair<AddressType, uint160> classifyAddress(txnouttype type, std::vector<std
     } else if(type == TX_SCRIPTHASH) {
         result.first = AddressType::payToScriptHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
-    } else if(type == TX_PUBKEYHASH) {
+    } else if(type == TX_PUBKEYHASH || type == TX_SPARKNAMEFEE) {
         result.first = AddressType::payToPubKeyHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
     } else if(type == TX_EXCHANGEADDRESS) {

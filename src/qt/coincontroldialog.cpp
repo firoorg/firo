@@ -7,6 +7,8 @@
 
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "guitheme.h"
+#include "chainparams.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
@@ -14,6 +16,7 @@
 #include "walletmodel.h"
 
 #include "wallet/coincontrol.h"
+#include "wallet/sparkbatchplanner.h"
 #include "init.h"
 #include "policy/policy.h"
 #include "validation.h" // For mempool
@@ -27,14 +30,69 @@
 #include <QDialogButtonBox>
 #include <QFlags>
 #include <QIcon>
+#include <QLabel>
+#include <QPushButton>
 #include <QSettings>
 #include <QString>
+#include <QStyle>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 
-QList<CAmount> CoinControlDialog::payAmounts;
+#include <algorithm>
+#include <cstdint>
+#include <limits>
+
+QList<CoinControlDialog::PayAmount> CoinControlDialog::payAmounts;
 CCoinControl* CoinControlDialog::coinControl = new CCoinControl();
 bool CoinControlDialog::fSubtractFeeFromAmount = false;
+std::size_t CoinControlDialog::extraOutputBytes = 0;
+
+unsigned int CoinControlDialog::estimateSparkTxBytes(
+    size_t selectedInputs,
+    size_t privateOutputs,
+    size_t transparentOutputs,
+    bool versionedSpend)
+{
+    constexpr uint64_t maxSize =
+        std::numeric_limits<unsigned int>::max();
+    const auto saturatingAdd = [](uint64_t left, uint64_t right) {
+        return right > maxSize - left ? maxSize : left + right;
+    };
+    const auto saturatingMultiply = [](uint64_t left, uint64_t right) {
+        return left != 0 && right > maxSize / left
+            ? maxSize
+            : left * right;
+    };
+
+    uint64_t estimatedSize;
+    if (selectedInputs == 1) {
+        estimatedSize = spark::EstimateSingleInputSparkSize(
+            privateOutputs,
+            transparentOutputs);
+    } else {
+        estimatedSize = 924;
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(1803, selectedInputs));
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(
+                322,
+                saturatingAdd(privateOutputs, 1)));
+        estimatedSize = saturatingAdd(
+            estimatedSize,
+            saturatingMultiply(34, transparentOutputs));
+    }
+    if (versionedSpend) {
+        estimatedSize = saturatingAdd(estimatedSize, 32);
+        if (selectedInputs > 1) {
+            estimatedSize = saturatingAdd(
+                estimatedSize,
+                saturatingMultiply(98, selectedInputs - 1));
+        }
+    }
+    return static_cast<unsigned int>(estimatedSize);
+}
 
 bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
     int column = treeWidget()->sortColumn();
@@ -147,6 +205,60 @@ CoinControlDialog::CoinControlDialog(bool anonymousMode, const PlatformStyle *_p
         ui->radioTreeMode->click();
     if (settings.contains("nCoinControlSortColumn") && settings.contains("nCoinControlSortOrder"))
         sortView(settings.value("nCoinControlSortColumn").toInt(), ((Qt::SortOrder)settings.value("nCoinControlSortOrder").toInt()));
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &CoinControlDialog::applyTheme);
+    applyTheme();
+}
+
+void CoinControlDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+
+    const QString captionStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    const QString valueStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }"
+        "QLabel[dust=\"true\"] { color: $ERROR; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    for (QLabel* caption : {ui->labelCoinControlQuantityText, ui->labelCoinControlBytesText,
+                            ui->labelCoinControlAmountText, ui->labelCoinControlLowOutputText,
+                            ui->labelCoinControlFeeText, ui->labelCoinControlAfterFeeText,
+                            ui->labelCoinControlChangeText}) {
+        caption->setStyleSheet(captionStyle);
+    }
+    for (QLabel* value : {ui->labelCoinControlQuantity, ui->labelCoinControlBytes,
+                          ui->labelCoinControlAmount, ui->labelCoinControlLowOutput,
+                          ui->labelCoinControlFee, ui->labelCoinControlAfterFee,
+                          ui->labelCoinControlChange}) {
+        value->setStyleSheet(valueStyle);
+    }
+
+    ui->frame->setAttribute(Qt::WA_StyledBackground, true);
+    ui->frame->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QFrame { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
+        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }"
+        "QRadioButton { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 600; }")));
+
+    ui->pushButtonSelectAll->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px")));
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+
+    ui->treeWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QTreeWidget {"
+        " background: $PANEL; border: 1px solid $BORDER; border-radius: 12px;"
+        " outline: none; color: $INK; alternate-background-color: $PANEL_SOFT;"
+        "}"
+        "QTreeWidget::item { padding: 5px 2px; border: none; color: $INK; }"
+        "QTreeWidget::item:disabled { color: $INK_FAINT; }"
+        "QTreeWidget::item:selected { background: $WINE_TINT; color: $INK; }"
+        "QHeaderView::section {"
+        " background: $PANEL_SOFT; border: none; border-bottom: 1px solid $BORDER;"
+        " color: $INK_SOFT; font-size: 12px; font-weight: 700; padding: 6px;"
+        "}")));
 }
 
 CoinControlDialog::~CoinControlDialog()
@@ -377,31 +489,52 @@ void CoinControlDialog::radioListMode(bool checked)
 // checkbox clicked by user
 void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
 {
-    if (column == COLUMN_CHECKBOX && item->text(COLUMN_TXHASH).length() == 64) // transaction hash is 64 characters (this means its a child node, so its not a parent node in tree mode)
+    if (column == COLUMN_CHECKBOX)
     {
-        COutPoint outpt(uint256S(item->text(COLUMN_TXHASH).toStdString()), item->text(COLUMN_VOUT_INDEX).toUInt());
+        // Handle child items (individual coins)
+        if (item->text(COLUMN_TXHASH).length() == 64)
+        {
+            COutPoint outpt(uint256S(item->text(COLUMN_TXHASH).toStdString()), item->text(COLUMN_VOUT_INDEX).toUInt());
 
-        if (item->checkState(COLUMN_CHECKBOX) == Qt::Unchecked)
-            coinControl->UnSelect(outpt);
-        else if (item->isDisabled()) // locked (this happens if "check all" through parent node)
-            item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
-        else
-            coinControl->Select(outpt);
+            if (item->checkState(COLUMN_CHECKBOX) == Qt::Unchecked)
+                coinControl->UnSelect(outpt);
+            else if (item->isDisabled())
+                item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
+            else
+                coinControl->Select(outpt);
+        }
+        // Handle parent items (wallet addresses)
+        else if (item->childCount() > 0)
+        {
+            Qt::CheckState parentState = item->checkState(COLUMN_CHECKBOX);
+
+            // If user clicks and Qt cycles to PartiallyChecked, force it to Checked.
+            if (parentState == Qt::PartiallyChecked) {
+                parentState = Qt::Checked;
+                item->setCheckState(COLUMN_CHECKBOX, parentState);
+            }
+
+            bool wasEnabled = ui->treeWidget->isEnabled();
+            if (wasEnabled)
+                ui->treeWidget->setEnabled(false);
+
+            for (int i = 0; i < item->childCount(); ++i)
+            {
+                QTreeWidgetItem* child = item->child(i);
+                if (!child->isDisabled())
+                {
+                    child->setCheckState(COLUMN_CHECKBOX, parentState);
+                }
+            }
+
+            if (wasEnabled)
+                ui->treeWidget->setEnabled(true);
+        }
 
         // selection changed -> update labels
-        if (ui->treeWidget->isEnabled()) // do not update on every click for (un)select all
+        if (ui->treeWidget->isEnabled())
             CoinControlDialog::updateLabels(model, this, anonymousMode);
     }
-
-    // TODO: Remove this temporary qt5 fix after Qt5.3 and Qt5.4 are no longer used.
-    //       Fixed in Qt5.5 and above: https://bugreports.qt.io/browse/QTBUG-43473
-#if QT_VERSION >= 0x050000
-    else if (column == COLUMN_CHECKBOX && item->childCount() > 0)
-    {
-        if (item->checkState(COLUMN_CHECKBOX) == Qt::PartiallyChecked && item->child(0)->checkState(COLUMN_CHECKBOX) == Qt::PartiallyChecked)
-            item->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
-    }
-#endif
 }
 
 // shows count of locked unspent outputs
@@ -426,8 +559,9 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     CAmount nPayAmount = 0;
     bool fDust = false;
     CMutableTransaction txDummy;
-    for (const CAmount &amount : CoinControlDialog::payAmounts)
+    for (const PayAmount& payment : CoinControlDialog::payAmounts)
     {
+        const CAmount amount = payment.amount;
         nPayAmount += amount;
 
         if (amount > 0)
@@ -488,8 +622,8 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         nQuantity++;
 
         // Amount
-        if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
-            nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i]);
+        if(out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
+            nAmount += model->GetJMintCredit(out.tx->tx->vout[out.i], *out.tx->tx);
         } else {
             nAmount += out.tx->tx->vout[out.i].nValue;
         }
@@ -527,15 +661,31 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
     {
         if (anonymousMode) {
             if(spark::IsSparkAllowed()) {
-                // 924 is constant part, mainly Schnorr and Range proofs, 1803 is for each grootle proof/aux data
-                // 213 for each private output,
-                nBytes = 924 + 1803 * (vOutputs.size()) + 322 * CoinControlDialog::payAmounts.size();
+                const size_t privateOutputs = std::count_if(
+                    CoinControlDialog::payAmounts.cbegin(),
+                    CoinControlDialog::payAmounts.cend(),
+                    [](const PayAmount& payment) { return payment.isPrivate; });
+                const size_t transparentOutputs =
+                    static_cast<size_t>(CoinControlDialog::payAmounts.size()) - privateOutputs;
+                bool versionedSpend;
+                {
+                    LOCK(cs_main);
+                    versionedSpend = chainActive.Height() + 1 >=
+                        Params().GetConsensus().nSparkChaumV2StartBlock;
+                }
+                nBytes = estimateSparkTxBytes(
+                    nQuantity,
+                    privateOutputs,
+                    transparentOutputs,
+                    versionedSpend);
             } else {
                 // 1054 is constant part, mainly Schnorr and Range proofs, 2560 is for each sigma/aux data
                 // 83 assuming 1 jmint, 34 is the size of each normal vout,  10 is the size of empty transaction, 52 other constant parts
                 nBytes = 1054 + 2560 * vOutputs.size() + 83 + CoinControlDialog::payAmounts.size()  * 34  + 10 + 52;
             }
-            nPayFee = CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+            nPayFee = std::max(
+                payTxFee.GetFeePerK(),
+                CWallet::GetMinimumFee(nBytes, nTxConfirmTarget, mempool));
             if (nPayAmount > 0) {
                 nChange = nAmount - nPayAmount;
                 if (!CoinControlDialog::fSubtractFeeFromAmount)
@@ -544,6 +694,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
         } else {
             // Bytes
             nBytes = nBytesInputs + ((CoinControlDialog::payAmounts.size() > 0 ? CoinControlDialog::payAmounts.size() + 1 : 2) * 34) + 10; // always assume +1 output for change here
+            nBytes += extraOutputBytes;
             if (fWitness)
             {
                 // there is some fudging in these numbers related to the actual virtual transaction size calculation that will keep this estimate from being exact.
@@ -636,8 +787,13 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog, bool a
             l8->setText(ASYMP_UTF8 + l8->text());
     }
 
-    // turn label red when dust
-    l7->setStyleSheet((fDust) ? "color:red;" : "");
+    // Preserve the summary-value style and let the current theme color the warning.
+    if (l7->property("dust").toBool() != fDust) {
+        l7->setProperty("dust", fDust);
+        l7->style()->unpolish(l7);
+        l7->style()->polish(l7);
+        l7->update();
+    }
 
     // tool tips
     QString toolTipDust = tr("This label turns red if any recipient receives an amount smaller than the current dust threshold.");
@@ -712,8 +868,8 @@ void CoinControlDialog::updateView()
         int nChildren = 0;
         BOOST_FOREACH(const COutput& out, coins.second) {
             CAmount amount;
-            if(out.tx->tx->vout[out.i].scriptPubKey.IsLelantusJMint() || out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
-                amount = model->GetJMintCredit(out.tx->tx->vout[out.i]);
+            if(out.tx->tx->vout[out.i].scriptPubKey.IsSparkSMint()) {
+                amount = model->GetJMintCredit(out.tx->tx->vout[out.i], *out.tx->tx);
             } else {
                 amount = out.tx->tx->vout[out.i].nValue;
             }

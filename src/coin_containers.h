@@ -2,9 +2,14 @@
 #define COIN_CONTAINERS_H
 
 #include <secp256k1/include/Scalar.h>
-#include "liblelantus/coin.h"
+#include "uint256.h"
+#include "serialize.h"
 
 #include <unordered_map>
+#include <vector>
+
+// lelantus::PublicCoin and secp_primitives types
+#include "libspark/coin.h"
 
 namespace lelantus {
 

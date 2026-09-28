@@ -28,8 +28,10 @@ class SpendGettransactionTest(BitcoinTestFramework):
 
         valid_address = self.nodes[0].getnewaddress()
 
-        for _ in range(10):
-            self.nodes[0].mintspark({sparkAddress: {"amount": 1, "memo": "Test memo"}})
+        # Mint a few large single coins so each spendspark can fund amount+fee
+        # from one coin (multi-input Spark spends are disabled).
+        for _ in range(2):
+            self.nodes[0].mintspark({sparkAddress: {"amount": 5, "memo": "Test memo"}})
 
         self.nodes[0].generate(1)
         self.sync_all()

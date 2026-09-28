@@ -1,8 +1,8 @@
 diff --git a/configure b/configure
-index 9ffb69e795..7a61e6cb3d 100755
+index 33117729a4..d737001008 100755
 --- a/configure
 +++ b/configure
-@@ -9769,7 +9769,6 @@ for ac_func in _NSGetEnviron \
+@@ -9859,7 +9859,6 @@ for ac_func in _NSGetEnviron \
  	backtrace \
  	backtrace_symbols_fd \
  	eventfd \
@@ -10,7 +10,7 @@ index 9ffb69e795..7a61e6cb3d 100755
  	timingsafe_memcmp \
  	flock \
  	fsync \
-@@ -10457,7 +10456,7 @@ save_LIBS="$LIBS"
+@@ -10554,7 +10553,7 @@ save_LIBS="$LIBS"
  save_LDFLAGS="$LDFLAGS"
  save_CPPFLAGS="$CPPFLAGS"
  
@@ -19,7 +19,7 @@ index 9ffb69e795..7a61e6cb3d 100755
  LDFLAGS="$TOR_LDFLAGS_libevent $LDFLAGS"
  CPPFLAGS="$TOR_CPPFLAGS_libevent $CPPFLAGS"
  
-@@ -10858,7 +10857,7 @@ else
+@@ -10984,7 +10983,7 @@ else
  
    for tor_trydir in "$tryopenssldir" "(system)" "$prefix" /usr/local /usr/pkg /usr/local/opt/openssl /usr/local/openssl /usr/lib/openssl /usr/local/ssl /usr/lib/ssl /usr/local /opt/openssl; do
      LDFLAGS="$tor_saved_LDFLAGS"
@@ -28,7 +28,7 @@ index 9ffb69e795..7a61e6cb3d 100755
      CPPFLAGS="$tor_saved_CPPFLAGS"
  
      if test -z "$tor_trydir" ; then
-@@ -11020,7 +11019,7 @@ fi
+@@ -11148,7 +11147,7 @@ fi
  fi
  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $tor_cv_library_openssl_dir" >&5
  $as_echo "$tor_cv_library_openssl_dir" >&6; }
@@ -37,7 +37,7 @@ index 9ffb69e795..7a61e6cb3d 100755
  if test "$tor_cv_library_openssl_dir" != "(system)"; then
  
    if test -d "$tor_cv_library_openssl_dir/lib"; then
-@@ -11151,10 +11150,10 @@ if test "$enable_static_openssl" = "yes"; then
+@@ -11284,10 +11283,10 @@ if test "$enable_static_openssl" = "yes"; then
     if test "$tor_cv_library_openssl_dir" = "(system)"; then
       as_fn_error $? "\"You must specify an explicit --with-openssl-dir=x option when using --enable-static-openssl\"" "$LINENO" 5
     else

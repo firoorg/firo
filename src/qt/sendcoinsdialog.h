@@ -69,6 +69,7 @@ private:
     const PlatformStyle *platformStyle;
     void resizeEvent(QResizeEvent* event) override;
     void adjustTextSize(int width, int height);
+    void applyTheme();
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
     // of a message and message flags for use in Q_EMIT message().
@@ -76,10 +77,10 @@ private:
     void processSendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
     void minimizeFeeSection(bool fMinimize);
     void updateFeeMinimizedLabel();
-    void setAnonymizeMode(bool enableAnonymizeMode);
     void removeUnmatchedOutput(CCoinControl &coinControl);
 
 private Q_SLOTS:
+    void setAnonymizeMode(bool enableAnonymizeMode);
     void on_sendButton_clicked();
     void on_switchFundButton_clicked();
     void on_buttonChooseFee_clicked();
@@ -103,6 +104,7 @@ private Q_SLOTS:
     void updateMinFeeLabel();
     void updateSmartFeeLabel();
     void updateGlobalFeeVariables();
+    void updateRosenBridgeState();
 
 Q_SIGNALS:
     // Fired when a message should be reported to the user

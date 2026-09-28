@@ -1288,7 +1288,10 @@ UniValue spork(const JSONRPCRequest& request)
         LOCK(cs_main);
         LOCK(mempool.cs);
 
-        result.pushKV("blockchain", spork_listToJSON(chainActive.Tip()->activeDisablingSporks));
+        if (const auto* tip = chainActive.Tip())
+            result.pushKV("blockchain", spork_listToJSON(tip->privacyData().activeDisablingSporks));
+        else
+            result.pushKV("blockchain", spork_listToJSON(ActiveSporkMap{}));
         result.pushKV("mempool", spork_listToJSON(mempool.GetActiveSporks()));
 
         return result;
@@ -1401,10 +1404,8 @@ UniValue spork(const JSONRPCRequest& request)
         throw std::runtime_error("No spork actions specified");
 
     std::set<std::string> validFeatureNames {
-        CSporkAction::featureLelantus,
         CSporkAction::featureChainlocks,
         CSporkAction::featureInstantSend,
-        CSporkAction::featureLelantusTransparentLimit,
         CSporkAction::featureSpark,
         CSporkAction::featureSparkTransparentLimit
     };

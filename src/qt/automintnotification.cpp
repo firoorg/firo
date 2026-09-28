@@ -1,5 +1,7 @@
 #include "automintnotification.h"
 #include "automintmodel.h"
+#include "guitheme.h"
+#include "guiutil.h"
 
 #include "ui_automintnotification.h"
 
@@ -11,10 +13,29 @@ AutomintSparkNotification::AutomintSparkNotification(QWidget *parent) :
     sparkModel(nullptr)
 {
     ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Make Private"));
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Dismiss"));
 
     setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
+
+    applyTheme();
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &AutomintSparkNotification::applyTheme);
+}
+
+void AutomintSparkNotification::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $PANEL; border: 1px solid $BORDER; }"
+        "QLabel { background: transparent; color: $INK_SOFT; }")));
+    ui->warningLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+        GUIUtil::applyPrimaryButtonShadow(okButton);
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 AutomintSparkNotification::~AutomintSparkNotification()

@@ -34,6 +34,23 @@ but severe issues with the libc++ version on 10.7.x keep it from running reliabl
 Notable changes
 ===============
 
+RPC
+---
+
+- `getblocktemplate`: the template request accepts `coinbase_message`, a text of
+  at most 80 UTF-8 bytes that is put into the coinbase of the block the node
+  builds for `pprpcsb`. The result echoes it as `coinbase_message` even without
+  a `reward_address`, which is required to retain the job for submission.
+  Up to 64 jobs are kept; adding a job at this limit evicts the job with the
+  oldest block timestamp, and rebuilding the template drops all jobs.
+
+- `getsparknametxdetails`: For confirmed Spark name transactions, `validUntil`
+  reports the expiry height recorded in the containing block
+  (`sparkNameValidityHeight`) rather than the name manager's current state.
+  Later renewals or transfers therefore no longer change the details of an
+  earlier confirmed registration. Unconfirmed transactions report the pending
+  expiry if they are included in the next block.
+
 
 Detailed release notes follow. This overview includes changes that affect
 behavior, not code moves, refactors and string updates. For convenience in locating

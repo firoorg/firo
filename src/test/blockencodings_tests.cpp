@@ -76,6 +76,7 @@ BOOST_AUTO_TEST_CASE(SimpleRoundTripTest)
 
         PartiallyDownloadedBlock partialBlock(&pool);
         BOOST_CHECK(partialBlock.InitData(shortIDs2, extra_txn) == READ_STATUS_OK);
+        BOOST_CHECK(partialBlock.InitData(shortIDs2, extra_txn) == READ_STATUS_INVALID);
         BOOST_CHECK( partialBlock.IsTxAvailable(0));
         BOOST_CHECK(!partialBlock.IsTxAvailable(1));
         BOOST_CHECK( partialBlock.IsTxAvailable(2));
@@ -107,6 +108,8 @@ BOOST_AUTO_TEST_CASE(SimpleRoundTripTest)
         BOOST_CHECK_EQUAL(block.GetHash().ToString(), block3.GetHash().ToString());
         BOOST_CHECK_EQUAL(block.hashMerkleRoot.ToString(), BlockMerkleRoot(block3, &mutated).ToString());
         BOOST_CHECK(!mutated);
+        BOOST_CHECK(!partialBlock.IsTxAvailable(0));
+        BOOST_CHECK(partialBlock.FillBlock(block3, {}) == READ_STATUS_INVALID);
     }
 }
 

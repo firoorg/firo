@@ -126,16 +126,16 @@ function(add_macos_deploy_target)
     
     if(CMAKE_HOST_APPLE)
       add_custom_command(
-        OUTPUT ${PROJECT_BINARY_DIR}/${osx_volname}.zip
+        OUTPUT ${PROJECT_BINARY_DIR}/${osx_volname}.tar.gz
         COMMAND ${PYTHON_COMMAND} ${PROJECT_SOURCE_DIR}/contrib/macdeploy/macdeployqtplus ${macos_app} ${osx_volname} -translations-dir=${QT_TRANSLATIONS_DIR} -zip
         DEPENDS ${PROJECT_BINARY_DIR}/${macos_app}/Contents/MacOS/Firo-Qt
         VERBATIM
       )
       add_custom_target(deploydir
-        DEPENDS ${PROJECT_BINARY_DIR}/${osx_volname}.zip
+        DEPENDS ${PROJECT_BINARY_DIR}/${osx_volname}.tar.gz
       )
       add_custom_target(deploy
-        DEPENDS ${PROJECT_BINARY_DIR}/${osx_volname}.zip
+        DEPENDS ${PROJECT_BINARY_DIR}/${osx_volname}.tar.gz
       )
     else()
       add_custom_command(
@@ -148,15 +148,15 @@ function(add_macos_deploy_target)
         DEPENDS ${PROJECT_BINARY_DIR}/dist/${macos_app}/Contents/MacOS/Firo-Qt
       )
 
-      find_program(ZIP_COMMAND zip REQUIRED)
+      find_program(TAR_COMMAND tar REQUIRED)
       add_custom_command(
-        OUTPUT ${PROJECT_BINARY_DIR}/dist/${osx_volname}.zip
+        OUTPUT ${PROJECT_BINARY_DIR}/dist/${osx_volname}.tar.gz
         WORKING_DIRECTORY dist
-        COMMAND ${PROJECT_SOURCE_DIR}/cmake/script/macos_zip.sh ${ZIP_COMMAND} ${osx_volname}.zip
+        COMMAND ${PROJECT_SOURCE_DIR}/cmake/script/macos_tar.bash ${TAR_COMMAND} ${osx_volname}.tar.gz
         VERBATIM
       )
       add_custom_target(deploy
-        DEPENDS ${PROJECT_BINARY_DIR}/dist/${osx_volname}.zip
+        DEPENDS ${PROJECT_BINARY_DIR}/dist/${osx_volname}.tar.gz
       )
     endif()
     add_dependencies(deploydir firo-qt)

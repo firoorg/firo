@@ -18,7 +18,7 @@ llmq-is-spark.py
 Testing Instantsend for Spark transactions
 '''
 
-class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
+class LLMQ_IS_Spark(EvoZnodeTestFramework):
     def __init__(self):
         super().__init__(6, 5, extra_args=[['-debug=instantsend']] * 6 )
         self.sporkprivkey = "cW2YM2xaeCaebfpKguBahUAgEzLXgSserWRuD29kSyKHq1TTgwRQ"
@@ -31,8 +31,10 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
         self.nodes[0].generate(501 - self.nodes[0].getblockcount())
 
         sparkaddress = self.nodes[0].getnewsparkaddress()[0]
+        # Mint a few larger single coins so spendspark can cover amount+fee from
+        # one coin (multi-input Spark spends are disabled).
         for i in range(0, 3):
-            mintTxids = self.nodes[0].mintspark({sparkaddress: {"amount": 1, "memo":"Test memo"}})
+            mintTxids = self.nodes[0].mintspark({sparkaddress: {"amount": 5, "memo":"Test memo"}})
 
         for mintTxid in mintTxids:
             mintTx = self.nodes[0].getrawtransaction(mintTxid, 1)
@@ -55,4 +57,4 @@ class LLMQ_IS_Lelantus(EvoZnodeTestFramework):
         assert(self.wait_for_instantlock(spendTxid, self.nodes[0]))
 
 if __name__ == '__main__':
-    LLMQ_IS_Lelantus().main()
+    LLMQ_IS_Spark().main()

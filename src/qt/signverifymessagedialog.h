@@ -8,6 +8,7 @@
 #include <QDialog>
 
 class PlatformStyle;
+class QLabel;
 class WalletModel;
 
 namespace Ui {
@@ -36,6 +37,16 @@ private:
     Ui::SignVerifyMessageDialog *ui;
     WalletModel *model;
     const PlatformStyle *platformStyle;
+
+    /* Resolve "@name" Spark name notation in place to the address it points at. Input not
+       using that notation is left alone. Returns false if the name is not registered. */
+    bool resolveSparkAddress(QString &address) const;
+
+    void setStatusStyle(QLabel* label, bool success);
+
+    /* Size signatureOut_SM to its content: one line while empty, up to four for a long
+       Spark ownership proof. */
+    void adjustSignatureOutHeight();
 
 private Q_SLOTS:
     /* sign message */

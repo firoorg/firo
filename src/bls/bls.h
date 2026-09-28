@@ -13,12 +13,21 @@
 // bls-signatures uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
 #undef ERROR
 #undef DEBUG
+#ifdef __APPLE__
+// macOS <mach/error.h> defines err_get_code as a macro which conflicts with relic's function declaration
+#undef err_get_code
+#endif
 #include <bls-dash/bls.hpp>
 #include <bls-dash/privatekey.hpp>
 #include <bls-dash/elements.hpp>
 #include <bls-dash/schemes.hpp>
 #include <bls-dash/threshold.hpp>
 #undef DOUBLE
+// relic's generic configuration macros collide with BCLog category names.
+// They are only needed while parsing relic headers and must not leak into
+// Firo translation units.
+#undef BENCH
+#undef RAND
 
 #include <array>
 #include <mutex>

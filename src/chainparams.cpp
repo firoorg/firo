@@ -421,6 +421,8 @@ public:
         consensus.nSparkStartBlock = SPARK_START_BLOCK;
         consensus.nSpatsStartBlock = SPATS_START_BLOCK;
         consensus.nSpatsRegFee = standardSparkNamesFee;
+        consensus.nSparkSingleInputStartBlock = 1355970;
+        consensus.nSparkChaumV2StartBlock = 1371000; // Approximately September 4 2026, 10:00 UTC
         consensus.nLelantusGracefulPeriod = LELANTUS_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
@@ -487,9 +489,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 222400;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 401580;
-        
         // ProgPow
         consensus.nPPSwitchTime = 1635228000;           // Tue Oct 26 2021 06:00:00 GMT+0000
         consensus.nPPBlockNumber = 419264;
@@ -506,6 +505,7 @@ public:
         consensus.nSparkNamesStartBlock = 1104500;  // ~ May 28th 2025
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_MAINNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = SPARK_NAME_V21_MAINNET_START_BLOCK;
     }
     virtual bool SkipUndoForBlock(int nHeight) const override
     {
@@ -748,10 +748,11 @@ public:
 
         consensus.nLelantusStartBlock = ZC_LELANTUS_TESTNET_STARTING_BLOCK;
         consensus.nLelantusFixesStartBlock = ZC_LELANTUS_TESTNET_FIXES_START_BLOCK;
-
         consensus.nSparkStartBlock = SPARK_TESTNET_START_BLOCK;
         consensus.nSpatsStartBlock = SPATS_TESTNET_START_BLOCK;
         consensus.nSpatsRegFee = standardSparkNamesFee;
+        consensus.nSparkSingleInputStartBlock = 210700; // H1
+        consensus.nSparkChaumV2StartBlock = 210800;     // H2: 100 blocks after H1
         consensus.nLelantusGracefulPeriod = LELANTUS_TESTNET_GRACEFUL_PERIOD;
         consensus.nSigmaEndBlock = ZC_SIGMA_TESTNET_END_BLOCK;
         consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
@@ -806,9 +807,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 1;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 35000;
-        
         // ProgPow
         consensus.nPPSwitchTime = 1630069200;           // August 27 2021, 13:00 UTC
         consensus.nPPBlockNumber = 37305;
@@ -824,6 +822,7 @@ public:
         consensus.nSparkNamesStartBlock = 174000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_TESTNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = 200000;
     }
 };
 
@@ -1027,6 +1026,8 @@ public:
         consensus.nSparkStartBlock = 1500;
         consensus.nSpatsStartBlock = 2000;
         consensus.nSpatsRegFee = standardSparkNamesFee;
+        consensus.nSparkSingleInputStartBlock = 3600; // H1: ~87 blocks / ~7h15m after devnet height 3513
+        consensus.nSparkChaumV2StartBlock = 3700;      // H2: ~187 blocks / ~15h35m after devnet height 3513
         consensus.nLelantusGracefulPeriod = 6000;
         consensus.nSigmaEndBlock = 3600;
         consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
@@ -1066,9 +1067,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 1;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 1;
-
         // ProgPow
         consensus.nPPSwitchTime = 1631261566;           // immediately after network start
         consensus.nPPBlockNumber = 1;
@@ -1084,6 +1082,7 @@ public:
         consensus.nSparkNamesStartBlock = 3500;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK;
+        consensus.nSparkNamesV21StartBlock = SPARK_NAME_TRANSFER_DEVNET_START_BLOCK + 200;
     }
 };
 
@@ -1277,9 +1276,11 @@ public:
         consensus.nStartSigmaBlacklist = INT_MAX;
         consensus.nRestartSigmaWithBlacklistCheck = INT_MAX;
         consensus.nOldSigmaBanBlock = 1;
-        consensus.nLelantusStartBlock = 100;
-        consensus.nLelantusFixesStartBlock = 100;
-        consensus.nSparkStartBlock = 400;
+        consensus.nLelantusStartBlock = 1;
+        consensus.nLelantusFixesStartBlock = 1;
+        consensus.nSparkStartBlock = 100;
+        consensus.nSparkSingleInputStartBlock = 500;
+        consensus.nSparkChaumV2StartBlock = 700;
         consensus.nSpatsStartBlock = 1100;
         consensus.nSpatsRegFee = standardSparkNamesFee;
         consensus.nExchangeAddressStartBlock = 1000;
@@ -1325,9 +1326,6 @@ public:
         // Bip39
         consensus.nMnemonicBlock = 0;
 
-        // moving lelantus data to v3 payload
-        consensus.nLelantusV3PayloadStartBlock = 800;
-        
         // ProgPow
         // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
         consensus.nPPSwitchTime = INT_MAX;
@@ -1341,12 +1339,23 @@ public:
         consensus.nSparkNamesStartBlock = 2000;
         consensus.nSparkNamesFee = standardSparkNamesFee;
         consensus.nSparkNamesV2StartBlock = 2500;
+        consensus.nSparkNamesV21StartBlock = 2700;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
     {
         consensus.vDeployments[d].nStartTime = nStartTime;
         consensus.vDeployments[d].nTimeout = nTimeout;
+    }
+
+    void UpdateSparkSingleInputHeight(int height)
+    {
+        consensus.nSparkSingleInputStartBlock = height;
+    }
+
+    void UpdateSparkChaumV2Height(int height)
+    {
+        consensus.nSparkChaumV2StartBlock = height;
     }
 };
 static CRegTestParams regTestParams;
@@ -1376,6 +1385,16 @@ void SelectParams(const std::string& network)
 {
     SelectBaseParams(network);
     pCurrentParams = &Params(network);
+    ValidateSparkActivationHeights(pCurrentParams->GetConsensus());
+}
+
+void ValidateSparkActivationHeights(const Consensus::Params& consensus)
+{
+    if (consensus.nSparkSingleInputStartBlock >
+        consensus.nSparkChaumV2StartBlock) {
+        throw std::runtime_error(
+            "Spark single-input activation must not follow versioned spend activation");
+    }
 }
 
 void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)
@@ -1383,3 +1402,33 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout);
 }
 
+void UpdateRegtestSparkSingleInputHeight(int height)
+{
+    UpdateRegtestSparkActivationHeights(&height, nullptr);
+}
+
+void UpdateRegtestSparkChaumV2Height(int height)
+{
+    UpdateRegtestSparkActivationHeights(nullptr, &height);
+}
+
+void UpdateRegtestSparkActivationHeights(
+    const int* singleInputHeight,
+    const int* chaumV2Height)
+{
+    Consensus::Params proposed = regTestParams.GetConsensus();
+    if (singleInputHeight) {
+        proposed.nSparkSingleInputStartBlock = *singleInputHeight;
+    }
+    if (chaumV2Height) {
+        proposed.nSparkChaumV2StartBlock = *chaumV2Height;
+    }
+    ValidateSparkActivationHeights(proposed);
+
+    if (singleInputHeight) {
+        regTestParams.UpdateSparkSingleInputHeight(*singleInputHeight);
+    }
+    if (chaumV2Height) {
+        regTestParams.UpdateSparkChaumV2Height(*chaumV2Height);
+    }
+}

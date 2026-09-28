@@ -13,11 +13,38 @@ endif()
 
 get_target_property(qt_lib_type Qt6::Core TYPE)
 
+if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$" AND TARGET Qt6::QWaylandIntegrationPlugin)
+  set(HAVE_WAYLAND TRUE)
+endif()
+
+if(qt_lib_type STREQUAL "STATIC_LIBRARY" AND HAVE_WAYLAND)
+  find_library(WAYLAND_FFI_LIBRARY NAMES ffi)
+  if(NOT WAYLAND_FFI_LIBRARY)
+    message(FATAL_ERROR "Static Qt Wayland plugins require libffi, but it was not found")
+  endif()
+  if(TARGET Wayland::Client)
+    set_property(TARGET Wayland::Client APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${WAYLAND_FFI_LIBRARY}")
+  endif()
+endif()
+
 function(import_plugins target)
   if(qt_lib_type STREQUAL "STATIC_LIBRARY")
     set(plugins Qt6::QMinimalIntegrationPlugin)
     if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$")
       list(APPEND plugins Qt6::QXcbIntegrationPlugin)
+      if(TARGET Qt6::QWaylandIntegrationPlugin)
+        list(APPEND plugins Qt6::QWaylandIntegrationPlugin)
+        list(APPEND plugins Qt6::QWaylandEglPlatformIntegrationPlugin)
+        if(TARGET Qt6::QWaylandXdgShellIntegrationPlugin)
+          list(APPEND plugins Qt6::QWaylandXdgShellIntegrationPlugin)
+        endif()
+        if(TARGET Qt6::QWaylandEglClientBufferPlugin)
+          list(APPEND plugins Qt6::QWaylandEglClientBufferPlugin)
+        endif()
+        if(TARGET Qt6::QWaylandBradientDecorationPlugin)
+          list(APPEND plugins Qt6::QWaylandBradientDecorationPlugin)
+        endif()
+      endif()
     elseif(WIN32)
       list(APPEND plugins Qt6::QWindowsIntegrationPlugin Qt6::QModernWindowsStylePlugin)
     elseif(APPLE)
@@ -98,6 +125,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/coincontroltreewidget.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/csvmodelwriter.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/editaddressdialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/guitheme.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/guiutil.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/intro.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/manualmintdialog.cpp
@@ -121,6 +149,7 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/recentrequeststablemodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/recover.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/rpcconsole.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rosenbridge.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsdialog.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sendcoinsentry.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/signverifymessagedialog.cpp
@@ -142,6 +171,8 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macdockiconhandler.mm>
   $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnotificationhandler.h>
   $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnotificationhandler.mm>
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnapinhibitor.h>
+  $<$<PLATFORM_ID:Darwin>:${CMAKE_CURRENT_SOURCE_DIR}/macnapinhibitor.mm>
   $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/winshutdownmonitor.cpp>
   $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/winshutdownmonitor.h>
 )
@@ -149,6 +180,10 @@ target_compile_definitions(firoqt
   PUBLIC
     QT_NO_KEYWORDS
     QT_USE_QSTRINGBUILDER
+    $<$<BOOL:${HAVE_WAYLAND}>:HAVE_WAYLAND>
+    $<$<TARGET_EXISTS:Qt6::QWaylandXdgShellIntegrationPlugin>:HAVE_QT_WAYLAND_XDG_SHELL_INTEGRATION_PLUGIN>
+    $<$<TARGET_EXISTS:Qt6::QWaylandEglClientBufferPlugin>:HAVE_QT_WAYLAND_EGL_CLIENT_BUFFER_PLUGIN>
+    $<$<TARGET_EXISTS:Qt6::QWaylandBradientDecorationPlugin>:HAVE_QT_WAYLAND_BRADIENT_DECORATION_PLUGIN>
 )
 target_include_directories(firoqt
   PUBLIC
@@ -175,6 +210,7 @@ target_link_libraries(firoqt
     Qt6::Network
   PRIVATE
     core_interface
+    warn_interface
     firo_cli
     firo_node
     Boost::headers   
@@ -228,6 +264,7 @@ if(ENABLE_WALLET)
         ${CMAKE_CURRENT_SOURCE_DIR}/automintmodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sparkmodel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/createsparknamepage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparknamespage.cpp
   )
   target_link_libraries(firoqt
     PRIVATE
@@ -286,6 +323,8 @@ target_link_libraries(firo-qt
     $<TARGET_NAME_IF_EXISTS:libevent::extra>
     $<TARGET_NAME_IF_EXISTS:libevent::core>
     ${TOR_LIBRARY}
+  PRIVATE
+    warn_interface
 )
 
 # Add macOS-specific frameworks
@@ -319,6 +358,13 @@ endif()
 if(WIN32)
   set_target_properties(firo-qt PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
+# Generate DLSymbols on macOS
+if(APPLE)
+    add_custom_command(TARGET firo-qt POST_BUILD
+        COMMAND dsymutil "$<TARGET_FILE:firo-qt>"
+        COMMENT "Generating dSYM for firo-qt"
+    )
+endif()
 
 if(WITH_MULTIPROCESS)
   add_executable(bitcoin-gui
@@ -326,6 +372,7 @@ if(WITH_MULTIPROCESS)
   )
   target_link_libraries(bitcoin-gui
     core_interface
+    warn_interface
     firoqt
     firo_node
     bitcoin_ipc
@@ -402,8 +449,12 @@ else()
   get_translatable_sources(translatable_sources ${translatable_sources_directories})
   get_translatable_sources(qt_translatable_sources src/qt)
   file(GLOB ui_files ${CMAKE_CURRENT_SOURCE_DIR}/forms/*.ui)
+  list(REMOVE_DUPLICATES translatable_sources)
+  list(JOIN translatable_sources "\n" translatable_sources_content)
+  set(translatable_sources_file "${CMAKE_CURRENT_BINARY_DIR}/translation_sources.txt")
+  file(GENERATE OUTPUT "${translatable_sources_file}" CONTENT "${translatable_sources_content}\n")
   add_custom_target(translate
-    COMMAND ${CMAKE_COMMAND} -E env XGETTEXT=${XGETTEXT_EXECUTABLE} COPYRIGHT_HOLDERS=${COPYRIGHT_HOLDERS} $<TARGET_FILE:Python3::Interpreter> ${PROJECT_SOURCE_DIR}/share/qt/extract_strings_qt.py ${translatable_sources}
+    COMMAND ${CMAKE_COMMAND} -E env XGETTEXT=${XGETTEXT_EXECUTABLE} "PACKAGE_NAME=${CLIENT_NAME}" "COPYRIGHT_HOLDERS=${COPYRIGHT_HOLDERS}" "COPYRIGHT_HOLDERS_SUBSTITUTION=${CLIENT_NAME}" $<TARGET_FILE:Python3::Interpreter> ${PROJECT_SOURCE_DIR}/share/qt/extract_strings_qt.py --files-from=${translatable_sources_file}
     COMMAND Qt6::lupdate -no-obsolete -I ${PROJECT_SOURCE_DIR}/src -locations relative ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinstrings.cpp ${ui_files} ${qt_translatable_sources} -ts ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.ts
     COMMAND Qt6::lconvert -drop-translations -o ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf -i ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.ts
     COMMAND ${SED_EXECUTABLE} -i.old -e "s|source-language=\"en\" target-language=\"en\"|source-language=\"en\"|" -e "/<target xml:space=\"preserve\"><\\/target>/d" ${CMAKE_CURRENT_SOURCE_DIR}/locale/bitcoin_en.xlf

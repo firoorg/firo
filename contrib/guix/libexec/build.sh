@@ -95,6 +95,11 @@ prepend_to_search_env_var() {
     export "${1}=${2}${!1:+:}${!1}"
 }
 
+# Native tools built in depends may need the GCC runtime when executed.
+if [ -n "${LIBRARY_PATH}" ]; then
+    prepend_to_search_env_var LD_LIBRARY_PATH "${LIBRARY_PATH}"
+fi
+
 # Set environment variables to point the CROSS toolchain to the right
 # includes/libs for $HOST
 case "$HOST" in
@@ -251,7 +256,8 @@ fi
 ###########################
 
 # Use COMMIT_TIMESTAMP for the source and release binary archives
-export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
+# Use the same SOURCE_DATE_EPOCH as source tarball for consistency
+export SOURCE_DATE_EPOCH=${COMMIT_TIMESTAMP:-$(git log -1 --format=%ct)}
 export TAR_OPTIONS="--owner=0 --group=0 --numeric-owner --mtime='@${SOURCE_DATE_EPOCH}' --sort=name"
 
 
@@ -488,12 +494,12 @@ mkdir -p "$DISTSRC"
                 echo "Running deploy with DMG support..."
                 make -C build deploy ${V:+V=1} OSX_DMG="${OUTDIR}/${DISTNAME}-osx-unsigned.dmg"
             else
-                echo "Running deploy without DMG (will create .zip instead)..."
+                echo "Running deploy without DMG (will create .tar.gz instead)..."
                 make -C build deploy ${V:+V=1}
             fi
 
             # Copy any generated files to output
-            find build/dist -name "*.zip" -o -name "*.dmg" 2>/dev/null | while read file; do
+            find build/dist -name "*.tar.gz" -o -name "*.dmg" 2>/dev/null | while read file; do
                 if [ -f "$file" ]; then
                     cp "$file" "${OUTDIR}/" && echo "✓ Copied $(basename "$file")"
                 fi
@@ -512,7 +518,14 @@ mkdir -p "$DISTSRC"
         rm -rf "./lib/pkgconfig"
 
         case "$HOST" in
-            *darwin*) ;;
+            *darwin*)
+                # Copy dSYM bundles from build directory to install directory
+                for dsym in "${DISTSRC}/build/bin/"*.dSYM; do
+                    if [ -d "$dsym" ]; then
+                        cp -a "$dsym" "./bin/"
+                    fi
+                done
+                ;;
             *)
                 # Split binaries and libraries from their debug symbols
                 {
@@ -585,12 +598,24 @@ mkdir -p "$DISTSRC"
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-debug.tar.gz" && exit 1 )
                 ;;
             *darwin*)
-                find . -print0 \
+                # Main tarball (exclude .dSYM bundles)
+                find . -name "*.dSYM" -prune -o -print0 \
                     | sort --zero-terminated \
                     | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
                     --transform="s|^\.|${DISTNAME}|" \
                     | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" \
                     || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}.tar.gz" && exit 1 )
+
+                # Debug tarball (only .dSYM bundles)
+                find . -type d -name "*.dSYM" -print0 \
+                    | while IFS= read -r -d '' dsym; do
+                        find "$dsym" -print0
+                    done \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    --transform="s|^\.|${DISTNAME}|" \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}-debug.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST//x86_64-apple-darwin19/osx64}-debug.tar.gz" && exit 1 )
                 ;;
         esac
     )  # $DISTSRC/installed

@@ -5,7 +5,7 @@ on:
     - 'doc/**'
     - '**/README.md'
     branches:
-    - '**'
+    - master
   pull_request:
     paths-ignore:
     - 'doc/**'
@@ -15,19 +15,21 @@ on:
 env:
   SOURCE_ARTIFACT: source
   SOURCE_ARTIFACT_DIR: source
+  CACHE_MAX_SIZE: 5G
 jobs:
   get-commit-hash:
     name: Get Commit Hash String
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       short_sha: ${{ steps.short-sha.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}  # Use PR head commit
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}  # Use PR head commit
           fetch-depth: 1
       - id: short-sha
         run: |
+          set -exo pipefail
           # For PRs, use pull_request.head.sha, otherwise use the normal HEAD
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-7)
@@ -37,31 +39,147 @@ jobs:
           echo "sha=$SHA" >> $GITHUB_OUTPUT
           echo "Short hash determined: $SHA"
 
-  build-linux-cmake:
+  cmake-build:
     needs: get-commit-hash
-    name: build-linux-cmake
-    runs-on: ubuntu-22.04
+    name: ${{ matrix.platform }}-cmake-${{ matrix.build_type }}
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [RelWithDebInfo, Debug]
+        include:
+          - platform: linux
+            runs_on: ubuntu-22.04
+            is_linux: true
+            is_windows: false
+            is_mac: false
+            bin_ext: ''
+            ccache_path: ~/.ccache
+          - platform: windows
+            runs_on: ubuntu-latest
+            is_linux: false
+            is_windows: true
+            is_mac: false
+            bin_ext: '.exe'
+            ccache_path: ~/.ccache
+          - platform: mac
+            runs_on: macos-latest
+            is_linux: false
+            is_windows: false
+            is_mac: true
+            bin_ext: ''
+            ccache_path: ~/Library/Caches/ccache
+        platform: [linux, windows, mac]
     env:
-      ARTIFACT_DIR: linux-cmake-binaries
+      ARTIFACT_DIR: ${{ matrix.platform }}-cmake-binaries-${{ matrix.build_type }}
       TEST_LOG_ARTIFACT_DIR: test-logs
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
+      BUILD_TYPE: ${{ matrix.build_type }}
     steps:
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      if: matrix.is_linux
+      uses: actions/setup-python@v6
       with:
         python-version: '3.8'
     - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install Required Packages
+      uses: actions/checkout@v5
+    - name: Use Xcode instead of Command Line Tools
+      if: matrix.is_mac
       run: |
+        set -exo pipefail
+        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+    - name: Set NJOBS variable
+      if: matrix.is_mac
+      run: |
+        set -exo pipefail
+        NCPU=$(sysctl -n hw.ncpu)
+        JOBS=$((NCPU / 2 > 1 ? NCPU / 2 : 1))
+        echo "NJOBS=$JOBS" >> $GITHUB_ENV
+        echo "Using $JOBS jobs for parallel builds."
+    - name: Install Required Packages (Linux)
+      if: matrix.is_linux
+      run: |
+        set -exo pipefail
         sudo apt-get update
-        sudo apt-get install -y python3-zmq cmake build-essential
-    - name: Verify ZMQ Installation
+        sudo apt-get install -y python3-zmq cmake build-essential ninja-build meson ccache
+    - name: Install Required Packages (Windows)
+      if: matrix.is_windows
       run: |
+        set -exo pipefail
+        sudo apt-get update
+        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip ninja-build meson ccache
+    - name: Install Required Packages (Mac)
+      if: matrix.is_mac
+      run: |
+        set -exo pipefail
+        brew uninstall --force cmake
+        brew install --force automake coreutils python-setuptools cmake make pkg-config ninja meson ccache
+    - name: Install setuptools
+      if: matrix.is_mac
+      run: |
+        set -exo pipefail
+        sudo -H pip install setuptools
+    - name: Setup ccache
+      uses: actions/cache@v5
+      with:
+        path: ${{ matrix.ccache_path }}
+        key: ccache-${{ matrix.platform }}-${{ matrix.build_type }}-${{ github.sha }}
+        restore-keys: |
+          ccache-${{ matrix.platform }}-${{ matrix.build_type }}-
+          ccache-${{ matrix.platform }}-
+    - name: Configure ccache (Linux/Windows)
+      if: ${{ !matrix.is_mac }}
+      run: |
+        set -exo pipefail
+        ccache --set-config=max_size=${{ env.CACHE_MAX_SIZE }}
+        ccache --set-config=compression=true
+        echo "/usr/lib/ccache" >> $GITHUB_PATH
+    - name: Configure ccache (Mac)
+      if: matrix.is_mac
+      run: |
+        set -exo pipefail
+        ccache --set-config=max_size=${{ env.CACHE_MAX_SIZE }}
+        ccache --set-config=compression=true
+        echo "$(brew --prefix ccache)/libexec" >> $GITHUB_PATH
+    - name: Verify ZMQ Installation
+      if: matrix.is_linux
+      run: |
+        set -exo pipefail
         python3 -m pip install --upgrade pip
         python3 -m pip install pyzmq
+    - name: Switch MinGW GCC and G++ to POSIX Threading
+      if: matrix.is_windows
+      run: |
+        set -exo pipefail
+        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+    - name: Set HOST_TRIPLET for cache key
+      id: depends-host-triplet
+      run: |
+        set -exo pipefail
+        if [ "${{ matrix.is_windows }}" = "true" ]; then
+          echo "value=$(x86_64-w64-mingw32-gcc -dumpmachine)" >> $GITHUB_OUTPUT
+        else
+          echo "value=$(depends/config.guess)" >> $GITHUB_OUTPUT
+        fi
+    - name: Cache Dependencies
+      uses: actions/cache@v5
+      id: cache-depends
+      with:
+        path: |
+          depends/built
+          depends/sources
+          depends/work
+        key: depends-${{ matrix.platform }}-${{ steps.depends-host-triplet.outputs.value }}-${{ hashFiles('depends/packages/*.mk', 'depends/patches/**', 'depends/hosts/*.mk', 'depends/builders/*.mk') }}
+        restore-keys: |
+          depends-${{ matrix.platform }}-${{ steps.depends-host-triplet.outputs.value }}-
+          depends-${{ matrix.platform }}-
     - name: Download Dependencies
       run: |
+        set -exo pipefail
+        # Clear download stamps to ensure new/changed extra sources are fetched
+        # even when restoring from a stale cache (partial restore-key match).
+        rm -rf depends/sources/download-stamps
         attempt=1
         max=5
         until make -C depends download; do
@@ -73,185 +191,187 @@ jobs:
           sleep $((attempt*5))
           attempt=$((attempt+1))
         done
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc)
-    - name: Build Firo
+    - name: Fix MinGW headers
+      if: matrix.is_windows
+      shell: bash
       run: |
+        set -euxo pipefail
+        
+        MINGW_INC="/usr/x86_64-w64-mingw32/include"
+        D3D12_H="$MINGW_INC/d3d12.h"
+
+        if ! grep -q "NLM_INTERNET_CONNECTIVITY_WEBHIJACK" "$MINGW_INC/netlistmgr.h"; then
+          sudo bash -c "cat >> '$MINGW_INC/netlistmgr.h' <<'EOF'
+
+        #ifndef NLM_INTERNET_CONNECTIVITY_WEBHIJACK
+        #define NLM_INTERNET_CONNECTIVITY_WEBHIJACK 0x1
+        #endif
+        EOF"
+        fi
+    - name: Build Dependencies (Linux)
+      if: matrix.is_linux
+      run: |
+        set -exo pipefail
+        make -C depends -j$(nproc)
+    - name: Build Dependencies (Windows)
+      if: matrix.is_windows
+      run: |
+        set -exo pipefail
+        make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
+    - name: Build Dependencies (Mac)
+      if: matrix.is_mac
+      run: |
+        set -exo pipefail
+        make -C depends -j$NJOBS
+    - name: Build Firo (Linux)
+      if: matrix.is_linux
+      run: |
+        set -exo pipefail
         export HOST_TRIPLET=$(depends/config.guess)
+
+        # Set build-type specific flags
+        CMAKE_EXTRA_FLAGS=""
+        if [ "$BUILD_TYPE" = "Debug" ]; then
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=false -DBUILD_FUZZ_BINARY=ON"
+        else
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=true"
+        fi
+
         env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
-        -DCLIENT_VERSION_IS_RELEASE=true -S$(realpath .) -B$(realpath build)
-        cd build && make -j$(nproc)
-    - name: Run Unit Tests
+        cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=ON -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+        $CMAKE_EXTRA_FLAGS \
+        -S$(realpath .) -B$(realpath build)
+        cd build && ninja
+    - name: Build Firo (Windows)
+      if: matrix.is_windows
       run: |
-        cd build && make test
+        set -exo pipefail
+        export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
+
+        CMAKE_EXTRA_FLAGS=""
+        if [ "$BUILD_TYPE" = "Debug" ]; then
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=false"
+        else
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=true"
+        fi
+
+        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
+        cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+        $CMAKE_EXTRA_FLAGS \
+        -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
+        cd build && ninja
+    - name: Build Firo (Mac)
+      if: matrix.is_mac
+      run: |
+        set -exo pipefail
+        export HOST_TRIPLET=$(depends/config.guess)
+
+        CMAKE_EXTRA_FLAGS=""
+        if [ "$BUILD_TYPE" = "Debug" ]; then
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=false"
+        else
+          CMAKE_EXTRA_FLAGS="-DCLIENT_VERSION_IS_RELEASE=true"
+        fi
+
+        env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
+        cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
+        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DENABLE_CRASH_HOOKS=ON -DBUILD_GUI=ON \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+        $CMAKE_EXTRA_FLAGS \
+        -S$(pwd) -B$(pwd)/build
+        cd build && ninja
+    - name: Run Unit Tests
+      if: matrix.is_linux
+      run: |
+        set -exo pipefail
+        cd build && ctest --output-on-failure
     - name: Run RPC Tests
+      if: matrix.is_linux
       env:
         TIMEOUT: 600
       run: |
+        set -exo pipefail
         cp -rf build/bin/* build/src/
         qa/pull-tester/rpc-tests.py -extended
     - name: Prepare Files for Artifact
       run: |
+        set -exo pipefail
         mkdir -p $ARTIFACT_DIR
-        mv build/bin/{firo-cli,firo-tx,firod,firo-qt} $ARTIFACT_DIR
+        mv build/bin/firo-cli${{ matrix.bin_ext }} build/bin/firo-tx${{ matrix.bin_ext }} build/bin/firod${{ matrix.bin_ext }} build/bin/firo-qt${{ matrix.bin_ext }} $ARTIFACT_DIR
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
-        name: linux-cmake-binaries-${{ env.COMMIT_HASH }}
+        name: ${{ matrix.platform }}-cmake-${{ matrix.build_type }}-binaries-${{ env.COMMIT_HASH }}
         path: ${{ env.ARTIFACT_DIR }}
     - name: Prepare Test Logs for Artifact
-      if: failure()
+      if: failure() && matrix.is_linux
       run: |
-        tor_log=$(find . -path '*/tor/test-suite.log' -type f || true)
-        firo_log=$(find . -path '*/src/test-suite.log' -type f || true)
+        set -exo pipefail
+        tor_log=$(find . -path '*/tor/test-suite.log' -type f 2>/dev/null | head -n1)
+        firo_log=$(find . -path '*/src/test-suite.log' -type f 2>/dev/null | head -n1)
 
         mkdir -p $TEST_LOG_ARTIFACT_DIR
 
-        if test -f $tor_log; then
-          mv $tor_log $TEST_LOG_ARTIFACT_DIR/tor.log
+        if [ -n "$tor_log" ] && [ -f "$tor_log" ]; then
+          mv "$tor_log" "$TEST_LOG_ARTIFACT_DIR/tor.log"
         fi
 
-        if test -f $firo_log; then
-          mv $firo_log $TEST_LOG_ARTIFACT_DIR/firo.log
+        if [ -n "$firo_log" ] && [ -f "$firo_log" ]; then
+          mv "$firo_log" "$TEST_LOG_ARTIFACT_DIR/firo.log"
         fi
     - name: Upload Test Logs Artifact
-      if: failure()
-      uses: actions/upload-artifact@v4
+      if: failure() && matrix.is_linux
+      uses: actions/upload-artifact@v6
       with:
-        name: test-linux-cmake-logs-${{ env.COMMIT_HASH }}
+        name: test-${{ matrix.platform }}-cmake-${{ matrix.build_type }}-logs-${{ env.COMMIT_HASH }}
         path: ${{ env.TEST_LOG_ARTIFACT_DIR }}
 
-  build-windows-cmake:
+  guix-build:
     needs: get-commit-hash
-    name: build-windows-cmake
-    runs-on: ubuntu-latest
-    env:
-      ARTIFACT_DIR: windows-cmake-binaries
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Install Required Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 cmake mingw-w64-common mingw-w64-i686-dev mingw-w64-x86-64-dev wget unzip
-    - name: Switch MinGW GCC and G++ to POSIX Threading
-      run: |
-        sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-    - name: Download Dependencies
-      run: |
-        attempt=1
-        max=5
-        until make -C depends download; do
-          if [ "$attempt" -ge "$max" ]; then
-            echo "make -C depends download failed after $attempt attempts"
-            exit 1
-          fi
-          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
-          sleep $((attempt*5))
-          attempt=$((attempt+1))
-        done
-    - name: Build Dependencies
-      run: make -C depends -j$(nproc) HOST=x86_64-w64-mingw32
-    - name: Build Firo
-      run: |
-        export HOST_TRIPLET=$(x86_64-w64-mingw32-gcc -dumpmachine)
-        env PKG_CONFIG_PATH="$(realpath depends/$HOST_TRIPLET/lib/pkgconfig):$PKG_CONFIG_PATH" \
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(realpath depends/$HOST_TRIPLET/toolchain.cmake) \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release \
-        -DCLIENT_VERSION_IS_RELEASE=true -DBUILD_GUI=ON -S$(realpath .) -B$(realpath build)
-        cd build && make -j$(nproc)
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv build/bin/{firo-cli.exe,firo-tx.exe,firod.exe,firo-qt.exe} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-cmake-binaries-${{ env.COMMIT_HASH }}
-        path: ${{ env.ARTIFACT_DIR }}
-
-  build-mac-cmake:
-    needs: get-commit-hash
-    name: build-mac-cmake
-    runs-on: macos-latest
-    env:
-      ARTIFACT_DIR: mac-cmake-binaries
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Use Xcode instead of Command Line Tools
-      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-    - name: Set NJOBS variable
-      run: |
-        NCPU=$(sysctl -n hw.ncpu)
-        JOBS=$((NCPU / 2 > 1 ? NCPU / 2 : 1)) # Use half, but at least 1
-        echo "NJOBS=$JOBS" >> $GITHUB_ENV  # Persist NJOBS across steps
-        echo "Using $JOBS jobs for parallel builds."
-      # -j$(sysctl -n hw.activecpu) fails. due to high load on macOS, and crappy github runners.
-    - name: Install Required Packages
-      run: |
-        brew uninstall --force cmake
-        brew install --force automake coreutils python-setuptools cmake make pkg-config
-      # Workaround for macOS: https://github.com/actions/runner/issues/2958
-    - name: Install setuptools
-      run: sudo -H pip install setuptools
-    - name: Download Dependencies
-      run: |
-        attempt=1
-        max=5
-        until make -C depends download; do
-          if [ "$attempt" -ge "$max" ]; then
-            echo "make -C depends download failed after $attempt attempts"
-            exit 1
-          fi
-          echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
-          sleep $((attempt*5))
-          attempt=$((attempt+1))
-        done
-    - name: Build Dependencies
-      run: |
-        make -C depends -j$NJOBS
-    - name: Build Firo
-      run: |
-        export HOST_TRIPLET=$(depends/config.guess)
-        env PKG_CONFIG_PATH="$(pwd)/depends/$HOST_TRIPLET/lib/pkgconfig:$PKG_CONFIG_PATH" \
-        cmake -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$HOST_TRIPLET/toolchain.cmake \
-        -DBUILD_CLI=ON -DBUILD_TESTS=OFF -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release \
-        -DCLIENT_VERSION_IS_RELEASE=true -S$(pwd) -B$(pwd)/build
-        cd build && make -j$NJOBS
-    - name: Prepare Files for Artifact
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        mv build/bin/{firo-cli,firo-tx,firod,firo-qt} $ARTIFACT_DIR
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: mac-cmake-binaries-${{ env.COMMIT_HASH }}
-        path: ${{ env.ARTIFACT_DIR }}
-
-  build-guix-x86_64-linux-gnu:
-    needs: get-commit-hash
-    name: build-guix-x86_64-linux-gnu
+    name: guix-${{ matrix.host }}
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: x86_64-linux-gnu
+            artifact_prefix: x86_64-linux-guix
+            is_darwin: false
+            is_windows: false
+          - host: aarch64-linux-gnu
+            artifact_prefix: aarch64-linux-guix
+            is_darwin: false
+            is_windows: false
+          - host: x86_64-w64-mingw32
+            artifact_prefix: x86_64-win64-guix
+            is_darwin: false
+            is_windows: true
+          - host: arm64-apple-darwin
+            artifact_prefix: arm64-apple-darwin
+            is_darwin: true
+            is_windows: false
+          - host: x86_64-apple-darwin
+            artifact_prefix: x86_64-apple-darwin
+            is_darwin: true
+            is_windows: false
     env:
-      HOST: x86_64-linux-gnu
-      ARTIFACT_DIR: guix-binaries-x86_64-linux-gnu
-      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      HOST: ${{ matrix.host }}
+      ARTIFACT_DIR: guix-binaries-${{ matrix.host }}
+      SUBSTITUTE_URLS: "https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v5
         with:
-          python-version: '3.8'
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0 # Optional: Ensures git describe finds tags correctly
       - name: Free Disk Space
         run: |
+          set -exo pipefail
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
           sudo rm -rf /var/tmp/*
@@ -263,288 +383,318 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
+      - name: Setup swap
+        run: |
+          set -exo pipefail
+          # Turn off and remove existing swapfile if present
+          if [ -f /swapfile ]; then
+            sudo swapoff /swapfile 2>/dev/null || true
+            sudo rm -f /swapfile
+          fi
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "Swap enabled:"
+          sudo swapon --show
+      - name: Prepare Guix cache dirs
+        run: |
+          set -exo pipefail
+          sudo mkdir -p /var/guix/cache /var/guix/archives
+          sudo chown -R $USER:$USER /var/guix/cache /var/guix/archives
+          mkdir -p ~/.cache/guix ~/.config/guix ~/.local/share/guix
+      - name: Cache Guix downloads
+        uses: actions/cache@v5
+        id: cache-guix
+        with:
+          path: |
+            ~/.cache/guix
+            ~/.config/guix
+            ~/.local/share/guix
+            /var/guix/cache
+            /var/guix/archives
+          key: guix-${{ matrix.host }}-${{ hashFiles('contrib/guix/**') }}
+          restore-keys: |
+            guix-${{ matrix.host }}-
       - name: Install Guix
         run: |
+          set -exo pipefail
           sudo apt-get update
-          sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+          sudo apt-get install -y wget gpg apparmor-utils ${{ matrix.is_windows && 'g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64' || '' }}
+          # Disable AppArmor to prevent Guix installer conflict
+          sudo systemctl stop apparmor || true
+          sudo systemctl disable apparmor || true
+          sudo aa-teardown || true
+          sudo aa-complain unprivileged_userns || true
+          # Remove apparmor_parser so Guix installer skips AppArmor setup
+          sudo apt-get remove -y apparmor || true
+
+          export VER=1.5.0
+          export ARCH=x86_64-linux
+          export TAR="guix-binary-${VER}.${ARCH}.tar.xz"
+          export GUIX_INSTALLER_SHA256=7f544e48c9082baf489207ac506acd78bf251355bbafffd744498e658880879d
+          export GUIX_TAR_SHA256=aa41025489c5061543e9c48873eaa829b900b2da75d40f9648913622f5f47817
+
+          # Keep these trust anchors explicit and reviewed. This set matches
+          # the release-signing keys trusted by the Guix 1.5.0 installer, so
+          # the release can be signed by a different Guix maintainer without
+          # letting a downloaded script decide our trust policy.
+          GUIX_KEY_FPRS=(
+            3CE464558A84FDC69DB40CFB090B11993D9AEBB5
+            27D586A4F8900854329FF09F1260E46482E63562
+            A28BF40C3E551372662D14F741AAE7DCCA3D8351
+          )
+          GUIX_FPR_REGEX="$(IFS='|'; echo "${GUIX_KEY_FPRS[*]}")"
+
+          cd /tmp
+
+          download() {
+            local output="$1"
+            shift
+            for url in "$@"; do
+              if wget --tries=5 --timeout=30 --waitretry=10 \
+                --retry-connrefused --retry-on-host-error \
+                --retry-on-http-error=429,500,502,503,504 \
+                "${url}" -O "${output}"; then
+                return 0
+              fi
+              echo "Download failed from ${url}, trying next mirror..."
+            done
+            return 1
+          }
+
+          # 1. Download and pin-check all unsigned inputs before use.
+          echo "::group::Download Guix installer and binary tarball"
+          download guix-install.sh \
+            "https://codeberg.org/guix/guix/raw/tag/v${VER}/etc/guix-install.sh" \
+            "https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh?h=v${VER}"
+          echo "${GUIX_INSTALLER_SHA256}  guix-install.sh" | sha256sum -c -
+          chmod +x guix-install.sh
+
+          download "${TAR}" \
+            "https://ftpmirror.gnu.org/gnu/guix/${TAR}" \
+            "https://ftp.gnu.org/gnu/guix/${TAR}" \
+            "https://mirrors.ocf.berkeley.edu/gnu/guix/${TAR}"
+          echo "${GUIX_TAR_SHA256}  ${TAR}" | sha256sum -c -
+          download "${TAR}.sig" \
+            "https://ftpmirror.gnu.org/gnu/guix/${TAR}.sig" \
+            "https://ftp.gnu.org/gnu/guix/${TAR}.sig" \
+            "https://mirrors.ocf.berkeley.edu/gnu/guix/${TAR}.sig"
+          echo "::endgroup::"
+
+          # 2. Best-effort import each trusted key into an isolated keyring.
+          #    Some maintainers may not have published their key to every
+          #    keyserver (or to any keyserver at all), so we don't fail on
+          #    individual misses. We only fail later if NONE of the imported
+          #    keys can verify the actual tarball signature. The trust set
+          #    is still bounded by the pinned list: VALIDSIG must
+          #    name a fingerprint from GUIX_FPR_REGEX, regardless of which
+          #    keys were imported.
+          echo "::group::Import trusted Guix maintainer keys"
+          export GNUPGHOME=$(mktemp -d)
+          chmod 700 "${GNUPGHOME}"
+          imported_count=0
+          for fpr in "${GUIX_KEY_FPRS[@]}"; do
+            for ks in hkps://keys.openpgp.org hkps://keyserver.ubuntu.com hkps://pgp.mit.edu; do
+              if gpg --batch --keyserver "${ks}" --recv-keys "${fpr}"; then
+                # Confirm the imported key actually has the expected fingerprint.
+                if gpg --list-keys --with-colons "${fpr}" \
+                    | awk -F: '$1=="fpr"{print $10}' | grep -qx "${fpr}"; then
+                  imported_count=$((imported_count + 1))
+                  break
+                fi
+              fi
+              echo "Keyserver ${ks} failed for ${fpr}, trying next..."
+            done
+          done
+          if [ "${imported_count}" -eq 0 ]; then
+            echo "Could not import any trusted Guix signing key from any keyserver"
+            exit 1
+          fi
+          echo "Imported ${imported_count}/${#GUIX_KEY_FPRS[@]} trusted keys"
+          echo "::endgroup::"
+
+          # 3. Verify the tarball signature against the trusted keys (blocking).
+          #    The keyring contains ONLY the pinned trust anchors, so a valid
+          #    signature must come from one of them; the explicit VALIDSIG
+          #    fingerprint match also documents which key signed this release.
+          echo "::group::Verify tarball signature"
+          gpg --status-fd 1 --verify "${TAR}.sig" "${TAR}" > gpg-status.txt
+          cat gpg-status.txt
+          awk -v allowed="${GUIX_FPR_REGEX}" '
+            $1 == "[GNUPG:]" && $2 == "VALIDSIG" &&
+              ($3 ~ "^(" allowed ")$" || $NF ~ "^(" allowed ")$") { found=1 }
+            END { exit found ? 0 : 1 }
+          ' gpg-status.txt
+          echo "::endgroup::"
+
+          # 4. Run the pinned installer with the cryptographically verified tarball.
+          # Disable pipefail strictly for this command so 'yes' crashing doesn't fail the build
+          set +o pipefail
+          yes '' 2>/dev/null | sudo env GUIX_BINARY_FILE_NAME="/tmp/${TAR}" ./guix-install.sh
+          set -o pipefail
+          echo "Guix install script completed"
+          source /etc/profile.d/zzz-guix.sh
+          # Verify installation using absolute path
+          /usr/local/bin/guix --version
+      - name: Clean Guix build dirs
+        if: matrix.is_darwin
+        run: |
+          set -exo pipefail
+          ./contrib/guix/guix-clean || true
+      - name: Download macOS SDK
+        if: matrix.is_darwin
+        run: |
+          set -exo pipefail
+          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
+      - name: Verify macOS SDK SHA256
+        if: matrix.is_darwin
+        run: |
+          set -exo pipefail
+          echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
+      - name: Extract macOS SDK
+        if: matrix.is_darwin
+        run: |
+          set -exo pipefail
+          mkdir -p depends/SDKs
+          tar -xf Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz -C depends/SDKs/
+      - name: Download Dependencies
+        if: matrix.is_darwin
+        run: |
+          set -exo pipefail
+          attempt=1
+          max=5
+          until make -C depends download; do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "make -C depends download failed after $attempt attempts"
+              exit 1
+            fi
+            echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
+            sleep $((attempt*5))
+            attempt=$((attempt+1))
+          done
+      - name: Clean Guix build dirs for retry
+        if: matrix.is_darwin
+        run: |
+          set -exo pipefail
+          rm -rf guix-build-*/distsrc-*-"${HOST}"
+          rm -rf guix-build-*/build-*-"${HOST}"
       - name: Run Guix Build
         run: |
-          CORES=$(nproc)
+          set -exo pipefail
+          ${{ !matrix.is_darwin && './contrib/guix/guix-clean || true' || '' }}
+          CORES=$(($(nproc) - 1 > 0 ? $(nproc) - 1 : 1))
+          ${{ matrix.is_darwin && 'export SDK_PATH="$(pwd)/depends/SDKs"' || '' }}
           env HOSTS="${HOST}" \
+            ${{ matrix.is_darwin && 'SDK_PATH="$SDK_PATH"' || '' }} \
             ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
-      - name: Prepare Files for Artifact
+      - name: Prepare Files for Artifact (Linux)
+        if: ${{ !matrix.is_darwin && !matrix.is_windows }}
         run: |
+          set -exo pipefail
           mkdir -p $ARTIFACT_DIR
           cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
           cd $ARTIFACT_DIR
-          mv *-gnu.tar.gz x86_64-linux-guix-release-binaries.tar.gz || true
-          mv *-gnu-debug.tar.gz x86_64-linux-guix-debug-symbols.tar.gz || true
-          mv SHA256SUMS.part x86_64-linux-guix-checksums-sha256 || true
-      - name: Upload Release Binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-linux-guix-release-binaries-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-release-binaries.tar.gz
-          compression-level: 0
-      - name: Upload Debug Binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-linux-guix-debug-binaries-${{ env.COMMIT_HASH }}
-          path: |
-            ${{ env.ARTIFACT_DIR }}/firo-cli
-            ${{ env.ARTIFACT_DIR }}/firo-qt
-            ${{ env.ARTIFACT_DIR }}/firo-tx
-            ${{ env.ARTIFACT_DIR }}/firod
-            ${{ env.ARTIFACT_DIR }}/README.md
-          compression-level: 6
-      - name: Upload Debug Symbols
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-linux-guix-debug-symbols-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-debug-symbols.tar.gz
-          compression-level: 0
-      - name: Upload Check Sums
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-linux-guix-checksums-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/x86_64-linux-guix-checksums-sha256
-          compression-level: 0
-
-  build-guix-aarch64-linux-gnu:
-    needs: get-commit-hash
-    name: build-guix-aarch64-linux-gnu
-    runs-on: ubuntu-22.04
-    env:
-      HOST: aarch64-linux-gnu
-      ARTIFACT_DIR: guix-binaries-aarch64-linux-gnu
-      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-      - name: Free Disk Space
+          mv *-gnu.tar.gz ${{ matrix.artifact_prefix }}-release-binaries.tar.gz || true
+          mv *-gnu-debug.tar.gz ${{ matrix.artifact_prefix }}-debug-symbols.tar.gz || true
+          mv SHA256SUMS.part ${{ matrix.artifact_prefix }}-checksums-sha256 || true
+      - name: Prepare Files for Artifact (Windows)
+        if: matrix.is_windows
         run: |
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /tmp/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /var/cache/*
-          sudo rm -rf /var/log/*
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Install Guix
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      - name: Run Guix Build
-        run: |
-          CORES=$(nproc)
-          env HOSTS="${HOST}" \
-            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
-      - name: Prepare Files for Artifact
-        run: |
-          mkdir -p $ARTIFACT_DIR
-          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
-          cd $ARTIFACT_DIR
-          mv *-gnu.tar.gz aarch64-linux-guix-release-binaries.tar.gz || true
-          mv *-gnu-debug.tar.gz aarch64-linux-guix-debug-symbols.tar.gz || true
-          mv SHA256SUMS.part aarch64-linux-guix-checksums-sha256 || true
-      - name: Upload Release Binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: aarch64-linux-guix-release-binaries-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-release-binaries.tar.gz
-          compression-level: 0
-      - name: Upload Debug Binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: aarch64-linux-guix-debug-binaries-${{ env.COMMIT_HASH }}
-          path: |
-            ${{ env.ARTIFACT_DIR }}/firo-cli
-            ${{ env.ARTIFACT_DIR }}/firo-qt
-            ${{ env.ARTIFACT_DIR }}/firo-tx
-            ${{ env.ARTIFACT_DIR }}/firod
-            ${{ env.ARTIFACT_DIR }}/README.md
-          compression-level: 6
-      - name: Upload Debug Symbols
-        uses: actions/upload-artifact@v4
-        with:
-          name: aarch64-linux-guix-debug-symbols-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-debug-symbols.tar.gz
-          compression-level: 0
-      - name: Upload Check Sums
-        uses: actions/upload-artifact@v4
-        with:
-          name: aarch64-linux-guix-checksums-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/aarch64-linux-guix-checksums-sha256
-
-  build-guix-x86_64-w64-mingw32:
-    needs: get-commit-hash
-    name: build-guix-x86_64-w64-mingw32
-    runs-on: ubuntu-22.04
-    env:
-      HOST: x86_64-w64-mingw32
-      ARTIFACT_DIR: guix-binaries-x86_64-w64-mingw32
-      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-      - name: Free Disk Space
-        run: |
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /tmp/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /var/cache/*
-          sudo rm -rf /var/log/*
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Install Guix
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y guix g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      - name: Run Guix Build
-        run: |
-          CORES=$(nproc)
-          env HOSTS="${HOST}" \
-            ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
-      - name: Prepare Files for Artifact
-        run: |
+          set -exo pipefail
           mkdir -p $ARTIFACT_DIR
           cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
           cd $ARTIFACT_DIR
           mv *-win-unsigned.tar.gz x86_64-win64-guix-setup-sign-bundle.tar.gz || true
-          mv *-win64-debug.zip x86_64-win64-guix-debug-symbols.zip || true  
+          mv *-win64-debug.zip x86_64-win64-guix-debug-symbols.zip || true
           mv *-win64-setup-unsigned.exe x86_64-win64-guix-installer-unsigned.exe || true
           mv *-win64.zip x86_64-win64-guix-release-binaries.zip || true
-          mv SHA256SUMS.part x86_64-wind64-guix-checksums-sha256 || true
+          mv SHA256SUMS.part x86_64-win64-guix-checksums-sha256 || true
+      - name: Prepare Files for Artifact (Darwin)
+        if: matrix.is_darwin
+        run: |
+          set -exo pipefail
+          mkdir -p $ARTIFACT_DIR
+          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
+          cd $ARTIFACT_DIR
+          mv *-osx-unsigned.tar.gz ${{ matrix.artifact_prefix }}-sign-bundle.tar.gz || true
+          mv Firo-Core.tar.gz ${{ matrix.artifact_prefix }}-app-image.tar.gz || true
+          mv SHA256SUMS.part ${{ matrix.artifact_prefix }}-checksums-sha256 || true
+          tar xf firo*${{ matrix.host }}.tar.gz --strip-components=1 || true
+          mv share/man . || true
+      - name: Upload Release Binaries (Linux)
+        if: ${{ !matrix.is_darwin && !matrix.is_windows }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact_prefix }}-release-binaries-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-release-binaries.tar.gz
+          compression-level: 0
+      - name: Upload Debug Binaries (Linux)
+        if: ${{ !matrix.is_darwin && !matrix.is_windows }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact_prefix }}-debug-binaries-${{ env.COMMIT_HASH }}
+          path: |
+            ${{ env.ARTIFACT_DIR }}/firo-cli
+            ${{ env.ARTIFACT_DIR }}/firo-qt
+            ${{ env.ARTIFACT_DIR }}/firo-tx
+            ${{ env.ARTIFACT_DIR }}/firod
+            ${{ env.ARTIFACT_DIR }}/README.md
+          compression-level: 6
+      - name: Upload Debug Symbols (Linux)
+        if: ${{ !matrix.is_darwin && !matrix.is_windows }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact_prefix }}-debug-symbols-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-debug-symbols.tar.gz
+          compression-level: 0
+      - name: Upload Check Sums (Linux)
+        if: ${{ !matrix.is_darwin && !matrix.is_windows }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact_prefix }}-checksums-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-checksums-sha256
+          compression-level: 0
       - name: Upload Windows Release Binaries
-        uses: actions/upload-artifact@v4
+        if: matrix.is_windows
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-release-binaries-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-release-binaries.zip
           compression-level: 0
-      - name: Upload Windows Debug Symbols  
-        uses: actions/upload-artifact@v4
+      - name: Upload Windows Debug Symbols
+        if: matrix.is_windows
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-debug-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-debug-symbols.zip
           compression-level: 0
       - name: Upload Windows Installer (Unsigned)
-        uses: actions/upload-artifact@v4
+        if: matrix.is_windows
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-installer-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-installer-unsigned.exe
           compression-level: 0
       - name: Upload Windows Setup Sign Bundle
-        uses: actions/upload-artifact@v4
+        if: matrix.is_windows
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-setup-sign-bundle-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-setup-sign-bundle.tar.gz
           compression-level: 0
       - name: Upload Windows Checksums
-        uses: actions/upload-artifact@v4
+        if: matrix.is_windows
+        uses: actions/upload-artifact@v6
         with:
           name: x86_64-win64-guix-checksums-${{ env.COMMIT_HASH }}
           path: ${{ env.ARTIFACT_DIR }}/x86_64-win64-guix-checksums-sha256
           compression-level: 0
-
-  build-guix-arm64-apple-darwin:
-    needs: get-commit-hash
-    name: build-guix-arm64-apple-darwin
-    runs-on: ubuntu-22.04
-    env:
-      HOST: arm64-apple-darwin
-      ARTIFACT_DIR: guix-binaries-arm64-apple-darwin
-      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Download macOS SDK
-        run: |
-          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
-      - name: Verify macOS SDK SHA256
-        run: |
-          echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
-      - name: Extract macOS SDK
-        run: |
-          mkdir -p depends/SDKs
-          tar -xf Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz -C depends/SDKs/
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-      - name: Free Disk Space
-        run: |
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /tmp/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /var/cache/*
-          sudo rm -rf /var/log/*
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Install Guix
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      - name: Download Dependencies
-        run: |
-          attempt=1
-          max=5
-          until make -C depends download; do
-            if [ "$attempt" -ge "$max" ]; then
-              echo "make -C depends download failed after $attempt attempts"
-              exit 1
-            fi
-            echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
-            sleep $((attempt*5))
-            attempt=$((attempt+1))
-          done
-      - name: Run Guix Build
-        run: |
-          CORES=$(nproc)
-          export SDK_PATH="$(pwd)/depends/SDKs"
-          env HOSTS="${HOST}" \
-              SDK_PATH="$SDK_PATH" \
-              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
-      - name: Prepare Files for Artifact
-        run: |
-          mkdir -p $ARTIFACT_DIR
-          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
-          cd $ARTIFACT_DIR
-          mv *-osx-unsigned.tar.gz arm64-apple-darwin-sign-bundle.tar.gz || true
-          mv Firo-Core.zip arm64-apple-darwin-app-image.zip || true
-          mv SHA256SUMS.part arm64-apple-darwin-checksums-sha256 || true
-          tar xf firo*arm64-apple-darwin.tar.gz --strip-components=1 || true
-          mv share/man . || true
       - name: Upload MacOS Release Binaries
-        uses: actions/upload-artifact@v4
+        if: matrix.is_darwin
+        uses: actions/upload-artifact@v6
         with:
-          name: arm64-apple-darwin-release-binaries-${{ env.COMMIT_HASH }}
+          name: ${{ matrix.artifact_prefix }}-release-binaries-${{ env.COMMIT_HASH }}
           path: |
             ${{ env.ARTIFACT_DIR }}/firo-cli
             ${{ env.ARTIFACT_DIR }}/firo-qt
@@ -554,123 +704,23 @@ jobs:
             ${{ env.ARTIFACT_DIR }}/man
           compression-level: 6
       - name: Upload MacOS Sign Bundle
-        uses: actions/upload-artifact@v4
+        if: matrix.is_darwin
+        uses: actions/upload-artifact@v6
         with:
-          name: arm64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-sign-bundle.tar.gz
+          name: ${{ matrix.artifact_prefix }}-sign-bundle-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-sign-bundle.tar.gz
           compression-level: 0
-      - name: Upload MacOS App Image Zip
-        uses: actions/upload-artifact@v4
+      - name: Upload MacOS App Image
+        if: matrix.is_darwin
+        uses: actions/upload-artifact@v6
         with:
-          name: arm64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-app-image.zip
+          name: ${{ matrix.artifact_prefix }}-app-image-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-app-image.tar.gz
           compression-level: 0
-      - name: Upload Check Sums
-        uses: actions/upload-artifact@v4
+      - name: Upload Check Sums (Darwin)
+        if: matrix.is_darwin
+        uses: actions/upload-artifact@v6
         with:
-          name: arm64-apple-darwin-checksums-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/arm64-apple-darwin-checksums-sha256
-
-  build-guix-x86_64-apple-darwin:
-    needs: get-commit-hash
-    name: build-guix-x86_64-apple-darwin
-    runs-on: ubuntu-22.04
-    env:
-      HOST: x86_64-apple-darwin
-      ARTIFACT_DIR: guix-binaries-x86_64-apple-darwin
-      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Download macOS SDK
-        run: |
-          wget https://bitcoincore.org/depends-sources/sdks/Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz
-      - name: Verify macOS SDK SHA256
-        run: |
-          echo "c0c2e7bb92c1fee0c4e9f3a485e4530786732d6c6dd9e9f418c282aa6892f55d  Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz" | sha256sum -c -
-      - name: Extract macOS SDK
-        run: |
-          mkdir -p depends/SDKs
-          tar -xf Xcode-15.0-15A240d-extracted-SDK-with-libcxx-headers.tar.gz -C depends/SDKs/
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-      - name: Free Disk Space
-        run: |
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /tmp/*
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /var/cache/*
-          sudo rm -rf /var/log/*
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          echo "Disk space now: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Install Guix
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y guix
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
-      - name: Download Dependencies
-        run: |
-          attempt=1
-          max=5
-          until make -C depends download; do
-            if [ "$attempt" -ge "$max" ]; then
-              echo "make -C depends download failed after $attempt attempts"
-              exit 1
-            fi
-            echo "make -C depends download attempt $attempt failed; retrying in $((attempt*5))s..."
-            sleep $((attempt*5))
-            attempt=$((attempt+1))
-          done
-      - name: Run Guix Build
-        run: |
-          CORES=$(nproc)
-          export SDK_PATH="$(pwd)/depends/SDKs"
-          env HOSTS="${HOST}" \
-              SDK_PATH="$SDK_PATH" \
-              ADDITIONAL_GUIX_COMMON_FLAGS="--cores=$CORES --max-jobs=$CORES" ./contrib/guix/guix-build
-      - name: Prepare Files for Artifact
-        run: |
-          mkdir -p $ARTIFACT_DIR
-          cp -r ./guix-build-*/output/${HOST}/* $ARTIFACT_DIR/ || true
-          cd $ARTIFACT_DIR
-          mv *-osx-unsigned.tar.gz x86_64-apple-darwin-sign-bundle.tar.gz || true
-          mv Firo-Core.zip x86_64-apple-darwin-app-image.zip || true
-          mv SHA256SUMS.part x86_64-apple-darwin-checksums-sha256 || true
-          tar xf firo*x86_64-apple-darwin.tar.gz --strip-components=1 || true
-          mv share/man . || true
-      - name: Upload MacOS Release Binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-apple-darwin-release-binaries-${{ env.COMMIT_HASH }}
-          path: |
-            ${{ env.ARTIFACT_DIR }}/firo-cli
-            ${{ env.ARTIFACT_DIR }}/firo-qt
-            ${{ env.ARTIFACT_DIR }}/firo-tx
-            ${{ env.ARTIFACT_DIR }}/firod
-            ${{ env.ARTIFACT_DIR }}/README.md
-            ${{ env.ARTIFACT_DIR }}/man
-          compression-level: 6
-      - name: Upload MacOS Sign Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-apple-darwin-sign-bundle-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-sign-bundle.tar.gz
+          name: ${{ matrix.artifact_prefix }}-checksums-${{ env.COMMIT_HASH }}
+          path: ${{ env.ARTIFACT_DIR }}/${{ matrix.artifact_prefix }}-checksums-sha256
           compression-level: 0
-      - name: Upload MacOS App Image Zip
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-apple-darwin-app-image-zip-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-app-image.zip
-          compression-level: 0
-      - name: Upload Check Sums
-        uses: actions/upload-artifact@v4
-        with:
-          name: x86_64-apple-darwin-checksums-${{ env.COMMIT_HASH }}
-          path: ${{ env.ARTIFACT_DIR }}/x86_64-apple-darwin-checksums-sha256

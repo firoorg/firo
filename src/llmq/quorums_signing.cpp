@@ -670,7 +670,7 @@ void CSigningManager::ProcessRecoveredSig(NodeId nodeId, const CRecoveredSig& re
         if (db.HasRecoveredSigForId(llmqType, recoveredSig.id)) {
             CRecoveredSig otherRecoveredSig;
             if (db.GetRecoveredSigById(llmqType, recoveredSig.id, otherRecoveredSig)) {
-                auto otherSignHash = CLLMQUtils::BuildSignHash(recoveredSig);
+                auto otherSignHash = CLLMQUtils::BuildSignHash(otherRecoveredSig);
                 if (signHash != otherSignHash) {
                     // this should really not happen, as each masternode is participating in only one vote,
                     // even if it's a member of multiple quorums. so a majority is only possible on one quorum and one msgHash per id
@@ -870,10 +870,13 @@ std::vector<CQuorumCPtr> CSigningManager::GetActiveQuorumSet(Consensus::LLMQType
     {
         LOCK(cs_main);
         int startBlockHeight = signHeight - SIGN_HEIGHT_OFFSET;
-        if (startBlockHeight > chainActive.Height()) {
+        if (startBlockHeight < 0 || startBlockHeight > chainActive.Height()) {
             return {};
         }
         pindexStart = chainActive[startBlockHeight];
+        if (!pindexStart) {
+            return {};
+        }
     }
 
     return quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
@@ -901,7 +904,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
 
 bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig)
 {
-    auto& llmqParams = Params().GetConsensus().llmqs.at(Params().GetConsensus().llmqChainLocks);
+    auto& llmqParams = Params().GetConsensus().llmqs.at(llmqType);
 
     auto quorum = SelectQuorumForSigning(llmqParams.type, signedAtHeight, id);
     if (!quorum) {

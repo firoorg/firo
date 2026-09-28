@@ -14,6 +14,7 @@ class PlatformStyle;
 class TransactionRecord;
 class TransactionTablePriv;
 class WalletModel;
+class QTimer;
 
 class CWallet;
 
@@ -99,8 +100,9 @@ private:
     TransactionTablePriv *priv;
     bool fProcessingQueuedTransactions;
     const PlatformStyle *platformStyle;
-    int cachedNumISLocks;
-    int cachedChainLockHeight;
+    int cachedNumISLocks = 0;
+    int cachedChainLockHeight = -1;
+    QTimer* confirmationTimer;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
@@ -117,7 +119,11 @@ private:
     QVariant txWatchonlyDecoration(const TransactionRecord *wtx) const;
     QVariant txInstantSendDecoration(const TransactionRecord *wtx) const;
     QVariant txAddressDecoration(const TransactionRecord *wtx) const;
+    void processCachedTransactions();
 
+
+Q_SIGNALS:
+    void confirmationsChanged();
 
 public Q_SLOTS:
     /* New transaction, or transaction changed status */

@@ -217,11 +217,21 @@ bool CTransaction::IsSparkTransaction() const
 
 bool CTransaction::IsSparkSpend() const
 {
+    return IsSparkSpendV1() || IsSparkSpendV2();
+}
+
+bool CTransaction::IsSparkSpendV1() const
+{
     // Type alone is not enough: a transparent asset transaction is also
     // version 3 / TRANSACTION_SPARK so its vExtraPayload is signed and relayed.
     if (nVersion < 3 || nType != TRANSACTION_SPARK || vin.empty())
         return false;
     return vin[0].scriptSig.IsSparkSpend();
+}
+
+bool CTransaction::IsSparkSpendV2() const
+{
+    return nVersion >= 3 && nType == TRANSACTION_SPARK_V2;
 }
 
 bool CTransaction::IsSparkMint() const

@@ -165,6 +165,8 @@ const char* GetOpName(opcodetype opcode)
     case OP_SPATSBURNAMOUNT  : return "OP_SPATSBURNAMOUNT";
     // Super transparent txout script prefix
     case OP_EXCHANGEADDR    : return "OP_EXCHANGEADDR";
+    // Spark name fee tag
+    case OP_SPARKNAMEID     : return "OP_SPARKNAMEID";
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -408,6 +410,36 @@ bool CScript::HasSerializedSpatsAction() const
 
 bool CScript::IsSparkMintType() const {
     return IsSparkMint() || IsSparkSMint() || IsSpatsMint();
+}
+
+bool CScript::IsSparkNameFee() const {
+    // Minimum: 25 (P2PKH) + 1 (OP_SPARKNAMEID) + 2 (min push + OP_DROP) + 2 (min push + OP_DROP)
+    if (this->size() < 30)
+        return false;
+    // Must start with standard P2PKH pattern
+    if ((*this)[0] != OP_DUP || (*this)[1] != OP_HASH160 || (*this)[2] != 0x14 ||
+        (*this)[23] != OP_EQUALVERIFY || (*this)[24] != OP_CHECKSIG)
+        return false;
+    // Byte after OP_CHECKSIG must be OP_SPARKNAMEID
+    if ((*this)[25] != OP_SPARKNAMEID)
+        return false;
+    // Validate the full tail: <push name> OP_DROP <push addr> OP_DROP and nothing more
+    const_iterator pc = begin() + 26;
+    opcodetype opcode;
+    std::vector<unsigned char> data;
+    if (!GetOp(pc, opcode, data) || data.empty())
+        return false;
+    if (pc >= end() || *pc != OP_DROP)
+        return false;
+    ++pc;
+    if (!GetOp(pc, opcode, data) || data.empty())
+        return false;
+    if (pc >= end() || *pc != OP_DROP)
+        return false;
+    ++pc;
+    if (pc != end())
+        return false;
+    return true;
 }
 
 bool CScript::IsMint() const {

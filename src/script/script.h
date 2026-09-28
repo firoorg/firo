@@ -218,7 +218,10 @@ enum opcodetype
     OP_SPATSLAST = OP_SPATSBURNAMOUNT,
 
     // basically NOP but identifies that subsequent txout script contains super transparent address
-    OP_EXCHANGEADDR = 0xe0
+    OP_EXCHANGEADDR = 0xe0,
+
+    // NOP suffix that tags a P2PKH output with spark name and spark address data
+    OP_SPARKNAMEID = 0xe1
 };
 // ATTENTION: When adding a new enumerator to the above, make sure to update the src/test/data/script_tests.json file accordingly, e.g. by deleting the corresponding
 //      ["0", "IF 0xNN ELSE 1 ENDIF", "P2SH,STRICTENC", "OK"],
@@ -719,6 +722,9 @@ public:
 
     bool IsSpats() const;
     bool HasSerializedSpatsAction() const;
+
+    // Returns true if this script is a P2PKH tagged with spark name data
+    bool IsSparkNameFee() const;
 
     bool IsZerocoinRemint() const;
 

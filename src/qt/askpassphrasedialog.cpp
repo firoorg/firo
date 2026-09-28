@@ -10,6 +10,8 @@
 #include "ui_askpassphrasedialog.h"
 
 #include "guiconstants.h"
+#include "guitheme.h"
+#include "guiutil.h"
 #include "walletmodel.h"
 
 #include "support/allocators/secure.h"
@@ -28,6 +30,14 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, const QStr
 {
     ui->setupUi(this);
 
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &AskPassphraseDialog::applyTheme);
+    applyTheme();
+
+    if (ui->passphraseCard) {
+        ui->passphraseCard->setAttribute(Qt::WA_StyledBackground, true);
+    }
+
     ui->passEdit1->setMaxLength(MAX_PASSPHRASE_SIZE);
     ui->passEdit2->setMaxLength(MAX_PASSPHRASE_SIZE);
     ui->passEdit3->setMaxLength(MAX_PASSPHRASE_SIZE);
@@ -36,6 +46,7 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent, const QStr
     ui->passEdit1->installEventFilter(this);
     ui->passEdit2->installEventFilter(this);
     ui->passEdit3->installEventFilter(this);
+    ui->capsLabel->hide();
 
     switch(mode)
     {
@@ -232,6 +243,7 @@ bool AskPassphraseDialog::event(QEvent *event)
         } else {
             ui->capsLabel->clear();
         }
+        ui->capsLabel->setVisible(fCapsLock);
     }
     return QWidget::event(event);
 }
@@ -257,6 +269,7 @@ bool AskPassphraseDialog::eventFilter(QObject *object, QEvent *event)
                 fCapsLock = false;
                 ui->capsLabel->clear();
             }
+            ui->capsLabel->setVisible(fCapsLock);
         }
     }
     return QDialog::eventFilter(object, event);
@@ -274,4 +287,63 @@ void AskPassphraseDialog::secureClearPassFields()
     SecureClearQLineEdit(ui->passEdit1);
     SecureClearQLineEdit(ui->passEdit2);
     SecureClearQLineEdit(ui->passEdit3);
+}
+
+void AskPassphraseDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog#AskPassphraseDialog { background: $BG; }
+        QFrame#passphraseCard {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+        }
+        QLabel#passphraseWarning {
+            color: $INK;
+            font-size: 10pt;
+            font-weight: 500;
+            background: transparent;
+        }
+        QLabel#passLabel1, QLabel#passLabel2, QLabel#passLabel3 {
+            color: $INK_FAINT;
+            font-size: 9.5pt;
+            font-weight: 600;
+            background: transparent;
+            min-width: 140px;
+        }
+        QLineEdit#passEdit1, QLineEdit#passEdit2, QLineEdit#passEdit3 {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 10pt;
+            color: $INK;
+            min-height: 20px;
+            selection-background-color: $WINE_TINT;
+        }
+        QLineEdit#passEdit1:focus, QLineEdit#passEdit2:focus, QLineEdit#passEdit3:focus {
+            border: 1px solid $WINE;
+        }
+        QLabel#capsLabel {
+            color: $INK;
+            font-size: 9pt;
+            font-weight: 700;
+            background: $GOLD_TINT;
+            border: 1px solid $GOLD;
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+        QDialogButtonBox { dialogbuttonbox-buttons-have-icons: 0; }
+    )")));
+
+    if (QPushButton *okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setMinimumSize(88, 36);
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("8px 16px")));
+        okButton->setCursor(Qt::PointingHandCursor);
+    }
+    if (QPushButton *cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel)) {
+        cancelButton->setMinimumSize(88, 36);
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("8px 16px")));
+        cancelButton->setCursor(Qt::PointingHandCursor);
+    }
 }

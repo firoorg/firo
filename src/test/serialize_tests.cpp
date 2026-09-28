@@ -5,6 +5,8 @@
 #include "serialize.h"
 #include "streams.h"
 #include "hash.h"
+#include "llmq/quorums_signing.h"
+#include "llmq/quorums_signing_shares.h"
 #include "test/test_bitcoin.h"
 
 #include <stdint.h>
@@ -253,6 +255,28 @@ static bool isCanonicalException(const std::ios_base::failure& ex)
     return strcmp(expectedException.what(), ex.what()) == 0;
 }
 
+static CDataStream SigSharesInvStream(uint64_t inv_size)
+{
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << VARINT((uint32_t)0);
+    WriteCompactSize(stream, inv_size);
+    ser_writedata8(stream, 1);
+    WriteVarInt(stream, (uint32_t)0);
+    return stream;
+}
+
+BOOST_AUTO_TEST_CASE(sigsharesinv_max_inv_size)
+{
+    llmq::CSigSharesInv valid_inv;
+    CDataStream valid_stream = SigSharesInvStream(llmq::CSigSharesInv::MAX_INV_SIZE);
+    valid_stream >> valid_inv;
+    BOOST_CHECK_EQUAL(valid_inv.inv.size(), llmq::CSigSharesInv::MAX_INV_SIZE);
+
+    llmq::CSigSharesInv invalid_inv;
+    CDataStream invalid_stream = SigSharesInvStream(llmq::CSigSharesInv::MAX_INV_SIZE + 1);
+    BOOST_CHECK_THROW(invalid_stream >> invalid_inv, std::ios_base::failure);
+}
+
 
 BOOST_AUTO_TEST_CASE(noncanonical)
 {
@@ -351,18 +375,18 @@ BOOST_AUTO_TEST_CASE(class_methods)
     CSerializeMethodsTestSingle methodtest3;
     CSerializeMethodsTestMany methodtest4;
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
-    BOOST_CHECK(methodtest1 == methodtest2);
+    BOOST_CHECK(methodtest1.operator==(methodtest2));
     ss << methodtest1;
     ss >> methodtest4;
     ss << methodtest2;
     ss >> methodtest3;
-    BOOST_CHECK(methodtest1 == methodtest2);
-    BOOST_CHECK(methodtest2 == methodtest3);
-    BOOST_CHECK(methodtest3 == methodtest4);
+    BOOST_CHECK(methodtest1.operator==(methodtest2));
+    BOOST_CHECK(methodtest2.operator==(methodtest3));
+    BOOST_CHECK(methodtest3.operator==(methodtest4));
 
     CDataStream ss2(SER_DISK, PROTOCOL_VERSION, intval, boolval, stringval, FLATDATA(charstrval), txval);
     ss2 >> methodtest3;
-    BOOST_CHECK(methodtest3 == methodtest4);
+    BOOST_CHECK(methodtest3.operator==(methodtest4));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

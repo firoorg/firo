@@ -223,7 +223,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (ptx.nVersion == 0 || ptx.nVersion > CProRegTx::CURRENT_VERSION) {
+    if (ptx.nVersion == 0 || ptx.nVersion > CProUpServTx::CURRENT_VERSION) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
     }
 
@@ -276,7 +276,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (ptx.nVersion == 0 || ptx.nVersion > CProRegTx::CURRENT_VERSION) {
+    if (ptx.nVersion == 0 || ptx.nVersion > CProUpRegTx::CURRENT_VERSION) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
     }
     if (ptx.nMode != 0) {
@@ -358,7 +358,7 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (ptx.nVersion == 0 || ptx.nVersion > CProRegTx::CURRENT_VERSION) {
+    if (ptx.nVersion == 0 || ptx.nVersion > CProUpRevTx::CURRENT_VERSION) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
     }
 
@@ -428,7 +428,7 @@ void CProRegTx::ToJson(UniValue& obj) const
     obj.push_back(Pair("version", nVersion));
     obj.push_back(Pair("collateralHash", collateralOutpoint.hash.ToString()));
     obj.push_back(Pair("collateralIndex", (int)collateralOutpoint.n));
-    obj.push_back(Pair("service", addr.ToString(false)));
+    obj.push_back(Pair("service", addr.ToString()));
     obj.push_back(Pair("ownerAddress", CBitcoinAddress(keyIDOwner).ToString()));
     obj.push_back(Pair("votingAddress", CBitcoinAddress(keyIDVoting).ToString()));
 
@@ -461,7 +461,7 @@ void CProUpServTx::ToJson(UniValue& obj) const
     obj.setObject();
     obj.push_back(Pair("version", nVersion));
     obj.push_back(Pair("proTxHash", proTxHash.ToString()));
-    obj.push_back(Pair("service", addr.ToString(false)));
+    obj.push_back(Pair("service", addr.ToString()));
     CTxDestination dest;
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         CBitcoinAddress bitcoinAddress(dest);

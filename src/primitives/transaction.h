@@ -14,6 +14,11 @@
 
 #include <exception>
 
+// Witness encoding is enabled by OR-ing in this flag with GetSerializeType() for streams.
+// For full details see BIP144. SERIALIZE_TRANSACTION_NO_WITNESS (0x40000000) is defined
+// separately and is checked for in network stream serialization. This flag overlaps with
+// ADDRV2_FORMAT (0x20000000), which is OK as the two flags are never used together in the
+// same context.
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 static const int WITNESS_SCALE_FACTOR = 4;
@@ -39,6 +44,9 @@ enum {
     TRANSACTION_LELANTUS = 8,
     TRANSACTION_SPARK = 9,
     TRANSACTION_ALIAS = 10,
+    // Explicitly versioned, componentwise Spark Chaum proof payload. Old
+    // nodes reject this unknown type, so activation is a hard fork.
+    TRANSACTION_SPARK_V2 = 11,
 };
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
@@ -457,6 +465,8 @@ public:
 
     bool IsSparkTransaction() const;
     bool IsSparkSpend() const;
+    bool IsSparkSpendV1() const;
+    bool IsSparkSpendV2() const;
     bool IsSparkMint() const;
 
     bool IsSpatsTransaction() const;

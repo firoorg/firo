@@ -395,7 +395,7 @@ ap.add_argument("-verbose", nargs="?", const=True, help="Output additional debug
 ap.add_argument("-no-plugins", dest="plugins", action="store_false", default=True, help="skip plugin deployment")
 ap.add_argument("-no-strip", dest="strip", action="store_false", default=True, help="don't run 'strip' on the binaries")
 ap.add_argument("-translations-dir", nargs=1, metavar="path", default=None, help="Path to Qt's translations. Base translations will automatically be added to the bundle's resources.")
-ap.add_argument("-zip", nargs="?", const="", metavar="zip", help="create a .zip containing the app bundle")
+ap.add_argument("-zip", nargs="?", const="", metavar="zip", help="create a .tar.gz containing the app bundle (preserves symlinks)")
 
 config = ap.parse_args()
 
@@ -416,9 +416,9 @@ if os.path.exists("dist"):
     print("+ Removing existing dist folder +")
     shutil.rmtree("dist")
 
-if os.path.exists(appname + ".zip"):
-    print("+ Removing existing .zip +")
-    os.unlink(appname + ".zip")
+if os.path.exists(appname + ".tar.gz"):
+    print("+ Removing existing .tar.gz +")
+    os.unlink(appname + ".tar.gz")
 
 # ------------------------------------------------
 
@@ -498,8 +498,19 @@ if platform.system() == "Darwin":
 
 # ------------------------------------------------
 
+print("+ Creating Applications symlink +")
+
+# Create a symlink to /Applications in the dist directory for easy drag-and-drop installation
+applications_symlink = os.path.join("dist", "Applications")
+if not os.path.exists(applications_symlink):
+    os.symlink("/Applications", applications_symlink)
+    if verbose:
+        print("Created symlink:", applications_symlink, "->", "/Applications")
+
+# ------------------------------------------------
+
 if config.zip is not None:
-    shutil.make_archive('{}'.format(appname), format='zip', root_dir='dist', base_dir='Firo-Qt.app')
+    shutil.make_archive('{}'.format(appname), format='gztar', root_dir='dist', base_dir='.')
 
 # ------------------------------------------------
 

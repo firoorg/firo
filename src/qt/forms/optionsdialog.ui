@@ -164,12 +164,12 @@
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="reindexLelantus">
+           <widget class="QCheckBox" name="reindexSpark">
             <property name="toolTip">
-             <string>Restore all Lelantus transactions following a reindex.</string>
+             <string>Restore Spark and wallet transaction data following a full reindex (deletes Spark mint records from the wallet, then reindexes the chain and reapplies wallet transactions). This can take several hours.</string>
             </property>
             <property name="text">
-             <string>&amp;Reindex Lelantus</string>
+             <string>&amp;Reindex Spark wallet data</string>
             </property>
            </widget>
           </item>
@@ -177,29 +177,38 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="lelantusGroupBox">
+        <widget class="QGroupBox" name="sparkGroupBox">
          <property name="title">
-          <string>Lelantus</string>
+          <string>Spark</string>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <layout class="QVBoxLayout" name="verticalLayout_Spark">
           <item>
            <widget class="QCheckBox" name="autoAnonymize">
+            <property name="toolTip">
+             <string>When enabled, the wallet can prompt to make transparent funds private with Spark.</string>
+            </property>
             <property name="text">
-             <string>Enable &amp;auto-anonymize features</string>
+             <string>Enable automatic Spark &amp;privacy</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QCheckBox" name="fSplit">
+            <property name="toolTip">
+             <string>Split outputs when minting to Spark for better privacy.</string>
+            </property>
             <property name="text">
              <string>Enable &amp;splitting when minting</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="lelantusPage">
+           <widget class="QCheckBox" name="sparkPage">
+            <property name="toolTip">
+             <string>Show the Make Private control in the overview.</string>
+            </property>
             <property name="text">
-             <string>Enable &amp;lelantus manual-anonymize page</string>
+             <string>Show Spark &amp;privacy controls</string>
             </property>
            </widget>
           </item>
@@ -523,6 +532,26 @@
           </spacer>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkboxEnabledTor">
+         <property name="toolTip">
+          <string>Automatically launch an embedded Tor instance and configure Firo to use it. Manual proxy settings above can override routing for affected connection types. A client restart is required.</string>
+         </property>
+         <property name="text">
+          <string>Route connection through Tor (quickstart)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="torStatusLabel">
+         <property name="text">
+          <string notr="true">TextLabel</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
        </item>
        <item>
         <spacer name="verticalSpacer_Network">

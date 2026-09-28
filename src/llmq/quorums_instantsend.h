@@ -97,7 +97,7 @@ private:
     std::unordered_map<uint256, CInstantSendLock*, StaticSaltedHasher> txToCreatingInstantSendLocks;
 
     // Incoming and not verified yet
-    std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>> pendingInstantSendLocks;
+    std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher> pendingInstantSendLocks;
 
     // TXs which are neither IS locked nor ChainLocked. We use this to determine for which TXs we need to retry IS locking
     // of child TXs
@@ -153,7 +153,7 @@ private:
     void ProcessMessageInstantSendLock(CNode* pfrom, const CInstantSendLock& islock, CConnman& connman);
     bool PreVerifyInstantSendLock(NodeId nodeId, const CInstantSendLock& islock, bool& retBan);
     bool ProcessPendingInstantSendLocks();
-    std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>>& pend, bool ban);
+    std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban);
     void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock);
     void UpdateWalletTransaction(const uint256& txid, const CTransactionRef& tx);
 

@@ -244,6 +244,12 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGContribution& 
         return false;
     }
 
+    if (!qc.sig.IsValid()) {
+        logger.Batch("invalid signature");
+        retBan = true;
+        return false;
+    }
+
     if (member->contributions.size() >= 2) {
         // don't do any further processing if we got more than 1 valid contributions already
         // this is a DoS protection against members sending multiple contributions with valid signatures to us
@@ -380,6 +386,11 @@ void CDKGSession::VerifyPendingContributions()
         skContributions.emplace_back(receivedSkContributions[idx]);
     }
 
+    // All pending members may have been marked bad after they were enqueued.
+    if (memberIndexes.empty()) {
+        return;
+    }
+
     auto result = blsWorker.VerifyContributionShares(myId, vvecs, skContributions);
     if (result.size() != memberIndexes.size()) {
         logger.Batch("VerifyContributionShares returned result of size %d but size %d was expected, something is wrong", result.size(), memberIndexes.size());
@@ -509,6 +520,12 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGComplaint& qc,
 
     if (qc.complainForMembers.size() != (size_t)params.size) {
         logger.Batch("invalid complainForMembers bitset size");
+        retBan = true;
+        return false;
+    }
+
+    if (!qc.sig.IsValid()) {
+        logger.Batch("invalid signature");
         retBan = true;
         return false;
     }
@@ -707,7 +724,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification&
 
     std::set<size_t> contributionsSet;
     for (const auto& p : qj.contributions) {
-        if (p.first > members.size()) {
+        if (p.first >= members.size()) {
             logger.Batch("invalid contribution index");
             retBan = true;
             return false;
@@ -725,6 +742,12 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification&
             retBan = true;
             return false;
         }
+    }
+
+    if (!qj.sig.IsValid()) {
+        logger.Batch("invalid signature");
+        retBan = true;
+        return false;
     }
 
     if (member->justifications.size() >= 2) {

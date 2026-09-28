@@ -336,6 +336,11 @@ public:
         return mnMap.size();
     }
 
+    bool HasSameMNMap(const CDeterministicMNList& other) const
+    {
+        return mnMap.identity() == other.mnMap.identity();
+    }
+
     size_t GetValidMNsCount() const
     {
         size_t count = 0;
@@ -591,6 +596,30 @@ public:
     {
         return !addedMNs.empty() || !updatedMNs.empty() || !removedMns.empty();
     }
+
+    bool HasCbTxMerkleRootChanges() const
+    {
+        if (!addedMNs.empty() || !removedMns.empty()) {
+            return true;
+        }
+
+        // Keep this in sync with the CDeterministicMNState fields serialized by
+        // CSimplifiedMNListEntry, which defines cbTx.merkleRootMNList leaves.
+        static constexpr uint32_t relevantFields =
+            CDeterministicMNStateDiff::Field_nPoSeBanHeight |
+            CDeterministicMNStateDiff::Field_confirmedHash |
+            CDeterministicMNStateDiff::Field_pubKeyOperator |
+            CDeterministicMNStateDiff::Field_keyIDVoting |
+            CDeterministicMNStateDiff::Field_addr;
+
+        for (const auto& p : updatedMNs) {
+            if (p.second.fields & relevantFields) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 };
 
 // TODO can be removed in a future version
@@ -641,8 +670,13 @@ private:
 public:
     CDeterministicMNManager(CEvoDB& _evoDb);
 
-    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck);
-    bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
+    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex,
+                      CValidationState& state, bool fJustCheck,
+                      CDeterministicMNList* newListRet = nullptr,
+                      bool* cbTxMerkleRootMNListChangedRet = nullptr,
+                      bool fNotify = true);
+    bool UndoBlock(const CBlock& block, const CBlockIndex* pindex,
+                   bool fNotify = true);
 
     void UpdatedBlockTip(const CBlockIndex* pindex);
 
@@ -653,6 +687,9 @@ public:
 
     CDeterministicMNList GetListForBlock(const CBlockIndex* pindex);
     CDeterministicMNList GetListAtChainTip();
+
+    /** Drop derived list snapshots after temporary database traversal. */
+    void ClearCache();
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);

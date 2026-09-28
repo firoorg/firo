@@ -48,6 +48,8 @@ public:
      */
     static QString getDefaultDataDirectory();
 
+    void applyTheme();
+
 Q_SIGNALS:
     void requestCheck();
     void stopThread();

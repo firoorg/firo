@@ -448,6 +448,11 @@ def stop_node(node, i, wait=True):
         node.stop()
     except http.client.CannotSendRequest as e:
         logger.exception("Unable to stop node")
+    except (ConnectionError, http.client.HTTPException) as e:
+        # firod may close the RPC socket before sending a response and then
+        # refuse further connections while shutting down. Treat these as a
+        # successful stop request; wait_node() below confirms the process exits.
+        logger.debug("Stop RPC on node %d disconnected (%s); relying on process exit" % (i, e))
     if wait:
         wait_node(i)
 

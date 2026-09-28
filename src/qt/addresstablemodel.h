@@ -6,6 +6,7 @@
 #define BITCOIN_QT_ADDRESSTABLEMODEL_H
 
 #include <QAbstractTableModel>
+#include <QHash>
 #include <QStringList>
 
 class AddressTablePriv;
@@ -36,7 +37,9 @@ public:
     };
 
     enum RoleIndex {
-        TypeRole = Qt::UserRole /**< Type of address (#Send or #Receive) */
+        TypeRole = Qt::UserRole, /**< Type of address (#Send or #Receive) */
+        AddressTypeRole,         /**< Address family (#Transparent, #Spark, #SparkName, or #RAP) */
+        IsMineRole               /**< Whether the wallet owns the address */
     };
 
     /** Return status of edit/insert operation */
@@ -91,7 +94,8 @@ public:
     PcodeAddressTableModel * getPcodeAddressTableModel();
 
     bool IsSparkAllowed();
-    void ProcessPendingSparkNameChanges();
+    Q_INVOKABLE void ProcessPendingSparkNameChanges();
+    virtual bool AutoProcessPendingSparkNameChanges() const { return true; }
 
     WalletModel *getWalletModel() const { return walletModel; }
 protected:
@@ -102,6 +106,11 @@ protected:
 
 private:
     AddressTablePriv *priv;
+
+    /** Cache of address -> label lookups, used to answer labelForAddress()
+     * without blocking when cs_wallet is held by another thread. Only
+     * accessed from the GUI thread. */
+    mutable QHash<QString, QString> labelCache;
 
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);
@@ -140,6 +149,7 @@ public:
     /*@}*/
 
     QString addRow(const QString &type, const QString &label, const QString &address, const QString &addressType) override;
+    bool AutoProcessPendingSparkNameChanges() const override { return false; }
 
     AddressTableModel::EditStatus getEditStatus() const { return editStatus; }
 

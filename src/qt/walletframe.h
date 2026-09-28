@@ -76,6 +76,8 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 
@@ -102,7 +104,7 @@ public Q_SLOTS:
     /** Pass on signal over requested out-of-sync-warning information */
     void outOfSyncWarningClicked();
 
-    void updateAddressbook();
+    bool updateAddressbook();
 };
 
 #endif // BITCOIN_QT_WALLETFRAME_H

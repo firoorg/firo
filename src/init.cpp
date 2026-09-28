@@ -40,8 +40,8 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "validation.h"
-#include "mtpstate.h"
 #include "batchproof_container.h"
+#include "mtpstate.h"
 #include <crypto/progpow/include/ethash/progpow.hpp>
 #include "leveldb/env.h"
 
@@ -65,7 +65,11 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <cassert>
+#include <chrono>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #ifndef WIN32
 #include <string.h>
@@ -219,6 +223,10 @@ static CCoinsViewDB *pcoinsdbview = NULL;
 static CCoinsViewErrorCatcher *pcoinscatcher = NULL;
 static std::unique_ptr<ECCVerifyHandle> globalVerifyHandle;
 
+// Forward declaration: definition is further down alongside the -torsetup
+// embedded Tor helpers. File-local because no other TU calls it.
+static void InterruptTorEnabled();
+
 void Interrupt(boost::thread_group& threadGroup)
 {
     InterruptHTTPServer();
@@ -226,6 +234,13 @@ void Interrupt(boost::thread_group& threadGroup)
     InterruptRPC();
     InterruptREST();
     InterruptTorControl();
+    // Best-effort interrupt for the -torsetup embedded Tor thread. tor_main()
+    // runs its own blocking event loop inside TorEnabledThread, so this only
+    // primes our wrapping event_base to exit once tor_main eventually returns
+    // (on process signal). We cannot cleanly stop embedded Tor from outside
+    // because no control port is configured; that's why Shutdown() does not
+    // call StopTorEnabled() -- joining the thread would deadlock.
+    InterruptTorEnabled();
     llmq::InterruptLLMQSystem();
     if (g_connman)
         g_connman->Interrupt();
@@ -253,8 +268,12 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    BatchProofContainer::get_instance()->finalize();
-    BatchProofContainer::get_instance()->verify();
+    {
+        LOCK(cs_main);
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState state;
+        VerifyPendingSparkBatch(state, "shutdown");
+    }
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -264,9 +283,24 @@ void Shutdown()
     MapPort(false);
     UnregisterValidationInterface(peerLogic.get());
     peerLogic.reset();
-    g_connman.reset();
 
+    // Stop the Tor control thread before tearing down CConnman. The current
+    // auth_cb only touches global state (SetProxy, mapLocalHost via AddLocal,
+    // GetArg/GetListenPort) and does not dereference g_connman, so strictly
+    // speaking the order is not required today. Kept as defense-in-depth in
+    // case a future TorController callback needs to query live peers or
+    // listeners (the dedicated onion listener is now bound at init time
+    // instead of from auth_cb, so that particular path no longer applies).
     StopTorControl();
+    // Note: there is intentionally no matching StopTorEnabled() call here
+    // for the -torsetup embedded Tor thread. RunTor() invokes tor_main()
+    // which runs Tor's own blocking event loop and does not return until
+    // the whole process is signaled; we don't configure a control port on
+    // the embedded Tor, so there is no in-band way to stop it. Joining
+    // torEnabledThread would deadlock Shutdown(). InterruptTorEnabled() in
+    // Interrupt() primes our wrapping event_base for post-tor_main
+    // cleanup; the embedded Tor itself is torn down by process exit.
+    g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
     if (fDumpMempoolLater)
         DumpMempool();
@@ -428,6 +462,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-feefilter", strprintf("Tell other nodes to filter invs to us by our mempool min fee (default: %u)", DEFAULT_FEEFILTER));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file on startup"));
     strUsage += HelpMessageOpt("-maxorphantx=<n>", strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"), DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+    strUsage += HelpMessageOpt("-rebroadcastislockinterval=<n>", strprintf(_("Interval in seconds for rebroadcasting InstantSend-locked mempool transactions to peers (0 = disabled, default: %u)"), DEFAULT_REBROADCAST_ISLOCK_INTERVAL));
     strUsage += HelpMessageOpt("-maxmempool=<n>", strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"), DEFAULT_MAX_MEMPOOL_SIZE));
     strUsage += HelpMessageOpt("-mempoolexpiry=<n>", strprintf(_("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DEFAULT_MEMPOOL_EXPIRY));
     strUsage += HelpMessageOpt("-blockreconstructionextratxn=<n>", strprintf(_("Extra transactions to keep in memory for compact block reconstructions (default: %u)"), DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN));
@@ -464,7 +499,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-maxsendbuffer=<n>", strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"), DEFAULT_MAXSENDBUFFER));
     strUsage += HelpMessageOpt("-maxtimeadjustment", strprintf(_("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)"), DEFAULT_MAX_TIME_ADJUSTMENT));
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(_("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
-    strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"));
+    strUsage += HelpMessageOpt("-onlynet=<net>", _("Make automatic outbound connections only to network <net> (ipv4, ipv6 or onion). Can be specified multiple times to allow multiple networks."));
     strUsage += HelpMessageOpt("-permitbaremultisig", strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(_("Support filtering of blocks and transaction with bloom filters (default: %u)"), DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>", strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"), Params(CBaseChainParams::MAIN).GetDefaultPort(), Params(CBaseChainParams::TESTNET).GetDefaultPort()));
@@ -521,12 +556,14 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-limitdescendantcount=<n>", strprintf("Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)", DEFAULT_DESCENDANT_LIMIT));
         strUsage += HelpMessageOpt("-limitdescendantsize=<n>", strprintf("Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).", DEFAULT_DESCENDANT_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end", "Use given start/end times for specified BIP9 deployment (regtest-only)");
+        strUsage += HelpMessageOpt("-sparksingleinputheight=<n>", "Activate single-input Spark V1 rules at height <n> (regtest-only)");
+        strUsage += HelpMessageOpt("-sparkchaumv2height=<n>", "Activate versioned Spark Chaum V2 spends at height <n> (regtest-only; must not precede the single-input height)");
     }
-    std::string debugCategories = "addrman, alert, bench, cmpctblock, coindb, db, http, libevent, lock, mempool, mempoolrej, net, proxy, prune, rand, reindex, rpc, selectcoins, tor, zmq, chainlocks, instantsend"; // Don't translate these and qt below
-    if (mode == HMM_BITCOIN_QT)
-        debugCategories += ", qt";
+    const std::string debugCategories = LogInstance().LogCategoriesString(); // Don't translate category names.
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
-        _("If <category> is not supplied or if <category> = 1, output all debugging information.") + _("<category> can be:") + " " + debugCategories + ".");
+        _("If <category> is not supplied or is 1 or all, output all debugging information. The value none resets categories specified before it. The value 0 retains Firo's historical behavior and disables all logging except errors.") + _("<category> can be:") + " " + debugCategories + ".");
+    strUsage += HelpMessageOpt("-debugexclude=<category>", "Exclude a debug category after processing -debug options. This option can be specified multiple times and takes priority over -debug.");
+    strUsage += HelpMessageOpt("-debuglogfile=<file>", strprintf("Specify the debug log file (default: %s). Relative paths are prefixed by the network data directory. Use -nodebuglogfile to disable file logging.", DEFAULT_DEBUGLOGFILE));
     if (showDebug)
         strUsage += HelpMessageOpt("-nodebug", "Turn off debugging messages, same as -debug=0");
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
@@ -535,6 +572,11 @@ std::string HelpMessage(HelpMessageMode mode)
     if (showDebug)
     {
         strUsage += HelpMessageOpt("-logtimemicros", strprintf("Add microsecond precision to debug timestamps (default: %u)", DEFAULT_LOGTIMEMICROS));
+        strUsage += HelpMessageOpt("-logthreadnames", strprintf("Prepend debug output with the name of the originating thread (default: %u)", DEFAULT_LOGTHREADNAMES));
+        strUsage += HelpMessageOpt("-logsourcelocations", strprintf("Prepend debug output with source file, line, and function information (default: %u)", DEFAULT_LOGSOURCELOCATIONS));
+        strUsage += HelpMessageOpt("-loglevel=<level>|<category>:<level>", "Set the global or category-specific logging level. Valid levels are: " + LogInstance().LogLevelsString() + ".");
+        strUsage += HelpMessageOpt("-loglevelalways", strprintf("Always include the category and level in log output with source context (default: %u)", DEFAULT_LOGLEVELALWAYS));
+        strUsage += HelpMessageOpt("-logratelimit", strprintf("Apply rate limiting to unconditional file logging to mitigate disk-filling attacks (default: %u)", BCLog::DEFAULT_LOGRATELIMIT));
         strUsage += HelpMessageOpt("-mocktime=<n>", "Replace actual time with <n> seconds since epoch (default: 0)");
         strUsage += HelpMessageOpt("-limitfreerelay=<n>", strprintf("Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)", DEFAULT_LIMITFREERELAY));
         strUsage += HelpMessageOpt("-relaypriority", strprintf("Require high priority for relaying free or low-fee transactions (default: %u)", DEFAULT_RELAYPRIORITY));
@@ -710,12 +752,7 @@ void CleanupBlockRevFiles()
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        //Load zerocoin mint hashes to memory
-        LogPrintf("Loading mints to wallet..\n");
-        pwalletMain->zwallet->GetTracker().Init();
-        pwalletMain->zwallet->LoadMintPoolFromDB();
-    }
+    // Lelantus wallet (zwallet) was removed; mint loading skipped
 #endif
 
     const CChainParams &chainparams = Params();
@@ -739,8 +776,18 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
+        {
+            LOCK(cs_main);
+            BatchProofContainer::get_instance()->finalize();
+            CValidationState state;
+            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+                return;
+            }
+        }
         pblocktree->WriteReindexing(false);
         fReindex = false;
+        BatchProofContainer::RemoveRecoveryMarker();
         LogPrintf("Reindexing finished\n");
         // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
         InitBlockIndex(chainparams);
@@ -805,15 +852,6 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LoadMempool();
     }
 
-#ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        pwalletMain->zwallet->SyncWithChain();
-    }
-    // Need this to restore Sigma spend state
-    if (GetBoolArg("-rescan", false) && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        pwalletMain->zwallet->GetTracker().ListLelantusMints();
-    }
-#endif
     fDumpMempoolLater = !fRequestShutdown;
 }
 
@@ -968,7 +1006,7 @@ static std::string ResolveErrMsg(const char *const optname, const std::string &s
     return strprintf(_("Cannot resolve -%s address: '%s'"), optname, strBind);
 }
 
-void RunTor(){
+void RunTor(unsigned short onion_local_port){
 	printf("TOR thread started.\n");
 
 	boost::optional < std::string > clientTransportPlugin;
@@ -996,7 +1034,17 @@ void RunTor(){
 	argv.push_back("--HiddenServiceDir");
 	argv.push_back((tor_dir / "onion").string());
 	argv.push_back("--HiddenServicePort");
-	argv.push_back("8168");
+	// When a dedicated onion listener was bound at init time, point the
+	// hidden service at it so inbound traffic is accepted on a socket
+	// flagged is_onion_listener (and therefore classified as NET_ONION).
+	// Otherwise fall back to the single-port form, which Tor interprets
+	// as VIRTPORT -> localhost:VIRTPORT and lands inbound peers on the
+	// main listener (same as pre-fix behavior).
+	if (onion_local_port != 0) {
+		argv.push_back(strprintf("8168 127.0.0.1:%u", onion_local_port));
+	} else {
+		argv.push_back("8168");
+	}
 
 	if (clientTransportPlugin) {
 		printf("Using OBFS4.\n");
@@ -1017,15 +1065,20 @@ void RunTor(){
 
 struct event_base *baseTor;
 boost::thread torEnabledThread;
+/** Port for the dedicated onion-forwarded local listener, captured by
+ *  StartTorEnabled() and consumed by TorEnabledThread() when it launches
+ *  the embedded Tor. 0 means no dedicated listener was bound. */
+static unsigned short g_tor_enabled_onion_local_port = 0;
 
 static void TorEnabledThread()
 {
-	RunTor();
+	RunTor(g_tor_enabled_onion_local_port);
     event_base_dispatch(baseTor);
 }
 
 
-void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
+void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler,
+                     unsigned short onion_local_port = 0)
 {
     assert(!baseTor);
 #ifdef WIN32
@@ -1039,10 +1092,18 @@ void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
         return;
     }
 
+    g_tor_enabled_onion_local_port = onion_local_port;
     torEnabledThread = boost::thread(boost::bind(&TraceThread<void (*)()>, "torcontrol", &TorEnabledThread));
 }
 
-void InterruptTorEnabled()
+// Best-effort interrupt of the embedded Tor wrapper event_base. This does
+// NOT stop tor_main() itself -- Tor runs its own event loop inside
+// TorEnabledThread, and without a control port there is no in-band way to
+// request shutdown. Calling this only makes the wrapping event_base_dispatch
+// that follows tor_main() return immediately once tor_main does return on
+// process exit. Safe to call even while tor_main is still running.
+// File-local (forward-declared near Interrupt()).
+static void InterruptTorEnabled()
 {
     if (baseTor) {
         LogPrintf("tor: Thread interrupt\n");
@@ -1050,6 +1111,14 @@ void InterruptTorEnabled()
     }
 }
 
+// WARNING: this will deadlock if called while tor_main() is still running
+// inside TorEnabledThread (the common case at shutdown), because
+// torEnabledThread.join() blocks until tor_main returns and embedded Tor
+// has no in-band shutdown path. Intentionally not called from Shutdown();
+// the embedded Tor thread is left to be torn down by process exit. Kept
+// as a no-op-ish symbol in case a future change adds a control port (e.g.
+// via tor_api_run_main + tor_shutdown_event_loop_for_controller_()) that
+// makes clean shutdown possible.
 void StopTorEnabled()
 {
     if (baseTor) {
@@ -1060,10 +1129,20 @@ void StopTorEnabled()
 }
 
 void InitLogging() {
+    auto& logger = LogInstance();
     fPrintToConsole = GetBoolArg("-printtoconsole", false);
+    const std::string debug_log_arg = GetArg("-debuglogfile", DEFAULT_DEBUGLOGFILE);
+    fPrintToDebugLog = !fPrintToConsole && debug_log_arg != "0";
+    const std::string debug_log_name = (!fPrintToDebugLog || debug_log_arg.empty() || debug_log_arg == "1")
+        ? DEFAULT_DEBUGLOGFILE
+        : debug_log_arg;
+    logger.m_file_path = debug_log_name;
     fLogTimestamps = GetBoolArg("-logtimestamps", DEFAULT_LOGTIMESTAMPS);
     fLogTimeMicros = GetBoolArg("-logtimemicros", DEFAULT_LOGTIMEMICROS);
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
+    logger.m_log_threadnames = GetBoolArg("-logthreadnames", DEFAULT_LOGTHREADNAMES);
+    logger.m_log_sourcelocations = GetBoolArg("-logsourcelocations", DEFAULT_LOGSOURCELOCATIONS);
+    logger.m_always_print_category_level = GetBoolArg("-loglevelalways", DEFAULT_LOGLEVELALWAYS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     LogPrintf("Firo version %s\n", FormatFullVersion());
@@ -1185,13 +1264,33 @@ bool AppInitParameterInteraction()
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 
-    fDebug = mapMultiArgs.count("-debug");
-    // Special-case: if -debug=0/-nodebug is set, turn off debugging messages
-    if (fDebug) {
-        const std::vector<std::string>& categories = mapMultiArgs.at("-debug");
-        if (GetBoolArg("-nodebug", false) || find(categories.begin(), categories.end(), std::string("0")) != categories.end()) {
-            fDebug = false;
-            fNoDebug = true;
+    auto& logger = LogInstance();
+    logger.SetLogLevel(BCLog::DEFAULT_LOG_LEVEL);
+    logger.SetCategoryLogLevel({});
+
+    std::vector<std::string> debug_categories;
+    if (const auto it = mapMultiArgs.find("-debug"); it != mapMultiArgs.end()) {
+        debug_categories = it->second;
+    }
+    if (GetBoolArg("-nodebug", false)) debug_categories.emplace_back("0");
+
+    std::vector<std::string> excluded_categories;
+    if (const auto it = mapMultiArgs.find("-debugexclude"); it != mapMultiArgs.end()) {
+        excluded_categories = it->second;
+    }
+    ConfigureLegacyLogCategories(debug_categories, excluded_categories);
+
+    const auto log_levels = mapMultiArgs.find("-loglevel");
+    if (log_levels != mapMultiArgs.end()) {
+        for (const auto& value : log_levels->second) {
+            const auto separator = value.find(':');
+            const bool valid = separator == std::string::npos
+                ? logger.SetLogLevel(value)
+                : logger.SetCategoryLogLevel(value.substr(0, separator), value.substr(separator + 1));
+            if (!valid) {
+                return InitError(strprintf(_("Unsupported logging level or category %s. Valid levels are: %s. Valid categories are: %s."),
+                                           value, logger.LogLevelsString(), logger.LogCategoriesString()));
+            }
         }
     }
 
@@ -1388,6 +1487,52 @@ bool AppInitParameterInteraction()
             }
         }
     }
+    if (IsArgSet("-sparksingleinputheight") ||
+        IsArgSet("-sparkchaumv2height")) {
+        if (!chainparams.MineBlocksOnDemand()) {
+            return InitError(
+                "Spark activation heights may only be overridden on regtest.");
+        }
+
+        const auto parseActivationHeight = [](const char* argument,
+                                              int& height) {
+            int64_t parsed;
+            if (!ParseInt64(GetArg(argument, ""), &parsed) ||
+                parsed < 0 || parsed > INT_MAX) {
+                return false;
+            }
+            height = static_cast<int>(parsed);
+            return true;
+        };
+
+        try {
+            int singleInputHeight = 0;
+            int chaumV2Height = 0;
+            const int* pSingleInputHeight = nullptr;
+            const int* pChaumV2Height = nullptr;
+
+            if (IsArgSet("-sparksingleinputheight")) {
+                if (!parseActivationHeight(
+                        "-sparksingleinputheight", singleInputHeight)) {
+                    return InitError(
+                        "Invalid -sparksingleinputheight value.");
+                }
+                pSingleInputHeight = &singleInputHeight;
+            }
+            if (IsArgSet("-sparkchaumv2height")) {
+                if (!parseActivationHeight(
+                        "-sparkchaumv2height", chaumV2Height)) {
+                    return InitError(
+                        "Invalid -sparkchaumv2height value.");
+                }
+                pChaumV2Height = &chaumV2Height;
+            }
+            UpdateRegtestSparkActivationHeights(
+                pSingleInputHeight, pChaumV2Height);
+        } catch (const std::exception& e) {
+            return InitError(e.what());
+        }
+    }
     fSkipMnpayoutCheck = GetBoolArg("-skipmnpayoutcheck", false);
     return true;
 }
@@ -1443,17 +1588,24 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         return false;
     }
 
+    // Trigger a test exception to verify stacktrace handlers only for debugging purposes.
+    if (GetBoolArg("-testcrash", false)) {
+        throw std::runtime_error("Test crash triggered by -testcrash flag. This is for testing purposes only.");
+    }
+
 #ifndef WIN32
     CreatePidFile(GetPidFile(), getpid());
 #endif
-    if (GetBoolArg("-shrinkdebugfile", !fDebug)) {
+    if (fPrintToDebugLog && GetBoolArg("-shrinkdebugfile", !fDebug)) {
         // Do this first since it both loads a bunch of debug.log into memory,
         // and because this needs to happen before any other debug.log printing
         ShrinkDebugFile();
     }
 
-    if (fPrintToDebugLog)
-        OpenDebugLog();
+    if (!OpenDebugLog()) {
+        return InitError(strprintf(_("Could not open debug log file %s"),
+                                   LogInstance().m_file_path.string()));
+    }
 
     if (!fLogTimestamps)
         LogPrintf("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
@@ -1473,6 +1625,20 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Start the lightweight task scheduler thread
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);
     threadGroup.create_thread(boost::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
+
+    if (GetBoolArg("-logratelimit", BCLog::DEFAULT_LOGRATELIMIT)) {
+        LogInstance().SetRateLimiting(BCLog::LogRateLimiter::Create(
+            [&scheduler](auto func, auto window) {
+                const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(window);
+                assert(seconds.count() > 0);
+                scheduler.scheduleEvery(std::move(func), seconds.count());
+            },
+            BCLog::RATELIMIT_MAX_BYTES,
+            BCLog::RATELIMIT_WINDOW));
+    } else {
+        LogInstance().SetRateLimiting(nullptr);
+        LogPrintf("Log rate limiting disabled\n");
+    }
 
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections
@@ -1523,18 +1689,33 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
-    if (mapMultiArgs.count("-onlynet")) {
-        std::set<enum Network> nets;
+    bool fOnlyNet = mapMultiArgs.count("-onlynet");
+    std::set<enum Network> onlyNetNets;
+    if (fOnlyNet) {
         BOOST_FOREACH(const std::string& snet, mapMultiArgs.at("-onlynet")) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
-            nets.insert(net);
+            onlyNetNets.insert(net);
         }
-        for (int n = 0; n < NET_MAX; n++) {
-            enum Network net = (enum Network)n;
-            if (!nets.count(net))
+        // Intentional narrowing relative to Bitcoin Core: Firo only enforces
+        // -onlynet over the user-selectable networks (ipv4, ipv6, onion).
+        // NET_I2P / NET_CJDNS aren't supported as -onlynet targets (they have
+        // no proxy/transport plumbing in Firo, ParseNetwork() doesn't accept
+        // them, and getnetworkinfo doesn't surface them). If Firo adds
+        // support for either, extend this list, GetNetworksInfo() in
+        // src/rpc/net.cpp, and the qa/rpc-tests/proxy_test.py expected set.
+        for (const auto net : {NET_IPV4, NET_IPV6, NET_ONION}) {
+            if (!onlyNetNets.count(net)) {
                 SetLimited(net);
+            }
+        }
+        // The "explicitly limited" flag is consulted by background setup paths
+        // that may try to (re)mark a network reachable after init finishes
+        // (today only TorController::auth_cb for NET_ONION). Other networks
+        // have no such async setup, so flagging them here would be dead.
+        if (!onlyNetNets.count(NET_ONION)) {
+            SetNetworkExplicitlyLimited(NET_ONION);
         }
     }
 
@@ -1550,26 +1731,75 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // start tor
     bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    bool listenOnion = GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION);
+
+    // Bind a dedicated 127.0.0.1:<ephemeral> listener used only to receive
+    // traffic forwarded by Tor from our hidden service. Doing this once at
+    // init (mirroring Bitcoin Core's pattern, ref bitcoin#16702) means:
+    //   * the Tor control thread never has to call BindListenPort at
+    //     runtime (it just receives the resolved port); and
+    //   * -torsetup's embedded Tor can point its --HiddenServicePort target
+    //     at this socket too, so both paths classify inbound peers as
+    //     NET_ONION instead of IPv4 127.0.0.1.
+    // The listener is flagged is_onion_listener so AcceptConnection tags
+    // accepted peers accordingly.
+    //
+    // Note on -listen=0 interaction: -listen=0 soft-forces -listenonion=0
+    // (see the parameter-interaction block above), but does *not* force
+    // -torsetup=0. So with "-listen=0 -torsetup=1" we still bind this
+    // dedicated local listener and the embedded Tor's hidden service will
+    // route inbound traffic to it. This differs from pre-PR behavior where
+    // -listen=0 + -torsetup=1 effectively disabled inbound onion (the
+    // embedded Tor forwarded to 127.0.0.1:8168 where nothing was
+    // listening). The new behavior is closer to user intent ("-torsetup=1
+    // implies I want inbound via onion") while still honoring -listen=0
+    // for clearnet listeners.
+    unsigned short onion_local_port = 0;
+    if (torEnabled || listenOnion) {
+        std::string strBindError;
+        CService onionBindAddr(LookupNumeric("127.0.0.1", 0));
+        if (!connman.BindListenPort(onionBindAddr, strBindError,
+                                    /*fWhitelisted=*/false,
+                                    /*is_onion_listener=*/true,
+                                    &onion_local_port) || onion_local_port == 0) {
+            LogPrintf("Warning: failed to bind dedicated local listener for Tor hidden service (%s); "
+                      "inbound onion peers will appear as IPv4 127.0.0.1\n", strBindError);
+            onion_local_port = 0;
+        }
+    }
+
     if(torEnabled){
-    	StartTorEnabled(threadGroup, scheduler);
-        SetLimited(NET_TOR);
-        SetLimited(NET_IPV4);
-        SetLimited(NET_IPV6);
+    	StartTorEnabled(threadGroup, scheduler, onion_local_port);
         proxyType addrProxy = proxyType(LookupNumeric("127.0.0.1", 9050),
                         true);
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_TOR, addrProxy);
-        SetLimited(NET_IPV4, false);
-        SetLimited(NET_IPV6, false);
-        SetLimited(NET_TOR, false);
+        SetProxy(NET_ONION, addrProxy);
+        SetNameProxy(addrProxy);
+        if (!fOnlyNet || onlyNetNets.count(NET_IPV4))
+            SetLimited(NET_IPV4, false);
+        if (!fOnlyNet || onlyNetNets.count(NET_IPV6))
+            SetLimited(NET_IPV6, false);
+        if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+            SetLimited(NET_ONION, false);
     }
 
     bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
-    SetLimited(NET_TOR);
+    // Default NET_ONION to limited unless -onlynet already set the limits
+    // explicitly above OR -torsetup=1 has already configured the embedded
+    // Tor SOCKS proxy (and unlimited NET_ONION) in the torEnabled block.
+    // Without the !torEnabled guard, -torsetup=1 alone would end up with
+    // NET_ONION limited because this block runs after the torEnabled
+    // unlimit -- and post-PR that limit is actually enforced in
+    // OpenNetworkConnection / the masternode filter, blocking every
+    // outbound onion connection. -proxy and -onion below still get their
+    // chance to limit/unlimit explicitly.
+    if (!fOnlyNet && !torEnabled) {
+        SetLimited(NET_ONION);
+    }
     if (proxyArg != "" && proxyArg != "0") {
         CService resolved(LookupNumeric(proxyArg.c_str(), 9050));
         proxyType addrProxy = proxyType(resolved, proxyRandomize);
@@ -1578,9 +1808,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         SetProxy(NET_IPV4, addrProxy);
         SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_TOR, addrProxy);
+        SetProxy(NET_ONION, addrProxy);
         SetNameProxy(addrProxy);
-        SetLimited(NET_TOR, false); // by default, -proxy sets onion as reachable, unless -noonion later
+        if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+            SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
     }
 
     // -onion can be used to set only a proxy for .onion, or override normal proxy for .onion addresses
@@ -1589,14 +1820,44 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string onionArg = GetArg("-onion", "");
     if (onionArg != "") {
         if (onionArg == "0") { // Handle -noonion/-onion=0
-            SetLimited(NET_TOR); // set onions as unreachable
+            if (onlyNetNets.count(NET_ONION)) {
+                return InitError(
+                    _("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is explicitly forbidden: -onion=0"));
+            }
+            SetLimited(NET_ONION); // set onions as unreachable
         } else {
             CService resolved(LookupNumeric(onionArg.c_str(), 9050));
             proxyType addrOnion = proxyType(resolved, proxyRandomize);
             if (!addrOnion.IsValid())
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
-            SetProxy(NET_TOR, addrOnion);
-            SetLimited(NET_TOR, false);
+            SetProxy(NET_ONION, addrOnion);
+            if (!fOnlyNet || onlyNetNets.count(NET_ONION))
+                SetLimited(NET_ONION, false);
+            // When onlynet=onion and a dedicated -onion proxy is set (but no -proxy),
+            // also set it as the name proxy so DNS resolution goes through Tor
+            // and doesn't leak over clearnet.
+            if (fOnlyNet && onlyNetNets.count(NET_ONION) && !HaveNameProxy())
+                SetNameProxy(addrOnion);
+        }
+    }
+
+    // Check if -onlynet=onion was specified but no proxy is configured to reach the Tor network.
+    // Matches Bitcoin Core: if -listenonion is enabled we will connect to the
+    // Tor control port later from the torcontrol thread and auth_cb will
+    // configure the onion proxy automatically, so that path is also accepted.
+    // The -listenonion bypass only helps when -torcontrol is actually usable;
+    // treat an empty or "0" value (including -notorcontrol) as disabled so we
+    // don't let init succeed into a state with no working onion path.
+    if (fOnlyNet) {
+        if (onlyNetNets.count(NET_ONION)) {
+            proxyType onionProxy;
+            bool haveOnionProxy = GetProxy(NET_ONION, onionProxy) && onionProxy.IsValid();
+            const std::string torControlAddr = GetArg("-torcontrol", DEFAULT_TOR_CONTROL);
+            const bool torControlUsable = !torControlAddr.empty() && torControlAddr != "0";
+            const bool canAutoConfigureOnion = listenOnion && torControlUsable;
+            if (!haveOnionProxy && !torEnabled && !canAutoConfigureOnion) {
+                return InitError(_("Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is not provided: none of -proxy, -onion, -torsetup or -listenonion (with a usable -torcontrol) is given."));
+            }
         }
     }
 
@@ -1711,6 +1972,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 7b: load block chain
 
+    // If the previous run aborted on a failed Spark batch verification, or
+    // crashed while Spark proofs were still being collected, drop chainstate
+    // and verify Spark proofs block by block on this run. Checked here rather
+    // than in LoadBlockIndexDB() because a run restarted with -reindex wipes
+    // the block tree database and never calls LoadBlockIndexDB().
+    if (BatchProofContainer::HasRecoveryMarker()) {
+        LogPrintf("Previous run did not finish Spark batch verification, disabling -batching and forcing -reindex for this run\n");
+        ForceSetArg("-batching", "0");
+        ForceSetArg("-reindex", "1");
+    }
+
     fReindex = GetBoolArg("-reindex", false);
     bool fReindexChainState = GetBoolArg("-reindex-chainstate", false);
 
@@ -1727,16 +1999,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", false))
         nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
     nTotalCache -= nBlockTreeDBCache;
+    int64_t nEvoDbCache = std::min(nTotalCache / 8, int64_t{16} << 20);
+    nTotalCache -= nEvoDbCache;
     int64_t nCoinDBCache = std::min(nTotalCache / 2,
                                     (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nCoinDBCache = std::min(nCoinDBCache, nMaxCoinsDBCache << 20); // cap total coins db cache
     nTotalCache -= nCoinDBCache;
-//    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
-    nCoinCacheUsage = nTotalCache / 300;
+    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache, in bytes
     int64_t nMempoolSizeMax = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
-    int64_t nEvoDbCache = 1024 * 1024 * 16; // TODO
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
+    LogPrintf("* Using %.1fMiB for EvoDB database\n", nEvoDbCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for in-memory UTXO set (plus up to %.1fMiB of unused mempool space)\n", nCoinCacheUsage * (1.0 / 1024 / 1024), nMempoolSizeMax * (1.0 / 1024 / 1024));
 
@@ -1801,11 +2074,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     CBlockIndex *tip = chainActive.Tip();
                     if (tip) {
                         int lastBlockIndexVersion = pblocktree->GetBlockIndexVersion(*tip->phashBlock);
-                        if ((tip->nHeight >= chainparams.GetConsensus().nLelantusStartBlock &&
-                                    lastBlockIndexVersion < LELANTUS_PROTOCOL_ENABLEMENT_VERSION) ||
-                            (tip->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
-                                    lastBlockIndexVersion < EVOSPORK_MIN_VERSION))
-                        {
+                        bool evoReindex = (tip->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                                lastBlockIndexVersion < EVOSPORK_MIN_VERSION);
+                        if (evoReindex) {
                             strLoadError = _(
                                     "Block index is outdated, reindex required\n");
                             break;
@@ -2027,6 +2298,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
         scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60);
         */
+
+        int64_t nRebroadcastISLockInterval = GetArg("-rebroadcastislockinterval", DEFAULT_REBROADCAST_ISLOCK_INTERVAL);
+        if (nRebroadcastISLockInterval > 0) {
+            scheduler.scheduleEvery(boost::bind(&RebroadcastISLockedMempool, boost::ref(*g_connman)), nRebroadcastISLockInterval);
+            LogPrintf("Scheduled rebroadcast of InstantSend-locked mempool transactions every %d seconds\n", nRebroadcastISLockInterval);
+        }
     }
 
     llmq::StartLLMQSystem();
@@ -2070,8 +2347,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     //// debug print
     LogPrintf("mapBlockIndex.size() = %u\n",   mapBlockIndex.size());
     LogPrintf("nBestHeight = %d\n",                   chainActive.Height());
-    if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
-        StartTorControl(threadGroup, scheduler);
+    if (listenOnion) {
+        // The dedicated onion listener (if any) was bound earlier, shared
+        // with the -torsetup path; reuse its port here.
+        StartTorControl(threadGroup, scheduler, onion_local_port);
+    }
 
     Discover(threadGroup);
 

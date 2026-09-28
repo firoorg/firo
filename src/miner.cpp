@@ -20,6 +20,7 @@
 #include "pow.h"
 #include "primitives/transaction.h"
 #include "script/standard.h"
+#include "spark/state.h"
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
@@ -33,7 +34,6 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-#include "lelantus.h"
 #include "evo/spork.h"
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -361,6 +361,9 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 {
     uint64_t nPotentialBlockSize = nBlockSize; // only used with fNeedSizeAccounting
     BOOST_FOREACH (const CTxMemPool::txiter it, package) {
+        if (!spark::IsSparkSpendFormatAllowed(it->GetTx(), nHeight)) {
+            return false;
+        }
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
         if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) {
@@ -381,6 +384,10 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 
 bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 {
+    if (!spark::IsSparkSpendFormatAllowed(iter->GetTx(), nHeight)) {
+        return false;
+    }
+
     if (nBlockWeight + iter->GetTxWeight() >= nBlockMaxWeight) {
         // If the block is so close to full that no more txs will fit
         // or if we've tried more than 50 times to fill remaining space
@@ -430,22 +437,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 
     const CTransaction &tx = iter->GetTx();
 
-    // Check transaction against lelantus limits
-    if(tx.IsLelantusJoinSplit()) {
-        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
-        size_t spendNumber = lelantus::GetSpendInputs(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (spendNumber > params.nMaxLelantusInputPerTransaction || spendAmount > params.nMaxValueLelantusSpendPerTransaction)
-            return false;
-
-        if (spendNumber + nLelantusSpendInputs > params.nMaxLelantusInputPerBlock)
-            return false;
-
-        if (spendAmount + nLelantusSpendAmount > params.nMaxValueLelantusSpendPerBlock)
-            return false;
-    }
-
     // Check transaction against spark limits
     if(tx.IsSparkSpend()) {
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
@@ -464,21 +455,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
 {
     const CTransaction &tx = iter->GetTx();
-
-    if(tx.IsLelantusJoinSplit()) {
-        CAmount spendAmount = lelantus::GetSpendTransparentAmount(tx);
-        size_t spendNumber = lelantus::GetSpendInputs(tx);
-        const auto &params = chainparams.GetConsensus();
-
-        if (spendAmount > params.nMaxValueLelantusSpendPerTransaction)
-            return;
-
-        if ((nLelantusSpendAmount += spendAmount) > params.nMaxValueLelantusSpendPerBlock)
-            return;
-
-        if ((nLelantusSpendInputs += spendNumber) > params.nMaxLelantusInputPerBlock)
-            return;
-    }
 
     if(tx.IsSparkSpend()) {
         CAmount spendAmount = spark::GetSpendTransparentAmount(tx);
@@ -959,7 +935,7 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             }
         }
 
-        if (tx.nVersion >= 3 && tx.nType == TRANSACTION_SPORK) {
+        if (tx.nVersion == 3 && tx.nType == TRANSACTION_SPORK) {
             CSporkTx sporkTx;
             if (GetTxPayload<CSporkTx>(tx, sporkTx)) {
                 sporkTxs.insert(mi);
@@ -974,7 +950,7 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             sporkTxRefs.push_back(sporkTx->GetSharedTx());
     }
     CSporkManager *sporkManager = CSporkManager::GetSporkManager();
-    ActiveSporkMap prevSporkMap = chainActive.Tip()->activeDisablingSporks;
+    ActiveSporkMap prevSporkMap = chainActive.Tip()->privacyData().activeDisablingSporks;
     ActiveSporkMap sporkMap;
     sporkManager->UpdateActiveSporkMap(sporkMap, prevSporkMap, chainActive.Tip()->nHeight+1, sporkTxRefs);
 
@@ -985,13 +961,6 @@ void BlockAssembler::FillBlackListForBlockTemplate() {
             if (!sporkManager->IsTransactionAllowed(mi->GetTx(), sporkMap, state))
                 mempool.CalculateDescendants(mi, txBlackList);
         }
-    }
-
-    // Now if we have limit on lelantus transparent outputs scan mempool and drop all the transactions exceeding the limit
-    if (sporkMap.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
-        BlacklistTxsExceedingLimit(sporkMap[CSporkAction::featureLelantusTransparentLimit].second,
-            [](const CTransaction &tx)->bool { return tx.IsLelantusJoinSplit(); },
-            [](const CTransaction &tx)->CAmount { return lelantus::GetSpendTransparentAmount(tx); });
     }
 
     // Same for spark spends
@@ -1108,7 +1077,8 @@ void static FiroMiner(const CChainParams &chainparams) {
         // due to some internal error but also if the keypool is empty.
         // In the latter case, already the pointer is NULL.
         if (!coinbaseScript || coinbaseScript->reserveScript.empty()) {
-            LogPrintf("FiroMiner stop here coinbaseScript=%s, coinbaseScript->reserveScript.empty()=%s\n", coinbaseScript, coinbaseScript->reserveScript.empty());
+            LogPrintf("FiroMiner stop here coinbaseScript=%p, coinbaseScript->reserveScript.empty()=%d\n", 
+                      coinbaseScript.get(), coinbaseScript ? coinbaseScript->reserveScript.empty() : true);
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
         }
 
@@ -1141,7 +1111,7 @@ void static FiroMiner(const CChainParams &chainparams) {
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex *pindexPrev = chainActive.Tip();
             if (pindexPrev) {
-                LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
+                LogPrintf("loop pindexPrev->nHeight=%d\n", pindexPrev->nHeight);
             }
             LogPrintf("BEFORE: pblocktemplate\n");
             std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, {});
@@ -1164,11 +1134,11 @@ void static FiroMiner(const CChainParams &chainparams) {
             arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
             LogPrintf("hashTarget: %s\n", hashTarget.ToString());
             LogPrintf("fTestnet: %d\n", fTestNet);
-            LogPrintf("pindexPrev->nHeight: %s\n", pindexPrev->nHeight);
+            LogPrintf("pindexPrev->nHeight: %d\n", pindexPrev->nHeight);
             LogPrintf("pblock: %s\n", pblock->ToString());
-            LogPrintf("pblock->nVersion: %s\n", pblock->nVersion);
-            LogPrintf("pblock->nTime: %s\n", pblock->nTime);
-            LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
+            LogPrintf("pblock->nVersion: %d\n", pblock->nVersion);
+            LogPrintf("pblock->nTime: %u\n", pblock->nTime);
+            LogPrintf("pblock->nNonce: %u\n", pblock->nNonce);
             LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
 
             while (true) {

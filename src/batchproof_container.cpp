@@ -1,12 +1,40 @@
 #include "batchproof_container.h"
-#include "liblelantus/sigmaextended_verifier.h"
-#include "liblelantus/threadpool.h"
-#include "liblelantus/range_verifier.h"
-#include "lelantus.h"
 #include "ui_interface.h"
 #include "spark/state.h"
+#include "util.h"
+
+#include <boost/filesystem.hpp>
+
+extern bool fReindex;
 
 std::unique_ptr<BatchProofContainer> BatchProofContainer::instance;
+
+static boost::filesystem::path RecoveryMarkerPath()
+{
+    return GetDataDir() / "sparkbatchfailed";
+}
+
+static void WriteRecoveryMarker()
+{
+    const auto path = RecoveryMarkerPath();
+    if (boost::filesystem::exists(path))
+        return;
+    FILE* file = fopen(path.string().c_str(), "wb");
+    if (file)
+        fclose(file);
+    else
+        LogPrintf("Failed to write Spark batch recovery marker\n");
+}
+
+bool BatchProofContainer::HasRecoveryMarker()
+{
+    return boost::filesystem::exists(RecoveryMarkerPath());
+}
+
+void BatchProofContainer::RemoveRecoveryMarker()
+{
+    boost::filesystem::remove(RecoveryMarkerPath());
+}
 
 BatchProofContainer* BatchProofContainer::get_instance() {
     if (instance) {
@@ -18,259 +46,57 @@ BatchProofContainer* BatchProofContainer::get_instance() {
 }
 
 void BatchProofContainer::init() {
-    tempRangeProofs.clear();
     tempSparkTransactions.clear();
+    tempSparkTxIds.clear();
+    tempHistoricalSparkTransactions.clear();
+    tempHistoricalSparkTxIds.clear();
+    if (fCollectProofs)
+        WriteRecoveryMarker();
 }
 
 void BatchProofContainer::finalize() {
     if (fCollectProofs) {
-        for (const auto& itr : tempLelantusSigmaProofs) {
-            lelantusSigmaProofs[itr.first].insert(lelantusSigmaProofs[itr.first].begin(), itr.second.begin(), itr.second.end());
-        }
-
-        for (const auto& itr : tempRangeProofs) {
-            rangeProofs[itr.first].insert(rangeProofs[itr.first].begin(), itr.second.begin(), itr.second.end());
-        }
-
         sparkTransactions.insert(sparkTransactions.end(), tempSparkTransactions.begin(), tempSparkTransactions.end());
+        sparkTxIds.insert(sparkTxIds.end(), tempSparkTxIds.begin(), tempSparkTxIds.end());
+        historicalSparkTransactions.insert(
+            historicalSparkTransactions.end(),
+            tempHistoricalSparkTransactions.begin(),
+            tempHistoricalSparkTransactions.end());
+        historicalSparkTxIds.insert(
+            historicalSparkTxIds.end(),
+            tempHistoricalSparkTxIds.begin(),
+            tempHistoricalSparkTxIds.end());
     }
+    tempSparkTransactions.clear();
+    tempSparkTxIds.clear();
+    tempHistoricalSparkTransactions.clear();
+    tempHistoricalSparkTxIds.clear();
     fCollectProofs = false;
 }
 
-void BatchProofContainer::verify() {
+bool BatchProofContainer::verify_pending() {
+    bool passed = true;
     if (!fCollectProofs) {
-        batch_lelantus();
-        batch_rangeProofs();
-        batch_spark();
+        init();
+        passed = batch_spark();
+        if (!passed)
+            WriteRecoveryMarker();
+        else if (!fReindex)
+            RemoveRecoveryMarker();
     }
     fCollectProofs = false;
+    return passed;
 }
 
-void BatchProofContainer::add(lelantus::JoinSplit* joinSplit,
-                              const std::map<uint32_t, size_t>& setSizes,
-                              const Scalar& challenge,
-                              bool fStartLelantusBlacklist) {
-    const std::vector<lelantus::SigmaExtendedProof>& sigma_proofs = joinSplit->getLelantusProof().sigma_proofs;
-    const std::vector<Scalar>& serials = joinSplit->getCoinSerialNumbers();
-    const std::vector<uint32_t>& groupIds = joinSplit->getCoinGroupIds();
-    if (joinSplit->isSigmaToLelantus())
-        return;
-
-    for (size_t i = 0; i < sigma_proofs.size(); i++) {
-        // pair(pair(set id, fAfterFixes), isSigmaToLelantus)
-        std::pair<uint32_t, bool> idAndFlag = std::make_pair(groupIds[i], fStartLelantusBlacklist);
-        tempLelantusSigmaProofs[idAndFlag].push_back(LelantusSigmaProofData(sigma_proofs[i], serials[i], challenge, setSizes.at(groupIds[i])));
-    }
-}
-
-
-void BatchProofContainer::add(lelantus::JoinSplit* joinSplit, const std::vector<lelantus::PublicCoin>& Cout) {
-    tempRangeProofs[joinSplit->getVersion()].push_back(std::make_pair(joinSplit->getLelantusProof().bulletproofs, Cout));
-}
-
-void BatchProofContainer::removeLelantus(std::unordered_map<Scalar, int> spentSerials) {
-    for (auto& spendSerial : spentSerials) {
-
-        int id = spendSerial.second;
-
-        // afterFixes bool with the pair of set id is considered separate set identifiers, so try to find in one set, if not found try also in another
-        std::pair<uint32_t, bool> key1 = std::make_pair(id, false);
-        std::pair<uint32_t, bool> key2 = std::make_pair(id, true);
-        std::vector<LelantusSigmaProofData>* vProofs;
-        if (lelantusSigmaProofs.count(key1) > 0) {
-            vProofs = &lelantusSigmaProofs[key1];
-            erase(vProofs, spendSerial.first);
-        }
-
-        if (lelantusSigmaProofs.count(key2) > 0) {
-            vProofs = &lelantusSigmaProofs[key2];
-            erase(vProofs, spendSerial.first);
-        }
-    }
-}
-
-void BatchProofContainer::remove(const std::vector<lelantus::RangeProof>& rangeProofsToRemove) {
-    for (auto& itrRemove : rangeProofsToRemove) {
-        for (auto itrVersions = rangeProofs.begin(); itrVersions != rangeProofs.end(); ++itrVersions) {
-            bool found = false;
-            for (auto itr = itrVersions->second.begin(); itr != itrVersions->second.end(); ++itr) {
-                if (itr->first.T_x1 == itrRemove.T_x1 && itr->first.T_x2 == itrRemove.T_x2 && itr->first.u == itrRemove.u) {
-                    itrVersions->second.erase(itr);
-                    found = true;
-                    break;
-                }
-            }
-            if (itrVersions->second.empty()) {
-                rangeProofs.erase(itrVersions);
-                itrVersions--;
-            }
-            if (found)
-                break;
-        }
-    }
-}
-
-void BatchProofContainer::erase(std::vector<LelantusSigmaProofData>* vProofs, const Scalar& serial) {
-    vProofs->erase(std::remove_if(vProofs->begin(),
-                                  vProofs->end(),
-                                  [serial](LelantusSigmaProofData& proof){return proof.serialNumber == serial;}),
-                   vProofs->end());
-
-}
-
-void BatchProofContainer::batch_lelantus() {
-    if (!lelantusSigmaProofs.empty()){
-        LogPrintf("Lelantus batch verification started.\n");
-        uiInterface.UpdateProgressBarLabel("Batch verifying Lelantus...");
-    }
-    else
-        return;
-
-    auto params = lelantus::Params::get_default();
-
-    DoNotDisturb dnd;
-    std::size_t threadsMaxCount = std::min((unsigned int)lelantusSigmaProofs.size(), boost::thread::hardware_concurrency());
-    std::vector<boost::future<bool>> parallelTasks;
-    parallelTasks.reserve(threadsMaxCount);
-    ParallelOpThreadPool<bool> threadPool(threadsMaxCount);
-    auto itr = lelantusSigmaProofs.begin();
-
-    lelantus::SigmaExtendedVerifier sigmaVerifier(params->get_g(), params->get_sigma_h(), params->get_sigma_n(),
-                                                  params->get_sigma_m());
-    for (std::size_t j = 0; j < lelantusSigmaProofs.size(); j += threadsMaxCount) {
-        for (std::size_t i = j; i < j + threadsMaxCount; ++i) {
-            if (i < lelantusSigmaProofs.size()) {
-                std::vector<GroupElement> anonymity_set;
-                lelantus::CLelantusState* state = lelantus::CLelantusState::GetState();
-                std::vector<lelantus::PublicCoin> coins;
-                state->GetAnonymitySet(
-                        itr->first.first,
-                        itr->first.second,
-                        coins);
-                anonymity_set.reserve(coins.size());
-                for (auto& coin : coins)
-                    anonymity_set.emplace_back(coin.getValue());
-
-                size_t m = itr->second.size();
-                std::vector<Scalar> serials;
-                serials.reserve(m);
-                std::vector<size_t> setSizes;
-                setSizes.reserve(m);
-                std::vector<lelantus::SigmaExtendedProof> proofs;
-                proofs.reserve(m);
-                std::vector<Scalar> challenges;
-                challenges.reserve(m);
-
-                for (auto& proofData : itr->second) {
-                    serials.emplace_back(proofData.serialNumber);
-                    setSizes.emplace_back(proofData.anonymitySetSize);
-                    proofs.emplace_back(proofData.lelantusSigmaProof);
-                    challenges.emplace_back(proofData.challenge);
-                }
-
-
-
-                parallelTasks.emplace_back(threadPool.PostTask([=]() {
-                    try {
-                        if (!sigmaVerifier.batchverify(anonymity_set, challenges, serials, setSizes, proofs))
-                            return false;
-                    } catch (const std::exception &) {
-                        return false;
-                    }
-                    return true;
-                }));
-                
-                ++itr;
-            }
-        }
-        bool isFail = false;
-        for (auto& th : parallelTasks) {
-            if (!th.get())
-                isFail = true;
-        }
-
-        if (isFail) {
-            LogPrintf("Lelantus batch verification failed.");
-            throw std::invalid_argument("Lelantus batch verification failed, please run Firo with -reindex -batching=0");
-        }
-
-        parallelTasks.clear();
-    }
-    if (!lelantusSigmaProofs.empty())
-        LogPrintf("Lelantus batch verification finished successfully.\n");
-    lelantusSigmaProofs.clear();
-}
-
-void BatchProofContainer::batch_rangeProofs() {
-    if (!rangeProofs.empty()){
-        LogPrintf("RangeProof batch verification started.\n");
-        uiInterface.UpdateProgressBarLabel("Batch verifying Range Proofs...");
-    }
-
-    auto params = lelantus::Params::get_default();
-    for (const auto& itr : rangeProofs) {
-        lelantus::RangeVerifier  rangeVerifier(params->get_h1(), params->get_h0(), params->get_g(), params->get_bulletproofs_g(), params->get_bulletproofs_h(), params->get_bulletproofs_n(), itr.first);
-        std::vector<std::vector<GroupElement>> V;
-        std::vector<std::vector<GroupElement>> commitments;
-        size_t proofSize = itr.second.size();
-        V.resize(proofSize); //size of batch
-        commitments.resize(proofSize); // size of batch
-        std::vector<lelantus::RangeProof> proofs;
-        proofs.reserve(proofSize); // size of batch
-        for (size_t i = 0; i < proofSize; ++i) {
-            size_t coutSize = itr.second[i].second.size();
-            std::size_t m = coutSize * 2;
-
-            while (m & (m - 1))
-                m++;
-            proofs.emplace_back(itr.second[i].first);
-            V[i].reserve(m); // aggregation size
-            commitments[i].reserve(2 * coutSize);
-            commitments[i].resize(coutSize); // prepend zero elements, to match the prover's behavior
-            auto& Cout = itr.second[i].second;
-            for (std::size_t j = 0; j < coutSize; ++j) {
-                V[i].push_back(Cout[j].getValue());
-                V[i].push_back(Cout[j].getValue() + params->get_h1_limit_range());
-                commitments[i].emplace_back(Cout[j].getValue());
-            }
-
-            // Pad with zero elements
-            for (std::size_t t = coutSize * 2; t < m; ++t)
-                V[i].push_back(GroupElement());
-        }
-
-        if (!rangeVerifier.verify(V, commitments, proofs)) {
-            LogPrintf("RangeProof batch verification failed.\n");
-            throw std::invalid_argument("RangeProof batch verification failed, please run Firo with -reindex -batching=0");
-        }
-    }
-
-    if (!rangeProofs.empty())
-        LogPrintf("RangeProof batch verification finished successfully.\n");
-
-    rangeProofs.clear();
-}
-
-void BatchProofContainer::add(const spark::BaseSpendTransaction& tx) {
-    if (tx.isSpats()) {
-        auto* spatsTx = dynamic_cast<const spats::SpendTransaction*>(&tx);
-        if (spatsTx) {
-            add(*spatsTx);
-        } else {
-            throw std::runtime_error("Invalid cast to spats::SpendTransaction");
-        }
-    } else {
-        auto* sparkTx = dynamic_cast<const spark::SpendTransaction*>(&tx);
-        if (sparkTx) {
-            add(*sparkTx);
-        } else {
-            throw std::runtime_error("Invalid cast to spark::SpendTransaction");
-        }
-    }
-}
-
-void BatchProofContainer::add(const spark::SpendTransaction& tx) {
+void BatchProofContainer::add(const spark::SpendTransaction& tx, const uint256& txHash) {
     tempSparkTransactions.push_back(tx);
+    tempSparkTxIds.push_back(txHash);
+}
+
+void BatchProofContainer::addHistorical(
+    const spark::SpendTransaction& tx, const uint256& txHash) {
+    tempHistoricalSparkTransactions.push_back(tx);
+    tempHistoricalSparkTxIds.push_back(txHash);
 }
 
 void BatchProofContainer::add(const spats::SpendTransaction& tx) {
@@ -278,49 +104,97 @@ void BatchProofContainer::add(const spats::SpendTransaction& tx) {
 }
 
 void BatchProofContainer::remove(const spark::SpendTransaction& tx) {
-    sparkTransactions.erase(std::remove_if(sparkTransactions.begin(),
-                                           sparkTransactions.end(),
-                                  [tx](spark::SpendTransaction& transaction){return transaction.getUsedLTags() == tx.getUsedLTags();}),
-                            sparkTransactions.end());
-}
-
-void BatchProofContainer::batch_spark() {
-    if (!sparkTransactions.empty()){
-        LogPrintf("Spark batch verification started.\n");
-        uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
-    } else {
-        return;
-    }
-
-    std::unordered_map<uint64_t, std::vector<spark::Coin>> cover_sets;
-    spark::CSparkState* sparkState = spark::CSparkState::GetState();
-
-    for (auto& itr : sparkTransactions) {
-        auto& idAndBlockHashes = itr.getBlockHashes();
-        for (const auto& idAndHash : idAndBlockHashes) {
-            int cover_set_id = idAndHash.first;
-            if (!cover_sets.count(cover_set_id)) {
-                std::vector<spark::Coin> cover_set;
-                sparkState->GetCoinSet(cover_set_id, cover_set);
-                cover_sets[cover_set_id] = cover_set;
-            }
+    bool fBatchChanged = false;
+    for (std::size_t i = sparkTransactions.size(); i-- > 0;) {
+        if (sparkTransactions[i].getUsedLTags() == tx.getUsedLTags()) {
+            sparkTransactions.erase(sparkTransactions.begin() + i);
+            sparkTxIds.erase(sparkTxIds.begin() + i);
+            fBatchChanged = true;
         }
     }
+    for (std::size_t i = historicalSparkTransactions.size(); i-- > 0;) {
+        if (historicalSparkTransactions[i].getUsedLTags() == tx.getUsedLTags()) {
+            historicalSparkTransactions.erase(historicalSparkTransactions.begin() + i);
+            historicalSparkTxIds.erase(historicalSparkTxIds.begin() + i);
+            fBatchChanged = true;
+        }
+    }
+    if (fBatchChanged) {
+        // the pending batch changed, so a previous failure verdict no longer applies
+        fBatchFailed = false;
+    }
+}
+
+bool BatchProofContainer::batch_spark() {
+    if (sparkTransactions.empty() && historicalSparkTransactions.empty())
+        return true;
+    if (fBatchFailed)
+        return false;
+
+    LogPrintf("Spark batch verification started.\n");
+    uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
+
+    spark::CSparkState* sparkState = spark::CSparkState::GetState();
+    std::vector<spark::Coin> loadedCoverSet;
+    const spark::SpendTransaction::CoverSetProvider coverSetProvider =
+        [sparkState, &loadedCoverSet](uint64_t id)
+            -> const std::vector<spark::Coin>& {
+        loadedCoverSet.clear();
+        sparkState->GetCoinSet(static_cast<int32_t>(id), loadedCoverSet);
+        return loadedCoverSet;
+    };
     auto* params = spark::Params::get_default();
 
-    bool passed;
+    bool passed = true;
     try {
-        passed = spark::SpendTransaction::verify(params, sparkTransactions, cover_sets);
+        if (!sparkTransactions.empty()) {
+            passed = spark::SpendTransaction::verify(
+                params, sparkTransactions, coverSetProvider);
+        }
+        if (passed && !historicalSparkTransactions.empty()) {
+            passed = spark::SpendTransaction::verifyHistorical(
+                params, historicalSparkTransactions, coverSetProvider);
+        }
     } catch (const std::exception &) {
         passed = false;
     }
 
     if (!passed) {
-        LogPrintf("Spark batch verification failed.");
-        throw std::invalid_argument("Spark batch verification failed, please run Firo with -reindex -batching=0");
+        // Re-verify the retained proofs individually so the operator can see
+        // exactly which spends are invalid without a diagnostic reindex.
+        for (std::size_t i = 0; i < sparkTransactions.size(); ++i) {
+            bool fProofValid;
+            try {
+                fProofValid = spark::SpendTransaction::verify(
+                    params, {sparkTransactions[i]}, coverSetProvider);
+            } catch (const std::exception &) {
+                fProofValid = false;
+            }
+            if (!fProofValid) {
+                LogPrintf("Spark batch verification failed for spend transaction %s.\n", sparkTxIds[i].ToString());
+            }
+        }
+        for (std::size_t i = 0; i < historicalSparkTransactions.size(); ++i) {
+            bool fProofValid;
+            try {
+                fProofValid = spark::SpendTransaction::verifyHistorical(
+                    params, {historicalSparkTransactions[i]}, coverSetProvider);
+            } catch (const std::exception &) {
+                fProofValid = false;
+            }
+            if (!fProofValid) {
+                LogPrintf("Spark batch verification failed for spend transaction %s.\n", historicalSparkTxIds[i].ToString());
+            }
+        }
+        LogPrintf("Spark batch verification failed.\n");
+        fBatchFailed = true;
+        return false;
     }
 
-    if (!sparkTransactions.empty())
-        LogPrintf("Spark batch verification finished successfully.\n");
+    LogPrintf("Spark batch verification finished successfully.\n");
     sparkTransactions.clear();
+    sparkTxIds.clear();
+    historicalSparkTransactions.clear();
+    historicalSparkTxIds.clear();
+    return true;
 }

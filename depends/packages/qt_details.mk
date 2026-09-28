@@ -11,6 +11,9 @@ qt_details_qttranslations_sha256_hash := dcc762acac043b9bb5e4d369b6d6f53e0ecfcf7
 qt_details_qttools_file_name := qttools-$(qt_details_suffix)
 qt_details_qttools_sha256_hash := f03bb7df619cd9ac9dba110e30b7bcab5dd88eb8bdc9cc752563b4367233203f
 
+qt_details_qtwayland_file_name := qtwayland-$(qt_details_suffix)
+qt_details_qtwayland_sha256_hash := e326c7ceb628f503bfc20577d5d2df9690ee10db08eb940cb80c759a6972b2b5
+
 qt_details_patches_path := $(PATCHES_PATH)/qt
 
 qt_details_top_download_path := https://code.qt.io/cgit/qt/qt5.git/plain

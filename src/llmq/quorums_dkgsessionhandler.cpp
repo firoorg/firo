@@ -295,6 +295,14 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
             continue;
         }
 
+        if (!msg.sig.IsValid()) {
+            // An invalid signature cannot be aggregated (CBLSSignature::AggregateInsecure
+            // asserts that its operands are valid, which would abort the process). Fall back
+            // to single verification, which safely identifies and bans the offending node(s).
+            revertToSingleVerification = true;
+            break;
+        }
+
         if (first) {
             aggSig = msg.sig;
         } else {
@@ -493,7 +501,7 @@ void CDKGSessionHandler::HandleDKGRound()
                     if (!dmn) {
                         debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
                     } else {
-                        debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString(false));
+                        debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString());
                     }
                 }
                 LogPrint("llmq-dkg", debugMsg);

@@ -14,6 +14,7 @@ add_executable(test_firo-qt
   ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/uritests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_sendcoinsentry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/walletuitests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../../test/test_bitcoin.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../../test/testutil.cpp
 )
@@ -21,12 +22,15 @@ add_executable(test_firo-qt
 # Add this to skip specific files from UIC processing
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/../../test/test_bitcoin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_sendcoinsentry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/walletuitests.cpp
     PROPERTIES SKIP_AUTOUIC ON 
 )
 
 target_link_libraries(test_firo-qt
   PRIVATE
   core_interface
+  warn_interface
   firoqt
   firo_node
   ${TOR_LIBRARY}
@@ -77,6 +81,17 @@ endif()
 add_test(NAME test_firo-qt
   COMMAND test_firo-qt
 )
+if(UNIX AND NOT APPLE)
+  set_tests_properties(test_firo-qt PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=minimal"
+  )
+  foreach(scale IN ITEMS 1.25 1.5 2)
+    add_test(NAME test_firo-qt-scale-${scale} COMMAND test_firo-qt)
+    set_tests_properties(test_firo-qt-scale-${scale} PROPERTIES
+      ENVIRONMENT "QT_QPA_PLATFORM=minimal;QT_SCALE_FACTOR=${scale}"
+    )
+  endforeach()
+endif()
 if(WIN32 AND VCPKG_TARGET_TRIPLET)
   # On Windows, vcpkg configures Qt with `-opengl dynamic`, which makes
   # the "minimal" platform plugin unusable due to internal Qt bugs.
