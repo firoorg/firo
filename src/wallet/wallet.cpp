@@ -3082,7 +3082,7 @@ bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, 
         return false;
 
     const auto& tx = *transaction.tx;
-    if (tx.vout.size() != 1 || tx.vout[0].scriptPubKey != script || tx.vout[0].nValue != total - fee ||
+    if (tx.vout.size() != 1 || tx.vout[0].nValue <= 0 || tx.vout[0].scriptPubKey != script || tx.vout[0].nValue != total - fee ||
         tx.vin.size() != low || GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT ||
         !std::all_of(tx.vin.begin(), tx.vin.end(), [&](const CTxIn& input) { return control.IsSelected(input.prevout); })) {
         error = _("Unable to create a same-address consolidation transaction.");

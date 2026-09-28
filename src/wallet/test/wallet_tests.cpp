@@ -85,8 +85,8 @@ BOOST_AUTO_TEST_CASE(consolidation_preserves_address_and_eligibility)
     BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 1));
     for (size_t i = 0; i < consolidated.tx->vin.size(); ++i) {
         const auto& input = consolidated.tx->vin[i];
-        BOOST_CHECK(input.prevout.hash == received.GetHash());
-        BOOST_CHECK(input.prevout.n < 2);
+        BOOST_REQUIRE(input.prevout.hash == received.GetHash());
+        BOOST_REQUIRE_LT(input.prevout.n, 2);
         const auto& prevout = received.tx->vout[input.prevout.n];
         BOOST_CHECK(VerifyScript(input.scriptSig, script, &input.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS,
             TransactionSignatureChecker(consolidated.tx.get(), i, prevout.nValue)));
@@ -171,7 +171,8 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
         std::set<COutPoint> selected;
         std::vector<std::pair<const CWalletTx*, unsigned int>> inputs;
         for (const auto& input : consolidated.tx->vin) {
-            BOOST_CHECK(input.prevout.hash == received.GetHash());
+            BOOST_REQUIRE(input.prevout.hash == received.GetHash());
+            BOOST_REQUIRE_LT(input.prevout.n, funding.vout.size());
             selected.insert(input.prevout);
             inputs.emplace_back(&received, input.prevout.n);
             view.AddCoin(input.prevout, Coin(funding.vout[input.prevout.n], 0, false), false);
@@ -198,7 +199,7 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
     const CTxDestination dustAddress = dustKey.GetPubKey().GetID();
     CMutableTransaction dust;
     dust.vin.emplace_back(COutPoint(uint256S("04"), 0));
-    dust.vout.assign(50, CTxOut(100, GetScriptForDestination(dustAddress)));
+    dust.vout.assign(50, CTxOut(1, GetScriptForDestination(dustAddress)));
     CWalletTx receivedDust(pwalletMain, MakeTransactionRef(dust));
     receivedDust.hashBlock = chainActive.Tip()->GetBlockHash();
     receivedDust.nIndex = 1;
@@ -207,7 +208,7 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
     CReserveKey reserveKey(pwalletMain);
     CAmount fee = 0;
     std::string error;
-    // The combined amount is above dust but cannot pay even the relay fee.
+    // Firo permits dust outputs, but their combined value cannot pay the fee.
     // Other addresses have ample funds, but must never subsidize this batch.
     BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(dustAddress, failed, reserveKey, fee, error));
     BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationCoins().at(dustAddress).size(), 50);
