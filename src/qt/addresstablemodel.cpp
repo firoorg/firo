@@ -108,8 +108,6 @@ public:
     CCriticalSection cs_pendingSparkNameChanges;
 
 private:
-    const bool subscribed;
-
     void queueProcessPendingSparkNameChanges() {
         // Caller must hold cs_pendingSparkNameChanges. Coalesce bursts into a
         // single queued drain so a block full of spark-name mutations doesn't
@@ -121,16 +119,12 @@ private:
     }
 
     void sparkNameAdded(const CSparkNameBlockIndexData &sparkNameData) {
-        if (!parent->AutoProcessPendingSparkNameChanges())
-            return;
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_NEW, sparkNameData});
         queueProcessPendingSparkNameChanges();
     }
 
     void sparkNameRemoved(const CSparkNameBlockIndexData &sparkNameData) {
-        if (!parent->AutoProcessPendingSparkNameChanges())
-            return;
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_DELETED, sparkNameData});
         queueProcessPendingSparkNameChanges();
@@ -138,19 +132,17 @@ private:
 
 public:
     AddressTablePriv(CWallet *_wallet, AddressTableModel *_parent, bool subscribe):
-        wallet(_wallet), parent(_parent), subscribed(subscribe) {
+        wallet(_wallet), parent(_parent) {
 
-        if (subscribed) {
+        if (subscribe) {
             uiInterface.NotifySparkNameAdded.connect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
             uiInterface.NotifySparkNameRemoved.connect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
         }
     }
 
     ~AddressTablePriv() {
-        if (subscribed) {
-            uiInterface.NotifySparkNameAdded.disconnect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
-            uiInterface.NotifySparkNameRemoved.disconnect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
-        }
+        uiInterface.NotifySparkNameAdded.disconnect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
+        uiInterface.NotifySparkNameRemoved.disconnect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
     }
 
     void refreshSparkNames()
