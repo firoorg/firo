@@ -8,188 +8,269 @@
 
 #include "splashscreen.h"
 
+#include "guitheme.h"
 #include "networkstyle.h"
 
 #include "clientversion.h"
 #include "init.h"
+#include "ui_interface.h"
 #include "util.h"
-#include "version.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
 
-#include <QApplication>
 #include <QCloseEvent>
-#include <QScreen>
+#include <QEasingCurve>
+#include <QFont>
+#include <QFontMetrics>
+#include <QIcon>
+#include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QRadialGradient>
+#include <QStyle>
 #include <QThread>
 #include <QTimer>
-#include <QtMath>
+#include <QToolButton>
+#include <QWindow>
 
-SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashScreen(pixmap, f)
+namespace
 {
-    // set reference point, paddings
-    FIRO_UNUSED int paddingLeftCol2         = 232;
-    FIRO_UNUSED int paddingTopCol2          = 200;
-    FIRO_UNUSED int line1 = 0;
-    FIRO_UNUSED int line2 = 13;
-    FIRO_UNUSED int line3 = 26;
-    FIRO_UNUSED int line4 = 39;
+// Layout in device-independent pixels, for left-to-right layouts; asymmetric
+// rects are mirrored with QStyle::visualRect() for right-to-left ones.
+constexpr int SPLASH_WIDTH = 600;
+constexpr int SPLASH_HEIGHT = 400;
+constexpr int MARGIN = 32;
+constexpr int FOOTER_TOP = 296;
+constexpr int NETWORK_STRIPE_HEIGHT = 4;
+constexpr QPoint LOGO_CENTER(SPLASH_WIDTH / 2, 148);
+constexpr QSize LOGO_SIZE(292, 153); //!< Lockup asset including its padding; the mark ends up ~76px tall
+constexpr QPoint BADGE_TOP_LEFT(20, 19);
+constexpr int BADGE_HEIGHT = 22;
+constexpr QRect CLOSE_BUTTON(SPLASH_WIDTH - 16 - 28, 16, 28, 28);
+constexpr QRect STATUS_LINE(MARGIN, 316, SPLASH_WIDTH - 2 * MARGIN, 22);
+constexpr QRect PROGRESS_TRACK(MARGIN, 348, SPLASH_WIDTH - 2 * MARGIN, 4);
+constexpr QRect VERSION_LINE(MARGIN, 364, SPLASH_WIDTH - 2 * MARGIN, 18);
 
-    float fontFactor            = 1.0;
+constexpr int ANIMATION_INTERVAL_MS = 30;
+constexpr int SWEEP_DURATION_MS = 1400;
+constexpr qreal SWEEP_LENGTH = 0.3; //!< Share of the track covered by the indeterminate segment
 
-    // define text to place
-    QString titleText       = QString(QApplication::applicationName()).replace(QString("-testnet"), QString(""), Qt::CaseSensitive); // cut of testnet, place it as single object further down
-    //QString versionText     = QString("Version %1 ").arg(QString::fromStdString(FormatFullVersion()));
-    //QString copyrightText1   = QChar(0xA9)+QString(" 2009-%1 ").arg(COPYRIGHT_YEAR) + QString(tr("The Bitcoin developers"));
-    //QString copyrightText2   = QChar(0xA9)+QString(" 2011-%1 ").arg(COPYRIGHT_YEAR) + QString(tr("The Litecoin developers"));
-    //QString copyrightText3   = QChar(0xA9)+QString(" 2014 ") + QString(tr("The Firo developers"));
+QFont SplashFont(int pixelSize, bool bold = false)
+{
+    QFont splashFont(QStringLiteral("Source Sans Pro"));
+    splashFont.setPixelSize(pixelSize);
+    splashFont.setBold(bold);
+    return splashFont;
+}
+} // namespace
 
-    QString font            = "Arial";
+SplashScreen::SplashScreen(const NetworkStyle* networkStyle) :
+    animationTimer(new QTimer(this)),
+    closeButton(new QToolButton(this))
+{
+    setWindowTitle(QStringLiteral("%1 %2").arg(tr(PACKAGE_NAME), networkStyle->getTitleAddText()).trimmed());
+    setPixmap(renderArtwork(networkStyle));
+    setFocusPolicy(Qt::StrongFocus);
+    setFocus();
 
-    // load the bitmap for writing some text over it
-    QPixmap newPixmap;
-   if(GetBoolArg("-testnet", false)) {
-       newPixmap     = QPixmap(":/images/splash_testnet");
-   }
-   else {
-    newPixmap     = QPixmap(":/images/splash");
-   }
+    closeButton->setGeometry(QStyle::visualRect(layoutDirection(), rect(), CLOSE_BUTTON));
+    closeButton->setIcon(QIcon(GUIUtil::themedStatusIconPixmap(style()->standardIcon(QStyle::SP_TitleBarCloseButton), closeButton->iconSize())));
+    closeButton->setAutoRaise(true);
+    closeButton->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QToolButton { border: 1px solid transparent; border-radius: 14px; background: transparent; }"
+        "QToolButton:hover, QToolButton:pressed { background: $PANEL_SOFT; }"
+        "QToolButton:focus { border-color: $INK_SOFT; }")));
+    closeButton->setCursor(Qt::PointingHandCursor);
+    closeButton->setToolTip(tr("Quit application"));
+    closeButton->setAccessibleName(closeButton->toolTip());
+    closeButton->setFocusPolicy(Qt::StrongFocus);
+    connect(closeButton, &QToolButton::clicked, this, &SplashScreen::requestShutdown);
 
-    QPainter pixPaint(&newPixmap);
-    pixPaint.setPen(QColor(70,70,70));
+    animationTimer->setInterval(ANIMATION_INTERVAL_MS);
+    connect(animationTimer, &QTimer::timeout, this, [this] { update(PROGRESS_TRACK.adjusted(-1, -1, 1, 1)); });
+    animationClock.start();
 
-    pixPaint.setFont(QFont(font, 9*fontFactor));
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line4,versionText);
-
-    // draw copyright stuff
-    pixPaint.setFont(QFont(font, 9*fontFactor));
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line1,copyrightText1);
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line2,copyrightText2);
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line3,copyrightText3);
-
-    pixPaint.end();
-
-    this->setPixmap(newPixmap);
-    auto* animationTimer = new QTimer(this);
-    connect(animationTimer, &QTimer::timeout, this, qOverload<>(&SplashScreen::update));
-    animationTimer->start(50);
+    showStatus(tr("Starting Firo..."));
     subscribeToCoreSignals();
 }
 
+QPixmap SplashScreen::renderArtwork(const NetworkStyle* networkStyle) const
+{
+    const GUIUtil::ThemeColors& colors = GUIUtil::themeColors();
+    const bool dark = GUIUtil::isDarkMode();
+    const Qt::LayoutDirection direction = layoutDirection();
+    const qreal dpr = devicePixelRatio();
+    const QRect canvas(0, 0, SPLASH_WIDTH, SPLASH_HEIGHT);
 
-//SplashScreen::SplashScreen(Qt::WindowFlags f, const NetworkStyle *networkStyle) : QWidget(0, f), curAlignment(0)
-//{
-//    // set reference point, paddings
-//    int paddingRight            = 50;
-//    int paddingTop              = 50;
-//    int titleVersionVSpace      = 17;
-//    int titleCopyrightVSpace    = 40;
-//
-//    float fontFactor            = 1.0;
-//    float devicePixelRatio      = 1.0;
-//#if QT_VERSION > 0x050100
-//    devicePixelRatio = ((QGuiApplication*)QCoreApplication::instance())->devicePixelRatio();
-//#endif
-//
-//    // define text to place
-//    QString titleText       = tr(PACKAGE_NAME);
-//    QString versionText     = QString("Version %1").arg(QString::fromStdString(FormatFullVersion()));
-//    QString copyrightText   = QString::fromUtf8(CopyrightHolders(strprintf("\xc2\xA9 %u-%u ", 2009, COPYRIGHT_YEAR)).c_str());
-//    QString titleAddText    = networkStyle->getTitleAddText();
-//
-//    QString font            = QApplication::font().toString();
-//
-//    // create a bitmap according to device pixelratio
-//    QSize splashSize(480*devicePixelRatio,320*devicePixelRatio);
-//    pixmap = QPixmap(splashSize);
-//
-//#if QT_VERSION > 0x050100
-//    // change to HiDPI if it makes sense
-//    pixmap.setDevicePixelRatio(devicePixelRatio);
-//#endif
-//
-//    QPainter pixPaint(&pixmap);
-//    pixPaint.setPen(QColor(100,100,100));
-//
-//    // draw a slightly radial gradient
-//    QRadialGradient gradient(QPoint(0,0), splashSize.width()/devicePixelRatio);
-//    gradient.setColorAt(0, Qt::white);
-//    gradient.setColorAt(1, QColor(247,247,247));
-//    QRect rGradient(QPoint(0,0), splashSize);
-//    pixPaint.fillRect(rGradient, gradient);
-//
-//    // draw the Firo icon, expected size of PNG: 1024x1024
-//    QRect rectIcon(QPoint(-150,-122), QSize(430,430));
-//
-//    const QSize requiredSize(1024,1024);
-//    QPixmap icon(networkStyle->getAppIcon().pixmap(requiredSize));
-//
-//    pixPaint.drawPixmap(rectIcon, icon);
-//
-//    // check font size and drawing with
-//    pixPaint.setFont(QFont(font, 33*fontFactor));
-//    QFontMetrics fm = pixPaint.fontMetrics();
-//    int titleTextWidth = fm.width(titleText);
-//    if (titleTextWidth > 176) {
-//        fontFactor = fontFactor * 176 / titleTextWidth;
-//    }
-//
-//    pixPaint.setFont(QFont(font, 33*fontFactor));
-//    fm = pixPaint.fontMetrics();
-//    titleTextWidth  = fm.width(titleText);
-//    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight,paddingTop,titleText);
-//
-//    pixPaint.setFont(QFont(font, 15*fontFactor));
-//
-//    // if the version string is to long, reduce size
-//    fm = pixPaint.fontMetrics();
-//    int versionTextWidth  = fm.width(versionText);
-//    if(versionTextWidth > titleTextWidth+paddingRight-10) {
-//        pixPaint.setFont(QFont(font, 10*fontFactor));
-//        titleVersionVSpace -= 5;
-//    }
-//    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight+2,paddingTop+titleVersionVSpace,versionText);
-//
-//    // draw copyright stuff
-//    {
-//        pixPaint.setFont(QFont(font, 10*fontFactor));
-//        const int x = pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight;
-//        const int y = paddingTop+titleCopyrightVSpace;
-//        QRect copyrightRect(x, y, pixmap.width() - x - paddingRight, pixmap.height() - y);
-//        pixPaint.drawText(copyrightRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, copyrightText);
-//    }
-//
-//    // draw additional text if special network
-//    if(!titleAddText.isEmpty()) {
-//        QFont boldFont = QFont(font, 10*fontFactor);
-//        boldFont.setWeight(QFont::Bold);
-//        pixPaint.setFont(boldFont);
-//        fm = pixPaint.fontMetrics();
-//        int titleAddTextWidth  = fm.width(titleAddText);
-//        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-10,15,titleAddText);
-//    }
-//
-//    pixPaint.end();
-//
-//    // Set window title
-//    setWindowTitle(titleText + " " + titleAddText);
-//
-//    // Resize window and move to center of desktop, disallow resizing
-//    QRect r(QPoint(), QSize(pixmap.size().width()/devicePixelRatio,pixmap.size().height()/devicePixelRatio));
-//    resize(r.size());
-//    setFixedSize(r.size());
-//    move(QApplication::desktop()->screenGeometry().center() - r.center());
-//
-//    subscribeToCoreSignals();
-//}
-//
-//SplashScreen::~SplashScreen()
-//{
-//    unsubscribeFromCoreSignals();
-//}
+    QPixmap artwork(canvas.size() * dpr);
+    artwork.setDevicePixelRatio(dpr);
+    artwork.fill(QColor(colors.panel));
+
+    QPainter painter(&artwork);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+    painter.setLayoutDirection(direction);
+
+    // A faint glow of the brand color behind the logo
+    QColor glow(colors.wine);
+    glow.setAlpha(dark ? 40 : 10);
+    QRadialGradient halo(LOGO_CENTER, SPLASH_WIDTH / 2);
+    halo.setColorAt(0, glow);
+    glow.setAlpha(0);
+    halo.setColorAt(1, glow);
+    painter.fillRect(QRect(0, 0, SPLASH_WIDTH, FOOTER_TOP), halo);
+
+    // Footer band for the live status
+    painter.fillRect(QRect(0, FOOTER_TOP, SPLASH_WIDTH, SPLASH_HEIGHT - FOOTER_TOP), QColor(colors.bg));
+    painter.fillRect(QRect(0, FOOTER_TOP, SPLASH_WIDTH, 1), QColor(colors.border));
+
+    // Hairline edge, so the frameless window doesn't melt into a desktop of the same color
+    painter.setPen(QPen(QColor(colors.border), 1));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(QRectF(canvas).adjusted(0.5, 0.5, -0.5, -0.5));
+
+    // The same lockup as the sidebar, recolored like the app icon on test networks
+    const QIcon lockup(dark ? QStringLiteral(":/images/firo_logo_toolbar_dark") : QStringLiteral(":/images/firo_logo_toolbar"));
+    const QPixmap logo = networkStyle->tintPixmap(lockup.pixmap(LOGO_SIZE, dpr));
+    const QSizeF logoSize = logo.deviceIndependentSize();
+    painter.drawPixmap(QPointF(LOGO_CENTER.x() - logoSize.width() / 2, LOGO_CENTER.y() - logoSize.height() / 2), logo);
+
+    // Test networks get a caution stripe and badge in the theme's gold
+    const QString badgeText = networkStyle->getBadgeText().toUpper();
+    if (!badgeText.isEmpty()) {
+        const QColor gold(colors.gold);
+        painter.fillRect(QRect(0, 0, SPLASH_WIDTH, NETWORK_STRIPE_HEIGHT), gold);
+
+        QFont badgeFont = SplashFont(12, true);
+        badgeFont.setLetterSpacing(QFont::PercentageSpacing, 108);
+        painter.setFont(badgeFont);
+        const QSize badgeSize(painter.fontMetrics().horizontalAdvance(badgeText) + 20, BADGE_HEIGHT);
+        const QRect badge = QStyle::visualRect(direction, canvas, QRect(BADGE_TOP_LEFT, badgeSize));
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(gold);
+        painter.drawRoundedRect(badge, BADGE_HEIGHT / 2.0, BADGE_HEIGHT / 2.0);
+        painter.setPen(QColor(dark ? colors.bg : colors.panel));
+        painter.drawText(badge, Qt::AlignCenter, badgeText);
+    }
+
+    painter.setFont(SplashFont(12));
+    painter.setPen(QColor(colors.inkFaint));
+    painter.drawText(VERSION_LINE, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(FormatFullVersion()));
+
+    return artwork;
+}
+
+void SplashScreen::drawContents(QPainter* painter)
+{
+    const GUIUtil::ThemeColors& colors = GUIUtil::themeColors();
+    const Qt::LayoutDirection direction = layoutDirection();
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setLayoutDirection(direction);
+
+    // Status line: the step on the leading side, the percentage on the trailing side
+    QRect messageLine = STATUS_LINE;
+    painter->setPen(QColor(colors.ink));
+    if (progress >= 0) {
+        const QString percentText = tr("%1%").arg(progress);
+        painter->setFont(SplashFont(15, true));
+        painter->drawText(STATUS_LINE, Qt::AlignRight | Qt::AlignVCenter, percentText);
+        messageLine.setRight(STATUS_LINE.right() - painter->fontMetrics().horizontalAdvance(percentText) - 16);
+    }
+    painter->setFont(SplashFont(15));
+    painter->drawText(QStyle::visualRect(direction, rect(), messageLine), Qt::AlignLeft | Qt::AlignVCenter,
+                      painter->fontMetrics().elidedText(statusText, Qt::ElideRight, messageLine.width()));
+
+    // Progress track: filled to the percentage, or a sweeping segment while it is unknown
+    const qreal radius = PROGRESS_TRACK.height() / 2.0;
+    QPainterPath track;
+    track.addRoundedRect(QRectF(PROGRESS_TRACK), radius, radius);
+    painter->fillPath(track, QColor(colors.border));
+
+    QRectF filled(PROGRESS_TRACK);
+    if (progress >= 0) {
+        filled.setWidth(PROGRESS_TRACK.width() * progress / 100.0);
+    } else {
+        static const QEasingCurve sweep(QEasingCurve::InOutSine);
+        const qreal phase = sweep.valueForProgress(qreal(animationClock.elapsed() % SWEEP_DURATION_MS) / SWEEP_DURATION_MS);
+        filled.setWidth(PROGRESS_TRACK.width() * SWEEP_LENGTH);
+        filled.moveLeft(PROGRESS_TRACK.left() - filled.width() + phase * (PROGRESS_TRACK.width() + filled.width()));
+    }
+    if (direction == Qt::RightToLeft) {
+        filled.moveLeft(width() - filled.right());
+    }
+    QPainterPath fill;
+    fill.addRoundedRect(filled, radius, radius);
+    painter->setClipPath(track);
+    painter->fillPath(fill, QColor(colors.wine));
+    painter->setClipping(false);
+
+    painter->restore();
+}
+
+void SplashScreen::showStatus(const QString& text)
+{
+    if (updateShutdownState()) {
+        return;
+    }
+    statusText = text;
+    progress = -1;
+    update();
+    updateAnimation();
+}
+
+void SplashScreen::showProgress(const QString& title, int percent)
+{
+    if (updateShutdownState()) {
+        return;
+    }
+    // A finished task is reported as ShowProgress("", 100): keep its title, drop the percentage
+    if (!title.isEmpty()) {
+        statusText = title;
+    }
+    progress = (percent >= 0 && percent < 100) ? percent : -1;
+    update();
+    updateAnimation();
+}
+
+bool SplashScreen::updateShutdownState()
+{
+    if (shutdownRequested && !ShutdownRequested()) {
+        // Core can cancel shutdown when the user accepts a block database rebuild.
+        shutdownRequested = false;
+        setFocus();
+        closeButton->show();
+    }
+    return shutdownRequested;
+}
+
+void SplashScreen::updateAnimation()
+{
+    if (progress < 0 && isVisible()) {
+        if (!animationTimer->isActive()) {
+            animationTimer->start();
+        }
+    } else {
+        animationTimer->stop();
+    }
+}
+
+void SplashScreen::requestShutdown()
+{
+    StartShutdown();
+    if (shutdownRequested) {
+        return;
+    }
+    shutdownRequested = true;
+    statusText = tr("Shutting down...");
+    progress = -1;
+    closeButton->hide();
+    update();
+    updateAnimation();
+}
 
 void SplashScreen::slotFinish(QWidget *mainWin)
 {
@@ -207,11 +288,9 @@ void SplashScreen::slotFinish(QWidget *mainWin)
 static void InitMessage(SplashScreen *splash, const std::string &message)
 {
     const bool guiThread = QThread::currentThread() == splash->thread();
-    QMetaObject::invokeMethod(splash, "showMessage",
+    QMetaObject::invokeMethod(splash, "showStatus",
         Qt::AutoConnection,
-        Q_ARG(QString, QString::fromStdString(message)),
-        Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
-        Q_ARG(QColor, QColor(255,255,255)));
+        Q_ARG(QString, QString::fromStdString(message)));
     if (guiThread) {
         // Paint GUI startup stages immediately without processing queued events.
         splash->QWidget::repaint();
@@ -220,7 +299,10 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
 
 static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress)
 {
-    InitMessage(splash, title + strprintf("%d", nProgress) + "%");
+    QMetaObject::invokeMethod(splash, "showProgress",
+        Qt::QueuedConnection,
+        Q_ARG(QString, QString::fromStdString(title)),
+        Q_ARG(int, nProgress));
 }
 
 #ifdef ENABLE_WALLET
@@ -254,52 +336,28 @@ void SplashScreen::unsubscribeFromCoreSignals()
 #endif
 }
 
-void SplashScreen::showMessage(const QString &message, int alignment, const QColor &color)
-{
-    curMessage = message;
-    curAlignment = alignment;
-    curColor = color;
-    update();
-}
-
-void SplashScreen::paintEvent(QPaintEvent *event)
-{
-    QPainter painter(this);
-    painter.drawPixmap(0, 0, this->pixmap);
-    painter.setPen(curColor);
-
-    QRect textRect = rect().adjusted(5, 5, -5, -60);
-    painter.drawText(textRect, Qt::AlignHCenter | Qt::AlignBottom, curMessage);
-
-    static int rotation = 0;
-    rotation = (rotation + 10) % 360;
-
-    painter.setRenderHint(QPainter::Antialiasing);
-    int x = width() / 2;
-    int y = height() - 120;
-    int radius = 5;
-    int circleRadius = 18;
-
-    for (int i = 0; i < 12; ++i) {
-        int alpha = 255 - i * 20;
-        painter.setBrush(QColor(255, 255, 255, alpha));
-        painter.setPen(Qt::NoPen);
-
-        qreal angleRad = qDegreesToRadians(qreal(rotation + i * 30));
-        int dx = int(x + qCos(angleRad) * circleRadius);
-        int dy = int(y + qSin(angleRad) * circleRadius);
-
-        painter.drawEllipse(QPoint(dx, dy), radius, radius);
-    }
-}
-
 void SplashScreen::closeEvent(QCloseEvent *event)
 {
-    StartShutdown(); // allows an "emergency" shutdown during startup
+    requestShutdown(); // allows an "emergency" shutdown during startup
     event->ignore();
 }
 
 void SplashScreen::mousePressEvent(QMouseEvent* event)
 {
-    event->ignore();
+    // Unlike QSplashScreen, don't hide on click; drag the frameless window.
+    if (event->button() == Qt::LeftButton && windowHandle()) {
+        windowHandle()->startSystemMove();
+    }
+}
+
+void SplashScreen::showEvent(QShowEvent* event)
+{
+    QSplashScreen::showEvent(event);
+    updateAnimation();
+}
+
+void SplashScreen::hideEvent(QHideEvent* event)
+{
+    animationTimer->stop();
+    QSplashScreen::hideEvent(event);
 }
