@@ -1256,7 +1256,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
             if (!validateSparkAddress(rcp.address)) {
                 return InvalidAddress;
             }
-            if (rcp.amount <= 0) {
+            if (rcp.amount <= 0 || !MoneyRange(rcp.amount) ||
+                total > MAX_MONEY - rcp.amount) {
                 return InvalidAmount;
             }
             setAddress.insert(rcp.address);
