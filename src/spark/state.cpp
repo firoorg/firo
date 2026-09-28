@@ -1665,6 +1665,8 @@ void CSparkState::Reset() {
     }
     usedLTags.clear();
     mobileUsedLTags.clear();
+    ltagTxhash.clear();
+    extendedMintMetaInfo.clear();
     mintMetaInfo.clear();
     spendMetaInfo.clear();
 }
