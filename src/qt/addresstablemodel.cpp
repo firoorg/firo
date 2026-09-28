@@ -131,7 +131,7 @@ private:
     }
 
 public:
-    AddressTablePriv(CWallet *_wallet, AddressTableModel *_parent, bool subscribe):
+    AddressTablePriv(CWallet* _wallet, AddressTableModel* _parent, bool subscribe):
         wallet(_wallet), parent(_parent) {
 
         if (subscribe) {
@@ -409,13 +409,14 @@ AddressTableModel::AddressTableModel(CWallet *_wallet, WalletModel *parent) :
 {
 }
 
-AddressTableModel::AddressTableModel(CWallet *_wallet, WalletModel *parent, bool loadAddressBook) :
+AddressTableModel::AddressTableModel(CWallet* _wallet, WalletModel* parent, bool loadAddressBook) :
     QAbstractTableModel(parent),walletModel(parent),wallet(_wallet),priv(0)
 {
     columns << tr("Label") << tr("Address") << tr("Address Type");
     priv = new AddressTablePriv(wallet, this, loadAddressBook);
-    if (loadAddressBook)
+    if (loadAddressBook) {
         priv->refreshAddressTable();
+    }
 }
 
 AddressTableModel::~AddressTableModel()
@@ -939,10 +940,11 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-QModelIndex PcodeAddressTableModel::index(int row, int column, const QModelIndex &parent) const
+QModelIndex PcodeAddressTableModel::index(int row, int column, const QModelIndex& parent) const
 {
-    if (parent.isValid() || !hasIndex(row, column, parent))
+    if (parent.isValid() || !hasIndex(row, column, parent)) {
         return QModelIndex();
+    }
     return createIndex(row, column);
 }
 
