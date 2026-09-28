@@ -57,6 +57,8 @@ private:
 
     /** Paint everything that doesn't change while the splash is shown */
     QPixmap renderArtwork(const NetworkStyle *networkStyle) const;
+    /** Restore startup controls if core canceled shutdown; return whether shutdown is still pending. */
+    bool updateShutdownState();
     /** Run the indeterminate progress animation only while it can be seen */
     void updateAnimation();
     /** Start shutdown and say so on the splash */

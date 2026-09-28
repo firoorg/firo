@@ -72,10 +72,16 @@ SplashScreen::SplashScreen(const NetworkStyle *networkStyle) :
 {
     setWindowTitle(QStringLiteral("%1 %2").arg(tr(PACKAGE_NAME), networkStyle->getTitleAddText()).trimmed());
     setPixmap(renderArtwork(networkStyle));
+    setFocusPolicy(Qt::StrongFocus);
+    setFocus();
 
     closeButton->setGeometry(QStyle::visualRect(layoutDirection(), rect(), CLOSE_BUTTON));
     closeButton->setIcon(QIcon(GUIUtil::themedStatusIconPixmap(style()->standardIcon(QStyle::SP_TitleBarCloseButton), closeButton->iconSize())));
     closeButton->setAutoRaise(true);
+    closeButton->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QToolButton { border: 1px solid transparent; border-radius: 14px; background: transparent; }"
+        "QToolButton:hover, QToolButton:pressed { background: $PANEL_SOFT; }"
+        "QToolButton:focus { border-color: $INK_SOFT; }")));
     closeButton->setCursor(Qt::PointingHandCursor);
     closeButton->setToolTip(tr("Quit application"));
     closeButton->setAccessibleName(closeButton->toolTip());
@@ -206,8 +212,9 @@ void SplashScreen::drawContents(QPainter *painter)
 
 void SplashScreen::showStatus(const QString &text)
 {
-    if (shutdownRequested)
+    if (updateShutdownState()) {
         return;
+    }
     statusText = text;
     progress = -1;
     update();
@@ -216,14 +223,26 @@ void SplashScreen::showStatus(const QString &text)
 
 void SplashScreen::showProgress(const QString &title, int percent)
 {
-    if (shutdownRequested)
+    if (updateShutdownState()) {
         return;
+    }
     // A finished task is reported as ShowProgress("", 100): keep its title, drop the percentage
     if (!title.isEmpty())
         statusText = title;
     progress = (percent >= 0 && percent < 100) ? percent : -1;
     update();
     updateAnimation();
+}
+
+bool SplashScreen::updateShutdownState()
+{
+    if (shutdownRequested && !ShutdownRequested()) {
+        // Core can cancel shutdown when the user accepts a block database rebuild.
+        shutdownRequested = false;
+        setFocus();
+        closeButton->show();
+    }
+    return shutdownRequested;
 }
 
 void SplashScreen::updateAnimation()

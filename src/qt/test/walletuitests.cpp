@@ -12,6 +12,7 @@
 #include "createsparknamepage.h"
 #include "guitheme.h"
 #include "guiutil.h"
+#include "init.h"
 #include "masternode-sync.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
@@ -62,6 +63,7 @@
 #include <QVariant>
 
 #include <memory>
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <thread>
@@ -269,6 +271,58 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
     QVERIFY(closeButton);
     QVERIFY(!closeButton->accessibleName().isEmpty());
     QCOMPARE(closeButton->focusPolicy(), Qt::StrongFocus);
+}
+
+void WalletUiTests::splashShutdownControls()
+{
+    extern std::atomic<bool> fRequestShutdown;
+    const bool wasShuttingDown = fRequestShutdown.exchange(false);
+    const auto restoreShutdown = qScopeGuard([wasShuttingDown] { fRequestShutdown = wasShuttingDown; });
+    const std::unique_ptr<const NetworkStyle> networkStyle(NetworkStyle::instantiate("regtest"));
+    auto* splash = new SplashScreen(networkStyle.get());
+    const auto cleanup = qScopeGuard([splash] {
+        splash->slotFinish(nullptr);
+        QCoreApplication::sendPostedEvents(splash, QEvent::DeferredDelete);
+    });
+    splash->setAttribute(Qt::WA_DontShowOnScreen);
+    splash->show();
+    splash->activateWindow();
+    QCoreApplication::processEvents();
+    auto* closeButton = splash->findChild<QToolButton*>();
+    auto* timer = splash->findChild<QTimer*>();
+    QVERIFY(closeButton);
+    QVERIFY(timer);
+    QVERIFY(splash->focusWidget());
+
+    QTest::keyClick(splash->focusWidget(), Qt::Key_Space);
+    QVERIFY(!ShutdownRequested());
+    QTest::keyClick(splash, Qt::Key_Tab);
+    QCOMPARE(splash->focusWidget(), closeButton);
+    QTest::keyClick(closeButton, Qt::Key_Space);
+    QVERIFY(ShutdownRequested());
+    QVERIFY(closeButton->isHidden());
+
+    // Late updates must not replace shutdown until core accepts a database rebuild.
+    splash->showStatus("Loading block index...");
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(closeButton->isHidden());
+    QVERIFY(timer->isActive());
+    fRequestShutdown = false;
+    splash->showStatus("Loading block index...");
+    QVERIFY(!closeButton->isHidden());
+    QCOMPARE(splash->focusWidget(), splash);
+    QTest::keyClick(splash->focusWidget(), Qt::Key_Space);
+    QVERIFY(!ShutdownRequested());
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(!timer->isActive());
+
+    // Progress can also be the first update after a canceled shutdown.
+    closeButton->click();
+    QVERIFY(ShutdownRequested());
+    fRequestShutdown = false;
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(!closeButton->isHidden());
+    QVERIFY(!timer->isActive());
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()

@@ -24,6 +24,7 @@ private Q_SLOTS:
     void deferredTransactionsKeepOrder();
     void paymentCodeIndexesWithoutAddressCache();
     void splashMessageDoesNotProcessEvents();
+    void splashShutdownControls();
     void failedAbandonKeepsTransactionVisible();
     void themeChangePreservesWidgetState();
     void sparkNamesRefreshAfterModelDestruction();
