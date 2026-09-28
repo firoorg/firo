@@ -1,5 +1,6 @@
 #include <../../test/fixtures.h>
 #include "../../chainparams.h"
+#include "../coincontrol.h"
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
 #include "../../validation.h"
