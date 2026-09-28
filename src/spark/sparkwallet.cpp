@@ -1156,8 +1156,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
     CAmount valueToMint = 0;
 
     for (const auto& output : outputs_) {
-        if (output.v > static_cast<uint64_t>(MAX_MONEY) ||
-            output.v > static_cast<uint64_t>(std::numeric_limits<CAmount>::max() - valueToMint)) {
+        if (output.v > static_cast<uint64_t>(MAX_MONEY - valueToMint)) {
             strFailReason = _("Spark mint amount out of range");
             return false;
         }

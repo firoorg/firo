@@ -3940,8 +3940,7 @@ std::string CWallet::MintAndStoreSpark(
 
     CAmount value = 0;
     for (const auto& output : outputs) {
-        if (output.v > static_cast<uint64_t>(MAX_MONEY) ||
-            output.v > static_cast<uint64_t>(std::numeric_limits<CAmount>::max() - value))
+        if (output.v > static_cast<uint64_t>(MAX_MONEY - value))
             return _("Spark mint amount out of range");
         value += static_cast<CAmount>(output.v);
     }
