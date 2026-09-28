@@ -24,6 +24,7 @@
 #include <QScreen>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QThread>
 #include <QTimer>
 #include <QtMath>
 
@@ -72,6 +73,9 @@ SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashSc
     pixPaint.end();
 
     this->setPixmap(newPixmap);
+    auto* animationTimer = new QTimer(this);
+    connect(animationTimer, &QTimer::timeout, this, qOverload<>(&SplashScreen::update));
+    animationTimer->start(50);
     subscribeToCoreSignals();
 }
 
@@ -202,11 +206,16 @@ void SplashScreen::slotFinish(QWidget *mainWin)
 
 static void InitMessage(SplashScreen *splash, const std::string &message)
 {
+    const bool guiThread = QThread::currentThread() == splash->thread();
     QMetaObject::invokeMethod(splash, "showMessage",
-        Qt::QueuedConnection,
+        Qt::AutoConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
         Q_ARG(QColor, QColor(255,255,255)));
+    if (guiThread) {
+        // Paint GUI startup stages immediately without processing queued events.
+        splash->QWidget::repaint();
+    }
 }
 
 static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress)
@@ -238,6 +247,7 @@ void SplashScreen::unsubscribeFromCoreSignals()
     uiInterface.InitMessage.disconnect(boost::bind(InitMessage, this, _1));
     uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
 #ifdef ENABLE_WALLET
+    uiInterface.LoadWallet.disconnect(boost::bind(&SplashScreen::ConnectWallet, this, _1));
     for (CWallet* const & pwallet : connectedWallets) {
         pwallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
     }
@@ -281,8 +291,6 @@ void SplashScreen::paintEvent(QPaintEvent *event)
 
         painter.drawEllipse(QPoint(dx, dy), radius, radius);
     }
-
-    QTimer::singleShot(50, this, SLOT(update()));
 }
 
 void SplashScreen::closeEvent(QCloseEvent *event)

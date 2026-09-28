@@ -94,11 +94,17 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     fHaveWatchOnly = wallet->HaveWatchOnly();
     fForceCheckBalanceChanged = false;
 
+    uiInterface.InitMessage(tr("Loading address book...").toStdString());
     addressTableModel = new AddressTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Loading payment codes...").toStdString());
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Preparing Spark interface...").toStdString());
     sparkModel = new SparkModel(platformStyle, wallet, _optionsModel, this);
+    uiInterface.InitMessage(tr("Loading transaction history...").toStdString());
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
+    uiInterface.InitMessage(tr("Loading receive requests...").toStdString());
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Reticulating splines...").toStdString());
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);

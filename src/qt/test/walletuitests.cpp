@@ -6,6 +6,7 @@
 
 #include "addresstablemodel.h"
 #include "bitcoingui.h"
+#include "bip47/defs.h"
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "createsparknamepage.h"
@@ -19,7 +20,9 @@
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
 #include "sendcoinsdialog.h"
+#include "sparkname.h"
 #include "sparknamespage.h"
+#include "splashscreen.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
@@ -165,6 +168,90 @@ void WalletUiTests::themeTintColors()
             QCOMPARE(swatch.palette().color(QPalette::Window), color);
         }
     }
+}
+
+void WalletUiTests::paymentCodeIndexesWithoutAddressCache()
+{
+    CWallet wallet;
+    wallet.mapCustomKeyValues.emplace(bip47::PcodeLabel() + "test-payment-code", "Test label");
+    const auto addedSlots = uiInterface.NotifySparkNameAdded.num_slots();
+    const auto removedSlots = uiInterface.NotifySparkNameRemoved.num_slots();
+    PcodeAddressTableModel model(&wallet);
+    QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots);
+    QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots);
+    QCOMPARE(model.columnCount(QModelIndex()), 2);
+    const auto index = model.index(0, 1);
+    QVERIFY(index.isValid());
+    QCOMPARE(model.data(index, Qt::DisplayRole).toString(), QString("test-payment-code"));
+    QVERIFY(!model.index(0, 2).isValid());
+    QVERIFY(!model.index(1, 0).isValid());
+    QVERIFY(!model.index(0, 0, index).isValid());
+
+    auto addressBook = std::make_unique<AddressTableModel>(&wallet);
+    {
+        PcodeAddressTableModel temporaryModel(&wallet);
+    }
+    QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots + 1);
+    QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots + 1);
+    const int addressRows = addressBook->rowCount(QModelIndex());
+    const CSparkNameBlockIndexData name("test-name", "test-spark-address", 100, "");
+    uiInterface.NotifySparkNameAdded(name);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QCOMPARE(addressBook->rowCount(QModelIndex()), addressRows + 1);
+    QCOMPARE(model.rowCount(QModelIndex()), 1);
+    uiInterface.NotifySparkNameRemoved(name);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QCOMPARE(addressBook->rowCount(QModelIndex()), addressRows);
+    QCOMPARE(model.rowCount(QModelIndex()), 1);
+    addressBook.reset();
+    QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots);
+    QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots);
+}
+
+void WalletUiTests::splashMessageDoesNotProcessEvents()
+{
+    class TestSplashScreen : public SplashScreen
+    {
+    public:
+        int paints = 0;
+        void paintEvent(QPaintEvent* event) override
+        {
+            ++paints;
+            SplashScreen::paintEvent(event);
+        }
+    };
+    const auto loadWalletSlots = uiInterface.LoadWallet.num_slots();
+    auto* splash = new TestSplashScreen;
+    const auto cleanup = qScopeGuard([splash, loadWalletSlots] {
+        splash->slotFinish(nullptr);
+        QCoreApplication::sendPostedEvents(splash, QEvent::DeferredDelete);
+        QCOMPARE(uiInterface.LoadWallet.num_slots(), loadWalletSlots);
+    });
+    splash->setAttribute(Qt::WA_DontShowOnScreen);
+    splash->show();
+    QCoreApplication::processEvents();
+    const int paintsBeforeMessage = splash->paints;
+    bool callbackRan = false;
+    QObject receiver;
+    QMetaObject::invokeMethod(&receiver, [&callbackRan] { callbackRan = true; }, Qt::QueuedConnection);
+
+    uiInterface.InitMessage("Loading wallet...");
+    QVERIFY(splash->paints > paintsBeforeMessage);
+    QVERIFY(!callbackRan);
+    QCoreApplication::processEvents();
+    QVERIFY(callbackRan);
+
+    const int paintsBeforeProgress = splash->paints;
+    std::thread core([] {
+        uiInterface.ShowProgress("Verifying blocks...", 1);
+        uiInterface.ShowProgress("Verifying blocks...", 2);
+        uiInterface.InitMessage("Loading wallet...");
+    });
+    core.join();
+    QCoreApplication::sendPostedEvents(splash, QEvent::MetaCall);
+    QCOMPARE(splash->paints, paintsBeforeProgress);
+    QCoreApplication::processEvents();
+    QVERIFY(splash->paints > paintsBeforeProgress);
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()

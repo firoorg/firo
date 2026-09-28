@@ -270,6 +270,31 @@ BOOST_AUTO_TEST_CASE(schnorr_proof)
     BOOST_CHECK(mintTransaction.verify());
 }
 
+BOOST_AUTO_TEST_CASE(wallet_address_ownership)
+{
+    CSparkWallet* wallet = pwalletMain->sparkWallet.get();
+    const Address ownAddress = wallet->generateNewAddress();
+    BOOST_CHECK(wallet->isAddressMine(ownAddress));
+    BOOST_CHECK(wallet->isAddressMine(ownAddress.encode(GetNetworkType())));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getDefaultAddress()));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getAddress(123)));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getChangeAddress()));
+
+    const FullViewKey ownFullViewKey(wallet->generateSpendKey(Params::get_default()));
+    const IncomingViewKey ownViewKey(ownFullViewKey);
+    const Address highDiversifierAddress(ownViewKey, uint64_t{1} << 31);
+    BOOST_CHECK(wallet->isAddressMine(highDiversifierAddress));
+    BOOST_CHECK(wallet->isAddressMine(highDiversifierAddress.encode(GetNetworkType())));
+
+    const SpendKey foreignSpendKey(Params::get_default());
+    const FullViewKey foreignFullViewKey(foreignSpendKey);
+    const IncomingViewKey foreignViewKey(foreignFullViewKey);
+    const Address foreignAddress(foreignViewKey, 1);
+    BOOST_CHECK(!wallet->isAddressMine(foreignAddress));
+    BOOST_CHECK(!wallet->isAddressMine(foreignAddress.encode(GetNetworkType())));
+    BOOST_CHECK(!wallet->isAddressMine("not a Spark address"));
+}
+
 BOOST_AUTO_TEST_CASE(is_spark_allowed)
 {
     auto start = ::Params().GetConsensus().nSparkStartBlock;

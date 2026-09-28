@@ -119,27 +119,25 @@ private:
     }
 
     void sparkNameAdded(const CSparkNameBlockIndexData &sparkNameData) {
-        if (!parent->AutoProcessPendingSparkNameChanges())
-            return;
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_NEW, sparkNameData});
         queueProcessPendingSparkNameChanges();
     }
 
     void sparkNameRemoved(const CSparkNameBlockIndexData &sparkNameData) {
-        if (!parent->AutoProcessPendingSparkNameChanges())
-            return;
         LOCK(cs_pendingSparkNameChanges);
         pendingSparkNameChanges.append(PendingSparkNameChange{CT_DELETED, sparkNameData});
         queueProcessPendingSparkNameChanges();
     }
 
 public:
-    AddressTablePriv(CWallet *_wallet, AddressTableModel *_parent):
+    AddressTablePriv(CWallet* _wallet, AddressTableModel* _parent, bool subscribe):
         wallet(_wallet), parent(_parent) {
 
-        uiInterface.NotifySparkNameAdded.connect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
-        uiInterface.NotifySparkNameRemoved.connect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
+        if (subscribe) {
+            uiInterface.NotifySparkNameAdded.connect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
+            uiInterface.NotifySparkNameRemoved.connect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
+        }
     }
 
     ~AddressTablePriv() {
@@ -407,11 +405,18 @@ public:
 };
 
 AddressTableModel::AddressTableModel(CWallet *_wallet, WalletModel *parent) :
+    AddressTableModel(_wallet, parent, true)
+{
+}
+
+AddressTableModel::AddressTableModel(CWallet* _wallet, WalletModel* parent, bool loadAddressBook) :
     QAbstractTableModel(parent),walletModel(parent),wallet(_wallet),priv(0)
 {
     columns << tr("Label") << tr("Address") << tr("Address Type");
-    priv = new AddressTablePriv(wallet, this);
-    priv->refreshAddressTable();
+    priv = new AddressTablePriv(wallet, this, loadAddressBook);
+    if (loadAddressBook) {
+        priv->refreshAddressTable();
+    }
 }
 
 AddressTableModel::~AddressTableModel()
@@ -882,9 +887,9 @@ static void NotifyPcodeLabeled(PcodeAddressTableModel *walletmodel, std::string 
 }
 
 PcodeAddressTableModel::PcodeAddressTableModel(CWallet *wallet_, WalletModel *parent)
-:AddressTableModel(wallet_, parent)
+:AddressTableModel(wallet_, parent, false)
 {
-    // columns[AddressTableModel::Address] = tr("RAP payment code");
+    columns = { tr("Label"), tr("RAP payment code") };
     updatePcodeData();
     wallet->NotifyPcodeLabeled.connect(boost::bind(NotifyPcodeLabeled, this, _1, _2, _3));
 }
@@ -933,6 +938,14 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
         return font;
     }
     return QVariant();
+}
+
+QModelIndex PcodeAddressTableModel::index(int row, int column, const QModelIndex& parent) const
+{
+    if (parent.isValid() || !hasIndex(row, column, parent)) {
+        return QModelIndex();
+    }
+    return createIndex(row, column);
 }
 
 bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
