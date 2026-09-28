@@ -80,22 +80,23 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
         auto loadedMints = walletdb.ListSparkMints();
         {
             LOCK(pwalletMain->cs_wallet);
-            for (auto it = loadedMints.begin(); it != loadedMints.end();) {
-                auto& mint = it->second;
-                if (mint.type == spark::COIN_TYPE_SPEND) {
-                    auto parent = pwalletMain->mapWallet.find(mint.txid);
-                    if (parent == pwalletMain->mapWallet.end() || !parent->second.tx->IsSparkSpend()) {
-                        // Keep missing-parent records on disk so a rescan can recover valid mints.
-                        if (parent == pwalletMain->mapWallet.end())
-                            LogPrintf("CSparkWallet: skipping saved SMint with missing wallet transaction %s; rescan to recover\n", mint.txid.ToString());
-                        else if (!walletdb.EraseSparkMint(it->first))
-                            throw std::runtime_error("Failed to remove unauthenticated Spark mint from wallet");
-                        it = loadedMints.erase(it);
-                        continue;
-                    }
+            std::erase_if(loadedMints, [&](const auto& entry) {
+                const auto& mint = entry.second;
+                if (mint.type != spark::COIN_TYPE_SPEND)
+                    return false;
+
+                const auto parent = pwalletMain->mapWallet.find(mint.txid);
+                if (parent == pwalletMain->mapWallet.end()) {
+                    // Keep missing-parent records on disk so a rescan can recover valid mints.
+                    LogPrintf("CSparkWallet: skipping saved SMint with missing wallet transaction %s; rescan to recover\n", mint.txid.ToString());
+                    return true;
                 }
-                ++it;
-            }
+                if (parent->second.tx->IsSparkSpend())
+                    return false;
+                if (!walletdb.EraseSparkMint(entry.first))
+                    throw std::runtime_error("Failed to remove unauthenticated Spark mint from wallet");
+                return true;
+            });
         }
         {
             LOCK(cs_spark_wallet);
