@@ -76,7 +76,7 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
              addresses[lastDiversifier] = generateNextAddress();
          }
 
-        // Remove legacy SMints whose containing wallet transaction has no Spark spend.
+        // Load SMints only when their containing wallet transaction is a Spark spend.
         auto loadedMints = walletdb.ListSparkMints();
         {
             LOCK(pwalletMain->cs_wallet);
@@ -84,8 +84,11 @@ CSparkWallet::CSparkWallet(const std::string& strWalletFile) {
                 auto& mint = it->second;
                 if (mint.type == spark::COIN_TYPE_SPEND) {
                     auto parent = pwalletMain->mapWallet.find(mint.txid);
-                    if (parent != pwalletMain->mapWallet.end() && !parent->second.tx->IsSparkSpend()) {
-                        if (!walletdb.EraseSparkMint(it->first))
+                    if (parent == pwalletMain->mapWallet.end() || !parent->second.tx->IsSparkSpend()) {
+                        // Keep missing-parent records on disk so a rescan can recover valid mints.
+                        if (parent == pwalletMain->mapWallet.end())
+                            LogPrintf("CSparkWallet: skipping saved SMint with missing wallet transaction %s; rescan to recover\n", mint.txid.ToString());
+                        else if (!walletdb.EraseSparkMint(it->first))
                             throw std::runtime_error("Failed to remove unauthenticated Spark mint from wallet");
                         it = loadedMints.erase(it);
                         continue;
