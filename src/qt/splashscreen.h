@@ -11,20 +11,13 @@
 class CWallet;
 class NetworkStyle;
 
-/** Class for the splashscreen with information of the running client.
- *
- * @note this is intentionally not a QSplashScreen. Bitcoin Core initialization
- * can take a long time, and in that case a progress window that cannot be
- * moved around and minimized has turned out to be frustrating to the user.
- */
+/** Splash screen with startup messages from the running client. */
 class SplashScreen : public QSplashScreen
 {
     Q_OBJECT
 
 public:
-    explicit SplashScreen(const QPixmap &pixmap = QPixmap(), Qt::WindowFlags f = Qt::WindowFlags());
-//    explicit SplashScreen(Qt::WindowFlags f, const NetworkStyle *networkStyle);
-//    ~SplashScreen();
+    explicit SplashScreen(const NetworkStyle *networkStyle, Qt::WindowFlags f = Qt::WindowFlags());
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -46,10 +39,12 @@ private:
     /** Connect wallet signals to splash screen */
     void ConnectWallet(CWallet*);
 
-    QPixmap pixmap;
+    QPixmap logo;
+    QString networkLabel;
     QString curMessage;
     QColor curColor;
     int curAlignment;
+    int rotation;
 
     QList<CWallet*> connectedWallets;
 };

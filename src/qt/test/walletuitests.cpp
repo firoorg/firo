@@ -213,6 +213,7 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
     class TestSplashScreen : public SplashScreen
     {
     public:
+        using SplashScreen::SplashScreen;
         int paints = 0;
         void paintEvent(QPaintEvent* event) override
         {
@@ -221,7 +222,8 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
         }
     };
     const auto loadWalletSlots = uiInterface.LoadWallet.num_slots();
-    auto* splash = new TestSplashScreen;
+    const std::unique_ptr<const NetworkStyle> networkStyle(NetworkStyle::instantiate("regtest"));
+    auto* splash = new TestSplashScreen(networkStyle.get());
     const auto cleanup = qScopeGuard([splash, loadWalletSlots] {
         splash->slotFinish(nullptr);
         QCoreApplication::sendPostedEvents(splash, QEvent::DeferredDelete);

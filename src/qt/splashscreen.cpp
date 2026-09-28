@@ -13,183 +13,47 @@
 #include "clientversion.h"
 #include "init.h"
 #include "util.h"
-#include "version.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
 
-#include <QApplication>
 #include <QCloseEvent>
-#include <QScreen>
+#include <QFont>
+#include <QFontMetrics>
+#include <QLinearGradient>
 #include <QPainter>
-#include <QRadialGradient>
 #include <QThread>
 #include <QTimer>
 #include <QtMath>
 
-SplashScreen::SplashScreen(const QPixmap &pixmap, Qt::WindowFlags f) : QSplashScreen(pixmap, f)
+SplashScreen::SplashScreen(const NetworkStyle *networkStyle, Qt::WindowFlags f)
+    : QSplashScreen([] {
+          QPixmap background(600, 400);
+          background.fill(QColor("#191A1E"));
+          return background;
+      }(), f),
+      logo(":/icons/bitcoin"),
+      networkLabel(networkStyle->getTitleAddText().toUpper()),
+      curMessage(tr("Starting Firo...")),
+      curColor(Qt::white),
+      curAlignment(Qt::AlignLeft),
+      rotation(0)
 {
-    // set reference point, paddings
-    FIRO_UNUSED int paddingLeftCol2         = 232;
-    FIRO_UNUSED int paddingTopCol2          = 200;
-    FIRO_UNUSED int line1 = 0;
-    FIRO_UNUSED int line2 = 13;
-    FIRO_UNUSED int line3 = 26;
-    FIRO_UNUSED int line4 = 39;
+    networkLabel.remove('[').remove(']');
 
-    float fontFactor            = 1.0;
+    setFixedSize(600, 400);
+    setWindowTitle(QStringLiteral("Firo") + (networkLabel.isEmpty() ? QString() : QStringLiteral(" [%1]").arg(networkLabel)));
 
-    // define text to place
-    QString titleText       = QString(QApplication::applicationName()).replace(QString("-testnet"), QString(""), Qt::CaseSensitive); // cut of testnet, place it as single object further down
-    //QString versionText     = QString("Version %1 ").arg(QString::fromStdString(FormatFullVersion()));
-    //QString copyrightText1   = QChar(0xA9)+QString(" 2009-%1 ").arg(COPYRIGHT_YEAR) + QString(tr("The Bitcoin developers"));
-    //QString copyrightText2   = QChar(0xA9)+QString(" 2011-%1 ").arg(COPYRIGHT_YEAR) + QString(tr("The Litecoin developers"));
-    //QString copyrightText3   = QChar(0xA9)+QString(" 2014 ") + QString(tr("The Firo developers"));
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this] {
+        rotation = (rotation + 30) % 360;
+        update(QRect(30, 319, 32, 36));
+    });
+    timer->start(80);
 
-    QString font            = "Arial";
-
-    // load the bitmap for writing some text over it
-    QPixmap newPixmap;
-   if(GetBoolArg("-testnet", false)) {
-       newPixmap     = QPixmap(":/images/splash_testnet");
-   }
-   else {
-    newPixmap     = QPixmap(":/images/splash");
-   }
-
-    QPainter pixPaint(&newPixmap);
-    pixPaint.setPen(QColor(70,70,70));
-
-    pixPaint.setFont(QFont(font, 9*fontFactor));
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line4,versionText);
-
-    // draw copyright stuff
-    pixPaint.setFont(QFont(font, 9*fontFactor));
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line1,copyrightText1);
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line2,copyrightText2);
-    //pixPaint.drawText(paddingLeftCol2,paddingTopCol2+line3,copyrightText3);
-
-    pixPaint.end();
-
-    this->setPixmap(newPixmap);
-    auto* animationTimer = new QTimer(this);
-    connect(animationTimer, &QTimer::timeout, this, qOverload<>(&SplashScreen::update));
-    animationTimer->start(50);
     subscribeToCoreSignals();
 }
-
-
-//SplashScreen::SplashScreen(Qt::WindowFlags f, const NetworkStyle *networkStyle) : QWidget(0, f), curAlignment(0)
-//{
-//    // set reference point, paddings
-//    int paddingRight            = 50;
-//    int paddingTop              = 50;
-//    int titleVersionVSpace      = 17;
-//    int titleCopyrightVSpace    = 40;
-//
-//    float fontFactor            = 1.0;
-//    float devicePixelRatio      = 1.0;
-//#if QT_VERSION > 0x050100
-//    devicePixelRatio = ((QGuiApplication*)QCoreApplication::instance())->devicePixelRatio();
-//#endif
-//
-//    // define text to place
-//    QString titleText       = tr(PACKAGE_NAME);
-//    QString versionText     = QString("Version %1").arg(QString::fromStdString(FormatFullVersion()));
-//    QString copyrightText   = QString::fromUtf8(CopyrightHolders(strprintf("\xc2\xA9 %u-%u ", 2009, COPYRIGHT_YEAR)).c_str());
-//    QString titleAddText    = networkStyle->getTitleAddText();
-//
-//    QString font            = QApplication::font().toString();
-//
-//    // create a bitmap according to device pixelratio
-//    QSize splashSize(480*devicePixelRatio,320*devicePixelRatio);
-//    pixmap = QPixmap(splashSize);
-//
-//#if QT_VERSION > 0x050100
-//    // change to HiDPI if it makes sense
-//    pixmap.setDevicePixelRatio(devicePixelRatio);
-//#endif
-//
-//    QPainter pixPaint(&pixmap);
-//    pixPaint.setPen(QColor(100,100,100));
-//
-//    // draw a slightly radial gradient
-//    QRadialGradient gradient(QPoint(0,0), splashSize.width()/devicePixelRatio);
-//    gradient.setColorAt(0, Qt::white);
-//    gradient.setColorAt(1, QColor(247,247,247));
-//    QRect rGradient(QPoint(0,0), splashSize);
-//    pixPaint.fillRect(rGradient, gradient);
-//
-//    // draw the Firo icon, expected size of PNG: 1024x1024
-//    QRect rectIcon(QPoint(-150,-122), QSize(430,430));
-//
-//    const QSize requiredSize(1024,1024);
-//    QPixmap icon(networkStyle->getAppIcon().pixmap(requiredSize));
-//
-//    pixPaint.drawPixmap(rectIcon, icon);
-//
-//    // check font size and drawing with
-//    pixPaint.setFont(QFont(font, 33*fontFactor));
-//    QFontMetrics fm = pixPaint.fontMetrics();
-//    int titleTextWidth = fm.width(titleText);
-//    if (titleTextWidth > 176) {
-//        fontFactor = fontFactor * 176 / titleTextWidth;
-//    }
-//
-//    pixPaint.setFont(QFont(font, 33*fontFactor));
-//    fm = pixPaint.fontMetrics();
-//    titleTextWidth  = fm.width(titleText);
-//    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight,paddingTop,titleText);
-//
-//    pixPaint.setFont(QFont(font, 15*fontFactor));
-//
-//    // if the version string is to long, reduce size
-//    fm = pixPaint.fontMetrics();
-//    int versionTextWidth  = fm.width(versionText);
-//    if(versionTextWidth > titleTextWidth+paddingRight-10) {
-//        pixPaint.setFont(QFont(font, 10*fontFactor));
-//        titleVersionVSpace -= 5;
-//    }
-//    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight+2,paddingTop+titleVersionVSpace,versionText);
-//
-//    // draw copyright stuff
-//    {
-//        pixPaint.setFont(QFont(font, 10*fontFactor));
-//        const int x = pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight;
-//        const int y = paddingTop+titleCopyrightVSpace;
-//        QRect copyrightRect(x, y, pixmap.width() - x - paddingRight, pixmap.height() - y);
-//        pixPaint.drawText(copyrightRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, copyrightText);
-//    }
-//
-//    // draw additional text if special network
-//    if(!titleAddText.isEmpty()) {
-//        QFont boldFont = QFont(font, 10*fontFactor);
-//        boldFont.setWeight(QFont::Bold);
-//        pixPaint.setFont(boldFont);
-//        fm = pixPaint.fontMetrics();
-//        int titleAddTextWidth  = fm.width(titleAddText);
-//        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-10,15,titleAddText);
-//    }
-//
-//    pixPaint.end();
-//
-//    // Set window title
-//    setWindowTitle(titleText + " " + titleAddText);
-//
-//    // Resize window and move to center of desktop, disallow resizing
-//    QRect r(QPoint(), QSize(pixmap.size().width()/devicePixelRatio,pixmap.size().height()/devicePixelRatio));
-//    resize(r.size());
-//    setFixedSize(r.size());
-//    move(QApplication::desktop()->screenGeometry().center() - r.center());
-//
-//    subscribeToCoreSignals();
-//}
-//
-//SplashScreen::~SplashScreen()
-//{
-//    unsubscribeFromCoreSignals();
-//}
 
 void SplashScreen::slotFinish(QWidget *mainWin)
 {
@@ -210,8 +74,8 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
     QMetaObject::invokeMethod(splash, "showMessage",
         Qt::AutoConnection,
         Q_ARG(QString, QString::fromStdString(message)),
-        Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
-        Q_ARG(QColor, QColor(255,255,255)));
+        Q_ARG(int, Qt::AlignLeft),
+        Q_ARG(QColor, QColor(Qt::white)));
     if (guiThread) {
         // Paint GUI startup stages immediately without processing queued events.
         splash->QWidget::repaint();
@@ -264,33 +128,64 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
 
 void SplashScreen::paintEvent(QPaintEvent *event)
 {
+    Q_UNUSED(event);
+
     QPainter painter(this);
-    painter.drawPixmap(0, 0, this->pixmap);
-    painter.setPen(curColor);
-
-    QRect textRect = rect().adjusted(5, 5, -5, -60);
-    painter.drawText(textRect, Qt::AlignHCenter | Qt::AlignBottom, curMessage);
-
-    static int rotation = 0;
-    rotation = (rotation + 10) % 360;
-
     painter.setRenderHint(QPainter::Antialiasing);
-    int x = width() / 2;
-    int y = height() - 120;
-    int radius = 5;
-    int circleRadius = 18;
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
-    for (int i = 0; i < 12; ++i) {
-        int alpha = 255 - i * 20;
-        painter.setBrush(QColor(255, 255, 255, alpha));
+    QLinearGradient background(0, 0, width(), height());
+    background.setColorAt(0, QColor("#191A1E"));
+    background.setColorAt(1, QColor("#3B1923"));
+    painter.fillRect(rect(), background);
+
+    painter.drawPixmap(QRect(258, 70, 84, 84), logo, logo.rect());
+
+    QFont titleFont("Saira SemiCondensed");
+    titleFont.setPixelSize(46);
+    titleFont.setBold(true);
+    painter.setFont(titleFont);
+    painter.setPen(Qt::white);
+    painter.drawText(QRect(0, 160, width(), 60), Qt::AlignHCenter | Qt::AlignVCenter, QStringLiteral("firo"));
+
+    painter.fillRect(QRect(281, 228, 38, 3), QColor("#C6475C"));
+
+    if (!networkLabel.isEmpty()) {
+        QFont badgeFont("Source Sans Pro");
+        badgeFont.setPixelSize(13);
+        badgeFont.setBold(true);
+        painter.setFont(badgeFont);
+        const int badgeWidth = painter.fontMetrics().horizontalAdvance(networkLabel) + 24;
+        const QRect badge(width() - 32 - badgeWidth, 28, badgeWidth, 26);
         painter.setPen(Qt::NoPen);
-
-        qreal angleRad = qDegreesToRadians(qreal(rotation + i * 30));
-        int dx = int(x + qCos(angleRad) * circleRadius);
-        int dy = int(y + qSin(angleRad) * circleRadius);
-
-        painter.drawEllipse(QPoint(dx, dy), radius, radius);
+        painter.setBrush(QColor("#9B1C2E"));
+        painter.drawRoundedRect(badge, 13, 13);
+        painter.setPen(Qt::white);
+        painter.drawText(badge, Qt::AlignCenter, networkLabel);
     }
+
+    painter.fillRect(QRect(32, 296, width() - 64, 1), QColor("#63444D"));
+
+    painter.setPen(Qt::NoPen);
+    for (int i = 0; i < 8; ++i) {
+        painter.setBrush(QColor(255, 255, 255, 255 - i * 27));
+        const qreal angle = qDegreesToRadians(qreal(rotation + i * 45));
+        painter.drawEllipse(QPointF(46 + qCos(angle) * 10, 337 + qSin(angle) * 10), 2.5, 2.5);
+    }
+
+    QFont statusFont("Source Sans Pro");
+    statusFont.setPixelSize(16);
+    painter.setFont(statusFont);
+    painter.setPen(curColor);
+    painter.drawText(QRect(72, 318, width() - 104, 38), curAlignment | Qt::AlignVCenter,
+                     painter.fontMetrics().elidedText(curMessage, Qt::ElideRight, width() - 112));
+
+    QFont versionFont("Source Sans Pro");
+    versionFont.setPixelSize(12);
+    painter.setFont(versionFont);
+    painter.setPen(QColor("#B6AEB1"));
+    painter.drawText(QRect(32, 366, width() - 64, 18), Qt::AlignRight | Qt::AlignVCenter,
+                     QString::fromStdString(FormatFullVersion()));
 }
 
 void SplashScreen::closeEvent(QCloseEvent *event)
