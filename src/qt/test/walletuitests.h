@@ -21,6 +21,7 @@ private Q_SLOTS:
     void receiveMnemonics();
     void confirmationRefresh();
     void themeTintColors();
+    void brandTypography();
     void deferredTransactionsKeepOrder();
     void paymentCodeIndexesWithoutAddressCache();
     void splashMessageDoesNotProcessEvents();

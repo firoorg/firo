@@ -120,9 +120,8 @@ public:
 
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override
     {
-        Q_UNUSED(option);
         Q_UNUSED(index);
-        return QSize(0, 96);
+        return QSize(0, 4 * option.fontMetrics.height() + 32);
     }
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
@@ -134,6 +133,7 @@ public:
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = option.state & QStyle::State_Selected;
         const QRect card = option.rect.adjusted(5, 4, -5, -4);
+        const int lineHeight = option.fontMetrics.height();
         painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
         painter->setBrush(QColor(selected ? tc.panelSoft : tc.panel));
         painter->drawRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
@@ -153,7 +153,6 @@ public:
         }
 
         QFont statusFont = option.font;
-        statusFont.setPixelSize(12);
         statusFont.setBold(true);
         const QFontMetrics statusMetrics(statusFont);
         const int headerLeft = card.left() + 62;
@@ -161,7 +160,7 @@ public:
         const int headerWidth = std::max(0, headerRight - headerLeft);
         const int statusWidth = std::min(statusMetrics.horizontalAdvance(status) + 20,
                                          std::max(0, headerWidth / 3));
-        const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, 24);
+        const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, lineHeight + 6);
         if (statusWidth > 0) {
             painter->setPen(Qt::NoPen);
             painter->setBrush(statusBackground);
@@ -174,7 +173,6 @@ public:
         }
 
         QFont titleFont = option.font;
-        titleFont.setPixelSize(14);
         titleFont.setBold(true);
         painter->setFont(titleFont);
         painter->setPen(QColor(tc.ink));
@@ -182,26 +180,24 @@ public:
         const int poseWidth = showPose ? 80 : 0;
         const int titleRight = statusRect.left() - (showPose ? poseWidth + 16 : 8);
         const QRect titleRect(headerLeft, card.top() + 3,
-                              std::max(0, titleRight - headerLeft), 20);
+                              std::max(0, titleRight - headerLeft), lineHeight);
         if (titleRect.width() > 0) {
             painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(titleFont).elidedText(service, Qt::ElideMiddle, titleRect.width()));
 
             QFont subtitleFont = option.font;
-            subtitleFont.setPixelSize(12);
             painter->setFont(subtitleFont);
             painter->setPen(QColor(tc.inkSoft));
             const QString collateral = masternodeText(
                 QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
                 .arg(index.data(CollateralOutpointRole).toString());
-            const QRect subtitleRect(titleRect.left(), card.top() + 23, titleRect.width(), 18);
+            const QRect subtitleRect(titleRect.left(), titleRect.bottom() + 1, titleRect.width(), lineHeight);
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(subtitleFont).elidedText(collateral, Qt::ElideMiddle,
                                                                    subtitleRect.width()));
         }
 
         QFont poseFont = option.font;
-        poseFont.setPixelSize(12);
         painter->setFont(poseFont);
         painter->setPen(QColor(tc.inkSoft));
         if (showPose) {
@@ -228,26 +224,25 @@ public:
         }
 
         painter->setPen(QPen(QColor(tc.border), 1));
-        painter->drawLine(card.left() + 14, card.top() + 44,
-                          card.right() - 14, card.top() + 44);
+        const int dividerY = card.top() + 2 * lineHeight + 8;
+        painter->drawLine(card.left() + 14, dividerY,
+                          card.right() - 14, dividerY);
 
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
             QFont captionFont = option.font;
-            captionFont.setPixelSize(12);
             captionFont.setBold(true);
             painter->setFont(captionFont);
             painter->setPen(QColor(tc.inkSoft));
-            const QRect captionRect = rect.adjusted(0, 0, -8, -16);
+            const QRect captionRect = rect.adjusted(0, 0, -8, -lineHeight);
             painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(captionFont).elidedText(caption, Qt::ElideRight,
                                                                   std::max(0, captionRect.width())));
 
             QFont valueFont = option.font;
-            valueFont.setPixelSize(12);
             valueFont.setBold(true);
             painter->setFont(valueFont);
             painter->setPen(QColor(tc.ink));
-            const QRect valueRect = rect.adjusted(0, 16, -8, 0);
+            const QRect valueRect = rect.adjusted(0, lineHeight, -8, 0);
             painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(valueFont).elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
@@ -255,9 +250,9 @@ public:
         const int contentLeft = card.left() + 16;
         const int contentWidth = card.width() - 32;
         const int quarterWidth = contentWidth / 4;
-        const int rowOneTop = card.top() + 48;
+        const int rowOneTop = dividerY + 4;
         for (int column = 0; column < 4; ++column) {
-            const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 32);
+            const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 2 * lineHeight);
             if (column == 0)
                 drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED")), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
             else if (column == 1)
@@ -474,7 +469,6 @@ QLineEdit#filterLineEditDIP3 {
   border-radius: 9px;
   padding: 0 11px;
   color: $INK_SOFT;
-  font-size: 12px;
   selection-background-color: $WINE_DEEP;
   selection-color: #FFFFFF;
 }
@@ -484,8 +478,7 @@ QLineEdit#filterLineEditDIP3:focus {
 }
 QCheckBox#checkBoxMyMasternodesOnly {
   color: $INK_SOFT;
-  font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   spacing: 7px;
   background: transparent;
 }
@@ -507,7 +500,6 @@ QComboBox {
   border-radius: 9px;
   padding: 0 10px;
   color: $INK_SOFT;
-  font-size: 12px;
 }
 QComboBox:focus {
   background: $PANEL;
@@ -522,7 +514,6 @@ QToolButton#masternodeSortDirection {
   border: 1px solid $BORDER;
   border-radius: 9px;
   color: $INK;
-  font-size: 16px;
   font-weight: 700;
 }
 QToolButton#masternodeSortDirection:hover,
@@ -538,8 +529,7 @@ QFrame#nodeCountPill {
 QFrame#nodeCountPill QLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 QListView#masternodeView,
 QListView#masternodeView::viewport {
@@ -580,12 +570,12 @@ QScrollBar::sub-line {
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK; font-size: 14px; font-weight: 700;")));
+            "color: $INK; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 12px;")));
+            "color: $INK_SOFT;")));
     }
 
     if (masternodeView && masternodeView->viewport())

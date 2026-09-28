@@ -129,13 +129,10 @@ void ModalOverlay::applyTheme()
 }
 #contentWidget QLabel#titleLabel {
     color: $INK;
-    font-family: 'Saira SemiCondensed';
-    font-size: 24px;
-    font-weight: 700;
+    font: $FONT_H2;
 }
 #contentWidget QLabel#infoText {
     color: $INK_SOFT;
-    font-size: 14px;
 }
 #contentWidget QFrame#syncStatsCard {
     background: $PANEL_SOFT;
@@ -149,7 +146,6 @@ void ModalOverlay::applyTheme()
 #contentWidget QLabel#labelEstimatedTimeLeft {
     color: $INK_SOFT;
     font-weight: 700;
-    font-size: 13px;
 }
 #contentWidget QLabel#numberOfBlocksLeft,
 #contentWidget QLabel#newestBlockDate,
@@ -157,7 +153,6 @@ void ModalOverlay::applyTheme()
 #contentWidget QLabel#progressIncreasePerH,
 #contentWidget QLabel#expectedTimeLeft {
     color: $INK;
-    font-size: 13px;
     font-weight: 700;
 }
 #contentWidget QProgressBar {
@@ -181,7 +176,6 @@ void ModalOverlay::applyTheme()
     min-height: 46px;
     color: #FFFFFF;
     font-weight: 700;
-    font-size: 14px;
     border: none;
     border-radius: 12px;
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,

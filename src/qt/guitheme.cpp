@@ -7,6 +7,7 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QFontDatabase>
 #include <QFontMetrics>
 #include <QGraphicsDropShadowEffect>
 #include <QIcon>
@@ -21,6 +22,31 @@
 
 namespace GUIUtil
 {
+
+QFont brandFont(TextStyle style)
+{
+    QFont font(QStringLiteral("Source Sans Pro"));
+    font.setPixelSize(16);
+    font.setWeight(QFont::Normal);
+    if (style == TextStyle::Heading1 || style == TextStyle::Heading2) {
+        font.setFamily(QStringLiteral("Saira SemiCondensed"));
+        font.setPixelSize(style == TextStyle::Heading1 ? 40 : 24);
+        font.setWeight(style == TextStyle::Heading1 ? QFont::Bold : QFont::Light);
+    } else if (style == TextStyle::Heading3) {
+        font.setPixelSize(18);
+        font.setBold(true);
+    }
+    return font;
+}
+
+void loadBrandFonts()
+{
+    QFontDatabase::addApplicationFont(":/fonts/Saira_SemiCondensed-Bold");
+    QFontDatabase::addApplicationFont(":/fonts/Saira_SemiCondensed-Light");
+    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Bold");
+    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Regular");
+    QApplication::setFont(brandFont());
+}
 
 ThemeNotifier& ThemeNotifier::instance()
 {
@@ -130,6 +156,13 @@ QString themed(const QString& cssTemplate, ThemeMode mode)
 {
     const ThemeColors& c = mode == ThemeMode::Dark ? DARK_COLORS : LIGHT_COLORS;
     QString result = cssTemplate;
+    for (const auto style : {TextStyle::Body, TextStyle::Heading1, TextStyle::Heading2, TextStyle::Heading3}) {
+        const QFont font = brandFont(style);
+        const QString token = style == TextStyle::Body ? QStringLiteral("$FONT_BODY")
+            : QStringLiteral("$FONT_H%1").arg(static_cast<int>(style));
+        result.replace(token, QStringLiteral("%1 %2px '%3'")
+                                  .arg(font.weight()).arg(font.pixelSize()).arg(font.family()));
+    }
     result.replace(QLatin1String("$ASSET_THEME"), mode == ThemeMode::Dark
                                                      ? QLatin1String("dark")
                                                      : QLatin1String("light"));
@@ -213,11 +246,11 @@ void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option
         return;
     const auto& colors = themeColors();
     QFont font = option.font;
-    font.setPixelSize(12);
     font.setBold(true);
     painter->setFont(font);
     const int width = qMin(option.rect.width() - 16, QFontMetrics(font).boundingRect(text).width() + 18);
-    const QRect badge(option.rect.left() + 8, option.rect.center().y() - 11, width, 22);
+    const int height = QFontMetrics(font).height() + 6;
+    const QRect badge(option.rect.left() + 8, option.rect.center().y() - height / 2, width, height);
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(isPrivate ? colors.wineTint : colors.border));
     painter->drawRoundedRect(badge, 11, 11);

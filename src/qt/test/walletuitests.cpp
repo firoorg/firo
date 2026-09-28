@@ -669,6 +669,54 @@ void WalletUiTests::collapsedNavigationRemainsUsable()
 }
 
 /**
+ * Keep styled controls and painted text on the same brand fonts after theme changes and resizing.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
+void WalletUiTests::brandTypography()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    SendCoinsDialog send(style.get());
+    ReceiveCoinsDialog receive(style.get());
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        for (const QSize size : {QSize(944, 625), QSize(2100, 1400)}) {
+            for (QWidget* page : {static_cast<QWidget*>(&send), static_cast<QWidget*>(&receive)}) {
+                page->setAttribute(Qt::WA_DontShowOnScreen);
+                page->show();
+                page->resize(size);
+            }
+            QCoreApplication::processEvents();
+            for (const char* name : {"labelFeeHeadline", "labelFeeMinimized", "payTo", "labelBalance",
+                                    "labelCoinControlFee", "labelCoinControlFeeText"}) {
+                auto* widget = send.findChild<QWidget*>(name);
+                QVERIFY(widget);
+                QCOMPARE(widget->font().family(), QStringLiteral("Source Sans Pro"));
+                QCOMPARE(widget->font().pixelSize(), 16);
+            }
+            auto* requests = receive.findChild<QTableView*>();
+            QVERIFY(requests);
+            QCOMPARE(requests->font().pixelSize(), 16);
+        }
+        for (const auto role : {GUIUtil::TextStyle::Body, GUIUtil::TextStyle::Heading1,
+                                GUIUtil::TextStyle::Heading2, GUIUtil::TextStyle::Heading3}) {
+            QLabel label(QStringLiteral("Typography 0123456789"));
+            const auto expected = GUIUtil::brandFont(role);
+            const QString token = role == GUIUtil::TextStyle::Body ? QStringLiteral("$FONT_BODY")
+                : QStringLiteral("$FONT_H%1").arg(static_cast<int>(role));
+            label.setStyleSheet(GUIUtil::themed(QStringLiteral("font: %1;").arg(token)));
+            label.ensurePolished();
+            QCOMPARE(label.font().pixelSize(), expected.pixelSize());
+            // The minimal QPA plugin used by CI has no font database.
+            QCOMPARE(label.font().family(), expected.family());
+            QCOMPARE(label.font().weight(), expected.weight());
+        }
+    }
+}
+
+/**
  * Verify payment-request details can scroll while copy and close actions stay visible in both themes.
  * @pre The Qt test application is initialized on the GUI thread.
  */

@@ -11,6 +11,7 @@
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "intro.h"
 #include "recover.h"
@@ -100,8 +101,6 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #if QT_VERSION < 0x050000
 #include <QTextCodec>
 #endif
-
-#include <QFontDatabase>
 
 static bool newWallet = false;
 
@@ -798,11 +797,7 @@ int main(int argc, char *argv[])
     // application icon from the XDG icon theme instead of the runtime-set window icon.
     QGuiApplication::setDesktopFileName("firo-qt");
 
-    // GUIUtil::SubstituteFonts(GetLangTerritory()); // use inlcuded fonts below
-    // load included fonts
-    QFontDatabase::addApplicationFont(":/fonts/Saira_SemiCondensed-Bold");
-    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Bold");
-    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Regular");
+    GUIUtil::loadBrandFonts();
 
     /// 4. Initialization of translations, so that intro dialog is in user's language
     // Now that QSettings are accessible, initialize translations

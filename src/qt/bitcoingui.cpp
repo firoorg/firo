@@ -901,7 +901,7 @@ void BitcoinGUI::applyNavigationTheme()
         torStatusBadge->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#torStatusBadge {"
             " color: $INK; background: $WINE_TINT; border: none;"
-            " border-radius: 8px; padding: 2px 7px; font-size: 12px; font-weight: 700;"
+            " border-radius: 8px; padding: 2px 7px; font-weight: 700;"
             "}")));
     }
 
@@ -912,7 +912,7 @@ void BitcoinGUI::applyNavigationTheme()
             "}"
             "QFrame#navigationThemeRow QLabel {"
             " background: transparent; border: none; color: $INK_SOFT;"
-            " font-size: 12px; font-weight: 700;"
+            " font-weight: 700;"
             "}")));
     }
 
@@ -930,11 +930,7 @@ void BitcoinGUI::applyNavigationTheme()
                 background: transparent;
                 border: none;
                 color: $INK_SOFT;
-                font-size: 12px;
                 font-weight: 700;
-            }
-            QLabel#navigationSyncLabel {
-                font-size: 12px;
             }
             QProgressBar {
                 background: $BORDER;
@@ -968,7 +964,7 @@ void BitcoinGUI::applyNavigationTheme()
             spacing: 6px;
             padding: 14px 12px;
             min-height: 0;
-            font: 11pt 'Source Sans Pro';
+            font: $FONT_BODY;
         }
 
         QToolBar#navigationSidebar QLabel#navigationLogo {
@@ -984,7 +980,6 @@ void BitcoinGUI::applyNavigationTheme()
             border-radius: 12px;
             min-height: 32px;
             max-height: 32px;
-            font-size: 11pt;
             font-weight: 700;
             padding: 3px 14px;
             margin: 0;
