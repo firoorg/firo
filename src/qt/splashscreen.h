@@ -28,24 +28,24 @@ class SplashScreen : public QSplashScreen
     Q_OBJECT
 
 public:
-    explicit SplashScreen(const NetworkStyle *networkStyle);
+    explicit SplashScreen(const NetworkStyle* networkStyle);
 
 protected:
-    void drawContents(QPainter *painter) override;
+    void drawContents(QPainter* painter) override;
     void closeEvent(QCloseEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void showEvent(QShowEvent *event) override;
-    void hideEvent(QHideEvent *event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void showEvent(QShowEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
 
 public Q_SLOTS:
     /** Slot to call finish() method as it's not defined as slot */
     void slotFinish(QWidget *mainWin);
 
     /** Show a startup step; clears the percentage of a previous task */
-    void showStatus(const QString &text);
+    void showStatus(const QString& text);
 
     /** Show a long-running task and how far along it is (0-100) */
-    void showProgress(const QString &title, int percent);
+    void showProgress(const QString& title, int percent);
 
 private:
     /** Connect core signals to splash screen */
@@ -56,7 +56,7 @@ private:
     void ConnectWallet(CWallet*);
 
     /** Paint everything that doesn't change while the splash is shown */
-    QPixmap renderArtwork(const NetworkStyle *networkStyle) const;
+    QPixmap renderArtwork(const NetworkStyle* networkStyle) const;
     /** Restore startup controls if core canceled shutdown; return whether shutdown is still pending. */
     bool updateShutdownState();
     /** Run the indeterminate progress animation only while it can be seen */
@@ -64,8 +64,8 @@ private:
     /** Start shutdown and say so on the splash */
     void requestShutdown();
 
-    QTimer *animationTimer;
-    QToolButton *closeButton;
+    QTimer* animationTimer;
+    QToolButton* closeButton;
     QElapsedTimer animationClock;
     /** Kept here instead of QSplashScreen::showMessage(), which repaints synchronously and spins the event loop */
     QString statusText;

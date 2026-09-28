@@ -66,7 +66,7 @@ QFont SplashFont(int pixelSize, bool bold = false)
 }
 } // namespace
 
-SplashScreen::SplashScreen(const NetworkStyle *networkStyle) :
+SplashScreen::SplashScreen(const NetworkStyle* networkStyle) :
     animationTimer(new QTimer(this)),
     closeButton(new QToolButton(this))
 {
@@ -96,9 +96,9 @@ SplashScreen::SplashScreen(const NetworkStyle *networkStyle) :
     subscribeToCoreSignals();
 }
 
-QPixmap SplashScreen::renderArtwork(const NetworkStyle *networkStyle) const
+QPixmap SplashScreen::renderArtwork(const NetworkStyle* networkStyle) const
 {
-    const GUIUtil::ThemeColors &colors = GUIUtil::themeColors();
+    const GUIUtil::ThemeColors& colors = GUIUtil::themeColors();
     const bool dark = GUIUtil::isDarkMode();
     const Qt::LayoutDirection direction = layoutDirection();
     const qreal dpr = devicePixelRatio();
@@ -162,9 +162,9 @@ QPixmap SplashScreen::renderArtwork(const NetworkStyle *networkStyle) const
     return artwork;
 }
 
-void SplashScreen::drawContents(QPainter *painter)
+void SplashScreen::drawContents(QPainter* painter)
 {
-    const GUIUtil::ThemeColors &colors = GUIUtil::themeColors();
+    const GUIUtil::ThemeColors& colors = GUIUtil::themeColors();
     const Qt::LayoutDirection direction = layoutDirection();
 
     painter->save();
@@ -199,8 +199,9 @@ void SplashScreen::drawContents(QPainter *painter)
         filled.setWidth(PROGRESS_TRACK.width() * SWEEP_LENGTH);
         filled.moveLeft(PROGRESS_TRACK.left() - filled.width() + phase * (PROGRESS_TRACK.width() + filled.width()));
     }
-    if (direction == Qt::RightToLeft)
+    if (direction == Qt::RightToLeft) {
         filled.moveLeft(width() - filled.right());
+    }
     QPainterPath fill;
     fill.addRoundedRect(filled, radius, radius);
     painter->setClipPath(track);
@@ -210,7 +211,7 @@ void SplashScreen::drawContents(QPainter *painter)
     painter->restore();
 }
 
-void SplashScreen::showStatus(const QString &text)
+void SplashScreen::showStatus(const QString& text)
 {
     if (updateShutdownState()) {
         return;
@@ -221,14 +222,15 @@ void SplashScreen::showStatus(const QString &text)
     updateAnimation();
 }
 
-void SplashScreen::showProgress(const QString &title, int percent)
+void SplashScreen::showProgress(const QString& title, int percent)
 {
     if (updateShutdownState()) {
         return;
     }
     // A finished task is reported as ShowProgress("", 100): keep its title, drop the percentage
-    if (!title.isEmpty())
+    if (!title.isEmpty()) {
         statusText = title;
+    }
     progress = (percent >= 0 && percent < 100) ? percent : -1;
     update();
     updateAnimation();
@@ -248,8 +250,9 @@ bool SplashScreen::updateShutdownState()
 void SplashScreen::updateAnimation()
 {
     if (progress < 0 && isVisible()) {
-        if (!animationTimer->isActive())
+        if (!animationTimer->isActive()) {
             animationTimer->start();
+        }
     } else {
         animationTimer->stop();
     }
@@ -258,8 +261,9 @@ void SplashScreen::updateAnimation()
 void SplashScreen::requestShutdown()
 {
     StartShutdown();
-    if (shutdownRequested)
+    if (shutdownRequested) {
         return;
+    }
     shutdownRequested = true;
     statusText = tr("Shutting down...");
     progress = -1;
@@ -338,20 +342,21 @@ void SplashScreen::closeEvent(QCloseEvent *event)
     event->ignore();
 }
 
-void SplashScreen::mousePressEvent(QMouseEvent *event)
+void SplashScreen::mousePressEvent(QMouseEvent* event)
 {
     // Unlike QSplashScreen, don't hide on click; drag the frameless window.
-    if (event->button() == Qt::LeftButton && windowHandle())
+    if (event->button() == Qt::LeftButton && windowHandle()) {
         windowHandle()->startSystemMove();
+    }
 }
 
-void SplashScreen::showEvent(QShowEvent *event)
+void SplashScreen::showEvent(QShowEvent* event)
 {
     QSplashScreen::showEvent(event);
     updateAnimation();
 }
 
-void SplashScreen::hideEvent(QHideEvent *event)
+void SplashScreen::hideEvent(QHideEvent* event)
 {
     animationTimer->stop();
     QSplashScreen::hideEvent(event);

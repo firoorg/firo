@@ -21,13 +21,13 @@ public:
     const QIcon &getTrayAndWindowIcon() const { return trayAndWindowIcon; }
     const QString &getTitleAddText() const { return titleAddText; }
     /** Short network name for badges, e.g. "Testnet"; empty on mainnet */
-    const QString &getBadgeText() const { return badgeText; }
+    const QString& getBadgeText() const { return badgeText; }
 
     /** Recolor a pixmap the way the app icon is recolored for this network; returned unchanged on mainnet */
-    QPixmap tintPixmap(const QPixmap &pixmap) const;
+    QPixmap tintPixmap(const QPixmap& pixmap) const;
 
 private:
-    NetworkStyle(const QString &appName, const int iconColorHueShift, const int iconColorSaturationReduction, const char *titleAddText, const char *badgeText);
+    NetworkStyle(const QString& appName, const int iconColorHueShift, const int iconColorSaturationReduction, const char* titleAddText, const char* badgeText);
 
     QString appName;
     int iconColorHueShift;

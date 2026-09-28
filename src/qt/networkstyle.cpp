@@ -24,7 +24,7 @@ static const struct {
 static const unsigned network_styles_count = sizeof(network_styles)/sizeof(*network_styles);
 
 // titleAddText and badgeText need to be const char* for tr()
-NetworkStyle::NetworkStyle(const QString &_appName, const int _iconColorHueShift, const int _iconColorSaturationReduction, const char *_titleAddText, const char *_badgeText):
+NetworkStyle::NetworkStyle(const QString& _appName, const int _iconColorHueShift, const int _iconColorSaturationReduction, const char* _titleAddText, const char* _badgeText):
     appName(_appName),
     iconColorHueShift(_iconColorHueShift),
     iconColorSaturationReduction(_iconColorSaturationReduction),
@@ -37,10 +37,11 @@ NetworkStyle::NetworkStyle(const QString &_appName, const int _iconColorHueShift
     trayAndWindowIcon   = QIcon(pixmap.scaled(QSize(256,256)));
 }
 
-QPixmap NetworkStyle::tintPixmap(const QPixmap &pixmap) const
+QPixmap NetworkStyle::tintPixmap(const QPixmap& pixmap) const
 {
-    if (iconColorHueShift == 0 || iconColorSaturationReduction == 0)
+    if (iconColorHueShift == 0 || iconColorSaturationReduction == 0) {
         return pixmap;
+    }
 
     // generate QImage from QPixmap; work on straight (not premultiplied) alpha
     QImage img = pixmap.toImage().convertToFormat(QImage::Format_ARGB32);
