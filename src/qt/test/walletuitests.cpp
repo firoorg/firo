@@ -220,10 +220,12 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
             SplashScreen::paintEvent(event);
         }
     };
+    const auto loadWalletSlots = uiInterface.LoadWallet.num_slots();
     auto* splash = new TestSplashScreen;
-    const auto cleanup = qScopeGuard([splash] {
+    const auto cleanup = qScopeGuard([splash, loadWalletSlots] {
         splash->slotFinish(nullptr);
         QCoreApplication::sendPostedEvents(splash, QEvent::DeferredDelete);
+        QCOMPARE(uiInterface.LoadWallet.num_slots(), loadWalletSlots);
     });
     splash->setAttribute(Qt::WA_DontShowOnScreen);
     splash->show();
@@ -238,6 +240,18 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
     QVERIFY(!callbackRan);
     QCoreApplication::processEvents();
     QVERIFY(callbackRan);
+
+    const int paintsBeforeProgress = splash->paints;
+    std::thread core([] {
+        uiInterface.ShowProgress("Verifying blocks...", 1);
+        uiInterface.ShowProgress("Verifying blocks...", 2);
+        uiInterface.InitMessage("Loading wallet...");
+    });
+    core.join();
+    QCoreApplication::sendPostedEvents(splash, QEvent::MetaCall);
+    QCOMPARE(splash->paints, paintsBeforeProgress);
+    QCoreApplication::processEvents();
+    QVERIFY(splash->paints > paintsBeforeProgress);
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()

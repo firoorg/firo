@@ -24,6 +24,7 @@
 #include <QScreen>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QThread>
 #include <QTimer>
 #include <QtMath>
 
@@ -205,11 +206,16 @@ void SplashScreen::slotFinish(QWidget *mainWin)
 
 static void InitMessage(SplashScreen *splash, const std::string &message)
 {
+    const bool guiThread = QThread::currentThread() == splash->thread();
     QMetaObject::invokeMethod(splash, "showMessage",
         Qt::AutoConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
         Q_ARG(QColor, QColor(255,255,255)));
+    if (guiThread) {
+        // Paint GUI startup stages immediately without processing queued events.
+        splash->QWidget::repaint();
+    }
 }
 
 static void ShowProgress(SplashScreen *splash, const std::string &title, int nProgress)
@@ -241,6 +247,7 @@ void SplashScreen::unsubscribeFromCoreSignals()
     uiInterface.InitMessage.disconnect(boost::bind(InitMessage, this, _1));
     uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
 #ifdef ENABLE_WALLET
+    uiInterface.LoadWallet.disconnect(boost::bind(&SplashScreen::ConnectWallet, this, _1));
     for (CWallet* const & pwallet : connectedWallets) {
         pwallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
     }
@@ -252,8 +259,7 @@ void SplashScreen::showMessage(const QString &message, int alignment, const QCol
     curMessage = message;
     curAlignment = alignment;
     curColor = color;
-    // Paint immediately without QSplashScreen::repaint() processing queued events.
-    QWidget::repaint();
+    update();
 }
 
 void SplashScreen::paintEvent(QPaintEvent *event)
