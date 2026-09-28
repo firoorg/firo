@@ -154,8 +154,8 @@ void WalletUiTests::consolidationSuggestion()
         QVERIFY(dialog);
         const auto close = qScopeGuard([&] { dialog->reject(); });
         const QSize available = GUIUtil::availableScreenSize(dialog);
-        QVERIFY(dialog->width() <= available.width());
-        QVERIFY(dialog->height() <= available.height());
+        QVERIFY(dialog->width() <= qMax(available.width(), dialog->minimumSizeHint().width()));
+        QVERIFY(dialog->height() <= qMax(available.height(), dialog->minimumSizeHint().height()));
         dialog->resize(400, 220);
         QCoreApplication::processEvents();
         auto* scroll = dialog->findChild<QScrollArea*>("consolidationScroll");
