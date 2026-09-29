@@ -4479,12 +4479,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+54"/>
-        <source>Private transaction staging produced an unexpected transaction count</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+78"/>
         <source>Intermediate address was not found in the transaction</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4614,16 +4609,6 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <location line="+19"/>
         <source>Error</source>
         <translation type="unfinished">Error</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Sending private funds to an exchange address is temporarily unavailable. Move the funds to a transparent address first, then send from there.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+303"/>
-        <source>This payment does not fit in one Spark coin and will be sent as %1 separate transactions. Each pays its own fee, they can be linked to each other, and if one of them is rejected the recipients will have been paid only in part.</source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -6077,38 +6062,8 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+141"/>
-        <source>Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+30"/>
-        <source>Subtracting the fee from the amount is temporarily unavailable for Spark spends.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+112"/>
         <source>Spend to transparent address limit exceeded.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>A Spark payment may use at most %1 transactions.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The available Spark coins cannot cover the amount and the required transaction fees.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+52"/>
-        <source>Unable to create a single-input Spark transaction.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>Spark fee estimate did not match the wallet (planned %1, wallet %2).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6122,21 +6077,6 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>Spark name registration temporarily uses a single Spark coin. Please select at most one.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>Unable to select a Spark coin.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>Spark name registration temporarily requires one Spark coin large enough to cover the registration and transaction fees.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+17"/>
         <source>Unable to create the expected Spark transaction format.</source>
         <translation type="unfinished"></translation>
@@ -6146,16 +6086,6 @@ Raw data: %1</source>
         <location line="+87"/>
         <location line="+27"/>
         <source>Refusing to commit an incompatible Spark transaction format.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="-48"/>
-        <source>Refusing to commit an incomplete Spark transaction.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+70"/>
-        <source> This payment was split across %1 transactions and %2 of them were already sent, so the recipients have been paid only in part. Do not retry the whole payment. Already sent: %3</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -6431,33 +6361,8 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+3"/>
         <source>Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Spark multi-input spends are temporarily disabled. No single available Spark coin can fund this transaction.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Spark spend batch failed after committing %u of %u transactions: %s. Do not retry the whole payment. Already sent: %s</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Subtracting the fee from the amount is temporarily unavailable when a Spark spend must be split across multiple transactions.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>The available Spark coins cannot cover the amount and the required transaction fees.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6593,11 +6498,6 @@ Raw data: %1</source>
     <message>
         <location line="+1"/>
         <source>&lt;category&gt; can be:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>A Spark payment may use at most %u transactions.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7014,11 +6914,6 @@ Raw data: %1</source>
     <message>
         <location line="+19"/>
         <source>Unable to bind to %s on this computer. %s is probably already running.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Unable to create a single-input Spark transaction.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7519,11 +7414,6 @@ Raw data: %1</source>
     <message>
         <location line="+1"/>
         <source>Spark coin selection changed during transaction construction; retry</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Spark fee estimate did not match the wallet (planned %s, wallet %s).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

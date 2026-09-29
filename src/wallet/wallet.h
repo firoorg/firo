@@ -1055,12 +1055,6 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    std::vector<CWalletTx> SpendAndStoreSparkSingleInput(
-            const std::vector<CRecipient>& recipients,
-            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
-            CAmount& totalFee,
-            const CCoinControl* coinControl = NULL);
-
     /**
      * Persist a constructed transaction. If fCheckTransaction is true, require
      * mempool acceptance before AddToWallet so a rejection fails the commit.
