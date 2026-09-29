@@ -97,9 +97,9 @@ public:
         painter->setPen(Qt::NoPen);
         painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
         painter->drawRoundedRect(iconRect, 10, 10);
-        QFont iconFont = option.font;
-        iconFont.setBold(true);
-        painter->setFont(iconFont);
+        QFont boldFont = option.font;
+        boldFont.setBold(true);
+        painter->setFont(boldFont);
         painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
         painter->drawText(iconRect, Qt::AlignCenter,
                           incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
@@ -117,14 +117,10 @@ public:
         QString address = index.data(Qt::DisplayRole).toString();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
 
-        QFont dateFont = iconFont;
-        dateFont.setBold(true);
-        QFont amountFont = dateFont;
-        amountFont.setBold(true);
         QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
         if (!confirmed)
             amountText = QString("[") + amountText + QString("]");
-        const int amountWidth = std::max(168, QFontMetrics(amountFont).horizontalAdvance(amountText));
+        const int amountWidth = std::max(168, QFontMetrics(boldFont).horizontalAdvance(amountText));
         const int amountLeft = card.right() - amountWidth - 14;
         const int metadataLeft = iconRect.right() + 12;
         // Reserve the lock slot so dates and labels stay aligned across rows.
@@ -132,7 +128,7 @@ public:
         const int textWidth = std::max(0, amountLeft - textLeft - 12);
         const QString dateText = date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
                                                : GUIUtil::dateTimeStr(date);
-        const int dateWidth = std::max(144, QFontMetrics(dateFont).horizontalAdvance(dateText));
+        const int dateWidth = std::max(144, QFontMetrics(boldFont).horizontalAdvance(dateText));
         const bool inlineAddress = textWidth >= dateWidth + 12 + 96;
         const int lineHeight = option.fontMetrics.height();
         const QRect dateRect(textLeft, inlineAddress ? card.top() : card.center().y() - lineHeight,
@@ -144,19 +140,19 @@ public:
         if (!instantSendIcon.isNull() && amountLeft - metadataLeft >= 20)
             GUIUtil::paintThemedStatusIcon(painter, instantSendIcon,
                                          QRect(metadataLeft, inlineAddress ? card.center().y() - 8 : dateRect.top(), 16, 16));
-        painter->setFont(dateFont);
+        painter->setFont(boldFont);
         painter->setPen(QColor(tc.ink));
         painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
-                          QFontMetrics(dateFont).elidedText(dateText, Qt::ElideRight, dateRect.width()));
+                          QFontMetrics(boldFont).elidedText(dateText, Qt::ElideRight, dateRect.width()));
 
-        QFont addrFont = dateFont;
+        QFont addrFont = boldFont;
         addrFont.setBold(false);
         painter->setFont(addrFont);
         painter->setPen(QColor(tc.inkFaint));
         painter->drawText(addressRect, Qt::AlignLeft | Qt::AlignVCenter,
                           QFontMetrics(addrFont).elidedText(address, Qt::ElideMiddle, addressRect.width()));
 
-        painter->setFont(amountFont);
+        painter->setFont(boldFont);
         painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
         const QRect amountRect(amountLeft, inlineAddress ? card.top() : dateRect.top(),
                                amountWidth, inlineAddress ? card.height() : lineHeight);

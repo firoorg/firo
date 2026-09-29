@@ -111,9 +111,6 @@ public:
                               incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
 
             const QDateTime dt = index.data(TransactionTableModel::DateRole).toDateTime();
-            QFont dateFont = option.font;
-            dateFont.setBold(true);
-            painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
             const int metadataWidth = 30 +
                 (index.data(TransactionTableModel::InstantSendRole).toBool() ? 20 : 0) +
@@ -174,14 +171,13 @@ public:
             painter->drawLine(iconRect.left() + 3, iconRect.top() + 8,
                               iconRect.right() - 3, iconRect.top() + 8);
 
-            QFont addrFont = option.font;
-            painter->setFont(addrFont);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.ink));
             const QRect textRect(iconRect.right() + 8, option.rect.top(),
                                  option.rect.right() - iconRect.right() - 16,
                                  option.rect.height());
             painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
-                              QFontMetrics(addrFont).elidedText(text, Qt::ElideMiddle, textRect.width()));
+                              QFontMetrics(option.font).elidedText(text, Qt::ElideMiddle, textRect.width()));
             break;
         }
         case TransactionTableModel::Amount: {
@@ -201,9 +197,6 @@ public:
             amountText.replace(QLatin1Char(')'), QString());
             if (amount > 0 && !amountText.startsWith(QLatin1Char('+')))
                 amountText.prepend(QLatin1Char('+'));
-            QFont amtFont = option.font;
-            amtFont.setBold(true);
-            painter->setFont(amtFont);
             painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
             const QRect amtRect(capRect.left(), capRect.bottom() + 1, capRect.width(), lineHeight);
             painter->drawText(amtRect, Qt::AlignRight | Qt::AlignVCenter, amountText);

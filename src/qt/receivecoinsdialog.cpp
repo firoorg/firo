@@ -121,16 +121,12 @@ public:
             const QString raw = index.data(Qt::DisplayRole).toString();
             const QString dateText = raw.section(QLatin1Char(' '), 0, -2);
             const QString timeText = raw.section(QLatin1Char(' '), -1);
-            QFont dateFont = option.font;
-            dateFont.setBold(true);
-            painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
             const QRect dateRect(icon.right() + 10, option.rect.center().y() - lineHeight,
                                  option.rect.right() - icon.right() - 16, lineHeight);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
-            QFont timeFont = option.font;
-            painter->setFont(timeFont);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.inkFaint));
             painter->drawText(QRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), lineHeight),
                               Qt::AlignLeft | Qt::AlignVCenter, timeText);
@@ -154,11 +150,10 @@ public:
         }
         case RecentRequestsTableModel::Message: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            QFont font = option.font;
-            painter->setFont(font);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.inkSoft));
             painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
-                              QFontMetrics(font).elidedText(text, Qt::ElideRight, option.rect.width() - 18));
+                              QFontMetrics(option.font).elidedText(text, Qt::ElideRight, option.rect.width() - 18));
             break;
         }
         case RecentRequestsTableModel::Amount: {
