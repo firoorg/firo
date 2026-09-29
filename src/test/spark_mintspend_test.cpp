@@ -28,113 +28,80 @@ BOOST_FIXTURE_TEST_SUITE(spark_mintspend, SparkTestingSetup)
 BOOST_AUTO_TEST_CASE(spark_mintspend_test)
 {
     GenerateBlocks(501);
-    spark::CSparkState *sparkState = spark::CSparkState::GetState();
-
     pwalletMain->SetBroadcastTransactions(true);
 
     std::vector<CMutableTransaction> mintTxs;
-    // Upgraded wallets can spend only one Spark coin at a time.
-    auto sparkMints = GenerateMints({100 * COIN, 60 * COIN}, mintTxs);
+    GenerateMints({100 * COIN, 60 * COIN}, mintTxs);
+    BOOST_CHECK_EQUAL(mempool.size(), mintTxs.size());
 
-    // Verify Mint gets in the mempool
-    BOOST_CHECK_MESSAGE(mempool.size() == sparkMints.size(), "Mints were not added to mempool");
+    BOOST_REQUIRE(GenerateBlock(mintTxs));
+    BOOST_CHECK_EQUAL(mempool.size(), 0U);
+    BOOST_REQUIRE(GenerateBlock({}));
 
-    int previousHeight = chainActive.Height();
-    auto blockIdx1 = GenerateBlock(mintTxs);
-    BOOST_CHECK(blockIdx1);
+    // Construct both transactions before committing either, while the coin is
+    // still unspent. Coin control makes their shared input explicit.
+    CAmount fee = 0;
+    auto firstSpend = pwalletMain->CreateSparkSpendTransaction(
+        {{script, 70 * COIN, false}}, {}, fee, nullptr);
+    const auto tags = spark::GetSparkUsedTags(*firstSpend.tx);
+    BOOST_REQUIRE_EQUAL(tags.size(), 1U);
+    COutPoint outPoint;
+    BOOST_REQUIRE(spark::GetOutPoint(
+        outPoint, pwalletMain->sparkWallet->getCoinFromLTag(tags.front())));
+    CCoinControl coinControl;
+    coinControl.Select(outPoint);
+    auto conflictingSpend = pwalletMain->CreateSparkSpendTransaction(
+        {{script, COIN, false}}, {}, fee, &coinControl);
+    BOOST_REQUIRE(firstSpend.GetHash() != conflictingSpend.GetHash());
+    BOOST_REQUIRE(spark::GetSparkUsedTags(*conflictingSpend.tx) == tags);
 
-    BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mints were not removed from mempool");
-    previousHeight = chainActive.Height();
-
-    CPubKey pub;
+    // The conflicting transaction is otherwise valid before the first spend.
+    const CBlock validCandidate = CreateBlock(
+        {CMutableTransaction(*conflictingSpend.tx)}, script);
     {
-        LOCK(pwalletMain->cs_wallet);
-        pub = pwalletMain->GenerateNewKey();
+        LOCK(cs_main);
+        CValidationState state;
+        BOOST_REQUIRE(TestBlockValidity(
+            state, Params(), validCandidate, chainActive.Tip()));
     }
 
-    std::vector<CRecipient> recipients = {{GetScriptForDestination(pub.GetID()), 1 * COIN, false}};
-
-    GenerateBlock({});
-    BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool must be empty");
-
-    auto wtx = GenerateSparkSpend({70 * COIN}, {}, nullptr);
-    BOOST_CHECK_MESSAGE(mempool.size() == 1, "SparkSpend is not added into mempool");
-
-    previousHeight = chainActive.Height();
-    GenerateBlock({CMutableTransaction(wtx)});
-    BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-    BOOST_CHECK_MESSAGE(mempool.size() == 0, "SparkSpend is not removed from mempool");
-    GenerateBlocks(6);
-
-    CAmount fee;
-    auto result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, fee, nullptr);
-    CWallet* wallet = pwalletMain;
-    CReserveKey reserveKey(wallet);
-    CValidationState state;
-    pwalletMain->CommitTransaction(result, reserveKey, g_connman.get(), state);
-
-    BOOST_CHECK_MESSAGE(mempool.size() == 1, "SparkSpend was not added to mempool");
-
-    //try double spend
-    pwalletMain->CommitTransaction(result, reserveKey, g_connman.get(), state);
-    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Double spend was added into mempool, but was not supposed");
-
-    previousHeight = chainActive.Height();
-    GenerateBlock({CMutableTransaction(*result.tx)});
-    BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
-    GenerateBlocks(2);
-
-    // Block and mempool updates reach the Spark wallet asynchronously. Drain
-    // them before deliberately rewinding the wallet and chain spend state.
-    pwalletMain->sparkWallet->WaitForPendingTasks();
-    auto tempTags = sparkState->usedLTags;
-    sparkState->usedLTags.clear();
-
     {
-         //Set mints unused, and try to spend again
-         for(auto ltag : tempTags)
-             pwalletMain->sparkWallet->setCoinUnused(ltag.first);
-
-         spark::Coin coin = pwalletMain->sparkWallet->getCoinFromLTag(tempTags.begin()->first);
-         COutPoint outPoint;
-         spark::GetOutPoint(outPoint, coin);
-         CCoinControl coinControl;
-         coinControl.Select(outPoint);
-
-         CAmount fee;
-         result.Init(NULL);
-         result = pwalletMain->CreateSparkSpendTransaction(recipients, {}, fee, &coinControl);
-         CReserveKey reserveKey(pwalletMain);
-         CValidationState state;
-         pwalletMain->CommitTransaction(result, reserveKey, g_connman.get(), state);
-
-         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
+        CReserveKey reserveKey(pwalletMain);
+        CValidationState state;
+        BOOST_REQUIRE(pwalletMain->CommitTransaction(
+            firstSpend, reserveKey, g_connman.get(), state, true));
     }
-    
-    // The new mempool transaction queued another mint scan. Finish it before
-    // replacing the spent-tag map read by the Spark wallet worker.
-    pwalletMain->sparkWallet->WaitForPendingTasks();
-    sparkState->usedLTags = tempTags;
-    BOOST_CHECK_EXCEPTION(GenerateBlock({CMutableTransaction(*result.tx)}), std::runtime_error, no_check);
-    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
-    tempTags = sparkState->usedLTags;
-    sparkState->usedLTags.clear();
-    CBlock b = CreateBlock({CMutableTransaction(*result.tx)}, script);
+    BOOST_REQUIRE(mempool.exists(firstSpend.GetHash()));
+    {
+        LOCK(cs_main);
+        CValidationState state;
+        BOOST_CHECK(!AcceptToMemoryPool(
+            mempool, state, conflictingSpend.tx, false, nullptr));
+        BOOST_REQUIRE(state.IsInvalid());
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "txn-mempool-conflict");
+    }
+    BOOST_CHECK(!mempool.exists(conflictingSpend.GetHash()));
 
-    sparkState->usedLTags = tempTags;
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(*firstSpend.tx)}));
+    BOOST_REQUIRE_EQUAL(mempool.size(), 0U);
+
+    const CBlock invalidCandidate = CreateBlock(
+        {CMutableTransaction(*conflictingSpend.tx)}, script);
+    CBlockIndex* const previousTip = chainActive.Tip();
+
+    // Bypass admission to exercise the miner's invalid-mempool guard.
+    {
+        LOCK(cs_main);
+        BOOST_REQUIRE(mempool.addUnchecked(conflictingSpend.GetHash(),
+            TestMemPoolEntryHelper().Fee(fee).FromTx(*conflictingSpend.tx)));
+    }
+    BOOST_CHECK_EXCEPTION(CreateBlock({}, script), std::runtime_error,
+        HasReason("TestBlockValidity failed: bad-txns-zerocoin"));
     mempool.clear();
-    previousHeight = chainActive.Height();
 
-    const CChainParams& chainparams = Params();
-    BOOST_CHECK_MESSAGE(ProcessNewBlock(chainparams, std::make_shared<const CBlock>(b), true, NULL), "ProcessBlock failed");
-    //This test confirms that a block containing a double spend is rejected and not added in the chain
-    BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Double spend - Block added to chain even though same spend in previous block");
-
-    mempool.clear();
-    sparkState->Reset();
+    BOOST_CHECK(ProcessNewBlock(
+        Params(), std::make_shared<const CBlock>(invalidCandidate), true, nullptr));
+    BOOST_CHECK(chainActive.Tip() == previousTip);
 }
 
 BOOST_AUTO_TEST_CASE(spark_limit_test)
