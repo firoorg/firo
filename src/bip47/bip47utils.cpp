@@ -112,7 +112,7 @@ bool GetScriptSigPubkey(CTxIn const & txin, CPubKey& pubkey)
         //check whether this is a P2PK redeem script
         CTransactionRef tx;
         uint256 hashBlock = uint256();
-        if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true))
+        if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock))
             return false;
 
         CScript dest = tx->vout[txin.prevout.n].scriptPubKey;

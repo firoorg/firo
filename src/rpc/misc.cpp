@@ -1616,16 +1616,18 @@ UniValue checkifmncollateral(const JSONRPCRequest& request)
     }
 
     uint256 txid = uint256S(strTxId);
+    COutPoint o(txid, index);
+
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    if (mnList.HasMNByCollateral(o))
+        return UniValue(true);
 
     CTransactionRef tx;
     uint256 hashBlock;
-    if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
+    if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock))
         throw std::runtime_error("Unknown transaction.");
 
-    auto mnList = deterministicMNManager->GetListAtChainTip();
-    COutPoint o(txid, index);
-    bool fMnExists = deterministicMNManager->IsProTxWithCollateral(tx, index) || mnList.HasMNByCollateral(o);
-    return UniValue(fMnExists);
+    return UniValue(deterministicMNManager->IsProTxWithCollateral(tx, index));
 }
 
 UniValue getaddresstxids(const JSONRPCRequest& request)
@@ -1788,6 +1790,9 @@ CAmount getCVE17144amount()
     // in the same transaction. This function calculates the total amount of coins
     // that were created due to this vulnerability at block 293526.
     LOCK(cs_main);
+    if (!fTxIndex) {
+        throw std::runtime_error("This functionality requires -txindex to be enabled.");
+    }
     if (chainActive.Height() < 293526) {
         throw std::runtime_error("Chain height is less than 293,526.");
     }
@@ -1810,8 +1815,8 @@ CAmount getCVE17144amount()
                 if (!vInOutPoints.insert(txin.prevout).second) {
                     CTransactionRef tx;
                     uint256 hashBlock;
-                    if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
-                        continue;
+                    if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock)) {
+                        throw std::runtime_error("Failed to read a previous transaction from the transaction index.");
                     }
                     if (txin.prevout.n >= tx->vout.size()) {
                         continue;  // Skip if output index is out of bounds
@@ -1831,6 +1836,9 @@ CAmount getCVE17144amountNew()
     // in the same transaction. This function calculates the total amount of coins
     // that were created due to this vulnerability at block 293526.
     LOCK(cs_main);
+    if (!fTxIndex) {
+        throw std::runtime_error("This functionality requires -txindex to be enabled.");
+    }
     if (chainActive.Height() < 293526) {
         throw std::runtime_error("Chain height is less than 293,526.");
     }
@@ -1866,8 +1874,8 @@ CAmount getCVE17144amountNew()
             {
                 CTransactionRef tx;
                 uint256 hashBlock;
-                if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
-                    continue;
+                if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock)) {
+                    throw std::runtime_error("Failed to read a previous transaction from the transaction index.");
                 }
                 if (txin.prevout.n >= tx->vout.size()) {
                     continue;  // Skip if output index is out of bounds
@@ -1913,6 +1921,7 @@ UniValue gettotalsupply(const JSONRPCRequest& request)
         throw std::runtime_error(
                 "gettotalsupply\n"
                         "\nReturns the total coin amount produced in the coinbase transactions up until the latest block.\n"
+                        "\nRequires -txindex.\n"
                         "\nArguments: none\n"
                         "\nResult:\n"
                         "{\n"
@@ -1962,6 +1971,7 @@ UniValue getCVE17144amount(const JSONRPCRequest& request)
         throw std::runtime_error(
                 "getCVE17144amount\n"
                 "\nReturns the total amount of forged coins during CVE-2018-17144 attacks.\n"
+                "\nRequires -txindex.\n"
                 "\nArguments: none\n"
                 "\nResult:\n"
                 "{\n"
