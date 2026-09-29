@@ -564,11 +564,12 @@ BOOST_AUTO_TEST_CASE(getdata_block_queue_boundary)
         node.SetSendVersion(PROTOCOL_VERSION);
         const CInv transaction(MSG_TX, uint256S("01"));
         const CInv block(blockType, uint256S("02"));
-        node.vRecvGetData = {transaction, block};
+        const CInv laterTransaction(MSG_TX, uint256S("03"));
+        node.vRecvGetData = {transaction, block, laterTransaction};
 
         BOOST_REQUIRE(!node.fPauseSend);
         BOOST_CHECK(ProcessMessages(&node, *connman, interruptDummy));
-        BOOST_REQUIRE_EQUAL(node.vRecvGetData.size(), 1U);
+        BOOST_REQUIRE_EQUAL(node.vRecvGetData.size(), 2U);
         BOOST_CHECK_EQUAL(node.vRecvGetData.front().type, block.type);
         BOOST_CHECK(node.vRecvGetData.front().hash == block.hash);
 
@@ -582,6 +583,11 @@ BOOST_AUTO_TEST_CASE(getdata_block_queue_boundary)
 
         // TestingSetup leaves connman's synthetic send limit at zero.
         node.fPauseSend = false;
+        BOOST_CHECK(ProcessMessages(&node, *connman, interruptDummy));
+        BOOST_REQUIRE_EQUAL(node.vRecvGetData.size(), 1U);
+        BOOST_CHECK_EQUAL(node.vRecvGetData.front().type, laterTransaction.type);
+        BOOST_CHECK(node.vRecvGetData.front().hash == laterTransaction.hash);
+
         BOOST_CHECK(!ProcessMessages(&node, *connman, interruptDummy));
         BOOST_CHECK(node.vRecvGetData.empty());
     }

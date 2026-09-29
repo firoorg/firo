@@ -1046,8 +1046,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 recentBlock = most_recent_block;
             }
             CValidationState state;
-            if (!ActivateBestChain(state, Params(), recentBlock))
+            if (!ActivateBestChain(state, Params(), recentBlock)) {
+                pfrom->vRecvGetData.pop_front();
                 return;
+            }
         }
     }
 
