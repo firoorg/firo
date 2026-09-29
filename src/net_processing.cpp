@@ -1027,14 +1027,13 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
     if (pfrom->fPauseSend || interruptMsgProc)
         return;
 
-    // At most one block is served below. Activate it before taking the serving
-    // lock: activation may wait for a verifier that needs cs_main to finish.
-    for (const CInv& inv : pfrom->vRecvGetData) {
-        if (inv.type != MSG_BLOCK && inv.type != MSG_FILTERED_BLOCK &&
-            inv.type != MSG_CMPCT_BLOCK && inv.type != MSG_WITNESS_BLOCK)
-            continue;
-        bool activate;
-        {
+    // Activate only a block at the front, after preceding requests were served.
+    // Activation may wait for a verifier that needs cs_main to finish.
+    if (!pfrom->vRecvGetData.empty()) {
+        const CInv& inv = pfrom->vRecvGetData.front();
+        bool activate = false;
+        if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK ||
+            inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK) {
             LOCK(cs_main);
             auto mi = mapBlockIndex.find(inv.hash);
             activate = mi != mapBlockIndex.end() && mi->second->nChainTx &&
@@ -1050,7 +1049,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             if (!ActivateBestChain(state, Params(), recentBlock))
                 return;
         }
-        break;
     }
 
     std::deque<CInv>::iterator it = pfrom->vRecvGetData.begin();
@@ -1064,13 +1062,18 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             break;
 
         const CInv &inv = *it;
+        const bool isBlock = inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK ||
+            inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK;
+        // Leave a later block queued so the next pass can activate it without cs_main.
+        if (isBlock && it != pfrom->vRecvGetData.begin())
+            break;
         {
             if (interruptMsgProc)
                 return;
 
             it++;
 
-            if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK)
+            if (isBlock)
             {
                 bool send = false;
                 BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
@@ -1311,7 +1314,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             // Track requests for our stuff.
             GetMainSignals().Inventory(inv.hash);
 
-            if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK)
+            if (isBlock)
                 break;
         }
     }
