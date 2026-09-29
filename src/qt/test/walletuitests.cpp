@@ -36,16 +36,19 @@
 #include "wallet/wallet.h"
 #include "walletmodel.h"
 
+#include <QAbstractItemDelegate>
 #include <QAbstractSpinBox>
 #include <QAction>
 #include <QColor>
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QFrame>
+#include <QImage>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
 #include <QLocale>
+#include <QPainter>
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
@@ -56,6 +59,7 @@
 #include <QSignalSpy>
 #include <QSpinBox>
 #include <QStandardItemModel>
+#include <QStyleOptionViewItem>
 #include <QTableView>
 #include <QTest>
 #include <QTextEdit>
@@ -806,6 +810,24 @@ void WalletUiTests::recentActivityFitsBrandFont()
     overview.show();
     overview.resize(944, 625);
     QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(7, 0))));
+
+    const auto index = history.index(0, 0);
+    history.setData(index, TransactionRecord::RecvSpark, TransactionTableModel::TypeRole);
+    history.setData(index, QIcon(":/icons/transaction_confirmed"), TransactionTableModel::InstantSendDecorationRole);
+    QStyleOptionViewItem option;
+    option.initFrom(list);
+    option.rect = QRect(0, 0, 220, list->itemDelegate()->sizeHint(option, index).height());
+    const auto renderIcons = [&](qint64 amount) {
+        history.setData(index, amount, TransactionTableModel::AmountRole);
+        QImage image(option.rect.size(), QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        QPainter painter(&image);
+        list->itemDelegate()->paint(&painter, option, index);
+        painter.end();
+        // Changing the amount must not paint over the transaction or lock icons.
+        return image.copy(0, 0, 77, image.height());
+    };
+    QCOMPARE(renderIcons(0), renderIcons(21000000 * COIN));
 }
 
 /**

@@ -152,29 +152,27 @@ public:
             statusBackground = QColor(tc.wineTint);
         }
 
-        QFont statusFont = option.font;
-        statusFont.setBold(true);
-        const QFontMetrics statusMetrics(statusFont);
+        QFont boldFont = option.font;
+        boldFont.setBold(true);
+        const QFontMetrics boldMetrics(boldFont);
         const int headerLeft = card.left() + 62;
         const int headerRight = card.right() - 14;
         const int headerWidth = std::max(0, headerRight - headerLeft);
-        const int statusWidth = std::min(statusMetrics.horizontalAdvance(status) + 20,
+        const int statusWidth = std::min(boldMetrics.horizontalAdvance(status) + 20,
                                          std::max(0, headerWidth / 3));
         const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, lineHeight + 6);
         if (statusWidth > 0) {
             painter->setPen(Qt::NoPen);
             painter->setBrush(statusBackground);
             painter->drawRoundedRect(statusRect, 12, 12);
-            painter->setFont(statusFont);
+            painter->setFont(boldFont);
             painter->setPen(statusForeground);
             painter->drawText(statusRect.adjusted(6, 0, -6, 0), Qt::AlignCenter,
-                              statusMetrics.elidedText(status, Qt::ElideRight,
-                                                       std::max(0, statusRect.width() - 12)));
+                              boldMetrics.elidedText(status, Qt::ElideRight,
+                                                     std::max(0, statusRect.width() - 12)));
         }
 
-        QFont titleFont = option.font;
-        titleFont.setBold(true);
-        painter->setFont(titleFont);
+        painter->setFont(boldFont);
         painter->setPen(QColor(tc.ink));
         const bool showPose = headerWidth >= 300;
         const int poseWidth = showPose ? 80 : 0;
@@ -183,22 +181,20 @@ public:
                               std::max(0, titleRight - headerLeft), lineHeight);
         if (titleRect.width() > 0) {
             painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(titleFont).elidedText(service, Qt::ElideMiddle, titleRect.width()));
+                              boldMetrics.elidedText(service, Qt::ElideMiddle, titleRect.width()));
 
-            QFont subtitleFont = option.font;
-            painter->setFont(subtitleFont);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.inkSoft));
             const QString collateral = masternodeText(
                 QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
                 .arg(index.data(CollateralOutpointRole).toString());
             const QRect subtitleRect(titleRect.left(), titleRect.bottom() + 1, titleRect.width(), lineHeight);
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(subtitleFont).elidedText(collateral, Qt::ElideMiddle,
-                                                                   subtitleRect.width()));
+                              QFontMetrics(option.font).elidedText(collateral, Qt::ElideMiddle,
+                                                                  subtitleRect.width()));
         }
 
-        QFont poseFont = option.font;
-        painter->setFont(poseFont);
+        painter->setFont(option.font);
         painter->setPen(QColor(tc.inkSoft));
         if (showPose) {
             const QRect poseRect(titleRight + 8, card.top() + 3, poseWidth, 24);
@@ -229,22 +225,17 @@ public:
                           card.right() - 14, dividerY);
 
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
-            QFont captionFont = option.font;
-            captionFont.setBold(true);
-            painter->setFont(captionFont);
+            painter->setFont(boldFont);
             painter->setPen(QColor(tc.inkSoft));
             const QRect captionRect = rect.adjusted(0, 0, -8, -lineHeight);
             painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(captionFont).elidedText(caption, Qt::ElideRight,
-                                                                  std::max(0, captionRect.width())));
+                              boldMetrics.elidedText(caption, Qt::ElideRight,
+                                                     std::max(0, captionRect.width())));
 
-            QFont valueFont = option.font;
-            valueFont.setBold(true);
-            painter->setFont(valueFont);
             painter->setPen(QColor(tc.ink));
             const QRect valueRect = rect.adjusted(0, lineHeight, -8, 0);
             painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(valueFont).elidedText(value, Qt::ElideMiddle, valueRect.width()));
+                              boldMetrics.elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
 
         const int contentLeft = card.left() + 16;

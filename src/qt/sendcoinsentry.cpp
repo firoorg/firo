@@ -22,8 +22,6 @@
 #include <QRegularExpression>
 #include <QStyle>
 
-#include<QResizeEvent>
-
 /**
  * Build one recipient entry and connect its amount, memo and removal controls.
  * @param _platformStyle Borrowed platform styling that must outlive this entry.

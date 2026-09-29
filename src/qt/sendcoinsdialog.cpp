@@ -28,7 +28,6 @@
 
 #include <QFontMetrics>
 #include <QMessageBox>
-#include <QResizeEvent>
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
@@ -635,18 +634,16 @@ void SendCoinsDialog::on_sendButton_clicked()
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
             amount.append("</b>");
-            QString address = "<span>" + rcp.address;
-            address.append("</span>");
             QString recipientElement;
             {
                 if(rcp.label.length() > 0) // label with address
                 {
                     recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                    recipientElement.append(QString(" (%1)").arg(address));
+                    recipientElement.append(QString(" (%1)").arg(rcp.address));
                 }
                 else // just address
                 {
-                    recipientElement = tr("%1 to %2").arg(amount, address);
+                    recipientElement = tr("%1 to %2").arg(amount, rcp.address);
                 }
             }
             formatted.append(recipientElement);
@@ -657,8 +654,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
             amount.append("</b>");
-            QString address = "<span>" + rcp.address;
-            address.append("</span>");
 
             QString recipientElement;
 
@@ -666,11 +661,11 @@ void SendCoinsDialog::on_sendButton_clicked()
                 if(rcp.label.length() > 0) // label with address
                 {
                     recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                    recipientElement.append(QString(" (%1)").arg(address));
+                    recipientElement.append(QString(" (%1)").arg(rcp.address));
                 }
                 else // just address
                 {
-                    recipientElement = tr("%1 to %2").arg(amount, address);
+                    recipientElement = tr("%1 to %2").arg(amount, rcp.address);
                 }
             }
             formatted.append(recipientElement);
@@ -678,10 +673,9 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     if (fGoThroughTransparentAddress) {
-        QString transparentAddress = "<span>" + recipients[recipients.size()-1].address + "</span>";
         formatted.append("<br />");
         formatted.append(tr("EX-addresses can only receive FIRO from transparent addresses.<br /><br />"
-            "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(transparentAddress));
+            "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(recipients[recipients.size()-1].address));
     }
 
     for (const auto& recipient : realRecipients) {
