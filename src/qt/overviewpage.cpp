@@ -120,11 +120,12 @@ public:
         QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
         if (!confirmed)
             amountText = QString("[") + amountText + QString("]");
-        const int amountWidth = std::max(168, QFontMetrics(boldFont).horizontalAdvance(amountText));
-        const int amountLeft = card.right() - amountWidth - 14;
         const int metadataLeft = iconRect.right() + 12;
         // Reserve the lock slot so dates and labels stay aligned across rows.
         const int textLeft = metadataLeft + 20;
+        const int amountWidth = std::min(std::max(168, QFontMetrics(boldFont).horizontalAdvance(amountText)),
+                                         std::max(0, card.right() - textLeft - 14));
+        const int amountLeft = card.right() - amountWidth - 14;
         const int textWidth = std::max(0, amountLeft - textLeft - 12);
         const QString dateText = date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
                                                : GUIUtil::dateTimeStr(date);
@@ -156,7 +157,8 @@ public:
         painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
         const QRect amountRect(amountLeft, inlineAddress ? card.top() : dateRect.top(),
                                amountWidth, inlineAddress ? card.height() : lineHeight);
-        painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
+        painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter,
+                          QFontMetrics(boldFont).elidedText(amountText, Qt::ElideRight, amountRect.width()));
 
         painter->restore();
     }
