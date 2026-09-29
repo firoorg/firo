@@ -14,8 +14,13 @@ public:
 
     static BatchProofContainer* get_instance();
 
+    /** Discard this block's temps and select a mode; retain pending proofs and their failure state. */
     void init(Mode mode = Mode::Disabled);
 
+    /**
+     * Append deferred block proofs, then disable collection. Does not verify proofs.
+     * Block mode must be verified with verify_block_batch() first.
+     */
     void finalize();
 
     bool is_deferred() const;
@@ -28,8 +33,9 @@ public:
      * changes. Concurrent callers wait for the current verifier. Call without
      * cs_main: only snapshot preparation and verdict publication hold it.
      *
-     * @return true if collecting, if no batch is pending, or if the batch
-     *         verifies; false on verification failure (pending proofs kept).
+     * While collecting, returns true without checking pending proofs.
+     * @return true if no batch is pending or it verifies; false on verification
+     *         failure (pending proofs kept).
      */
     bool verify_pending();
 
@@ -37,6 +43,7 @@ public:
     static void RemoveRecoveryMarker();
 
     bool add(const spark::SpendTransaction& tx, const uint256& txHash);
+    /** Use legacy proof rules; separate from Deferred mode's accumulation of old blocks. */
     bool addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);
 
@@ -46,7 +53,7 @@ private:
     // All remaining mutable state is protected by cs_main.
     Mode mode = Mode::Disabled;
     uint64_t generation = 0;
-    // a pending batch failed verification; fail fast until the batch changes
+    // Fail fast until proofs are removed from the failed pending batch.
     bool fBatchFailed = false;
     // temp spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> tempSparkTransactions;
