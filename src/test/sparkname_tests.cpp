@@ -480,10 +480,12 @@ BOOST_AUTO_TEST_CASE(chaum_v2_transfer_binds_canonical_extension)
     BOOST_REQUIRE(CTransaction(registrationTx).IsSparkSpendV2());
     CBlockIndex* registrationIndex = GenerateBlock({registrationTx});
     BOOST_REQUIRE(registrationIndex);
-    const auto registrationRecord = registrationIndex->addedSparkNames.find(
+    const auto& addedSparkNames =
+        registrationIndex->privacyData().addedSparkNames;
+    const auto registrationRecord = addedSparkNames.find(
         CSparkNameManager::ToUpper(registration.name));
     BOOST_REQUIRE(
-        registrationRecord != registrationIndex->addedSparkNames.end());
+        registrationRecord != addedSparkNames.end());
     const uint64_t registrationExpiration =
         registrationRecord->second.sparkNameValidityHeight;
 

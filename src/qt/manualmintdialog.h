@@ -17,6 +17,8 @@ public:
     explicit ManualMintDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~ManualMintDialog();
 
+    void applyTheme();
+
 private:
     Ui::ManualMintDialog *ui;
     const PlatformStyle *platformStyle;

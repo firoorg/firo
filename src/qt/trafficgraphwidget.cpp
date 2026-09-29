@@ -4,12 +4,12 @@
 
 #include "trafficgraphwidget.h"
 #include "clientmodel.h"
+#include "guitheme.h"
 
 #include <QPainter>
 #include <QPainterPath>
 #include <QColor>
 #include <QTimer>
-#include <QPainterPath>
 
 #include <cmath>
 
@@ -31,6 +31,8 @@ TrafficGraphWidget::TrafficGraphWidget(QWidget *parent) :
 {
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &TrafficGraphWidget::updateRates);
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, [this] { update(); });
 }
 
 void TrafficGraphWidget::setClientModel(ClientModel *model)
@@ -65,11 +67,14 @@ void TrafficGraphWidget::paintPath(QPainterPath &path, QQueue<float> &samples)
 void TrafficGraphWidget::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    painter.fillRect(rect(), Qt::black);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    const GUIUtil::ThemeColors& colors = GUIUtil::themeColors();
+    painter.fillRect(rect(), QColor(colors.panel));
 
     if(fMax <= 0.0f) return;
 
-    QColor axisCol(Qt::gray);
+    const QColor axisCol(colors.inkFaint);
     int h = height() - YMARGIN * 2;
     painter.setPen(axisCol);
     painter.drawLine(XMARGIN, YMARGIN + h, width() - XMARGIN, YMARGIN + h);
@@ -90,9 +95,8 @@ void TrafficGraphWidget::paintEvent(QPaintEvent *)
     }
     // if we drew 3 or fewer lines, break them up at the next lower order of magnitude
     if(fMax / val <= 3.0f) {
-        axisCol = axisCol.darker();
         val = pow(10.0f, base - 1);
-        painter.setPen(axisCol);
+        painter.setPen(QColor(colors.border));
         painter.drawText(XMARGIN, YMARGIN + h - h * val / fMax-yMarginText, QString("%1 %2").arg(val).arg(units));
         int count = 1;
         for(float y = val; y < fMax; y += val, count++) {
@@ -107,15 +111,19 @@ void TrafficGraphWidget::paintEvent(QPaintEvent *)
     if(!vSamplesIn.empty()) {
         QPainterPath p;
         paintPath(p, vSamplesIn);
-        painter.fillPath(p, QColor(0, 255, 0, 128));
-        painter.setPen(Qt::green);
+        QColor fill(colors.teal);
+        fill.setAlpha(70);
+        painter.fillPath(p, fill);
+        painter.setPen(QPen(QColor(colors.teal), 1.5));
         painter.drawPath(p);
     }
     if(!vSamplesOut.empty()) {
         QPainterPath p;
         paintPath(p, vSamplesOut);
-        painter.fillPath(p, QColor(255, 0, 0, 128));
-        painter.setPen(Qt::red);
+        QColor fill(colors.wine);
+        fill.setAlpha(70);
+        painter.fillPath(p, fill);
+        painter.setPen(QPen(QColor(colors.wine), 1.5));
         painter.drawPath(p);
     }
 }

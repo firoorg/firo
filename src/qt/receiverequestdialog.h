@@ -55,6 +55,7 @@ public:
 
     void setModel(WalletModel *model);
     void setInfo(const SendCoinsRecipient &info);
+    void applyTheme();
 
 private Q_SLOTS:
     void on_btnCopyURI_clicked();

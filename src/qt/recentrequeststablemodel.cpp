@@ -126,6 +126,10 @@ QVariant RecentRequestsTableModel::headerData(int section, Qt::Orientation orien
         {
             return columns[section];
         }
+        else if (role == Qt::TextAlignmentRole)
+        {
+            return (int)((section == Amount ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter);
+        }
     }
     return QVariant();
 }

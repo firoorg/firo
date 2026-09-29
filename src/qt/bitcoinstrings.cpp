@@ -28,6 +28,9 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or "
 "a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times"),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Amount for private recipient %1% is too small to send after the fee has been "
+"deducted"),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Amount for recipient %1% is too small to send after the fee has been deducted"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Bind to given address and always listen on it. Use [host]:port notation for "
@@ -63,6 +66,9 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Distributed under the MIT software license, see the accompanying file %s or "
 "%s"),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Do not check for masternode payout when handling listtransactions, "
+"listsinceblock and gettransaction calls (improves performance)"),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Do not keep transactions in the mempool longer than <n> hours (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Equivalent bytes per sigop in transactions for relay and mining (default: %u)"),
@@ -74,18 +80,18 @@ QT_TRANSLATE_NOOP("firo-core", ""
 QT_TRANSLATE_NOOP("firo-core", ""
 "Error: Listening for incoming connections failed (listen returned error %s)"),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Error: The transaction was rejected after %u of %u mint transactions were "
+"already sent. Do not retry the whole mint."),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Error: The transaction was rejected! This might happen if some of the coins "
 "in your wallet were already spent, such as if you used a copy of wallet.dat "
 "and coins were spent in the copy but not marked as spent here."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Error: This transaction requires a transaction fee of at least %s because of "
-"its amount, complexity, or use of recently received funds!"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Execute command when a relevant alert is received or we see a really long "
 "fork (%s in cmd is replaced by message)"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Execute command when a wallet transaction changes (%s in cmd is replaced by "
-"TxID)"),
+"TxID, %t is replaced by transaction type: 'spark' or 'regular')"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Execute command when the best block changes (%s in cmd is replaced by block "
 "hash)"),
@@ -106,16 +112,14 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Force relay of transactions from whitelisted peers even if they violate "
 "local relay policy (default: %d)"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"Found unconfirmed denominated outputs, will wait till they confirm to "
-"continue."),
-QT_TRANSLATE_NOOP("firo-core", ""
 "Has to have at least two mint coins with at least 1 confirmation in order to "
 "spend a coin"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "How thorough the block verification of -checkblocks is (0-4, default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"If <category> is not supplied or if <category> = 1, output all debugging "
-"information."),
+"If <category> is not supplied or is 1 or all, output all debugging "
+"information. The value none resets categories specified before it. The value "
+"0 retains Firo's historical behavior and disables all logging except errors."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "If paytxfee is not set, include enough fee so transactions begin "
 "confirmation on average within n blocks (default: %u)"),
@@ -124,11 +128,20 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "potentially skip their script verification (0 to verify all, default: %s, "
 "testnet: %s)"),
 QT_TRANSLATE_NOOP("firo-core", ""
+"In case of sync/reindex verifies privacy (Spark) proofs with batch "
+"verification, default: true"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Interval in seconds for rebroadcasting InstantSend-locked mempool "
+"transactions to peers (0 = disabled, default: %u)"),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Invalid amount for -maxtxfee=<amount>: '%s' (must be at least the minrelay "
 "fee of %s to prevent stuck transactions)"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Maintain a full transaction index, used by the getrawtransaction rpc call "
 "(default: %u)"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Make automatic outbound connections only to network <net> (ipv4, ipv6 or "
+"onion). Can be specified multiple times to allow multiple networks."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Maximum allowed median peer time offset adjustment. Local perspective of "
 "time may be influenced by peers forward or backward by this amount. "
@@ -148,22 +161,22 @@ QT_TRANSLATE_NOOP("firo-core", ""
 QT_TRANSLATE_NOOP("firo-core", ""
 "Optionally add the \"W\" flag to produce a pay-to-witness-script-hash output"),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Outbound connections restricted to Tor (-onlynet=onion) but the proxy for "
+"reaching the Tor network is explicitly forbidden: -onion=0"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Outbound connections restricted to Tor (-onlynet=onion) but the proxy for "
+"reaching the Tor network is not provided: none of -proxy, -onion, -torsetup "
+"or -listenonion (with a usable -torcontrol) is given."),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Output debugging information (default: %u, supplying <category> is optional)"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Output only the hex-encoded transaction id of the resultant transaction."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Please add txindex=1 to your configuration file manually.\n"
-"\n"
-"Omni Core will now shutdown."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Please check that your computer's date and time are correct! If your clock "
 "is wrong, %s will not work properly."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Please contribute if you find %s useful. Visit %s for further information "
 "about the software."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"PrivateSend uses exact denominated amounts to send funds, you might simply "
-"need to anonymize some more coins."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Prune configured below the minimum of %d MiB.  Please use a higher number."),
 QT_TRANSLATE_NOOP("firo-core", ""
@@ -202,22 +215,40 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Sets the serialization of raw transaction or block hex returned in non-"
 "verbose mode, non-segwit(0) or segwit(1) (default: %d)"),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Spark Coin Control temporarily supports selecting at most one coin. Clear "
+"the selection to let the wallet split the payment automatically."),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Spark batch verification failed. The invalid spend transactions are listed "
+"in debug.log. Restart the node: batching is disabled and a reindex is "
+"started automatically so chainstate is rebuilt and Spark proofs are checked "
+"block by block."),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Spark multi-input spends are temporarily disabled. No single available Spark "
+"coin can fund this transaction."),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Spark spend batch failed after committing %u of %u transactions: %s. Do not "
+"retry the whole payment. Already sent: %s"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Subtracting the fee from the amount is temporarily unavailable when a Spark "
+"spend must be split across multiple transactions."),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Support filtering of blocks and transaction with bloom filters (default: %u)"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"The available Spark coins cannot cover the amount and the required "
+"transaction fees."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "The block database contains a block which appears to be from the future. "
 "This may be due to your computer's date and time being set incorrectly. Only "
 "rebuild the block database if you are sure that your computer's date and "
 "time are correct"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"The file may be write protected or you may not have the required permissions "
-"to edit it.\n"),
-QT_TRANSLATE_NOOP("firo-core", ""
 "The transaction amount is too small to send after the fee has been deducted"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "This is a pre-release test build - use at your own risk - do not use for "
 "mining or merchant applications"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"This is the transaction fee you may pay when fee estimates are not available."),
+"This product includes Masternodes software developed by the Dash Core "
+"developers %s."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "This product includes software developed by the OpenSSL Project for use in "
 "the OpenSSL Toolkit %s and cryptographic software written by Eric Young and "
@@ -226,16 +257,11 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Total length of network version string (%i) exceeds maximum length (%i). "
 "Reduce the number or size of uacomments."),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Transaction is too large (size limit: 250Kb). Select less inputs or "
+"consolidate your UTXOs"),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = "
 "no limit (default: %d)"),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Unable to locate enough PrivateSend denominated funds for this transaction."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Unable to locate enough PrivateSend non-denominated funds for this "
-"transaction that are not equal 1000 FIRO."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Unable to locate enough funds for this transaction that are not equal 1000 "
-"FIRO."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Unable to rewind the database to a pre-fork state. You will need to "
 "redownload the blockchain"),
@@ -246,6 +272,12 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/"
 "or -whitelistforcerelay."),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Unsupported logging level or category %s. Valid levels are: %s. Valid "
+"categories are: %s."),
+QT_TRANSLATE_NOOP("firo-core", ""
+"Use Mnemonic code for generating deterministic keys. Only has effect during "
+"wallet creation/first start"),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Use UPnP to map the listening port (default: 1 when listening and no -proxy)"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Use hierarchical deterministic key generation (HD) after BIP32. Only has "
@@ -254,19 +286,26 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: "
 "%s)"),
 QT_TRANSLATE_NOOP("firo-core", ""
+"Use this argument when you want to keep additional data in block index for "
+"mobile api, default: false"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"User defined mnemonic for HD wallet (bip39). Only has effect during wallet "
+"creation/first start (default: randomly generated)"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"User defined mnemonic passphrase for HD wallet (BIP39). Only has effect "
+"during wallet creation/first start (default: empty string)"),
+QT_TRANSLATE_NOOP("firo-core", ""
+"User defined seed for HD wallet (should be in hex). Only has effect during "
+"wallet creation/first start (default: randomly generated)"),
+QT_TRANSLATE_NOOP("firo-core", ""
 "Username and hashed password for JSON-RPC connections. The field <userpw> "
 "comes in the format: <USERNAME>:<SALT>$<HASH>. A canonical python script is "
 "included in share/rpcuser. The client then connects normally using the "
 "rpcuser=<USERNAME>/rpcpassword=<PASSWORD> pair of arguments. This option can "
 "be specified multiple times"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"WARNING! Failed to replenish keypool, please unlock your wallet to do so."),
-QT_TRANSLATE_NOOP("firo-core", ""
 "Wallet is locked, can't replenish keypool! Automatic backups and mixing are "
 "disabled, please unlock your wallet to replenish keypool."),
-QT_TRANSLATE_NOOP("firo-core", ""
-"Wallet will not create transactions that violate mempool chain limits "
-"(default: %u"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Wallet will not create transactions that violate mempool chain limits "
 "(default: %u)"),
@@ -284,40 +323,31 @@ QT_TRANSLATE_NOOP("firo-core", ""
 "Warning: We do not appear to fully agree with our peers! You may need to "
 "upgrade, or other nodes may need to upgrade."),
 QT_TRANSLATE_NOOP("firo-core", ""
-"Warning: incorrect parameter -walletbackupsdir, path must exist! Using "
-"default path."),
-QT_TRANSLATE_NOOP("firo-core", ""
 "Whitelist peers connecting from the given IP address (e.g. 1.2.3.4) or CIDR "
 "notated network (e.g. 1.2.3.0/24). Can be specified multiple times."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "Whitelisted peers cannot be DoS banned and their transactions are always "
 "relayed, even if they are already in the mempool, useful e.g. for a gateway"),
 QT_TRANSLATE_NOOP("firo-core", ""
-"You must specify a znodeprivkey in the configuration. Please see "
+"You are starting in lite mode, all Dash-specific functionality is disabled."),
+QT_TRANSLATE_NOOP("firo-core", ""
+"You must specify a znodeblsprivkey in the configuration. Please see "
 "documentation for help."),
 QT_TRANSLATE_NOOP("firo-core", ""
 "You need to rebuild the database using -reindex to go back to unpruned "
 "mode.  This will redownload the entire blockchain"),
 QT_TRANSLATE_NOOP("firo-core", ""
 "You need to rebuild the database using -reindex-chainstate to change -txindex"),
-QT_TRANSLATE_NOOP("firo-core", ""
-"it has to have at least two mint coins with at least 2 confirmation in order "
-"to spend a coin"),
-QT_TRANSLATE_NOOP("firo-core", ""
-"znodeaddr option is deprecated. Please use znode.conf to manage your remote "
-"znodes."),
-QT_TRANSLATE_NOOP("firo-core", "%s - %d confirmations"),
 QT_TRANSLATE_NOOP("firo-core", "%s Daemon"),
 QT_TRANSLATE_NOOP("firo-core", "%s RPC client version"),
 QT_TRANSLATE_NOOP("firo-core", "%s corrupt, salvage failed"),
-QT_TRANSLATE_NOOP("firo-core", "%s is set very high!"),
 QT_TRANSLATE_NOOP("firo-core", "%s firo-tx utility version"),
-QT_TRANSLATE_NOOP("firo-core", "(%d could be used only on mainnet)"),
 QT_TRANSLATE_NOOP("firo-core", "(default: %s)"),
 QT_TRANSLATE_NOOP("firo-core", "(default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", "(must be %d for mainnet)"),
 QT_TRANSLATE_NOOP("firo-core", "-maxmempool must be at least %d MB"),
+QT_TRANSLATE_NOOP("firo-core", "-wallet parameter must only specify a filename (not a path)"),
 QT_TRANSLATE_NOOP("firo-core", "<category> can be:"),
+QT_TRANSLATE_NOOP("firo-core", "A Spark payment may use at most %u transactions."),
 QT_TRANSLATE_NOOP("firo-core", "Accept command line and JSON-RPC commands"),
 QT_TRANSLATE_NOOP("firo-core", "Accept public REST requests (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Add Pay To n-of-m Multi-sig output to TX. n = REQUIRED, m = PUBKEYS"),
@@ -329,29 +359,27 @@ QT_TRANSLATE_NOOP("firo-core", "Add pay-to-pubkey output to TX"),
 QT_TRANSLATE_NOOP("firo-core", "Add raw script output to TX"),
 QT_TRANSLATE_NOOP("firo-core", "Add zero or more signatures to transaction"),
 QT_TRANSLATE_NOOP("firo-core", "Allow DNS lookups for -addnode, -seednode and -connect"),
-QT_TRANSLATE_NOOP("firo-core", "Already have that input."),
 QT_TRANSLATE_NOOP("firo-core", "Always query for peer addresses via DNS lookup (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Amount for recipient %1% is too small to pay the fee"),
 QT_TRANSLATE_NOOP("firo-core", "Amount for recipient %1% is too small"),
-QT_TRANSLATE_NOOP("firo-core", "Amount limit is exceed max money"),
 QT_TRANSLATE_NOOP("firo-core", "Anonymous communication with TOR - Quickstart (default: %d)"),
 QT_TRANSLATE_NOOP("firo-core", "Append comment to the user agent string"),
 QT_TRANSLATE_NOOP("firo-core", "Attempt to recover private keys from a corrupt wallet on startup"),
-QT_TRANSLATE_NOOP("firo-core", "Automatic backups disabled"),
 QT_TRANSLATE_NOOP("firo-core", "Automatically create Tor hidden service (default: %d)"),
 QT_TRANSLATE_NOOP("firo-core", "Bad change address"),
 QT_TRANSLATE_NOOP("firo-core", "Block creation options:"),
 QT_TRANSLATE_NOOP("firo-core", "Block index is outdated, reindex required\n"),
-QT_TRANSLATE_NOOP("firo-core", "Can not choose coins within limit."),
-QT_TRANSLATE_NOOP("firo-core", "Can't find random Znode."),
-QT_TRANSLATE_NOOP("firo-core", "Can't mix while sync in progress."),
-QT_TRANSLATE_NOOP("firo-core", "Can't mix: no compatible inputs found!"),
 QT_TRANSLATE_NOOP("firo-core", "Cannot downgrade wallet"),
 QT_TRANSLATE_NOOP("firo-core", "Cannot resolve -%s address: '%s'"),
 QT_TRANSLATE_NOOP("firo-core", "Cannot write default address"),
+QT_TRANSLATE_NOOP("firo-core", "Cannot write default spark address"),
+QT_TRANSLATE_NOOP("firo-core", "Chain height changed during Spark name construction; retry"),
+QT_TRANSLATE_NOOP("firo-core", "Chain height changed during Spark transaction construction; retry"),
 QT_TRANSLATE_NOOP("firo-core", "Chain selection options:"),
+QT_TRANSLATE_NOOP("firo-core", "Chain tip changed during Spark name construction; retry"),
+QT_TRANSLATE_NOOP("firo-core", "Chain tip changed during Spark transaction construction; retry"),
+QT_TRANSLATE_NOOP("firo-core", "Chain tip is unavailable during Spark name construction"),
 QT_TRANSLATE_NOOP("firo-core", "Change index out of range"),
-QT_TRANSLATE_NOOP("firo-core", "Collateral not valid."),
 QT_TRANSLATE_NOOP("firo-core", "Commands:"),
 QT_TRANSLATE_NOOP("firo-core", "Connect through SOCKS5 proxy"),
 QT_TRANSLATE_NOOP("firo-core", "Connect to JSON-RPC on <port> (default: %u or testnet: %u)"),
@@ -359,7 +387,7 @@ QT_TRANSLATE_NOOP("firo-core", "Connect to a node to retrieve peer addresses, an
 QT_TRANSLATE_NOOP("firo-core", "Connection options:"),
 QT_TRANSLATE_NOOP("firo-core", "Copyright (C) %i-%i"),
 QT_TRANSLATE_NOOP("firo-core", "Corrupted block database detected"),
-QT_TRANSLATE_NOOP("firo-core", "Could not parse znode.conf"),
+QT_TRANSLATE_NOOP("firo-core", "Could not open debug log file %s"),
 QT_TRANSLATE_NOOP("firo-core", "Create hex-encoded Firo transaction"),
 QT_TRANSLATE_NOOP("firo-core", "Create new, empty TX."),
 QT_TRANSLATE_NOOP("firo-core", "Debugging/Testing options:"),
@@ -368,14 +396,12 @@ QT_TRANSLATE_NOOP("firo-core", "Delete output N from TX"),
 QT_TRANSLATE_NOOP("firo-core", "Do not load the wallet and disable wallet RPC calls"),
 QT_TRANSLATE_NOOP("firo-core", "Do you want to rebuild the block database now?"),
 QT_TRANSLATE_NOOP("firo-core", "Done loading"),
-QT_TRANSLATE_NOOP("firo-core", "ERROR! Failed to create automatic backup"),
+QT_TRANSLATE_NOOP("firo-core", "Either recipients or newMints has to be nonempty."),
 QT_TRANSLATE_NOOP("firo-core", "Enable publish hash block in <address>"),
 QT_TRANSLATE_NOOP("firo-core", "Enable publish hash transaction in <address>"),
 QT_TRANSLATE_NOOP("firo-core", "Enable publish raw block in <address>"),
 QT_TRANSLATE_NOOP("firo-core", "Enable publish raw transaction in <address>"),
 QT_TRANSLATE_NOOP("firo-core", "Enable transaction replacement in the memory pool (default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", "Entries are full."),
-QT_TRANSLATE_NOOP("firo-core", "Error connecting to Znode."),
 QT_TRANSLATE_NOOP("firo-core", "Error initializing block database"),
 QT_TRANSLATE_NOOP("firo-core", "Error initializing wallet database environment %s!"),
 QT_TRANSLATE_NOOP("firo-core", "Error loading %s"),
@@ -385,95 +411,67 @@ QT_TRANSLATE_NOOP("firo-core", "Error loading %s: You can't disable HD on a alre
 QT_TRANSLATE_NOOP("firo-core", "Error loading block database"),
 QT_TRANSLATE_NOOP("firo-core", "Error opening block database"),
 QT_TRANSLATE_NOOP("firo-core", "Error reading from database, shutting down."),
+QT_TRANSLATE_NOOP("firo-core", "Error upgrading chainstate database"),
 QT_TRANSLATE_NOOP("firo-core", "Error"),
 QT_TRANSLATE_NOOP("firo-core", "Error: A fatal internal error occurred, see debug.log for details"),
 QT_TRANSLATE_NOOP("firo-core", "Error: Disk space is low!"),
-QT_TRANSLATE_NOOP("firo-core", "Error: It cannot delete coin serial number in wallet"),
 QT_TRANSLATE_NOOP("firo-core", "Error: Wallet locked, unable to create transaction!"),
+QT_TRANSLATE_NOOP("firo-core", "Fail to generate mints, "),
 QT_TRANSLATE_NOOP("firo-core", "Failed to create backup, error: %s"),
 QT_TRANSLATE_NOOP("firo-core", "Failed to delete backup, error: %s"),
 QT_TRANSLATE_NOOP("firo-core", "Failed to listen on any port. Use -listen=0 if you want this."),
-QT_TRANSLATE_NOOP("firo-core", "Failed to parse host:port string"),
-QT_TRANSLATE_NOOP("firo-core", "Failed to write coin serial number into wallet"),
 QT_TRANSLATE_NOOP("firo-core", "Fee (in %s/kB) to add to transactions you send (default: %s)"),
-QT_TRANSLATE_NOOP("firo-core", "Found enough users, signing ( waiting %s )"),
-QT_TRANSLATE_NOOP("firo-core", "Found enough users, signing ..."),
+QT_TRANSLATE_NOOP("firo-core", "Firo Core"),
 QT_TRANSLATE_NOOP("firo-core", "Get help for a command"),
 QT_TRANSLATE_NOOP("firo-core", "How many blocks to check at startup (default: %u, 0 = all)"),
 QT_TRANSLATE_NOOP("firo-core", "Importing..."),
 QT_TRANSLATE_NOOP("firo-core", "Imports blocks from external blk000??.dat file on startup"),
 QT_TRANSLATE_NOOP("firo-core", "Include IP addresses in debug output (default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", "Incompatible mode."),
-QT_TRANSLATE_NOOP("firo-core", "Incompatible version."),
 QT_TRANSLATE_NOOP("firo-core", "Incorrect or no genesis block found. Wrong datadir for network?"),
 QT_TRANSLATE_NOOP("firo-core", "Information"),
 QT_TRANSLATE_NOOP("firo-core", "Initialization sanity check failed. %s is shutting down."),
-QT_TRANSLATE_NOOP("firo-core", "Input is not valid."),
 QT_TRANSLATE_NOOP("firo-core", "Insufficient funds"),
-QT_TRANSLATE_NOOP("firo-core", "Insufficient funds."),
 QT_TRANSLATE_NOOP("firo-core", "Invalid -onion address: '%s'"),
 QT_TRANSLATE_NOOP("firo-core", "Invalid -proxy address: '%s'"),
-QT_TRANSLATE_NOOP("firo-core", "Invalid Firo address"),
-QT_TRANSLATE_NOOP("firo-core", "Invalid amount for -%s=<amount>: '%s'"),
+QT_TRANSLATE_NOOP("firo-core", "Invalid Spark spend amount."),
 QT_TRANSLATE_NOOP("firo-core", "Invalid amount for -fallbackfee=<amount>: '%s'"),
 QT_TRANSLATE_NOOP("firo-core", "Invalid amount for -mininput=<amount>: '%s'"),
 QT_TRANSLATE_NOOP("firo-core", "Invalid amount for -paytxfee=<amount>: '%s' (must be at least %s)"),
-QT_TRANSLATE_NOOP("firo-core", "Invalid amount"),
+QT_TRANSLATE_NOOP("firo-core", "Invalid characters in -wallet filename"),
 QT_TRANSLATE_NOOP("firo-core", "Invalid netmask specified in -whitelist: '%s'"),
-QT_TRANSLATE_NOOP("firo-core", "Invalid port detected in znode.conf"),
-QT_TRANSLATE_NOOP("firo-core", "Invalid script detected."),
+QT_TRANSLATE_NOOP("firo-core", "Invalid spark address"),
+QT_TRANSLATE_NOOP("firo-core", "Invalid znodeblsprivkey. Please see documentation."),
 QT_TRANSLATE_NOOP("firo-core", "Keep at most <n> unconnectable transactions in memory (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Keep the transaction memory pool below <n> megabytes (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Keypool ran out, please call keypoolrefill first"),
-QT_TRANSLATE_NOOP("firo-core", "Last PrivateSend was too recent."),
-QT_TRANSLATE_NOOP("firo-core", "Last successful PrivateSend action was too recent."),
-QT_TRANSLATE_NOOP("firo-core", "Line: %d"),
 QT_TRANSLATE_NOOP("firo-core", "List commands"),
 QT_TRANSLATE_NOOP("firo-core", "Listen for JSON-RPC connections on <port> (default: %u or testnet: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Listen for connections on <port> (default: %u or testnet: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Load JSON file FILENAME into register NAME"),
-QT_TRANSLATE_NOOP("firo-core", "Loading Znode payment cache..."),
+QT_TRANSLATE_NOOP("firo-core", "Loading Spark wallet..."),
 QT_TRANSLATE_NOOP("firo-core", "Loading addresses..."),
 QT_TRANSLATE_NOOP("firo-core", "Loading banlist..."),
 QT_TRANSLATE_NOOP("firo-core", "Loading block index..."),
-QT_TRANSLATE_NOOP("firo-core", "Loading fulfilled requests cache..."),
+QT_TRANSLATE_NOOP("firo-core", "Loading wallet... (%d transactions)"),
 QT_TRANSLATE_NOOP("firo-core", "Loading wallet..."),
-QT_TRANSLATE_NOOP("firo-core", "Loading znode cache..."),
 QT_TRANSLATE_NOOP("firo-core", "Location of the auth cookie (default: data dir)"),
-QT_TRANSLATE_NOOP("firo-core", "Lock is already in place."),
 QT_TRANSLATE_NOOP("firo-core", "Maintain at most <n> connections to peers (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Make the wallet broadcast transactions"),
 QT_TRANSLATE_NOOP("firo-core", "Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", "Missing input transaction information."),
-QT_TRANSLATE_NOOP("firo-core", "Mixing in progress..."),
 QT_TRANSLATE_NOOP("firo-core", "Need to specify a port with -whitebind: '%s'"),
-QT_TRANSLATE_NOOP("firo-core", "No Znodes detected."),
-QT_TRANSLATE_NOOP("firo-core", "No compatible Znode found."),
-QT_TRANSLATE_NOOP("firo-core", "No errors detected."),
-QT_TRANSLATE_NOOP("firo-core", "No matching denominations found for mixing."),
-QT_TRANSLATE_NOOP("firo-core", "No recipients"),
+QT_TRANSLATE_NOOP("firo-core", "No Spark spend recipients were provided."),
+QT_TRANSLATE_NOOP("firo-core", "No such coin in set"),
 QT_TRANSLATE_NOOP("firo-core", "Node relay options:"),
-QT_TRANSLATE_NOOP("firo-core", "Non-standard public key detected."),
-QT_TRANSLATE_NOOP("firo-core", "Not compatible with existing transactions."),
+QT_TRANSLATE_NOOP("firo-core", "Not enough fee estimated"),
 QT_TRANSLATE_NOOP("firo-core", "Not enough file descriptors available."),
-QT_TRANSLATE_NOOP("firo-core", "Not enough funds to anonymize."),
-QT_TRANSLATE_NOOP("firo-core", "Not in the Znode list."),
-QT_TRANSLATE_NOOP("firo-core", "One of minted coin does not found in the chain"),
-QT_TRANSLATE_NOOP("firo-core", "One of the minted coin is invalid"),
-QT_TRANSLATE_NOOP("firo-core", "Only connect to nodes in network <net> (ipv4, ipv6 or onion)"),
 QT_TRANSLATE_NOOP("firo-core", "Options:"),
 QT_TRANSLATE_NOOP("firo-core", "Pass named instead of positional arguments (default: %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Password for JSON-RPC connections"),
-QT_TRANSLATE_NOOP("firo-core", "Port: %d"),
 QT_TRANSLATE_NOOP("firo-core", "Prepend debug output with timestamp (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Print this help message and exit"),
 QT_TRANSLATE_NOOP("firo-core", "Print version and exit"),
-QT_TRANSLATE_NOOP("firo-core", "PrivateSend is idle."),
-QT_TRANSLATE_NOOP("firo-core", "PrivateSend request complete:"),
-QT_TRANSLATE_NOOP("firo-core", "PrivateSend request incomplete:"),
-QT_TRANSLATE_NOOP("firo-core", "Problem with coin selection for re-mint while spending."),
-QT_TRANSLATE_NOOP("firo-core", "Problem with coin selection for spend."),
+QT_TRANSLATE_NOOP("firo-core", "Private recipient has invalid amount"),
 QT_TRANSLATE_NOOP("firo-core", "Prune cannot be configured with a negative value."),
 QT_TRANSLATE_NOOP("firo-core", "Prune mode is incompatible with -txindex."),
 QT_TRANSLATE_NOOP("firo-core", "Pruning blockstore..."),
@@ -485,22 +483,19 @@ QT_TRANSLATE_NOOP("firo-core", "Reducing -maxconnections from %d to %d, because 
 QT_TRANSLATE_NOOP("firo-core", "Register Commands:"),
 QT_TRANSLATE_NOOP("firo-core", "Relay and mine data carrier transactions (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Relay non-P2SH multisig (default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", "Required amount exceed value spend limit"),
-QT_TRANSLATE_NOOP("firo-core", "The required amount exceeds spend limit"),
 QT_TRANSLATE_NOOP("firo-core", "Rescan the block chain for missing wallet transactions on startup"),
 QT_TRANSLATE_NOOP("firo-core", "Rescanning..."),
 QT_TRANSLATE_NOOP("firo-core", "Rewinding blocks..."),
 QT_TRANSLATE_NOOP("firo-core", "Run in the background as a daemon and accept commands"),
 QT_TRANSLATE_NOOP("firo-core", "See signrawtransaction docs for format of sighash flags, JSON objects."),
 QT_TRANSLATE_NOOP("firo-core", "Select JSON output"),
+QT_TRANSLATE_NOOP("firo-core", "Selected Spark cover set is not yet bound to a canonical state hash"),
 QT_TRANSLATE_NOOP("firo-core", "Send command to %s (with named arguments)"),
 QT_TRANSLATE_NOOP("firo-core", "Send command to %s"),
 QT_TRANSLATE_NOOP("firo-core", "Send commands to node running on <ip> (default: %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Send trace/debug info to console instead of debug.log file"),
 QT_TRANSLATE_NOOP("firo-core", "Send transactions as zero-fee transactions if possible (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Send transactions with full-RBF opt-in enabled (default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", "Session not complete!"),
-QT_TRANSLATE_NOOP("firo-core", "Session timed out."),
 QT_TRANSLATE_NOOP("firo-core", "Set TX lock time to N"),
 QT_TRANSLATE_NOOP("firo-core", "Set TX version to N"),
 QT_TRANSLATE_NOOP("firo-core", "Set database cache size in megabytes (%d to %d, default: %d)"),
@@ -512,57 +507,66 @@ QT_TRANSLATE_NOOP("firo-core", "Set the number of threads to service RPC calls (
 QT_TRANSLATE_NOOP("firo-core", "Show all debugging options (usage: --help -help-debug)"),
 QT_TRANSLATE_NOOP("firo-core", "Shrink debug.log file on client startup (default: 1 when no -debug)"),
 QT_TRANSLATE_NOOP("firo-core", "Signing transaction failed"),
+QT_TRANSLATE_NOOP("firo-core", "Spark V2 spends are limited to %1% inputs"),
+QT_TRANSLATE_NOOP("firo-core", "Spark address doesn't belong to the wallet"),
+QT_TRANSLATE_NOOP("firo-core", "Spark coin selection changed during transaction construction; retry"),
+QT_TRANSLATE_NOOP("firo-core", "Spark fee estimate did not match the wallet (planned %s, wallet %s)."),
+QT_TRANSLATE_NOOP("firo-core", "Spark name transaction size is out of range"),
+QT_TRANSLATE_NOOP("firo-core", "Spark shielded output limit exceeded."),
+QT_TRANSLATE_NOOP("firo-core", "Spark spend amount is out of range"),
+QT_TRANSLATE_NOOP("firo-core", "Spark spend amount plus fee is out of range"),
+QT_TRANSLATE_NOOP("firo-core", "Spark spend fee is out of range"),
+QT_TRANSLATE_NOOP("firo-core", "Spark spend output amount is out of range"),
+QT_TRANSLATE_NOOP("firo-core", "Spark spend size estimate is out of range"),
+QT_TRANSLATE_NOOP("firo-core", "Spark transaction fee is too high."),
+QT_TRANSLATE_NOOP("firo-core", "Spark transactions are disabled at the moment"),
 QT_TRANSLATE_NOOP("firo-core", "Specify configuration file (default: %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Specify connection timeout in milliseconds (minimum: 1, default: %d)"),
 QT_TRANSLATE_NOOP("firo-core", "Specify data directory"),
 QT_TRANSLATE_NOOP("firo-core", "Specify pid file (default: %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Specify wallet file (within data directory)"),
 QT_TRANSLATE_NOOP("firo-core", "Specify your own public address"),
+QT_TRANSLATE_NOOP("firo-core", "Spend to transparent address limit exceeded."),
 QT_TRANSLATE_NOOP("firo-core", "Spend unconfirmed change when sending transactions (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Start %s Daemon"),
 QT_TRANSLATE_NOOP("firo-core", "Starting network threads..."),
-QT_TRANSLATE_NOOP("firo-core", "Submitted following entries to znode: %u / %d"),
-QT_TRANSLATE_NOOP("firo-core", "Submitted to znode, waiting for more entries ( %u / %d ) %s"),
-QT_TRANSLATE_NOOP("firo-core", "Submitted to znode, waiting in queue %s"),
 QT_TRANSLATE_NOOP("firo-core", "Synchronization failed"),
 QT_TRANSLATE_NOOP("firo-core", "Synchronization finished"),
 QT_TRANSLATE_NOOP("firo-core", "Synchronization pending..."),
-QT_TRANSLATE_NOOP("firo-core", "Synchronizing znode payments..."),
-QT_TRANSLATE_NOOP("firo-core", "Synchronizing znodes..."),
+QT_TRANSLATE_NOOP("firo-core", "Synchronizing blockchain..."),
+QT_TRANSLATE_NOOP("firo-core", "Synchronizing governance objects..."),
 QT_TRANSLATE_NOOP("firo-core", "The source code is available from %s."),
-QT_TRANSLATE_NOOP("firo-core", "The spend coin transaction failed to verify"),
 QT_TRANSLATE_NOOP("firo-core", "The transaction amount is too small to pay the fee"),
 QT_TRANSLATE_NOOP("firo-core", "The wallet will avoid paying less than the minimum relay fee."),
 QT_TRANSLATE_NOOP("firo-core", "This command requires JSON registers:"),
 QT_TRANSLATE_NOOP("firo-core", "This help message"),
 QT_TRANSLATE_NOOP("firo-core", "This is experimental software."),
-QT_TRANSLATE_NOOP("firo-core", "This is not a Znode."),
 QT_TRANSLATE_NOOP("firo-core", "This is the minimum transaction fee you pay on every transaction."),
-QT_TRANSLATE_NOOP("firo-core", "This is the transaction fee you will pay if you send a transaction."),
 QT_TRANSLATE_NOOP("firo-core", "Threshold for disconnecting misbehaving peers (default: %u)"),
 QT_TRANSLATE_NOOP("firo-core", "Timeout during HTTP requests (default: %d)"),
-QT_TRANSLATE_NOOP("firo-core", "Too many %f denominations, removing."),
 QT_TRANSLATE_NOOP("firo-core", "Tor control port password (default: empty)"),
 QT_TRANSLATE_NOOP("firo-core", "Tor control port to use if onion listening enabled (default: %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Transaction amount too small"),
-QT_TRANSLATE_NOOP("firo-core", "Transaction amounts must be positive"),
 QT_TRANSLATE_NOOP("firo-core", "Transaction amounts must not be negative"),
-QT_TRANSLATE_NOOP("firo-core", "Transaction created successfully."),
-QT_TRANSLATE_NOOP("firo-core", "Transaction fees are too high."),
+QT_TRANSLATE_NOOP("firo-core", "Transaction commit failed."),
 QT_TRANSLATE_NOOP("firo-core", "Transaction has too long of a mempool chain"),
 QT_TRANSLATE_NOOP("firo-core", "Transaction must have at least one recipient"),
-QT_TRANSLATE_NOOP("firo-core", "Transaction not valid."),
+QT_TRANSLATE_NOOP("firo-core", "Transaction not allowed in mempool"),
 QT_TRANSLATE_NOOP("firo-core", "Transaction too large for fee policy"),
-QT_TRANSLATE_NOOP("firo-core", "Transaction is too large (size limit: 100Kb). Select less inputs or consolidate your UTXOs"),
-QT_TRANSLATE_NOOP("firo-core", "Trying to spend an already spent serial #, try again."),
 QT_TRANSLATE_NOOP("firo-core", "Unable to bind to %s on this computer (bind returned error %s)"),
 QT_TRANSLATE_NOOP("firo-core", "Unable to bind to %s on this computer. %s is probably already running."),
-QT_TRANSLATE_NOOP("firo-core", "Unable to convert denomination to integer."),
+QT_TRANSLATE_NOOP("firo-core", "Unable to create a single-input Spark transaction."),
+QT_TRANSLATE_NOOP("firo-core", "Unable to create a valid Spark name transaction"),
+QT_TRANSLATE_NOOP("firo-core", "Unable to create spend transaction."),
+QT_TRANSLATE_NOOP("firo-core", "Unable to estimate the final Spark name transaction fee"),
+QT_TRANSLATE_NOOP("firo-core", "Unable to generate spend key, wallet is locked."),
+QT_TRANSLATE_NOOP("firo-core", "Unable to generate spend key."),
+QT_TRANSLATE_NOOP("firo-core", "Unable to mint full amount; only partial minting was possible"),
+QT_TRANSLATE_NOOP("firo-core", "Unable to select Spark coins for spend."),
+QT_TRANSLATE_NOOP("firo-core", "Unable to select coins for minting"),
+QT_TRANSLATE_NOOP("firo-core", "Unable to select cons for spend"),
 QT_TRANSLATE_NOOP("firo-core", "Unable to start HTTP server. See debug log for details."),
-QT_TRANSLATE_NOOP("firo-core", "Unable to update configuration file at"),
 QT_TRANSLATE_NOOP("firo-core", "Unknown network specified in -onlynet: '%s'"),
-QT_TRANSLATE_NOOP("firo-core", "Unknown response."),
-QT_TRANSLATE_NOOP("firo-core", "Unknown state: id = %u"),
 QT_TRANSLATE_NOOP("firo-core", "Unsupported argument -benchmark ignored, use -debug=bench."),
 QT_TRANSLATE_NOOP("firo-core", "Unsupported argument -debugnet ignored, use -debug=net."),
 QT_TRANSLATE_NOOP("firo-core", "Unsupported argument -tor found, use -onion."),
@@ -570,17 +574,15 @@ QT_TRANSLATE_NOOP("firo-core", "Update hex-encoded Firo transaction"),
 QT_TRANSLATE_NOOP("firo-core", "Upgrade wallet to latest format on startup"),
 QT_TRANSLATE_NOOP("firo-core", "Usage:"),
 QT_TRANSLATE_NOOP("firo-core", "Use UPnP to map the listening port (default: %u)"),
+QT_TRANSLATE_NOOP("firo-core", "Use the dev chain"),
 QT_TRANSLATE_NOOP("firo-core", "Use the test chain"),
 QT_TRANSLATE_NOOP("firo-core", "User Agent comment (%s) contains unsafe characters."),
 QT_TRANSLATE_NOOP("firo-core", "Username for JSON-RPC connections"),
-QT_TRANSLATE_NOOP("firo-core", "Value more than PrivateSend pool maximum allows."),
 QT_TRANSLATE_NOOP("firo-core", "Verifying blocks..."),
 QT_TRANSLATE_NOOP("firo-core", "Verifying wallet..."),
-QT_TRANSLATE_NOOP("firo-core", "Very low number of keys left: %d"),
 QT_TRANSLATE_NOOP("firo-core", "Wait for RPC server to start"),
 QT_TRANSLATE_NOOP("firo-core", "Wallet %s resides outside data directory %s"),
 QT_TRANSLATE_NOOP("firo-core", "Wallet debugging/testing options:"),
-QT_TRANSLATE_NOOP("firo-core", "Wallet is locked."),
 QT_TRANSLATE_NOOP("firo-core", "Wallet locked"),
 QT_TRANSLATE_NOOP("firo-core", "Wallet locked, unable to create transaction!"),
 QT_TRANSLATE_NOOP("firo-core", "Wallet needed to be rewritten: restart %s to complete"),
@@ -589,22 +591,12 @@ QT_TRANSLATE_NOOP("firo-core", "Warning"),
 QT_TRANSLATE_NOOP("firo-core", "Warning: unknown new rules activated (versionbit %i)"),
 QT_TRANSLATE_NOOP("firo-core", "Wasn't able to create wallet backup folder %s!"),
 QT_TRANSLATE_NOOP("firo-core", "Whether to operate in a blocks only mode (default: %u)"),
-QT_TRANSLATE_NOOP("firo-core", "Will retry..."),
-QT_TRANSLATE_NOOP("firo-core", "Your entries added successfully."),
-QT_TRANSLATE_NOOP("firo-core", "Your transaction was accepted into the pool!"),
+QT_TRANSLATE_NOOP("firo-core", "You can not start a masternode in lite mode."),
+QT_TRANSLATE_NOOP("firo-core", "You can not start a znode in lite mode."),
 QT_TRANSLATE_NOOP("firo-core", "Zapping all Sigma mints from wallet..."),
 QT_TRANSLATE_NOOP("firo-core", "Zapping all transactions from wallet..."),
 QT_TRANSLATE_NOOP("firo-core", "ZeroMQ notification options:"),
-QT_TRANSLATE_NOOP("firo-core", "Znode cache is empty, skipping payments cache..."),
-QT_TRANSLATE_NOOP("firo-core", "Znode queue is full."),
-QT_TRANSLATE_NOOP("firo-core", "Znode:"),
-QT_TRANSLATE_NOOP("firo-core", "it cannot write coin serial number into wallet"),
-QT_TRANSLATE_NOOP("firo-core", "no mixing available."),
 QT_TRANSLATE_NOOP("firo-core", "prevtxs=JSON object"),
 QT_TRANSLATE_NOOP("firo-core", "privatekeys=JSON object"),
-QT_TRANSLATE_NOOP("firo-core", "see debug.log for details."),
-QT_TRANSLATE_NOOP("firo-core", "the coin spend has been used"),
-QT_TRANSLATE_NOOP("firo-core", "the selected mint coin is an invalid coin"),
-QT_TRANSLATE_NOOP("firo-core", "the spend coin transaction did not verify"),
 QT_TRANSLATE_NOOP("firo-core", "version"),
 };

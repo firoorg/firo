@@ -85,6 +85,8 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     transactionTableModel(0),
     recentRequestsTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
+    cachedWatchOnlyBalance(0), cachedWatchUnconfBalance(0), cachedWatchImmatureBalance(0),
+    cachedAnonymizableBalance(0), cachedPrivateBalance(0), cachedUnconfirmedPrivateBalance(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0),
     cachedNumISLocks(0)
@@ -92,11 +94,17 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     fHaveWatchOnly = wallet->HaveWatchOnly();
     fForceCheckBalanceChanged = false;
 
+    uiInterface.InitMessage(tr("Loading address book...").toStdString());
     addressTableModel = new AddressTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Loading payment codes...").toStdString());
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Preparing Spark interface...").toStdString());
     sparkModel = new SparkModel(platformStyle, wallet, _optionsModel, this);
+    uiInterface.InitMessage(tr("Loading transaction history...").toStdString());
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
+    uiInterface.InitMessage(tr("Loading receive requests...").toStdString());
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Reticulating splines...").toStdString());
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -969,15 +977,16 @@ void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts)
     wallet->ListLockedCoins(vOutpts);
 }
 
-void WalletModel::listProTxCoins(std::vector<COutPoint>& vOutpts)
+bool WalletModel::listProTxCoins(std::vector<COutPoint>& vOutpts)
 {
     TRY_LOCK(cs_main,lock_main);
     if (!lock_main)
-        return;
+        return false;
     TRY_LOCK(wallet->cs_wallet,lock_wallet);
     if (!lock_wallet)
-        return;
+        return false;
     wallet->ListProTxCoins(vOutpts);
+    return true;
 }
 
 bool WalletModel::hasMasternode()
@@ -1253,7 +1262,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
             if (!validateSparkAddress(rcp.address)) {
                 return InvalidAddress;
             }
-            if (rcp.amount <= 0) {
+            if (rcp.amount <= 0 || !MoneyRange(rcp.amount) ||
+                total > MAX_MONEY - rcp.amount) {
                 return InvalidAmount;
             }
             setAddress.insert(rcp.address);
@@ -1715,8 +1725,7 @@ bool WalletModel::sparkNamesAllowed() const
 
 bool WalletModel::versionedSparkSpendsAllowed() const
 {
-    LOCK(cs_main);
-    return chainActive.Height() + 1 >=
+    return _client_model && _client_model->getNumBlocks() + 1 >=
         Params().GetConsensus().nSparkChaumV2StartBlock;
 }
 

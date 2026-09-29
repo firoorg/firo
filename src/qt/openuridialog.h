@@ -20,6 +20,7 @@ public:
     ~OpenURIDialog();
 
     QString getURI();
+    void applyTheme();
 
 protected Q_SLOTS:
     void accept() override;

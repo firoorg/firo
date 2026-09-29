@@ -1,10 +1,18 @@
 #include "test_sendcoinsentry.h"
 
+#include "chain.h"
+#include "clientmodel.h"
 #include "coincontroldialog.h"
+#include "libspark/params.h"
+#include "optionsmodel.h"
 #include "platformstyle.h"
 #include "sendcoinsdialog.h"
+#include "ui_interface.h"
+#include "wallet/wallet.h"
 
 #include <QCheckBox>
+#include <QLineEdit>
+#include <QScopeGuard>
 
 #include <limits>
 #include <memory>
@@ -25,6 +33,56 @@ void TestSendCoinsEntry::testTransactionCreationErrorDetails()
 
     QCOMPARE(result.status, WalletModel::TransactionCreationFailed);
     QCOMPARE(result.reasonCommitFailed, reason);
+}
+
+void TestSendCoinsEntry::testMemoByteLimit()
+{
+    CWallet wallet;
+    CWallet* previousWallet = pwalletMain;
+    const auto restoreWallet = qScopeGuard([previousWallet] { pwalletMain = previousWallet; });
+    pwalletMain = &wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    WalletModel model(style.get(), &wallet, &options);
+    SendCoinsEntry entry(style.get());
+    entry.setModel(&model);
+    QLineEdit* memo = entry.findChild<QLineEdit*>("messageTextLabel");
+    QVERIFY(memo);
+
+    SendCoinsRecipient recipient;
+    recipient.address = "sr1ek2uspg2v4qu0lmccrnj90tfkdpp5zmpykr4ffdprqlf0s4devl8n0674s4d4cthxsa5w9p66s5x0zgw982t80xx9uzmxysxuawmupgfa0xecj9shm6pj7l3rshqxqtg94k88fg5u856r";
+    recipient.amount = COIN;
+    const int limit = spark::Params::get_default()->get_memo_bytes();
+    const QString ascii(limit, QLatin1Char('a'));
+    const QString multibyte = QString(limit - 2, QLatin1Char('a')) + QChar(0x00e9);
+
+    for (bool privateFunds : {false, true}) {
+        entry.setfAnonymousMode(privateFunds);
+        entry.setValue(recipient);
+        for (const QString& text : {ascii, multibyte}) {
+            memo->setText(text);
+            QVERIFY(!memo->property("invalidInput").toBool());
+            QVERIFY(entry.validate());
+            QCOMPARE(entry.getValue().message, text);
+
+            memo->setText(text + QLatin1Char('b'));
+            QVERIFY(memo->property("invalidInput").toBool());
+            QVERIFY(!entry.validate());
+            QCOMPARE(entry.getValue().message, text + QLatin1Char('b'));
+        }
+
+        // Remove unsupported controls before measuring the memo's encoded size.
+        memo->setText(ascii + QChar(0x007f));
+        QCOMPARE(memo->text(), ascii);
+        QVERIFY(entry.validate());
+
+        // Transparent payment messages are local metadata, not Spark memos.
+        entry.setAddress("TLyNUvysvUyt2u6vL74NEkB6ed8LTQd3mz");
+        memo->setText(ascii + QLatin1Char('b'));
+        QVERIFY(entry.validate());
+        QCOMPARE(entry.getValue().message, ascii + QLatin1Char('b'));
+    }
 }
 
 void TestSendCoinsEntry::testPrivateModeUpdatesExistingEntries()
@@ -74,4 +132,24 @@ void TestSendCoinsEntry::testSparkCoinControlSizeEstimate()
             std::numeric_limits<size_t>::max(),
             true),
         std::numeric_limits<unsigned int>::max());
+}
+
+void TestSendCoinsEntry::testBlockHeightCacheIgnoresHeaders()
+{
+    ClientModel client(nullptr);
+    CBlockIndex block;
+    block.nHeight = 100;
+    uiInterface.NotifyBlockTip(false, &block);
+    QCOMPARE(client.cachedNumBlocks.load(), 100);
+
+    // Spark send controls must not use a header-only activation height.
+    CBlockIndex header;
+    header.nHeight = 200;
+    uiInterface.NotifyHeaderTip(false, &header);
+    QCOMPARE(client.cachedBestHeaderHeight.load(), 200);
+    QCOMPARE(client.cachedNumBlocks.load(), 100);
+
+    block.nHeight = 99;
+    uiInterface.NotifyBlockTip(false, &block);
+    QCOMPARE(client.cachedNumBlocks.load(), 99);
 }

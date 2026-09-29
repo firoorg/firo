@@ -13,7 +13,19 @@
   <property name="windowTitle">
    <string>Send Coins</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>10</number>
+   </property>
+   <property name="topMargin">
+    <number>10</number>
+   </property>
+   <property name="rightMargin">
+    <number>10</number>
+   </property>
    <property name="bottomMargin">
     <number>8</number>
    </property>
@@ -54,7 +66,7 @@
        <number>6</number>
       </property>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayoutCoinControl" stretch="0,0,0,0,1">
+       <layout class="QVBoxLayout" name="verticalLayoutCoinControl" stretch="0,0,0,1">
         <property name="spacing">
          <number>0</number>
         </property>
@@ -65,9 +77,12 @@
          <number>10</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl1">
+         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0,0,1">
+          <property name="spacing">
+           <number>8</number>
+          </property>
           <property name="bottomMargin">
-           <number>15</number>
+           <number>6</number>
           </property>
           <item>
            <widget class="QLabel" name="labelCoinControlFeatures">
@@ -91,16 +106,6 @@
             </property>
            </widget>
           </item>
-         </layout>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0,0">
-          <property name="spacing">
-           <number>8</number>
-          </property>
-          <property name="bottomMargin">
-           <number>10</number>
-          </property>
           <item>
            <widget class="QPushButton" name="pushButtonCoinControl">
             <property name="styleSheet">
@@ -131,9 +136,6 @@
               <weight>75</weight>
               <bold>true</bold>
              </font>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">color:red;font-weight:bold;</string>
             </property>
             <property name="text">
              <string>Insufficient funds!</string>
@@ -189,32 +191,44 @@
             <number>0</number>
            </property>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayoutCoinControl3" stretch="0,0,0,1">
-             <property name="spacing">
-              <number>20</number>
+            <layout class="QFormLayout" name="horizontalLayoutCoinControl3">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="rowWrapPolicy">
+              <enum>QFormLayout::WrapLongRows</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>0</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>6</number>
              </property>
              <property name="topMargin">
               <number>0</number>
              </property>
              <property name="bottomMargin">
-              <number>10</number>
+              <number>6</number>
              </property>
-             <item>
+             <item row="0" column="0">
               <layout class="QFormLayout" name="formLayoutCoinControl1">
+               <property name="rowWrapPolicy">
+                <enum>QFormLayout::WrapLongRows</enum>
+               </property>
                <property name="horizontalSpacing">
-                <number>10</number>
+                <number>0</number>
                </property>
                <property name="verticalSpacing">
-                <number>14</number>
+                <number>4</number>
                </property>
                <property name="leftMargin">
                 <number>10</number>
                </property>
                <property name="topMargin">
-                <number>4</number>
+                <number>0</number>
                </property>
                <property name="rightMargin">
-                <number>6</number>
+                <number>12</number>
                </property>
                <item row="0" column="0">
                 <widget class="QLabel" name="labelCoinControlQuantityText">
@@ -280,21 +294,53 @@
                  </property>
                 </widget>
                </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="labelCoinControlLowOutputText">
+                 <property name="font">
+                  <font>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>Dust:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QLabel" name="labelCoinControlLowOutput">
+                 <property name="cursor">
+                  <cursorShape>IBeamCursor</cursorShape>
+                 </property>
+                 <property name="contextMenuPolicy">
+                  <enum>Qt::ActionsContextMenu</enum>
+                 </property>
+                 <property name="text">
+                  <string notr="true">no</string>
+                 </property>
+                 <property name="textInteractionFlags">
+                  <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </item>
-             <item>
+             <item row="0" column="1">
               <layout class="QFormLayout" name="formLayoutCoinControl2">
+               <property name="rowWrapPolicy">
+                <enum>QFormLayout::WrapLongRows</enum>
+               </property>
                <property name="horizontalSpacing">
-                <number>10</number>
+                <number>0</number>
                </property>
                <property name="verticalSpacing">
-                <number>14</number>
+                <number>0</number>
                </property>
                <property name="leftMargin">
                 <number>6</number>
                </property>
                <property name="topMargin">
-                <number>4</number>
+                <number>0</number>
                </property>
                <property name="rightMargin">
                 <number>6</number>
@@ -332,54 +378,6 @@
                 </widget>
                </item>
                <item row="1" column="0">
-                <widget class="QLabel" name="labelCoinControlLowOutputText">
-                 <property name="font">
-                  <font>
-                   <weight>75</weight>
-                   <bold>true</bold>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Dust:</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QLabel" name="labelCoinControlLowOutput">
-                 <property name="cursor">
-                  <cursorShape>IBeamCursor</cursorShape>
-                 </property>
-                 <property name="contextMenuPolicy">
-                  <enum>Qt::ActionsContextMenu</enum>
-                 </property>
-                 <property name="text">
-                  <string notr="true">no</string>
-                 </property>
-                 <property name="textInteractionFlags">
-                  <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QFormLayout" name="formLayoutCoinControl3">
-               <property name="horizontalSpacing">
-                <number>10</number>
-               </property>
-               <property name="verticalSpacing">
-                <number>14</number>
-               </property>
-               <property name="leftMargin">
-                <number>6</number>
-               </property>
-               <property name="topMargin">
-                <number>4</number>
-               </property>
-               <property name="rightMargin">
-                <number>6</number>
-               </property>
-               <item row="0" column="0">
                 <widget class="QLabel" name="labelCoinControlFeeText">
                  <property name="font">
                   <font>
@@ -395,7 +393,7 @@
                  </property>
                 </widget>
                </item>
-               <item row="0" column="1">
+               <item row="1" column="1">
                 <widget class="QLabel" name="labelCoinControlFee">
                  <property name="cursor">
                   <cursorShape>IBeamCursor</cursorShape>
@@ -411,26 +409,7 @@
                  </property>
                 </widget>
                </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QFormLayout" name="formLayoutCoinControl4">
-               <property name="horizontalSpacing">
-                <number>10</number>
-               </property>
-               <property name="verticalSpacing">
-                <number>14</number>
-               </property>
-               <property name="leftMargin">
-                <number>6</number>
-               </property>
-               <property name="topMargin">
-                <number>4</number>
-               </property>
-               <property name="rightMargin">
-                <number>6</number>
-               </property>
-               <item row="0" column="0">
+               <item row="2" column="0">
                 <widget class="QLabel" name="labelCoinControlAfterFeeText">
                  <property name="font">
                   <font>
@@ -446,7 +425,7 @@
                  </property>
                 </widget>
                </item>
-               <item row="0" column="1">
+               <item row="2" column="1">
                 <widget class="QLabel" name="labelCoinControlAfterFee">
                  <property name="cursor">
                   <cursorShape>IBeamCursor</cursorShape>
@@ -462,7 +441,7 @@
                  </property>
                 </widget>
                </item>
-               <item row="1" column="0">
+               <item row="3" column="0">
                 <widget class="QLabel" name="labelCoinControlChangeText">
                  <property name="font">
                   <font>
@@ -475,7 +454,7 @@
                  </property>
                 </widget>
                </item>
-               <item row="1" column="1">
+               <item row="3" column="1">
                 <widget class="QLabel" name="labelCoinControlChange">
                  <property name="cursor">
                   <cursorShape>IBeamCursor</cursorShape>
@@ -507,7 +486,7 @@
            <enum>QLayout::SetDefaultConstraint</enum>
           </property>
           <property name="topMargin">
-           <number>5</number>
+           <number>0</number>
           </property>
           <property name="rightMargin">
            <number>5</number>
@@ -566,7 +545,7 @@
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>800</width>
+            <width>1</width>
             <height>1</height>
            </size>
           </property>
@@ -592,6 +571,9 @@
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
+       <property name="spacing">
+        <number>6</number>
+       </property>
        <property name="leftMargin">
         <number>0</number>
        </property>
@@ -619,7 +601,7 @@
          <property name="sizeHint" stdset="0">
           <size>
            <width>20</width>
-           <height>40</height>
+           <height>0</height>
           </size>
          </property>
         </spacer>
@@ -673,10 +655,19 @@
          <number>10</number>
         </property>
         <property name="topMargin">
-         <number>0</number>
+         <number>10</number>
+        </property>
+        <property name="rightMargin">
+         <number>10</number>
+        </property>
+        <property name="bottomMargin">
+         <number>10</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayoutFee1">
+         <layout class="QHBoxLayout" name="horizontalLayoutFee1" stretch="0,1,0,0">
+          <property name="spacing">
+           <number>8</number>
+          </property>
           <property name="bottomMargin">
            <number>0</number>
           </property>
@@ -685,22 +676,6 @@
             <property name="spacing">
              <number>0</number>
             </property>
-            <item>
-             <spacer name="verticalSpacerSmartFee">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeType">
-               <enum>QSizePolicy::Fixed</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>1</width>
-                <height>5</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
             <item>
              <layout class="QHBoxLayout" name="horizontalLayoutSmartFee">
               <property name="spacing">
@@ -724,7 +699,7 @@
                  <string notr="true">font-weight:bold;</string>
                 </property>
                 <property name="text">
-                 <string>Transaction Fee:</string>
+                 <string>Transaction Fee</string>
                 </property>
                </widget>
               </item>
@@ -744,19 +719,6 @@
               </item>
              </layout>
             </item>
-            <item>
-             <spacer name="verticalSpacer_5">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>1</width>
-                <height>1</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
            </layout>
           </item>
           <item>
@@ -774,7 +736,7 @@
              <string>Warning: Fee estimation is currently not possible.</string>
             </property>
             <property name="wordWrap">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -784,11 +746,11 @@
              <enum>Qt::Horizontal</enum>
             </property>
             <property name="sizeType">
-             <enum>QSizePolicy::MinimumExpanding</enum>
+             <enum>QSizePolicy::Expanding</enum>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
-              <width>40</width>
+              <width>0</width>
               <height>20</height>
              </size>
             </property>
@@ -825,7 +787,13 @@
             <number>0</number>
            </property>
            <item>
-            <layout class="QGridLayout" name="gridLayoutFee">
+            <layout class="QFormLayout" name="gridLayoutFee">
+             <property name="rowWrapPolicy">
+              <enum>QFormLayout::WrapLongRows</enum>
+             </property>
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::ExpandingFieldsGrow</enum>
+             </property>
              <property name="topMargin">
               <number>10</number>
              </property>
@@ -999,50 +967,40 @@
                <property name="spacing">
                 <number>6</number>
                </property>
-               <property name="topMargin">
-                <number>2</number>
-               </property>
                <item>
-                <layout class="QHBoxLayout" name="horizontalLayoutFee12">
+                <layout class="QVBoxLayout" name="horizontalLayoutFee12">
+                 <property name="spacing">
+                  <number>6</number>
+                 </property>
                  <item>
                   <widget class="QLabel" name="labelSmartFee">
                    <property name="text">
                     <string/>
                    </property>
-                   <property name="margin">
-                    <number>2</number>
-                   </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QLabel" name="labelFeeEstimation">
+                   <property name="visible">
+                    <bool>false</bool>
+                   </property>
                    <property name="text">
                     <string/>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
                    </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QLabel" name="labelSmartFee2">
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
                    <property name="text">
                     <string>(Smart fee not initialized yet. This usually takes a few blocks...)</string>
                    </property>
-                   <property name="margin">
-                    <number>2</number>
-                   </property>
                   </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_5">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>1</width>
-                     <height>1</height>
-                    </size>
-                   </property>
-                  </spacer>
                  </item>
                 </layout>
                </item>
@@ -1054,9 +1012,6 @@
                     <widget class="QLabel" name="labelSmartFee3">
                      <property name="text">
                       <string>Confirmation time target:</string>
-                     </property>
-                     <property name="margin">
-                      <number>2</number>
                      </property>
                     </widget>
                    </item>
@@ -1190,7 +1145,7 @@
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>800</width>
+            <width>1</width>
             <height>1</height>
            </size>
           </property>
@@ -1202,15 +1157,9 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
+    <layout class="QGridLayout" name="horizontalLayout" columnstretch="0,0,0,1">
+     <item row="1" column="0" alignment="Qt::AlignLeft">
       <widget class="QPushButton" name="sendButton">
-       <property name="minimumSize">
-        <size>
-         <width>150</width>
-         <height>0</height>
-        </size>
-       </property>
        <property name="toolTip">
         <string>Confirm the send action</string>
        </property>
@@ -1225,7 +1174,7 @@
        </property>
       </widget>
      </item>
-     <item>
+     <item row="1" column="1" alignment="Qt::AlignLeft">
       <widget class="QPushButton" name="clearButton">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -1244,7 +1193,7 @@
        </property>
       </widget>
      </item>
-     <item>
+     <item row="1" column="2" alignment="Qt::AlignLeft">
       <widget class="QPushButton" name="addButton">
        <property name="toolTip">
         <string>Send to multiple recipients at once</string>
@@ -1257,7 +1206,7 @@
        </property>
       </widget>
      </item>
-     <item>
+     <item row="1" column="3">
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -1270,66 +1219,60 @@
        </property>
       </spacer>
      </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <property name="spacing">
-        <number>3</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="labelBalanceText">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Private Balance:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="labelBalance">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="cursor">
-          <cursorShape>IBeamCursor</cursorShape>
-         </property>
-         <property name="text">
-          <string notr="true">123.456 FIRO</string>
-         </property>
-         <property name="textInteractionFlags">
-          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-         </property>
-        </widget>
-       </item>
-      </layout>
+     <item row="0" column="0" colspan="3" alignment="Qt::AlignLeft">
+      <widget class="QFrame" name="balancePill">
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <property name="spacing">
+         <number>4</number>
+        </property>
+        <property name="leftMargin">
+         <number>12</number>
+        </property>
+        <property name="topMargin">
+         <number>6</number>
+        </property>
+        <property name="rightMargin">
+         <number>12</number>
+        </property>
+        <property name="bottomMargin">
+         <number>6</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="labelBalanceText">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Private Balance</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelBalance">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="cursor">
+           <cursorShape>IBeamCursor</cursorShape>
+          </property>
+          <property name="text">
+           <string notr="true">123.456 FIRO</string>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
      </item>
-    </layout>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_3">
-     <property name="sizeConstraint">
-      <enum>QLayout::SetDefaultConstraint</enum>
-     </property>
-     <item>
-      <spacer name="horizontalSpacer_8">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
+     <item row="0" column="3" alignment="Qt::AlignRight">
       <widget class="QPushButton" name="switchFundButton">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">

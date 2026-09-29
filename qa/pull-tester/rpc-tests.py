@@ -127,6 +127,7 @@ testScripts = [
     # 'p2p-segwit.py',
     'listtransactions.py',
     # vv Tests less than 60s vv
+    'p2p-block-source.py',
     # 'sendheaders.py',
     # 'importmulti.py',
     # 'mempool_limit.py',
@@ -154,6 +155,7 @@ testScripts = [
     'decodescript.py',
     # 'blockchain.py',
     'disablewallet.py',
+    'dbcache.py',
     'keypool.py',
     'p2p-mempool.py',
     # 'prioritise_transaction.py',
@@ -173,6 +175,7 @@ testScripts = [
 
     # Firo-specific tests
     'transactions_verification_after_restart.py',
+    'getblocktemplate_coinbase.py',
 
     # Evo Znodes
     'dip3-deterministicmns.py',

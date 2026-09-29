@@ -37,9 +37,12 @@ class ModalOverlay;
 class CWallet;
 
 QT_BEGIN_NAMESPACE
+class QAbstractButton;
 class QAction;
+class QFrame;
 class QProgressBar;
 class QProgressDialog;
+class QToolButton;
 QT_END_NAMESPACE
 
 namespace GUIUtil {
@@ -87,6 +90,8 @@ protected:
     bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
+    friend class WalletUiTests;
+
     ClientModel *clientModel;
     WalletFrame *walletFrame;
 
@@ -94,6 +99,7 @@ private:
     QLabel *labelWalletEncryptionIcon;
     QLabel *labelWalletHDStatusIcon;
     GUIUtil::ClickableLabel *connectionsControl;
+    QLabel *torStatusBadge;
     GUIUtil::ClickableLabel *labelBlocksIcon;
     QLabel *progressBarLabel;
     GUIUtil::ClickableProgressBar *progressBar;
@@ -112,6 +118,7 @@ private:
     QAction *aboutAction;
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
+    QAction *sparkNamesAction;
     QAction *optionsAction;
     QAction *toggleHideAction;
     QAction *encryptWalletAction;
@@ -120,12 +127,26 @@ private:
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
+    QAction *consoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *masternodeAction;
     QAction *logoAction;
-    QToolBar *toolbar;
-    QLabel *logoLabel;
+    QToolBar *toolbar{nullptr};
+    QToolButton *navigationToggleButton{nullptr};
+    bool navigationSidebarExpanded{true};
+    QFrame *navigationSyncCard{nullptr};
+    QAction *navigationSyncCardAction{nullptr};
+    QLabel *navigationSyncLabel{nullptr};
+    QLabel *navigationSyncPercent{nullptr};
+    QProgressBar *navigationSyncProgress{nullptr};
+    double navigationSyncFraction{0.0};
+    QFrame *navigationThemeRow{nullptr};
+    QLabel *navigationThemeLightLabel{nullptr};
+    QLabel *navigationThemeDarkLabel{nullptr};
+    QAbstractButton *navigationThemeSwitch{nullptr};
+    QWidget *navigationSelectionHighlight{nullptr};
+    QLabel *logoLabel{nullptr};
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
@@ -139,6 +160,7 @@ private:
 #ifdef ENABLE_WALLET
     bool sparkAddressbookUpdated;
 #endif
+    int cachedEncryptionStatus{-1};
 
     const PlatformStyle *platformStyle;
 
@@ -149,6 +171,15 @@ private:
     /** Create the toolbars */
     void createToolBars();
     void resizeEvent(QResizeEvent*) override;
+    void updateToolbarTabWidths();
+    void updateNavigationSidebarGeometry();
+    void toggleNavigationSidebar();
+    void updateNavigationSyncCard(const QString& status, double progress);
+    bool blockchainSyncInProgress() const;
+    bool syncInProgress() const;
+    bool isActivelySyncing() const;
+    void applyNavigationTheme();
+    void updateNavigationSelectionHighlight();
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
     /** Create system tray menu (or setup the dock menu) */
@@ -164,6 +195,9 @@ private:
 
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
+
+    /** Updates Spark Names tab visibility */
+    void checkSparkNamesVisibility(int numBlocks);
 
     /** Update UI with latest network info from model. */
     void updateNetworkState();
@@ -224,6 +258,8 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
 

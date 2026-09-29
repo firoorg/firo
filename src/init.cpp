@@ -480,8 +480,8 @@ std::string HelpMessage(HelpMessageMode mode)
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
-    strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"), DEFAULT_BANSCORE_THRESHOLD));
-    strUsage += HelpMessageOpt("-bantime=<n>", strprintf(_("Number of seconds to keep misbehaving peers from reconnecting (default: %u)"), DEFAULT_MISBEHAVING_BANTIME));
+    strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting and discouraging misbehaving peers (default: %u)"), DEFAULT_BANSCORE_THRESHOLD));
+    strUsage += HelpMessageOpt("-bantime=<n>", strprintf(_("Default duration (in seconds) of manually configured bans (default: %u)"), DEFAULT_MISBEHAVING_BANTIME));
     strUsage += HelpMessageOpt("-bind=<addr>", _("Bind to given address and always listen on it. Use [host]:port notation for IPv6"));
     strUsage += HelpMessageOpt("-connect=<ip>", _("Connect only to the specified node(s); -noconnect or -connect=0 alone to disable automatic connections"));
     strUsage += HelpMessageOpt("-discover", _("Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)"));
@@ -1993,16 +1993,17 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", false))
         nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
     nTotalCache -= nBlockTreeDBCache;
+    int64_t nEvoDbCache = std::min(nTotalCache / 8, int64_t{16} << 20);
+    nTotalCache -= nEvoDbCache;
     int64_t nCoinDBCache = std::min(nTotalCache / 2,
                                     (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nCoinDBCache = std::min(nCoinDBCache, nMaxCoinsDBCache << 20); // cap total coins db cache
     nTotalCache -= nCoinDBCache;
-//    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
-    nCoinCacheUsage = nTotalCache / 300;
+    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache, in bytes
     int64_t nMempoolSizeMax = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
-    int64_t nEvoDbCache = 1024 * 1024 * 16; // TODO
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
+    LogPrintf("* Using %.1fMiB for EvoDB database\n", nEvoDbCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for in-memory UTXO set (plus up to %.1fMiB of unused mempool space)\n", nCoinCacheUsage * (1.0 / 1024 / 1024), nMempoolSizeMax * (1.0 / 1024 / 1024));
 

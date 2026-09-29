@@ -19,6 +19,7 @@ public:
 private Q_SLOTS:
     void cancelEvent();
 private:
+    void applyTheme();
     Ui::NotifyMnemonic *ui;
 };
 

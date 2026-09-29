@@ -3,7 +3,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "addrman.h"
 #include "test/test_bitcoin.h"
+#include "version.h"
+
+#include <limits>
 #include <string>
+
 #include <boost/test/unit_test.hpp>
 
 #include "hash.h"
@@ -33,19 +37,30 @@ public:
         return (unsigned int)(state % nMax);
     }
 
-    CAddrInfo* Find(const CNetAddr& addr, int* pnId = NULL)
+    CAddrInfo* Find(const CNetAddr& addr, nid_type* pnId = NULL)
     {
         return CAddrMan::Find(addr, pnId);
     }
 
-    CAddrInfo* Create(const CAddress& addr, const CNetAddr& addrSource, int* pnId = NULL)
+    CAddrInfo* Create(const CAddress& addr, const CNetAddr& addrSource, nid_type* pnId = NULL)
     {
         return CAddrMan::Create(addr, addrSource, pnId);
     }
 
-    void Delete(int nId)
+    void Delete(nid_type nId)
     {
         CAddrMan::Delete(nId);
+    }
+
+    void SetIdCount(int64_t nId)
+    {
+        nIdCount = nId;
+    }
+
+    int64_t GetId(const CNetAddr& addr) const
+    {
+        const auto it = mapAddr.find(addr);
+        return it == mapAddr.end() ? -1 : it->second;
     }
 };
 
@@ -71,6 +86,13 @@ static CService ResolveService(const char* ip, int port = 0)
 static CService ResolveService(std::string ip, int port = 0)
 {
     return ResolveService(ip.c_str(), port);
+}
+
+static std::string SerializeAddrman(const CAddrMan& addrman)
+{
+    CDataStream stream(SER_DISK, CLIENT_VERSION);
+    stream << addrman;
+    return stream.str();
 }
 
 BOOST_FIXTURE_TEST_SUITE(addrman_tests, BasicTestingSetup)
@@ -112,6 +134,8 @@ BOOST_AUTO_TEST_CASE(addrman_simple)
     // Test 6: AddrMan::Clear() should empty the new table.
     addrman.Clear();
     BOOST_CHECK(addrman.size() == 0);
+    BOOST_CHECK(addrman.Find(addr1) == nullptr);
+    BOOST_CHECK(addrman.Find(addr2) == nullptr);
     CAddrInfo addr_null2 = addrman.Select();
     BOOST_CHECK(addr_null2.ToString() == "[::]:0");
 }
@@ -305,7 +329,7 @@ BOOST_AUTO_TEST_CASE(addrman_create)
     CAddress addr1 = CAddress(ResolveService("250.1.2.1", 8333), NODE_NONE);
     CNetAddr source1 = ResolveIP("250.1.2.1");
 
-    int nId;
+    nid_type nId;
     CAddrInfo* pinfo = addrman.Create(addr1, source1, &nId);
 
     // Test 20: The result should be the same as the input addr.
@@ -315,6 +339,49 @@ BOOST_AUTO_TEST_CASE(addrman_create)
     BOOST_CHECK(info2->ToString() == "250.1.2.1:8333");
 }
 
+BOOST_AUTO_TEST_CASE(addrman_id_overflow)
+{
+    CAddrManTest addrman;
+    const CNetAddr source = ResolveIP("252.2.2.2");
+    const CAddress addr1(ResolveService("250.1.2.1", 8333), NODE_NONE);
+    const CAddress addr2(ResolveService("250.1.2.2", 8333), NODE_NONE);
+    const int64_t max_int = std::numeric_limits<int>::max();
+
+    addrman.SetIdCount(max_int);
+    addrman.Create(addr1, source);
+    addrman.Create(addr2, source);
+
+    BOOST_CHECK_EQUAL(addrman.GetId(addr1), max_int);
+    BOOST_CHECK_EQUAL(addrman.GetId(addr2), max_int + 1);
+}
+
+BOOST_AUTO_TEST_CASE(addrman_serialization_ignores_internal_ids)
+{
+    CAddrManTest low_ids;
+    CAddrManTest high_ids;
+    low_ids.MakeDeterministic();
+    high_ids.MakeDeterministic();
+
+    const int64_t max_int = std::numeric_limits<int>::max();
+    high_ids.SetIdCount(max_int + 1);
+
+    const CNetAddr source = ResolveIP("252.5.1.1");
+    const std::vector<CAddress> addresses{
+        CAddress(ResolveService("250.7.1.1", 8333), NODE_NONE),
+        CAddress(ResolveService("250.7.2.2", 9999), NODE_NONE),
+        CAddress(ResolveService("250.7.3.3", 9999), NODE_NONE),
+    };
+
+    for (const CAddress& addr : addresses) {
+        BOOST_REQUIRE(low_ids.Add(addr, source));
+        BOOST_REQUIRE(high_ids.Add(addr, source));
+    }
+
+    BOOST_REQUIRE_EQUAL(low_ids.size(), addresses.size());
+    BOOST_REQUIRE_EQUAL(high_ids.size(), addresses.size());
+    BOOST_CHECK_GT(high_ids.GetId(addresses.front()), max_int);
+    BOOST_CHECK(SerializeAddrman(low_ids) == SerializeAddrman(high_ids));
+}
 
 BOOST_AUTO_TEST_CASE(addrman_delete)
 {
@@ -328,7 +395,7 @@ BOOST_AUTO_TEST_CASE(addrman_delete)
     CAddress addr1 = CAddress(ResolveService("250.1.2.1", 8333), NODE_NONE);
     CNetAddr source1 = ResolveIP("250.1.2.1");
 
-    int nId;
+    nid_type nId;
     addrman.Create(addr1, source1, &nId);
 
     // Test 21: Delete should actually delete the addr.

@@ -27,6 +27,8 @@ class CScheduler;
 
 namespace llmq
 {
+struct CSigSharesVerificationTestAccess;
+
 // <signHash, quorumMember>
 typedef std::pair<uint256, uint16_t> SigShareKey;
 
@@ -342,6 +344,8 @@ public:
 
 class CSigSharesManager : public CRecoveredSigsListener
 {
+    friend struct CSigSharesVerificationTestAccess;
+
     static const int64_t SESSION_NEW_SHARES_TIMEOUT = 60;
     static const int64_t SIG_SHARE_REQUEST_TIMEOUT = 5;
 
@@ -405,9 +409,10 @@ private:
     bool VerifySigSharesInv(NodeId from, Consensus::LLMQType llmqType, const CSigSharesInv& inv);
     bool PreVerifyBatchedSigShares(NodeId nodeId, const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
-    void CollectPendingSigSharesToVerify(size_t maxUniqueSessions,
-            std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
-            std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
+    // Collect at most maxShares actual sig shares in randomized peer order.
+    void CollectPendingSigSharesToVerify(size_t maxShares,
+        std::unordered_map<NodeId, std::vector<CSigShare> >& retSigShares,
+        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
     bool ProcessPendingSigShares(CConnman& connman);
 
     void ProcessPendingSigSharesFromNode(NodeId nodeId,

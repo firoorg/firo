@@ -1257,7 +1257,7 @@
     </message>
     <message>
         <source>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;.</source>
-        <translation>برای درخواست پرداخت از این فرم استفاده کنید.تمام قسمت ها &lt;b&gt;اختیاری&lt;b&gt; هستند.</translation>
+        <translation>برای درخواست پرداخت از این فرم استفاده کنید.تمام قسمت ها &lt;b&gt;اختیاری&lt;/b&gt; هستند.</translation>
     </message>
     <message>
         <source>Clear all fields of the form.</source>

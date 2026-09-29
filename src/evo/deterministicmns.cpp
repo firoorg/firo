@@ -606,9 +606,6 @@ bool CDeterministicMNManager::UndoBlock(
             prevList = GetListForBlock(pindex->pprev);
         }
 
-        evoDb.Erase(std::make_pair(DB_LIST_DIFF, blockHash));
-        evoDb.Erase(std::make_pair(DB_LIST_SNAPSHOT, blockHash));
-
         mnListsCache.erase(blockHash);
     }
 
@@ -628,6 +625,11 @@ bool CDeterministicMNManager::UndoBlock(
 
 void CDeterministicMNManager::UpdatedBlockTip(const CBlockIndex* pindex)
 {
+    LOCK(cs_main);
+    if (pindex != chainActive.Tip()) {
+        return;
+    }
+
     LOCK(cs);
 
     tipIndex = pindex;

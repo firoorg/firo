@@ -271,6 +271,31 @@ BOOST_AUTO_TEST_CASE(schnorr_proof)
     BOOST_CHECK(mintTransaction.verify());
 }
 
+BOOST_AUTO_TEST_CASE(wallet_address_ownership)
+{
+    CSparkWallet* wallet = pwalletMain->sparkWallet.get();
+    const Address ownAddress = wallet->generateNewAddress();
+    BOOST_CHECK(wallet->isAddressMine(ownAddress));
+    BOOST_CHECK(wallet->isAddressMine(ownAddress.encode(GetNetworkType())));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getDefaultAddress()));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getAddress(123)));
+    BOOST_CHECK(wallet->isAddressMine(wallet->getChangeAddress()));
+
+    const FullViewKey ownFullViewKey(wallet->generateSpendKey(Params::get_default()));
+    const IncomingViewKey ownViewKey(ownFullViewKey);
+    const Address highDiversifierAddress(ownViewKey, uint64_t{1} << 31);
+    BOOST_CHECK(wallet->isAddressMine(highDiversifierAddress));
+    BOOST_CHECK(wallet->isAddressMine(highDiversifierAddress.encode(GetNetworkType())));
+
+    const SpendKey foreignSpendKey(Params::get_default());
+    const FullViewKey foreignFullViewKey(foreignSpendKey);
+    const IncomingViewKey foreignViewKey(foreignFullViewKey);
+    const Address foreignAddress(foreignViewKey, 1);
+    BOOST_CHECK(!wallet->isAddressMine(foreignAddress));
+    BOOST_CHECK(!wallet->isAddressMine(foreignAddress.encode(GetNetworkType())));
+    BOOST_CHECK(!wallet->isAddressMine("not a Spark address"));
+}
+
 BOOST_AUTO_TEST_CASE(is_spark_allowed)
 {
     auto start = ::Params().GetConsensus().nSparkStartBlock;
@@ -563,8 +588,8 @@ BOOST_AUTO_TEST_CASE(connect_and_disconnect_block)
 
     auto sTx1 = GenerateSparkSpend({1 * COIN}, {}, &coinControl);
 
-    // wait while another thread updates mint status in wallet, and then continue
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // Finish queued updates before forcing the input unspent for a duplicate.
+    pwalletMain->sparkWallet->FinishTasks();
 
     // Update isused status
     {
@@ -945,7 +970,7 @@ BOOST_AUTO_TEST_CASE(spark_coin_type_policy_and_consensus_activation)
             std::make_shared<const CBlock>(activeMismatchBlock),
             false,
             &activeMismatchNewBlock));
-        BOOST_CHECK(activeMismatchNewBlock);
+        BOOST_CHECK(!activeMismatchNewBlock);
         BOOST_CHECK_EQUAL(activeMismatchResult.calls, 1);
         BOOST_CHECK_EQUAL(activeMismatchResult.dos, 100);
         BOOST_CHECK_EQUAL(
@@ -2001,9 +2026,10 @@ BOOST_AUTO_TEST_CASE(first_block_cover_set_hash_after_chaum_v2)
     BOOST_REQUIRE(sparkState->GetCoinGroupInfo(groupId, group));
     BOOST_REQUIRE(group.firstBlock);
     BOOST_REQUIRE_EQUAL(group.firstBlock, group.lastBlock);
-    BOOST_REQUIRE(group.firstBlock->sparkSetHash.count(groupId));
+    BOOST_REQUIRE(
+        group.firstBlock->privacyData().sparkSetHash.count(groupId));
     const std::vector<unsigned char> firstBlockHash =
-        group.firstBlock->sparkSetHash.at(groupId);
+        group.firstBlock->privacyData().sparkSetHash.at(groupId);
     BOOST_REQUIRE_EQUAL(firstBlockHash.size(), 32U);
 
     uint256 blockHash;
@@ -2031,11 +2057,14 @@ BOOST_AUTO_TEST_CASE(first_block_cover_set_hash_after_chaum_v2)
 
     BOOST_REQUIRE(sparkState->GetCoinGroupInfo(groupId, group));
     BOOST_REQUIRE(group.lastBlock != group.firstBlock);
-    BOOST_CHECK(group.firstBlock->sparkSetHash.at(groupId) == firstBlockHash);
+    BOOST_CHECK(
+        group.firstBlock->privacyData().sparkSetHash.at(groupId) ==
+        firstBlockHash);
 
     CHash256 hasher;
     hasher.Write(firstBlockHash.data(), firstBlockHash.size());
-    for (const auto& coin : group.lastBlock->sparkMintedCoins.at(groupId)) {
+    for (const auto& coin :
+            group.lastBlock->privacyData().sparkMintedCoins.at(groupId)) {
         CDataStream serializedCoin(SER_NETWORK, 0);
         serializedCoin << coin;
         std::vector<unsigned char> data(serializedCoin.begin(), serializedCoin.end());
@@ -2045,7 +2074,9 @@ BOOST_AUTO_TEST_CASE(first_block_cover_set_hash_after_chaum_v2)
     hasher.Finalize(expected);
     const std::vector<unsigned char> expectedHash(
         expected, expected + CSHA256::OUTPUT_SIZE);
-    BOOST_CHECK(group.lastBlock->sparkSetHash.at(groupId) == expectedHash);
+    BOOST_CHECK(
+        group.lastBlock->privacyData().sparkSetHash.at(groupId) ==
+        expectedHash);
 
     BOOST_REQUIRE_GE(sparkState->GetCoinSetForSpend(
         &chainActive,
@@ -2084,9 +2115,11 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
     const auto blockIt = mapBlockIndex.find(references.begin()->second);
     BOOST_REQUIRE(blockIt != mapBlockIndex.end());
     CBlockIndex* referencedBlock = blockIt->second;
-    BOOST_REQUIRE(referencedBlock->sparkSetHash.count(groupId));
+    auto& referencedSetHashes =
+        referencedBlock->ensurePrivacyData().sparkSetHash;
+    BOOST_REQUIRE(referencedSetHashes.count(groupId));
     const std::vector<unsigned char> storedHash =
-        referencedBlock->sparkSetHash.at(groupId);
+        referencedSetHashes.at(groupId);
     BOOST_REQUIRE_EQUAL(storedHash.size(), 32U);
 
     struct RestoreSetHash {
@@ -2095,10 +2128,10 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
         std::vector<unsigned char> hash;
         ~RestoreSetHash()
         {
-            block->sparkSetHash[groupId] = hash;
+            block->ensurePrivacyData().sparkSetHash[groupId] = hash;
         }
     } restoreSetHash{referencedBlock, groupId, storedHash};
-    referencedBlock->sparkSetHash.erase(groupId);
+    referencedSetHashes.erase(groupId);
 
     BatchProofContainer* batch = BatchProofContainer::get_instance();
     batch->init(BatchProofContainer::Mode::Deferred);
@@ -2150,8 +2183,8 @@ BOOST_AUTO_TEST_CASE(unbound_cover_set_is_rejected_after_chaum_v2)
     batch->finalize();
     BOOST_CHECK(batch->verify_pending());
 
-    referencedBlock->sparkSetHash[groupId] = storedHash;
-    referencedBlock->sparkSetHash[groupId].resize(8);
+    referencedSetHashes[groupId] = storedHash;
+    referencedSetHashes[groupId].resize(8);
     CValidationState truncatedState;
     CSparkTxInfo truncatedInfo;
     BOOST_CHECK(!CheckSparkTransaction(
@@ -2229,7 +2262,8 @@ BOOST_AUTO_TEST_CASE(spark_cover_set_hash_binding_activates_with_h2)
         0,
         firstBlock->nHeight,
         true);
-    BOOST_REQUIRE_EQUAL(firstBlock->sparkSetHash.count(1), 1U);
+    BOOST_REQUIRE_EQUAL(
+        firstBlock->privacyData().sparkSetHash.count(1), 1U);
 
     CBlockIndex* rolloverReference = GenerateBlock({mintTransactions[2]});
     BOOST_REQUIRE(rolloverReference);
@@ -2260,7 +2294,8 @@ BOOST_AUTO_TEST_CASE(spark_cover_set_hash_binding_activates_with_h2)
     const auto& references = parsedRolloverSpend.getBlockHashes();
     BOOST_REQUIRE_EQUAL(references.size(), 1U);
     BOOST_CHECK_EQUAL(references.begin()->first, 2U);
-    BOOST_CHECK_EQUAL(rolloverReference->sparkSetHash.count(2), 0U);
+    BOOST_CHECK_EQUAL(
+        rolloverReference->privacyData().sparkSetHash.count(2), 0U);
 
     const int nextHeight = chainActive.Height() + 1;
     const int initialH2Height = nextHeight + 11;
@@ -2775,12 +2810,7 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_honors_rejection_and_broadcast_setting)
         {{script, COIN, false}}, {}, fee, &conflictingControl);
     BOOST_REQUIRE(mempool.exists(accepted.GetHash()));
 
-    for (int attempt = 0;
-         attempt < 500 &&
-             !pwalletMain->sparkWallet->getMintMeta(mints[0].k).isUsed;
-         ++attempt) {
-        MilliSleep(10);
-    }
+    pwalletMain->sparkWallet->FinishTasks();
     BOOST_REQUIRE(
         pwalletMain->sparkWallet->getMintMeta(mints[0].k).isUsed);
 
@@ -2923,6 +2953,7 @@ BOOST_AUTO_TEST_CASE(spark_spend_commit_persists_outputs_before_mempool)
     const std::vector<GroupElement> usedTags =
         ParseSparkSpend(*spend.tx).getUsedLTags();
     BOOST_REQUIRE(!usedTags.empty());
+    pwalletMain->sparkWallet->FinishTasks();
     pwalletMain->sparkWallet->setCoinUnused(usedTags.front());
 
     CAmount conflictFee = 0;
@@ -3418,6 +3449,7 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_same_block_spark_double_spend)
 
     const CMutableTransaction firstSpend(
         GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    pwalletMain->sparkWallet->FinishTasks();
     CSparkMintMeta mintMeta =
         pwalletMain->sparkWallet->getMintMeta(mints[0].k);
     BOOST_REQUIRE(mintMeta != CSparkMintMeta());
@@ -3486,6 +3518,7 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
 
     const CTransaction firstSpend(
         GenerateSparkSpend({1 * COIN}, {}, &coinControl));
+    pwalletMain->sparkWallet->FinishTasks();
     CSparkMintMeta mintMeta =
         pwalletMain->sparkWallet->getMintMeta(mints[0].k);
     BOOST_REQUIRE(mintMeta != CSparkMintMeta());
@@ -3521,7 +3554,7 @@ BOOST_AUTO_TEST_CASE(verifydb_rejects_cross_block_spark_double_spend)
     CBlockIndex firstSpendIndex;
     firstSpendIndex.pprev = chainActive.Tip();
     firstSpendIndex.nHeight = chainActive.Height() + 1;
-    firstSpendIndex.spentLTags = firstInfo.spentLTags;
+    firstSpendIndex.ensurePrivacyData().spentLTags = firstInfo.spentLTags;
     verifyContext.AddBlock(&firstSpendIndex);
 
     CSparkTxInfo duplicateInfo;
