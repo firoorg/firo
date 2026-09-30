@@ -62,6 +62,9 @@ void Misbehaving(NodeId nodeid, int howmuch);
 
 bool IsBanned(NodeId nodeid);
 
+/** Return the maximum number of live transaction announcements for one trickle cycle. */
+size_t GetInventoryBroadcastMax(size_t inventorySize);
+
 /** Process protocol messages received from a given node */
 bool ProcessMessages(CNode* pfrom, CConnman& connman, const std::atomic<bool>& interrupt);
 /**

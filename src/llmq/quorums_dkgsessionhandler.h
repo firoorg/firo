@@ -11,8 +11,22 @@
 
 #include "ctpl.h"
 
+#include <algorithm>
+
 namespace llmq
 {
+
+namespace detail
+{
+template<typename Message>
+bool BatchNodeIdsAllSame(const std::vector<std::pair<NodeId, std::shared_ptr<Message>>>& messages)
+{
+    return std::adjacent_find(messages.begin(), messages.end(),
+        [](const auto& first, const auto& second) {
+            return first.first != second.first;
+        }) == messages.end();
+}
+}
 
 enum QuorumPhase {
     QuorumPhase_None = -1,

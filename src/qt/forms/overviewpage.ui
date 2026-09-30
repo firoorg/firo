@@ -23,7 +23,7 @@
        <enum>QFrame::Raised</enum>
       </property>
        <property name="styleSheet">
-         <string>font-size: 14px; color: #92400E; background-color:#FEF3C7;</string>
+         <string>color: #92400E; background-color:#FEF3C7;</string>
        </property>
       <layout class="QHBoxLayout" name="warningLayout">
        <item>

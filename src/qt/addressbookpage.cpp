@@ -71,7 +71,6 @@ public:
         case AddressTableModel::Label: {
             const QString text = index.data(Qt::DisplayRole).toString();
             QFont font = option.font;
-            font.setPixelSize(12);
             font.setBold(true);
             painter->setFont(font);
             painter->setPen(QColor(tc.ink));
@@ -84,8 +83,7 @@ public:
         }
         case AddressTableModel::Address: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            QFont font = GUIUtil::fixedPitchFont();
-            font.setPixelSize(12);
+            QFont font = option.font;
             painter->setFont(font);
             painter->setPen(QColor(tc.inkSoft));
             painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
@@ -112,6 +110,15 @@ private:
 
 }
 
+/**
+ * Build an address book for selection or editing of sending or receiving addresses.
+ * @param _platformStyle Borrowed platform styling that must outlive this dialog.
+ * @param _mode Whether addresses are selected or edited.
+ * @param _tab Whether to display sending or receiving addresses.
+ * @param parent Optional Qt parent that owns this dialog.
+ * @param isReused Whether receiving-address selection is for address reuse.
+ * @pre Called on the GUI thread with a QApplication and non-null _platformStyle.
+ */
 AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode, Tabs _tab, QWidget *parent, bool isReused) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),
@@ -205,27 +212,47 @@ AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode
     applyTheme();
 }
 
+/**
+ * Restyle the address table, buttons and address-type popup for the active theme.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
 void AddressBookPage::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
     ui->labelExplanation->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; }")));
     ui->tableView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
         " background: transparent; border: none; color: $INK_SOFT;"
-        " font-size: 12px; font-weight: 700; padding: 6px 12px;"
+        " font-weight: 700; padding: 6px 12px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->tableView->viewport())
         ui->tableView->viewport()->update();
     ui->addressType->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QComboBox, QComboBox QAbstractItemView, QComboBox::item {"
+        " font-weight: 400;"
+        "}"
         "QComboBox {"
         " background: $PANEL;"
         " border: 1px solid $BORDER;"
         " border-radius: 10px;"
         " padding: 8px 12px;"
         " color: $INK;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        " background: $PANEL; color: $INK;"
+        " border: 1px solid $BORDER; border-radius: 9px;"
+        " padding: 4px; outline: 0;"
+        " selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;"
+        "}"
+        "QComboBox QAbstractItemView::item {"
+        " margin: 0; padding: 7px 6px; border-radius: 7px;"
+        " background: $PANEL; color: $INK;"
+        "}"
+        "QComboBox QAbstractItemView::item:selected {"
+        " background: $WINE_DEEP; color: #FFFFFF;"
         "}")));
 
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();

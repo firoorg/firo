@@ -23,6 +23,8 @@
 #include "streams.h"
 #include "sparkname.h"
 
+#include <memory>
+#include <utility>
 #include <vector>
 #include <unordered_set>
 
@@ -160,6 +162,75 @@ enum BlockStatus: uint32_t {
     BLOCK_OPT_WITNESS       =   128, //!< block data in blk*.data was received with a witness-enforcing client
 };
 
+/**
+ * Privacy-protocol data attached to a block index entry.
+ *
+ * Most blocks contain no privacy transactions, so this struct is heap-allocated
+ * on demand (see CBlockIndex::ensurePrivacyData / privacyData).  In the live
+ * block index only blocks that actually carry Spark coins, sporks, or Spark-name
+ * records allocate it, which keeps the common-case entry small.
+ *
+ * CDiskBlockIndex keeps retired privacy-protocol fields directly so old records
+ * remain readable without loading that unused data into the live block index.
+ * Its privacy-data allocations are short-lived, and LoadBlockIndexGuts drops
+ * empty privacy data rather than copying it into the live index.
+ */
+struct CBlockIndexPrivacyData {
+    // Spark
+    std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
+    std::map<int, std::vector<unsigned char>> sparkSetHash;
+    std::unordered_map<GroupElement, std::pair<uint256, std::vector<unsigned char>>> sparkTxHashContext;
+    std::unordered_map<GroupElement, int> spentLTags;
+    std::unordered_map<uint256, uint256> ltagTxhash;
+
+    // EVO sporks
+    ActiveSporkMap activeDisablingSporks;
+
+    // Spark names
+    std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
+    std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
+
+    // Every member above must be checked here. An omitted member could be
+    // discarded when SetActiveDisablingSporks releases an empty allocation.
+    bool IsEmpty() const {
+        return sparkMintedCoins.empty() && sparkSetHash.empty() &&
+               sparkTxHashContext.empty() && spentLTags.empty() && ltagTxhash.empty() &&
+               activeDisablingSporks.empty() && addedSparkNames.empty() && removedSparkNames.empty();
+    }
+};
+
+/** Pointer-sized lazy storage with value semantics for block-index copies. */
+class CBlockIndexPrivacyDataPtr
+{
+public:
+    CBlockIndexPrivacyDataPtr() = default;
+
+    CBlockIndexPrivacyDataPtr(const CBlockIndexPrivacyDataPtr& other)
+    {
+        if (other.data)
+            data = std::make_unique<CBlockIndexPrivacyData>(*other.data);
+    }
+
+    CBlockIndexPrivacyDataPtr(CBlockIndexPrivacyDataPtr&&) noexcept = default;
+    CBlockIndexPrivacyDataPtr& operator=(CBlockIndexPrivacyDataPtr&&) noexcept = default;
+    CBlockIndexPrivacyDataPtr& operator=(const CBlockIndexPrivacyDataPtr&) = delete;
+
+    const CBlockIndexPrivacyData* get() const { return data.get(); }
+    CBlockIndexPrivacyData* get() { return data.get(); }
+
+    CBlockIndexPrivacyData& ensure()
+    {
+        if (!data)
+            data = std::make_unique<CBlockIndexPrivacyData>();
+        return *data;
+    }
+
+    void reset() { data.reset(); }
+
+private:
+    std::unique_ptr<CBlockIndexPrivacyData> data;
+};
+
 /** The block chain is a tree shaped structure starting with the
  * genesis block at the root, with each block potentially having multiple
  * candidates to be the next block. A blockindex may have multiple pprev pointing
@@ -227,52 +298,40 @@ public:
     //! (memory only) Maximum nTime in the chain upto and including this block.
     unsigned int nTimeMax;
 
-    //! Public coin values of mints in this block, ordered by serialized value of public coin
-    //! Maps <denomination,id> to vector of public coins
-    std::map<std::pair<int,int>, std::vector<CBigNum>> mintedPubCoins;
+    // Live privacy-protocol data (Spark, sporks, Spark names).
+    // Allocated on demand: null for blocks that carry no privacy transactions.
+    // Use privacyData() for read-only access and ensurePrivacyData() when a field
+    // must be written (the latter allocates the struct on first call).
+    const CBlockIndexPrivacyData& privacyData() const {
+        static const CBlockIndexPrivacyData empty;
+        const auto* data = m_privacyData.get();
+        return data ? *data : empty;
+    }
 
-    //! Accumulator updates. Contains only changes made by mints in this block
-    //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
-    std::map<std::pair<int,int>, std::pair<CBigNum,int>> accumulatorChanges;
+    CBlockIndexPrivacyData& ensurePrivacyData() {
+        return m_privacyData.ensure();
+    }
 
-    //! Values of coin serials spent in this block
-	std::set<CBigNum> spentSerials;
+    bool hasPrivacyData() const { return m_privacyData.get() != nullptr; }
 
-/////////////////////// Sigma index entries. ////////////////////////////////////////////
+    //! Assign the active disabling spork map without forcing allocation of the
+    //! privacy data structure for an empty map.  Almost every block in the evo
+    //! spork range ends up with no active sporks, so assigning through
+    //! ensurePrivacyData() would allocate for all of them.
+    void SetActiveDisablingSporks(ActiveSporkMap sporkMap) {
+        if (!sporkMap.empty())
+            ensurePrivacyData().activeDisablingSporks = std::move(sporkMap);
+        else if (auto* data = m_privacyData.get()) {
+            data->activeDisablingSporks.clear();
+            if (data->IsEmpty())
+                m_privacyData.reset();
+        }
+    }
 
-    //! Public coin values of mints in this block, ordered by serialized value of public coin
-    //! Maps <denomination,id> to vector of public coins
-    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
-    //! Map id to <public coin, tag>
-    std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>>  lelantusMintedPubCoins;
+private:
+    CBlockIndexPrivacyDataPtr m_privacyData;
 
-    std::unordered_map<GroupElement, lelantus::MintValueData> lelantusMintData;
-
-    //! Map id to <hash of the set>
-    std::map<int, std::vector<unsigned char>> anonymitySetHash;
-    //! Map id to spark coin
-    std::map<int, std::vector<spark::Coin>> sparkMintedCoins;
-    //! Map id to <hash of the set>
-    std::map<int, std::vector<unsigned char>> sparkSetHash;
-    //! map spark coin S to tx hash, this is used when you run with -mobile
-    std::unordered_map<GroupElement, std::pair<uint256, std::vector<unsigned char>>> sparkTxHashContext;
-
-    //! Values of coin serials spent in this block
-    sigma::spend_info_container sigmaSpentSerials;
-    std::unordered_map<Scalar, int> lelantusSpentSerials;
-    std::unordered_map<GroupElement, int> spentLTags;
-    // linking tag hash mapped to tx hash
-    std::unordered_map<uint256, uint256> ltagTxhash;
-
-    //! list of disabling sporks active at this block height
-    //! std::map {feature name} -> {block number when feature is re-enabled again, parameter}
-    ActiveSporkMap activeDisablingSporks;
-
-    //! List of spark names that were created or extended in this block. Map of spark name to <address, expiration block height, additional info>
-    std::map<std::string, CSparkNameBlockIndexData> addedSparkNames;
-    //! List of spark names that were removed in this block because of expiration, unregistration or transfer. Map of spark name to <address, expiration block height, additional info>
-    std::map<std::string, CSparkNameBlockIndexData> removedSparkNames;
-
+public:
     void SetNull()
     {
         phashBlock = NULL;
@@ -303,20 +362,7 @@ public:
         nVersionMTP = 0;
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
-        sigmaMintedPubCoins.clear();
-        sigmaSpentSerials.clear();
-        lelantusMintedPubCoins.clear();
-        lelantusMintData.clear();
-        anonymitySetHash.clear();
-        sparkMintedCoins.clear();
-        sparkSetHash.clear();
-        spentLTags.clear();
-        ltagTxhash.clear();
-        sparkTxHashContext.clear();
-        lelantusSpentSerials.clear();
-        activeDisablingSporks.clear();
-        addedSparkNames.clear();
-        removedSparkNames.clear();
+        m_privacyData.reset();
     }
 
     CBlockIndex()
@@ -345,6 +391,9 @@ public:
                 reserved[1] = block.reserved[1];
         }
     }
+
+    CBlockIndex(const CBlockIndex&) = default;
+    CBlockIndex& operator=(const CBlockIndex&) = delete;
 
     CDiskBlockPos GetBlockPos() const {
         CDiskBlockPos ret;
@@ -478,6 +527,25 @@ public:
     uint256 hashPrev;
     int nDiskBlockVersion;
 
+    // Retired privacy-protocol fields are kept only in the disk format. They are
+    // accepted when loading old indexes but are not copied into the live block
+    // index. WriteBatchSync carries them forward when rewriting historical
+    // records so an unrelated metadata update does not make a downgrade lossy.
+    // Zerocoin
+    std::map<std::pair<int,int>, std::vector<CBigNum>> mintedPubCoins;
+    std::map<std::pair<int,int>, std::pair<CBigNum,int>> accumulatorChanges;
+    std::set<CBigNum> spentSerials;
+
+    // Sigma
+    std::map<std::pair<sigma::CoinDenomination, int>, std::vector<sigma::PublicCoin>> sigmaMintedPubCoins;
+    sigma::spend_info_container sigmaSpentSerials;
+
+    // Lelantus
+    std::map<int, std::vector<std::pair<lelantus::PublicCoin, uint256>>> lelantusMintedPubCoins;
+    std::unordered_map<GroupElement, lelantus::MintValueData> lelantusMintData;
+    std::map<int, std::vector<unsigned char>> anonymitySetHash;
+    std::unordered_map<Scalar, int> lelantusSpentSerials;
+
     CDiskBlockIndex() {
         hashPrev = uint256();
         // value doesn't really matter but we won't leave it uninitialized
@@ -487,6 +555,19 @@ public:
     explicit CDiskBlockIndex(const CBlockIndex* pindex) : CBlockIndex(*pindex) {
         hashPrev = (pprev ? pprev->GetBlockHash() : uint256());
         nDiskBlockVersion = 0;
+    }
+
+    void TakeDiskOnlyPrivacyData(CDiskBlockIndex&& other)
+    {
+        mintedPubCoins = std::move(other.mintedPubCoins);
+        accumulatorChanges = std::move(other.accumulatorChanges);
+        spentSerials = std::move(other.spentSerials);
+        sigmaMintedPubCoins = std::move(other.sigmaMintedPubCoins);
+        sigmaSpentSerials = std::move(other.sigmaSpentSerials);
+        lelantusMintedPubCoins = std::move(other.lelantusMintedPubCoins);
+        lelantusMintData = std::move(other.lelantusMintData);
+        anonymitySetHash = std::move(other.anonymitySetHash);
+        lelantusSpentSerials = std::move(other.lelantusSpentSerials);
     }
 
     ADD_SERIALIZE_METHODS;
@@ -529,12 +610,12 @@ public:
                 READWRITE(reserved[1]);
             }
         }
-        
+
         if (!(s.GetType() & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
             READWRITE(mintedPubCoins);
-		    READWRITE(accumulatorChanges);
+            READWRITE(accumulatorChanges);
             READWRITE(spentSerials);
-	    }
+        }
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSigmaStartBlock) {
             READWRITE(sigmaMintedPubCoins);
@@ -544,13 +625,13 @@ public:
         if (!(s.GetType() & SER_GETHASH)
                 && nHeight >= params.nLelantusStartBlock
                 && nVersion >= LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
-            if(nVersion == LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
-                std::map<int, std::vector<lelantus::PublicCoin>>  lelantusPubCoins;
+            if (nVersion == LELANTUS_PROTOCOL_ENABLEMENT_VERSION) {
+                std::map<int, std::vector<lelantus::PublicCoin>> lelantusPubCoins;
                 READWRITE(lelantusPubCoins);
-                for(auto& itr : lelantusPubCoins) {
-                    if(!itr.second.empty()) {
-                        for(auto& coin : itr.second)
-                        lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin,uint256()));
+                for (auto& itr : lelantusPubCoins) {
+                    if (!itr.second.empty()) {
+                        for (auto& coin : itr.second)
+                            lelantusMintedPubCoins[itr.first].push_back(std::make_pair(coin, uint256()));
                     }
                 }
             } else
@@ -567,16 +648,16 @@ public:
 
         if (!(s.GetType() & SER_GETHASH)
             && nHeight >= params.nSparkStartBlock) {
-            READWRITE(sparkMintedCoins);
-            READWRITE(sparkSetHash);
-            READWRITE(spentLTags);
+            auto& pd = ensurePrivacyData();
+            READWRITE(pd.sparkMintedCoins);
+            READWRITE(pd.sparkSetHash);
+            READWRITE(pd.spentLTags);
 
             if (GetBoolArg("-mobile", false)) {
-                READWRITE(sparkTxHashContext);
-                READWRITE(ltagTxhash);
+                READWRITE(pd.sparkTxHashContext);
+                READWRITE(pd.ltagTxhash);
             }
         }
-
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nEvoSporkStartBlock) {
             if (nHeight < params.nEvoSporkStopBlock &&
@@ -588,13 +669,14 @@ public:
                     nHeight >= params.nEvoSporkStopBlockPrevious &&
                     nHeight < params.nEvoSporkStopBlockPrevious + params.nEvoSporkStopBlockExtensionGracefulPeriod))
 
-                READWRITE(activeDisablingSporks);
+                READWRITE(ensurePrivacyData().activeDisablingSporks);
         }
         nDiskBlockVersion = nVersion;
 
         if (!(s.GetType() & SER_GETHASH) && nHeight >= params.nSparkNamesStartBlock) {
-            READWRITE(addedSparkNames);
-            READWRITE(removedSparkNames);
+            auto& pd = ensurePrivacyData();
+            READWRITE(pd.addedSparkNames);
+            READWRITE(pd.removedSparkNames);
         }
     }
 

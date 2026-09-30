@@ -361,7 +361,7 @@ jobs:
     env:
       HOST: ${{ matrix.host }}
       ARTIFACT_DIR: guix-binaries-${{ matrix.host }}
-      SUBSTITUTE_URLS: "http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
+      SUBSTITUTE_URLS: "https://bordeaux.guix.gnu.org https://ci.guix.gnu.org"
       COMMIT_HASH: ${{ needs.get-commit-hash.outputs.short_sha }}
     steps:
       - name: Checkout
@@ -537,7 +537,6 @@ jobs:
           source /etc/profile.d/zzz-guix.sh
           # Verify installation using absolute path
           /usr/local/bin/guix --version
-          guix pull --url=https://codeberg.org/guix/guix-mirror --substitute-urls="http://git.savannah.gnu.org/git/guix.git http://hydra-guix-129.guix.gnu.org http://ci.guix.gnu.org"
       - name: Clean Guix build dirs
         if: matrix.is_darwin
         run: |

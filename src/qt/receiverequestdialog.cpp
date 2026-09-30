@@ -144,9 +144,10 @@ void ReceiveRequestDialog::applyTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
     ui->lblQRCode->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: $PANEL; border: 1px solid $BORDER; border-radius: 18px; color: $INK; }")));
+    const QString outUriBg = GUIUtil::isDarkMode() ? QStringLiteral("$PANEL") : QStringLiteral("$WINE_TINT");
     ui->outUri->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QTextEdit { background: $WINE_TINT; border: 1.5px solid $WINE; border-radius: 16px;"
-        " padding: 14px 16px; color: $INK; }")));
+        "QTextEdit { background: %1; border: 1.5px solid $WINE; border-radius: 16px;"
+        " padding: 14px 16px; color: $INK; }").arg(outUriBg)));
 
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle();
@@ -194,9 +195,9 @@ void ReceiveRequestDialog::update()
     ui->btnSaveAs->setEnabled(false);
 
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    const QString captionStyle = QStringLiteral("color:%1; font-size:12px; font-weight:700;").arg(tc.inkSoft);
+    const QString captionStyle = QStringLiteral("color:%1; font-weight:700;").arg(tc.inkSoft);
     const QString valueStyle = QStringLiteral(
-        "color:%1; font-family:monospace; font-size:12px;").arg(tc.ink);
+        "color:%1;").arg(tc.ink);
     const auto section = [&](const QString& caption, const QString& value) {
         return QStringLiteral("<p style=\"margin:0 0 4px 0;\"><span style=\"%1\">%2</span></p>"
                               "<p style=\"margin:0 0 14px 0;\"><span style=\"%3\">%4</span></p>")

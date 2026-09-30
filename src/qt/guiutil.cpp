@@ -180,7 +180,6 @@ void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool allowP
 {
     parent->setFocusProxy(widget);
 
-    widget->setFont(fixedPitchFont());
 #if QT_VERSION >= 0x040700
     // We don't want translators to use own addresses in translations
     // and this is the only place, where this address is supplied.
@@ -1128,7 +1127,7 @@ void loadTheme()
             throw std::runtime_error(strprintf("%s: Failed to open file: %s", __func__, fileName.toStdString()));
         }
 
-        lightStylesheet = QLatin1String(qFile.readAll());
+        lightStylesheet = themed(QLatin1String(qFile.readAll()), ThemeMode::Light);
         darkStylesheet = lightStylesheet + darkModeOverrideCss();
         loaded = true;
     }

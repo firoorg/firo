@@ -362,9 +362,11 @@ UniValue getsparknametxdetails(const JSONRPCRequest &request)
                 RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
         }
 
-        const auto record = blockIndex->addedSparkNames.find(
+        const auto& addedSparkNames =
+            blockIndex->privacyData().addedSparkNames;
+        const auto record = addedSparkNames.find(
             CSparkNameManager::ToUpper(sparkNameData.name));
-        if (record == blockIndex->addedSparkNames.end() ||
+        if (record == addedSparkNames.end() ||
             record->second.name != sparkNameData.name ||
             record->second.sparkAddress != sparkNameData.sparkAddress ||
             record->second.additionalInfo != sparkNameData.additionalInfo) {

@@ -329,7 +329,7 @@ BOOST_AUTO_TEST_CASE(malformed_spork_payload_is_consensus_invalid)
         BOOST_REQUIRE(state.IsInvalid(dosScore));
         BOOST_CHECK_EQUAL(dosScore, 100);
         BOOST_CHECK_EQUAL(state.GetRejectReason(), rejectReason);
-        BOOST_CHECK(candidateIndex.activeDisablingSporks.empty());
+        BOOST_CHECK(candidateIndex.privacyData().activeDisablingSporks.empty());
     };
 
     // Version 3 is the deployed special-transaction format. A later version
@@ -463,7 +463,7 @@ BOOST_AUTO_TEST_CASE(limit)
         LOCK(cs_main);
         const auto candidate = mapBlockIndex.find(aggregateLimitBlock.GetHash());
         BOOST_REQUIRE(candidate != mapBlockIndex.end());
-        BOOST_CHECK(candidate->second->activeDisablingSporks.empty());
+        BOOST_CHECK(candidate->second->privacyData().activeDisablingSporks.empty());
     }
     for (const GroupElement& tag : firstSmallTags) {
         BOOST_CHECK(!spark::CSparkState::GetState()->IsUsedLTag(tag));
@@ -495,21 +495,25 @@ BOOST_AUTO_TEST_CASE(limit)
             ~RestoreSporkMap()
             {
                 LOCK(cs_main);
-                index->activeDisablingSporks.swap(original);
+                index->ensurePrivacyData().activeDisablingSporks.swap(original);
             }
-        } restoreSporkMap{tip, tip->activeDisablingSporks};
+        } restoreSporkMap{
+            tip, tip->privacyData().activeDisablingSporks};
 
-        BOOST_REQUIRE(tip->activeDisablingSporks.count(
+        auto& activeDisablingSporks =
+            tip->ensurePrivacyData().activeDisablingSporks;
+        BOOST_REQUIRE(activeDisablingSporks.count(
             CSporkAction::featureSparkTransparentLimit));
-        ++tip->activeDisablingSporks
+        ++activeDisablingSporks
               .at(CSporkAction::featureSparkTransparentLimit)
               .second;
         const ActiveSporkMap expectedSporks =
-            tip->activeDisablingSporks;
+            activeDisablingSporks;
 
         CVerifyDB verifier;
         BOOST_REQUIRE(verifier.VerifyDB(Params(), pcoinsTip, 4, 1));
-        BOOST_CHECK(tip->activeDisablingSporks == expectedSporks);
+        BOOST_CHECK(
+            tip->privacyData().activeDisablingSporks == expectedSporks);
     }
     // one spark spend should be left at the mempool
     BOOST_ASSERT(::mempool.size() == 1);

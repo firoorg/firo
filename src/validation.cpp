@@ -3031,15 +3031,15 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     struct SporkSetRollback
     {
         CBlockIndex* index;
-        decltype(pindex->activeDisablingSporks) backup;
+        ActiveSporkMap backup;
         bool enabled;
         ~SporkSetRollback()
         {
             if (enabled)
-                index->activeDisablingSporks.swap(backup);
+                index->SetActiveDisablingSporks(std::move(backup));
         }
     } sporkSetRollback{
-        pindex, pindex->activeDisablingSporks, true};
+        pindex, pindex->privacyData().activeDisablingSporks, true};
     CSporkManager *sporkManager = CSporkManager::GetSporkManager();
 
     if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
@@ -3050,7 +3050,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
         // check if transaction is allowed under spork rules
         for (CTransactionRef tx: block.vtx) {
-            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex->privacyData().activeDisablingSporks, state))
                 return false;
         }
     }
@@ -4824,8 +4824,6 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
         if (!fHasMoreWork) return true;     // Don't process less-work chains
         if (fTooFarAhead) return true;      // Block height is too high
     }
-    if (fNewBlock) *fNewBlock = true;
-
     if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false) ||
         !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
@@ -4843,6 +4841,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     int nHeight = pindex->nHeight;
 
     // Write block to history file
+    if (fNewBlock) *fNewBlock = true;
     try {
         unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
         CDiskBlockPos blockPos;

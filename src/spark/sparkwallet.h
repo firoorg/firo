@@ -221,6 +221,8 @@ public:
     // Returns the list of pairs of coins and metadata for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
 
+    /** Wait for all Spark wallet tasks queued before this call. */
+    void WaitForPendingTasks();
     void FinishTasks();
 
 public:
@@ -228,6 +230,15 @@ public:
     mutable CCriticalSection cs_spark_wallet;
 
 private:
+    struct IdentifiedMint
+    {
+        CSparkMintMeta meta;
+        GroupElement lTag;
+    };
+
+    IdentifiedMint IdentifyMint(spark::Coin coin, const uint256& txHash) const;
+    void RecordMint(IdentifiedMint mint, CWalletDB& walletdb);
+
     std::string strWalletFile;
     // this is latest used diversifier
     int32_t lastDiversifier GUARDED_BY(cs_spark_wallet);
@@ -267,6 +278,7 @@ private:
     const CSparkMintMeta* findMintMeta(const spark::Coin& coin) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_spark_wallet);
 
+    CCriticalSection cs_thread_pool;
     void* threadPool;
 };
 
