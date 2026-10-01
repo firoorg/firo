@@ -37,6 +37,13 @@ Notable changes
 RPC
 ---
 
+- `consolidateaddress "address" (dryrun)`: previews one affordable batch within
+  transaction limits, returning confirmed transparent funds to the same
+  address. `dryrun` defaults to `true` and works with a locked wallet without
+  signing or spending. Pass `false` with an unlocked wallet to submit one batch;
+  the result includes its transaction ID and remaining eligible output count.
+  Each batch incurs a network fee. Outputs from other addresses are never used.
+
 - `getblocktemplate`: the template request accepts `coinbase_message`, a text of
   at most 80 UTF-8 bytes that is put into the coinbase of the block the node
   builds for `pprpcsb`. The result echoes it as `coinbase_message` even without
