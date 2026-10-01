@@ -268,13 +268,6 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    {
-        LOCK(cs_main);
-        BatchProofContainer::get_instance()->finalize();
-        CValidationState state;
-        VerifyPendingSparkBatch(state, "shutdown");
-    }
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -302,6 +295,10 @@ void Shutdown()
     // cleanup; the embedded Tor itself is torn down by process exit.
     g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
+    BatchProofContainer::get_instance()->finalize();
+    CValidationState batchState;
+    VerifyPendingSparkBatch(batchState, "shutdown");
+
     if (fDumpMempoolLater)
         DumpMempool();
 
@@ -776,14 +773,11 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
-        {
-            LOCK(cs_main);
-            BatchProofContainer::get_instance()->finalize();
-            CValidationState state;
-            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
-                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
-                return;
-            }
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState state;
+        if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+            return;
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
