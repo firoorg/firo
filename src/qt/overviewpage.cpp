@@ -1035,7 +1035,10 @@ void OverviewPage::consolidateCoins()
         const auto restore = qScopeGuard([page] {
             if (page) {
                 page->waitingForConsolidationScan = false;
-                page->scheduleConsolidationRefresh();
+                if (page->outOfSync)
+                    page->updateConsolidationOffer();
+                else
+                    page->scheduleConsolidationRefresh();
             }
         });
         scanFinished = model->pollConsolidationAddresses(addresses);
@@ -1043,7 +1046,7 @@ void OverviewPage::consolidateCoins()
             QEventLoop waitLoop;
             QTimer poll;
             connect(&poll, &QTimer::timeout, &waitLoop, [&] {
-                if (!model) {
+                if (!page || !model || page->outOfSync) {
                     waitLoop.quit();
                     return;
                 }
@@ -1052,11 +1055,16 @@ void OverviewPage::consolidateCoins()
                     waitLoop.quit();
             });
             poll.start(250);
+            QTimer::singleShot(5000, &waitLoop, &QEventLoop::quit);
             waitLoop.exec(QEventLoop::ExcludeUserInputEvents);
         }
     }
-    if (!page || !model || !scanFinished || outOfSync)
+    if (!page || !model || outOfSync)
         return;
+    if (!scanFinished) {
+        QMessageBox::information(this, tr("Consolidate Outputs"), tr("The wallet is busy. Please try again later."));
+        return;
+    }
     consolidationAddresses = std::move(addresses);
     if (consolidationAddresses.empty()) {
         QMessageBox::information(this, tr("Consolidate Outputs"), tr("No address currently has an affordable batch of at least two confirmed, spendable outputs."));

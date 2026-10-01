@@ -193,6 +193,22 @@ void WalletUiTests::consolidationSuggestion()
     bool scanFinished = false;
     QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
     cached = {{"previous scan", "", 1700, true}};
+    QString busyMessage;
+    bool chooserOpened = false;
+    QTimer busyDialogTimer;
+    connect(&busyDialogTimer, &QTimer::timeout, &page, [&] {
+        if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget())) {
+            if (auto* box = qobject_cast<QMessageBox*>(dialog))
+                busyMessage = box->text();
+            else
+                chooserOpened = true;
+            dialog->reject();
+        }
+    });
+    // A regressed wait must fail without hanging the test suite.
+    QTimer waitWatchdog;
+    waitWatchdog.setSingleShot(true);
+    connect(&waitWatchdog, &QTimer::timeout, &page, [&] { model.reset(); });
     {
         LOCK(wallet.cs_wallet);
         // The GUI can poll a busy wallet without waiting or hiding its offer.
@@ -204,7 +220,75 @@ void WalletUiTests::consolidationSuggestion()
     }
     scanFinished = false;
     QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
+    {
+        std::promise<void> walletLocked, releaseWallet;
+        auto locked = walletLocked.get_future();
+        auto released = releaseWallet.get_future();
+        auto holder = std::async(std::launch::async, [&] {
+            LOCK(wallet.cs_wallet);
+            walletLocked.set_value();
+            released.wait();
+        });
+        const auto unlock = qScopeGuard([&] {
+            releaseWallet.set_value();
+            holder.wait();
+        });
+        locked.wait();
+        waitWatchdog.start(8000);
+        busyDialogTimer.start(10);
+        QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+        busyDialogTimer.stop();
+        waitWatchdog.stop();
+    }
+    QVERIFY(model);
+    QCOMPARE(busyMessage, QString("The wallet is busy. Please try again later."));
+    QVERIFY(!chooserOpened);
+    scanFinished = false;
+    QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
     QCOMPARE(cached[0].outputs, size_t(1700));
+
+    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
+    page.show();
+    QTRY_VERIFY(!hint->isHidden());
+    busyMessage.clear();
+    QTimer syncStart;
+    syncStart.setSingleShot(true);
+    connect(&syncStart, &QTimer::timeout, &page, [&] { page.showOutOfSyncWarning(true); });
+    QElapsedTimer syncWait;
+    {
+        std::promise<void> walletLocked, releaseWallet;
+        auto locked = walletLocked.get_future();
+        auto released = releaseWallet.get_future();
+        auto holder = std::async(std::launch::async, [&] {
+            LOCK(wallet.cs_wallet);
+            walletLocked.set_value();
+            released.wait();
+        });
+        const auto unlock = qScopeGuard([&] {
+            releaseWallet.set_value();
+            holder.wait();
+        });
+        locked.wait();
+        waitWatchdog.start(8000);
+        busyDialogTimer.start(10);
+        syncStart.start(50);
+        syncWait.start();
+        QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+        syncStart.stop();
+        busyDialogTimer.stop();
+        waitWatchdog.stop();
+    }
+    QVERIFY(model);
+    QVERIFY(syncWait.elapsed() < 2000);
+    QVERIFY(busyMessage.isEmpty());
+    QVERIFY(!chooserOpened);
+    QVERIFY(hint->isHidden());
+    QVERIFY(button->isHidden());
+    page.showOutOfSyncWarning(false);
+    QTRY_VERIFY(!hint->isHidden());
+    dialogTimer.start(10);
+    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+    page.hide();
 
     {
         LOCK(wallet.cs_wallet);
