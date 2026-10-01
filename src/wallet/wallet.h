@@ -210,6 +210,18 @@ static inline void WriteOrderPos(const int64_t& nOrderPos, mapValue_t& mapValue)
     mapValue["n"] = i64tostr(nOrderPos);
 }
 
+/** An affordable batch has at least two inputs and no error. Amounts are estimates until construction. */
+struct ConsolidationPlan
+{
+    std::vector<COutPoint> inputs;
+    CAmount total{0}; //!< Selected value before deducting the fee.
+    CAmount fee{0};
+    unsigned int signedBytes{0};
+    size_t eligibleCount{0};
+    bool sizeLimited{false}; //!< All eligible outputs exceed the weight or sigop limit.
+    std::string error;
+};
+
 struct COutputEntry
 {
     CTxDestination destination;
@@ -843,8 +855,11 @@ public:
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, bool fForUseInInstantSend = false) const;
 
-    /** Confirmed, spendable, unlocked coins grouped by their exact destination script. */
-    std::map<CTxDestination, std::vector<COutPoint>> GetConsolidationCoins() const;
+    /** Confirmed, spendable, unlocked non-collateral coins grouped by their exact destination script. */
+    std::map<CTxDestination, std::vector<COutPoint>> GetConsolidationCoins(const CTxDestination& destination = CNoDestination()) const;
+
+    /** Plan affordable batches without private keys, key reservation, or wallet changes. */
+    std::map<CTxDestination, ConsolidationPlan> GetConsolidationPlans(const CTxDestination& destination = CNoDestination()) const;
 
     void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
 
@@ -1090,7 +1105,7 @@ public:
     bool AddAccountingEntry(const CAccountingEntry&);
     bool AddAccountingEntry(const CAccountingEntry&, CWalletDB *pwalletdb);
     template <typename ContainerType>
-    bool DummySignTx(CMutableTransaction &txNew, const ContainerType &coins);
+    bool DummySignTx(CMutableTransaction &txNew, const ContainerType &coins) const;
 
     static CFeeRate minTxFee;
     static CFeeRate fallbackFee;
@@ -1461,7 +1476,7 @@ void ShutdownWallet();
 // ContainerType is meant to hold pair<CWalletTx *, int>, and be iterable
 // so that each entry corresponds to each vIn, in order.
 template <typename ContainerType>
-bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins)
+bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins) const
 {
     // Fill in dummy signatures for fee calculation.
     int nIn = 0;

@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "rpc/server.h"
+#include "evo/providertx.h"
+#include "evo/specialtx.h"
 #include "policy/policy.h"
 #include "test/test_bitcoin.h"
 #include "validation.h"
@@ -70,6 +72,11 @@ BOOST_AUTO_TEST_CASE(consolidation_preserves_address_and_eligibility)
     BOOST_REQUIRE_EQUAL(groups.size(), 2);
     BOOST_REQUIRE_EQUAL(groups.at(address).size(), 2);
     BOOST_CHECK_EQUAL(groups.at(otherKey.GetPubKey().GetID()).size(), 1);
+    const auto plans = pwalletMain->GetConsolidationPlans();
+    BOOST_REQUIRE_EQUAL(plans.at(address).inputs.size(), 2);
+    BOOST_CHECK(!plans.at(address).sizeLimited);
+    BOOST_CHECK(!plans.at(otherKey.GetPubKey().GetID()).error.empty());
+    BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationPlans(address).size(), 1);
 
     CWalletTx consolidated;
     CReserveKey reserveKey(pwalletMain);
@@ -80,6 +87,7 @@ BOOST_AUTO_TEST_CASE(consolidation_preserves_address_and_eligibility)
     BOOST_REQUIRE_EQUAL(consolidated.tx->vout.size(), 1);
     BOOST_CHECK(consolidated.tx->vout[0].scriptPubKey == script);
     BOOST_CHECK_EQUAL(consolidated.tx->vout[0].nValue + fee, 3 * COIN);
+    BOOST_CHECK_EQUAL(fee, plans.at(address).fee);
     BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 0)); // Preparation/cancellation does not spend.
     BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 1));
@@ -152,6 +160,9 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
         received.hashBlock = chainActive.Tip()->GetBlockHash();
         received.nIndex = 1;
         BOOST_REQUIRE(pwalletMain->AddToWallet(received));
+        const auto plan = pwalletMain->GetConsolidationPlans(address).at(address);
+        BOOST_CHECK_EQUAL(plan.eligibleCount, 2000);
+        BOOST_CHECK(plan.sizeLimited);
 
         CWalletTx consolidated;
         CReserveKey reserveKey(pwalletMain);
@@ -160,6 +171,8 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
         BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error), error);
         BOOST_REQUIRE_GT(consolidated.tx->vin.size(), 252);
         BOOST_REQUIRE_LT(consolidated.tx->vin.size(), funding.vout.size());
+        BOOST_CHECK_EQUAL(consolidated.tx->vin.size(), plan.inputs.size());
+        BOOST_CHECK_EQUAL(fee, plan.fee);
         BOOST_REQUIRE_EQUAL(consolidated.tx->vout.size(), 1);
         BOOST_CHECK(consolidated.tx->vout[0].scriptPubKey == script);
         BOOST_CHECK_EQUAL(consolidated.tx->vout[0].nValue + fee, CAmount(consolidated.tx->vin.size()) * COIN);
@@ -181,6 +194,7 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
         BOOST_CHECK_LE(GetTransactionSigOpCost(*consolidated.tx, view, STANDARD_SCRIPT_VERIFY_FLAGS), MAX_STANDARD_TX_SIGOPS_COST);
         CMutableTransaction sized(*consolidated.tx);
         BOOST_REQUIRE(pwalletMain->DummySignTx(sized, inputs));
+        BOOST_CHECK_EQUAL(::GetSerializeSize(sized, SER_NETWORK, PROTOCOL_VERSION), plan.signedBytes);
         BOOST_CHECK_LT(GetTransactionWeight(sized), MAX_NEW_TX_WEIGHT);
         unsigned int next = 0;
         while (selected.count(COutPoint(received.GetHash(), next))) ++next;
@@ -212,6 +226,98 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
     // Other addresses have ample funds, but must never subsidize this batch.
     BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(dustAddress, failed, reserveKey, fee, error));
     BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationCoins().at(dustAddress).size(), 50);
+    const auto plan = pwalletMain->GetConsolidationPlans(dustAddress).at(dustAddress);
+    BOOST_CHECK_EQUAL(plan.eligibleCount, 50);
+    BOOST_CHECK(plan.inputs.empty());
+    BOOST_CHECK(!plan.error.empty());
+    BOOST_CHECK(!plan.sizeLimited);
+}
+
+BOOST_AUTO_TEST_CASE(consolidation_plan_fee_boundary_and_collateral)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    struct RestorePayTxFee {
+        CFeeRate original;
+        ~RestorePayTxFee() { payTxFee = original; }
+    } restorePayTxFee{payTxFee};
+    payTxFee = CFeeRate(1000);
+
+    CKey key;
+    key.MakeNewKey(true);
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
+    const CTxDestination address = key.GetPubKey().GetID();
+    const CScript script = GetScriptForDestination(address);
+    CMutableTransaction funding;
+    funding.vin.emplace_back(COutPoint(uint256S("05"), 0));
+    funding.vout.assign(300, CTxOut(1, script));
+    funding.vout[0].nValue = funding.vout[1].nValue = 18546;
+    CWalletTx received(pwalletMain, MakeTransactionRef(funding));
+    received.hashBlock = chainActive.Tip()->GetBlockHash();
+    received.nIndex = 1;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(received));
+    // Shrinking crosses the CompactSize boundary at 253 inputs.
+    const auto plan = pwalletMain->GetConsolidationPlans(address).at(address);
+    BOOST_REQUIRE_EQUAL(plan.inputs.size(), 252);
+    BOOST_CHECK_EQUAL(plan.signedBytes, 37340);
+    BOOST_CHECK_EQUAL(plan.fee, 37340);
+    BOOST_CHECK_EQUAL(plan.total - plan.fee, 2);
+    BOOST_CHECK(!plan.sizeLimited);
+    CWalletTx consolidated;
+    CReserveKey reserveKey(pwalletMain);
+    CAmount fee = 0;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error), error);
+    BOOST_CHECK_EQUAL(consolidated.tx->vin.size(), plan.inputs.size());
+    BOOST_CHECK_EQUAL(fee, plan.fee);
+
+    const CScript witnessProgram = GetScriptForWitness(GetScriptForRawPubKey(key.GetPubKey()));
+    BOOST_REQUIRE(pwalletMain->AddCScript(witnessProgram));
+    const CTxDestination wrappedAddress = CScriptID(witnessProgram);
+    funding.vin[0].prevout.n = 1;
+    funding.vout.assign(300, CTxOut(1, GetScriptForDestination(wrappedAddress)));
+    funding.vout[0].nValue = funding.vout[1].nValue = 21570;
+    CWalletTx wrappedReceived(pwalletMain, MakeTransactionRef(funding));
+    wrappedReceived.hashBlock = received.hashBlock;
+    wrappedReceived.nIndex = 4;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(wrappedReceived));
+    const auto wrappedPlan = pwalletMain->GetConsolidationPlans(wrappedAddress).at(wrappedAddress);
+    BOOST_REQUIRE_EQUAL(wrappedPlan.inputs.size(), 252);
+    BOOST_CHECK_EQUAL(wrappedPlan.signedBytes, 43388);
+    BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(wrappedAddress, consolidated, reserveKey, fee, error), error);
+    std::vector<std::pair<const CWalletTx*, unsigned int>> wrappedInputs;
+    for (const auto& input : consolidated.tx->vin)
+        wrappedInputs.emplace_back(&wrappedReceived, input.prevout.n);
+    CMutableTransaction wrappedSized(*consolidated.tx);
+    BOOST_REQUIRE(pwalletMain->DummySignTx(wrappedSized, wrappedInputs));
+    BOOST_CHECK(wrappedSized.HasWitness());
+    BOOST_CHECK_EQUAL(::GetSerializeSize(wrappedSized, SER_NETWORK, PROTOCOL_VERSION), wrappedPlan.signedBytes);
+    BOOST_CHECK_EQUAL(fee, wrappedPlan.fee);
+
+    // Known collateral stays excluded even if manually unlocked. Ordinary
+    // 1000-FIRO outputs are still eligible for this same-address operation.
+    CMutableTransaction collateral;
+    collateral.nVersion = 3;
+    collateral.nType = TRANSACTION_PROVIDER_REGISTER;
+    collateral.vin.emplace_back(COutPoint(uint256S("06"), 0));
+    collateral.vout.emplace_back(1000 * COIN, script);
+    CProRegTx registration;
+    registration.collateralOutpoint.n = 0;
+    SetTxPayload(collateral, registration);
+    CWalletTx collateralTx(pwalletMain, MakeTransactionRef(collateral));
+    collateralTx.hashBlock = received.hashBlock;
+    collateralTx.nIndex = 2;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(collateralTx));
+    pwalletMain->UnlockCoin(COutPoint(collateralTx.GetHash(), 0));
+    collateral.nType = TRANSACTION_NORMAL;
+    collateral.vExtraPayload.clear();
+    CWalletTx ordinary(pwalletMain, MakeTransactionRef(collateral));
+    ordinary.hashBlock = received.hashBlock;
+    ordinary.nIndex = 3;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(ordinary));
+    const auto coins = pwalletMain->GetConsolidationCoins(address).at(address);
+    BOOST_CHECK_EQUAL(coins.size(), 301);
+    BOOST_CHECK(std::find(coins.begin(), coins.end(), COutPoint(collateralTx.GetHash(), 0)) == coins.end());
+    BOOST_CHECK(std::find(coins.begin(), coins.end(), COutPoint(ordinary.GetHash(), 0)) != coins.end());
 }
 
 BOOST_FIXTURE_TEST_CASE(consolidation_affordable_batch_commit, TestChain100Setup)
@@ -289,6 +395,10 @@ BOOST_FIXTURE_TEST_CASE(consolidation_affordable_batch_commit, TestChain100Setup
     groups = pwalletMain->GetConsolidationCoins();
     BOOST_CHECK_EQUAL(groups.at(address).size(), remaining + 1);
     BOOST_CHECK(std::find(groups.at(address).begin(), groups.at(address).end(), COutPoint(tx.GetHash(), 0)) != groups.at(address).end());
+    const auto remainder = pwalletMain->GetConsolidationPlans(address).at(address);
+    BOOST_CHECK_EQUAL(remainder.eligibleCount, remaining + 1);
+    BOOST_CHECK(remainder.inputs.empty());
+    BOOST_CHECK(!remainder.error.empty());
 }
 
 BOOST_AUTO_TEST_CASE(conflict_notifications_include_descendants)

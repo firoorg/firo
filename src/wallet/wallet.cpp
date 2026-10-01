@@ -2991,116 +2991,149 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
     }
 }
 
-std::map<CTxDestination, std::vector<COutPoint>> CWallet::GetConsolidationCoins() const
+std::map<CTxDestination, std::vector<COutPoint>> CWallet::GetConsolidationCoins(const CTxDestination& target) const
 {
     LOCK2(cs_main, cs_wallet);
     std::vector<COutput> available;
     AvailableCoins(available);
+    const auto mnList = deterministicMNManager ? deterministicMNManager->GetListAtChainTip() : CDeterministicMNList();
     std::map<CTxDestination, std::vector<COutPoint>> groups;
     for (const auto& coin : available) {
         const auto& script = coin.tx->tx->vout[coin.i].scriptPubKey;
         CTxDestination destination;
+        const COutPoint outpoint(coin.tx->GetHash(), coin.i);
         // Do not follow change ancestry or combine different scripts that decode
         // to the same address (e.g. bare public keys and Spark Name fee outputs).
         if (coin.fSpendable && coin.nDepth > 0 && ExtractDestination(script, destination) &&
-            script == GetScriptForDestination(destination)) {
-            groups[destination].emplace_back(coin.tx->GetHash(), coin.i);
+            script == GetScriptForDestination(destination) &&
+            (boost::get<CNoDestination>(&target) || target == destination) &&
+            (!deterministicMNManager || !deterministicMNManager->IsProTxWithCollateral(coin.tx->tx, coin.i)) &&
+            !mnList.HasMNByCollateral(outpoint)) {
+            groups[destination].push_back(outpoint);
         }
     }
     return groups;
+}
+
+std::map<CTxDestination, ConsolidationPlan> CWallet::GetConsolidationPlans(const CTxDestination& target) const
+{
+    LOCK2(cs_main, cs_wallet);
+    std::map<CTxDestination, ConsolidationPlan> plans;
+    for (const auto& group : GetConsolidationCoins(target)) {
+        auto& plan = plans[group.first];
+        plan.eligibleCount = group.second.size();
+        if (plan.eligibleCount < 2) {
+            plan.error = _("There are fewer than two eligible outputs at this address.");
+            continue;
+        }
+
+        // Cache values before sorting; map lookups do not belong in the comparator.
+        std::vector<std::pair<CAmount, COutPoint>> coins;
+        coins.reserve(group.second.size());
+        for (const auto& outpoint : group.second)
+            coins.emplace_back(mapWallet.at(outpoint.hash).tx->vout[outpoint.n].nValue, outpoint);
+        std::sort(coins.begin(), coins.end(), [](const auto& a, const auto& b) {
+            return a.first != b.first ? a.first > b.first : a.second < b.second;
+        });
+
+        // Even an unsigned input needs this much weight. Bound the sizing work.
+        coins.resize(std::min(coins.size(), size_t(MAX_NEW_TX_WEIGHT /
+            (WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxIn(), SER_NETWORK, PROTOCOL_VERSION)))));
+        CMutableTransaction sized;
+        sized.vout.emplace_back(0, GetScriptForDestination(group.first));
+        std::vector<std::pair<const CWalletTx*, unsigned int>> inputs;
+        CCoinsView emptyView;
+        CCoinsViewCache view(&emptyView);
+        for (const auto& coin : coins) {
+            const auto& outpoint = coin.second;
+            const auto& walletTx = mapWallet.at(outpoint.hash);
+            sized.vin.emplace_back(outpoint);
+            inputs.emplace_back(&walletTx, outpoint.n);
+            view.AddCoin(outpoint, Coin(walletTx.tx->vout[outpoint.n], 0, false), false);
+        }
+        if (!DummySignTx(sized, inputs)) {
+            plan.error = _("Signing transaction failed");
+            continue;
+        }
+
+        // Use real serialization, including CompactSize boundaries, and the sigop cap.
+        const auto signedInputs = std::move(sized.vin);
+        size_t low = 0, high = coins.size();
+        while (low < high) {
+            const size_t count = low + (high - low + 1) / 2;
+            sized.vin.assign(signedInputs.begin(), signedInputs.begin() + count);
+            const CTransaction candidate(sized);
+            if (GetTransactionWeight(candidate) < MAX_NEW_TX_WEIGHT &&
+                GetTransactionSigOpCost(candidate, view, STANDARD_SCRIPT_VERIFY_FLAGS) <= MAX_STANDARD_TX_SIGOPS_COST) {
+                low = count;
+            } else {
+                high = count - 1;
+            }
+        }
+        plan.sizeLimited = low < plan.eligibleCount;
+        if (low < 2) {
+            plan.error = _("Too few outputs fit within the transaction limits.");
+            continue;
+        }
+
+        CAmount total = 0;
+        for (size_t i = 0; i < low; ++i)
+            total += coins[i].first;
+        sized.vin.assign(signedInputs.begin(), signedInputs.begin() + low);
+        unsigned int bytes = ::GetSerializeSize(sized, SER_NETWORK, PROTOCOL_VERSION);
+        CAmount requiredFee = 0;
+        const bool hasWitness = sized.HasWitness(); // Uniform at this exact destination script.
+        // Drop the smallest outputs until the batch pays its fee. Update its
+        // serialized size instead of reserializing every remaining input.
+        while (low >= 2) {
+            requiredFee = GetMinimumFee(bytes, nTxConfirmTarget, mempool);
+            if (total > requiredFee && requiredFee >= ::minRelayTxFee.GetFee(bytes))
+                break;
+            const auto& input = sized.vin.back();
+            bytes -= ::GetSerializeSize(input, SER_NETWORK, PROTOCOL_VERSION);
+            if (hasWitness)
+                bytes -= ::GetSerializeSize(input.scriptWitness.stack, SER_NETWORK, PROTOCOL_VERSION);
+            bytes -= GetSizeOfCompactSize(low) - GetSizeOfCompactSize(low - 1);
+            total -= coins[--low].first;
+            sized.vin.pop_back();
+        }
+        if (low < 2) {
+            plan.error = _("The transaction amount is too small to pay the fee");
+            continue;
+        }
+        for (size_t i = 0; i < low; ++i)
+            plan.inputs.push_back(coins[i].second);
+        plan.total = total;
+        plan.fee = requiredFee;
+        plan.signedBytes = bytes;
+    }
+    return plans;
 }
 
 bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
                                            CReserveKey& reserveKey, CAmount& fee, std::string& error)
 {
     LOCK2(cs_main, cs_wallet);
-    auto groups = GetConsolidationCoins();
-    auto group = groups.find(destination);
-    if (group == groups.end() || group->second.size() < 2) {
-        error = _("There are fewer than two eligible outputs at this address.");
+    const auto plans = GetConsolidationPlans(destination);
+    const auto found = plans.find(destination);
+    if (found == plans.end() || !found->second.error.empty()) {
+        error = found == plans.end() ? _("There are fewer than two eligible outputs at this address.") : found->second.error;
         return false;
     }
-    auto& coins = group->second;
-    const auto output = [&](const COutPoint& coin) -> const CTxOut& {
-        return mapWallet.at(coin.hash).tx->vout[coin.n];
-    };
-    // Prefer larger outputs so a batch can pay its own fee without borrowing
-    // from another address. Ties keep deterministic outpoint order.
-    std::sort(coins.begin(), coins.end(), [&](const COutPoint& a, const COutPoint& b) {
-        return output(a).nValue != output(b).nValue ? output(a).nValue > output(b).nValue : a < b;
-    });
-
-    // Even an unsigned input needs this much weight. Bound the sizing work for
-    // wallets with more outputs than could possibly fit in one transaction.
-    coins.resize(std::min(coins.size(), size_t(MAX_NEW_TX_WEIGHT /
-        (WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxIn(), SER_NETWORK, PROTOCOL_VERSION)))));
-    const CScript script = GetScriptForDestination(destination);
-    CMutableTransaction sized;
-    sized.vout.emplace_back(0, script);
-    std::vector<std::pair<const CWalletTx*, unsigned int>> inputs;
-    CCoinsView emptyView;
-    CCoinsViewCache view(&emptyView);
-    for (const auto& coin : coins) {
-        sized.vin.emplace_back(coin);
-        inputs.emplace_back(&mapWallet.at(coin.hash), coin.n);
-        view.AddCoin(coin, Coin(output(coin), 0, false), false);
-    }
-    if (!DummySignTx(sized, inputs)) {
-        error = _("Signing transaction failed");
-        return false;
-    }
-
-    // Find the largest prefix that fits, using maximum-size signatures and the
-    // real serialization (including CompactSize boundaries), plus the sigop cap.
-    const auto signedInputs = std::move(sized.vin);
-    size_t low = 0, high = coins.size();
-    while (low < high) {
-        const size_t count = low + (high - low + 1) / 2;
-        sized.vin.assign(signedInputs.begin(), signedInputs.begin() + count);
-        const CTransaction candidate(sized);
-        if (GetTransactionWeight(candidate) < MAX_NEW_TX_WEIGHT &&
-            GetTransactionSigOpCost(candidate, view, STANDARD_SCRIPT_VERIFY_FLAGS) <= MAX_STANDARD_TX_SIGOPS_COST) {
-            low = count;
-        } else {
-            high = count - 1;
-        }
-    }
-    if (low < 2) {
-        error = _("Too few outputs fit within the transaction limits.");
-        return false;
-    }
-
+    const auto& plan = found->second;
     CCoinControl control;
     control.destChange = destination;
-    CAmount total = 0;
-    for (size_t i = 0; i < low; ++i) {
-        control.Select(coins[i]);
-        total += output(coins[i]).nValue;
-    }
-    // A size-fitting batch may still be unable to pay its fee. Drop the
-    // smallest outputs until it can, using the same fee policy as construction.
-    sized.vin.assign(signedInputs.begin(), signedInputs.begin() + low);
-    while (low >= 2) {
-        const unsigned int bytes = ::GetSerializeSize(sized, SER_NETWORK, PROTOCOL_VERSION);
-        const CAmount requiredFee = GetMinimumFee(bytes, &control, mempool);
-        if (total > requiredFee && requiredFee >= ::minRelayTxFee.GetFee(bytes))
-            break;
-        control.UnSelect(coins[--low]);
-        total -= output(coins[low]).nValue;
-        sized.vin.pop_back();
-    }
-    if (low < 2) {
-        error = _("The transaction amount is too small to pay the fee");
-        return false;
-    }
+    for (const auto& input : plan.inputs)
+        control.Select(input);
 
+    const CScript script = GetScriptForDestination(destination);
     int changePosition = -1;
-    if (!CreateTransaction({{script, total, true}}, transaction, reserveKey, fee, changePosition, error, &control))
+    if (!CreateTransaction({{script, plan.total, true}}, transaction, reserveKey, fee, changePosition, error, &control))
         return false;
 
     const auto& tx = *transaction.tx;
-    if (tx.vout.size() != 1 || tx.vout[0].nValue <= 0 || tx.vout[0].scriptPubKey != script || tx.vout[0].nValue != total - fee ||
-        tx.vin.size() != low || GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT ||
+    if (tx.vout.size() != 1 || tx.vout[0].nValue <= 0 || tx.vout[0].scriptPubKey != script || tx.vout[0].nValue != plan.total - fee ||
+        tx.vin.size() != plan.inputs.size() || GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT ||
         !std::all_of(tx.vin.begin(), tx.vin.end(), [&](const CTxIn& input) { return control.IsSelected(input.prevout); })) {
         error = _("Unable to create a same-address consolidation transaction.");
         return false;
