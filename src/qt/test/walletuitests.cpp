@@ -270,6 +270,17 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
     splash->showProgress("Verifying blocks...", 50);
     QVERIFY(!timer->isActive());
     splash->showProgress("", 100);
+    QVERIFY(!timer->isActive());
+    QImage completed(splash->size(), QImage::Format_ARGB32_Premultiplied);
+    splash->render(&completed);
+    QCOMPARE(completed.pixelColor(564, 350), QColor(GUIUtil::themeColors().wine));
+    splash->showStatus("Loading wallet...");
+    QVERIFY(timer->isActive());
+    splash->showProgress("Rescanning...", 0);
+    QVERIFY(!timer->isActive());
+    splash->showProgress("Rescanning...", 100);
+    QVERIFY(!timer->isActive());
+    splash->showStatus("Starting network threads...");
     QVERIFY(timer->isActive());
     splash->hide();
     QVERIFY(!timer->isActive());
