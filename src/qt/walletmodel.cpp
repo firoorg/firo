@@ -36,6 +36,7 @@
 #include "cancelpassworddialog.h"
 
 #include <algorithm>
+#include <set>
 #include <stdint.h>
 
 #include <QDebug>
@@ -447,28 +448,49 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
-bool WalletModel::pollConsolidationAddresses(std::map<QString, size_t>& addresses)
+std::vector<WalletModel::ConsolidationCandidate> WalletModel::getConsolidationAddresses() const
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    std::vector<ConsolidationCandidate> addresses;
+    for (const auto& group : wallet->GetConsolidationPlans()) {
+        const auto& plan = group.second;
+        if (!plan.error.empty() || plan.inputs.size() < 2)
+            continue;
+        const auto label = wallet->mapAddressBook.find(group.first);
+        addresses.push_back({QString::fromStdString(CBitcoinAddress(group.first).ToString()),
+            label == wallet->mapAddressBook.end() ? QString() : QString::fromStdString(label->second.name),
+            plan.eligibleCount, plan.sizeLimited});
+    }
+    std::sort(addresses.begin(), addresses.end(), [](const auto& a, const auto& b) {
+        return a.outputs != b.outputs ? a.outputs > b.outputs : a.address < b.address;
+    });
+    return addresses;
+}
+
+bool WalletModel::pollConsolidationAddresses(std::vector<ConsolidationCandidate>& addresses)
 {
     if (!consolidationScan.valid()) {
-        consolidationScan = std::async(std::launch::async, [coreWallet = wallet]() -> std::optional<std::map<QString, size_t>> {
+        consolidationScan = std::async(std::launch::async, [this, coreWallet = wallet]() -> std::optional<std::vector<ConsolidationCandidate>> {
             TRY_LOCK(cs_main, lockMain);
             if (!lockMain) return std::nullopt;
             TRY_LOCK(coreWallet->cs_wallet, lockWallet);
             if (!lockWallet) return std::nullopt;
-            std::map<QString, size_t> result;
-            for (const auto& group : coreWallet->GetConsolidationCoins()) {
-                if (group.second.size() >= 2)
-                    result.emplace(QString::fromStdString(CBitcoinAddress(group.first).ToString()), group.second.size());
-            }
-            return result;
+            return getConsolidationAddresses();
         });
     }
     if (consolidationScan.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready)
         return false;
     auto result = consolidationScan.get();
-    if (result)
-        addresses = std::move(*result);
+    if (!result)
+        return false;
+    addresses = std::move(*result);
     return true;
+}
+
+WalletModel::ConsolidationPreview WalletModel::getConsolidationPreview(WalletModelTransaction& transaction) const
+{
+    const auto& tx = *transaction.getTransaction()->tx;
+    return {tx.vin.size(), tx.vout[0].nValue, tx.GetTotalSize()};
 }
 
 WalletModel::SendCoinsReturn WalletModel::prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address)
@@ -487,14 +509,22 @@ WalletModel::SendCoinsReturn WalletModel::prepareConsolidationTransaction(Wallet
     return OK;
 }
 
-WalletModel::SendCoinsReturn WalletModel::sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs)
+WalletModel::SendCoinsReturn WalletModel::sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs, bool& anotherBatch)
 {
     LOCK2(cs_main, wallet->cs_wallet);
     auto& newTx = *transaction.getTransaction();
-    for (const auto& input : newTx.tx->vin) {
-        if (wallet->IsLockedCoin(input.prevout.hash, input.prevout.n))
-            return SendCoinsReturn(TransactionCommitFailed, tr("An output was locked after this transaction was prepared. Please try again."));
-    }
+    if (!newTx.tx || newTx.tx->vin.size() < 2 || newTx.tx->vout.size() != 1)
+        return SendCoinsReturn(TransactionCommitFailed, tr("The consolidation transaction is incomplete."));
+    // Locks and collateral registration can change while the user reviews.
+    CTxDestination destination;
+    if (!ExtractDestination(newTx.tx->vout[0].scriptPubKey, destination))
+        return SendCoinsReturn(TransactionCommitFailed, tr("The consolidation address is invalid."));
+    const auto available = wallet->GetConsolidationCoins(destination);
+    const auto group = available.find(destination);
+    const std::set<COutPoint> eligible = group == available.end() ? std::set<COutPoint>()
+        : std::set<COutPoint>(group->second.begin(), group->second.end());
+    if (!std::all_of(newTx.tx->vin.begin(), newTx.tx->vin.end(), [&](const auto& input) { return eligible.count(input.prevout) != 0; }))
+        return SendCoinsReturn(TransactionCommitFailed, tr("The selected outputs are no longer eligible for consolidation. Please try again."));
     // Validate before recording the self-transfer or marking its inputs spent.
     CValidationState state;
     if (!wallet->CommitTransaction(newTx, *transaction.getPossibleKeyChange(), g_connman.get(), state, true)) {
@@ -503,14 +533,16 @@ WalletModel::SendCoinsReturn WalletModel::sendConsolidationTransaction(WalletMod
             ? tr("The selected outputs are no longer available. Please try again.") : reason);
     }
     // Count again after committing; the wallet may have changed during review.
-    // GetConsolidationCoins excludes the new output until it confirms.
+    // GetConsolidationPlans excludes the new output until it confirms.
     remainingOutputs = 0;
-    CTxDestination destination;
-    if (ExtractDestination(newTx.tx->vout[0].scriptPubKey, destination)) {
-        const auto groups = wallet->GetConsolidationCoins();
-        const auto group = groups.find(destination);
-        if (group != groups.end())
-            remainingOutputs = group->second.size();
+    anotherBatch = false;
+    {
+        const auto groups = wallet->GetConsolidationPlans(destination);
+        const auto remaining = groups.find(destination);
+        if (remaining != groups.end()) {
+            remainingOutputs = remaining->second.eligibleCount;
+            anotherBatch = remaining->second.error.empty() && remaining->second.inputs.size() >= 2;
+        }
     }
     QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
     return OK;

@@ -126,10 +126,11 @@ void WalletUiTests::consolidationSuggestion()
     {
         LOCK(wallet.cs_wallet);
         QVERIFY(wallet.AddKeyPubKey(key, key.GetPubKey()));
+        wallet.SetAddressBook(key.GetPubKey().GetID(), "Payouts", "receive");
     }
     CMutableTransaction funding;
     funding.vin.emplace_back(COutPoint(uint256S("01"), 0));
-    funding.vout.assign(50, CTxOut(COIN, GetScriptForDestination(key.GetPubKey().GetID())));
+    funding.vout.assign(1700, CTxOut(COIN, GetScriptForDestination(key.GetPubKey().GetID())));
     CWalletTx received(&wallet, MakeTransactionRef(funding));
     received.hashBlock = blockHash;
     received.nIndex = 1;
@@ -140,6 +141,7 @@ void WalletUiTests::consolidationSuggestion()
 
     OverviewPage page(style.get());
     page.setWalletModel(model.get());
+    page.show();
     auto* hint = page.findChild<QLabel*>("consolidationHint");
     auto* button = page.findChild<QPushButton*>("consolidateButton");
     QVERIFY(hint && button);
@@ -148,10 +150,14 @@ void WalletUiTests::consolidationSuggestion()
     page.showOutOfSyncWarning(false);
     QTRY_VERIFY(!hint->isHidden());
     QVERIFY(!button->isHidden());
+    QVERIFY(hint->text().contains("Payouts"));
 
-    QTimer::singleShot(0, &page, [&] {
+    QTimer dialogTimer;
+    connect(&dialogTimer, &QTimer::timeout, &page, [&] {
         auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-        QVERIFY(dialog);
+        if (!dialog)
+            return;
+        dialogTimer.stop();
         const auto close = qScopeGuard([&] { dialog->reject(); });
         const QSize available = GUIUtil::availableScreenSize(dialog);
         QVERIFY(dialog->width() <= qMax(available.width(), dialog->minimumSizeHint().width()));
@@ -168,17 +174,26 @@ void WalletUiTests::consolidationSuggestion()
         QVERIFY(explanation);
         QVERIFY(explanation->height() >= explanation->heightForWidth(explanation->width()));
     });
+    dialogTimer.start(10);
     QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
 
-    std::map<QString, size_t> cached{{"previous scan", 50}};
+    page.hide();
+    std::vector<WalletModel::ConsolidationCandidate> cached;
+    bool scanFinished = false;
+    QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
+    cached = {{"previous scan", "", 1700, true}};
     {
         LOCK(wallet.cs_wallet);
         // The GUI can poll a busy wallet without waiting or hiding its offer.
-        bool scanFinished = false;
-        QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
+        QVERIFY(!model->pollConsolidationAddresses(cached));
+        QTest::qWait(30);
+        QVERIFY(!model->pollConsolidationAddresses(cached));
         QCOMPARE(cached.size(), size_t(1));
-        QVERIFY(cached.count("previous scan"));
+        QCOMPARE(cached[0].address, QString("previous scan"));
     }
+    scanFinished = false;
+    QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
+    QCOMPARE(cached[0].outputs, size_t(1700));
 
     {
         LOCK(wallet.cs_wallet);
@@ -187,21 +202,56 @@ void WalletUiTests::consolidationSuggestion()
     WalletModelTransaction transaction{QList<SendCoinsRecipient>()};
     CMutableTransaction prepared;
     prepared.vin.emplace_back(COutPoint(received.GetHash(), 0));
+    prepared.vin.emplace_back(COutPoint(received.GetHash(), 1));
+    prepared.vout.emplace_back(COIN, GetScriptForDestination(key.GetPubKey().GetID()));
     *transaction.getTransaction() = CWalletTx(&wallet, MakeTransactionRef(prepared));
     size_t remainingOutputs = 0;
-    QCOMPARE(model->sendConsolidationTransaction(transaction, remainingOutputs).status, WalletModel::TransactionCommitFailed);
+    bool anotherBatch = false;
+    QCOMPARE(model->sendConsolidationTransaction(transaction, remainingOutputs, anotherBatch).status, WalletModel::TransactionCommitFailed);
     QVERIFY(!wallet.IsSpent(received.GetHash(), 0));
-    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
-    QTRY_VERIFY(hint->isHidden()); // 49 eligible outputs: no automatic suggestion.
-    QVERIFY(!button->isHidden()); // Small remainders remain manually accessible.
     {
         LOCK(wallet.cs_wallet);
-        for (unsigned int i = 1; i < 50; ++i)
+        for (unsigned int i = 1; i < 1651; ++i)
+            wallet.LockCoin(COutPoint(received.GetHash(), i));
+    }
+    page.show();
+    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
+    QTRY_VERIFY(hint->isHidden()); // 49 outputs fit in one transaction: no automatic suggestion.
+    QVERIFY(button->isHidden());
+    page.hide();
+    std::vector<WalletModel::ConsolidationCandidate> manualAddresses;
+    bool manualScanFinished = false;
+    QTRY_VERIFY(manualScanFinished || (manualScanFinished = model->pollConsolidationAddresses(manualAddresses)));
+    QCOMPARE(manualAddresses.size(), size_t(1));
+    QCOMPARE(manualAddresses[0].outputs, size_t(49)); // Still available through File > Consolidate outputs.
+    QVERIFY(!manualAddresses[0].sizeLimited);
+    {
+        LOCK(wallet.cs_wallet);
+        for (unsigned int i = 1651; i < 1700; ++i)
             wallet.LockCoin(COutPoint(received.GetHash(), i));
     }
     QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
     QTRY_VERIFY(button->isHidden());
-    model.reset();
+    // A size-limited address must also have an affordable batch to be offered.
+    funding.vout.assign(1700, CTxOut(1, GetScriptForDestination(key.GetPubKey().GetID())));
+    CWalletTx dust(&wallet, MakeTransactionRef(funding));
+    dust.hashBlock = blockHash;
+    dust.nIndex = 1;
+    {
+        LOCK(wallet.cs_wallet);
+        wallet.mapWallet.emplace(dust.GetHash(), dust);
+    }
+    manualScanFinished = false;
+    QTRY_VERIFY(manualScanFinished || (manualScanFinished = model->pollConsolidationAddresses(manualAddresses)));
+    QVERIFY(manualAddresses.empty());
+    // A hidden-page manual scan remains safe if its model disappears while waiting.
+    QTimer::singleShot(0, &page, [&] {
+        model.reset();
+        if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
+            dialog->reject();
+    });
+    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+    QVERIFY(!model);
     QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
     QVERIFY(hint->isHidden());
     QVERIFY(button->isHidden());
@@ -212,7 +262,10 @@ void WalletUiTests::consolidationResult()
     const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
     QVERIFY(style);
     OverviewPage page(style.get());
-    for (qulonglong remaining : {0ULL, 1ULL, 2ULL, 320ULL}) {
+    for (const auto& batch : {std::make_pair(0ULL, false), std::make_pair(1ULL, false),
+                             std::make_pair(2ULL, false), std::make_pair(2ULL, true)}) {
+        const qulonglong remaining = batch.first;
+        const bool anotherBatch = batch.second;
         QString message;
         QTimer::singleShot(0, &page, [&] {
             if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
@@ -220,11 +273,11 @@ void WalletUiTests::consolidationResult()
                 box->accept();
             }
         });
-        QVERIFY(QMetaObject::invokeMethod(&page, "showConsolidationResult", Qt::DirectConnection, Q_ARG(qulonglong, remaining)));
+        QVERIFY(QMetaObject::invokeMethod(&page, "showConsolidationResult", Qt::DirectConnection, Q_ARG(qulonglong, remaining), Q_ARG(bool, anotherBatch)));
         QVERIFY(message.contains(QString("Eligible outputs remaining at this address: %1").arg(remaining)));
-        QCOMPARE(message.contains("another batch now"), remaining >= 2);
+        QCOMPARE(message.contains("Another affordable batch"), anotherBatch);
         QCOMPARE(message.contains("remaining output at this same address"), remaining == 1);
-        QCOMPARE(message.contains("multiple batches"), remaining == 0);
+        QCOMPARE(message.contains("cannot currently form an affordable batch"), remaining >= 2 && !anotherBatch);
         QVERIFY(message.contains("requires your confirmation and a network fee"));
     }
 }

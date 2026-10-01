@@ -187,10 +187,22 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    struct ConsolidationCandidate {
+        QString address;
+        QString label;
+        size_t outputs;
+        bool sizeLimited;
+    };
+    struct ConsolidationPreview {
+        size_t inputs;
+        CAmount returnedAmount;
+        unsigned int bytes;
+    };
     // Start/poll a background scan. A busy wallet preserves the previous result.
-    bool pollConsolidationAddresses(std::map<QString, size_t>& addresses);
+    bool pollConsolidationAddresses(std::vector<ConsolidationCandidate>& addresses);
+    ConsolidationPreview getConsolidationPreview(WalletModelTransaction& transaction) const;
     SendCoinsReturn prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address);
-    SendCoinsReturn sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs);
+    SendCoinsReturn sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs, bool& anotherBatch);
 
     SendCoinsReturn prepareMintSparkTransaction(
         std::vector<WalletModelTransaction> &transactions,
@@ -326,9 +338,10 @@ public:
     CAmount GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const;
 
 private:
+    std::vector<ConsolidationCandidate> getConsolidationAddresses() const;
     CWallet *wallet;
     // Destruction joins the scan before the core wallet is released.
-    std::future<std::optional<std::map<QString, size_t>>> consolidationScan;
+    std::future<std::optional<std::vector<ConsolidationCandidate>>> consolidationScan;
 
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;

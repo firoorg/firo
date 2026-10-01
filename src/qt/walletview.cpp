@@ -289,6 +289,11 @@ bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
     return sendFiroView->handlePaymentRequest(recipient);
 }
 
+void WalletView::consolidateCoins()
+{
+    overviewPage->consolidateCoins();
+}
+
 void WalletView::showOutOfSyncWarning(bool fShow)
 {
     overviewPage->showOutOfSyncWarning(fShow);

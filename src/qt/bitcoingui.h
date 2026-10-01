@@ -113,6 +113,7 @@ private:
     QAction *sendCoinsMenuAction;
     QAction *usedSendingAddressesAction;
     QAction *usedReceivingAddressesAction;
+    QAction *consolidateOutputsAction;
     QAction *signMessageAction;
     QAction *verifyMessageAction;
     QAction *aboutAction;

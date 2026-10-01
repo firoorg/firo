@@ -51,6 +51,7 @@ public:
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
+    void consolidateCoins();
 
     void setBalance(
         const CAmount& balance, 
@@ -69,6 +70,8 @@ Q_SIGNALS:
     void gotoSendCoinsPage();
     void gotoReceiveCoinsPage();
 private:
+    void showEvent(QShowEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
     QPointer<WalletModel> walletModel;
@@ -101,7 +104,8 @@ private:
     QLabel *consolidationHint{nullptr};
     QPushButton *consolidateButton{nullptr};
     QTimer consolidationTimer;
-    std::map<QString, size_t> consolidationAddresses;
+    std::vector<WalletModel::ConsolidationCandidate> consolidationAddresses;
+    bool waitingForConsolidationScan{false};
     bool outOfSync{true};
 
     void applyOverviewRedesign();
@@ -117,9 +121,9 @@ private Q_SLOTS:
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
     void updateSparkAnonymizeRowVisibility();
+    void scheduleConsolidationRefresh();
     void updateConsolidationOffer();
-    void consolidateCoins();
-    void showConsolidationResult(qulonglong remainingOutputs);
+    void showConsolidationResult(qulonglong remainingOutputs, bool anotherBatch);
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H
