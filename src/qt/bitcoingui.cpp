@@ -1163,6 +1163,7 @@ bool BitcoinGUI::isActivelySyncing() const
 void BitcoinGUI::updateNavigationSyncCard(
     const QString& status, double progress)
 {
+    updateConsolidationAction();
     if (!navigationSyncCard || !navigationSyncLabel ||
         !navigationSyncPercent || !navigationSyncProgress)
         return;
@@ -1397,6 +1398,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(nullptr);
     }
+    updateConsolidationAction();
 }
 
 #ifdef ENABLE_WALLET
@@ -1450,8 +1452,13 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
-    consolidateOutputsAction->setEnabled(enabled);
+    updateConsolidationAction();
     openAction->setEnabled(enabled);
+}
+
+void BitcoinGUI::updateConsolidationAction()
+{
+    consolidateOutputsAction->setEnabled(clientModel && overviewAction->isEnabled() && !syncInProgress());
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)

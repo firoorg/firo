@@ -188,6 +188,7 @@ private:
 
     /** Enable or disable all wallet-related actions */
     void setWalletActionsEnabled(bool enabled);
+    void updateConsolidationAction();
 
     /** Connect core signals to GUI client */
     void subscribeToCoreSignals();
