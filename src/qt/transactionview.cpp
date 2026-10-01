@@ -80,6 +80,7 @@ public:
         const qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
         const bool incoming = isIncoming(txType);
         const bool positive = incoming || amount > 0;
+        const int lineHeight = option.fontMetrics.height();
 
         painter->fillRect(option.rect, QColor(tc.panel));
 
@@ -103,7 +104,6 @@ public:
             painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
             painter->drawRoundedRect(icon, 10, 10);
             QFont iconFont = option.font;
-            iconFont.setPixelSize(14);
             iconFont.setBold(true);
             painter->setFont(iconFont);
             painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
@@ -111,26 +111,21 @@ public:
                               incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
 
             const QDateTime dt = index.data(TransactionTableModel::DateRole).toDateTime();
-            QFont dateFont = option.font;
-            dateFont.setPixelSize(12);
-            dateFont.setBold(true);
-            painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
             const int metadataWidth = 30 +
                 (index.data(TransactionTableModel::InstantSendRole).toBool() ? 20 : 0) +
                 (index.data(TransactionTableModel::WatchonlyRole).toBool() ? 20 : 0);
-            const QRect dateRect(icon.right() + 10, option.rect.center().y() - 18,
-                                 option.rect.right() - icon.right() - metadataWidth, 18);
+            const QRect dateRect(icon.right() + 10, option.rect.center().y() - lineHeight,
+                                 option.rect.right() - icon.right() - metadataWidth, lineHeight);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.date(), QLocale::ShortFormat)
                                            : index.data(Qt::DisplayRole).toString());
 
             QFont timeFont = option.font;
-            timeFont.setPixelSize(12);
             timeFont.setBold(false);
             painter->setFont(timeFont);
             painter->setPen(QColor(tc.inkFaint));
-            const QRect timeRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), 18);
+            const QRect timeRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), lineHeight);
             painter->drawText(timeRect, Qt::AlignLeft | Qt::AlignVCenter,
                               dt.isValid() ? QLocale::system().toString(dt.time(), QLocale::ShortFormat) : QString());
 
@@ -149,15 +144,15 @@ public:
         case TransactionTableModel::Type: {
             const QString displayText = index.data(Qt::DisplayRole).toString();
             QFont badgeFont = option.font;
-            badgeFont.setPixelSize(12);
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const QFontMetrics fm(badgeFont);
             const QString text = fm.elidedText(displayText, Qt::ElideRight,
                                                 std::max(0, option.rect.width() - 34));
             const int w = std::min(option.rect.width() - 16, fm.boundingRect(text).width() + 18);
+            const int height = fm.height() + 6;
             const QRect badge(option.rect.left() + 6,
-                              option.rect.center().y() - 11, w, 22);
+                              option.rect.center().y() - height / 2, w, height);
             painter->setPen(Qt::NoPen);
             painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
             painter->drawRoundedRect(badge, 11, 11);
@@ -176,15 +171,13 @@ public:
             painter->drawLine(iconRect.left() + 3, iconRect.top() + 8,
                               iconRect.right() - 3, iconRect.top() + 8);
 
-            QFont addrFont = GUIUtil::fixedPitchFont();
-            addrFont.setPixelSize(12);
-            painter->setFont(addrFont);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.ink));
             const QRect textRect(iconRect.right() + 8, option.rect.top(),
                                  option.rect.right() - iconRect.right() - 16,
                                  option.rect.height());
             painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
-                              QFontMetrics(addrFont).elidedText(text, Qt::ElideMiddle, textRect.width()));
+                              QFontMetrics(option.font).elidedText(text, Qt::ElideMiddle, textRect.width()));
             break;
         }
         case TransactionTableModel::Amount: {
@@ -192,12 +185,11 @@ public:
                 ? QCoreApplication::translate("TransactionView", "RECEIVED")
                 : QCoreApplication::translate("TransactionView", "SENT");
             QFont capFont = option.font;
-            capFont.setPixelSize(12);
             capFont.setBold(true);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
-            const QRect capRect(option.rect.left() + 8, option.rect.center().y() - 18,
-                                option.rect.width() - 22, 18);
+            const QRect capRect(option.rect.left() + 8, option.rect.center().y() - lineHeight,
+                                option.rect.width() - 22, lineHeight);
             painter->drawText(capRect, Qt::AlignRight | Qt::AlignVCenter, caption);
 
             QString amountText = index.data(Qt::DisplayRole).toString();
@@ -205,12 +197,8 @@ public:
             amountText.replace(QLatin1Char(')'), QString());
             if (amount > 0 && !amountText.startsWith(QLatin1Char('+')))
                 amountText.prepend(QLatin1Char('+'));
-            QFont amtFont = option.font;
-            amtFont.setPixelSize(14);
-            amtFont.setBold(true);
-            painter->setFont(amtFont);
             painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
-            const QRect amtRect(capRect.left(), capRect.bottom() + 1, capRect.width(), 20);
+            const QRect amtRect(capRect.left(), capRect.bottom() + 1, capRect.width(), lineHeight);
             painter->drawText(amtRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
             break;
         }
@@ -382,7 +370,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     transactionView->setCornerButtonEnabled(false);
     transactionView->setFrameShape(QFrame::NoFrame);
     transactionView->setMouseTracking(true);
-    transactionView->verticalHeader()->setDefaultSectionSize(44);
+    transactionView->verticalHeader()->setDefaultSectionSize(2 * QFontMetrics(GUIUtil::brandFont()).height() + 12);
 
     view->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     view->horizontalHeader()->setHighlightSections(false);
@@ -538,7 +526,7 @@ void TransactionView::applyTheme()
         "   border: 1px solid $BORDER;"
         "}"
 
-        "QLabel { color: $INK; background: transparent; font-size: 13px; }"
+        "QLabel { color: $INK; background: transparent; }"
 
         "QLineEdit, QComboBox {"
         "   background: $PANEL_SOFT;"
@@ -546,7 +534,6 @@ void TransactionView::applyTheme()
         "   border: 1px solid $BORDER;"
         "   padding: 0 11px;"
         "   min-height: 30px;"
-        "   font-size: 13px;"
         "   color: $INK_SOFT;"
         "}"
         "QLineEdit:focus, QComboBox:focus { border: 1px solid $WINE; }"
@@ -576,23 +563,22 @@ void TransactionView::applyTheme()
 
         "QToolButton#transactionSortDirection {"
         " background:$PANEL_SOFT; border:1px solid $BORDER; border-radius:9px;"
-        " color:$INK_SOFT; font-size:15px; font-weight:700;"
+        " color:$INK_SOFT; font-weight:700;"
         "}"
         "QToolButton#transactionSortDirection:hover, QToolButton#transactionSortDirection:focus {"
         " border-color:$WINE; color:$INK;"
         "}"
 
-        "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:9px; border:1px solid $BORDER; padding:0 11px; min-height:30px; font-size:13px; }"
+        "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:9px; border:1px solid $BORDER; padding:0 11px; min-height:30px; }"
         "QDateTimeEdit:focus { border-color:$WINE; }"
 
         "QCalendarWidget QWidget { background:$PANEL; }"
         "QCalendarWidget QAbstractItemView { selection-background-color:$PANEL_SOFT; border:none; }"
-        "QCalendarWidget QToolButton { color:$INK_SOFT; background:transparent; font-weight:600; }"
+        "QCalendarWidget QToolButton { color:$INK_SOFT; background:transparent; font-weight: 700; }"
 
         "QTableView {"
         "   background: $PANEL;"
         "   border: none;"
-        "   font-size: 12px;"
         "   gridline-color: transparent;"
         "   selection-background-color: transparent;"
         "   outline: 0;"
@@ -600,7 +586,7 @@ void TransactionView::applyTheme()
 
         "QHeaderView::section {"
         " background:$PANEL; padding:5px 6px; border:none;"
-        " font-size:12px; font-weight:700; color:$INK_SOFT;"
+        " font-weight:700; color:$INK_SOFT;"
         "}"
         "QHeaderView::section:hover { background:$PANEL; }"
         "QTableView::item { background: transparent; border: none; padding: 0; }"
@@ -614,13 +600,13 @@ void TransactionView::applyTheme()
         "QScrollBar:horizontal { background:$PANEL_SOFT; height:12px; border-radius:6px; }"
         "QScrollBar::handle:horizontal { background:$INK_FAINT; border-radius:6px; margin:2px; min-width:32px; }"
 
-        "QMenu { background:$PANEL; border:1px solid $BORDER; padding:6px; font-size:10pt; border-radius:10px; }"
+        "QMenu { background:$PANEL; border:1px solid $BORDER; padding:6px; border-radius:10px; }"
         "QMenu::item:selected { background:$PANEL_SOFT; color:$INK; }"
     ));
 
     if (exportButton) {
         exportButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("4px 8px")) +
-            QStringLiteral("QPushButton { font-size: 13px; min-height: 22px; min-width: 62px; }"));
+            QStringLiteral("QPushButton { min-height: 22px; min-width: 62px; }"));
     }
 
     if (emptyIcon_) {
@@ -629,10 +615,10 @@ void TransactionView::applyTheme()
             "font-size: 20px; font-weight: 700;"));
     }
     if (emptyTitle_) {
-        emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-size: 14px; font-weight: 700;"));
+        emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-weight: 700;"));
     }
     if (emptyDescription_) {
-        emptyDescription_->setStyleSheet(GUIUtil::themed("color: $INK_SOFT; font-size: 12px;"));
+        emptyDescription_->setStyleSheet(GUIUtil::themed("color: $INK_SOFT;"));
     }
 
     updateCalendarWidgets();
@@ -689,11 +675,20 @@ void TransactionView::updateTableColumnWidths()
         return;
 
     const int tableWidth = transactionView->viewport()->width();
-    if (tableWidth < 400)
+    if (tableWidth <= 0)
         return;
 
+    QFont dateFont = transactionView->font();
+    dateFont.setBold(true);
+    const QFontMetrics metrics(dateFont);
+    const QLocale locale = QLocale::system();
+    const int dateTextWidth = std::max(
+        metrics.horizontalAdvance(locale.toString(QDate(2000, 12, 31), QLocale::ShortFormat)),
+        metrics.horizontalAdvance(locale.toString(QTime(23, 59), QLocale::ShortFormat)));
+    // Leave room for the direction icon, gaps and all three status icons.
+    const int minimumDateWidth = dateTextWidth + 126;
     transactionView->setColumnWidth(
-        TransactionTableModel::Date, static_cast<int>(tableWidth * 0.22));
+        TransactionTableModel::Date, std::max(minimumDateWidth, static_cast<int>(tableWidth * 0.22)));
     transactionView->setColumnWidth(
         TransactionTableModel::Type, static_cast<int>(tableWidth * 0.16));
     transactionView->setColumnWidth(

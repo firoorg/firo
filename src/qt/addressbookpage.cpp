@@ -71,7 +71,6 @@ public:
         case AddressTableModel::Label: {
             const QString text = index.data(Qt::DisplayRole).toString();
             QFont font = option.font;
-            font.setPixelSize(12);
             font.setBold(true);
             painter->setFont(font);
             painter->setPen(QColor(tc.ink));
@@ -84,8 +83,7 @@ public:
         }
         case AddressTableModel::Address: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            QFont font = GUIUtil::fixedPitchFont();
-            font.setPixelSize(12);
+            QFont font = option.font;
             painter->setFont(font);
             painter->setPen(QColor(tc.inkSoft));
             painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
@@ -222,19 +220,19 @@ void AddressBookPage::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
     ui->labelExplanation->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
+        "QLabel { background: transparent; color: $INK_SOFT; }")));
     ui->tableView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
         " background: transparent; border: none; color: $INK_SOFT;"
-        " font-size: 12px; font-weight: 700; padding: 6px 12px;"
+        " font-weight: 700; padding: 6px 12px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->tableView->viewport())
         ui->tableView->viewport()->update();
     ui->addressType->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QComboBox, QComboBox QAbstractItemView, QComboBox::item {"
-        " font-size: 13px; font-weight: 400;"
+        " font-weight: 400;"
         "}"
         "QComboBox {"
         " background: $PANEL;"

@@ -6,11 +6,13 @@
 
 #include "addresstablemodel.h"
 #include "bitcoingui.h"
+#include "bip47/defs.h"
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "createsparknamepage.h"
 #include "guitheme.h"
 #include "guiutil.h"
+#include "init.h"
 #include "masternode-sync.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
@@ -20,7 +22,9 @@
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
 #include "sendcoinsdialog.h"
+#include "sparkname.h"
 #include "sparknamespage.h"
+#include "splashscreen.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
@@ -32,6 +36,7 @@
 #include "wallet/wallet.h"
 #include "walletmodel.h"
 
+#include <QAbstractItemDelegate>
 #include <QAbstractSpinBox>
 #include <QAction>
 #include <QColor>
@@ -39,9 +44,12 @@
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QFrame>
+#include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListView>
 #include <QLocale>
+#include <QPainter>
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
@@ -51,6 +59,8 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QStandardItemModel>
+#include <QStyleOptionViewItem>
 #include <QTableView>
 #include <QTest>
 #include <QTextEdit>
@@ -61,6 +71,7 @@
 #include <QVariant>
 
 #include <memory>
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <thread>
@@ -357,6 +368,159 @@ void WalletUiTests::themeTintColors()
             QCOMPARE(swatch.palette().color(QPalette::Window), color);
         }
     }
+}
+
+void WalletUiTests::paymentCodeIndexesWithoutAddressCache()
+{
+    CWallet wallet;
+    wallet.mapCustomKeyValues.emplace(bip47::PcodeLabel() + "test-payment-code", "Test label");
+    const auto addedSlots = uiInterface.NotifySparkNameAdded.num_slots();
+    const auto removedSlots = uiInterface.NotifySparkNameRemoved.num_slots();
+    PcodeAddressTableModel model(&wallet);
+    QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots);
+    QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots);
+    QCOMPARE(model.columnCount(QModelIndex()), 2);
+    const auto index = model.index(0, 1);
+    QVERIFY(index.isValid());
+    QCOMPARE(model.data(index, Qt::DisplayRole).toString(), QString("test-payment-code"));
+    QVERIFY(!model.index(0, 2).isValid());
+    QVERIFY(!model.index(1, 0).isValid());
+    QVERIFY(!model.index(0, 0, index).isValid());
+
+    auto addressBook = std::make_unique<AddressTableModel>(&wallet);
+    {
+        PcodeAddressTableModel temporaryModel(&wallet);
+    }
+    QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots + 1);
+    QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots + 1);
+    const int addressRows = addressBook->rowCount(QModelIndex());
+    const CSparkNameBlockIndexData name("test-name", "test-spark-address", 100, "");
+    uiInterface.NotifySparkNameAdded(name);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QCOMPARE(addressBook->rowCount(QModelIndex()), addressRows + 1);
+    QCOMPARE(model.rowCount(QModelIndex()), 1);
+    uiInterface.NotifySparkNameRemoved(name);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QCOMPARE(addressBook->rowCount(QModelIndex()), addressRows);
+    QCOMPARE(model.rowCount(QModelIndex()), 1);
+    addressBook.reset();
+    QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots);
+    QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots);
+}
+
+void WalletUiTests::splashMessageDoesNotProcessEvents()
+{
+    class TestSplashScreen : public SplashScreen
+    {
+    public:
+        using SplashScreen::SplashScreen;
+        int paints = 0;
+        void paintEvent(QPaintEvent* event) override
+        {
+            ++paints;
+            SplashScreen::paintEvent(event);
+        }
+    };
+    const auto loadWalletSlots = uiInterface.LoadWallet.num_slots();
+    const std::unique_ptr<const NetworkStyle> networkStyle(NetworkStyle::instantiate("regtest"));
+    auto* splash = new TestSplashScreen(networkStyle.get());
+    const auto cleanup = qScopeGuard([splash, loadWalletSlots] {
+        splash->slotFinish(nullptr);
+        QCoreApplication::sendPostedEvents(splash, QEvent::DeferredDelete);
+        QCOMPARE(uiInterface.LoadWallet.num_slots(), loadWalletSlots);
+    });
+    splash->setAttribute(Qt::WA_DontShowOnScreen);
+    splash->show();
+    QCoreApplication::processEvents();
+    const int paintsBeforeMessage = splash->paints;
+    bool callbackRan = false;
+    QObject receiver;
+    QMetaObject::invokeMethod(&receiver, [&callbackRan] { callbackRan = true; }, Qt::QueuedConnection);
+
+    uiInterface.InitMessage("Loading wallet...");
+    QVERIFY(splash->paints > paintsBeforeMessage);
+    QVERIFY(!callbackRan);
+    QCoreApplication::processEvents();
+    QVERIFY(callbackRan);
+
+    const int paintsBeforeProgress = splash->paints;
+    std::thread core([] {
+        uiInterface.ShowProgress("Verifying blocks...", 1);
+        uiInterface.ShowProgress("Verifying blocks...", 2);
+        uiInterface.InitMessage("Loading wallet...");
+    });
+    core.join();
+    QCoreApplication::sendPostedEvents(splash, QEvent::MetaCall);
+    QCOMPARE(splash->paints, paintsBeforeProgress);
+    QCoreApplication::processEvents();
+    QVERIFY(splash->paints > paintsBeforeProgress);
+
+    auto* timer = splash->findChild<QTimer*>();
+    QVERIFY(timer);
+    QVERIFY(timer->isActive());
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(!timer->isActive());
+    splash->showProgress("", 100);
+    QVERIFY(timer->isActive());
+    splash->hide();
+    QVERIFY(!timer->isActive());
+
+    auto* closeButton = splash->findChild<QToolButton*>();
+    QVERIFY(closeButton);
+    QVERIFY(!closeButton->accessibleName().isEmpty());
+    QCOMPARE(closeButton->focusPolicy(), Qt::StrongFocus);
+}
+
+void WalletUiTests::splashShutdownControls()
+{
+    extern std::atomic<bool> fRequestShutdown;
+    const bool wasShuttingDown = fRequestShutdown.exchange(false);
+    const auto restoreShutdown = qScopeGuard([wasShuttingDown] { fRequestShutdown = wasShuttingDown; });
+    const std::unique_ptr<const NetworkStyle> networkStyle(NetworkStyle::instantiate("regtest"));
+    auto* splash = new SplashScreen(networkStyle.get());
+    const auto cleanup = qScopeGuard([splash] {
+        splash->slotFinish(nullptr);
+        QCoreApplication::sendPostedEvents(splash, QEvent::DeferredDelete);
+    });
+    splash->setAttribute(Qt::WA_DontShowOnScreen);
+    splash->show();
+    splash->activateWindow();
+    QCoreApplication::processEvents();
+    auto* closeButton = splash->findChild<QToolButton*>();
+    auto* timer = splash->findChild<QTimer*>();
+    QVERIFY(closeButton);
+    QVERIFY(timer);
+    QVERIFY(splash->focusWidget());
+
+    QTest::keyClick(splash->focusWidget(), Qt::Key_Space);
+    QVERIFY(!ShutdownRequested());
+    QTest::keyClick(splash, Qt::Key_Tab);
+    QCOMPARE(splash->focusWidget(), closeButton);
+    QTest::keyClick(closeButton, Qt::Key_Space);
+    QVERIFY(ShutdownRequested());
+    QVERIFY(closeButton->isHidden());
+
+    // Late updates must not replace shutdown until core accepts a database rebuild.
+    splash->showStatus("Loading block index...");
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(closeButton->isHidden());
+    QVERIFY(timer->isActive());
+    fRequestShutdown = false;
+    splash->showStatus("Loading block index...");
+    QVERIFY(!closeButton->isHidden());
+    QCOMPARE(splash->focusWidget(), splash);
+    QTest::keyClick(splash->focusWidget(), Qt::Key_Space);
+    QVERIFY(!ShutdownRequested());
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(!timer->isActive());
+
+    // Progress can also be the first update after a canceled shutdown.
+    closeButton->click();
+    QVERIFY(ShutdownRequested());
+    fRequestShutdown = false;
+    splash->showProgress("Verifying blocks...", 50);
+    QVERIFY(!closeButton->isHidden());
+    QVERIFY(!timer->isActive());
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()
@@ -774,6 +938,90 @@ void WalletUiTests::collapsedNavigationRemainsUsable()
 }
 
 /**
+ * Keep styled controls and painted text on the same brand fonts after theme changes and resizing.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
+void WalletUiTests::brandTypography()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    SendCoinsDialog send(style.get());
+    ReceiveCoinsDialog receive(style.get());
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        for (const QSize size : {QSize(944, 625), QSize(2100, 1400)}) {
+            for (QWidget* page : {static_cast<QWidget*>(&send), static_cast<QWidget*>(&receive)}) {
+                page->setAttribute(Qt::WA_DontShowOnScreen);
+                page->show();
+                page->resize(size);
+            }
+            QCoreApplication::processEvents();
+            for (const char* name : {"labelFeeHeadline", "labelFeeMinimized", "payTo", "labelBalance",
+                                    "labelCoinControlFee", "labelCoinControlFeeText"}) {
+                auto* widget = send.findChild<QWidget*>(name);
+                QVERIFY(widget);
+                QCOMPARE(widget->font().family(), QStringLiteral("Source Sans Pro"));
+                QCOMPARE(widget->font().pixelSize(), 16);
+            }
+            auto* requests = receive.findChild<QTableView*>();
+            QVERIFY(requests);
+            QCOMPARE(requests->font().pixelSize(), 16);
+        }
+        for (const auto role : {GUIUtil::TextStyle::Body, GUIUtil::TextStyle::Heading1,
+                                GUIUtil::TextStyle::Heading2, GUIUtil::TextStyle::Heading3}) {
+            QLabel label(QStringLiteral("Typography 0123456789"));
+            const auto expected = GUIUtil::brandFont(role);
+            const QString token = role == GUIUtil::TextStyle::Body ? QStringLiteral("$FONT_BODY")
+                : QStringLiteral("$FONT_H%1").arg(static_cast<int>(role));
+            label.setStyleSheet(GUIUtil::themed(QStringLiteral("font: %1;").arg(token)));
+            label.ensurePolished();
+            QCOMPARE(label.font().pixelSize(), expected.pixelSize());
+            // The minimal QPA plugin used by CI has no font database.
+            QCOMPARE(label.font().family(), expected.family());
+            QCOMPARE(label.font().weight(), expected.weight());
+        }
+    }
+}
+
+/** Verify all eight recent transactions fit when the list is at its minimum height. */
+void WalletUiTests::recentActivityFitsBrandFont()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QStandardItemModel history(8, 1);
+    OverviewPage overview(style.get());
+    auto* list = overview.findChild<QListView*>(QStringLiteral("listTransactions"));
+    QVERIFY(list);
+    list->setModel(&history);
+    list->setFixedHeight(list->minimumHeight());
+    list->show();
+    overview.setAttribute(Qt::WA_DontShowOnScreen);
+    overview.show();
+    overview.resize(944, 625);
+    QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(7, 0))));
+
+    const auto index = history.index(0, 0);
+    history.setData(index, TransactionRecord::RecvSpark, TransactionTableModel::TypeRole);
+    history.setData(index, QIcon(":/icons/transaction_confirmed"), TransactionTableModel::InstantSendDecorationRole);
+    QStyleOptionViewItem option;
+    option.initFrom(list);
+    option.rect = QRect(0, 0, 220, list->itemDelegate()->sizeHint(option, index).height());
+    const auto renderIcons = [&](qint64 amount) {
+        history.setData(index, amount, TransactionTableModel::AmountRole);
+        QImage image(option.rect.size(), QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        QPainter painter(&image);
+        list->itemDelegate()->paint(&painter, option, index);
+        painter.end();
+        // Changing the amount must not paint over the transaction or lock icons.
+        return image.copy(0, 0, 77, image.height());
+    };
+    QCOMPARE(renderIcons(0), renderIcons(21000000 * COIN));
+}
+
+/**
  * Verify payment-request details can scroll while copy and close actions stay visible in both themes.
  * @pre The Qt test application is initialized on the GUI thread.
  */
@@ -870,7 +1118,7 @@ void WalletUiTests::sendFormFitsSmallScreen()
     auto* scroll = dialog.findChild<QScrollArea*>("scrollArea");
     QVERIFY(scroll);
 
-    // A single recipient, selected inputs, privacy warning and memo should fit without scrolling.
+    // Keep a single recipient, selected inputs, privacy warning and memo reachable at the body font size.
     auto* automatic = dialog.findChild<QLabel*>("labelCoinControlAutomaticallySelected");
     auto* warning = dialog.findChild<QLabel*>("textWarning");
     QVERIFY(automatic);
@@ -902,11 +1150,13 @@ void WalletUiTests::sendFormFitsSmallScreen()
             QTRY_VERIFY2(value->height() >= value->minimumSizeHint().height() &&
                          value->width() >= value->minimumSizeHint().width(), name);
         }
-        QTRY_VERIFY(scroll->verticalScrollBar()->maximum() == 0 && scroll->horizontalScrollBar()->maximum() == 0);
+        QTRY_COMPARE(scroll->horizontalScrollBar()->maximum(), 0);
         for (const char* name : {"payAmount", "checkboxSubtractFeeFromAmount", "messageTextLabel", "buttonChooseFee"}) {
             auto* field = dialog.findChild<QWidget*>(name);
             QVERIFY(field);
             QVERIFY(field->isVisible());
+            scroll->ensureWidgetVisible(field);
+            QCoreApplication::processEvents();
             QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
         }
         auto* amount = dialog.findChild<QWidget*>("payAmount");

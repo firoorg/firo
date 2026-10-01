@@ -4200,6 +4200,7 @@ UniValue setsparkmintstatus(const JSONRPCRequest& request) {
     fStatus = request.params[1].get_bool();
 
     EnsureWalletIsUnlocked(pwallet);
+    pwallet->sparkWallet->WaitForPendingTasks();
     CWalletDB walletdb(pwallet->strWalletFile);
     CSparkMintMeta coinMeta = pwallet->sparkWallet->getMintMeta(lTagHash);
 

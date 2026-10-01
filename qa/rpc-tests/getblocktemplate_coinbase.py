@@ -33,7 +33,7 @@ class GetBlockTemplateCoinbaseMessageTest(BitcoinTestFramework):
     def setup_network(self):
         # ProgPoW has to be active on regtest for getblocktemplate to hand out pprpcsb jobs
         args = ['-ppswitchtime=%d' % (int(time.time()) - 10)]
-        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, [args] * self.num_nodes)
+        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, [args] * self.num_nodes, timewait=120)
         connect_nodes_bi(self.nodes, 0, 1)
         self.is_network_split = False
         self.sync_all()

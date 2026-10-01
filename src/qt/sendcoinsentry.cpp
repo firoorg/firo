@@ -22,8 +22,6 @@
 #include <QRegularExpression>
 #include <QStyle>
 
-#include<QResizeEvent>
-
 /**
  * Build one recipient entry and connect its amount, memo and removal controls.
  * @param _platformStyle Borrowed platform styling that must outlive this entry.
@@ -99,19 +97,15 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins QLabel#amountLabel,
         QFrame#SendCoins QLabel#messageLabel {
             color: $INK_SOFT;
-            font-size: 12px;
             font-weight: 700;
         }
         QFrame#SendCoins QLabel#sparkNameResolvedLabel {
             color: $INK_SOFT;
-            font-size: 12px;
             font-weight: 700;
         }
         QFrame#SendCoins QLabel#sparkNameResolvedAddress {
             color: $TEAL;
-            font-size: 12px;
-            font-weight: 600;
-            font-family: monospace;
+            font-weight: 700;
         }
         QFrame#SendCoins QLabel#textWarning,
         QFrame#SendCoins QLabel#messageWarning {
@@ -119,7 +113,6 @@ void SendCoinsEntry::applyTheme()
             border: 1px solid $GOLD;
             border-radius: 6px;
             color: $INK;
-            font-size: 12px;
             font-weight: 700;
             padding: 4px 6px;
         }
@@ -201,7 +194,6 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins QCheckBox {
             background: transparent;
             color: $INK_SOFT;
-            font-size: 12px;
             font-weight: 700;
         }
         QFrame#SendCoins QCheckBox::indicator:unchecked {
@@ -646,35 +638,4 @@ bool SendCoinsEntry::updateLabel(const QString &address)
 
     ui->addAsLabel->setText(associatedLabel);
     return true;
-}
-void SendCoinsEntry::resizeEvent(QResizeEvent* event) {
-    QStackedWidget::resizeEvent(event);
-
-    const int newWidth = event->size().width();
-    const int newHeight = event->size().height();
-
-    adjustTextSize(newWidth, newHeight);
-}
-
-
-void SendCoinsEntry::adjustTextSize(int width, int) {
-    const double fontSizeScalingFactor = 130.0;
-    int baseFontSize = width / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
-    QFont font = this->font();
-    font.setPointSize(fontSize);
-
-    ui->payToLabel->setFont(font);
-    ui->labellLabel->setFont(font);
-    ui->addAsLabel->setFont(font);
-    ui->amountLabel->setFont(font);
-    ui->messageLabel->setFont(font);
-    ui->messageTextLabel->setFont(font);
-    ui->rosenBridgeLabel->setFont(font);
-    ui->rosenBridgeDetails->setFont(font);
-    ui->payTo->setFont(font);
-    ui->checkboxSubtractFeeFromAmount->setFont(font);
-    ui->deleteButton->setFont(font);
-    ui->pasteButton->setFont(font);
-    ui->addressBookButton->setFont(font);
 }

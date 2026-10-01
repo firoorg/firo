@@ -23,7 +23,12 @@ private Q_SLOTS:
     void consolidationSuggestion();
     void consolidationResult();
     void themeTintColors();
+    void brandTypography();
+    void recentActivityFitsBrandFont();
     void deferredTransactionsKeepOrder();
+    void paymentCodeIndexesWithoutAddressCache();
+    void splashMessageDoesNotProcessEvents();
+    void splashShutdownControls();
     void failedAbandonKeepsTransactionVisible();
     void themeChangePreservesWidgetState();
     void sparkNamesRefreshAfterModelDestruction();

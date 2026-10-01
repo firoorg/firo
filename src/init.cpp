@@ -268,13 +268,6 @@ void Shutdown()
     StopHTTPServer();
     llmq::StopLLMQSystem();
 
-    {
-        LOCK(cs_main);
-        BatchProofContainer::get_instance()->finalize();
-        CValidationState state;
-        VerifyPendingSparkBatch(state, "shutdown");
-    }
-
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -302,6 +295,10 @@ void Shutdown()
     // cleanup; the embedded Tor itself is torn down by process exit.
     g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
+    BatchProofContainer::get_instance()->finalize();
+    CValidationState batchState;
+    VerifyPendingSparkBatch(batchState, "shutdown");
+
     if (fDumpMempoolLater)
         DumpMempool();
 
@@ -483,8 +480,8 @@ std::string HelpMessage(HelpMessageMode mode)
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
-    strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"), DEFAULT_BANSCORE_THRESHOLD));
-    strUsage += HelpMessageOpt("-bantime=<n>", strprintf(_("Number of seconds to keep misbehaving peers from reconnecting (default: %u)"), DEFAULT_MISBEHAVING_BANTIME));
+    strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting and discouraging misbehaving peers (default: %u)"), DEFAULT_BANSCORE_THRESHOLD));
+    strUsage += HelpMessageOpt("-bantime=<n>", strprintf(_("Default duration (in seconds) of manually configured bans (default: %u)"), DEFAULT_MISBEHAVING_BANTIME));
     strUsage += HelpMessageOpt("-bind=<addr>", _("Bind to given address and always listen on it. Use [host]:port notation for IPv6"));
     strUsage += HelpMessageOpt("-connect=<ip>", _("Connect only to the specified node(s); -noconnect or -connect=0 alone to disable automatic connections"));
     strUsage += HelpMessageOpt("-discover", _("Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)"));
@@ -776,14 +773,11 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
-        {
-            LOCK(cs_main);
-            BatchProofContainer::get_instance()->finalize();
-            CValidationState state;
-            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
-                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
-                return;
-            }
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState state;
+        if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+            return;
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;

@@ -168,7 +168,7 @@ struct CNodeState {
     bool fCurrentlyConnected;
     //! Accumulated misbehaviour score for this peer.
     int nMisbehavior;
-    //! Whether this peer should be disconnected and banned (unless whitelisted).
+    //! Whether this peer should be disconnected and discouraged (unless whitelisted).
     bool fShouldBan;
     //! String name of this peer (debugging/logging purposes).
     const std::string name;
@@ -748,7 +748,7 @@ void Misbehaving(NodeId pnode, int howmuch)
     int banscore = GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
     if (state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore)
     {
-        LogPrintf("%s: %s peer=%d (%d -> %d) BAN THRESHOLD EXCEEDED\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
+        LogPrintf("%s: %s peer=%d (%d -> %d) DISCOURAGEMENT THRESHOLD EXCEEDED\n", __func__, state->name, pnode, state->nMisbehavior - howmuch, state->nMisbehavior);
         state->fShouldBan = true;
     } else
         LogPrintf("%s: %s peer=%d (%d -> %d)\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior);
@@ -1024,6 +1024,35 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman& connma
 
 void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParams, CConnman& connman, const std::atomic<bool>& interruptMsgProc)
 {
+    if (pfrom->fPauseSend || interruptMsgProc)
+        return;
+
+    // Activate only a block at the front, after preceding requests were served.
+    // Activation may wait for a verifier that needs cs_main to finish.
+    if (!pfrom->vRecvGetData.empty()) {
+        const CInv& inv = pfrom->vRecvGetData.front();
+        bool activate = false;
+        if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK ||
+            inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK) {
+            LOCK(cs_main);
+            auto mi = mapBlockIndex.find(inv.hash);
+            activate = mi != mapBlockIndex.end() && mi->second->nChainTx &&
+                !mi->second->IsValid(BLOCK_VALID_SCRIPTS) && mi->second->IsValid(BLOCK_VALID_TREE);
+        }
+        if (activate) {
+            std::shared_ptr<const CBlock> recentBlock;
+            {
+                LOCK(cs_most_recent_block);
+                recentBlock = most_recent_block;
+            }
+            CValidationState state;
+            if (!ActivateBestChain(state, Params(), recentBlock)) {
+                pfrom->vRecvGetData.pop_front();
+                return;
+            }
+        }
+    }
+
     std::deque<CInv>::iterator it = pfrom->vRecvGetData.begin();
     std::vector<CInv> vNotFound;
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
@@ -1035,33 +1064,23 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             break;
 
         const CInv &inv = *it;
+        const bool isBlock = inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK ||
+            inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK;
+        // Leave a later block queued so the next pass can activate it without cs_main.
+        if (isBlock && it != pfrom->vRecvGetData.begin())
+            break;
         {
             if (interruptMsgProc)
                 return;
 
             it++;
 
-            if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK)
+            if (isBlock)
             {
                 bool send = false;
                 BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
                 if (mi != mapBlockIndex.end())
                 {
-                    if (mi->second->nChainTx && !mi->second->IsValid(BLOCK_VALID_SCRIPTS) &&
-                            mi->second->IsValid(BLOCK_VALID_TREE)) {
-                        // If we have the block and all of its parents, but have not yet validated it,
-                        // we might be in the middle of connecting it (ie in the unlock of cs_main
-                        // before ActivateBestChain but after AcceptBlock).
-                        // In this case, we need to run ActivateBestChain prior to checking the relay
-                        // conditions below.
-                        std::shared_ptr<const CBlock> a_recent_block;
-                        {
-                            LOCK(cs_most_recent_block);
-                            a_recent_block = most_recent_block;
-                        }
-                        CValidationState dummy;
-                        ActivateBestChain(dummy, Params(), a_recent_block);
-                    }
                     if (chainActive.Contains(mi->second)) {
                         send = true;
                     } else {
@@ -1297,7 +1316,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             // Track requests for our stuff.
             GetMainSignals().Inventory(inv.hash);
 
-            if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK)
+            if (isBlock)
                 break;
         }
     }
@@ -2099,7 +2118,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             inv.type = State(pfrom->GetId())->fWantsCmpctWitness ? MSG_WITNESS_BLOCK : MSG_BLOCK;
             inv.hash = req.blockhash;
             pfrom->vRecvGetData.push_back(inv);
-            ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
+            // ProcessMessages serves this queued request without cs_main.
             return true;
         }
 
@@ -3201,11 +3220,12 @@ static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman& connman)
                 llmq::quorumSigSharesManager->MarkNodeBanned(pnode->GetId());
             }
             pnode->fDisconnect = true;
-            if (pnode->addr.IsLocal())
-                LogPrintf("Warning: not banning local peer %s!\n", pnode->addr.ToString());
-            else
-            {
-                connman.Ban(pnode->addr, BanReasonNodeMisbehaving);
+            if (pnode->addr.IsLocal()) {
+                LogPrintf("Warning: not discouraging local peer %s!\n", pnode->addr.ToString());
+            } else {
+                LogPrintf("Disconnecting and discouraging peer %s!\n", pnode->addr.ToString());
+                connman.Discourage(pnode->addr);
+                connman.DisconnectNode(pnode->addr);
             }
         }
         return true;

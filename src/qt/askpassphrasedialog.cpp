@@ -300,14 +300,12 @@ void AskPassphraseDialog::applyTheme()
         }
         QLabel#passphraseWarning {
             color: $INK;
-            font-size: 10pt;
-            font-weight: 500;
+            font-weight: 400;
             background: transparent;
         }
         QLabel#passLabel1, QLabel#passLabel2, QLabel#passLabel3 {
             color: $INK_FAINT;
-            font-size: 9.5pt;
-            font-weight: 600;
+            font-weight: 700;
             background: transparent;
             min-width: 140px;
         }
@@ -316,7 +314,6 @@ void AskPassphraseDialog::applyTheme()
             border: 1px solid $BORDER;
             border-radius: 10px;
             padding: 10px 12px;
-            font-size: 10pt;
             color: $INK;
             min-height: 20px;
             selection-background-color: $WINE_TINT;
@@ -326,7 +323,6 @@ void AskPassphraseDialog::applyTheme()
         }
         QLabel#capsLabel {
             color: $INK;
-            font-size: 9pt;
             font-weight: 700;
             background: $GOLD_TINT;
             border: 1px solid $GOLD;

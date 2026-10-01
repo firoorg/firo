@@ -509,7 +509,7 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
         statusLabel->setText(statusText);
         statusLabel->setStyleSheet(QStringLiteral(
             "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
-            " padding: 2px 10px; font-size: 12px; font-weight: 700; }")
+            " padding: 2px 10px; font-weight: 700; }")
                                        .arg(badgeBackground, tc.ink));
         statusLabel->setProperty("statusKind", statusKind);
     }
@@ -563,8 +563,7 @@ QFrame#sparkNamesContentCard {
 QLabel#headerLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 QScrollArea#sparkNamesScroll,
 QScrollArea#sparkNamesScroll > QWidget,
@@ -578,27 +577,27 @@ QFrame#sparkNameCard {
   border-radius: 16px;
 }
 QFrame#sparkNameCard QLabel#cardTitle {
-  color: $INK; font-size: 16px; font-weight: 700;
+  color: $INK; font: $FONT_H3;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardSubtitle {
-  color: $INK_SOFT; font-size: 12px; font-weight: 500;
+  color: $INK_SOFT; font-weight: 400;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricCaption {
-  color: $INK_SOFT; font-size: 12px; font-weight: 700; letter-spacing: 0.4px;
+  color: $INK_SOFT; font-weight: 700; letter-spacing: 0.4px;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricValue {
-  color: $INK; font-size: 14px; font-weight: 700;
+  color: $INK; font-weight: 700;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton {
   color: $INK_SOFT; background: $PANEL; border: 1px solid $BORDER; border-radius: 8px;
-  padding: 4px 10px; font-size: 12px; font-weight: 600;
+  padding: 4px 10px; font-weight: 700;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton:hover {
   color: $INK; border-color: $WINE;
@@ -612,12 +611,12 @@ QFrame#sparkNameCard QToolButton#cardActionButton:hover {
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK; font-size: 14px; font-weight: 700;")));
+            "color: $INK; font-weight: 700;")));
     }
     if (emptyDescription_) {
         emptyDescription_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: transparent; border: none;"
-            "color: $INK_SOFT; font-size: 12px;")));
+            "color: $INK_SOFT;")));
     }
 
     if (model)

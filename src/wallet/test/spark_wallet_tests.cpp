@@ -3,6 +3,7 @@
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
 #include "../../validation.h"
+#include "../../validationinterface.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -206,15 +207,25 @@ BOOST_AUTO_TEST_CASE(block_mint_scan_and_queued_reorg)
     BOOST_REQUIRE_EQUAL(transactions.size(), 1);
     wallet->FinishTasks();
     const CBlockIndex* index;
+    bool fCheckedBalance = false;
     {
-        // Keep the worker's record phase blocked while reading the connected block.
-        LOCK(cs_main);
+        // Connected transaction notifications still hold cs_main, so the
+        // worker cannot record mints before these balance checks.
+        boost::signals2::scoped_connection checkBalance(
+            GetMainSignals().SyncTransaction.connect(
+                [&](const CTransaction& tx, const CBlockIndex*, int posInBlock) {
+                    if (posInBlock < 0 || tx.GetHash() != transactions[0].first.GetHash())
+                        return;
+                    AssertLockHeld(cs_main);
+                    BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 2 * COIN);
+                    BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
+                    BOOST_CHECK_EQUAL(wallet->GetAvailableSparkCoins().size(), 1);
+                    fCheckedBalance = true;
+                }));
         index = GenerateBlock({CMutableTransaction(*transactions[0].first.tx)});
         BOOST_REQUIRE(index);
-        BOOST_CHECK_EQUAL(wallet->getAvailableBalance(), 2 * COIN);
-        BOOST_CHECK_EQUAL(wallet->getUnconfirmedBalance(), 0);
-        BOOST_CHECK_EQUAL(wallet->GetAvailableSparkCoins().size(), 1);
     }
+    BOOST_CHECK(fCheckedBalance);
     const CBlock block = GetCBlock(index);
     wallet->FinishTasks();
 
@@ -560,11 +571,13 @@ BOOST_AUTO_TEST_CASE(mintspark_and_mint_all)
     }
 
     auto generateBlocksPerScripts = [&](size_t blocks, size_t blocksPerScript) -> std::vector<CScript> {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
         std::vector<CScript> scripts;
         while (blocks != 0) {
             CPubKey key;
-            key = pwalletMain->GenerateNewKey();
+            {
+                LOCK(pwalletMain->cs_wallet);
+                key = pwalletMain->GenerateNewKey();
+            }
             scripts.push_back(GetScriptForDestination(key.GetID()));
             auto blockCount = std::min(blocksPerScript, blocks);
             GenerateBlocks(blockCount, &scripts.back());

@@ -50,6 +50,7 @@
 #include <QScrollArea>
 #include <QScopeGuard>
 #include <QShowEvent>
+#include <QStyleOptionViewItem>
 #include <QVBoxLayout>
 
 #define DECORATION_SIZE 54
@@ -101,10 +102,9 @@ public:
         painter->setPen(Qt::NoPen);
         painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
         painter->drawRoundedRect(iconRect, 10, 10);
-        QFont iconFont = painter->font();
-        iconFont.setPixelSize(14);
-        iconFont.setBold(true);
-        painter->setFont(iconFont);
+        QFont boldFont = option.font;
+        boldFont.setBold(true);
+        painter->setFont(boldFont);
         painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
         painter->drawText(iconRect, Qt::AlignCenter,
                           incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
@@ -122,58 +122,55 @@ public:
         QString address = index.data(Qt::DisplayRole).toString();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
 
-        QFont dateFont = iconFont;
-        dateFont.setPixelSize(12);
-        dateFont.setWeight(QFont::DemiBold);
-        QFont amountFont = dateFont;
-        amountFont.setPixelSize(14);
-        amountFont.setBold(true);
         QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
         if (!confirmed)
             amountText = QString("[") + amountText + QString("]");
-        const int amountWidth = std::max(168, QFontMetrics(amountFont).horizontalAdvance(amountText));
-        const int amountLeft = card.right() - amountWidth - 14;
         const int metadataLeft = iconRect.right() + 12;
         // Reserve the lock slot so dates and labels stay aligned across rows.
         const int textLeft = metadataLeft + 20;
+        const int amountWidth = std::min(std::max(168, QFontMetrics(boldFont).horizontalAdvance(amountText)),
+                                         std::max(0, card.right() - textLeft - 14));
+        const int amountLeft = card.right() - amountWidth - 14;
         const int textWidth = std::max(0, amountLeft - textLeft - 12);
         const QString dateText = date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
                                                : GUIUtil::dateTimeStr(date);
-        const int dateWidth = std::max(144, QFontMetrics(dateFont).horizontalAdvance(dateText));
+        const int dateWidth = std::max(144, QFontMetrics(boldFont).horizontalAdvance(dateText));
         const bool inlineAddress = textWidth >= dateWidth + 12 + 96;
-        const QRect dateRect(textLeft, inlineAddress ? card.top() : card.center().y() - 16,
-                             inlineAddress ? dateWidth : textWidth, inlineAddress ? card.height() : 16);
+        const int lineHeight = option.fontMetrics.height();
+        const QRect dateRect(textLeft, inlineAddress ? card.top() : card.center().y() - lineHeight,
+                             inlineAddress ? dateWidth : textWidth, inlineAddress ? card.height() : lineHeight);
         const QRect addressRect = inlineAddress
             ? QRect(dateRect.right() + 13, card.top(), textWidth - dateWidth - 12, card.height())
-            : QRect(textLeft, dateRect.bottom() + 1, textWidth, 16);
+            : QRect(textLeft, dateRect.bottom() + 1, card.right() - textLeft - 14, lineHeight);
         const QIcon instantSendIcon = qvariant_cast<QIcon>(index.data(TransactionTableModel::InstantSendDecorationRole));
         if (!instantSendIcon.isNull() && amountLeft - metadataLeft >= 20)
             GUIUtil::paintThemedStatusIcon(painter, instantSendIcon,
                                          QRect(metadataLeft, inlineAddress ? card.center().y() - 8 : dateRect.top(), 16, 16));
-        painter->setFont(dateFont);
+        painter->setFont(boldFont);
         painter->setPen(QColor(tc.ink));
         painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
-                          QFontMetrics(dateFont).elidedText(dateText, Qt::ElideRight, dateRect.width()));
+                          QFontMetrics(boldFont).elidedText(dateText, Qt::ElideRight, dateRect.width()));
 
-        QFont addrFont = dateFont;
-        addrFont.setPixelSize(12);
+        QFont addrFont = boldFont;
         addrFont.setBold(false);
         painter->setFont(addrFont);
         painter->setPen(QColor(tc.inkFaint));
         painter->drawText(addressRect, Qt::AlignLeft | Qt::AlignVCenter,
                           QFontMetrics(addrFont).elidedText(address, Qt::ElideMiddle, addressRect.width()));
 
-        painter->setFont(amountFont);
+        painter->setFont(boldFont);
         painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
-        const QRect amountRect(amountLeft, card.top(), amountWidth, card.height());
-        painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
+        const QRect amountRect(amountLeft, inlineAddress ? card.top() : dateRect.top(),
+                               amountWidth, inlineAddress ? card.height() : lineHeight);
+        painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter,
+                          QFontMetrics(boldFont).elidedText(amountText, Qt::ElideRight, amountRect.width()));
 
         painter->restore();
     }
 
     inline QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
-        return QSize(ACTIVITY_ICON_SIZE, ACTIVITY_CARD_HEIGHT);
+        return QSize(ACTIVITY_ICON_SIZE, std::max(ACTIVITY_CARD_HEIGHT, 2 * option.fontMetrics.height() + 12));
     }
 
     int unit;
@@ -226,7 +223,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     // Recent transactions
     ui->listTransactions->setItemDelegate(txdelegate);
     ui->listTransactions->setIconSize(QSize(ACTIVITY_ICON_SIZE, ACTIVITY_ICON_SIZE));
-    ui->listTransactions->setMinimumHeight(NUM_ITEMS * ACTIVITY_CARD_HEIGHT);
     ui->listTransactions->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
     ui->listTransactions->setAccessibleName(tr("Recent transactions"));
@@ -390,10 +386,10 @@ void OverviewPage::applyOverviewTheme()
 
     ui->warningFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#warningFrame { background: $GOLD_TINT; border: 1px solid $GOLD; border-radius: 10px; }"
-        "QFrame#warningFrame QLabel { background: transparent; color: $INK; font-size: 14px; }")));
+        "QFrame#warningFrame QLabel { background: transparent; color: $INK; }")));
     ui->labelAlerts->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel#labelAlerts { background: $GOLD_TINT; color: $INK;"
-        " border: 1px solid $GOLD; border-radius: 10px; padding: 8px 12px; font-size: 14px; }")));
+        " border: 1px solid $GOLD; border-radius: 10px; padding: 8px 12px; }")));
 
     const QString syncWarningStyle = QStringLiteral(
         "QPushButton { background: transparent; border: none; padding: 0px; }");
@@ -404,17 +400,17 @@ void OverviewPage::applyOverviewTheme()
         networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#networkBadge {"
             " color: $INK; background: $WINE_TINT; border: none;"
-            " border-radius: 9px; padding: 2px 8px; font-size: 12px; font-weight: 700;"
+            " border-radius: 9px; padding: 2px 8px; font-weight: 700;"
             "}")));
     }
 
     ui->labelPrimaryText->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK_SOFT;"
-        " font-size: 14px; font-weight: 700; }")));
+        " font-weight: 700; }")));
 
     ui->labelTotal->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK;"
-        " font-size: 31px; font-weight: 700; }")));
+        " font: $FONT_H1; }")));
 
     ui->privateTransparentBarFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#privateTransparentBarFrame {"
@@ -436,11 +432,11 @@ void OverviewPage::applyOverviewTheme()
         "}")));
 
     const QString splitLabelStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 13px; font-weight: 600; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }"));
     ui->labelPrivateSplit->setStyleSheet(splitLabelStyle);
     ui->labelTransparentSplit->setStyleSheet(splitLabelStyle);
 
-    const QString actionFontStyle = QStringLiteral("QPushButton { font-size: 13px; min-height: 20px; }");
+    const QString actionFontStyle = QStringLiteral("QPushButton { min-height: 20px; }");
     const QString primaryActionStyle = GUIUtil::primaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle;
     ui->sendButton->setStyleSheet(primaryActionStyle);
     ui->receiveButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle);
@@ -448,14 +444,14 @@ void OverviewPage::applyOverviewTheme()
     consolidateButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle);
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));
     ui->label_5->setStyleSheet(sectionTitleStyle);
     ui->label->setStyleSheet(sectionTitleStyle);
     ui->label_4->setStyleSheet(sectionTitleStyle);
     ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 13px; font-weight: 600; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }"));
     for (QLabel* caption : {ui->labelPrivateText, ui->labelUnconfirmedPrivateText,
                             ui->labelAnonymizableText, ui->labelBalanceText,
                             ui->labelPendingText, ui->labelImmatureText,
@@ -464,10 +460,10 @@ void OverviewPage::applyOverviewTheme()
         caption->setStyleSheet(captionStyle);
     }
     consolidationHint->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: $TEAL_TINT; color: $INK; border: 1px solid $TEAL; border-radius: 10px; padding: 8px 12px; font-size: 14px; }")));
+        "QLabel { background: $TEAL_TINT; color: $INK; border: 1px solid $TEAL; border-radius: 10px; padding: 8px 12px; }")));
 
     const QString amountStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 14px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }"));
     for (QLabel* amount : {ui->labelPrivate, ui->labelUnconfirmedPrivate, ui->labelAnonymizable,
                            ui->labelBalance, ui->labelUnconfirmed, ui->labelImmature,
                            ui->labelWatchAvailable, ui->labelWatchPending,
@@ -479,6 +475,9 @@ void OverviewPage::applyOverviewTheme()
         "QListView, QListView::viewport { background: transparent; border: none; }"
         "QListView::item { border: none; padding: 0px; }"
         "QListView::item:selected { background: transparent; }"));
+    QStyleOptionViewItem activityOption;
+    activityOption.initFrom(ui->listTransactions);
+    ui->listTransactions->setMinimumHeight(NUM_ITEMS * txdelegate->sizeHint(activityOption, QModelIndex()).height());
     if (ui->listTransactions->viewport())
         ui->listTransactions->viewport()->update();
 
@@ -489,11 +488,11 @@ void OverviewPage::applyOverviewTheme()
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK; font-size: 14px; font-weight: 700; }")));
+            "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     }
     if (emptyHint_) {
         emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
+            "QLabel { background: transparent; color: $INK_SOFT; }")));
     }
 
     updateBalanceSplitLabels();
