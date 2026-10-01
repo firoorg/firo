@@ -1013,6 +1013,9 @@ static QString darkModeOverrideCss()
             selection-background-color: $WINE_TINT;
             selection-color: $INK;
         }
+        QTableView::item { background-color: $PANEL; color: $INK; }
+        QTableView::item:alternate { background-color: $PANEL_SOFT; }
+        QTableView::item:selected { background-color: $WINE_TINT; color: $INK; }
         QHeaderView::section { background-color: transparent; color: $INK_FAINT; }
         QHeaderView::section:hover { background-color: $PANEL_SOFT; color: $INK; }
         QScrollBar:vertical, QScrollBar:horizontal { background: $PANEL; border: none; }

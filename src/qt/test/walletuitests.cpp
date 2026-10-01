@@ -21,6 +21,7 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
+#include "rpcconsole.h"
 #include "sendcoinsdialog.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
@@ -39,7 +40,9 @@
 #include <QAbstractItemDelegate>
 #include <QAbstractSpinBox>
 #include <QAction>
+#include <QCalendarWidget>
 #include <QColor>
+#include <QDateTimeEdit>
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QFrame>
@@ -330,6 +333,67 @@ void WalletUiTests::splashShutdownControls()
     splash->showProgress("Verifying blocks...", 50);
     QVERIFY(!closeButton->isHidden());
     QVERIFY(!timer->isActive());
+}
+
+void WalletUiTests::peerDetailsTheme()
+{
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    RPCConsole console(style.get(), nullptr);
+    auto* details = console.findChild<QWidget*>("detailWidget");
+    auto* label = console.findChild<QLabel*>("peerServices");
+    auto* table = console.findChild<QTableView*>("peerWidget");
+    QVERIFY(details);
+    QVERIFY(label);
+    QVERIFY(table);
+    QStandardItemModel peers(2, 1);
+    table->setModel(&peers);
+    console.setTabFocus(RPCConsole::TAB_PEERS);
+    details->show();
+    console.show();
+
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark, GUIUtil::ThemeMode::Light}) {
+        GUIUtil::setThemeMode(mode);
+        QCoreApplication::processEvents();
+        const auto& colors = GUIUtil::themeColors();
+        QCOMPARE(details->palette().color(QPalette::Window), QColor(colors.panel));
+        QCOMPARE(label->palette().color(QPalette::WindowText), QColor(colors.ink));
+        const QImage rows = table->viewport()->grab().toImage();
+        for (int row = 0; row < peers.rowCount(); ++row) {
+            const QPoint sample = table->visualRect(peers.index(row, 0)).center() * rows.devicePixelRatio();
+            const QColor expected = mode == GUIUtil::ThemeMode::Dark
+                ? QColor(row == 0 ? colors.panel : colors.panelSoft)
+                : QColor(row == 0 ? "#cfcccc" : "#ffffff");
+            QCOMPARE(rows.pixelColor(sample), expected);
+        }
+    }
+}
+
+void WalletUiTests::transactionCalendarTheme()
+{
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    TransactionView transactions(style.get(), nullptr);
+    const auto dates = transactions.findChildren<QDateTimeEdit*>();
+    QCOMPARE(dates.size(), 2);
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark, GUIUtil::ThemeMode::Light}) {
+        GUIUtil::setThemeMode(mode);
+        for (auto* date : dates) {
+            auto* calendar = date->calendarWidget();
+            calendar->show();
+            QCoreApplication::processEvents();
+            auto* days = calendar->findChild<QAbstractItemView*>("qt_calendar_calendarview");
+            QVERIFY(days);
+            const auto& colors = GUIUtil::themeColors();
+            QCOMPARE(calendar->palette().color(QPalette::Window), QColor(colors.panel));
+            QCOMPARE(days->palette().color(QPalette::Text), QColor(colors.ink));
+            QCOMPARE(days->palette().color(QPalette::HighlightedText), QColor(colors.ink));
+        }
+    }
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()

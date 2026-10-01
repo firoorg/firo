@@ -572,8 +572,10 @@ void TransactionView::applyTheme()
         "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:9px; border:1px solid $BORDER; padding:0 11px; min-height:30px; }"
         "QDateTimeEdit:focus { border-color:$WINE; }"
 
+        "QCalendarWidget { background:$PANEL; border-color:$BORDER; }"
         "QCalendarWidget QWidget { background:$PANEL; }"
-        "QCalendarWidget QAbstractItemView { selection-background-color:$PANEL_SOFT; border:none; }"
+        "QCalendarWidget QAbstractItemView { color:$INK; selection-background-color:$PANEL_SOFT; selection-color:$INK; border:none; }"
+        "QCalendarWidget QAbstractItemView:disabled { color:$INK_FAINT; }"
         "QCalendarWidget QToolButton { color:$INK_SOFT; background:transparent; font-weight: 700; }"
 
         "QTableView {"
