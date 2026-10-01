@@ -147,7 +147,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     rpcConsole(0),
     helpMessageDialog(0),
     modalOverlay(0),
-    prevBlocks(0),
     spinnerFrame(0),
 #ifdef ENABLE_WALLET
     sparkAddressbookUpdated(false),
@@ -845,16 +844,15 @@ void BitcoinGUI::createToolBars()
         if (!clientModel)
             return;
         // Retry caches that were busy when the GUI first attached to the node.
-        modalOverlay->setKnownBestHeight(clientModel->getHeaderTipHeight(),
-            QDateTime::fromSecsSinceEpoch(clientModel->getHeaderTipTime()));
-        if (modalOverlay->isHeaderSyncPending()) {
-            updateHeadersSyncProgressLabel();
-        } else if (!navigationSyncCard && !syncInProgress()) {
-            progressBarLabel->hide();
-            progressBar->hide();
-        } else {
-            updateNavigationSyncCard(progressBarLabel->text(), navigationSyncFraction);
+        const int headerHeight = clientModel->getHeaderTipHeight();
+        const int64_t headerTime = clientModel->getHeaderTipTime();
+        modalOverlay->setKnownBestHeight(headerHeight, headerTime > 0
+            ? QDateTime::fromSecsSinceEpoch(headerTime) : QDateTime());
+        if (blockSyncProgress >= 1.0 && blockchainSyncInProgress()) {
+            blockSyncProgress = clientModel->getVerificationProgress(nullptr);
+            modalOverlay->tipUpdate(clientModel->getNumBlocks(), clientModel->getLastBlockDate(), blockSyncProgress);
         }
+        updateSyncStatus();
     });
     syncStateTimer->start();
 }
@@ -1131,9 +1129,6 @@ bool BitcoinGUI::blockchainSyncInProgress() const
     if (::Params().NetworkIDString() == CBaseChainParams::REGTEST)
         return false;
 
-    if (modalOverlay && modalOverlay->isHeaderSyncPending())
-        return true;
-
     if (clientModel->inInitialBlockDownload())
         return true;
 
@@ -1145,7 +1140,7 @@ bool BitcoinGUI::blockchainSyncInProgress() const
 
 bool BitcoinGUI::syncInProgress() const
 {
-    return clientModel && (blockchainSyncInProgress() || !masternodeSync.IsSynced());
+    return clientModel && (blockchainSyncInProgress() || !masternodeSync.IsSynced() || !coreSyncStatus.isEmpty());
 }
 
 bool BitcoinGUI::isActivelySyncing() const
@@ -1163,32 +1158,14 @@ void BitcoinGUI::updateNavigationSyncCard(
 
     QString fullStatus = status;
     const bool networkActive = clientModel && clientModel->getNetworkActive();
-    const bool hasPeers = clientModel && clientModel->getNumConnections() > 0;
+    const bool hasPeers = numConnections > 0;
     const bool fullySynced = networkActive && hasPeers && !syncInProgress();
-    if (clientModel && progress >= 1.0 && blockchainSyncInProgress() &&
-        (clientModel->getBlockSource() == BLOCK_SOURCE_NETWORK || clientModel->getBlockSource() == BLOCK_SOURCE_NONE)) {
-        // A completed percentage is stale when the tip falls behind after sleep.
-        fullStatus = tr("Catching up...");
-        progressBarLabel->setText(fullStatus);
-        progress = clientModel->getVerificationProgress(nullptr);
-    }
-    if (clientModel && !networkActive) {
-        fullStatus = tr("Network activity disabled");
-    } else if (clientModel && !hasPeers) {
-        fullStatus = tr("Connecting to peers...");
-    } else if (fullySynced) {
-        fullStatus = tr("Synced");
-        progress = 1.0;
-    }
 
     if (navigationSyncProgress->property("synced").toBool() != fullySynced) {
         navigationSyncProgress->setProperty("synced", fullySynced);
         navigationSyncProgress->style()->unpolish(navigationSyncProgress);
         navigationSyncProgress->style()->polish(navigationSyncProgress);
     }
-    if (modalOverlay)
-        modalOverlay->setSyncComplete(fullySynced);
-
     const double clampedProgress = qBound(0.0, progress, 1.0);
     navigationSyncFraction = clampedProgress;
     if (fullStatus.isEmpty())
@@ -1206,7 +1183,7 @@ void BitcoinGUI::updateNavigationSyncCard(
     navigationSyncCard->setAccessibleDescription(syncDescription);
 
     navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
-    const bool showSyncCard = isActivelySyncing();
+    const bool showSyncCard = isActivelySyncing() || !coreSyncStatus.isEmpty();
     if (navigationSyncCardAction)
         navigationSyncCardAction->setVisible(showSyncCard);
     navigationSyncCard->setVisible(showSyncCard);
@@ -1326,11 +1303,14 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         createTrayIconMenu();
 
         // Keep up to date with client
-        updateNetworkState();
+        setNumConnections(_clientModel->getNumConnections());
         connect(_clientModel, &ClientModel::numConnectionsChanged, this, &BitcoinGUI::setNumConnections);
         connect(_clientModel, &ClientModel::networkActiveChanged, this, &BitcoinGUI::setNetworkActive);
 
-        modalOverlay->setKnownBestHeight(_clientModel->getHeaderTipHeight(), QDateTime::fromSecsSinceEpoch(_clientModel->getHeaderTipTime()));
+        const int headerHeight = _clientModel->getHeaderTipHeight();
+        const int64_t headerTime = _clientModel->getHeaderTipTime();
+        modalOverlay->setKnownBestHeight(headerHeight, headerTime > 0
+            ? QDateTime::fromSecsSinceEpoch(headerTime) : QDateTime());
         setNumBlocks(_clientModel->getNumBlocks(), _clientModel->getLastBlockDate(), _clientModel->getVerificationProgress(NULL), false);
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &BitcoinGUI::setNumBlocks);
 
@@ -1639,240 +1619,136 @@ void BitcoinGUI::updateNetworkState()
 
 void BitcoinGUI::setNumConnections(int count)
 {
+    numConnections = count;
     updateNetworkState();
+    updateSyncStatus();
+}
 
-    if (!navigationSyncProgress || !navigationSyncLabel)
+void BitcoinGUI::setNetworkActive(bool)
+{
+    updateNetworkState();
+    updateSyncStatus();
+}
+
+void BitcoinGUI::updateSyncStatus()
+{
+    if (!clientModel)
         return;
 
-    const double progress = navigationSyncFraction;
-    const QString status = count == 0 && syncInProgress()
-        ? tr("Connecting to peers...")
-        : progressBarLabel->text();
-    updateNavigationSyncCard(status, progress);
-}
-
-void BitcoinGUI::setNetworkActive(bool networkActive)
-{
-    updateNetworkState();
-
-    if (!networkActive) {
-        updateNavigationSyncCard(tr("Network activity disabled"), navigationSyncFraction);
-    } else if (clientModel) {
-        setNumConnections(clientModel->getNumConnections());
-    }
-}
-
-void BitcoinGUI::updateHeadersSyncProgressLabel()
-{
     const auto blockSource = clientModel->getBlockSource();
-    const bool syncingHeaders = modalOverlay->isHeaderSyncPending() &&
-        blockSource != BLOCK_SOURCE_REINDEX && blockSource != BLOCK_SOURCE_DISK;
-    if (syncingHeaders)
-        progressBarLabel->setText(tr("Syncing Headers..."));
-    const double progress = syncingHeaders ? modalOverlay->headerSyncProgress() : navigationSyncFraction;
-    if (!navigationSyncCard && syncingHeaders) {
-        progressBarLabel->show();
-        progressBar->setFormat(QStringLiteral("%p%"));
-        progressBar->setMaximum(1000000000);
-        progressBar->setValue(qRound(progress * 1000000000.0));
-        progressBar->show();
+    const bool blockchainSyncing = blockchainSyncInProgress();
+    const bool syncing = blockchainSyncing || !masternodeSync.IsSynced() || !coreSyncStatus.isEmpty();
+    const bool syncingHeaders = clientModel->inInitialBlockDownload() &&
+        modalOverlay->isHeaderSyncPending();
+    const QDateTime blockDate = clientModel->getLastBlockDate();
+    const qint64 secs = blockDate.isValid()
+        ? qMax<qint64>(0, blockDate.secsTo(QDateTime::currentDateTime())) : 0;
+    double progress = blockSyncProgress;
+    QString status;
+    if (!coreSyncStatus.isEmpty()) {
+        status = coreSyncStatus;
+    } else if (blockSource == BLOCK_SOURCE_REINDEX) {
+        status = tr("Reindexing blocks on disk...");
+    } else if (blockSource == BLOCK_SOURCE_DISK) {
+        status = tr("Processing blocks on disk...");
+    } else if (!clientModel->getNetworkActive()) {
+        status = tr("Network activity disabled");
+    } else if (numConnections == 0) {
+        status = tr("Connecting to peers...");
+    } else if (syncingHeaders) {
+        status = tr("Syncing Headers (%1%)...").arg(
+            QString::number(modalOverlay->headerSyncProgress() * 100.0, 'f', 1));
+    } else if (blockchainSyncing) {
+        status = clientModel->inInitialBlockDownload()
+            ? tr("Synchronizing with network...") : tr("Catching up...");
+    } else if (!masternodeSync.IsSynced()) {
+        status = tr("Finishing sync...");
+    } else {
+        status = tr("Synced");
+        progress = 1.0;
     }
-    updateNavigationSyncCard(progressBarLabel->text(), progress);
+    progressBarLabel->setText(status);
+    progressBarLabel->setVisible(!navigationSyncCard && (syncing || !coreSyncStatus.isEmpty()));
+    progressBar->setMaximum(1000000000);
+    progressBar->setValue(qRound(qBound(0.0, progress, 1.0) * 1000000000.0));
+    progressBar->setFormat(blockchainSyncing && blockDate.isValid()
+        ? tr("%1 behind").arg(GUIUtil::formatNiceTimeOffset(secs)) : QStringLiteral("%p%"));
+    progressBar->setVisible(!navigationSyncCard && syncing);
+    updateNavigationSyncCard(status, progress);
+    modalOverlay->setSyncComplete(!syncing);
+
+    QString tooltip = tr("Processed %n block(s) of transaction history.", "", clientModel->getNumBlocks());
+    if (blockchainSyncing) {
+        tooltip = tr("Catching up...") + QStringLiteral("<br>") + tooltip;
+        if (blockDate.isValid()) {
+            tooltip += QStringLiteral("<br>") + tr("Last received block was generated %1 ago.")
+                .arg(GUIUtil::formatNiceTimeOffset(secs));
+        }
+        tooltip += QStringLiteral("<br>") + tr("Transactions after this will not yet be visible.");
+    } else {
+        tooltip = tr("Up to date") + QStringLiteral(".<br>") + tooltip;
+        if (syncing)
+            tooltip = status + QStringLiteral("<br>") + tooltip;
+    }
+    if (syncing) {
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
+            ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
+            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+        spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
+    } else {
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"),
+            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+    }
+    tooltip = QStringLiteral("<nobr>") + tooltip + QStringLiteral("</nobr>");
+    labelBlocksIcon->setToolTip(tooltip);
+    progressBarLabel->setToolTip(tooltip);
+    progressBar->setToolTip(tooltip);
+
+#ifdef ENABLE_WALLET
+    if (walletFrame) {
+        walletFrame->showOutOfSyncWarning(blockchainSyncing || !coreSyncStatus.isEmpty());
+        if (blockDate.isValid()) {
+            const bool tipBehind = secs >= MAX_SYNCED_TIP_AGE_SECS;
+            if (tipBehind || tipWasBehind)
+                modalOverlay->showHide(!tipBehind);
+            tipWasBehind = tipBehind;
+        }
+    }
+#endif // ENABLE_WALLET
 }
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
 {
-    if (modalOverlay)
-    {
-        if (header)
-            modalOverlay->setKnownBestHeight(count, blockDate);
-        else
-            modalOverlay->tipUpdate(count, blockDate, nVerificationProgress);
+    if (header) {
+        modalOverlay->setKnownBestHeight(count, blockDate);
+    } else {
+        blockSyncProgress = nVerificationProgress;
+        if (clientModel && ::Params().NetworkIDString() == CBaseChainParams::REGTEST &&
+            (clientModel->getBlockSource() == BLOCK_SOURCE_REINDEX || clientModel->getBlockSource() == BLOCK_SOURCE_DISK)) {
+            const int headerHeight = clientModel->getHeaderTipHeight();
+            if (headerHeight > 0)
+                blockSyncProgress = qBound(0.0, static_cast<double>(count) / headerHeight, 1.0);
+        }
+        modalOverlay->tipUpdate(count, blockDate, blockSyncProgress);
     }
     if (!clientModel)
         return;
 
-    // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbled text)
     statusBar()->clearMessage();
-
-    // Acquire current block source
-    enum BlockSource blockSource = clientModel->getBlockSource();
-    switch (blockSource) {
-        case BLOCK_SOURCE_NETWORK:
-            if (header) {
-                updateHeadersSyncProgressLabel();
-                return;
-            }
-            progressBarLabel->setText(tr("Synchronizing with network..."));
-            updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress);
-            break;
-        case BLOCK_SOURCE_DISK:
-            if (header) {
-                progressBarLabel->setText(tr("Indexing blocks on disk..."));
-            } else {
-                progressBarLabel->setText(tr("Processing blocks on disk..."));
-            }
-            break;
-        case BLOCK_SOURCE_REINDEX:
-            progressBarLabel->setText(tr("Reindexing blocks on disk..."));
-            break;
-        case BLOCK_SOURCE_NONE:
-            if (header) {
-                return;
-            }
-            progressBarLabel->setText(tr("Connecting to peers..."));
-            break;
-    }
-
-    QString tooltip;
-
-    QDateTime currentDate = QDateTime::currentDateTime();
-    qint64 secs = blockDate.secsTo(currentDate);
-
-    tooltip = tr("Processed %n block(s) of transaction history.", "", count);
-
+    updateSyncStatus();
 #ifdef ENABLE_WALLET
-    if(walletFrame)
-    {
-        if (secs < MAX_SYNCED_TIP_AGE_SECS) {
-            modalOverlay->showHide(true, true);
-            // TODO instead of hiding it forever, we should add meaningful information about MN sync to the overlay
-            modalOverlay->hideForever();
-        }
-        else
-        {
-            modalOverlay->showHide();
-        }
-    }
-#endif // ENABLE_WALLET
-
-    if (blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
-    {
-        QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
-
-        double displayVerificationProgress = nVerificationProgress;
-        if ((blockSource == BLOCK_SOURCE_REINDEX || blockSource == BLOCK_SOURCE_DISK) &&
-            ::Params().NetworkIDString() == CBaseChainParams::REGTEST) {
-            const int headerHeight = clientModel->getHeaderTipHeight();
-            if (headerHeight > 0)
-                displayVerificationProgress = qBound(0.0, static_cast<double>(count) / headerHeight, 1.0);
-        }
-
-        progressBarLabel->setVisible(!navigationSyncCard);
-        progressBar->setFormat(tr("%1 behind").arg(timeBehindText));
-        progressBar->setMaximum(1000000000);
-        progressBar->setValue(displayVerificationProgress * 1000000000.0 + 0.5);
-        progressBar->setVisible(!navigationSyncCard);
-        if (blockSource != BLOCK_SOURCE_NETWORK && blockSource != BLOCK_SOURCE_NONE)
-            updateNavigationSyncCard(progressBarLabel->text(), displayVerificationProgress);
-        else if (blockSource == BLOCK_SOURCE_NONE)
-            updateNavigationSyncCard(progressBarLabel->text(), 0.0);
-
-        tooltip = tr("Catching up...") + QString("<br>") + tooltip;
-        if(count != prevBlocks)
-        {
-            labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
-                ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
-                QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
-            spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
-        }
-        prevBlocks = count;
-
-#ifdef ENABLE_WALLET
-        if(walletFrame)
-        {
-            walletFrame->showOutOfSyncWarning(true);
-        }
-#endif // ENABLE_WALLET
-
-        tooltip += QString("<br>");
-        tooltip += tr("Last received block was generated %1 ago.").arg(timeBehindText);
-        tooltip += QString("<br>");
-        tooltip += tr("Transactions after this will not yet be visible.");
-    } else if (fLiteMode) {
-        setAdditionalDataSyncProgress(1);
-    } else if (masternodeSync.IsSynced()) {
-        progressBarLabel->hide();
-        progressBar->hide();
-        updateNavigationSyncCard(QString(), 1.0);
-#ifdef ENABLE_WALLET
-        if (walletFrame)
-            walletFrame->showOutOfSyncWarning(false);
-#endif // ENABLE_WALLET
-    }
-
-    // Don't word-wrap this (fixed-width) tooltip
-    tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
-
-    labelBlocksIcon->setToolTip(tooltip);
-    progressBarLabel->setToolTip(tooltip);
-    progressBar->setToolTip(tooltip);
-
-#ifdef ENABLE_WALLET
-    checkZnodeVisibility(count);
-    if (!header)
+    if (!header) {
+        checkZnodeVisibility(count);
         checkSparkNamesVisibility(count);
-    if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
-        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+        if (walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock)
+            sparkAddressbookUpdated = walletFrame->updateAddressbook();
     }
 #endif // ENABLE_WALLET
 }
 
-
-void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
+void BitcoinGUI::setAdditionalDataSyncProgress(double)
 {
-    if(!clientModel)
-        return;
-
-    // No additional data sync should be happening while blockchain is not synced, nothing to update
-    if(blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
-        return;
-
-    // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbelled text)
-    statusBar()->clearMessage();
-
-    QString tooltip;
-
-    QString strSyncStatus;
-    // Set icon state: spinning if catching up, tick otherwise
-    tooltip = tr("Up to date") + QString(".<br>") + tooltip;
-
-#ifdef ENABLE_WALLET
-    if(walletFrame)
-        walletFrame->showOutOfSyncWarning(false);
-#endif // ENABLE_WALLET
-
-    if(masternodeSync.IsSynced()) {
-        progressBarLabel->setVisible(false);
-        progressBar->setVisible(false);
-        updateNavigationSyncCard(QString(), 1.0);
-        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
-    } else {
-
-        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
-                        ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
-                                            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
-        spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
-
-        progressBar->setFormat(tr("Synchronizing additional data: %p%"));
-        progressBar->setMaximum(1000000000);
-        progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
-        progressBarLabel->setVisible(!navigationSyncCard);
-        progressBar->setVisible(!navigationSyncCard);
-    }
-
-    strSyncStatus = QString(masternodeSync.GetSyncStatus().c_str());
-    progressBarLabel->setText(strSyncStatus);
-    if (!masternodeSync.IsSynced())
-        updateNavigationSyncCard(strSyncStatus, nSyncProgress);
-    tooltip = strSyncStatus + QString("<br>") + tooltip;
-
-    // Don't word-wrap this (fixed-width) tooltip
-    tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
-
-    labelBlocksIcon->setToolTip(tooltip);
-    progressBarLabel->setToolTip(tooltip);
-    progressBar->setToolTip(tooltip);
+    updateSyncStatus();
 }
 
 
@@ -2005,12 +1881,9 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
     QString title = (amount < 0) ? tr("Sent transaction") : tr("Incoming transaction");
     QString finalMsg = msg;
 
-    // skip tx notifications in case it is not fully sync
-    if (masternodeSync.IsBlockchainSynced()) {
-        QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
-            message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
-        }, Qt::QueuedConnection);
-    }
+    QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
+        message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
+    }, Qt::QueuedConnection);
 
 }
 #endif // ENABLE_WALLET
@@ -2179,8 +2052,8 @@ void BitcoinGUI::updateProgressBarLabel(const QString& text)
     if (!progressBarLabel)
         return;
 
-    progressBarLabel->setVisible(!text.isEmpty());
-    progressBarLabel->setText(text);
+    coreSyncStatus = text;
+    updateSyncStatus();
 }
 
 void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)

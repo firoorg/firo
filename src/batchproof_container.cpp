@@ -5,6 +5,7 @@
 #include "validation.h"
 
 #include <boost/filesystem.hpp>
+#include <boost/scope_exit.hpp>
 #include <unordered_map>
 
 namespace {
@@ -50,7 +51,14 @@ bool VerifySparkBatch(
         return true;
 
     LogPrintf("Spark batch verification started.\n");
-    uiInterface.UpdateProgressBarLabel("Batch verifying Spark Proofs...");
+    BOOST_SCOPE_EXIT(void) {
+        try {
+            uiInterface.UpdateProgressBarLabel("");
+        } catch (...) {
+            // A UI notification must not interrupt proof cleanup or unwinding.
+        }
+    } BOOST_SCOPE_EXIT_END
+    uiInterface.UpdateProgressBarLabel(_("Batch verifying Spark Proofs..."));
 
     const spark::SpendTransaction::CoverSetProvider coverSetProvider =
         [&coverSets](uint64_t id) -> const std::vector<spark::Coin>& {
