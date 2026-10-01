@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet/wallet.h"
+#include "wallet/coincontrol.h"
 
 #include "evo/deterministicmns.h"
 #include "evo/evodb.h"
@@ -142,9 +143,9 @@ BOOST_AUTO_TEST_CASE(consolidation_preserves_address_and_eligibility)
 BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
-    // Compressed, uncompressed, exchange, and multisig addresses need different
+    // Compressed, uncompressed, exchange, multisig, and wrapped witness addresses need different
     // input sizes. Each batch must fit and the next maximum-size input must not.
-    for (int kind = 0; kind < 4; ++kind) {
+    for (int kind = 0; kind < 5; ++kind) {
         CKey key;
         key.MakeNewKey(kind != 1);
         BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
@@ -156,16 +157,21 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
             BOOST_REQUIRE(pwalletMain->AddCScript(redeem));
             address = CScriptID(redeem);
         }
+        if (kind == 4) {
+            const CScript witness = GetScriptForWitness(GetScriptForRawPubKey(key.GetPubKey()));
+            BOOST_REQUIRE(pwalletMain->AddCScript(witness));
+            address = CScriptID(witness);
+        }
         const CScript script = GetScriptForDestination(address);
         CMutableTransaction funding;
         funding.vin.emplace_back(COutPoint(uint256S("03"), kind));
-        funding.vout.assign(2000, CTxOut(COIN, script));
+        funding.vout.assign(kind == 4 ? 7000 : 2000, CTxOut(COIN, script));
         CWalletTx received(pwalletMain, MakeTransactionRef(funding));
         received.hashBlock = chainActive.Tip()->GetBlockHash();
         received.nIndex = 1;
         BOOST_REQUIRE(pwalletMain->AddToWallet(received));
         const auto plan = pwalletMain->GetConsolidationPlans(address).at(address);
-        BOOST_CHECK_EQUAL(plan.eligibleCount, 2000);
+        BOOST_CHECK_EQUAL(plan.eligibleCount, funding.vout.size());
         BOOST_CHECK(plan.sizeLimited);
 
         CWalletTx consolidated;
@@ -209,6 +215,28 @@ BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
         BOOST_REQUIRE(pwalletMain->DummySignTx(sized, inputs));
         BOOST_CHECK(GetTransactionWeight(sized) >= MAX_NEW_TX_WEIGHT ||
             GetTransactionSigOpCost(CTransaction(sized), view, STANDARD_SCRIPT_VERIFY_FLAGS) > MAX_STANDARD_TX_SIGOPS_COST);
+
+        if (kind == 0) {
+            CCoinControl allInputs;
+            for (unsigned int i = 0; i < funding.vout.size(); ++i)
+                allInputs.Select(COutPoint(received.GetHash(), i));
+            int changePosition = -1;
+            BOOST_CHECK(!pwalletMain->CreateTransaction({{script, CAmount(funding.vout.size()) * COIN, true}},
+                consolidated, reserveKey, fee, changePosition, error, &allInputs));
+            BOOST_CHECK(error.find("File > Consolidate outputs") != std::string::npos);
+            BOOST_CHECK(error.find("consolidateaddress") != std::string::npos);
+        }
+        if (kind == 3) {
+            // Even two large inputs exceed this fee cap despite ample value.
+            struct RestoreMaxFee {
+                CAmount original;
+                ~RestoreMaxFee() { maxTxFee = original; }
+            } restoreMaxFee{maxTxFee};
+            maxTxFee = ::minRelayTxFee.GetFee(1000);
+            const auto capped = pwalletMain->GetConsolidationPlans(address).at(address);
+            BOOST_CHECK(capped.inputs.empty());
+            BOOST_CHECK_EQUAL(capped.error, "Transaction too large for fee policy");
+        }
     }
 
     CKey dustKey;

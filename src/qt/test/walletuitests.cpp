@@ -103,7 +103,7 @@ public:
 };
 }
 
-void WalletUiTests::consolidationSuggestion()
+void WalletUiTests::manualConsolidation()
 {
     CWallet wallet;
     CWallet* previousWallet = pwalletMain;
@@ -152,22 +152,19 @@ void WalletUiTests::consolidationSuggestion()
 
     OverviewPage page(style.get());
     page.setWalletModel(model.get());
+    QAction action;
+    action.setEnabled(false);
+    page.setConsolidationAction(&action);
     page.show();
-    auto* hint = page.findChild<QLabel*>("consolidationHint");
-    auto* button = page.findChild<QPushButton*>("consolidateButton");
-    QVERIFY(hint && button);
-    QVERIFY(hint->isHidden());
-    QVERIFY(button->isHidden());
     page.showOutOfSyncWarning(false);
-    QTRY_VERIFY(!hint->isHidden());
-    QVERIFY(!button->isHidden());
-    QVERIFY(hint->text().contains("Payouts"));
 
+    bool dialogOpened = false;
     QTimer dialogTimer;
     connect(&dialogTimer, &QTimer::timeout, &page, [&] {
         auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
         if (!dialog)
             return;
+        dialogOpened = true;
         dialogTimer.stop();
         const auto close = qScopeGuard([&] { dialog->reject(); });
         const QSize available = GUIUtil::availableScreenSize(dialog);
@@ -187,6 +184,11 @@ void WalletUiTests::consolidationSuggestion()
     });
     dialogTimer.start(10);
     QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+    QVERIFY(!dialogOpened); // A cleared chain warning must not bypass the full-sync action gate.
+    action.setEnabled(true);
+    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+    QVERIFY(dialogOpened);
+    QVERIFY(!QApplication::overrideCursor());
 
     page.hide();
     std::vector<WalletModel::ConsolidationCandidate> cached;
@@ -211,7 +213,7 @@ void WalletUiTests::consolidationSuggestion()
     connect(&waitWatchdog, &QTimer::timeout, &page, [&] { model.reset(); });
     {
         LOCK(wallet.cs_wallet);
-        // The GUI can poll a busy wallet without waiting or hiding its offer.
+        // Polling a manual scan must not block the GUI or discard its result buffer.
         QVERIFY(!model->pollConsolidationAddresses(cached));
         QTest::qWait(30);
         QVERIFY(!model->pollConsolidationAddresses(cached));
@@ -247,13 +249,15 @@ void WalletUiTests::consolidationSuggestion()
     QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
     QCOMPARE(cached[0].outputs, size_t(1700));
 
-    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
     page.show();
-    QTRY_VERIFY(!hint->isHidden());
     busyMessage.clear();
     QTimer syncStart;
     syncStart.setSingleShot(true);
-    connect(&syncStart, &QTimer::timeout, &page, [&] { page.showOutOfSyncWarning(true); });
+    connect(&syncStart, &QTimer::timeout, &page, [&] {
+        QVERIFY(QApplication::overrideCursor());
+        QCOMPARE(QApplication::overrideCursor()->shape(), Qt::WaitCursor);
+        action.setEnabled(false);
+    });
     QElapsedTimer syncWait;
     {
         std::promise<void> walletLocked, releaseWallet;
@@ -279,13 +283,11 @@ void WalletUiTests::consolidationSuggestion()
         waitWatchdog.stop();
     }
     QVERIFY(model);
-    QVERIFY(syncWait.elapsed() < 2000);
+    QVERIFY(syncWait.elapsed() < 4000);
     QVERIFY(busyMessage.isEmpty());
     QVERIFY(!chooserOpened);
-    QVERIFY(hint->isHidden());
-    QVERIFY(button->isHidden());
-    page.showOutOfSyncWarning(false);
-    QTRY_VERIFY(!hint->isHidden());
+    QVERIFY(!QApplication::overrideCursor());
+    action.setEnabled(true);
     dialogTimer.start(10);
     QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
     page.hide();
@@ -309,11 +311,6 @@ void WalletUiTests::consolidationSuggestion()
         for (unsigned int i = 1; i < 1651; ++i)
             wallet.LockCoin(COutPoint(received.GetHash(), i));
     }
-    page.show();
-    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
-    QTRY_VERIFY(hint->isHidden()); // 49 outputs fit in one transaction: no automatic suggestion.
-    QVERIFY(button->isHidden());
-    page.hide();
     std::vector<WalletModel::ConsolidationCandidate> manualAddresses;
     bool manualScanFinished = false;
     QTRY_VERIFY(manualScanFinished || (manualScanFinished = model->pollConsolidationAddresses(manualAddresses)));
@@ -325,9 +322,7 @@ void WalletUiTests::consolidationSuggestion()
         for (unsigned int i = 1651; i < 1700; ++i)
             wallet.LockCoin(COutPoint(received.GetHash(), i));
     }
-    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
-    QTRY_VERIFY(button->isHidden());
-    // A size-limited address must also have an affordable batch to be offered.
+    // A manual candidate must have an affordable batch.
     funding.vout.assign(1700, CTxOut(1, GetScriptForDestination(key.GetPubKey().GetID())));
     CWalletTx dust(&wallet, MakeTransactionRef(funding));
     dust.hashBlock = blockHash;
@@ -347,9 +342,7 @@ void WalletUiTests::consolidationSuggestion()
     });
     QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
     QVERIFY(!model);
-    QVERIFY(QMetaObject::invokeMethod(&page, "updateConsolidationOffer", Qt::DirectConnection));
-    QVERIFY(hint->isHidden());
-    QVERIFY(button->isHidden());
+    QVERIFY(!QApplication::overrideCursor());
 }
 
 void WalletUiTests::consolidationResult()

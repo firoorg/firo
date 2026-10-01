@@ -1415,7 +1415,7 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     // Limit size
                     CTransaction txConst(tx);
                     if (GetTransactionWeight(txConst) >= MAX_NEW_TX_WEIGHT) {
-                        strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
+                        strFailReason = _("Transaction is too large (size limit: 250Kb). Select fewer inputs. If many inputs belong to one transparent address, use File > Consolidate outputs in the GUI or the consolidateaddress RPC, then retry after confirmation.");
                         return false;
                     }
                     dPriority = txConst.ComputePriority(dPriority, nBytes);

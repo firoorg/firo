@@ -3041,30 +3041,34 @@ std::map<CTxDestination, ConsolidationPlan> CWallet::GetConsolidationPlans(const
             (WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxIn(), SER_NETWORK, PROTOCOL_VERSION)))));
         CMutableTransaction sized;
         sized.vout.emplace_back(0, GetScriptForDestination(group.first));
-        std::vector<std::pair<const CWalletTx*, unsigned int>> inputs;
         CCoinsView emptyView;
         CCoinsViewCache view(&emptyView);
-        for (const auto& coin : coins) {
-            const auto& outpoint = coin.second;
-            const auto& walletTx = mapWallet.at(outpoint.hash);
-            sized.vin.emplace_back(outpoint);
-            inputs.emplace_back(&walletTx, outpoint.n);
-            view.AddCoin(outpoint, Coin(walletTx.tx->vout[outpoint.n], 0, false), false);
-        }
+        const auto& first = coins.front().second;
+        const auto& firstTx = mapWallet.at(first.hash);
+        sized.vin.emplace_back(first);
+        const std::vector<std::pair<const CWalletTx*, unsigned int>> inputs{{&firstTx, first.n}};
+        view.AddCoin(first, Coin(firstTx.tx->vout[first.n], 0, false), false);
         if (!DummySignTx(sized, inputs)) {
             plan.error = _("Signing transaction failed");
             continue;
         }
 
-        // Use real serialization, including CompactSize boundaries, and the sigop cap.
-        const auto signedInputs = std::move(sized.vin);
+        // Exact script groups share one maximum-size dummy satisfaction. Derive
+        // its cost once, including witness data and the input-count CompactSize.
+        const CTxIn signedInput = sized.vin.front();
+        const CTransaction singleInput(sized);
+        const size_t witnessBytes = sized.HasWitness() ? ::GetSerializeSize(signedInput.scriptWitness.stack, SER_NETWORK, PROTOCOL_VERSION) : 0;
+        const size_t inputBytes = ::GetSerializeSize(signedInput, SER_NETWORK, PROTOCOL_VERSION) + witnessBytes;
+        const size_t inputWeight = WITNESS_SCALE_FACTOR * (inputBytes - witnessBytes) + witnessBytes;
+        const size_t singleWeight = GetTransactionWeight(singleInput);
+        const int64_t outputSigOps = int64_t(sized.vout[0].scriptPubKey.GetSigOpCount(false)) * WITNESS_SCALE_FACTOR;
+        const int64_t inputSigOps = GetTransactionSigOpCost(singleInput, view, STANDARD_SCRIPT_VERIFY_FLAGS) - outputSigOps;
         size_t low = 0, high = coins.size();
         while (low < high) {
             const size_t count = low + (high - low + 1) / 2;
-            sized.vin.assign(signedInputs.begin(), signedInputs.begin() + count);
-            const CTransaction candidate(sized);
-            if (GetTransactionWeight(candidate) < MAX_NEW_TX_WEIGHT &&
-                GetTransactionSigOpCost(candidate, view, STANDARD_SCRIPT_VERIFY_FLAGS) <= MAX_STANDARD_TX_SIGOPS_COST) {
+            const size_t weight = singleWeight + (count - 1) * inputWeight +
+                size_t(WITNESS_SCALE_FACTOR) * (GetSizeOfCompactSize(count) - GetSizeOfCompactSize(1));
+            if (weight < MAX_NEW_TX_WEIGHT && outputSigOps + int64_t(count) * inputSigOps <= MAX_STANDARD_TX_SIGOPS_COST) {
                 low = count;
             } else {
                 high = count - 1;
@@ -3079,26 +3083,37 @@ std::map<CTxDestination, ConsolidationPlan> CWallet::GetConsolidationPlans(const
         CAmount total = 0;
         for (size_t i = 0; i < low; ++i)
             total += coins[i].first;
-        sized.vin.assign(signedInputs.begin(), signedInputs.begin() + low);
-        unsigned int bytes = ::GetSerializeSize(sized, SER_NETWORK, PROTOCOL_VERSION);
+        unsigned int bytes = singleInput.GetTotalSize() + (low - 1) * inputBytes +
+            GetSizeOfCompactSize(low) - GetSizeOfCompactSize(1);
         CAmount requiredFee = 0;
-        const bool hasWitness = sized.HasWitness(); // Uniform at this exact destination script.
+        bool feePolicyFailure = false;
         // Drop the smallest outputs until the batch pays its fee. Update its
         // serialized size instead of reserializing every remaining input.
         while (low >= 2) {
             requiredFee = GetMinimumFee(bytes, nTxConfirmTarget, mempool);
-            if (total > requiredFee && requiredFee >= ::minRelayTxFee.GetFee(bytes))
+            feePolicyFailure = requiredFee < ::minRelayTxFee.GetFee(bytes);
+            if (total > requiredFee && !feePolicyFailure)
                 break;
-            const auto& input = sized.vin.back();
-            bytes -= ::GetSerializeSize(input, SER_NETWORK, PROTOCOL_VERSION);
-            if (hasWitness)
-                bytes -= ::GetSerializeSize(input.scriptWitness.stack, SER_NETWORK, PROTOCOL_VERSION);
+            bytes -= inputBytes;
             bytes -= GetSizeOfCompactSize(low) - GetSizeOfCompactSize(low - 1);
             total -= coins[--low].first;
-            sized.vin.pop_back();
         }
         if (low < 2) {
-            plan.error = _("The transaction amount is too small to pay the fee");
+            plan.error = feePolicyFailure ? _("Transaction too large for fee policy") : _("The transaction amount is too small to pay the fee");
+            continue;
+        }
+
+        sized.vin.assign(low, signedInput);
+        for (size_t i = 0; i < low; ++i) {
+            const auto& outpoint = coins[i].second;
+            sized.vin[i].prevout = outpoint;
+            if (i != 0)
+                view.AddCoin(outpoint, Coin(mapWallet.at(outpoint.hash).tx->vout[outpoint.n], 0, false), false);
+        }
+        const CTransaction candidate(sized);
+        if (candidate.GetTotalSize() != bytes || GetTransactionWeight(candidate) >= MAX_NEW_TX_WEIGHT ||
+            GetTransactionSigOpCost(candidate, view, STANDARD_SCRIPT_VERIFY_FLAGS) > MAX_STANDARD_TX_SIGOPS_COST) {
+            plan.error = _("Unable to create a same-address consolidation transaction.");
             continue;
         }
         for (size_t i = 0; i < low; ++i)
@@ -3111,7 +3126,7 @@ std::map<CTxDestination, ConsolidationPlan> CWallet::GetConsolidationPlans(const
 }
 
 bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
-                                           CReserveKey& reserveKey, CAmount& fee, std::string& error)
+                                           CReserveKey& reserveKey, CAmount& fee, std::string& error, ConsolidationPlan* usedPlan)
 {
     LOCK2(cs_main, cs_wallet);
     const auto plans = GetConsolidationPlans(destination);
@@ -3138,6 +3153,8 @@ bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, 
         error = _("Unable to create a same-address consolidation transaction.");
         return false;
     }
+    if (usedPlan)
+        *usedPlan = plan;
     return true;
 }
 
@@ -3780,7 +3797,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 
                 if (GetTransactionWeight(txNew) >= MAX_NEW_TX_WEIGHT) {
                     // Do not create oversized transactions (bad-txns-oversize).
-                    strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
+                    strFailReason = _("Transaction is too large (size limit: 250Kb). Select fewer inputs. If many inputs belong to one transparent address, use File > Consolidate outputs in the GUI or the consolidateaddress RPC, then retry after confirmation.");
                     return false;
                 }
 

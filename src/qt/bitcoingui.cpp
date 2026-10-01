@@ -856,6 +856,7 @@ void BitcoinGUI::createToolBars()
         if (modalOverlay->isHeaderSyncPending()) {
             updateHeadersSyncProgressLabel();
         } else if (!navigationSyncCard && !syncInProgress()) {
+            updateConsolidationAction();
             progressBarLabel->hide();
             progressBar->hide();
         } else {

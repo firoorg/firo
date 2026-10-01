@@ -572,13 +572,22 @@ UniValue consolidateaddress(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
     const CTxDestination destination = address.Get();
-    const auto plans = pwallet->GetConsolidationPlans(destination);
-    const auto found = plans.find(destination);
-    if (found == plans.end())
-        throw JSONRPCError(RPC_WALLET_ERROR, "There are fewer than two eligible outputs at this address.");
-    const auto& plan = found->second;
-    if (!plan.error.empty())
-        throw JSONRPCError(RPC_WALLET_ERROR, plan.error);
+    ConsolidationPlan plan;
+    CWalletTx transaction;
+    CReserveKey reserveKey(pwallet);
+    CAmount fee = 0;
+    std::string error;
+    if (dryrun) {
+        const auto plans = pwallet->GetConsolidationPlans(destination);
+        const auto found = plans.find(destination);
+        if (found == plans.end())
+            throw JSONRPCError(RPC_WALLET_ERROR, "There are fewer than two eligible outputs at this address.");
+        plan = found->second;
+        if (!plan.error.empty())
+            throw JSONRPCError(RPC_WALLET_ERROR, plan.error);
+    } else if (!pwallet->CreateConsolidationTransaction(destination, transaction, reserveKey, fee, error, &plan)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, error);
+    }
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("address", address.ToString()));
@@ -593,12 +602,6 @@ UniValue consolidateaddress(const JSONRPCRequest& request)
         return result;
     }
 
-    CWalletTx transaction;
-    CReserveKey reserveKey(pwallet);
-    CAmount fee = 0;
-    std::string error;
-    if (!pwallet->CreateConsolidationTransaction(destination, transaction, reserveKey, fee, error))
-        throw JSONRPCError(RPC_WALLET_ERROR, error);
     CValidationState state;
     if (!pwallet->CommitTransaction(transaction, reserveKey, g_connman.get(), state, true))
         throw JSONRPCError(RPC_WALLET_ERROR, "Transaction rejected: " + state.GetRejectReason());

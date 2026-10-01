@@ -29,10 +29,10 @@ namespace Ui {
 }
 
 QT_BEGIN_NAMESPACE
+class QAction;
 class QModelIndex;
 class QProgressBar;
 class QLabel;
-class QPushButton;
 QT_END_NAMESPACE
 
 /** Overview ("home") page widget */
@@ -46,6 +46,7 @@ public:
 
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
+    void setConsolidationAction(QAction *action);
     void showOutOfSyncWarning(bool fShow);
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
 
@@ -70,8 +71,7 @@ Q_SIGNALS:
     void gotoSendCoinsPage();
     void gotoReceiveCoinsPage();
 private:
-    void showEvent(QShowEvent* event) override;
-    void hideEvent(QHideEvent* event) override;
+    bool canConsolidate() const;
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
     QPointer<WalletModel> walletModel;
@@ -101,12 +101,7 @@ private:
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
-    QLabel *consolidationHint{nullptr};
-    QPushButton *consolidateButton{nullptr};
-    QTimer consolidationTimer;
-    std::vector<WalletModel::ConsolidationCandidate> consolidationAddresses;
-    bool waitingForConsolidationScan{false};
-    bool outOfSync{true};
+    QPointer<QAction> consolidationAction;
 
     void applyOverviewRedesign();
     void applyOverviewTheme();
@@ -121,8 +116,6 @@ private Q_SLOTS:
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
     void updateSparkAnonymizeRowVisibility();
-    void scheduleConsolidationRefresh();
-    void updateConsolidationOffer();
     void showConsolidationResult(qulonglong remainingOutputs, bool anotherBatch);
 };
 

@@ -34,6 +34,15 @@ but severe issues with the libc++ version on 10.7.x keep it from running reliabl
 Notable changes
 ===============
 
+Wallet GUI
+----------
+
+- **File > Consolidate outputs** combines an affordable batch of confirmed
+  outputs at one transparent address, returning funds to that same address
+  after deducting a network fee. It is available after full synchronization.
+  Oversized transparent sends and Make Private transactions explain how to
+  access consolidation.
+
 RPC
 ---
 
