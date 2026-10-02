@@ -54,40 +54,56 @@ ThemeNotifier& ThemeNotifier::instance()
     return notifier;
 }
 
+// One warm neutral ramp tinted toward the brand wine, with semantic colors kept distinct:
+// teal marks private funds, red marks errors only, gold marks pending or expiring states.
 static const ThemeColors LIGHT_COLORS{
-    QStringLiteral("#F4F4F4"),
-    QStringLiteral("#FFFFFF"),
-    QStringLiteral("#F7F0F1"),
-    QStringLiteral("#CFCCCC"),
-    QStringLiteral("#110202"),
-    QStringLiteral("#3D3939"),
-    QStringLiteral("#6E6A80"),
-    QStringLiteral("#9B1C2E"),
-    QStringLiteral("#7C1624"),
-    QStringLiteral("#F7F0F1"),
-    QStringLiteral("#237A6E"),
-    QStringLiteral("#E6F5F2"),
-    QStringLiteral("#9B1C2E"),
-    QStringLiteral("#A66314"),
-    QStringLiteral("#FBF1E3"),
+    QStringLiteral("#F5F3F4"), // bg
+    QStringLiteral("#FFFFFF"), // panel
+    QStringLiteral("#F8F6F7"), // panelSoft
+    QStringLiteral("#E8E3E6"), // border
+    QStringLiteral("#1A1216"), // ink
+    QStringLiteral("#554B51"), // inkSoft
+    QStringLiteral("#776C73"), // inkFaint
+    QStringLiteral("#9B1C2E"), // wine
+    QStringLiteral("#7E1726"), // wineDeep
+    QStringLiteral("#FBEEF0"), // wineTint
+    QStringLiteral("#1E7D6F"), // teal
+    QStringLiteral("#E5F4F0"), // tealTint
+    QStringLiteral("#CC2F26"), // error
+    QStringLiteral("#96560C"), // gold
+    QStringLiteral("#FCF1E1"), // goldTint
+    QStringLiteral("#F0ECEE"), // hover
+    QStringLiteral("#CFC6CB"), // fieldBorder
+    QStringLiteral("#9B1C2E"), // wineText
+    QStringLiteral("#176A5E"), // tealText
+    QStringLiteral("#FDECEA"), // errorTint
+    QStringLiteral("#9B1C2E"), // heroStart
+    QStringLiteral("#5E0F1D"), // heroEnd
 };
 
 static const ThemeColors DARK_COLORS{
-    QStringLiteral("#110C12"),
-    QStringLiteral("#1C151B"),
-    QStringLiteral("#241B22"),
-    QStringLiteral("#362A34"),
-    QStringLiteral("#F5EFF3"),
-    QStringLiteral("#B4A8B2"),
-    QStringLiteral("#8D818B"),
-    QStringLiteral("#DE3358"),
-    QStringLiteral("#A3223F"),
-    QStringLiteral("#29DE3358"),
-    QStringLiteral("#4FBBA8"),
-    QStringLiteral("#244FBBA8"),
-    QStringLiteral("#FF708A"),
-    QStringLiteral("#E7B678"),
-    QStringLiteral("#24E7B678"),
+    QStringLiteral("#0F0C10"),
+    QStringLiteral("#18141A"),
+    QStringLiteral("#211B23"),
+    QStringLiteral("#2E2730"),
+    QStringLiteral("#F5F0F3"),
+    QStringLiteral("#C2B8BF"),
+    QStringLiteral("#958A92"),
+    QStringLiteral("#C8304F"),
+    QStringLiteral("#A62742"),
+    QStringLiteral("#24E84868"),
+    QStringLiteral("#4CC2AD"),
+    QStringLiteral("#244CC2AD"),
+    QStringLiteral("#FF7B6E"),
+    QStringLiteral("#EBB15E"),
+    QStringLiteral("#24EBB15E"),
+    QStringLiteral("#2A232C"),
+    QStringLiteral("#463C48"),
+    QStringLiteral("#F27A93"),
+    QStringLiteral("#4CC2AD"),
+    QStringLiteral("#24FF7B6E"),
+    QStringLiteral("#86182A"),
+    QStringLiteral("#3F0A15"),
 };
 
 static bool g_darkMode = false;
@@ -166,18 +182,26 @@ QString themed(const QString& cssTemplate, ThemeMode mode)
     result.replace(QLatin1String("$ASSET_THEME"), mode == ThemeMode::Dark
                                                      ? QLatin1String("dark")
                                                      : QLatin1String("light"));
+    // Longer tokens first, so $WINE_TEXT is not consumed by $WINE.
     result.replace(QLatin1String("$BG"), c.bg);
+    result.replace(QLatin1String("$HOVER"), c.hover);
+    result.replace(QLatin1String("$HERO_START"), c.heroStart);
+    result.replace(QLatin1String("$HERO_END"), c.heroEnd);
     result.replace(QLatin1String("$PANEL_SOFT"), c.panelSoft);
     result.replace(QLatin1String("$PANEL"), c.panel);
+    result.replace(QLatin1String("$FIELD_BORDER"), c.fieldBorder);
     result.replace(QLatin1String("$BORDER"), c.border);
     result.replace(QLatin1String("$INK_SOFT"), c.inkSoft);
     result.replace(QLatin1String("$INK_FAINT"), c.inkFaint);
     result.replace(QLatin1String("$INK"), c.ink);
     result.replace(QLatin1String("$WINE_DEEP"), c.wineDeep);
     result.replace(QLatin1String("$WINE_TINT"), c.wineTint);
+    result.replace(QLatin1String("$WINE_TEXT"), c.wineText);
     result.replace(QLatin1String("$WINE"), c.wine);
     result.replace(QLatin1String("$TEAL_TINT"), c.tealTint);
+    result.replace(QLatin1String("$TEAL_TEXT"), c.tealText);
     result.replace(QLatin1String("$TEAL"), c.teal);
+    result.replace(QLatin1String("$ERROR_TINT"), c.errorTint);
     result.replace(QLatin1String("$ERROR"), c.error);
     result.replace(QLatin1String("$GOLD_TINT"), c.goldTint);
     result.replace(QLatin1String("$GOLD"), c.gold);
@@ -189,20 +213,17 @@ QString primaryButtonStyle(const QString& padding)
     return themed(QStringLiteral(R"(
         QPushButton {
             color: #FFFFFF;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE;
             border: 1px solid transparent;
-            border-radius: 12px;
+            border-radius: 10px;
             min-width: 0;
             font-weight: 700;
             padding: %1;
         }
-        QPushButton:hover:enabled {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
-        }
+        QPushButton:hover:enabled { background: $WINE_DEEP; }
+        QPushButton:focus { border: 1px solid $WINE_DEEP; }
         QPushButton:pressed { background: $WINE_DEEP; }
-        QPushButton:disabled { background: $BORDER; color: $INK_FAINT; }
+        QPushButton:disabled { background: $HOVER; color: $INK_FAINT; }
     )")).arg(padding);
 }
 
@@ -212,15 +233,16 @@ QString secondaryButtonStyle(const QString& padding)
         QPushButton {
             color: $INK;
             background: $PANEL;
-            border: 1px solid $BORDER;
-            border-radius: 12px;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
             min-width: 0;
             font-weight: 700;
             padding: %1;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
-        QPushButton:disabled { color: $INK_FAINT; background: $PANEL; }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:focus { border-color: $INK_FAINT; }
+        QPushButton:pressed { background: $HOVER; }
+        QPushButton:disabled { color: $INK_FAINT; background: $PANEL; border-color: $BORDER; }
     )")).arg(padding);
 }
 
@@ -248,20 +270,26 @@ void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option
     QFont font = option.font;
     font.setBold(true);
     painter->setFont(font);
-    const int width = qMin(option.rect.width() - 16, QFontMetrics(font).boundingRect(text).width() + 18);
+    // Private funds are teal everywhere, matching the Overview split bar.
+    const int dot = 6;
+    const int textWidth = QFontMetrics(font).horizontalAdvance(text);
+    const int width = qMin(option.rect.width() - 16, textWidth + dot + 26);
     const int height = QFontMetrics(font).height() + 6;
     const QRect badge(option.rect.left() + 8, option.rect.center().y() - height / 2, width, height);
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(isPrivate ? colors.wineTint : colors.border));
-    painter->drawRoundedRect(badge, 11, 11);
-    painter->setPen(QColor(isPrivate ? colors.ink : colors.inkSoft));
-    painter->drawText(badge, Qt::AlignCenter, text);
+    painter->setBrush(QColor(isPrivate ? colors.tealTint : colors.hover));
+    painter->drawRoundedRect(badge, height / 2.0, height / 2.0);
+    painter->setBrush(QColor(isPrivate ? colors.teal : colors.inkFaint));
+    painter->drawEllipse(QRectF(badge.left() + 10, badge.center().y() - dot / 2.0 + 0.5, dot, dot));
+    painter->setPen(QColor(isPrivate ? colors.tealText : colors.inkSoft));
+    painter->drawText(badge.adjusted(10 + dot + 6, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter,
+                      QFontMetrics(font).elidedText(text, Qt::ElideRight, qMax(0, badge.width() - dot - 24)));
 }
 
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
 {
     const QPixmap source = icon.pixmap(size);
-    if (!isDarkMode() || source.isNull())
+    if (source.isNull())
         return source;
 
     const QString cacheKey = QStringLiteral("firo-themed-status:%1:%2x%3:%4:%5")
@@ -292,11 +320,6 @@ QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
 
 void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect)
 {
-    if (!isDarkMode()) {
-        icon.paint(painter, rect, Qt::AlignCenter);
-        return;
-    }
-
     const QSize size = rect.size().isEmpty() ? QSize(16, 16) : rect.size();
     const QPixmap tinted = themedStatusIconPixmap(icon, size);
     if (tinted.isNull()) {

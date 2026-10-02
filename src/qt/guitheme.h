@@ -48,6 +48,13 @@ namespace GUIUtil
         QString error;
         QString gold;
         QString goldTint;
+        QString hover;       //!< Hover and pressed fill for quiet controls
+        QString fieldBorder; //!< Edge of inputs and secondary buttons; $BORDER is the card hairline
+        QString wineText;    //!< Wine for text and icons, readable on both surfaces
+        QString tealText;    //!< Teal for text on teal tints
+        QString errorTint;
+        QString heroStart;   //!< Overview balance card gradient
+        QString heroEnd;
     };
 
     class ThemeNotifier : public QObject
