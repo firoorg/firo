@@ -21,6 +21,7 @@ private Q_SLOTS:
     void receiveFormFitsSmallScreen();
     void sendFormFitsSmallScreen();
     void receiveMnemonics();
+    void emptyRecoverySeed();
     void confirmationRefresh();
     void themeTintColors();
     void peerDetailsTheme();
