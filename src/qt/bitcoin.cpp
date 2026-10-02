@@ -599,7 +599,7 @@ void BitcoinApplication::shutdownResult(int retval)
 
 void BitcoinApplication::handleRunawayException(const QString &message)
 {
-    QMessageBox::critical(0, "Runaway exception", BitcoinGUI::tr("A fatal error occurred. Firo can no longer continue safely and will quit.") + QString("\n\n") + message);
+    QMessageBox::critical(0, tr("Runaway exception"), BitcoinGUI::tr("A fatal error occurred. Firo can no longer continue safely and will quit.") + QString("\n\n") + message);
     ::exit(EXIT_FAILURE);
 }
 
@@ -668,14 +668,12 @@ void BitcoinApplication::migrateToFiro()
     if (boost::filesystem::exists(dontMigrateFilePath) && !GetBoolArg("-migratetofiro", false))
         return;
 
-    QCheckBox *doNotAskMeAgainCheckbox = new QCheckBox("Do not ask me again");
+    QCheckBox *doNotAskMeAgainCheckbox = new QCheckBox(tr("Do not ask me again"));
     QMessageBox messageBox;
-    QString messageText;
-    QTextStream(&messageText) <<
-        "Migrate directory structure from zcoin to firo? "
-        "Directory " << GUIUtil::boostPathToQString(zcoinDefaultDataDir) <<
-          " will be renamed to " << GUIUtil::boostPathToQString(firoDefaultDataDir) <<
-          " and file zcoin.conf in it will be renamed to firo.conf";
+    QString messageText = tr("Migrate directory structure from zcoin to firo? "
+                             "Directory %1 will be renamed to %2 "
+                             "and file zcoin.conf in it will be renamed to firo.conf")
+        .arg(GUIUtil::boostPathToQString(zcoinDefaultDataDir), GUIUtil::boostPathToQString(firoDefaultDataDir));
     messageBox.setText(messageText);
 
     messageBox.setIcon(QMessageBox::Icon::Question);
