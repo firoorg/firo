@@ -27,7 +27,6 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
-#include <QPainterPath>
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
 #include <QTableView>
@@ -39,7 +38,6 @@ class AddressBookCardDelegate final : public QStyledItemDelegate
 public:
     explicit AddressBookCardDelegate(QTableView* view)
         : QStyledItemDelegate(view)
-        , view_(view)
     {
     }
 
@@ -52,20 +50,7 @@ public:
 
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = option.state & QStyle::State_Selected;
-        painter->fillRect(option.rect, QColor(tc.panel));
-
-        if (view_) {
-            const QRect left = view_->visualRect(index.sibling(index.row(), AddressTableModel::Label));
-            const QRect right = view_->visualRect(index.sibling(index.row(), AddressTableModel::AddressType));
-            const QRect card(left.left() + 4, option.rect.top() + 4,
-                             qMax(40, right.right() - left.left() - 8),
-                             option.rect.height() - 8);
-            QPainterPath cardPath;
-            cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 12, 12);
-            painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-            painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
-            painter->drawPath(cardPath);
-        }
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         switch (index.column()) {
         case AddressTableModel::Label: {
@@ -104,8 +89,6 @@ public:
         painter->restore();
     }
 
-private:
-    QTableView* view_;
 };
 
 }

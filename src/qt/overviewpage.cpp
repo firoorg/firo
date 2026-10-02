@@ -78,9 +78,14 @@ public:
             return;
         }
 
-        painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-        painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
-        painter->drawRoundedRect(card, 14, 14);
+        // Rows sit directly in the activity card, separated by hairlines.
+        if (selected) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(QColor(tc.wineTint));
+            painter->drawRoundedRect(card, 10, 10);
+        }
+        if (index.row() + 1 < index.model()->rowCount(index.parent()))
+            painter->fillRect(QRect(card.left() + 8, option.rect.bottom(), card.width() - 16, 1), QColor(tc.border));
 
         const int txType = index.data(TransactionTableModel::TypeRole).toInt();
         const qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
@@ -94,22 +99,25 @@ public:
 
         const QRect iconRect(card.left() + 12, card.center().y() - 16, 32, 32);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
-        painter->drawRoundedRect(iconRect, 10, 10);
+        painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.hover));
+        painter->drawEllipse(iconRect);
+        GUIUtil::paintGlyph(painter, incoming ? GUIUtil::Glyph::ArrowDownLeft : GUIUtil::Glyph::ArrowUpRight,
+                            QRectF(iconRect).adjusted(8, 8, -8, -8), positive ? QColor(tc.teal) : QColor(tc.inkSoft));
         QFont boldFont = option.font;
         boldFont.setBold(true);
         painter->setFont(boldFont);
-        painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
-        painter->drawText(iconRect, Qt::AlignCenter,
-                          incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
 
         const QRect statusRect(iconRect.right() - 6, iconRect.bottom() - 12, 14, 14);
         const QVariant statusDec = index.sibling(index.row(), TransactionTableModel::Status)
                                        .data(TransactionTableModel::RawDecorationRole);
         if (statusDec.canConvert<QIcon>()) {
             const QIcon statusIcon = qvariant_cast<QIcon>(statusDec);
-            if (!statusIcon.isNull())
+            if (!statusIcon.isNull()) {
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
+                painter->drawEllipse(QRectF(statusRect).adjusted(-1.5, -1.5, 1.5, 1.5));
                 GUIUtil::paintThemedStatusIcon(painter, statusIcon, statusRect);
+            }
         }
 
         QDateTime date = index.data(TransactionTableModel::DateRole).toDateTime();
@@ -152,12 +160,12 @@ public:
         painter->drawText(addressRect, Qt::AlignLeft | Qt::AlignVCenter,
                           QFontMetrics(addrFont).elidedText(address, Qt::ElideMiddle, addressRect.width()));
 
+        // Received is teal; sent stays in ink with its minus sign, since red means an error.
         painter->setFont(boldFont);
-        painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
         const QRect amountRect(amountLeft, inlineAddress ? card.top() : dateRect.top(),
                                amountWidth, inlineAddress ? card.height() : lineHeight);
-        painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter,
-                          QFontMetrics(boldFont).elidedText(amountText, Qt::ElideRight, amountRect.width()));
+        GUIUtil::paintAmountRuns(painter, amountRect, amountText, amount < 0 ? QColor(tc.ink) : QColor(tc.teal),
+                                 Qt::AlignRight | Qt::AlignVCenter);
 
         painter->restore();
     }

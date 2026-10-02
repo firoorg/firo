@@ -42,7 +42,6 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QPainter>
-#include <QPainterPath>
 #include <QCalendarWidget>
 #include <QGridLayout>
 #include <QPushButton>
@@ -62,7 +61,6 @@ class TransactionRowCardDelegate final : public QStyledItemDelegate
 public:
     explicit TransactionRowCardDelegate(QTableView* view)
         : QStyledItemDelegate(view)
-        , view_(view)
     {
     }
 
@@ -81,33 +79,19 @@ public:
         const bool positive = incoming || amount > 0;
         const int lineHeight = option.fontMetrics.height();
 
-        painter->fillRect(option.rect, QColor(tc.panel));
-
-        if (view_) {
-            const QRect left = view_->visualRect(index.sibling(index.row(), TransactionTableModel::Date));
-            const QRect right = view_->visualRect(index.sibling(index.row(), TransactionTableModel::Amount));
-            const QRect card(left.left() + 4, option.rect.top() + 3,
-                             std::max(40, right.right() - left.left() - 8),
-                             option.rect.height() - 6);
-            QPainterPath cardPath;
-            cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
-            painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-            painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
-            painter->drawPath(cardPath);
-        }
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         switch (index.column()) {
         case TransactionTableModel::Date: {
             QRect icon(option.rect.left() + 14, option.rect.center().y() - 16, 32, 32);
             painter->setPen(Qt::NoPen);
-            painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
-            painter->drawRoundedRect(icon, 10, 10);
-            QFont iconFont = option.font;
-            iconFont.setBold(true);
-            painter->setFont(iconFont);
-            painter->setPen(positive ? QColor(tc.teal) : QColor(tc.wine));
-            painter->drawText(icon, Qt::AlignCenter,
-                              incoming ? QStringLiteral("↙") : QStringLiteral("↗"));
+            painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.hover));
+            painter->drawEllipse(icon);
+            GUIUtil::paintGlyph(painter, incoming ? GUIUtil::Glyph::ArrowDownLeft : GUIUtil::Glyph::ArrowUpRight,
+                                QRectF(icon).adjusted(8, 8, -8, -8), positive ? QColor(tc.teal) : QColor(tc.inkSoft));
+            QFont dateFont = option.font;
+            dateFont.setBold(true);
+            painter->setFont(dateFont);
 
             const QDateTime dt = index.data(TransactionTableModel::DateRole).toDateTime();
             painter->setPen(QColor(tc.ink));
@@ -141,40 +125,33 @@ public:
             break;
         }
         case TransactionTableModel::Type: {
+            // Direction reads from the badge: teal for incoming, neutral for outgoing.
             const QString displayText = index.data(Qt::DisplayRole).toString();
             QFont badgeFont = option.font;
             badgeFont.setBold(true);
             painter->setFont(badgeFont);
             const QFontMetrics fm(badgeFont);
+            const int dot = 6;
             const QString text = fm.elidedText(displayText, Qt::ElideRight,
-                                                std::max(0, option.rect.width() - 34));
-            const int w = std::min(option.rect.width() - 16, fm.boundingRect(text).width() + 18);
+                                                std::max(0, option.rect.width() - 46));
+            const int w = std::min(option.rect.width() - 16, fm.horizontalAdvance(text) + dot + 26);
             const int height = fm.height() + 6;
             const QRect badge(option.rect.left() + 6,
                               option.rect.center().y() - height / 2, w, height);
             painter->setPen(Qt::NoPen);
-            painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.wineTint));
-            painter->drawRoundedRect(badge, 11, 11);
-            painter->setPen(QColor(tc.ink));
-            painter->drawText(badge, Qt::AlignCenter, text);
+            painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.hover));
+            painter->drawRoundedRect(badge, height / 2.0, height / 2.0);
+            painter->setBrush(positive ? QColor(tc.teal) : QColor(tc.inkFaint));
+            painter->drawEllipse(QRectF(badge.left() + 10, badge.center().y() - dot / 2.0 + 0.5, dot, dot));
+            painter->setPen(positive ? QColor(tc.tealText) : QColor(tc.inkSoft));
+            painter->drawText(badge.adjusted(10 + dot + 6, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter, text);
             break;
         }
         case TransactionTableModel::ToAddress: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            const QRect iconRect(option.rect.left() + 10, option.rect.center().y() - 7, 14, 14);
-            painter->setPen(QPen(QColor(tc.inkFaint), 1.2));
-            painter->setBrush(Qt::NoBrush);
-            painter->drawRoundedRect(iconRect, 3, 3);
-            painter->drawLine(iconRect.left() + 3, iconRect.top() + 4,
-                              iconRect.right() - 3, iconRect.top() + 4);
-            painter->drawLine(iconRect.left() + 3, iconRect.top() + 8,
-                              iconRect.right() - 3, iconRect.top() + 8);
-
             painter->setFont(option.font);
-            painter->setPen(QColor(tc.ink));
-            const QRect textRect(iconRect.right() + 8, option.rect.top(),
-                                 option.rect.right() - iconRect.right() - 16,
-                                 option.rect.height());
+            painter->setPen(QColor(tc.inkSoft));
+            const QRect textRect = option.rect.adjusted(10, 0, -8, 0);
             painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
                               QFontMetrics(option.font).elidedText(text, Qt::ElideMiddle, textRect.width()));
             break;
@@ -185,20 +162,25 @@ public:
                 : QCoreApplication::translate("TransactionView", "SENT");
             QFont capFont = option.font;
             capFont.setBold(true);
+            capFont.setPixelSize(std::max(11, option.font.pixelSize() - 4));
+            capFont.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
             painter->setFont(capFont);
             painter->setPen(QColor(tc.inkFaint));
             const QRect capRect(option.rect.left() + 8, option.rect.center().y() - lineHeight,
                                 option.rect.width() - 22, lineHeight);
-            painter->drawText(capRect, Qt::AlignRight | Qt::AlignVCenter, caption);
+            painter->drawText(capRect, Qt::AlignRight | Qt::AlignBottom, caption);
 
             QString amountText = index.data(Qt::DisplayRole).toString();
             amountText.replace(QLatin1Char('('), QString());
             amountText.replace(QLatin1Char(')'), QString());
             if (amount > 0 && !amountText.startsWith(QLatin1Char('+')))
                 amountText.prepend(QLatin1Char('+'));
-            painter->setPen(amount < 0 ? QColor(tc.error) : QColor(tc.teal));
+            QFont amtFont = option.font;
+            amtFont.setBold(true);
+            painter->setFont(amtFont);
             const QRect amtRect(capRect.left(), capRect.bottom() + 1, capRect.width(), lineHeight);
-            painter->drawText(amtRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
+            GUIUtil::paintAmountRuns(painter, amtRect, amountText, amount < 0 ? QColor(tc.ink) : QColor(tc.teal),
+                                     Qt::AlignRight | Qt::AlignVCenter);
             break;
         }
         default:
@@ -233,8 +215,6 @@ private:
         GUIUtil::paintThemedStatusIcon(painter, icon, rect);
         return true;
     }
-
-    QTableView* view_;
 };
 
 }

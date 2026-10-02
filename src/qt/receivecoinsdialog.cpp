@@ -25,7 +25,6 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
-#include <QPainterPath>
 #include <QScrollBar>
 #include <QStyledItemDelegate>
 #include <QTextDocument>
@@ -77,7 +76,6 @@ class PaymentRequestCardDelegate final : public QStyledItemDelegate
 public:
     explicit PaymentRequestCardDelegate(QTableView* view)
         : QStyledItemDelegate(view)
-        , view_(view)
     {
     }
 
@@ -91,39 +89,20 @@ public:
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = option.state & QStyle::State_Selected;
         const int lineHeight = option.fontMetrics.height();
-        painter->fillRect(option.rect, QColor(tc.panel));
-
-        if (view_) {
-            const QRect left = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Date));
-            const QRect right = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Amount));
-            const QRect card(left.left() + 4, option.rect.top() + 3,
-                             qMax(40, right.right() - left.left() - 8),
-                             option.rect.height() - 6);
-            QPainterPath cardPath;
-            cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
-            painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-            painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
-            painter->drawPath(cardPath);
-        }
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         switch (index.column()) {
         case RecentRequestsTableModel::Date: {
-            QRect icon(option.rect.left() + 14, option.rect.center().y() - 16, 32, 32);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.wineTint));
-            painter->drawRoundedRect(icon, 10, 10);
-            QFont iconFont = option.font;
-            iconFont.setBold(true);
-            painter->setFont(iconFont);
-            painter->setPen(QColor(tc.wine));
-            painter->drawText(icon, Qt::AlignCenter, QStringLiteral("↙"));
-
+            // Every request is incoming, so the row needs no direction icon.
+            QFont dateFont = option.font;
+            dateFont.setBold(true);
+            painter->setFont(dateFont);
             const QString raw = index.data(Qt::DisplayRole).toString();
             const QString dateText = raw.section(QLatin1Char(' '), 0, -2);
             const QString timeText = raw.section(QLatin1Char(' '), -1);
             painter->setPen(QColor(tc.ink));
-            const QRect dateRect(icon.right() + 10, option.rect.center().y() - lineHeight,
-                                 option.rect.right() - icon.right() - 16, lineHeight);
+            const QRect dateRect(option.rect.left() + 14, option.rect.center().y() - lineHeight,
+                                 option.rect.width() - 20, lineHeight);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
             painter->setFont(option.font);
@@ -161,10 +140,8 @@ public:
             QFont amtFont = option.font;
             amtFont.setBold(true);
             painter->setFont(amtFont);
-            painter->setPen(QColor(tc.ink));
-            painter->drawText(option.rect.adjusted(8, 0, -14, 0),
-                              Qt::AlignRight | Qt::AlignVCenter,
-                              QFontMetrics(amtFont).elidedText(amountText, Qt::ElideLeft, option.rect.width() - 24));
+            GUIUtil::paintAmountRuns(painter, option.rect.adjusted(8, 0, -14, 0), amountText, QColor(tc.ink),
+                                     Qt::AlignRight | Qt::AlignVCenter);
             break;
         }
         default:
@@ -173,8 +150,6 @@ public:
         painter->restore();
     }
 
-private:
-    QTableView* view_;
 };
 
 }

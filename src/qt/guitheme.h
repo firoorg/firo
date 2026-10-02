@@ -86,6 +86,12 @@ namespace GUIUtil
     void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
                               const QString& text, bool isPrivate);
 
+    /**
+     * Fill a list cell as part of a flat row: panel surface, wine tint when selected,
+     * and a hairline along the bottom edge. Cells of one row together form the row.
+     */
+    void paintRowBackground(QPainter* painter, const QRect& rect, bool selected);
+
     /** Outline glyphs drawn with QPainter, matching the sidebar icon style. */
     enum class Glyph { ArrowUpRight, ArrowDownLeft, Shield, List, Server, Sparkle, Inbox };
 

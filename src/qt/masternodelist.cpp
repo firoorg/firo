@@ -75,15 +75,10 @@ QPixmap masternodeGlyph(qreal devicePixelRatio)
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
-    QLinearGradient g(0, 0, 0, 36);
-    g.setColorAt(0, QColor(tc.wine));
-    g.setColorAt(1, QColor(tc.wineDeep));
     p.setPen(Qt::NoPen);
-    p.setBrush(g);
+    p.setBrush(QColor(tc.hover));
     p.drawRoundedRect(QRectF(0, 0, 36, 36), 10, 10);
-    p.setBrush(QColor("#FFFFFF"));
-    p.drawRoundedRect(QRectF(9, 11, 18, 5), 1.5, 1.5);
-    p.drawRoundedRect(QRectF(9, 20, 18, 5), 1.5, 1.5);
+    GUIUtil::paintGlyph(&p, GUIUtil::Glyph::Server, QRectF(8, 8, 20, 20), QColor(tc.inkSoft));
     return pm;
 }
 
@@ -133,9 +128,13 @@ public:
         const bool selected = option.state & QStyle::State_Selected;
         const QRect card = option.rect.adjusted(5, 4, -5, -4);
         const int lineHeight = option.fontMetrics.height();
-        painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-        painter->setBrush(QColor(selected ? tc.panelSoft : tc.panel));
-        painter->drawRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
+        // Nodes are rows in the list card: a tint when selected and a hairline between rows.
+        if (selected) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(QColor(tc.wineTint));
+            painter->drawRoundedRect(QRectF(card), 10, 10);
+        }
+        painter->fillRect(QRect(card.left() + 8, option.rect.bottom(), card.width() - 16, 1), QColor(tc.border));
 
         const qreal dpr = option.widget ? option.widget->devicePixelRatioF() : 1.0;
         painter->drawPixmap(QRect(card.left() + 14, card.top() + 4, 36, 36), glyph(dpr));
@@ -143,12 +142,16 @@ public:
         const QString service = index.data(ServiceRole).toString();
         const QString status = index.data(StatusRole).toString();
         const int statusKind = index.data(StatusKindRole).toInt();
+        // Semantic status: teal enabled, gold pending, red banned.
         QColor statusBackground(tc.tealTint);
-        const QColor statusForeground(tc.ink);
+        QColor statusForeground(tc.tealText);
+        QColor statusDot(tc.teal);
         if (statusKind == 1) {
             statusBackground = QColor(tc.goldTint);
+            statusForeground = statusDot = QColor(tc.gold);
         } else if (statusKind == 2) {
-            statusBackground = QColor(tc.wineTint);
+            statusBackground = QColor(tc.errorTint);
+            statusForeground = statusDot = QColor(tc.error);
         }
 
         QFont boldFont = option.font;
@@ -157,18 +160,20 @@ public:
         const int headerLeft = card.left() + 62;
         const int headerRight = card.right() - 14;
         const int headerWidth = std::max(0, headerRight - headerLeft);
-        const int statusWidth = std::min(boldMetrics.horizontalAdvance(status) + 20,
+        const int statusWidth = std::min(boldMetrics.horizontalAdvance(status) + 32,
                                          std::max(0, headerWidth / 3));
         const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, lineHeight + 6);
         if (statusWidth > 0) {
             painter->setPen(Qt::NoPen);
             painter->setBrush(statusBackground);
-            painter->drawRoundedRect(statusRect, 12, 12);
+            painter->drawRoundedRect(statusRect, statusRect.height() / 2.0, statusRect.height() / 2.0);
+            painter->setBrush(statusDot);
+            painter->drawEllipse(QRectF(statusRect.left() + 10, statusRect.center().y() - 2.5, 6, 6));
             painter->setFont(boldFont);
             painter->setPen(statusForeground);
-            painter->drawText(statusRect.adjusted(6, 0, -6, 0), Qt::AlignCenter,
+            painter->drawText(statusRect.adjusted(22, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter,
                               boldMetrics.elidedText(status, Qt::ElideRight,
-                                                     std::max(0, statusRect.width() - 12)));
+                                                     std::max(0, statusRect.width() - 30)));
         }
 
         painter->setFont(boldFont);
@@ -214,27 +219,29 @@ public:
                 : (poseScore <= 0
                        ? std::min(22, trackWidth)
                        : std::max(10, std::min(trackWidth, trackWidth * poseScore / maxPose)));
-            painter->setBrush(QColor(statusKind == 2 ? tc.wine : tc.teal));
+            painter->setBrush(QColor(statusKind == 2 ? tc.error : tc.teal));
             painter->drawRoundedRect(QRect(trackRect.left(), trackRect.top(), fillWidth, trackRect.height()), 2, 2);
         }
 
-        painter->setPen(QPen(QColor(tc.border), 1));
         const int dividerY = card.top() + 2 * lineHeight + 8;
-        painter->drawLine(card.left() + 14, dividerY,
-                          card.right() - 14, dividerY);
 
+        QFont captionFont = boldFont;
+        captionFont.setPixelSize(std::max(11, option.font.pixelSize() - 4));
+        captionFont.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
-            painter->setFont(boldFont);
-            painter->setPen(QColor(tc.inkSoft));
+            // Small caption over a regular-weight value, so the service address stays the headline.
+            painter->setFont(captionFont);
+            painter->setPen(QColor(tc.inkFaint));
             const QRect captionRect = rect.adjusted(0, 0, -8, -lineHeight);
-            painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              boldMetrics.elidedText(caption, Qt::ElideRight,
-                                                     std::max(0, captionRect.width())));
+            painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignBottom,
+                              QFontMetrics(captionFont).elidedText(caption, Qt::ElideRight,
+                                                                   std::max(0, captionRect.width())));
 
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.ink));
             const QRect valueRect = rect.adjusted(0, lineHeight, -8, 0);
             painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              boldMetrics.elidedText(value, Qt::ElideMiddle, valueRect.width()));
+                              QFontMetrics(option.font).elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
 
         const int contentLeft = card.left() + 16;

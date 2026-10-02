@@ -276,6 +276,15 @@ void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option
                       QFontMetrics(font).elidedText(text, Qt::ElideRight, qMax(0, badge.width() - dot - 24)));
 }
 
+void paintRowBackground(QPainter* painter, const QRect& rect, bool selected)
+{
+    const auto& colors = themeColors();
+    painter->fillRect(rect, QColor(colors.panel));
+    if (selected)
+        painter->fillRect(rect, QColor(colors.wineTint));
+    painter->fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), QColor(colors.border));
+}
+
 void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& rect, const QColor& color)
 {
     QPainterPath path;

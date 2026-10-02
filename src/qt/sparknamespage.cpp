@@ -62,7 +62,7 @@ QPixmap sparkNameGlyph(int size, qreal devicePixelRatio)
     const QString cacheKey = QStringLiteral("spark-name-glyph:%1:%2:%3")
                                  .arg(size)
                                  .arg(dpr, 0, 'f', 2)
-                                 .arg(GUIUtil::isDarkMode());
+                                 .arg(GUIUtil::themeColors().wineText);
     QPixmap pm;
     if (QPixmapCache::find(cacheKey, &pm))
         return pm;
@@ -73,15 +73,13 @@ QPixmap sparkNameGlyph(int size, qreal devicePixelRatio)
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
-    QLinearGradient g(0, 0, 0, size);
-    g.setColorAt(0, QColor(tc.wine));
-    g.setColorAt(1, QColor(tc.wineDeep));
+    // A soft tint tile with the sparkle in wine, matching the other list glyphs.
     p.setPen(Qt::NoPen);
-    p.setBrush(g);
+    p.setBrush(QColor(tc.wineTint));
     const qreal radius = size * 0.28;
     p.drawRoundedRect(QRectF(0, 0, size, size), radius, radius);
 
-    p.setBrush(QColor("#FFFFFF"));
+    p.setBrush(QColor(tc.wineText));
 
     const QPointF mainCenter(size * 0.42, size * 0.44);
     QPainterPath mainStar = sparklePath(mainCenter, size * 0.30, size * 0.105);
@@ -95,7 +93,7 @@ QPixmap sparkNameGlyph(int size, qreal devicePixelRatio)
     const qreal badgeSize = size * 0.4;
     const qreal badgeMargin = size * 0.06;
     QRectF badgeRect(size - badgeSize - badgeMargin, size - badgeSize - badgeMargin, badgeSize, badgeSize);
-    p.setBrush(QColor(tc.wineDeep));
+    p.setBrush(QColor(tc.wine));
     p.drawEllipse(badgeRect);
     QFont font = p.font();
     font.setPixelSize(qRound(badgeSize * 0.6));
@@ -439,6 +437,7 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
     auto* extendBtn = cardActionButton(tr("Extend"), QStringLiteral(":/icons/refresh"),
                                         tr("Extend the validity of this Spark Name"), frame);
     const QString rawName = name.startsWith('@') ? name.mid(1) : name;
+    extendBtn->setProperty("primaryAction", true);
     connect(extendBtn, &QToolButton::clicked, this, [this, rawName, address]() { extendSparkName(rawName, address); });
     actionsRow->addWidget(extendBtn);
 
@@ -479,11 +478,13 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
     int statusKind;
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     QString badgeBackground;
+    QString badgeForeground;
     if (remainingBlocks <= 0) {
         expiry = tr("Expired");
         statusText = tr("Expired");
         statusKind = 2;
-        badgeBackground = tc.wineTint;
+        badgeBackground = tc.errorTint;
+        badgeForeground = tc.error;
     } else {
         const QDateTime expiryDate = QDateTime::currentDateTime().addSecs(
             remainingBlocks * 3600 / blocksPerHour);
@@ -492,10 +493,12 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
             statusText = tr("Expiring Soon");
             statusKind = 1;
             badgeBackground = tc.goldTint;
+            badgeForeground = tc.gold;
         } else {
             statusText = tr("Active");
             statusKind = 0;
             badgeBackground = tc.tealTint;
+            badgeForeground = tc.tealText;
         }
     }
 
@@ -509,7 +512,7 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
         statusLabel->setStyleSheet(QStringLiteral(
             "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
             " padding: 2px 10px; font-weight: 700; }")
-                                       .arg(badgeBackground, tc.ink));
+                                       .arg(badgeBackground, badgeForeground));
         statusLabel->setProperty("statusKind", statusKind);
     }
 }
@@ -555,14 +558,12 @@ QWidget#SparkNamesPage {
   background: $BG;
 }
 QFrame#sparkNamesContentCard {
-  background: $PANEL;
-  border: 1px solid $BORDER;
-  border-radius: 14px;
+  background: transparent;
+  border: none;
 }
 QLabel#headerLabel {
   color: $INK_SOFT;
   background: transparent;
-  font-weight: 700;
 }
 QScrollArea#sparkNamesScroll,
 QScrollArea#sparkNamesScroll > QWidget,
@@ -571,7 +572,7 @@ QWidget#sparkNamesCardsHost {
   border: none;
 }
 QFrame#sparkNameCard {
-  background: $PANEL_SOFT;
+  background: $PANEL;
   border: 1px solid $BORDER;
   border-radius: 14px;
 }
@@ -587,19 +588,23 @@ QFrame#sparkNameCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricCaption {
-  color: $INK_SOFT; font-weight: 700; letter-spacing: 0.4px;
+  color: $INK_FAINT; font-weight: 700; font-size: 13px;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricValue {
-  color: $INK; font-weight: 700;
+  color: $INK; font-weight: 400;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton {
-  color: $INK_SOFT; background: $PANEL; border: 1px solid $FIELD_BORDER; border-radius: 10px;
+  color: $INK_SOFT; background: transparent; border: 1px solid transparent; border-radius: 10px;
   padding: 4px 10px; font-weight: 700;
 }
-QFrame#sparkNameCard QToolButton#cardActionButton:hover {
-  color: $INK; border-color: $WINE;
+QFrame#sparkNameCard QToolButton#cardActionButton:hover,
+QFrame#sparkNameCard QToolButton#cardActionButton:focus {
+  color: $INK; background: $HOVER;
+}
+QFrame#sparkNameCard QToolButton#cardActionButton[primaryAction="true"] {
+  color: $WINE_TEXT;
 }
     )")));
 
