@@ -91,6 +91,30 @@ namespace GUIUtil
 
     QString spinBoxInnerLineEditReset();
 
+    /** Meaning of a pill: teal for private or healthy, gold for pending, red for failed. */
+    enum class PillTone { Neutral, Positive, Warning, Danger };
+
+    struct PillColors {
+        QString background;
+        QString dot;
+        QString text;
+    };
+
+    /** @return The colors of a pill with tone in the active theme. */
+    PillColors pillColors(PillTone tone);
+
+    /** @return The width a pill needs to show text in metrics' font, with its dot and padding. */
+    int pillWidth(const QFontMetrics& metrics, const QString& text);
+
+    /**
+     * Paint a rounded pill with a leading dot, eliding text to fit.
+     * @param[in] painter  Painter whose current font is used for text.
+     * @param[in] pill     Bounds of the pill.
+     * @param[in] text     Label.
+     * @param[in] tone     Meaning, which sets the colors.
+     */
+    void paintPill(QPainter* painter, const QRect& pill, const QString& text, PillTone tone);
+
     void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
                               const QString& text, bool isPrivate);
 

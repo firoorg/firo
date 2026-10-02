@@ -143,38 +143,21 @@ public:
         const QString service = index.data(ServiceRole).toString();
         const QString status = index.data(StatusRole).toString();
         const int statusKind = index.data(StatusKindRole).toInt();
-        // Semantic status: teal enabled, gold pending, red banned.
-        QColor statusBackground(tc.tealTint);
-        QColor statusForeground(tc.tealText);
-        QColor statusDot(tc.teal);
-        if (statusKind == 1) {
-            statusBackground = QColor(tc.goldTint);
-            statusForeground = statusDot = QColor(tc.gold);
-        } else if (statusKind == 2) {
-            statusBackground = QColor(tc.errorTint);
-            statusForeground = statusDot = QColor(tc.error);
-        }
-
         QFont boldFont = option.font;
         boldFont.setBold(true);
         const QFontMetrics boldMetrics(boldFont);
         const int headerLeft = card.left() + 62;
         const int headerRight = card.right() - 14;
         const int headerWidth = std::max(0, headerRight - headerLeft);
-        const int statusWidth = std::min(boldMetrics.horizontalAdvance(status) + 32,
-                                         std::max(0, headerWidth / 3));
+        const int statusWidth = std::min(GUIUtil::pillWidth(boldMetrics, status), std::max(0, headerWidth / 3));
         const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, lineHeight + 6);
         if (statusWidth > 0) {
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(statusBackground);
-            painter->drawRoundedRect(statusRect, statusRect.height() / 2.0, statusRect.height() / 2.0);
-            painter->setBrush(statusDot);
-            painter->drawEllipse(QRectF(statusRect.left() + 10, statusRect.center().y() - 2.5, 6, 6));
+            // Semantic status: teal enabled, gold pending, red banned.
             painter->setFont(boldFont);
-            painter->setPen(statusForeground);
-            painter->drawText(statusRect.adjusted(22, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter,
-                              boldMetrics.elidedText(status, Qt::ElideRight,
-                                                     std::max(0, statusRect.width() - 30)));
+            GUIUtil::paintPill(painter, statusRect, status,
+                               statusKind == 2 ? GUIUtil::PillTone::Danger
+                               : statusKind == 1 ? GUIUtil::PillTone::Warning
+                                                 : GUIUtil::PillTone::Positive);
         }
 
         painter->setFont(boldFont);

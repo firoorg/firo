@@ -272,29 +272,56 @@ QString spinBoxInnerLineEditReset()
     return QStringLiteral("background: transparent; border: none; border-radius: 0; padding: 0; min-height: 0;");
 }
 
+PillColors pillColors(PillTone tone)
+{
+    const auto& colors = themeColors();
+    switch (tone) {
+    case PillTone::Positive:
+        return {colors.tealTint, colors.teal, colors.tealText};
+    case PillTone::Warning:
+        return {colors.goldTint, colors.gold, colors.gold};
+    case PillTone::Danger:
+        return {colors.errorTint, colors.error, colors.error};
+    case PillTone::Neutral:
+        break;
+    }
+    return {colors.hover, colors.inkFaint, colors.inkSoft};
+}
+
+int pillWidth(const QFontMetrics& metrics, const QString& text)
+{
+    return metrics.horizontalAdvance(text) + 32;
+}
+
+void paintPill(QPainter* painter, const QRect& pill, const QString& text, PillTone tone)
+{
+    const PillColors colors = pillColors(tone);
+    const int dot = 6;
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(colors.background));
+    painter->drawRoundedRect(pill, pill.height() / 2.0, pill.height() / 2.0);
+    painter->setBrush(QColor(colors.dot));
+    painter->drawEllipse(QRectF(pill.left() + 10, pill.center().y() - dot / 2.0 + 0.5, dot, dot));
+    painter->setPen(QColor(colors.text));
+    const QRect textRect = pill.adjusted(10 + dot + 6, 0, -8, 0);
+    painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                      painter->fontMetrics().elidedText(text, Qt::ElideRight, qMax(0, textRect.width())));
+}
+
 void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
                           const QString& text, bool isPrivate)
 {
     if (option.rect.width() <= 16)
         return;
-    const auto& colors = themeColors();
     QFont font = option.font;
     font.setBold(true);
     painter->setFont(font);
+    const QFontMetrics metrics(font);
+    const int width = qMin(option.rect.width() - 16, pillWidth(metrics, text));
+    const int height = metrics.height() + 6;
     // Private funds are teal everywhere, matching the Overview split bar.
-    const int dot = 6;
-    const int textWidth = QFontMetrics(font).horizontalAdvance(text);
-    const int width = qMin(option.rect.width() - 16, textWidth + dot + 26);
-    const int height = QFontMetrics(font).height() + 6;
-    const QRect badge(option.rect.left() + 8, option.rect.center().y() - height / 2, width, height);
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(isPrivate ? colors.tealTint : colors.hover));
-    painter->drawRoundedRect(badge, height / 2.0, height / 2.0);
-    painter->setBrush(QColor(isPrivate ? colors.teal : colors.inkFaint));
-    painter->drawEllipse(QRectF(badge.left() + 10, badge.center().y() - dot / 2.0 + 0.5, dot, dot));
-    painter->setPen(QColor(isPrivate ? colors.tealText : colors.inkSoft));
-    painter->drawText(badge.adjusted(10 + dot + 6, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter,
-                      QFontMetrics(font).elidedText(text, Qt::ElideRight, qMax(0, badge.width() - dot - 24)));
+    paintPill(painter, QRect(option.rect.left() + 8, option.rect.center().y() - height / 2, width, height), text,
+              isPrivate ? PillTone::Positive : PillTone::Neutral);
 }
 
 void paintRowBackground(QPainter* painter, const QRect& rect, bool selected)

@@ -476,15 +476,12 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
     QString expiry;
     QString statusText;
     int statusKind;
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    QString badgeBackground;
-    QString badgeForeground;
+    GUIUtil::PillTone tone;
     if (remainingBlocks <= 0) {
         expiry = tr("Expired");
         statusText = tr("Expired");
         statusKind = 2;
-        badgeBackground = tc.errorTint;
-        badgeForeground = tc.error;
+        tone = GUIUtil::PillTone::Danger;
     } else {
         const QDateTime expiryDate = QDateTime::currentDateTime().addSecs(
             remainingBlocks * 3600 / blocksPerHour);
@@ -492,13 +489,11 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
         if (remainingBlocks < blocksPerMonth) {
             statusText = tr("Expiring Soon");
             statusKind = 1;
-            badgeBackground = tc.goldTint;
-            badgeForeground = tc.gold;
+            tone = GUIUtil::PillTone::Warning;
         } else {
             statusText = tr("Active");
             statusKind = 0;
-            badgeBackground = tc.tealTint;
-            badgeForeground = tc.tealText;
+            tone = GUIUtil::PillTone::Positive;
         }
     }
 
@@ -509,10 +504,11 @@ void SparkNamesPage::updateCardStatus(QFrame* card, int currentHeight)
     if (!displayedStatusKind.isValid() || displayedStatusKind.toInt() != statusKind
         || statusLabel->text() != statusText) {
         statusLabel->setText(statusText);
+        const GUIUtil::PillColors colors = GUIUtil::pillColors(tone);
         statusLabel->setStyleSheet(QStringLiteral(
             "QLabel { background: %1; color: %2; border: none; border-radius: 11px;"
             " padding: 2px 10px; font-weight: 700; }")
-                                       .arg(badgeBackground, badgeForeground));
+                                       .arg(colors.background, colors.text));
         statusLabel->setProperty("statusKind", statusKind);
     }
 }
