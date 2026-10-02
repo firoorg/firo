@@ -54,6 +54,17 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
 {
     ui->setupUi(this);
 
+    balanceWarning = new QPushButton(ui->balancePill);
+    balanceWarning->setObjectName(QStringLiteral("balanceSyncWarning"));
+    balanceWarning->setIcon(QIcon(QStringLiteral(":/icons/warning")));
+    balanceWarning->setMaximumWidth(30);
+    balanceWarning->setAutoDefault(false);
+    balanceWarning->setAccessibleName(tr("Wallet is still syncing"));
+    balanceWarning->setToolTip(tr("The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet."));
+    balanceWarning->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; padding: 0px; }"));
+    ui->horizontalLayout_2->addWidget(balanceWarning);
+    connect(balanceWarning, &QPushButton::clicked, this, &SendCoinsDialog::outOfSyncWarningClicked);
+
     // Let the form scroll as one unit while keeping the send actions visible.
     ui->verticalLayout->removeWidget(ui->frameCoinControl);
     ui->verticalLayout_2->insertWidget(0, ui->frameCoinControl);
@@ -249,6 +260,11 @@ void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &SendCoinsDialog::updateBlocks);
     }
+}
+
+void SendCoinsDialog::showOutOfSyncWarning(bool fShow)
+{
+    balanceWarning->setVisible(fShow);
 }
 
 void SendCoinsDialog::setModel(WalletModel *_model)
