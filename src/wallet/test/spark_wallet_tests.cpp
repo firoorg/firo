@@ -1,10 +1,14 @@
 #include <../../test/fixtures.h>
 #include "../../chainparams.h"
+#include "../../policy/policy.h"
+#include "../../spark/state.h"
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
+#include "../../streams.h"
 #include "../../validation.h"
 #include "../../validationinterface.h"
 
+#include <algorithm>
 #include <boost/test/unit_test.hpp>
 
 static std::vector<unsigned char> random_char_vector()
@@ -39,7 +43,140 @@ void ExtractSpend(CTransaction const &tx,
      }
 }
 
+static void ReloadSparkWallet()
+{
+    pwalletMain->sparkWallet.reset();
+    pwalletMain->sparkWallet = std::make_unique<CSparkWallet>(pwalletMain->strWalletFile);
+}
+
 BOOST_FIXTURE_TEST_SUITE(spark_wallet_tests, SparkTestingSetup)
+
+BOOST_AUTO_TEST_CASE(standalone_smint_has_no_wallet_provenance)
+{
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint(uint256S("01"), 0));
+
+    const std::vector<unsigned char> serialContext =
+        spark::getSerialContext(CTransaction(tx));
+    BOOST_REQUIRE(!serialContext.empty());
+
+    Scalar k;
+    k.randomize();
+    spark::Coin coin(
+        params,
+        spark::COIN_TYPE_SPEND,
+        k,
+        pwalletMain->sparkWallet->getDefaultAddress(),
+        100 * COIN,
+        "standalone smint regression",
+        serialContext);
+
+    CDataStream encoded(SER_NETWORK, PROTOCOL_VERSION);
+    encoded << coin;
+
+    CScript smint;
+    smint << OP_SPARKSMINT;
+    smint.insert(smint.end(), encoded.begin(), encoded.end());
+    tx.vout.emplace_back(0, smint);
+
+    const CTransaction standalone(tx);
+    BOOST_REQUIRE(!standalone.IsSparkTransaction());
+
+    std::string reason;
+    BOOST_CHECK(!IsStandardTx(standalone, reason));
+    BOOST_CHECK_EQUAL(reason, "spark-smint-without-spend");
+    BOOST_CHECK_EQUAL(
+        pwalletMain->IsMine(standalone.vout[0], standalone),
+        ISMINE_NO);
+    BOOST_CHECK_EQUAL(
+        pwalletMain->GetCredit(
+            standalone.vout[0], standalone, ISMINE_SPENDABLE),
+        0);
+
+    spark::SpendKey foreignSpendKey(params);
+    spark::FullViewKey foreignViewKey(foreignSpendKey);
+    spark::IncomingViewKey foreignIncomingViewKey(foreignViewKey);
+    spark::MintedCoinData mintData;
+    mintData.address = spark::Address(foreignIncomingViewKey, 0);
+    mintData.v = COIN;
+    const auto recipients = CSparkWallet::CreateSparkMintRecipients(
+        {mintData}, serialContext, true);
+    BOOST_REQUIRE_EQUAL(recipients.size(), 1U);
+
+    CMutableTransaction mixed(tx);
+    mixed.vout.emplace_back(
+        recipients.front().nAmount, recipients.front().scriptPubKey);
+    const CTransaction mixedTransaction(mixed);
+    BOOST_REQUIRE(mixedTransaction.IsSparkTransaction());
+    BOOST_REQUIRE(!mixedTransaction.IsSparkSpend());
+    reason.clear();
+    BOOST_CHECK(!IsStandardTx(mixedTransaction, reason));
+    BOOST_CHECK_EQUAL(reason, "spark-smint-without-spend");
+
+    CValidationState validationState;
+    spark::CSparkTxInfo info;
+    BOOST_REQUIRE(CheckTransaction(
+        mixedTransaction, validationState, true, mixedTransaction.GetHash(),
+        false, ::Params().GetConsensus().nSparkChaumV2StartBlock,
+        false, true, &info));
+    BOOST_REQUIRE_EQUAL(info.mints.size(), 1U);
+
+    const auto mixedCoins = spark::GetSparkMintCoins(mixedTransaction);
+    BOOST_REQUIRE_EQUAL(mixedCoins.size(), 1U);
+    BOOST_CHECK(
+        mixedCoins.front().getHash() == info.mints.front().getHash());
+
+    CBlock mixedBlock;
+    mixedBlock.vtx.push_back(MakeTransactionRef(mixedTransaction));
+    COutPoint outPoint;
+    BOOST_CHECK(!spark::GetOutPointFromBlock(outPoint, coin, mixedBlock));
+    BOOST_REQUIRE(spark::GetOutPointFromBlock(
+        outPoint, info.mints.front(), mixedBlock));
+    BOOST_CHECK(outPoint == COutPoint(mixedTransaction.GetHash(), 1));
+    BOOST_CHECK(!pwalletMain->IsMine(mixedTransaction));
+
+    {
+        LOCK(pwalletMain->cs_wallet);
+        BOOST_CHECK(!pwalletMain->AddToWalletIfInvolvingMe(
+            standalone, nullptr, -1, false));
+        BOOST_CHECK(!pwalletMain->mapWallet.count(standalone.GetHash()));
+    }
+
+    // Reproduce metadata written by an older wallet for the mixed transaction.
+    {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        pwalletMain->sparkWallet->UpdateMintState(
+            {coin}, mixedTransaction.GetHash(), walletdb);
+        BOOST_REQUIRE_EQUAL(walletdb.ListSparkMints().size(), 1U);
+    }
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getUnconfirmedBalance(), 100 * COIN);
+
+    // Missing parents must not make saved metadata authoritative. Keep the
+    // database record for recovery, but exclude it from balances and lookups.
+    for (int height : {-1, 1}) {
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        auto savedMints = walletdb.ListSparkMints();
+        BOOST_REQUIRE_EQUAL(savedMints.size(), 1U);
+        auto& savedMint = *savedMints.begin();
+        savedMint.second.nHeight = height;
+        BOOST_REQUIRE(walletdb.WriteSparkMint(savedMint.first, savedMint.second));
+
+        ReloadSparkWallet();
+        BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getUnconfirmedBalance(), 0);
+        BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getAvailableBalance(), 0);
+        BOOST_CHECK(pwalletMain->sparkWallet->getMintMap().empty());
+        BOOST_CHECK(pwalletMain->sparkWallet->validateLookupIndexes());
+        BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), 1U);
+    }
+
+    // Once the non-spend parent is known, remove the invalid record from disk.
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(
+        pwalletMain, MakeTransactionRef(mixedTransaction))));
+    ReloadSparkWallet();
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getUnconfirmedBalance(), 0);
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    BOOST_CHECK(walletdb.ListSparkMints().empty());
+}
 
 BOOST_AUTO_TEST_CASE(create_mint_recipient)
 {
@@ -392,12 +529,48 @@ BOOST_AUTO_TEST_CASE(spend)
 
     auto spTx = GenerateSparkSpend({1 * COIN}, {}, nullptr);
 
+    BOOST_REQUIRE(spTx.IsSparkSpend());
+    const auto smint = std::find_if(
+        spTx.vout.begin(), spTx.vout.end(),
+        [](const CTxOut& output) {
+            return output.scriptPubKey.IsSparkSMint();
+        });
+    BOOST_REQUIRE(smint != spTx.vout.end());
+    BOOST_CHECK(pwalletMain->IsMine(*smint, spTx) & ISMINE_SPENDABLE);
+    BOOST_CHECK_GT(
+        pwalletMain->GetCredit(*smint, spTx, ISMINE_SPENDABLE), 0);
+
     std::vector<spark::Coin> coins;
     std::vector<GroupElement> tags;
     ExtractSpend(spTx, coins, tags);
 
     BOOST_CHECK_EQUAL(1, coins.size());
     BOOST_CHECK_EQUAL(1, tags.size());
+
+    pwalletMain->sparkWallet->FinishTasks();
+    const auto savedBalance = pwalletMain->sparkWallet->getFullBalance();
+    const auto savedMints = pwalletMain->sparkWallet->getMintMap();
+    BOOST_REQUIRE(std::any_of(savedMints.begin(), savedMints.end(),
+        [&](const auto& mint) {
+            return mint.second.txid == spTx.GetHash() && mint.second.type == spark::COIN_TYPE_SPEND;
+        }));
+    BOOST_REQUIRE(pwalletMain->mapWallet.count(spTx.GetHash()));
+    {
+        LOCK(pwalletMain->cs_wallet);
+        auto parent = pwalletMain->mapWallet.extract(spTx.GetHash());
+        ReloadSparkWallet();
+        for (const auto& mint : pwalletMain->sparkWallet->getMintMap())
+            BOOST_CHECK(mint.second.txid != spTx.GetHash());
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        BOOST_CHECK_EQUAL(walletdb.ListSparkMints().size(), savedMints.size());
+        pwalletMain->mapWallet.insert(std::move(parent));
+    }
+
+    // A legitimate SMint is recovered when its parent becomes available again.
+    ReloadSparkWallet();
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getFullBalance(), savedBalance);
+    BOOST_CHECK_EQUAL(pwalletMain->sparkWallet->getMintMap().size(), savedMints.size());
+    BOOST_CHECK(pwalletMain->sparkWallet->validateLookupIndexes());
 
     auto sparkState = spark::CSparkState::GetState();
     sparkState->Reset();
