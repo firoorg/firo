@@ -183,6 +183,7 @@ static char *convert_str(const std::string &s) {
 //
 
 std::atomic<bool> fRequestShutdown(false);
+static bool fInitializationCompleted = false;
 std::atomic<bool> fDumpMempoolLater(false);
 
 void StartShutdown()
@@ -295,10 +296,6 @@ void Shutdown()
     // cleanup; the embedded Tor itself is torn down by process exit.
     g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
-    BatchProofContainer::get_instance()->finalize();
-    CValidationState batchState;
-    VerifyPendingSparkBatch(batchState, "shutdown");
-
     if (fDumpMempoolLater)
         DumpMempool();
 
@@ -313,11 +310,10 @@ void Shutdown()
         fFeeEstimatesInitialized = false;
     }
 
+    // Failed daemon initialization may skip joining the block import thread.
+    FlushStateToDiskForShutdown(fInitializationCompleted);
     {
         LOCK(cs_main);
-        if (pcoinsTip != NULL) {
-            FlushStateToDisk();
-        }
         delete pcoinsTip;
         pcoinsTip = NULL;
         delete pcoinscatcher;
@@ -2386,5 +2382,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
 
-    return !fRequestShutdown;
+    fInitializationCompleted = !fRequestShutdown;
+    return fInitializationCompleted;
 }
