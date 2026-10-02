@@ -648,6 +648,8 @@ private:
 //static boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 extern boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
 
+struct WalletTxRemovalTestingSetup;
+
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
@@ -656,6 +658,7 @@ class CWallet : public CCryptoKeyStore, public CValidationInterface
 {
 private:
     friend class CSparkWallet;
+    friend struct WalletTxRemovalTestingSetup;
 
     static std::atomic<bool> fFlushThreadRunning;
 
@@ -692,6 +695,7 @@ private:
     TxSpends mapTxSpends;
     void AddToSpends(const COutPoint& outpoint, const uint256& wtxid);
     void AddToSpends(const uint256& wtxid);
+    void RemoveFromWallet(const uint256& hash);
 
     std::set<COutPoint> setWalletUTXO;
 
