@@ -78,6 +78,13 @@ static const ThemeColors LIGHT_COLORS{
     QStringLiteral("#FDECEA"), // errorTint
     QStringLiteral("#9B1C2E"), // heroStart
     QStringLiteral("#5E0F1D"), // heroEnd
+    QStringLiteral("#FFFFFF"), // heroInk
+    QStringLiteral("#C7FFFFFF"), // heroInkSoft
+    QStringLiteral("#99FFFFFF"), // heroInkFaint
+    QStringLiteral("#29FFFFFF"), // heroFill
+    QStringLiteral("#3DFFFFFF"), // heroFillHover
+    QStringLiteral("#47FFFFFF"), // heroLine
+    QStringLiteral("#6FE3CC"), // heroAccent
 };
 
 static const ThemeColors DARK_COLORS{
@@ -103,6 +110,13 @@ static const ThemeColors DARK_COLORS{
     QStringLiteral("#24FF7B6E"),
     QStringLiteral("#86182A"),
     QStringLiteral("#3F0A15"),
+    QStringLiteral("#FFFFFF"),
+    QStringLiteral("#C7FFFFFF"),
+    QStringLiteral("#99FFFFFF"),
+    QStringLiteral("#29FFFFFF"),
+    QStringLiteral("#3DFFFFFF"),
+    QStringLiteral("#47FFFFFF"),
+    QStringLiteral("#6FE3CC"),
 };
 
 static bool g_darkMode = false;
@@ -187,6 +201,13 @@ QString themed(const QString& cssTemplate, ThemeMode mode)
     result.replace(QLatin1String("$HOVER"), c.hover);
     result.replace(QLatin1String("$HERO_START"), c.heroStart);
     result.replace(QLatin1String("$HERO_END"), c.heroEnd);
+    result.replace(QLatin1String("$HERO_INK_SOFT"), c.heroInkSoft);
+    result.replace(QLatin1String("$HERO_INK_FAINT"), c.heroInkFaint);
+    result.replace(QLatin1String("$HERO_INK"), c.heroInk);
+    result.replace(QLatin1String("$HERO_FILL_HOVER"), c.heroFillHover);
+    result.replace(QLatin1String("$HERO_FILL"), c.heroFill);
+    result.replace(QLatin1String("$HERO_LINE"), c.heroLine);
+    result.replace(QLatin1String("$HERO_ACCENT"), c.heroAccent);
     result.replace(QLatin1String("$PANEL_SOFT"), c.panelSoft);
     result.replace(QLatin1String("$PANEL"), c.panel);
     result.replace(QLatin1String("$FIELD_BORDER"), c.fieldBorder);

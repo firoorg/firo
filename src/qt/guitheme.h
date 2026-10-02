@@ -57,6 +57,14 @@ namespace GUIUtil
         QString errorTint;
         QString heroStart;   //!< Overview balance card gradient
         QString heroEnd;
+        // On the balance gradient, identical in both themes
+        QString heroInk;       //!< Values and filled-button surface
+        QString heroInkSoft;   //!< Captions and legend text
+        QString heroInkFaint;  //!< Decimals, units and the transparent dot
+        QString heroFill;      //!< Badge, track and quiet button surface
+        QString heroFillHover; //!< Quiet button hover
+        QString heroLine;      //!< Quiet button edge
+        QString heroAccent;    //!< Private funds: a light teal that holds up on wine
     };
 
     class ThemeNotifier : public QObject

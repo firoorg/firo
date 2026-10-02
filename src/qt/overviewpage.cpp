@@ -395,24 +395,24 @@ void OverviewPage::applyOverviewTheme()
 
     // Text on the gradient: white for values, 78% white for captions.
     if (networkBadge_) {
-        networkBadge_->setStyleSheet(QStringLiteral(
+        networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#networkBadge {"
-            " color: #FFFFFF; background: #29FFFFFF; border: none;"
+            " color: $HERO_INK; background: $HERO_FILL; border: none;"
             " border-radius: 10px; padding: 2px 9px; font-weight: 700;"
-            "}"));
+            "}")));
     }
 
-    ui->labelPrimaryText->setStyleSheet(QStringLiteral(
-        "QLabel { background: transparent; color: #C7FFFFFF; font-weight: 700; }"));
+    ui->labelPrimaryText->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $HERO_INK_SOFT; font-weight: 700; }")));
 
     ui->labelTotal->setTextFormat(Qt::RichText);
     ui->labelTotal->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: #FFFFFF;"
+        "QLabel { background: transparent; color: $HERO_INK;"
         " font: $FONT_H1; }")));
 
-    ui->privateTransparentBarFrame->setStyleSheet(QStringLiteral(
+    ui->privateTransparentBarFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#privateTransparentBarFrame {"
-        " background: #2EFFFFFF;"
+        " background: $HERO_FILL;"
         " border: none;"
         " border-radius: 4px;"
         "}"
@@ -423,45 +423,43 @@ void OverviewPage::applyOverviewTheme()
         " min-height: 8px; max-height: 8px;"
         "}"
         "QFrame#privateTransparentBarFrame QProgressBar::chunk {"
-        " background: #6FE3CC;"
+        " background: $HERO_ACCENT;"
         " border: none;"
         " border-radius: 4px;"
-        "}"));
+        "}")));
 
-    const QString splitLabelStyle = QStringLiteral(
-        "QLabel { background: transparent; color: #C7FFFFFF; }");
+    const QString splitLabelStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $HERO_INK_SOFT; }"));
     ui->labelPrivateSplit->setStyleSheet(splitLabelStyle);
     ui->labelTransparentSplit->setStyleSheet(splitLabelStyle);
 
-    // One filled action on the card: Send is the inverse primary; Make Private keeps its
-    // emphasis through the privacy teal instead of a second filled wine button.
+    // One filled action on the card: Send is the inverse primary. Receive and Make Private
+    // share the quiet style, and Make Private keeps the privacy teal in its icon.
     const QString actionStyle = QStringLiteral(
         "QPushButton { border-radius: 10px; min-width: 0; min-height: 20px; padding: 8px 18px; font-weight: 700; }");
     ui->sendButton->setStyleSheet(actionStyle + GUIUtil::themed(QStringLiteral(
-        "QPushButton { color: $HERO_START; background: #FFFFFF; border: 1px solid transparent; }"
-        "QPushButton:hover, QPushButton:pressed { background: #E6FFFFFF; }"
-        "QPushButton:focus { border-color: #6FE3CC; }")));
-    ui->receiveButton->setStyleSheet(actionStyle + QStringLiteral(
-        "QPushButton { color: #FFFFFF; background: #1FFFFFFF; border: 1px solid #47FFFFFF; }"
-        "QPushButton:hover, QPushButton:pressed { background: #33FFFFFF; }"
-        "QPushButton:focus { border-color: #FFFFFF; }"));
-    ui->anonymizeButton->setStyleSheet(actionStyle + QStringLiteral(
-        "QPushButton { color: #FFFFFF; background: #296FE3CC; border: 1px solid #996FE3CC; }"
-        "QPushButton:hover, QPushButton:pressed { background: #406FE3CC; }"
-        "QPushButton:focus { border-color: #6FE3CC; }"
-        "QPushButton:disabled { color: #8CFFFFFF; background: #1FFFFFFF; border-color: #2EFFFFFF; }"));
+        "QPushButton { color: $HERO_START; background: $HERO_INK; border: 1px solid transparent; }"
+        "QPushButton:hover, QPushButton:pressed { background: $HERO_INK_SOFT; }"
+        "QPushButton:focus { border-color: $HERO_END; }")));
+    const QString quietActionStyle = actionStyle + GUIUtil::themed(QStringLiteral(
+        "QPushButton { color: $HERO_INK; background: $HERO_FILL; border: 1px solid $HERO_LINE; }"
+        "QPushButton:hover, QPushButton:pressed { background: $HERO_FILL_HOVER; }"
+        "QPushButton:focus { border-color: $HERO_INK; }"
+        "QPushButton:disabled { color: $HERO_INK_FAINT; background: $HERO_FILL; border-color: transparent; }"));
+    ui->receiveButton->setStyleSheet(quietActionStyle);
+    ui->anonymizeButton->setStyleSheet(quietActionStyle);
     // The sidebar icons, recolored for the gradient; Make Private uses the Spark mark.
     const QSize actionIconSize(18, 18);
     ui->sendButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_send")), actionIconSize,
                                                       QColor(tc.heroStart)));
     ui->receiveButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_receive")), actionIconSize,
-                                                         QColor(Qt::white)));
+                                                         QColor(tc.heroInk)));
     ui->anonymizeButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), actionIconSize,
-                                                           QColor(QStringLiteral("#6FE3CC"))));
+                                                           QColor(tc.heroAccent)));
 
     // The out-of-sync warning sits on the gradient too; its glyph is solid black, so draw it in white.
     ui->labelWalletStatus->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/warning")),
-                                                             ui->labelWalletStatus->iconSize(), QColor(Qt::white)));
+                                                             ui->labelWalletStatus->iconSize(), QColor(tc.heroInk)));
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));
@@ -818,7 +816,7 @@ void OverviewPage::updateBalanceLabels()
     // The total sits on the gradient: decimals at 60% white, unit in the light display weight.
     ui->labelTotal->setText(GUIUtil::amountRunsHtml(
         BitcoinUnits::formatWithUnit(unit, currentBalance + currentUnconfirmedBalance + currentImmatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways),
-        QStringLiteral("#99FFFFFF"), QStringLiteral("font-size:24px; font-weight:300")));
+        GUIUtil::themeColors().heroInkFaint, QStringLiteral("font-size:24px; font-weight:300")));
     ui->labelWatchAvailable->setText(runs(currentWatchOnlyBalance));
     ui->labelWatchPending->setText(runs(currentWatchUnconfBalance));
     ui->labelWatchImmature->setText(runs(currentWatchImmatureBalance));
@@ -846,16 +844,16 @@ void OverviewPage::updateBalanceSplitLabels()
 
     // Legend on the balance gradient: dot, caption at 78% white, amount in white.
     ui->labelTransparentSplit->setText(
-        QStringLiteral("<span style=\"color:#8CFFFFFF\">●</span>&nbsp; "
-                       "<span style=\"color:#C7FFFFFF\">%3</span> "
-                       "<span style=\"color:#FFFFFF; font-weight:700\">%1 (%2%)</span>")
+        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_INK_FAINT\">●</span>&nbsp; "
+                                       "<span style=\"color:$HERO_INK_SOFT\">%3</span> "
+                                       "<span style=\"color:$HERO_INK; font-weight:700\">%1 (%2%)</span>"))
             .arg(BitcoinUnits::formatWithUnit(unit, transparentTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(100 - privatePercent)
             .arg(tr("Transparent")));
     ui->labelPrivateSplit->setText(
-        QStringLiteral("<span style=\"color:#6FE3CC\">●</span>&nbsp; "
-                       "<span style=\"color:#C7FFFFFF\">%3</span> "
-                       "<span style=\"color:#FFFFFF; font-weight:700\">%1 (%2%)</span>")
+        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_ACCENT\">●</span>&nbsp; "
+                                       "<span style=\"color:$HERO_INK_SOFT\">%3</span> "
+                                       "<span style=\"color:$HERO_INK; font-weight:700\">%1 (%2%)</span>"))
             .arg(BitcoinUnits::formatWithUnit(unit, privateTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(privatePercent)
             .arg(tr("Private (Spark):")));
