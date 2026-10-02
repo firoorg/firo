@@ -736,7 +736,7 @@
     </message>
     <message>
         <source>(un)select all</source>
-        <translation>Отменить выбор всего</translation>
+        <translation>Выбрать всё / снять выбор</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -1329,7 +1329,7 @@
     </message>
     <message>
         <source>&amp;Minimize to the tray instead of the taskbar</source>
-        <translation>&amp;Cворачивать в системный лоток вместо панели задач</translation>
+        <translation>&amp;Сворачивать в системный лоток вместо панели задач</translation>
     </message>
     <message>
         <source>M&amp;inimize on close</source>
@@ -2648,7 +2648,7 @@ Destination address (hex): %4</source>
     </message>
     <message>
         <source>Change:</source>
-        <translation>Размен:</translation>
+        <translation>Сдача:</translation>
     </message>
     <message>
         <source>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</source>
@@ -3312,9 +3312,9 @@ Raw data: %1</source>
     <message numerus="yes">
         <source>Open for %n more block(s)</source>
         <translation>
-            <numerusform>Открыто для ещё %n блока</numerusform>
-            <numerusform>Открыто для ещё %n блоков</numerusform>
-            <numerusform>Открыто для ещё %n блоков</numerusform>
+            <numerusform>Открыто ещё на %n блок</numerusform>
+            <numerusform>Открыто ещё на %n блока</numerusform>
+            <numerusform>Открыто ещё на %n блоков</numerusform>
         </translation>
     </message>
     <message>
@@ -3522,9 +3522,9 @@ Raw data: %1</source>
     <message numerus="yes">
         <source>Open for %n more block(s)</source>
         <translation>
-            <numerusform>Открыто для ещё %n блока</numerusform>
-            <numerusform>Открыто для ещё %n блоков</numerusform>
-            <numerusform>Открыто для ещё %n блоков</numerusform>
+            <numerusform>Открыто ещё на %n блок</numerusform>
+            <numerusform>Открыто ещё на %n блока</numerusform>
+            <numerusform>Открыто ещё на %n блоков</numerusform>
         </translation>
     </message>
     <message>
@@ -3745,6 +3745,14 @@ Raw data: %1</source>
     <message>
         <source>Copy address</source>
         <translation>Копировать адрес</translation>
+    </message>
+    <message>
+        <source>Copy label</source>
+        <translation>Копировать метку</translation>
+    </message>
+    <message>
+        <source>Copy RAP address/label</source>
+        <translation>Копировать адрес/метку RAP</translation>
     </message>
     <message>
         <source>Copy amount</source>
@@ -4207,7 +4215,7 @@ Raw data: %1</source>
     </message>
     <message>
         <source>Accept connections from outside (default: 1 if no -proxy or -connect/-noconnect)</source>
-        <translation>Принимать подключения снаружи (по умолчанию: 1, если не -proxy или -connect/-disconnect)</translation>
+        <translation>Принимать входящие соединения (по умолчанию: 1, если не заданы -proxy, -connect или -noconnect)</translation>
     </message>
     <message>
         <source>Connect only to the specified node(s); -noconnect or -connect=0 alone to disable automatic connections</source>
@@ -4319,7 +4327,7 @@ Raw data: %1</source>
     </message>
     <message>
         <source>The block database contains a block which appears to be from the future. This may be due to your computer's date and time being set incorrectly. Only rebuild the block database if you are sure that your computer's date and time are correct</source>
-        <translation>База данных блоков содержит блок, который появляется из будущего. Это может из-за некорректно установленных даты и времени на вашем компьютере. Остается только перестроивать базу блоков, если вы уверены, что дата и время корректны.</translation>
+        <translation>База данных блоков содержит блок, который, по-видимому, датирован будущим временем. Это может быть вызвано неверными настройками даты и времени на вашем компьютере. Перестраивайте базу данных блоков только в том случае, если уверены, что дата и время на вашем компьютере установлены правильно.</translation>
     </message>
     <message>
         <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
@@ -4499,7 +4507,7 @@ Raw data: %1</source>
     </message>
     <message>
         <source>Keep the transaction memory pool below &lt;n&gt; megabytes (default: %u)</source>
-        <translation>Сбрасывать транзакции из памяти на диск каждые &lt;n&gt; мегабайт (по умолчанию: %u)</translation>
+        <translation>Ограничить размер пула транзакций в памяти значением менее &lt;n&gt; мегабайт (по умолчанию: %u)</translation>
     </message>
     <message>
         <source>Loading banlist...</source>
@@ -4639,7 +4647,7 @@ Raw data: %1</source>
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)</source>
-        <translation>Комиссии (в %s/Кб) меньшие этого значения считаются нулевыми для создания, ретрансляции, получения транзакции (по умолчанию: %s)</translation>
+        <translation>Комиссии (в %s/кБ) ниже этого значения считаются нулевыми при ретрансляции, майнинге и создании транзакций (по умолчанию: %s)</translation>
     </message>
     <message>
         <source>If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)</source>
@@ -4731,7 +4739,7 @@ Raw data: %1</source>
     </message>
     <message>
         <source>Reducing -maxconnections from %d to %d, because of system limitations.</source>
-        <translation>Уменьшите -maxconnections с %d до %d, из-за ограничений системы.</translation>
+        <translation>Значение -maxconnections уменьшено с %d до %d из-за ограничений системы.</translation>
     </message>
     <message>
         <source>Rescan the block chain for missing wallet transactions on startup</source>
@@ -4879,7 +4887,7 @@ Raw data: %1</source>
     </message>
     <message>
         <source>Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments.</source>
-        <translation>Текущая длина строки версии сети (%i) превышает максимальную длину (%i). Увеливается количество или размер uacomments.</translation>
+        <translation>Общая длина строки версии сети (%i) превышает максимальную длину (%i). Уменьшите количество или размер uacomments.</translation>
     </message>
     <message>
         <source>Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)</source>
