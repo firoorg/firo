@@ -322,6 +322,14 @@ PillColors pillColors(PillTone tone)
     return {colors.hover, colors.inkFaint, colors.inkSoft};
 }
 
+QFont pillFont()
+{
+    QFont font = brandFont();
+    font.setPixelSize(13);
+    font.setBold(true);
+    return font;
+}
+
 int pillWidth(const QFontMetrics& metrics, const QString& text)
 {
     return metrics.horizontalAdvance(text) + 32;
@@ -347,12 +355,11 @@ void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option
 {
     if (option.rect.width() <= 16)
         return;
-    QFont font = option.font;
-    font.setBold(true);
+    const QFont font = pillFont();
     painter->setFont(font);
     const QFontMetrics metrics(font);
     const int width = qMin(option.rect.width() - 16, pillWidth(metrics, text));
-    const int height = metrics.height() + 6;
+    const int height = metrics.height() + 7;
     // Private funds are teal everywhere, matching the Overview split bar.
     paintPill(painter, QRect(option.rect.left() + 8, option.rect.center().y() - height / 2, width, height), text,
               isPrivate ? PillTone::Positive : PillTone::Neutral);

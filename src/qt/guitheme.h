@@ -111,6 +111,9 @@ namespace GUIUtil
     /** @return The colors of a pill with tone in the active theme. */
     PillColors pillColors(PillTone tone);
 
+    /** @return The 13 px bold label font every pill uses. */
+    QFont pillFont();
+
     /** @return The width a pill needs to show text in metrics' font, with its dot and padding. */
     int pillWidth(const QFontMetrics& metrics, const QString& text);
 

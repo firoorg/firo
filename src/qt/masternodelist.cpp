@@ -144,11 +144,15 @@ public:
         const int headerLeft = card.left() + 62;
         const int headerRight = card.right() - 14;
         const int headerWidth = std::max(0, headerRight - headerLeft);
-        const int statusWidth = std::min(GUIUtil::pillWidth(boldMetrics, status), std::max(0, headerWidth / 3));
-        const QRect statusRect(headerRight - statusWidth, card.top() + 10, statusWidth, lineHeight + 6);
+        const QFont pillFont = GUIUtil::pillFont();
+        const QFontMetrics pillMetrics(pillFont);
+        const int statusWidth = std::min(GUIUtil::pillWidth(pillMetrics, status), std::max(0, headerWidth / 3));
+        const int statusHeight = pillMetrics.height() + 7;
+        const QRect statusRect(headerRight - statusWidth, card.top() + 10 + (lineHeight + 6 - statusHeight) / 2,
+                               statusWidth, statusHeight);
         if (statusWidth > 0) {
             // Semantic status: teal enabled, gold pending, red banned.
-            painter->setFont(boldFont);
+            painter->setFont(pillFont);
             GUIUtil::paintPill(painter, statusRect, status,
                                statusKind == 2 ? GUIUtil::PillTone::Danger
                                : statusKind == 1 ? GUIUtil::PillTone::Warning

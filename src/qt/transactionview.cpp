@@ -671,8 +671,13 @@ void TransactionView::updateTableColumnWidths()
     const int minimumDateWidth = dateTextWidth + 126;
     transactionView->setColumnWidth(
         TransactionTableModel::Date, std::max(minimumDateWidth, static_cast<int>(tableWidth * 0.22)));
+    // Wide enough for the longest Spark type pill, so it is not cut off.
+    const QFontMetrics pillMetrics(GUIUtil::pillFont());
+    int typeWidth = 0;
+    for (const char* type : {"Mint spark to yourself", "Spend spark to yourself"})
+        typeWidth = std::max(typeWidth, GUIUtil::pillWidth(pillMetrics, QCoreApplication::translate("TransactionTableModel", type)));
     transactionView->setColumnWidth(
-        TransactionTableModel::Type, static_cast<int>(tableWidth * 0.16));
+        TransactionTableModel::Type, std::max(typeWidth + 20, static_cast<int>(tableWidth * 0.16)));
     transactionView->setColumnWidth(
         TransactionTableModel::Amount, static_cast<int>(tableWidth * 0.20));
 }

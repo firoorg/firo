@@ -88,10 +88,8 @@ public:
 
     QSize sizeHint() const override
     {
-        QFont bold = font();
-        bold.setBold(true);
-        const QFontMetrics metrics(bold);
-        return QSize(GUIUtil::pillWidth(metrics, text_), metrics.height() + 6);
+        const QFontMetrics metrics(GUIUtil::pillFont());
+        return QSize(GUIUtil::pillWidth(metrics, text_), metrics.height() + 7);
     }
 
 protected:
@@ -99,9 +97,7 @@ protected:
     {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing, true);
-        QFont bold = font();
-        bold.setBold(true);
-        painter.setFont(bold);
+        painter.setFont(GUIUtil::pillFont());
         GUIUtil::paintPill(&painter, rect(), text_, tone_);
     }
 
