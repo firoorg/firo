@@ -305,6 +305,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     addressWidget = new QLineEdit(this);
     addressWidget->setMinimumHeight(32);
     addressWidget->setPlaceholderText(tr("Enter address or label to search"));
+    GUIUtil::setThemedIcon(addressWidget->addAction(QIcon(), QLineEdit::LeadingPosition), QStringLiteral(":/icons/search"));
     headerLayout->addWidget(addressWidget, 1, 0, 1, 3);
 
     amountWidget = new QLineEdit(this);
@@ -589,12 +590,14 @@ void TransactionView::applyTheme()
         "QScrollBar::handle:horizontal { background:$INK_FAINT; border-radius:6px; margin:2px; min-width:32px; }"
 
         "QMenu { background:$PANEL; border:1px solid $BORDER; padding:6px; border-radius:10px; }"
-        "QMenu::item:selected { background:$PANEL_SOFT; color:$INK; }"
+        "QMenu::item:selected { background:$HOVER; color:$INK; }"
     ));
 
     if (exportButton) {
-        exportButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("4px 8px")) +
+        exportButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("4px 12px")) +
             QStringLiteral("QPushButton { min-height: 22px; min-width: 62px; }"));
+        exportButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/export")), QSize(16, 16),
+                                                        QColor(GUIUtil::themeColors().inkSoft)));
     }
 
     if (emptyIcon_) {

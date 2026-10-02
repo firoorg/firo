@@ -83,6 +83,7 @@
         <file alias="logout">res/icons/logout.png</file>
         <file alias="message">res/icons/message.png</file>
         <file alias="pen">res/icons/pen.png</file>
+        <file alias="search">res/icons/search.png</file>
         <file alias="shield">res/icons/shield.png</file>
         <file alias="tag">res/icons/tag.png</file>
         <file alias="trash">res/icons/trash.png</file>

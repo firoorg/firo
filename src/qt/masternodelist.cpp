@@ -294,6 +294,7 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 
     ui->label_filter_2->hide();
     ui->filterLineEditDIP3->setAccessibleName(tr("Filter masternodes"));
+    GUIUtil::setThemedIcon(ui->filterLineEditDIP3->addAction(QIcon(), QLineEdit::LeadingPosition), QStringLiteral(":/icons/search"));
     filterLayout->addWidget(ui->filterLineEditDIP3, 0, 0, 1, 3);
     filterLayout->addWidget(ui->checkBoxMyMasternodesOnly, 1, 0);
 
