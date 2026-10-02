@@ -991,6 +991,12 @@ void loadTheme()
     }
 
     qApp->setStyleSheet(isDarkMode() ? darkStylesheet : lightStylesheet);
+
+    // Rich-text links take their colour from the palette, which QSS cannot set
+    QPalette palette = QApplication::palette();
+    palette.setColor(QPalette::Link, QColor(themeColors().wineText));
+    palette.setColor(QPalette::LinkVisited, QColor(themeColors().wineText));
+    QApplication::setPalette(palette);
 }
 
 int TextWidth(const QFontMetrics& fm, const QString& text)
