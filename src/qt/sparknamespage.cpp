@@ -554,8 +554,9 @@ QWidget#SparkNamesPage {
   background: $BG;
 }
 QFrame#sparkNamesContentCard {
-  background: transparent;
-  border: none;
+  background: $PANEL;
+  border: 1px solid $BORDER;
+  border-radius: 14px;
 }
 QLabel#headerLabel {
   color: $INK_SOFT;
@@ -568,7 +569,7 @@ QWidget#sparkNamesCardsHost {
   border: none;
 }
 QFrame#sparkNameCard {
-  background: $PANEL;
+  background: $PANEL_SOFT;
   border: 1px solid $BORDER;
   border-radius: 14px;
 }
@@ -605,8 +606,11 @@ QFrame#sparkNameCard QToolButton#cardActionButton[primaryAction="true"] {
     )")));
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
-        emptyIcon_->setPixmap(sparkNameGlyph(48, emptyIcon_->devicePixelRatioF()));
+        // The same tinted circle and sidebar icon as the other empty lists.
+        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "background: $WINE_TINT; border: none; border-radius: 24px;")));
+        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), QSize(24, 24),
+                                                        QColor(GUIUtil::themeColors().wineText)));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
