@@ -307,8 +307,9 @@ double ModalOverlay::headerSyncProgress() const
 
 void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVerificationProgress)
 {
-    if (!blockDate.isValid() || !std::isfinite(nVerificationProgress))
+    if (!blockDate.isValid() || !std::isfinite(nVerificationProgress)) {
         return;
+    }
 
     blockHeight = count;
     lastBlockDate = blockDate;
@@ -323,8 +324,9 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
 void ModalOverlay::updateProgressDisplay()
 {
     ui->newestBlockDate->setText(lastBlockDate.isValid() ? lastBlockDate.toString() : tr("Unknown..."));
-    if (ui->progressBar->property("synced").toBool())
+    if (ui->progressBar->property("synced").toBool()) {
         return;
+    }
 
     ui->progressIncreasePerH->setText(QStringLiteral("0.00%"));
     ui->expectedTimeLeft->setText(tr("Unknown..."));
@@ -352,8 +354,9 @@ void ModalOverlay::updateProgressDisplay()
             progressPerHour = progressDelta / static_cast<double>(timeDelta) * 1000 * 3600;
             ui->progressIncreasePerH->setText(QString::number(progressPerHour*100, 'f', 2)+"%");
             const double remainingSeconds = remainingProgress / progressDelta * static_cast<double>(timeDelta) / 1000;
-            if (std::isfinite(remainingSeconds) && remainingSeconds < static_cast<double>(std::numeric_limits<qint64>::max()) / 1000.0)
+            if (std::isfinite(remainingSeconds) && remainingSeconds < static_cast<double>(std::numeric_limits<qint64>::max()) / 1000.0) {
                 ui->expectedTimeLeft->setText(GUIUtil::formatNiceTimeOffset(static_cast<qint64>(remainingSeconds)));
+            }
         }
     }
 
