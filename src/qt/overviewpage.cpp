@@ -277,6 +277,7 @@ void OverviewPage::applyOverviewRedesign()
     ui->privateTransparentBarLayout->setSpacing(10);
     ui->privateTransparentBarFrame->setAttribute(Qt::WA_StyledBackground, true);
     ui->privateTransparentBarFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    ui->privateTransparentBarFrame->setFixedHeight(8);
     if (!privateSplitProgress) {
         privateSplitProgress = new QProgressBar(ui->privateTransparentBarFrame);
         privateSplitProgress->setObjectName(QStringLiteral("privateSplitProgress"));
@@ -285,7 +286,7 @@ void OverviewPage::applyOverviewRedesign()
         privateSplitProgress->setTextVisible(false);
         privateSplitProgress->setInvertedAppearance(true);
         privateSplitProgress->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        privateSplitProgress->setFixedHeight(14);
+        privateSplitProgress->setFixedHeight(8);
         ui->privateTransparentBarSegmentsLayout->addWidget(privateSplitProgress);
     }
     updatePrivateTransparentSplitBar();
@@ -294,9 +295,11 @@ void OverviewPage::applyOverviewRedesign()
     ui->labelPrivateSplit->setTextFormat(Qt::RichText);
     ui->labelTransparentSplit->setTextFormat(Qt::RichText);
 
-    ui->sendButton->setText(tr("↗  Send"));
-
-    ui->receiveButton->setText(tr("↙  Receive"));
+    // Drawn arrows replace the arrow characters that used to lead the labels.
+    ui->sendButton->setText(tr("Send"));
+    ui->receiveButton->setText(tr("Receive"));
+    for (QPushButton* button : {ui->sendButton, ui->receiveButton, ui->anonymizeButton})
+        button->setIconSize(QSize(18, 18));
 
     ui->anonymizeButton->setText(tr("Make Private"));
 
@@ -311,7 +314,7 @@ void OverviewPage::applyOverviewRedesign()
     auto* emptyLayout = new QVBoxLayout(activityEmptyState_);
     emptyLayout->setContentsMargins(0, 24, 0, 24);
     emptyLayout->setSpacing(7);
-    emptyIcon_ = new QLabel(QStringLiteral("≡"), activityEmptyState_);
+    emptyIcon_ = new QLabel(activityEmptyState_);
     emptyIcon_->setFixedSize(48, 48);
     emptyIcon_->setAlignment(Qt::AlignCenter);
     emptyTitle_ = new QLabel(tr("No transactions yet"), activityEmptyState_);
@@ -339,14 +342,23 @@ void OverviewPage::applyOverviewTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QWidget#OverviewPage { background: $BG; }")));
 
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+
+    // The balance card carries the brand gradient; the other cards stay quiet.
+    ui->balancesCard->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QFrame#balancesCard {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 $HERO_START, stop:1 $HERO_END);
+            border: none;
+            border-radius: 20px;
+        }
+    )")));
     const QString cardStyle = GUIUtil::themed(QStringLiteral(R"(
-        QFrame#balancesCard, QFrame#detailsCard, QFrame#activityCard {
+        QFrame#detailsCard, QFrame#activityCard {
             background: $PANEL;
             border: 1px solid $BORDER;
             border-radius: 14px;
         }
     )"));
-    ui->balancesCard->setStyleSheet(cardStyle);
     ui->detailsCard->setStyleSheet(cardStyle);
     ui->activityCard->setStyleSheet(cardStyle);
 
@@ -362,51 +374,67 @@ void OverviewPage::applyOverviewTheme()
     ui->labelWalletStatus->setStyleSheet(syncWarningStyle);
     ui->labelTransactionsStatus->setStyleSheet(syncWarningStyle);
 
+    // Text on the gradient: white for values, 78% white for captions.
     if (networkBadge_) {
-        networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        networkBadge_->setStyleSheet(QStringLiteral(
             "QLabel#networkBadge {"
-            " color: $INK; background: $WINE_TINT; border: none;"
-            " border-radius: 10px; padding: 2px 8px; font-weight: 700;"
-            "}")));
+            " color: #FFFFFF; background: #29FFFFFF; border: none;"
+            " border-radius: 10px; padding: 2px 9px; font-weight: 700;"
+            "}"));
     }
 
-    ui->labelPrimaryText->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT;"
-        " font-weight: 700; }")));
+    ui->labelPrimaryText->setStyleSheet(QStringLiteral(
+        "QLabel { background: transparent; color: #C7FFFFFF; font-weight: 700; }"));
 
+    ui->labelTotal->setTextFormat(Qt::RichText);
     ui->labelTotal->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK;"
+        "QLabel { background: transparent; color: #FFFFFF;"
         " font: $FONT_H1; }")));
 
-    ui->privateTransparentBarFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
+    ui->privateTransparentBarFrame->setStyleSheet(QStringLiteral(
         "QFrame#privateTransparentBarFrame {"
-        " background: $PANEL_SOFT;"
-        " border: 1px solid $INK_FAINT;"
-        " border-radius: 7px;"
+        " background: #2EFFFFFF;"
+        " border: none;"
+        " border-radius: 4px;"
         "}"
         "QFrame#privateTransparentBarFrame QProgressBar {"
-        " background: $PANEL_SOFT;"
+        " background: transparent;"
         " border: none;"
-        " border-radius: 7px;"
-        " min-height: 14px; max-height: 14px;"
+        " border-radius: 4px;"
+        " min-height: 8px; max-height: 8px;"
         "}"
         "QFrame#privateTransparentBarFrame QProgressBar::chunk {"
-        " background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "                             stop:0 $TEAL, stop:1 $TEAL);"
+        " background: #6FE3CC;"
         " border: none;"
-        " border-radius: 7px;"
-        "}")));
+        " border-radius: 4px;"
+        "}"));
 
-    const QString splitLabelStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }"));
+    const QString splitLabelStyle = QStringLiteral(
+        "QLabel { background: transparent; color: #C7FFFFFF; }");
     ui->labelPrivateSplit->setStyleSheet(splitLabelStyle);
     ui->labelTransparentSplit->setStyleSheet(splitLabelStyle);
 
-    const QString actionFontStyle = QStringLiteral("QPushButton { min-height: 20px; }");
-    const QString primaryActionStyle = GUIUtil::primaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle;
-    ui->sendButton->setStyleSheet(primaryActionStyle);
-    ui->receiveButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("8px 20px")) + actionFontStyle);
-    ui->anonymizeButton->setStyleSheet(primaryActionStyle);
+    // One filled action on the card: Send is the inverse primary; Make Private keeps its
+    // emphasis through the privacy teal instead of a second filled wine button.
+    const QString actionStyle = QStringLiteral(
+        "QPushButton { border-radius: 10px; min-width: 0; min-height: 20px; padding: 8px 18px; font-weight: 700; }");
+    ui->sendButton->setStyleSheet(actionStyle + GUIUtil::themed(QStringLiteral(
+        "QPushButton { color: $HERO_START; background: #FFFFFF; border: 1px solid transparent; }"
+        "QPushButton:hover, QPushButton:pressed { background: #E6FFFFFF; }"
+        "QPushButton:focus { border-color: #6FE3CC; }")));
+    ui->receiveButton->setStyleSheet(actionStyle + QStringLiteral(
+        "QPushButton { color: #FFFFFF; background: #1FFFFFFF; border: 1px solid #47FFFFFF; }"
+        "QPushButton:hover, QPushButton:pressed { background: #33FFFFFF; }"
+        "QPushButton:focus { border-color: #FFFFFF; }"));
+    ui->anonymizeButton->setStyleSheet(actionStyle + QStringLiteral(
+        "QPushButton { color: #FFFFFF; background: #296FE3CC; border: 1px solid #996FE3CC; }"
+        "QPushButton:hover, QPushButton:pressed { background: #406FE3CC; }"
+        "QPushButton:focus { border-color: #6FE3CC; }"
+        "QPushButton:disabled { color: #8CFFFFFF; background: #1FFFFFFF; border-color: #2EFFFFFF; }"));
+    const qreal dpr = devicePixelRatioF();
+    ui->sendButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::ArrowUpRight, QColor(tc.heroStart), 18, dpr));
+    ui->receiveButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::ArrowDownLeft, QColor(Qt::white), 18, dpr));
+    ui->anonymizeButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::Shield, QColor(QStringLiteral("#6FE3CC")), 18, dpr));
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));
@@ -415,8 +443,9 @@ void OverviewPage::applyOverviewTheme()
     ui->label_4->setStyleSheet(sectionTitleStyle);
     ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
 
+    // Captions recede to regular weight so the amounts carry the card.
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; }"));
     for (QLabel* caption : {ui->labelPrivateText, ui->labelUnconfirmedPrivateText,
                             ui->labelAnonymizableText, ui->labelBalanceText,
                             ui->labelPendingText, ui->labelImmatureText,
@@ -431,6 +460,7 @@ void OverviewPage::applyOverviewTheme()
                            ui->labelBalance, ui->labelUnconfirmed, ui->labelImmature,
                            ui->labelWatchAvailable, ui->labelWatchPending,
                            ui->labelWatchImmature, ui->labelWatchTotal}) {
+        amount->setTextFormat(Qt::RichText);
         amount->setStyleSheet(amountStyle);
     }
 
@@ -446,8 +476,8 @@ void OverviewPage::applyOverviewTheme()
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { color: $WINE_TEXT; background: $WINE_TINT; border-radius: 14px;"
-            " font-size: 22px; font-weight: 700; }")));
+            "QLabel { background: $WINE_TINT; border-radius: 24px; }")));
+        emptyIcon_->setPixmap(GUIUtil::glyphIcon(GUIUtil::Glyph::List, QColor(tc.wineText), 24, dpr).pixmap(24, 24));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
@@ -458,7 +488,14 @@ void OverviewPage::applyOverviewTheme()
             "QLabel { background: transparent; color: $INK_SOFT; }")));
     }
 
-    updateBalanceSplitLabels();
+    // Amount runs and split labels embed theme colors, so repaint them.
+    if (walletModel && walletModel->getOptionsModel() && currentBalance != -1) {
+        setBalance(currentBalance, currentUnconfirmedBalance, currentImmatureBalance,
+                   currentWatchOnlyBalance, currentWatchUnconfBalance, currentWatchImmatureBalance,
+                   currentPrivateBalance, currentUnconfirmedPrivateBalance, currentAnonymizableBalance);
+    } else {
+        updateBalanceSplitLabels();
+    }
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -719,17 +756,24 @@ void OverviewPage::setBalance(
     currentPrivateBalance = privateBalance;
     currentUnconfirmedPrivateBalance = unconfirmedPrivateBalance;
     currentAnonymizableBalance = anonymizableBalance;
-    ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways));
-    ui->labelUnconfirmed->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelImmature->setText(BitcoinUnits::formatWithUnit(unit, immatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchAvailable->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchPending->setText(BitcoinUnits::formatWithUnit(unit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchImmature->setText(BitcoinUnits::formatWithUnit(unit, watchImmatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchTotal->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance + watchUnconfBalance + watchImmatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelPrivate->setText(BitcoinUnits::formatWithUnit(unit, privateBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelUnconfirmedPrivate->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
+    const QString faded = GUIUtil::themeColors().inkFaint;
+    const auto runs = [unit, &faded](const CAmount& amount) {
+        return GUIUtil::amountRunsHtml(BitcoinUnits::formatWithUnit(unit, amount, false, BitcoinUnits::separatorAlways), faded);
+    };
+    ui->labelBalance->setText(runs(balance));
+    ui->labelUnconfirmed->setText(runs(unconfirmedBalance));
+    ui->labelImmature->setText(runs(immatureBalance));
+    // The total sits on the gradient: decimals at 60% white, unit in the light display weight.
+    ui->labelTotal->setText(GUIUtil::amountRunsHtml(
+        BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways),
+        QStringLiteral("#99FFFFFF"), QStringLiteral("font-size:24px; font-weight:300")));
+    ui->labelWatchAvailable->setText(runs(watchOnlyBalance));
+    ui->labelWatchPending->setText(runs(watchUnconfBalance));
+    ui->labelWatchImmature->setText(runs(watchImmatureBalance));
+    ui->labelWatchTotal->setText(runs(watchOnlyBalance + watchUnconfBalance + watchImmatureBalance));
+    ui->labelPrivate->setText(runs(privateBalance));
+    ui->labelUnconfirmedPrivate->setText(runs(unconfirmedPrivateBalance));
+    ui->labelAnonymizable->setText(runs(anonymizableBalance));
 
     auto wallet = walletModel->getWallet();
     updateSparkAnonymizeRowVisibility();
@@ -767,22 +811,20 @@ void OverviewPage::updateBalanceSplitLabels()
     }
     privateBarSplitPercent_ = privatePercent;
 
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    // Legend on the balance gradient: dot, caption at 78% white, amount in white.
     ui->labelTransparentSplit->setText(
-        QStringLiteral("<span style=\"color:%3\">●</span>&nbsp; "
-                       "<span style=\"color:%4\">%6</span> "
-                       "<span style=\"color:%5; font-weight:700\">%1 (%2%)</span>")
+        QStringLiteral("<span style=\"color:#8CFFFFFF\">●</span>&nbsp; "
+                       "<span style=\"color:#C7FFFFFF\">%3</span> "
+                       "<span style=\"color:#FFFFFF; font-weight:700\">%1 (%2%)</span>")
             .arg(BitcoinUnits::formatWithUnit(unit, transparentTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(100 - privatePercent)
-            .arg(tc.inkFaint, tc.inkSoft, tc.ink)
             .arg(tr("Transparent")));
     ui->labelPrivateSplit->setText(
-        QStringLiteral("<span style=\"color:%3\">●</span>&nbsp; "
-                       "<span style=\"color:%4\">%6</span> "
-                       "<span style=\"color:%5; font-weight:700\">%1 (%2%)</span>")
+        QStringLiteral("<span style=\"color:#6FE3CC\">●</span>&nbsp; "
+                       "<span style=\"color:#C7FFFFFF\">%3</span> "
+                       "<span style=\"color:#FFFFFF; font-weight:700\">%1 (%2%)</span>")
             .arg(BitcoinUnits::formatWithUnit(unit, privateTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(privatePercent)
-            .arg(tc.teal, tc.inkSoft, tc.ink)
             .arg(tr("Private (Spark):")));
 }
 

@@ -11,6 +11,7 @@
 #include <QFontMetrics>
 #include <QIcon>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QPixmapCache>
 #include <QPointer>
@@ -273,6 +274,127 @@ void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option
     painter->setPen(QColor(isPrivate ? colors.tealText : colors.inkSoft));
     painter->drawText(badge.adjusted(10 + dot + 6, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter,
                       QFontMetrics(font).elidedText(text, Qt::ElideRight, qMax(0, badge.width() - dot - 24)));
+}
+
+void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& rect, const QColor& color)
+{
+    QPainterPath path;
+    switch (glyph) {
+    case Glyph::ArrowUpRight:
+        path.moveTo(7, 17); path.lineTo(17, 7);
+        path.moveTo(9, 7); path.lineTo(17, 7); path.lineTo(17, 15);
+        break;
+    case Glyph::ArrowDownLeft:
+        path.moveTo(17, 7); path.lineTo(7, 17);
+        path.moveTo(15, 17); path.lineTo(7, 17); path.lineTo(7, 9);
+        break;
+    case Glyph::Shield:
+        path.moveTo(12, 3.2); path.lineTo(5.5, 6); path.lineTo(5.5, 11.2);
+        path.cubicTo(5.5, 15.3, 8.3, 18.8, 12, 20.4);
+        path.cubicTo(15.7, 18.8, 18.5, 15.3, 18.5, 11.2);
+        path.lineTo(18.5, 6); path.closeSubpath();
+        path.moveTo(9.2, 12); path.lineTo(11.2, 14); path.lineTo(15, 10);
+        break;
+    case Glyph::List:
+        for (const qreal y : {6.0, 12.0, 18.0}) {
+            path.moveTo(9, y); path.lineTo(20, y);
+            path.moveTo(4, y); path.lineTo(4.5, y);
+        }
+        break;
+    case Glyph::Server:
+        path.addRoundedRect(QRectF(4, 4, 16, 7), 2, 2);
+        path.addRoundedRect(QRectF(4, 13, 16, 7), 2, 2);
+        path.moveTo(8, 7.5); path.lineTo(8.1, 7.5);
+        path.moveTo(8, 16.5); path.lineTo(8.1, 16.5);
+        break;
+    case Glyph::Sparkle:
+        path.moveTo(12, 3.5); path.lineTo(13.7, 8.3); path.lineTo(18.5, 10); path.lineTo(13.7, 11.7);
+        path.lineTo(12, 16.5); path.lineTo(10.3, 11.7); path.lineTo(5.5, 10); path.lineTo(10.3, 8.3);
+        path.closeSubpath();
+        path.moveTo(18.5, 15); path.lineTo(19.2, 16.8); path.lineTo(21, 17.5); path.lineTo(19.2, 18.2);
+        path.lineTo(18.5, 20); path.lineTo(17.8, 18.2); path.lineTo(16, 17.5); path.lineTo(17.8, 16.8);
+        path.closeSubpath();
+        break;
+    case Glyph::Inbox:
+        path.moveTo(4, 13); path.lineTo(7, 5.5); path.lineTo(17, 5.5); path.lineTo(20, 13);
+        path.lineTo(20, 18.5); path.lineTo(4, 18.5); path.closeSubpath();
+        path.moveTo(4, 13); path.lineTo(8.5, 13); path.lineTo(10, 15.5); path.lineTo(14, 15.5);
+        path.lineTo(15.5, 13); path.lineTo(20, 13);
+        break;
+    }
+    const qreal scale = qMin(rect.width(), rect.height()) / 24.0;
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    painter->translate(rect.center());
+    painter->scale(scale, scale);
+    painter->translate(-12, -12);
+    QPen pen(color, 1.8);
+    pen.setCapStyle(Qt::RoundCap);
+    pen.setJoinStyle(Qt::RoundJoin);
+    painter->setPen(pen);
+    painter->setBrush(Qt::NoBrush);
+    painter->drawPath(path);
+    painter->restore();
+}
+
+static int amountSplit(const QString& text)
+{
+    const int dot = text.indexOf(QLatin1Char('.'));
+    return dot >= 0 ? dot : text.indexOf(QLatin1Char(' '));
+}
+
+QString amountRunsHtml(const QString& formatted, const QString& fadedColor, const QString& unitStyle)
+{
+    const int split = amountSplit(formatted);
+    if (split < 0)
+        return formatted.toHtmlEscaped();
+    const int unitStart = formatted.lastIndexOf(QLatin1Char(' '));
+    const QString whole = formatted.left(split);
+    const QString decimals = unitStart > split ? formatted.mid(split, unitStart - split) : formatted.mid(split);
+    const QString unit = unitStart > split ? formatted.mid(unitStart) : QString();
+    QString html = whole.toHtmlEscaped() +
+        QStringLiteral("<span style=\"color:%1\">%2</span>").arg(fadedColor, decimals.toHtmlEscaped());
+    if (!unit.isEmpty()) {
+        html += QStringLiteral("<span style=\"color:%1;%2\">%3</span>")
+                    .arg(fadedColor, unitStyle, unit.toHtmlEscaped());
+    }
+    return html;
+}
+
+void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align)
+{
+    const QFontMetrics metrics(painter->font());
+    const int split = amountSplit(text);
+    const int width = metrics.horizontalAdvance(text);
+    painter->save();
+    painter->setPen(color);
+    if (split < 0 || width > rect.width()) {
+        painter->drawText(rect, align, metrics.elidedText(text, Qt::ElideRight, rect.width()));
+        painter->restore();
+        return;
+    }
+    const QString whole = text.left(split);
+    const int x = (align & Qt::AlignRight) ? rect.right() + 1 - width : rect.left();
+    const QRect wholeRect(x, rect.top(), metrics.horizontalAdvance(whole), rect.height());
+    painter->drawText(wholeRect, (align & ~Qt::AlignHorizontal_Mask) | Qt::AlignLeft, whole);
+    QColor faded = color;
+    faded.setAlphaF(color.alphaF() * 0.55);
+    painter->setPen(faded);
+    painter->drawText(QRect(wholeRect.right() + 1, rect.top(), width - wholeRect.width() + 1, rect.height()),
+                      (align & ~Qt::AlignHorizontal_Mask) | Qt::AlignLeft, text.mid(split));
+    painter->restore();
+}
+
+QIcon glyphIcon(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio)
+{
+    const qreal dpr = qMax<qreal>(1.0, devicePixelRatio);
+    QPixmap pixmap(qRound(size * dpr), qRound(size * dpr));
+    pixmap.setDevicePixelRatio(dpr);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    paintGlyph(&painter, glyph, QRectF(0, 0, size, size), color);
+    painter.end();
+    return QIcon(pixmap);
 }
 
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)

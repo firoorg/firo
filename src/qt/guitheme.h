@@ -10,10 +10,12 @@
 #include <QString>
 
 QT_BEGIN_NAMESPACE
+class QColor;
 class QIcon;
 class QPainter;
 class QPixmap;
 class QRect;
+class QRectF;
 class QSize;
 class QStyleOptionViewItem;
 class QWidget;
@@ -83,6 +85,36 @@ namespace GUIUtil
 
     void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
                               const QString& text, bool isPrivate);
+
+    /** Outline glyphs drawn with QPainter, matching the sidebar icon style. */
+    enum class Glyph { ArrowUpRight, ArrowDownLeft, Shield, List, Server, Sparkle, Inbox };
+
+    /**
+     * Paint a glyph from its 24-unit design grid into rect.
+     * @param[in] painter  Painter to draw with; its state is restored afterwards.
+     * @param[in] glyph    Glyph to draw.
+     * @param[in] rect     Target square; the stroke scales with its size.
+     * @param[in] color    Stroke color.
+     */
+    void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& rect, const QColor& color);
+
+    /**
+     * Rich text for a formatted amount with the decimals and unit faded, so the whole
+     * number reads first. The digits are the same as in formatted.
+     * @param[in] formatted  Output of BitcoinUnits::formatWithUnit().
+     * @param[in] fadedColor CSS color for the decimals and unit.
+     * @param[in] unitStyle  Extra CSS for the unit run, e.g. a smaller size.
+     */
+    QString amountRunsHtml(const QString& formatted, const QString& fadedColor, const QString& unitStyle = QString());
+
+    /**
+     * Paint a formatted amount with the decimals and unit at reduced opacity.
+     * Falls back to a single elided run when the text does not fit rect.
+     */
+    void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align);
+
+    /** @return A device-pixel-ratio aware icon for glyph, sized size x size logical pixels. */
+    QIcon glyphIcon(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio);
 
     void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect);
 
