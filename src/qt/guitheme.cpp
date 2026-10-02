@@ -182,6 +182,7 @@ QString themed(const QString& cssTemplate, ThemeMode mode)
     result.replace(QLatin1String("$ASSET_THEME"), mode == ThemeMode::Dark
                                                      ? QLatin1String("dark")
                                                      : QLatin1String("light"));
+    result.replace(QLatin1String("$FRAME_BG"), mode == ThemeMode::Dark ? QStringLiteral("transparent") : c.bg);
     // Longer tokens first, so $WINE_TEXT is not consumed by $WINE.
     result.replace(QLatin1String("$BG"), c.bg);
     result.replace(QLatin1String("$HOVER"), c.hover);

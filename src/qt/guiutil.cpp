@@ -945,13 +945,13 @@ void TextElideStyledItemDelegate::initStyleOption(QStyleOptionViewItem *option, 
 }
 
 /**
- * Dark-only additions to firo.css, which is themed per mode.
- * Frames stay transparent over dark cards, and the arrow images use the light-on-dark set.
+ * Dark-only additions to firo.css, which is themed per mode: the arrow images use the
+ * light-on-dark set. Frame transparency comes from $FRAME_BG in firo.css instead, so that
+ * the later per-class backgrounds there (text edits, item views) are not overridden.
  */
 static QString darkModeOverrideCss()
 {
     return themed(QStringLiteral(R"(
-        QFrame { background-color: transparent; }
         QToolBar { background-color: $PANEL; }
         QAbstractSpinBox::up-arrow { image: url(:/images/arrow_light_up_normal); }
         QAbstractSpinBox::up-arrow:hover { image: url(:/images/arrow_light_up_hover); }

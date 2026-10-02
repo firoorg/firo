@@ -16,8 +16,9 @@ QDialog {
     margin: 2;
 }
 
+/* Canvas in light mode, transparent over dark cards; later per-class rules still win. */
 QFrame {
-    background-color: $BG;
+    background-color: $FRAME_BG;
     border: 0px;
     font: $FONT_BODY;
 }
