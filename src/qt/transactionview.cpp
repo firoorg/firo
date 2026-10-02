@@ -124,29 +124,10 @@ public:
             paintMetadataIcon(index.data(TransactionTableModel::WatchonlyDecorationRole));
             break;
         }
-        case TransactionTableModel::Type: {
-            // Direction reads from the badge: teal for incoming, neutral for outgoing.
-            const QString displayText = index.data(Qt::DisplayRole).toString();
-            QFont badgeFont = option.font;
-            badgeFont.setBold(true);
-            painter->setFont(badgeFont);
-            const QFontMetrics fm(badgeFont);
-            const int dot = 6;
-            const QString text = fm.elidedText(displayText, Qt::ElideRight,
-                                                std::max(0, option.rect.width() - 46));
-            const int w = std::min(option.rect.width() - 16, fm.horizontalAdvance(text) + dot + 26);
-            const int height = fm.height() + 6;
-            const QRect badge(option.rect.left() + 6,
-                              option.rect.center().y() - height / 2, w, height);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.hover));
-            painter->drawRoundedRect(badge, height / 2.0, height / 2.0);
-            painter->setBrush(positive ? QColor(tc.teal) : QColor(tc.inkFaint));
-            painter->drawEllipse(QRectF(badge.left() + 10, badge.center().y() - dot / 2.0 + 0.5, dot, dot));
-            painter->setPen(positive ? QColor(tc.tealText) : QColor(tc.inkSoft));
-            painter->drawText(badge.adjusted(10 + dot + 6, 0, -8, 0), Qt::AlignLeft | Qt::AlignVCenter, text);
+        case TransactionTableModel::Type:
+            // Direction reads from the shared pill: teal for incoming, neutral for outgoing.
+            GUIUtil::paintAddressTypeBadge(painter, option, index.data(Qt::DisplayRole).toString(), positive);
             break;
-        }
         case TransactionTableModel::ToAddress: {
             const QString text = index.data(Qt::DisplayRole).toString();
             painter->setFont(option.font);
@@ -590,8 +571,8 @@ void TransactionView::applyTheme()
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed("background: $WINE_TINT; border-radius: 24px;"));
-        emptyIcon_->setPixmap(GUIUtil::glyphIcon(GUIUtil::Glyph::List, QColor(GUIUtil::themeColors().wineText),
-                                                 24, devicePixelRatioF()).pixmap(24, 24));
+        emptyIcon_->setPixmap(GUIUtil::glyphPixmap(GUIUtil::Glyph::List, QColor(GUIUtil::themeColors().wineText),
+                                                   24, devicePixelRatioF()));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-weight: 700;"));

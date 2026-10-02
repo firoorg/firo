@@ -93,7 +93,7 @@ namespace GUIUtil
     void paintRowBackground(QPainter* painter, const QRect& rect, bool selected);
 
     /** Outline glyphs drawn with QPainter, matching the sidebar icon style. */
-    enum class Glyph { ArrowUpRight, ArrowDownLeft, Shield, List, Server, Sparkle, Inbox };
+    enum class Glyph { ArrowUpRight, ArrowDownLeft, Shield, List, Server, Inbox };
 
     /**
      * Paint a glyph from its 24-unit design grid into rect.
@@ -121,8 +121,8 @@ namespace GUIUtil
     void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
                          Qt::TextElideMode elide = Qt::ElideRight);
 
-    /** @return A device-pixel-ratio aware icon for glyph, sized size x size logical pixels. */
-    QIcon glyphIcon(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio);
+    /** @return A device-pixel-ratio aware pixmap of glyph, sized size x size logical pixels. */
+    QPixmap glyphPixmap(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio);
 
     void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect);
 

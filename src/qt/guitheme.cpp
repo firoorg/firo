@@ -317,14 +317,6 @@ void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& rect, const QColor
         path.moveTo(8, 7.5); path.lineTo(8.1, 7.5);
         path.moveTo(8, 16.5); path.lineTo(8.1, 16.5);
         break;
-    case Glyph::Sparkle:
-        path.moveTo(12, 3.5); path.lineTo(13.7, 8.3); path.lineTo(18.5, 10); path.lineTo(13.7, 11.7);
-        path.lineTo(12, 16.5); path.lineTo(10.3, 11.7); path.lineTo(5.5, 10); path.lineTo(10.3, 8.3);
-        path.closeSubpath();
-        path.moveTo(18.5, 15); path.lineTo(19.2, 16.8); path.lineTo(21, 17.5); path.lineTo(19.2, 18.2);
-        path.lineTo(18.5, 20); path.lineTo(17.8, 18.2); path.lineTo(16, 17.5); path.lineTo(17.8, 16.8);
-        path.closeSubpath();
-        break;
     case Glyph::Inbox:
         path.moveTo(4, 13); path.lineTo(7, 5.5); path.lineTo(17, 5.5); path.lineTo(20, 13);
         path.lineTo(20, 18.5); path.lineTo(4, 18.5); path.closeSubpath();
@@ -393,7 +385,7 @@ void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, 
     painter->restore();
 }
 
-QIcon glyphIcon(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio)
+QPixmap glyphPixmap(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio)
 {
     const qreal dpr = qMax<qreal>(1.0, devicePixelRatio);
     QPixmap pixmap(qRound(size * dpr), qRound(size * dpr));
@@ -402,7 +394,7 @@ QIcon glyphIcon(Glyph glyph, const QColor& color, int size, qreal devicePixelRat
     QPainter painter(&pixmap);
     paintGlyph(&painter, glyph, QRectF(0, 0, size, size), color);
     painter.end();
-    return QIcon(pixmap);
+    return pixmap;
 }
 
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)

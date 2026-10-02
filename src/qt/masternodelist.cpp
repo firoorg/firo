@@ -228,20 +228,21 @@ public:
         QFont captionFont = boldFont;
         captionFont.setPixelSize(std::max(11, option.font.pixelSize() - 4));
         captionFont.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
+        const QFontMetrics captionMetrics(captionFont);
+        const QFontMetrics valueMetrics(option.font);
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
             // Small caption over a regular-weight value, so the service address stays the headline.
             painter->setFont(captionFont);
             painter->setPen(QColor(tc.inkFaint));
             const QRect captionRect = rect.adjusted(0, 0, -8, -lineHeight);
             painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignBottom,
-                              QFontMetrics(captionFont).elidedText(caption, Qt::ElideRight,
-                                                                   std::max(0, captionRect.width())));
+                              captionMetrics.elidedText(caption, Qt::ElideRight, std::max(0, captionRect.width())));
 
             painter->setFont(option.font);
             painter->setPen(QColor(tc.ink));
             const QRect valueRect = rect.adjusted(0, lineHeight, -8, 0);
             painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(option.font).elidedText(value, Qt::ElideMiddle, valueRect.width()));
+                              valueMetrics.elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
 
         const int contentLeft = card.left() + 16;
@@ -556,8 +557,8 @@ QScrollBar::sub-line {
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: $WINE_TINT; border-radius: 24px;")));
-        emptyIcon_->setPixmap(GUIUtil::glyphIcon(GUIUtil::Glyph::Server, QColor(GUIUtil::themeColors().wineText),
-                                                 24, devicePixelRatioF()).pixmap(24, 24));
+        emptyIcon_->setPixmap(GUIUtil::glyphPixmap(GUIUtil::Glyph::Server, QColor(GUIUtil::themeColors().wineText),
+                                                   24, devicePixelRatioF()));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

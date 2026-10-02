@@ -62,7 +62,7 @@ QPixmap sparkNameGlyph(int size, qreal devicePixelRatio)
     const QString cacheKey = QStringLiteral("spark-name-glyph:%1:%2:%3")
                                  .arg(size)
                                  .arg(dpr, 0, 'f', 2)
-                                 .arg(GUIUtil::themeColors().wineText);
+                                 .arg(GUIUtil::isDarkMode());
     QPixmap pm;
     if (QPixmapCache::find(cacheKey, &pm))
         return pm;

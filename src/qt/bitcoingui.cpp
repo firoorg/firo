@@ -55,7 +55,6 @@
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QLinearGradient>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMenu>

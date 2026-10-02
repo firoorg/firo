@@ -446,9 +446,9 @@ void OverviewPage::applyOverviewTheme()
         "QPushButton:focus { border-color: #6FE3CC; }"
         "QPushButton:disabled { color: #8CFFFFFF; background: #1FFFFFFF; border-color: #2EFFFFFF; }"));
     const qreal dpr = devicePixelRatioF();
-    ui->sendButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::ArrowUpRight, QColor(tc.heroStart), 18, dpr));
-    ui->receiveButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::ArrowDownLeft, QColor(Qt::white), 18, dpr));
-    ui->anonymizeButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::Shield, QColor(QStringLiteral("#6FE3CC")), 18, dpr));
+    ui->sendButton->setIcon(QIcon(GUIUtil::glyphPixmap(GUIUtil::Glyph::ArrowUpRight, QColor(tc.heroStart), 18, dpr)));
+    ui->receiveButton->setIcon(QIcon(GUIUtil::glyphPixmap(GUIUtil::Glyph::ArrowDownLeft, QColor(Qt::white), 18, dpr)));
+    ui->anonymizeButton->setIcon(QIcon(GUIUtil::glyphPixmap(GUIUtil::Glyph::Shield, QColor(QStringLiteral("#6FE3CC")), 18, dpr)));
 
     // The out-of-sync warning sits on the gradient too; its glyph is solid black, so draw it in white.
     QPixmap syncWarning = QIcon(QStringLiteral(":/icons/warning")).pixmap(ui->labelWalletStatus->iconSize(), dpr);
@@ -500,7 +500,7 @@ void OverviewPage::applyOverviewTheme()
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel { background: $WINE_TINT; border-radius: 24px; }")));
-        emptyIcon_->setPixmap(GUIUtil::glyphIcon(GUIUtil::Glyph::List, QColor(tc.wineText), 24, dpr).pixmap(24, 24));
+        emptyIcon_->setPixmap(GUIUtil::glyphPixmap(GUIUtil::Glyph::List, QColor(tc.wineText), 24, dpr));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
