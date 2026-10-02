@@ -736,11 +736,17 @@ void WalletUiTests::synchronizationProgress()
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Connecting to peers..."));
     QVERIFY(!gui.navigationSyncProgress->property("synced").toBool());
     QVERIFY(!gui.modalOverlay->findChild<QProgressBar*>("progressBar")->property("synced").toBool());
+    QVERIFY(gui.labelBlocksIcon->pixmap().toImage() != syncedIcon);
+    QVERIFY(gui.labelBlocksIcon->toolTip().contains("Connecting to peers..."));
+    QVERIFY(!gui.labelBlocksIcon->toolTip().contains("Up to date"));
     gui.setNumConnections(1);
     g_connman->SetNetworkActive(false);
     gui.setNetworkActive(false);
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Network activity disabled"));
     QVERIFY(!gui.modalOverlay->findChild<QProgressBar*>("progressBar")->property("synced").toBool());
+    QVERIFY(gui.labelBlocksIcon->pixmap().toImage() != syncedIcon);
+    QVERIFY(gui.labelBlocksIcon->toolTip().contains("Network activity disabled"));
+    QVERIFY(!gui.labelBlocksIcon->toolTip().contains("Up to date"));
     g_connman->SetNetworkActive(true);
     gui.setNetworkActive(true);
 

@@ -1636,6 +1636,7 @@ void BitcoinGUI::updateSyncStatus()
     const auto blockSource = clientModel->getBlockSource();
     const bool blockchainSyncing = blockchainSyncInProgress();
     const bool syncing = blockchainSyncing || !masternodeSync.IsSynced();
+    const bool fullySynced = clientModel->getNetworkActive() && numConnections > 0 && !syncing;
     const bool syncingHeaders = blockchainSyncing &&
         modalOverlay->isHeaderSyncPending();
     const QDateTime blockDate = clientModel->getLastBlockDate();
@@ -1673,7 +1674,7 @@ void BitcoinGUI::updateSyncStatus()
         ? tr("%1 behind").arg(GUIUtil::formatNiceTimeOffset(secs)) : QStringLiteral("%p%"));
     progressBar->setVisible(!navigationSyncCard && syncing);
     updateNavigationSyncCard(status, progress);
-    modalOverlay->setSyncComplete(clientModel->getNetworkActive() && numConnections > 0 && !syncing);
+    modalOverlay->setSyncComplete(fullySynced);
 
     QString tooltip = tr("Processed %n block(s) of transaction history.", "", clientModel->getNumBlocks());
     if (blockchainSyncing) {
@@ -1683,12 +1684,12 @@ void BitcoinGUI::updateSyncStatus()
                 .arg(GUIUtil::formatNiceTimeOffset(secs));
         }
         tooltip += QStringLiteral("<br>") + tr("Transactions after this will not yet be visible.");
-    } else {
+    } else if (fullySynced) {
         tooltip = tr("Up to date") + QStringLiteral(".<br>") + tooltip;
-        if (syncing)
-            tooltip = status + QStringLiteral("<br>") + tooltip;
+    } else {
+        tooltip = status + QStringLiteral("<br>") + tooltip;
     }
-    if (syncing) {
+    if (!fullySynced) {
         labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
             ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
             QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
