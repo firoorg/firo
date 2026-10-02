@@ -20,8 +20,6 @@
 #include "wallet/wallet.h"
 #endif
 
-#include <algorithm>
-
 #include <QCloseEvent>
 #include <QEasingCurve>
 #include <QFont>
@@ -75,7 +73,6 @@ constexpr int SWEEP_DURATION_MS = 1400;
 constexpr qreal SWEEP_LENGTH = 0.3; //!< Share of the track covered by the indeterminate segment
 constexpr int STEP_RISE_MS = 280;
 constexpr int STEP_RISE_DISTANCE = 10;
-constexpr int PROGRESS_EASE_MS = 250;
 
 QFont SplashFont(int pixelSize, bool bold = false)
 {
@@ -92,14 +89,6 @@ QFont PercentFont()
     percentFont.setPixelSize(88);
     percentFont.setFeature("tnum", 1); // Tabular figures, so the number doesn't shift as it counts
     return percentFont;
-}
-
-/** Blend amount (0-1) of to into from */
-QColor Mix(const QColor& from, const QColor& to, float amount)
-{
-    return QColor::fromRgbF(from.redF() + (to.redF() - from.redF()) * amount,
-                            from.greenF() + (to.greenF() - from.greenF()) * amount,
-                            from.blueF() + (to.blueF() - from.blueF()) * amount);
 }
 
 /** The two shapes of the Firo mark that leave the f between them, as in res/icons/firo.svg */
@@ -166,7 +155,6 @@ QStringList WrapLines(const QString& text, const QFont& font, int width, int max
 SplashScreen::SplashScreen(const NetworkStyle* networkStyle) :
     animationTimer(new QTimer(this)),
     stepAnimation(new QVariantAnimation(this)),
-    progressAnimation(new QVariantAnimation(this)),
     closeButton(new QToolButton(this))
 {
     setWindowTitle(QStringLiteral("%1 %2").arg(tr(PACKAGE_NAME), networkStyle->getTitleAddText()).trimmed());
@@ -187,8 +175,8 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle) :
     closeButton->setFocusPolicy(Qt::StrongFocus);
     connect(closeButton, &QToolButton::clicked, this, &SplashScreen::requestShutdown);
 
-    // The sweep runs on the timer for as long as progress is unknown; the
-    // short transitions between steps and percentages run as animations.
+    // The sweep runs on the timer for as long as progress is unknown; a new
+    // step's short rise into place runs as an animation.
     animationTimer->setInterval(ANIMATION_INTERVAL_MS);
     connect(animationTimer, &QTimer::timeout, this, [this] { update(PROGRESS_TRACK.adjusted(-1, -1, 1, 1)); });
     animationClock.start();
@@ -200,12 +188,6 @@ SplashScreen::SplashScreen(const NetworkStyle* networkStyle) :
     connect(stepAnimation, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
         stepReveal = value.toReal();
         update();
-    });
-    progressAnimation->setDuration(PROGRESS_EASE_MS);
-    progressAnimation->setEasingCurve(QEasingCurve::OutCubic);
-    connect(progressAnimation, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
-        barProgress = value.toReal();
-        update(PROGRESS_TRACK.adjusted(-1, -1, 1, 1));
     });
 
     showStatus(tr("Starting Firo..."));
@@ -219,32 +201,24 @@ QPixmap SplashScreen::renderArtwork(const NetworkStyle* networkStyle) const
     const Qt::LayoutDirection direction = layoutDirection();
     const qreal dpr = devicePixelRatio();
     const QRect canvas(0, 0, SPLASH_WIDTH, SPLASH_HEIGHT);
-    const QColor panel(colors.panel);
 
     QPixmap artwork(canvas.size() * dpr);
     artwork.setDevicePixelRatio(dpr);
-    artwork.fill(panel);
+    artwork.fill(QColor(colors.panel));
 
     QPainter painter(&artwork);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
     painter.setLayoutDirection(direction);
 
-    // The mark, oversized in a faint tone of the brand color behind the
-    // progress, and recolored like the app icon on test networks
-    QPixmap backdrop(artwork.size());
-    backdrop.setDevicePixelRatio(dpr);
-    backdrop.fill(Qt::transparent);
-    {
-        const QRect bounds = QStyle::visualRect(direction, canvas, BACKDROP);
-        QPainter markPainter(&backdrop);
-        markPainter.setRenderHint(QPainter::Antialiasing);
-        markPainter.translate(bounds.topLeft());
-        markPainter.scale(bounds.width() / MARK_BOUNDS.width(), bounds.height() / MARK_BOUNDS.height());
-        markPainter.translate(-MARK_BOUNDS.topLeft());
-        markPainter.fillPath(MarkPath(), Mix(panel, QColor(colors.wine), dark ? 0.08f : 0.1f));
-    }
-    painter.drawPixmap(0, 0, networkStyle->tintPixmap(backdrop));
+    // The mark, oversized in the theme's wine tint behind the progress
+    const QRect backdrop = QStyle::visualRect(direction, canvas, BACKDROP);
+    painter.save();
+    painter.translate(backdrop.topLeft());
+    painter.scale(backdrop.width() / MARK_BOUNDS.width(), backdrop.height() / MARK_BOUNDS.height());
+    painter.translate(-MARK_BOUNDS.topLeft());
+    painter.fillPath(MarkPath(), QColor(colors.wineTint));
+    painter.restore();
 
     // Hairline edge, so the frameless window doesn't melt into a desktop of the same color
     painter.setPen(QPen(QColor(colors.border), 1));
@@ -327,13 +301,13 @@ void SplashScreen::drawContents(QPainter* painter)
 
     // Progress runs along the bottom edge: filled to the percentage, or a sweeping segment while it is unknown
     const qreal radius = PROGRESS_TRACK.height() / 2.0;
-    painter->fillRect(PROGRESS_TRACK, Mix(QColor(colors.panel), QColor(colors.wine), 0.16f));
+    painter->fillRect(PROGRESS_TRACK, QColor(colors.border));
 
     QRectF filled(PROGRESS_TRACK);
     if (progress > 0) {
         // Square at the window edge, rounded where it ends
         filled.setLeft(PROGRESS_TRACK.left() - radius);
-        filled.setRight(PROGRESS_TRACK.left() + PROGRESS_TRACK.width() * barProgress / 100.0);
+        filled.setRight(PROGRESS_TRACK.left() + PROGRESS_TRACK.width() * progress / 100.0);
     } else {
         static const QEasingCurve sweep(QEasingCurve::InOutSine);
         const qreal phase = sweep.valueForProgress(qreal(animationClock.elapsed() % SWEEP_DURATION_MS) / SWEEP_DURATION_MS);
@@ -358,7 +332,7 @@ void SplashScreen::showStatus(const QString& text, bool animate)
         return;
     }
     setStep(text, animate);
-    setProgress(-1);
+    progress = -1;
     update();
     updateAnimation();
 }
@@ -372,7 +346,7 @@ void SplashScreen::showProgress(const QString& title, int percent)
         setStep(title, true);
     }
     // 0 starts progress reporting; 100 closes it, including on failure or interruption.
-    setProgress((percent > 0 && percent < 100) ? percent : -1);
+    progress = (percent > 0 && percent < 100) ? percent : -1;
     update();
     updateAnimation();
 }
@@ -396,21 +370,6 @@ void SplashScreen::setStep(const QString& text, bool animate)
     if (animate && isVisible()) {
         stepReveal = 0;
         stepAnimation->start();
-    }
-}
-
-void SplashScreen::setProgress(int percent)
-{
-    // The bar eases from where it was, or from empty when a task's first percentage arrives
-    const qreal from = progress > 0 ? barProgress : 0;
-    progress = percent;
-    progressAnimation->stop();
-    barProgress = std::max(progress, 0);
-    if (progress > 0 && isVisible() && from != progress) {
-        barProgress = from;
-        progressAnimation->setStartValue(from);
-        progressAnimation->setEndValue(qreal(progress));
-        progressAnimation->start();
     }
 }
 
@@ -444,7 +403,7 @@ void SplashScreen::requestShutdown()
     }
     shutdownRequested = true;
     setStep(tr("Shutting down..."), true);
-    setProgress(-1);
+    progress = -1;
     closeButton->hide();
     update();
     updateAnimation();
@@ -539,8 +498,6 @@ void SplashScreen::hideEvent(QHideEvent* event)
 {
     animationTimer->stop();
     stepAnimation->stop();
-    progressAnimation->stop();
     stepReveal = 1;
-    barProgress = std::max(progress, 0);
     QSplashScreen::hideEvent(event);
 }

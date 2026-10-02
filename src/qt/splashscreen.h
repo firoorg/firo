@@ -64,8 +64,6 @@ private:
     QPixmap renderArtwork(const NetworkStyle* networkStyle) const;
     /** Make text the current step, moving the previous one onto the trail of recent steps */
     void setStep(const QString& text, bool animate);
-    /** Show the running task's percentage, or -1 while it is unknown; the bar eases to it */
-    void setProgress(int percent);
     /** Restore startup controls if core canceled shutdown; return whether shutdown is still pending. */
     bool updateShutdownState();
     /** Run the indeterminate progress animation only while it can be seen */
@@ -75,14 +73,12 @@ private:
 
     QTimer* animationTimer;
     QVariantAnimation* stepAnimation;
-    QVariantAnimation* progressAnimation;
     QToolButton* closeButton;
     QElapsedTimer animationClock;
     /** Kept here instead of QSplashScreen::showMessage(), which repaints synchronously and spins the event loop */
     QString statusText;
     QStringList recentSteps; //!< Steps before the current one, newest first
     int progress = -1; //!< Percentage of the running task, -1 while unknown
-    qreal barProgress = 0; //!< Percentage the bar is drawn at while it eases toward progress
     qreal stepReveal = 1; //!< How far the current step has risen into place, from 0 to 1
     bool shutdownRequested = false;
 
