@@ -115,9 +115,11 @@ namespace GUIUtil
 
     /**
      * Paint a formatted amount with the decimals and unit at reduced opacity.
-     * Falls back to a single elided run when the text does not fit rect.
+     * Falls back to a single run, elided with elide, when the text has no decimal point
+     * (e.g. a placeholder) or does not fit rect.
      */
-    void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align);
+    void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
+                         Qt::TextElideMode elide = Qt::ElideRight);
 
     /** @return A device-pixel-ratio aware icon for glyph, sized size x size logical pixels. */
     QIcon glyphIcon(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio);

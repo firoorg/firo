@@ -141,7 +141,7 @@ public:
             amtFont.setBold(true);
             painter->setFont(amtFont);
             GUIUtil::paintAmountRuns(painter, option.rect.adjusted(8, 0, -14, 0), amountText, QColor(tc.ink),
-                                     Qt::AlignRight | Qt::AlignVCenter);
+                                     Qt::AlignRight | Qt::AlignVCenter, Qt::ElideLeft);
             break;
         }
         default:

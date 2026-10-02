@@ -347,39 +347,37 @@ void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& rect, const QColor
     painter->restore();
 }
 
-static int amountSplit(const QString& text)
-{
-    const int dot = text.indexOf(QLatin1Char('.'));
-    return dot >= 0 ? dot : text.indexOf(QLatin1Char(' '));
-}
-
 QString amountRunsHtml(const QString& formatted, const QString& fadedColor, const QString& unitStyle)
 {
-    const int split = amountSplit(formatted);
-    if (split < 0)
+    const int split = formatted.indexOf(QLatin1Char('.'));
+    if (split < 0) {
         return formatted.toHtmlEscaped();
+    }
     const int unitStart = formatted.lastIndexOf(QLatin1Char(' '));
     const QString whole = formatted.left(split);
     const QString decimals = unitStart > split ? formatted.mid(split, unitStart - split) : formatted.mid(split);
     const QString unit = unitStart > split ? formatted.mid(unitStart) : QString();
-    QString html = whole.toHtmlEscaped() +
+    // white-space:pre keeps the thin-space thousands separators; Qt's HTML parser
+    // would otherwise turn them into full-width spaces.
+    QString html = QStringLiteral("<span style=\"white-space:pre\">") + whole.toHtmlEscaped() +
         QStringLiteral("<span style=\"color:%1\">%2</span>").arg(fadedColor, decimals.toHtmlEscaped());
     if (!unit.isEmpty()) {
         html += QStringLiteral("<span style=\"color:%1;%2\">%3</span>")
                     .arg(fadedColor, unitStyle, unit.toHtmlEscaped());
     }
-    return html;
+    return html + QStringLiteral("</span>");
 }
 
-void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align)
+void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
+                     Qt::TextElideMode elide)
 {
     const QFontMetrics metrics(painter->font());
-    const int split = amountSplit(text);
+    const int split = text.indexOf(QLatin1Char('.'));
     const int width = metrics.horizontalAdvance(text);
     painter->save();
     painter->setPen(color);
     if (split < 0 || width > rect.width()) {
-        painter->drawText(rect, align, metrics.elidedText(text, Qt::ElideRight, rect.width()));
+        painter->drawText(rect, align, metrics.elidedText(text, elide, rect.width()));
         painter->restore();
         return;
     }
