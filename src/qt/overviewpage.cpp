@@ -52,6 +52,22 @@
 #define ACTIVITY_ICON_SIZE 42
 #define ACTIVITY_CARD_HEIGHT 44
 
+//! Status badge tone: teal once confirmed, red when it can no longer confirm, gold while pending.
+static QColor activityStatusTint(int status)
+{
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    switch (status) {
+    case TransactionStatus::Confirmed:
+        return QColor(tc.teal);
+    case TransactionStatus::Conflicted:
+    case TransactionStatus::Abandoned:
+    case TransactionStatus::NotAccepted:
+        return QColor(tc.error);
+    default:
+        return QColor(tc.gold);
+    }
+}
+
 class TxViewDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT
@@ -117,7 +133,8 @@ public:
                     painter->setBrush(QColor(tc.wineTint));
                     painter->drawEllipse(ring);
                 }
-                GUIUtil::paintThemedStatusIcon(painter, statusIcon, statusRect);
+                GUIUtil::paintThemedStatusIcon(painter, statusIcon, statusRect,
+                                               activityStatusTint(index.data(TransactionTableModel::StatusRole).toInt()));
             }
         }
 

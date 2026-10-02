@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_GUITHEME_H
 #define BITCOIN_QT_GUITHEME_H
 
+#include <QColor>
 #include <QFont>
 #include <QObject>
 #include <QString>
@@ -141,8 +142,13 @@ namespace GUIUtil
     void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
                          Qt::TextElideMode elide = Qt::ElideRight);
 
-    void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect);
+    /**
+     * Paint a single-color status icon in the muted ink, or in tint when one is given
+     * (e.g. teal once a transaction is confirmed).
+     */
+    void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect, const QColor& tint = QColor());
 
+    //! A single-color status icon in the muted ink of the current theme.
     QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size);
 
     /**

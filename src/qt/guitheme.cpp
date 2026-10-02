@@ -382,8 +382,6 @@ void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, 
 
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
 {
-    if (!isDarkMode())
-        return icon.pixmap(size);
     return tintedIconPixmap(icon, size, QColor(themeColors().inkSoft));
 }
 
@@ -418,15 +416,10 @@ QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tin
     return result;
 }
 
-void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect)
+void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect, const QColor& tint)
 {
-    if (!isDarkMode()) {
-        icon.paint(painter, rect, Qt::AlignCenter);
-        return;
-    }
-
     const QSize size = rect.size().isEmpty() ? QSize(16, 16) : rect.size();
-    const QPixmap tinted = themedStatusIconPixmap(icon, size);
+    const QPixmap tinted = tintedIconPixmap(icon, size, tint.isValid() ? tint : QColor(themeColors().inkSoft));
     if (tinted.isNull()) {
         icon.paint(painter, rect, Qt::AlignCenter);
         return;

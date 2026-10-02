@@ -114,13 +114,14 @@ public:
                               dt.isValid() ? QLocale::system().toString(dt.time(), QLocale::ShortFormat) : QString());
 
             int iconRight = option.rect.right() - 6;
-            const auto paintMetadataIcon = [&](const QVariant& decoration) {
+            const auto paintMetadataIcon = [&](const QVariant& decoration, const QColor& tint = QColor()) {
                 const QRect rect(iconRight - 16, option.rect.center().y() - 8, 16, 16);
-                if (paintDecorationIcon(painter, decoration, rect))
+                if (paintDecorationIcon(painter, decoration, rect, tint))
                     iconRight -= 20;
             };
             paintMetadataIcon(index.sibling(index.row(), TransactionTableModel::Status)
-                                  .data(TransactionTableModel::RawDecorationRole));
+                                  .data(TransactionTableModel::RawDecorationRole),
+                              statusTint(index.data(TransactionTableModel::StatusRole).toInt()));
             paintMetadataIcon(index.data(TransactionTableModel::InstantSendDecorationRole));
             paintMetadataIcon(index.data(TransactionTableModel::WatchonlyDecorationRole));
             break;
@@ -186,15 +187,31 @@ private:
         }
     }
 
-    static bool paintDecorationIcon(QPainter* painter, const QVariant& decoration, const QRect& rect)
+    static bool paintDecorationIcon(QPainter* painter, const QVariant& decoration, const QRect& rect, const QColor& tint)
     {
         if (!decoration.canConvert<QIcon>())
             return false;
         const QIcon icon = qvariant_cast<QIcon>(decoration);
         if (icon.isNull())
             return false;
-        GUIUtil::paintThemedStatusIcon(painter, icon, rect);
+        GUIUtil::paintThemedStatusIcon(painter, icon, rect, tint);
         return true;
+    }
+
+    //! Confirmed reads teal and failed reads red; pending states stay in the muted ink.
+    static QColor statusTint(int status)
+    {
+        const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+        switch (status) {
+        case TransactionStatus::Confirmed:
+            return QColor(tc.teal);
+        case TransactionStatus::Conflicted:
+        case TransactionStatus::Abandoned:
+        case TransactionStatus::NotAccepted:
+            return QColor(tc.error);
+        default:
+            return QColor(tc.inkFaint);
+        }
     }
 };
 
