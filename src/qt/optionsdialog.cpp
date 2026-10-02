@@ -67,7 +67,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
 
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog { background: $BG; }
-        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
+        QTabWidget::pane { background: transparent; border: none; border-top: 1px solid $BORDER; top: -1px; }
         QTabBar::tab {
             background: transparent;
             color: $INK_SOFT;
@@ -76,18 +76,22 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             padding: 8px 14px;
             border: none;
         }
-        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
+        QTabBar::tab:selected { color: $INK; border-bottom: 3px solid $WINE; }
         QTabBar::tab:hover { color: $INK; }
         QGroupBox {
-            background: $PANEL_SOFT;
+            background: $PANEL;
             border: 1px solid $BORDER;
             border-radius: 14px;
-            font-weight: 700;
             color: $INK;
-            margin-top: 10px;
-            padding-top: 12px;
+            margin-top: 28px;
+            padding: 4px 16px;
         }
-        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_SOFT; background-color: $PANEL; }
+        QGroupBox::title {
+            subcontrol-origin: margin; subcontrol-position: top left; left: 2px; top: 4px;
+            padding: 0; color: $INK_FAINT; font: $FONT_CAPTION; background: transparent;
+        }
+        QGroupBox QCheckBox { color: $INK; min-height: 40px; }
+        QGroupBox QCheckBox[rowDivider="true"] { border-bottom: 1px solid $BORDER; }
         QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
             background: $PANEL;
             border: 1px solid $FIELD_BORDER;
@@ -120,7 +124,16 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             background: $WINE_DEEP;
         }
         QPushButton#okButton:pressed { background: $WINE_DEEP; }
+        QPushButton#resetButton { color: $ERROR; }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+
+    // Settings sections: a caption title above a white card, one setting per row.
+    for (QGroupBox* group : {ui->groupBox, ui->sparkGroupBox}) {
+        group->setTitle(group->title().toUpper());
+        const QList<QCheckBox*> rows = group->findChildren<QCheckBox*>();
+        for (int i = 0; i + 1 < rows.size(); ++i)
+            rows[i]->setProperty("rowDivider", true);
+    }
 
     for (QLineEdit* port : {ui->proxyPort, ui->proxyPortTor}) {
         port->ensurePolished();
