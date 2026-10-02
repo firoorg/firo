@@ -846,14 +846,15 @@ void RPCConsole::rebuildConsoleMessages()
 
     ui->messagesWidget->clear();
 
-    // Add smoothly scaled icon images.
+    // Add smoothly scaled icon images, tinted for dark mode like the other status icons.
     // (when using width/height on an img, Qt uses nearest instead of linear interpolation)
     for(int i=0; ICON_MAPPING[i].url; ++i)
     {
         ui->messagesWidget->document()->addResource(
                     QTextDocument::ImageResource,
                     QUrl(ICON_MAPPING[i].url),
-                    QImage(ICON_MAPPING[i].source).scaled(QSize(consoleFontSize*2, consoleFontSize*2), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+                    GUIUtil::themedStatusIconPixmap(QIcon(ICON_MAPPING[i].source),
+                                                    QSize(consoleFontSize * 2, consoleFontSize * 2)).toImage());
     }
 
     updateConsoleDocumentStyle();
