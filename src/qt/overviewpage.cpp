@@ -113,9 +113,15 @@ public:
         if (statusDec.canConvert<QIcon>()) {
             const QIcon statusIcon = qvariant_cast<QIcon>(statusDec);
             if (!statusIcon.isNull()) {
+                // A ring in the row's own surface, so the badge reads as cut out of the arrow circle.
+                const QRectF ring = QRectF(statusRect).adjusted(-1.5, -1.5, 1.5, 1.5);
                 painter->setPen(Qt::NoPen);
-                painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
-                painter->drawEllipse(QRectF(statusRect).adjusted(-1.5, -1.5, 1.5, 1.5));
+                painter->setBrush(QColor(tc.panel));
+                painter->drawEllipse(ring);
+                if (selected) {
+                    painter->setBrush(QColor(tc.wineTint));
+                    painter->drawEllipse(ring);
+                }
                 GUIUtil::paintThemedStatusIcon(painter, statusIcon, statusRect);
             }
         }
@@ -443,6 +449,15 @@ void OverviewPage::applyOverviewTheme()
     ui->sendButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::ArrowUpRight, QColor(tc.heroStart), 18, dpr));
     ui->receiveButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::ArrowDownLeft, QColor(Qt::white), 18, dpr));
     ui->anonymizeButton->setIcon(GUIUtil::glyphIcon(GUIUtil::Glyph::Shield, QColor(QStringLiteral("#6FE3CC")), 18, dpr));
+
+    // The out-of-sync warning sits on the gradient too; its glyph is solid black, so draw it in white.
+    QPixmap syncWarning = QIcon(QStringLiteral(":/icons/warning")).pixmap(ui->labelWalletStatus->iconSize(), dpr);
+    {
+        QPainter painter(&syncWarning);
+        painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        painter.fillRect(syncWarning.rect(), Qt::white);
+    }
+    ui->labelWalletStatus->setIcon(QIcon(syncWarning));
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));

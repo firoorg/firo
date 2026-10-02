@@ -148,6 +148,9 @@ QAbstractSpinBox::up-arrow {
 QAbstractSpinBox::up-arrow:hover {
     image: url(':/images/arrow_up_dark');
 }
+QAbstractSpinBox::up-arrow:pressed {
+    image: url(':/images/arrow_up_light');
+}
 QAbstractSpinBox::up-arrow:disabled {
     image: url(':/images/arrow_light_up_normal');
 }
@@ -156,6 +159,9 @@ QAbstractSpinBox::down-arrow {
 }
 QAbstractSpinBox::down-arrow:hover {
     image: url(':/images/arrow_down_dark');
+}
+QAbstractSpinBox::down-arrow:pressed {
+    image: url(':/images/arrow_down_light');
 }
 QAbstractSpinBox::down-arrow:disabled {
     image: url(':/images/arrow_light_down_normal');
@@ -367,6 +373,11 @@ QComboBox::down-arrow {
 }
 QComboBox::down-arrow:hover {
     image: url(':/images/arrow_down_dark') 0 0 0 0 stretch stretch;
+}
+QComboBox::down-arrow:pressed {
+    width: 20px;
+    height: 20px;
+    image: url(':/images/arrow_down_light') 0 0 0 0 stretch stretch;
 }
 QComboBox::down-arrow:disabled {
     image: url(':/images/arrow_light_down_normal') 0 0 0 0 stretch stretch;

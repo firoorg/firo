@@ -144,6 +144,8 @@ void Recover::applyTheme()
                 background: transparent; border: none; width: 32px; height: 32px;
                 border-radius: 10px; qproperty-iconSize: 14px 14px;
             }
+            #qt_calendar_prevmonth { qproperty-icon: url(:/images/arrow_light_left_hover); }
+            #qt_calendar_nextmonth { qproperty-icon: url(:/images/arrow_light_right_hover); }
             #qt_calendar_monthbutton, #qt_calendar_yearbutton {
                 background: transparent; border: none; color: #FFFFFF;
                 font-weight: 700; border-radius: 10px; padding: 4px 10px;

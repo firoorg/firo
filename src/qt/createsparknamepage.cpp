@@ -141,7 +141,7 @@ void CreateSparkNamePage::applyTheme()
         "QLabel#balanceWarningLabel { color: $ERROR; font-weight: 700; }"
         "QLabel#namePrefix { color: $WINE_TEXT; }"
         "QFrame#nameField, QFrame#addressField { background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px; }"
-        "QLineEdit { background: transparent; color: $INK; border: 1px solid transparent; border-radius: 10px; padding: 4px 0; min-height: 28px; }"
+        "QLineEdit { background: transparent; color: $INK; border: 1px solid transparent; border-radius: 4px; padding: 4px 0; min-height: 28px; }"
         "QLineEdit:focus { border-bottom-color: $WINE; }"
         "QLineEdit:disabled { color: $INK_SOFT; }"
         "QTextEdit { background: $PANEL_SOFT; color: $INK; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 6px 10px; }"
