@@ -584,11 +584,11 @@ QFrame#sparkNameCard QFrame#cardDivider {
   background: $BORDER; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricCaption {
-  color: $INK_FAINT; font-weight: 700; font-size: 13px;
+  color: $INK_SOFT;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QLabel#cardMetricValue {
-  color: $INK; font-weight: 400;
+  color: $INK; font-weight: 700;
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton {
