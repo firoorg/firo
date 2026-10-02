@@ -82,9 +82,11 @@
         <file alias="link">res/icons/link.png</file>
         <file alias="logout">res/icons/logout.png</file>
         <file alias="message">res/icons/message.png</file>
+        <file alias="moon">res/icons/moon.png</file>
         <file alias="pen">res/icons/pen.png</file>
         <file alias="search">res/icons/search.png</file>
         <file alias="shield">res/icons/shield.png</file>
+        <file alias="sun">res/icons/sun.png</file>
         <file alias="tag">res/icons/tag.png</file>
         <file alias="trash">res/icons/trash.png</file>
         <file alias="refresh">res/icons/refresh.png</file>

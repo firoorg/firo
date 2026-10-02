@@ -751,13 +751,17 @@ void BitcoinGUI::createToolBars()
         auto* themeRowLayout = new QHBoxLayout(navigationThemeRow);
         themeRowLayout->setContentsMargins(12, 8, 12, 8);
         themeRowLayout->setSpacing(6);
+        navigationThemeSunIcon = new QLabel(navigationThemeRow);
         navigationThemeLightLabel = new QLabel(tr("Light"), navigationThemeRow);
         navigationThemeSwitch = new ThemeToggleSwitch(navigationThemeRow);
         navigationThemeDarkLabel = new QLabel(tr("Dark"), navigationThemeRow);
+        navigationThemeMoonIcon = new QLabel(navigationThemeRow);
+        themeRowLayout->addWidget(navigationThemeSunIcon);
         themeRowLayout->addWidget(navigationThemeLightLabel);
         themeRowLayout->addWidget(navigationThemeSwitch);
         themeRowLayout->addStretch();
         themeRowLayout->addWidget(navigationThemeDarkLabel);
+        themeRowLayout->addWidget(navigationThemeMoonIcon);
         navigationThemeSwitch->setChecked(GUIUtil::isDarkMode());
         toolbar->addWidget(navigationThemeRow);
 
@@ -898,13 +902,21 @@ void BitcoinGUI::applyNavigationTheme()
     if (clientModel && connectionsControl)
         updateNetworkState();
     if (labelBlocksIcon && masternodeSync.IsSynced())
-        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+        labelBlocksIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE),
+                                                             QColor(GUIUtil::themeColors().teal)));
     if (torStatusBadge) {
         torStatusBadge->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#torStatusBadge {"
             " color: $TEAL_TEXT; background: $TEAL_TINT; border: none;"
             " border-radius: 10px; padding: 2px 7px; font-weight: 700;"
             "}")));
+    }
+
+    // The unit selector reads as a pill so it looks clickable.
+    if (unitDisplayControl) {
+        unitDisplayControl->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel { background: $HOVER; color: $INK_SOFT; border: none; border-radius: 10px;"
+            " padding: 2px 10px; font-weight: 700; }")));
     }
 
     if (navigationThemeRow) {
@@ -915,7 +927,21 @@ void BitcoinGUI::applyNavigationTheme()
             "QFrame#navigationThemeRow QLabel {"
             " background: transparent; border: none; color: $INK_FAINT;"
             " font-weight: 700;"
-            "}")));
+            "}"
+            "QFrame#navigationThemeRow QLabel[activeMode=\"true\"] { color: $INK; }")));
+        // Sun and moon frame the switch; the current mode reads in full ink.
+        const bool dark = GUIUtil::isDarkMode();
+        const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
+        navigationThemeLightLabel->setProperty("activeMode", !dark);
+        navigationThemeDarkLabel->setProperty("activeMode", dark);
+        for (QLabel* label : {navigationThemeLightLabel, navigationThemeDarkLabel}) {
+            label->style()->unpolish(label);
+            label->style()->polish(label);
+        }
+        navigationThemeSunIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sun")), QSize(16, 16),
+                                                                    QColor(dark ? c.inkFaint : c.ink)));
+        navigationThemeMoonIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/moon")), QSize(16, 16),
+                                                                     QColor(dark ? c.ink : c.inkFaint)));
     }
 
     if (navigationSyncCard) {
@@ -1213,6 +1239,8 @@ void BitcoinGUI::updateToolbarTabWidths()
     logoLabel->setAlignment((navigationSidebarExpanded ? Qt::AlignLeft : Qt::AlignHCenter) | Qt::AlignVCenter);
     navigationThemeLightLabel->setVisible(navigationSidebarExpanded);
     navigationThemeDarkLabel->setVisible(navigationSidebarExpanded);
+    navigationThemeSunIcon->setVisible(navigationSidebarExpanded);
+    navigationThemeMoonIcon->setVisible(navigationSidebarExpanded);
     navigationSyncLabel->setVisible(navigationSidebarExpanded);
     navigationSyncPercent->setVisible(navigationSidebarExpanded);
 }
@@ -1704,8 +1732,9 @@ void BitcoinGUI::updateSyncStatus()
             ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
             QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
     } else {
-        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"),
-            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+        // Synced is the one status that reads teal, as in the mockup.
+        labelBlocksIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(":/icons/synced"),
+            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE), QColor(GUIUtil::themeColors().teal)));
     }
     tooltip = QStringLiteral("<nobr>") + tooltip + QStringLiteral("</nobr>");
     labelBlocksIcon->setToolTip(tooltip);
