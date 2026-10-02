@@ -484,7 +484,7 @@ void RPCConsole::applyConsoleTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QWidget#RPCConsole { background: $BG; }
-        QWidget#detailWidget { background: $PANEL; }
+        QWidget#tab_peers, QWidget#detailWidget { background: $BG; }
         QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
         QTabBar::tab {
             background: transparent;
