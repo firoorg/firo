@@ -965,7 +965,7 @@ void RPCConsole::on_lineEdit_returnPressed()
                 throw std::runtime_error("Invalid command line");
             }
         } catch (const std::exception& e) {
-            QMessageBox::critical(this, "Error", QString("Error: ") + QString::fromStdString(e.what()));
+            QMessageBox::critical(this, tr("Error"), tr("Error: %1").arg(QString::fromStdString(e.what())));
             return;
         }
 

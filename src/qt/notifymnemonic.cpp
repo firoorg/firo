@@ -89,7 +89,7 @@ void NotifyMnemonic::notify()
     NotifyMnemonic notify;
     notify.setWindowIcon(QIcon(":icons/firo"));
     notify.show();
-    notify.ui->walletBirthDate->setText("Wallet creation date:  " + getCurrentDate());
+    notify.ui->walletBirthDate->setText(tr("Wallet creation date:  %1").arg(getCurrentDate()));
     notify.ui->mnemonic->setText(mnemonic.c_str());
     notify.restart();
     while(true)
