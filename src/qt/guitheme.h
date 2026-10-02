@@ -92,18 +92,6 @@ namespace GUIUtil
      */
     void paintRowBackground(QPainter* painter, const QRect& rect, bool selected);
 
-    /** Outline glyphs drawn with QPainter, matching the sidebar icon style. */
-    enum class Glyph { ArrowUpRight, ArrowDownLeft, Shield, List, Server, Inbox };
-
-    /**
-     * Paint a glyph from its 24-unit design grid into rect.
-     * @param[in] painter  Painter to draw with; its state is restored afterwards.
-     * @param[in] glyph    Glyph to draw.
-     * @param[in] rect     Target square; the stroke scales with its size.
-     * @param[in] color    Stroke color.
-     */
-    void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& rect, const QColor& color);
-
     /**
      * Rich text for a formatted amount with the decimals and unit faded, so the whole
      * number reads first. The digits are the same as in formatted.
@@ -121,12 +109,17 @@ namespace GUIUtil
     void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
                          Qt::TextElideMode elide = Qt::ElideRight);
 
-    /** @return A device-pixel-ratio aware pixmap of glyph, sized size x size logical pixels. */
-    QPixmap glyphPixmap(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio);
-
     void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect);
 
     QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size);
+
+    /**
+     * Recolor a single-color icon, keeping its shape and anti-aliasing. Results are cached.
+     * @param[in] icon   Icon whose alpha channel gives the shape, e.g. a sidebar icon.
+     * @param[in] size   Logical size of the pixmap.
+     * @param[in] tint   Opaque color to fill the shape with.
+     */
+    QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tint);
 } // namespace GUIUtil
 
 #endif // BITCOIN_QT_GUITHEME_H

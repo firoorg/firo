@@ -374,8 +374,8 @@ void ReceiveCoinsDialog::applyTheme()
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel { background: $WINE_TINT; border-radius: 24px; }")));
-        emptyIcon_->setPixmap(GUIUtil::glyphPixmap(GUIUtil::Glyph::Inbox, QColor(GUIUtil::themeColors().wineText),
-                                                   24, devicePixelRatioF()));
+        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_receive")), QSize(24, 24),
+                                                        QColor(GUIUtil::themeColors().wineText)));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

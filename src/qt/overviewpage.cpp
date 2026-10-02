@@ -102,8 +102,9 @@ public:
         painter->setPen(Qt::NoPen);
         painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.hover));
         painter->drawEllipse(iconRect);
-        GUIUtil::paintGlyph(painter, incoming ? GUIUtil::Glyph::ArrowDownLeft : GUIUtil::Glyph::ArrowUpRight,
-                            QRectF(iconRect).adjusted(8, 8, -8, -8), positive ? QColor(tc.teal) : QColor(tc.inkSoft));
+        const QRect arrowRect = iconRect.adjusted(8, 8, -8, -8);
+        painter->drawPixmap(arrowRect, GUIUtil::tintedIconPixmap(incoming ? receivedIcon : sentIcon, arrowRect.size(),
+                                                                positive ? QColor(tc.teal) : QColor(tc.inkSoft)));
         QFont boldFont = option.font;
         boldFont.setBold(true);
         painter->setFont(boldFont);
@@ -184,6 +185,9 @@ public:
 
     int unit;
     const PlatformStyle *platformStyle;
+    // The sidebar's Send and Receive icons mark the direction.
+    const QIcon sentIcon{QStringLiteral(":/icons/sidebar_send")};
+    const QIcon receivedIcon{QStringLiteral(":/icons/sidebar_receive")};
 
 };
 #include "overviewpage.moc"
@@ -446,19 +450,18 @@ void OverviewPage::applyOverviewTheme()
         "QPushButton:hover, QPushButton:pressed { background: #406FE3CC; }"
         "QPushButton:focus { border-color: #6FE3CC; }"
         "QPushButton:disabled { color: #8CFFFFFF; background: #1FFFFFFF; border-color: #2EFFFFFF; }"));
-    const qreal dpr = devicePixelRatioF();
-    ui->sendButton->setIcon(QIcon(GUIUtil::glyphPixmap(GUIUtil::Glyph::ArrowUpRight, QColor(tc.heroStart), 18, dpr)));
-    ui->receiveButton->setIcon(QIcon(GUIUtil::glyphPixmap(GUIUtil::Glyph::ArrowDownLeft, QColor(Qt::white), 18, dpr)));
-    ui->anonymizeButton->setIcon(QIcon(GUIUtil::glyphPixmap(GUIUtil::Glyph::Shield, QColor(QStringLiteral("#6FE3CC")), 18, dpr)));
+    // The sidebar icons, recolored for the gradient; Make Private uses the Spark mark.
+    const QSize actionIconSize(18, 18);
+    ui->sendButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_send")), actionIconSize,
+                                                      QColor(tc.heroStart)));
+    ui->receiveButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_receive")), actionIconSize,
+                                                         QColor(Qt::white)));
+    ui->anonymizeButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), actionIconSize,
+                                                           QColor(QStringLiteral("#6FE3CC"))));
 
     // The out-of-sync warning sits on the gradient too; its glyph is solid black, so draw it in white.
-    QPixmap syncWarning = QIcon(QStringLiteral(":/icons/warning")).pixmap(ui->labelWalletStatus->iconSize(), dpr);
-    {
-        QPainter painter(&syncWarning);
-        painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        painter.fillRect(syncWarning.rect(), Qt::white);
-    }
-    ui->labelWalletStatus->setIcon(QIcon(syncWarning));
+    ui->labelWalletStatus->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/warning")),
+                                                             ui->labelWalletStatus->iconSize(), QColor(Qt::white)));
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));
@@ -501,7 +504,8 @@ void OverviewPage::applyOverviewTheme()
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel { background: $WINE_TINT; border-radius: 24px; }")));
-        emptyIcon_->setPixmap(GUIUtil::glyphPixmap(GUIUtil::Glyph::List, QColor(tc.wineText), 24, dpr));
+        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_transactions")),
+                                                        QSize(24, 24), QColor(tc.wineText)));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

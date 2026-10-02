@@ -78,7 +78,8 @@ QPixmap masternodeGlyph(qreal devicePixelRatio)
     p.setPen(Qt::NoPen);
     p.setBrush(QColor(tc.hover));
     p.drawRoundedRect(QRectF(0, 0, 36, 36), 10, 10);
-    GUIUtil::paintGlyph(&p, GUIUtil::Glyph::Server, QRectF(8, 8, 20, 20), QColor(tc.inkSoft));
+    p.drawPixmap(QRect(8, 8, 20, 20), GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_masternodes")),
+                                                              QSize(20, 20), QColor(tc.inkSoft)));
     return pm;
 }
 
@@ -557,8 +558,8 @@ QScrollBar::sub-line {
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "background: $WINE_TINT; border-radius: 24px;")));
-        emptyIcon_->setPixmap(GUIUtil::glyphPixmap(GUIUtil::Glyph::Server, QColor(GUIUtil::themeColors().wineText),
-                                                   24, devicePixelRatioF()));
+        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_masternodes")), QSize(24, 24),
+                                                        QColor(GUIUtil::themeColors().wineText)));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

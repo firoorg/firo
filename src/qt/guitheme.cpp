@@ -11,7 +11,6 @@
 #include <QFontMetrics>
 #include <QIcon>
 #include <QPainter>
-#include <QPainterPath>
 #include <QPixmap>
 #include <QPixmapCache>
 #include <QPointer>
@@ -287,59 +286,6 @@ void paintRowBackground(QPainter* painter, const QRect& rect, bool selected)
     painter->fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), QColor(colors.border));
 }
 
-void paintGlyph(QPainter* painter, Glyph glyph, const QRectF& rect, const QColor& color)
-{
-    QPainterPath path;
-    switch (glyph) {
-    case Glyph::ArrowUpRight:
-        path.moveTo(7, 17); path.lineTo(17, 7);
-        path.moveTo(9, 7); path.lineTo(17, 7); path.lineTo(17, 15);
-        break;
-    case Glyph::ArrowDownLeft:
-        path.moveTo(17, 7); path.lineTo(7, 17);
-        path.moveTo(15, 17); path.lineTo(7, 17); path.lineTo(7, 9);
-        break;
-    case Glyph::Shield:
-        path.moveTo(12, 3.2); path.lineTo(5.5, 6); path.lineTo(5.5, 11.2);
-        path.cubicTo(5.5, 15.3, 8.3, 18.8, 12, 20.4);
-        path.cubicTo(15.7, 18.8, 18.5, 15.3, 18.5, 11.2);
-        path.lineTo(18.5, 6); path.closeSubpath();
-        path.moveTo(9.2, 12); path.lineTo(11.2, 14); path.lineTo(15, 10);
-        break;
-    case Glyph::List:
-        for (const qreal y : {6.0, 12.0, 18.0}) {
-            path.moveTo(9, y); path.lineTo(20, y);
-            path.moveTo(4, y); path.lineTo(4.5, y);
-        }
-        break;
-    case Glyph::Server:
-        path.addRoundedRect(QRectF(4, 4, 16, 7), 2, 2);
-        path.addRoundedRect(QRectF(4, 13, 16, 7), 2, 2);
-        path.moveTo(8, 7.5); path.lineTo(8.1, 7.5);
-        path.moveTo(8, 16.5); path.lineTo(8.1, 16.5);
-        break;
-    case Glyph::Inbox:
-        path.moveTo(4, 13); path.lineTo(7, 5.5); path.lineTo(17, 5.5); path.lineTo(20, 13);
-        path.lineTo(20, 18.5); path.lineTo(4, 18.5); path.closeSubpath();
-        path.moveTo(4, 13); path.lineTo(8.5, 13); path.lineTo(10, 15.5); path.lineTo(14, 15.5);
-        path.lineTo(15.5, 13); path.lineTo(20, 13);
-        break;
-    }
-    const qreal scale = qMin(rect.width(), rect.height()) / 24.0;
-    painter->save();
-    painter->setRenderHint(QPainter::Antialiasing, true);
-    painter->translate(rect.center());
-    painter->scale(scale, scale);
-    painter->translate(-12, -12);
-    QPen pen(color, 1.8);
-    pen.setCapStyle(Qt::RoundCap);
-    pen.setJoinStyle(Qt::RoundJoin);
-    painter->setPen(pen);
-    painter->setBrush(Qt::NoBrush);
-    painter->drawPath(path);
-    painter->restore();
-}
-
 QString amountRunsHtml(const QString& formatted, const QString& fadedColor, const QString& unitStyle)
 {
     const int split = formatted.indexOf(QLatin1Char('.'));
@@ -386,36 +332,30 @@ void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, 
     painter->restore();
 }
 
-QPixmap glyphPixmap(Glyph glyph, const QColor& color, int size, qreal devicePixelRatio)
-{
-    const qreal dpr = qMax<qreal>(1.0, devicePixelRatio);
-    QPixmap pixmap(qRound(size * dpr), qRound(size * dpr));
-    pixmap.setDevicePixelRatio(dpr);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    paintGlyph(&painter, glyph, QRectF(0, 0, size, size), color);
-    painter.end();
-    return pixmap;
-}
-
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
 {
+    if (!isDarkMode())
+        return icon.pixmap(size);
+    return tintedIconPixmap(icon, size, QColor(themeColors().inkSoft));
+}
+
+QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tint)
+{
     const QPixmap source = icon.pixmap(size);
-    if (!isDarkMode() || source.isNull())
+    if (source.isNull())
         return source;
 
-    const QString cacheKey = QStringLiteral("firo-themed-status:%1:%2x%3:%4:%5")
+    const QString cacheKey = QStringLiteral("firo-tinted-icon:%1:%2x%3:%4:%5")
                                  .arg(source.cacheKey())
                                  .arg(source.width())
                                  .arg(source.height())
                                  .arg(source.devicePixelRatio())
-                                 .arg(themeColors().inkSoft);
+                                 .arg(tint.name());
     QPixmap cached;
     if (QPixmapCache::find(cacheKey, &cached))
         return cached;
 
     QImage img = source.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
-    const QColor tint(themeColors().inkSoft);
     for (int y = 0; y < img.height(); ++y) {
         QRgb* line = reinterpret_cast<QRgb*>(img.scanLine(y));
         for (int x = 0; x < img.width(); ++x) {

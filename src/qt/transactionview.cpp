@@ -87,8 +87,9 @@ public:
             painter->setPen(Qt::NoPen);
             painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.hover));
             painter->drawEllipse(icon);
-            GUIUtil::paintGlyph(painter, incoming ? GUIUtil::Glyph::ArrowDownLeft : GUIUtil::Glyph::ArrowUpRight,
-                                QRectF(icon).adjusted(8, 8, -8, -8), positive ? QColor(tc.teal) : QColor(tc.inkSoft));
+            const QRect arrowRect = icon.adjusted(8, 8, -8, -8);
+            painter->drawPixmap(arrowRect, GUIUtil::tintedIconPixmap(incoming ? receivedIcon : sentIcon, arrowRect.size(),
+                                                                    positive ? QColor(tc.teal) : QColor(tc.inkSoft)));
             QFont dateFont = option.font;
             dateFont.setBold(true);
             painter->setFont(dateFont);
@@ -172,6 +173,10 @@ public:
     }
 
 private:
+    // The sidebar's Send and Receive icons mark the direction.
+    const QIcon sentIcon{QStringLiteral(":/icons/sidebar_send")};
+    const QIcon receivedIcon{QStringLiteral(":/icons/sidebar_receive")};
+
     static bool isIncoming(int txType)
     {
         switch (txType) {
@@ -571,8 +576,8 @@ void TransactionView::applyTheme()
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed("background: $WINE_TINT; border-radius: 24px;"));
-        emptyIcon_->setPixmap(GUIUtil::glyphPixmap(GUIUtil::Glyph::List, QColor(GUIUtil::themeColors().wineText),
-                                                   24, devicePixelRatioF()));
+        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_transactions")), QSize(24, 24),
+                                                        QColor(GUIUtil::themeColors().wineText)));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-weight: 700;"));
