@@ -110,6 +110,7 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
 {
     if (gui)
     {
+        overviewPage->setConsolidationAction(gui->getConsolidationAction());
         // Clicking on a transaction on the overview page simply sends you to transaction history page
         connect(overviewPage, &OverviewPage::transactionClicked, gui, &BitcoinGUI::gotoHistoryPage);
 
@@ -287,6 +288,11 @@ void WalletView::gotoVerifyMessageTab(QString addr)
 bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
 {
     return sendFiroView->handlePaymentRequest(recipient);
+}
+
+void WalletView::consolidateCoins()
+{
+    overviewPage->consolidateCoins();
 }
 
 void WalletView::showOutOfSyncWarning(bool fShow)

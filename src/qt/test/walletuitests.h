@@ -20,6 +20,8 @@ private Q_SLOTS:
     void sendFormFitsSmallScreen();
     void receiveMnemonics();
     void confirmationRefresh();
+    void manualConsolidation();
+    void consolidationResult();
     void themeTintColors();
     void brandTypography();
     void recentActivityFitsBrandFont();

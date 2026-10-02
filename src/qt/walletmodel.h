@@ -13,7 +13,9 @@
 #endif // ENABLE_WALLET
 #include "wallet/coincontrol.h"
 
+#include <future>
 #include <map>
+#include <optional>
 #include <vector>
 
 #include <QObject>
@@ -185,6 +187,23 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    struct ConsolidationCandidate {
+        QString address;
+        QString label;
+        size_t outputs;
+        bool sizeLimited;
+    };
+    struct ConsolidationPreview {
+        size_t inputs;
+        CAmount returnedAmount;
+        unsigned int bytes;
+    };
+    // Start/poll a background scan. A busy wallet preserves the previous result.
+    bool pollConsolidationAddresses(std::vector<ConsolidationCandidate>& addresses);
+    ConsolidationPreview getConsolidationPreview(WalletModelTransaction& transaction) const;
+    SendCoinsReturn prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address);
+    SendCoinsReturn sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs, bool& anotherBatch);
+
     SendCoinsReturn prepareMintSparkTransaction(
         std::vector<WalletModelTransaction> &transactions,
         QList<SendCoinsRecipient> recipients,
@@ -319,7 +338,10 @@ public:
     CAmount GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const;
 
 private:
+    std::vector<ConsolidationCandidate> getConsolidationAddresses() const;
     CWallet *wallet;
+    // Destruction joins the scan before the core wallet is released.
+    std::future<std::optional<std::vector<ConsolidationCandidate>>> consolidationScan;
 
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;

@@ -69,6 +69,7 @@ public:
         The client model represents the part of the core that communicates with the P2P network, and is wallet-agnostic.
     */
     void setClientModel(ClientModel *clientModel);
+    QAction* getConsolidationAction() const { return consolidateOutputsAction; }
 
 #ifdef ENABLE_WALLET
     /** Set the wallet model.
@@ -113,6 +114,7 @@ private:
     QAction *sendCoinsMenuAction;
     QAction *usedSendingAddressesAction;
     QAction *usedReceivingAddressesAction;
+    QAction *consolidateOutputsAction;
     QAction *signMessageAction;
     QAction *verifyMessageAction;
     QAction *aboutAction;
@@ -187,6 +189,7 @@ private:
 
     /** Enable or disable all wallet-related actions */
     void setWalletActionsEnabled(bool enabled);
+    void updateConsolidationAction();
 
     /** Connect core signals to GUI client */
     void subscribeToCoreSignals();

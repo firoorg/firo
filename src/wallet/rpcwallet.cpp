@@ -523,6 +523,98 @@ static void ValidateFeeSubtractionAmount(CAmount nAmount, bool fSubtractFeeFromA
     }
 }
 
+UniValue consolidateaddress(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+        throw std::runtime_error(
+            "consolidateaddress \"address\" ( dryrun )\n"
+            "\nPreview or submit one consolidation batch back to the same transparent address.\n"
+            "Only confirmed, spendable, unlocked outputs at this exact address are used.\n"
+            "Known masternode collateral outputs are excluded, even if unlocked.\n"
+            "The fee is deducted from the returned amount. No other address subsidizes the batch.\n"
+            "\nArguments:\n"
+            "1. \"address\" (string, required) The transparent address to consolidate.\n"
+            "2. dryrun      (boolean, optional, default=true) Preview without signing or spending.\n"
+            "              Set false to submit one batch; an encrypted wallet must be unlocked.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"address\": \"address\", (string) The input and return address\n"
+            "  \"dryrun\": true,        (boolean) Whether this is a preview\n"
+            "  \"eligible_outputs\": n, (numeric) Confirmed, spendable, unlocked outputs at this address\n"
+            "  \"inputs\": n,           (numeric) Outputs combined in this batch\n"
+            "  \"amount\": amount,      (numeric) Amount returned after the fee, in " + CURRENCY_UNIT + "\n"
+            "  \"fee\": amount,         (numeric) Network fee, in " + CURRENCY_UNIT + "\n"
+            "  \"size\": n,             (numeric) Estimated maximum signed size in bytes\n"
+            "  \"size_limited\": false, (boolean) Whether transaction size or sigops require multiple batches\n"
+            "  \"txid\": \"txid\",       (string) Submitted transaction ID (dryrun=false only)\n"
+            "  \"remaining_outputs\": n (numeric) Eligible outputs left, excluding the unconfirmed return (dryrun=false only)\n"
+            "}\n"
+            "\nEach call plans against the current wallet. A preview does not reserve its inputs or fee.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("consolidateaddress", "\"address\"")
+            + HelpExampleCli("consolidateaddress", "\"address\" false")
+            + HelpExampleRpc("consolidateaddress", "\"address\", true"));
+
+    RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VBOOL});
+    const CBitcoinAddress address(request.params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid transparent address");
+    const bool dryrun = request.params.size() < 2 || request.params[1].get_bool();
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+    if (!dryrun) {
+        EnsureWalletIsUnlocked(pwallet);
+        if (pwallet->GetBroadcastTransactions() && !g_connman)
+            throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+    }
+    const CTxDestination destination = address.Get();
+    ConsolidationPlan plan;
+    CWalletTx transaction;
+    CReserveKey reserveKey(pwallet);
+    CAmount fee = 0;
+    std::string error;
+    if (dryrun) {
+        const auto plans = pwallet->GetConsolidationPlans(destination);
+        const auto found = plans.find(destination);
+        if (found == plans.end())
+            throw JSONRPCError(RPC_WALLET_ERROR, "There are fewer than two eligible outputs at this address.");
+        plan = found->second;
+        if (!plan.error.empty())
+            throw JSONRPCError(RPC_WALLET_ERROR, plan.error);
+    } else if (!pwallet->CreateConsolidationTransaction(destination, transaction, reserveKey, fee, error, &plan)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, error);
+    }
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("address", address.ToString()));
+    result.push_back(Pair("dryrun", dryrun));
+    result.push_back(Pair("eligible_outputs", int64_t(plan.eligibleCount)));
+    result.push_back(Pair("inputs", int64_t(plan.inputs.size())));
+    result.push_back(Pair("size", int64_t(plan.signedBytes)));
+    result.push_back(Pair("size_limited", plan.sizeLimited));
+    if (dryrun) {
+        result.push_back(Pair("amount", ValueFromAmount(plan.total - plan.fee)));
+        result.push_back(Pair("fee", ValueFromAmount(plan.fee)));
+        return result;
+    }
+
+    CValidationState state;
+    if (!pwallet->CommitTransaction(transaction, reserveKey, g_connman.get(), state, true))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Transaction rejected: " + state.GetRejectReason());
+
+    const auto groups = pwallet->GetConsolidationCoins(destination);
+    const auto remaining = groups.find(destination);
+    result.push_back(Pair("amount", ValueFromAmount(transaction.tx->vout[0].nValue)));
+    result.push_back(Pair("fee", ValueFromAmount(fee)));
+    result.push_back(Pair("txid", transaction.GetHash().GetHex()));
+    result.push_back(Pair("remaining_outputs", int64_t(remaining == groups.end() ? 0 : remaining->second.size())));
+    return result;
+}
+
 UniValue sendtoaddress(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -5760,6 +5852,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "addwitnessaddress",        &addwitnessaddress,        true,   {"address"} },
     { "wallet",             "backupwallet",             &backupwallet,             true,   {"destination"} },
     { "wallet",             "bumpfee",                  &bumpfee,                  true,   {"txid", "options"} },
+    { "wallet",             "consolidateaddress",       &consolidateaddress,       false,  {"address", "dryrun"} },
     { "wallet",             "dumpprivkey",              &dumpprivkey_firo,         true,   {"address"}  },
     { "wallet",             "dumpsparkviewkey",         &dumpsparkviewkey,         true,   {}  },
     { "wallet",             "dumpwallet",               &dumpwallet_firo,          true,   {"filename"} },
