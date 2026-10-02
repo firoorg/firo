@@ -126,8 +126,10 @@ BOOST_AUTO_TEST_CASE(spark_batch_concurrent_verification)
     auto secondReady = secondStarted.get_future();
     std::atomic<int> snapshots{0};
     std::atomic<bool> timedOut{false};
+    // Count only verification starts; each run also clears the label on exit.
     boost::signals2::scoped_connection pause = uiInterface.UpdateProgressBarLabel.connect(
-        [&](const std::string&) {
+        [&](const std::string& label) {
+            if (label.empty()) return;
             if (snapshots.fetch_add(1) == 0) {
                 started.set_value();
                 timedOut = released.wait_for(std::chrono::seconds(10)) != std::future_status::ready;
@@ -161,7 +163,8 @@ BOOST_AUTO_TEST_CASE(spark_batch_concurrent_verification)
     BOOST_REQUIRE(collect(secondSpend));
     snapshots = 0;
     boost::signals2::scoped_connection failOnce = uiInterface.UpdateProgressBarLabel.connect(
-        [&](const std::string&) {
+        [&](const std::string& label) {
+            if (label.empty()) return;
             if (snapshots.fetch_add(1) == 0)
                 throw std::bad_alloc();
         });
