@@ -282,7 +282,7 @@ bool Recover::askRecover(bool& newWallet)
                     }
 
                     if(mnemonic.empty()) {
-                        recover.ui->errorMessage->setText("Recovery seed phrase can't be empty.");
+                        recover.ui->errorMessage->setText(tr("Recovery seed phrase can't be empty."));
                         continue;
                     }
 
