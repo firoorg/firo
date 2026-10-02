@@ -42,9 +42,6 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->iconWarning->setPixmap(icon_.pixmap(18, 18));
     ui->iconMessageWarning->setPixmap(icon_.pixmap(18, 18));
 
-    ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
-    ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
-    ui->deleteButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
 
     setCurrentWidget(ui->SendCoins);
 
@@ -97,7 +94,7 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins QLabel#amountLabel,
         QFrame#SendCoins QLabel#messageLabel {
             color: $INK_SOFT;
-            font-weight: 700;
+            font: $FONT_CAPTION;
         }
         QFrame#SendCoins QLabel#sparkNameResolvedLabel {
             color: $INK_SOFT;
@@ -134,17 +131,19 @@ void SendCoinsEntry::applyTheme()
             border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 4px 12px;
+            min-height: 30px;
             color: $INK;
             selection-background-color: $WINE_DEEP;
             selection-color: #FFFFFF;
         }
+        /* QSS has no outline, so a 2 px wine border on a white field is the focus ring. */
         QFrame#SendCoins QValidatedLineEdit:focus,
         QFrame#SendCoins QLineEdit:focus,
         QFrame#SendCoins AmountSpinBox:focus {
-            background: $PANEL_SOFT;
-            border: 1px solid $WINE;
+            background: $PANEL;
+            border: 2px solid $WINE;
             border-radius: 10px;
-            padding: 4px 12px;
+            padding: 3px 11px;
             color: $INK;
         }
         QFrame#SendCoins AmountSpinBox[invalidInput="true"],
@@ -158,6 +157,7 @@ void SendCoinsEntry::applyTheme()
             border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 4px 12px;
+            min-height: 30px;
             color: $INK;
         }
         QFrame#SendCoins QValueComboBox QAbstractItemView {
@@ -182,19 +182,21 @@ void SendCoinsEntry::applyTheme()
             color: $INK;
         }
         QFrame#SendCoins QToolButton {
-            background: $PANEL_SOFT;
-            border: 1px solid $FIELD_BORDER;
+            background: transparent;
+            border: 1px solid transparent;
             border-radius: 10px;
-            padding: 4px;
-            margin-left: 6px;
+            padding: 8px;
         }
-        QFrame#SendCoins QToolButton:hover {
-            background: $PANEL_SOFT;
+        QFrame#SendCoins QToolButton:hover,
+        QFrame#SendCoins QToolButton:pressed {
+            background: $HOVER;
+        }
+        QFrame#SendCoins QToolButton:focus {
+            border-color: $FIELD_BORDER;
         }
         QFrame#SendCoins QCheckBox {
             background: transparent;
-            color: $INK_SOFT;
-            font-weight: 700;
+            color: $INK;
         }
         QFrame#SendCoins QCheckBox::indicator:unchecked {
             image: url(:/images/checkbox_normal_$ASSET_THEME);
@@ -203,6 +205,15 @@ void SendCoinsEntry::applyTheme()
             image: url(:/images/checkbox_checked_$ASSET_THEME);
         }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+
+    // Thin outline icons on ghost buttons, matching the sidebar set.
+    const QColor iconColor(GUIUtil::themeColors().inkSoft);
+    const QSize iconSize(20, 20);
+    ui->addressBookButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/address-book")), iconSize, iconColor));
+    ui->pasteButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/editpaste")), iconSize, iconColor));
+    ui->deleteButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/remove")), iconSize, iconColor));
+    for (QToolButton* button : {ui->addressBookButton, ui->pasteButton, ui->deleteButton})
+        button->setIconSize(iconSize);
 }
 
 SendCoinsEntry::~SendCoinsEntry()

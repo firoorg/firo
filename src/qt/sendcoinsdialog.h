@@ -71,6 +71,7 @@ private:
     bool fAnonymousMode;
     const PlatformStyle *platformStyle;
     void applyTheme();
+    void updateBalanceTitle();
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
     // of a message and message flags for use in Q_EMIT message().

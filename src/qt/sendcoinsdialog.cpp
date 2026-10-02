@@ -28,6 +28,7 @@
 
 #include <QFontMetrics>
 #include <QMessageBox>
+#include <QPainter>
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
@@ -161,6 +162,16 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
  * Apply the active theme to the send form, coin-control summary and fee controls.
  * @pre The UI is initialized and the caller is on the GUI thread.
  */
+void SendCoinsDialog::updateBalanceTitle()
+{
+    // A dot names the balance being spent: teal for Spark, grey for transparent.
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    const QString title = fAnonymousMode ? tr("Private Balance") : tr("Transparent Balance");
+    ui->labelBalanceText->setTextFormat(Qt::RichText);
+    ui->labelBalanceText->setText(QStringLiteral("<span style=\"color:%1; font-size:11px\">\u25CF</span>&nbsp;&nbsp;%2")
+                                      .arg(fAnonymousMode ? tc.teal : tc.inkFaint, title.toHtmlEscaped()));
+}
+
 void SendCoinsDialog::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral(
@@ -193,10 +204,11 @@ void SendCoinsDialog::applyTheme()
     ui->buttonMinimizeFee->setStyleSheet(secondaryButtonStyle);
 
     ui->balancePill->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QFrame#balancePill { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px; }"
+        "QFrame#balancePill { background: $PANEL; border: 1px solid $BORDER; border-radius: 17px; }"
         "QFrame#balancePill QLabel { background: transparent; border: none; }"
-        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-weight: 700; }"
+        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-weight: 400; }"
         "QFrame#balancePill QLabel#labelBalance { color: $INK; font-weight: 700; }")));
+    updateBalanceTitle();
 
     ui->labelCoinControlFeatures->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
@@ -1293,14 +1305,12 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 
     if (fAnonymousMode) {
         ui->switchFundButton->setText(QString(tr("Use Transparent Balance")));
-        ui->labelBalanceText->setText(QString(tr("Private Balance")));
 
         ui->checkBoxCoinControlChange->setEnabled(false);
         ui->lineEditCoinControlChange->setEnabled(false);
 
     } else {
         ui->switchFundButton->setText(QString(tr("Use Private Balance")));
-        ui->labelBalanceText->setText(QString(tr("Transparent Balance")));
 
         ui->checkBoxCoinControlChange->setEnabled(true);
         if (ui->checkBoxCoinControlChange->isChecked()) {
@@ -1308,6 +1318,7 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
         }
 
     }
+    updateBalanceTitle();
 
     if (model) {
         auto privateBalance = model->getSparkBalance();
@@ -1584,6 +1595,29 @@ SendConfirmationDialog::SendConfirmationDialog(const QString &title, const QStri
 {
     setDefaultButton(QMessageBox::Cancel);
     yesButton = button(QMessageBox::Yes);
+    // Yes is the filled action and Cancel the secondary one; Enter still cancels.
+    QAbstractButton* cancelButton = button(QMessageBox::Cancel);
+    yesButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("6px 16px")));
+    cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 16px")));
+    // Plain text buttons, without the platform's stock Yes and Cancel glyphs.
+    yesButton->setIcon(QIcon());
+    cancelButton->setIcon(QIcon());
+
+    // The send arrow on a tint circle instead of the generic question mark.
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    const qreal dpr = devicePixelRatioF();
+    QPixmap icon(qRound(44 * dpr), qRound(44 * dpr));
+    icon.setDevicePixelRatio(dpr);
+    icon.fill(Qt::transparent);
+    QPainter painter(&icon);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(tc.wineTint));
+    painter.drawEllipse(QRectF(0, 0, 44, 44));
+    painter.drawPixmap(QRect(11, 11, 22, 22), GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_send")),
+                                                                     QSize(22, 22), QColor(tc.wineText)));
+    painter.end();
+    setIconPixmap(icon);
     updateYesButton();
     connect(&countDownTimer, &QTimer::timeout, this, &SendConfirmationDialog::countDown);
 }
