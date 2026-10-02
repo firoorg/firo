@@ -303,6 +303,58 @@ BOOST_AUTO_TEST_CASE(account_for_receiving)
     }
 }
 
+/* listbip47addresses numbers the addresses of a payment channel by walking the used list
+ * and then continuing into the lookahead window, so the two have to stay contiguous in
+ * derivation order for the reported indices to be meaningful. */
+BOOST_AUTO_TEST_CASE(channel_address_indices)
+{
+    ChangeBase58Prefixes _(Params());
+
+    using namespace bob;
+    CExtKey key;
+    key.SetMaster(bip32seed.data(), bip32seed.size());
+    CExtKey key_bob = utils::Derive(key, {47 | BIP32_HARDENED_KEY_LIMIT, 0x00 | BIP32_HARDENED_KEY_LIMIT});
+
+    bip47::CAccountReceiver account(key_bob, 0, "");
+
+    std::vector<unsigned char> const outPointSer = ParseHex("86f411ab1c8e70ae8a0795ab7a6757aea6e4d5ae1826fc7b8f00c597d500609c01000000");
+    CDataStream ds(outPointSer, SER_NETWORK, 0);
+    COutPoint outpoint;
+    ds >> outpoint;
+
+    CBitcoinSecret vchSecret;
+    vchSecret.SetString("Kx983SRhAZpAhj7Aac1wUXMJ6XZeyJKqCxJJ49dxEbYCT4a1ozRD");
+    CPubKey outpointPubkey = vchSecret.GetKey().GetPubKey();
+
+    BOOST_CHECK(account.acceptMaskedPayload(ParseHex(alice::maskedpayload), outpoint, outpointPubkey));
+
+    BOOST_REQUIRE_EQUAL(account.getPchannels().size(), 1);
+    bip47::CPaymentChannel const & pchannel = account.getPchannels().front();
+
+    BOOST_CHECK_EQUAL(pchannel.generateMyUsedAddresses().size(), 0);
+    {
+        bip47::MyAddrContT const & next = pchannel.generateMyNextAddresses();
+        BOOST_REQUIRE_EQUAL(next.size(), bip47::AddressLookaheadNumber);
+        for (size_t i = 0; i < next.size(); ++i)
+            BOOST_CHECK_EQUAL(next[i].first.ToString(), alice::sendingaddresses[i]);
+    }
+
+    /* Receiving on the third lookahead address marks the first three as used. */
+    CBitcoinAddress thirdAddr(alice::sendingaddresses[2]);
+    BOOST_CHECK(account.addressUsed(thirdAddr));
+
+    bip47::MyAddrContT const & used = pchannel.generateMyUsedAddresses();
+    BOOST_REQUIRE_EQUAL(used.size(), 3);
+    for (size_t i = 0; i < used.size(); ++i)
+        BOOST_CHECK_EQUAL(used[i].first.ToString(), alice::sendingaddresses[i]);
+
+    /* The lookahead window resumes right after the last used address, with no gap and no repeat. */
+    bip47::MyAddrContT const & next = pchannel.generateMyNextAddresses();
+    BOOST_REQUIRE_EQUAL(next.size(), bip47::AddressLookaheadNumber);
+    for (size_t i = 0; i + used.size() < alice::sendingaddresses.size(); ++i)
+        BOOST_CHECK_EQUAL(next[i].first.ToString(), alice::sendingaddresses[i + used.size()]);
+}
+
 BOOST_AUTO_TEST_CASE(address_match)
 {
     CExtKey keyBob; keyBob.SetMaster(bob::bip32seed.data(), bob::bip32seed.size());
