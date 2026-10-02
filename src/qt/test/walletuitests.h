@@ -14,6 +14,8 @@ class WalletUiTests : public QObject
 private Q_SLOTS:
     void initialSyncQueryDoesNotBlock();
     void synchronizationProgress();
+    void synchronizationEstimates();
+    void synchronizationWarnings();
     void collapsedNavigationRemainsUsable();
     void paymentRequestFitsSmallScreen();
     void receiveFormFitsSmallScreen();

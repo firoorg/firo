@@ -349,6 +349,10 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     filterLayout->addWidget(countPill, 0, 3);
 
     ui->topLayout->insertWidget(0, filterCard);
+    syncWarning = new QLabel(tr("Masternode information may be out of date while the wallet is syncing."), this);
+    syncWarning->setObjectName(QStringLiteral("masternodeSyncWarning"));
+    syncWarning->setWordWrap(true);
+    ui->topLayout->insertWidget(1, syncWarning);
     ui->masternodeContentCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->topLayout->setStretchFactor(ui->masternodeContentCard, 1);
 
@@ -452,6 +456,13 @@ QFrame#masternodeContentCard {
   background: $PANEL;
   border: 1px solid $BORDER;
   border-radius: 16px;
+}
+QLabel#masternodeSyncWarning {
+  background: $GOLD_TINT;
+  color: $INK;
+  border: 1px solid $GOLD;
+  border-radius: 10px;
+  padding: 8px 12px;
 }
 QLineEdit#filterLineEditDIP3 {
   min-height: 34px;
@@ -602,6 +613,11 @@ void MasternodeList::setWalletModel(WalletModel* model)
     mnListChanged = true;
     nTimeUpdatedDIP3 = 0;
     updateDIP3ListScheduled();
+}
+
+void MasternodeList::showOutOfSyncWarning(bool fShow)
+{
+    syncWarning->setVisible(fShow);
 }
 
 bool MasternodeList::eventFilter(QObject* watched, QEvent* event)

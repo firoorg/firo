@@ -96,6 +96,7 @@ void WalletView::setupTransactionPage()
 void WalletView::setupSendCoinPage()
 {
     sendFiroView = new SendCoinsDialog(platformStyle);
+    connect(sendFiroView, &SendCoinsDialog::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
     connect(sendFiroView, &SendCoinsDialog::message, this, &WalletView::message);
 
@@ -293,6 +294,8 @@ void WalletView::showOutOfSyncWarning(bool fShow)
 {
     overviewPage->showOutOfSyncWarning(fShow);
     firoTransactionList->showOutOfSyncWarning(fShow);
+    sendFiroView->showOutOfSyncWarning(fShow);
+    masternodeListPage->showOutOfSyncWarning(fShow);
 }
 
 void WalletView::updateEncryptionStatus()
