@@ -1343,6 +1343,50 @@ void WalletUiTests::sendFormFitsSmallScreen()
     }
 }
 
+void WalletUiTests::sendAmountVisibleWithAddressWarning()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+
+    // A transparent recipient shows the address warning but no memo row. The warning must
+    // not squeeze the amount row out of the recipient card, whether it takes one line or two.
+    for (const QString& text : {QStringLiteral("You are sending Firo from a transparent address to a Spark address."),
+                                QStringLiteral("You are sending Firo from a transparent address to another transparent address. "
+                                               "To protect your privacy, we recommend using Spark addresses instead.")}) {
+        SendCoinsDialog dialog(style.get());
+        dialog.setAttribute(Qt::WA_DontShowOnScreen);
+        dialog.show();
+        dialog.resize(944, 625);
+        auto* warning = dialog.findChild<QLabel*>("textWarning");
+        QVERIFY(warning);
+        warning->setText(text);
+        for (const char* name : {"addressWarningRow", "textWarning", "iconWarning"}) {
+            auto* widget = dialog.findChild<QWidget*>(name);
+            QVERIFY(widget);
+            widget->show();
+        }
+        auto* memo = dialog.findChild<QWidget*>("messageTextLabel");
+        QVERIFY(memo);
+        QVERIFY(!memo->isVisible());
+
+        auto* card = dialog.findChild<QWidget*>("SendCoins");
+        auto* label = dialog.findChild<QWidget*>("addAsLabel");
+        auto* amount = dialog.findChild<QWidget*>("payAmount");
+        auto* subtractFee = dialog.findChild<QWidget*>("checkboxSubtractFeeFromAmount");
+        QVERIFY(card);
+        QVERIFY(label);
+        QVERIFY(amount);
+        QVERIFY(subtractFee);
+        QTRY_VERIFY2(amount->height() >= amount->minimumSizeHint().height(), qPrintable(text));
+        for (QWidget* field : {label, amount, subtractFee}) {
+            QVERIFY2(field->isVisible(), qPrintable(field->objectName()));
+            QVERIFY2(card->rect().contains(QRect(field->mapTo(card, QPoint()), field->size())), qPrintable(field->objectName()));
+        }
+        QVERIFY(amount->mapTo(card, QPoint()).y() >= label->mapTo(card, QPoint(0, label->height())).y());
+    }
+}
+
 void WalletUiTests::receiveMnemonics()
 {
     const std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
