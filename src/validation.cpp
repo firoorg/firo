@@ -1613,7 +1613,8 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
         }
     }
 
-    if (fAllowSlow) { // use coin database to locate block that contains transaction, and scan it
+    // Avoid scanning every possible output under cs_main after a txindex miss.
+    if (fAllowSlow && !fTxIndex) { // use coin database to locate block that contains transaction, and scan it
         const Coin& coin = AccessByTxid(*pcoinsTip, hash);
         if (!coin.IsSpent()) pindexSlow = chainActive[coin.nHeight];
     }
