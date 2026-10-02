@@ -253,6 +253,10 @@ bool Recover::askRecover(bool& newWallet)
 
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
+                    if(recover.ui->mnemonicWords->text().trimmed().isEmpty()) {
+                        recover.ui->errorMessage->setText(tr("Recovery seed phrase can't be empty."));
+                        continue;
+                    }
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
                     QDate date = recover.ui->dateInput->date();
                     QDate newDate = date.addDays(-1);
@@ -278,11 +282,6 @@ bool Recover::askRecover(bool& newWallet)
 
                     if((n == 12 && !use12) || (n != 24 && n != 12) || (n != 12 && use12)) {
                         recover.ui->errorMessage->setText(tr("Wrong number of words. Please try again."));
-                        continue;
-                    }
-
-                    if(mnemonic.empty()) {
-                        recover.ui->errorMessage->setText(tr("Recovery seed phrase can't be empty."));
                         continue;
                     }
 

@@ -21,6 +21,7 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
+#include "recover.h"
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
 #include "sparkname.h"
@@ -40,6 +41,7 @@
 #include <QAbstractItemDelegate>
 #include <QAbstractSpinBox>
 #include <QAction>
+#include <QApplication>
 #include <QCalendarWidget>
 #include <QColor>
 #include <QComboBox>
@@ -55,6 +57,7 @@
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QScopeGuard>
 #include <QScrollArea>
 #include <QScrollBar>
@@ -65,6 +68,7 @@
 #include <QStyleOptionViewItem>
 #include <QTableView>
 #include <QTest>
+#include <QTemporaryDir>
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolBar>
@@ -1164,4 +1168,61 @@ void WalletUiTests::receiveMnemonics()
         QVERIFY(label->buddy());
         QVERIFY(label->text().contains(QLatin1Char('&')));
     }
+}
+
+void WalletUiTests::emptyRecoverySeed()
+{
+#ifdef ENABLE_WALLET
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const std::string oldWallet = GetArg("-wallet", DEFAULT_WALLET_DAT);
+    const auto restoreWallet = qScopeGuard([&] { ForceSetArg("-wallet", oldWallet); });
+    ForceSetArg("-wallet", (directory.path() + "/wallet.dat").toStdString());
+
+    for (const QString& seed : {QString(), QStringLiteral(" \t\r\n "),
+                               QString(QChar(0x00a0)), QString(QChar(0x3000))}) {
+        for (const bool use12 : {false, true}) {
+            QString error;
+            bool submitted = false;
+            bool timedOut = false;
+            QTimer timer;
+            QTimer::singleShot(5000, &timer, [&] {
+                timedOut = true;
+                if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
+                    dialog->reject();
+            });
+            connect(&timer, &QTimer::timeout, [&] {
+                auto* dialog = qobject_cast<Recover*>(QApplication::activeModalWidget());
+                if (!dialog)
+                    return;
+                auto* words = dialog->findChild<QLineEdit*>("mnemonicWords");
+                auto* recoverExisting = dialog->findChild<QRadioButton*>("recoverExisting");
+                auto* wordCount = dialog->findChild<QRadioButton*>(use12 ? "use12" : "use24");
+                auto* message = dialog->findChild<QLabel*>("errorMessage");
+                if (!words || !recoverExisting || !wordCount || !message) {
+                    dialog->reject();
+                    return;
+                }
+                if (!submitted) {
+                    recoverExisting->click();
+                    wordCount->click();
+                    words->setText(seed);
+                    submitted = true;
+                    dialog->accept();
+                } else {
+                    error = message->text();
+                    dialog->reject();
+                }
+            });
+            timer.start(0);
+            bool newWallet = false;
+            const bool accepted = Recover::askRecover(newWallet);
+            timer.stop();
+            QVERIFY(!timedOut);
+            QVERIFY(!accepted);
+            QVERIFY(submitted);
+            QCOMPARE(error, Recover::tr("Recovery seed phrase can't be empty."));
+        }
+    }
+#endif
 }
