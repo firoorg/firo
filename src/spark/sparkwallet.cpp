@@ -1480,12 +1480,11 @@ bool CSparkWallet::CreateSparkMintTransactions(
                             while (i < tx.vout.size()) {
                                 if (tx.vout[i].scriptPubKey.IsSparkMint()) {
                                     tx.vout[i] = txout;
-                                    CWalletDB walletdb(pwalletMain->strWalletFile);
                                     CSparkOutputTx output;
                                     output.address = recipient.address;
                                     output.amount = recipient.nAmount;
                                     output.memo = recipient.memo;
-                                    walletdb.WriteSparkOutputTx(recipient.scriptPubKey, output);
+                                    wtx.pendingSparkOutputRecords.emplace_back(recipient.scriptPubKey, output);
                                     break;
                                 }
                                 ++i;
