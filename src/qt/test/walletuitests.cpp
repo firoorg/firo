@@ -42,8 +42,8 @@
 #include <QAction>
 #include <QCalendarWidget>
 #include <QColor>
-#include <QDateTimeEdit>
 #include <QComboBox>
+#include <QDateTimeEdit>
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QImage>
