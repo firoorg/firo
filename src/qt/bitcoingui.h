@@ -159,6 +159,7 @@ private:
     ModalOverlay *modalOverlay;
 
     int spinnerFrame;
+    int prevBlocks{-1};
 #ifdef ENABLE_WALLET
     bool sparkAddressbookUpdated;
 #endif

@@ -745,7 +745,7 @@ void WalletUiTests::synchronizationProgress()
     std::thread validation([&] {
         LOCK(cs_main);
         locked.set_value();
-        done.wait();
+        done.wait_for(std::chrono::seconds(30));
     });
     const auto releaseValidation = qScopeGuard([&] {
         release.set_value();
@@ -760,7 +760,11 @@ void WalletUiTests::synchronizationProgress()
     gui.setNumBlocks(100, now.addDays(-10), 0.99, true);
     QVERIFY(gui.progressBarLabel->text().startsWith("Syncing Headers"));
     QCOMPARE(gui.navigationSyncPercent->text(), QStringLiteral("62.51%"));
+    const int stalledFrame = gui.spinnerFrame;
+    gui.updateSyncStatus();
+    QCOMPARE(gui.spinnerFrame, stalledFrame);
     gui.setNumBlocks(11, now.addDays(-1), 0.65, false);
+    QVERIFY(gui.spinnerFrame != stalledFrame);
     QVERIFY(gui.progressBarLabel->text().startsWith("Syncing Headers"));
     QCOMPARE(gui.navigationSyncPercent->text(), QStringLiteral("65.00%"));
 
@@ -777,11 +781,26 @@ void WalletUiTests::synchronizationProgress()
 
     // A lull in a caught-up chain is not evidence of an active header download.
     model.cachedInitialBlockDownload = false;
+    model.cachedNumBlocks = 101;
+    model.cachedBestHeaderHeight = 101;
     model.cachedLastBlockDate = now.addSecs(-2LL * 60 * 60);
     gui.setNumBlocks(101, model.cachedLastBlockDate, 0.99, false);
     gui.setNumBlocks(101, model.cachedLastBlockDate, 0.99, true);
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Catching up..."));
     QVERIFY(!gui.modalOverlay->isHeaderSyncPending());
+    QVERIFY(!gui.modalOverlay->isLayerVisible());
+
+    // A fresh block tip does not finish pending headers after the IBD latch clears.
+    model.cachedLastBlockDate = now;
+    gui.setNumBlocks(101, now, 0.99, false);
+    QVERIFY(!model.inInitialBlockDownload());
+    QVERIFY(!gui.blockchainSyncInProgress());
+    gui.setNumBlocks(102, now.addDays(-5), 0.99, true);
+    QVERIFY(gui.modalOverlay->isHeaderSyncPending());
+    QVERIFY(gui.blockchainSyncInProgress());
+    QVERIFY(!gui.navigationSyncCard->isHidden());
+    QVERIFY(gui.progressBarLabel->text().startsWith("Syncing Headers"));
+    gui.setNumBlocks(102, now, 0.99, true);
 
     model.cachedLastBlockDate = now;
     masternodeSync.Reset();
@@ -796,26 +815,78 @@ void WalletUiTests::synchronizationProgress()
     QVERIFY(refreshTimer);
     QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
     QVERIFY(gui.modalOverlay->isLayerVisible());
+    const int waitingFrame = gui.spinnerFrame;
+    QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
+    QCOMPARE(gui.spinnerFrame, waitingFrame);
+
+    // Observe queued balloons without invoking the platform notification service.
+    struct NotificationCalls : QObject {
+        int count{0};
+        bool eventFilter(QObject*, QEvent* event) override
+        {
+            if (event->type() != QEvent::MetaCall) {
+                return false;
+            }
+            ++count;
+            return true;
+        }
+    } notifications;
+    gui.installEventFilter(&notifications);
+    QCoreApplication::sendPostedEvents(&gui, QEvent::MetaCall);
+    notifications.count = 0;
+    gui.incomingTransaction("today", 0, COIN, "Received", "", "");
+    QCoreApplication::sendPostedEvents(&gui, QEvent::MetaCall);
+    QCOMPARE(notifications.count, 0);
 
     masternodeSync.SwitchToNextAsset(*g_connman);
     gui.setAdditionalDataSyncProgress(1.0);
+    gui.incomingTransaction("today", 0, COIN, "Received", "", "");
+    QCoreApplication::sendPostedEvents(&gui, QEvent::MetaCall);
+    QCOMPARE(notifications.count, 1);
     QVERIFY(gui.navigationSyncCard->isHidden());
     QVERIFY(gui.labelBlocksIcon->toolTip().contains("Up to date"));
     const auto syncedIcon = gui.labelBlocksIcon->pixmap().toImage();
     gui.updateProgressBarLabel("Batch verifying Spark Proofs...");
-    QCOMPARE(gui.navigationSyncLabel->toolTip(), QStringLiteral("Batch verifying Spark Proofs..."));
+    QCOMPARE(gui.navigationSyncLabel->toolTip(), QStringLiteral("Synced"));
     QVERIFY(gui.progressBarLabel->isHidden());
-    QVERIFY(!gui.navigationSyncProgress->property("synced").toBool());
+    QVERIFY(gui.navigationSyncCard->isHidden());
+    QVERIFY(gui.navigationSyncProgress->property("synced").toBool());
+    QVERIFY(gui.modalOverlay->findChild<QProgressBar*>("progressBar")->property("synced").toBool());
+    QCOMPARE(gui.labelBlocksIcon->pixmap().toImage(), syncedIcon);
     gui.updateProgressBarLabel(QString());
     QVERIFY(gui.navigationSyncCard->isHidden());
 
+    gui.setNumConnections(0);
+    QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Connecting to peers..."));
+    QVERIFY(!gui.navigationSyncProgress->property("synced").toBool());
+    QVERIFY(!gui.modalOverlay->findChild<QProgressBar*>("progressBar")->property("synced").toBool());
+    QVERIFY(gui.labelBlocksIcon->pixmap().toImage() != syncedIcon);
+    QVERIFY(gui.labelBlocksIcon->toolTip().contains("Connecting to peers..."));
+    QVERIFY(!gui.labelBlocksIcon->toolTip().contains("Up to date"));
+    gui.setNumConnections(1);
+    g_connman->SetNetworkActive(false);
+    gui.setNetworkActive(false);
+    QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Network activity disabled"));
+    QVERIFY(!gui.modalOverlay->findChild<QProgressBar*>("progressBar")->property("synced").toBool());
+    QVERIFY(gui.labelBlocksIcon->pixmap().toImage() != syncedIcon);
+    QVERIFY(gui.labelBlocksIcon->toolTip().contains("Network activity disabled"));
+    QVERIFY(!gui.labelBlocksIcon->toolTip().contains("Up to date"));
+    g_connman->SetNetworkActive(true);
+    gui.setNetworkActive(true);
+
+    gui.modalOverlay->showHide(true);
     model.cachedLastBlockDate = now.addDays(-1);
+    model.cachedBestHeaderHeight = 102;
+    model.cachedBestHeaderTime = now.toSecsSinceEpoch();
     model.cachedVerificationProgress = 0.987;
     QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Catching up..."));
     QCOMPARE(gui.navigationSyncFraction, 0.987);
     QCOMPARE(gui.modalOverlay->findChild<QLabel*>("percentageProgress")->text(), QStringLiteral("98.70%"));
     QVERIFY(gui.modalOverlay->isLayerVisible());
+    gui.incomingTransaction("today", 0, COIN, "Received", "", "");
+    QCoreApplication::sendPostedEvents(&gui, QEvent::MetaCall);
+    QCOMPARE(notifications.count, 1);
     model.cachedLastBlockDate = now;
     gui.setNumBlocks(102, now, 1.0, false);
     QCOMPARE(gui.labelBlocksIcon->pixmap().toImage(), syncedIcon);
@@ -828,11 +899,18 @@ void WalletUiTests::synchronizationProgress()
     QCOMPARE(gui.navigationSyncFraction, 0.25);
     fReindex = false;
     SelectParams(CBaseChainParams::REGTEST);
+    model.cachedLastBlockDate = now.addDays(-1);
+    gui.setNumBlocks(102, model.cachedLastBlockDate, 1.0, false);
+    QVERIFY(gui.modalOverlay->isHeaderSyncPending());
+    QVERIFY(!gui.blockchainSyncInProgress());
+    QVERIFY(!gui.modalOverlay->isLayerVisible());
+    QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Synced"));
     QVERIFY(!gui.isActivelySyncing());
     fReindex = true;
     QVERIFY(gui.isActivelySyncing());
     fReindex = false;
     SelectParams(CBaseChainParams::TESTNET);
+    model.cachedLastBlockDate = now;
 
     ForceSetArg("-disablewallet", "1");
     BitcoinGUI node(platformStyle.get(), networkStyle.get());
@@ -895,6 +973,9 @@ void WalletUiTests::synchronizationEstimates()
     overlay.tipUpdate(101, now.addSecs(-5LL * 60 * 60), 0.99);
     overlay.setKnownBestHeight(101, now.addSecs(-5LL * 60 * 60));
     QVERIFY(!overlay.isHeaderSyncPending());
+    QCOMPARE(blocks->text(), QStringLiteral("Unknown..."));
+    overlay.setKnownBestHeight(101, now);
+    QCOMPARE(blocks->text(), QStringLiteral("0"));
     overlay.closeClicked();
     overlay.showHide();
     QVERIFY(!overlay.isLayerVisible());

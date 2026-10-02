@@ -692,8 +692,6 @@ protected:
 
 #include "bitcoingui.moc"
 
-static constexpr int MAX_SYNCED_TIP_AGE_SECS = 45 * 60;
-
 static constexpr int NAVIGATION_SIDEBAR_WIDTH = 220;
 static constexpr int NAVIGATION_COLLAPSED_WIDTH = 80;
 static constexpr int NAVIGATION_ACTION_WIDTH = 190;
@@ -1121,6 +1119,10 @@ bool BitcoinGUI::blockchainSyncInProgress() const
     if (::Params().NetworkIDString() == CBaseChainParams::REGTEST)
         return false;
 
+    if (modalOverlay && modalOverlay->isHeaderSyncPending()) {
+        return true;
+    }
+
     if (clientModel->inInitialBlockDownload())
         return true;
 
@@ -1132,7 +1134,7 @@ bool BitcoinGUI::blockchainSyncInProgress() const
 
 bool BitcoinGUI::syncInProgress() const
 {
-    return clientModel && (blockchainSyncInProgress() || !masternodeSync.IsSynced() || !coreSyncStatus.isEmpty());
+    return clientModel && (blockchainSyncInProgress() || !masternodeSync.IsSynced());
 }
 
 bool BitcoinGUI::isActivelySyncing() const
@@ -1175,7 +1177,7 @@ void BitcoinGUI::updateNavigationSyncCard(
     navigationSyncCard->setAccessibleDescription(syncDescription);
 
     navigationSyncProgress->setValue(qRound(clampedProgress * 100.0));
-    const bool showSyncCard = isActivelySyncing() || !coreSyncStatus.isEmpty();
+    const bool showSyncCard = isActivelySyncing();
     if (navigationSyncCardAction)
         navigationSyncCardAction->setVisible(showSyncCard);
     navigationSyncCard->setVisible(showSyncCard);
@@ -1629,15 +1631,16 @@ void BitcoinGUI::updateSyncStatus()
 
     const auto blockSource = clientModel->getBlockSource();
     const bool blockchainSyncing = blockchainSyncInProgress();
-    const bool syncing = blockchainSyncing || !masternodeSync.IsSynced() || !coreSyncStatus.isEmpty();
-    const bool syncingHeaders = clientModel->inInitialBlockDownload() &&
+    const bool syncing = blockchainSyncing || !masternodeSync.IsSynced();
+    const bool fullySynced = clientModel->getNetworkActive() && numConnections > 0 && !syncing;
+    const bool syncingHeaders = blockchainSyncing &&
         modalOverlay->isHeaderSyncPending();
     const QDateTime blockDate = clientModel->getLastBlockDate();
     const qint64 secs = blockDate.isValid()
         ? qMax<qint64>(0, blockDate.secsTo(QDateTime::currentDateTime())) : 0;
     double progress = blockSyncProgress;
     QString status;
-    if (!coreSyncStatus.isEmpty()) {
+    if (blockchainSyncing && !coreSyncStatus.isEmpty()) {
         status = coreSyncStatus;
     } else if (blockSource == BLOCK_SOURCE_REINDEX) {
         status = tr("Reindexing blocks on disk...");
@@ -1660,14 +1663,14 @@ void BitcoinGUI::updateSyncStatus()
         progress = 1.0;
     }
     progressBarLabel->setText(status);
-    progressBarLabel->setVisible(!navigationSyncCard && (syncing || !coreSyncStatus.isEmpty()));
+    progressBarLabel->setVisible(!navigationSyncCard && syncing);
     progressBar->setMaximum(1000000000);
     progressBar->setValue(qRound(qBound(0.0, progress, 1.0) * 1000000000.0));
     progressBar->setFormat(blockchainSyncing && blockDate.isValid()
         ? tr("%1 behind").arg(GUIUtil::formatNiceTimeOffset(secs)) : QStringLiteral("%p%"));
     progressBar->setVisible(!navigationSyncCard && syncing);
     updateNavigationSyncCard(status, progress);
-    modalOverlay->setSyncComplete(!syncing);
+    modalOverlay->setSyncComplete(fullySynced);
 
     QString tooltip = tr("Processed %n block(s) of transaction history.", "", clientModel->getNumBlocks());
     if (blockchainSyncing) {
@@ -1677,16 +1680,15 @@ void BitcoinGUI::updateSyncStatus()
                 .arg(GUIUtil::formatNiceTimeOffset(secs));
         }
         tooltip += QStringLiteral("<br>") + tr("Transactions after this will not yet be visible.");
-    } else {
+    } else if (fullySynced) {
         tooltip = tr("Up to date") + QStringLiteral(".<br>") + tooltip;
-        if (syncing)
-            tooltip = status + QStringLiteral("<br>") + tooltip;
+    } else {
+        tooltip = status + QStringLiteral("<br>") + tooltip;
     }
-    if (syncing) {
+    if (!fullySynced) {
         labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
             ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
             QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
-        spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
     } else {
         labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"),
             QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
@@ -1698,11 +1700,14 @@ void BitcoinGUI::updateSyncStatus()
 
 #ifdef ENABLE_WALLET
     if (walletFrame) {
-        walletFrame->showOutOfSyncWarning(blockchainSyncing || !coreSyncStatus.isEmpty());
+        walletFrame->showOutOfSyncWarning(blockchainSyncing);
         if (blockDate.isValid()) {
-            const bool tipBehind = secs >= MAX_SYNCED_TIP_AGE_SECS;
-            if (tipBehind || tipWasBehind)
+            const bool tipBehind = blockchainSyncing && secs >= MAX_SYNCED_TIP_AGE_SECS &&
+                (clientModel->inInitialBlockDownload() ||
+                 clientModel->getHeaderTipHeight() > clientModel->getNumBlocks());
+            if (tipBehind || tipWasBehind) {
                 modalOverlay->showHide(!tipBehind);
+            }
             tipWasBehind = tipBehind;
         }
     }
@@ -1714,6 +1719,10 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     if (header) {
         modalOverlay->setKnownBestHeight(count, blockDate);
     } else {
+        if (count != prevBlocks) {
+            spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
+            prevBlocks = count;
+        }
         blockSyncProgress = nVerificationProgress;
         if (clientModel && ::Params().NetworkIDString() == CBaseChainParams::REGTEST &&
             (clientModel->getBlockSource() == BLOCK_SOURCE_REINDEX || clientModel->getBlockSource() == BLOCK_SOURCE_DISK)) {
@@ -1860,6 +1869,10 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 #ifdef ENABLE_WALLET
 void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label)
 {
+    // Suppress historical transactions during catch-up after restart or sleep.
+    if (!masternodeSync.IsBlockchainSynced() || blockchainSyncInProgress()) {
+        return;
+    }
     // On new transaction, make an info balloon
     QString msg = tr("Date: %1\n").arg(date) +
                   tr("Amount: %1\n").arg(BitcoinUnits::formatWithUnit(unit, amount, true)) +
