@@ -496,14 +496,11 @@ void OverviewPage::applyOverviewTheme()
             "QLabel { background: transparent; color: $INK_SOFT; }")));
     }
 
-    // Amount runs and split labels embed theme colors, so repaint them.
-    if (walletModel && walletModel->getOptionsModel() && currentBalance != -1) {
-        setBalance(currentBalance, currentUnconfirmedBalance, currentImmatureBalance,
-                   currentWatchOnlyBalance, currentWatchUnconfBalance, currentWatchImmatureBalance,
-                   currentPrivateBalance, currentUnconfirmedPrivateBalance, currentAnonymizableBalance);
-    } else {
-        updateBalanceSplitLabels();
+    // The amount runs embed the theme's faded color, so render them again.
+    if (currentBalance != -1) {
+        updateBalanceLabels();
     }
+    updateBalanceSplitLabels();
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -754,7 +751,6 @@ void OverviewPage::setBalance(
     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
     const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance)
 {
-    int unit = walletModel->getOptionsModel()->getDisplayUnit();
     currentBalance = balance;
     currentUnconfirmedBalance = unconfirmedBalance;
     currentImmatureBalance = immatureBalance;
@@ -764,24 +760,7 @@ void OverviewPage::setBalance(
     currentPrivateBalance = privateBalance;
     currentUnconfirmedPrivateBalance = unconfirmedPrivateBalance;
     currentAnonymizableBalance = anonymizableBalance;
-    const QString faded = GUIUtil::themeColors().inkFaint;
-    const auto runs = [unit, &faded](const CAmount& amount) {
-        return GUIUtil::amountRunsHtml(BitcoinUnits::formatWithUnit(unit, amount, false, BitcoinUnits::separatorAlways), faded);
-    };
-    ui->labelBalance->setText(runs(balance));
-    ui->labelUnconfirmed->setText(runs(unconfirmedBalance));
-    ui->labelImmature->setText(runs(immatureBalance));
-    // The total sits on the gradient: decimals at 60% white, unit in the light display weight.
-    ui->labelTotal->setText(GUIUtil::amountRunsHtml(
-        BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways),
-        QStringLiteral("#99FFFFFF"), QStringLiteral("font-size:24px; font-weight:300")));
-    ui->labelWatchAvailable->setText(runs(watchOnlyBalance));
-    ui->labelWatchPending->setText(runs(watchUnconfBalance));
-    ui->labelWatchImmature->setText(runs(watchImmatureBalance));
-    ui->labelWatchTotal->setText(runs(watchOnlyBalance + watchUnconfBalance + watchImmatureBalance));
-    ui->labelPrivate->setText(runs(privateBalance));
-    ui->labelUnconfirmedPrivate->setText(runs(unconfirmedPrivateBalance));
-    ui->labelAnonymizable->setText(runs(anonymizableBalance));
+    updateBalanceLabels();
 
     auto wallet = walletModel->getWallet();
     updateSparkAnonymizeRowVisibility();
@@ -801,6 +780,32 @@ void OverviewPage::setBalance(
     updateBalanceSplitLabels();
     updatePrivateTransparentSplitBar();
     updateActivityEmptyState();
+}
+
+void OverviewPage::updateBalanceLabels()
+{
+    if (!walletModel || !walletModel->getOptionsModel()) {
+        return;
+    }
+    const int unit = walletModel->getOptionsModel()->getDisplayUnit();
+    const QString faded = GUIUtil::themeColors().inkFaint;
+    const auto runs = [unit, &faded](const CAmount& amount) {
+        return GUIUtil::amountRunsHtml(BitcoinUnits::formatWithUnit(unit, amount, false, BitcoinUnits::separatorAlways), faded);
+    };
+    ui->labelBalance->setText(runs(currentBalance));
+    ui->labelUnconfirmed->setText(runs(currentUnconfirmedBalance));
+    ui->labelImmature->setText(runs(currentImmatureBalance));
+    // The total sits on the gradient: decimals at 60% white, unit in the light display weight.
+    ui->labelTotal->setText(GUIUtil::amountRunsHtml(
+        BitcoinUnits::formatWithUnit(unit, currentBalance + currentUnconfirmedBalance + currentImmatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways),
+        QStringLiteral("#99FFFFFF"), QStringLiteral("font-size:24px; font-weight:300")));
+    ui->labelWatchAvailable->setText(runs(currentWatchOnlyBalance));
+    ui->labelWatchPending->setText(runs(currentWatchUnconfBalance));
+    ui->labelWatchImmature->setText(runs(currentWatchImmatureBalance));
+    ui->labelWatchTotal->setText(runs(currentWatchOnlyBalance + currentWatchUnconfBalance + currentWatchImmatureBalance));
+    ui->labelPrivate->setText(runs(currentPrivateBalance));
+    ui->labelUnconfirmedPrivate->setText(runs(currentUnconfirmedPrivateBalance));
+    ui->labelAnonymizable->setText(runs(currentAnonymizableBalance));
 }
 
 void OverviewPage::updateBalanceSplitLabels()

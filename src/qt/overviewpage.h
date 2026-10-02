@@ -99,6 +99,8 @@ private:
 
     void applyOverviewRedesign();
     void applyOverviewTheme();
+    /** Render the cached balances into the amount labels, without querying wallet or chain state. */
+    void updateBalanceLabels();
     void updatePrivateTransparentSplitBar();
     void updateBalanceSplitLabels();
     void updateActivityEmptyState();
