@@ -52,7 +52,6 @@
 #include <QDragEnterEvent>
 #include <QEasingCurve>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect>
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
@@ -791,11 +790,6 @@ void BitcoinGUI::createToolBars()
 
         navigationSelectionHighlight = new NavigationSelectionHighlight(toolbar);
         navigationSelectionHighlight->lower();
-        auto* highlightShadow = new QGraphicsDropShadowEffect(navigationSelectionHighlight);
-        highlightShadow->setBlurRadius(20);
-        highlightShadow->setOffset(0, 6);
-        highlightShadow->setColor(QColor(130, 24, 51, 65));
-        navigationSelectionHighlight->setGraphicsEffect(highlightShadow);
 
         overviewAction->setChecked(true);
 

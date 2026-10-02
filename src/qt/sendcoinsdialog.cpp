@@ -191,9 +191,6 @@ void SendCoinsDialog::applyTheme()
     ui->addButton->setStyleSheet(secondaryButtonStyle);
     ui->buttonChooseFee->setStyleSheet(primaryButtonStyle);
     ui->buttonMinimizeFee->setStyleSheet(secondaryButtonStyle);
-    GUIUtil::applyPrimaryButtonShadow(ui->sendButton);
-    GUIUtil::applyPrimaryButtonShadow(ui->switchFundButton);
-    GUIUtil::applyPrimaryButtonShadow(ui->buttonChooseFee);
 
     ui->balancePill->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QFrame#balancePill { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"

@@ -27,7 +27,6 @@
 #include <QDialogButtonBox>
 #include <QFrame>
 #include <QGridLayout>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QItemSelectionModel>
 #include <QLabel>
@@ -407,12 +406,6 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     emptyDescription_->setAlignment(Qt::AlignCenter);
     emptyLayout->addWidget(emptyDescription_);
     emptyLayout->addStretch();
-
-    auto* filterShadow = new QGraphicsDropShadowEffect(filterCard);
-    filterShadow->setBlurRadius(20);
-    filterShadow->setOffset(0, 5);
-    filterShadow->setColor(QColor(65, 37, 52, 24));
-    filterCard->setGraphicsEffect(filterShadow);
 
     QAction* detailsAction = new QAction(tr("Details..."), this);
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);

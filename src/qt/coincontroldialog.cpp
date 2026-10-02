@@ -244,7 +244,6 @@ void CoinControlDialog::applyTheme()
     ui->pushButtonSelectAll->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px")));
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
 
     ui->treeWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(

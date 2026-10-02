@@ -44,7 +44,6 @@ void OpenURIDialog::applyTheme()
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(primaryButtonStyle);
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(secondaryButtonStyle);

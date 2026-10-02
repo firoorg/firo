@@ -44,7 +44,6 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QCalendarWidget>
-#include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QPushButton>
 #include <QStyledItemDelegate>
@@ -507,8 +506,6 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
             this, &TransactionView::applyTheme);
     applyTheme();
 
-    addShadow(filterCard);
-    GUIUtil::applyPrimaryButtonShadow(exportButton);
     updateEmptyState();
 }
 
@@ -626,15 +623,6 @@ void TransactionView::applyTheme()
     updateCalendarWidgets();
     if (transactionView && transactionView->viewport())
         transactionView->viewport()->update();
-}
-
-void TransactionView::addShadow(QWidget* w)
-{
-    auto *shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(20);
-    shadow->setOffset(0, 5);
-    shadow->setColor(QColor(65, 37, 52, 24));
-    w->setGraphicsEffect(shadow);
 }
 
 void TransactionView::updateEmptyState()
@@ -1177,7 +1165,6 @@ QWidget *TransactionView::createDateRangeWidget()
     QObject::connect(dateTo, &QDateTimeEdit::dateChanged, this, &TransactionView::dateRangeChanged);
 
     updateCalendarWidgets();
-    addShadow(frame);
 
     return dateRangeWidget;
 }

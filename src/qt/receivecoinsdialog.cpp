@@ -381,7 +381,6 @@ void ReceiveCoinsDialog::applyTheme()
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("6px 14px"));
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px"));
     ui->receiveButton->setStyleSheet(primaryButtonStyle);
-    GUIUtil::applyPrimaryButtonShadow(ui->receiveButton);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
     ui->mySparkNamesButton->setStyleSheet(secondaryButtonStyle);
     ui->createSparkNameButton->setStyleSheet(secondaryButtonStyle);

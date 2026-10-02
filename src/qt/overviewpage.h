@@ -99,7 +99,6 @@ private:
 
     void applyOverviewRedesign();
     void applyOverviewTheme();
-    void addShadow(QWidget *w, int blurRadius = 18, int yOffset = 4, int alpha = 60);
     void updatePrivateTransparentSplitBar();
     void updateBalanceSplitLabels();
     void updateActivityEmptyState();

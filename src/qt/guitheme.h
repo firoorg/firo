@@ -81,8 +81,6 @@ namespace GUIUtil
 
     QString spinBoxInnerLineEditReset();
 
-    void applyPrimaryButtonShadow(QWidget* button);
-
     void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
                               const QString& text, bool isPrivate);
 

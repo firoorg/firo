@@ -91,7 +91,6 @@ userClosed(false)
     ui->warningIcon->setFocusPolicy(Qt::NoFocus);
     ui->warningIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-    GUIUtil::applyPrimaryButtonShadow(ui->closeButton);
 
     connect(ui->closeButton, &QPushButton::clicked, this, &ModalOverlay::closeClicked);
     if (parent) {

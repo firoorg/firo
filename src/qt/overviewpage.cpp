@@ -37,7 +37,6 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
@@ -233,15 +232,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
 }
 
-void OverviewPage::addShadow(QWidget *w, int blurRadius, int yOffset, int alpha)
-{
-    auto *shadow = new QGraphicsDropShadowEffect(w);
-    shadow->setBlurRadius(blurRadius);
-    shadow->setOffset(0, yOffset);
-    shadow->setColor(QColor(32, 28, 46, alpha));
-    w->setGraphicsEffect(shadow);
-}
-
 void OverviewPage::applyOverviewRedesign()
 {
     setAttribute(Qt::WA_StyledBackground, true);
@@ -259,8 +249,6 @@ void OverviewPage::applyOverviewRedesign()
     ui->detailsCardLayout->setSpacing(8);
     ui->activityCardLayout->setContentsMargins(18, 16, 18, 16);
     ui->activityCardLayout->setSpacing(8);
-    addShadow(ui->balancesCard);
-    addShadow(ui->detailsCard);
 
     ui->detailsCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     ui->activityCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
@@ -307,12 +295,10 @@ void OverviewPage::applyOverviewRedesign()
     ui->labelTransparentSplit->setTextFormat(Qt::RichText);
 
     ui->sendButton->setText(tr("↗  Send"));
-    GUIUtil::applyPrimaryButtonShadow(ui->sendButton);
 
     ui->receiveButton->setText(tr("↙  Receive"));
 
     ui->anonymizeButton->setText(tr("Make Private"));
-    GUIUtil::applyPrimaryButtonShadow(ui->anonymizeButton);
 
     connect(ui->sendButton, &QPushButton::clicked, this, &OverviewPage::gotoSendCoinsPage);
     connect(ui->receiveButton, &QPushButton::clicked, this, &OverviewPage::gotoReceiveCoinsPage);

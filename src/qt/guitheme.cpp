@@ -9,7 +9,6 @@
 #include <QColor>
 #include <QFontDatabase>
 #include <QFontMetrics>
-#include <QGraphicsDropShadowEffect>
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
@@ -249,16 +248,6 @@ QString secondaryButtonStyle(const QString& padding)
 QString spinBoxInnerLineEditReset()
 {
     return QStringLiteral("background: transparent; border: none; border-radius: 0; padding: 0; min-height: 0;");
-}
-
-void applyPrimaryButtonShadow(QWidget* button)
-{
-    if (!button) return;
-    auto* shadow = new QGraphicsDropShadowEffect(button);
-    shadow->setBlurRadius(20);
-    shadow->setOffset(0, 6);
-    shadow->setColor(QColor(139, 26, 58, 70));
-    button->setGraphicsEffect(shadow);
 }
 
 void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,

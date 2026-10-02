@@ -46,7 +46,6 @@ void AutoMintSparkDialog::applyTheme()
         "QCheckBox { background: transparent; color: $INK_SOFT; }")));
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());

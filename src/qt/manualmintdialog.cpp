@@ -47,7 +47,6 @@ void ManualMintDialog::applyTheme()
     ui->totalAmount->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     ui->mintButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-    GUIUtil::applyPrimaryButtonShadow(ui->mintButton);
     ui->clearAllButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 

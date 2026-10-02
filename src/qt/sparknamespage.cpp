@@ -225,7 +225,6 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     namesScroll->viewport()->installEventFilter(this);
 
     ui->createSparkNameButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-    GUIUtil::applyPrimaryButtonShadow(ui->createSparkNameButton);
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, &SparkNamesPage::applyTheme);

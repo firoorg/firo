@@ -122,7 +122,6 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->numberOfYearsEdit->setAlignment(Qt::AlignLeft);
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setText(tr("Register"));
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
