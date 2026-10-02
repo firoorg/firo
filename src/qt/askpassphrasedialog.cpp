@@ -304,7 +304,7 @@ void AskPassphraseDialog::applyTheme()
             background: transparent;
         }
         QLabel#passLabel1, QLabel#passLabel2, QLabel#passLabel3 {
-            color: $INK_FAINT;
+            color: $INK_SOFT;
             font-weight: 700;
             background: transparent;
             min-width: 140px;
@@ -319,7 +319,8 @@ void AskPassphraseDialog::applyTheme()
             selection-background-color: $WINE_TINT;
         }
         QLineEdit#passEdit1:focus, QLineEdit#passEdit2:focus, QLineEdit#passEdit3:focus {
-            border: 1px solid $WINE;
+            border: 2px solid $WINE;
+            padding: 9px 11px;
         }
         QLabel#capsLabel {
             color: $INK;
