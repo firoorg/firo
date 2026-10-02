@@ -78,15 +78,8 @@ public:
             return;
         }
 
-        // Rows sit directly in the activity card, separated by hairlines.
-        if (selected) {
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.wineTint));
-            painter->drawRoundedRect(card, 10, 10);
-        }
-        if (index.row() + 1 < index.model()->rowCount(index.parent())) {
-            painter->fillRect(QRect(card.left() + 8, option.rect.bottom(), card.width() - 16, 1), QColor(tc.border));
-        }
+        // Rows sit directly in the activity card, like every other list.
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         const int txType = index.data(TransactionTableModel::TypeRole).toInt();
         const qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();

@@ -129,13 +129,8 @@ public:
         const bool selected = option.state & QStyle::State_Selected;
         const QRect card = option.rect.adjusted(5, 4, -5, -4);
         const int lineHeight = option.fontMetrics.height();
-        // Nodes are rows in the list card: a tint when selected and a hairline between rows.
-        if (selected) {
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.wineTint));
-            painter->drawRoundedRect(QRectF(card), 10, 10);
-        }
-        painter->fillRect(QRect(card.left() + 8, option.rect.bottom(), card.width() - 16, 1), QColor(tc.border));
+        // Nodes are rows in the list card, like every other list.
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         const qreal dpr = option.widget ? option.widget->devicePixelRatioF() : 1.0;
         painter->drawPixmap(QRect(card.left() + 14, card.top() + 4, 36, 36), glyph(dpr));
