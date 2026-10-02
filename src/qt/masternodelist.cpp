@@ -204,20 +204,22 @@ public:
 
         const int dividerY = card.top() + 2 * lineHeight + 8;
 
-        const QFontMetrics captionMetrics(option.font);
+        const QFont captionFont = GUIUtil::brandFont(GUIUtil::TextStyle::Caption);
+        const QFontMetrics captionMetrics(captionFont);
+        const QFontMetrics valueMetrics(option.font);
         const auto drawMetric = [&](const QRect& rect, const QString& caption, const QString& value) {
-            // A regular caption over a bold value, as in the Overview balance details.
-            painter->setFont(option.font);
-            painter->setPen(QColor(tc.inkSoft));
+            // Small caption over a regular-weight value, so the service address stays the headline.
+            painter->setFont(captionFont);
+            painter->setPen(QColor(tc.inkFaint));
             const QRect captionRect = rect.adjusted(0, 0, -8, -lineHeight);
-            painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignVCenter,
+            painter->drawText(captionRect, Qt::AlignLeft | Qt::AlignBottom,
                               captionMetrics.elidedText(caption, Qt::ElideRight, std::max(0, captionRect.width())));
 
-            painter->setFont(boldFont);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.ink));
             const QRect valueRect = rect.adjusted(0, lineHeight, -8, 0);
             painter->drawText(valueRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              boldMetrics.elidedText(value, Qt::ElideMiddle, valueRect.width()));
+                              valueMetrics.elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
 
         const int contentLeft = card.left() + 16;

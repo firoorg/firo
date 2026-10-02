@@ -24,7 +24,8 @@ QT_END_NAMESPACE
 
 namespace GUIUtil
 {
-    enum class TextStyle { Body, Heading1, Heading2, Heading3 };
+    //! Caption is the small bold label over a value or field; QSS cannot carry its letter spacing.
+    enum class TextStyle { Body, Heading1, Heading2, Heading3, Caption };
 
     // Brand sizes are logical pixels; Qt scales fonts and widget geometry together.
     QFont brandFont(TextStyle style = TextStyle::Body);

@@ -143,19 +143,20 @@ public:
             const QString caption = positive
                 ? QCoreApplication::translate("TransactionView", "RECEIVED")
                 : QCoreApplication::translate("TransactionView", "SENT");
-            QFont capFont = option.font;
-            capFont.setBold(true);
-            painter->setFont(capFont);
+            painter->setFont(GUIUtil::brandFont(GUIUtil::TextStyle::Caption));
             painter->setPen(QColor(tc.inkFaint));
             const QRect capRect(option.rect.left() + 8, option.rect.center().y() - lineHeight,
                                 option.rect.width() - 22, lineHeight);
-            painter->drawText(capRect, Qt::AlignRight | Qt::AlignVCenter, caption);
+            painter->drawText(capRect, Qt::AlignRight | Qt::AlignBottom, caption);
 
             QString amountText = index.data(Qt::DisplayRole).toString();
             amountText.replace(QLatin1Char('('), QString());
             amountText.replace(QLatin1Char(')'), QString());
             if (amount > 0 && !amountText.startsWith(QLatin1Char('+')))
                 amountText.prepend(QLatin1Char('+'));
+            QFont amtFont = option.font;
+            amtFont.setBold(true);
+            painter->setFont(amtFont);
             const QRect amtRect(capRect.left(), capRect.bottom() + 1, capRect.width(), lineHeight);
             GUIUtil::paintAmountRuns(painter, amtRect, amountText, amount < 0 ? QColor(tc.ink) : QColor(tc.teal),
                                      Qt::AlignRight | Qt::AlignVCenter);

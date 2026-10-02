@@ -34,6 +34,10 @@ QFont brandFont(TextStyle style)
     } else if (style == TextStyle::Heading3) {
         font.setPixelSize(18);
         font.setBold(true);
+    } else if (style == TextStyle::Caption) {
+        font.setPixelSize(13);
+        font.setBold(true);
+        font.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
     }
     return font;
 }
@@ -185,10 +189,11 @@ QString themed(const QString& cssTemplate, ThemeMode mode)
 {
     const ThemeColors& c = mode == ThemeMode::Dark ? DARK_COLORS : LIGHT_COLORS;
     QString result = cssTemplate;
-    for (const auto style : {TextStyle::Body, TextStyle::Heading1, TextStyle::Heading2, TextStyle::Heading3}) {
+    for (const auto style : {TextStyle::Body, TextStyle::Heading1, TextStyle::Heading2, TextStyle::Heading3, TextStyle::Caption}) {
         const QFont font = brandFont(style);
-        const QString token = style == TextStyle::Body ? QStringLiteral("$FONT_BODY")
-            : QStringLiteral("$FONT_H%1").arg(static_cast<int>(style));
+        const QString token = style == TextStyle::Body      ? QStringLiteral("$FONT_BODY")
+                              : style == TextStyle::Caption ? QStringLiteral("$FONT_CAPTION")
+                                                            : QStringLiteral("$FONT_H%1").arg(static_cast<int>(style));
         result.replace(token, QStringLiteral("%1 %2px '%3'")
                                   .arg(font.weight()).arg(font.pixelSize()).arg(font.family()));
     }

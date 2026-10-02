@@ -1086,11 +1086,13 @@ void WalletUiTests::brandTypography()
             QCOMPARE(requests->font().pixelSize(), 16);
         }
         for (const auto role : {GUIUtil::TextStyle::Body, GUIUtil::TextStyle::Heading1,
-                                GUIUtil::TextStyle::Heading2, GUIUtil::TextStyle::Heading3}) {
+                                GUIUtil::TextStyle::Heading2, GUIUtil::TextStyle::Heading3,
+                                GUIUtil::TextStyle::Caption}) {
             QLabel label(QStringLiteral("Typography 0123456789"));
             const auto expected = GUIUtil::brandFont(role);
-            const QString token = role == GUIUtil::TextStyle::Body ? QStringLiteral("$FONT_BODY")
-                : QStringLiteral("$FONT_H%1").arg(static_cast<int>(role));
+            const QString token = role == GUIUtil::TextStyle::Body      ? QStringLiteral("$FONT_BODY")
+                                  : role == GUIUtil::TextStyle::Caption ? QStringLiteral("$FONT_CAPTION")
+                                                                        : QStringLiteral("$FONT_H%1").arg(static_cast<int>(role));
             label.setStyleSheet(GUIUtil::themed(QStringLiteral("font: %1;").arg(token)));
             label.ensurePolished();
             QCOMPARE(label.font().pixelSize(), expected.pixelSize());
