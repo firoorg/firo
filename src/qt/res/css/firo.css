@@ -141,6 +141,19 @@ QAbstractSpinBox::down-arrow {
     width: 20px;
     height: 20px;
 }
+QAbstractSpinBox::down-arrow:hover {
+    width: 20px;
+    height: 20px;
+}
+QAbstractSpinBox::down-arrow:pressed {
+    width: 20px;
+    height: 20px;
+}
+QAbstractSpinBox::down-arrow:disabled {
+    width: 20px;
+    height: 20px;
+}
+
 
 QAbstractSpinBox::up-arrow {
     image: url(':/images/arrow_up_light');
@@ -372,6 +385,8 @@ QComboBox::down-arrow {
     image: url(':/images/arrow_down_light') 0 0 0 0 stretch stretch;
 }
 QComboBox::down-arrow:hover {
+    width: 20px;
+    height: 20px;
     image: url(':/images/arrow_down_dark') 0 0 0 0 stretch stretch;
 }
 QComboBox::down-arrow:pressed {
@@ -380,6 +395,8 @@ QComboBox::down-arrow:pressed {
     image: url(':/images/arrow_down_light') 0 0 0 0 stretch stretch;
 }
 QComboBox::down-arrow:disabled {
+    width: 20px;
+    height: 20px;
     image: url(':/images/arrow_light_down_normal') 0 0 0 0 stretch stretch;
 }
 
@@ -827,6 +844,7 @@ QTabWidget::tab-bar {
     padding: 2px;
 }
 
+/* Style the tab using the tab sub-control  */
 QTabBar::tab {
     background-color: transparent;
     color: $INK_SOFT;
@@ -967,7 +985,7 @@ QDialog#AboutDialog QLabel#label_2 {
     margin-left: 10px;
 }
 
-QDialog#AboutDialog QLabel#label_2 {
+QDialog#AboutDialog QLabel#label_2 { 
     margin-right: 10px;
 }
 
@@ -1005,6 +1023,8 @@ QDialog#CoinControlDialog .QLabel#labelCoinControlBytesText {
     padding-left: 15px;
     font-weight: bold;
 }
+QDialog#CoinControlDialog .QLabel#labelCoinControlBytes {
+}
 QDialog#CoinControlDialog .QLabel#labelCoinControlAmountText {
     min-height: 30px;
     padding-left: 15px;
@@ -1016,6 +1036,8 @@ QDialog#CoinControlDialog .QLabel#labelCoinControlAmount {
 QDialog#CoinControlDialog .QLabel#labelCoinControlPriorityText {
     padding-left: 15px;
     font-weight: bold;
+}
+QDialog#CoinControlDialog .QLabel#labelCoinControlPriority {
 }
 QDialog#CoinControlDialog .QLabel#labelCoinControlFeeText {
     min-height: 30px;
@@ -1029,6 +1051,8 @@ QDialog#CoinControlDialog .QLabel#labelCoinControlLowOutputText {
     padding-left: 15px;
     font-weight: bold;
 }
+QDialog#CoinControlDialog .QLabel#labelCoinControlLowOutput {
+}
 QDialog#CoinControlDialog .QLabel#labelCoinControlAfterFeeText {
     min-height: 30px;
     padding-left: 15px;
@@ -1040,6 +1064,17 @@ QDialog#CoinControlDialog .QLabel#labelCoinControlAfterFee {
 QDialog#CoinControlDialog .QLabel#labelCoinControlChangeText {
     padding-left: 15px;
     font-weight: bold;
+}
+QDialog#CoinControlDialog .QLabel#labelCoinControlChange {
+
+}
+
+QDialog#CoinControlDialog .QFrame#frame .QPushButton#pushButtonSelectAll {
+}
+QDialog#CoinControlDialog .QFrame#frame .QPushButton#pushButtonToggleLock {
+}
+
+QDialog#CoinControlDialog .QDialogButtonBox#buttonBox QPushButton {
 }
 
 QDialog#CoinControlDialog QHeaderView::section:first {
@@ -1053,6 +1088,10 @@ QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:selected {
 QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::branch:checked {
     background-repeat: no-repeat;
     background-position: center;
+}
+
+QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::seperator {
+
 }
 
 QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::item {
@@ -1079,6 +1118,9 @@ QWidget#CreatePcodeDialog .QLabel#label_6 {
 }
 
 /* EditAddressDialog */
+
+QDialog#EditAddressDialog {
+}
 
 QDialog#EditAddressDialog QLabel {
     qproperty-alignment: 'AlignVCenter | AlignRight';
@@ -1159,6 +1201,13 @@ QWizard#NotifyMnemonic QFrame#mnemonicBox {
 
 /* OptionsDialog */
 
+QDialog#OptionsDialog {
+}
+
+QDialog#OptionsDialog QValueComboBox,
+QDialog#OptionsDialog QSpinBox {
+}
+
 QDialog#OptionsDialog QValidatedLineEdit,
 QDialog#OptionsDialog QValidatedLineEdit:disabled,
 QDialog#OptionsDialog QLineEdit,
@@ -1169,6 +1218,9 @@ QDialog#OptionsDialog QLineEdit:disabled {
 QDialog#OptionsDialog > QLabel {
     qproperty-alignment: 'AlignVCenter';
     min-height: 20px;
+}
+
+QDialog#OptionsDialog QWidget#tabDisplay QValueComboBox {
 }
 
 QDialog#OptionsDialog QLabel#label_3 {
@@ -1210,7 +1262,7 @@ QDialog#OptionsDialog QLabel#overriddenByCommandLineInfoLabel {
 /* OverviewPage Balances */
 
 QWidget .QFrame#frame .QLabel#label_5,
-QWidget .QFrame#frame .QLabel#label {
+QWidget .QFrame#frame .QLabel#label { 
     margin-right: 5px;
     font-weight: bold;
 }
@@ -1220,22 +1272,22 @@ QWidget .QFrame#frame .QLabel#label {
 }
 
 
-QWidget .QFrame#frame .QPushButton#labelWalletStatus {
+QWidget .QFrame#frame .QPushButton#labelWalletStatus { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
 }
 
-QWidget .QFrame#frame .QLabel#labelSpendable {
+QWidget .QFrame#frame .QLabel#labelSpendable { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-left: 15px;
 }
 
-QWidget .QFrame#frame .QLabel#labelWatchonly {
+QWidget .QFrame#frame .QLabel#labelWatchonly { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-left: 16px;
 }
 
 QWidget .QFrame#frame .QLabel#labelPrivate,
-QWidget .QFrame#frame .QLabel#labelBalance {
+QWidget .QFrame#frame .QLabel#labelBalance { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-bottom: -1px;
     margin-left: 0px;
@@ -1260,14 +1312,14 @@ QWidget .QFrame#frame .QLabel#labelUnconfirmedPrivateText {
 }
 
 QWidget .QFrame#frame .QLabel#labelUnconfirmed,
-QWidget .QFrame#frame .QLabel#labelUnconfirmedPrivate {
+QWidget .QFrame#frame .QLabel#labelUnconfirmedPrivate { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-bottom: -2px;
     margin-left: 0px;
     font-weight: bold;
 }
 
-QWidget .QFrame#frame .QLabel#labelWatchPending {
+QWidget .QFrame#frame .QLabel#labelWatchPending { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-bottom: -2px;
     margin-left: 16px;
@@ -1281,7 +1333,7 @@ QWidget .QFrame#frame .QLabel#labelImmatureText {
     padding-right: 5px;
 }
 
-QWidget .QFrame#frame .QLabel#labelImmature {
+QWidget .QFrame#frame .QLabel#labelImmature { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-bottom: -2px;
     margin-left: 0px;
@@ -1295,14 +1347,14 @@ QWidget .QFrame#frame .QLabel#labelWatchImmature {
     font-weight: bold;
 }
 
-QWidget .QFrame#frame .QLabel#labelTotalText {
+QWidget .QFrame#frame .QLabel#labelTotalText { 
     qproperty-alignment: 'AlignVCenter | AlignRight';
     min-width: 100px;
     margin-right: 5px;
     padding-right: 5px;
 }
 
-QWidget .QFrame#frame .QLabel#labelTotal {
+QWidget .QFrame#frame .QLabel#labelTotal { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-bottom: -2px;
     margin-left: 0px;
@@ -1316,14 +1368,14 @@ QWidget .QFrame#frame .QLabel#labelWatchTotal {
     font-weight: bold;
 }
 
-QWidget .QFrame#frame .QLabel#labelAnonymizableText {
+QWidget .QFrame#frame .QLabel#labelAnonymizableText { 
     qproperty-alignment: 'AlignVCenter | AlignRight';
     min-width: 100px;
     margin-right: 5px;
     padding-right: 5px;
 }
 
-QWidget .QFrame#frame .QLabel#labelAnonymizable {
+QWidget .QFrame#frame .QLabel#labelAnonymizable { 
     qproperty-alignment: 'AlignVCenter | AlignLeft';
     margin-bottom: -2px;
     margin-left: 0px;
@@ -1354,6 +1406,9 @@ QWidget .QFrame#frame_2 QListView {
 
 /* ReceiveCoinsDialog */
 
+QWidget#ReceiveCoinsDialog .QFrame {
+}
+
 QWidget#ReceiveCoinsDialog .QFrame#frame2 .QLabel#label,
 QWidget#ReceiveCoinsDialog .QFrame#frame2 .QLabel#label_2,
 QWidget#ReceiveCoinsDialog .QFrame#frame2 .QLabel#label_3,
@@ -1376,7 +1431,19 @@ ReceiveRequestDialog#outUri {
     margin-top: 20px;
 }
 
+/* Recover */
+
+
 /* RPCConsole */
+
+QWidget#RPCConsole QLabel#label_9,
+QWidget#RPCConsole QLabel#labelNetwork,
+QWidget#RPCConsole QLabel#label_10,
+QWidget#RPCConsole QLabel#labelMempoolTitle,
+QWidget#RPCConsole QLabel#label_repair_header,
+QWidget#RPCConsole QLabel#peerHeading,
+QWidget#RPCConsole QLabel#banHeading {
+}
 
 QWidget#RPCConsole QLabel#label_9,
 QWidget#RPCConsole QLabel#labelNetwork,

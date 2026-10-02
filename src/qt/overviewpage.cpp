@@ -84,8 +84,9 @@ public:
             painter->setBrush(QColor(tc.wineTint));
             painter->drawRoundedRect(card, 10, 10);
         }
-        if (index.row() + 1 < index.model()->rowCount(index.parent()))
+        if (index.row() + 1 < index.model()->rowCount(index.parent())) {
             painter->fillRect(QRect(card.left() + 8, option.rect.bottom(), card.width() - 16, 1), QColor(tc.border));
+        }
 
         const int txType = index.data(TransactionTableModel::TypeRole).toInt();
         const qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();

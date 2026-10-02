@@ -149,7 +149,6 @@ public:
         }
         painter->restore();
     }
-
 };
 
 }
