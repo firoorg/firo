@@ -13,12 +13,14 @@
 #include "../miner.h"
 #include "../policy/policy.h"
 #include "../hash.h"
+#include "../logging.h"
 #include "../ui_interface.h"
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
 #include <set>
+#include <boost/scope_exit.hpp>
 #include <boost/test/unit_test.hpp>
 
 namespace spark {
@@ -3191,11 +3193,18 @@ BOOST_AUTO_TEST_CASE(recent_spark_blocks_preserve_batch_and_cache_semantics)
             0, version, 0, chainActive.Height());
         ClearSparkSpendProofCache();
         int verifications = 0;
-        boost::signals2::scoped_connection observe = uiInterface.UpdateProgressBarLabel.connect(
-            [&](const std::string& label) {
-                if (label == "Batch verifying Spark Proofs...")
+        // Count proof work independently of the deferred-only GUI progress label.
+        const bool previousPrintToConsole = fPrintToConsole;
+        auto observe = LogInstance().PushBackCallback(
+            [&](const std::string& message) {
+                if (message.find("Spark batch verification started.") != std::string::npos)
                     ++verifications;
             });
+        BOOST_SCOPE_EXIT(observe, previousPrintToConsole) {
+            LogInstance().DeleteCallback(observe);
+            fPrintToConsole = previousPrintToConsole;
+        } BOOST_SCOPE_EXIT_END
+        fPrintToConsole = true;
         auto check = [&](const CTransaction& tx, CSparkTxInfo* info) {
             CValidationState state;
             return CheckSparkTransaction(tx, state, tx.GetHash(), false,

@@ -51,14 +51,6 @@ bool VerifySparkBatch(
         return true;
 
     LogPrintf("Spark batch verification started.\n");
-    BOOST_SCOPE_EXIT(void) {
-        try {
-            uiInterface.UpdateProgressBarLabel("");
-        } catch (...) {
-            // A UI notification must not interrupt proof cleanup or unwinding.
-        }
-    } BOOST_SCOPE_EXIT_END
-    uiInterface.UpdateProgressBarLabel(_("Batch verifying Spark Proofs..."));
 
     const spark::SpendTransaction::CoverSetProvider coverSetProvider =
         [&coverSets](uint64_t id) -> const std::vector<spark::Coin>& {
@@ -246,6 +238,17 @@ bool BatchProofContainer::verify_pending()
             snapshotGeneration = generation;
             snapshotTip = chainActive.Tip();
         }
+
+        // Only deferred batches need a global progress label. cs_verify keeps
+        // their notifications ordered while recent blocks verify independently.
+        BOOST_SCOPE_EXIT(void) {
+            try {
+                uiInterface.UpdateProgressBarLabel("");
+            } catch (...) {
+                // A UI notification must not interrupt proof cleanup or unwinding.
+            }
+        } BOOST_SCOPE_EXIT_END
+        uiInterface.UpdateProgressBarLabel(_("Batch verifying Spark Proofs..."));
 
         const bool passed = VerifySparkBatch(
             transactions, txIds, historicalTransactions, historicalTxIds, coverSets);

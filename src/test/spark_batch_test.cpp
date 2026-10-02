@@ -125,11 +125,18 @@ BOOST_AUTO_TEST_CASE(spark_batch_concurrent_verification)
     auto released = release.get_future();
     auto secondReady = secondStarted.get_future();
     std::atomic<int> snapshots{0};
+    std::atomic<int> clears{0};
     std::atomic<bool> timedOut{false};
     // Count only verification starts; each run also clears the label on exit.
     boost::signals2::scoped_connection pause = uiInterface.UpdateProgressBarLabel.connect(
         [&](const std::string& label) {
-            if (label.empty()) return;
+            if (label.empty()) {
+                ++clears;
+                return;
+            }
+            if (label != "Batch verifying Spark Proofs...") {
+                return;
+            }
             if (snapshots.fetch_add(1) == 0) {
                 started.set_value();
                 timedOut = released.wait_for(std::chrono::seconds(10)) != std::future_status::ready;
@@ -139,6 +146,20 @@ BOOST_AUTO_TEST_CASE(spark_batch_concurrent_verification)
     const bool paused = ready.wait_for(std::chrono::seconds(5)) == std::future_status::ready;
     BOOST_CHECK(paused);
     if (paused) {
+        // A recent block can verify while the deferred batch is active, but
+        // must not overwrite or clear its progress label.
+        {
+            LOCK(cs_main);
+            CValidationState state;
+            spark::CSparkTxInfo info;
+            container->init(BatchProofContainer::Mode::Block);
+            BOOST_CHECK(spark::CheckSparkTransaction(
+                secondSpend, state, secondSpend.GetHash(), false, chainActive.Height(), false, true, &info));
+            BOOST_CHECK(container->verify_block_batch());
+        }
+        BOOST_CHECK_EQUAL(snapshots.load(), 1);
+        BOOST_CHECK_EQUAL(clears.load(), 0);
+
         // Verification releases cs_main, and a disconnect can still remove the
         // retained proof. Replace it with a different, equally-sized batch.
         container->remove(spark::ParseSparkSpend(firstSpend));
@@ -156,22 +177,32 @@ BOOST_AUTO_TEST_CASE(spark_batch_concurrent_verification)
     BOOST_CHECK(second.get());
     BOOST_CHECK(!timedOut);
     BOOST_CHECK_EQUAL(snapshots.load(), 2);
+    BOOST_CHECK_EQUAL(clears.load(), 2);
     pause.disconnect();
     BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
 
     // An allocation failure must leave the pending batch available to retry.
     BOOST_REQUIRE(collect(secondSpend));
     snapshots = 0;
+    clears = 0;
     boost::signals2::scoped_connection failOnce = uiInterface.UpdateProgressBarLabel.connect(
         [&](const std::string& label) {
-            if (label.empty()) return;
+            if (label.empty()) {
+                ++clears;
+                return;
+            }
+            if (label != "Batch verifying Spark Proofs...") {
+                return;
+            }
             if (snapshots.fetch_add(1) == 0)
                 throw std::bad_alloc();
         });
     BOOST_CHECK_THROW(container->verify_pending(), std::bad_alloc);
+    BOOST_CHECK_EQUAL(clears.load(), 1);
     BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
     BOOST_CHECK(container->verify_pending());
     BOOST_CHECK_EQUAL(snapshots.load(), 2);
+    BOOST_CHECK_EQUAL(clears.load(), 2);
     BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
 }
 
