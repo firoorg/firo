@@ -3345,6 +3345,25 @@ void FlushStateToDisk() {
     FlushStateToDisk(state, FLUSH_STATE_ALWAYS);
 }
 
+bool FlushStateToDiskForShutdown(bool allowReindexResume)
+{
+    AssertLockNotHeld(cs_main);
+    BatchProofContainer::get_instance()->finalize();
+    CValidationState batchState;
+    const bool verified = VerifyPendingSparkBatch(batchState, "shutdown");
+    if (!pcoinsTip)
+        return false;
+
+    CValidationState flushState;
+    const bool flushed = FlushStateToDisk(flushState, FLUSH_STATE_ALWAYS);
+    if (allowReindexResume && fReindex && verified && flushed) {
+        // Leave the database's reindex flag set so import resumes. The marker
+        // is only needed for unchecked proofs or an unsuccessful state flush.
+        BatchProofContainer::RemoveRecoveryMarker();
+    }
+    return verified && flushed;
+}
+
 void PruneAndFlush() {
     CValidationState state;
     fCheckForPruning = true;

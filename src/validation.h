@@ -352,6 +352,9 @@ bool AbortNode(const std::string &strMessage, const std::string &userMessage="")
 void AlertNotify(const std::string& strMessage);
 /** Flush all state, indexes and buffers to disk. */
 void FlushStateToDisk();
+
+/** Verify pending Spark proofs and flush; allow resume only after block-processing threads stop. */
+bool FlushStateToDiskForShutdown(bool allowReindexResume);
 /** Prune block files and flush state to disk. */
 void PruneAndFlush();
 /** Prune block files up to a given height */

@@ -5,11 +5,16 @@
 #include "fixtures.h"
 #include "test_bitcoin.h"
 #include "../ui_interface.h"
+#include "../txdb.h"
+#include "../warnings.h"
 
 #include <boost/test/unit_test.hpp>
 #include <atomic>
 #include <chrono>
 #include <future>
+
+extern std::atomic<bool> fRequestShutdown;
+extern std::string strMiscWarning;
 
 BOOST_FIXTURE_TEST_SUITE(spark_batch_tests, SparkTestingSetup)
 
@@ -169,6 +174,94 @@ BOOST_AUTO_TEST_CASE(spark_batch_concurrent_verification)
     BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
     BOOST_CHECK(container->verify_pending());
     BOOST_CHECK_EQUAL(snapshots.load(), 2);
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+}
+
+BOOST_AUTO_TEST_CASE(reindex_shutdown_recovery_marker)
+{
+    GenerateBlocks(501);
+    std::vector<CMutableTransaction> mintTxs;
+    GenerateMints({10 * COIN, 20 * COIN}, mintTxs);
+    GenerateBlock(mintTxs);
+    GenerateBlocks(6);
+    CAmount fee;
+    const CTransaction spend(*pwalletMain->CreateSparkSpendTransaction(
+        {{GetScriptForDestination(GenerateAddress().GetID()), COIN, false}}, {}, fee, nullptr).tx);
+    auto* container = BatchProofContainer::get_instance();
+
+    struct RestoreState
+    {
+        CCoinsView& backend;
+        bool reindex = fReindex;
+        bool shutdown = fRequestShutdown.load();
+        std::string warning = strMiscWarning;
+        ~RestoreState()
+        {
+            pcoinsTip->SetBackend(backend);
+            pblocktree->WriteReindexing(false);
+            fReindex = reindex;
+            fRequestShutdown = shutdown;
+            SetMiscWarning(warning);
+        }
+    } restore{*pcoinsdbview};
+    fReindex = true;
+    BOOST_REQUIRE(pblocktree->WriteReindexing(true));
+    const auto tip = chainActive.Tip()->GetBlockHash();
+    {
+        LOCK(cs_main);
+        container->init(BatchProofContainer::Mode::Deferred);
+        CValidationState state;
+        spark::CSparkTxInfo info;
+        BOOST_REQUIRE(spark::CheckSparkTransaction(
+            spend, state, spend.GetHash(), false, chainActive.Height(), false, true, &info));
+        container->finalize();
+    }
+    BOOST_REQUIRE(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    // Early startup failure must not authorize resuming an unchecked import.
+    BOOST_CHECK(FlushStateToDiskForShutdown(false));
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(FlushStateToDiskForShutdown(true));
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(pcoinsdbview->GetBestBlock() == tip);
+    bool reindexing = false;
+    BOOST_REQUIRE(pblocktree->ReadReindexing(reindexing));
+    BOOST_CHECK(reindexing);
+    BOOST_CHECK(fReindex);
+
+    container->init(BatchProofContainer::Mode::Deferred);
+    container->finalize();
+    struct FailedFlush : CCoinsViewBacked
+    {
+        FailedFlush(CCoinsView* view) : CCoinsViewBacked(view) {}
+        bool BatchWrite(CCoinsMap&, const uint256&) override
+        {
+            BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+            return false;
+        }
+    } failedFlush(pcoinsdbview);
+    pcoinsTip->SetBackend(failedFlush);
+    BOOST_CHECK(!FlushStateToDiskForShutdown(true));
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    pcoinsTip->SetBackend(*pcoinsdbview);
+
+    // Even a now-empty verified batch must keep its marker until the flush succeeds.
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(FlushStateToDiskForShutdown(true));
+    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+
+    // A failed proof must keep recovery enabled even when the database flush works.
+    auto invalidSpend = spark::ParseSparkSpend(spend);
+    invalidSpend.setVout(0);
+    container->init(BatchProofContainer::Mode::Deferred);
+    container->add(invalidSpend, spend.GetHash());
+    container->finalize();
+    BOOST_CHECK(!FlushStateToDiskForShutdown(true));
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    container->remove(invalidSpend);
+    BOOST_CHECK(FlushStateToDiskForShutdown(true));
     BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
 }
 
