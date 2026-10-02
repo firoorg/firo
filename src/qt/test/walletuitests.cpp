@@ -1363,7 +1363,7 @@ void WalletUiTests::emptyRecoverySeed()
     QVERIFY(directory.isValid());
     const std::string oldWallet = GetArg("-wallet", DEFAULT_WALLET_DAT);
     const auto restoreWallet = qScopeGuard([&] { ForceSetArg("-wallet", oldWallet); });
-    ForceSetArg("-wallet", (directory.path() + "/wallet.dat").toStdString());
+    ForceSetArg("-wallet", directory.filePath(QStringLiteral("wallet.dat")).toStdString());
 
     for (const QString& seed : {QString(), QStringLiteral(" \t\r\n "),
                                QString(QChar(0x00a0)), QString(QChar(0x3000))}) {
