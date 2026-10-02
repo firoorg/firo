@@ -35,12 +35,14 @@
 #include <QAbstractItemView>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
 #include <QPainter>
+#include <QPainterPath>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
@@ -67,6 +69,42 @@ static QColor activityStatusTint(int status)
         return QColor(tc.gold);
     }
 }
+
+//! The Firo mark, faint and cropped by the balance card's top-right corner.
+class HeroWatermark : public QWidget
+{
+public:
+    explicit HeroWatermark(QWidget* card) : QWidget(card)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        card->installEventFilter(this);
+        setGeometry(card->rect());
+        lower();
+    }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (watched == parentWidget() && event->type() == QEvent::Resize)
+            setGeometry(parentWidget()->rect());
+        return QWidget::eventFilter(watched, event);
+    }
+
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        // The card's 20 px corner radius, so the mark never paints past the corner.
+        QPainterPath clip;
+        clip.addRoundedRect(QRectF(rect()), 20, 20);
+        painter.setClipPath(clip);
+        painter.setOpacity(0.07);
+        const QRect mark(width() - 234, -46, 270, 270);
+        painter.drawPixmap(mark, GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/firo_mark")), mark.size(),
+                                                          QColor(GUIUtil::themeColors().heroInk)));
+    }
+};
 
 class TxViewDelegate : public QAbstractItemDelegate
 {
@@ -283,6 +321,8 @@ void OverviewPage::applyOverviewRedesign()
     ui->activityCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     ui->mainGrid->setRowStretch(1, 1);
 
+    new HeroWatermark(ui->balancesCard);
+
     networkBadge_ = new QLabel(ui->balancesCard);
     networkBadge_->setObjectName(QStringLiteral("networkBadge"));
     const QString networkId = QString::fromStdString(Params().NetworkIDString());
@@ -297,7 +337,8 @@ void OverviewPage::applyOverviewRedesign()
         networkLabel = tr("Regtest");
     else
         networkLabel = networkId;
-    networkBadge_->setText(networkLabel);
+    networkLabel_ = networkLabel;
+    networkBadge_->setTextFormat(Qt::RichText);
     networkBadge_->setAlignment(Qt::AlignCenter);
     ui->balanceHeaderRow->insertWidget(1, networkBadge_, 0, Qt::AlignVCenter);
 
@@ -408,12 +449,14 @@ void OverviewPage::applyOverviewTheme()
         networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#networkBadge {"
             " color: $HERO_INK; background: $HERO_FILL; border: none;"
-            " border-radius: 10px; padding: 2px 9px; font-weight: 700;"
+            " border-radius: 10px; padding: 2px 10px 2px 8px; font: $FONT_CAPTION;"
             "}")));
+        networkBadge_->setText(QStringLiteral("<span style=\"color:%1; font-size:10px\">\u25CF</span>&nbsp;%2")
+                                   .arg(tc.heroAccent, networkLabel_.toHtmlEscaped()));
     }
 
     ui->labelPrimaryText->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $HERO_INK_SOFT; font-weight: 700; }")));
+        "QLabel { background: transparent; color: $HERO_INK_SOFT; font: $FONT_CAPTION; }")));
 
     ui->labelTotal->setTextFormat(Qt::RichText);
     ui->labelTotal->setStyleSheet(GUIUtil::themed(QStringLiteral(
@@ -443,8 +486,8 @@ void OverviewPage::applyOverviewTheme()
     ui->labelPrivateSplit->setStyleSheet(splitLabelStyle);
     ui->labelTransparentSplit->setStyleSheet(splitLabelStyle);
 
-    // One filled action on the card: Send is the inverse primary. Receive and Make Private
-    // share the quiet style, and Make Private keeps the privacy teal in its icon.
+    // One filled action on the card: Send is the inverse primary. Receive is quiet, and
+    // Make Private keeps its emphasis through the privacy teal instead of a second fill.
     const QString actionStyle = QStringLiteral(
         "QPushButton { border-radius: 10px; min-width: 0; min-height: 20px; padding: 8px 18px; font-weight: 700; }");
     ui->sendButton->setStyleSheet(actionStyle + GUIUtil::themed(QStringLiteral(
@@ -457,14 +500,18 @@ void OverviewPage::applyOverviewTheme()
         "QPushButton:focus { border-color: $HERO_INK; }"
         "QPushButton:disabled { color: $HERO_INK_FAINT; background: $HERO_FILL; border-color: transparent; }"));
     ui->receiveButton->setStyleSheet(quietActionStyle);
-    ui->anonymizeButton->setStyleSheet(quietActionStyle);
-    // The sidebar icons, recolored for the gradient; Make Private uses the Spark mark.
+    ui->anonymizeButton->setStyleSheet(actionStyle + GUIUtil::themed(QStringLiteral(
+        "QPushButton { color: $HERO_INK; background: $HERO_ACCENT_FILL; border: 1px solid $HERO_ACCENT_LINE; }"
+        "QPushButton:hover, QPushButton:pressed { background: $HERO_ACCENT_FILL_HOVER; }"
+        "QPushButton:focus { border-color: $HERO_ACCENT; }"
+        "QPushButton:disabled { color: $HERO_INK_FAINT; background: $HERO_FILL; border-color: transparent; }")));
+    // The sidebar icons, recolored for the gradient; Make Private uses the shield.
     const QSize actionIconSize(18, 18);
     ui->sendButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_send")), actionIconSize,
                                                       QColor(tc.heroStart)));
     ui->receiveButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_receive")), actionIconSize,
                                                          QColor(tc.heroInk)));
-    ui->anonymizeButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), actionIconSize,
+    ui->anonymizeButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/shield")), actionIconSize,
                                                            QColor(tc.heroAccent)));
 
     // The out-of-sync warning sits on the gradient too; its glyph is solid black, so draw it in white.
@@ -475,6 +522,13 @@ void OverviewPage::applyOverviewTheme()
         "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));
     ui->label_5->setStyleSheet(sectionTitleStyle);
     ui->label->setStyleSheet(sectionTitleStyle);
+    // A dot marks each section: teal for Spark, grey for transparent, as on the split bar.
+    const auto sectionTitle = [](const QString& title, const QString& dotColor) {
+        return QStringLiteral("<span style=\"color:%1; font-size:11px\">\u25CF</span>&nbsp;&nbsp;%2")
+            .arg(dotColor, title.toHtmlEscaped());
+    };
+    ui->label_5->setText(sectionTitle(tr("Private Balances (Spark)"), tc.teal));
+    ui->label->setText(sectionTitle(tr("Transparent Balances"), tc.inkFaint));
     ui->label_4->setStyleSheet(sectionTitleStyle);
     ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
 
@@ -818,7 +872,8 @@ void OverviewPage::updateBalanceLabels()
     const int unit = walletModel->getOptionsModel()->getDisplayUnit();
     const QString faded = GUIUtil::themeColors().inkFaint;
     const auto runs = [unit, &faded](const CAmount& amount) {
-        return GUIUtil::amountRunsHtml(BitcoinUnits::formatWithUnit(unit, amount, false, BitcoinUnits::separatorAlways), faded);
+        return GUIUtil::amountRunsHtml(BitcoinUnits::formatWithUnit(unit, amount, false, BitcoinUnits::separatorAlways), faded,
+                                       QStringLiteral("font-size:14px"));
     };
     ui->labelBalance->setText(runs(currentBalance));
     ui->labelUnconfirmed->setText(runs(currentUnconfirmedBalance));

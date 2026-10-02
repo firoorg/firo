@@ -67,6 +67,9 @@ namespace GUIUtil
         QString heroFillHover; //!< Quiet button hover
         QString heroLine;      //!< Quiet button edge
         QString heroAccent;    //!< Private funds: a light teal that holds up on wine
+        QString heroAccentFill;      //!< Make Private surface
+        QString heroAccentFillHover; //!< Make Private hover
+        QString heroAccentLine;      //!< Make Private edge
     };
 
     class ThemeNotifier : public QObject

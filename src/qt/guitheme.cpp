@@ -89,6 +89,9 @@ static const ThemeColors LIGHT_COLORS{
     QStringLiteral("#3DFFFFFF"), // heroFillHover
     QStringLiteral("#47FFFFFF"), // heroLine
     QStringLiteral("#6FE3CC"), // heroAccent
+    QStringLiteral("#296FE3CC"), // heroAccentFill
+    QStringLiteral("#3D6FE3CC"), // heroAccentFillHover
+    QStringLiteral("#996FE3CC"), // heroAccentLine
 };
 
 static const ThemeColors DARK_COLORS{
@@ -121,6 +124,9 @@ static const ThemeColors DARK_COLORS{
     QStringLiteral("#3DFFFFFF"),
     QStringLiteral("#47FFFFFF"),
     QStringLiteral("#6FE3CC"),
+    QStringLiteral("#296FE3CC"),
+    QStringLiteral("#3D6FE3CC"),
+    QStringLiteral("#996FE3CC"),
 };
 
 static bool g_darkMode = false;
@@ -212,6 +218,9 @@ QString themed(const QString& cssTemplate, ThemeMode mode)
     result.replace(QLatin1String("$HERO_FILL_HOVER"), c.heroFillHover);
     result.replace(QLatin1String("$HERO_FILL"), c.heroFill);
     result.replace(QLatin1String("$HERO_LINE"), c.heroLine);
+    result.replace(QLatin1String("$HERO_ACCENT_FILL_HOVER"), c.heroAccentFillHover);
+    result.replace(QLatin1String("$HERO_ACCENT_FILL"), c.heroAccentFill);
+    result.replace(QLatin1String("$HERO_ACCENT_LINE"), c.heroAccentLine);
     result.replace(QLatin1String("$HERO_ACCENT"), c.heroAccent);
     result.replace(QLatin1String("$PANEL_SOFT"), c.panelSoft);
     result.replace(QLatin1String("$PANEL"), c.panel);
