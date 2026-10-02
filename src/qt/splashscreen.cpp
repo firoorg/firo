@@ -82,15 +82,6 @@ QFont SplashFont(int pixelSize, bool bold = false)
     return splashFont;
 }
 
-/** The brand display face, which has digits but no Cyrillic, Greek or CJK: only the percentage uses it */
-QFont PercentFont()
-{
-    QFont percentFont = GUIUtil::brandFont(GUIUtil::TextStyle::Heading1);
-    percentFont.setPixelSize(88);
-    percentFont.setFeature("tnum", 1); // Tabular figures, so the number doesn't shift as it counts
-    return percentFont;
-}
-
 /** The two shapes of the Firo mark that leave the f between them, as in res/icons/firo.svg */
 QPainterPath MarkPath()
 {
@@ -227,8 +218,7 @@ QPixmap SplashScreen::renderArtwork(const NetworkStyle* networkStyle) const
 
     // The same lockup as the sidebar, small in the header and recolored like the app icon on test networks
     const QIcon lockup(dark ? QStringLiteral(":/images/firo_logo_toolbar_dark") : QStringLiteral(":/images/firo_logo_toolbar"));
-    const QRect lockupRect = QStyle::visualRect(direction, canvas, LOCKUP);
-    painter.drawPixmap(lockupRect.topLeft(), networkStyle->tintPixmap(lockup.pixmap(LOCKUP.size(), dpr)));
+    painter.drawPixmap(QStyle::visualRect(direction, canvas, LOCKUP).topLeft(), networkStyle->tintPixmap(lockup.pixmap(LOCKUP.size(), dpr)));
 
     // Test networks get a caution stripe, and a badge after the lockup, in the theme's gold
     const QString badgeText = networkStyle->getBadgeText().toUpper();
@@ -265,40 +255,6 @@ void SplashScreen::drawContents(QPainter* painter)
     painter->setRenderHint(QPainter::Antialiasing);
     painter->setLayoutDirection(direction);
 
-    // The step, wrapping upward from the bottom and rising into place when it changes
-    const QFont stepFont = SplashFont(22);
-    const QStringList stepLines = WrapLines(statusText, stepFont, TEXT_WIDTH, STEP_MAX_LINES);
-    const int stepTop = TEXT_BOTTOM - stepLines.size() * STEP_LINE_HEIGHT;
-    painter->save();
-    painter->setOpacity(stepReveal);
-    painter->translate(0, (1 - stepReveal) * STEP_RISE_DISTANCE);
-    painter->setFont(stepFont);
-    painter->setPen(ink);
-    for (int i = 0; i < stepLines.size(); ++i) {
-        const QRect line(TEXT_LEFT, stepTop + i * STEP_LINE_HEIGHT, TEXT_WIDTH, STEP_LINE_HEIGHT);
-        painter->drawText(QStyle::visualRect(direction, rect(), line), Qt::AlignLeft | Qt::AlignVCenter, stepLines[i]);
-    }
-    painter->restore();
-
-    // Above it, how far the task is, or the steps that led here while that is unknown
-    const int slotBottom = stepTop - SLOT_GAP;
-    if (progress > 0) {
-        const QRect percent(TEXT_LEFT - PERCENT_INDENT, slotBottom - PERCENT_HEIGHT, TEXT_WIDTH, PERCENT_HEIGHT);
-        painter->setFont(PercentFont());
-        painter->setPen(QColor(colors.wine));
-        painter->drawText(QStyle::visualRect(direction, rect(), percent), Qt::AlignLeft | Qt::AlignVCenter, tr("%1%").arg(progress));
-    } else {
-        painter->setFont(SplashFont(15));
-        for (int i = 0; i < recentSteps.size(); ++i) {
-            QColor faded(ink);
-            faded.setAlphaF(TRAIL_OPACITY[i]);
-            painter->setPen(faded);
-            const QRect line(TEXT_LEFT, slotBottom - TRAIL_GAP - (i + 1) * TRAIL_LINE_HEIGHT, TEXT_WIDTH, TRAIL_LINE_HEIGHT);
-            painter->drawText(QStyle::visualRect(direction, rect(), line), Qt::AlignLeft | Qt::AlignVCenter,
-                              painter->fontMetrics().elidedText(recentSteps[i], Qt::ElideRight, TEXT_WIDTH));
-        }
-    }
-
     // Progress runs along the bottom edge: filled to the percentage, or a sweeping segment while it is unknown
     const qreal radius = PROGRESS_TRACK.height() / 2.0;
     painter->fillRect(PROGRESS_TRACK, QColor(colors.border));
@@ -322,6 +278,42 @@ void SplashScreen::drawContents(QPainter* painter)
     painter->setClipRect(PROGRESS_TRACK);
     painter->fillPath(fill, QColor(colors.wine));
     painter->setClipping(false);
+
+    // The step wraps upward from the bottom. Above it is how far the task is,
+    // or the steps that led here while that is unknown.
+    const QFont stepFont = SplashFont(22);
+    const QStringList stepLines = WrapLines(statusText, stepFont, TEXT_WIDTH, STEP_MAX_LINES);
+    const int stepTop = TEXT_BOTTOM - stepLines.size() * STEP_LINE_HEIGHT;
+    const int slotBottom = stepTop - SLOT_GAP;
+    if (progress > 0) {
+        // The brand display face has digits but no Cyrillic, Greek or CJK, so only the percentage uses it
+        QFont percentFont = GUIUtil::brandFont(GUIUtil::TextStyle::Heading1);
+        percentFont.setPixelSize(88);
+        percentFont.setFeature("tnum", 1); // Tabular figures, so the number doesn't shift as it counts
+        painter->setFont(percentFont);
+        painter->setPen(QColor(colors.wine));
+        const QRect percent(TEXT_LEFT - PERCENT_INDENT, slotBottom - PERCENT_HEIGHT, TEXT_WIDTH, PERCENT_HEIGHT);
+        painter->drawText(QStyle::visualRect(direction, rect(), percent), Qt::AlignLeft | Qt::AlignVCenter, tr("%1%").arg(progress));
+    } else {
+        painter->setFont(SplashFont(15));
+        painter->setPen(ink);
+        for (int i = 0; i < recentSteps.size(); ++i) {
+            painter->setOpacity(TRAIL_OPACITY[i]);
+            const QRect line(TEXT_LEFT, slotBottom - TRAIL_GAP - (i + 1) * TRAIL_LINE_HEIGHT, TEXT_WIDTH, TRAIL_LINE_HEIGHT);
+            painter->drawText(QStyle::visualRect(direction, rect(), line), Qt::AlignLeft | Qt::AlignVCenter,
+                              painter->fontMetrics().elidedText(recentSteps[i], Qt::ElideRight, TEXT_WIDTH));
+        }
+    }
+
+    // Drawn last, as it rises into place when it changes
+    painter->setOpacity(stepReveal);
+    painter->translate(0, (1 - stepReveal) * STEP_RISE_DISTANCE);
+    painter->setFont(stepFont);
+    painter->setPen(ink);
+    for (int i = 0; i < stepLines.size(); ++i) {
+        const QRect line(TEXT_LEFT, stepTop + i * STEP_LINE_HEIGHT, TEXT_WIDTH, STEP_LINE_HEIGHT);
+        painter->drawText(QStyle::visualRect(direction, rect(), line), Qt::AlignLeft | Qt::AlignVCenter, stepLines[i]);
+    }
 
     painter->restore();
 }
@@ -497,7 +489,5 @@ void SplashScreen::showEvent(QShowEvent* event)
 void SplashScreen::hideEvent(QHideEvent* event)
 {
     animationTimer->stop();
-    stepAnimation->stop();
-    stepReveal = 1;
     QSplashScreen::hideEvent(event);
 }
