@@ -339,8 +339,22 @@ void paintRowBackground(QPainter* painter, const QRect& rect, bool selected)
     painter->fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), QColor(colors.border));
 }
 
-QString amountRunsHtml(const QString& formatted, const QString& fadedColor, const QString& unitStyle)
+//! Typographic minus for an amount's sign, which may follow an unconfirmed bracket. Display only:
+//! copied and exported amounts keep the ASCII hyphen.
+static QString withDisplayMinus(QString text)
 {
+    for (int i = 0; i < text.size() && !text.at(i).isDigit(); ++i) {
+        if (text.at(i) == QLatin1Char('-')) {
+            text[i] = QChar(0x2212);
+            break;
+        }
+    }
+    return text;
+}
+
+QString amountRunsHtml(const QString& rawFormatted, const QString& fadedColor, const QString& unitStyle)
+{
+    const QString formatted = withDisplayMinus(rawFormatted);
     const int split = formatted.indexOf(QLatin1Char('.'));
     if (split < 0) {
         return formatted.toHtmlEscaped();
@@ -360,9 +374,10 @@ QString amountRunsHtml(const QString& formatted, const QString& fadedColor, cons
     return html + QStringLiteral("</span>");
 }
 
-void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
+void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& rawText, const QColor& color, Qt::Alignment align,
                      Qt::TextElideMode elide)
 {
+    const QString text = withDisplayMinus(rawText);
     const QFontMetrics metrics(painter->font());
     const int split = text.indexOf(QLatin1Char('.'));
     const int width = metrics.horizontalAdvance(text);

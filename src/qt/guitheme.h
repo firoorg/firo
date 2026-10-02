@@ -128,7 +128,8 @@ namespace GUIUtil
 
     /**
      * Rich text for a formatted amount with the decimals and unit faded, so the whole
-     * number reads first. The digits are the same as in formatted.
+     * number reads first. The digits are the same as in formatted; a minus sign is shown
+     * as the typographic minus.
      * @param[in] formatted  Output of BitcoinUnits::formatWithUnit().
      * @param[in] fadedColor CSS color for the decimals and unit.
      * @param[in] unitStyle  Extra CSS for the unit run, e.g. a smaller size.
@@ -136,8 +137,8 @@ namespace GUIUtil
     QString amountRunsHtml(const QString& formatted, const QString& fadedColor, const QString& unitStyle = QString());
 
     /**
-     * Paint a formatted amount with the decimals and unit at reduced opacity.
-     * Falls back to a single run, elided with elide, when the text has no decimal point
+     * Paint a formatted amount with the decimals and unit at reduced opacity, and a minus
+     * sign as the typographic minus. Falls back to a single run, elided with elide, when the text has no decimal point
      * (e.g. a placeholder) or does not fit rect.
      */
     void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
