@@ -5,14 +5,18 @@
 #include "walletuitests.h"
 
 #include "addresstablemodel.h"
+#include "base58.h"
 #include "bitcoingui.h"
+#include "bitcoinunits.h"
 #include "bip47/defs.h"
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "createsparknamepage.h"
+#include "dbwrapper.h"
 #include "guitheme.h"
 #include "guiutil.h"
 #include "init.h"
+#include "llmq/quorums_instantsend.h"
 #include "masternode-sync.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
@@ -27,6 +31,8 @@
 #include "sparkname.h"
 #include "sparknamespage.h"
 #include "splashscreen.h"
+#include "timedata.h"
+#include "transactiondesc.h"
 #include "transactionfilterproxy.h"
 #include "transactionrecord.h"
 #include "transactiontablemodel.h"
@@ -75,6 +81,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QToolTip>
+#include <QTranslator>
 #include <QVariant>
 
 #include <memory>
@@ -223,6 +230,87 @@ void WalletUiTests::paymentCodeIndexesWithoutAddressCache()
     addressBook.reset();
     QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots);
     QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots);
+}
+
+void WalletUiTests::localizedAddressTypesKeepCanonicalRoles()
+{
+    Q_INIT_RESOURCE(bitcoin_locale);
+    QTranslator translator;
+    QVERIFY(translator.load(QStringLiteral(":/translations/es")));
+    QVERIFY(QCoreApplication::installTranslator(&translator));
+    const auto restoreTranslator = qScopeGuard([&] { QCoreApplication::removeTranslator(&translator); });
+
+    CWallet wallet;
+    AddressTableModel model(&wallet);
+    const QString transparent = QString::fromStdString(CBitcoinAddress(CKeyID()).ToString());
+    const QString spark = QStringLiteral("translation-test-spark-address");
+    const QString nameAddress = QStringLiteral("translation-test-name-address");
+    model.updateEntry(transparent, QString(), false, QStringLiteral("send"), CT_NEW);
+    model.updateEntry(spark, QString(), false, QStringLiteral("send"), CT_NEW);
+    const CSparkNameBlockIndexData name("translation-test-name", nameAddress.toStdString(), 100, "");
+    uiInterface.NotifySparkNameAdded(name);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+
+    const QStringList addresses{transparent, spark, nameAddress};
+    const QStringList displayed{QStringLiteral("transparente"), QStringLiteral("Spark"), QStringLiteral("nombre Spark")};
+    const QStringList edited{QStringLiteral("transparent"), QStringLiteral("spark"), QStringLiteral("spark name")};
+    const QStringList families{AddressTableModel::Transparent, AddressTableModel::Spark, AddressTableModel::SparkName};
+    for (int i = 0; i < addresses.size(); ++i) {
+        const auto matches = model.match(model.index(0, AddressTableModel::Address, QModelIndex()),
+            Qt::EditRole, addresses.at(i), 1, Qt::MatchExactly);
+        QCOMPARE(matches.size(), 1);
+        const auto index = matches.first().siblingAtColumn(AddressTableModel::AddressType);
+        QVERIFY(index.isValid());
+        QCOMPARE(model.data(index, Qt::DisplayRole).toString(), displayed.at(i));
+        QCOMPARE(model.data(index, Qt::EditRole).toString(), edited.at(i));
+        QCOMPARE(model.data(index, AddressTableModel::AddressTypeRole).toString(), families.at(i));
+    }
+}
+
+void WalletUiTests::pooledTransactionsRemainUnconfirmed()
+{
+    CDBWrapper islockDb("", 1 << 20, true);
+    llmq::CInstantSendManager manager(islockDb);
+    auto* const previousManager = llmq::quorumInstantSendManager;
+    llmq::quorumInstantSendManager = &manager;
+    const auto restoreManager = qScopeGuard([previousManager] { llmq::quorumInstantSendManager = previousManager; });
+
+    CWallet wallet;
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    tx.vout.emplace_back(COIN, CScript());
+    const auto transaction = MakeTransactionRef(tx);
+    const auto hash = transaction->GetHash();
+    CWalletTx wtx(&wallet, transaction);
+    wtx.nTimeReceived = GetAdjustedTime() - 600;
+    wallet.ResetRequestCount(hash);
+    TransactionRecord record(hash, wtx.nTimeReceived);
+    auto& stemPool = txpools.getStemTxPool();
+    const auto cleanupPools = qScopeGuard([&] {
+        mempool.removeRecursive(*transaction);
+        stemPool.removeRecursive(*transaction);
+    });
+    LOCK2(cs_main, wallet.cs_wallet);
+
+    record.updateStatus(wtx, 0, 0);
+    QCOMPARE(record.status.status, TransactionStatus::Offline);
+    QVERIFY(TransactionDesc::toHTML(&wallet, wtx, &record, BitcoinUnits::BTC).contains(QStringLiteral("0/offline")));
+
+    QVERIFY(stemPool.addUnchecked(hash, CTxMemPoolEntry(transaction, 0, 0, 0, 0, false, 0, LockPoints()), false));
+    record.updateStatus(wtx, 0, 0);
+    QCOMPARE(record.status.status, TransactionStatus::Unconfirmed);
+    QVERIFY(TransactionDesc::toHTML(&wallet, wtx, &record, BitcoinUnits::BTC).contains(QStringLiteral("0/unconfirmed, in dandelion stem pool")));
+
+    QVERIFY(mempool.addUnchecked(hash, CTxMemPoolEntry(transaction, 0, 0, 0, 0, false, 0, LockPoints()), false));
+    record.updateStatus(wtx, 0, 0);
+    QCOMPARE(record.status.status, TransactionStatus::Unconfirmed);
+    QVERIFY(TransactionDesc::toHTML(&wallet, wtx, &record, BitcoinUnits::BTC).contains(QStringLiteral("0/unconfirmed, in memory pool")));
+
+    mempool.removeRecursive(*transaction);
+    stemPool.removeRecursive(*transaction);
+    record.updateStatus(wtx, 0, 0);
+    QCOMPARE(record.status.status, TransactionStatus::Offline);
+    QVERIFY(TransactionDesc::toHTML(&wallet, wtx, &record, BitcoinUnits::BTC).contains(QStringLiteral("0/offline")));
 }
 
 void WalletUiTests::splashMessageDoesNotProcessEvents()

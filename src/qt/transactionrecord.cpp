@@ -417,7 +417,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int c
         {
             status.status = TransactionStatus::Conflicted;
         }
-        else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
+        else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0 && !wtx.InMempool() && !wtx.InStempool())
         {
             status.status = TransactionStatus::Offline;
         }
