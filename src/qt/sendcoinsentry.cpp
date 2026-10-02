@@ -86,7 +86,7 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins {
             background: $PANEL;
             border: 1px solid $BORDER;
-            border-radius: 18px;
+            border-radius: 14px;
         }
         QFrame#SendCoins QLabel {
             background: transparent;
@@ -131,7 +131,7 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins QLineEdit,
         QFrame#SendCoins AmountSpinBox {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 4px 12px;
             color: $INK;
@@ -155,7 +155,7 @@ void SendCoinsEntry::applyTheme()
         QFrame#SendCoins AmountSpinBox QLineEdit { %1 }
         QFrame#SendCoins QValueComboBox {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 4px 12px;
             color: $INK;
@@ -170,7 +170,7 @@ void SendCoinsEntry::applyTheme()
         }
         QFrame#SendCoins QValueComboBox::item {
             padding: 8px 10px;
-            border-radius: 8px;
+            border-radius: 6px;
             color: $INK;
         }
         QFrame#SendCoins QValueComboBox::item:alternate {
@@ -178,13 +178,13 @@ void SendCoinsEntry::applyTheme()
             color: $INK;
         }
         QFrame#SendCoins QValueComboBox::item:selected {
-            background: $WINE_DEEP;
-            color: #FFFFFF;
+            background: $WINE_TINT;
+            color: $INK;
         }
         QFrame#SendCoins QToolButton {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
-            border-radius: 8px;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
             padding: 4px;
             margin-left: 6px;
         }

@@ -343,7 +343,7 @@ void OverviewPage::applyOverviewTheme()
         QFrame#balancesCard, QFrame#detailsCard, QFrame#activityCard {
             background: $PANEL;
             border: 1px solid $BORDER;
-            border-radius: 18px;
+            border-radius: 14px;
         }
     )"));
     ui->balancesCard->setStyleSheet(cardStyle);
@@ -366,7 +366,7 @@ void OverviewPage::applyOverviewTheme()
         networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#networkBadge {"
             " color: $INK; background: $WINE_TINT; border: none;"
-            " border-radius: 9px; padding: 2px 8px; font-weight: 700;"
+            " border-radius: 10px; padding: 2px 8px; font-weight: 700;"
             "}")));
     }
 
@@ -446,7 +446,7 @@ void OverviewPage::applyOverviewTheme()
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { color: $WINE; background: $WINE_TINT; border-radius: 14px;"
+            "QLabel { color: $WINE_TEXT; background: $WINE_TINT; border-radius: 14px;"
             " font-size: 22px; font-weight: 700; }")));
     }
     if (emptyTitle_) {
@@ -518,7 +518,7 @@ void OverviewPage::on_anonymizeButton_clicked()
     amountField->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QAbstractSpinBox, QComboBox {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 5px 10px;
             color: $INK;

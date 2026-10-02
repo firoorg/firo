@@ -557,7 +557,7 @@ QWidget#SparkNamesPage {
 QFrame#sparkNamesContentCard {
   background: $PANEL;
   border: 1px solid $BORDER;
-  border-radius: 16px;
+  border-radius: 14px;
 }
 QLabel#headerLabel {
   color: $INK_SOFT;
@@ -573,7 +573,7 @@ QWidget#sparkNamesCardsHost {
 QFrame#sparkNameCard {
   background: $PANEL_SOFT;
   border: 1px solid $BORDER;
-  border-radius: 16px;
+  border-radius: 14px;
 }
 QFrame#sparkNameCard QLabel#cardTitle {
   color: $INK; font: $FONT_H3;
@@ -595,7 +595,7 @@ QFrame#sparkNameCard QLabel#cardMetricValue {
   background: transparent; border: none;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton {
-  color: $INK_SOFT; background: $PANEL; border: 1px solid $BORDER; border-radius: 8px;
+  color: $INK_SOFT; background: $PANEL; border: 1px solid $FIELD_BORDER; border-radius: 10px;
   padding: 4px 10px; font-weight: 700;
 }
 QFrame#sparkNameCard QToolButton#cardActionButton:hover {

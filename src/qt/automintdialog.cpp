@@ -39,7 +39,7 @@ void AutoMintSparkDialog::applyTheme()
         "QDialog { background: $BG; }"
         "QLabel { background: transparent; color: $INK_SOFT; }"
         "QLineEdit {"
-        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 8px 12px; color: $INK;"
         "}"
         "QLineEdit:focus { border: 1px solid $WINE; }"

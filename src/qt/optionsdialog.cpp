@@ -81,7 +81,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         QGroupBox {
             background: $PANEL_SOFT;
             border: 1px solid $BORDER;
-            border-radius: 12px;
+            border-radius: 14px;
             font-weight: 700;
             color: $INK;
             margin-top: 10px;
@@ -90,8 +90,8 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_SOFT; background-color: $PANEL; }
         QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
             background: $PANEL;
-            border: 1px solid $BORDER;
-            border-radius: 8px;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
             padding: 4px 8px;
             color: $INK;
         }
@@ -103,13 +103,13 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         QPushButton {
             color: $INK;
             background: $PANEL;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             font-weight: 700;
             min-width: 0;
             padding: 7px 16px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
+        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $FIELD_BORDER; }
         QPushButton:pressed { background: $PANEL_SOFT; }
         QPushButton#okButton {
             color: #FFFFFF;

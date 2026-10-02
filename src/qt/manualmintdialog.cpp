@@ -36,7 +36,7 @@ void ManualMintDialog::applyTheme()
         "QDialog { background: $BG; }"
         "QLabel { background: transparent; color: $INK_SOFT; }"
         "QSpinBox {"
-        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 8px;"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 4px 8px; color: $INK;"
         "}"
         "QSpinBox:focus { border: 1px solid $WINE; }"

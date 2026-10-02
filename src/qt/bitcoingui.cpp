@@ -570,7 +570,7 @@ static QIcon NavigationIcon(const QString& resource)
     centerPainter.end();
 
     const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
-    const QPixmap checked = ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF")));
+    const QPixmap checked = ColorizeNavigationIcon(centered, QColor(c.wineText));
     QIcon icon;
     icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.inkSoft)),
                    QIcon::Normal, QIcon::Off);
@@ -635,10 +635,10 @@ protected:
         if (thumbPos_ <= 0.0) {
             trackColor = QColor(c.border);
         } else if (thumbPos_ >= 1.0) {
-            trackColor = QColor(c.wineDeep);
+            trackColor = QColor(c.wine);
         } else {
             QColor off(c.border);
-            QColor on(c.wineDeep);
+            QColor on(c.wine);
             trackColor = QColor(
                 off.red()   + (on.red()   - off.red())   * thumbPos_,
                 off.green() + (on.green() - off.green()) * thumbPos_,
@@ -683,11 +683,9 @@ protected:
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
         p.setPen(Qt::NoPen);
-        QLinearGradient grad(rect().topLeft(), rect().topRight());
-        grad.setColorAt(0, QColor(c.wine));
-        grad.setColorAt(1, QColor(c.wineDeep));
-        p.setBrush(grad);
-        p.drawRoundedRect(rect(), 12, 12);
+        // A tint rather than a solid fill, so the selection doesn't compete with the balance card.
+        p.setBrush(QColor(c.wineTint));
+        p.drawRoundedRect(rect(), 10, 10);
     }
 };
 }
@@ -892,18 +890,18 @@ void BitcoinGUI::applyNavigationTheme()
     if (torStatusBadge) {
         torStatusBadge->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#torStatusBadge {"
-            " color: $INK; background: $WINE_TINT; border: none;"
-            " border-radius: 8px; padding: 2px 7px; font-weight: 700;"
+            " color: $TEAL_TEXT; background: $TEAL_TINT; border: none;"
+            " border-radius: 10px; padding: 2px 7px; font-weight: 700;"
             "}")));
     }
 
     if (navigationThemeRow) {
         navigationThemeRow->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QFrame#navigationThemeRow {"
-            " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 14px;"
+            " background: transparent; border: none; border-top: 1px solid $BORDER; border-radius: 0px;"
             "}"
             "QFrame#navigationThemeRow QLabel {"
-            " background: transparent; border: none; color: $INK_SOFT;"
+            " background: transparent; border: none; color: $INK_FAINT;"
             " font-weight: 700;"
             "}")));
     }
@@ -969,7 +967,7 @@ void BitcoinGUI::applyNavigationTheme()
             background: transparent;
             color: $INK_SOFT;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             min-height: 32px;
             max-height: 32px;
             font-weight: 700;
@@ -979,15 +977,15 @@ void BitcoinGUI::applyNavigationTheme()
         }
 
         QToolBar#navigationSidebar QToolButton:hover {
-            background: $PANEL_SOFT;
+            background: $HOVER;
             color: $INK;
         }
 
         QToolBar#navigationSidebar QToolButton:checked {
             background: transparent;
-            color: #FFFFFF;
+            color: $WINE_TEXT;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             min-height: 32px;
             max-height: 32px;
             padding: 3px 14px;
@@ -996,9 +994,9 @@ void BitcoinGUI::applyNavigationTheme()
 
         QToolBar#navigationSidebar QToolButton:checked:hover {
             background: transparent;
-            color: #FFFFFF;
+            color: $WINE_TEXT;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             min-height: 32px;
             max-height: 32px;
             padding: 3px 14px;
@@ -1056,7 +1054,7 @@ void BitcoinGUI::applyNavigationTheme()
         navigationToggleButton->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
             QToolButton#navigationDrawerToggle {
                 background: $PANEL;
-                border: 1px solid $BORDER;
+                border: 1px solid $FIELD_BORDER;
                 border-radius: 14px;
                 color: $INK_SOFT;
             }
@@ -1066,7 +1064,7 @@ void BitcoinGUI::applyNavigationTheme()
             }
             QToolButton#navigationDrawerToggle:focus { border-color: $WINE; }
             QToolButton#navigationDrawerToggle:pressed {
-                background: $BORDER;
+                background: $FIELD_BORDER;
             }
         )")));
     }

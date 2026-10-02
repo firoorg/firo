@@ -311,7 +311,7 @@ void AskPassphraseDialog::applyTheme()
         }
         QLineEdit#passEdit1, QLineEdit#passEdit2, QLineEdit#passEdit3 {
             background: $PANEL;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 10px 12px;
             color: $INK;

@@ -49,7 +49,7 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
         QTabBar::tab:hover { color: $INK; }
         QLineEdit, QPlainTextEdit, QTextEdit {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
@@ -60,12 +60,12 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
         QPushButton {
             color: $INK;
             background: $PANEL;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             font-weight: 700;
             padding: 7px 16px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
+        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $FIELD_BORDER; }
         QPushButton:pressed { background: $PANEL_SOFT; }
         QPushButton#signMessageButton_SM, QPushButton#verifyMessageButton_VM {
             color: #FFFFFF;

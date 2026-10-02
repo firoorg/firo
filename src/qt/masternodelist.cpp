@@ -448,7 +448,7 @@ QFrame#masternodeFilterCard,
 QFrame#masternodeContentCard {
   background: $PANEL;
   border: 1px solid $BORDER;
-  border-radius: 16px;
+  border-radius: 14px;
 }
 QLabel#masternodeSyncWarning {
   background: $GOLD_TINT;
@@ -460,8 +460,8 @@ QLabel#masternodeSyncWarning {
 QLineEdit#filterLineEditDIP3 {
   min-height: 34px;
   background: $PANEL_SOFT;
-  border: 1px solid $BORDER;
-  border-radius: 9px;
+  border: 1px solid $FIELD_BORDER;
+  border-radius: 10px;
   padding: 0 11px;
   color: $INK_SOFT;
   selection-background-color: $WINE_DEEP;
@@ -477,22 +477,11 @@ QCheckBox#checkBoxMyMasternodesOnly {
   spacing: 7px;
   background: transparent;
 }
-QCheckBox#checkBoxMyMasternodesOnly::indicator {
-  width: 14px;
-  height: 14px;
-  border: 1px solid $INK_FAINT;
-  border-radius: 4px;
-  background: $PANEL;
-}
-QCheckBox#checkBoxMyMasternodesOnly::indicator:checked {
-  image: url(:/images/checkbox_checked_$ASSET_THEME);
-  border: none;
-}
 QComboBox {
   min-height: 34px;
   background: $PANEL_SOFT;
-  border: 1px solid $BORDER;
-  border-radius: 9px;
+  border: 1px solid $FIELD_BORDER;
+  border-radius: 10px;
   padding: 0 10px;
   color: $INK_SOFT;
 }
@@ -506,8 +495,8 @@ QComboBox::drop-down {
 }
 QToolButton#masternodeSortDirection {
   background: $PANEL_SOFT;
-  border: 1px solid $BORDER;
-  border-radius: 9px;
+  border: 1px solid $FIELD_BORDER;
+  border-radius: 10px;
   color: $INK;
   font-weight: 700;
 }
@@ -519,7 +508,7 @@ QToolButton#masternodeSortDirection:focus {
 QFrame#nodeCountPill {
   background: $PANEL_SOFT;
   border: 1px solid $BORDER;
-  border-radius: 9px;
+  border-radius: 10px;
 }
 QFrame#nodeCountPill QLabel {
   color: $INK_SOFT;
@@ -559,7 +548,7 @@ QScrollBar::sub-line {
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "background: $WINE_TINT; color: $WINE; border-radius: 12px;"
+            "background: $WINE_TINT; color: $WINE_TEXT; border-radius: 12px;"
             "font-size: 20px; font-weight: 700;")));
     }
     if (emptyTitle_) {

@@ -34,7 +34,7 @@ void OpenURIDialog::applyTheme()
         "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }")));
     ui->uriEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QValidatedLineEdit {"
-        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 8px 12px; color: $INK;"
         "}"
         "QValidatedLineEdit:focus { border: 1px solid $WINE; }"

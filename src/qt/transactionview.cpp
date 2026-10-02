@@ -519,7 +519,7 @@ void TransactionView::applyTheme()
 
         "QFrame#filterCard, QFrame#tableCard, QFrame#dateRangeWidget {"
         "   background: $PANEL;"
-        "   border-radius: 16px;"
+        "   border-radius: 14px;"
         "   border: 1px solid $BORDER;"
         "}"
 
@@ -527,8 +527,8 @@ void TransactionView::applyTheme()
 
         "QLineEdit, QComboBox {"
         "   background: $PANEL_SOFT;"
-        "   border-radius: 9px;"
-        "   border: 1px solid $BORDER;"
+        "   border-radius: 10px;"
+        "   border: 1px solid $FIELD_BORDER;"
         "   padding: 0 11px;"
         "   min-height: 30px;"
         "   color: $INK_SOFT;"
@@ -537,14 +537,14 @@ void TransactionView::applyTheme()
 
         "QComboBox QAbstractItemView {"
         "   background: $PANEL;"
-        "   border-radius: 9px;"
+        "   border-radius: 10px;"
         "   border: 1px solid $BORDER;"
         "   padding: 4px;"
         "   outline: 0;"
         "}"
         "QComboBox::item {"
         "   padding: 7px 10px;"
-        "   border-radius: 7px;"
+        "   border-radius: 6px;"
         "   color: $INK;"
         "}"
         "QComboBox::item:alternate {"
@@ -552,21 +552,21 @@ void TransactionView::applyTheme()
         "   color: $INK;"
         "}"
         "QComboBox::item:selected {"
-        "   background: $WINE_DEEP;"
-        "   color: #FFFFFF;"
+        "   background: $WINE_TINT;"
+        "   color: $INK;"
         "}"
 
         "QComboBox::drop-down { border: none; width: 24px; }"
 
         "QToolButton#transactionSortDirection {"
-        " background:$PANEL_SOFT; border:1px solid $BORDER; border-radius:9px;"
+        " background:$PANEL_SOFT; border:1px solid $FIELD_BORDER; border-radius:10px;"
         " color:$INK_SOFT; font-weight:700;"
         "}"
         "QToolButton#transactionSortDirection:hover, QToolButton#transactionSortDirection:focus {"
         " border-color:$WINE; color:$INK;"
         "}"
 
-        "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:9px; border:1px solid $BORDER; padding:0 11px; min-height:30px; }"
+        "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:10px; border:1px solid $FIELD_BORDER; padding:0 11px; min-height:30px; }"
         "QDateTimeEdit:focus { border-color:$WINE; }"
 
         "QCalendarWidget { background:$PANEL; }"
@@ -604,13 +604,13 @@ void TransactionView::applyTheme()
     ));
 
     if (exportButton) {
-        exportButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("4px 8px")) +
+        exportButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("4px 8px")) +
             QStringLiteral("QPushButton { min-height: 22px; min-width: 62px; }"));
     }
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(
-            "background: $WINE_TINT; color: $WINE; border-radius: 12px;"
+            "background: $WINE_TINT; color: $WINE_TEXT; border-radius: 12px;"
             "font-size: 20px; font-weight: 700;"));
     }
     if (emptyTitle_) {

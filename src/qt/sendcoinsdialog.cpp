@@ -173,7 +173,7 @@ void SendCoinsDialog::applyTheme()
         "QFrame#frameFee, QFrame#frameCoinControl {"
         " background: $PANEL;"
         " border: 1px solid $BORDER;"
-        " border-radius: 18px;"
+        " border-radius: 14px;"
         "}"));
     ui->frameFee->setStyleSheet(cardStyle);
     ui->frameCoinControl->setStyleSheet(cardStyle);
@@ -186,14 +186,14 @@ void SendCoinsDialog::applyTheme()
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("5px 14px"));
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("5px 14px"));
     ui->sendButton->setStyleSheet(primaryButtonStyle);
-    ui->switchFundButton->setStyleSheet(primaryButtonStyle);
+    ui->switchFundButton->setStyleSheet(secondaryButtonStyle);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
     ui->addButton->setStyleSheet(secondaryButtonStyle);
-    ui->buttonChooseFee->setStyleSheet(primaryButtonStyle);
+    ui->buttonChooseFee->setStyleSheet(secondaryButtonStyle);
     ui->buttonMinimizeFee->setStyleSheet(secondaryButtonStyle);
 
     ui->balancePill->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QFrame#balancePill { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
+        "QFrame#balancePill { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px; }"
         "QFrame#balancePill QLabel { background: transparent; border: none; }"
         "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-weight: 700; }"
         "QFrame#balancePill QLabel#labelBalance { color: $INK; font-weight: 700; }")));
@@ -234,7 +234,7 @@ void SendCoinsDialog::applyTheme()
         "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_$ASSET_THEME); }")));
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QValidatedLineEdit, AmountSpinBox, QValueComboBox {"
-        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 4px 12px; color: $INK;"
         "}"
         "AmountSpinBox QLineEdit { %1 }"

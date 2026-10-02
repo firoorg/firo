@@ -307,7 +307,7 @@ void ReceiveCoinsDialog::applyTheme()
         "QFrame#frame2, QFrame#frame {"
         " background: $PANEL;"
         " border: 1px solid $BORDER;"
-        " border-radius: 18px;"
+        " border-radius: 14px;"
         "}"));
     ui->frame2->setStyleSheet(cardStyle);
     ui->frame->setStyleSheet(cardStyle);
@@ -327,7 +327,7 @@ void ReceiveCoinsDialog::applyTheme()
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QLineEdit, AmountSpinBox, QValueComboBox {"
         " background: $PANEL_SOFT;"
-        " border: 1px solid $BORDER;"
+        " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
         " color: $INK;"
@@ -350,7 +350,7 @@ void ReceiveCoinsDialog::applyTheme()
     const QString comboStyle = GUIUtil::themed(QStringLiteral(
         "QComboBox {"
         " background: $PANEL;"
-        " border: 1px solid $BORDER;"
+        " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
         " color: $INK;"
@@ -364,7 +364,7 @@ void ReceiveCoinsDialog::applyTheme()
         "}"
         "QComboBox::item {"
         " padding: 8px 10px;"
-        " border-radius: 8px;"
+        " border-radius: 6px;"
         " color: $INK;"
         "}"
         "QComboBox::item:alternate {"
@@ -372,8 +372,8 @@ void ReceiveCoinsDialog::applyTheme()
         " color: $INK;"
         "}"
         "QComboBox::item:selected {"
-        " background: $WINE_DEEP;"
-        " color: #FFFFFF;"
+        " background: $WINE_TINT;"
+        " color: $INK;"
         "}"));
     ui->addressTypeCombobox->setStyleSheet(comboStyle);
     ui->addressTypeHistoryCombobox->setStyleSheet(comboStyle);
@@ -399,7 +399,7 @@ void ReceiveCoinsDialog::applyTheme()
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { color: $WINE; background: $WINE_TINT; border-radius: 14px;"
+            "QLabel { color: $WINE_TEXT; background: $WINE_TINT; border-radius: 14px;"
             " font-size: 22px; font-weight: 700; }")));
     }
     if (emptyTitle_) {

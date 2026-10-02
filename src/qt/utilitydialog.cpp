@@ -178,7 +178,7 @@ void HelpMessageDialog::applyTheme()
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                         stop:0 $WINE, stop:1 $WINE_DEEP);
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 700;
             padding: 8px 18px;
         }

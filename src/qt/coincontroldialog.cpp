@@ -237,7 +237,7 @@ void CoinControlDialog::applyTheme()
 
     ui->frame->setAttribute(Qt::WA_StyledBackground, true);
     ui->frame->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QFrame { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 12px; }"
+        "QFrame { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 14px; }"
         "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }"
         "QRadioButton { background: transparent; color: $INK_SOFT; font-weight: 700; }")));
 
@@ -248,7 +248,7 @@ void CoinControlDialog::applyTheme()
 
     ui->treeWidget->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTreeWidget {"
-        " background: $PANEL; border: 1px solid $BORDER; border-radius: 12px;"
+        " background: $PANEL; border: 1px solid $BORDER; border-radius: 14px;"
         " outline: none; color: $INK; alternate-background-color: $PANEL_SOFT;"
         "}"
         "QTreeWidget::item { padding: 5px 2px; border: none; color: $INK; }"

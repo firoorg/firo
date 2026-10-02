@@ -498,7 +498,7 @@ void RPCConsole::applyConsoleTheme()
         QGroupBox {
             background: $PANEL_SOFT;
             border: 1px solid $BORDER;
-            border-radius: 12px;
+            border-radius: 14px;
             font-weight: 700;
             color: $INK;
             margin-top: 10px;
@@ -508,7 +508,7 @@ void RPCConsole::applyConsoleTheme()
         QTextEdit#messagesWidget {
             background: $PANEL;
             border: 1px solid $BORDER;
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 8px;
             color: $INK;
         }
@@ -516,7 +516,7 @@ void RPCConsole::applyConsoleTheme()
             background: $PANEL;
             alternate-background-color: $PANEL_SOFT;
             border: 1px solid $BORDER;
-            border-radius: 12px;
+            border-radius: 14px;
             color: $INK;
             gridline-color: $BORDER;
             selection-background-color: $WINE_TINT;
@@ -539,17 +539,17 @@ void RPCConsole::applyConsoleTheme()
         QPushButton {
             color: $INK;
             background: $PANEL;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             font-weight: 700;
             padding: 6px 14px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
+        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $FIELD_BORDER; }
         QPushButton:pressed { background: $PANEL_SOFT; }
     )")));
 
     const QString iconButtonStyle = GUIUtil::themed(QStringLiteral(
-        "QPushButton { background-color: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 4px; padding: 0px; }"
+        "QPushButton { background-color: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 0px; }"
         "QPushButton:hover:enabled { background-color: $PANEL; }"
         "QPushButton:disabled { background-color: $PANEL_SOFT; border-color: $PANEL_SOFT; }"));
     ui->fontSmallerButton->setStyleSheet(iconButtonStyle);
@@ -559,7 +559,7 @@ void RPCConsole::applyConsoleTheme()
     ui->promptIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
         QIcon(QStringLiteral(":/icons/prompticon")), QSize(14, 14)));
     ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $BORDER; border-radius: 10px; padding: 4px 8px; }"
+        "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 4px 8px; }"
         "QLineEdit:focus { border: 1px solid $WINE; }")));
 
     if (consoleFontSize > 0)
@@ -827,10 +827,10 @@ void RPCConsole::updateConsoleDocumentStyle()
         "table { }"
         "td.time { color: $INK_FAINT; font-size: %2; padding-top: 3px; } "
         "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; } "
-        "td.cmd-request { color: $TEAL; } "
+        "td.cmd-request { color: $WINE_TEXT; font-weight: 700; } "
         "td.cmd-error { color: $ERROR; } "
         ".secwarning { color: $ERROR; }"
-        "b { color: $TEAL; } ")
+        "b { color: $WINE_TEXT; } ")
         .arg(fixedFontInfo.family(), QStringLiteral("%1pt").arg(consoleFontSize));
     ui->messagesWidget->document()->setDefaultStyleSheet(GUIUtil::themed(style));
 }
