@@ -755,7 +755,7 @@ QStatusBar #lblStatusBarProgress {
     qproperty-showGrid: false;
 }
 
-QTableView::item {
+.QTableView::item {
     height: 2.5em;
     border-bottom: 0px solid;
     background-color: #cfcccc;
@@ -764,11 +764,11 @@ QTableView::item {
     font: $FONT_BODY;
 }
 
-QTableView::item:alternate {
+.QTableView::item:alternate {
     background-color: #ffffff;
 }
 
-QTableView::item:selected {
+.QTableView::item:selected {
     background-color: #878787;
     color: #FFFFFF;
     font: $FONT_BODY;

@@ -21,6 +21,7 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
+#include "rpcconsole.h"
 #include "sendcoinsdialog.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
@@ -39,8 +40,10 @@
 #include <QAbstractItemDelegate>
 #include <QAbstractSpinBox>
 #include <QAction>
+#include <QCalendarWidget>
 #include <QColor>
 #include <QComboBox>
+#include <QDateTimeEdit>
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QImage>
@@ -340,6 +343,110 @@ void WalletUiTests::splashShutdownControls()
     splash->showProgress("Verifying blocks...", 50);
     QVERIFY(!closeButton->isHidden());
     QVERIFY(!timer->isActive());
+}
+
+void WalletUiTests::peerDetailsTheme()
+{
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    GUIUtil::setThemeMode(GUIUtil::ThemeMode::Light);
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    RPCConsole console(style.get(), nullptr);
+    console.setAttribute(Qt::WA_DontShowOnScreen);
+    auto* details = console.findChild<QWidget*>("detailWidget");
+    auto* heading = console.findChild<QWidget*>("peerHeading");
+    auto* label = console.findChild<QLabel*>("peerServices");
+    auto* table = console.findChild<QTableView*>("peerWidget");
+    QVERIFY(details);
+    QVERIFY(heading);
+    QVERIFY(label);
+    QVERIFY(table);
+    QStandardItemModel peers(2, 1);
+    table->setModel(&peers);
+    console.setTabFocus(RPCConsole::TAB_PEERS);
+    details->show();
+    console.show();
+    QCoreApplication::processEvents();
+    const QImage lightRows = table->viewport()->grab().toImage();
+
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark, GUIUtil::ThemeMode::Light}) {
+        GUIUtil::setThemeMode(mode);
+        QCoreApplication::processEvents();
+        const auto& colors = GUIUtil::themeColors();
+        const QImage window = console.grab().toImage();
+        for (auto* widget : {details, heading}) {
+            const QPoint sample = widget->mapTo(&console, QPoint(2, 2)) * window.devicePixelRatio();
+            QCOMPARE(window.pixelColor(sample), QColor(colors.bg));
+        }
+        QCOMPARE(label->palette().color(QPalette::WindowText), QColor(colors.ink));
+        const QImage rows = table->viewport()->grab().toImage();
+        for (int row = 0; row < peers.rowCount(); ++row) {
+            const QPoint center = table->visualRect(peers.index(row, 0)).center();
+            const QColor expected = mode == GUIUtil::ThemeMode::Dark
+                ? QColor(row == 0 ? colors.panel : colors.panelSoft)
+                : lightRows.pixelColor(center * lightRows.devicePixelRatio());
+            QCOMPARE(rows.pixelColor(center * rows.devicePixelRatio()), expected);
+        }
+    }
+}
+
+void WalletUiTests::transactionCalendarTheme()
+{
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    TransactionView transactions(style.get(), nullptr);
+    const auto dates = transactions.findChildren<QDateTimeEdit*>();
+    QCOMPARE(dates.size(), 2);
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark, GUIUtil::ThemeMode::Light}) {
+        GUIUtil::setThemeMode(mode);
+        for (auto* date : dates) {
+            auto* calendar = date->calendarWidget();
+            calendar->window()->setAttribute(Qt::WA_DontShowOnScreen);
+            calendar->setFirstDayOfWeek(Qt::Monday);
+            calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+            calendar->setSelectedDate(QDate(2026, 7, 16));
+            calendar->setCurrentPage(2026, 7);
+            calendar->window()->show();
+            QCoreApplication::processEvents();
+            auto* days = calendar->findChild<QAbstractItemView*>("qt_calendar_calendarview");
+            QVERIFY(days);
+            // Avoid native focus overlays when sampling theme colors.
+            days->clearFocus();
+            const auto& colors = GUIUtil::themeColors();
+            const auto cellHasColor = [days](const QModelIndex& index, const QColor& color) {
+                const QImage cell = days->viewport()->grab(days->visualRect(index)).toImage();
+                for (int y = 0; y < cell.height(); ++y) {
+                    for (int x = 0; x < cell.width(); ++x) {
+                        if (cell.pixelColor(x, y) == color) return true;
+                    }
+                }
+                return false;
+            };
+            const QModelIndex selected = days->selectionModel()->currentIndex();
+            QCOMPARE(selected.data().toInt(), 16);
+            const QModelIndex weekday = selected.siblingAtColumn(selected.column() + 1);
+            const QModelIndex weekend = selected.siblingAtColumn(selected.column() + 2);
+            // With a Monday-first July 2026 calendar, the first Tuesday is June 30.
+            const QModelIndex otherMonth = days->model()->index(1, 1);
+            QCOMPARE(otherMonth.data().toInt(), 30);
+            QVERIFY(cellHasColor(selected, QColor(colors.wineDeep)));
+            QVERIFY(cellHasColor(selected, QColor(Qt::white)));
+            QVERIFY(cellHasColor(weekday, QColor(colors.panel)));
+            QVERIFY(cellHasColor(weekday, QColor(colors.ink)));
+            QVERIFY(cellHasColor(weekend, QColor(colors.inkSoft)));
+            QVERIFY(cellHasColor(otherMonth, QColor(colors.inkFaint)));
+            days->setEnabled(false);
+            QCoreApplication::processEvents();
+            QVERIFY(cellHasColor(weekday, QColor(colors.inkFaint)));
+            days->setEnabled(true);
+            calendar->window()->hide();
+        }
+    }
 }
 
 void WalletUiTests::deferredTransactionsKeepOrder()

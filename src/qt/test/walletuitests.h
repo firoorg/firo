@@ -21,6 +21,8 @@ private Q_SLOTS:
     void receiveMnemonics();
     void confirmationRefresh();
     void themeTintColors();
+    void peerDetailsTheme();
+    void transactionCalendarTheme();
     void brandTypography();
     void recentActivityFitsBrandFont();
     void deferredTransactionsKeepOrder();

@@ -572,8 +572,10 @@ void TransactionView::applyTheme()
         "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:9px; border:1px solid $BORDER; padding:0 11px; min-height:30px; }"
         "QDateTimeEdit:focus { border-color:$WINE; }"
 
+        "QCalendarWidget { background:$PANEL; }"
         "QCalendarWidget QWidget { background:$PANEL; }"
-        "QCalendarWidget QAbstractItemView { selection-background-color:$PANEL_SOFT; border:none; }"
+        "QCalendarWidget QAbstractItemView { color:$INK; selection-background-color:$WINE_DEEP; selection-color:#FFFFFF; border:none; }"
+        "QCalendarWidget QAbstractItemView:disabled { color:$INK_FAINT; }"
         "QCalendarWidget QToolButton { color:$INK_SOFT; background:transparent; font-weight: 700; }"
 
         "QTableView {"
@@ -589,9 +591,9 @@ void TransactionView::applyTheme()
         " font-weight:700; color:$INK_SOFT;"
         "}"
         "QHeaderView::section:hover { background:$PANEL; }"
-        "QTableView::item { background: transparent; border: none; padding: 0; }"
-        "QTableView::item:hover { background: transparent; }"
-        "QTableView::item:selected { background: transparent; color: $INK; }"
+        ".QTableView::item { background: transparent; border: none; padding: 0; }"
+        ".QTableView::item:hover { background: transparent; }"
+        ".QTableView::item:selected { background: transparent; color: $INK; }"
 
         "QScrollBar:vertical { background:$PANEL_SOFT; width:12px; border-radius:6px; }"
         "QScrollBar::handle:vertical { background:$INK_FAINT; border-radius:6px; margin:2px; min-height:32px; }"
