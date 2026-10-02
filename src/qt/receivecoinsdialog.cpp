@@ -246,7 +246,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     auto* emptyLayout = new QVBoxLayout(requestsEmptyState);
     emptyLayout->setContentsMargins(0, 24, 0, 24);
     emptyLayout->setSpacing(7);
-    emptyIcon_ = new QLabel(QStringLiteral("↙"), requestsEmptyState);
+    emptyIcon_ = new QLabel(requestsEmptyState);
     emptyIcon_->setFixedSize(48, 48);
     emptyIcon_->setAlignment(Qt::AlignCenter);
     emptyTitle_ = new QLabel(tr("No payment requests yet"), requestsEmptyState);
@@ -374,8 +374,9 @@ void ReceiveCoinsDialog::applyTheme()
 
     if (emptyIcon_) {
         emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { color: $WINE_TEXT; background: $WINE_TINT; border-radius: 14px;"
-            " font-size: 22px; font-weight: 700; }")));
+            "QLabel { background: $WINE_TINT; border-radius: 24px; }")));
+        emptyIcon_->setPixmap(GUIUtil::glyphIcon(GUIUtil::Glyph::Inbox, QColor(GUIUtil::themeColors().wineText),
+                                                 24, devicePixelRatioF()).pixmap(24, 24));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

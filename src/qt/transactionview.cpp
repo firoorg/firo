@@ -406,7 +406,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     emptyLayout->setSpacing(5);
     emptyLayout->addStretch();
 
-    emptyIcon_ = new QLabel(QStringLiteral("≡"), emptyState);
+    emptyIcon_ = new QLabel(emptyState);
     emptyIcon_->setAlignment(Qt::AlignCenter);
     emptyIcon_->setFixedSize(48, 48);
     emptyLayout->addWidget(emptyIcon_, 0, Qt::AlignHCenter);
@@ -589,9 +589,9 @@ void TransactionView::applyTheme()
     }
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(
-            "background: $WINE_TINT; color: $WINE_TEXT; border-radius: 12px;"
-            "font-size: 20px; font-weight: 700;"));
+        emptyIcon_->setStyleSheet(GUIUtil::themed("background: $WINE_TINT; border-radius: 24px;"));
+        emptyIcon_->setPixmap(GUIUtil::glyphIcon(GUIUtil::Glyph::List, QColor(GUIUtil::themeColors().wineText),
+                                                 24, devicePixelRatioF()).pixmap(24, 24));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-weight: 700;"));
