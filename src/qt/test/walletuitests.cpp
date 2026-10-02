@@ -265,6 +265,7 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
     core.join();
     QCoreApplication::sendPostedEvents(splash, QEvent::MetaCall);
     QCOMPARE(splash->paints, paintsBeforeProgress);
+    QCOMPARE(splash->accessibleDescription(), QStringLiteral("Loading wallet..."));
     QCoreApplication::processEvents();
     QVERIFY(splash->paints > paintsBeforeProgress);
 
