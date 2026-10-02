@@ -450,7 +450,7 @@ QHeaderView::section {
     background-color: transparent;
     border-color: transparent;
     color: $INK_FAINT;
-    font-weight: 700;
+    font: $FONT_CAPTION;
 }
 
 QHeaderView::section:last {

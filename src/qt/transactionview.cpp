@@ -575,7 +575,7 @@ void TransactionView::applyTheme()
 
         "QHeaderView::section {"
         " background:$PANEL; padding:5px 6px; border:none;"
-        " font-weight:700; color:$INK_SOFT;"
+        " font:$FONT_CAPTION; color:$INK_FAINT;"
         "}"
         "QHeaderView::section:hover { background:$PANEL; }"
         ".QTableView::item { background: transparent; border: none; padding: 0; }"

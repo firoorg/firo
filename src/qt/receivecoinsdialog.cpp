@@ -375,8 +375,8 @@ void ReceiveCoinsDialog::applyTheme()
     ui->recentRequestsView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
-        " background: transparent; border: none; color: $INK_SOFT;"
-        " font-weight: 700; padding: 6px;"
+        " background: transparent; border: none; color: $INK_FAINT;"
+        " font: $FONT_CAPTION; padding: 6px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->recentRequestsView->viewport())
