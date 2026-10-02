@@ -170,15 +170,18 @@ public:
             painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter,
                               boldMetrics.elidedText(service, Qt::ElideMiddle, titleRect.width()));
 
-            painter->setFont(option.font);
-            painter->setPen(QColor(tc.inkSoft));
+            // The outpoint in the muted monospace face, like Spark Name addresses.
+            QFont outpointFont = GUIUtil::fixedPitchFont();
+            outpointFont.setPixelSize(13);
+            painter->setFont(outpointFont);
+            painter->setPen(QColor(tc.inkFaint));
             const QString collateral = masternodeText(
                 QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
                 .arg(index.data(CollateralOutpointRole).toString());
             const QRect subtitleRect(titleRect.left(), titleRect.bottom() + 1, titleRect.width(), lineHeight);
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(option.font).elidedText(collateral, Qt::ElideMiddle,
-                                                                  subtitleRect.width()));
+                              QFontMetrics(outpointFont).elidedText(collateral, Qt::ElideMiddle,
+                                                                   subtitleRect.width()));
         }
 
         painter->setFont(option.font);
