@@ -251,6 +251,7 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
 
     uiInterface.InitMessage("Loading wallet...");
     QVERIFY(splash->paints > paintsBeforeMessage);
+    QCOMPARE(splash->accessibleDescription(), QStringLiteral("Loading wallet..."));
     QVERIFY(!callbackRan);
     QCoreApplication::processEvents();
     QVERIFY(callbackRan);
