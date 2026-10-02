@@ -292,7 +292,7 @@ void ReceiveCoinsDialog::applyTheme()
     ui->sparkNameActions->setStyleSheet(QStringLiteral("background: transparent;"));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font: $FONT_CAPTION; }"));
     for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
@@ -308,6 +308,7 @@ void ReceiveCoinsDialog::applyTheme()
         " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
+        " min-height: 30px;"
         " color: $INK;"
         "}"
         "AmountSpinBox QLineEdit { %1 }"
@@ -315,10 +316,10 @@ void ReceiveCoinsDialog::applyTheme()
         " border-color: $ERROR;"
         "}"
         "QLineEdit:focus, AmountSpinBox:focus, QValueComboBox:focus {"
-        " background: $PANEL_SOFT;"
-        " border: 1px solid $WINE;"
+        " background: $PANEL;"
+        " border: 2px solid $WINE;"
         " border-radius: 10px;"
-        " padding: 4px 12px;"
+        " padding: 3px 11px;"
         " color: $INK;"
         "}")).arg(GUIUtil::spinBoxInnerLineEditReset());
     ui->reqLabel->setStyleSheet(fieldStyle);
@@ -331,6 +332,7 @@ void ReceiveCoinsDialog::applyTheme()
         " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
+        " min-height: 30px;"
         " color: $INK;"
         "}"
         "QComboBox QAbstractItemView {"
@@ -360,8 +362,13 @@ void ReceiveCoinsDialog::applyTheme()
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px"));
     ui->receiveButton->setStyleSheet(primaryButtonStyle);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
-    ui->mySparkNamesButton->setStyleSheet(secondaryButtonStyle);
-    ui->createSparkNameButton->setStyleSheet(secondaryButtonStyle);
+    // The Spark Name actions recede so Request payment is the one filled button.
+    const QString ghostButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("6px 10px"));
+    ui->mySparkNamesButton->setStyleSheet(ghostButtonStyle);
+    ui->createSparkNameButton->setStyleSheet(ghostButtonStyle);
+    const QColor actionIconColor(GUIUtil::themeColors().inkSoft);
+    ui->mySparkNamesButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), QSize(16, 16), actionIconColor));
+    ui->createSparkNameButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/tag")), QSize(16, 16), actionIconColor));
     ui->showRequestButton->setStyleSheet(secondaryButtonStyle);
     ui->removeRequestButton->setStyleSheet(secondaryButtonStyle);
 
