@@ -281,6 +281,25 @@ QString secondaryButtonStyle(const QString& padding)
     )")).arg(padding);
 }
 
+QString ghostButtonStyle(const QString& padding)
+{
+    return themed(QStringLiteral(R"(
+        QPushButton {
+            color: $INK_SOFT;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            min-width: 0;
+            font-weight: 700;
+            padding: %1;
+        }
+        QPushButton:hover:enabled { color: $INK; background: $HOVER; }
+        QPushButton:focus { border-color: $FIELD_BORDER; }
+        QPushButton:pressed { background: $HOVER; }
+        QPushButton:disabled { color: $INK_FAINT; }
+    )")).arg(padding);
+}
+
 QString spinBoxInnerLineEditReset()
 {
     return QStringLiteral("background: transparent; border: none; border-radius: 0; padding: 0; min-height: 0;");

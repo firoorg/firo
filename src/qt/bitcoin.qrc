@@ -76,6 +76,7 @@
         <file alias="spark">res/icons/spark.png</file>
         <file alias="firo_mark">res/icons/firo_mark.png</file>
         <file alias="shield">res/icons/shield.png</file>
+        <file alias="trash">res/icons/trash.png</file>
         <file alias="refresh">res/icons/refresh.png</file>
     </qresource>
     <qresource prefix="/movies">

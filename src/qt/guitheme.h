@@ -93,6 +93,8 @@ namespace GUIUtil
 
     QString primaryButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
     QString secondaryButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
+    //! A borderless action that recedes next to the primary and secondary buttons.
+    QString ghostButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
 
     QString spinBoxInnerLineEditReset();
 

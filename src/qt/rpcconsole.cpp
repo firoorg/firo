@@ -26,6 +26,8 @@
 
 #include <openssl/crypto.h>
 
+#include <algorithm>
+
 #include <univalue.h>
 
 #ifdef ENABLE_WALLET
@@ -441,9 +443,6 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     if (platformStyle->getImagesOnButtons()) {
         ui->openDebugLogfileButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
     }
-    ui->clearButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-    ui->fontBiggerButton->setIcon(platformStyle->SingleColorIcon(":/icons/fontbigger"));
-    ui->fontSmallerButton->setIcon(platformStyle->SingleColorIcon(":/icons/fontsmaller"));
 
     // Install event filter for up and down arrow
     ui->lineEdit->installEventFilter(this);
@@ -548,13 +547,17 @@ void RPCConsole::applyConsoleTheme()
         QPushButton:pressed { background: $PANEL_SOFT; }
     )")));
 
-    const QString iconButtonStyle = GUIUtil::themed(QStringLiteral(
-        "QPushButton { background-color: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 0px; }"
-        "QPushButton:hover:enabled { background-color: $PANEL; }"
-        "QPushButton:disabled { background-color: $PANEL_SOFT; border-color: $PANEL_SOFT; }"));
-    ui->fontSmallerButton->setStyleSheet(iconButtonStyle);
-    ui->fontBiggerButton->setStyleSheet(iconButtonStyle);
-    ui->clearButton->setStyleSheet(iconButtonStyle);
+    // Font size and clear are ghost icon buttons with outline icons, as elsewhere in the app.
+    const QString iconButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("0px"));
+    const QColor iconColor(GUIUtil::themeColors().inkSoft);
+    const QSize iconSize(18, 18);
+    ui->fontSmallerButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/fontsmaller")), iconSize, iconColor));
+    ui->fontBiggerButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/fontbigger")), iconSize, iconColor));
+    ui->clearButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/trash")), iconSize, iconColor));
+    for (QPushButton* button : {ui->fontSmallerButton, ui->fontBiggerButton, ui->clearButton}) {
+        button->setStyleSheet(iconButtonStyle);
+        button->setIconSize(iconSize);
+    }
     ui->promptIcon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     ui->promptIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
         QIcon(QStringLiteral(":/icons/prompticon")), QSize(14, 14)));
@@ -825,13 +828,15 @@ void RPCConsole::updateConsoleDocumentStyle()
     QFontInfo fixedFontInfo(GUIUtil::fixedPitchFont());
     const QString style = QStringLiteral(
         "table { }"
-        "td.time { color: $INK_FAINT; font-size: %2; padding-top: 3px; } "
-        "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; } "
-        "td.cmd-request { color: $WINE_TEXT; font-weight: 700; } "
+        "td.time { color: $INK_FAINT; font-family: %1; font-size: %3; padding-top: 3px; white-space: nowrap; } "
+        "td.message { color: $INK_SOFT; font-family: %1; font-size: %2; white-space:pre-wrap; } "
+        "td.cmd-request { color: $INK; font-weight: 500; } "
         "td.cmd-error { color: $ERROR; } "
+        ".prompt { color: $WINE_TEXT; } "
         ".secwarning { color: $ERROR; }"
-        "b { color: $WINE_TEXT; } ")
-        .arg(fixedFontInfo.family(), QStringLiteral("%1pt").arg(consoleFontSize));
+        "b { color: $WINE_TEXT; font-weight: 500; } ")
+        .arg(fixedFontInfo.family(), QStringLiteral("%1pt").arg(consoleFontSize),
+             QStringLiteral("%1pt").arg(std::max(consoleFontSize - 1, 1)));
     ui->messagesWidget->document()->setDefaultStyleSheet(GUIUtil::themed(style));
 }
 
@@ -882,6 +887,9 @@ void RPCConsole::message(int category, const QString &message, bool html)
     out += "<table><tr><td class=\"time\" width=\"65\">" + timeString + "</td>";
     out += "<td class=\"icon\" width=\"32\"><img src=\"" + categoryClass(category) + "\"></td>";
     out += "<td class=\"message " + categoryClass(category) + "\" valign=\"middle\">";
+    // Commands read like a terminal: a wine prompt before what was typed.
+    if (category == CMD_REQUEST)
+        out += "<span class=\"prompt\">&#8250;&nbsp;</span>";
     if(html)
         out += message;
     else
