@@ -611,6 +611,9 @@ void MasternodeList::showOutOfSyncWarning(bool fShow)
 
 bool MasternodeList::eventFilter(QObject* watched, QEvent* event)
 {
+    // The viewport settles after this page's own resize, so follow it directly.
+    if (masternodeView && watched == masternodeView->viewport() && event->type() == QEvent::Resize)
+        updateEmptyState();
     if (event->type() != QEvent::ContextMenu || !masternodeView ||
         (watched != masternodeView && watched != masternodeView->viewport()))
         return QWidget::eventFilter(watched, event);
