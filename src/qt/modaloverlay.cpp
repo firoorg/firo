@@ -5,6 +5,7 @@
 #include "modaloverlay.h"
 #include "ui_modaloverlay.h"
 
+#include "guiconstants.h"
 #include "guitheme.h"
 #include "guiutil.h"
 
@@ -212,6 +213,10 @@ ModalOverlay::~ModalOverlay()
 
 void ModalOverlay::setSyncComplete(bool complete)
 {
+    if (complete && ui->progressBar->property("synced").toBool()) {
+        blockProcessTime.clear();
+        return;
+    }
     if (ui->progressBar->property("synced").toBool() != complete) {
         ui->progressBar->setProperty("synced", complete);
         ui->progressBar->style()->unpolish(ui->progressBar);
@@ -273,17 +278,19 @@ bool ModalOverlay::event(QEvent* ev) {
 
 void ModalOverlay::setKnownBestHeight(int count, const QDateTime& blockDate)
 {
-    if (count >= bestHeaderHeight && blockDate.isValid()) {
-        bestHeaderHeight = count;
-        bestHeaderDate = blockDate;
+    if (count < bestHeaderHeight || !blockDate.isValid() ||
+        (count == bestHeaderHeight && blockDate == bestHeaderDate)) {
+        return;
     }
+    bestHeaderHeight = count;
+    bestHeaderDate = blockDate;
     updateProgressDisplay();
 }
 
 bool ModalOverlay::isHeaderSyncPending() const
 {
     return bestHeaderHeight > blockHeight && bestHeaderDate.isValid() &&
-        bestHeaderDate.secsTo(QDateTime::currentDateTime()) >= 4LL * 60 * 60;
+        bestHeaderDate.secsTo(QDateTime::currentDateTime()) >= MAX_SYNCED_TIP_AGE_SECS;
 }
 
 double ModalOverlay::headerSyncProgress() const
@@ -358,7 +365,7 @@ void ModalOverlay::updateProgressDisplay()
         ui->numberOfBlocksLeft->setText(tr("Unknown. Syncing Headers (%1)...").arg(bestHeaderHeight));
         ui->expectedTimeLeft->setText(tr("Unknown..."));
     } else if (bestHeaderDate.isValid() && blockHeight >= 0 && bestHeaderHeight >= blockHeight &&
-               (bestHeaderHeight > blockHeight || !blockProcessTime.isEmpty())) {
+               bestHeaderDate.secsTo(QDateTime::currentDateTime()) < MAX_SYNCED_TIP_AGE_SECS) {
         ui->numberOfBlocksLeft->setText(QString::number(bestHeaderHeight - blockHeight));
     } else {
         ui->numberOfBlocksLeft->setText(tr("Unknown..."));
