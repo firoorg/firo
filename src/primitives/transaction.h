@@ -300,10 +300,10 @@ template<typename Stream, typename TxType>
 inline void UnserializeTransaction(TxType& tx, Stream& s) {
     const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
-    int32_t n32bitVersion;
+    uint32_t n32bitVersion;
     s >> n32bitVersion;
     tx.nVersion = (int16_t) (n32bitVersion & 0xffff);
-    tx.nType = (int16_t) ((n32bitVersion >> 16) & 0xffff);
+    tx.nType = (int16_t) (n32bitVersion >> 16);
 
     unsigned char flags = 0;
     tx.vin.clear();
@@ -343,7 +343,9 @@ template<typename Stream, typename TxType>
 inline void SerializeTransaction(const TxType& tx, Stream& s) {
     const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
 
-    int32_t n32bitVersion = tx.nVersion | (tx.nType << 16);
+    // Preserve legacy sign extension of nVersion without a signed left shift.
+    uint32_t n32bitVersion = static_cast<uint32_t>(tx.nVersion) |
+                             (static_cast<uint32_t>(tx.nType) << 16);
     s << n32bitVersion;
     unsigned char flags = 0;
     // Consistency check

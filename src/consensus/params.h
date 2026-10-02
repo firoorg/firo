@@ -286,6 +286,10 @@ struct Params {
     // INT_MAX is the deployment blocker.
     int nSparkChaumV2StartBlock;
 
+    /** At and after this height, reject negative transaction versions.
+     * INT_MAX leaves the rule inactive for coordinated deployment. */
+    int nRejectNegativeTxVersionStartBlock;
+
     int nSparkNamesStartBlock;
     int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
     int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers

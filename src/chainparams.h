@@ -155,6 +155,9 @@ void UpdateRegtestSparkSingleInputHeight(int height);
 /** Allows tests to exercise the Spark CHAUM_V2 hard-fork activation. */
 void UpdateRegtestSparkChaumV2Height(int height);
 
+/** Allows tests to exercise the negative transaction version activation. */
+void UpdateRegtestRejectNegativeTxVersionHeight(int height);
+
 /**
  * Validate the resulting Spark activation-height pair, then apply one or both
  * heights. Prefer this when both CLI/test overrides are known up front so
