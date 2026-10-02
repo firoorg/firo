@@ -492,7 +492,7 @@ QMenu {
 }
 
 QMenu::item {
-    padding: 6px 14px;
+    padding: 8px 14px;
     border-radius: 6px;
     color: $INK;
     font: $FONT_BODY;

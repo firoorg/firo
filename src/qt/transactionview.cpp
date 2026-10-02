@@ -431,6 +431,16 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     QAction *copyTxPlainText     = new QAction(tr("Copy full transaction details"), this);
     QAction *editLabelAction     = new QAction(tr("Edit label"), this);
     QAction *showDetailsAction   = new QAction(tr("Show transaction details"), this);
+    GUIUtil::setThemedIcon(copyAddressAction, QStringLiteral(":/icons/editcopy"));
+    GUIUtil::setThemedIcon(copyLabelAction, QStringLiteral(":/icons/tag"));
+    GUIUtil::setThemedIcon(copyAmountAction, QStringLiteral(":/icons/coins"));
+    GUIUtil::setThemedIcon(copyTxIDAction, QStringLiteral(":/icons/hash"));
+    GUIUtil::setThemedIcon(copyTxHexAction, QStringLiteral(":/icons/editcopy"));
+    GUIUtil::setThemedIcon(copyTxPlainText, QStringLiteral(":/icons/editcopy"));
+    GUIUtil::setThemedIcon(showDetailsAction, QStringLiteral(":/icons/info"));
+    GUIUtil::setThemedIcon(editLabelAction, QStringLiteral(":/icons/edit"));
+    GUIUtil::setThemedIcon(abandonAction, QStringLiteral(":/icons/remove"));
+    GUIUtil::setThemedIcon(resendAction, QStringLiteral(":/icons/refresh"));
 
     contextMenu = new QMenu(this);
     contextMenu->addAction(copyAddressAction);

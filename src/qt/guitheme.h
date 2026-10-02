@@ -11,6 +11,7 @@
 #include <QString>
 
 QT_BEGIN_NAMESPACE
+class QAction;
 class QColor;
 class QIcon;
 class QPainter;
@@ -165,6 +166,13 @@ namespace GUIUtil
      * @param[in] tint   Opaque color to fill the shape with.
      */
     QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tint);
+
+    /**
+     * Give a menu action an outline icon in the muted ink, re-tinted whenever the theme changes.
+     * @param[in] action    Action shown in a menu; owns the theme connection.
+     * @param[in] resource  Single-color icon resource, e.g. ":/icons/editcopy".
+     */
+    void setThemedIcon(QAction* action, const QString& resource);
 } // namespace GUIUtil
 
 #endif // BITCOIN_QT_GUITHEME_H

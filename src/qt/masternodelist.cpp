@@ -395,6 +395,9 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     QAction* detailsAction = new QAction(tr("Details..."), this);
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
+    GUIUtil::setThemedIcon(detailsAction, QStringLiteral(":/icons/info"));
+    GUIUtil::setThemedIcon(copyProTxHashAction, QStringLiteral(":/icons/hash"));
+    GUIUtil::setThemedIcon(copyCollateralOutpointAction, QStringLiteral(":/icons/editcopy"));
     masternodeView->addAction(detailsAction);
     masternodeView->addAction(copyProTxHashAction);
     masternodeView->addAction(copyCollateralOutpointAction);

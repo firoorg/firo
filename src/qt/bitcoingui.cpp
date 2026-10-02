@@ -464,6 +464,21 @@ void BitcoinGUI::createActions()
     showHelpMessageAction->setMenuRole(QAction::NoRole);
     showHelpMessageAction->setStatusTip(tr("Show the %1 help message to get a list with possible Firo command-line options").arg(tr(PACKAGE_NAME)));
 
+    // Outline icons in the menus, from the same set as the sidebar.
+    GUIUtil::setThemedIcon(openAction, QStringLiteral(":/icons/link"));
+    GUIUtil::setThemedIcon(backupWalletAction, QStringLiteral(":/icons/archive"));
+    GUIUtil::setThemedIcon(signMessageAction, QStringLiteral(":/icons/pen"));
+    GUIUtil::setThemedIcon(verifyMessageAction, QStringLiteral(":/icons/shield"));
+    GUIUtil::setThemedIcon(exportViewKeyAction, QStringLiteral(":/icons/key"));
+    GUIUtil::setThemedIcon(usedSendingAddressesAction, QStringLiteral(":/icons/address-book"));
+    GUIUtil::setThemedIcon(usedReceivingAddressesAction, QStringLiteral(":/icons/address-book"));
+    GUIUtil::setThemedIcon(quitAction, QStringLiteral(":/icons/logout"));
+    GUIUtil::setThemedIcon(changePassphraseAction, QStringLiteral(":/icons/key"));
+    GUIUtil::setThemedIcon(openRPCConsoleAction, QStringLiteral(":/icons/sidebar_console"));
+    GUIUtil::setThemedIcon(showHelpMessageAction, QStringLiteral(":/icons/help"));
+    GUIUtil::setThemedIcon(aboutAction, QStringLiteral(":/icons/info"));
+    GUIUtil::setThemedIcon(aboutQtAction, QStringLiteral(":/icons/info"));
+
     connect(quitAction, &QAction::triggered, qApp, QApplication::quit);
     connect(aboutAction, &QAction::triggered, this, &BitcoinGUI::aboutClicked);
     connect(aboutQtAction, &QAction::triggered, qApp, QApplication::aboutQt);

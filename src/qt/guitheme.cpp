@@ -5,6 +5,7 @@
 #include "guitheme.h"
 #include "guiutil.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QColor>
 #include <QFontDatabase>
@@ -462,6 +463,15 @@ QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tin
     result.setDevicePixelRatio(source.devicePixelRatio());
     QPixmapCache::insert(cacheKey, result);
     return result;
+}
+
+void setThemedIcon(QAction* action, const QString& resource)
+{
+    const auto apply = [action, resource]() {
+        action->setIcon(tintedIconPixmap(QIcon(resource), QSize(16, 16), QColor(themeColors().inkFaint)));
+    };
+    apply();
+    QObject::connect(&ThemeNotifier::instance(), &ThemeNotifier::themeChanged, action, apply);
 }
 
 void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect, const QColor& tint)

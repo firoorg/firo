@@ -168,6 +168,11 @@ AddressBookPage::AddressBookPage(const PlatformStyle *_platformStyle, Mode _mode
     QAction *editAction = new QAction(tr("&Edit"), this);
     deleteAction = new QAction(ui->deleteAddress->text(), this);
     QAction *extendAction = new QAction(tr("&Extend"), this);
+    GUIUtil::setThemedIcon(copyAddressAction, QStringLiteral(":/icons/editcopy"));
+    GUIUtil::setThemedIcon(copyLabelAction, QStringLiteral(":/icons/tag"));
+    GUIUtil::setThemedIcon(editAction, QStringLiteral(":/icons/edit"));
+    GUIUtil::setThemedIcon(deleteAction, QStringLiteral(":/icons/trash"));
+    GUIUtil::setThemedIcon(extendAction, QStringLiteral(":/icons/refresh"));
 
     // Build context menu
     contextMenu = new QMenu(this);
