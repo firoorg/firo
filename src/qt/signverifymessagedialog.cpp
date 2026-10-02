@@ -69,13 +69,11 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
         QPushButton:pressed { background: $PANEL_SOFT; }
         QPushButton#signMessageButton_SM, QPushButton#verifyMessageButton_VM {
             color: #FFFFFF;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE;
             border: none;
         }
         QPushButton#signMessageButton_SM:hover:enabled, QPushButton#verifyMessageButton_VM:hover:enabled {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE_DEEP;
         }
         QPushButton#signMessageButton_SM:pressed, QPushButton#verifyMessageButton_VM:pressed { background: $WINE_DEEP; }
         QLabel[status="error"] { color: $ERROR; font-weight: 700; }

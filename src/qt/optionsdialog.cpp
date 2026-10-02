@@ -113,13 +113,11 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         QPushButton:pressed { background: $PANEL_SOFT; }
         QPushButton#okButton {
             color: #FFFFFF;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE;
             border: 1px solid transparent;
         }
         QPushButton#okButton:hover:enabled {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE_DEEP;
         }
         QPushButton#okButton:pressed { background: $WINE_DEEP; }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));

@@ -180,12 +180,10 @@ void ModalOverlay::applyTheme()
     font-weight: 700;
     border: none;
     border-radius: 10px;
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 $WINE, stop:1 $WINE_DEEP);
+    background: $WINE;
 }
 #contentWidget QPushButton#closeButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 $WINE, stop:1 $WINE_DEEP);
+    background: $WINE_DEEP;
 }
 #contentWidget QPushButton#closeButton:pressed {
     background: $WINE_DEEP;
