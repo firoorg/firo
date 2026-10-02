@@ -1127,6 +1127,10 @@ bool BitcoinGUI::blockchainSyncInProgress() const
     if (::Params().NetworkIDString() == CBaseChainParams::REGTEST)
         return false;
 
+    if (modalOverlay && modalOverlay->isHeaderSyncPending()) {
+        return true;
+    }
+
     if (clientModel->inInitialBlockDownload())
         return true;
 

@@ -673,8 +673,15 @@ void WalletUiTests::synchronizationProgress()
     QVERIFY(!gui.modalOverlay->isHeaderSyncPending());
     QVERIFY(!gui.modalOverlay->isLayerVisible());
 
-    // Header catch-up also has a header phase after the core IBD latch clears.
+    // A fresh block tip does not finish pending headers after the IBD latch clears.
+    model.cachedLastBlockDate = now;
+    gui.setNumBlocks(101, now, 0.99, false);
+    QVERIFY(!model.inInitialBlockDownload());
+    QVERIFY(!gui.blockchainSyncInProgress());
     gui.setNumBlocks(102, now.addDays(-5), 0.99, true);
+    QVERIFY(gui.modalOverlay->isHeaderSyncPending());
+    QVERIFY(gui.blockchainSyncInProgress());
+    QVERIFY(!gui.navigationSyncCard->isHidden());
     QVERIFY(gui.progressBarLabel->text().startsWith("Syncing Headers"));
     gui.setNumBlocks(102, now, 0.99, true);
 
@@ -777,6 +784,8 @@ void WalletUiTests::synchronizationProgress()
     SelectParams(CBaseChainParams::REGTEST);
     model.cachedLastBlockDate = now.addDays(-1);
     gui.setNumBlocks(102, model.cachedLastBlockDate, 1.0, false);
+    QVERIFY(gui.modalOverlay->isHeaderSyncPending());
+    QVERIFY(!gui.blockchainSyncInProgress());
     QVERIFY(!gui.modalOverlay->isLayerVisible());
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Synced"));
     QVERIFY(!gui.isActivelySyncing());
