@@ -401,7 +401,7 @@ QPixmap glyphPixmap(Glyph glyph, const QColor& color, int size, qreal devicePixe
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
 {
     const QPixmap source = icon.pixmap(size);
-    if (source.isNull())
+    if (!isDarkMode() || source.isNull())
         return source;
 
     const QString cacheKey = QStringLiteral("firo-themed-status:%1:%2x%3:%4:%5")
@@ -432,6 +432,11 @@ QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
 
 void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect)
 {
+    if (!isDarkMode()) {
+        icon.paint(painter, rect, Qt::AlignCenter);
+        return;
+    }
+
     const QSize size = rect.size().isEmpty() ? QSize(16, 16) : rect.size();
     const QPixmap tinted = themedStatusIconPixmap(icon, size);
     if (tinted.isNull()) {
