@@ -1155,11 +1155,24 @@ bool CSparkWallet::CreateSparkMintTransactions(
     std::vector<spark::MintedCoinData> outputs_ = outputs;
     CAmount valueToMint = 0;
 
-    for (auto& output : outputs_)
-        valueToMint += output.v;
+    for (const auto& output : outputs_) {
+        if (output.v > static_cast<uint64_t>(MAX_MONEY - valueToMint)) {
+            strFailReason = _("Spark mint amount out of range");
+            return false;
+        }
+        valueToMint += static_cast<CAmount>(output.v);
+    }
 
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
+        // CFeeRate::GetFee multiplies by transaction size before dividing by 1000.
+        const CFeeRate maxSafeFeeRate(std::numeric_limits<CAmount>::max() / MAX_NEW_TX_WEIGHT);
+        if (payTxFee < CFeeRate(0) || payTxFee > maxSafeFeeRate ||
+            (coinControl && coinControl->fOverrideFeeRate &&
+             (coinControl->nFeeRate < CFeeRate(0) || coinControl->nFeeRate > maxSafeFeeRate))) {
+            strFailReason = _("Spark mint fee out of range");
+            return false;
+        }
         {
             std::list<CWalletTx> cacheWtxs;
             // vector pairs<available amount, outputs> for each transparent address
@@ -1210,8 +1223,13 @@ bool CSparkWallet::CreateSparkMintTransactions(
                     mintedValue = valueToMintInTx;
                     if (subtractFeeFromAmount)
                         nValueToSelect = mintedValue;
-                    else
+                    else {
+                        if (nFeeRet > 0 && mintedValue > std::numeric_limits<CAmount>::max() - nFeeRet) {
+                            strFailReason = _("Spark mint fee out of range");
+                            return false;
+                        }
                         nValueToSelect = mintedValue + nFeeRet;
+                    }
 
                     // if no enough coins in this group then subtract fee from mint
                     if (nValueToSelect > itr->first && !subtractFeeFromAmount) {
