@@ -227,11 +227,11 @@ void SplashScreen::showProgress(const QString& title, int percent)
     if (updateShutdownState()) {
         return;
     }
-    // A finished task is reported as ShowProgress("", 100): keep its title, drop the percentage
+    // 0 starts progress reporting; 100 closes it, including on failure or interruption.
     if (!title.isEmpty()) {
         statusText = title;
     }
-    progress = (percent >= 0 && percent < 100) ? percent : -1;
+    progress = (percent > 0 && percent < 100) ? percent : -1;
     update();
     updateAnimation();
 }

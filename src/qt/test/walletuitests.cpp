@@ -271,6 +271,16 @@ void WalletUiTests::splashMessageDoesNotProcessEvents()
     QVERIFY(!timer->isActive());
     splash->showProgress("", 100);
     QVERIFY(timer->isActive());
+    splash->showStatus("Loading wallet...");
+    QVERIFY(timer->isActive());
+    splash->showProgress("Rescanning...", 0);
+    QVERIFY(timer->isActive());
+    splash->showProgress("Rescanning...", 1);
+    QVERIFY(!timer->isActive());
+    splash->showProgress("Rescanning...", 100);
+    QVERIFY(timer->isActive());
+    splash->showStatus("Starting network threads...");
+    QVERIFY(timer->isActive());
     splash->hide();
     QVERIFY(!timer->isActive());
 
