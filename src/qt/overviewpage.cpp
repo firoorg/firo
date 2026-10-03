@@ -54,22 +54,6 @@
 #define ACTIVITY_ICON_SIZE 42
 #define ACTIVITY_CARD_HEIGHT 44
 
-//! Status badge tone: teal once confirmed, red when it can no longer confirm, gold while pending.
-static QColor activityStatusTint(int status)
-{
-    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    switch (status) {
-    case TransactionStatus::Confirmed:
-        return QColor(tc.teal);
-    case TransactionStatus::Conflicted:
-    case TransactionStatus::Abandoned:
-    case TransactionStatus::NotAccepted:
-        return QColor(tc.error);
-    default:
-        return QColor(tc.gold);
-    }
-}
-
 //! The Firo mark, faint and cropped by the balance card's top-right corner.
 class HeroWatermark : public QWidget
 {
@@ -172,7 +156,7 @@ public:
                     painter->drawEllipse(ring);
                 }
                 GUIUtil::paintThemedStatusIcon(painter, statusIcon, statusRect,
-                                               activityStatusTint(index.data(TransactionTableModel::StatusRole).toInt()));
+                                               GUIUtil::transactionStatusTint(index.data(TransactionTableModel::StatusRole).toInt()));
             }
         }
 

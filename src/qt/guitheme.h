@@ -159,6 +159,13 @@ namespace GUIUtil
      */
     void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect, const QColor& tint = QColor());
 
+    /**
+     * Tint for a transaction's status icon in every list: teal once confirmed, red when it
+     * can no longer confirm, and gold while pending.
+     * @param[in] status  A TransactionStatus::Status value.
+     */
+    QColor transactionStatusTint(int status);
+
     //! A single-color status icon in the muted ink of the current theme.
     QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size);
 

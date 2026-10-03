@@ -121,7 +121,7 @@ public:
             };
             paintMetadataIcon(index.sibling(index.row(), TransactionTableModel::Status)
                                   .data(TransactionTableModel::RawDecorationRole),
-                              statusTint(index.data(TransactionTableModel::StatusRole).toInt()));
+                              GUIUtil::transactionStatusTint(index.data(TransactionTableModel::StatusRole).toInt()));
             paintMetadataIcon(index.data(TransactionTableModel::InstantSendDecorationRole));
             paintMetadataIcon(index.data(TransactionTableModel::WatchonlyDecorationRole));
             break;
@@ -197,22 +197,6 @@ private:
             return false;
         GUIUtil::paintThemedStatusIcon(painter, icon, rect, tint);
         return true;
-    }
-
-    //! Confirmed reads teal and failed reads red; pending states stay in the muted ink.
-    static QColor statusTint(int status)
-    {
-        const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-        switch (status) {
-        case TransactionStatus::Confirmed:
-            return QColor(tc.teal);
-        case TransactionStatus::Conflicted:
-        case TransactionStatus::Abandoned:
-        case TransactionStatus::NotAccepted:
-            return QColor(tc.error);
-        default:
-            return QColor(tc.inkFaint);
-        }
     }
 };
 

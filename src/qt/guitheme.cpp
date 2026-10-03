@@ -4,6 +4,7 @@
 
 #include "guitheme.h"
 #include "guiutil.h"
+#include "transactionrecord.h"
 
 #include <QAction>
 #include <QApplication>
@@ -439,6 +440,21 @@ void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& rawTex
     painter->drawText(QRect(wholeRect.right() + 1, rect.top(), width - wholeRect.width() + 1, rect.height()),
                       (align & ~Qt::AlignHorizontal_Mask) | Qt::AlignLeft, text.mid(split));
     painter->restore();
+}
+
+QColor transactionStatusTint(int status)
+{
+    const ThemeColors& colors = themeColors();
+    switch (status) {
+    case TransactionStatus::Confirmed:
+        return QColor(colors.teal);
+    case TransactionStatus::Conflicted:
+    case TransactionStatus::Abandoned:
+    case TransactionStatus::NotAccepted:
+        return QColor(colors.error);
+    default:
+        return QColor(colors.gold);
+    }
 }
 
 QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size)
