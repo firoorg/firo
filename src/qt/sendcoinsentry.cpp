@@ -42,7 +42,6 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->iconWarning->setPixmap(icon_.pixmap(18, 18));
     ui->iconMessageWarning->setPixmap(icon_.pixmap(18, 18));
 
-
     setCurrentWidget(ui->SendCoins);
 
     if (platformStyle->getUseExtraSpacing())

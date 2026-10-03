@@ -12,12 +12,11 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
-class QColor;
+class QFontMetrics;
 class QIcon;
 class QPainter;
 class QPixmap;
 class QRect;
-class QRectF;
 class QSize;
 class QStyleOptionViewItem;
 class QWidget;
