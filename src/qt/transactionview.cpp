@@ -675,7 +675,7 @@ void TransactionView::updateTableColumnWidths()
     const QFontMetrics pillMetrics(GUIUtil::pillFont());
     int typeWidth = 0;
     for (const char* type : {"Mint spark to yourself", "Spend spark to yourself"})
-        typeWidth = std::max(typeWidth, GUIUtil::pillWidth(pillMetrics, QCoreApplication::translate("TransactionTableModel", type)));
+        typeWidth = std::max(typeWidth, GUIUtil::pillWidth(pillMetrics, QCoreApplication::translate("TransactionTableModel", type), false));
     transactionView->setColumnWidth(
         TransactionTableModel::Type, std::max(typeWidth + 20, static_cast<int>(tableWidth * 0.16)));
     transactionView->setColumnWidth(

@@ -330,23 +330,27 @@ QFont pillFont()
     return font;
 }
 
-int pillWidth(const QFontMetrics& metrics, const QString& text)
+int pillWidth(const QFontMetrics& metrics, const QString& text, bool withDot)
 {
-    return metrics.horizontalAdvance(text) + 32;
+    return metrics.horizontalAdvance(text) + (withDot ? 32 : 20);
 }
 
-void paintPill(QPainter* painter, const QRect& pill, const QString& text, PillTone tone)
+void paintPill(QPainter* painter, const QRect& pill, const QString& text, PillTone tone, bool withDot)
 {
     const PillColors colors = pillColors(tone);
     const int dot = 6;
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(colors.background));
     painter->drawRoundedRect(pill, pill.height() / 2.0, pill.height() / 2.0);
-    painter->setBrush(QColor(colors.dot));
-    painter->drawEllipse(QRectF(pill.left() + 10, pill.center().y() - dot / 2.0 + 0.5, dot, dot));
+    if (withDot) {
+        painter->setBrush(QColor(colors.dot));
+        painter->drawEllipse(QRectF(pill.left() + 10, pill.center().y() - dot / 2.0 + 0.5, dot, dot));
+    }
     painter->setPen(QColor(colors.text));
-    const QRect textRect = pill.adjusted(10 + dot + 6, 0, -8, 0);
-    painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+    // Both text areas keep 2 px over the rounded advance pillWidth() reserves, so fractional
+    // glyph widths do not elide a label that fits.
+    const QRect textRect = withDot ? pill.adjusted(10 + dot + 6, 0, -8, 0) : pill.adjusted(9, 0, -9, 0);
+    painter->drawText(textRect, (withDot ? Qt::AlignLeft : Qt::AlignHCenter) | Qt::AlignVCenter,
                       painter->fontMetrics().elidedText(text, Qt::ElideRight, qMax(0, textRect.width())));
 }
 
@@ -358,11 +362,12 @@ void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option
     const QFont font = pillFont();
     painter->setFont(font);
     const QFontMetrics metrics(font);
-    const int width = qMin(option.rect.width() - 16, pillWidth(metrics, text));
+    const int width = qMin(option.rect.width() - 16, pillWidth(metrics, text, false));
     const int height = metrics.height() + 7;
-    // Private funds are teal everywhere, matching the Overview split bar.
+    // Private funds are teal everywhere, matching the Overview split bar. No dot: the tint
+    // already says private or not, and the rows repeat it in other ways.
     paintPill(painter, QRect(option.rect.left() + 8, option.rect.center().y() - height / 2, width, height), text,
-              isPrivate ? PillTone::Positive : PillTone::Neutral);
+              isPrivate ? PillTone::Positive : PillTone::Neutral, false);
 }
 
 void paintRowBackground(QPainter* painter, const QRect& rect, bool selected)

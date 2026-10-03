@@ -114,17 +114,18 @@ namespace GUIUtil
     /** @return The 13 px bold label font every pill uses. */
     QFont pillFont();
 
-    /** @return The width a pill needs to show text in metrics' font, with its dot and padding. */
-    int pillWidth(const QFontMetrics& metrics, const QString& text);
+    /** @return The width a pill needs to show text in metrics' font, with its padding and, if withDot, its dot. */
+    int pillWidth(const QFontMetrics& metrics, const QString& text, bool withDot = true);
 
     /**
-     * Paint a rounded pill with a leading dot, eliding text to fit.
+     * Paint a rounded pill, eliding text to fit.
      * @param[in] painter  Painter whose current font is used for text.
      * @param[in] pill     Bounds of the pill.
      * @param[in] text     Label.
      * @param[in] tone     Meaning, which sets the colors.
+     * @param[in] withDot  Lead with a dot; statuses use it so the state reads without relying on color alone.
      */
-    void paintPill(QPainter* painter, const QRect& pill, const QString& text, PillTone tone);
+    void paintPill(QPainter* painter, const QRect& pill, const QString& text, PillTone tone, bool withDot = true);
 
     void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
                               const QString& text, bool isPrivate);
