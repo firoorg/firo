@@ -201,9 +201,13 @@ public:
             ? QRect(dateRect.right() + 13, card.top(), textWidth - dateWidth - 12, card.height())
             : QRect(textLeft, dateRect.bottom() + 1, card.right() - textLeft - 14, lineHeight);
         const QIcon instantSendIcon = qvariant_cast<QIcon>(index.data(TransactionTableModel::InstantSendDecorationRole));
-        if (!instantSendIcon.isNull() && amountLeft - metadataLeft >= 20)
+        if (!instantSendIcon.isNull() && amountLeft - metadataLeft >= 20) {
+            // Centred on the date's capitals, in the slot reserved left of it.
+            const QFontMetrics dateMetrics(boldFont);
+            const int baseline = dateRect.top() + (dateRect.height() - dateMetrics.height()) / 2 + dateMetrics.ascent();
             GUIUtil::paintThemedStatusIcon(painter, instantSendIcon,
-                                         QRect(metadataLeft, inlineAddress ? card.center().y() - 8 : dateRect.top(), 16, 16));
+                                         QRect(metadataLeft, baseline - dateMetrics.capHeight() / 2 - 8, 16, 16));
+        }
         painter->setFont(boldFont);
         painter->setPen(QColor(tc.ink));
         painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
