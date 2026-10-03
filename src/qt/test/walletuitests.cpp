@@ -16,6 +16,7 @@
 #include "masternode-sync.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
+#include "optionsdialog.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "platformstyle.h"
@@ -24,6 +25,7 @@
 #include "recover.h"
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
+#include "signverifymessagedialog.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
 #include "splashscreen.h"
@@ -55,6 +57,7 @@
 #include <QListView>
 #include <QLocale>
 #include <QPainter>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
@@ -67,6 +70,7 @@
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QStyleOptionViewItem>
+#include <QTabWidget>
 #include <QTableView>
 #include <QTest>
 #include <QTemporaryDir>
@@ -1169,6 +1173,52 @@ void WalletUiTests::paymentRequestFitsSmallScreen()
             QVERIFY(button->isVisible());
             QVERIFY(dialog.rect().contains(QRect(button->mapTo(&dialog, QPoint()), button->size())));
         }
+    }
+}
+
+/**
+ * Verify Options, Sign/Verify and Spark Name registration open at their default sizes
+ * without scrolling, and with room to type a message, in both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
+void WalletUiTests::dialogsFitWithoutScrolling()
+{
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        GUIUtil::loadTheme();
+
+        OptionsDialog options(nullptr, true);
+        options.setAttribute(Qt::WA_DontShowOnScreen);
+        options.show();
+        auto* tabs = options.findChild<QTabWidget*>("tabWidget");
+        auto* optionsScroll = options.findChild<QScrollArea*>("optionsScroll");
+        QVERIFY(tabs && optionsScroll);
+        // Pages grow when first polished, and the tallest one sets the height the content asks for.
+        for (int i = 0; i < tabs->count(); ++i) {
+            tabs->setCurrentIndex(i);
+            QCoreApplication::processEvents();
+            QVERIFY(optionsScroll->widget()->sizeHint().height() <= optionsScroll->viewport()->height());
+        }
+
+        SignVerifyMessageDialog signVerify(style.get(), nullptr);
+        signVerify.setAttribute(Qt::WA_DontShowOnScreen);
+        signVerify.show();
+        QCoreApplication::processEvents();
+        auto* message = signVerify.findChild<QPlainTextEdit*>("messageIn_SM");
+        QVERIFY(message);
+        QVERIFY(message->viewport()->height() >= 3 * message->fontMetrics().lineSpacing());
+
+        CreateSparkNamePage registration(style.get());
+        registration.setAttribute(Qt::WA_DontShowOnScreen);
+        registration.show();
+        QCoreApplication::processEvents();
+        auto* form = registration.findChild<QScrollArea*>("scrollArea");
+        QVERIFY(form);
+        QVERIFY(form->widget()->sizeHint().height() <= form->viewport()->height());
     }
 }
 
