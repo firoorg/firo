@@ -1295,13 +1295,18 @@ void WalletUiTests::sendFormFitsSmallScreen()
     QCoreApplication::processEvents();
     QVERIFY(dialog.height() <= 480);
     QVERIFY(dialog.width() <= 964);
-    for (const char* name : {"sendButton", "clearButton", "addButton", "switchFundButton"}) {
+    for (const char* name : {"sendButton", "clearButton", "addButton", "sendFromPrivate", "sendFromTransparent"}) {
         auto* button = dialog.findChild<QPushButton*>(name);
         QVERIFY(button);
         QVERIFY(button->isVisible());
         QVERIFY(button->width() >= button->minimumSizeHint().width());
         QVERIFY(dialog.rect().contains(QRect(button->mapTo(&dialog, QPoint()), button->size())));
     }
+    // "Send from" always names exactly one source, and falls back to transparent without Spark.
+    auto* sendFromPrivate = dialog.findChild<QPushButton*>("sendFromPrivate");
+    auto* sendFromTransparent = dialog.findChild<QPushButton*>("sendFromTransparent");
+    QVERIFY(sendFromPrivate->isChecked() != sendFromTransparent->isChecked());
+    if (!sendFromPrivate->isEnabled()) QVERIFY(sendFromTransparent->isChecked());
     for (const char* name : {"payTo", "payAmount", "customFee", "buttonMinimizeFee"}) {
         auto* field = dialog.findChild<QWidget*>(name);
         QVERIFY(field);

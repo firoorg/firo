@@ -26,7 +26,10 @@
 #include "wallet/wallet.h"
 #include "overviewpage.h"
 
+#include <QButtonGroup>
 #include <QFontMetrics>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
 #include <QSettings>
@@ -118,6 +121,54 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
     ui->balancePill->setAttribute(Qt::WA_StyledBackground, true);
+
+    // "Send from" sits above the recipients, with both balances in view, so the source is
+    // chosen before the form is filled rather than read off the bottom bar.
+    sendFromRow = new QWidget(this);
+    sendFromRow->setObjectName(QStringLiteral("sendFromRow"));
+    auto* sendFromLayout = new QHBoxLayout(sendFromRow);
+    sendFromLayout->setContentsMargins(2, 0, 0, 0);
+    sendFromLayout->setSpacing(12);
+    auto* sendFromLabel = new QLabel(tr("SEND FROM"), sendFromRow);
+    sendFromLabel->setObjectName(QStringLiteral("sendFromLabel"));
+    auto* sendFromSegment = new QFrame(sendFromRow);
+    sendFromSegment->setObjectName(QStringLiteral("sendFromSegment"));
+    sendFromSegment->setAttribute(Qt::WA_StyledBackground, true);
+    auto* segmentLayout = new QHBoxLayout(sendFromSegment);
+    segmentLayout->setContentsMargins(2, 2, 2, 2);
+    segmentLayout->setSpacing(2);
+    sendFromPrivate = new QPushButton(sendFromSegment);
+    sendFromPrivate->setObjectName(QStringLiteral("sendFromPrivate"));
+    sendFromTransparent = new QPushButton(sendFromSegment);
+    sendFromTransparent->setObjectName(QStringLiteral("sendFromTransparent"));
+    auto* sendFromGroup = new QButtonGroup(this);
+    for (QPushButton* choice : {sendFromPrivate, sendFromTransparent}) {
+        choice->setCheckable(true);
+        choice->setAutoDefault(false);
+        choice->setCursor(Qt::PointingHandCursor);
+        choice->setIconSize(QSize(12, 8));
+        sendFromGroup->addButton(choice);
+        segmentLayout->addWidget(choice);
+    }
+    sendFromPrivate->setToolTip(tr("Send from your private (Spark) balance"));
+    sendFromTransparent->setToolTip(tr("Send from your transparent balance"));
+    sendFromLayout->addWidget(sendFromLabel);
+    sendFromLayout->addWidget(sendFromSegment);
+    sendFromLayout->addStretch();
+    ui->verticalLayout->insertWidget(0, sendFromRow);
+    connect(sendFromPrivate, &QPushButton::clicked, this, [this] {
+        if (!fAnonymousMode) {
+            setAnonymizeMode(true);
+            coinControlUpdateLabels();
+        }
+    });
+    connect(sendFromTransparent, &QPushButton::clicked, this, [this] {
+        if (fAnonymousMode) {
+            setAnonymizeMode(false);
+            coinControlUpdateLabels();
+        }
+    });
+
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, &SendCoinsDialog::applyTheme);
     applyTheme();
@@ -127,7 +178,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
         setAnonymizeMode(allowed);
 
         if (!allowed) {
-            ui->switchFundButton->setEnabled(false);
+            sendFromPrivate->setEnabled(false);
         }
     }
 
@@ -197,7 +248,39 @@ void SendCoinsDialog::applyTheme()
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("5px 14px"));
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("5px 14px"));
     ui->sendButton->setStyleSheet(primaryButtonStyle);
-    ui->switchFundButton->setStyleSheet(secondaryButtonStyle);
+    sendFromRow->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QLabel#sendFromLabel { background: transparent; color: $INK_SOFT; font: $FONT_CAPTION; }
+        QFrame#sendFromSegment { background: $PANEL; border: 1px solid $BORDER; border-radius: 11px; }
+        QFrame#sendFromSegment QPushButton {
+            background: transparent; border: 1px solid transparent; border-radius: 9px;
+            padding: 4px 12px; min-width: 0; color: $INK_SOFT; font-weight: 700;
+        }
+        QFrame#sendFromSegment QPushButton:hover:enabled { background: $HOVER; color: $INK; }
+        QFrame#sendFromSegment QPushButton:disabled { color: $INK_FAINT; }
+        QFrame#sendFromSegment QPushButton#sendFromPrivate:checked {
+            background: $TEAL_TINT; border-color: $TEAL; color: $TEAL_TEXT;
+        }
+        QFrame#sendFromSegment QPushButton#sendFromTransparent:checked {
+            background: $HOVER; border-color: $FIELD_BORDER; color: $INK;
+        }
+    )")));
+    // The same dots as the balance pill and the Overview: teal for Spark, grey for transparent.
+    // The pixmap is wider than the dot to space it from the label.
+    const auto dot = [this](const QString& color) {
+        const qreal dpr = devicePixelRatioF();
+        QPixmap pixmap(qRound(12 * dpr), qRound(8 * dpr));
+        pixmap.setDevicePixelRatio(dpr);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(color));
+        painter.drawEllipse(QRectF(0, 0, 8, 8));
+        return QIcon(pixmap);
+    };
+    const GUIUtil::ThemeColors& colors = GUIUtil::themeColors();
+    sendFromPrivate->setIcon(dot(colors.teal));
+    sendFromTransparent->setIcon(dot(colors.inkFaint));
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
     ui->addButton->setStyleSheet(secondaryButtonStyle);
     ui->buttonChooseFee->setStyleSheet(secondaryButtonStyle);
@@ -298,7 +381,7 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             setAnonymizeMode(allowed);
 
             if (!allowed) {
-                ui->switchFundButton->setEnabled(false);
+                sendFromPrivate->setEnabled(false);
             }
         }
 
@@ -927,12 +1010,6 @@ void SendCoinsDialog::on_sendButton_clicked()
     fNewRecipientAllowed = true;
 }
 
-void SendCoinsDialog::on_switchFundButton_clicked()
-{
-    setAnonymizeMode(!fAnonymousMode);
-    coinControlUpdateLabels();
-}
-
 void SendCoinsDialog::clear()
 {
     // Remove entries until only one left
@@ -992,15 +1069,15 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
     auto allowed = (spark::IsSparkAllowed(count) && model->getWallet() && model->getWallet()->sparkWallet);
 
 
-    if (allowed && !ui->switchFundButton->isEnabled())
+    if (allowed && !sendFromPrivate->isEnabled())
     {
         setAnonymizeMode(true);
-        ui->switchFundButton->setEnabled(true);
+        sendFromPrivate->setEnabled(true);
     }
-    else if (!allowed && ui->switchFundButton->isEnabled())
+    else if (!allowed && sendFromPrivate->isEnabled())
     {
         setAnonymizeMode(false);
-        ui->switchFundButton->setEnabled(false);
+        sendFromPrivate->setEnabled(false);
     }
 
     for (int i = 0; i < ui->entries->count(); ++i) {
@@ -1139,8 +1216,10 @@ void SendCoinsDialog::setBalance(
 
     if(model && model->getOptionsModel())
     {
-        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
-            fAnonymousMode ? privateBalance : balance));
+        const int unit = model->getOptionsModel()->getDisplayUnit();
+        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, fAnonymousMode ? privateBalance : balance));
+        sendFromPrivate->setText(tr("Private (Spark)") + QStringLiteral("  ·  ") + BitcoinUnits::formatWithUnit(unit, privateBalance));
+        sendFromTransparent->setText(tr("Transparent") + QStringLiteral("  ·  ") + BitcoinUnits::formatWithUnit(unit, balance));
     }
 }
 
@@ -1303,15 +1382,14 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
         }
     }
 
-    if (fAnonymousMode) {
-        ui->switchFundButton->setText(QString(tr("Use Transparent Balance")));
+    sendFromPrivate->setChecked(fAnonymousMode);
+    sendFromTransparent->setChecked(!fAnonymousMode);
 
+    if (fAnonymousMode) {
         ui->checkBoxCoinControlChange->setEnabled(false);
         ui->lineEditCoinControlChange->setEnabled(false);
 
     } else {
-        ui->switchFundButton->setText(QString(tr("Use Private Balance")));
-
         ui->checkBoxCoinControlChange->setEnabled(true);
         if (ui->checkBoxCoinControlChange->isChecked()) {
             ui->lineEditCoinControlChange->setEnabled(true);
