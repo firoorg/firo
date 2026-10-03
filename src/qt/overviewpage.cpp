@@ -656,7 +656,8 @@ void OverviewPage::on_anonymizeButton_clicked()
         QAbstractSpinBox QLineEdit { %1 }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
     auto maxButton = new QPushButton(tr("Max"), &amountDialog);
-    maxButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    // Review stays the one filled action; Max only fills in the field.
+    maxButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
     amountLayout->addWidget(amountField);
     amountLayout->addWidget(maxButton);
     form->addRow(tr("Amount"), amountLayout);
@@ -913,14 +914,14 @@ void OverviewPage::updateBalanceSplitLabels()
 
     // Legend on the balance gradient: dot, caption at 78% white, amount in white.
     ui->labelTransparentSplit->setText(
-        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_INK_FAINT\">●</span>&nbsp; "
+        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_INK_FAINT; font-size:10px\">●</span>&nbsp; "
                                        "<span style=\"color:$HERO_INK_SOFT\">%3</span> "
                                        "<span style=\"color:$HERO_INK; font-weight:700\">%1 (%2%)</span>"))
             .arg(BitcoinUnits::formatWithUnit(unit, transparentTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
             .arg(100 - privatePercent)
             .arg(tr("Transparent")));
     ui->labelPrivateSplit->setText(
-        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_ACCENT\">●</span>&nbsp; "
+        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_ACCENT; font-size:10px\">●</span>&nbsp; "
                                        "<span style=\"color:$HERO_INK_SOFT\">%3</span> "
                                        "<span style=\"color:$HERO_INK; font-weight:700\">%1 (%2%)</span>"))
             .arg(BitcoinUnits::formatWithUnit(unit, privateTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
