@@ -563,6 +563,11 @@ QProgressBar > QToolButton {
 
 /* QPushButton: secondary by default; the dialog's default button is primary. */
 
+/* Plain text buttons in every dialog, without the platform's stock OK and Cancel glyphs. */
+QDialogButtonBox {
+    dialogbuttonbox-buttons-have-icons: 0;
+}
+
 QPushButton {
     background-color: $PANEL;
     border: 1px solid $FIELD_BORDER;

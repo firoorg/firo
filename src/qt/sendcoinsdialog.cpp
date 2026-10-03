@@ -1677,9 +1677,6 @@ SendConfirmationDialog::SendConfirmationDialog(const QString &title, const QStri
     QAbstractButton* cancelButton = button(QMessageBox::Cancel);
     yesButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("6px 16px")));
     cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 16px")));
-    // Plain text buttons, without the platform's stock Yes and Cancel glyphs.
-    yesButton->setIcon(QIcon());
-    cancelButton->setIcon(QIcon());
 
     // The send arrow on a tint circle instead of the generic question mark.
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
