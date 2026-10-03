@@ -83,14 +83,14 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             border: 1px solid $BORDER;
             border-radius: 14px;
             color: $INK;
-            margin-top: 28px;
-            padding: 4px 16px;
+            margin-top: 22px;
+            padding: 0px 14px;
         }
         QGroupBox::title {
-            subcontrol-origin: margin; subcontrol-position: top left; left: 2px; top: 4px;
+            subcontrol-origin: margin; subcontrol-position: top left; left: 2px; top: 2px;
             padding: 0; color: $INK_FAINT; font: $FONT_CAPTION; background: transparent;
         }
-        QGroupBox QCheckBox { color: $INK; min-height: 40px; }
+        QGroupBox QCheckBox { color: $INK; min-height: 28px; }
         QGroupBox QCheckBox[rowDivider="true"] { border-bottom: 1px solid $BORDER; }
         QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
             background: $PANEL;
