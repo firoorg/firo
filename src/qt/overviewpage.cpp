@@ -51,6 +51,7 @@
 
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 8
+#define MIN_VISIBLE_ITEMS 3
 #define ACTIVITY_ICON_SIZE 42
 #define ACTIVITY_CARD_HEIGHT 44
 
@@ -545,9 +546,13 @@ void OverviewPage::applyOverviewTheme()
         "QListView, QListView::viewport { background: transparent; border: none; }"
         "QListView::item { border: none; padding: 0px; }"
         "QListView::item:selected { background: transparent; }"));
+    // The list holds the NUM_ITEMS newest transactions and scrolls when they do not all fit, so
+    // the page fits the window; it keeps room for a few rows, measured in the font the
+    // stylesheet gives it.
+    ui->listTransactions->ensurePolished();
     QStyleOptionViewItem activityOption;
     activityOption.initFrom(ui->listTransactions);
-    ui->listTransactions->setMinimumHeight(NUM_ITEMS * txdelegate->sizeHint(activityOption, QModelIndex()).height());
+    ui->listTransactions->setMinimumHeight(MIN_VISIBLE_ITEMS * txdelegate->sizeHint(activityOption, QModelIndex()).height());
     if (ui->listTransactions->viewport())
         ui->listTransactions->viewport()->update();
 

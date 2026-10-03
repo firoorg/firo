@@ -1107,7 +1107,11 @@ void WalletUiTests::brandTypography()
     }
 }
 
-/** Verify all eight recent transactions fit when the list is at its minimum height. */
+/**
+ * Verify recent-activity rows are measured in the brand font, so the rows the list's minimum
+ * height promises are shown whole, and that a list shorter than its eight transactions
+ * scrolls to reach the last one.
+ */
 void WalletUiTests::recentActivityFitsBrandFont()
 {
     GUIUtil::loadTheme();
@@ -1122,6 +1126,10 @@ void WalletUiTests::recentActivityFitsBrandFont()
     overview.setAttribute(Qt::WA_DontShowOnScreen);
     overview.show();
     overview.resize(944, 625);
+    QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(2, 0))));
+    // The rest stays reachable through the list's own scrollbar.
+    QTRY_VERIFY(list->verticalScrollBar()->isVisible());
+    list->scrollTo(history.index(7, 0));
     QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(7, 0))));
 
     const auto index = history.index(0, 0);
