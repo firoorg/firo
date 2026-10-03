@@ -635,7 +635,8 @@ void OverviewPage::on_anonymizeButton_clicked()
             padding: 5px 10px;
             color: $INK;
         }
-        QAbstractSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
+        QAbstractSpinBox:focus { border: 2px solid $WINE; padding: 4px 9px; }
+        QComboBox:focus { border: 1px solid $WINE; }
         QAbstractSpinBox[invalidInput="true"] { border-color: $ERROR; }
         QAbstractSpinBox QLineEdit { %1 }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));

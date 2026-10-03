@@ -98,7 +98,8 @@ void Recover::applyTheme()
         QDialog#Recover QLineEdit:focus,
         QDialog#Recover QDateEdit:focus,
         QDialog#Recover QSpinBox:focus {
-            border: 1px solid $WINE;
+            border: 2px solid $WINE;
+            padding: 7px 11px;
         }
         QDialog#Recover QLineEdit:disabled,
         QDialog#Recover QDateEdit:disabled,

@@ -39,7 +39,7 @@ void ManualMintDialog::applyTheme()
         " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 4px 8px; color: $INK;"
         "}"
-        "QSpinBox:focus { border: 1px solid $WINE; }"
+        "QSpinBox:focus { border: 2px solid $WINE; padding: 3px 7px; }"
         "QSpinBox QLineEdit { %1 }"))
         .arg(GUIUtil::spinBoxInnerLineEditReset()));
     ui->availableAmount->setStyleSheet(GUIUtil::themed(QStringLiteral(

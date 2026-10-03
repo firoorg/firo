@@ -333,7 +333,8 @@ void SendCoinsDialog::applyTheme()
         " padding: 4px 12px; color: $INK;"
         "}"
         "AmountSpinBox QLineEdit { %1 }"
-        "QValidatedLineEdit:focus, AmountSpinBox:focus, QValueComboBox:focus { border: 1px solid $WINE; }"
+        "QValidatedLineEdit:focus, AmountSpinBox:focus { border: 2px solid $WINE; padding: 3px 11px; }"
+        "QValueComboBox:focus { border: 1px solid $WINE; }"
         "QValidatedLineEdit[invalidInput=\"true\"], AmountSpinBox[invalidInput=\"true\"] { border-color: $ERROR; }"
         "QValidatedLineEdit:disabled, AmountSpinBox:disabled, QValueComboBox:disabled { color: $INK_FAINT; }"
     )).arg(GUIUtil::spinBoxInnerLineEditReset());

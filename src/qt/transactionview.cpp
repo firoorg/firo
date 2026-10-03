@@ -507,7 +507,8 @@ void TransactionView::applyTheme()
         "   min-height: 30px;"
         "   color: $INK_SOFT;"
         "}"
-        "QLineEdit:focus, QComboBox:focus { border: 1px solid $WINE; }"
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 0 10px; }"
+        "QComboBox:focus { border: 1px solid $WINE; }"
 
         "QComboBox QAbstractItemView {"
         "   background: $PANEL;"
@@ -541,7 +542,7 @@ void TransactionView::applyTheme()
         "}"
 
         "QDateTimeEdit { background:$PANEL_SOFT; color:$INK_SOFT; border-radius:10px; border:1px solid $FIELD_BORDER; padding:0 11px; min-height:30px; }"
-        "QDateTimeEdit:focus { border-color:$WINE; }"
+        "QDateTimeEdit:focus { border:2px solid $WINE; padding:0 10px; }"
 
         "QCalendarWidget { background:$PANEL; }"
         "QCalendarWidget QWidget { background:$PANEL; }"

@@ -481,7 +481,8 @@ QLineEdit#filterLineEditDIP3 {
 }
 QLineEdit#filterLineEditDIP3:focus {
   background: $PANEL;
-  border-color: $WINE;
+  border: 2px solid $WINE;
+  padding: 0 10px;
 }
 QCheckBox#checkBoxMyMasternodesOnly {
   color: $INK_SOFT;

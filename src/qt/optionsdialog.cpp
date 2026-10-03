@@ -90,7 +90,8 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             color: $INK;
         }
         QSpinBox QLineEdit { %1 }
-        QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
+        QLineEdit:focus, QSpinBox:focus { border: 2px solid $WINE; padding: 3px 7px; }
+        QComboBox:focus { border: 1px solid $WINE; }
         QLineEdit[invalidInput="true"] { border-color: $ERROR; }
         QCheckBox { color: $INK_SOFT; }
         QLabel#torStatusLabel { color: $INK_SOFT; }

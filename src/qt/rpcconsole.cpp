@@ -553,7 +553,7 @@ void RPCConsole::applyConsoleTheme()
         QIcon(QStringLiteral(":/icons/prompticon")), QSize(14, 14)));
     ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 4px 8px; }"
-        "QLineEdit:focus { border: 1px solid $WINE; }")));
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 3px 7px; }")));
 
     if (consoleFontSize > 0)
         rebuildConsoleMessages();

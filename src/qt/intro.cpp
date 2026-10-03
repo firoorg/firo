@@ -159,7 +159,7 @@ void Intro::applyTheme()
         " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 8px 12px; color: $INK;"
         "}"
-        "QLineEdit:focus { border: 1px solid $WINE; }")));
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 7px 11px; }")));
     ui->ellipsisButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(GUIUtil::primaryButtonStyle());

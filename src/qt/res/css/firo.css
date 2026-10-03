@@ -90,11 +90,18 @@ QLineEdit:hover:!focus {
     border-color: $INK_FAINT;
 }
 
+/* QSS has no outline, so a 2 px wine border is the focus ring; the padding gives back the extra pixel. */
 QAbstractSpinBox:focus,
-QComboBox:checked,
-QComboBox:focus,
 QPlainTextEdit:focus,
 QLineEdit:focus {
+    background-color: $PANEL;
+    border-color: $WINE;
+    border-width: 2px;
+    padding: 0px 7px 0px 7px;
+}
+
+QComboBox:checked,
+QComboBox:focus {
     background-color: $PANEL;
     border-color: $WINE;
 }
