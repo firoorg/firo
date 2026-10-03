@@ -80,6 +80,8 @@ private Q_SLOTS:
 
     void extraInfoDIP3_clicked();
     void copyProTxHash_clicked();
+    void copyPayoutAddress_clicked();
+    void copyCollateralAddress_clicked();
     void copyCollateralOutpoint_clicked();
 
     void handleMasternodeListChanged();

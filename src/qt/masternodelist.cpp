@@ -170,18 +170,22 @@ public:
             painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter,
                               boldMetrics.elidedText(service, Qt::ElideMiddle, titleRect.width()));
 
-            // The outpoint in the muted monospace face, like Spark Name addresses.
-            QFont outpointFont = GUIUtil::fixedPitchFont();
-            outpointFont.setPixelSize(13);
-            painter->setFont(outpointFont);
+            // Where the collateral is held, in the muted monospace face like Spark Name addresses.
+            // The outpoint stays in the tooltip and the context menu, and stands in when the
+            // collateral coin is not known.
+            QFont addressFont = GUIUtil::fixedPitchFont();
+            addressFont.setPixelSize(13);
+            painter->setFont(addressFont);
             painter->setPen(QColor(tc.inkFaint));
+            const QString collateralAddress = index.data(CollateralAddressRole).toString();
             const QString collateral = masternodeText(
                 QT_TRANSLATE_NOOP("MasternodeList", "Collateral · %1"))
-                .arg(index.data(CollateralOutpointRole).toString());
+                .arg(collateralAddress == QLatin1String("-") ? index.data(CollateralOutpointRole).toString()
+                                                              : collateralAddress);
             const QRect subtitleRect(titleRect.left(), titleRect.bottom() + 1, titleRect.width(), lineHeight);
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
-                              QFontMetrics(outpointFont).elidedText(collateral, Qt::ElideMiddle,
-                                                                   subtitleRect.width()));
+                              QFontMetrics(addressFont).elidedText(collateral, Qt::ElideMiddle,
+                                                                  subtitleRect.width()));
         }
 
         painter->setFont(option.font);
@@ -231,18 +235,22 @@ public:
 
         const int contentLeft = card.left() + 16;
         const int contentWidth = card.width() - 32;
-        const int quarterWidth = contentWidth / 4;
+        // Five metrics on a six-unit grid: the payout address takes two units.
+        const int unitWidth = contentWidth / 6;
         const int rowOneTop = dividerY + 4;
-        for (int column = 0; column < 4; ++column) {
-            const QRect rect(contentLeft + column * quarterWidth, rowOneTop, quarterWidth, 2 * lineHeight);
+        for (int column = 0; column < 5; ++column) {
+            const QRect rect(contentLeft + column * unitWidth, rowOneTop, column == 4 ? 2 * unitWidth : unitWidth,
+                             2 * lineHeight);
             if (column == 0)
                 drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED")), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
             else if (column == 1)
                 drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "LAST PAID")), formatBlockHeight(index.data(LastPaidHeightRole).toInt(), index.data(LastPaidHeightRole).toInt() < 0));
             else if (column == 2)
                 drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "NEXT PAYMENT")), formatBlockHeight(index.data(NextPaymentHeightRole).toInt(), index.data(NextPaymentHeightRole).toInt() < 0));
-            else
+            else if (column == 3)
                 drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL")), index.data(CollateralAmountRole).toString());
+            else
+                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PAYOUT ADDRESS")), index.data(PayoutAddressRole).toString());
         }
 
         painter->restore();
@@ -402,15 +410,23 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
 
     QAction* detailsAction = new QAction(tr("Details..."), this);
     QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
+    QAction* copyPayoutAddressAction = new QAction(tr("Copy Payout Address"), this);
+    QAction* copyCollateralAddressAction = new QAction(tr("Copy Collateral Address"), this);
     QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
     GUIUtil::setThemedIcon(detailsAction, QStringLiteral(":/icons/info"));
     GUIUtil::setThemedIcon(copyProTxHashAction, QStringLiteral(":/icons/hash"));
+    GUIUtil::setThemedIcon(copyPayoutAddressAction, QStringLiteral(":/icons/editcopy"));
+    GUIUtil::setThemedIcon(copyCollateralAddressAction, QStringLiteral(":/icons/editcopy"));
     GUIUtil::setThemedIcon(copyCollateralOutpointAction, QStringLiteral(":/icons/editcopy"));
     masternodeView->addAction(detailsAction);
     masternodeView->addAction(copyProTxHashAction);
+    masternodeView->addAction(copyPayoutAddressAction);
+    masternodeView->addAction(copyCollateralAddressAction);
     masternodeView->addAction(copyCollateralOutpointAction);
     connect(detailsAction, &QAction::triggered, this, &MasternodeList::extraInfoDIP3_clicked);
     connect(copyProTxHashAction, &QAction::triggered, this, &MasternodeList::copyProTxHash_clicked);
+    connect(copyPayoutAddressAction, &QAction::triggered, this, &MasternodeList::copyPayoutAddress_clicked);
+    connect(copyCollateralAddressAction, &QAction::triggered, this, &MasternodeList::copyCollateralAddress_clicked);
     connect(copyCollateralOutpointAction, &QAction::triggered, this, &MasternodeList::copyCollateralOutpoint_clicked);
     connect(masternodeSort, qOverload<int>(&QComboBox::activated),
             this, &MasternodeList::sortMasternodes);
@@ -1037,6 +1053,32 @@ void MasternodeList::copyProTxHash_clicked()
     }
 
     QApplication::clipboard()->setText(index.data(ProTxHashRole).toString());
+}
+
+void MasternodeList::copyPayoutAddress_clicked()
+{
+    const QModelIndex index = masternodeView ? masternodeView->currentIndex() : QModelIndex();
+    if (!index.isValid()) {
+        return;
+    }
+
+    // "-" marks an address that could not be resolved; there is nothing to copy.
+    const QString address = index.data(PayoutAddressRole).toString();
+    if (address != QLatin1String("-"))
+        QApplication::clipboard()->setText(address);
+}
+
+void MasternodeList::copyCollateralAddress_clicked()
+{
+    const QModelIndex index = masternodeView ? masternodeView->currentIndex() : QModelIndex();
+    if (!index.isValid()) {
+        return;
+    }
+
+    // "-" marks an address that could not be resolved; there is nothing to copy.
+    const QString address = index.data(CollateralAddressRole).toString();
+    if (address != QLatin1String("-"))
+        QApplication::clipboard()->setText(address);
 }
 
 void MasternodeList::copyCollateralOutpoint_clicked()
