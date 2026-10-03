@@ -68,16 +68,6 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog { background: $BG; }
         QTabWidget::pane { background: transparent; border: none; border-top: 1px solid $BORDER; top: -1px; }
-        QTabBar::tab {
-            background: transparent;
-            color: $INK_SOFT;
-            font-weight: 700;
-            min-width: 0;
-            padding: 8px 14px;
-            border: none;
-        }
-        QTabBar::tab:selected { color: $INK; border-bottom: 3px solid $WINE; }
-        QTabBar::tab:hover { color: $INK; }
         QGroupBox {
             background: $PANEL;
             border: 1px solid $BORDER;
@@ -113,8 +103,8 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
             min-width: 0;
             padding: 7px 16px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $FIELD_BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
         QPushButton#okButton {
             color: #FFFFFF;
             background: $WINE;

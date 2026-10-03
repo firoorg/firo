@@ -37,16 +37,6 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
     const auto applyTheme = [this] {
         setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog { background: $BG; }
-        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
-        QTabBar::tab {
-            background: transparent;
-            color: $INK_SOFT;
-            font-weight: 700;
-            padding: 8px 14px;
-            border: none;
-        }
-        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
-        QTabBar::tab:hover { color: $INK; }
         QLineEdit, QPlainTextEdit, QTextEdit {
             background: $PANEL_SOFT;
             border: 1px solid $FIELD_BORDER;
@@ -65,8 +55,8 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
             font-weight: 700;
             padding: 7px 16px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $FIELD_BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
         QPushButton#signMessageButton_SM, QPushButton#verifyMessageButton_VM {
             color: #FFFFFF;
             background: $WINE;

@@ -484,16 +484,6 @@ void RPCConsole::applyConsoleTheme()
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QWidget#RPCConsole { background: $BG; }
         QWidget#tab_peers, QWidget#detailWidget { background: $BG; }
-        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
-        QTabBar::tab {
-            background: transparent;
-            color: $INK_SOFT;
-            font-weight: 700;
-            padding: 8px 14px;
-            border: none;
-        }
-        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
-        QTabBar::tab:hover { color: $INK; }
         QGroupBox {
             background: $PANEL_SOFT;
             border: 1px solid $BORDER;
@@ -543,8 +533,8 @@ void RPCConsole::applyConsoleTheme()
             font-weight: 700;
             padding: 6px 14px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $FIELD_BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
     )")));
 
     // Font size and clear are ghost icon buttons with outline icons, as elsewhere in the app.

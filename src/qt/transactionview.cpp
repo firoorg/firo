@@ -582,13 +582,6 @@ void TransactionView::applyTheme()
         ".QTableView::item:hover { background: transparent; }"
         ".QTableView::item:selected { background: transparent; color: $INK; }"
 
-        "QScrollBar:vertical { background:$PANEL_SOFT; width:12px; border-radius:6px; }"
-        "QScrollBar::handle:vertical { background:$INK_FAINT; border-radius:6px; margin:2px; min-height:32px; }"
-        "QScrollBar::handle:vertical:hover { background:$INK_SOFT; }"
-        "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
-        "QScrollBar:horizontal { background:$PANEL_SOFT; height:12px; border-radius:6px; }"
-        "QScrollBar::handle:horizontal { background:$INK_FAINT; border-radius:6px; margin:2px; min-width:32px; }"
-
         "QMenu { background:$PANEL; border:1px solid $BORDER; padding:6px; border-radius:10px; }"
         "QMenu::item:selected { background:$HOVER; color:$INK; }"
     ));

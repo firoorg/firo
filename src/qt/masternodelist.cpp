@@ -537,25 +537,6 @@ QListView#masternodeView::item {
   background: transparent;
   border: none;
 }
-QScrollBar:vertical {
-  background: $PANEL_SOFT;
-  width: 12px;
-  border-radius: 6px;
-}
-QScrollBar::handle:vertical {
-  background: $INK_FAINT;
-  border-radius: 6px;
-  margin: 2px;
-  min-height: 32px;
-}
-QScrollBar::handle:vertical:hover {
-  background: $INK_SOFT;
-}
-QScrollBar::add-line,
-QScrollBar::sub-line {
-  width: 0;
-  height: 0;
-}
     )")));
 
     if (emptyIcon_) {
