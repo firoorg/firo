@@ -66,26 +66,19 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
             background: $WINE_DEEP;
         }
         QPushButton#signMessageButton_SM:pressed, QPushButton#verifyMessageButton_VM:pressed { background: $WINE_DEEP; }
-        QPushButton#addressBookButton_SM, QPushButton#pasteButton_SM,
-        QPushButton#copySignatureButton_SM, QPushButton#addressBookButton_VM {
-            background: transparent;
-            border: 1px solid transparent;
-            padding: 7px;
-        }
-        QPushButton#addressBookButton_SM:hover:enabled, QPushButton#pasteButton_SM:hover:enabled,
-        QPushButton#copySignatureButton_SM:hover:enabled, QPushButton#addressBookButton_VM:hover:enabled {
-            background: $HOVER;
-        }
         QLabel[status="error"] { color: $ERROR; font-weight: 700; }
         QLabel[status="success"] { color: $TEAL; font-weight: 700; }
     )")));
         // Outline icons on ghost buttons, as on the Send form.
+        const QString ghostStyle = GUIUtil::ghostButtonStyle(QStringLiteral("7px"));
         const QColor iconColor(GUIUtil::themeColors().inkSoft);
-        const QSize iconSize(20, 20);
-        ui->addressBookButton_SM->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/address-book")), iconSize, iconColor));
-        ui->pasteButton_SM->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/editpaste")), iconSize, iconColor));
-        ui->copySignatureButton_SM->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/editcopy")), iconSize, iconColor));
-        ui->addressBookButton_VM->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/address-book")), iconSize, iconColor));
+        const QSize iconSize(16, 16);
+        GUIUtil::setTintedIcon(ui->addressBookButton_SM, QStringLiteral(":/icons/address-book"), iconSize, iconColor);
+        GUIUtil::setTintedIcon(ui->pasteButton_SM, QStringLiteral(":/icons/editpaste"), iconSize, iconColor);
+        GUIUtil::setTintedIcon(ui->copySignatureButton_SM, QStringLiteral(":/icons/editcopy"), iconSize, iconColor);
+        GUIUtil::setTintedIcon(ui->addressBookButton_VM, QStringLiteral(":/icons/address-book"), iconSize, iconColor);
+        for (QPushButton* button : {ui->addressBookButton_SM, ui->pasteButton_SM, ui->copySignatureButton_SM, ui->addressBookButton_VM})
+            button->setStyleSheet(ghostStyle);
     };
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, applyTheme);

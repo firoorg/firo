@@ -11,9 +11,11 @@
 #include <QString>
 
 QT_BEGIN_NAMESPACE
+class QAbstractButton;
 class QAction;
 class QFontMetrics;
 class QIcon;
+class QLabel;
 class QPainter;
 class QPixmap;
 class QRect;
@@ -176,6 +178,15 @@ namespace GUIUtil
      * @param[in] tint   Opaque color to fill the shape with.
      */
     QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tint);
+
+    /** Give a button a single-color icon recolored to tint, shown at size. */
+    void setTintedIcon(QAbstractButton* button, const QString& resource, const QSize& size, const QColor& tint);
+
+    /** Style the 48 px icon of an empty list: the resource in wine on a wine-tint circle. */
+    void styleEmptyStateIcon(QLabel* icon, const QString& resource);
+
+    /** @return Rich text for a label led by a small dot in dotColor, e.g. a balance's source. */
+    QString dotLabelHtml(const QString& dotColor, const QString& text);
 
     /**
      * Give a menu action an outline icon in the muted ink, re-tinted whenever the theme changes.

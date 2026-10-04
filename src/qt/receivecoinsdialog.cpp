@@ -367,8 +367,8 @@ void ReceiveCoinsDialog::applyTheme()
     ui->mySparkNamesButton->setStyleSheet(ghostButtonStyle);
     ui->createSparkNameButton->setStyleSheet(ghostButtonStyle);
     const QColor actionIconColor(GUIUtil::themeColors().inkSoft);
-    ui->mySparkNamesButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), QSize(16, 16), actionIconColor));
-    ui->createSparkNameButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/tag")), QSize(16, 16), actionIconColor));
+    GUIUtil::setTintedIcon(ui->mySparkNamesButton, QStringLiteral(":/icons/spark"), QSize(16, 16), actionIconColor);
+    GUIUtil::setTintedIcon(ui->createSparkNameButton, QStringLiteral(":/icons/tag"), QSize(16, 16), actionIconColor);
     ui->showRequestButton->setStyleSheet(secondaryButtonStyle);
     ui->removeRequestButton->setStyleSheet(secondaryButtonStyle);
 
@@ -383,10 +383,7 @@ void ReceiveCoinsDialog::applyTheme()
         ui->recentRequestsView->viewport()->update();
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: $WINE_TINT; border-radius: 24px; }")));
-        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_receive")), QSize(24, 24),
-                                                        QColor(GUIUtil::themeColors().wineText)));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_receive"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

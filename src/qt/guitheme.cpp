@@ -6,12 +6,15 @@
 #include "guiutil.h"
 #include "transactionrecord.h"
 
+#include <QAbstractButton>
 #include <QAction>
 #include <QApplication>
 #include <QColor>
 #include <QFontDatabase>
 #include <QFontMetrics>
+#include <QHashFunctions>
 #include <QIcon>
+#include <QLabel>
 #include <QPainter>
 #include <QPixmap>
 #include <QPixmapCache>
@@ -468,8 +471,12 @@ QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tin
     if (source.isNull())
         return source;
 
+    // Keyed by the pixels, not source.cacheKey(): each QIcon built from a file, as the models
+    // and theme code do per call, scales a pixmap with a new cache key, so every paint would
+    // miss and add another entry.
+    QImage img = source.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
     const QString cacheKey = QStringLiteral("firo-tinted-icon:%1:%2x%3:%4:%5")
-                                 .arg(source.cacheKey())
+                                 .arg(qHashBits(img.constBits(), img.sizeInBytes()))
                                  .arg(source.width())
                                  .arg(source.height())
                                  .arg(source.devicePixelRatio())
@@ -478,7 +485,6 @@ QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tin
     if (QPixmapCache::find(cacheKey, &cached))
         return cached;
 
-    QImage img = source.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
     for (int y = 0; y < img.height(); ++y) {
         QRgb* line = reinterpret_cast<QRgb*>(img.scanLine(y));
         for (int x = 0; x < img.width(); ++x) {
@@ -491,6 +497,24 @@ QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tin
     result.setDevicePixelRatio(source.devicePixelRatio());
     QPixmapCache::insert(cacheKey, result);
     return result;
+}
+
+void setTintedIcon(QAbstractButton* button, const QString& resource, const QSize& size, const QColor& tint)
+{
+    button->setIcon(tintedIconPixmap(QIcon(resource), size, tint));
+    button->setIconSize(size);
+}
+
+void styleEmptyStateIcon(QLabel* icon, const QString& resource)
+{
+    icon->setStyleSheet(themed(QStringLiteral("QLabel { background: $WINE_TINT; border: none; border-radius: 24px; }")));
+    icon->setPixmap(tintedIconPixmap(QIcon(resource), QSize(24, 24), QColor(themeColors().wineText)));
+}
+
+QString dotLabelHtml(const QString& dotColor, const QString& text)
+{
+    return QStringLiteral("<span style=\"color:%1; font-size:11px\">\u25CF</span>&nbsp;&nbsp;%2")
+        .arg(dotColor, text.toHtmlEscaped());
 }
 
 void setThemedIcon(QAction* action, const QString& resource)

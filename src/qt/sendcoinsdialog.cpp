@@ -219,8 +219,7 @@ void SendCoinsDialog::updateBalanceTitle()
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
     const QString title = fAnonymousMode ? tr("Private Balance") : tr("Transparent Balance");
     ui->labelBalanceText->setTextFormat(Qt::RichText);
-    ui->labelBalanceText->setText(QStringLiteral("<span style=\"color:%1; font-size:11px\">\u25CF</span>&nbsp;&nbsp;%2")
-                                      .arg(fAnonymousMode ? tc.teal : tc.inkFaint, title.toHtmlEscaped()));
+    ui->labelBalanceText->setText(GUIUtil::dotLabelHtml(fAnonymousMode ? tc.teal : tc.inkFaint, title));
 }
 
 void SendCoinsDialog::applyTheme()

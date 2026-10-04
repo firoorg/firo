@@ -86,9 +86,12 @@ protected:
         painter.setClipPath(clip);
         painter.setOpacity(0.07);
         const QRect mark(width() - 234, -46, 270, 270);
-        painter.drawPixmap(mark, GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/firo_mark")), mark.size(),
-                                                          QColor(GUIUtil::themeColors().heroInk)));
+        painter.drawPixmap(mark, GUIUtil::tintedIconPixmap(markIcon_, mark.size(), QColor(GUIUtil::themeColors().heroInk)));
     }
+
+private:
+    // One icon for the widget's lifetime, so its scaled pixmap is reused on every repaint.
+    const QIcon markIcon_{QStringLiteral(":/icons/firo_mark")};
 };
 
 class TxViewDelegate : public QAbstractItemDelegate
@@ -354,11 +357,9 @@ void OverviewPage::applyOverviewRedesign()
     ui->labelPrivateSplit->setTextFormat(Qt::RichText);
     ui->labelTransparentSplit->setTextFormat(Qt::RichText);
 
-    // Drawn arrows replace the arrow characters that used to lead the labels.
+    // Drawn arrows, set with the theme, replace the arrow characters that used to lead the labels.
     ui->sendButton->setText(tr("Send"));
     ui->receiveButton->setText(tr("Receive"));
-    for (QPushButton* button : {ui->sendButton, ui->receiveButton, ui->anonymizeButton})
-        button->setIconSize(QSize(18, 18));
 
     ui->anonymizeButton->setText(tr("Make Private"));
 
@@ -496,28 +497,21 @@ void OverviewPage::applyOverviewTheme()
         "QPushButton:disabled { color: $HERO_INK_FAINT; background: $HERO_FILL; border-color: transparent; }")));
     // The sidebar icons, recolored for the gradient; Make Private uses the shield.
     const QSize actionIconSize(18, 18);
-    ui->sendButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_send")), actionIconSize,
-                                                      QColor(tc.heroStart)));
-    ui->receiveButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_receive")), actionIconSize,
-                                                         QColor(tc.heroInk)));
-    ui->anonymizeButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/shield")), actionIconSize,
-                                                           QColor(tc.heroAccent)));
+    GUIUtil::setTintedIcon(ui->sendButton, QStringLiteral(":/icons/sidebar_send"), actionIconSize, QColor(tc.heroStart));
+    GUIUtil::setTintedIcon(ui->receiveButton, QStringLiteral(":/icons/sidebar_receive"), actionIconSize, QColor(tc.heroInk));
+    GUIUtil::setTintedIcon(ui->anonymizeButton, QStringLiteral(":/icons/shield"), actionIconSize, QColor(tc.heroAccent));
 
     // The out-of-sync warning sits on the gradient too; its glyph is solid black, so draw it in white.
-    ui->labelWalletStatus->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/warning")),
-                                                             ui->labelWalletStatus->iconSize(), QColor(tc.heroInk)));
+    GUIUtil::setTintedIcon(ui->labelWalletStatus, QStringLiteral(":/icons/warning"), ui->labelWalletStatus->iconSize(),
+                           QColor(tc.heroInk));
 
     const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));
     ui->label_5->setStyleSheet(sectionTitleStyle);
     ui->label->setStyleSheet(sectionTitleStyle);
     // A dot marks each section: teal for Spark, grey for transparent, as on the split bar.
-    const auto sectionTitle = [](const QString& title, const QString& dotColor) {
-        return QStringLiteral("<span style=\"color:%1; font-size:11px\">\u25CF</span>&nbsp;&nbsp;%2")
-            .arg(dotColor, title.toHtmlEscaped());
-    };
-    ui->label_5->setText(sectionTitle(tr("Private Balances (Spark)"), tc.teal));
-    ui->label->setText(sectionTitle(tr("Transparent Balances"), tc.inkFaint));
+    ui->label_5->setText(GUIUtil::dotLabelHtml(tc.teal, tr("Private Balances (Spark)")));
+    ui->label->setText(GUIUtil::dotLabelHtml(tc.inkFaint, tr("Transparent Balances")));
     ui->label_4->setStyleSheet(sectionTitleStyle);
     ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
 
@@ -557,10 +551,7 @@ void OverviewPage::applyOverviewTheme()
         ui->listTransactions->viewport()->update();
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: $WINE_TINT; border-radius: 24px; }")));
-        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_transactions")),
-                                                        QSize(24, 24), QColor(tc.wineText)));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_transactions"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

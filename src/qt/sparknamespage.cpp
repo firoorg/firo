@@ -114,8 +114,7 @@ QToolButton* cardActionButton(const QString& text, const QString& icon, const QS
     btn->setText(text);
     btn->setToolTip(tooltip);
     const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
-    btn->setIcon(GUIUtil::tintedIconPixmap(QIcon(icon), QSize(16, 16), QColor(primary ? tc.wineText : tc.inkSoft)));
-    btn->setIconSize(QSize(16, 16));
+    GUIUtil::setTintedIcon(btn, icon, QSize(16, 16), QColor(primary ? tc.wineText : tc.inkSoft));
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setAutoRaise(true);
@@ -600,11 +599,7 @@ QFrame#sparkNameCard QToolButton#cardActionButton[primaryAction="true"] {
     )").arg(GUIUtil::fixedPitchFont().family())));
 
     if (emptyIcon_) {
-        // The same tinted circle and sidebar icon as the other empty lists.
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "background: $WINE_TINT; border: none; border-radius: 24px;")));
-        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/spark")), QSize(24, 24),
-                                                        QColor(GUIUtil::themeColors().wineText)));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/spark"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

@@ -541,10 +541,7 @@ QListView#masternodeView::item {
     )")));
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "background: $WINE_TINT; border-radius: 24px;")));
-        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_masternodes")), QSize(24, 24),
-                                                        QColor(GUIUtil::themeColors().wineText)));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_masternodes"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

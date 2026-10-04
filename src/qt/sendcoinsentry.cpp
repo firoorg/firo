@@ -208,11 +208,9 @@ void SendCoinsEntry::applyTheme()
     // Thin outline icons on ghost buttons, matching the sidebar set.
     const QColor iconColor(GUIUtil::themeColors().inkSoft);
     const QSize iconSize(20, 20);
-    ui->addressBookButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/address-book")), iconSize, iconColor));
-    ui->pasteButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/editpaste")), iconSize, iconColor));
-    ui->deleteButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/remove")), iconSize, iconColor));
-    for (QToolButton* button : {ui->addressBookButton, ui->pasteButton, ui->deleteButton})
-        button->setIconSize(iconSize);
+    GUIUtil::setTintedIcon(ui->addressBookButton, QStringLiteral(":/icons/address-book"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->pasteButton, QStringLiteral(":/icons/editpaste"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->deleteButton, QStringLiteral(":/icons/remove"), iconSize, iconColor);
 }
 
 SendCoinsEntry::~SendCoinsEntry()

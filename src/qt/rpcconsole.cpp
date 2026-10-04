@@ -541,13 +541,11 @@ void RPCConsole::applyConsoleTheme()
     const QString iconButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("0px"));
     const QColor iconColor(GUIUtil::themeColors().inkSoft);
     const QSize iconSize(18, 18);
-    ui->fontSmallerButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/fontsmaller")), iconSize, iconColor));
-    ui->fontBiggerButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/fontbigger")), iconSize, iconColor));
-    ui->clearButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/trash")), iconSize, iconColor));
-    for (QPushButton* button : {ui->fontSmallerButton, ui->fontBiggerButton, ui->clearButton}) {
+    GUIUtil::setTintedIcon(ui->fontSmallerButton, QStringLiteral(":/icons/fontsmaller"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->fontBiggerButton, QStringLiteral(":/icons/fontbigger"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->clearButton, QStringLiteral(":/icons/trash"), iconSize, iconColor);
+    for (QPushButton* button : {ui->fontSmallerButton, ui->fontBiggerButton, ui->clearButton})
         button->setStyleSheet(iconButtonStyle);
-        button->setIconSize(iconSize);
-    }
     ui->promptIcon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     ui->promptIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
         QIcon(QStringLiteral(":/icons/prompticon")), QSize(14, 14)));

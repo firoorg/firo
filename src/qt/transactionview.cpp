@@ -574,14 +574,12 @@ void TransactionView::applyTheme()
     if (exportButton) {
         exportButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("4px 12px")) +
             QStringLiteral("QPushButton { min-height: 22px; min-width: 62px; }"));
-        exportButton->setIcon(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/export")), QSize(16, 16),
-                                                        QColor(GUIUtil::themeColors().inkSoft)));
+        GUIUtil::setTintedIcon(exportButton, QStringLiteral(":/icons/export"), QSize(16, 16),
+                               QColor(GUIUtil::themeColors().inkSoft));
     }
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed("background: $WINE_TINT; border-radius: 24px;"));
-        emptyIcon_->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_transactions")), QSize(24, 24),
-                                                        QColor(GUIUtil::themeColors().wineText)));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_transactions"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed("color: $INK; font-weight: 700;"));
