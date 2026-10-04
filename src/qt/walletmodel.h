@@ -13,9 +13,7 @@
 #endif // ENABLE_WALLET
 #include "wallet/coincontrol.h"
 
-#include <future>
 #include <map>
-#include <optional>
 #include <vector>
 
 #include <QObject>
@@ -191,20 +189,13 @@ public:
         QString address;
         QString label;
         size_t outputs;
-        bool sizeLimited;
         // Unsigned estimate of the next batch, shown before the wallet is unlocked.
         size_t batchInputs{0};
         CAmount fee{0};
         CAmount returnedAmount{0};
     };
-    struct ConsolidationPreview {
-        size_t inputs;
-        CAmount returnedAmount;
-        unsigned int bytes;
-    };
-    // Start/poll a background scan. A busy wallet preserves the previous result.
-    bool pollConsolidationAddresses(std::vector<ConsolidationCandidate>& addresses);
-    ConsolidationPreview getConsolidationPreview(WalletModelTransaction& transaction) const;
+    // Addresses with an affordable batch, most eligible outputs first.
+    std::vector<ConsolidationCandidate> getConsolidationAddresses() const;
     SendCoinsReturn prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address);
     SendCoinsReturn sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs, bool& anotherBatch);
 
@@ -342,10 +333,7 @@ public:
     CAmount GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const;
 
 private:
-    std::vector<ConsolidationCandidate> getConsolidationAddresses() const;
     CWallet *wallet;
-    // Destruction joins the scan before the core wallet is released.
-    std::future<std::optional<std::vector<ConsolidationCandidate>>> consolidationScan;
 
     bool fHaveWatchOnly;
     bool fForceCheckBalanceChanged;

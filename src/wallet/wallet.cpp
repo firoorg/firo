@@ -3125,17 +3125,26 @@ std::map<CTxDestination, ConsolidationPlan> CWallet::GetConsolidationPlans(const
     return plans;
 }
 
+ConsolidationPlan CWallet::GetConsolidationPlan(const CTxDestination& destination) const
+{
+    auto plans = GetConsolidationPlans(destination);
+    const auto found = plans.find(destination);
+    if (found != plans.end())
+        return std::move(found->second);
+    ConsolidationPlan plan;
+    plan.error = _("There are fewer than two eligible outputs at this address.");
+    return plan;
+}
+
 bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
                                            CReserveKey& reserveKey, CAmount& fee, std::string& error, ConsolidationPlan* usedPlan)
 {
     LOCK2(cs_main, cs_wallet);
-    const auto plans = GetConsolidationPlans(destination);
-    const auto found = plans.find(destination);
-    if (found == plans.end() || !found->second.error.empty()) {
-        error = found == plans.end() ? _("There are fewer than two eligible outputs at this address.") : found->second.error;
+    const auto plan = GetConsolidationPlan(destination);
+    if (!plan.error.empty()) {
+        error = plan.error;
         return false;
     }
-    const auto& plan = found->second;
     CCoinControl control;
     control.destChange = destination;
     for (const auto& input : plan.inputs)
@@ -3148,7 +3157,7 @@ bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, 
 
     const auto& tx = *transaction.tx;
     if (tx.vout.size() != 1 || tx.vout[0].nValue <= 0 || tx.vout[0].scriptPubKey != script || tx.vout[0].nValue != plan.total - fee ||
-        tx.vin.size() != plan.inputs.size() || GetTransactionWeight(tx) >= MAX_NEW_TX_WEIGHT ||
+        tx.vin.size() != plan.inputs.size() ||
         !std::all_of(tx.vin.begin(), tx.vin.end(), [&](const CTxIn& input) { return control.IsSelected(input.prevout); })) {
         error = _("Unable to create a same-address consolidation transaction.");
         return false;

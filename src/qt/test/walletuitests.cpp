@@ -214,112 +214,13 @@ void WalletUiTests::manualConsolidation()
     QVERIFY(dialogOpened);
     QVERIFY(!QApplication::overrideCursor());
 
-    page.hide();
-    std::vector<WalletModel::ConsolidationCandidate> cached;
-    bool scanFinished = false;
-    QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
-    QCOMPARE(cached.size(), size_t(1));
-    QCOMPARE(cached[0].batchInputs, size_t(1688));
-    QVERIFY(cached[0].fee > 0);
-    QCOMPARE(cached[0].returnedAmount + cached[0].fee, CAmount(1688) * COIN);
-    cached = {{"previous scan", "", 1700, true}};
-    QString busyMessage;
-    bool chooserOpened = false;
-    QTimer busyDialogTimer;
-    connect(&busyDialogTimer, &QTimer::timeout, &page, [&] {
-        if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget())) {
-            if (auto* box = qobject_cast<QMessageBox*>(dialog))
-                busyMessage = box->text();
-            else
-                chooserOpened = true;
-            dialog->reject();
-        }
-    });
-    // A regressed wait must fail without hanging the test suite.
-    QTimer waitWatchdog;
-    waitWatchdog.setSingleShot(true);
-    connect(&waitWatchdog, &QTimer::timeout, &page, [&] { model.reset(); });
-    {
-        LOCK(wallet.cs_wallet);
-        // Polling a manual scan must not block the GUI or discard its result buffer.
-        QVERIFY(!model->pollConsolidationAddresses(cached));
-        QTest::qWait(30);
-        QVERIFY(!model->pollConsolidationAddresses(cached));
-        QCOMPARE(cached.size(), size_t(1));
-        QCOMPARE(cached[0].address, QString("previous scan"));
-    }
-    scanFinished = false;
-    QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
-    {
-        std::promise<void> walletLocked, releaseWallet;
-        auto locked = walletLocked.get_future();
-        auto released = releaseWallet.get_future();
-        auto holder = std::async(std::launch::async, [&] {
-            LOCK(wallet.cs_wallet);
-            walletLocked.set_value();
-            released.wait();
-        });
-        const auto unlock = qScopeGuard([&] {
-            releaseWallet.set_value();
-            holder.wait();
-        });
-        locked.wait();
-        waitWatchdog.start(8000);
-        busyDialogTimer.start(10);
-        QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
-        busyDialogTimer.stop();
-        waitWatchdog.stop();
-    }
-    QVERIFY(model);
-    QCOMPARE(busyMessage, QString("The wallet is busy. Please try again later."));
-    QVERIFY(!chooserOpened);
-    scanFinished = false;
-    QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
-    QCOMPARE(cached[0].outputs, size_t(1700));
+    const auto candidates = model->getConsolidationAddresses();
+    QCOMPARE(candidates.size(), size_t(1));
+    QCOMPARE(candidates[0].batchInputs, size_t(1688));
+    QVERIFY(candidates[0].fee > 0);
+    QCOMPARE(candidates[0].returnedAmount + candidates[0].fee, CAmount(1688) * COIN);
 
-    page.show();
-    busyMessage.clear();
-    QTimer syncStart;
-    syncStart.setSingleShot(true);
-    connect(&syncStart, &QTimer::timeout, &page, [&] {
-        QVERIFY(QApplication::overrideCursor());
-        QCOMPARE(QApplication::overrideCursor()->shape(), Qt::WaitCursor);
-        action.setEnabled(false);
-    });
-    QElapsedTimer syncWait;
-    {
-        std::promise<void> walletLocked, releaseWallet;
-        auto locked = walletLocked.get_future();
-        auto released = releaseWallet.get_future();
-        auto holder = std::async(std::launch::async, [&] {
-            LOCK(wallet.cs_wallet);
-            walletLocked.set_value();
-            released.wait();
-        });
-        const auto unlock = qScopeGuard([&] {
-            releaseWallet.set_value();
-            holder.wait();
-        });
-        locked.wait();
-        waitWatchdog.start(8000);
-        busyDialogTimer.start(10);
-        syncStart.start(50);
-        syncWait.start();
-        QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
-        syncStart.stop();
-        busyDialogTimer.stop();
-        waitWatchdog.stop();
-    }
-    QVERIFY(model);
-    QVERIFY(syncWait.elapsed() < 4000);
-    QVERIFY(busyMessage.isEmpty());
-    QVERIFY(!chooserOpened);
-    QVERIFY(!QApplication::overrideCursor());
-    action.setEnabled(true);
-    dialogTimer.start(10);
-    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
-    page.hide();
-
+    // An output locked during review makes submission fail without spending anything.
     {
         LOCK(wallet.cs_wallet);
         wallet.LockCoin(COutPoint(received.GetHash(), 0));
@@ -334,43 +235,6 @@ void WalletUiTests::manualConsolidation()
     bool anotherBatch = false;
     QCOMPARE(model->sendConsolidationTransaction(transaction, remainingOutputs, anotherBatch).status, WalletModel::TransactionCommitFailed);
     QVERIFY(!wallet.IsSpent(received.GetHash(), 0));
-    {
-        LOCK(wallet.cs_wallet);
-        for (unsigned int i = 1; i < 1651; ++i)
-            wallet.LockCoin(COutPoint(received.GetHash(), i));
-    }
-    std::vector<WalletModel::ConsolidationCandidate> manualAddresses;
-    bool manualScanFinished = false;
-    QTRY_VERIFY(manualScanFinished || (manualScanFinished = model->pollConsolidationAddresses(manualAddresses)));
-    QCOMPARE(manualAddresses.size(), size_t(1));
-    QCOMPARE(manualAddresses[0].outputs, size_t(49)); // Still available through File > Consolidate outputs.
-    QVERIFY(!manualAddresses[0].sizeLimited);
-    {
-        LOCK(wallet.cs_wallet);
-        for (unsigned int i = 1651; i < 1700; ++i)
-            wallet.LockCoin(COutPoint(received.GetHash(), i));
-    }
-    // A manual candidate must have an affordable batch.
-    funding.vout.assign(1700, CTxOut(1, GetScriptForDestination(key.GetPubKey().GetID())));
-    CWalletTx dust(&wallet, MakeTransactionRef(funding));
-    dust.hashBlock = blockHash;
-    dust.nIndex = 1;
-    {
-        LOCK(wallet.cs_wallet);
-        wallet.mapWallet.emplace(dust.GetHash(), dust);
-    }
-    manualScanFinished = false;
-    QTRY_VERIFY(manualScanFinished || (manualScanFinished = model->pollConsolidationAddresses(manualAddresses)));
-    QVERIFY(manualAddresses.empty());
-    // A hidden-page manual scan remains safe if its model disappears while waiting.
-    QTimer::singleShot(0, &page, [&] {
-        model.reset();
-        if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
-            dialog->reject();
-    });
-    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
-    QVERIFY(!model);
-    QVERIFY(!QApplication::overrideCursor());
 }
 
 void WalletUiTests::consolidationResult()

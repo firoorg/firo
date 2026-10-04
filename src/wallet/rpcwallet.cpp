@@ -578,11 +578,7 @@ UniValue consolidateaddress(const JSONRPCRequest& request)
     CAmount fee = 0;
     std::string error;
     if (dryrun) {
-        const auto plans = pwallet->GetConsolidationPlans(destination);
-        const auto found = plans.find(destination);
-        if (found == plans.end())
-            throw JSONRPCError(RPC_WALLET_ERROR, "There are fewer than two eligible outputs at this address.");
-        plan = found->second;
+        plan = pwallet->GetConsolidationPlan(destination);
         if (!plan.error.empty())
             throw JSONRPCError(RPC_WALLET_ERROR, plan.error);
     } else if (!pwallet->CreateConsolidationTransaction(destination, transaction, reserveKey, fee, error, &plan)) {

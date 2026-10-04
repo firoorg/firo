@@ -861,6 +861,9 @@ public:
     /** Plan affordable batches without private keys, key reservation, or wallet changes. */
     std::map<CTxDestination, ConsolidationPlan> GetConsolidationPlans(const CTxDestination& destination = CNoDestination()) const;
 
+    /** The plan for one destination; its error is set when the destination has no eligible outputs. */
+    ConsolidationPlan GetConsolidationPlan(const CTxDestination& destination) const;
+
     void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
 
     bool IsHDSeedAvailable() { return !hdChain.masterKeyID.IsNull(); }

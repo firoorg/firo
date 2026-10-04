@@ -35,12 +35,10 @@
 #include <QAbstractItemDelegate>
 #include <QAbstractItemView>
 #include <QAction>
-#include <QApplication>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QEvent>
-#include <QEventLoop>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -51,7 +49,6 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QScopeGuard>
 #include <QStyleOptionViewItem>
 #include <QVBoxLayout>
 
@@ -1071,34 +1068,11 @@ void OverviewPage::consolidateCoins()
 {
     if (!canConsolidate())
         return;
-    std::vector<WalletModel::ConsolidationCandidate> addresses;
     QPointer<OverviewPage> page(this);
-    const QPointer<WalletModel> model = walletModel;
-    bool scanFinished = model->pollConsolidationAddresses(addresses);
-    if (!scanFinished) {
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        const auto restoreCursor = qScopeGuard([] { QApplication::restoreOverrideCursor(); });
-        QEventLoop waitLoop;
-        QTimer poll;
-        connect(&poll, &QTimer::timeout, &waitLoop, [&] {
-            if (!page || !model || !page->canConsolidate()) {
-                waitLoop.quit();
-                return;
-            }
-            scanFinished = model->pollConsolidationAddresses(addresses);
-            if (scanFinished)
-                waitLoop.quit();
-        });
-        poll.start(250);
-        QTimer::singleShot(5000, &waitLoop, &QEventLoop::quit);
-        waitLoop.exec(QEventLoop::ExcludeUserInputEvents);
-    }
-    if (!page || !model || !canConsolidate())
+    std::vector<WalletModel::ConsolidationCandidate> addresses;
+    GUIUtil::runWalletOperation([&] { addresses = walletModel->getConsolidationAddresses(); });
+    if (!page || !canConsolidate())
         return;
-    if (!scanFinished) {
-        QMessageBox::information(this, tr("Consolidate Outputs"), tr("The wallet is busy. Please try again later."));
-        return;
-    }
     if (addresses.empty()) {
         QMessageBox::information(this, tr("Consolidate Outputs"), tr("No address currently has an affordable batch of at least two confirmed, spendable outputs."));
         return;
@@ -1135,9 +1109,6 @@ void OverviewPage::consolidateCoins()
         const QString name = entry.label.isEmpty() ? entry.address : tr("%1 (%2)").arg(entry.label, entry.address);
         addressChoice->addItem(tr("%1 (%2 outputs)").arg(name, QString::number(qulonglong(entry.outputs))), entry.address);
     }
-    const auto suggested = std::find_if(addresses.begin(), addresses.end(), [](const auto& entry) { return entry.sizeLimited; });
-    if (suggested != addresses.end())
-        addressChoice->setCurrentIndex(int(std::distance(addresses.begin(), suggested)));
     auto* form = new QFormLayout();
     form->setSpacing(12);
     form->setRowWrapPolicy(QFormLayout::WrapLongRows);
@@ -1219,21 +1190,21 @@ void OverviewPage::consolidateCoins()
     }
 
     // Review in the shared send confirmation: the same layout, emphasis and countdown as a payment.
-    const auto preview = walletModel->getConsolidationPreview(transaction);
+    const auto& tx = *transaction.getTransaction()->tx;
     const auto chosen = std::find_if(addresses.begin(), addresses.end(), [&](const auto& entry) { return entry.address == address; });
     const QString name = chosen != addresses.end() && !chosen->label.isEmpty() ? tr("%1 (%2)").arg(chosen->label, address) : address;
     QString question = tr("Are you sure you want to consolidate these outputs?");
     question.append("<br /><br />");
     question.append(tr("%1 outputs at %2 will be combined into one output at the same address.")
-        .arg(QString::number(qulonglong(preview.inputs)), "<b>" + GUIUtil::HtmlEscape(name) + "</b>"));
+        .arg(QString::number(qulonglong(tx.vin.size())), "<b>" + GUIUtil::HtmlEscape(name) + "</b>"));
     question.append("<hr /><span style='font-weight: 700;'>");
     question.append(BitcoinUnits::formatHtmlWithUnit(unit, transaction.getTransactionFee()));
     question.append("</span> ");
     question.append(tr("added as transaction fee"));
-    question.append(" (" + QString::number(double(preview.bytes) / 1000) + " kB)");
+    question.append(" (" + QString::number(double(transaction.getTransactionSize()) / 1000) + " kB)");
     question.append("<hr />");
     question.append(tr("Amount returned to this address: %1")
-        .arg("<b>" + BitcoinUnits::formatHtmlWithUnit(unit, preview.returnedAmount) + "</b>"));
+        .arg("<b>" + BitcoinUnits::formatHtmlWithUnit(unit, tx.vout[0].nValue) + "</b>"));
     SendConfirmationDialog confirmation(tr("Confirm consolidation"), question, SEND_CONFIRM_DELAY, this);
     confirmation.exec();
     if (!page || static_cast<QMessageBox::StandardButton>(confirmation.result()) != QMessageBox::Yes || !canConsolidate())
