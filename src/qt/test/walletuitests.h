@@ -25,6 +25,8 @@ private Q_SLOTS:
     void receiveMnemonics();
     void emptyRecoverySeed();
     void confirmationRefresh();
+    void manualConsolidation();
+    void consolidationResult();
     void themeTintColors();
     void peerDetailsTheme();
     void transactionCalendarTheme();

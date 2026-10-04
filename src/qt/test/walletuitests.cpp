@@ -52,6 +52,7 @@
 #include <QColor>
 #include <QComboBox>
 #include <QDateTimeEdit>
+#include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QFontDatabase>
 #include <QFrame>
@@ -117,6 +118,152 @@ public:
         return QVariant();
     }
 };
+}
+
+void WalletUiTests::manualConsolidation()
+{
+    CWallet wallet;
+    CWallet* previousWallet = pwalletMain;
+    CBlockIndex* previousTip = chainActive.Tip();
+    const uint256 blockHash = uint256S("777");
+    CBlockIndex tip;
+    tip.phashBlock = &blockHash;
+    tip.nHeight = 0;
+    {
+        LOCK(cs_main);
+        QVERIFY(!mapBlockIndex.count(blockHash));
+    }
+    const auto restore = qScopeGuard([&] {
+        LOCK(cs_main);
+        chainActive.SetTip(previousTip);
+        mapBlockIndex.erase(blockHash);
+        pwalletMain = previousWallet;
+    });
+    {
+        LOCK(cs_main);
+        mapBlockIndex.emplace(blockHash, &tip);
+        chainActive.SetTip(&tip);
+        pwalletMain = &wallet;
+    }
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    auto model = std::make_unique<WalletModel>(style.get(), &wallet, &options);
+    CKey key;
+    key.MakeNewKey(true);
+    {
+        LOCK(wallet.cs_wallet);
+        QVERIFY(wallet.AddKeyPubKey(key, key.GetPubKey()));
+        wallet.SetAddressBook(key.GetPubKey().GetID(), "Payouts", "receive");
+    }
+    CMutableTransaction funding;
+    funding.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    funding.vout.assign(1700, CTxOut(COIN, GetScriptForDestination(key.GetPubKey().GetID())));
+    CWalletTx received(&wallet, MakeTransactionRef(funding));
+    received.hashBlock = blockHash;
+    received.nIndex = 1;
+    {
+        LOCK(wallet.cs_wallet);
+        wallet.mapWallet.emplace(received.GetHash(), received);
+    }
+
+    OverviewPage page(style.get());
+    page.setWalletModel(model.get());
+    QAction action;
+    action.setEnabled(false);
+    page.setConsolidationAction(&action);
+    page.show();
+    page.showOutOfSyncWarning(false);
+
+    bool dialogOpened = false;
+    QTimer dialogTimer;
+    connect(&dialogTimer, &QTimer::timeout, &page, [&] {
+        auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        dialogOpened = true;
+        dialogTimer.stop();
+        const auto close = qScopeGuard([&] { dialog->reject(); });
+        const QSize available = GUIUtil::availableScreenSize(dialog);
+        QVERIFY(dialog->width() <= qMax(available.width(), dialog->minimumSizeHint().width()));
+        QVERIFY(dialog->height() <= qMax(available.height(), dialog->minimumSizeHint().height()));
+        dialog->resize(400, 220);
+        QCoreApplication::processEvents();
+        auto* scroll = dialog->findChild<QScrollArea*>("consolidationScroll");
+        auto* buttons = dialog->findChild<QDialogButtonBox*>();
+        QVERIFY(scroll && buttons);
+        QVERIFY(dialog->rect().contains(buttons->geometry()));
+        QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
+        QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        auto* explanation = scroll->findChild<QLabel*>();
+        QVERIFY(explanation);
+        QVERIFY(explanation->height() >= explanation->heightForWidth(explanation->width()));
+        // Like Make Funds Private, the chooser previews the batch before asking to unlock.
+        auto* batch = dialog->findChild<QLabel*>("consolidationBatch");
+        auto* note = dialog->findChild<QLabel*>("consolidationBatchNote");
+        auto* fee = dialog->findChild<QLabel*>("consolidationFee");
+        auto* returned = dialog->findChild<QLabel*>("consolidationReturned");
+        QVERIFY(batch && note && fee && returned);
+        QCOMPARE(batch->text(), QStringLiteral("1688 of 1700 outputs"));
+        QVERIFY(!note->isHidden());
+        QVERIFY(!fee->text().isEmpty());
+        QVERIFY(!returned->text().isEmpty());
+        QCOMPARE(buttons->button(QDialogButtonBox::Ok)->text(), QStringLiteral("Review"));
+    });
+    dialogTimer.start(10);
+    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+    QVERIFY(!dialogOpened); // A cleared chain warning must not bypass the full-sync action gate.
+    action.setEnabled(true);
+    QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
+    QVERIFY(dialogOpened);
+    QVERIFY(!QApplication::overrideCursor());
+
+    const auto candidates = model->getConsolidationAddresses();
+    QCOMPARE(candidates.size(), size_t(1));
+    QCOMPARE(candidates[0].batchInputs, size_t(1688));
+    QVERIFY(candidates[0].fee > 0);
+    QCOMPARE(candidates[0].returnedAmount + candidates[0].fee, CAmount(1688) * COIN);
+
+    // An output locked during review makes submission fail without spending anything.
+    {
+        LOCK(wallet.cs_wallet);
+        wallet.LockCoin(COutPoint(received.GetHash(), 0));
+    }
+    WalletModelTransaction transaction{QList<SendCoinsRecipient>()};
+    CMutableTransaction prepared;
+    prepared.vin.emplace_back(COutPoint(received.GetHash(), 0));
+    prepared.vin.emplace_back(COutPoint(received.GetHash(), 1));
+    prepared.vout.emplace_back(COIN, GetScriptForDestination(key.GetPubKey().GetID()));
+    *transaction.getTransaction() = CWalletTx(&wallet, MakeTransactionRef(prepared));
+    size_t remainingOutputs = 0;
+    bool anotherBatch = false;
+    QCOMPARE(model->sendConsolidationTransaction(transaction, remainingOutputs, anotherBatch).status, WalletModel::TransactionCommitFailed);
+    QVERIFY(!wallet.IsSpent(received.GetHash(), 0));
+}
+
+void WalletUiTests::consolidationResult()
+{
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    OverviewPage page(style.get());
+    for (const auto& batch : {std::make_pair(0ULL, false), std::make_pair(1ULL, false),
+                             std::make_pair(2ULL, false), std::make_pair(2ULL, true)}) {
+        const qulonglong remaining = batch.first;
+        const bool anotherBatch = batch.second;
+        QString message;
+        QTimer::singleShot(0, &page, [&] {
+            if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+                message = box->text();
+                box->accept();
+            }
+        });
+        QVERIFY(QMetaObject::invokeMethod(&page, "showConsolidationResult", Qt::DirectConnection, Q_ARG(qulonglong, remaining), Q_ARG(bool, anotherBatch)));
+        QVERIFY(message.contains(QString("Eligible outputs remaining at this address: %1").arg(remaining)));
+        QCOMPARE(message.contains("Another affordable batch"), anotherBatch);
+        QCOMPARE(message.contains("remaining output at this same address"), remaining == 1);
+        QCOMPARE(message.contains("cannot currently form an affordable batch"), remaining >= 2 && !anotherBatch);
+        QVERIFY(message.contains("requires your confirmation and a network fee"));
+    }
 }
 
 void WalletUiTests::confirmationRefresh()
@@ -857,9 +1004,14 @@ void WalletUiTests::synchronizationProgress()
     BitcoinGUI gui(platformStyle.get(), networkStyle.get());
     gui.clientModel = &model;
     gui.setNumConnections(1);
+    // File > Consolidate outputs needs a wallet and a fully synced chain and masternode list.
+    QVERIFY(!gui.consolidateOutputsAction->icon().isNull());
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
+    gui.setWalletActionsEnabled(true);
     gui.setNumBlocks(10, now.addDays(-1), 0.6251, false);
     gui.setNumBlocks(100, now.addDays(-10), 0.99, true);
     QVERIFY(gui.progressBarLabel->text().startsWith("Syncing Headers"));
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
     QCOMPARE(gui.navigationSyncPercent->text(), QStringLiteral("62.51%"));
     const int stalledFrame = gui.spinnerFrame;
     gui.updateSyncStatus();
@@ -909,6 +1061,7 @@ void WalletUiTests::synchronizationProgress()
     gui.setNumBlocks(101, now, 1.0, false);
     gui.setAdditionalDataSyncProgress(-0.25);
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Finishing sync..."));
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
     QCOMPARE(gui.navigationSyncFraction, 1.0);
     gui.showModalOverlay();
     QVERIFY(gui.modalOverlay->isLayerVisible());
@@ -946,6 +1099,20 @@ void WalletUiTests::synchronizationProgress()
     QCOMPARE(notifications.count, 1);
     QVERIFY(gui.navigationSyncCard->isHidden());
     QVERIFY(gui.labelBlocksIcon->toolTip().contains("Up to date"));
+    QVERIFY(gui.consolidateOutputsAction->isEnabled());
+    gui.setWalletActionsEnabled(false);
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
+    gui.setWalletActionsEnabled(true);
+    QVERIFY(gui.consolidateOutputsAction->isEnabled());
+    // Unloading the wallets or the client model disables it as well.
+    gui.removeAllWallets();
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
+    gui.setClientModel(nullptr);
+    gui.setWalletActionsEnabled(true);
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
+    gui.clientModel = &model;
+    gui.setWalletActionsEnabled(true);
+    QVERIFY(gui.consolidateOutputsAction->isEnabled());
     const auto syncedIcon = gui.labelBlocksIcon->pixmap().toImage();
     gui.updateProgressBarLabel("Batch verifying Spark Proofs...");
     QCOMPARE(gui.navigationSyncLabel->toolTip(), QStringLiteral("Synced"));
@@ -983,6 +1150,7 @@ void WalletUiTests::synchronizationProgress()
     QVERIFY(QMetaObject::invokeMethod(refreshTimer, "timeout"));
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Catching up..."));
     QCOMPARE(gui.navigationSyncFraction, 0.987);
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
     QCOMPARE(gui.modalOverlay->findChild<QLabel*>("percentageProgress")->text(), QStringLiteral("98.70%"));
     QVERIFY(gui.modalOverlay->isLayerVisible());
     gui.incomingTransaction("today", 0, COIN, "Received", "", "");
@@ -991,12 +1159,14 @@ void WalletUiTests::synchronizationProgress()
     model.cachedLastBlockDate = now;
     gui.setNumBlocks(102, now, 1.0, false);
     QCOMPARE(gui.labelBlocksIcon->pixmap().toImage(), syncedIcon);
+    QVERIFY(gui.consolidateOutputsAction->isEnabled());
     QVERIFY(gui.labelBlocksIcon->toolTip().contains("Up to date"));
 
     fReindex = true;
     gui.setNumBlocks(102, now, 0.25, false);
     gui.setNumBlocks(103, now.addDays(-5), 0.99, true);
     QCOMPARE(gui.progressBarLabel->text(), QStringLiteral("Reindexing blocks on disk..."));
+    QVERIFY(!gui.consolidateOutputsAction->isEnabled());
     QCOMPARE(gui.navigationSyncFraction, 0.25);
     fReindex = false;
     SelectParams(CBaseChainParams::REGTEST);

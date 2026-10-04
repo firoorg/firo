@@ -120,6 +120,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     sendCoinsMenuAction(0),
     usedSendingAddressesAction(0),
     usedReceivingAddressesAction(0),
+    consolidateOutputsAction(0),
     signMessageAction(0),
     verifyMessageAction(0),
     aboutAction(0),
@@ -456,6 +457,9 @@ void BitcoinGUI::createActions()
     usedSendingAddressesAction->setStatusTip(tr("Show the list of used sending addresses and labels"));
     usedReceivingAddressesAction = new QAction( tr("&Receiving addresses..."), this);
     usedReceivingAddressesAction->setStatusTip(tr("Show the list of used receiving addresses and labels"));
+    consolidateOutputsAction = new QAction(tr("&Consolidate outputs..."), this);
+    consolidateOutputsAction->setObjectName(QStringLiteral("consolidateOutputsAction"));
+    consolidateOutputsAction->setStatusTip(tr("Combine confirmed outputs from one transparent address. A network fee applies."));
 
     openAction = new QAction(tr("Open &URI..."), this);
     openAction->setStatusTip(tr("Open a firo: URI"));
@@ -472,6 +476,7 @@ void BitcoinGUI::createActions()
     GUIUtil::setThemedIcon(exportViewKeyAction, QStringLiteral(":/icons/key"));
     GUIUtil::setThemedIcon(usedSendingAddressesAction, QStringLiteral(":/icons/address-book"));
     GUIUtil::setThemedIcon(usedReceivingAddressesAction, QStringLiteral(":/icons/address-book"));
+    GUIUtil::setThemedIcon(consolidateOutputsAction, QStringLiteral(":/icons/coins"));
     GUIUtil::setThemedIcon(quitAction, QStringLiteral(":/icons/logout"));
     GUIUtil::setThemedIcon(changePassphraseAction, QStringLiteral(":/icons/key"));
     GUIUtil::setThemedIcon(openRPCConsoleAction, QStringLiteral(":/icons/sidebar_console"));
@@ -502,6 +507,7 @@ void BitcoinGUI::createActions()
         connect(verifyMessageAction, &QAction::triggered, [this]{ gotoVerifyMessageTab(); });
         connect(usedSendingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedSendingAddresses);
         connect(usedReceivingAddressesAction, &QAction::triggered, walletFrame, &WalletFrame::usedReceivingAddresses);
+        connect(consolidateOutputsAction, &QAction::triggered, walletFrame, &WalletFrame::consolidateCoins);
         connect(openAction, &QAction::triggered, this, &BitcoinGUI::openClicked);
     }
 #endif // ENABLE_WALLET
@@ -532,6 +538,7 @@ void BitcoinGUI::createMenuBar()
         file->addSeparator();
         file->addAction(usedSendingAddressesAction);
         file->addAction(usedReceivingAddressesAction);
+        file->addAction(consolidateOutputsAction);
         file->addSeparator();
     }
     file->addAction(quitAction);
@@ -1407,6 +1414,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(nullptr);
     }
+    updateConsolidationAction();
 }
 
 #ifdef ENABLE_WALLET
@@ -1460,7 +1468,13 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
+    updateConsolidationAction();
     openAction->setEnabled(enabled);
+}
+
+void BitcoinGUI::updateConsolidationAction()
+{
+    consolidateOutputsAction->setEnabled(clientModel && overviewAction->isEnabled() && !syncInProgress());
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
@@ -1712,6 +1726,8 @@ void BitcoinGUI::updateSyncStatus()
         ? tr("%1 behind").arg(GUIUtil::formatNiceTimeOffset(secs)) : QStringLiteral("%p%"));
     progressBar->setVisible(!navigationSyncCard && syncing);
     updateNavigationSyncCard(status, progress);
+    // Manual consolidation stays available only while the wallet is fully synced.
+    updateConsolidationAction();
     modalOverlay->setSyncComplete(fullySynced);
 
     QString tooltip = tr("Processed %n block(s) of transaction history.", "", clientModel->getNumBlocks());
