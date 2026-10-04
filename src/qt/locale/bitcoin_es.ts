@@ -493,10 +493,6 @@
         </translation>
     </message>
     <message>
-        <source>Indexing blocks on disk...</source>
-        <translation>Indexando bloques en disco...</translation>
-    </message>
-    <message>
         <source>Processing blocks on disk...</source>
         <translation>Procesando bloques en disco...</translation>
     </message>
@@ -698,20 +694,20 @@
         <translation>Actividad de red deshabilitada</translation>
     </message>
     <message>
+        <source>Syncing Headers (%1%)...</source>
+        <translation>Sincronizando cabeceras (%1%)...</translation>
+    </message>
+    <message>
+        <source>Finishing sync...</source>
+        <translation>Finalizando la sincronización...</translation>
+    </message>
+    <message>
         <source>Synced</source>
         <translation>Sincronizado</translation>
     </message>
     <message>
         <source>Expand navigation</source>
         <translation>Expandir navegación</translation>
-    </message>
-    <message>
-        <source>Syncing Headers...</source>
-        <translation>Sincronizando cabeceras...</translation>
-    </message>
-    <message>
-        <source>Synchronizing additional data: %p%</source>
-        <translation>Sincronizando datos adicionales: %p%</translation>
     </message>
 </context>
 <context>
@@ -2893,6 +2889,14 @@ Dirección de destino (hex): %4</translation>
         <translation>Error</translation>
     </message>
     <message>
+        <source>Wallet is still syncing</source>
+        <translation>El monedero sigue sincronizándose</translation>
+    </message>
+    <message>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet.</source>
+        <translation>La información mostrada puede estar desactualizada. Su monedero se sincroniza automáticamente con la red Firo después de que se haya establecido una conexión, pero este proceso aún no se ha completado.</translation>
+    </message>
+    <message>
         <source>Spark name %1 not found</source>
         <translation>No se encontró el nombre Spark %1</translation>
     </message>
@@ -3299,12 +3303,10 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>[regtest]</source>
-        <extracomment>Translated at runtime by NetworkStyle through a variable source string.</extracomment>
         <translation>[regtest]</translation>
     </message>
     <message>
         <source>Regtest</source>
-        <extracomment>Translated at runtime by NetworkStyle through a variable source string.</extracomment>
         <translation>Regtest</translation>
     </message>
 </context>
@@ -4036,7 +4038,6 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Copy RAP address/label</source>
-        <extracomment>Used through tr(CopyRapText) in TransactionView; lupdate cannot extract the variable argument.</extracomment>
         <translation>Copiar dirección RAP/etiqueta</translation>
     </message>
 </context>
@@ -6309,6 +6310,10 @@ Datos sin procesar: %1</translation>
         <translation>Dirección del propietario</translation>
     </message>
     <message>
+        <source>Masternode information may be out of date while the wallet is syncing.</source>
+        <translation>La información de los masternodos puede estar desactualizada mientras el monedero se sincroniza.</translation>
+    </message>
+    <message>
         <source>Masternode list</source>
         <translation>Lista de masternodos</translation>
     </message>
@@ -6466,8 +6471,8 @@ Punto de salida de garantía: %13</translation>
         <translation>Error de análisis: comillas ' o " sin cerrar</translation>
     </message>
     <message>
-        <source> (code %1)</source>
-        <translation> (código %1)</translation>
+        <source>%1 (code %2)</source>
+        <translation>%1 (código %2)</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -6561,6 +6566,10 @@ También puede elegir la fecha de creación del monedero para acelerar y optimiz
     <message>
         <source>The number of RAP addresses will be created in the wallet for the initial blockchain scan</source>
         <translation>Se creará este número de direcciones RAP en el monedero para el análisis inicial de la cadena de bloques</translation>
+    </message>
+    <message>
+        <source>Recovery seed phrase can't be empty.</source>
+        <translation>La frase de recuperación no puede estar vacía.</translation>
     </message>
     <message>
         <source>Wrong number of words. Please try again.</source>

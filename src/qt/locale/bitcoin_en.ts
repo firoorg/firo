@@ -732,6 +732,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Syncing Headers (%1%)...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finishing sync...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="-534"/>
         <source>Synced</source>
         <translation type="unfinished"></translation>
@@ -875,12 +883,7 @@
         </translation>
     </message>
     <message>
-        <location line="+76"/>
-        <source>Indexing blocks on disk...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+78"/>
         <source>Processing blocks on disk...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -945,22 +948,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-44"/>
-        <source>Syncing Headers...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+84"/>
+        <location line="+40"/>
         <source>Catching up...</source>
         <translation>Catching up...</translation>
     </message>
     <message>
-        <location line="+84"/>
-        <source>Synchronizing additional data: %p%</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+137"/>
+        <location line="+221"/>
         <source>Date: %1
 </source>
         <translation type="unfinished"></translation>
@@ -2082,6 +2075,10 @@
     <message>
         <location line="+1"/>
         <source>Owner address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Masternode information may be out of date while the wallet is syncing.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4261,6 +4258,10 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Recovery seed phrase can&apos;t be empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../recover.cpp" line="+280"/>
         <source>Wrong number of words. Please try again.</source>
         <translation type="unfinished"></translation>
@@ -4738,6 +4739,14 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <location line="+19"/>
         <source>Error</source>
         <translation type="unfinished">Error</translation>
+    </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5253,12 +5262,10 @@ Raw data: %1</source>
     </message>
     <message>
         <source>[regtest]</source>
-        <extracomment>Translated at runtime by NetworkStyle through a variable source string.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Regtest</source>
-        <extracomment>Translated at runtime by NetworkStyle through a variable source string.</extracomment>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -6184,12 +6191,10 @@ Raw data: %1</source>
     </message>
     <message>
         <source>Copy label</source>
-        <extracomment>Used through tr(CopyLabelText) in TransactionView; lupdate cannot extract the variable argument.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Copy RAP address/label</source>
-        <extracomment>Used through tr(CopyRapText) in TransactionView; lupdate cannot extract the variable argument.</extracomment>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -8283,7 +8288,7 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source> (code %1)</source>
+        <source>%1 (code %2)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
