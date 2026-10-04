@@ -53,8 +53,8 @@
 #include <algorithm>
 
 namespace {
-char const * CopyLabelText{"Copy label"};
-char const * CopyRapText{"Copy RAP address/label"};
+char const * CopyLabelText{QT_TRANSLATE_NOOP("TransactionView", "Copy label")};
+char const * CopyRapText{QT_TRANSLATE_NOOP("TransactionView", "Copy RAP address/label")};
 }
 
 namespace {
