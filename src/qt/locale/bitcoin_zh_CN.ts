@@ -7487,10 +7487,6 @@ Raw data: %1</source>
         <translation>创建 Spark 名称</translation>
     </message>
     <message>
-        <source>Copied to clipboard</source>
-        <translation>已复制到剪贴板</translation>
-    </message>
-    <message>
         <source>No Spark Names yet</source>
         <translation>暂无 Spark 名称</translation>
     </message>
@@ -7541,6 +7537,10 @@ Raw data: %1</source>
     <message>
         <source>Active</source>
         <translation>有效</translation>
+    </message>
+    <message>
+        <source>Copied to clipboard</source>
+        <translation>已复制到剪贴板</translation>
     </message>
 </context>
 

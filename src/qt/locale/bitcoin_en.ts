@@ -5169,12 +5169,7 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../sparknamespage.cpp" line="+38"/>
-        <source>Copied to clipboard</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+181"/>
+        <location filename="../sparknamespage.cpp" line="+215"/>
         <source>No Spark Names yet</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5237,6 +5232,11 @@ Raw data: %1</source>
     <message>
         <location line="+4"/>
         <source>Active</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Copied to clipboard</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

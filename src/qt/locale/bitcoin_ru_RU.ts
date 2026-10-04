@@ -6543,10 +6543,6 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation>Создать имя Spark</translation>
     </message>
     <message>
-        <source>Copied to clipboard</source>
-        <translation>Скопировано в буфер обмена</translation>
-    </message>
-    <message>
         <source>No Spark Names yet</source>
         <translation>Имён Spark пока нет</translation>
     </message>
@@ -6597,6 +6593,10 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     <message>
         <source>Active</source>
         <translation>Действует</translation>
+    </message>
+    <message>
+        <source>Copied to clipboard</source>
+        <translation>Скопировано в буфер обмена</translation>
     </message>
 </context>
 </TS>
