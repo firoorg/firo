@@ -193,7 +193,7 @@
     </message>
     <message>
         <source>Enter the new passphrase to the wallet.&lt;br/&gt;Please use a passphrase of &lt;b&gt;ten or more random characters&lt;/b&gt;, or &lt;b&gt;eight or more words&lt;/b&gt;.</source>
-        <translation>Introduzca la nueva contraseña del monedero. &lt;br/&gt;Por favor utilice una contraseña de &lt;b&gt;diez o más carácteres aleatorios&lt;/b&gt;, o &lt;b&gt;ocho o más palabras&lt;/b&gt;.</translation>
+        <translation>Introduzca la nueva contraseña del monedero.&lt;br/&gt;Utilice una contraseña de &lt;b&gt;diez o más caracteres aleatorios&lt;/b&gt;, o &lt;b&gt;ocho o más palabras&lt;/b&gt;.</translation>
     </message>
     <message>
         <source>Encrypt wallet</source>
@@ -533,7 +533,7 @@
     </message>
     <message>
         <source>Show the %1 help message to get a list with possible Firo command-line options</source>
-        <translation>Mostrar el mensaje de ayuda %1 para obtener una lista de los posibles comandos de linea de comandos de Firo</translation>
+        <translation>Mostrar el mensaje de ayuda de %1 para obtener una lista de las posibles opciones de línea de comandos de Firo</translation>
     </message>
     <message>
         <source>%1 client</source>
@@ -726,11 +726,11 @@
     </message>
     <message>
         <source>Amount:</source>
-        <translation>Cuantía:</translation>
+        <translation>Importe:</translation>
     </message>
     <message>
         <source>Fee:</source>
-        <translation>Tasa:</translation>
+        <translation>Comisión:</translation>
     </message>
     <message>
         <source>Dust:</source>
@@ -738,7 +738,7 @@
     </message>
     <message>
         <source>After Fee:</source>
-        <translation>Después de aplicar la comisión:</translation>
+        <translation>Después de la comisión:</translation>
     </message>
     <message>
         <source>Change:</source>
@@ -758,7 +758,7 @@
     </message>
     <message>
         <source>Amount</source>
-        <translation>Cantidad</translation>
+        <translation>Importe</translation>
     </message>
     <message>
         <source>Received with label</source>
@@ -790,7 +790,7 @@
     </message>
     <message>
         <source>Copy amount</source>
-        <translation>Copiar cantidad</translation>
+        <translation>Copiar importe</translation>
     </message>
     <message>
         <source>Copy transaction ID</source>
@@ -1062,7 +1062,7 @@
     </message>
     <message>
         <source>%1 will download and store a copy of the Firo block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 va a descargar y almacenar una copia de la cadena de bloques de Firo. Al menos %2GB de datos seran almacenados en este directorio, que ira creciendo con el tiempo. El monedero se guardara tambien en ese directorio. </translation>
+        <translation>%1 descargará y almacenará una copia de la cadena de bloques de Firo. Se almacenarán al menos %2GB de datos en este directorio, que irá creciendo con el tiempo. El monedero también se guardará en este directorio.</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -1301,7 +1301,7 @@
     </message>
     <message>
         <source>Shows, if the supplied default SOCKS5 proxy is used to reach peers via this network type.</source>
-        <translation>Muestra si el proxy SOCKS5 predeterminado es utilizado para llegar a los pares a traves de este tipo de red.</translation>
+        <translation>Muestra si el proxy SOCKS5 predeterminado se utiliza para llegar a los pares a través de este tipo de red.</translation>
     </message>
     <message>
         <source>IPv4</source>
@@ -1353,7 +1353,7 @@
     </message>
     <message>
         <source>User Interface &amp;language:</source>
-        <translation>I&amp;dioma de la interfaz de usuario</translation>
+        <translation>I&amp;dioma de la interfaz de usuario:</translation>
     </message>
     <message>
         <source>The user interface language can be set here. This setting will take effect after restarting %1.</source>
@@ -1799,7 +1799,7 @@
     </message>
     <message>
         <source>URI cannot be parsed! This can be caused by an invalid Firo address or malformed URI parameters.</source>
-        <translation>URI no puede ser analizado! Esto puede ser causado por una dirección Firo inválida o parametros URI mal formados.</translation>
+        <translation>¡No se puede analizar la URI! Esto puede deberse a una dirección Firo no válida o a parámetros de URI mal formados.</translation>
     </message>
     <message>
         <source>Payment request file handling</source>
@@ -1903,8 +1903,8 @@
     <message numerus="yes">
         <source>%n day(s)</source>
         <translation>
-            <numerusform>%n dia</numerusform>
-            <numerusform>%n dias</numerusform>
+            <numerusform>%n día</numerusform>
+            <numerusform>%n días</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -2148,11 +2148,11 @@ Dirección de destino (hex): %4</translation>
     </message>
     <message>
         <source>Last Send</source>
-        <translation>Ultimo envío</translation>
+        <translation>Último envío</translation>
     </message>
     <message>
         <source>Last Receive</source>
-        <translation>Ultima recepción</translation>
+        <translation>Última recepción</translation>
     </message>
     <message>
         <source>Ping Time</source>
@@ -2632,15 +2632,15 @@ Dirección de destino (hex): %4</translation>
     </message>
     <message>
         <source>Amount:</source>
-        <translation>Cuantía:</translation>
+        <translation>Importe:</translation>
     </message>
     <message>
         <source>Fee:</source>
-        <translation>Tasa:</translation>
+        <translation>Comisión:</translation>
     </message>
     <message>
         <source>After Fee:</source>
-        <translation>Después de tasas:</translation>
+        <translation>Después de la comisión:</translation>
     </message>
     <message>
         <source>Change:</source>
@@ -2724,7 +2724,7 @@ Dirección de destino (hex): %4</translation>
     </message>
     <message>
         <source>Confirmation time target:</source>
-        <translation>Objetivo de tiempo de confirmación</translation>
+        <translation>Objetivo de tiempo de confirmación:</translation>
     </message>
     <message>
         <source>Clear &amp;All</source>
@@ -2744,7 +2744,7 @@ Dirección de destino (hex): %4</translation>
     </message>
     <message>
         <source>Copy amount</source>
-        <translation>Copiar cantidad</translation>
+        <translation>Copiar importe</translation>
     </message>
     <message>
         <source>Copy fee</source>
@@ -3454,7 +3454,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Output index</source>
-        <translation>Indice de salida</translation>
+        <translation>Índice de salida</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
@@ -3551,7 +3551,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Offline</source>
-        <translation>Sin conexion</translation>
+        <translation>Sin conexión</translation>
     </message>
     <message>
         <source>Unconfirmed</source>
@@ -3766,7 +3766,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Copy label</source>
-        <translation>Copiar capa</translation>
+        <translation>Copiar etiqueta</translation>
     </message>
     <message>
         <source>Copy amount</source>
@@ -4245,7 +4245,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Prune configured below the minimum of %d MiB.  Please use a higher number.</source>
-        <translation>La Poda se ha configurado por debajo del minimo de %d MiB. Por favor utiliza un valor mas alto.</translation>
+        <translation>La poda se ha configurado por debajo del mínimo de %d MiB. Utilice un valor más alto.</translation>
     </message>
     <message>
         <source>Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)</source>
@@ -4285,7 +4285,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>A fee rate (in %s/kB) that will be used when fee estimation has insufficient data (default: %s)</source>
-        <translation>Una comision (en %s/kB) que sera usada cuando las estimacion de comision no disponga de suficientes datos (predeterminado: %s)</translation>
+        <translation>Tasa de comisión (en %s/kB) que se usará cuando la estimación de comisiones no disponga de suficientes datos (predeterminado: %s)</translation>
     </message>
     <message>
         <source>Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)</source>
@@ -4329,11 +4329,11 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
-        <translation>Por favor, compruebe si la fecha y hora en su computadora son correctas! Si su reloj esta mal, %s no trabajara correctamente. </translation>
+        <translation>¡Compruebe que la fecha y la hora de su ordenador sean correctas! Si su reloj está mal, %s no funcionará correctamente.</translation>
     </message>
     <message>
         <source>Please contribute if you find %s useful. Visit %s for further information about the software.</source>
-        <translation>Contribuya si encuentra %s de utilidad. Visite %s para mas información acerca del programa.</translation>
+        <translation>Contribuya si encuentra %s de utilidad. Visite %s para más información acerca del programa.</translation>
     </message>
     <message>
         <source>Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex and -rescan. Warning: Reverting this setting requires re-downloading the entire blockchain. (default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, &gt;%u = automatically prune block files to stay under the specified target size in MiB)</source>
@@ -4349,7 +4349,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>The block database contains a block which appears to be from the future. This may be due to your computer's date and time being set incorrectly. Only rebuild the block database if you are sure that your computer's date and time are correct</source>
-        <translation>La base de datos de bloques contiene un bloque que parece ser del futuro. Esto puede ser porque la fecha y hora de tu ordenador están mal ajustados. Reconstruye la base de datos de bloques solo si estas seguro de que la fecha y hora de tu ordenador estan ajustados correctamente.</translation>
+        <translation>La base de datos de bloques contiene un bloque que parece ser del futuro. Esto puede deberse a que la fecha y la hora de su ordenador están mal ajustadas. Reconstruya la base de datos de bloques solo si está seguro de que la fecha y la hora de su ordenador son correctas.</translation>
     </message>
     <message>
         <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
@@ -4385,7 +4385,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>%s corrupt, salvage failed</source>
-        <translation>%s corrupto. Fracasó la recuperacion</translation>
+        <translation>%s está dañado; falló la recuperación</translation>
     </message>
     <message>
         <source>-maxmempool must be at least %d MB</source>
@@ -4397,7 +4397,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Append comment to the user agent string</source>
-        <translation>Adjunta un comentario a la linea de agente de usuario</translation>
+        <translation>Adjuntar un comentario a la cadena del agente de usuario</translation>
     </message>
     <message>
         <source>Attempt to recover private keys from a corrupt wallet on startup</source>
@@ -4409,7 +4409,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Cannot resolve -%s address: '%s'</source>
-        <translation>No se puede resolver -%s direccion: '%s'</translation>
+        <translation>No se puede resolver la dirección de -%s: '%s'</translation>
     </message>
     <message>
         <source>Chain selection options:</source>
@@ -4469,7 +4469,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Error initializing wallet database environment %s!</source>
-        <translation>Error al inicializar el entorno de la base de datos del monedero  %s</translation>
+        <translation>¡Error al inicializar el entorno de la base de datos del monedero %s!</translation>
     </message>
     <message>
         <source>Error loading %s</source>
@@ -4481,7 +4481,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Error loading %s: Wallet requires newer version of %s</source>
-        <translation>Error cargando %s: Monedero requiere un versión mas reciente de %s</translation>
+        <translation>Error al cargar %s: el monedero requiere una versión más reciente de %s</translation>
     </message>
     <message>
         <source>Error loading %s: You can't disable HD on a already existing HD wallet</source>
@@ -4537,7 +4537,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Not enough file descriptors available.</source>
-        <translation>No hay suficientes descriptores de archivo disponibles. </translation>
+        <translation>No hay suficientes descriptores de archivo disponibles.</translation>
     </message>
     <message>
         <source>Print this help message and exit</source>
@@ -4557,7 +4557,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Rebuild chain state and block index from the blk*.dat files on disk</source>
-        <translation>Reconstruir el estado de la cadena e indice de bloques a partir de los ficheros blk*.dat en disco</translation>
+        <translation>Reconstruir el estado de la cadena y el índice de bloques a partir de los ficheros blk*.dat en disco</translation>
     </message>
     <message>
         <source>Rebuild chain state from the currently indexed blocks</source>
@@ -4581,7 +4581,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>The source code is available from %s.</source>
-        <translation>El código fuente esta disponible desde %s.</translation>
+        <translation>El código fuente está disponible en %s.</translation>
     </message>
     <message>
         <source>Unable to bind to %s on this computer. %s is probably already running.</source>
@@ -4665,7 +4665,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)</source>
-        <translation>Las comisiones (en %s/kB) mas pequeñas que esto se consideran como cero comisión para la retransmisión, minería y creación de la transacción (predeterminado: %s)</translation>
+        <translation>Las comisiones (en %s/kB) inferiores a este valor se consideran comisión cero para la retransmisión, la minería y la creación de transacciones (predeterminado: %s)</translation>
     </message>
     <message>
         <source>If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)</source>
@@ -4793,11 +4793,11 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Tor control port password (default: empty)</source>
-        <translation>Contraseña del puerto de control de Tor (predeterminado: vacio)</translation>
+        <translation>Contraseña del puerto de control de Tor (predeterminado: vacía)</translation>
     </message>
     <message>
         <source>Tor control port to use if onion listening enabled (default: %s)</source>
-        <translation>Puerto de control de Tor a utilizar si la escucha de onion esta activada (predeterminado: %s)</translation>
+        <translation>Puerto de control de Tor que se usará si la escucha onion está activada (predeterminado: %s)</translation>
     </message>
     <message>
         <source>Transaction amount too small</source>
@@ -4861,7 +4861,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Do not keep transactions in the mempool longer than &lt;n&gt; hours (default: %u)</source>
-        <translation>No mantener transacciones en la memoria mas de &lt;n&gt; horas (predeterminado: %u)</translation>
+        <translation>No mantener transacciones en la memoria de transacciones pendientes más de &lt;n&gt; horas (predeterminado: %u)</translation>
     </message>
     <message>
         <source>Equivalent bytes per sigop in transactions for relay and mining (default: %u)</source>
@@ -4869,7 +4869,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for transaction creation (default: %s)</source>
-        <translation>Las comisiones (en %s/kB) menores que esto son consideradas de cero comision para la creacion de transacciones (predeterminado: %s)</translation>
+        <translation>Las comisiones (en %s/kB) inferiores a este valor se consideran comisión cero para la creación de transacciones (predeterminado: %s)</translation>
     </message>
     <message>
         <source>Force relay of transactions from whitelisted peers even if they violate local relay policy (default: %d)</source>
@@ -4881,7 +4881,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)</source>
-        <translation>Mantener el índice completo de transacciones, usado por la llamada rpc de getrawtransaction  (por defecto: %u)</translation>
+        <translation>Mantener el índice completo de transacciones, usado por la llamada RPC getrawtransaction (predeterminado: %u)</translation>
     </message>
     <message>
         <source>Output debugging information (default: %u, supplying &lt;category&gt; is optional)</source>
@@ -4909,15 +4909,15 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)</source>
-        <translation>Intenta de mantener el Tráfico de salida , bajo el Objetivo Determinado (en MiB por 24h) , 0 =  sin limite (Por Defecto :%d )</translation>
+        <translation>Intenta mantener el tráfico de salida por debajo del objetivo indicado (en MiB cada 24 h), 0 = sin límite (predeterminado: %d)</translation>
     </message>
     <message>
         <source>Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported.</source>
-        <translation>Error:  argumento -socks encontrado. El ajuste de la versión SOCKS ya no es posible, sólo proxies SOCKS5 son compatibles.</translation>
+        <translation>Se encontró el argumento no compatible -socks. Ya no es posible establecer la versión de SOCKS; solo se admiten proxies SOCKS5.</translation>
     </message>
     <message>
         <source>Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/or -whitelistforcerelay.</source>
-        <translation>El argumento no soportado -whitelistalwaysrelay ha sido ignorado, utiliza -whitelistrelay  y/o -whitelistforcerelay.</translation>
+        <translation>Se ignoró el argumento no compatible -whitelistalwaysrelay; utilice -whitelistrelay y/o -whitelistforcerelay.</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)</source>
@@ -5005,7 +5005,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Set maximum BIP141 block weight (default: %d)</source>
-        <translation>Establecer peso máximo bloque BIP141  (predeterminado: %d)</translation>
+        <translation>Establecer el peso máximo de bloque BIP141 (predeterminado: %d)</translation>
     </message>
     <message>
         <source>Set the number of threads to service RPC calls (default: %d)</source>
@@ -5073,7 +5073,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet</source>
-        <translation>No se puede cambiar a una versión mas antigua el monedero</translation>
+        <translation>No se puede cambiar el monedero a una versión anterior</translation>
     </message>
     <message>
         <source>Cannot write default address</source>
@@ -5691,7 +5691,7 @@ Datos sin procesar: %1</translation>
     </message>
     <message>
         <source>version</source>
-        <translation>version</translation>
+        <translation>versión</translation>
     </message>
     <message>
         <source>Zerocoin-&gt;Sigma remint</source>
