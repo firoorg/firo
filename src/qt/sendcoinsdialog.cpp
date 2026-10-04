@@ -156,18 +156,14 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     sendFromLayout->addWidget(sendFromSegment);
     sendFromLayout->addStretch();
     ui->verticalLayout->insertWidget(0, sendFromRow);
-    connect(sendFromPrivate, &QPushButton::clicked, this, [this] {
-        if (!fAnonymousMode) {
-            setAnonymizeMode(true);
+    const auto sendFrom = [this](bool privateBalance) {
+        if (fAnonymousMode != privateBalance) {
+            setAnonymizeMode(privateBalance);
             coinControlUpdateLabels();
         }
-    });
-    connect(sendFromTransparent, &QPushButton::clicked, this, [this] {
-        if (fAnonymousMode) {
-            setAnonymizeMode(false);
-            coinControlUpdateLabels();
-        }
-    });
+    };
+    connect(sendFromPrivate, &QPushButton::clicked, this, [sendFrom] { sendFrom(true); });
+    connect(sendFromTransparent, &QPushButton::clicked, this, [sendFrom] { sendFrom(false); });
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, &SendCoinsDialog::applyTheme);

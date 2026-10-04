@@ -233,25 +233,20 @@ public:
                               valueMetrics.elidedText(value, Qt::ElideMiddle, valueRect.width()));
         };
 
-        const int contentLeft = card.left() + 16;
-        const int contentWidth = card.width() - 32;
-        // Five metrics on a six-unit grid: the payout address takes two units.
-        const int unitWidth = contentWidth / 6;
-        const int rowOneTop = dividerY + 4;
-        for (int column = 0; column < 5; ++column) {
-            const QRect rect(contentLeft + column * unitWidth, rowOneTop, column == 4 ? 2 * unitWidth : unitWidth,
-                             2 * lineHeight);
-            if (column == 0)
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED")), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
-            else if (column == 1)
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "LAST PAID")), formatBlockHeight(index.data(LastPaidHeightRole).toInt(), index.data(LastPaidHeightRole).toInt() < 0));
-            else if (column == 2)
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "NEXT PAYMENT")), formatBlockHeight(index.data(NextPaymentHeightRole).toInt(), index.data(NextPaymentHeightRole).toInt() < 0));
-            else if (column == 3)
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL")), index.data(CollateralAmountRole).toString());
-            else
-                drawMetric(rect, masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PAYOUT ADDRESS")), index.data(PayoutAddressRole).toString());
-        }
+        // Five metrics left to right on a six-unit grid; the payout address takes two units.
+        const int unitWidth = (card.width() - 32) / 6;
+        int metricLeft = card.left() + 16;
+        const auto metric = [&](const char* caption, const QString& value, int units = 1) {
+            drawMetric(QRect(metricLeft, dividerY + 4, units * unitWidth, 2 * lineHeight), masternodeText(caption), value);
+            metricLeft += units * unitWidth;
+        };
+        const int lastPaid = index.data(LastPaidHeightRole).toInt();
+        const int nextPayment = index.data(NextPaymentHeightRole).toInt();
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "REGISTERED"), formatBlockHeight(index.data(RegisteredHeightRole).toInt(), false));
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "LAST PAID"), formatBlockHeight(lastPaid, lastPaid < 0));
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "NEXT PAYMENT"), formatBlockHeight(nextPayment, nextPayment < 0));
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "COLLATERAL"), index.data(CollateralAmountRole).toString());
+        metric(QT_TRANSLATE_NOOP("MasternodeList", "PAYOUT ADDRESS"), index.data(PayoutAddressRole).toString(), 2);
 
         painter->restore();
     }
@@ -425,8 +420,8 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     masternodeView->addAction(copyCollateralOutpointAction);
     connect(detailsAction, &QAction::triggered, this, &MasternodeList::extraInfoDIP3_clicked);
     connect(copyProTxHashAction, &QAction::triggered, this, &MasternodeList::copyProTxHash_clicked);
-    connect(copyPayoutAddressAction, &QAction::triggered, this, &MasternodeList::copyPayoutAddress_clicked);
-    connect(copyCollateralAddressAction, &QAction::triggered, this, &MasternodeList::copyCollateralAddress_clicked);
+    connect(copyPayoutAddressAction, &QAction::triggered, this, [this] { copyAddress(PayoutAddressRole); });
+    connect(copyCollateralAddressAction, &QAction::triggered, this, [this] { copyAddress(CollateralAddressRole); });
     connect(copyCollateralOutpointAction, &QAction::triggered, this, &MasternodeList::copyCollateralOutpoint_clicked);
     connect(masternodeSort, qOverload<int>(&QComboBox::activated),
             this, &MasternodeList::sortMasternodes);
@@ -1034,7 +1029,7 @@ void MasternodeList::copyProTxHash_clicked()
     QApplication::clipboard()->setText(index.data(ProTxHashRole).toString());
 }
 
-void MasternodeList::copyPayoutAddress_clicked()
+void MasternodeList::copyAddress(int role)
 {
     const QModelIndex index = masternodeView ? masternodeView->currentIndex() : QModelIndex();
     if (!index.isValid()) {
@@ -1042,20 +1037,7 @@ void MasternodeList::copyPayoutAddress_clicked()
     }
 
     // "-" marks an address that could not be resolved; there is nothing to copy.
-    const QString address = index.data(PayoutAddressRole).toString();
-    if (address != QLatin1String("-"))
-        QApplication::clipboard()->setText(address);
-}
-
-void MasternodeList::copyCollateralAddress_clicked()
-{
-    const QModelIndex index = masternodeView ? masternodeView->currentIndex() : QModelIndex();
-    if (!index.isValid()) {
-        return;
-    }
-
-    // "-" marks an address that could not be resolved; there is nothing to copy.
-    const QString address = index.data(CollateralAddressRole).toString();
+    const QString address = index.data(role).toString();
     if (address != QLatin1String("-"))
         QApplication::clipboard()->setText(address);
 }
