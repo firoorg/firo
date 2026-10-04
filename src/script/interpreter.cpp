@@ -354,7 +354,9 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     break;
 
                 case OP_SPARKNAMEID:
-                    // NOP - used only to tag fee outputs with spark name data
+                    // Enabled at Spark names v2.1 activation.
+                    if (!(flags & SCRIPT_VERIFY_SPARKNAMEID))
+                        return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
                     break;
 
                 case OP_CHECKLOCKTIMEVERIFY:
