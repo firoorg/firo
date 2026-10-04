@@ -406,7 +406,7 @@ void RPCExecutor::request(const QString &command)
         {
             int code = find_value(objError, "code").get_int();
             std::string message = find_value(objError, "message").get_str();
-            Q_EMIT reply(RPCConsole::CMD_ERROR, QString::fromStdString(message) + tr(" (code %1)").arg(code));
+            Q_EMIT reply(RPCConsole::CMD_ERROR, tr("%1 (code %2)").arg(QString::fromStdString(message), QString::number(code)));
         }
         catch (const std::runtime_error&) // raised when converting to invalid type, i.e. missing code or message
         {   // Show raw JSON object
