@@ -22,9 +22,11 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
+#include "recentrequeststablemodel.h"
 #include "recover.h"
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
+#include "spark/state.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
 #include "splashscreen.h"
@@ -260,6 +262,57 @@ void WalletUiTests::localizedAddressTypesKeepCanonicalRoles()
         QCOMPARE(model.data(index, Qt::EditRole).toString(), edited.at(i));
         QCOMPARE(model.data(index, AddressTableModel::AddressTypeRole).toString(), families.at(i));
     }
+}
+
+void WalletUiTests::localizedRequestTypesKeepFilters()
+{
+    Q_INIT_RESOURCE(bitcoin_locale);
+    QTranslator translator;
+    QVERIFY(translator.load(QStringLiteral(":/translations/es")));
+    QVERIFY(QCoreApplication::installTranslator(&translator));
+    const auto restoreTranslator = qScopeGuard([&] { QCoreApplication::removeTranslator(&translator); });
+
+    CWallet wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    WalletModel walletModel(style.get(), &wallet, &options);
+    RecentRequestsTableModel* const requests = walletModel.getRecentRequestsTableModel();
+    QVERIFY(requests);
+
+    const spark::SpendKey spendKey(spark::Params::get_default());
+    const spark::FullViewKey fullViewKey(spendKey);
+    const spark::IncomingViewKey incomingViewKey(fullViewKey);
+    const spark::Address sparkAddress(incomingViewKey, 1);
+    const QStringList addresses{
+        QString::fromStdString(CBitcoinAddress(CKeyID()).ToString()),
+        QString::fromStdString(sparkAddress.encode(spark::GetNetworkType()))};
+    for (const QString& address : addresses) {
+        RecentRequestEntry entry;
+        entry.id = requests->rowCount(QModelIndex()) + 1;
+        entry.recipient.address = address;
+        requests->addNewRequest(entry);
+    }
+
+    RecentRequestsFilterProxy proxy;
+    proxy.setSourceModel(requests);
+    const struct {
+        quint32 filter;
+        QString displayed;
+        QString edited;
+    } cases[] = {
+        {ReceiveCoinsDialog::Spark, QStringLiteral("Spark"), QStringLiteral("spark")},
+        {ReceiveCoinsDialog::Transparent, QStringLiteral("transparente"), QStringLiteral("transparent")},
+    };
+    for (const auto& c : cases) {
+        proxy.setTypeFilter(c.filter);
+        QCOMPARE(proxy.rowCount(), 1);
+        const QModelIndex index = proxy.index(0, RecentRequestsTableModel::AddressType);
+        QCOMPARE(index.data(Qt::DisplayRole).toString(), c.displayed);
+        QCOMPARE(index.data(Qt::EditRole).toString(), c.edited);
+    }
+    proxy.setTypeFilter(ReceiveCoinsDialog::All);
+    QCOMPARE(proxy.rowCount(), 2);
 }
 
 void WalletUiTests::splashMessageDoesNotProcessEvents()
