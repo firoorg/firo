@@ -194,6 +194,17 @@ void WalletUiTests::manualConsolidation()
         auto* explanation = scroll->findChild<QLabel*>();
         QVERIFY(explanation);
         QVERIFY(explanation->height() >= explanation->heightForWidth(explanation->width()));
+        // Like Make Funds Private, the chooser previews the batch before asking to unlock.
+        auto* batch = dialog->findChild<QLabel*>("consolidationBatch");
+        auto* note = dialog->findChild<QLabel*>("consolidationBatchNote");
+        auto* fee = dialog->findChild<QLabel*>("consolidationFee");
+        auto* returned = dialog->findChild<QLabel*>("consolidationReturned");
+        QVERIFY(batch && note && fee && returned);
+        QCOMPARE(batch->text(), QStringLiteral("1688 of 1700 outputs"));
+        QVERIFY(!note->isHidden());
+        QVERIFY(!fee->text().isEmpty());
+        QVERIFY(!returned->text().isEmpty());
+        QCOMPARE(buttons->button(QDialogButtonBox::Ok)->text(), QStringLiteral("Review"));
     });
     dialogTimer.start(10);
     QVERIFY(QMetaObject::invokeMethod(&page, "consolidateCoins", Qt::DirectConnection));
@@ -207,6 +218,10 @@ void WalletUiTests::manualConsolidation()
     std::vector<WalletModel::ConsolidationCandidate> cached;
     bool scanFinished = false;
     QTRY_VERIFY(scanFinished || (scanFinished = model->pollConsolidationAddresses(cached)));
+    QCOMPARE(cached.size(), size_t(1));
+    QCOMPARE(cached[0].batchInputs, size_t(1688));
+    QVERIFY(cached[0].fee > 0);
+    QCOMPARE(cached[0].returnedAmount + cached[0].fee, CAmount(1688) * COIN);
     cached = {{"previous scan", "", 1700, true}};
     QString busyMessage;
     bool chooserOpened = false;
@@ -1036,6 +1051,7 @@ void WalletUiTests::synchronizationProgress()
     gui.clientModel = &model;
     gui.setNumConnections(1);
     // File > Consolidate outputs needs a wallet and a fully synced chain and masternode list.
+    QVERIFY(!gui.consolidateOutputsAction->icon().isNull());
     QVERIFY(!gui.consolidateOutputsAction->isEnabled());
     gui.setWalletActionsEnabled(true);
     gui.setNumBlocks(10, now.addDays(-1), 0.6251, false);

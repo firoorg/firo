@@ -476,6 +476,7 @@ void BitcoinGUI::createActions()
     GUIUtil::setThemedIcon(exportViewKeyAction, QStringLiteral(":/icons/key"));
     GUIUtil::setThemedIcon(usedSendingAddressesAction, QStringLiteral(":/icons/address-book"));
     GUIUtil::setThemedIcon(usedReceivingAddressesAction, QStringLiteral(":/icons/address-book"));
+    GUIUtil::setThemedIcon(consolidateOutputsAction, QStringLiteral(":/icons/coins"));
     GUIUtil::setThemedIcon(quitAction, QStringLiteral(":/icons/logout"));
     GUIUtil::setThemedIcon(changePassphraseAction, QStringLiteral(":/icons/key"));
     GUIUtil::setThemedIcon(openRPCConsoleAction, QStringLiteral(":/icons/sidebar_console"));

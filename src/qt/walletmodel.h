@@ -192,6 +192,10 @@ public:
         QString label;
         size_t outputs;
         bool sizeLimited;
+        // Unsigned estimate of the next batch, shown before the wallet is unlocked.
+        size_t batchInputs{0};
+        CAmount fee{0};
+        CAmount returnedAmount{0};
     };
     struct ConsolidationPreview {
         size_t inputs;

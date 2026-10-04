@@ -465,7 +465,7 @@ std::vector<WalletModel::ConsolidationCandidate> WalletModel::getConsolidationAd
         const auto label = wallet->mapAddressBook.find(group.first);
         addresses.push_back({QString::fromStdString(CBitcoinAddress(group.first).ToString()),
             label == wallet->mapAddressBook.end() ? QString() : QString::fromStdString(label->second.name),
-            plan.eligibleCount, plan.sizeLimited});
+            plan.eligibleCount, plan.sizeLimited, plan.inputs.size(), plan.fee, plan.total - plan.fee});
     }
     std::sort(addresses.begin(), addresses.end(), [](const auto& a, const auto& b) {
         return a.outputs != b.outputs ? a.outputs > b.outputs : a.address < b.address;
