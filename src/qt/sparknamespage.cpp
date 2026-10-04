@@ -22,6 +22,7 @@
 #include <QScrollArea>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVariant>
 #include <QVBoxLayout>
 
@@ -32,6 +33,10 @@
 #include <vector>
 
 namespace {
+
+//! Shown under a copy button, since copying leaves nothing else on the card to see.
+const char* const COPY_CONFIRMATION = QT_TRANSLATE_NOOP("SparkNamesPage", "Copied to clipboard");
+constexpr int COPY_CONFIRMATION_MSEC = 2000;
 
 QString elideMiddle(const QString& text, int keepLeft, int keepRight)
 {
@@ -425,12 +430,14 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
 
     auto* copyNameBtn = cardActionButton(tr("Copy Name"), QStringLiteral(":/icons/editcopy"),
                                           tr("Copy the Spark Name to the clipboard"), false, frame);
-    connect(copyNameBtn, &QToolButton::clicked, this, [name]() { GUIUtil::setClipboard(name); });
+    connect(copyNameBtn, &QToolButton::clicked, this, [this, copyNameBtn, name]() { copyToClipboard(copyNameBtn, name); });
+    copyNameBtn->installEventFilter(this);
     actionsRow->addWidget(copyNameBtn);
 
     auto* copyAddressBtn = cardActionButton(tr("Copy Address"), QStringLiteral(":/icons/editcopy"),
                                              tr("Copy the resolved Spark address to the clipboard"), false, frame);
-    connect(copyAddressBtn, &QToolButton::clicked, this, [address]() { GUIUtil::setClipboard(address); });
+    connect(copyAddressBtn, &QToolButton::clicked, this, [this, copyAddressBtn, address]() { copyToClipboard(copyAddressBtn, address); });
+    copyAddressBtn->installEventFilter(this);
     actionsRow->addWidget(copyAddressBtn);
 
     auto* extendBtn = cardActionButton(tr("Extend"), QStringLiteral(":/icons/refresh"),
@@ -519,6 +526,13 @@ void SparkNamesPage::extendSparkName(const QString &name, const QString &address
     dialog->show();
 }
 
+void SparkNamesPage::copyToClipboard(QToolButton *button, const QString &text)
+{
+    GUIUtil::setClipboard(text);
+    QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())), tr(COPY_CONFIRMATION), button, QRect(),
+                       COPY_CONFIRMATION_MSEC);
+}
+
 void SparkNamesPage::updateEmptyState()
 {
     const bool hasEntries = namesCardsLayout && namesCardsLayout->count() > 0;
@@ -537,6 +551,10 @@ bool SparkNamesPage::eventFilter(QObject *object, QEvent *event)
         && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
         updateEmptyState();
     }
+
+    // Moving the pointer over a copy button would otherwise swap its confirmation for the hover hint.
+    if (event->type() == QEvent::ToolTip && QToolTip::isVisible() && QToolTip::text() == tr(COPY_CONFIRMATION))
+        return true;
 
     return QWidget::eventFilter(object, event);
 }

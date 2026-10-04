@@ -20,6 +20,7 @@ class QLabel;
 class QVBoxLayout;
 class QScrollArea;
 class QFrame;
+class QToolButton;
 QT_END_NAMESPACE
 
 /** Page listing the wallet's own registered Spark Names, their expiry, and letting the user create new ones. */
@@ -61,6 +62,7 @@ private:
     QFrame *createSparkNameCard(const QString &name, const QString &address, uint64_t validityHeight,
                                  const QString &additionalInfo, int currentHeight);
     void extendSparkName(const QString &name, const QString &address);
+    void copyToClipboard(QToolButton *button, const QString &text);
 
 private Q_SLOTS:
     void on_createSparkNameButton_clicked();

@@ -49,6 +49,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QCalendarWidget>
+#include <QClipboard>
 #include <QColor>
 #include <QComboBox>
 #include <QDateTimeEdit>
@@ -56,6 +57,7 @@
 #include <QElapsedTimer>
 #include <QFontDatabase>
 #include <QFrame>
+#include <QHelpEvent>
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
@@ -86,6 +88,7 @@
 #include <QToolTip>
 #include <QTranslator>
 #include <QVariant>
+#include <QVBoxLayout>
 
 #include <memory>
 #include <atomic>
@@ -833,6 +836,55 @@ void WalletUiTests::sparkNamesRefreshAfterModelDestruction()
     QVERIFY(!page.model);
     QVERIFY(!page.addressModel);
     QTRY_VERIFY(!page.refreshScheduled);
+}
+
+void WalletUiTests::sparkNameCopyConfirmation()
+{
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    SparkNamesPage page(style.get());
+    const QString name = QStringLiteral("@sparky");
+    const QString address = QStringLiteral("sr1qexamplesparkaddress");
+    QFrame* card = page.createSparkNameCard(name, address, 1000, QString(), 0);
+    page.namesCardsLayout->addWidget(card);
+    page.show();
+
+    QToolButton* copyName = nullptr;
+    QToolButton* copyAddress = nullptr;
+    for (QToolButton* button : card->findChildren<QToolButton*>(QStringLiteral("cardActionButton"))) {
+        if (button->text() == QStringLiteral("Copy Name"))
+            copyName = button;
+        else if (button->text() == QStringLiteral("Copy Address"))
+            copyAddress = button;
+    }
+    QVERIFY(copyName && copyAddress);
+
+    const QString confirmation = QStringLiteral("Copied to clipboard");
+    const auto hideTooltip = qScopeGuard([] { QToolTip::hideText(); });
+    const auto hover = [](QToolButton* button) {
+        QHelpEvent event(QEvent::ToolTip, QPoint(1, 1), button->mapToGlobal(QPoint(1, 1)));
+        QCoreApplication::sendEvent(button, &event);
+    };
+
+    // From the keyboard, then with the mouse while the first confirmation is still up.
+    QTest::keyClick(copyName, Qt::Key_Space);
+    QCOMPARE(QApplication::clipboard()->text(), name);
+    QVERIFY(QToolTip::isVisible());
+    QCOMPARE(QToolTip::text(), confirmation);
+    hover(copyName);
+    QCOMPARE(QToolTip::text(), confirmation);
+
+    QTest::mouseClick(copyAddress, Qt::LeftButton);
+    QCOMPARE(QApplication::clipboard()->text(), address);
+    QVERIFY(QToolTip::isVisible());
+    QCOMPARE(QToolTip::text(), confirmation);
+    hover(copyAddress);
+    QCOMPARE(QToolTip::text(), confirmation);
+
+    // The confirmation expires on its own, and the hover hint works again.
+    QTRY_VERIFY_WITH_TIMEOUT(!QToolTip::isVisible(), 5000);
+    hover(copyAddress);
+    QCOMPARE(QToolTip::text(), copyAddress->toolTip());
 }
 
 void WalletUiTests::sparkNameRegistrationDetails()
