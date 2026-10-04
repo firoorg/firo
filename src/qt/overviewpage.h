@@ -93,13 +93,15 @@ private:
     QProgressBar *privateSplitProgress{nullptr};
     QWidget *activityEmptyState_{nullptr};
     QLabel *networkBadge_{nullptr};
+    QString networkLabel_;
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
 
     void applyOverviewRedesign();
     void applyOverviewTheme();
-    void addShadow(QWidget *w, int blurRadius = 18, int yOffset = 4, int alpha = 60);
+    /** Render the cached balances into the amount labels, without querying wallet or chain state. */
+    void updateBalanceLabels();
     void updatePrivateTransparentSplitBar();
     void updateBalanceSplitLabels();
     void updateActivityEmptyState();

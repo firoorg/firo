@@ -4829,7 +4829,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     </message>
     <message>
         <location line="+3"/>
-        <source>S&amp;UBTRACT FEE FROM AMOUNT</source>
+        <source>S&amp;ubtract fee from amount</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

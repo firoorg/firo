@@ -73,6 +73,8 @@ private:
     void applyMasternodeSort();
     void toggleMasternodeSortOrder();
     void updateSortDirectionButton();
+    /** Copy the selected node's address held in role, unless it could not be resolved. */
+    void copyAddress(int role);
 
 private Q_SLOTS:
     void on_filterLineEditDIP3_textChanged(const QString& strFilterIn);

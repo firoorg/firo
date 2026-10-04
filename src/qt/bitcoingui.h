@@ -148,6 +148,8 @@ private:
     QFrame *navigationThemeRow{nullptr};
     QLabel *navigationThemeLightLabel{nullptr};
     QLabel *navigationThemeDarkLabel{nullptr};
+    QLabel *navigationThemeSunIcon{nullptr};
+    QLabel *navigationThemeMoonIcon{nullptr};
     QAbstractButton *navigationThemeSwitch{nullptr};
     QWidget *navigationSelectionHighlight{nullptr};
     QLabel *logoLabel{nullptr};

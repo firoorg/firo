@@ -3038,8 +3038,8 @@ Destination address (hex): %4</source>
         <translation>&amp;СУММА</translation>
     </message>
     <message>
-        <source>S&amp;UBTRACT FEE FROM AMOUNT</source>
-        <translation>&amp;ВЫЧЕСТЬ КОМИССИЮ ИЗ СУММЫ</translation>
+        <source>S&amp;ubtract fee from amount</source>
+        <translation>&amp;Вычесть комиссию из суммы</translation>
     </message>
     <message>
         <source>Rosen Bridge:</source>

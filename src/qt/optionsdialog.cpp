@@ -67,62 +67,64 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
 
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog { background: $BG; }
-        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
-        QTabBar::tab {
-            background: transparent;
-            color: $INK_SOFT;
-            font-weight: 700;
-            min-width: 0;
-            padding: 8px 14px;
-            border: none;
-        }
-        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
-        QTabBar::tab:hover { color: $INK; }
+        QTabWidget::pane { background: transparent; border: none; border-top: 1px solid $BORDER; top: -1px; }
         QGroupBox {
-            background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
-            border-radius: 12px;
-            font-weight: 700;
-            color: $INK;
-            margin-top: 10px;
-            padding-top: 12px;
-        }
-        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_SOFT; background-color: $PANEL; }
-        QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
             background: $PANEL;
             border: 1px solid $BORDER;
-            border-radius: 8px;
+            border-radius: 14px;
+            color: $INK;
+            margin-top: 22px;
+            padding: 0px 14px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; subcontrol-position: top left; left: 2px; top: 2px;
+            padding: 0; color: $INK_FAINT; font: $FONT_CAPTION; background: transparent;
+        }
+        QGroupBox QCheckBox { color: $INK; min-height: 28px; }
+        QGroupBox QCheckBox[rowDivider="true"] { border-bottom: 1px solid $BORDER; }
+        QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
+            background: $PANEL;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
             padding: 4px 8px;
             color: $INK;
         }
         QSpinBox QLineEdit { %1 }
-        QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid $WINE; }
+        QLineEdit:focus, QSpinBox:focus { border: 2px solid $WINE; padding: 3px 7px; }
+        QComboBox:focus { border: 1px solid $WINE; }
         QLineEdit[invalidInput="true"] { border-color: $ERROR; }
         QCheckBox { color: $INK_SOFT; }
         QLabel#torStatusLabel { color: $INK_SOFT; }
         QPushButton {
             color: $INK;
             background: $PANEL;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             font-weight: 700;
             min-width: 0;
             padding: 7px 16px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
         QPushButton#okButton {
             color: #FFFFFF;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE;
             border: 1px solid transparent;
         }
         QPushButton#okButton:hover:enabled {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE_DEEP;
         }
         QPushButton#okButton:pressed { background: $WINE_DEEP; }
+        QPushButton#resetButton { color: $ERROR; }
     )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+
+    // Settings sections: a caption title above a white card, one setting per row.
+    for (QGroupBox* group : {ui->groupBox, ui->sparkGroupBox}) {
+        group->setTitle(group->title().toUpper());
+        const QList<QCheckBox*> rows = group->findChildren<QCheckBox*>();
+        for (int i = 0; i + 1 < rows.size(); ++i)
+            rows[i]->setProperty("rowDivider", true);
+    }
 
     for (QLineEdit* port : {ui->proxyPort, ui->proxyPortTor}) {
         port->ensurePolished();

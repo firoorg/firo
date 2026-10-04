@@ -4240,10 +4240,6 @@ Destination address (hex): %4</source>
         <translation>交易费将从发送总额中扣除。接收人将收到比你在金额框中输入的更少的 Firo。如果选中了多个收件人，交易费平分。</translation>
     </message>
     <message>
-        <source>S&amp;ubtract fee from amount</source>
-        <translation>从金额中减去交易费(&amp;U)</translation>
-    </message>
-    <message>
         <source>Message:</source>
         <translation>消息：</translation>
     </message>
@@ -4296,7 +4292,7 @@ Destination address (hex): %4</source>
         <translation>金额(&amp;M)</translation>
     </message>
     <message>
-        <source>S&amp;UBTRACT FEE FROM AMOUNT</source>
+        <source>S&amp;ubtract fee from amount</source>
         <translation>从金额中扣除手续费(&amp;U)</translation>
     </message>
     <message>

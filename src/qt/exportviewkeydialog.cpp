@@ -21,7 +21,6 @@ ExportViewKeyDialog::ExportViewKeyDialog(QWidget *parent, std::string sparkViewK
 
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
 
     applyTheme();

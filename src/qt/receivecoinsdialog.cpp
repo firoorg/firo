@@ -25,7 +25,6 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
-#include <QPainterPath>
 #include <QScrollBar>
 #include <QStyledItemDelegate>
 #include <QTextDocument>
@@ -77,7 +76,6 @@ class PaymentRequestCardDelegate final : public QStyledItemDelegate
 public:
     explicit PaymentRequestCardDelegate(QTableView* view)
         : QStyledItemDelegate(view)
-        , view_(view)
     {
     }
 
@@ -91,39 +89,20 @@ public:
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = option.state & QStyle::State_Selected;
         const int lineHeight = option.fontMetrics.height();
-        painter->fillRect(option.rect, QColor(tc.panel));
-
-        if (view_) {
-            const QRect left = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Date));
-            const QRect right = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Amount));
-            const QRect card(left.left() + 4, option.rect.top() + 3,
-                             qMax(40, right.right() - left.left() - 8),
-                             option.rect.height() - 6);
-            QPainterPath cardPath;
-            cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
-            painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-            painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
-            painter->drawPath(cardPath);
-        }
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         switch (index.column()) {
         case RecentRequestsTableModel::Date: {
-            QRect icon(option.rect.left() + 14, option.rect.center().y() - 16, 32, 32);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.wineTint));
-            painter->drawRoundedRect(icon, 10, 10);
-            QFont iconFont = option.font;
-            iconFont.setBold(true);
-            painter->setFont(iconFont);
-            painter->setPen(QColor(tc.wine));
-            painter->drawText(icon, Qt::AlignCenter, QStringLiteral("↙"));
-
+            // Every request is incoming, so the row needs no direction icon.
+            QFont dateFont = option.font;
+            dateFont.setBold(true);
+            painter->setFont(dateFont);
             const QString raw = index.data(Qt::DisplayRole).toString();
             const QString dateText = raw.section(QLatin1Char(' '), 0, -2);
             const QString timeText = raw.section(QLatin1Char(' '), -1);
             painter->setPen(QColor(tc.ink));
-            const QRect dateRect(icon.right() + 10, option.rect.center().y() - lineHeight,
-                                 option.rect.right() - icon.right() - 16, lineHeight);
+            const QRect dateRect(option.rect.left() + 14, option.rect.center().y() - lineHeight,
+                                 option.rect.width() - 20, lineHeight);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
             painter->setFont(option.font);
@@ -161,10 +140,8 @@ public:
             QFont amtFont = option.font;
             amtFont.setBold(true);
             painter->setFont(amtFont);
-            painter->setPen(QColor(tc.ink));
-            painter->drawText(option.rect.adjusted(8, 0, -14, 0),
-                              Qt::AlignRight | Qt::AlignVCenter,
-                              QFontMetrics(amtFont).elidedText(amountText, Qt::ElideLeft, option.rect.width() - 24));
+            GUIUtil::paintAmountRuns(painter, option.rect.adjusted(8, 0, -14, 0), amountText, QColor(tc.ink),
+                                     Qt::AlignRight | Qt::AlignVCenter, Qt::ElideLeft);
             break;
         }
         default:
@@ -172,9 +149,6 @@ public:
         }
         painter->restore();
     }
-
-private:
-    QTableView* view_;
 };
 
 }
@@ -239,6 +213,10 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     QAction *copyLabelAction = new QAction(tr("Copy label"), this);
     QAction *copyMessageAction = new QAction(tr("Copy message"), this);
     QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
+    GUIUtil::setThemedIcon(copyURIAction, QStringLiteral(":/icons/link"));
+    GUIUtil::setThemedIcon(copyLabelAction, QStringLiteral(":/icons/tag"));
+    GUIUtil::setThemedIcon(copyMessageAction, QStringLiteral(":/icons/message"));
+    GUIUtil::setThemedIcon(copyAmountAction, QStringLiteral(":/icons/coins"));
 
     // context menu
     contextMenu = new QMenu(this);
@@ -271,7 +249,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     auto* emptyLayout = new QVBoxLayout(requestsEmptyState);
     emptyLayout->setContentsMargins(0, 24, 0, 24);
     emptyLayout->setSpacing(7);
-    emptyIcon_ = new QLabel(QStringLiteral("↙"), requestsEmptyState);
+    emptyIcon_ = new QLabel(requestsEmptyState);
     emptyIcon_->setFixedSize(48, 48);
     emptyIcon_->setAlignment(Qt::AlignCenter);
     emptyTitle_ = new QLabel(tr("No payment requests yet"), requestsEmptyState);
@@ -307,14 +285,14 @@ void ReceiveCoinsDialog::applyTheme()
         "QFrame#frame2, QFrame#frame {"
         " background: $PANEL;"
         " border: 1px solid $BORDER;"
-        " border-radius: 18px;"
+        " border-radius: 14px;"
         "}"));
     ui->frame2->setStyleSheet(cardStyle);
     ui->frame->setStyleSheet(cardStyle);
     ui->sparkNameActions->setStyleSheet(QStringLiteral("background: transparent;"));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font: $FONT_CAPTION; }"));
     for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
@@ -327,9 +305,10 @@ void ReceiveCoinsDialog::applyTheme()
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QLineEdit, AmountSpinBox, QValueComboBox {"
         " background: $PANEL_SOFT;"
-        " border: 1px solid $BORDER;"
+        " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
+        " min-height: 30px;"
         " color: $INK;"
         "}"
         "AmountSpinBox QLineEdit { %1 }"
@@ -337,10 +316,10 @@ void ReceiveCoinsDialog::applyTheme()
         " border-color: $ERROR;"
         "}"
         "QLineEdit:focus, AmountSpinBox:focus, QValueComboBox:focus {"
-        " background: $PANEL_SOFT;"
-        " border: 1px solid $WINE;"
+        " background: $PANEL;"
+        " border: 2px solid $WINE;"
         " border-radius: 10px;"
-        " padding: 4px 12px;"
+        " padding: 3px 11px;"
         " color: $INK;"
         "}")).arg(GUIUtil::spinBoxInnerLineEditReset());
     ui->reqLabel->setStyleSheet(fieldStyle);
@@ -350,9 +329,10 @@ void ReceiveCoinsDialog::applyTheme()
     const QString comboStyle = GUIUtil::themed(QStringLiteral(
         "QComboBox {"
         " background: $PANEL;"
-        " border: 1px solid $BORDER;"
+        " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
+        " min-height: 30px;"
         " color: $INK;"
         "}"
         "QComboBox QAbstractItemView {"
@@ -364,7 +344,7 @@ void ReceiveCoinsDialog::applyTheme()
         "}"
         "QComboBox::item {"
         " padding: 8px 10px;"
-        " border-radius: 8px;"
+        " border-radius: 6px;"
         " color: $INK;"
         "}"
         "QComboBox::item:alternate {"
@@ -372,8 +352,8 @@ void ReceiveCoinsDialog::applyTheme()
         " color: $INK;"
         "}"
         "QComboBox::item:selected {"
-        " background: $WINE_DEEP;"
-        " color: #FFFFFF;"
+        " background: $WINE_TINT;"
+        " color: $INK;"
         "}"));
     ui->addressTypeCombobox->setStyleSheet(comboStyle);
     ui->addressTypeHistoryCombobox->setStyleSheet(comboStyle);
@@ -381,27 +361,29 @@ void ReceiveCoinsDialog::applyTheme()
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("6px 14px"));
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px"));
     ui->receiveButton->setStyleSheet(primaryButtonStyle);
-    GUIUtil::applyPrimaryButtonShadow(ui->receiveButton);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
-    ui->mySparkNamesButton->setStyleSheet(secondaryButtonStyle);
-    ui->createSparkNameButton->setStyleSheet(secondaryButtonStyle);
+    // The Spark Name actions recede so Request payment is the one filled button.
+    const QString ghostButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("6px 10px"));
+    ui->mySparkNamesButton->setStyleSheet(ghostButtonStyle);
+    ui->createSparkNameButton->setStyleSheet(ghostButtonStyle);
+    const QColor actionIconColor(GUIUtil::themeColors().inkSoft);
+    GUIUtil::setTintedIcon(ui->mySparkNamesButton, QStringLiteral(":/icons/spark"), QSize(16, 16), actionIconColor);
+    GUIUtil::setTintedIcon(ui->createSparkNameButton, QStringLiteral(":/icons/tag"), QSize(16, 16), actionIconColor);
     ui->showRequestButton->setStyleSheet(secondaryButtonStyle);
     ui->removeRequestButton->setStyleSheet(secondaryButtonStyle);
 
     ui->recentRequestsView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
-        " background: transparent; border: none; color: $INK_SOFT;"
-        " font-weight: 700; padding: 6px;"
+        " background: transparent; border: none; color: $INK_FAINT;"
+        " font: $FONT_CAPTION; padding: 6px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->recentRequestsView->viewport())
         ui->recentRequestsView->viewport()->update();
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { color: $WINE; background: $WINE_TINT; border-radius: 14px;"
-            " font-size: 22px; font-weight: 700; }")));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_receive"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(

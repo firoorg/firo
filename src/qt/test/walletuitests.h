@@ -20,6 +20,8 @@ private Q_SLOTS:
     void paymentRequestFitsSmallScreen();
     void receiveFormFitsSmallScreen();
     void sendFormFitsSmallScreen();
+    void sendAmountVisibleWithAddressWarning();
+    void dialogsFitWithoutScrolling();
     void receiveMnemonics();
     void emptyRecoverySeed();
     void confirmationRefresh();

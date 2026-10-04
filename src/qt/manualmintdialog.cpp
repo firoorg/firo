@@ -36,10 +36,10 @@ void ManualMintDialog::applyTheme()
         "QDialog { background: $BG; }"
         "QLabel { background: transparent; color: $INK_SOFT; }"
         "QSpinBox {"
-        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 8px;"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 4px 8px; color: $INK;"
         "}"
-        "QSpinBox:focus { border: 1px solid $WINE; }"
+        "QSpinBox:focus { border: 2px solid $WINE; padding: 3px 7px; }"
         "QSpinBox QLineEdit { %1 }"))
         .arg(GUIUtil::spinBoxInnerLineEditReset()));
     ui->availableAmount->setStyleSheet(GUIUtil::themed(QStringLiteral(
@@ -47,7 +47,6 @@ void ManualMintDialog::applyTheme()
     ui->totalAmount->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     ui->mintButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-    GUIUtil::applyPrimaryButtonShadow(ui->mintButton);
     ui->clearAllButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 

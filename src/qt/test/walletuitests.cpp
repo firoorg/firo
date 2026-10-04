@@ -17,6 +17,7 @@
 #include "masternode-sync.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
+#include "optionsdialog.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "platformstyle.h"
@@ -26,6 +27,7 @@
 #include "recover.h"
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
+#include "signverifymessagedialog.h"
 #include "spark/state.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
@@ -51,6 +53,7 @@
 #include <QComboBox>
 #include <QDateTimeEdit>
 #include <QElapsedTimer>
+#include <QFontDatabase>
 #include <QFrame>
 #include <QImage>
 #include <QLabel>
@@ -58,6 +61,7 @@
 #include <QListView>
 #include <QLocale>
 #include <QPainter>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
@@ -70,6 +74,7 @@
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QStyleOptionViewItem>
+#include <QTabWidget>
 #include <QTableView>
 #include <QTest>
 #include <QTemporaryDir>
@@ -1176,11 +1181,13 @@ void WalletUiTests::brandTypography()
             QCOMPARE(requests->font().pixelSize(), 16);
         }
         for (const auto role : {GUIUtil::TextStyle::Body, GUIUtil::TextStyle::Heading1,
-                                GUIUtil::TextStyle::Heading2, GUIUtil::TextStyle::Heading3}) {
+                                GUIUtil::TextStyle::Heading2, GUIUtil::TextStyle::Heading3,
+                                GUIUtil::TextStyle::Caption}) {
             QLabel label(QStringLiteral("Typography 0123456789"));
             const auto expected = GUIUtil::brandFont(role);
-            const QString token = role == GUIUtil::TextStyle::Body ? QStringLiteral("$FONT_BODY")
-                : QStringLiteral("$FONT_H%1").arg(static_cast<int>(role));
+            const QString token = role == GUIUtil::TextStyle::Body      ? QStringLiteral("$FONT_BODY")
+                                  : role == GUIUtil::TextStyle::Caption ? QStringLiteral("$FONT_CAPTION")
+                                                                        : QStringLiteral("$FONT_H%1").arg(static_cast<int>(role));
             label.setStyleSheet(GUIUtil::themed(QStringLiteral("font: %1;").arg(token)));
             label.ensurePolished();
             QCOMPARE(label.font().pixelSize(), expected.pixelSize());
@@ -1191,7 +1198,11 @@ void WalletUiTests::brandTypography()
     }
 }
 
-/** Verify all eight recent transactions fit when the list is at its minimum height. */
+/**
+ * Verify recent-activity rows are measured in the brand font, so the rows the list's minimum
+ * height promises are shown whole, and that a list shorter than its eight transactions
+ * scrolls to reach the last one.
+ */
 void WalletUiTests::recentActivityFitsBrandFont()
 {
     GUIUtil::loadTheme();
@@ -1206,6 +1217,10 @@ void WalletUiTests::recentActivityFitsBrandFont()
     overview.setAttribute(Qt::WA_DontShowOnScreen);
     overview.show();
     overview.resize(944, 625);
+    QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(2, 0))));
+    // The rest stays reachable through the list's own scrollbar.
+    QTRY_VERIFY(list->verticalScrollBar()->isVisible());
+    list->scrollTo(history.index(7, 0));
     QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(history.index(7, 0))));
 
     const auto index = history.index(0, 0);
@@ -1257,6 +1272,55 @@ void WalletUiTests::paymentRequestFitsSmallScreen()
             QVERIFY(button->isVisible());
             QVERIFY(dialog.rect().contains(QRect(button->mapTo(&dialog, QPoint()), button->size())));
         }
+    }
+}
+
+/**
+ * Verify Options, Sign/Verify and Spark Name registration open at their default sizes
+ * without scrolling, and with room to type a message, in both themes.
+ * @pre The Qt test application is initialized on the GUI thread.
+ */
+void WalletUiTests::dialogsFitWithoutScrolling()
+{
+    // These checks measure text set in the brand fonts; the minimal QPA plugin used by CI has no
+    // font database, so its placeholder glyphs wrap every label and nothing would fit.
+    if (QFontDatabase::families().isEmpty()) QSKIP("Needs a font database to measure dialog text");
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    const auto previousTheme = GUIUtil::currentThemeMode();
+    const auto restoreTheme = qScopeGuard([previousTheme] { GUIUtil::setThemeMode(previousTheme); });
+    for (const auto mode : {GUIUtil::ThemeMode::Light, GUIUtil::ThemeMode::Dark}) {
+        GUIUtil::setThemeMode(mode);
+        GUIUtil::loadTheme();
+
+        OptionsDialog options(nullptr, true);
+        options.setAttribute(Qt::WA_DontShowOnScreen);
+        options.show();
+        auto* tabs = options.findChild<QTabWidget*>("tabWidget");
+        auto* optionsScroll = options.findChild<QScrollArea*>("optionsScroll");
+        QVERIFY(tabs && optionsScroll);
+        // Pages grow when first polished, and the tallest one sets the height the content asks for.
+        for (int i = 0; i < tabs->count(); ++i) {
+            tabs->setCurrentIndex(i);
+            QCoreApplication::processEvents();
+            QVERIFY(optionsScroll->widget()->sizeHint().height() <= optionsScroll->viewport()->height());
+        }
+
+        SignVerifyMessageDialog signVerify(style.get(), nullptr);
+        signVerify.setAttribute(Qt::WA_DontShowOnScreen);
+        signVerify.show();
+        QCoreApplication::processEvents();
+        auto* message = signVerify.findChild<QPlainTextEdit*>("messageIn_SM");
+        QVERIFY(message);
+        QVERIFY(message->viewport()->height() >= 3 * message->fontMetrics().lineSpacing());
+
+        CreateSparkNamePage registration(style.get());
+        registration.setAttribute(Qt::WA_DontShowOnScreen);
+        registration.show();
+        QCoreApplication::processEvents();
+        auto* form = registration.findChild<QScrollArea*>("scrollArea");
+        QVERIFY(form);
+        QVERIFY(form->widget()->sizeHint().height() <= form->viewport()->height());
     }
 }
 
@@ -1361,7 +1425,9 @@ void WalletUiTests::sendFormFitsSmallScreen()
             auto* field = dialog.findChild<QWidget*>(name);
             QVERIFY(field);
             QVERIFY(field->isVisible());
-            scroll->ensureWidgetVisible(field);
+            // ensureWidgetVisible() stops once a line edit's cursor shows, so scroll to the whole field.
+            const QRect area(field->mapTo(scroll->widget(), QPoint()), field->size());
+            scroll->ensureVisible(area.center().x(), area.center().y(), area.width() / 2 + 1, area.height() / 2 + 1);
             QCoreApplication::processEvents();
             QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
         }
@@ -1383,13 +1449,18 @@ void WalletUiTests::sendFormFitsSmallScreen()
     QCoreApplication::processEvents();
     QVERIFY(dialog.height() <= 480);
     QVERIFY(dialog.width() <= 964);
-    for (const char* name : {"sendButton", "clearButton", "addButton", "switchFundButton"}) {
+    for (const char* name : {"sendButton", "clearButton", "addButton", "sendFromPrivate", "sendFromTransparent"}) {
         auto* button = dialog.findChild<QPushButton*>(name);
         QVERIFY(button);
         QVERIFY(button->isVisible());
         QVERIFY(button->width() >= button->minimumSizeHint().width());
         QVERIFY(dialog.rect().contains(QRect(button->mapTo(&dialog, QPoint()), button->size())));
     }
+    // "Send from" always names exactly one source, and falls back to transparent without Spark.
+    auto* sendFromPrivate = dialog.findChild<QPushButton*>("sendFromPrivate");
+    auto* sendFromTransparent = dialog.findChild<QPushButton*>("sendFromTransparent");
+    QVERIFY(sendFromPrivate->isChecked() != sendFromTransparent->isChecked());
+    if (!sendFromPrivate->isEnabled()) QVERIFY(sendFromTransparent->isChecked());
     for (const char* name : {"payTo", "payAmount", "customFee", "buttonMinimizeFee"}) {
         auto* field = dialog.findChild<QWidget*>(name);
         QVERIFY(field);
@@ -1430,6 +1501,50 @@ void WalletUiTests::sendFormFitsSmallScreen()
             QVERIFY2(scroll->viewport()->rect().contains(QRect(label->mapTo(scroll->viewport(), QPoint()), label->size())),
                      qPrintable(label->objectName()));
         }
+    }
+}
+
+void WalletUiTests::sendAmountVisibleWithAddressWarning()
+{
+    GUIUtil::loadTheme();
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+
+    // A transparent recipient shows the address warning but no memo row. The warning must
+    // not squeeze the amount row out of the recipient card, whether it takes one line or two.
+    for (const QString& text : {QStringLiteral("You are sending Firo from a transparent address to a Spark address."),
+                                QStringLiteral("You are sending Firo from a transparent address to another transparent address. "
+                                               "To protect your privacy, we recommend using Spark addresses instead.")}) {
+        SendCoinsDialog dialog(style.get());
+        dialog.setAttribute(Qt::WA_DontShowOnScreen);
+        dialog.show();
+        dialog.resize(944, 625);
+        auto* warning = dialog.findChild<QLabel*>("textWarning");
+        QVERIFY(warning);
+        warning->setText(text);
+        for (const char* name : {"addressWarningRow", "textWarning", "iconWarning"}) {
+            auto* widget = dialog.findChild<QWidget*>(name);
+            QVERIFY(widget);
+            widget->show();
+        }
+        auto* memo = dialog.findChild<QWidget*>("messageTextLabel");
+        QVERIFY(memo);
+        QVERIFY(!memo->isVisible());
+
+        auto* card = dialog.findChild<QWidget*>("SendCoins");
+        auto* label = dialog.findChild<QWidget*>("addAsLabel");
+        auto* amount = dialog.findChild<QWidget*>("payAmount");
+        auto* subtractFee = dialog.findChild<QWidget*>("checkboxSubtractFeeFromAmount");
+        QVERIFY(card);
+        QVERIFY(label);
+        QVERIFY(amount);
+        QVERIFY(subtractFee);
+        QTRY_VERIFY2(amount->height() >= amount->minimumSizeHint().height(), qPrintable(text));
+        for (QWidget* field : {label, amount, subtractFee}) {
+            QVERIFY2(field->isVisible(), qPrintable(field->objectName()));
+            QVERIFY2(card->rect().contains(QRect(field->mapTo(card, QPoint()), field->size())), qPrintable(field->objectName()));
+        }
+        QVERIFY(amount->mapTo(card, QPoint()).y() >= label->mapTo(card, QPoint(0, label->height())).y());
     }
 }
 
