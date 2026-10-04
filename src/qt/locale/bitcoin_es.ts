@@ -6623,6 +6623,10 @@ También puede elegir la fecha de creación del monedero para acelerar y optimiz
         <translation>Crear nombre Spark</translation>
     </message>
     <message>
+        <source>Copied to clipboard</source>
+        <translation>Copiado al portapapeles</translation>
+    </message>
+    <message>
         <source>No Spark Names yet</source>
         <translation>Aún no hay nombres Spark</translation>
     </message>

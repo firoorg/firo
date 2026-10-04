@@ -5169,7 +5169,12 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../sparknamespage.cpp" line="+215"/>
+        <location filename="../sparknamespage.cpp" line="+38"/>
+        <source>Copied to clipboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+181"/>
         <source>No Spark Names yet</source>
         <translation type="unfinished"></translation>
     </message>
