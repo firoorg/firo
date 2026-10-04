@@ -8,6 +8,9 @@
 /* Milliseconds between model updates */
 static const int MODEL_UPDATE_DELAY = 250;
 
+/* Maximum tip age before synchronization displays become stale */
+static constexpr int MAX_SYNCED_TIP_AGE_SECS = 45 * 60;
+
 /* AskPassphraseDialog -- Maximum passphrase length */
 static const int MAX_PASSPHRASE_SIZE = 1024;
 

@@ -41,6 +41,7 @@ public:
 
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
+    void showOutOfSyncWarning(bool fShow);
     void resizeEvent(QResizeEvent*) override;
 private:
     int64_t nTimeUpdatedDIP3;
@@ -51,6 +52,7 @@ private:
     WalletModel* walletModel;
 
     bool mnListChanged;
+    QLabel* syncWarning;
     QWidget* emptyState;
     QLabel* emptyIcon_{nullptr};
     QLabel* emptyTitle_{nullptr};

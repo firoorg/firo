@@ -97,6 +97,46 @@
         <source>There was an error trying to save the address list to %1. Please try again.</source>
         <translation>Произошла ошибка при сохранении списка адресов в %1. Пожалуйста, попробуйте еще раз.</translation>
     </message>
+    <message>
+        <source>Extend address expiration date</source>
+        <translation>Продлить срок действия адреса</translation>
+    </message>
+    <message>
+        <source>&amp;Extend</source>
+        <translation>&amp;Продлить</translation>
+    </message>
+    <message>
+        <source>(no label)</source>
+        <translation>(без метки)</translation>
+    </message>
+    <message>
+        <source>Spark</source>
+        <translation>Spark</translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation>Публичные</translation>
+    </message>
+    <message>
+        <source>Spark names</source>
+        <translation>Имена Spark</translation>
+    </message>
+    <message>
+        <source>My own spark names</source>
+        <translation>Мои имена Spark</translation>
+    </message>
+    <message>
+        <source>&amp;Copy Spark Address</source>
+        <translation>&amp;Скопировать адрес Spark</translation>
+    </message>
+    <message>
+        <source>&amp;Copy Transparent Address</source>
+        <translation>&amp;Скопировать публичный адрес</translation>
+    </message>
+    <message>
+        <source>Spark addresses can safely receive multiple payments, although reusing one can link those requests.</source>
+        <translation>На адрес Spark можно безопасно получать несколько платежей, однако его повторное использование может связать эти запросы между собой.</translation>
+    </message>
 </context>
 <context>
     <name>AddressTableModel</name>
@@ -111,6 +151,10 @@
     <message>
         <source>(no label)</source>
         <translation>(нет метки)</translation>
+    </message>
+    <message>
+        <source>Address Type</source>
+        <translation>Тип адреса</translation>
     </message>
 </context>
 <context>
@@ -218,6 +262,10 @@
     <message>
         <source>Warning: The Caps Lock key is on!</source>
         <translation>Внимание: Caps Lock включен!</translation>
+    </message>
+    <message>
+        <source>passphraseWarning</source>
+        <translation>passphraseWarning</translation>
     </message>
 </context>
 <context>
@@ -330,10 +378,6 @@
         <translation>Кликните, чтобы снова разрешить сетевую активность.</translation>
     </message>
     <message>
-        <source>Syncing Headers (%1%)...</source>
-        <translation>Синхронизация заголовков (%1%)...</translation>
-    </message>
-    <message>
         <source>Reindexing blocks on disk...</source>
         <translation>Идёт переиндексация блоков на диске...</translation>
     </message>
@@ -410,10 +454,6 @@
         <translation>&amp;Помощь</translation>
     </message>
     <message>
-        <source>Tabs toolbar</source>
-        <translation>Панель вкладок</translation>
-    </message>
-    <message>
         <source>Request payments (generates QR codes and firo: URIs)</source>
         <translation>Запросить платежи (создаёт QR-коды и firo: ссылки)</translation>
     </message>
@@ -426,16 +466,16 @@
         <translation>Показать список использованных адресов и меток получения</translation>
     </message>
     <message>
-        <source>Open a firo: URI or payment request</source>
-        <translation>Открыть firo: URI или запрос платежа</translation>
-    </message>
-    <message>
         <source>&amp;Command-line options</source>
         <translation>&amp;Параметры командной строки</translation>
     </message>
     <message numerus="yes">
         <source>%n active connection(s) to Firo network</source>
-        <translation><numerusform>%n активных соединений с сетью Firo</numerusform><numerusform>%n активных соединений с сетью Firo</numerusform><numerusform>%n активных соединений с сетью Firo</numerusform><numerusform>%n активных соединений с сетью Firo</numerusform></translation>
+        <translation>
+            <numerusform>%n активное соединение с сетью Firo</numerusform>
+            <numerusform>%n активных соединения с сетью Firo</numerusform>
+            <numerusform>%n активных соединений с сетью Firo</numerusform>
+        </translation>
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
@@ -447,7 +487,11 @@
     </message>
     <message numerus="yes">
         <source>Processed %n block(s) of transaction history.</source>
-        <translation><numerusform>Обработан %n блок истории транзакций.</numerusform><numerusform>Обработано %n блока истории транзакций.</numerusform><numerusform>Обработано %n блоков истории транзакций.</numerusform><numerusform>Обработано %n блоков истории транзакций.</numerusform></translation>
+        <translation>
+            <numerusform>Обработан %n блок истории транзакций.</numerusform>
+            <numerusform>Обработано %n блока истории транзакций.</numerusform>
+            <numerusform>Обработано %n блоков истории транзакций.</numerusform>
+        </translation>
     </message>
     <message>
         <source>%1 behind</source>
@@ -551,6 +595,110 @@
         <source>A fatal error occurred. Firo can no longer continue safely and will quit.</source>
         <translation>Произошла неисправимая ошибка. Firo не может безопасно продолжать работу и будет закрыт.</translation>
     </message>
+    <message>
+        <source>Tor</source>
+        <translation>Tor</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled for this session. This confirms configuration, not Tor bootstrap or routing health. Manual proxy settings may override affected routes.</source>
+        <translation>Быстрая настройка Tor включена для этого сеанса. Это подтверждает лишь настройку, но не завершение запуска Tor или работоспособность маршрутизации. Ручные настройки прокси могут переопределить соответствующие маршруты.</translation>
+    </message>
+    <message>
+        <source>&amp;Spark Names</source>
+        <translation>&amp;Имена Spark</translation>
+    </message>
+    <message>
+        <source>Manage your registered Spark Names</source>
+        <translation>Управление вашими зарегистрированными именами Spark</translation>
+    </message>
+    <message>
+        <source>&amp;Masternodes</source>
+        <translation>&amp;Мастерноды</translation>
+    </message>
+    <message>
+        <source>Browse masternodes</source>
+        <translation>Просмотр мастернод</translation>
+    </message>
+    <message>
+        <source>&amp;Export View Key...</source>
+        <translation>&amp;Экспортировать ключ просмотра...</translation>
+    </message>
+    <message>
+        <source>Export Spark view key</source>
+        <translation>Экспортировать ключ просмотра Spark</translation>
+    </message>
+    <message>
+        <source>&amp;Console</source>
+        <translation>&amp;Консоль</translation>
+    </message>
+    <message>
+        <source>Open the console in the debug window</source>
+        <translation>Открыть консоль в окне отладки</translation>
+    </message>
+    <message>
+        <source>Open a firo: URI</source>
+        <translation>Открыть URI firo:</translation>
+    </message>
+    <message>
+        <source>Toggle light / dark theme</source>
+        <translation>Переключить светлую / тёмную тему</translation>
+    </message>
+    <message>
+        <source>Light or dark theme</source>
+        <translation>Светлая или тёмная тема</translation>
+    </message>
+    <message>
+        <source>Wallet navigation</source>
+        <translation>Навигация по кошельку</translation>
+    </message>
+    <message>
+        <source>Console</source>
+        <translation>Консоль</translation>
+    </message>
+    <message>
+        <source>Options</source>
+        <translation>Настройки</translation>
+    </message>
+    <message>
+        <source>Light</source>
+        <translation>Светлая</translation>
+    </message>
+    <message>
+        <source>Dark</source>
+        <translation>Тёмная</translation>
+    </message>
+    <message>
+        <source>Show synchronization details</source>
+        <translation>Показать сведения о синхронизации</translation>
+    </message>
+    <message>
+        <source>Syncing...</source>
+        <translation>Синхронизация...</translation>
+    </message>
+    <message>
+        <source>Collapse navigation</source>
+        <translation>Свернуть панель навигации</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>Сетевая активность отключена</translation>
+    </message>
+    <message>
+        <source>Synced</source>
+        <translation>Синхронизировано</translation>
+    </message>
+    <message>
+        <source>Expand navigation</source>
+        <translation>Развернуть панель навигации</translation>
+    </message>
+    <message>
+        <source>Syncing Headers...</source>
+        <translation>Синхронизация заголовков...</translation>
+    </message>
+    <message>
+        <source>Synchronizing additional data: %p%</source>
+        <translation>Синхронизация дополнительных данных: %p%</translation>
+    </message>
 </context>
 <context>
     <name>CoinControlDialog</name>
@@ -588,7 +736,7 @@
     </message>
     <message>
         <source>(un)select all</source>
-        <translation>Отменить выбор всего</translation>
+        <translation>Выбрать всё / снять выбор</translation>
     </message>
     <message>
         <source>Tree mode</source>
@@ -608,7 +756,7 @@
     </message>
     <message>
         <source>Received with address</source>
-        <translation>Получено с адреса</translation>
+        <translation>Получено на адрес</translation>
     </message>
     <message>
         <source>Date</source>
@@ -702,6 +850,14 @@
         <source>(change)</source>
         <translation>(сдача)</translation>
     </message>
+    <message>
+        <source>(sigma mint)</source>
+        <translation>(монета Sigma)</translation>
+    </message>
+    <message>
+        <source>(mint)</source>
+        <translation>(приватная монета)</translation>
+    </message>
 </context>
 <context>
     <name>EditAddressDialog</name>
@@ -726,22 +882,6 @@
         <translation>&amp;Адрес</translation>
     </message>
     <message>
-        <source>New receiving address</source>
-        <translation>Новый адрес получения</translation>
-    </message>
-    <message>
-        <source>New sending address</source>
-        <translation>Новый адрес отправки</translation>
-    </message>
-    <message>
-        <source>Edit receiving address</source>
-        <translation>Изменить адрес получения</translation>
-    </message>
-    <message>
-        <source>Edit sending address</source>
-        <translation>Изменить адрес отправки</translation>
-    </message>
-    <message>
         <source>The entered address "%1" is not a valid Firo address.</source>
         <translation>Введённый адрес "%1" не является правильным Firo-адресом.</translation>
     </message>
@@ -756,6 +896,66 @@
     <message>
         <source>New key generation failed.</source>
         <translation>Генерация нового ключа не удалась.</translation>
+    </message>
+    <message>
+        <source>New transparent receiving address</source>
+        <translation>Новый публичный адрес для получения</translation>
+    </message>
+    <message>
+        <source>New transparent sending address</source>
+        <translation>Новый публичный адрес для отправки</translation>
+    </message>
+    <message>
+        <source>Edit transparent receiving address</source>
+        <translation>Изменить публичный адрес для получения</translation>
+    </message>
+    <message>
+        <source>Edit transparent sending address</source>
+        <translation>Изменить публичный адрес для отправки</translation>
+    </message>
+    <message>
+        <source>New RAP payment code</source>
+        <translation>Новый платёжный код RAP</translation>
+    </message>
+    <message>
+        <source>RAP address</source>
+        <translation>Адрес RAP</translation>
+    </message>
+    <message>
+        <source>Edit RAP payment code</source>
+        <translation>Изменить платёжный код RAP</translation>
+    </message>
+    <message>
+        <source>New spark sending address</source>
+        <translation>Новый адрес Spark для отправки</translation>
+    </message>
+    <message>
+        <source>Spark address</source>
+        <translation>Адрес Spark</translation>
+    </message>
+    <message>
+        <source>Edit spark sending address</source>
+        <translation>Изменить адрес Spark для отправки</translation>
+    </message>
+    <message>
+        <source>New spark receiving address</source>
+        <translation>Новый адрес Spark для получения</translation>
+    </message>
+    <message>
+        <source>Edit spark receiving address</source>
+        <translation>Изменить адрес Spark для получения</translation>
+    </message>
+    <message>
+        <source>The entered address "%1" is not a valid spark Firo address.</source>
+        <translation>Введённый адрес «%1» не является допустимым адресом Spark в сети Firo.</translation>
+    </message>
+    <message>
+        <source>New RAP address validation failed.</source>
+        <translation>Не удалось проверить новый адрес RAP.</translation>
+    </message>
+    <message>
+        <source>Receiving RAP addresses cannot be relabeled.</source>
+        <translation>Метки адресов RAP для получения нельзя изменять.</translation>
     </message>
 </context>
 <context>
@@ -872,11 +1072,19 @@
     </message>
     <message numerus="yes">
         <source>%n GB of free space available</source>
-        <translation><numerusform>%n ГБ свободного места доступно</numerusform><numerusform>%n ГБ свободного места доступно</numerusform><numerusform>%n ГБ свободного места доступно</numerusform><numerusform>%n ГБ свободного места доступно</numerusform></translation>
+        <translation>
+            <numerusform>%n ГБ свободного места доступно</numerusform>
+            <numerusform>%n ГБ свободного места доступно</numerusform>
+            <numerusform>%n ГБ свободного места доступно</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>(of %n GB needed)</source>
-        <translation><numerusform>(из необходимых %n ГБ)</numerusform><numerusform>(из необходимых %n ГБ)</numerusform><numerusform>(из необходимых %n ГБ)</numerusform><numerusform>(из необходимых %n ГБ)</numerusform></translation>
+        <translation>
+            <numerusform>(из необходимых %n ГБ)</numerusform>
+            <numerusform>(из необходимых %n ГБ)</numerusform>
+            <numerusform>(из необходимых %n ГБ)</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -884,14 +1092,6 @@
     <message>
         <source>Form</source>
         <translation>Форма</translation>
-    </message>
-    <message>
-        <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the firo network, as detailed below.</source>
-        <translation>Недавние транзакции могут быть пока не видны, поэтому ваш баланс может отображаться некорректно. Эта информация станет корректной, как только ваш бумажник будет синхронизирован с сетью, см. подробности ниже.</translation>
-    </message>
-    <message>
-        <source>Attempting to spend firos that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
-        <translation>Попытка потратить FIRO из ещё не отображённых транзакций будет отвергнута сетью.</translation>
     </message>
     <message>
         <source>Number of blocks left</source>
@@ -929,28 +1129,36 @@
         <source>Unknown. Syncing Headers (%1)...</source>
         <translation>Неизвестно. Синхронизация заголовков (%1)...</translation>
     </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation>Кошелёк ещё синхронизируется</translation>
+    </message>
+    <message>
+        <source>Recent transactions may not yet be visible, and your balance might be incorrect until the wallet finishes synchronizing with the Firo network.</source>
+        <translation>Последние транзакции могут ещё не отображаться, а баланс может быть неточным, пока кошелёк не завершит синхронизацию с сетью Firo.</translation>
+    </message>
+    <message>
+        <source>Wallet is synchronized</source>
+        <translation>Кошелёк синхронизирован</translation>
+    </message>
+    <message>
+        <source>The wallet is up to date with the Firo network.</source>
+        <translation>Кошелёк синхронизирован с сетью Firo.</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>Завершено</translation>
+    </message>
 </context>
 <context>
     <name>OpenURIDialog</name>
-    <message>
-        <source>Open URI</source>
-        <translation>Открыть URI</translation>
-    </message>
-    <message>
-        <source>Open payment request from URI or file</source>
-        <translation>Открыть запрос платежа из URI или файла</translation>
-    </message>
     <message>
         <source>URI:</source>
         <translation>URI:</translation>
     </message>
     <message>
-        <source>Select payment request file</source>
-        <translation>Выбрать файл запроса платежа</translation>
-    </message>
-    <message>
-        <source>Select payment request file to open</source>
-        <translation>Выберите файл запроса платежа</translation>
+        <source>Open bitcoin URI</source>
+        <translation>Открыть URI bitcoin</translation>
     </message>
 </context>
 <context>
@@ -1037,7 +1245,7 @@
     </message>
     <message>
         <source>Enable coin &amp;control features</source>
-        <translation>Включить управление входами</translation>
+        <translation>Включить &amp;управление входами</translation>
     </message>
     <message>
         <source>If you disable the spending of unconfirmed change, the change from a transaction cannot be used until that transaction has at least one confirmation. This also affects how your balance is computed.</source>
@@ -1121,7 +1329,7 @@
     </message>
     <message>
         <source>&amp;Minimize to the tray instead of the taskbar</source>
-        <translation>&amp;Cворачивать в системный лоток вместо панели задач</translation>
+        <translation>&amp;Сворачивать в системный лоток вместо панели задач</translation>
     </message>
     <message>
         <source>M&amp;inimize on close</source>
@@ -1187,6 +1395,82 @@
         <source>The supplied proxy address is invalid.</source>
         <translation>Адрес прокси неверен.</translation>
     </message>
+    <message>
+        <source>Restore Spark and wallet transaction data following a full reindex (deletes Spark mint records from the wallet, then reindexes the chain and reapplies wallet transactions). This can take several hours.</source>
+        <translation>Восстановить данные Spark и транзакций кошелька после полной переиндексации (удаляет записи о создании монет Spark из кошелька, затем переиндексирует блокчейн и повторно применяет транзакции кошелька). Это может занять несколько часов.</translation>
+    </message>
+    <message>
+        <source>&amp;Reindex Spark wallet data</source>
+        <translation>&amp;Переиндексировать данные кошелька Spark</translation>
+    </message>
+    <message>
+        <source>Spark</source>
+        <translation>Spark</translation>
+    </message>
+    <message>
+        <source>When enabled, the wallet can prompt to make transparent funds private with Spark.</source>
+        <translation>Если включено, кошелёк может предлагать сделать публичные средства приватными с помощью Spark.</translation>
+    </message>
+    <message>
+        <source>Enable automatic Spark &amp;privacy</source>
+        <translation>Включить автоматический перевод в &amp;приватные средства Spark</translation>
+    </message>
+    <message>
+        <source>Split outputs when minting to Spark for better privacy.</source>
+        <translation>Разделять выходы при создании монет Spark для лучшей приватности.</translation>
+    </message>
+    <message>
+        <source>Enable &amp;splitting when minting</source>
+        <translation>Включить &amp;разделение при создании приватных монет</translation>
+    </message>
+    <message>
+        <source>Show the Make Private control in the overview.</source>
+        <translation>Показывать кнопку «Сделать приватными» на странице обзора.</translation>
+    </message>
+    <message>
+        <source>Show Spark &amp;privacy controls</source>
+        <translation>Показывать элементы управления &amp;приватностью Spark</translation>
+    </message>
+    <message>
+        <source>Automatically launch an embedded Tor instance and configure Firo to use it. Manual proxy settings above can override routing for affected connection types. A client restart is required.</source>
+        <translation>Автоматически запускать встроенный Tor и настраивать Firo для его использования. Ручные настройки прокси выше могут переопределить маршрутизацию для соответствующих типов соединений. Требуется перезапуск клиента.</translation>
+    </message>
+    <message>
+        <source>Route connection through Tor (quickstart)</source>
+        <translation>Направлять соединение через Tor (быстрая настройка)</translation>
+    </message>
+    <message>
+        <source>Confirm Spark reindex</source>
+        <translation>Подтвердить переиндексацию Spark</translation>
+    </message>
+    <message>
+        <source>Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore wallet data from your seed. Spark mint records are cleared and rebuilt from the chain. This will likely take a few hours. Are you sure?</source>
+        <translation>Предупреждение: после перезапуска эта настройка очистит список транзакций, переиндексирует блокчейн и восстановит данные кошелька из фразы восстановления. Записи о создании монет Spark будут удалены и восстановлены из блокчейна. Это, вероятно, займёт несколько часов. Вы уверены?</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled for this session by -torsetup. It cannot be changed here.</source>
+        <translation>Быстрая настройка Tor включена для этого сеанса параметром -torsetup. Изменить её здесь нельзя.</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is disabled for this session by -torsetup. It cannot be changed here.</source>
+        <translation>Быстрая настройка Tor отключена для этого сеанса параметром -torsetup. Изменить её здесь нельзя.</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled for this session.</source>
+        <translation>Быстрая настройка Tor включена для этого сеанса.</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled. Restart the client to apply this change.</source>
+        <translation>Быстрая настройка Tor включена. Перезапустите клиент, чтобы применить это изменение.</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is disabled. Restart the client to apply this change.</source>
+        <translation>Быстрая настройка Tor отключена. Перезапустите клиент, чтобы применить это изменение.</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is disabled.</source>
+        <translation>Быстрая настройка Tor отключена.</translation>
+    </message>
 </context>
 <context>
     <name>OverviewPage</name>
@@ -1197,10 +1481,6 @@
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet.</source>
         <translation>Отображаемая информация может быть устаревшей. Ваш бумажник автоматически синхронизируется с сетью Firo после подключения, но этот процесс пока не завершён.</translation>
-    </message>
-    <message>
-        <source>Watch-only:</source>
-        <translation>Только наблюдение:</translation>
     </message>
     <message>
         <source>Available:</source>
@@ -1227,10 +1507,6 @@
         <translation>Баланс добытых монет, который ещё не созрел</translation>
     </message>
     <message>
-        <source>Balances</source>
-        <translation>Балансы</translation>
-    </message>
-    <message>
         <source>Total:</source>
         <translation>Итого:</translation>
     </message>
@@ -1241,10 +1517,6 @@
     <message>
         <source>Your current balance in watch-only addresses</source>
         <translation>Ваш текущий баланс в адресах наблюдения</translation>
-    </message>
-    <message>
-        <source>Spendable:</source>
-        <translation>Доступно:</translation>
     </message>
     <message>
         <source>Recent transactions</source>
@@ -1262,6 +1534,238 @@
         <source>Current total balance in watch-only addresses</source>
         <translation>Текущий общий баланс на адресах наблюдения</translation>
     </message>
+    <message>
+        <source>color: #92400E; background-color:#FEF3C7;</source>
+        <translation>color: #92400E; background-color:#FEF3C7;</translation>
+    </message>
+    <message>
+        <source>FIRO (Primary)</source>
+        <translation>FIRO (основной)</translation>
+    </message>
+    <message>
+        <source>Transparent 0.00000000 FIRO (0%)</source>
+        <translation>Публичный: 0.00000000 FIRO (0%)</translation>
+    </message>
+    <message>
+        <source>Private (Spark): 0.00000000 FIRO (0%)</source>
+        <translation>Приватный (Spark): 0.00000000 FIRO (0%)</translation>
+    </message>
+    <message>
+        <source>Send</source>
+        <translation>Отправить</translation>
+    </message>
+    <message>
+        <source>Receive</source>
+        <translation>Получить</translation>
+    </message>
+    <message>
+        <source>Make Private...</source>
+        <translation>Сделать приватными...</translation>
+    </message>
+    <message>
+        <source>Private Balances (Spark)</source>
+        <translation>Приватный баланс (Spark)</translation>
+    </message>
+    <message>
+        <source>Your current spendable private Spark balance</source>
+        <translation>Ваш текущий приватный баланс Spark, доступный для расходования</translation>
+    </message>
+    <message>
+        <source>0.00000000 FIRO</source>
+        <translation>0.00000000 FIRO</translation>
+    </message>
+    <message>
+        <source>Total of Spark mint transactions that have yet to be confirmed, and do not yet count toward the spendable balance</source>
+        <translation>Общая сумма ещё не подтверждённых транзакций создания монет Spark, которые пока не учитываются в доступном для расходования балансе</translation>
+    </message>
+    <message>
+        <source>Available to make private:</source>
+        <translation>Доступно для перевода в приватные:</translation>
+    </message>
+    <message>
+        <source>Transparent Balances</source>
+        <translation>Публичный баланс</translation>
+    </message>
+    <message>
+        <source>Watch-only Balances</source>
+        <translation>Баланс только для наблюдения</translation>
+    </message>
+    <message>
+        <source>Recent Activity</source>
+        <translation>Последние операции</translation>
+    </message>
+    <message>
+        <source>Mainnet</source>
+        <translation>Основная сеть</translation>
+    </message>
+    <message>
+        <source>Testnet</source>
+        <translation>Тестовая сеть</translation>
+    </message>
+    <message>
+        <source>Devnet</source>
+        <translation>Сеть разработки</translation>
+    </message>
+    <message>
+        <source>Regtest</source>
+        <translation>Сеть регрессионного тестирования</translation>
+    </message>
+    <message>
+        <source>↗  Send</source>
+        <translation>↗  Отправить</translation>
+    </message>
+    <message>
+        <source>↙  Receive</source>
+        <translation>↙  Получить</translation>
+    </message>
+    <message>
+        <source>Make Private</source>
+        <translation>Сделать приватными</translation>
+    </message>
+    <message>
+        <source>No transactions yet</source>
+        <translation>Транзакций пока нет</translation>
+    </message>
+    <message>
+        <source>Your history will appear here after the first transfer</source>
+        <translation>Ваша история появится здесь после первого перевода</translation>
+    </message>
+    <message>
+        <source>Make Funds Private</source>
+        <translation>Сделать средства приватными</translation>
+    </message>
+    <message>
+        <source>Move FIRO from your transparent balance into Spark, Firo's private balance.</source>
+        <translation>Переведите FIRO с публичного баланса в Spark, приватный баланс Firo.</translation>
+    </message>
+    <message>
+        <source>From</source>
+        <translation>Откуда</translation>
+    </message>
+    <message>
+        <source>Transparent balance</source>
+        <translation>Публичный баланс</translation>
+    </message>
+    <message>
+        <source>To</source>
+        <translation>Куда</translation>
+    </message>
+    <message>
+        <source>Private balance (Spark)</source>
+        <translation>Приватный баланс (Spark)</translation>
+    </message>
+    <message>
+        <source>Max</source>
+        <translation>Макс.</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Сумма</translation>
+    </message>
+    <message>
+        <source>The network fee will be deducted from this amount.</source>
+        <translation>Комиссия сети будет вычтена из этой суммы.</translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation>Доступно</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>Проверить</translation>
+    </message>
+    <message>
+        <source>The amount exceeds your available transparent balance.</source>
+        <translation>Сумма превышает доступный публичный баланс.</translation>
+    </message>
+    <message>
+        <source>The amount and transaction fee exceed your available transparent balance.</source>
+        <translation>Сумма и комиссия за транзакцию превышают доступный публичный баланс.</translation>
+    </message>
+    <message>
+        <source>The transaction fee is higher than the configured maximum of %1.</source>
+        <translation>Комиссия за транзакцию превышает установленный максимум %1.</translation>
+    </message>
+    <message>
+        <source>The transaction was rejected: %1</source>
+        <translation>Транзакция отклонена: %1</translation>
+    </message>
+    <message>
+        <source>Unable to create the Spark transaction.</source>
+        <translation>Не удалось создать транзакцию Spark.</translation>
+    </message>
+    <message>
+        <source>Make funds private</source>
+        <translation>Сделать средства приватными</translation>
+    </message>
+    <message>
+        <source>Unable to Make Funds Private</source>
+        <translation>Не удалось сделать средства приватными</translation>
+    </message>
+    <message>
+        <source>Firo could not create a Spark transaction for this amount.</source>
+        <translation>Firo не удалось создать транзакцию Spark на эту сумму.</translation>
+    </message>
+    <message>
+        <source>Use Maximum fills in the highest amount that can be made private, with the network fee deducted from it. No funds were moved.</source>
+        <translation>Кнопка «Использовать максимум» подставит наибольшую сумму, которую можно сделать приватной, с вычетом комиссии сети. Средства не были перемещены.</translation>
+    </message>
+    <message>
+        <source>Change the amount and try again. No funds were moved.</source>
+        <translation>Измените сумму и повторите попытку. Средства не были перемещены.</translation>
+    </message>
+    <message>
+        <source>Use Maximum</source>
+        <translation>Использовать максимум</translation>
+    </message>
+    <message>
+        <source>Change Amount</source>
+        <translation>Изменить сумму</translation>
+    </message>
+    <message>
+        <source>Review Private Transfer</source>
+        <translation>Проверка приватного перевода</translation>
+    </message>
+    <message>
+        <source>Amount to make private: &lt;b&gt;%1&lt;/b&gt;&lt;br&gt;Network fee: %2&lt;br&gt;Total from transparent balance: %3</source>
+        <translation>Сумма для перевода в приватные средства: &lt;b&gt;%1&lt;/b&gt;&lt;br&gt;Комиссия сети: %2&lt;br&gt;Всего с публичного баланса: %3</translation>
+    </message>
+    <message>
+        <source>The transfer could not be fully completed. Part of it may already have been sent; check the Transactions tab before trying again.</source>
+        <translation>Перевод не удалось завершить полностью. Часть средств уже могла быть отправлена. Перед повторной попыткой проверьте вкладку «Транзакции».</translation>
+    </message>
+    <message>
+        <source>The transfer could not be completed. No funds were moved.</source>
+        <translation>Не удалось завершить перевод. Средства не были перемещены.</translation>
+    </message>
+    <message>
+        <source>Funds Moving to Spark</source>
+        <translation>Перевод средств в Spark</translation>
+    </message>
+    <message>
+        <source>%1 is moving to your private Spark balance. It will become available after confirmation.</source>
+        <translation>%1 переводится на ваш приватный баланс Spark. Средства станут доступны после подтверждения.</translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation>Публичный</translation>
+    </message>
+    <message>
+        <source>Private (Spark):</source>
+        <translation>Приватный (Spark):</translation>
+    </message>
+    <message>
+        <source>Private (Spark) %1%  ·  Transparent %2%</source>
+        <translation>Приватный (Spark) %1%  ·  Публичный %2%</translation>
+    </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation>Кошелёк ещё синхронизируется</translation>
+    </message>
+    <message>
+        <source>Transactions will appear here as synchronization completes</source>
+        <translation>Транзакции появятся здесь по мере завершения синхронизации</translation>
+    </message>
 </context>
 <context>
     <name>PaymentServer</name>
@@ -1278,10 +1782,6 @@
         <translation>Обработка URI</translation>
     </message>
     <message>
-        <source>Payment request fetch URL is invalid: %1</source>
-        <translation>Неверный URL запроса платежа: %1</translation>
-    </message>
-    <message>
         <source>Invalid payment address %1</source>
         <translation>Неверный адрес платежа %1</translation>
     </message>
@@ -1294,64 +1794,16 @@
         <translation>Обработка файла запроса платежа</translation>
     </message>
     <message>
-        <source>Payment request file cannot be read! This can be caused by an invalid payment request file.</source>
-        <translation>Файл запроса платежа не может быть прочитан! Обычно это происходит из-за неверного файла запроса платежа.</translation>
+        <source>Cannot process payment request because BIP70 is not supported.</source>
+        <translation>Не удалось обработать запрос платежа, поскольку BIP70 не поддерживается.</translation>
     </message>
     <message>
-        <source>Payment request rejected</source>
-        <translation>Запрос платежа отклонён</translation>
+        <source>Due to widespread security flaws in BIP70 it's strongly recommended that any merchant instructions to switch wallets be ignored.</source>
+        <translation>Из-за многочисленных уязвимостей в BIP70 настоятельно рекомендуется игнорировать любые указания продавца о переходе на другой кошелёк.</translation>
     </message>
     <message>
-        <source>Payment request network doesn't match client network.</source>
-        <translation>Сеть запроса платежа не совпадает с сетью клиента.</translation>
-    </message>
-    <message>
-        <source>Payment request expired.</source>
-        <translation>Запрос платежа просрочен.</translation>
-    </message>
-    <message>
-        <source>Payment request is not initialized.</source>
-        <translation>Запрос платежа не инициализирован.</translation>
-    </message>
-    <message>
-        <source>Unverified payment requests to custom payment scripts are unsupported.</source>
-        <translation>Непроверенные запросы платежей с нестандартными платёжными сценариями не поддерживаются.</translation>
-    </message>
-    <message>
-        <source>Invalid payment request.</source>
-        <translation>Неверный запрос платежа.</translation>
-    </message>
-    <message>
-        <source>Requested payment amount of %1 is too small (considered dust).</source>
-        <translation>Запрошенная сумма платежа %1 слишком мала (считается пылью).</translation>
-    </message>
-    <message>
-        <source>Refund from %1</source>
-        <translation>Возврат от %1</translation>
-    </message>
-    <message>
-        <source>Payment request %1 is too large (%2 bytes, allowed %3 bytes).</source>
-        <translation>Запрос платежа %1 слишком большой (%2 байтов, разрешено %3 байтов).</translation>
-    </message>
-    <message>
-        <source>Error communicating with %1: %2</source>
-        <translation>Ошибка связи с %1: %2</translation>
-    </message>
-    <message>
-        <source>Payment request cannot be parsed!</source>
-        <translation>Запрос платежа не может быть разобран!</translation>
-    </message>
-    <message>
-        <source>Bad response from server %1</source>
-        <translation>Плохой ответ сервера %1</translation>
-    </message>
-    <message>
-        <source>Network request error</source>
-        <translation>Ошибка сетевого запроса</translation>
-    </message>
-    <message>
-        <source>Payment acknowledged</source>
-        <translation>Платёж принят</translation>
+        <source>If you are receiving this error you should request the merchant provide a BIP21 compatible URI.</source>
+        <translation>Если вы видите эту ошибку, попросите продавца предоставить URI, совместимый с BIP21.</translation>
     </message>
 </context>
 <context>
@@ -1371,6 +1823,10 @@
     <message>
         <source>Ping</source>
         <translation>Пинг</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>Сеть</translation>
     </message>
 </context>
 <context>
@@ -1413,23 +1869,43 @@
     </message>
     <message numerus="yes">
         <source>%n second(s)</source>
-        <translation><numerusform>%n секунда</numerusform><numerusform>%n секунды</numerusform><numerusform>%n секунд</numerusform><numerusform>%n секунд</numerusform></translation>
+        <translation>
+            <numerusform>%n секунда</numerusform>
+            <numerusform>%n секунды</numerusform>
+            <numerusform>%n секунд</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n minute(s)</source>
-        <translation><numerusform>%n минута</numerusform><numerusform>%n минут</numerusform><numerusform>%n минут</numerusform><numerusform>%n минут</numerusform></translation>
+        <translation>
+            <numerusform>%n минута</numerusform>
+            <numerusform>%n минуты</numerusform>
+            <numerusform>%n минут</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n hour(s)</source>
-        <translation><numerusform>%n час</numerusform><numerusform>%n часа</numerusform><numerusform>%n часов</numerusform><numerusform>%n часов</numerusform></translation>
+        <translation>
+            <numerusform>%n час</numerusform>
+            <numerusform>%n часа</numerusform>
+            <numerusform>%n часов</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n day(s)</source>
-        <translation><numerusform>%n день</numerusform><numerusform>%n дня</numerusform><numerusform>%n дней</numerusform><numerusform>%n дней</numerusform></translation>
+        <translation>
+            <numerusform>%n день</numerusform>
+            <numerusform>%n дня</numerusform>
+            <numerusform>%n дней</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n week(s)</source>
-        <translation><numerusform>%n неделя</numerusform><numerusform>%n недели</numerusform><numerusform>%n недель</numerusform><numerusform>%n недель</numerusform></translation>
+        <translation>
+            <numerusform>%n неделя</numerusform>
+            <numerusform>%n недели</numerusform>
+            <numerusform>%n недель</numerusform>
+        </translation>
     </message>
     <message>
         <source>%1 and %2</source>
@@ -1437,11 +1913,81 @@
     </message>
     <message numerus="yes">
         <source>%n year(s)</source>
-        <translation><numerusform>%n год</numerusform><numerusform>%n года</numerusform><numerusform>%n лет</numerusform><numerusform>%n лет</numerusform></translation>
+        <translation>
+            <numerusform>%n год</numerusform>
+            <numerusform>%n года</numerusform>
+            <numerusform>%n лет</numerusform>
+        </translation>
     </message>
     <message>
         <source>%1 didn't yet exit safely...</source>
         <translation>%1 ещё не завершился безопасно...</translation>
+    </message>
+    <message>
+        <source> or a payment code</source>
+        <translation> или платёжный код</translation>
+    </message>
+    <message>
+        <source> or a Firo spark address (e.g. pr1cjgedy25xhr4fmzx8cm5gf940v5j2482m94uaa0yguxxw2yrel0f0hyjesg77px7at47f4s3jy8hthmyr6ajhvn025yp28fyuwzvar0gcc7p27rvttn2tyl9ejwthjpaavlmy3cm3sysz)</source>
+        <translation> или адрес Spark в Firo (например, pr1cjgedy25xhr4fmzx8cm5gf940v5j2482m94uaa0yguxxw2yrel0f0hyjesg77px7at47f4s3jy8hthmyr6ajhvn025yp28fyuwzvar0gcc7p27rvttn2tyl9ejwthjpaavlmy3cm3sysz)</translation>
+    </message>
+    <message>
+        <source>OP_RETURN metadata exceeds the 80-byte Rosen limit.</source>
+        <translation>Метаданные OP_RETURN превышают установленный Rosen предел в 80 байт.</translation>
+    </message>
+    <message>
+        <source>Rosen metadata is too short.</source>
+        <translation>Метаданные Rosen слишком короткие.</translation>
+    </message>
+    <message>
+        <source>Rosen metadata contains an unknown destination chain.</source>
+        <translation>В метаданных Rosen указана неизвестная сеть назначения.</translation>
+    </message>
+    <message>
+        <source>Rosen metadata contains an empty destination address.</source>
+        <translation>В метаданных Rosen указан пустой адрес назначения.</translation>
+    </message>
+    <message>
+        <source>Rosen metadata destination-address length is inconsistent.</source>
+        <translation>Длина адреса назначения в метаданных Rosen не соответствует указанному значению.</translation>
+    </message>
+    <message>
+        <source>OP_RETURN metadata is empty.</source>
+        <translation>Метаданные OP_RETURN пусты.</translation>
+    </message>
+    <message>
+        <source>OP_RETURN metadata must be an even-length hexadecimal string.</source>
+        <translation>Метаданные OP_RETURN должны быть шестнадцатеричной строкой с чётным числом символов.</translation>
+    </message>
+    <message>
+        <source>Destination chain: %1
+Bridge fee: %2 atomic units
+Network fee: %3 atomic units
+Destination address (hex): %4</source>
+        <translation>Сеть назначения: %1
+Комиссия моста: %2 атомарных единиц
+Комиссия сети: %3 атомарных единиц
+Адрес назначения (hex): %4</translation>
+    </message>
+    <message>
+        <source> You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.</source>
+        <translation> Вы отправляете Firo на биржевой адрес. Биржевые адреса могут получать средства только с публичных адресов.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.</source>
+        <translation> Вы отправляете Firo с публичного адреса на другой публичный адрес. Для защиты вашей приватности рекомендуем использовать адреса Spark.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to a Spark address.</source>
+        <translation> Вы отправляете Firo с публичного адреса на адрес Spark.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a Spark address to another Spark address. This transaction is fully private.</source>
+        <translation> Вы отправляете Firo с адреса Spark на другой адрес Spark. Эта транзакция полностью приватная.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.</source>
+        <translation> Вы отправляете Firo из приватного пула Spark на публичный адрес. Учтите, что некоторые биржи не принимают прямые переводы из Spark.</translation>
     </message>
 </context>
 <context>
@@ -1654,7 +2200,7 @@
     </message>
     <message>
         <source>&amp;Console</source>
-        <translation>Консоль</translation>
+        <translation>&amp;Консоль</translation>
     </message>
     <message>
         <source>&amp;Network Traffic</source>
@@ -1780,21 +2326,13 @@
         <source>Unknown</source>
         <translation>Неизвестно</translation>
     </message>
+    <message>
+        <source>(inbound onion)</source>
+        <translation>(входящее onion-соединение)</translation>
+    </message>
 </context>
 <context>
     <name>ReceiveCoinsDialog</name>
-    <message>
-        <source>&amp;Amount:</source>
-        <translation>&amp;Сумма:</translation>
-    </message>
-    <message>
-        <source>&amp;Label:</source>
-        <translation>&amp;Метка:</translation>
-    </message>
-    <message>
-        <source>&amp;Message:</source>
-        <translation>&amp;Сообщение</translation>
-    </message>
     <message>
         <source>Reuse one of the previously used receiving addresses. Reusing addresses has security and privacy issues. Do not use this unless re-generating a payment request made before.</source>
         <translation>Повторно использовать один из ранее использованных адресов. Повторное использование адресов несёт риски безопасности и приватности. Не используйте эту опцию, если вы не создаёте повторно ранее сделанный запрос платежа.</translation>
@@ -1810,10 +2348,6 @@
     <message>
         <source>An optional label to associate with the new receiving address.</source>
         <translation>Необязательная метка для нового адреса получения.</translation>
-    </message>
-    <message>
-        <source>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;.</source>
-        <translation>Заполните форму для запроса платежей. Все поля &lt;b&gt;необязательны&lt;/b&gt;.</translation>
     </message>
     <message>
         <source>An optional amount to request. Leave this empty or zero to not request a specific amount.</source>
@@ -1867,6 +2401,98 @@
         <source>Copy amount</source>
         <translation>Копировать сумму</translation>
     </message>
+    <message>
+        <source>Choose Spark or Transparent for the payment request address.</source>
+        <translation>Выберите Spark или публичный адрес для запроса платежа.</translation>
+    </message>
+    <message>
+        <source>ADDRESS TYPE</source>
+        <translation>ТИП АДРЕСА</translation>
+    </message>
+    <message>
+        <source>Choose one of this wallet's Spark Names for the payment request.</source>
+        <translation>Выберите одно из имён Spark этого кошелька для запроса платежа.</translation>
+    </message>
+    <message>
+        <source>Use My Spark Name</source>
+        <translation>Использовать моё имя Spark</translation>
+    </message>
+    <message>
+        <source>Register a new Spark Name.</source>
+        <translation>Зарегистрировать новое имя Spark.</translation>
+    </message>
+    <message>
+        <source>Register Spark Name</source>
+        <translation>Зарегистрировать имя Spark</translation>
+    </message>
+    <message>
+        <source>&amp;LABEL</source>
+        <translation>&amp;МЕТКА</translation>
+    </message>
+    <message>
+        <source>&amp;AMOUNT</source>
+        <translation>&amp;СУММА</translation>
+    </message>
+    <message>
+        <source>&amp;MESSAGE</source>
+        <translation>С&amp;ООБЩЕНИЕ</translation>
+    </message>
+    <message>
+        <source>Spark</source>
+        <translation>Spark</translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation>Публичный</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>Все</translation>
+    </message>
+    <message>
+        <source>No payment requests yet</source>
+        <translation>Запросов платежей пока нет</translation>
+    </message>
+    <message>
+        <source>Requests you create will be listed here</source>
+        <translation>Созданные вами запросы будут отображаться здесь</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Ошибка</translation>
+    </message>
+    <message>
+        <source>The selected Spark address does not belong to this wallet.</source>
+        <translation>Выбранный адрес Spark не принадлежит этому кошельку.</translation>
+    </message>
+    <message>
+        <source>"%1" is not a valid Spark Name.</source>
+        <translation>«%1» не является допустимым именем Spark.</translation>
+    </message>
+    <message>
+        <source>Spark Name "%1" was not found or has expired.</source>
+        <translation>Имя Spark «%1» не найдено или срок его действия истёк.</translation>
+    </message>
+    <message>
+        <source>Spark Name "%1" does not belong to this wallet.</source>
+        <translation>Имя Spark «%1» не принадлежит этому кошельку.</translation>
+    </message>
+    <message>
+        <source>&amp;Use an existing Spark address</source>
+        <translation>&amp;Использовать существующий адрес Spark</translation>
+    </message>
+    <message>
+        <source>Spark addresses can safely receive multiple payments, although sharing one address can link those requests.</source>
+        <translation>Адреса Spark могут безопасно получать несколько платежей, однако использование одного адреса в разных запросах позволяет связать эти запросы между собой.</translation>
+    </message>
+    <message>
+        <source>R&amp;euse an existing transparent address (not recommended)</source>
+        <translation>Повторно использовать существующий &amp;публичный адрес (не рекомендуется)</translation>
+    </message>
+    <message>
+        <source>Reusing transparent addresses has security and privacy risks. Only use this to recreate an earlier payment request.</source>
+        <translation>Повторное использование публичных адресов создаёт риски для безопасности и приватности. Используйте эту возможность только для повторного создания прежнего запроса платежа.</translation>
+    </message>
 </context>
 <context>
     <name>ReceiveRequestDialog</name>
@@ -1891,14 +2517,6 @@
         <translation>Запросить платёж на %1</translation>
     </message>
     <message>
-        <source>Payment information</source>
-        <translation>Информация платежа</translation>
-    </message>
-    <message>
-        <source>URI</source>
-        <translation>URI</translation>
-    </message>
-    <message>
         <source>Address</source>
         <translation>Адрес</translation>
     </message>
@@ -1921,6 +2539,26 @@
     <message>
         <source>Error encoding URI into QR Code.</source>
         <translation>Ошибка кодирования URI в QR-код</translation>
+    </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>&amp;Закрыть</translation>
+    </message>
+    <message>
+        <source>Payment URI</source>
+        <translation>URI платежа</translation>
+    </message>
+    <message>
+        <source>Address Type</source>
+        <translation>Тип адреса</translation>
+    </message>
+    <message>
+        <source>transparent</source>
+        <translation>публичный</translation>
+    </message>
+    <message>
+        <source>spark</source>
+        <translation>Spark</translation>
     </message>
 </context>
 <context>
@@ -1952,6 +2590,18 @@
     <message>
         <source>Requested</source>
         <translation>Запрошено</translation>
+    </message>
+    <message>
+        <source>Address Type</source>
+        <translation>Тип адреса</translation>
+    </message>
+    <message>
+        <source>transparent</source>
+        <translation>публичный</translation>
+    </message>
+    <message>
+        <source>spark</source>
+        <translation>Spark</translation>
     </message>
 </context>
 <context>
@@ -1998,7 +2648,7 @@
     </message>
     <message>
         <source>Change:</source>
-        <translation>Размен:</translation>
+        <translation>Сдача:</translation>
     </message>
     <message>
         <source>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</source>
@@ -2007,10 +2657,6 @@
     <message>
         <source>Custom change address</source>
         <translation>Свой адрес для сдачи</translation>
-    </message>
-    <message>
-        <source>Transaction Fee:</source>
-        <translation>Комиссия</translation>
     </message>
     <message>
         <source>Choose...</source>
@@ -2087,10 +2733,6 @@
     <message>
         <source>Clear &amp;All</source>
         <translation>Очистить &amp;всё</translation>
-    </message>
-    <message>
-        <source>Balance:</source>
-        <translation>Баланс:</translation>
     </message>
     <message>
         <source>Confirm the send action</source>
@@ -2190,7 +2832,11 @@
     </message>
     <message numerus="yes">
         <source>%n block(s)</source>
-        <translation><numerusform>%n блок</numerusform><numerusform>%n блока</numerusform><numerusform>%n блоков</numerusform><numerusform>%n блоков</numerusform></translation>
+        <translation>
+            <numerusform>%n блок</numerusform>
+            <numerusform>%n блока</numerusform>
+            <numerusform>%n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>Pay only the required fee of %1</source>
@@ -2198,7 +2844,11 @@
     </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
-        <translation><numerusform>Начало подтверждения ожидается через %n блок.</numerusform><numerusform>Начало подтверждения ожидается через %n блока.</numerusform><numerusform>Начало подтверждения ожидается через %n блоков.</numerusform><numerusform>Начало подтверждения ожидается через %n блоков.</numerusform></translation>
+        <translation>
+            <numerusform>Начало подтверждения ожидается через %n блок.</numerusform>
+            <numerusform>Начало подтверждения ожидается через %n блока.</numerusform>
+            <numerusform>Начало подтверждения ожидается через %n блоков.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Warning: Invalid Firo address</source>
@@ -2220,21 +2870,113 @@
         <source>(no label)</source>
         <translation>(нет метки)</translation>
     </message>
+    <message>
+        <source>Transaction Fee</source>
+        <translation>Комиссия за транзакцию</translation>
+    </message>
+    <message>
+        <source>Using the fallbackfee can result in sending a transaction that will take several hours or days (or never) to confirm. Consider choosing your fee manually or wait until your have validated the complete chain.</source>
+        <translation>При использовании fallbackfee подтверждение транзакции может занять несколько часов или дней либо не произойти вовсе. Укажите комиссию вручную или дождитесь проверки всего блокчейна.</translation>
+    </message>
+    <message>
+        <source>Warning: Fee estimation is currently not possible.</source>
+        <translation>Предупреждение: сейчас невозможно оценить комиссию.</translation>
+    </message>
+    <message>
+        <source>Private Balance</source>
+        <translation>Приватный баланс</translation>
+    </message>
+    <message>
+        <source>Use Transparent Balance</source>
+        <translation>Использовать публичный баланс</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Ошибка</translation>
+    </message>
+    <message>
+        <source>Spark name %1 not found</source>
+        <translation>Имя Spark %1 не найдено</translation>
+    </message>
+    <message>
+        <source>Sending private funds to an exchange address is temporarily unavailable. Move the funds to a transparent address first, then send from there.</source>
+        <translation>Отправка приватных средств на биржевой адрес временно недоступна. Сначала переведите средства на публичный адрес, затем отправьте их с него.</translation>
+    </message>
+    <message>
+        <source>EX-addresses can only receive FIRO from transparent addresses.&lt;br /&gt;&lt;br /&gt;Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.</source>
+        <translation>EX-адреса могут получать FIRO только с публичных адресов.&lt;br /&gt;&lt;br /&gt;Ваши FIRO будут переведены из Spark на новый публичный адрес %1, а затем сразу отправлены на EX-адрес.</translation>
+    </message>
+    <message>
+        <source>Rosen Bridge metadata</source>
+        <translation>Метаданные Rosen Bridge</translation>
+    </message>
+    <message>
+        <source>Destination chain</source>
+        <translation>Сеть назначения</translation>
+    </message>
+    <message>
+        <source>Bridge fee (atomic units)</source>
+        <translation>Комиссия моста (в атомарных единицах)</translation>
+    </message>
+    <message>
+        <source>Network fee (atomic units)</source>
+        <translation>Комиссия сети (в атомарных единицах)</translation>
+    </message>
+    <message>
+        <source>Destination address (hex)</source>
+        <translation>Адрес назначения (hex)</translation>
+    </message>
+    <message>
+        <source>Raw data</source>
+        <translation>Необработанные данные</translation>
+    </message>
+    <message>
+        <source>Messages</source>
+        <translation>Сообщения</translation>
+    </message>
+    <message>
+        <source>. An additional transaction fee of %1 will apply to complete the send from the transparent address to the EX-address.</source>
+        <translation>. Для отправки с публичного адреса на EX-адрес потребуется дополнительная комиссия за транзакцию в размере %1.</translation>
+    </message>
+    <message>
+        <source>This payment does not fit in one Spark coin and will be sent as %1 separate transactions. Each pays its own fee, they can be linked to each other, and if one of them is rejected the recipients will have been paid only in part.</source>
+        <translation>Для этого платежа недостаточно одной монеты Spark, поэтому он будет отправлен в виде %1 отдельных транзакций. Каждая транзакция требует отдельной комиссии, их можно связать между собой, а при отклонении одной из них получатели получат лишь часть средств.</translation>
+    </message>
+    <message>
+        <source>Private transaction staging produced an unexpected transaction count</source>
+        <translation>При подготовке приватных транзакций получено неожиданное число транзакций</translation>
+    </message>
+    <message>
+        <source>Intermediate address was not found in the transaction</source>
+        <translation>Промежуточный адрес не найден в транзакции</translation>
+    </message>
+    <message>
+        <source>Switch to Transparent Balance to send this Rosen Bridge transfer.</source>
+        <translation>Переключитесь на публичный баланс, чтобы отправить этот перевод через Rosen Bridge.</translation>
+    </message>
+    <message>
+        <source>Transaction creation failed: %1</source>
+        <translation>Не удалось создать транзакцию: %1</translation>
+    </message>
+    <message>
+        <source>The Rosen Bridge metadata is invalid, duplicated, or incompatible with fee subtraction.</source>
+        <translation>Метаданные Rosen Bridge недопустимы, повторяются или несовместимы с вычетом комиссии из суммы.</translation>
+    </message>
+    <message>
+        <source>Rosen Bridge transfers must be sent from the transparent balance.</source>
+        <translation>Переводы через Rosen Bridge необходимо отправлять с публичного баланса.</translation>
+    </message>
+    <message>
+        <source>Use Private Balance</source>
+        <translation>Использовать приватный баланс</translation>
+    </message>
+    <message>
+        <source>Transparent Balance</source>
+        <translation>Публичный баланс</translation>
+    </message>
 </context>
 <context>
     <name>SendCoinsEntry</name>
-    <message>
-        <source>A&amp;mount:</source>
-        <translation>Ко&amp;личество:</translation>
-    </message>
-    <message>
-        <source>Pay &amp;To:</source>
-        <translation>Полу&amp;чатель:</translation>
-    </message>
-    <message>
-        <source>&amp;Label:</source>
-        <translation>&amp;Метка:</translation>
-    </message>
     <message>
         <source>Choose previously used address</source>
         <translation>Выберите ранее использованный адрес</translation>
@@ -2268,40 +3010,94 @@
         <translation>С отправляемой суммы будет удержана комиссия. Получателю придёт меньше FIRO, чем вы вводите в поле количества. Если выбрано несколько получателей, комиссия распределяется поровну.</translation>
     </message>
     <message>
-        <source>S&amp;ubtract fee from amount</source>
-        <translation>Вычесть комиссию из суммы</translation>
-    </message>
-    <message>
-        <source>Message:</source>
-        <translation>Сообщение:</translation>
-    </message>
-    <message>
-        <source>This is an unauthenticated payment request.</source>
-        <translation>Это неавторизованный запрос платежа.</translation>
-    </message>
-    <message>
-        <source>This is an authenticated payment request.</source>
-        <translation>Это авторизованный запрос платежа.</translation>
-    </message>
-    <message>
         <source>Enter a label for this address to add it to the list of used addresses</source>
         <translation>Введите метку для этого адреса, чтобы добавить его в список использованных</translation>
     </message>
     <message>
-        <source>A message that was attached to the firo: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Firo network.</source>
-        <translation>К firo: URI было прикреплено сообщение, которое будет сохранено вместе с транзакцией для вашего сведения. Заметьте: сообщение не будет отправлено через сеть Firo.</translation>
-    </message>
-    <message>
-        <source>Pay To:</source>
-        <translation>Получатель:</translation>
-    </message>
-    <message>
-        <source>Memo:</source>
-        <translation>Примечание:</translation>
-    </message>
-    <message>
         <source>Enter a label for this address to add it to your address book</source>
         <translation>Введите метку для данного адреса, чтобы добавить его в адресную книгу</translation>
+    </message>
+    <message>
+        <source>PAY &amp;TO</source>
+        <translation>&amp;ПОЛУЧАТЕЛЬ</translation>
+    </message>
+    <message>
+        <source>Resolves to:</source>
+        <translation>Соответствует адресу:</translation>
+    </message>
+    <message>
+        <source>margin-top:2px;</source>
+        <translation>margin-top:2px;</translation>
+    </message>
+    <message>
+        <source>&amp;LABEL</source>
+        <translation>&amp;МЕТКА</translation>
+    </message>
+    <message>
+        <source>A&amp;MOUNT</source>
+        <translation>&amp;СУММА</translation>
+    </message>
+    <message>
+        <source>S&amp;UBTRACT FEE FROM AMOUNT</source>
+        <translation>&amp;ВЫЧЕСТЬ КОМИССИЮ ИЗ СУММЫ</translation>
+    </message>
+    <message>
+        <source>Rosen Bridge:</source>
+        <translation>Rosen Bridge:</translation>
+    </message>
+    <message>
+        <source>MESSAGE</source>
+        <translation>СООБЩЕНИЕ</translation>
+    </message>
+    <message>
+        <source>Optional message for this transaction</source>
+        <translation>Необязательное сообщение для этой транзакции</translation>
+    </message>
+    <message>
+        <source>Message exceeds %1 bytes limit</source>
+        <translation>Сообщение превышает предел в %1 байт</translation>
+    </message>
+    <message>
+        <source>Metadata: %1 bytes
+</source>
+        <translation>Метаданные: %1 байт
+</translation>
+    </message>
+    <message>
+        <source>
+Raw data: %1</source>
+        <translation>
+Необработанные данные: %1</translation>
+    </message>
+    <message>
+        <source>Switch to Transparent Balance to send this Rosen Bridge transfer.
+</source>
+        <translation>Переключитесь на публичный баланс, чтобы отправить этот перевод через Rosen Bridge.
+</translation>
+    </message>
+    <message>
+        <source>This transaction includes Rosen Bridge OP_RETURN metadata.</source>
+        <translation>Эта транзакция содержит метаданные OP_RETURN для Rosen Bridge.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.</source>
+        <translation> Вы отправляете Firo на биржевой адрес. Биржевые адреса могут получать средства только с публичных адресов.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.</source>
+        <translation> Вы отправляете Firo с публичного адреса на другой публичный адрес. Для защиты вашей приватности рекомендуем использовать адреса Spark.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to a Spark address.</source>
+        <translation> Вы отправляете Firo с публичного адреса на адрес Spark.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a Spark address to another Spark address. This transaction is fully private.</source>
+        <translation> Вы отправляете Firo с адреса Spark на другой адрес Spark. Эта транзакция полностью приватная.</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.</source>
+        <translation> Вы отправляете Firo из приватного пула Spark на публичный адрес. Учтите, что некоторые биржи не принимают прямые переводы из Spark.</translation>
     </message>
 </context>
 <context>
@@ -2337,10 +3133,6 @@
         <translation>Вы можете подписывать сообщения/соглашения своими адресами, чтобы доказать свою возможность получать FIRO на них. Будьте осторожны, не подписывайте что-то неопределённое или случайное, так как фишинговые атаки могут обманным путём заставить вас подписать нежелательные сообщения. Подписывайте только те сообщения, с которыми вы согласны вплоть до мелочей.</translation>
     </message>
     <message>
-        <source>The Firo address to sign the message with</source>
-        <translation>Адрес Firo, которым подписать сообщение</translation>
-    </message>
-    <message>
         <source>Choose previously used address</source>
         <translation>Выберите ранее использованный адрес</translation>
     </message>
@@ -2369,10 +3161,6 @@
         <translation>Скопировать текущую подпись в системный буфер обмена</translation>
     </message>
     <message>
-        <source>Sign the message to prove you own this Firo address</source>
-        <translation>Подписать сообщение, чтобы доказать владение адресом Firo</translation>
-    </message>
-    <message>
         <source>Sign &amp;Message</source>
         <translation>Подписать &amp;Сообщение</translation>
     </message>
@@ -2390,15 +3178,7 @@
     </message>
     <message>
         <source>Enter the receiver's address, message (ensure you copy line breaks, spaces, tabs, etc. exactly) and signature below to verify the message. Be careful not to read more into the signature than what is in the signed message itself, to avoid being tricked by a man-in-the-middle attack. Note that this only proves the signing party receives with the address, it cannot prove sendership of any transaction!</source>
-        <translation>Введите ниже адрес получателя, сообщение (убедитесь, что переводы строк, пробелы, табы и т.п. в точности скопированы) и подпись, чтобы проверить сообщение. Убедитесь, что не скопировали лишнего в подпись, по сравнению с самим подписываемым сообщением, чтобы не стать жертвой атаки "man-in-the-middle". Заметьте, что эта операция удостоверяет лишь авторство подписавшего, но не может удостоверить отправителя транзакции.</translation>
-    </message>
-    <message>
-        <source>The Firo address the message was signed with</source>
-        <translation>Адрес Firo, которым было подписано сообщение</translation>
-    </message>
-    <message>
-        <source>Verify the message to ensure it was signed with the specified Firo address</source>
-        <translation>Проверить сообщение, чтобы убедиться, что оно было подписано указанным адресом Firo</translation>
+        <translation>Введите ниже адрес получателя, сообщение (точно скопируйте все переводы строк, пробелы, табуляцию и т. п.) и подпись, чтобы проверить сообщение. Чтобы не стать жертвой атаки посредника, не приписывайте подписи смысл, выходящий за рамки самого подписанного сообщения. Учтите: подпись доказывает лишь возможность подписавшей стороны получать средства на этот адрес, но не доказывает, что она отправила какую-либо транзакцию!</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -2460,12 +3240,64 @@
         <source>Message verified.</source>
         <translation>Сообщение проверено.</translation>
     </message>
+    <message>
+        <source>The Firo or Spark address to sign the message with</source>
+        <translation>Адрес Firo или Spark для подписи сообщения</translation>
+    </message>
+    <message>
+        <source>Sign the message to prove you own this Firo or Spark address</source>
+        <translation>Подпишите сообщение, чтобы подтвердить владение этим адресом Firo или Spark</translation>
+    </message>
+    <message>
+        <source>The Firo or Spark address the message was signed with</source>
+        <translation>Адрес Firo или Spark, которым подписано сообщение</translation>
+    </message>
+    <message>
+        <source>Verify the message to ensure it was signed with the specified Firo or Spark address</source>
+        <translation>Проверьте сообщение, чтобы убедиться, что оно подписано указанным адресом Firo или Spark</translation>
+    </message>
+    <message>
+        <source>The entered Spark name is not registered.</source>
+        <translation>Введённое имя Spark не зарегистрировано.</translation>
+    </message>
+    <message>
+        <source>The entered address is for a different network.</source>
+        <translation>Введённый адрес относится к другой сети.</translation>
+    </message>
 </context>
 <context>
     <name>SplashScreen</name>
     <message>
         <source>[testnet]</source>
         <translation>[тестовая сеть]</translation>
+    </message>
+    <message>
+        <source>Testnet</source>
+        <translation>Тестовая сеть</translation>
+    </message>
+    <message>
+        <source>[devnet]</source>
+        <translation>[devnet]</translation>
+    </message>
+    <message>
+        <source>Devnet</source>
+        <translation>Сеть разработки</translation>
+    </message>
+    <message>
+        <source>Quit application</source>
+        <translation>Выйти из приложения</translation>
+    </message>
+    <message>
+        <source>Starting Firo...</source>
+        <translation>Запуск Firo...</translation>
+    </message>
+    <message>
+        <source>%1%</source>
+        <translation>%1%</translation>
+    </message>
+    <message>
+        <source>Shutting down...</source>
+        <translation>Завершение работы...</translation>
     </message>
 </context>
 <context>
@@ -2479,7 +3311,11 @@
     <name>TransactionDesc</name>
     <message numerus="yes">
         <source>Open for %n more block(s)</source>
-        <translation><numerusform>Открыто для ещё %n блока</numerusform><numerusform>Открыто для ещё %n блоков</numerusform><numerusform>Открыто для ещё %n блоков</numerusform><numerusform>Открыто для ещё %n блоков</numerusform></translation>
+        <translation>
+            <numerusform>Открыто ещё на %n блок</numerusform>
+            <numerusform>Открыто ещё на %n блока</numerusform>
+            <numerusform>Открыто ещё на %n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>Open until %1</source>
@@ -2492,18 +3328,6 @@
     <message>
         <source>%1/offline</source>
         <translation>%1/отключен</translation>
-    </message>
-    <message>
-        <source>0/unconfirmed, %1</source>
-        <translation>0/не подтверждено, %1</translation>
-    </message>
-    <message>
-        <source>in memory pool</source>
-        <translation>В памяти</translation>
-    </message>
-    <message>
-        <source>not in memory pool</source>
-        <translation>Не в памяти</translation>
     </message>
     <message>
         <source>abandoned</source>
@@ -2527,7 +3351,11 @@
     </message>
     <message numerus="yes">
         <source>, broadcast through %n node(s)</source>
-        <translation><numerusform>, разослано через %n узел</numerusform><numerusform>, разослано через %n узла</numerusform><numerusform>, разослано через %n узлов</numerusform><numerusform>, разослано через %n узлов</numerusform></translation>
+        <translation>
+            <numerusform>, разослано через %n узел</numerusform>
+            <numerusform>, разослано через %n узла</numerusform>
+            <numerusform>, разослано через %n узлов</numerusform>
+        </translation>
     </message>
     <message>
         <source>Date</source>
@@ -2571,7 +3399,11 @@
     </message>
     <message numerus="yes">
         <source>matures in %n more block(s)</source>
-        <translation><numerusform>будет доступно через %n блок</numerusform><numerusform>будет доступно через %n блока</numerusform><numerusform>будет доступно через %n блоков</numerusform><numerusform>будет доступно через %n блоков</numerusform></translation>
+        <translation>
+            <numerusform>будет доступно через %n блок</numerusform>
+            <numerusform>будет доступно через %n блока</numerusform>
+            <numerusform>будет доступно через %n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>not accepted</source>
@@ -2618,10 +3450,6 @@
         <translation>Номер выхода</translation>
     </message>
     <message>
-        <source>Merchant</source>
-        <translation>Продавец</translation>
-    </message>
-    <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
         <translation>Сгенерированные монеты должны подождать %1 блоков, прежде чем они могут быть потрачены. Когда вы сгенерировали этот блок, он был отправлен в сеть для добавления в цепочку блоков. Если он не попадёт в цепь, его статус изменится на "не принят", и монеты будут недействительны. Это иногда происходит в случае, если другой узел сгенерирует блок на несколько секунд раньше вас.</translation>
     </message>
@@ -2649,6 +3477,26 @@
         <source>false</source>
         <translation>ложь</translation>
     </message>
+    <message>
+        <source>locked via LLMQ based ChainLocks</source>
+        <translation>зафиксирована с помощью ChainLocks на основе LLMQ</translation>
+    </message>
+    <message>
+        <source>verified via LLMQ based InstantSend</source>
+        <translation>проверена с помощью InstantSend на основе LLMQ</translation>
+    </message>
+    <message>
+        <source>Messages</source>
+        <translation>Сообщения</translation>
+    </message>
+    <message>
+        <source>Received with RAP address</source>
+        <translation>Получено на адрес RAP</translation>
+    </message>
+    <message>
+        <source>Sent to RAP address</source>
+        <translation>Отправлено на адрес RAP</translation>
+    </message>
 </context>
 <context>
     <name>TransactionDescDialog</name>
@@ -2671,13 +3519,13 @@
         <source>Type</source>
         <translation>Тип</translation>
     </message>
-    <message>
-        <source>Label</source>
-        <translation>Метка</translation>
-    </message>
     <message numerus="yes">
         <source>Open for %n more block(s)</source>
-        <translation><numerusform>Открыто для ещё %n блока</numerusform><numerusform>Открыто для ещё %n блоков</numerusform><numerusform>Открыто для ещё %n блоков</numerusform><numerusform>Открыто для ещё %n блоков</numerusform></translation>
+        <translation>
+            <numerusform>Открыто ещё на %n блок</numerusform>
+            <numerusform>Открыто ещё на %n блока</numerusform>
+            <numerusform>Открыто ещё на %n блоков</numerusform>
+        </translation>
     </message>
     <message>
         <source>Open until %1</source>
@@ -2775,13 +3623,69 @@
         <source>Amount removed from or added to balance.</source>
         <translation>Снятая или добавленная к балансу сумма.</translation>
     </message>
+    <message>
+        <source>Address / Label</source>
+        <translation>Адрес / Метка</translation>
+    </message>
+    <message>
+        <source>Spend to</source>
+        <translation>Отправка получателю</translation>
+    </message>
+    <message>
+        <source>Spend to yourself</source>
+        <translation>Отправка себе</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>Анонимизация</translation>
+    </message>
+    <message>
+        <source>Sent to RAP address</source>
+        <translation>Отправлено на адрес RAP</translation>
+    </message>
+    <message>
+        <source>Received with RAP address</source>
+        <translation>Получено на адрес RAP</translation>
+    </message>
+    <message>
+        <source>Mint spark to yourself</source>
+        <translation>Создание приватных монет Spark для себя</translation>
+    </message>
+    <message>
+        <source>Spend spark to yourself</source>
+        <translation>Отправка монет Spark себе</translation>
+    </message>
+    <message>
+        <source>Mint spark to</source>
+        <translation>Создание приватных монет Spark для получателя</translation>
+    </message>
+    <message>
+        <source>Spend spark to</source>
+        <translation>Отправка монет Spark получателю</translation>
+    </message>
+    <message>
+        <source>Received Spark</source>
+        <translation>Получено в Spark</translation>
+    </message>
+    <message>
+        <source>Anonymized</source>
+        <translation>Анонимизировано</translation>
+    </message>
+    <message>
+        <source>Involves a watch-only address.</source>
+        <translation>Участвует адрес только для наблюдения.</translation>
+    </message>
+    <message>
+        <source>Locked by InstantSend.</source>
+        <translation>Зафиксирована с помощью InstantSend.</translation>
+    </message>
+    <message>
+        <source>Whether or not this transaction was locked by InstantSend.</source>
+        <translation>Зафиксирована ли эта транзакция с помощью InstantSend.</translation>
+    </message>
 </context>
 <context>
     <name>TransactionView</name>
-    <message>
-        <source>All</source>
-        <translation>Все</translation>
-    </message>
     <message>
         <source>Today</source>
         <translation>Сегодня</translation>
@@ -2845,6 +3749,10 @@
     <message>
         <source>Copy label</source>
         <translation>Копировать метку</translation>
+    </message>
+    <message>
+        <source>Copy RAP address/label</source>
+        <translation>Копировать адрес/метку RAP</translation>
     </message>
     <message>
         <source>Copy amount</source>
@@ -2930,6 +3838,190 @@
         <source>to</source>
         <translation>до</translation>
     </message>
+    <message>
+        <source>RECEIVED</source>
+        <translation>ПОЛУЧЕНО</translation>
+    </message>
+    <message>
+        <source>SENT</source>
+        <translation>ОТПРАВЛЕНО</translation>
+    </message>
+    <message>
+        <source>Filter by watch-only involvement</source>
+        <translation>Фильтр по участию адресов только для наблюдения</translation>
+    </message>
+    <message>
+        <source>Watch-only filter</source>
+        <translation>Фильтр адресов только для наблюдения</translation>
+    </message>
+    <message>
+        <source>All transactions</source>
+        <translation>Все транзакции</translation>
+    </message>
+    <message>
+        <source>Watch-only transactions</source>
+        <translation>Транзакции с адресами только для наблюдения</translation>
+    </message>
+    <message>
+        <source>Non-watch-only transactions</source>
+        <translation>Транзакции без адресов только для наблюдения</translation>
+    </message>
+    <message>
+        <source>Filter by InstantSend status</source>
+        <translation>Фильтр по статусу InstantSend</translation>
+    </message>
+    <message>
+        <source>Any InstantSend status</source>
+        <translation>Любой статус InstantSend</translation>
+    </message>
+    <message>
+        <source>Locked by InstantSend</source>
+        <translation>Зафиксированы с помощью InstantSend</translation>
+    </message>
+    <message>
+        <source>Not locked by InstantSend</source>
+        <translation>Не зафиксированы с помощью InstantSend</translation>
+    </message>
+    <message>
+        <source>Filter by date</source>
+        <translation>Фильтр по дате</translation>
+    </message>
+    <message>
+        <source>Any date</source>
+        <translation>Любая дата</translation>
+    </message>
+    <message>
+        <source>Filter by transaction type</source>
+        <translation>Фильтр по типу транзакции</translation>
+    </message>
+    <message>
+        <source>Any type</source>
+        <translation>Любой тип</translation>
+    </message>
+    <message>
+        <source>Spend to</source>
+        <translation>Отправка получателю</translation>
+    </message>
+    <message>
+        <source>Spend to yourself</source>
+        <translation>Отправка себе</translation>
+    </message>
+    <message>
+        <source>Anonymize</source>
+        <translation>Анонимизация</translation>
+    </message>
+    <message>
+        <source>Sent to RAP address</source>
+        <translation>Отправлено на адрес RAP</translation>
+    </message>
+    <message>
+        <source>Received with RAP address</source>
+        <translation>Получено на адрес RAP</translation>
+    </message>
+    <message>
+        <source>Mint spark to yourself</source>
+        <translation>Создание приватных монет Spark для себя</translation>
+    </message>
+    <message>
+        <source>Spend spark to yourself</source>
+        <translation>Отправка монет Spark себе</translation>
+    </message>
+    <message>
+        <source>Mint spark to</source>
+        <translation>Создание приватных монет Spark для получателя</translation>
+    </message>
+    <message>
+        <source>Spend spark to</source>
+        <translation>Отправка монет Spark получателю</translation>
+    </message>
+    <message>
+        <source>Received Spark</source>
+        <translation>Получено в Spark</translation>
+    </message>
+    <message>
+        <source>Sort by</source>
+        <translation>Сортировать по</translation>
+    </message>
+    <message>
+        <source>Sort transactions by</source>
+        <translation>Сортировать транзакции по</translation>
+    </message>
+    <message>
+        <source>Sort the transaction history</source>
+        <translation>Сортировать историю транзакций</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Статус</translation>
+    </message>
+    <message>
+        <source>Transaction type</source>
+        <translation>Тип транзакции</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>Сумма</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>Экспорт</translation>
+    </message>
+    <message>
+        <source>Export the data in the current tab to a file</source>
+        <translation>Экспортировать данные текущей вкладки в файл</translation>
+    </message>
+    <message>
+        <source>No transactions yet</source>
+        <translation>Транзакций пока нет</translation>
+    </message>
+    <message>
+        <source>Your history will appear here after the first transfer</source>
+        <translation>История появится здесь после первого перевода</translation>
+    </message>
+    <message>
+        <source>Re-broadcast transaction</source>
+        <translation>Повторно передать транзакцию в сеть</translation>
+    </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation>Кошелёк ещё синхронизируется</translation>
+    </message>
+    <message>
+        <source>Transactions will appear here as synchronization completes</source>
+        <translation>Транзакции появятся здесь по мере завершения синхронизации</translation>
+    </message>
+    <message>
+        <source>No matching transactions</source>
+        <translation>Подходящих транзакций нет</translation>
+    </message>
+    <message>
+        <source>Try adjusting the filters above</source>
+        <translation>Попробуйте изменить фильтры выше</translation>
+    </message>
+    <message>
+        <source>Sort ascending</source>
+        <translation>Сортировать по возрастанию</translation>
+    </message>
+    <message>
+        <source>Sort descending</source>
+        <translation>Сортировать по убыванию</translation>
+    </message>
+    <message>
+        <source>Re-broadcast</source>
+        <translation>Повторно передать в сеть</translation>
+    </message>
+    <message>
+        <source>Broadcast succeeded</source>
+        <translation>Передача в сеть выполнена</translation>
+    </message>
+    <message>
+        <source>There was an error trying to broadcast the message: %1</source>
+        <translation>Ошибка при передаче сообщения в сеть: %1</translation>
+    </message>
 </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>
@@ -2951,17 +4043,129 @@
         <source>Send Coins</source>
         <translation>Отправка</translation>
     </message>
+    <message>
+        <source>Loading address book...</source>
+        <translation>Загрузка адресной книги...</translation>
+    </message>
+    <message>
+        <source>Loading payment codes...</source>
+        <translation>Загрузка платёжных кодов...</translation>
+    </message>
+    <message>
+        <source>Preparing Spark interface...</source>
+        <translation>Подготовка интерфейса Spark...</translation>
+    </message>
+    <message>
+        <source>Loading transaction history...</source>
+        <translation>Загрузка истории транзакций...</translation>
+    </message>
+    <message>
+        <source>Loading receive requests...</source>
+        <translation>Загрузка запросов платежей...</translation>
+    </message>
+    <message>
+        <source>Reticulating splines...</source>
+        <translation>Построение сплайнов...</translation>
+    </message>
+    <message>
+        <source>You have received a payment to a RAP address, please unlock your wallet to receive.</source>
+        <translation>На адрес RAP поступил платёж. Разблокируйте кошелёк, чтобы получить средства.</translation>
+    </message>
+    <message>
+        <source>RAP address payment</source>
+        <translation>Платёж на адрес RAP</translation>
+    </message>
+    <message>
+        <source>RAP addresses require you to unlock your wallet every time a payment to it is received.</source>
+        <translation>Для получения каждого платежа на адрес RAP требуется разблокировать кошелёк.</translation>
+    </message>
+    <message>
+        <source>If you do not enter your password now, you will need to rescan your wallet to receive your FIRO.&lt;br/&gt;&lt;br/&gt;Re-enter your password?</source>
+        <translation>Если вы не введёте пароль сейчас, для получения FIRO потребуется повторно просканировать кошелёк.&lt;br/&gt;&lt;br/&gt;Ввести пароль ещё раз?</translation>
+    </message>
+    <message>
+        <source>Spark wallet is not available.</source>
+        <translation>Кошелёк Spark недоступен.</translation>
+    </message>
+    <message>
+        <source>The entered address is invalid.</source>
+        <translation>Введённый адрес недопустим.</translation>
+    </message>
+    <message>
+        <source>The entered address is for a different network.</source>
+        <translation>Введённый адрес относится к другой сети.</translation>
+    </message>
+    <message>
+        <source>The entered address does not belong to this wallet.</source>
+        <translation>Введённый адрес не принадлежит этому кошельку.</translation>
+    </message>
+    <message>
+        <source>Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically.</source>
+        <translation>Управление монетами Spark временно поддерживает выбор не более одной монеты. Снимите выбор, чтобы кошелёк мог автоматически разделить платёж.</translation>
+    </message>
+    <message>
+        <source>Subtracting the fee from the amount is temporarily unavailable for Spark spends.</source>
+        <translation>Вычет комиссии из суммы временно недоступен при отправке монет Spark.</translation>
+    </message>
+    <message>
+        <source>Spend to transparent address limit exceeded.</source>
+        <translation>Превышен лимит отправки на публичный адрес.</translation>
+    </message>
+    <message>
+        <source>A Spark payment may use at most %1 transactions.</source>
+        <translation>Платёж Spark может состоять не более чем из %1 транзакций.</translation>
+    </message>
+    <message>
+        <source>The available Spark coins cannot cover the amount and the required transaction fees.</source>
+        <translation>Доступных монет Spark недостаточно для покрытия суммы и необходимых комиссий за транзакции.</translation>
+    </message>
+    <message>
+        <source>Unable to create a single-input Spark transaction.</source>
+        <translation>Не удалось создать транзакцию Spark с одним входом.</translation>
+    </message>
+    <message>
+        <source>Spark fee estimate did not match the wallet (planned %1, wallet %2).</source>
+        <translation>Оценка комиссии Spark не совпала с расчётом кошелька (планировалось %1, кошелёк: %2).</translation>
+    </message>
+    <message>
+        <source>Unable to create a versioned Spark transaction.</source>
+        <translation>Не удалось создать транзакцию Spark нужной версии.</translation>
+    </message>
+    <message>
+        <source>Chain height changed during Spark name construction; retry</source>
+        <translation>Высота блокчейна изменилась при создании имени Spark; повторите попытку</translation>
+    </message>
+    <message>
+        <source>Spark name registration temporarily uses a single Spark coin. Please select at most one.</source>
+        <translation>Для регистрации имени Spark временно используется одна монета Spark. Выберите не более одной монеты.</translation>
+    </message>
+    <message>
+        <source>Unable to select a Spark coin.</source>
+        <translation>Не удалось выбрать монету Spark.</translation>
+    </message>
+    <message>
+        <source>Spark name registration temporarily requires one Spark coin large enough to cover the registration and transaction fees.</source>
+        <translation>Для регистрации имени Spark временно требуется одна монета Spark, достаточная для оплаты регистрации и комиссии за транзакцию.</translation>
+    </message>
+    <message>
+        <source>Unable to create the expected Spark transaction format.</source>
+        <translation>Не удалось создать транзакцию Spark в ожидаемом формате.</translation>
+    </message>
+    <message>
+        <source>Refusing to commit an incompatible Spark transaction format.</source>
+        <translation>Сохранение транзакции Spark в несовместимом формате отклонено.</translation>
+    </message>
+    <message>
+        <source>Refusing to commit an incomplete Spark transaction.</source>
+        <translation>Сохранение неполной транзакции Spark отклонено.</translation>
+    </message>
+    <message>
+        <source> This payment was split across %1 transactions and %2 of them were already sent, so the recipients have been paid only in part. Do not retry the whole payment. Already sent: %3</source>
+        <translation> Этот платёж был разделён на %1 транзакций, из которых %2 уже отправлены, поэтому получатели получили лишь часть средств. Не повторяйте платёж целиком. Уже отправлено: %3</translation>
+    </message>
 </context>
 <context>
     <name>WalletView</name>
-    <message>
-        <source>&amp;Export</source>
-        <translation>&amp;Экспорт</translation>
-    </message>
-    <message>
-        <source>Export the data in the current tab to a file</source>
-        <translation>Экспортировать данные текущей вкладки в файл</translation>
-    </message>
     <message>
         <source>Backup Wallet</source>
         <translation>Резервная копия бумажника</translation>
@@ -3011,7 +4215,7 @@
     </message>
     <message>
         <source>Accept connections from outside (default: 1 if no -proxy or -connect/-noconnect)</source>
-        <translation>Принимать подключения снаружи (по умолчанию: 1, если не -proxy или -connect/-disconnect)</translation>
+        <translation>Принимать входящие соединения (по умолчанию: 1, если не заданы -proxy, -connect или -noconnect)</translation>
     </message>
     <message>
         <source>Connect only to the specified node(s); -noconnect or -connect=0 alone to disable automatic connections</source>
@@ -3020,10 +4224,6 @@
     <message>
         <source>Distributed under the MIT software license, see the accompanying file %s or %s</source>
         <translation>Распространяется под лицензией MIT, см. приложенный файл %s или %s</translation>
-    </message>
-    <message>
-        <source>If &lt;category&gt; is not supplied or if &lt;category&gt; = 1, output all debugging information.</source>
-        <translation>Если &lt;category&gt; не предоставлена или равна 1, выводить всю отладочную информацию.</translation>
     </message>
     <message>
         <source>Prune configured below the minimum of %d MiB.  Please use a higher number.</source>
@@ -3067,7 +4267,7 @@
     </message>
     <message>
         <source>Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)</source>
-        <translation>Принимать транзакции пересылаемые от узлов из белого списка даже если они не удовлетворяют требованиям ретрансляции (по умолчанию: %d)</translation>
+        <translation>Принимать транзакции от узлов из белого списка даже при отключённой ретрансляции транзакций (по умолчанию: %d)</translation>
     </message>
     <message>
         <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>
@@ -3090,16 +4290,12 @@
         <translation>Ошибка чтения %s! Все ключи прочитаны верно, но данные транзакций или записи адресной книги могут отсутствовать или быть неправильными.</translation>
     </message>
     <message>
-        <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)</source>
-        <translation>Выполнить команду, когда меняется транзакция в бумажнике (%s в команде заменяется на TxID)</translation>
-    </message>
-    <message>
         <source>Extra transactions to keep in memory for compact block reconstructions (default: %u)</source>
         <translation>Хранить в памяти дополнительные транзакции для реконструкции компактных блоков (по умолчанию: %u)</translation>
     </message>
     <message>
         <source>If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet: %s)</source>
-        <translation>Если этот блок в цепи, считать его и последующие блоки верными и потенциально пропускать проверку их скриптов (0 для проверки всех, по умолчанию: %s, тестовая сеть: %s)</translation>
+        <translation>Если этот блок находится в цепи, считать его и предшествующие ему блоки действительными и при необходимости пропускать проверку их скриптов (0 = проверять все, по умолчанию: %s, тестовая сеть: %s)</translation>
     </message>
     <message>
         <source>Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)</source>
@@ -3131,7 +4327,7 @@
     </message>
     <message>
         <source>The block database contains a block which appears to be from the future. This may be due to your computer's date and time being set incorrectly. Only rebuild the block database if you are sure that your computer's date and time are correct</source>
-        <translation>База данных блоков содержит блок, который появляется из будущего. Это может из-за некорректно установленных даты и времени на вашем компьютере. Остается только перестроивать базу блоков, если вы уверены, что дата и время корректны.</translation>
+        <translation>База данных блоков содержит блок, который, по-видимому, датирован будущим временем. Это может быть вызвано неверными настройками даты и времени на вашем компьютере. Перестраивайте базу данных блоков только в том случае, если уверены, что дата и время на вашем компьютере установлены правильно.</translation>
     </message>
     <message>
         <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
@@ -3147,7 +4343,7 @@
     </message>
     <message>
         <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>Имя пользователя и хэш пароля для JSON-RPC соединений. Поле &lt;userpw&gt; использует формат: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Каноничный пример скрипта на питоне находится в share/rpcuser. Эта опция может быть указана несколько раз</translation>
+        <translation>Имя пользователя и хэш пароля для подключений JSON-RPC. Поле &lt;userpw&gt; имеет формат &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Пример скрипта Python находится в share/rpcuser. Клиент подключается обычным способом, используя пару параметров rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Этот параметр можно указать несколько раз</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>
@@ -3207,7 +4403,7 @@
     </message>
     <message>
         <source>Copyright (C) %i-%i</source>
-        <translation>Copyright (C) %i-%i</translation>
+        <translation>Авторские права (C) %i-%i</translation>
     </message>
     <message>
         <source>Corrupted block database detected</source>
@@ -3267,7 +4463,7 @@
     </message>
     <message>
         <source>Error loading %s: You can't disable HD on a already existing HD wallet</source>
-        <translation>Ошибка загрузки %s: Вы не можете включить HD в уже существующем не-HD кошельке</translation>
+        <translation>Ошибка загрузки %s: нельзя отключить HD в уже существующем HD-кошельке</translation>
     </message>
     <message>
         <source>Error loading block database</source>
@@ -3311,7 +4507,7 @@
     </message>
     <message>
         <source>Keep the transaction memory pool below &lt;n&gt; megabytes (default: %u)</source>
-        <translation>Сбрасывать транзакции из памяти на диск каждые &lt;n&gt; мегабайт (по умолчанию: %u)</translation>
+        <translation>Ограничить размер пула транзакций в памяти значением менее &lt;n&gt; мегабайт (по умолчанию: %u)</translation>
     </message>
     <message>
         <source>Loading banlist...</source>
@@ -3324,10 +4520,6 @@
     <message>
         <source>Not enough file descriptors available.</source>
         <translation>Недостаточно файловых дескрипторов.</translation>
-    </message>
-    <message>
-        <source>Only connect to nodes in network &lt;net&gt; (ipv4, ipv6 or onion)</source>
-        <translation>Соединяться только по сети &lt;net&gt; (ipv4, ipv6 или onion)</translation>
     </message>
     <message>
         <source>Print this help message and exit</source>
@@ -3351,7 +4543,7 @@
     </message>
     <message>
         <source>Rebuild chain state from the currently indexed blocks</source>
-        <translation>Перестроить индекс цепи из текущих индексированных блоков</translation>
+        <translation>Перестроить состояние цепочки из уже проиндексированных блоков</translation>
     </message>
     <message>
         <source>Rewinding blocks...</source>
@@ -3455,7 +4647,7 @@
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)</source>
-        <translation>Комиссии (в %s/Кб) меньшие этого значения считаются нулевыми для создания, ретрансляции, получения транзакции (по умолчанию: %s)</translation>
+        <translation>Комиссии (в %s/кБ) ниже этого значения считаются нулевыми при ретрансляции, майнинге и создании транзакций (по умолчанию: %s)</translation>
     </message>
     <message>
         <source>If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)</source>
@@ -3515,7 +4707,7 @@
     </message>
     <message>
         <source>Imports blocks from external blk000??.dat file on startup</source>
-        <translation>Импортировать блоки из внешнего файла blk000?.dat при запуске</translation>
+        <translation>Импортировать блоки из внешнего файла blk000??.dat при запуске</translation>
     </message>
     <message>
         <source>Information</source>
@@ -3523,7 +4715,7 @@
     </message>
     <message>
         <source>Invalid amount for -paytxfee=&lt;amount&gt;: '%s' (must be at least %s)</source>
-        <translation>Неверное количество в параметре -paytxfee=&lt;кол-во&gt;: '%s' (должно быть как минимум %s)</translation>
+        <translation>Недопустимая сумма для -paytxfee=&lt;amount&gt;: '%s' (должна быть не меньше %s)</translation>
     </message>
     <message>
         <source>Invalid netmask specified in -whitelist: '%s'</source>
@@ -3547,7 +4739,7 @@
     </message>
     <message>
         <source>Reducing -maxconnections from %d to %d, because of system limitations.</source>
-        <translation>Уменьшите -maxconnections с %d до %d, из-за ограничений системы.</translation>
+        <translation>Значение -maxconnections уменьшено с %d до %d из-за ограничений системы.</translation>
     </message>
     <message>
         <source>Rescan the block chain for missing wallet transactions on startup</source>
@@ -3596,10 +4788,6 @@
     <message>
         <source>Transaction too large for fee policy</source>
         <translation>Транзакция слишком большая для правил комиссии.</translation>
-    </message>
-    <message>
-        <source>Transaction too large</source>
-        <translation>Транзакция слишком большая</translation>
     </message>
     <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
@@ -3654,10 +4842,6 @@
         <translation>(1 = сохранять метаданные транзакции: например, владельца аккаунта и информацию запроса платежа; 2 = отбросить метаданные)</translation>
     </message>
     <message>
-        <source>-maxtxfee is set very high! Fees this large could be paid on a single transaction.</source>
-        <translation>Установлено очень большое значение -maxtxfee. Такие большие комиссии могут быть уплачены в отдельной транзакции.</translation>
-    </message>
-    <message>
         <source>Do not keep transactions in the mempool longer than &lt;n&gt; hours (default: %u)</source>
         <translation>Не хранить транзакции в памяти дольше, чем &lt;n&gt; часов (по умолчанию %u)</translation>
     </message>
@@ -3682,10 +4866,6 @@
         <translation>Держать полный индекс транзакций, используемый RPC-запросом getrawtransaction (по умолчанию: %u)</translation>
     </message>
     <message>
-        <source>Number of seconds to keep misbehaving peers from reconnecting (default: %u)</source>
-        <translation>Число секунд блокирования неправильно ведущих себя узлов (по умолчанию: %u)</translation>
-    </message>
-    <message>
         <source>Output debugging information (default: %u, supplying &lt;category&gt; is optional)</source>
         <translation>Выводить отладочную информацию (по умолчанию: %u, указание &lt;category&gt; необязательно)</translation>
     </message>
@@ -3702,16 +4882,12 @@
         <translation>Поддерживать фильтрацию блоков и транзакций с помощью фильтра Блума (по умолчанию: %u)</translation>
     </message>
     <message>
-        <source>This is the transaction fee you may pay when fee estimates are not available.</source>
-        <translation>Это комиссия за транзакцию, которую вы можете заплатить, когда расчёт комиссии недоступен.</translation>
-    </message>
-    <message>
         <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
         <translation>Этот продукт включает ПО, разработанное OpenSSL Project для использования в OpenSSL Toolkit %s и криптографическое ПО, написанное Eric Young и ПО для работы с UPnP, написанное Thomas Bernard.</translation>
     </message>
     <message>
         <source>Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments.</source>
-        <translation>Текущая длина строки версии сети (%i) превышает максимальную длину (%i). Увеливается количество или размер uacomments.</translation>
+        <translation>Общая длина строки версии сети (%i) превышает максимальную длину (%i). Уменьшите количество или размер uacomments.</translation>
     </message>
     <message>
         <source>Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)</source>
@@ -3771,7 +4947,7 @@
     </message>
     <message>
         <source>Listen for JSON-RPC connections on &lt;port&gt; (default: %u or testnet: %u)</source>
-        <translation>Прослушивать подключения JSON-RPC на &lt;порту&gt; (по умолчанию: %u или %u в тестовой сети)</translation>
+        <translation>Прослушивать подключения JSON-RPC на &lt;port&gt; (по умолчанию: %u, в тестовой сети: %u)</translation>
     </message>
     <message>
         <source>Listen for connections on &lt;port&gt; (default: %u or testnet: %u)</source>
@@ -3850,14 +5026,6 @@
         <translation>Это минимальная комиссия, которую вы платите с каждой транзакцией.</translation>
     </message>
     <message>
-        <source>This is the transaction fee you will pay if you send a transaction.</source>
-        <translation>Это комиссия, которую вы заплатите за эту транзакцию.</translation>
-    </message>
-    <message>
-        <source>Threshold for disconnecting misbehaving peers (default: %u)</source>
-        <translation>Порог для отключения неправильно ведущих себя узлов (по умолчанию: %u)</translation>
-    </message>
-    <message>
         <source>Transaction amounts must not be negative</source>
         <translation>Сумма транзакции не должна быть негативной</translation>
     </message>
@@ -3908,6 +5076,1523 @@
     <message>
         <source>Error</source>
         <translation>Ошибка</translation>
+    </message>
+    <message>
+        <source>Zerocoin-&gt;Sigma remint</source>
+        <translation>Повторное создание монет: Zerocoin-&gt;Sigma</translation>
+    </message>
+    <message>
+        <source>A fee rate (in %s/kB) that will be used when fee estimation has insufficient data (default: %s)</source>
+        <translation>Ставка комиссии (в %s/кБ), используемая при недостатке данных для оценки комиссии (по умолчанию: %s)</translation>
+    </message>
+    <message>
+        <source>Amount for private recipient %1% is too small to send after the fee has been deducted</source>
+        <translation>Сумма для приватного получателя %1% слишком мала для отправки после вычета комиссии</translation>
+    </message>
+    <message>
+        <source>Amount for recipient %1% is too small to send after the fee has been deducted</source>
+        <translation>Сумма для получателя %1% слишком мала для отправки после вычета комиссии</translation>
+    </message>
+    <message>
+        <source>Could not locate RPC credentials. No authentication cookie could be found, and no rpcpassword is set in the configuration file (%s)</source>
+        <translation>Не удалось найти данные для аутентификации RPC. Файл cookie для аутентификации не найден, и rpcpassword не задан в файле конфигурации (%s)</translation>
+    </message>
+    <message>
+        <source>Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup</source>
+        <translation>Удалить все созданные монеты Sigma и восстановить только соответствующие части блокчейна с помощью -reindex при запуске</translation>
+    </message>
+    <message>
+        <source>Do not check for masternode payout when handling listtransactions, listsinceblock and gettransaction calls (improves performance)</source>
+        <translation>Не проверять выплаты мастернодам при обработке вызовов listtransactions, listsinceblock и gettransaction (повышает производительность)</translation>
+    </message>
+    <message>
+        <source>Error: The transaction was rejected after %u of %u mint transactions were already sent. Do not retry the whole mint.</source>
+        <translation>Ошибка: транзакция отклонена после отправки %u из %u транзакций создания приватных монет. Не повторяйте всю операцию создания монет.</translation>
+    </message>
+    <message>
+        <source>Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.</source>
+        <translation>Ошибка: транзакция отклонена! Это может произойти, если некоторые монеты в вашем кошельке уже потрачены. Например, если вы использовали копию wallet.dat и потратили монеты в ней, а здесь они не отмечены как потраченные.</translation>
+    </message>
+    <message>
+        <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID, %t is replaced by transaction type: 'spark' or 'regular')</source>
+        <translation>Выполнить команду при изменении транзакции кошелька (%s в команде заменяется на TxID, %t заменяется на тип транзакции: 'spark' или 'regular')</translation>
+    </message>
+    <message>
+        <source>Failed to create backup, file already exists! This could happen if you restarted wallet in less than 60 seconds. You can continue if you are ok with this.</source>
+        <translation>Не удалось создать резервную копию: файл уже существует! Это могло произойти из-за перезапуска кошелька менее чем через 60 секунд. Если вас это устраивает, можно продолжить.</translation>
+    </message>
+    <message>
+        <source>Has to have at least two mint coins with at least 1 confirmation in order to spend a coin</source>
+        <translation>Для расходования монеты нужны как минимум две созданные приватные монеты, каждая хотя бы с 1 подтверждением</translation>
+    </message>
+    <message>
+        <source>If &lt;category&gt; is not supplied or is 1 or all, output all debugging information. The value none resets categories specified before it. The value 0 retains Firo's historical behavior and disables all logging except errors.</source>
+        <translation>Если &lt;category&gt; не указана или имеет значение 1 либо all, выводить всю отладочную информацию. Значение none сбрасывает ранее указанные категории. Значение 0 сохраняет прежнее поведение Firo и отключает запись всех сообщений, кроме ошибок.</translation>
+    </message>
+    <message>
+        <source>In case of sync/reindex verifies privacy (Spark) proofs with batch verification, default: true</source>
+        <translation>При синхронизации или переиндексации проверять доказательства приватности (Spark) пакетно (по умолчанию: true)</translation>
+    </message>
+    <message>
+        <source>Interval in seconds for rebroadcasting InstantSend-locked mempool transactions to peers (0 = disabled, default: %u)</source>
+        <translation>Интервал в секундах между повторными отправками узлам транзакций из пула памяти, заблокированных InstantSend (0 = отключено, по умолчанию: %u)</translation>
+    </message>
+    <message>
+        <source>Make automatic outbound connections only to network &lt;net&gt; (ipv4, ipv6 or onion). Can be specified multiple times to allow multiple networks.</source>
+        <translation>Автоматически устанавливать исходящие соединения только с сетью &lt;net&gt; (ipv4, ipv6 или onion). Можно указать несколько раз, чтобы разрешить несколько сетей.</translation>
+    </message>
+    <message>
+        <source>Optionally add the "S" flag to wrap the output in a pay-to-script-hash.</source>
+        <translation>При необходимости добавить флаг "S", чтобы обернуть выход в pay-to-script-hash.</translation>
+    </message>
+    <message>
+        <source>Optionally add the "W" flag to produce a pay-to-witness-pubkey-hash output</source>
+        <translation>При необходимости добавить флаг "W", чтобы создать выход pay-to-witness-pubkey-hash</translation>
+    </message>
+    <message>
+        <source>Optionally add the "W" flag to produce a pay-to-witness-script-hash output</source>
+        <translation>При необходимости добавить флаг "W", чтобы создать выход pay-to-witness-script-hash</translation>
+    </message>
+    <message>
+        <source>Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is explicitly forbidden: -onion=0</source>
+        <translation>Исходящие соединения ограничены сетью Tor (-onlynet=onion), но использование прокси для доступа к Tor явно запрещено: -onion=0</translation>
+    </message>
+    <message>
+        <source>Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is not provided: none of -proxy, -onion, -torsetup or -listenonion (with a usable -torcontrol) is given.</source>
+        <translation>Исходящие соединения ограничены сетью Tor (-onlynet=onion), но прокси для доступа к Tor не задан: не указан ни один из параметров -proxy, -onion, -torsetup или -listenonion (с рабочим -torcontrol).</translation>
+    </message>
+    <message>
+        <source>Output only the hex-encoded transaction id of the resultant transaction.</source>
+        <translation>Вывести только идентификатор полученной транзакции в шестнадцатеричном виде.</translation>
+    </message>
+    <message>
+        <source>Read extra arguments from standard input, one per line until EOF/Ctrl-D (recommended for sensitive information such as passphrases)</source>
+        <translation>Читать дополнительные аргументы из стандартного ввода, по одному в строке, до EOF/Ctrl-D (рекомендуется для конфиденциальных данных, например паролей)</translation>
+    </message>
+    <message>
+        <source>Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically.</source>
+        <translation>Управление монетами Spark временно поддерживает выбор не более одной монеты. Снимите выделение, чтобы кошелёк автоматически разделил платёж.</translation>
+    </message>
+    <message>
+        <source>Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block.</source>
+        <translation>Пакетная проверка Spark не удалась. Недопустимые транзакции расходования монет перечислены в debug.log. Перезапустите узел: пакетная проверка отключена, а переиндексация начнётся автоматически, чтобы перестроить состояние цепочки и проверить доказательства Spark по каждому блоку.</translation>
+    </message>
+    <message>
+        <source>Spark multi-input spends are temporarily disabled. No single available Spark coin can fund this transaction.</source>
+        <translation>Расходование монет Spark с несколькими входами временно отключено. Ни одной доступной монеты Spark недостаточно для этой транзакции.</translation>
+    </message>
+    <message>
+        <source>Spark spend batch failed after committing %u of %u transactions: %s. Do not retry the whole payment. Already sent: %s</source>
+        <translation>Пакет транзакций расходования монет Spark завершился с ошибкой после проведения %u из %u транзакций: %s. Не повторяйте весь платёж. Уже отправлено: %s</translation>
+    </message>
+    <message>
+        <source>Subtracting the fee from the amount is temporarily unavailable when a Spark spend must be split across multiple transactions.</source>
+        <translation>Вычет комиссии из суммы временно недоступен, если платёж Spark нужно разделить на несколько транзакций.</translation>
+    </message>
+    <message>
+        <source>The available Spark coins cannot cover the amount and the required transaction fees.</source>
+        <translation>Доступных монет Spark недостаточно для покрытия суммы и необходимых комиссий за транзакции.</translation>
+    </message>
+    <message>
+        <source>This product includes Masternodes software developed by the Dash Core developers %s.</source>
+        <translation>Этот продукт включает программное обеспечение мастернод, разработанное командой Dash Core %s.</translation>
+    </message>
+    <message>
+        <source>Threshold for disconnecting and discouraging misbehaving peers (default: %u)</source>
+        <translation>Порог отключения узлов с некорректным поведением и ограничения соединений с ними (по умолчанию: %u)</translation>
+    </message>
+    <message>
+        <source>Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs</source>
+        <translation>Транзакция слишком большая (предел размера: 250 КБ). Выберите меньше входов или объедините свои UTXO</translation>
+    </message>
+    <message>
+        <source>Unsupported logging level or category %s. Valid levels are: %s. Valid categories are: %s.</source>
+        <translation>Неподдерживаемый уровень или категория журналирования %s. Допустимые уровни: %s. Допустимые категории: %s.</translation>
+    </message>
+    <message>
+        <source>Use Mnemonic code for generating deterministic keys. Only has effect during wallet creation/first start</source>
+        <translation>Использовать мнемоническую фразу для генерации детерминированных ключей. Действует только при создании кошелька или первом запуске</translation>
+    </message>
+    <message>
+        <source>Use this argument when you want to keep additional data in block index for mobile api, default: false</source>
+        <translation>Использовать этот аргумент для хранения дополнительных данных в индексе блоков для мобильного API (по умолчанию: false)</translation>
+    </message>
+    <message>
+        <source>User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)</source>
+        <translation>Мнемоническая фраза для HD-кошелька (bip39), заданная пользователем. Действует только при создании кошелька или первом запуске (по умолчанию: генерируется случайно)</translation>
+    </message>
+    <message>
+        <source>User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)</source>
+        <translation>Дополнительный пароль к мнемонической фразе для HD-кошелька (BIP39), заданный пользователем. Действует только при создании кошелька или первом запуске (по умолчанию: пустая строка)</translation>
+    </message>
+    <message>
+        <source>User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)</source>
+        <translation>Начальное значение (seed) для HD-кошелька, заданное пользователем (в шестнадцатеричном виде). Действует только при создании кошелька или первом запуске (по умолчанию: генерируется случайно)</translation>
+    </message>
+    <message>
+        <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
+        <translation>Кошелёк заблокирован, невозможно пополнить запас ключей! Автоматическое резервное копирование и перемешивание отключены. Разблокируйте кошелёк, чтобы пополнить запас ключей.</translation>
+    </message>
+    <message>
+        <source>You are starting in lite mode, all Dash-specific functionality is disabled.</source>
+        <translation>Вы запускаете программу в облегчённом режиме. Все функции, специфичные для Dash, отключены.</translation>
+    </message>
+    <message>
+        <source>You must specify a znodeblsprivkey in the configuration. Please see documentation for help.</source>
+        <translation>Необходимо указать znodeblsprivkey в конфигурации. Подробности см. в документации.</translation>
+    </message>
+    <message>
+        <source>%s Daemon</source>
+        <translation>Демон %s</translation>
+    </message>
+    <message>
+        <source>%s RPC client version</source>
+        <translation>Версия RPC-клиента %s</translation>
+    </message>
+    <message>
+        <source>%s firo-tx utility version</source>
+        <translation>Версия утилиты firo-tx %s</translation>
+    </message>
+    <message>
+        <source>-wallet parameter must only specify a filename (not a path)</source>
+        <translation>Параметр -wallet должен содержать только имя файла (без пути)</translation>
+    </message>
+    <message>
+        <source>A Spark payment may use at most %u transactions.</source>
+        <translation>Платёж Spark может включать не более %u транзакций.</translation>
+    </message>
+    <message>
+        <source>Add Pay To n-of-m Multi-sig output to TX. n = REQUIRED, m = PUBKEYS</source>
+        <translation>Добавить в TX выход с мультиподписью n-из-m. n = REQUIRED, m = PUBKEYS</translation>
+    </message>
+    <message>
+        <source>Add address-based output to TX</source>
+        <translation>Добавить в TX выход по адресу</translation>
+    </message>
+    <message>
+        <source>Add data-based output to TX</source>
+        <translation>Добавить в TX выход с данными</translation>
+    </message>
+    <message>
+        <source>Add input to TX</source>
+        <translation>Добавить вход в TX</translation>
+    </message>
+    <message>
+        <source>Add pay-to-pubkey output to TX</source>
+        <translation>Добавить в TX выход pay-to-pubkey</translation>
+    </message>
+    <message>
+        <source>Add raw script output to TX</source>
+        <translation>Добавить в TX выход с необработанным скриптом</translation>
+    </message>
+    <message>
+        <source>Add zero or more signatures to transaction</source>
+        <translation>Добавить в транзакцию ноль или более подписей</translation>
+    </message>
+    <message>
+        <source>Amount for recipient %1% is too small to pay the fee</source>
+        <translation>Сумма для получателя %1% слишком мала для оплаты комиссии</translation>
+    </message>
+    <message>
+        <source>Amount for recipient %1% is too small</source>
+        <translation>Сумма для получателя %1% слишком мала</translation>
+    </message>
+    <message>
+        <source>Anonymous communication with TOR - Quickstart (default: %d)</source>
+        <translation>Анонимное соединение через TOR: быстрый запуск (по умолчанию: %d)</translation>
+    </message>
+    <message>
+        <source>Bad change address</source>
+        <translation>Некорректный адрес для сдачи</translation>
+    </message>
+    <message>
+        <source>Block index is outdated, reindex required
+</source>
+        <translation>Индекс блоков устарел, требуется переиндексация
+</translation>
+    </message>
+    <message>
+        <source>Cannot write default spark address</source>
+        <translation>Не удалось сохранить адрес Spark по умолчанию</translation>
+    </message>
+    <message>
+        <source>Chain height changed during Spark name construction; retry</source>
+        <translation>Высота цепочки изменилась при создании транзакции имени Spark; повторите попытку</translation>
+    </message>
+    <message>
+        <source>Chain height changed during Spark transaction construction; retry</source>
+        <translation>Высота цепочки изменилась при создании транзакции Spark; повторите попытку</translation>
+    </message>
+    <message>
+        <source>Chain tip changed during Spark name construction; retry</source>
+        <translation>Вершина цепочки изменилась при создании транзакции имени Spark; повторите попытку</translation>
+    </message>
+    <message>
+        <source>Chain tip changed during Spark transaction construction; retry</source>
+        <translation>Вершина цепочки изменилась при создании транзакции Spark; повторите попытку</translation>
+    </message>
+    <message>
+        <source>Chain tip is unavailable during Spark name construction</source>
+        <translation>Вершина цепочки недоступна при создании транзакции имени Spark</translation>
+    </message>
+    <message>
+        <source>Commands:</source>
+        <translation>Команды:</translation>
+    </message>
+    <message>
+        <source>Connect to JSON-RPC on &lt;port&gt; (default: %u or testnet: %u)</source>
+        <translation>Подключиться к JSON-RPC на &lt;port&gt; (по умолчанию: %u, в тестовой сети: %u)</translation>
+    </message>
+    <message>
+        <source>Could not open debug log file %s</source>
+        <translation>Не удалось открыть файл журнала отладки %s</translation>
+    </message>
+    <message>
+        <source>Create hex-encoded Firo transaction</source>
+        <translation>Создать транзакцию Firo в шестнадцатеричном виде</translation>
+    </message>
+    <message>
+        <source>Create new, empty TX.</source>
+        <translation>Создать новую пустую TX.</translation>
+    </message>
+    <message>
+        <source>Default duration (in seconds) of manually configured bans (default: %u)</source>
+        <translation>Продолжительность вручную заданных блокировок в секундах (по умолчанию: %u)</translation>
+    </message>
+    <message>
+        <source>Delete input N from TX</source>
+        <translation>Удалить вход N из TX</translation>
+    </message>
+    <message>
+        <source>Delete output N from TX</source>
+        <translation>Удалить выход N из TX</translation>
+    </message>
+    <message>
+        <source>Either recipients or newMints has to be nonempty.</source>
+        <translation>Хотя бы один из списков recipients или newMints должен быть непустым.</translation>
+    </message>
+    <message>
+        <source>Error upgrading chainstate database</source>
+        <translation>Ошибка обновления базы данных состояния цепочки</translation>
+    </message>
+    <message>
+        <source>Error: Wallet locked, unable to create transaction!</source>
+        <translation>Ошибка: кошелёк заблокирован, невозможно создать транзакцию!</translation>
+    </message>
+    <message>
+        <source>Fail to generate mints, </source>
+        <translation>Не удалось создать приватные монеты, </translation>
+    </message>
+    <message>
+        <source>Failed to create backup, error: %s</source>
+        <translation>Не удалось создать резервную копию, ошибка: %s</translation>
+    </message>
+    <message>
+        <source>Failed to delete backup, error: %s</source>
+        <translation>Не удалось удалить резервную копию, ошибка: %s</translation>
+    </message>
+    <message>
+        <source>Get help for a command</source>
+        <translation>Получить справку по команде</translation>
+    </message>
+    <message>
+        <source>Invalid Spark spend amount.</source>
+        <translation>Недопустимая сумма расходования монет Spark.</translation>
+    </message>
+    <message>
+        <source>Invalid amount for -mininput=&lt;amount&gt;: '%s'</source>
+        <translation>Недопустимая сумма для -mininput=&lt;amount&gt;: '%s'</translation>
+    </message>
+    <message>
+        <source>Invalid characters in -wallet filename</source>
+        <translation>Недопустимые символы в имени файла -wallet</translation>
+    </message>
+    <message>
+        <source>Invalid spark address</source>
+        <translation>Некорректный адрес Spark</translation>
+    </message>
+    <message>
+        <source>Invalid znodeblsprivkey. Please see documentation.</source>
+        <translation>Некорректный znodeblsprivkey. См. документацию.</translation>
+    </message>
+    <message>
+        <source>List commands</source>
+        <translation>Список команд</translation>
+    </message>
+    <message>
+        <source>Load JSON file FILENAME into register NAME</source>
+        <translation>Загрузить JSON-файл FILENAME в регистр NAME</translation>
+    </message>
+    <message>
+        <source>Loading Spark wallet...</source>
+        <translation>Загрузка кошелька Spark...</translation>
+    </message>
+    <message>
+        <source>Loading wallet... (%d transactions)</source>
+        <translation>Загрузка кошелька... (%d транзакций)</translation>
+    </message>
+    <message>
+        <source>No Spark spend recipients were provided.</source>
+        <translation>Получатели платежа Spark не указаны.</translation>
+    </message>
+    <message>
+        <source>No such coin in set</source>
+        <translation>В наборе нет такой монеты</translation>
+    </message>
+    <message>
+        <source>Not enough fee estimated</source>
+        <translation>Расчётной комиссии недостаточно</translation>
+    </message>
+    <message>
+        <source>Pass named instead of positional arguments (default: %s)</source>
+        <translation>Передавать именованные аргументы вместо позиционных (по умолчанию: %s)</translation>
+    </message>
+    <message>
+        <source>Private recipient has invalid amount</source>
+        <translation>Недопустимая сумма для приватного получателя</translation>
+    </message>
+    <message>
+        <source>Recipient %1% has invalid amount</source>
+        <translation>Недопустимая сумма для получателя %1%</translation>
+    </message>
+    <message>
+        <source>Register Commands:</source>
+        <translation>Команды регистров:</translation>
+    </message>
+    <message>
+        <source>See signrawtransaction docs for format of sighash flags, JSON objects.</source>
+        <translation>Формат флагов sighash и объектов JSON см. в документации signrawtransaction.</translation>
+    </message>
+    <message>
+        <source>Select JSON output</source>
+        <translation>Выбрать вывод в формате JSON</translation>
+    </message>
+    <message>
+        <source>Selected Spark cover set is not yet bound to a canonical state hash</source>
+        <translation>Выбранное множество прикрытия Spark ещё не привязано к каноническому хешу состояния</translation>
+    </message>
+    <message>
+        <source>Send command to %s (with named arguments)</source>
+        <translation>Отправить команду в %s (с именованными аргументами)</translation>
+    </message>
+    <message>
+        <source>Send command to %s</source>
+        <translation>Отправить команду в %s</translation>
+    </message>
+    <message>
+        <source>Send commands to node running on &lt;ip&gt; (default: %s)</source>
+        <translation>Отправлять команды узлу по адресу &lt;ip&gt; (по умолчанию: %s)</translation>
+    </message>
+    <message>
+        <source>Set TX lock time to N</source>
+        <translation>Установить время блокировки TX в N</translation>
+    </message>
+    <message>
+        <source>Set TX version to N</source>
+        <translation>Установить версию TX в N</translation>
+    </message>
+    <message>
+        <source>Set register NAME to given JSON-STRING</source>
+        <translation>Присвоить регистру NAME указанную JSON-STRING</translation>
+    </message>
+    <message>
+        <source>Spark V2 spends are limited to %1% inputs</source>
+        <translation>Число входов при расходовании монет Spark V2 ограничено %1%</translation>
+    </message>
+    <message>
+        <source>Spark address doesn't belong to the wallet</source>
+        <translation>Адрес Spark не принадлежит кошельку</translation>
+    </message>
+    <message>
+        <source>Spark coin selection changed during transaction construction; retry</source>
+        <translation>Набор выбранных монет Spark изменился при создании транзакции; повторите попытку</translation>
+    </message>
+    <message>
+        <source>Spark fee estimate did not match the wallet (planned %s, wallet %s).</source>
+        <translation>Оценка комиссии Spark не совпала с расчётом кошелька (планировалось %s, кошелёк: %s).</translation>
+    </message>
+    <message>
+        <source>Spark name transaction size is out of range</source>
+        <translation>Размер транзакции имени Spark вне допустимого диапазона</translation>
+    </message>
+    <message>
+        <source>Spark shielded output limit exceeded.</source>
+        <translation>Превышен предел количества приватных выходов Spark.</translation>
+    </message>
+    <message>
+        <source>Spark spend amount is out of range</source>
+        <translation>Сумма расходования монет Spark вне допустимого диапазона</translation>
+    </message>
+    <message>
+        <source>Spark spend amount plus fee is out of range</source>
+        <translation>Сумма расходования монет Spark с учётом комиссии вне допустимого диапазона</translation>
+    </message>
+    <message>
+        <source>Spark spend fee is out of range</source>
+        <translation>Комиссия за расходование монет Spark вне допустимого диапазона</translation>
+    </message>
+    <message>
+        <source>Spark spend output amount is out of range</source>
+        <translation>Сумма выхода при расходовании монет Spark вне допустимого диапазона</translation>
+    </message>
+    <message>
+        <source>Spark spend size estimate is out of range</source>
+        <translation>Оценка размера транзакции расходования монет Spark вне допустимого диапазона</translation>
+    </message>
+    <message>
+        <source>Spark transaction fee is too high.</source>
+        <translation>Слишком высокая комиссия за транзакцию Spark.</translation>
+    </message>
+    <message>
+        <source>Spark transactions are disabled at the moment</source>
+        <translation>Транзакции Spark в данный момент отключены</translation>
+    </message>
+    <message>
+        <source>Spend to transparent address limit exceeded.</source>
+        <translation>Превышен предел отправки на публичный адрес.</translation>
+    </message>
+    <message>
+        <source>Start %s Daemon</source>
+        <translation>Запустить демон %s</translation>
+    </message>
+    <message>
+        <source>Synchronization failed</source>
+        <translation>Синхронизация не удалась</translation>
+    </message>
+    <message>
+        <source>Synchronization finished</source>
+        <translation>Синхронизация завершена</translation>
+    </message>
+    <message>
+        <source>Synchronization pending...</source>
+        <translation>Ожидание синхронизации...</translation>
+    </message>
+    <message>
+        <source>Synchronizing blockchain...</source>
+        <translation>Синхронизация блокчейна...</translation>
+    </message>
+    <message>
+        <source>Synchronizing governance objects...</source>
+        <translation>Синхронизация объектов управления...</translation>
+    </message>
+    <message>
+        <source>This command requires JSON registers:</source>
+        <translation>Эта команда требует регистры JSON:</translation>
+    </message>
+    <message>
+        <source>This help message</source>
+        <translation>Эта справка</translation>
+    </message>
+    <message>
+        <source>Timeout during HTTP requests (default: %d)</source>
+        <translation>Тайм-аут HTTP-запросов (по умолчанию: %d)</translation>
+    </message>
+    <message>
+        <source>Transaction commit failed.</source>
+        <translation>Не удалось провести транзакцию.</translation>
+    </message>
+    <message>
+        <source>Transaction not allowed in mempool</source>
+        <translation>Транзакция не допускается в пул памяти</translation>
+    </message>
+    <message>
+        <source>Unable to create a single-input Spark transaction.</source>
+        <translation>Не удалось создать транзакцию Spark с одним входом.</translation>
+    </message>
+    <message>
+        <source>Unable to create a valid Spark name transaction</source>
+        <translation>Не удалось создать допустимую транзакцию имени Spark</translation>
+    </message>
+    <message>
+        <source>Unable to create spend transaction.</source>
+        <translation>Не удалось создать транзакцию расходования монет.</translation>
+    </message>
+    <message>
+        <source>Unable to estimate the final Spark name transaction fee</source>
+        <translation>Не удалось оценить итоговую комиссию за транзакцию имени Spark</translation>
+    </message>
+    <message>
+        <source>Unable to generate spend key, wallet is locked.</source>
+        <translation>Не удалось сгенерировать ключ расходования: кошелёк заблокирован.</translation>
+    </message>
+    <message>
+        <source>Unable to generate spend key.</source>
+        <translation>Не удалось сгенерировать ключ расходования.</translation>
+    </message>
+    <message>
+        <source>Unable to mint full amount; only partial minting was possible</source>
+        <translation>Не удалось создать приватные монеты на всю сумму; удалось создать только часть</translation>
+    </message>
+    <message>
+        <source>Unable to select Spark coins for spend.</source>
+        <translation>Не удалось выбрать монеты Spark для расходования.</translation>
+    </message>
+    <message>
+        <source>Unable to select coins for minting</source>
+        <translation>Не удалось выбрать монеты для создания приватных монет</translation>
+    </message>
+    <message>
+        <source>Unable to select cons for spend</source>
+        <translation>Не удалось выбрать монеты для расходования</translation>
+    </message>
+    <message>
+        <source>Update hex-encoded Firo transaction</source>
+        <translation>Обновить транзакцию Firo в шестнадцатеричном виде</translation>
+    </message>
+    <message>
+        <source>Usage:</source>
+        <translation>Использование:</translation>
+    </message>
+    <message>
+        <source>Use the dev chain</source>
+        <translation>Использовать цепочку для разработки</translation>
+    </message>
+    <message>
+        <source>Wait for RPC server to start</source>
+        <translation>Дождаться запуска RPC-сервера</translation>
+    </message>
+    <message>
+        <source>Wallet locked</source>
+        <translation>Кошелёк заблокирован</translation>
+    </message>
+    <message>
+        <source>Wallet locked, unable to create transaction!</source>
+        <translation>Кошелёк заблокирован, невозможно создать транзакцию!</translation>
+    </message>
+    <message>
+        <source>Wasn't able to create wallet backup folder %s!</source>
+        <translation>Не удалось создать папку для резервных копий кошелька %s!</translation>
+    </message>
+    <message>
+        <source>You can not start a masternode in lite mode.</source>
+        <translation>Нельзя запустить мастерноду в облегчённом режиме.</translation>
+    </message>
+    <message>
+        <source>You can not start a znode in lite mode.</source>
+        <translation>Нельзя запустить znode в облегчённом режиме.</translation>
+    </message>
+    <message>
+        <source>Zapping all Sigma mints from wallet...</source>
+        <translation>Удаление всех созданных монет Sigma из кошелька...</translation>
+    </message>
+    <message>
+        <source>prevtxs=JSON object</source>
+        <translation>prevtxs=объект JSON</translation>
+    </message>
+    <message>
+        <source>privatekeys=JSON object</source>
+        <translation>privatekeys=объект JSON</translation>
+    </message>
+    <message>
+        <source>version</source>
+        <translation>версия</translation>
+    </message>
+</context>
+<context>
+    <name>AutoMintDialog</name>
+    <message>
+        <source>Make Funds Private</source>
+        <translation>Сделать средства приватными</translation>
+    </message>
+    <message>
+        <source>Unlock your wallet to make all transparent funds private with Spark.</source>
+        <translation>Разблокируйте кошелёк, чтобы сделать все публичные средства приватными с помощью Spark.</translation>
+    </message>
+    <message>
+        <source>Enter passphrase</source>
+        <translation>Введите пароль</translation>
+    </message>
+    <message>
+        <source>Lock wallet immediately after making funds private</source>
+        <translation>Заблокировать кошелёк сразу после перевода средств в приватные</translation>
+    </message>
+</context>
+<context>
+    <name>AutoMintSparkDialog</name>
+    <message>
+        <source>Make Private</source>
+        <translation>Сделать приватными</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <source>Wallet unlock failed</source>
+        <translation>Не удалось разблокировать кошелёк</translation>
+    </message>
+    <message>
+        <source>The passphrase was incorrect.</source>
+        <translation>Неверный пароль.</translation>
+    </message>
+    <message>
+        <source>Unable to generate mint</source>
+        <translation>Не удалось создать приватные монеты</translation>
+    </message>
+    <message>
+        <source>Make all available transparent funds private with Spark?</source>
+        <translation>Сделать все доступные публичные средства приватными с помощью Spark?</translation>
+    </message>
+    <message>
+        <source>Unlocking wallet...</source>
+        <translation>Разблокировка кошелька...</translation>
+    </message>
+    <message>
+        <source>Making funds private...</source>
+        <translation>Перевод средств в приватные...</translation>
+    </message>
+</context>
+<context>
+    <name>AutoMintSparkModel</name>
+    <message>
+        <source>Successfully made %1 private with Spark</source>
+        <translation>Средства в размере %1 успешно переведены в приватные с помощью Spark</translation>
+    </message>
+    <message>
+        <source>Fail to mint, %1</source>
+        <translation>Не удалось создать приватные монеты: %1</translation>
+    </message>
+    <message>
+        <source>Fail to unlock wallet</source>
+        <translation>Не удалось разблокировать кошелёк</translation>
+    </message>
+    <message>
+        <source>Automatic Spark Privacy</source>
+        <translation>Автоматический перевод в Spark</translation>
+    </message>
+</context>
+<context>
+    <name>AutomintNotification</name>
+    <message>
+        <source>Make Funds Private</source>
+        <translation>Сделать средства приватными</translation>
+    </message>
+    <message>
+        <source>Make all available transparent funds private with Spark?</source>
+        <translation>Сделать все доступные публичные средства приватными с помощью Spark?</translation>
+    </message>
+</context>
+<context>
+    <name>AutomintSparkNotification</name>
+    <message>
+        <source>Make Private</source>
+        <translation>Сделать приватными</translation>
+    </message>
+    <message>
+        <source>Dismiss</source>
+        <translation>Закрыть</translation>
+    </message>
+</context>
+<context>
+    <name>BitcoinApplication</name>
+    <message>
+        <source>You need to unlock to allow Spark wallet be created.</source>
+        <translation>Разблокируйте кошелёк, чтобы создать кошелёк Spark.</translation>
+    </message>
+</context>
+<context>
+    <name>CancelPasswordDialog</name>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+</context>
+<context>
+    <name>CreateSparkNamePage</name>
+    <message>
+        <source>Register Spark Name</source>
+        <translation>Зарегистрировать имя Spark</translation>
+    </message>
+    <message>
+        <source>Spark Name</source>
+        <translation>Имя Spark</translation>
+    </message>
+    <message>
+        <source>About Spark Names</source>
+        <translation>Об именах Spark</translation>
+    </message>
+    <message>
+        <source>e.g. sparky</source>
+        <translation>например, sparky</translation>
+    </message>
+    <message>
+        <source>Receiving address</source>
+        <translation>Адрес для получения</translation>
+    </message>
+    <message>
+        <source>Choose or paste a Spark address…</source>
+        <translation>Выберите или вставьте адрес Spark…</translation>
+    </message>
+    <message>
+        <source>Receiving Spark address</source>
+        <translation>Адрес Spark для получения</translation>
+    </message>
+    <message>
+        <source>Use a Spark address that belongs to this wallet.</source>
+        <translation>Используйте адрес Spark, принадлежащий этому кошельку.</translation>
+    </message>
+    <message>
+        <source>Choose a Spark address</source>
+        <translation>Выберите адрес Spark</translation>
+    </message>
+    <message>
+        <source>Choose an existing address, generate a new one, or paste an address.</source>
+        <translation>Выберите существующий адрес, создайте новый или вставьте адрес.</translation>
+    </message>
+    <message>
+        <source>Registration period</source>
+        <translation>Срок регистрации</translation>
+    </message>
+    <message>
+        <source>Registration fee</source>
+        <translation>Плата за регистрацию</translation>
+    </message>
+    <message>
+        <source>About registration fees</source>
+        <translation>О плате за регистрацию</translation>
+    </message>
+    <message>
+        <source>Registration period in years</source>
+        <translation>Срок регистрации в годах</translation>
+    </message>
+    <message>
+        <source>Enter a name</source>
+        <translation>Введите имя</translation>
+    </message>
+    <message>
+        <source>Paid from your private balance. Network fee additional.</source>
+        <translation>Оплачивается с приватного баланса. Сетевая комиссия взимается отдельно.</translation>
+    </message>
+    <message>
+        <source>Public details (optional)</source>
+        <translation>Публичные сведения (необязательно)</translation>
+    </message>
+    <message>
+        <source>This information is public. Maximum 1024 UTF-8 bytes.</source>
+        <translation>Эта информация публична. Не более 1024 байт в UTF-8.</translation>
+    </message>
+    <message>
+        <source>Public details</source>
+        <translation>Публичные сведения</translation>
+    </message>
+    <message>
+        <source>A memorable name, such as @sparky, that people can use to send FIRO to your Spark address while preserving your transaction privacy.</source>
+        <translation>Запоминающееся имя, например @sparky, по которому другие пользователи могут отправлять FIRO на ваш адрес Spark, сохраняя приватность ваших транзакций.</translation>
+    </message>
+    <message>
+        <source>Use 1–20 letters (A–Z), numbers, hyphens or periods. Names are not case-sensitive.</source>
+        <translation>Используйте от 1 до 20 символов: латинские буквы (A–Z), цифры, дефисы или точки. Регистр букв не учитывается.</translation>
+    </message>
+    <message>
+        <source>1 character</source>
+        <translation>1 символ</translation>
+    </message>
+    <message>
+        <source>%1 characters</source>
+        <translation>Символов: %1</translation>
+    </message>
+    <message>
+        <source>%1–%2 characters</source>
+        <translation>%1–%2 символов</translation>
+    </message>
+    <message>
+        <source>Shorter names cost more. The registration fee depends on your name’s length and the number of years selected.</source>
+        <translation>Короткие имена стоят дороже. Плата за регистрацию зависит от длины имени и выбранного количества лет.</translation>
+    </message>
+    <message>
+        <source>Name length</source>
+        <translation>Длина имени</translation>
+    </message>
+    <message>
+        <source>FIRO per year</source>
+        <translation>FIRO в год</translation>
+    </message>
+    <message>
+        <source>The network fee is additional.</source>
+        <translation>Сетевая комиссия взимается отдельно.</translation>
+    </message>
+    <message>
+        <source>Fees are charged per year based on the length of the name. The network fee is additional.</source>
+        <translation>Плата взимается за каждый год и зависит от длины имени. Сетевая комиссия взимается отдельно.</translation>
+    </message>
+    <message>
+        <source>Choose existing address…</source>
+        <translation>Выбрать существующий адрес…</translation>
+    </message>
+    <message>
+        <source>Generate new address</source>
+        <translation>Создать новый адрес</translation>
+    </message>
+    <message>
+        <source>Paste address</source>
+        <translation>Вставить адрес</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>Зарегистрировать</translation>
+    </message>
+    <message>
+        <source>Extend Spark Name</source>
+        <translation>Продлить имя Spark</translation>
+    </message>
+    <message>
+        <source>Extend by</source>
+        <translation>Продлить на</translation>
+    </message>
+    <message>
+        <source>Extension fee</source>
+        <translation>Плата за продление</translation>
+    </message>
+    <message>
+        <source>Extend</source>
+        <translation>Продлить</translation>
+    </message>
+    <message>
+        <source>This Spark Name cannot be extended by a full year yet.</source>
+        <translation>Это имя Spark пока нельзя продлить на полный год.</translation>
+    </message>
+    <message>
+        <source>This Spark Name could not be found and cannot be extended.</source>
+        <translation>Это имя Spark не найдено, поэтому его нельзя продлить.</translation>
+    </message>
+    <message>
+        <source>Invalid address</source>
+        <translation>Недопустимый адрес</translation>
+    </message>
+    <message>
+        <source>Choose a Spark address that belongs to this wallet.</source>
+        <translation>Выберите адрес Spark, принадлежащий этому кошельку.</translation>
+    </message>
+    <message>
+        <source>Address already registered</source>
+        <translation>Адрес уже зарегистрирован</translation>
+    </message>
+    <message>
+        <source>This address is already registered as @%1. Extend that name from the Spark Names page, or choose another address.</source>
+        <translation>Этот адрес уже зарегистрирован под именем @%1. Продлите это имя на странице «Имена Spark» или выберите другой адрес.</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Ошибка</translation>
+    </message>
+    <message>
+        <source>The wallet is not available.</source>
+        <translation>Кошелёк недоступен.</translation>
+    </message>
+    <message>
+        <source>Extension unavailable</source>
+        <translation>Продление недоступно</translation>
+    </message>
+    <message>
+        <source>Spark names are not yet allowed</source>
+        <translation>Имена Spark пока не разрешены</translation>
+    </message>
+    <message>
+        <source>Invalid spark address</source>
+        <translation>Недопустимый адрес Spark</translation>
+    </message>
+    <message>
+        <source>The Spark address does not belong to this wallet.</source>
+        <translation>Адрес Spark не принадлежит этому кошельку.</translation>
+    </message>
+    <message>
+        <source>Error details: </source>
+        <translation>Сведения об ошибке: </translation>
+    </message>
+    <message>
+        <source>Transaction submitted</source>
+        <translation>Транзакция отправлена</translation>
+    </message>
+    <message>
+        <source>The updated expiry will appear after the extension transaction is confirmed.</source>
+        <translation>Обновлённый срок действия появится после подтверждения транзакции продления.</translation>
+    </message>
+    <message>
+        <source>The Spark Name will appear after the registration transaction is confirmed.</source>
+        <translation>Имя Spark появится после подтверждения транзакции регистрации.</translation>
+    </message>
+    <message>
+        <source> year</source>
+        <translation> г.</translation>
+    </message>
+    <message>
+        <source> years</source>
+        <translation> г.</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Недоступно</translation>
+    </message>
+    <message>
+        <source>Enter a valid name</source>
+        <translation>Введите допустимое имя</translation>
+    </message>
+    <message>
+        <source>%1 FIRO</source>
+        <translation>%1 FIRO</translation>
+    </message>
+    <message>
+        <source>New estimated expiration: %1</source>
+        <translation>Новая ожидаемая дата окончания срока: %1</translation>
+    </message>
+    <message>
+        <source>The updated expiration estimate is unavailable.</source>
+        <translation>Обновлённая оценка даты окончания срока недоступна.</translation>
+    </message>
+    <message>
+        <source>Error validating Spark Name parameter</source>
+        <translation>Ошибка проверки параметра имени Spark</translation>
+    </message>
+    <message>
+        <source>Failed to prepare the Spark Name extension transaction.</source>
+        <translation>Не удалось подготовить транзакцию продления имени Spark.</translation>
+    </message>
+    <message>
+        <source>Failed to prepare the Spark Name registration transaction.</source>
+        <translation>Не удалось подготовить транзакцию регистрации имени Spark.</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to extend this Spark Name?</source>
+        <translation>Вы уверены, что хотите продлить это имя Spark?</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to register this Spark Name?</source>
+        <translation>Вы уверены, что хотите зарегистрировать это имя Spark?</translation>
+    </message>
+    <message>
+        <source> You are sending FIRO from a Spark address to the Spark Name fee address.</source>
+        <translation> Вы отправляете FIRO с адреса Spark на адрес для оплаты имени Spark.</translation>
+    </message>
+    <message>
+        <source>Confirm Spark Name extension</source>
+        <translation>Подтвердить продление имени Spark</translation>
+    </message>
+    <message>
+        <source>Confirm Spark Name registration</source>
+        <translation>Подтвердить регистрацию имени Spark</translation>
+    </message>
+    <message>
+        <source>Failed to submit the Spark Name extension transaction.</source>
+        <translation>Не удалось отправить транзакцию продления имени Spark.</translation>
+    </message>
+    <message>
+        <source>Failed to submit the Spark Name registration transaction.</source>
+        <translation>Не удалось отправить транзакцию регистрации имени Spark.</translation>
+    </message>
+    <message>
+        <source>Failed to extend the Spark Name.</source>
+        <translation>Не удалось продлить имя Spark.</translation>
+    </message>
+    <message>
+        <source>Failed to register the Spark Name.</source>
+        <translation>Не удалось зарегистрировать имя Spark.</translation>
+    </message>
+    <message>
+        <source>⚠️ Not enough private funds to extend this Spark Name.</source>
+        <translation>⚠️ Недостаточно приватных средств для продления этого имени Spark.</translation>
+    </message>
+    <message>
+        <source>⚠️ Not enough private funds to register this Spark Name.</source>
+        <translation>⚠️ Недостаточно приватных средств для регистрации этого имени Spark.</translation>
+    </message>
+</context>
+<context>
+    <name>ExportViewKeyDialog</name>
+    <message>
+        <source>Export View Key</source>
+        <translation>Экспортировать ключ просмотра</translation>
+    </message>
+</context>
+<context>
+    <name>ManualMintDialog</name>
+    <message>
+        <source>Coin Selection</source>
+        <translation>Выбор монет</translation>
+    </message>
+    <message>
+        <source>Available amount to mint:</source>
+        <translation>Доступная сумма для создания приватных монет:</translation>
+    </message>
+    <message>
+        <source>0.00000000</source>
+        <translation>0.00000000</translation>
+    </message>
+    <message>
+        <source>FIRO</source>
+        <translation>FIRO</translation>
+    </message>
+    <message>
+        <source>FIRO : Amount</source>
+        <translation>FIRO : Сумма</translation>
+    </message>
+    <message>
+        <source>Total:</source>
+        <translation>Итого:</translation>
+    </message>
+    <message>
+        <source>10</source>
+        <translation>10</translation>
+    </message>
+    <message>
+        <source>1</source>
+        <translation>1</translation>
+    </message>
+    <message>
+        <source>0.1</source>
+        <translation>0.1</translation>
+    </message>
+    <message>
+        <source>0.5</source>
+        <translation>0.5</translation>
+    </message>
+    <message>
+        <source>100</source>
+        <translation>100</translation>
+    </message>
+    <message>
+        <source>&amp;Mint</source>
+        <translation>&amp;Создать приватные монеты</translation>
+    </message>
+    <message>
+        <source>&amp;Clear All</source>
+        <translation>&amp;Очистить всё</translation>
+    </message>
+</context>
+<context>
+    <name>MasternodeList</name>
+    <message>
+        <source>Form</source>
+        <translation>Форма</translation>
+    </message>
+    <message>
+        <source>Filter List:</source>
+        <translation>Фильтр списка:</translation>
+    </message>
+    <message>
+        <source>Filter masternode list</source>
+        <translation>Фильтровать список мастернод</translation>
+    </message>
+    <message>
+        <source>Filter List</source>
+        <translation>Фильтр списка</translation>
+    </message>
+    <message>
+        <source>Show only masternodes this wallet has keys for.</source>
+        <translation>Показывать только мастерноды, ключи которых есть в этом кошельке.</translation>
+    </message>
+    <message>
+        <source>My masternodes only</source>
+        <translation>Только мои мастерноды</translation>
+    </message>
+    <message>
+        <source>Node Count</source>
+        <translation>Количество узлов</translation>
+    </message>
+    <message>
+        <source>0</source>
+        <translation>0</translation>
+    </message>
+    <message>
+        <source>Collateral · %1</source>
+        <translation>Залог · %1</translation>
+    </message>
+    <message>
+        <source>PoSe %1</source>
+        <translation>PoSe %1</translation>
+    </message>
+    <message>
+        <source>REGISTERED</source>
+        <translation>РЕГИСТРАЦИЯ</translation>
+    </message>
+    <message>
+        <source>LAST PAID</source>
+        <translation>ПОСЛЕДНЯЯ ВЫПЛАТА</translation>
+    </message>
+    <message>
+        <source>NEXT PAYMENT</source>
+        <translation>СЛЕДУЮЩАЯ ВЫПЛАТА</translation>
+    </message>
+    <message>
+        <source>COLLATERAL</source>
+        <translation>ЗАЛОГ</translation>
+    </message>
+    <message>
+        <source>Filter masternodes</source>
+        <translation>Фильтровать мастерноды</translation>
+    </message>
+    <message>
+        <source>Sort masternodes by</source>
+        <translation>Сортировать мастерноды по</translation>
+    </message>
+    <message>
+        <source>Sort the masternode list</source>
+        <translation>Сортировать список мастернод</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>Сетевой адрес</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Статус</translation>
+    </message>
+    <message>
+        <source>PoSe score</source>
+        <translation>Оценка PoSe</translation>
+    </message>
+    <message>
+        <source>Registered</source>
+        <translation>Регистрация</translation>
+    </message>
+    <message>
+        <source>Last paid</source>
+        <translation>Последняя выплата</translation>
+    </message>
+    <message>
+        <source>Next payment</source>
+        <translation>Следующая выплата</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>Адрес для выплат</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>Вознаграждение оператора</translation>
+    </message>
+    <message>
+        <source>Collateral amount</source>
+        <translation>Сумма залога</translation>
+    </message>
+    <message>
+        <source>Collateral address</source>
+        <translation>Адрес залога</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>Адрес владельца</translation>
+    </message>
+    <message>
+        <source>Masternode list</source>
+        <translation>Список мастернод</translation>
+    </message>
+    <message>
+        <source>No masternodes found</source>
+        <translation>Мастерноды не найдены</translation>
+    </message>
+    <message>
+        <source>Masternodes matching your filters will appear here</source>
+        <translation>Здесь появятся мастерноды, соответствующие вашим фильтрам</translation>
+    </message>
+    <message>
+        <source>Details...</source>
+        <translation>Подробнее...</translation>
+    </message>
+    <message>
+        <source>Copy ProTx Hash</source>
+        <translation>Скопировать хеш ProTx</translation>
+    </message>
+    <message>
+        <source>Copy Collateral Outpoint</source>
+        <translation>Скопировать ссылку на залоговый выход</translation>
+    </message>
+    <message>
+        <source>Sort ascending</source>
+        <translation>Сортировать по возрастанию</translation>
+    </message>
+    <message>
+        <source>Sort descending</source>
+        <translation>Сортировать по убыванию</translation>
+    </message>
+    <message>
+        <source>Pre-enabled</source>
+        <translation>Ожидает включения</translation>
+    </message>
+    <message>
+        <source>Enabled</source>
+        <translation>Включена</translation>
+    </message>
+    <message>
+        <source>PoSe Banned</source>
+        <translation>Заблокирована PoSe</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Нет</translation>
+    </message>
+    <message>
+        <source>%1, not claimed</source>
+        <translation>%1, не востребовано</translation>
+    </message>
+    <message>
+        <source>%1 to %2</source>
+        <translation>%1 на %2</translation>
+    </message>
+    <message>
+        <source>%1 to unknown address</source>
+        <translation>%1 на неизвестный адрес</translation>
+    </message>
+    <message>
+        <source>Service: %1
+Status: %2
+PoSe score: %3
+Registered: %4
+Last paid: %5
+Next payment: %6
+Payout address: %7
+Operator reward: %8
+Collateral: %9
+Collateral address: %10
+Owner address: %11
+ProTx hash: %12
+Collateral outpoint: %13</source>
+        <translation>Сетевой адрес: %1
+Статус: %2
+Оценка PoSe: %3
+Регистрация: %4
+Последняя выплата: %5
+Следующая выплата: %6
+Адрес для выплат: %7
+Вознаграждение оператора: %8
+Залог: %9
+Адрес залога: %10
+Адрес владельца: %11
+Хеш ProTx: %12
+Залоговый выход: %13</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Additional information for DIP3 Masternode %1</source>
+        <translation>Дополнительные сведения о мастерноде DIP3 %1</translation>
+    </message>
+</context>
+<context>
+    <name>NotifyMnemonic</name>
+    <message>
+        <source>Notification</source>
+        <translation>Уведомление</translation>
+    </message>
+    <message>
+        <source>Your wallet has been created successfully. Using the following recovery seed phrase, you will be able to recover your wallet and balances at any time.</source>
+        <translation>Ваш кошелёк успешно создан. С помощью приведённой ниже фразы восстановления вы сможете в любое время восстановить кошелёк и его баланс.</translation>
+    </message>
+    <message>
+        <source>Recovery seed phrase:</source>
+        <translation>Фраза восстановления:</translation>
+    </message>
+    <message>
+        <source>Please write down these recovery seed phrase and wallet birth date and keep them in a secure location. Specifying the wallet's birth date when restoring your wallet speeds up and optimizes the scanning of your wallet.</source>
+        <translation>Запишите фразу восстановления и дату создания кошелька и храните их в надёжном месте. Указание даты создания при восстановлении кошелька ускоряет и оптимизирует его сканирование.</translation>
+    </message>
+    <message>
+        <source>WARNING: Anyone with access to the recovery seed phrase can recover your wallet and will have control over your funds!</source>
+        <translation>ПРЕДУПРЕЖДЕНИЕ: любой, у кого есть фраза восстановления, сможет восстановить ваш кошелёк и получить контроль над вашими средствами!</translation>
+    </message>
+    <message>
+        <source>Please re-enter the recovery seed phrase to ensure you have written it down correctly.</source>
+        <translation>Введите фразу восстановления ещё раз, чтобы убедиться, что вы записали её правильно.</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation>Предупреждение</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?</source>
+        <translation>Вы уверены, что хотите продолжить без проверки правильности записанной фразы восстановления?</translation>
+    </message>
+    <message>
+        <source>Your entered words do not match, please press back to re-check your mnemonic.</source>
+        <translation>Введённые слова не совпадают. Нажмите «Назад», чтобы проверить фразу восстановления.</translation>
+    </message>
+</context>
+<context>
+    <name>PcodeAddressTableModel</name>
+    <message>
+        <source>Label</source>
+        <translation>Метка</translation>
+    </message>
+    <message>
+        <source>RAP payment code</source>
+        <translation>Платёжный код RAP</translation>
+    </message>
+</context>
+<context>
+    <name>Recover</name>
+    <message>
+        <source>Create or Recover Wallet</source>
+        <translation>Создание или восстановление кошелька</translation>
+    </message>
+    <message>
+        <source>Let's create or restore your Firo wallet!
+
+You will be prompted to write down a recovery seed phrase that allows you to restore your wallet in the future.
+
+Please ensure that you store this securely as anyone with access to the recovery seed phrase can access your funds!
+
+By default, we recommend a 24 word recovery seed phrase.
+
+You can also choose to further encrypt your recovery seed phrase with an additional passphrase (only recommended for advanced users).
+You will need to save this passphrase as well with the recovery seed phrase. Failing to save the passphrase will lead to your funds being irrecoverable.
+
+If you have an existing recovery seed phrase, please select "Recover existing wallet". If you have secured your recovery seed phrase with an additional passphrase, enter it too.
+Also you can choose wallet birth date for more faster and optimised wallet scan.
+      </source>
+        <translation>Создайте или восстановите свой кошелёк Firo!
+
+Вам будет предложено записать фразу восстановления, с помощью которой можно восстановить кошелёк в будущем.
+
+Храните её в надёжном месте: любой, кто получит доступ к фразе восстановления, сможет получить доступ и к вашим средствам!
+
+По умолчанию рекомендуем фразу восстановления из 24 слов.
+
+Вы также можете дополнительно зашифровать фразу восстановления с помощью пароля (рекомендуется только опытным пользователям).
+Сохраните этот пароль вместе с фразой восстановления. Без пароля восстановить доступ к средствам будет невозможно.
+
+Если у вас уже есть фраза восстановления, выберите «Восстановить существующий кошелёк». Если вы защитили её дополнительным паролем, введите и его.
+Также можно указать дату создания кошелька, чтобы ускорить сканирование.
+      </translation>
+    </message>
+    <message>
+        <source>Create new wallet</source>
+        <translation>Создать новый кошелёк</translation>
+    </message>
+    <message>
+        <source>Recover existing wallet</source>
+        <translation>Восстановить существующий кошелёк</translation>
+    </message>
+    <message>
+        <source>12 Words</source>
+        <translation>12 слов</translation>
+    </message>
+    <message>
+        <source>24 Words</source>
+        <translation>24 слова</translation>
+    </message>
+    <message>
+        <source>Input recovery seed phrase here:</source>
+        <translation>Введите фразу восстановления:</translation>
+    </message>
+    <message>
+        <source>Choose the wallet creation date:</source>
+        <translation>Выберите дату создания кошелька:</translation>
+    </message>
+    <message>
+        <source>dd-MM-yyyy</source>
+        <translation>dd-MM-yyyy</translation>
+    </message>
+    <message>
+        <source>Use additional passphrase (optional) [Recommended for advanced users only]</source>
+        <translation>Использовать дополнительный пароль (необязательно) [Рекомендуется только опытным пользователям]</translation>
+    </message>
+    <message>
+        <source>Enter passphrase:</source>
+        <translation>Введите пароль:</translation>
+    </message>
+    <message>
+        <source>Enter passphrase again:</source>
+        <translation>Повторите пароль:</translation>
+    </message>
+    <message>
+        <source>If you use RAP addresses, and are restoring a wallet, enter the number of RAP addresses you have created to recover funds received using RAP addresses.</source>
+        <translation>Если вы восстанавливаете кошелёк и использовали адреса RAP, укажите число созданных вами адресов RAP, чтобы восстановить средства, полученные на эти адреса.</translation>
+    </message>
+    <message>
+        <source>Number of RAP addresses:</source>
+        <translation>Число адресов RAP:</translation>
+    </message>
+    <message>
+        <source>The number of RAP addresses will be created in the wallet for the initial blockchain scan</source>
+        <translation>Для первоначального сканирования блокчейна в кошельке будет создано указанное число адресов RAP</translation>
+    </message>
+    <message>
+        <source>Wrong number of words. Please try again.</source>
+        <translation>Неверное число слов. Повторите попытку.</translation>
+    </message>
+    <message>
+        <source>You have entered an invalid recovery seed phrase. Please double check the spelling and order.</source>
+        <translation>Введена недопустимая фраза восстановления. Проверьте написание и порядок слов.</translation>
+    </message>
+    <message>
+        <source>Passphrases don't match.</source>
+        <translation>Пароли не совпадают.</translation>
+    </message>
+    <message>
+        <source>Passphrase can't be empty.</source>
+        <translation>Пароль не может быть пустым.</translation>
+    </message>
+</context>
+<context>
+    <name>SparkNamesPage</name>
+    <message>
+        <source>Form</source>
+        <translation>Форма</translation>
+    </message>
+    <message>
+        <source>Spark Names registered to this wallet, along with their expiry.</source>
+        <translation>Имена Spark, зарегистрированные для этого кошелька, и сроки их действия.</translation>
+    </message>
+    <message>
+        <source>Register a new Spark Name for this wallet.</source>
+        <translation>Зарегистрировать новое имя Spark для этого кошелька.</translation>
+    </message>
+    <message>
+        <source>Create Spark Name</source>
+        <translation>Создать имя Spark</translation>
+    </message>
+    <message>
+        <source>No Spark Names yet</source>
+        <translation>Имён Spark пока нет</translation>
+    </message>
+    <message>
+        <source>Register a Spark Name to give your Spark address a memorable, human-readable name.</source>
+        <translation>Зарегистрируйте имя Spark, чтобы у вашего адреса Spark было понятное и легко запоминающееся имя.</translation>
+    </message>
+    <message>
+        <source>EXPIRES</source>
+        <translation>СРОК ДЕЙСТВИЯ</translation>
+    </message>
+    <message>
+        <source>ADDITIONAL INFO</source>
+        <translation>ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ</translation>
+    </message>
+    <message>
+        <source>Copy Name</source>
+        <translation>Копировать имя</translation>
+    </message>
+    <message>
+        <source>Copy the Spark Name to the clipboard</source>
+        <translation>Копировать имя Spark в буфер обмена</translation>
+    </message>
+    <message>
+        <source>Copy Address</source>
+        <translation>Копировать адрес</translation>
+    </message>
+    <message>
+        <source>Copy the resolved Spark address to the clipboard</source>
+        <translation>Копировать адрес, соответствующий имени Spark, в буфер обмена</translation>
+    </message>
+    <message>
+        <source>Extend</source>
+        <translation>Продлить</translation>
+    </message>
+    <message>
+        <source>Extend the validity of this Spark Name</source>
+        <translation>Продлить срок действия этого имени Spark</translation>
+    </message>
+    <message>
+        <source>Expired</source>
+        <translation>Срок истёк</translation>
+    </message>
+    <message>
+        <source>Expiring Soon</source>
+        <translation>Скоро истекает</translation>
+    </message>
+    <message>
+        <source>Active</source>
+        <translation>Действует</translation>
     </message>
 </context>
 </TS>

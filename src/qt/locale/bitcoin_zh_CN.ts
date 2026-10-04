@@ -109,6 +109,46 @@
         <source>&amp;Copy RAP address</source>
         <translation>复制 RAP 地址(&amp;C)</translation>
     </message>
+    <message>
+        <source>Extend address expiration date</source>
+        <translation>延长地址有效期</translation>
+    </message>
+    <message>
+        <source>&amp;Extend</source>
+        <translation>延长(&amp;E)</translation>
+    </message>
+    <message>
+        <source>(no label)</source>
+        <translation>（无标签）</translation>
+    </message>
+    <message>
+        <source>Spark</source>
+        <translation>Spark</translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation>透明</translation>
+    </message>
+    <message>
+        <source>Spark names</source>
+        <translation>Spark 名称</translation>
+    </message>
+    <message>
+        <source>My own spark names</source>
+        <translation>我的 Spark 名称</translation>
+    </message>
+    <message>
+        <source>&amp;Copy Spark Address</source>
+        <translation>复制 Spark 地址(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Copy Transparent Address</source>
+        <translation>复制透明地址(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Spark addresses can safely receive multiple payments, although reusing one can link those requests.</source>
+        <translation>Spark 地址可安全接收多笔付款，但重复使用同一地址可能使这些付款请求相互关联。</translation>
+    </message>
 </context>
 <context>
     <name>Recover</name>
@@ -155,15 +195,15 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>12 Words</source>
-        <translation>12 个字</translation>
+        <translation>12 个词</translation>
     </message>
     <message>
         <source>24 Words</source>
-        <translation>24 个字</translation>
+        <translation>24 个词</translation>
     </message>
     <message>
         <source>Input recovery seed phrase here:</source>
-        <translation>在这里输入恢复种子短语：</translation>
+        <translation>在此输入恢复助记词：</translation>
     </message>
     <message>
         <source>Use additional passphrase (optional) [Recommended for advanced users only]</source>
@@ -179,15 +219,15 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>Wrong number of words. Please try again.</source>
-        <translation>字数错误。请再试一次。</translation>
+        <translation>助记词数量不正确。请重试。</translation>
     </message>
     <message>
         <source>Recovery seed phrase can't be empty.</source>
-        <translation>恢复助记词不能是空的。</translation>
+        <translation>恢复助记词不能为空。</translation>
     </message>
     <message>
         <source>You have entered an invalid recovery seed phrase. Please double check the spelling and order.</source>
-        <translation>你输入了一个无效的恢复种子短语。请仔细检查拼写和顺序。</translation>
+        <translation>您输入的恢复助记词无效。请仔细检查拼写和顺序。</translation>
     </message>
     <message>
         <source>Passphrases don't match.</source>
@@ -209,6 +249,44 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
         <source>The number of RAP addresses will be created in the wallet for the initial blockchain scan</source>
         <translation>将在钱包中创建的 RAP 地址的数量，用于初始区块链扫描</translation>
     </message>
+    <message>
+        <source>Let's create or restore your Firo wallet!
+
+You will be prompted to write down a recovery seed phrase that allows you to restore your wallet in the future.
+
+Please ensure that you store this securely as anyone with access to the recovery seed phrase can access your funds!
+
+By default, we recommend a 24 word recovery seed phrase.
+
+You can also choose to further encrypt your recovery seed phrase with an additional passphrase (only recommended for advanced users).
+You will need to save this passphrase as well with the recovery seed phrase. Failing to save the passphrase will lead to your funds being irrecoverable.
+
+If you have an existing recovery seed phrase, please select "Recover existing wallet". If you have secured your recovery seed phrase with an additional passphrase, enter it too.
+Also you can choose wallet birth date for more faster and optimised wallet scan.
+      </source>
+        <translation>创建或恢复您的 Firo 钱包！
+
+系统会提示您抄写一组助记词，以便日后恢复钱包。
+
+请务必妥善保管助记词，任何获得助记词的人都可以使用您的资金！
+
+默认建议使用由 24 个单词组成的助记词。
+
+您也可以选择使用附加口令进一步加密助记词（仅推荐高级用户使用）。
+您必须同时保存附加口令和助记词。未保存口令会导致资金无法恢复。
+
+如果您已有助记词，请选择“恢复现有钱包”。如果您使用了附加口令保护助记词，也请一并输入。
+您还可以选择钱包创建日期，以加快并优化钱包扫描。
+      </translation>
+    </message>
+    <message>
+        <source>Choose the wallet creation date:</source>
+        <translation>选择钱包创建日期：</translation>
+    </message>
+    <message>
+        <source>dd-MM-yyyy</source>
+        <translation>dd-MM-yyyy</translation>
+    </message>
 </context>
 <context>
     <name>AddressTableModel</name>
@@ -224,6 +302,10 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
         <source>(no label)</source>
         <translation>(无标签)</translation>
     </message>
+    <message>
+        <source>Address Type</source>
+        <translation>地址类型</translation>
+    </message>
 </context>
 <context>
     <name>PcodeAddressTableModel</name>
@@ -234,6 +316,10 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     <message>
         <source>Copy RAP address</source>
         <translation>复制 RAP 地址</translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation>标签</translation>
     </message>
 </context>
 <context>
@@ -346,6 +432,10 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
         <source>Warning: The Caps Lock key is on!</source>
         <translation>警告：大写字母锁定已开启！</translation>
     </message>
+    <message>
+        <source>passphraseWarning</source>
+        <translation>passphraseWarning</translation>
+    </message>
 </context>
 <context>
     <name>BanTableModel</name>
@@ -426,7 +516,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>&amp;About %1</source>
-        <translation>关于 %1</translation>
+        <translation>关于 %1(&amp;A)</translation>
     </message>
     <message>
         <source>Show information about %1</source>
@@ -486,7 +576,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>Reindexing blocks on disk...</source>
-        <translation>正在为数据块重建索引...</translation>
+        <translation>正在重新索引磁盘上的区块...</translation>
     </message>
     <message>
         <source>Send coins to a Firo address</source>
@@ -590,15 +680,17 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
-        <translation>正在为数据块建立索引...</translation>
+        <translation>正在索引磁盘上的区块...</translation>
     </message>
     <message>
         <source>Processing blocks on disk...</source>
-        <translation>正在处理数据块...</translation>
+        <translation>正在处理磁盘上的区块...</translation>
     </message>
     <message numerus="yes">
         <source>Processed %n block(s) of transaction history.</source>
-        <translation><numerusform>已处理 %n 个交易历史数据块。</numerusform></translation>
+        <translation>
+            <numerusform>已处理 %n 个区块的交易历史。</numerusform>
+        </translation>
     </message>
     <message>
         <source>%1 behind</source>
@@ -606,7 +698,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>Last received block was generated %1 ago.</source>
-        <translation>最新收到的区块产生于 %1。</translation>
+        <translation>最新收到的区块生成于 %1 前。</translation>
     </message>
     <message>
         <source>Transactions after this will not yet be visible.</source>
@@ -634,7 +726,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </message>
     <message>
         <source>%1 client</source>
-        <translation>%1 客戶</translation>
+        <translation>%1 客户端</translation>
     </message>
     <message>
         <source>Connecting to peers...</source>
@@ -693,6 +785,110 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     <message>
         <source>A fatal error occurred. Firo can no longer continue safely and will quit.</source>
         <translation>发生严重错误。客户端无法安全地继续运行，即将退出。</translation>
+    </message>
+    <message>
+        <source>Tor</source>
+        <translation>Tor</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled for this session. This confirms configuration, not Tor bootstrap or routing health. Manual proxy settings may override affected routes.</source>
+        <translation>当前会话已启用 Tor 快速设置。这仅确认配置已启用，并不确认 Tor 已完成引导或路由运行正常。手动代理设置可能覆盖相关路由。</translation>
+    </message>
+    <message>
+        <source>&amp;Spark Names</source>
+        <translation>Spark 名称(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Manage your registered Spark Names</source>
+        <translation>管理您注册的 Spark 名称</translation>
+    </message>
+    <message>
+        <source>&amp;Export View Key...</source>
+        <translation>导出查看密钥(&amp;E)...</translation>
+    </message>
+    <message>
+        <source>Export Spark view key</source>
+        <translation>导出 Spark 查看密钥</translation>
+    </message>
+    <message>
+        <source>&amp;Console</source>
+        <translation>控制台(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Open the console in the debug window</source>
+        <translation>在调试窗口中打开控制台</translation>
+    </message>
+    <message>
+        <source>Open a firo: URI</source>
+        <translation>打开 firo: URI</translation>
+    </message>
+    <message>
+        <source>Toggle light / dark theme</source>
+        <translation>切换浅色或深色主题</translation>
+    </message>
+    <message>
+        <source>Light or dark theme</source>
+        <translation>浅色或深色主题</translation>
+    </message>
+    <message>
+        <source>Wallet navigation</source>
+        <translation>钱包导航</translation>
+    </message>
+    <message>
+        <source>Console</source>
+        <translation>控制台</translation>
+    </message>
+    <message>
+        <source>Options</source>
+        <translation>选项</translation>
+    </message>
+    <message>
+        <source>Light</source>
+        <translation>浅色</translation>
+    </message>
+    <message>
+        <source>Dark</source>
+        <translation>深色</translation>
+    </message>
+    <message>
+        <source>Show synchronization details</source>
+        <translation>显示同步详情</translation>
+    </message>
+    <message>
+        <source>Syncing...</source>
+        <translation>正在同步...</translation>
+    </message>
+    <message>
+        <source>Collapse navigation</source>
+        <translation>收起导航栏</translation>
+    </message>
+    <message>
+        <source>Network activity disabled</source>
+        <translation>网络活动已禁用</translation>
+    </message>
+    <message>
+        <source>Synced</source>
+        <translation>已同步</translation>
+    </message>
+    <message>
+        <source>Expand navigation</source>
+        <translation>展开导航栏</translation>
+    </message>
+    <message>
+        <source>Syncing Headers...</source>
+        <translation>正在同步区块头...</translation>
+    </message>
+    <message>
+        <source>Synchronizing additional data: %p%</source>
+        <translation>正在同步附加数据：%p%</translation>
+    </message>
+    <message>
+        <source>HD key generation is &lt;b&gt;enabled&lt;/b&gt;</source>
+        <translation>HD 密钥生成功能已&lt;b&gt;启用&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>HD key generation is &lt;b&gt;disabled&lt;/b&gt;</source>
+        <translation>HD 密钥生成功能已&lt;b&gt;禁用&lt;/b&gt;</translation>
     </message>
 </context>
 <context>
@@ -898,7 +1094,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Quantity:</source>
-        <translation>总量：</translation>
+        <translation>数量：</translation>
     </message>
     <message>
         <source>Bytes:</source>
@@ -918,11 +1114,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>After Fee:</source>
-        <translation>加上交易费用后：</translation>
+        <translation>扣除手续费后：</translation>
     </message>
     <message>
         <source>Change:</source>
-        <translation>变更：</translation>
+        <translation>找零：</translation>
     </message>
     <message>
         <source>(un)select all</source>
@@ -1022,7 +1218,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>This label turns red if any recipient receives an amount smaller than the current dust threshold.</source>
-        <translation>当任何一个收款金额小于目前的零散金额上限时，文字会变红色。</translation>
+        <translation>当任何收款人的收款金额低于当前零散金额阈值时，此标签会变红。</translation>
     </message>
     <message>
         <source>Can vary +/- %1 satoshi(s) per input.</source>
@@ -1034,11 +1230,19 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>change from %1 (%2)</source>
-        <translation>找零前是 %1 (%2)</translation>
+        <translation>来自 %1 (%2) 的找零</translation>
     </message>
     <message>
         <source>(change)</source>
         <translation>(找零)</translation>
+    </message>
+    <message>
+        <source>(sigma mint)</source>
+        <translation>（sigma 铸币）</translation>
+    </message>
+    <message>
+        <source>(mint)</source>
+        <translation>（铸币）</translation>
     </message>
 </context>
 <context>
@@ -1057,7 +1261,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>The address associated with this address list entry. This can only be modified for sending addresses.</source>
-        <translation>该地址已与地址列表中的条目关联，只能被发送地址修改。</translation>
+        <translation>此地址列表条目对应的地址。只有付款地址可以修改。</translation>
     </message>
     <message>
         <source>&amp;Address</source>
@@ -1110,6 +1314,50 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>New RAP address validation failed.</source>
         <translation>新建 RAP 地址验证失败。</translation>
+    </message>
+    <message>
+        <source>New transparent receiving address</source>
+        <translation>新建透明收款地址</translation>
+    </message>
+    <message>
+        <source>New transparent sending address</source>
+        <translation>新建透明付款地址</translation>
+    </message>
+    <message>
+        <source>Edit transparent receiving address</source>
+        <translation>编辑透明收款地址</translation>
+    </message>
+    <message>
+        <source>Edit transparent sending address</source>
+        <translation>编辑透明付款地址</translation>
+    </message>
+    <message>
+        <source>New spark sending address</source>
+        <translation>新建 Spark 付款地址</translation>
+    </message>
+    <message>
+        <source>Spark address</source>
+        <translation>Spark 地址</translation>
+    </message>
+    <message>
+        <source>Edit spark sending address</source>
+        <translation>编辑 Spark 付款地址</translation>
+    </message>
+    <message>
+        <source>New spark receiving address</source>
+        <translation>新建 Spark 收款地址</translation>
+    </message>
+    <message>
+        <source>Edit spark receiving address</source>
+        <translation>编辑 Spark 收款地址</translation>
+    </message>
+    <message>
+        <source>The entered address "%1" is not a valid spark Firo address.</source>
+        <translation>输入的地址“%1”不是有效的 Firo Spark 地址。</translation>
+    </message>
+    <message>
+        <source>Receiving RAP addresses cannot be relabeled.</source>
+        <translation>无法修改 RAP 收款地址的标签。</translation>
     </message>
 </context>
 <context>
@@ -1175,7 +1423,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Set language, for example "de_DE" (default: system locale)</source>
-        <translation>设置语言, 例如“zh-CN”（默认：系统语言）</translation>
+        <translation>设置语言，例如 "de_DE"（默认：系统区域设置）</translation>
     </message>
     <message>
         <source>Start minimized</source>
@@ -1183,7 +1431,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Set SSL root certificates for payment request (default: -system-)</source>
-        <translation>设置付款请求的SSL根证书（默认：-系统-）</translation>
+        <translation>设置付款请求的 SSL 根证书（默认：-system-）</translation>
     </message>
     <message>
         <source>Show splash screen on startup (default: %u)</source>
@@ -1206,15 +1454,15 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Your wallet has been created successfully. Using the following recovery seed phrase, you will be able to recover your wallet and balances at any time.</source>
-        <translation>你的钱包已经成功创建。使用以下恢复种子短语，你将能够随时恢复你的钱包和余额。</translation>
+        <translation>您的钱包已成功创建。使用以下恢复助记词，您可以随时恢复钱包和余额。</translation>
     </message>
     <message>
         <source>Recovery seed phrase:</source>
-        <translation>恢复种子短语：</translation>
+        <translation>恢复助记词：</translation>
     </message>
     <message>
         <source>WARNING: Anyone with access to the recovery seed phrase can recover your wallet and will have control over your funds!</source>
-        <translation>警告：任何能够接触到恢复种子短语的人都可以恢复你的钱包，并将控制你的资金！</translation>
+        <translation>警告：任何获得恢复助记词的人都可以恢复您的钱包，并控制您的资金！</translation>
     </message>
     <message>
         <source>Please re-enter the recovery seed phrase to ensure you have written it down correctly.</source>
@@ -1226,7 +1474,19 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Are you sure you wish to proceed without confirming whether you have written down your seed words correctly?</source>
-        <translation>你确定要在不确认自己的种子短语是否正确写下的情况下继续吗？</translation>
+        <translation>确定要在尚未确认恢复助记词已正确抄写的情况下继续吗？</translation>
+    </message>
+    <message>
+        <source>Please write down these recovery seed phrase and wallet birth date and keep them in a secure location. Specifying the wallet's birth date when restoring your wallet speeds up and optimizes the scanning of your wallet.</source>
+        <translation>请抄下这些恢复助记词和钱包创建日期，并妥善保存在安全的地方。恢复钱包时指定创建日期，可加快扫描速度并优化扫描过程。</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation>警告</translation>
+    </message>
+    <message>
+        <source>Wallet creation date:  %1</source>
+        <translation>钱包创建日期：%1</translation>
     </message>
 </context>
 <context>
@@ -1237,8 +1497,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Welcome to %1.</source>
-        <translation>
-歡迎來到 %1</translation>
+        <translation>欢迎使用 %1。</translation>
     </message>
     <message>
         <source>As this is the first time the program is launched, you can choose where %1 will store its data.</source>
@@ -1297,7 +1556,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Last block time</source>
-        <translation>上一数据块时间</translation>
+        <translation>最新区块时间</translation>
     </message>
     <message>
         <source>Progress</source>
@@ -1323,6 +1582,26 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Unknown. Syncing Headers (%1)...</source>
         <translation>未知。正在同步区块头 (%1)...</translation>
     </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation>钱包仍在同步</translation>
+    </message>
+    <message>
+        <source>Recent transactions may not yet be visible, and your balance might be incorrect until the wallet finishes synchronizing with the Firo network.</source>
+        <translation>在钱包与 Firo 网络完成同步之前，近期交易可能尚未显示，余额也可能不准确。</translation>
+    </message>
+    <message>
+        <source>Wallet is synchronized</source>
+        <translation>钱包已完成同步</translation>
+    </message>
+    <message>
+        <source>The wallet is up to date with the Firo network.</source>
+        <translation>钱包已与 Firo 网络同步至最新状态。</translation>
+    </message>
+    <message>
+        <source>Complete</source>
+        <translation>完成</translation>
+    </message>
 </context>
 <context>
     <name>OpenURIDialog</name>
@@ -1346,6 +1625,10 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Select payment request file to open</source>
         <translation>选择要打开的付款请求文件</translation>
     </message>
+    <message>
+        <source>Open bitcoin URI</source>
+        <translation>打开 bitcoin URI</translation>
+    </message>
 </context>
 <context>
     <name>OptionsDialog</name>
@@ -1363,7 +1646,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>&amp;Start %1 on system login</source>
-        <translation>系统登入时启动 %1</translation>
+        <translation>系统登录时启动 %1(&amp;S)</translation>
     </message>
     <message>
         <source>Size of &amp;database cache</source>
@@ -1395,7 +1678,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items. %s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</source>
-        <translation>出现在交易的选项卡的上下文菜单项的第三方网址 (例如：区块链接查询) 。%s的URL被替换为交易哈希。多个的URL需要竖线 | 分隔。</translation>
+        <translation>在交易选项卡的右键菜单中显示的第三方 URL（例如区块浏览器）。URL 中的 %s 会被替换为交易哈希。多个 URL 请用竖线 | 分隔。</translation>
     </message>
     <message>
         <source>Third party transaction URLs</source>
@@ -1419,7 +1702,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>(0 = auto, &lt;0 = leave that many cores free)</source>
-        <translation>(0 = 自动, &lt;0 = 离开很多免费的核心)</translation>
+        <translation>（0 = 自动，&lt;0 = 保留相应数量的 CPU 核心供其他任务使用）</translation>
     </message>
     <message>
         <source>W&amp;allet</source>
@@ -1435,7 +1718,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>If you disable the spending of unconfirmed change, the change from a transaction cannot be used until that transaction has at least one confirmation. This also affects how your balance is computed.</source>
-        <translation>如果禁用未确认的零钱，则零钱至少需要 1 个确认才能使用。同时账户余额计算会受到影响。</translation>
+        <translation>如果禁用花费未确认的找零，交易的找零须等该交易至少获得一次确认后才能使用。这也会影响余额的计算。</translation>
     </message>
     <message>
         <source>Enable &amp;auto-anonymize features</source>
@@ -1443,7 +1726,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>&amp;Spend unconfirmed change</source>
-        <translation>使用未经确认的零钱(&amp;S)</translation>
+        <translation>花费未确认的找零(&amp;S)</translation>
     </message>
     <message>
         <source>Automatically open the Firo client port on the router. This only works when your router supports UPnP and it is enabled.</source>
@@ -1495,7 +1778,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Connect to the Firo network through a separate SOCKS5 proxy for Tor hidden services.</source>
-        <translation>在 Tor 匿名网络下通过不同的 SOCKS5 代理连接 Firo 网络</translation>
+        <translation>通过专用于 Tor 隐藏服务的独立 SOCKS5 代理连接 Firo 网络。</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</source>
@@ -1507,7 +1790,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>&amp;Hide the icon from the system tray.</source>
-        <translation>不在通知区显示图标</translation>
+        <translation>隐藏系统托盘图标(&amp;H)</translation>
     </message>
     <message>
         <source>Hide tray icon</source>
@@ -1589,6 +1872,82 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore the list from the seed in your wallet. This will likely take a few hours. Are you sure?</source>
         <translation>警告：在重新启动时，该设置将擦除你的交易列表，重新索引区块链，并从你钱包中的种子恢复列表。这可能需要几个小时。你确定吗？</translation>
     </message>
+    <message>
+        <source>Restore Spark and wallet transaction data following a full reindex (deletes Spark mint records from the wallet, then reindexes the chain and reapplies wallet transactions). This can take several hours.</source>
+        <translation>通过完整重新索引恢复 Spark 和钱包交易数据（先删除钱包中的 Spark 铸币记录，然后重新索引区块链并重新应用钱包交易）。此过程可能需要数小时。</translation>
+    </message>
+    <message>
+        <source>&amp;Reindex Spark wallet data</source>
+        <translation>重新索引 Spark 钱包数据(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Spark</source>
+        <translation>Spark</translation>
+    </message>
+    <message>
+        <source>When enabled, the wallet can prompt to make transparent funds private with Spark.</source>
+        <translation>启用后，钱包可提示您通过 Spark 将透明资金转为私密。</translation>
+    </message>
+    <message>
+        <source>Enable automatic Spark &amp;privacy</source>
+        <translation>启用自动 Spark 隐私保护(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Split outputs when minting to Spark for better privacy.</source>
+        <translation>铸币至 Spark 时拆分输出，以更好地保护隐私。</translation>
+    </message>
+    <message>
+        <source>Enable &amp;splitting when minting</source>
+        <translation>启用铸币时拆分输出(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Show the Make Private control in the overview.</source>
+        <translation>在概览中显示“转为私密”按钮。</translation>
+    </message>
+    <message>
+        <source>Show Spark &amp;privacy controls</source>
+        <translation>显示 Spark 隐私保护控件(&amp;P)</translation>
+    </message>
+    <message>
+        <source>Automatically launch an embedded Tor instance and configure Firo to use it. Manual proxy settings above can override routing for affected connection types. A client restart is required.</source>
+        <translation>自动启动内嵌 Tor 实例，并配置 Firo 使用它。上方的手动代理设置可覆盖相应连接类型的路由。需要重启客户端。</translation>
+    </message>
+    <message>
+        <source>Route connection through Tor (quickstart)</source>
+        <translation>通过 Tor 路由连接（快速设置）</translation>
+    </message>
+    <message>
+        <source>Confirm Spark reindex</source>
+        <translation>确认重新索引 Spark</translation>
+    </message>
+    <message>
+        <source>Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore wallet data from your seed. Spark mint records are cleared and rebuilt from the chain. This will likely take a few hours. Are you sure?</source>
+        <translation>警告：重启时，此设置将清空交易列表，重新索引区块链，并通过您的种子恢复钱包数据。Spark 铸币记录将被清除并从区块链重建。此过程可能需要数小时。确定要继续吗？</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled for this session by -torsetup. It cannot be changed here.</source>
+        <translation>当前会话已通过 -torsetup 启用 Tor 快速设置，无法在此处更改。</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is disabled for this session by -torsetup. It cannot be changed here.</source>
+        <translation>当前会话已通过 -torsetup 禁用 Tor 快速设置，无法在此处更改。</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled for this session.</source>
+        <translation>当前会话已启用 Tor 快速设置。</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is enabled. Restart the client to apply this change.</source>
+        <translation>Tor 快速设置已启用。请重启客户端以应用此更改。</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is disabled. Restart the client to apply this change.</source>
+        <translation>Tor 快速设置已禁用。请重启客户端以应用此更改。</translation>
+    </message>
+    <message>
+        <source>Tor quickstart is disabled.</source>
+        <translation>Tor 快速设置已禁用。</translation>
+    </message>
 </context>
 <context>
     <name>AutomintNotification</name>
@@ -1607,6 +1966,14 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>Dismiss</source>
         <translation>忽略</translation>
+    </message>
+    <message>
+        <source>Make Funds Private</source>
+        <translation>将资金转为私密</translation>
+    </message>
+    <message>
+        <source>Make all available transparent funds private with Spark?</source>
+        <translation>通过 Spark 将所有可用透明资金转为私密？</translation>
     </message>
 </context>
 <context>
@@ -1662,6 +2029,18 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>Unable to generate mint: Blockchain not yet synced.</source>
         <translation>无法铸币：区块链尚未同步。</translation>
+    </message>
+    <message>
+        <source>Make Funds Private</source>
+        <translation>将资金转为私密</translation>
+    </message>
+    <message>
+        <source>Unlock your wallet to make all transparent funds private with Spark.</source>
+        <translation>解锁钱包，以通过 Spark 将所有透明资金转为私密。</translation>
+    </message>
+    <message>
+        <source>Lock wallet immediately after making funds private</source>
+        <translation>资金转为私密后立即锁定钱包</translation>
     </message>
 </context>
 <context>
@@ -1978,11 +2357,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Copy ProTx Hash</source>
-        <translation>复制 ProTx Hash</translation>
+        <translation>复制 ProTx 哈希</translation>
     </message>
     <message>
         <source>Copy Collateral Outpoint</source>
-        <translation>复制保证金输出点</translation>
+        <translation>复制抵押金输出点</translation>
     </message>
     <message>
         <source>Updating...</source>
@@ -2028,6 +2407,170 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Additional information for DIP3 Masternode %1</source>
         <translation>DIP3 主节点 %1 的额外信息</translation>
     </message>
+    <message>
+        <source>Filter List</source>
+        <translation>筛选列表</translation>
+    </message>
+    <message>
+        <source>Node Count</source>
+        <translation>节点数量</translation>
+    </message>
+    <message>
+        <source>Collateral · %1</source>
+        <translation>抵押金 · %1</translation>
+    </message>
+    <message>
+        <source>PoSe %1</source>
+        <translation>PoSe %1</translation>
+    </message>
+    <message>
+        <source>REGISTERED</source>
+        <translation>注册区块</translation>
+    </message>
+    <message>
+        <source>LAST PAID</source>
+        <translation>上次付款</translation>
+    </message>
+    <message>
+        <source>NEXT PAYMENT</source>
+        <translation>下次付款</translation>
+    </message>
+    <message>
+        <source>COLLATERAL</source>
+        <translation>抵押金</translation>
+    </message>
+    <message>
+        <source>Filter masternodes</source>
+        <translation>筛选主节点</translation>
+    </message>
+    <message>
+        <source>Sort masternodes by</source>
+        <translation>主节点排序依据</translation>
+    </message>
+    <message>
+        <source>Sort the masternode list</source>
+        <translation>对主节点列表排序</translation>
+    </message>
+    <message>
+        <source>PoSe score</source>
+        <translation>PoSe 评分</translation>
+    </message>
+    <message>
+        <source>Registered</source>
+        <translation>注册区块</translation>
+    </message>
+    <message>
+        <source>Last paid</source>
+        <translation>上次付款</translation>
+    </message>
+    <message>
+        <source>Next payment</source>
+        <translation>下次付款</translation>
+    </message>
+    <message>
+        <source>Payout address</source>
+        <translation>付款地址</translation>
+    </message>
+    <message>
+        <source>Operator reward</source>
+        <translation>运营者奖励</translation>
+    </message>
+    <message>
+        <source>Collateral amount</source>
+        <translation>抵押金额</translation>
+    </message>
+    <message>
+        <source>Collateral address</source>
+        <translation>抵押金地址</translation>
+    </message>
+    <message>
+        <source>Owner address</source>
+        <translation>所有者地址</translation>
+    </message>
+    <message>
+        <source>Masternode list</source>
+        <translation>主节点列表</translation>
+    </message>
+    <message>
+        <source>No masternodes found</source>
+        <translation>未找到主节点</translation>
+    </message>
+    <message>
+        <source>Masternodes matching your filters will appear here</source>
+        <translation>符合筛选条件的主节点将显示在此处</translation>
+    </message>
+    <message>
+        <source>Details...</source>
+        <translation>详情...</translation>
+    </message>
+    <message>
+        <source>Sort ascending</source>
+        <translation>升序排列</translation>
+    </message>
+    <message>
+        <source>Sort descending</source>
+        <translation>降序排列</translation>
+    </message>
+    <message>
+        <source>Pre-enabled</source>
+        <translation>待启用</translation>
+    </message>
+    <message>
+        <source>Enabled</source>
+        <translation>已启用</translation>
+    </message>
+    <message>
+        <source>PoSe Banned</source>
+        <translation>已被 PoSe 封禁</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>%1, not claimed</source>
+        <translation>%1，尚未领取</translation>
+    </message>
+    <message>
+        <source>%1 to %2</source>
+        <translation>%1 支付至 %2</translation>
+    </message>
+    <message>
+        <source>%1 to unknown address</source>
+        <translation>%1 支付至未知地址</translation>
+    </message>
+    <message>
+        <source>Service: %1
+Status: %2
+PoSe score: %3
+Registered: %4
+Last paid: %5
+Next payment: %6
+Payout address: %7
+Operator reward: %8
+Collateral: %9
+Collateral address: %10
+Owner address: %11
+ProTx hash: %12
+Collateral outpoint: %13</source>
+        <translation>服务地址：%1
+状态：%2
+PoSe 评分：%3
+注册区块：%4
+上次付款：%5
+下次付款：%6
+付款地址：%7
+运营者奖励：%8
+抵押金：%9
+抵押金地址：%10
+所有者地址：%11
+ProTx 哈希：%12
+抵押金输出点：%13</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1，%2</translation>
+    </message>
 </context>
 <context>
     <name>OverviewPage</name>
@@ -2053,7 +2596,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Transparent Balances</source>
-        <translation>公开的余额</translation>
+        <translation>透明余额</translation>
     </message>
     <message>
         <source>Anonymizable:</source>
@@ -2065,7 +2608,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Watch-only:</source>
-        <translation>查看-只有：</translation>
+        <translation>仅观察：</translation>
     </message>
     <message>
         <source>Available:</source>
@@ -2073,7 +2616,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Your current spendable balance</source>
-        <translation>你当前可使用的公开余额</translation>
+        <translation>您当前可花费的透明余额</translation>
     </message>
     <message>
         <source>Pending:</source>
@@ -2081,7 +2624,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Total of transactions that have yet to be confirmed, and do not yet count toward the spendable balance</source>
-        <translation>尚未确认的公开交易金额，未计入当前可用余额</translation>
+        <translation>尚未确认的透明交易总额，目前不计入可花费余额</translation>
     </message>
     <message>
         <source>Immature:</source>
@@ -2113,7 +2656,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Your current balance in watch-only addresses</source>
-        <translation>你当前 观察地址(watch-only address)的余额 </translation>
+        <translation>您当前在仅观察地址中的余额</translation>
     </message>
     <message>
         <source>Spendable:</source>
@@ -2125,19 +2668,247 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Unconfirmed transactions to watch-only addresses</source>
-        <translation>观察地址(watch-only address)的未确认交易记录 </translation>
+        <translation>发送至仅观察地址的未确认交易</translation>
     </message>
     <message>
         <source>Mined balance in watch-only addresses that has not yet matured</source>
-        <translation>观察地址(watch-only address)中尚未成熟(matured)的挖矿收入余额：</translation>
+        <translation>仅观察地址中尚未成熟的挖矿所得余额</translation>
     </message>
     <message>
         <source>Current total balance in watch-only addresses</source>
-        <translation>观察地址(watch-only address)中的当前总余额 </translation>
+        <translation>仅观察地址中的当前总余额</translation>
     </message>
     <message>
         <source>Anonymous communication with Tor</source>
         <translation>使用 Tor 来匿名通信</translation>
+    </message>
+    <message>
+        <source>color: #92400E; background-color:#FEF3C7;</source>
+        <translation>color: #92400E; background-color:#FEF3C7;</translation>
+    </message>
+    <message>
+        <source>FIRO (Primary)</source>
+        <translation>FIRO（主币种）</translation>
+    </message>
+    <message>
+        <source>Transparent 0.00000000 FIRO (0%)</source>
+        <translation>透明 0.00000000 FIRO (0%)</translation>
+    </message>
+    <message>
+        <source>Private (Spark): 0.00000000 FIRO (0%)</source>
+        <translation>私密（Spark）：0.00000000 FIRO (0%)</translation>
+    </message>
+    <message>
+        <source>Send</source>
+        <translation>发送</translation>
+    </message>
+    <message>
+        <source>Receive</source>
+        <translation>接收</translation>
+    </message>
+    <message>
+        <source>Make Private...</source>
+        <translation>转为私密...</translation>
+    </message>
+    <message>
+        <source>Private Balances (Spark)</source>
+        <translation>私密余额（Spark）</translation>
+    </message>
+    <message>
+        <source>Your current spendable private Spark balance</source>
+        <translation>您当前可花费的 Spark 私密余额</translation>
+    </message>
+    <message>
+        <source>0.00000000 FIRO</source>
+        <translation>0.00000000 FIRO</translation>
+    </message>
+    <message>
+        <source>Total of Spark mint transactions that have yet to be confirmed, and do not yet count toward the spendable balance</source>
+        <translation>尚未确认的 Spark 铸币交易总额，目前不计入可花费余额</translation>
+    </message>
+    <message>
+        <source>Available to make private:</source>
+        <translation>可转为私密的金额：</translation>
+    </message>
+    <message>
+        <source>Watch-only Balances</source>
+        <translation>仅观察余额</translation>
+    </message>
+    <message>
+        <source>Recent Activity</source>
+        <translation>近期活动</translation>
+    </message>
+    <message>
+        <source>Mainnet</source>
+        <translation>主网</translation>
+    </message>
+    <message>
+        <source>Testnet</source>
+        <translation>测试网</translation>
+    </message>
+    <message>
+        <source>Devnet</source>
+        <translation>开发网</translation>
+    </message>
+    <message>
+        <source>Regtest</source>
+        <translation>回归测试网</translation>
+    </message>
+    <message>
+        <source>↗  Send</source>
+        <translation>↗  发送</translation>
+    </message>
+    <message>
+        <source>↙  Receive</source>
+        <translation>↙  接收</translation>
+    </message>
+    <message>
+        <source>Make Private</source>
+        <translation>转为私密</translation>
+    </message>
+    <message>
+        <source>No transactions yet</source>
+        <translation>暂无交易</translation>
+    </message>
+    <message>
+        <source>Your history will appear here after the first transfer</source>
+        <translation>首次转账后，交易记录将显示在这里</translation>
+    </message>
+    <message>
+        <source>Make Funds Private</source>
+        <translation>将资金转为私密</translation>
+    </message>
+    <message>
+        <source>Move FIRO from your transparent balance into Spark, Firo's private balance.</source>
+        <translation>将透明余额中的 FIRO 转入 Spark，即 Firo 的私密余额。</translation>
+    </message>
+    <message>
+        <source>From</source>
+        <translation>转出</translation>
+    </message>
+    <message>
+        <source>Transparent balance</source>
+        <translation>透明余额</translation>
+    </message>
+    <message>
+        <source>To</source>
+        <translation>转入</translation>
+    </message>
+    <message>
+        <source>Private balance (Spark)</source>
+        <translation>私密余额（Spark）</translation>
+    </message>
+    <message>
+        <source>Max</source>
+        <translation>最大金额</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金额</translation>
+    </message>
+    <message>
+        <source>The network fee will be deducted from this amount.</source>
+        <translation>网络手续费将从此金额中扣除。</translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation>可用</translation>
+    </message>
+    <message>
+        <source>Review</source>
+        <translation>核对</translation>
+    </message>
+    <message>
+        <source>The amount exceeds your available transparent balance.</source>
+        <translation>金额超出您的可用透明余额。</translation>
+    </message>
+    <message>
+        <source>The amount and transaction fee exceed your available transparent balance.</source>
+        <translation>金额与交易手续费之和超出您的可用透明余额。</translation>
+    </message>
+    <message>
+        <source>The transaction fee is higher than the configured maximum of %1.</source>
+        <translation>交易手续费高于设定的上限 %1。</translation>
+    </message>
+    <message>
+        <source>The transaction was rejected: %1</source>
+        <translation>交易被拒绝：%1</translation>
+    </message>
+    <message>
+        <source>Unable to create the Spark transaction.</source>
+        <translation>无法创建 Spark 交易。</translation>
+    </message>
+    <message>
+        <source>Make funds private</source>
+        <translation>将资金转为私密</translation>
+    </message>
+    <message>
+        <source>Unable to Make Funds Private</source>
+        <translation>无法将资金转为私密</translation>
+    </message>
+    <message>
+        <source>Firo could not create a Spark transaction for this amount.</source>
+        <translation>Firo 无法为此金额创建 Spark 交易。</translation>
+    </message>
+    <message>
+        <source>Use Maximum fills in the highest amount that can be made private, with the network fee deducted from it. No funds were moved.</source>
+        <translation>“使用最大金额”会填入可转为私密的最大金额，网络手续费将从中扣除。资金尚未转出。</translation>
+    </message>
+    <message>
+        <source>Change the amount and try again. No funds were moved.</source>
+        <translation>请更改金额后重试。资金尚未转出。</translation>
+    </message>
+    <message>
+        <source>Use Maximum</source>
+        <translation>使用最大金额</translation>
+    </message>
+    <message>
+        <source>Change Amount</source>
+        <translation>更改金额</translation>
+    </message>
+    <message>
+        <source>Review Private Transfer</source>
+        <translation>核对私密转账</translation>
+    </message>
+    <message>
+        <source>Amount to make private: &lt;b&gt;%1&lt;/b&gt;&lt;br&gt;Network fee: %2&lt;br&gt;Total from transparent balance: %3</source>
+        <translation>转为私密的金额：&lt;b&gt;%1&lt;/b&gt;&lt;br&gt;网络手续费：%2&lt;br&gt;透明余额支出总额：%3</translation>
+    </message>
+    <message>
+        <source>The transfer could not be fully completed. Part of it may already have been sent; check the Transactions tab before trying again.</source>
+        <translation>转账未能全部完成。部分资金可能已发送，请先查看“交易”选项卡，再决定是否重试。</translation>
+    </message>
+    <message>
+        <source>The transfer could not be completed. No funds were moved.</source>
+        <translation>转账未能完成。资金尚未转出。</translation>
+    </message>
+    <message>
+        <source>Funds Moving to Spark</source>
+        <translation>资金正在转入 Spark</translation>
+    </message>
+    <message>
+        <source>%1 is moving to your private Spark balance. It will become available after confirmation.</source>
+        <translation>%1 正在转入您的私密 Spark 余额，确认后即可使用。</translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation>透明</translation>
+    </message>
+    <message>
+        <source>Private (Spark):</source>
+        <translation>私密（Spark）：</translation>
+    </message>
+    <message>
+        <source>Private (Spark) %1%  ·  Transparent %2%</source>
+        <translation>私密（Spark）%1%  ·  透明 %2%</translation>
+    </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation>钱包仍在同步</translation>
+    </message>
+    <message>
+        <source>Transactions will appear here as synchronization completes</source>
+        <translation>同步完成后，交易将显示在这里</translation>
     </message>
 </context>
 <context>
@@ -2148,8 +2919,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Cannot start firo: click-to-pay handler</source>
-        <translation>无法启动 firo 协议的“
-一键支付”处理器</translation>
+        <translation>无法启动 firo: 点击付款处理程序</translation>
     </message>
     <message>
         <source>URI handling</source>
@@ -2231,6 +3001,18 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Payment acknowledged</source>
         <translation>付款已确认</translation>
     </message>
+    <message>
+        <source>Cannot process payment request because BIP70 is not supported.</source>
+        <translation>由于不支持 BIP70，无法处理付款请求。</translation>
+    </message>
+    <message>
+        <source>Due to widespread security flaws in BIP70 it's strongly recommended that any merchant instructions to switch wallets be ignored.</source>
+        <translation>BIP70 存在广泛的安全缺陷，强烈建议忽略商家要求您更换钱包的任何指示。</translation>
+    </message>
+    <message>
+        <source>If you are receiving this error you should request the merchant provide a BIP21 compatible URI.</source>
+        <translation>如果出现此错误，请要求商家提供兼容 BIP21 的 URI。</translation>
+    </message>
 </context>
 <context>
     <name>PeerTableModel</name>
@@ -2249,6 +3031,10 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>Ping</source>
         <translation>Ping</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>网络</translation>
     </message>
 </context>
 <context>
@@ -2325,6 +3111,68 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>%1 didn't yet exit safely...</source>
         <translation>%1 尚未安全退出</translation>
     </message>
+    <message>
+        <source> or a Firo spark address (e.g. pr1cjgedy25xhr4fmzx8cm5gf940v5j2482m94uaa0yguxxw2yrel0f0hyjesg77px7at47f4s3jy8hthmyr6ajhvn025yp28fyuwzvar0gcc7p27rvttn2tyl9ejwthjpaavlmy3cm3sysz)</source>
+        <translation> 或 Firo Spark 地址（例如 pr1cjgedy25xhr4fmzx8cm5gf940v5j2482m94uaa0yguxxw2yrel0f0hyjesg77px7at47f4s3jy8hthmyr6ajhvn025yp28fyuwzvar0gcc7p27rvttn2tyl9ejwthjpaavlmy3cm3sysz）</translation>
+    </message>
+    <message>
+        <source>OP_RETURN metadata exceeds the 80-byte Rosen limit.</source>
+        <translation>OP_RETURN 元数据超出 Rosen 的 80 字节限制。</translation>
+    </message>
+    <message>
+        <source>Rosen metadata is too short.</source>
+        <translation>Rosen 元数据过短。</translation>
+    </message>
+    <message>
+        <source>Rosen metadata contains an unknown destination chain.</source>
+        <translation>Rosen 元数据包含未知的目标链。</translation>
+    </message>
+    <message>
+        <source>Rosen metadata contains an empty destination address.</source>
+        <translation>Rosen 元数据中的目标地址为空。</translation>
+    </message>
+    <message>
+        <source>Rosen metadata destination-address length is inconsistent.</source>
+        <translation>Rosen 元数据中的目标地址长度不一致。</translation>
+    </message>
+    <message>
+        <source>OP_RETURN metadata is empty.</source>
+        <translation>OP_RETURN 元数据为空。</translation>
+    </message>
+    <message>
+        <source>OP_RETURN metadata must be an even-length hexadecimal string.</source>
+        <translation>OP_RETURN 元数据必须为长度为偶数的十六进制字符串。</translation>
+    </message>
+    <message>
+        <source>Destination chain: %1
+Bridge fee: %2 atomic units
+Network fee: %3 atomic units
+Destination address (hex): %4</source>
+        <translation>目标链：%1
+跨链桥费用：%2 最小单位
+网络手续费：%3 最小单位
+目标地址（十六进制）：%4</translation>
+    </message>
+    <message>
+        <source> You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.</source>
+        <translation> 您正在向交易所地址发送 Firo。交易所地址只能接收来自透明地址的资金。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.</source>
+        <translation> 您正在从透明地址向另一个透明地址发送 Firo。为保护您的隐私，建议改用 Spark 地址。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to a Spark address.</source>
+        <translation> 您正在从透明地址向 Spark 地址发送 Firo。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a Spark address to another Spark address. This transaction is fully private.</source>
+        <translation> 您正在从 Spark 地址向另一个 Spark 地址发送 Firo。此交易完全私密。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.</source>
+        <translation> 您正在从私密 Spark 池向透明地址发送 Firo。请注意，部分交易所不接受直接从 Spark 充值。</translation>
+    </message>
 </context>
 <context>
     <name>QObject::QObject</name>
@@ -2349,7 +3197,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>&amp;Copy Image</source>
-        <translation>复制图片</translation>
+        <translation>复制图片(&amp;C)</translation>
     </message>
     <message>
         <source>Save QR Code</source>
@@ -2372,7 +3220,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>&amp;Information</source>
-        <translation>信息</translation>
+        <translation>信息(&amp;I)</translation>
     </message>
     <message>
         <source>Debug window</source>
@@ -2400,7 +3248,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Name</source>
-        <translation>姓名</translation>
+        <translation>名称</translation>
     </message>
     <message>
         <source>Number of connections</source>
@@ -2408,15 +3256,15 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Block chain</source>
-        <translation>数据链</translation>
+        <translation>区块链</translation>
     </message>
     <message>
         <source>Current number of blocks</source>
-        <translation>当前数据块数量</translation>
+        <translation>当前区块数量</translation>
     </message>
     <message>
         <source>Memory Pool</source>
-        <translation>资金池</translation>
+        <translation>内存池</translation>
     </message>
     <message>
         <source>Current number of transactions</source>
@@ -2460,15 +3308,15 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Starting Block</source>
-        <translation>正在启动数据块</translation>
+        <translation>起始区块高度</translation>
     </message>
     <message>
         <source>Synced Headers</source>
-        <translation>同步区块头</translation>
+        <translation>已同步区块头</translation>
     </message>
     <message>
         <source>Synced Blocks</source>
-        <translation>同步区块链</translation>
+        <translation>已同步区块</translation>
     </message>
     <message>
         <source>User Agent</source>
@@ -2488,7 +3336,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Ban Score</source>
-        <translation>禁止得分</translation>
+        <translation>封禁评分</translation>
     </message>
     <message>
         <source>Connection Time</source>
@@ -2524,7 +3372,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Last block time</source>
-        <translation>上一数据块时间</translation>
+        <translation>最新区块时间</translation>
     </message>
     <message>
         <source>&amp;Open</source>
@@ -2588,7 +3436,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>&amp;Unban</source>
-        <translation>重新允许</translation>
+        <translation>解除封禁(&amp;U)</translation>
     </message>
     <message>
         <source>Welcome to the %1 RPC console.</source>
@@ -2604,7 +3452,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>WARNING: Scammers have been active, telling users to type commands here, stealing their wallet contents. Do not use this console without fully understanding the ramification of a command.</source>
-        <translation>警告：已有骗子通过要求用户在此输入指令以盗取钱包。不要在没有完全理解命令规范时使用控制台。</translation>
+        <translation>警告：骗子会诱导用户在此输入命令，以盗取钱包中的资金。请勿在未完全理解命令后果的情况下使用此控制台。</translation>
     </message>
     <message>
         <source>Network activity disabled</source>
@@ -2658,6 +3506,22 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
+    <message>
+        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
+        <translation>打开当前数据目录中的 %1 调试日志文件。日志文件较大时，可能需要几秒钟。</translation>
+    </message>
+    <message>
+        <source>(inbound onion)</source>
+        <translation>（传入 onion 连接）</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>Error: %1</source>
+        <translation>错误：%1</translation>
+    </message>
 </context>
 <context>
     <name>ReceiveCoinsDialog</name>
@@ -2679,11 +3543,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>R&amp;euse an existing receiving address (not recommended)</source>
-        <translation>重用现有的接收地址（不推荐）</translation>
+        <translation>重用现有收款地址（不推荐）(&amp;E)</translation>
     </message>
     <message>
         <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Firo network.</source>
-        <translation>可在付款请求上备注一条信息，在打开付款请求时可以看到。注意：该消息不是通过 Firo 网络传送。</translation>
+        <translation>可附加到付款请求中的留言，打开请求时会显示。注意：留言不会随付款通过 Firo 网络发送。</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -2745,6 +3609,98 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Copy amount</source>
         <translation>复制金额</translation>
     </message>
+    <message>
+        <source>Choose Spark or Transparent for the payment request address.</source>
+        <translation>选择 Spark 或透明地址作为付款请求地址。</translation>
+    </message>
+    <message>
+        <source>ADDRESS TYPE</source>
+        <translation>地址类型</translation>
+    </message>
+    <message>
+        <source>Choose one of this wallet's Spark Names for the payment request.</source>
+        <translation>选择此钱包的一个 Spark 名称用于付款请求。</translation>
+    </message>
+    <message>
+        <source>Use My Spark Name</source>
+        <translation>使用我的 Spark 名称</translation>
+    </message>
+    <message>
+        <source>Register a new Spark Name.</source>
+        <translation>注册新的 Spark 名称。</translation>
+    </message>
+    <message>
+        <source>Register Spark Name</source>
+        <translation>注册 Spark 名称</translation>
+    </message>
+    <message>
+        <source>&amp;LABEL</source>
+        <translation>标签(&amp;L)</translation>
+    </message>
+    <message>
+        <source>&amp;AMOUNT</source>
+        <translation>金额(&amp;A)</translation>
+    </message>
+    <message>
+        <source>&amp;MESSAGE</source>
+        <translation>留言(&amp;M)</translation>
+    </message>
+    <message>
+        <source>Spark</source>
+        <translation>Spark</translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation>透明</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>全部</translation>
+    </message>
+    <message>
+        <source>No payment requests yet</source>
+        <translation>暂无付款请求</translation>
+    </message>
+    <message>
+        <source>Requests you create will be listed here</source>
+        <translation>您创建的请求将显示在这里</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>The selected Spark address does not belong to this wallet.</source>
+        <translation>所选 Spark 地址不属于此钱包。</translation>
+    </message>
+    <message>
+        <source>"%1" is not a valid Spark Name.</source>
+        <translation>“%1”不是有效的 Spark 名称。</translation>
+    </message>
+    <message>
+        <source>Spark Name "%1" was not found or has expired.</source>
+        <translation>未找到 Spark 名称“%1”，或该名称已过期。</translation>
+    </message>
+    <message>
+        <source>Spark Name "%1" does not belong to this wallet.</source>
+        <translation>Spark 名称“%1”不属于此钱包。</translation>
+    </message>
+    <message>
+        <source>&amp;Use an existing Spark address</source>
+        <translation>使用已有的 Spark 地址(&amp;U)</translation>
+    </message>
+    <message>
+        <source>Spark addresses can safely receive multiple payments, although sharing one address can link those requests.</source>
+        <translation>Spark 地址可以安全地接收多笔付款，但共享同一个地址可能会使这些请求产生关联。</translation>
+    </message>
+    <message>
+        <source>R&amp;euse an existing transparent address (not recommended)</source>
+        <translation>重用已有的透明地址（不推荐）(&amp;E)</translation>
+    </message>
+    <message>
+        <source>Reusing transparent addresses has security and privacy risks. Only use this to recreate an earlier payment request.</source>
+        <translation>重用透明地址存在安全和隐私风险。请仅在重新创建先前的付款请求时使用此选项。</translation>
+    </message>
 </context>
 <context>
     <name>ReceiveRequestDialog</name>
@@ -2800,6 +3756,26 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Error encoding URI into QR Code.</source>
         <translation>把 URI 编码成二维码时发生错误。</translation>
     </message>
+    <message>
+        <source>&amp;Close</source>
+        <translation>关闭(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Payment URI</source>
+        <translation>付款 URI</translation>
+    </message>
+    <message>
+        <source>Address Type</source>
+        <translation>地址类型</translation>
+    </message>
+    <message>
+        <source>transparent</source>
+        <translation>透明</translation>
+    </message>
+    <message>
+        <source>spark</source>
+        <translation>Spark</translation>
+    </message>
 </context>
 <context>
     <name>RecentRequestsTableModel</name>
@@ -2829,7 +3805,19 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Requested</source>
-        <translation>总额</translation>
+        <translation>请求金额</translation>
+    </message>
+    <message>
+        <source>Address Type</source>
+        <translation>地址类型</translation>
+    </message>
+    <message>
+        <source>transparent</source>
+        <translation>透明</translation>
+    </message>
+    <message>
+        <source>spark</source>
+        <translation>Spark</translation>
     </message>
 </context>
 <context>
@@ -2852,11 +3840,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Insufficient funds!</source>
-        <translation>存款不足！</translation>
+        <translation>资金不足！</translation>
     </message>
     <message>
         <source>Quantity:</source>
-        <translation>总量：</translation>
+        <translation>数量：</translation>
     </message>
     <message>
         <source>Bytes:</source>
@@ -2872,19 +3860,19 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>After Fee:</source>
-        <translation>加上交易费用后：</translation>
+        <translation>扣除手续费后：</translation>
     </message>
     <message>
         <source>Change:</source>
-        <translation>变更：</translation>
+        <translation>找零：</translation>
     </message>
     <message>
         <source>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</source>
-        <translation>如果激活该选项，但是零钱地址用光或者非法，将会新生成零钱地址，转入零钱。</translation>
+        <translation>如果启用此选项，但找零地址为空或无效，找零将发送至新生成的地址。</translation>
     </message>
     <message>
         <source>Custom change address</source>
-        <translation>自定义零钱地址</translation>
+        <translation>自定义找零地址</translation>
     </message>
     <message>
         <source>Transaction Fee:</source>
@@ -2900,7 +3888,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>per kilobyte</source>
-        <translation>每kb</translation>
+        <translation>每千字节</translation>
     </message>
     <message>
         <source>If the custom fee is set to 1000 satoshis and the transaction is only 250 bytes, then "per kilobyte" only pays 250 satoshis in fee, while "total at least" pays 1000 satoshis. For transactions bigger than a kilobyte both pay by kilobyte.</source>
@@ -2932,7 +3920,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
-        <translation>(智能交易费用 尚未初始化。需要再下载一些数据块...)</translation>
+        <translation>（智能手续费尚未初始化，通常需要等待几个区块...）</translation>
     </message>
     <message>
         <source>normal</source>
@@ -3072,7 +4060,9 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
-        <translation><numerusform>预计 %n 个数据块后被确认。</numerusform></translation>
+        <translation>
+            <numerusform>预计在 %n 个区块内开始获得确认。</numerusform>
+        </translation>
     </message>
     <message>
         <source>Warning: Invalid Firo address</source>
@@ -3080,7 +4070,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Warning: Unknown change address</source>
-        <translation>警告：未知的更改地址</translation>
+        <translation>警告：未知的找零地址</translation>
     </message>
     <message>
         <source>The address you selected for change is not part of this wallet. Any or all funds in your wallet may be sent to this address. Are you sure?</source>
@@ -3092,19 +4082,19 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Use Transparent Balance</source>
-        <translation>使用公开的余额</translation>
+        <translation>使用透明余额</translation>
     </message>
     <message>
         <source>Transparent Balance</source>
-        <translation>公开的余额</translation>
+        <translation>透明余额</translation>
     </message>
     <message>
         <source>Use Private Balance</source>
-        <translation>使用匿名的余额 </translation>
+        <translation>使用私密余额</translation>
     </message>
     <message>
         <source>Private Balance</source>
-        <translation>匿名的余额</translation>
+        <translation>私密余额</translation>
     </message>
     <message>
         <source>Confirmation time target:</source>
@@ -3117,6 +4107,90 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>Using the fallbackfee can result in sending a transaction that will take several hours or days (or never) to confirm. Consider choosing your fee manually or wait until your have validated the complete chain.</source>
         <translation>如果使用备用手续费设置，有可能会导致交易经过几个小时、几天（甚至永远）无法被确认。请考虑手动选择手续费，或等待整个链完成验证。</translation>
+    </message>
+    <message>
+        <source>Transaction Fee</source>
+        <translation>交易手续费</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>Spark name %1 not found</source>
+        <translation>未找到 Spark 名称 %1</translation>
+    </message>
+    <message>
+        <source>Sending private funds to an exchange address is temporarily unavailable. Move the funds to a transparent address first, then send from there.</source>
+        <translation>暂时无法向交易所地址发送私密资金。请先将资金转入透明地址，再从该地址发送。</translation>
+    </message>
+    <message>
+        <source>EX-addresses can only receive FIRO from transparent addresses.&lt;br /&gt;&lt;br /&gt;Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.</source>
+        <translation>EX 地址只能接收来自透明地址的 FIRO。&lt;br /&gt;&lt;br /&gt;您的 FIRO 将从 Spark 转入新生成的透明地址 %1，随后立即发送到 EX 地址。</translation>
+    </message>
+    <message>
+        <source>Rosen Bridge metadata</source>
+        <translation>Rosen Bridge 元数据</translation>
+    </message>
+    <message>
+        <source>Destination chain</source>
+        <translation>目标链</translation>
+    </message>
+    <message>
+        <source>Bridge fee (atomic units)</source>
+        <translation>跨链桥费用（最小单位）</translation>
+    </message>
+    <message>
+        <source>Network fee (atomic units)</source>
+        <translation>网络手续费（最小单位）</translation>
+    </message>
+    <message>
+        <source>Destination address (hex)</source>
+        <translation>目标地址（十六进制）</translation>
+    </message>
+    <message>
+        <source>Raw data</source>
+        <translation>原始数据</translation>
+    </message>
+    <message>
+        <source>Messages</source>
+        <translation>留言</translation>
+    </message>
+    <message>
+        <source>. An additional transaction fee of %1 will apply to complete the send from the transparent address to the EX-address.</source>
+        <translation>。 从透明地址向 EX 地址完成发送还需支付 %1 的额外交易手续费。</translation>
+    </message>
+    <message>
+        <source>This payment does not fit in one Spark coin and will be sent as %1 separate transactions. Each pays its own fee, they can be linked to each other, and if one of them is rejected the recipients will have been paid only in part.</source>
+        <translation>一枚 Spark 币不足以完成此付款，因此将分为 %1 笔交易发送。每笔交易都需支付手续费，这些交易可能互相关联；如果其中一笔被拒绝，收款人将只收到部分付款。</translation>
+    </message>
+    <message>
+        <source>Private transaction staging produced an unexpected transaction count</source>
+        <translation>准备私密交易时生成的交易数量与预期不符</translation>
+    </message>
+    <message>
+        <source>Intermediate address was not found in the transaction</source>
+        <translation>交易中未找到中转地址</translation>
+    </message>
+    <message>
+        <source>Switch to Transparent Balance to send this Rosen Bridge transfer.</source>
+        <translation>请切换到透明余额来发送此 Rosen Bridge 转账。</translation>
+    </message>
+    <message>
+        <source>Transaction creation failed: %1</source>
+        <translation>创建交易失败：%1</translation>
+    </message>
+    <message>
+        <source>The Rosen Bridge metadata is invalid, duplicated, or incompatible with fee subtraction.</source>
+        <translation>Rosen Bridge 元数据无效、重复，或与从金额中扣除手续费的设置不兼容。</translation>
+    </message>
+    <message>
+        <source>Rosen Bridge transfers must be sent from the transparent balance.</source>
+        <translation>Rosen Bridge 转账必须使用透明余额发送。</translation>
+    </message>
+    <message>
+        <source>Confirm custom change address</source>
+        <translation>确认自定义找零地址</translation>
     </message>
 </context>
 <context>
@@ -3201,6 +4275,88 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Enter a label for this address to add it to your address book</source>
         <translation>为这个地址输入一个标签，以便将它添加到你的地址簿</translation>
     </message>
+    <message>
+        <source>PAY &amp;TO</source>
+        <translation>收款方(&amp;T)</translation>
+    </message>
+    <message>
+        <source>Resolves to:</source>
+        <translation>解析为：</translation>
+    </message>
+    <message>
+        <source>margin-top:2px;</source>
+        <translation>margin-top:2px;</translation>
+    </message>
+    <message>
+        <source>&amp;LABEL</source>
+        <translation>标签(&amp;L)</translation>
+    </message>
+    <message>
+        <source>A&amp;MOUNT</source>
+        <translation>金额(&amp;M)</translation>
+    </message>
+    <message>
+        <source>S&amp;UBTRACT FEE FROM AMOUNT</source>
+        <translation>从金额中扣除手续费(&amp;U)</translation>
+    </message>
+    <message>
+        <source>Rosen Bridge:</source>
+        <translation>Rosen Bridge：</translation>
+    </message>
+    <message>
+        <source>MESSAGE</source>
+        <translation>留言</translation>
+    </message>
+    <message>
+        <source>Optional message for this transaction</source>
+        <translation>此交易的可选留言</translation>
+    </message>
+    <message>
+        <source>Message exceeds %1 bytes limit</source>
+        <translation>留言超出 %1 字节的限制</translation>
+    </message>
+    <message>
+        <source>Metadata: %1 bytes
+</source>
+        <translation>元数据：%1 字节
+</translation>
+    </message>
+    <message>
+        <source>
+Raw data: %1</source>
+        <translation>
+原始数据：%1</translation>
+    </message>
+    <message>
+        <source>Switch to Transparent Balance to send this Rosen Bridge transfer.
+</source>
+        <translation>请切换到透明余额来发送此 Rosen Bridge 转账。
+</translation>
+    </message>
+    <message>
+        <source>This transaction includes Rosen Bridge OP_RETURN metadata.</source>
+        <translation>此交易包含 Rosen Bridge OP_RETURN 元数据。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.</source>
+        <translation> 您正在向交易所地址发送 Firo。交易所地址只能接收来自透明地址的资金。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.</source>
+        <translation> 您正在从透明地址向另一个透明地址发送 Firo。为保护您的隐私，建议改用 Spark 地址。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a transparent address to a Spark address.</source>
+        <translation> 您正在从透明地址向 Spark 地址发送 Firo。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a Spark address to another Spark address. This transaction is fully private.</source>
+        <translation> 您正在从 Spark 地址向另一个 Spark 地址发送 Firo。此交易完全私密。</translation>
+    </message>
+    <message>
+        <source> You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.</source>
+        <translation> 您正在从私密 Spark 池向透明地址发送 Firo。请注意，部分交易所不接受直接从 Spark 充值。</translation>
+    </message>
 </context>
 <context>
     <name>SendConfirmationDialog</name>
@@ -3260,7 +4416,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Enter the message you want to sign here</source>
-        <translation>请输入你要发送的签名消息</translation>
+        <translation>在此输入您要签名的消息</translation>
     </message>
     <message>
         <source>Signature</source>
@@ -3292,7 +4448,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Enter the receiver's address, message (ensure you copy line breaks, spaces, tabs, etc. exactly) and signature below to verify the message. Be careful not to read more into the signature than what is in the signed message itself, to avoid being tricked by a man-in-the-middle attack. Note that this only proves the signing party receives with the address, it cannot prove sendership of any transaction!</source>
-        <translation>请在下面输入接收者地址、消息（确保换行符、空格符、制表符等完全相同）和签名以验证消息。请仔细核对签名信息，以提防中间人攻击。请注意，这只是证明接收方签名的地址，它不能证明任何交易！</translation>
+        <translation>在下方输入接收方地址、消息（确保换行、空格、制表符等完全一致）和签名，以验证消息。请勿从签名中推断超出已签名消息本身的含义，以免遭受中间人攻击。请注意，这只能证明签名方可以通过此地址收款，不能证明其发送了任何交易！</translation>
     </message>
     <message>
         <source>The Firo address the message was signed with</source>
@@ -3362,12 +4518,64 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Message verified.</source>
         <translation>消息验证成功。</translation>
     </message>
+    <message>
+        <source>The Firo or Spark address to sign the message with</source>
+        <translation>用于签署消息的 Firo 或 Spark 地址</translation>
+    </message>
+    <message>
+        <source>Sign the message to prove you own this Firo or Spark address</source>
+        <translation>签署消息以证明您拥有此 Firo 或 Spark 地址</translation>
+    </message>
+    <message>
+        <source>The Firo or Spark address the message was signed with</source>
+        <translation>签署此消息时使用的 Firo 或 Spark 地址</translation>
+    </message>
+    <message>
+        <source>Verify the message to ensure it was signed with the specified Firo or Spark address</source>
+        <translation>验证消息，以确认它是使用指定的 Firo 或 Spark 地址签署的</translation>
+    </message>
+    <message>
+        <source>The entered Spark name is not registered.</source>
+        <translation>输入的 Spark 名称尚未注册。</translation>
+    </message>
+    <message>
+        <source>The entered address is for a different network.</source>
+        <translation>输入的地址属于其他网络。</translation>
+    </message>
 </context>
 <context>
     <name>SplashScreen</name>
     <message>
         <source>[testnet]</source>
         <translation>[测试网络]</translation>
+    </message>
+    <message>
+        <source>Testnet</source>
+        <translation>测试网</translation>
+    </message>
+    <message>
+        <source>[devnet]</source>
+        <translation>[devnet]</translation>
+    </message>
+    <message>
+        <source>Devnet</source>
+        <translation>开发网</translation>
+    </message>
+    <message>
+        <source>Quit application</source>
+        <translation>退出应用程序</translation>
+    </message>
+    <message>
+        <source>Starting Firo...</source>
+        <translation>正在启动 Firo...</translation>
+    </message>
+    <message>
+        <source>%1%</source>
+        <translation>%1%</translation>
+    </message>
+    <message>
+        <source>Shutting down...</source>
+        <translation>正在关闭...</translation>
     </message>
 </context>
 <context>
@@ -3381,11 +4589,13 @@ After the notification transaction is received by the RAP address issuer, funds 
     <name>TransactionDesc</name>
     <message numerus="yes">
         <source>Open for %n more block(s)</source>
-        <translation><numerusform>再打开 %n 个数据块</numerusform></translation>
+        <translation>
+            <numerusform>还需等待 %n 个区块</numerusform>
+        </translation>
     </message>
     <message>
         <source>Open until %1</source>
-        <translation>至 %1 个数据块时开启</translation>
+        <translation>需等待至 %1</translation>
     </message>
     <message>
         <source>conflicted with a transaction with %1 confirmations</source>
@@ -3417,11 +4627,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>%1 confirmations</source>
-        <translation>%1 已确认</translation>
+        <translation>%1 次确认</translation>
     </message>
     <message>
         <source>verified via LLMQ based InstantSend</source>
-        <translation>已验证，通过基于 LLMQ 的即时发送</translation>
+        <translation>已通过基于 LLMQ 的 InstantSend 验证</translation>
     </message>
     <message>
         <source>Status</source>
@@ -3465,7 +4675,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>watch-only</source>
-        <translation>观察地址(watch-only) </translation>
+        <translation>仅观察</translation>
     </message>
     <message>
         <source>label</source>
@@ -3477,7 +4687,9 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message numerus="yes">
         <source>matures in %n more block(s)</source>
-        <translation><numerusform>%n 个数据块后成熟(mature) </numerusform></translation>
+        <translation>
+            <numerusform>还需 %n 个区块才能成熟</numerusform>
+        </translation>
     </message>
     <message>
         <source>not accepted</source>
@@ -3489,11 +4701,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Total debit</source>
-        <translation>总收入</translation>
+        <translation>总支出</translation>
     </message>
     <message>
         <source>Total credit</source>
-        <translation>总支出</translation>
+        <translation>总收入</translation>
     </message>
     <message>
         <source>Transaction fee</source>
@@ -3513,7 +4725,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Transaction ID</source>
-        <translation>ID</translation>
+        <translation>交易 ID</translation>
     </message>
     <message>
         <source>Transaction total size</source>
@@ -3529,7 +4741,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
-        <translation>生成的 Firo 在可以使用前必须有 %1 个成熟的区块。当你生成了此区块后，它将被广播到网络中以加入区块链。如果它未成功进入区块链，其状态将变更为“不接受”并且不可使用。这可能偶尔会发生，如果另一个节点比你早几秒钟成功生成一个区块。</translation>
+        <translation>挖矿所得的币须等待 %1 个区块成熟后才能花费。您生成此区块时，它已被广播至网络，以加入区块链。如果未能加入区块链，其状态将变为“未被接受”，且无法花费。如果其他节点在您生成区块前后几秒内也生成了区块，偶尔会出现这种情况。</translation>
     </message>
     <message>
         <source>Debug information</source>
@@ -3554,6 +4766,22 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>false</source>
         <translation>否</translation>
+    </message>
+    <message>
+        <source>locked via LLMQ based ChainLocks</source>
+        <translation>已通过基于 LLMQ 的 ChainLocks 锁定</translation>
+    </message>
+    <message>
+        <source>Messages</source>
+        <translation>留言</translation>
+    </message>
+    <message>
+        <source>Received with RAP address</source>
+        <translation>通过 RAP 地址接收</translation>
+    </message>
+    <message>
+        <source>Sent to RAP address</source>
+        <translation>发送至 RAP 地址</translation>
     </message>
 </context>
 <context>
@@ -3587,7 +4815,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Open until %1</source>
-        <translation>至 %1 个数据块时开启</translation>
+        <translation>需等待至 %1</translation>
     </message>
     <message>
         <source>Offline</source>
@@ -3603,7 +4831,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Confirmed (%1 confirmations)</source>
-        <translation>已确认 (%1 条确认信息)</translation>
+        <translation>已确认（%1 次确认）</translation>
     </message>
     <message>
         <source>Conflicted</source>
@@ -3611,11 +4839,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Immature (%1 confirmations, will be available after %2)</source>
-        <translation>未成熟 (%1 个确认，将在 %2 个后可用)</translation>
+        <translation>未成熟（%1 次确认，达到 %2 次确认后可用）</translation>
     </message>
     <message>
         <source>This block was not received by any other nodes and will probably not be accepted!</source>
-        <translation>此数据块未被任何其他节点接收，可能不被接受！</translation>
+        <translation>此区块未被任何其他节点接收，可能不会被接受！</translation>
     </message>
     <message>
         <source>Generated but not accepted</source>
@@ -3631,15 +4859,15 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Sent to</source>
-        <translation>公开付款给</translation>
+        <translation>透明付款给</translation>
     </message>
     <message>
         <source>Spend to</source>
-        <translation>匿名付款给</translation>
+        <translation>私密付款给</translation>
     </message>
     <message>
         <source>Spend to yourself</source>
-        <translation>匿名付款给自己</translation>
+        <translation>私密付款给自己</translation>
     </message>
     <message>
         <source>Anonymized</source>
@@ -3659,7 +4887,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Payment to yourself</source>
-        <translation>公开付款给自己</translation>
+        <translation>透明付款给自己</translation>
     </message>
     <message>
         <source>Mined</source>
@@ -3667,7 +4895,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>watch-only</source>
-        <translation>观察地址(watch-only) </translation>
+        <translation>仅观察</translation>
     </message>
     <message>
         <source>(n/a)</source>
@@ -3691,7 +4919,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Whether or not a watch-only address is involved in this transaction.</source>
-        <translation>该交易中是否涉及  观察地址(watch-only address)。</translation>
+        <translation>此交易是否涉及仅观察地址。</translation>
     </message>
     <message>
         <source>User-defined intent/purpose of the transaction.</source>
@@ -3700,6 +4928,48 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>Amount removed from or added to balance.</source>
         <translation>从余额添加或移除的金额。</translation>
+    </message>
+    <message numerus="yes">
+        <source>Open for %n more block(s)</source>
+        <translation>
+            <numerusform>还需等待 %n 个区块</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Abandoned</source>
+        <translation>已放弃</translation>
+    </message>
+    <message>
+        <source>Mint spark to yourself</source>
+        <translation>为自己铸造 Spark 币</translation>
+    </message>
+    <message>
+        <source>Spend spark to yourself</source>
+        <translation>向自己支付 Spark 币</translation>
+    </message>
+    <message>
+        <source>Mint spark to</source>
+        <translation>铸造 Spark 币至</translation>
+    </message>
+    <message>
+        <source>Spend spark to</source>
+        <translation>支付 Spark 币至</translation>
+    </message>
+    <message>
+        <source>Received Spark</source>
+        <translation>收到 Spark 币</translation>
+    </message>
+    <message>
+        <source>Involves a watch-only address.</source>
+        <translation>涉及仅观察地址。</translation>
+    </message>
+    <message>
+        <source>Locked by InstantSend.</source>
+        <translation>已被 InstantSend 锁定。</translation>
+    </message>
+    <message>
+        <source>Whether or not this transaction was locked by InstantSend.</source>
+        <translation>此交易是否已被 InstantSend 锁定。</translation>
     </message>
 </context>
 <context>
@@ -3738,11 +5008,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Sent to</source>
-        <translation>公开付款给</translation>
+        <translation>透明付款给</translation>
     </message>
     <message>
         <source>To yourself</source>
-        <translation>公开付款给自己</translation>
+        <translation>透明付款给自己</translation>
     </message>
     <message>
         <source>Mined</source>
@@ -3754,11 +5024,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Spend to</source>
-        <translation>匿名付款给</translation>
+        <translation>私密付款给</translation>
     </message>
     <message>
         <source>Spend to yourself</source>
-        <translation>匿名付款给自己</translation>
+        <translation>私密付款给自己</translation>
     </message>
     <message>
         <source>Anonymize</source>
@@ -3830,7 +5100,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Watch-only</source>
-        <translation>观察地址(Watch-only) </translation>
+        <translation>仅观察</translation>
     </message>
     <message>
         <source>Date</source>
@@ -3900,6 +5170,154 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Reconsider BIP47 transaction</source>
         <translation>重新考虑 BIP47 交易</translation>
     </message>
+    <message>
+        <source>RECEIVED</source>
+        <translation>收到</translation>
+    </message>
+    <message>
+        <source>SENT</source>
+        <translation>已发送</translation>
+    </message>
+    <message>
+        <source>Filter by watch-only involvement</source>
+        <translation>按是否涉及仅观察地址筛选</translation>
+    </message>
+    <message>
+        <source>Watch-only filter</source>
+        <translation>仅观察筛选</translation>
+    </message>
+    <message>
+        <source>All transactions</source>
+        <translation>所有交易</translation>
+    </message>
+    <message>
+        <source>Watch-only transactions</source>
+        <translation>涉及仅观察地址的交易</translation>
+    </message>
+    <message>
+        <source>Non-watch-only transactions</source>
+        <translation>不涉及仅观察地址的交易</translation>
+    </message>
+    <message>
+        <source>Filter by InstantSend status</source>
+        <translation>按 InstantSend 状态筛选</translation>
+    </message>
+    <message>
+        <source>Any InstantSend status</source>
+        <translation>任何 InstantSend 状态</translation>
+    </message>
+    <message>
+        <source>Locked by InstantSend</source>
+        <translation>已被 InstantSend 锁定</translation>
+    </message>
+    <message>
+        <source>Not locked by InstantSend</source>
+        <translation>未被 InstantSend 锁定</translation>
+    </message>
+    <message>
+        <source>Filter by date</source>
+        <translation>按日期筛选</translation>
+    </message>
+    <message>
+        <source>Any date</source>
+        <translation>任何日期</translation>
+    </message>
+    <message>
+        <source>Filter by transaction type</source>
+        <translation>按交易类型筛选</translation>
+    </message>
+    <message>
+        <source>Any type</source>
+        <translation>任何类型</translation>
+    </message>
+    <message>
+        <source>Mint spark to yourself</source>
+        <translation>为自己铸造 Spark 币</translation>
+    </message>
+    <message>
+        <source>Spend spark to yourself</source>
+        <translation>向自己支付 Spark 币</translation>
+    </message>
+    <message>
+        <source>Mint spark to</source>
+        <translation>铸造 Spark 币至</translation>
+    </message>
+    <message>
+        <source>Spend spark to</source>
+        <translation>支付 Spark 币至</translation>
+    </message>
+    <message>
+        <source>Received Spark</source>
+        <translation>收到 Spark 币</translation>
+    </message>
+    <message>
+        <source>Sort by</source>
+        <translation>排序依据</translation>
+    </message>
+    <message>
+        <source>Sort transactions by</source>
+        <translation>交易排序依据</translation>
+    </message>
+    <message>
+        <source>Sort the transaction history</source>
+        <translation>对交易记录排序</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>状态</translation>
+    </message>
+    <message>
+        <source>Transaction type</source>
+        <translation>交易类型</translation>
+    </message>
+    <message>
+        <source>Amount</source>
+        <translation>金额</translation>
+    </message>
+    <message>
+        <source>InstantSend</source>
+        <translation>InstantSend</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <source>Export the data in the current tab to a file</source>
+        <translation>将当前选项卡中的数据导出到文件</translation>
+    </message>
+    <message>
+        <source>No transactions yet</source>
+        <translation>暂无交易</translation>
+    </message>
+    <message>
+        <source>Your history will appear here after the first transfer</source>
+        <translation>首次转账后，交易记录将显示在这里</translation>
+    </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation>钱包仍在同步</translation>
+    </message>
+    <message>
+        <source>Transactions will appear here as synchronization completes</source>
+        <translation>同步完成后，交易将显示在这里</translation>
+    </message>
+    <message>
+        <source>No matching transactions</source>
+        <translation>没有符合条件的交易</translation>
+    </message>
+    <message>
+        <source>Try adjusting the filters above</source>
+        <translation>请尝试调整上方的筛选条件</translation>
+    </message>
+    <message>
+        <source>Sort ascending</source>
+        <translation>升序排序</translation>
+    </message>
+    <message>
+        <source>Sort descending</source>
+        <translation>降序排序</translation>
+    </message>
 </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>
@@ -3936,6 +5354,110 @@ After the notification transaction is received by the RAP address issuer, funds 
     <message>
         <source>If you do not enter your password now, you will need to rescan your wallet to receive your FIRO.&lt;br/&gt;&lt;br/&gt;Re-enter your password?</source>
         <translation>如果你现在不输入密码，你将需要重新扫描你的钱包来接收你的 FIRO。&lt;br/&gt;&lt;br/&gt;重新输入密码？</translation>
+    </message>
+    <message>
+        <source>Loading address book...</source>
+        <translation>正在加载地址簿...</translation>
+    </message>
+    <message>
+        <source>Loading payment codes...</source>
+        <translation>正在加载支付码...</translation>
+    </message>
+    <message>
+        <source>Preparing Spark interface...</source>
+        <translation>正在准备 Spark 接口...</translation>
+    </message>
+    <message>
+        <source>Loading transaction history...</source>
+        <translation>正在加载交易记录...</translation>
+    </message>
+    <message>
+        <source>Loading receive requests...</source>
+        <translation>正在加载收款请求...</translation>
+    </message>
+    <message>
+        <source>Reticulating splines...</source>
+        <translation>正在网格化样条曲线...</translation>
+    </message>
+    <message>
+        <source>Spark wallet is not available.</source>
+        <translation>Spark 钱包不可用。</translation>
+    </message>
+    <message>
+        <source>The entered address is invalid.</source>
+        <translation>输入的地址无效。</translation>
+    </message>
+    <message>
+        <source>The entered address is for a different network.</source>
+        <translation>输入的地址属于其他网络。</translation>
+    </message>
+    <message>
+        <source>The entered address does not belong to this wallet.</source>
+        <translation>输入的地址不属于此钱包。</translation>
+    </message>
+    <message>
+        <source>Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically.</source>
+        <translation>Spark 币控制暂时最多支持选择一枚币。清除选择，让钱包自动拆分付款。</translation>
+    </message>
+    <message>
+        <source>Subtracting the fee from the amount is temporarily unavailable for Spark spends.</source>
+        <translation>Spark 支付暂时不支持从金额中扣除手续费。</translation>
+    </message>
+    <message>
+        <source>Spend to transparent address limit exceeded.</source>
+        <translation>已超出向透明地址支付的限额。</translation>
+    </message>
+    <message>
+        <source>A Spark payment may use at most %1 transactions.</source>
+        <translation>一笔 Spark 付款最多可使用 %1 笔交易。</translation>
+    </message>
+    <message>
+        <source>The available Spark coins cannot cover the amount and the required transaction fees.</source>
+        <translation>可用的 Spark 币不足以支付此金额及所需的交易手续费。</translation>
+    </message>
+    <message>
+        <source>Unable to create a single-input Spark transaction.</source>
+        <translation>无法创建单输入 Spark 交易。</translation>
+    </message>
+    <message>
+        <source>Spark fee estimate did not match the wallet (planned %1, wallet %2).</source>
+        <translation>Spark 手续费估算与钱包计算结果不一致（计划为 %1，钱包计算为 %2）。</translation>
+    </message>
+    <message>
+        <source>Unable to create a versioned Spark transaction.</source>
+        <translation>无法创建相应版本的 Spark 交易。</translation>
+    </message>
+    <message>
+        <source>Chain height changed during Spark name construction; retry</source>
+        <translation>构建 Spark 名称时区块链高度发生变化，请重试</translation>
+    </message>
+    <message>
+        <source>Spark name registration temporarily uses a single Spark coin. Please select at most one.</source>
+        <translation>Spark 名称注册暂时只使用一枚 Spark 币。请最多选择一枚。</translation>
+    </message>
+    <message>
+        <source>Unable to select a Spark coin.</source>
+        <translation>无法选择 Spark 币。</translation>
+    </message>
+    <message>
+        <source>Spark name registration temporarily requires one Spark coin large enough to cover the registration and transaction fees.</source>
+        <translation>Spark 名称注册暂时需要一枚金额足以支付注册费及交易手续费的 Spark 币。</translation>
+    </message>
+    <message>
+        <source>Unable to create the expected Spark transaction format.</source>
+        <translation>无法创建预期格式的 Spark 交易。</translation>
+    </message>
+    <message>
+        <source>Refusing to commit an incompatible Spark transaction format.</source>
+        <translation>拒绝提交格式不兼容的 Spark 交易。</translation>
+    </message>
+    <message>
+        <source>Refusing to commit an incomplete Spark transaction.</source>
+        <translation>拒绝提交不完整的 Spark 交易。</translation>
+    </message>
+    <message>
+        <source> This payment was split across %1 transactions and %2 of them were already sent, so the recipients have been paid only in part. Do not retry the whole payment. Already sent: %3</source>
+        <translation> 此付款被拆分为 %1 笔交易，其中 %2 笔已发送，因此收款人只收到部分付款。请勿重试整笔付款。已发送：%3</translation>
     </message>
 </context>
 <context>
@@ -3977,13 +5499,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     <name>firo-core</name>
     <message>
         <source>Options:</source>
-        <translation>选项：
-</translation>
+        <translation>选项：</translation>
     </message>
     <message>
         <source>Specify data directory</source>
-        <translation>指定数据目录
-</translation>
+        <translation>指定数据目录</translation>
     </message>
     <message>
         <source>Connect to a node to retrieve peer addresses, and disconnect</source>
@@ -3995,8 +5515,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Accept command line and JSON-RPC commands</source>
-        <translation>接受命令行和 JSON-RPC 命令
-</translation>
+        <translation>接受命令行和 JSON-RPC 命令</translation>
     </message>
     <message>
         <source>If &lt;category&gt; is not supplied or if &lt;category&gt; = 1, output all debugging information.</source>
@@ -4028,9 +5547,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Run in the background as a daemon and accept commands</source>
-        <translation>在后台运行并接受命令
-
-</translation>
+        <translation>作为守护进程在后台运行并接受命令</translation>
     </message>
     <message>
         <source>Unable to start HTTP server. See debug log for details.</source>
@@ -4046,11 +5563,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>A fee rate (in %s/kB) that will be used when fee estimation has insufficient data (default: %s)</source>
-        <translation>当费用估计数据(default: %s)不足时将会启用的费率 (in %s/kB) </translation>
+        <translation>手续费预估数据不足时使用的手续费率（单位：%s/kB，默认值：%s）</translation>
     </message>
     <message>
         <source>Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)</source>
-        <translation>即使在无关联交易(默认: %d)时也接受来自白名单同行的关联交易</translation>
+        <translation>即使不转发交易，也接受来自白名单节点的转发交易（默认值：%d）</translation>
     </message>
     <message>
         <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>
@@ -4062,15 +5579,15 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)</source>
-        <translation>当最佳区块变化时执行命令 (命令行中的 %s 会被替换成区块哈希值)</translation>
+        <translation>钱包交易发生变化时执行命令（cmd 中的 %s 替换为 TxID）</translation>
     </message>
     <message>
         <source>Set the number of script verification threads (%u to %d, 0 = auto, &lt;0 = leave that many cores free, default: %d)</source>
-        <translation>设置脚本验证的程序 (%u 到 %d, 0 = 自动, &lt;0 = 保留自由的核心, 默认值: %d)</translation>
+        <translation>设置脚本验证线程数（%u 到 %d，0 = 自动，&lt;0 = 留出该数值绝对值对应的核心数，默认值：%d）</translation>
     </message>
     <message>
         <source>The block database contains a block which appears to be from the future. This may be due to your computer's date and time being set incorrectly. Only rebuild the block database if you are sure that your computer's date and time are correct</source>
-        <translation>区块数据库包含未来的交易，这可能是由本机错误的日期时间引起。若确认本机日期时间正确，请重新建立区块数据库。</translation>
+        <translation>区块数据库中存在时间似乎晚于当前时间的区块。这可能是因为您的计算机日期和时间设置有误。只有确认计算机的日期和时间正确后，才应重建区块数据库</translation>
     </message>
     <message>
         <source>Use UPnP to map the listening port (default: 1 when listening and no -proxy)</source>
@@ -4094,7 +5611,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Cannot resolve -%s address: '%s'</source>
-        <translation>无法解析 - %s 地址： '%s'</translation>
+        <translation>无法解析 -%s 地址：'%s'</translation>
     </message>
     <message>
         <source>Connection options:</source>
@@ -4106,7 +5623,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Corrupted block database detected</source>
-        <translation>检测发现数据块数据库损坏。请使用 -reindex参数重启客户端。</translation>
+        <translation>检测到区块数据库损坏</translation>
     </message>
     <message>
         <source>Debugging/Testing options:</source>
@@ -4114,7 +5631,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Do not load the wallet and disable wallet RPC calls</source>
-        <translation>不要加载钱包和禁用钱包的 RPC 调用</translation>
+        <translation>不加载钱包，并禁用钱包 RPC 调用</translation>
     </message>
     <message>
         <source>Do you want to rebuild the block database now?</source>
@@ -4122,11 +5639,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Enable publish hash block in &lt;address&gt;</source>
-        <translation>允许在&lt;address&gt;广播哈希区块</translation>
+        <translation>启用在 &lt;address&gt; 发布区块哈希</translation>
     </message>
     <message>
         <source>Enable publish hash transaction in &lt;address&gt;</source>
-        <translation>允许在&lt;address&gt;广播哈希交易</translation>
+        <translation>启用在 &lt;address&gt; 发布交易哈希</translation>
     </message>
     <message>
         <source>Enable publish raw block in &lt;address&gt;</source>
@@ -4138,7 +5655,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Enable transaction replacement in the memory pool (default: %u)</source>
-        <translation>保证内存池中的交易更换(默认：%u)</translation>
+        <translation>启用内存池中的交易替换（默认值：%u）</translation>
     </message>
     <message>
         <source>Error initializing block database</source>
@@ -4146,7 +5663,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Error initializing wallet database environment %s!</source>
-        <translation>Error initializing wallet database environment %s!</translation>
+        <translation>初始化钱包数据库环境 %s 时出错！</translation>
     </message>
     <message>
         <source>Error loading %s</source>
@@ -4158,7 +5675,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Error opening block database</source>
-        <translation>导入数据块数据库出错</translation>
+        <translation>打开区块数据库时出错</translation>
     </message>
     <message>
         <source>Error: Disk space is low!</source>
@@ -4166,7 +5683,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Failed to listen on any port. Use -listen=0 if you want this.</source>
-        <translation>监听端口失败。请使用 -listen=0 参数。</translation>
+        <translation>无法监听任何端口。如果您希望不监听端口，请使用 -listen=0。</translation>
     </message>
     <message>
         <source>Importing...</source>
@@ -4174,7 +5691,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Incorrect or no genesis block found. Wrong datadir for network?</source>
-        <translation>不正确或没有找到起源区块。网络错误？</translation>
+        <translation>创世区块不正确或未找到。当前网络的数据目录是否有误？</translation>
     </message>
     <message>
         <source>Invalid -onion address: '%s'</source>
@@ -4182,7 +5699,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Invalid amount for -fallbackfee=&lt;amount&gt;: '%s'</source>
-        <translation>-fallbackfee 的无效数额=&lt;amount&gt;: '%s'</translation>
+        <translation>-fallbackfee=&lt;amount&gt; 的金额无效：'%s'</translation>
     </message>
     <message>
         <source>Keep the transaction memory pool below &lt;n&gt; megabytes (default: %u)</source>
@@ -4238,7 +5755,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Unsupported argument -tor found, use -onion.</source>
-        <translation>忽略不支持的选项 -tor，使用 -oinon</translation>
+        <translation>发现不支持的参数 -tor，请使用 -onion。</translation>
     </message>
     <message>
         <source>Use UPnP to map the listening port (default: %u)</source>
@@ -4262,7 +5779,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Wallet %s resides outside data directory %s</source>
-        <translation>钱包 %s 在外部的数据目录 %s</translation>
+        <translation>钱包 %s 位于数据目录 %s 之外</translation>
     </message>
     <message>
         <source>Wallet debugging/testing options:</source>
@@ -4278,11 +5795,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6</source>
-        <translation>绑定到指定地址和连接的白名单节点。IPv6使用  [主机]:端口 格式 </translation>
+        <translation>绑定到指定地址，并将连接到该地址的节点加入白名单。IPv6 请使用 [host]:port 格式</translation>
     </message>
     <message>
         <source>Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)</source>
-        <translation>绑定到指定地址监听 JSON-RPC连接。IPv6使用[主机]:端口 格式。该选项可多次指定 (默认: 绑定到所有接口) </translation>
+        <translation>绑定到指定地址以监听 JSON-RPC 连接。IPv6 请使用 [host]:port 格式。此选项可多次指定（默认值：绑定到所有接口）</translation>
     </message>
     <message>
         <source>Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)</source>
@@ -4302,11 +5819,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)</source>
-        <translation>交易费(in %s/kB)比这更小的在关联、挖掘和生成交易时将被视为零费交易 (默认: %s)</translation>
+        <translation>转发、挖矿和创建交易时，低于此值的手续费率（单位：%s/kB）视为零手续费（默认值：%s）</translation>
     </message>
     <message>
         <source>If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)</source>
-        <translation>如果未设置交易费用，自动添加足够的交易费以确保交易在平均n个数据块内被确认 (默认: %u) </translation>
+        <translation>如果未设置 paytxfee，则添加足够的手续费，使交易平均在 n 个区块内开始获得确认（默认值：%u）</translation>
     </message>
     <message>
         <source>Invalid amount for -maxtxfee=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
@@ -4314,7 +5831,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Maximum size of data in data carrier transactions we relay and mine (default: %u)</source>
-        <translation>Maximum size of data in data carrier transactions we relay and mine (default: %u)</translation>
+        <translation>转发和挖矿所接受的数据载体交易的数据大小上限（默认值：%u）</translation>
     </message>
     <message>
         <source>Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)</source>
@@ -4330,7 +5847,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway</source>
-        <translation>白名单节点不能被DoS banned ，且转发所有来自他们的交易(即便这些交易已经存在于mempool中)，常用于网关 </translation>
+        <translation>白名单节点不会因 DoS 行为被封禁，且其交易始终会被转发，即使交易已在内存池中。此选项适用于网关等场景</translation>
     </message>
     <message>
         <source>You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain</source>
@@ -4406,11 +5923,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Show all debugging options (usage: --help -help-debug)</source>
-        <translation>显示所有调试选项 (用法: --帮助 -帮助调试)</translation>
+        <translation>显示所有调试选项（用法：--help -help-debug）</translation>
     </message>
     <message>
         <source>Shrink debug.log file on client startup (default: 1 when no -debug)</source>
-        <translation>客户端启动时压缩debug.log文件(缺省：no-debug模式时为1)</translation>
+        <translation>客户端启动时缩减 debug.log 文件（默认值：未使用 -debug 时为 1）</translation>
     </message>
     <message>
         <source>Signing transaction failed</source>
@@ -4434,11 +5951,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Transaction amount too small</source>
-        <translation>交易量太小</translation>
+        <translation>交易金额太小</translation>
     </message>
     <message>
         <source>Transaction too large for fee policy</source>
-        <translation>费用策略的交易太大</translation>
+        <translation>交易大小超出手续费策略的限制</translation>
     </message>
     <message>
         <source>Transaction too large</source>
@@ -4466,11 +5983,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Whether to operate in a blocks only mode (default: %u)</source>
-        <translation>是否用块方进行 (%u)</translation>
+        <translation>是否以仅区块模式运行（默认值：%u）</translation>
     </message>
     <message>
         <source>Zapping all transactions from wallet...</source>
-        <translation>正在消除錢包中的所有交易...</translation>
+        <translation>正在从钱包中清除所有交易...</translation>
     </message>
     <message>
         <source>ZeroMQ notification options:</source>
@@ -4478,8 +5995,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Password for JSON-RPC connections</source>
-        <translation>JSON-RPC 连接密码
-</translation>
+        <translation>JSON-RPC 连接密码</translation>
     </message>
     <message>
         <source>Execute command when the best block changes (%s in cmd is replaced by block hash)</source>
@@ -4495,7 +6011,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)</source>
-        <translation>(1 = 保留 tx meta data , 如 account owner 和 payment request information, 2 = 不保留 tx meta data) </translation>
+        <translation>（1 = 保留交易元数据，如账户所有者和付款请求信息，2 = 删除交易元数据）</translation>
     </message>
     <message>
         <source>-maxtxfee is set very high! Fees this large could be paid on a single transaction.</source>
@@ -4507,7 +6023,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for transaction creation (default: %s)</source>
-        <translation>当产生交易时，如果每千字节 (kB) 的手续费比这个值 (单位是 %s) 低，就视为没支付手续费 (默认值: %s)</translation>
+        <translation>创建交易时，低于此值的手续费率（单位：%s/kB）视为零手续费（默认值：%s）</translation>
     </message>
     <message>
         <source>How thorough the block verification of -checkblocks is (0-4, default: %u)</source>
@@ -4531,11 +6047,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments.</source>
-        <translation>网络版本字符串的总长度 (%i) 超过最大长度 (%i) 了。请减少 uacomment 参数的数目或长度。</translation>
+        <translation>网络版本字符串总长度（%i）超出最大长度（%i）。请减少 uacomments 的数量或长度。</translation>
     </message>
     <message>
         <source>Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)</source>
-        <translation>尝试保持上传带宽低于（MiB/24h），0=无限制（默认：%d）</translation>
+        <translation>尝试将出站流量保持在指定目标以内（单位：MiB/24h），0 = 不限制（默认值：%d）</translation>
     </message>
     <message>
         <source>Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported.</source>
@@ -4571,7 +6087,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Invalid -proxy address: '%s'</source>
-        <translation>无效的代理地址：%s</translation>
+        <translation>-proxy 地址无效：'%s'</translation>
     </message>
     <message>
         <source>Listen for JSON-RPC connections on &lt;port&gt; (default: %u or testnet: %u)</source>
@@ -4587,7 +6103,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Make the wallet broadcast transactions</source>
-        <translation>钱包广播事务处理</translation>
+        <translation>让钱包广播交易</translation>
     </message>
     <message>
         <source>Maximum per-connection receive buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
@@ -4603,7 +6119,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Relay and mine data carrier transactions (default: %u)</source>
-        <translation>Relay and mine data carrier transactions (default: %u)</translation>
+        <translation>转发数据载体交易并将其纳入挖矿区块（默认值：%u）</translation>
     </message>
     <message>
         <source>Relay non-P2SH multisig (default: %u)</source>
@@ -4631,7 +6147,7 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Spend unconfirmed change when sending transactions (default: %u)</source>
-        <translation>付款时允许使用未确认的零钱 (默认: %u) </translation>
+        <translation>发送交易时允许花费未确认的找零（默认值：%u）</translation>
     </message>
     <message>
         <source>Starting network threads...</source>
@@ -4643,11 +6159,11 @@ After the notification transaction is received by the RAP address issuer, funds 
     </message>
     <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
-        <translation>-onlynet 指定的是未知网络：%s</translation>
+        <translation>-onlynet 指定了未知网络：'%s'</translation>
     </message>
     <message>
         <source>Insufficient funds</source>
-        <translation>金额不足</translation>
+        <translation>余额不足</translation>
     </message>
     <message>
         <source>Loading block index...</source>
@@ -4717,5 +6233,1315 @@ After the notification transaction is received by the RAP address issuer, funds 
         <source>Error reading %s! All keys read correctly, but transaction data or address book entries might be missing or incorrect.</source>
         <translation>读取 %s 时发生错误！所有的密钥都可以正确读取，但是交易记录或地址簿数据可能已经丢失或出错。</translation>
     </message>
+    <message>
+        <source>Zerocoin-&gt;Sigma remint</source>
+        <translation>Zerocoin-&gt;Sigma 重新铸币</translation>
+    </message>
+    <message>
+        <source>Accept connections from outside (default: 1 if no -proxy or -connect/-noconnect)</source>
+        <translation>接受外部连接（默认值：未使用 -proxy 或 -connect/-noconnect 时为 1）</translation>
+    </message>
+    <message>
+        <source>Amount for private recipient %1% is too small to send after the fee has been deducted</source>
+        <translation>扣除手续费后，私密收款人 %1% 的金额太小，无法发送</translation>
+    </message>
+    <message>
+        <source>Amount for recipient %1% is too small to send after the fee has been deducted</source>
+        <translation>扣除手续费后，收款人 %1% 的金额太小，无法发送</translation>
+    </message>
+    <message>
+        <source>Connect only to the specified node(s); -noconnect or -connect=0 alone to disable automatic connections</source>
+        <translation>仅连接到指定节点；单独使用 -noconnect 或 -connect=0 可禁用自动连接</translation>
+    </message>
+    <message>
+        <source>Could not locate RPC credentials. No authentication cookie could be found, and no rpcpassword is set in the configuration file (%s)</source>
+        <translation>找不到 RPC 凭据。未找到身份验证 cookie，且配置文件（%s）中未设置 rpcpassword</translation>
+    </message>
+    <message>
+        <source>Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup</source>
+        <translation>删除所有 Sigma 铸币，并仅在启动时通过 -reindex 从区块链中恢复这些数据</translation>
+    </message>
+    <message>
+        <source>Do not check for masternode payout when handling listtransactions, listsinceblock and gettransaction calls (improves performance)</source>
+        <translation>处理 listtransactions、listsinceblock 和 gettransaction 调用时，不检查主节点收益（可提高性能）</translation>
+    </message>
+    <message>
+        <source>Equivalent bytes per sigop in transactions for relay and mining (default: %u)</source>
+        <translation>转发和挖矿时，交易中每个签名操作（sigop）折算的字节数（默认值：%u）</translation>
+    </message>
+    <message>
+        <source>Error loading %s: You can't enable HD on a already existing non-HD wallet</source>
+        <translation>加载 %s 时出错：无法为已有的非 HD 钱包启用 HD</translation>
+    </message>
+    <message>
+        <source>Error: The transaction was rejected after %u of %u mint transactions were already sent. Do not retry the whole mint.</source>
+        <translation>错误：已发送 %u 笔铸币交易（共 %u 笔）后，交易被拒绝。请勿重新执行整个铸币操作。</translation>
+    </message>
+    <message>
+        <source>Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.</source>
+        <translation>错误：交易被拒绝！钱包中的某些币可能已被花费。例如，您使用了 wallet.dat 的副本，并在副本中花费了这些币，但此处尚未将其标记为已花费。</translation>
+    </message>
+    <message>
+        <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID, %t is replaced by transaction type: 'spark' or 'regular')</source>
+        <translation>钱包交易发生变化时执行命令（cmd 中的 %s 替换为 TxID，%t 替换为交易类型：'spark' 或 'regular'）</translation>
+    </message>
+    <message>
+        <source>Extra transactions to keep in memory for compact block reconstructions (default: %u)</source>
+        <translation>为重建紧凑区块而额外保留在内存中的交易数（默认值：%u）</translation>
+    </message>
+    <message>
+        <source>Failed to create backup, file already exists! This could happen if you restarted wallet in less than 60 seconds. You can continue if you are ok with this.</source>
+        <translation>备份创建失败，文件已存在！如果您在 60 秒内重启了钱包，可能会出现此情况。如果您接受此情况，可以继续。</translation>
+    </message>
+    <message>
+        <source>Force relay of transactions from whitelisted peers even if they violate local relay policy (default: %d)</source>
+        <translation>强制转发来自白名单节点的交易，即使其违反本地转发策略（默认值：%d）</translation>
+    </message>
+    <message>
+        <source>Has to have at least two mint coins with at least 1 confirmation in order to spend a coin</source>
+        <translation>要花费一枚币，必须至少有两枚铸币，且每枚至少获得 1 次确认</translation>
+    </message>
+    <message>
+        <source>If &lt;category&gt; is not supplied or is 1 or all, output all debugging information. The value none resets categories specified before it. The value 0 retains Firo's historical behavior and disables all logging except errors.</source>
+        <translation>如果未提供 &lt;category&gt;，或其值为 1 或 all，则输出所有调试信息。值 none 会重置之前指定的类别。值 0 保留 Firo 的历史行为，禁用除错误以外的所有日志。</translation>
+    </message>
+    <message>
+        <source>If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet: %s)</source>
+        <translation>如果此区块位于链上，则假定它及其祖先区块有效，并可能跳过对它们的脚本验证（0 表示全部验证，默认值：%s，测试网：%s）</translation>
+    </message>
+    <message>
+        <source>In case of sync/reindex verifies privacy (Spark) proofs with batch verification, default: true</source>
+        <translation>同步或重建索引时，通过批量验证来验证私密（Spark）证明，默认值：true</translation>
+    </message>
+    <message>
+        <source>Interval in seconds for rebroadcasting InstantSend-locked mempool transactions to peers (0 = disabled, default: %u)</source>
+        <translation>向节点重新广播已被 InstantSend 锁定的内存池交易的间隔，单位为秒（0 = 禁用，默认值：%u）</translation>
+    </message>
+    <message>
+        <source>Make automatic outbound connections only to network &lt;net&gt; (ipv4, ipv6 or onion). Can be specified multiple times to allow multiple networks.</source>
+        <translation>仅向 &lt;net&gt; 网络（ipv4、ipv6 或 onion）自动建立出站连接。可多次指定此选项以允许多个网络。</translation>
+    </message>
+    <message>
+        <source>Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)</source>
+        <translation>允许的节点时间偏差中位数调整上限。节点最多可使本地时间向前或向后偏移此幅度。（默认值：%u 秒）</translation>
+    </message>
+    <message>
+        <source>Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)</source>
+        <translation>单笔钱包交易或原始交易允许的手续费总额上限（单位：%s）；设置过低可能导致大额交易中止（默认值：%s）</translation>
+    </message>
+    <message>
+        <source>Optionally add the "S" flag to wrap the output in a pay-to-script-hash.</source>
+        <translation>可选择添加 "S" 标志，将输出包装为支付到脚本哈希（pay-to-script-hash）的形式。</translation>
+    </message>
+    <message>
+        <source>Optionally add the "W" flag to produce a pay-to-witness-pubkey-hash output</source>
+        <translation>可选择添加 "W" 标志，生成支付到见证公钥哈希（pay-to-witness-pubkey-hash）的输出</translation>
+    </message>
+    <message>
+        <source>Optionally add the "W" flag to produce a pay-to-witness-script-hash output</source>
+        <translation>可选择添加 "W" 标志，生成支付到见证脚本哈希（pay-to-witness-script-hash）的输出</translation>
+    </message>
+    <message>
+        <source>Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is explicitly forbidden: -onion=0</source>
+        <translation>出站连接仅限 Tor（-onlynet=onion），但已明确禁用用于访问 Tor 网络的代理：-onion=0</translation>
+    </message>
+    <message>
+        <source>Outbound connections restricted to Tor (-onlynet=onion) but the proxy for reaching the Tor network is not provided: none of -proxy, -onion, -torsetup or -listenonion (with a usable -torcontrol) is given.</source>
+        <translation>出站连接仅限 Tor（-onlynet=onion），但未提供用于访问 Tor 网络的代理：未指定 -proxy、-onion、-torsetup，也未指定带有可用 -torcontrol 的 -listenonion。</translation>
+    </message>
+    <message>
+        <source>Output only the hex-encoded transaction id of the resultant transaction.</source>
+        <translation>仅输出生成交易的十六进制编码交易 ID。</translation>
+    </message>
+    <message>
+        <source>Query for peer addresses via DNS lookup, if low on addresses (default: 1 unless -connect/-noconnect)</source>
+        <translation>节点地址不足时，通过 DNS 查询获取节点地址（默认值：未使用 -connect/-noconnect 时为 1）</translation>
+    </message>
+    <message>
+        <source>Read extra arguments from standard input, one per line until EOF/Ctrl-D (recommended for sensitive information such as passphrases)</source>
+        <translation>从标准输入读取额外参数，每行一个，直到 EOF/Ctrl-D（建议用于密码等敏感信息）</translation>
+    </message>
+    <message>
+        <source>Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex and -rescan. Warning: Reverting this setting requires re-downloading the entire blockchain. (default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, &gt;%u = automatically prune block files to stay under the specified target size in MiB)</source>
+        <translation>启用旧区块裁剪（删除）以减少存储需求。此选项允许调用 pruneblockchain RPC 删除指定区块；若提供目标大小（单位：MiB），还会自动裁剪旧区块。此模式与 -txindex 和 -rescan 不兼容。警告：恢复原设置需要重新下载整个区块链。（默认值：0 = 禁用区块裁剪，1 = 允许通过 RPC 手动裁剪，&gt;%u = 自动裁剪区块文件，使其大小保持在指定的 MiB 目标大小以内）</translation>
+    </message>
+    <message>
+        <source>Set lowest fee rate (in %s/kB) for transactions to be included in block creation. (default: %s)</source>
+        <translation>设置交易被纳入新区块时的最低手续费率（单位：%s/kB）。（默认值：%s）</translation>
+    </message>
+    <message>
+        <source>Sets the serialization of raw transaction or block hex returned in non-verbose mode, non-segwit(0) or segwit(1) (default: %d)</source>
+        <translation>设置非详细模式下返回的原始交易或区块十六进制数据的序列化格式：non-segwit(0) 或 segwit(1)（默认值：%d）</translation>
+    </message>
+    <message>
+        <source>Spark Coin Control temporarily supports selecting at most one coin. Clear the selection to let the wallet split the payment automatically.</source>
+        <translation>Spark 币控制暂时最多支持选择一枚币。清除选择后，钱包可自动拆分付款。</translation>
+    </message>
+    <message>
+        <source>Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block.</source>
+        <translation>Spark 批量验证失败。无效的支出交易已列在 debug.log 中。请重启节点：批量验证将被禁用，并自动开始重建索引，以重建链状态并逐个区块验证 Spark 证明。</translation>
+    </message>
+    <message>
+        <source>Spark multi-input spends are temporarily disabled. No single available Spark coin can fund this transaction.</source>
+        <translation>Spark 多输入支出暂时已禁用。目前没有单枚可用的 Spark 币足以支付此交易。</translation>
+    </message>
+    <message>
+        <source>Spark spend batch failed after committing %u of %u transactions: %s. Do not retry the whole payment. Already sent: %s</source>
+        <translation>提交 %u 笔交易（共 %u 笔）后，Spark 批量支出失败：%s。请勿重新执行整笔付款。已发送：%s</translation>
+    </message>
+    <message>
+        <source>Subtracting the fee from the amount is temporarily unavailable when a Spark spend must be split across multiple transactions.</source>
+        <translation>当 Spark 支出必须拆分为多笔交易时，暂时无法从发送金额中扣除手续费。</translation>
+    </message>
+    <message>
+        <source>The available Spark coins cannot cover the amount and the required transaction fees.</source>
+        <translation>可用的 Spark 币不足以支付金额及所需的交易手续费。</translation>
+    </message>
+    <message>
+        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
+        <translation>这是预发布测试版本，使用风险自负，请勿用于挖矿或商户业务</translation>
+    </message>
+    <message>
+        <source>Threshold for disconnecting and discouraging misbehaving peers (default: %u)</source>
+        <translation>断开行为不当的节点连接并限制其重新连接的阈值（默认值：%u）</translation>
+    </message>
+    <message>
+        <source>Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs</source>
+        <translation>交易过大（大小上限：250Kb）。请选择更少的输入或合并您的 UTXOs</translation>
+    </message>
+    <message>
+        <source>Unable to rewind the database to a pre-fork state. You will need to redownload the blockchain</source>
+        <translation>无法将数据库回退到分叉前的状态。您需要重新下载区块链</translation>
+    </message>
+    <message>
+        <source>Unsupported logging level or category %s. Valid levels are: %s. Valid categories are: %s.</source>
+        <translation>不支持的日志级别或类别 %s。有效级别：%s。有效类别：%s。</translation>
+    </message>
+    <message>
+        <source>Use Mnemonic code for generating deterministic keys. Only has effect during wallet creation/first start</source>
+        <translation>使用助记词生成确定性密钥。仅在创建钱包或首次启动时生效</translation>
+    </message>
+    <message>
+        <source>Use hierarchical deterministic key generation (HD) after BIP32. Only has effect during wallet creation/first start</source>
+        <translation>按照 BIP32 使用分层确定性密钥生成（HD）。仅在创建钱包或首次启动时生效</translation>
+    </message>
+    <message>
+        <source>Use this argument when you want to keep additional data in block index for mobile api, default: false</source>
+        <translation>使用此参数可在区块索引中保留移动端 API 所需的额外数据，默认值：false</translation>
+    </message>
+    <message>
+        <source>User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)</source>
+        <translation>用户自定义的 HD 钱包助记词（bip39）。仅在创建钱包或首次启动时生效（默认值：随机生成）</translation>
+    </message>
+    <message>
+        <source>User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)</source>
+        <translation>用户自定义的 HD 钱包助记词密码（BIP39）。仅在创建钱包或首次启动时生效（默认值：空字符串）</translation>
+    </message>
+    <message>
+        <source>User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)</source>
+        <translation>用户自定义的 HD 钱包种子（须为十六进制）。仅在创建钱包或首次启动时生效（默认值：随机生成）</translation>
+    </message>
+    <message>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>JSON-RPC 连接的用户名和密码哈希。&lt;userpw&gt; 字段格式为：&lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;。share/rpcuser 中提供了标准 Python 脚本。客户端随后可使用 rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; 这对参数正常连接。此选项可多次指定</translation>
+    </message>
+    <message>
+        <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
+        <translation>钱包已锁定，无法补充密钥池！自动备份和混币已禁用，请解锁钱包以补充密钥池。</translation>
+    </message>
+    <message>
+        <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>
+        <translation>钱包不会创建违反内存池交易链限制的交易（默认值：%u）</translation>
+    </message>
+    <message>
+        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
+        <translation>警告：网络似乎尚未完全达成一致！部分矿工可能遇到了问题。</translation>
+    </message>
+    <message>
+        <source>Warning: Wallet file corrupt, data salvaged! Original %s saved as %s in %s; if your balance or transactions are incorrect you should restore from a backup.</source>
+        <translation>警告：钱包文件已损坏，数据已抢救恢复！原始文件 %s 已另存为 %s，位置为 %s；如果余额或交易有误，请从备份恢复。</translation>
+    </message>
+    <message>
+        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
+        <translation>警告：本节点似乎与其他节点存在分歧！您可能需要升级，或其他节点可能需要升级。</translation>
+    </message>
+    <message>
+        <source>Whitelist peers connecting from the given IP address (e.g. 1.2.3.4) or CIDR notated network (e.g. 1.2.3.0/24). Can be specified multiple times.</source>
+        <translation>将来自指定 IP 地址（如 1.2.3.4）或 CIDR 格式网段（如 1.2.3.0/24）的节点加入白名单。可多次指定此选项。</translation>
+    </message>
+    <message>
+        <source>You are starting in lite mode, all Dash-specific functionality is disabled.</source>
+        <translation>您正在以轻量模式启动，所有 Dash 专有功能均已禁用。</translation>
+    </message>
+    <message>
+        <source>You must specify a znodeblsprivkey in the configuration. Please see documentation for help.</source>
+        <translation>您必须在配置中指定 znodeblsprivkey。请查阅文档获取帮助。</translation>
+    </message>
+    <message>
+        <source>You need to rebuild the database using -reindex-chainstate to change -txindex</source>
+        <translation>要更改 -txindex，您需要使用 -reindex-chainstate 重建数据库</translation>
+    </message>
+    <message>
+        <source>%s Daemon</source>
+        <translation>%s 守护进程</translation>
+    </message>
+    <message>
+        <source>%s RPC client version</source>
+        <translation>%s RPC 客户端版本</translation>
+    </message>
+    <message>
+        <source>%s corrupt, salvage failed</source>
+        <translation>%s 已损坏，数据抢救恢复失败</translation>
+    </message>
+    <message>
+        <source>%s firo-tx utility version</source>
+        <translation>%s firo-tx 工具版本</translation>
+    </message>
+    <message>
+        <source>%s is set very high!</source>
+        <translation>%s 的设置值非常高！</translation>
+    </message>
+    <message>
+        <source>-wallet parameter must only specify a filename (not a path)</source>
+        <translation>-wallet 参数只能指定文件名，不能指定路径</translation>
+    </message>
+    <message>
+        <source>A Spark payment may use at most %u transactions.</source>
+        <translation>一笔 Spark 付款最多可使用 %u 笔交易。</translation>
+    </message>
+    <message>
+        <source>Add Pay To n-of-m Multi-sig output to TX. n = REQUIRED, m = PUBKEYS</source>
+        <translation>向 TX 添加 m 个密钥中需 n 个签名的多重签名输出。n = REQUIRED, m = PUBKEYS</translation>
+    </message>
+    <message>
+        <source>Add address-based output to TX</source>
+        <translation>向 TX 添加基于地址的输出</translation>
+    </message>
+    <message>
+        <source>Add data-based output to TX</source>
+        <translation>向 TX 添加基于数据的输出</translation>
+    </message>
+    <message>
+        <source>Add input to TX</source>
+        <translation>向 TX 添加输入</translation>
+    </message>
+    <message>
+        <source>Add pay-to-pubkey output to TX</source>
+        <translation>向 TX 添加支付到公钥（pay-to-pubkey）的输出</translation>
+    </message>
+    <message>
+        <source>Add raw script output to TX</source>
+        <translation>向 TX 添加原始脚本输出</translation>
+    </message>
+    <message>
+        <source>Add zero or more signatures to transaction</source>
+        <translation>向交易添加零个或多个签名</translation>
+    </message>
+    <message>
+        <source>Amount for recipient %1% is too small to pay the fee</source>
+        <translation>收款人 %1% 的金额太小，不足以支付手续费</translation>
+    </message>
+    <message>
+        <source>Amount for recipient %1% is too small</source>
+        <translation>收款人 %1% 的金额太小</translation>
+    </message>
+    <message>
+        <source>Anonymous communication with TOR - Quickstart (default: %d)</source>
+        <translation>通过 TOR 进行匿名通信，快速启动（默认值：%d）</translation>
+    </message>
+    <message>
+        <source>Attempt to recover private keys from a corrupt wallet on startup</source>
+        <translation>启动时尝试从损坏的钱包中恢复私钥</translation>
+    </message>
+    <message>
+        <source>Bad change address</source>
+        <translation>找零地址无效</translation>
+    </message>
+    <message>
+        <source>Block index is outdated, reindex required
+</source>
+        <translation>区块索引已过时，需要重建索引
+</translation>
+    </message>
+    <message>
+        <source>Cannot write default spark address</source>
+        <translation>无法写入默认 Spark 地址</translation>
+    </message>
+    <message>
+        <source>Chain height changed during Spark name construction; retry</source>
+        <translation>构建 Spark 名称交易期间，区块链高度发生变化；请重试</translation>
+    </message>
+    <message>
+        <source>Chain height changed during Spark transaction construction; retry</source>
+        <translation>构建 Spark 交易期间，区块链高度发生变化；请重试</translation>
+    </message>
+    <message>
+        <source>Chain selection options:</source>
+        <translation>区块链选择选项：</translation>
+    </message>
+    <message>
+        <source>Chain tip changed during Spark name construction; retry</source>
+        <translation>构建 Spark 名称交易期间，链顶发生变化；请重试</translation>
+    </message>
+    <message>
+        <source>Chain tip changed during Spark transaction construction; retry</source>
+        <translation>构建 Spark 交易期间，链顶发生变化；请重试</translation>
+    </message>
+    <message>
+        <source>Chain tip is unavailable during Spark name construction</source>
+        <translation>构建 Spark 名称交易时无法获取链顶</translation>
+    </message>
+    <message>
+        <source>Change index out of range</source>
+        <translation>找零索引超出范围</translation>
+    </message>
+    <message>
+        <source>Commands:</source>
+        <translation>命令：</translation>
+    </message>
+    <message>
+        <source>Connect to JSON-RPC on &lt;port&gt; (default: %u or testnet: %u)</source>
+        <translation>连接到 &lt;port&gt; 端口上的 JSON-RPC（默认值：%u，测试网：%u）</translation>
+    </message>
+    <message>
+        <source>Could not open debug log file %s</source>
+        <translation>无法打开调试日志文件 %s</translation>
+    </message>
+    <message>
+        <source>Create hex-encoded Firo transaction</source>
+        <translation>创建十六进制编码的 Firo 交易</translation>
+    </message>
+    <message>
+        <source>Create new, empty TX.</source>
+        <translation>创建新的空 TX。</translation>
+    </message>
+    <message>
+        <source>Default duration (in seconds) of manually configured bans (default: %u)</source>
+        <translation>手动设置的封禁的默认时长，单位为秒（默认值：%u）</translation>
+    </message>
+    <message>
+        <source>Delete input N from TX</source>
+        <translation>从 TX 中删除第 N 个输入</translation>
+    </message>
+    <message>
+        <source>Delete output N from TX</source>
+        <translation>从 TX 中删除第 N 个输出</translation>
+    </message>
+    <message>
+        <source>Either recipients or newMints has to be nonempty.</source>
+        <translation>recipients 和 newMints 至少有一个必须非空。</translation>
+    </message>
+    <message>
+        <source>Error loading %s: Wallet corrupted</source>
+        <translation>加载 %s 时出错：钱包已损坏</translation>
+    </message>
+    <message>
+        <source>Error loading %s: Wallet requires newer version of %s</source>
+        <translation>加载 %s 时出错：此钱包需要更新版本的 %s</translation>
+    </message>
+    <message>
+        <source>Error loading %s: You can't disable HD on a already existing HD wallet</source>
+        <translation>加载 %s 时出错：无法为已有的 HD 钱包禁用 HD</translation>
+    </message>
+    <message>
+        <source>Error upgrading chainstate database</source>
+        <translation>升级链状态数据库时出错</translation>
+    </message>
+    <message>
+        <source>Error: Wallet locked, unable to create transaction!</source>
+        <translation>错误：钱包已锁定，无法创建交易！</translation>
+    </message>
+    <message>
+        <source>Fail to generate mints, </source>
+        <translation>生成铸币失败， </translation>
+    </message>
+    <message>
+        <source>Failed to create backup, error: %s</source>
+        <translation>创建备份失败，错误：%s</translation>
+    </message>
+    <message>
+        <source>Failed to delete backup, error: %s</source>
+        <translation>删除备份失败，错误：%s</translation>
+    </message>
+    <message>
+        <source>Get help for a command</source>
+        <translation>获取命令的帮助信息</translation>
+    </message>
+    <message>
+        <source>Initialization sanity check failed. %s is shutting down.</source>
+        <translation>初始化完整性检查失败。%s 正在关闭。</translation>
+    </message>
+    <message>
+        <source>Invalid Spark spend amount.</source>
+        <translation>Spark 支出金额无效。</translation>
+    </message>
+    <message>
+        <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
+        <translation>-%s=&lt;amount&gt; 的金额无效：'%s'</translation>
+    </message>
+    <message>
+        <source>Invalid amount for -mininput=&lt;amount&gt;: '%s'</source>
+        <translation>-mininput=&lt;amount&gt; 的金额无效：'%s'</translation>
+    </message>
+    <message>
+        <source>Invalid characters in -wallet filename</source>
+        <translation>-wallet 文件名中包含无效字符</translation>
+    </message>
+    <message>
+        <source>Invalid spark address</source>
+        <translation>Spark 地址无效</translation>
+    </message>
+    <message>
+        <source>Invalid znodeblsprivkey. Please see documentation.</source>
+        <translation>znodeblsprivkey 无效。请查阅文档。</translation>
+    </message>
+    <message>
+        <source>Keypool ran out, please call keypoolrefill first</source>
+        <translation>密钥池已耗尽，请先调用 keypoolrefill</translation>
+    </message>
+    <message>
+        <source>List commands</source>
+        <translation>列出命令</translation>
+    </message>
+    <message>
+        <source>Load JSON file FILENAME into register NAME</source>
+        <translation>将 JSON 文件 FILENAME 加载到寄存器 NAME 中</translation>
+    </message>
+    <message>
+        <source>Loading Spark wallet...</source>
+        <translation>正在加载 Spark 钱包...</translation>
+    </message>
+    <message>
+        <source>Loading banlist...</source>
+        <translation>正在加载封禁列表...</translation>
+    </message>
+    <message>
+        <source>Loading wallet... (%d transactions)</source>
+        <translation>正在加载钱包...（%d 笔交易）</translation>
+    </message>
+    <message>
+        <source>No Spark spend recipients were provided.</source>
+        <translation>未提供 Spark 支出收款人。</translation>
+    </message>
+    <message>
+        <source>No such coin in set</source>
+        <translation>集合中没有该币</translation>
+    </message>
+    <message>
+        <source>Not enough fee estimated</source>
+        <translation>预估的手续费不足</translation>
+    </message>
+    <message>
+        <source>Pass named instead of positional arguments (default: %s)</source>
+        <translation>使用命名参数而非位置参数（默认值：%s）</translation>
+    </message>
+    <message>
+        <source>Print this help message and exit</source>
+        <translation>输出此帮助信息并退出</translation>
+    </message>
+    <message>
+        <source>Private recipient has invalid amount</source>
+        <translation>私密收款人的金额无效</translation>
+    </message>
+    <message>
+        <source>Rebuild chain state and block index from the blk*.dat files on disk</source>
+        <translation>从磁盘上的 blk*.dat 文件重建链状态和区块索引</translation>
+    </message>
+    <message>
+        <source>Rebuild chain state from the currently indexed blocks</source>
+        <translation>根据当前已建立索引的区块重建链状态</translation>
+    </message>
+    <message>
+        <source>Recipient %1% has invalid amount</source>
+        <translation>收款人 %1% 的金额无效</translation>
+    </message>
+    <message>
+        <source>Register Commands:</source>
+        <translation>寄存器命令：</translation>
+    </message>
+    <message>
+        <source>Rewinding blocks...</source>
+        <translation>正在回退区块...</translation>
+    </message>
+    <message>
+        <source>See signrawtransaction docs for format of sighash flags, JSON objects.</source>
+        <translation>有关 sighash 标志和 JSON 对象的格式，请参阅 signrawtransaction 文档。</translation>
+    </message>
+    <message>
+        <source>Select JSON output</source>
+        <translation>选择 JSON 输出</translation>
+    </message>
+    <message>
+        <source>Selected Spark cover set is not yet bound to a canonical state hash</source>
+        <translation>所选 Spark 覆盖集尚未绑定到规范状态哈希</translation>
+    </message>
+    <message>
+        <source>Send command to %s (with named arguments)</source>
+        <translation>向 %s 发送命令（使用命名参数）</translation>
+    </message>
+    <message>
+        <source>Send command to %s</source>
+        <translation>向 %s 发送命令</translation>
+    </message>
+    <message>
+        <source>Send commands to node running on &lt;ip&gt; (default: %s)</source>
+        <translation>向运行在 &lt;ip&gt; 上的节点发送命令（默认值：%s）</translation>
+    </message>
+    <message>
+        <source>Send transactions with full-RBF opt-in enabled (default: %u)</source>
+        <translation>发送选择启用 full-RBF 的交易（默认值：%u）</translation>
+    </message>
+    <message>
+        <source>Set TX lock time to N</source>
+        <translation>将 TX 的锁定时间设为 N</translation>
+    </message>
+    <message>
+        <source>Set TX version to N</source>
+        <translation>将 TX 的版本设为 N</translation>
+    </message>
+    <message>
+        <source>Set maximum BIP141 block weight (default: %d)</source>
+        <translation>设置 BIP141 区块权重上限（默认值：%d）</translation>
+    </message>
+    <message>
+        <source>Set register NAME to given JSON-STRING</source>
+        <translation>将寄存器 NAME 设为指定的 JSON-STRING</translation>
+    </message>
+    <message>
+        <source>Spark V2 spends are limited to %1% inputs</source>
+        <translation>Spark V2 支出最多允许 %1% 个输入</translation>
+    </message>
+    <message>
+        <source>Spark address doesn't belong to the wallet</source>
+        <translation>Spark 地址不属于此钱包</translation>
+    </message>
+    <message>
+        <source>Spark coin selection changed during transaction construction; retry</source>
+        <translation>构建交易期间，所选 Spark 币发生变化；请重试</translation>
+    </message>
+    <message>
+        <source>Spark fee estimate did not match the wallet (planned %s, wallet %s).</source>
+        <translation>Spark 手续费预估与钱包不一致（计划值：%s，钱包值：%s）。</translation>
+    </message>
+    <message>
+        <source>Spark name transaction size is out of range</source>
+        <translation>Spark 名称交易大小超出范围</translation>
+    </message>
+    <message>
+        <source>Spark shielded output limit exceeded.</source>
+        <translation>超出 Spark 私密输出数量限制。</translation>
+    </message>
+    <message>
+        <source>Spark spend amount is out of range</source>
+        <translation>Spark 支出金额超出范围</translation>
+    </message>
+    <message>
+        <source>Spark spend amount plus fee is out of range</source>
+        <translation>Spark 支出金额与手续费之和超出范围</translation>
+    </message>
+    <message>
+        <source>Spark spend fee is out of range</source>
+        <translation>Spark 支出手续费超出范围</translation>
+    </message>
+    <message>
+        <source>Spark spend output amount is out of range</source>
+        <translation>Spark 支出输出金额超出范围</translation>
+    </message>
+    <message>
+        <source>Spark spend size estimate is out of range</source>
+        <translation>Spark 支出大小预估超出范围</translation>
+    </message>
+    <message>
+        <source>Spark transaction fee is too high.</source>
+        <translation>Spark 交易手续费过高。</translation>
+    </message>
+    <message>
+        <source>Spark transactions are disabled at the moment</source>
+        <translation>Spark 交易目前已禁用</translation>
+    </message>
+    <message>
+        <source>Spend to transparent address limit exceeded.</source>
+        <translation>向透明地址支出的金额超出上限。</translation>
+    </message>
+    <message>
+        <source>Start %s Daemon</source>
+        <translation>启动 %s 守护进程</translation>
+    </message>
+    <message>
+        <source>Synchronization failed</source>
+        <translation>同步失败</translation>
+    </message>
+    <message>
+        <source>Synchronization finished</source>
+        <translation>同步完成</translation>
+    </message>
+    <message>
+        <source>Synchronization pending...</source>
+        <translation>等待同步...</translation>
+    </message>
+    <message>
+        <source>Synchronizing blockchain...</source>
+        <translation>正在同步区块链...</translation>
+    </message>
+    <message>
+        <source>Synchronizing governance objects...</source>
+        <translation>正在同步治理对象...</translation>
+    </message>
+    <message>
+        <source>The wallet will avoid paying less than the minimum relay fee.</source>
+        <translation>钱包会避免让手续费低于最低转发手续费。</translation>
+    </message>
+    <message>
+        <source>This command requires JSON registers:</source>
+        <translation>此命令需要以下 JSON 寄存器：</translation>
+    </message>
+    <message>
+        <source>This help message</source>
+        <translation>此帮助信息</translation>
+    </message>
+    <message>
+        <source>This is the minimum transaction fee you pay on every transaction.</source>
+        <translation>这是每笔交易需要支付的最低交易手续费。</translation>
+    </message>
+    <message>
+        <source>Timeout during HTTP requests (default: %d)</source>
+        <translation>HTTP 请求超时时间（默认值：%d）</translation>
+    </message>
+    <message>
+        <source>Transaction amounts must not be negative</source>
+        <translation>交易金额不得为负数</translation>
+    </message>
+    <message>
+        <source>Transaction commit failed.</source>
+        <translation>交易提交失败。</translation>
+    </message>
+    <message>
+        <source>Transaction has too long of a mempool chain</source>
+        <translation>交易在内存池中的交易链过长</translation>
+    </message>
+    <message>
+        <source>Transaction must have at least one recipient</source>
+        <translation>交易必须至少有一名收款人</translation>
+    </message>
+    <message>
+        <source>Transaction not allowed in mempool</source>
+        <translation>交易不允许进入内存池</translation>
+    </message>
+    <message>
+        <source>Unable to bind to %s on this computer. %s is probably already running.</source>
+        <translation>无法在此计算机上绑定到 %s。%s 可能已在运行。</translation>
+    </message>
+    <message>
+        <source>Unable to create a single-input Spark transaction.</source>
+        <translation>无法创建单输入 Spark 交易。</translation>
+    </message>
+    <message>
+        <source>Unable to create a valid Spark name transaction</source>
+        <translation>无法创建有效的 Spark 名称交易</translation>
+    </message>
+    <message>
+        <source>Unable to create spend transaction.</source>
+        <translation>无法创建支出交易。</translation>
+    </message>
+    <message>
+        <source>Unable to estimate the final Spark name transaction fee</source>
+        <translation>无法预估 Spark 名称交易的最终手续费</translation>
+    </message>
+    <message>
+        <source>Unable to generate spend key, wallet is locked.</source>
+        <translation>无法生成支出密钥，钱包已锁定。</translation>
+    </message>
+    <message>
+        <source>Unable to generate spend key.</source>
+        <translation>无法生成支出密钥。</translation>
+    </message>
+    <message>
+        <source>Unable to mint full amount; only partial minting was possible</source>
+        <translation>无法铸造全部金额；仅完成了部分铸币</translation>
+    </message>
+    <message>
+        <source>Unable to select Spark coins for spend.</source>
+        <translation>无法选择用于支出的 Spark 币。</translation>
+    </message>
+    <message>
+        <source>Unable to select coins for minting</source>
+        <translation>无法选择用于铸币的币</translation>
+    </message>
+    <message>
+        <source>Unable to select cons for spend</source>
+        <translation>无法选择用于支出的币</translation>
+    </message>
+    <message>
+        <source>Update hex-encoded Firo transaction</source>
+        <translation>更新十六进制编码的 Firo 交易</translation>
+    </message>
+    <message>
+        <source>Usage:</source>
+        <translation>用法：</translation>
+    </message>
+    <message>
+        <source>Use the dev chain</source>
+        <translation>使用开发链</translation>
+    </message>
+    <message>
+        <source>Wait for RPC server to start</source>
+        <translation>等待 RPC 服务器启动</translation>
+    </message>
+    <message>
+        <source>Wallet locked</source>
+        <translation>钱包已锁定</translation>
+    </message>
+    <message>
+        <source>Wallet locked, unable to create transaction!</source>
+        <translation>钱包已锁定，无法创建交易！</translation>
+    </message>
+    <message>
+        <source>Wallet needed to be rewritten: restart %s to complete</source>
+        <translation>钱包需要重写：请重启 %s 以完成操作</translation>
+    </message>
+    <message>
+        <source>Wasn't able to create wallet backup folder %s!</source>
+        <translation>无法创建钱包备份文件夹 %s！</translation>
+    </message>
+    <message>
+        <source>You can not start a masternode in lite mode.</source>
+        <translation>无法在轻量模式下启动主节点。</translation>
+    </message>
+    <message>
+        <source>You can not start a znode in lite mode.</source>
+        <translation>无法在轻量模式下启动 Znode 主节点。</translation>
+    </message>
+    <message>
+        <source>Zapping all Sigma mints from wallet...</source>
+        <translation>正在从钱包中清除所有 Sigma 铸币...</translation>
+    </message>
+    <message>
+        <source>prevtxs=JSON object</source>
+        <translation>prevtxs=JSON 对象</translation>
+    </message>
+    <message>
+        <source>privatekeys=JSON object</source>
+        <translation>privatekeys=JSON 对象</translation>
+    </message>
+    <message>
+        <source>version</source>
+        <translation>版本</translation>
+    </message>
 </context>
+<context>
+    <name>AutoMintSparkDialog</name>
+    <message>
+        <source>Make Private</source>
+        <translation>转为私密</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Wallet unlock failed</source>
+        <translation>钱包解锁失败</translation>
+    </message>
+    <message>
+        <source>The passphrase was incorrect.</source>
+        <translation>密码不正确。</translation>
+    </message>
+    <message>
+        <source>Unable to generate mint</source>
+        <translation>无法生成铸币交易</translation>
+    </message>
+    <message>
+        <source>Make all available transparent funds private with Spark?</source>
+        <translation>通过 Spark 将所有可用透明资金转为私密？</translation>
+    </message>
+    <message>
+        <source>Unlocking wallet...</source>
+        <translation>正在解锁钱包...</translation>
+    </message>
+    <message>
+        <source>Making funds private...</source>
+        <translation>正在将资金转为私密...</translation>
+    </message>
+</context>
+<context>
+    <name>AutoMintSparkModel</name>
+    <message>
+        <source>Successfully made %1 private with Spark</source>
+        <translation>已通过 Spark 成功将 %1 转为私密</translation>
+    </message>
+    <message>
+        <source>Fail to mint, %1</source>
+        <translation>铸币失败，%1</translation>
+    </message>
+    <message>
+        <source>Fail to unlock wallet</source>
+        <translation>钱包解锁失败</translation>
+    </message>
+    <message>
+        <source>Automatic Spark Privacy</source>
+        <translation>自动启用 Spark 隐私保护</translation>
+    </message>
+</context>
+<context>
+    <name>AutomintSparkNotification</name>
+    <message>
+        <source>Make Private</source>
+        <translation>转为私密</translation>
+    </message>
+    <message>
+        <source>Dismiss</source>
+        <translation>忽略</translation>
+    </message>
+</context>
+<context>
+    <name>BitcoinApplication</name>
+    <message>
+        <source>You need to unlock to allow Spark wallet be created.</source>
+        <translation>需要解锁钱包才能创建 Spark 钱包。</translation>
+    </message>
+    <message>
+        <source>Runaway exception</source>
+        <translation>未处理的异常</translation>
+    </message>
+</context>
+<context>
+    <name>CancelPasswordDialog</name>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>CreateSparkNamePage</name>
+    <message>
+        <source>Register Spark Name</source>
+        <translation>注册 Spark 名称</translation>
+    </message>
+    <message>
+        <source>Spark Name</source>
+        <translation>Spark 名称</translation>
+    </message>
+    <message>
+        <source>About Spark Names</source>
+        <translation>关于 Spark 名称</translation>
+    </message>
+    <message>
+        <source>e.g. sparky</source>
+        <translation>例如 sparky</translation>
+    </message>
+    <message>
+        <source>Receiving address</source>
+        <translation>收款地址</translation>
+    </message>
+    <message>
+        <source>Choose or paste a Spark address…</source>
+        <translation>选择或粘贴 Spark 地址…</translation>
+    </message>
+    <message>
+        <source>Receiving Spark address</source>
+        <translation>收款 Spark 地址</translation>
+    </message>
+    <message>
+        <source>Use a Spark address that belongs to this wallet.</source>
+        <translation>请使用属于此钱包的 Spark 地址。</translation>
+    </message>
+    <message>
+        <source>Choose a Spark address</source>
+        <translation>选择 Spark 地址</translation>
+    </message>
+    <message>
+        <source>Choose an existing address, generate a new one, or paste an address.</source>
+        <translation>选择现有地址、生成新地址或粘贴地址。</translation>
+    </message>
+    <message>
+        <source>Registration period</source>
+        <translation>注册年限</translation>
+    </message>
+    <message>
+        <source>Registration fee</source>
+        <translation>注册费用</translation>
+    </message>
+    <message>
+        <source>About registration fees</source>
+        <translation>关于注册费用</translation>
+    </message>
+    <message>
+        <source>Registration period in years</source>
+        <translation>注册年限（年）</translation>
+    </message>
+    <message>
+        <source>Enter a name</source>
+        <translation>输入名称</translation>
+    </message>
+    <message>
+        <source>Paid from your private balance. Network fee additional.</source>
+        <translation>从您的私密余额中支付。网络手续费另计。</translation>
+    </message>
+    <message>
+        <source>Public details (optional)</source>
+        <translation>公开信息（可选）</translation>
+    </message>
+    <message>
+        <source>This information is public. Maximum 1024 UTF-8 bytes.</source>
+        <translation>此信息将公开显示。最多 1024 个 UTF-8 字节。</translation>
+    </message>
+    <message>
+        <source>Public details</source>
+        <translation>公开信息</translation>
+    </message>
+    <message>
+        <source>A memorable name, such as @sparky, that people can use to send FIRO to your Spark address while preserving your transaction privacy.</source>
+        <translation>易于记忆的名称，例如 @sparky，方便他人向您的 Spark 地址发送 FIRO，同时保护您的交易隐私。</translation>
+    </message>
+    <message>
+        <source>Use 1–20 letters (A–Z), numbers, hyphens or periods. Names are not case-sensitive.</source>
+        <translation>使用 1–20 个字符，可包含字母（A–Z）、数字、连字符或句点。名称不区分大小写。</translation>
+    </message>
+    <message>
+        <source>1 character</source>
+        <translation>1 个字符</translation>
+    </message>
+    <message>
+        <source>%1 characters</source>
+        <translation>%1 个字符</translation>
+    </message>
+    <message>
+        <source>%1–%2 characters</source>
+        <translation>%1–%2 个字符</translation>
+    </message>
+    <message>
+        <source>Shorter names cost more. The registration fee depends on your name’s length and the number of years selected.</source>
+        <translation>名称越短，费用越高。注册费用取决于名称长度和所选年限。</translation>
+    </message>
+    <message>
+        <source>Name length</source>
+        <translation>名称长度</translation>
+    </message>
+    <message>
+        <source>FIRO per year</source>
+        <translation>FIRO/年</translation>
+    </message>
+    <message>
+        <source>The network fee is additional.</source>
+        <translation>网络手续费另计。</translation>
+    </message>
+    <message>
+        <source>Fees are charged per year based on the length of the name. The network fee is additional.</source>
+        <translation>根据名称长度按年收费。网络手续费另计。</translation>
+    </message>
+    <message>
+        <source>Choose existing address…</source>
+        <translation>选择现有地址…</translation>
+    </message>
+    <message>
+        <source>Generate new address</source>
+        <translation>生成新地址</translation>
+    </message>
+    <message>
+        <source>Paste address</source>
+        <translation>粘贴地址</translation>
+    </message>
+    <message>
+        <source>Register</source>
+        <translation>注册</translation>
+    </message>
+    <message>
+        <source>Extend Spark Name</source>
+        <translation>延长 Spark 名称有效期</translation>
+    </message>
+    <message>
+        <source>Extend by</source>
+        <translation>延长年限</translation>
+    </message>
+    <message>
+        <source>Extension fee</source>
+        <translation>延期费用</translation>
+    </message>
+    <message>
+        <source>Extend</source>
+        <translation>延长</translation>
+    </message>
+    <message>
+        <source>This Spark Name cannot be extended by a full year yet.</source>
+        <translation>此 Spark 名称目前还不能延长整整一年。</translation>
+    </message>
+    <message>
+        <source>This Spark Name could not be found and cannot be extended.</source>
+        <translation>未找到此 Spark 名称，无法延长有效期。</translation>
+    </message>
+    <message>
+        <source>Invalid address</source>
+        <translation>地址无效</translation>
+    </message>
+    <message>
+        <source>Choose a Spark address that belongs to this wallet.</source>
+        <translation>请选择属于此钱包的 Spark 地址。</translation>
+    </message>
+    <message>
+        <source>Address already registered</source>
+        <translation>地址已注册</translation>
+    </message>
+    <message>
+        <source>This address is already registered as @%1. Extend that name from the Spark Names page, or choose another address.</source>
+        <translation>此地址已注册为 @%1。请在 Spark 名称页面延长该名称的有效期，或选择其他地址。</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>The wallet is not available.</source>
+        <translation>钱包不可用。</translation>
+    </message>
+    <message>
+        <source>Extension unavailable</source>
+        <translation>无法延期</translation>
+    </message>
+    <message>
+        <source>Spark names are not yet allowed</source>
+        <translation>尚未允许使用 Spark 名称</translation>
+    </message>
+    <message>
+        <source>Invalid spark address</source>
+        <translation>Spark 地址无效</translation>
+    </message>
+    <message>
+        <source>The Spark address does not belong to this wallet.</source>
+        <translation>此 Spark 地址不属于此钱包。</translation>
+    </message>
+    <message>
+        <source>Error details: </source>
+        <translation>错误详情： </translation>
+    </message>
+    <message>
+        <source>Transaction submitted</source>
+        <translation>交易已提交</translation>
+    </message>
+    <message>
+        <source>The updated expiry will appear after the extension transaction is confirmed.</source>
+        <translation>延期交易确认后，将显示更新后的到期时间。</translation>
+    </message>
+    <message>
+        <source>The Spark Name will appear after the registration transaction is confirmed.</source>
+        <translation>注册交易确认后，将显示此 Spark 名称。</translation>
+    </message>
+    <message>
+        <source> year</source>
+        <translation> 年</translation>
+    </message>
+    <message>
+        <source> years</source>
+        <translation> 年</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>不可用</translation>
+    </message>
+    <message>
+        <source>Enter a valid name</source>
+        <translation>输入有效名称</translation>
+    </message>
+    <message>
+        <source>%1 FIRO</source>
+        <translation>%1 FIRO</translation>
+    </message>
+    <message>
+        <source>New estimated expiration: %1</source>
+        <translation>新的预计到期时间：%1</translation>
+    </message>
+    <message>
+        <source>The updated expiration estimate is unavailable.</source>
+        <translation>无法获取更新后的预计到期时间。</translation>
+    </message>
+    <message>
+        <source>Error validating Spark Name parameter</source>
+        <translation>验证 Spark 名称参数时出错</translation>
+    </message>
+    <message>
+        <source>Failed to prepare the Spark Name extension transaction.</source>
+        <translation>无法准备 Spark 名称延期交易。</translation>
+    </message>
+    <message>
+        <source>Failed to prepare the Spark Name registration transaction.</source>
+        <translation>无法准备 Spark 名称注册交易。</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to extend this Spark Name?</source>
+        <translation>确定要延长此 Spark 名称的有效期吗？</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to register this Spark Name?</source>
+        <translation>确定要注册此 Spark 名称吗？</translation>
+    </message>
+    <message>
+        <source> You are sending FIRO from a Spark address to the Spark Name fee address.</source>
+        <translation> 您将从 Spark 地址向 Spark 名称费用地址发送 FIRO。</translation>
+    </message>
+    <message>
+        <source>Confirm Spark Name extension</source>
+        <translation>确认延长 Spark 名称有效期</translation>
+    </message>
+    <message>
+        <source>Confirm Spark Name registration</source>
+        <translation>确认注册 Spark 名称</translation>
+    </message>
+    <message>
+        <source>Failed to submit the Spark Name extension transaction.</source>
+        <translation>无法提交 Spark 名称延期交易。</translation>
+    </message>
+    <message>
+        <source>Failed to submit the Spark Name registration transaction.</source>
+        <translation>无法提交 Spark 名称注册交易。</translation>
+    </message>
+    <message>
+        <source>Failed to extend the Spark Name.</source>
+        <translation>无法延长 Spark 名称有效期。</translation>
+    </message>
+    <message>
+        <source>Failed to register the Spark Name.</source>
+        <translation>无法注册 Spark 名称。</translation>
+    </message>
+    <message>
+        <source>⚠️ Not enough private funds to extend this Spark Name.</source>
+        <translation>⚠️ 私密资金不足，无法延长此 Spark 名称的有效期。</translation>
+    </message>
+    <message>
+        <source>⚠️ Not enough private funds to register this Spark Name.</source>
+        <translation>⚠️ 私密资金不足，无法注册此 Spark 名称。</translation>
+    </message>
+</context>
+<context>
+    <name>ExportViewKeyDialog</name>
+    <message>
+        <source>Export View Key</source>
+        <translation>导出查看密钥</translation>
+    </message>
+</context>
+<context>
+    <name>ManualMintDialog</name>
+    <message>
+        <source>Coin Selection</source>
+        <translation>选择钱币</translation>
+    </message>
+    <message>
+        <source>Available amount to mint:</source>
+        <translation>可用于铸币的金额：</translation>
+    </message>
+    <message>
+        <source>0.00000000</source>
+        <translation>0.00000000</translation>
+    </message>
+    <message>
+        <source>FIRO</source>
+        <translation>FIRO</translation>
+    </message>
+    <message>
+        <source>FIRO : Amount</source>
+        <translation>FIRO：金额</translation>
+    </message>
+    <message>
+        <source>Total:</source>
+        <translation>总计：</translation>
+    </message>
+    <message>
+        <source>10</source>
+        <translation>10</translation>
+    </message>
+    <message>
+        <source>1</source>
+        <translation>1</translation>
+    </message>
+    <message>
+        <source>0.1</source>
+        <translation>0.1</translation>
+    </message>
+    <message>
+        <source>0.5</source>
+        <translation>0.5</translation>
+    </message>
+    <message>
+        <source>100</source>
+        <translation>100</translation>
+    </message>
+    <message>
+        <source>&amp;Mint</source>
+        <translation>铸币(&amp;M)</translation>
+    </message>
+    <message>
+        <source>&amp;Clear All</source>
+        <translation>全部清除(&amp;C)</translation>
+    </message>
+</context>
+<context>
+    <name>SparkNamesPage</name>
+    <message>
+        <source>Form</source>
+        <translation>窗体</translation>
+    </message>
+    <message>
+        <source>Spark Names registered to this wallet, along with their expiry.</source>
+        <translation>注册到此钱包的 Spark 名称及其到期时间。</translation>
+    </message>
+    <message>
+        <source>Register a new Spark Name for this wallet.</source>
+        <translation>为此钱包注册新的 Spark 名称。</translation>
+    </message>
+    <message>
+        <source>Create Spark Name</source>
+        <translation>创建 Spark 名称</translation>
+    </message>
+    <message>
+        <source>No Spark Names yet</source>
+        <translation>暂无 Spark 名称</translation>
+    </message>
+    <message>
+        <source>Register a Spark Name to give your Spark address a memorable, human-readable name.</source>
+        <translation>注册一个 Spark 名称，为您的 Spark 地址取一个好记、易读的名称。</translation>
+    </message>
+    <message>
+        <source>EXPIRES</source>
+        <translation>到期时间</translation>
+    </message>
+    <message>
+        <source>ADDITIONAL INFO</source>
+        <translation>附加信息</translation>
+    </message>
+    <message>
+        <source>Copy Name</source>
+        <translation>复制名称</translation>
+    </message>
+    <message>
+        <source>Copy the Spark Name to the clipboard</source>
+        <translation>将 Spark 名称复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>Copy Address</source>
+        <translation>复制地址</translation>
+    </message>
+    <message>
+        <source>Copy the resolved Spark address to the clipboard</source>
+        <translation>将解析得到的 Spark 地址复制到剪贴板</translation>
+    </message>
+    <message>
+        <source>Extend</source>
+        <translation>延长有效期</translation>
+    </message>
+    <message>
+        <source>Extend the validity of this Spark Name</source>
+        <translation>延长此 Spark 名称的有效期</translation>
+    </message>
+    <message>
+        <source>Expired</source>
+        <translation>已过期</translation>
+    </message>
+    <message>
+        <source>Expiring Soon</source>
+        <translation>即将到期</translation>
+    </message>
+    <message>
+        <source>Active</source>
+        <translation>有效</translation>
+    </message>
+</context>
+
 </TS>
