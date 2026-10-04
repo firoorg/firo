@@ -34,9 +34,6 @@
 
 namespace {
 
-//! How long a copy button confirms the copy in place of its usual tooltip.
-constexpr int COPY_CONFIRMATION_MSEC = 2000;
-
 QString elideMiddle(const QString& text, int keepLeft, int keepRight)
 {
     if (text.size() <= keepLeft + keepRight + 2)
@@ -125,6 +122,13 @@ QToolButton* cardActionButton(const QString& text, const QString& icon, const QS
     return btn;
 }
 
+//! Copy text and say so under the button, since nothing on the card changes.
+void copyWithConfirmation(QToolButton* button, const QString& text)
+{
+    GUIUtil::setClipboard(text);
+    QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())), SparkNamesPage::tr("Copied to clipboard"), button);
+}
+
 QLabel* metricCaption(const QString& text, QWidget* parent)
 {
     auto* lab = new QLabel(text, parent);
@@ -181,14 +185,9 @@ SparkNamesPage::SparkNamesPage(const PlatformStyle *_platformStyle, QWidget *par
     emptyState(nullptr),
     namesScroll(nullptr),
     namesCardsHost(nullptr),
-    namesCardsLayout(nullptr),
-    copyConfirmationTimer(new QTimer(this))
+    namesCardsLayout(nullptr)
 {
     ui->setupUi(this);
-
-    copyConfirmationTimer->setSingleShot(true);
-    copyConfirmationTimer->setInterval(COPY_CONFIRMATION_MSEC);
-    connect(copyConfirmationTimer, &QTimer::timeout, this, &SparkNamesPage::endCopyConfirmation);
 
     ui->sparkNamesContentCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->topLayout->setStretchFactor(ui->sparkNamesContentCard, 1);
@@ -434,12 +433,12 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
 
     auto* copyNameBtn = cardActionButton(tr("Copy Name"), QStringLiteral(":/icons/editcopy"),
                                           tr("Copy the Spark Name to the clipboard"), false, frame);
-    connect(copyNameBtn, &QToolButton::clicked, this, [this, copyNameBtn, name]() { copyToClipboard(copyNameBtn, name); });
+    connect(copyNameBtn, &QToolButton::clicked, this, [copyNameBtn, name]() { copyWithConfirmation(copyNameBtn, name); });
     actionsRow->addWidget(copyNameBtn);
 
     auto* copyAddressBtn = cardActionButton(tr("Copy Address"), QStringLiteral(":/icons/editcopy"),
                                              tr("Copy the resolved Spark address to the clipboard"), false, frame);
-    connect(copyAddressBtn, &QToolButton::clicked, this, [this, copyAddressBtn, address]() { copyToClipboard(copyAddressBtn, address); });
+    connect(copyAddressBtn, &QToolButton::clicked, this, [copyAddressBtn, address]() { copyWithConfirmation(copyAddressBtn, address); });
     actionsRow->addWidget(copyAddressBtn);
 
     auto* extendBtn = cardActionButton(tr("Extend"), QStringLiteral(":/icons/refresh"),
@@ -526,30 +525,6 @@ void SparkNamesPage::extendSparkName(const QString &name, const QString &address
     dialog->setModel(model);
     dialog->setExtendMode(name, address);
     dialog->show();
-}
-
-void SparkNamesPage::copyToClipboard(QToolButton *button, const QString &text)
-{
-    GUIUtil::setClipboard(text);
-    // The clipboard no longer holds what an earlier button copied.
-    if (copiedButton != button) {
-        endCopyConfirmation();
-        copiedButton = button;
-        copiedButtonHint = button->toolTip();
-    }
-    // Copying changes nothing on the card, so confirm it under the button. Until the
-    // confirmation ends, hovering repeats it instead of swapping in the usual hint.
-    button->setToolTip(tr("Copied to clipboard"));
-    QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())), button->toolTip(), button, QRect(), COPY_CONFIRMATION_MSEC);
-    copyConfirmationTimer->start();
-}
-
-void SparkNamesPage::endCopyConfirmation()
-{
-    copyConfirmationTimer->stop();
-    if (copiedButton)
-        copiedButton->setToolTip(copiedButtonHint);
-    copiedButton = nullptr;
 }
 
 void SparkNamesPage::updateEmptyState()

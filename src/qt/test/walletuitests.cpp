@@ -57,7 +57,6 @@
 #include <QElapsedTimer>
 #include <QFontDatabase>
 #include <QFrame>
-#include <QHelpEvent>
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
@@ -88,7 +87,6 @@
 #include <QToolTip>
 #include <QTranslator>
 #include <QVariant>
-#include <QVBoxLayout>
 
 #include <memory>
 #include <atomic>
@@ -846,43 +844,19 @@ void WalletUiTests::sparkNameCopyConfirmation()
     const QString name = QStringLiteral("@sparky");
     const QString address = QStringLiteral("sr1qexamplesparkaddress");
     QFrame* card = page.createSparkNameCard(name, address, 1000, QString(), 0);
-    page.namesCardsLayout->addWidget(card);
+    const QList<QToolButton*> buttons = card->findChildren<QToolButton*>(QStringLiteral("cardActionButton"));
+    QVERIFY(buttons.size() >= 2);
+    QCOMPARE(buttons[0]->text(), QStringLiteral("Copy Name"));
+    QCOMPARE(buttons[1]->text(), QStringLiteral("Copy Address"));
 
-    QToolButton* copyName = nullptr;
-    QToolButton* copyAddress = nullptr;
-    for (QToolButton* button : card->findChildren<QToolButton*>(QStringLiteral("cardActionButton"))) {
-        if (button->text() == QStringLiteral("Copy Name"))
-            copyName = button;
-        else if (button->text() == QStringLiteral("Copy Address"))
-            copyAddress = button;
-    }
-    QVERIFY(copyName && copyAddress);
-
-    const QString confirmation = QStringLiteral("Copied to clipboard");
-    const QString nameHint = copyName->toolTip();
-    const QString addressHint = copyAddress->toolTip();
     const auto hideTooltip = qScopeGuard([] { QToolTip::hideText(); });
-    const auto hover = [](QToolButton* button) {
-        QHelpEvent event(QEvent::ToolTip, QPoint(1, 1), button->mapToGlobal(QPoint(1, 1)));
-        QCoreApplication::sendEvent(button, &event);
-        return QToolTip::text();
-    };
-
-    // Hovering the button repeats the confirmation rather than its usual hint.
-    QTest::keyClick(copyName, Qt::Key_Space);
-    QCOMPARE(QApplication::clipboard()->text(), name);
-    QCOMPARE(QToolTip::text(), confirmation);
-    QCOMPARE(hover(copyName), confirmation);
-
-    // A second copy replaces the clipboard, so only its own button confirms.
-    QTest::mouseClick(copyAddress, Qt::LeftButton);
-    QCOMPARE(QApplication::clipboard()->text(), address);
-    QCOMPARE(QToolTip::text(), confirmation);
-    QCOMPARE(hover(copyName), nameHint);
-    QCOMPARE(hover(copyAddress), confirmation);
-
-    QTRY_COMPARE_WITH_TIMEOUT(copyAddress->toolTip(), addressHint, 5000);
-    QCOMPARE(hover(copyAddress), addressHint);
+    for (const auto& [button, copied] : {std::pair{buttons[0], name}, std::pair{buttons[1], address}}) {
+        QToolTip::hideText();
+        QTRY_VERIFY(QToolTip::text().isEmpty());
+        QTest::keyClick(button, Qt::Key_Space);
+        QCOMPARE(QApplication::clipboard()->text(), copied);
+        QCOMPARE(QToolTip::text(), QStringLiteral("Copied to clipboard"));
+    }
 }
 
 void WalletUiTests::sparkNameRegistrationDetails()

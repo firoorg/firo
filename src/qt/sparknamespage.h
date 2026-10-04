@@ -20,8 +20,6 @@ class QLabel;
 class QVBoxLayout;
 class QScrollArea;
 class QFrame;
-class QTimer;
-class QToolButton;
 QT_END_NAMESPACE
 
 /** Page listing the wallet's own registered Spark Names, their expiry, and letting the user create new ones. */
@@ -52,9 +50,6 @@ private:
     QScrollArea *namesScroll;
     QWidget *namesCardsHost;
     QVBoxLayout *namesCardsLayout;
-    QTimer *copyConfirmationTimer;
-    QPointer<QToolButton> copiedButton; //!< Copy button whose tooltip confirms the latest copy
-    QString copiedButtonHint;           //!< Its usual tooltip, restored when the confirmation ends
 
     void refreshList();
     void scheduleRefreshList();
@@ -66,8 +61,6 @@ private:
     QFrame *createSparkNameCard(const QString &name, const QString &address, uint64_t validityHeight,
                                  const QString &additionalInfo, int currentHeight);
     void extendSparkName(const QString &name, const QString &address);
-    void copyToClipboard(QToolButton *button, const QString &text);
-    void endCopyConfirmation();
 
 private Q_SLOTS:
     void on_createSparkNameButton_clicked();
