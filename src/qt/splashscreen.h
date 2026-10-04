@@ -8,6 +8,7 @@
 #include <QElapsedTimer>
 #include <QList>
 #include <QSplashScreen>
+#include <QStringList>
 
 class CWallet;
 class NetworkStyle;
@@ -15,13 +16,15 @@ class NetworkStyle;
 QT_BEGIN_NAMESPACE
 class QTimer;
 class QToolButton;
+class QVariantAnimation;
 QT_END_NAMESPACE
 
 /** Splash screen with startup status from the running client.
  *
- * Everything that stays the same while it is shown (themed background, logo,
- * network badge, version) is rendered once into the QSplashScreen pixmap;
- * drawContents() only paints the status line and progress track.
+ * Everything that stays the same while it is shown (themed background,
+ * oversized mark, lockup, network badge, version) is rendered once into the
+ * QSplashScreen pixmap; drawContents() only paints the startup progress: the
+ * current step, the percentage or recent steps above it, and the progress bar.
  */
 class SplashScreen : public QSplashScreen
 {
@@ -41,8 +44,10 @@ public Q_SLOTS:
     /** Slot to call finish() method as it's not defined as slot */
     void slotFinish(QWidget *mainWin);
 
-    /** Show a startup step; clears the percentage of a previous task */
-    void showStatus(const QString& text);
+    /** Show a startup step; clears the percentage of a previous task.
+     * @param[in] animate  Let the step rise into place; pass false when the event loop can't run the transition
+     */
+    void showStatus(const QString& text, bool animate = true);
 
     /** Show a long-running task and how far along it is (0-100) */
     void showProgress(const QString& title, int percent);
@@ -57,6 +62,8 @@ private:
 
     /** Paint everything that doesn't change while the splash is shown */
     QPixmap renderArtwork(const NetworkStyle* networkStyle) const;
+    /** Make text the current step, moving the previous one onto the trail of recent steps */
+    void setStep(const QString& text, bool animate);
     /** Restore startup controls if core canceled shutdown; return whether shutdown is still pending. */
     bool updateShutdownState();
     /** Run the indeterminate progress animation only while it can be seen */
@@ -65,11 +72,14 @@ private:
     void requestShutdown();
 
     QTimer* animationTimer;
+    QVariantAnimation* stepAnimation;
     QToolButton* closeButton;
     QElapsedTimer animationClock;
     /** Kept here instead of QSplashScreen::showMessage(), which repaints synchronously and spins the event loop */
     QString statusText;
+    QStringList recentSteps; //!< Steps before the current one, newest first
     int progress = -1; //!< Percentage of the running task, -1 while unknown
+    qreal stepReveal = 1; //!< How far the current step has risen into place, from 0 to 1
     bool shutdownRequested = false;
 
     QList<CWallet*> connectedWallets;

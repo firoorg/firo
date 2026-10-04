@@ -12,6 +12,7 @@
 #include "optionsmodel.h"
 #include "walletmodel.h"
 
+#include <QAbstractTextDocumentLayout>
 #include <QClipboard>
 #include <QDrag>
 #include <QMenu>
@@ -20,7 +21,12 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QShowEvent>
+#include <QTextDocument>
 #include <QVBoxLayout>
+
+#include <algorithm>
+#include <cmath>
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
@@ -130,23 +136,53 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget *parent) :
             this, &ReceiveRequestDialog::applyTheme);
     applyTheme();
 
-    scrollContents->layout()->activate();
+    // The request box takes its text's height, so a long Spark URI does not scroll inside it;
+    // when the screen is too small for the dialog, the dialog scrolls as a whole instead.
+    // documentSizeChanged also fires on reflow, so the height tracks width changes.
+    connect(ui->outUri->document()->documentLayout(), &QAbstractTextDocumentLayout::documentSizeChanged,
+            this, [this](const QSizeF& size) {
+                const int chrome = ui->outUri->height() - ui->outUri->viewport()->height();
+                ui->outUri->setMinimumHeight(std::max(160, static_cast<int>(std::ceil(size.height())) + chrome));
+            });
+
+    fitToContent();
+}
+
+void ReceiveRequestDialog::fitToContent()
+{
+    auto* scroll = findChild<QScrollArea*>(QStringLiteral("paymentRequestScroll"));
+    if (!scroll || !scroll->widget())
+        return;
+    scroll->widget()->layout()->activate();
     const QSize available = GUIUtil::availableScreenSize(this);
     QSize target = sizeHint();
-    // Prefer showing the full request, but let the viewport shrink on small screens.
-    target.setHeight(target.height() + scrollContents->sizeHint().height() - scroll->sizeHint().height());
+    // Prefer showing the full request, and wide enough that the URI wraps over a few lines
+    // rather than a column; the viewport shrinks on small screens.
+    target.setWidth(std::max(target.width(), 520));
+    target.setHeight(target.height() + scroll->widget()->sizeHint().height() - scroll->sizeHint().height());
     resize(qMin(target.width(), qMax(1, available.width() - 40)),
            qMin(target.height(), qMax(1, available.height() - 40)));
+}
+
+void ReceiveRequestDialog::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    // The request text arrives after construction; once it has wrapped at the real width,
+    // grow the dialog to show it all.
+    if (!event->spontaneous()) {
+        ui->outUri->document()->setTextWidth(ui->outUri->viewport()->width());
+        fitToContent();
+    }
 }
 
 void ReceiveRequestDialog::applyTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
     ui->lblQRCode->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: $PANEL; border: 1px solid $BORDER; border-radius: 18px; color: $INK; }")));
+        "QLabel { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; color: $INK; }")));
     const QString outUriBg = GUIUtil::isDarkMode() ? QStringLiteral("$PANEL") : QStringLiteral("$WINE_TINT");
     ui->outUri->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QTextEdit { background: %1; border: 1.5px solid $WINE; border-radius: 16px;"
+        "QTextEdit { background: %1; border: 1.5px solid $WINE; border-radius: 14px;"
         " padding: 14px 16px; color: $INK; }").arg(outUriBg)));
 
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle();

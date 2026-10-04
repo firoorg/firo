@@ -52,11 +52,9 @@
 #include <QDragEnterEvent>
 #include <QEasingCurve>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect>
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QLinearGradient>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMenu>
@@ -148,7 +146,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     rpcConsole(0),
     helpMessageDialog(0),
     modalOverlay(0),
-    prevBlocks(0),
     spinnerFrame(0),
 #ifdef ENABLE_WALLET
     sparkAddressbookUpdated(false),
@@ -471,6 +468,21 @@ void BitcoinGUI::createActions()
     showHelpMessageAction->setMenuRole(QAction::NoRole);
     showHelpMessageAction->setStatusTip(tr("Show the %1 help message to get a list with possible Firo command-line options").arg(tr(PACKAGE_NAME)));
 
+    // Outline icons in the menus, from the same set as the sidebar.
+    GUIUtil::setThemedIcon(openAction, QStringLiteral(":/icons/link"));
+    GUIUtil::setThemedIcon(backupWalletAction, QStringLiteral(":/icons/archive"));
+    GUIUtil::setThemedIcon(signMessageAction, QStringLiteral(":/icons/pen"));
+    GUIUtil::setThemedIcon(verifyMessageAction, QStringLiteral(":/icons/shield"));
+    GUIUtil::setThemedIcon(exportViewKeyAction, QStringLiteral(":/icons/key"));
+    GUIUtil::setThemedIcon(usedSendingAddressesAction, QStringLiteral(":/icons/address-book"));
+    GUIUtil::setThemedIcon(usedReceivingAddressesAction, QStringLiteral(":/icons/address-book"));
+    GUIUtil::setThemedIcon(quitAction, QStringLiteral(":/icons/logout"));
+    GUIUtil::setThemedIcon(changePassphraseAction, QStringLiteral(":/icons/key"));
+    GUIUtil::setThemedIcon(openRPCConsoleAction, QStringLiteral(":/icons/sidebar_console"));
+    GUIUtil::setThemedIcon(showHelpMessageAction, QStringLiteral(":/icons/help"));
+    GUIUtil::setThemedIcon(aboutAction, QStringLiteral(":/icons/info"));
+    GUIUtil::setThemedIcon(aboutQtAction, QStringLiteral(":/icons/info"));
+
     connect(quitAction, &QAction::triggered, qApp, QApplication::quit);
     connect(aboutAction, &QAction::triggered, this, &BitcoinGUI::aboutClicked);
     connect(aboutQtAction, &QAction::triggered, qApp, QApplication::aboutQt);
@@ -578,7 +590,7 @@ static QIcon NavigationIcon(const QString& resource)
     centerPainter.end();
 
     const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
-    const QPixmap checked = ColorizeNavigationIcon(centered, QColor(QStringLiteral("#FFFFFF")));
+    const QPixmap checked = ColorizeNavigationIcon(centered, QColor(c.wineText));
     QIcon icon;
     icon.addPixmap(ColorizeNavigationIcon(centered, QColor(c.inkSoft)),
                    QIcon::Normal, QIcon::Off);
@@ -643,10 +655,10 @@ protected:
         if (thumbPos_ <= 0.0) {
             trackColor = QColor(c.border);
         } else if (thumbPos_ >= 1.0) {
-            trackColor = QColor(c.wineDeep);
+            trackColor = QColor(c.wine);
         } else {
             QColor off(c.border);
-            QColor on(c.wineDeep);
+            QColor on(c.wine);
             trackColor = QColor(
                 off.red()   + (on.red()   - off.red())   * thumbPos_,
                 off.green() + (on.green() - off.green()) * thumbPos_,
@@ -691,18 +703,14 @@ protected:
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
         p.setPen(Qt::NoPen);
-        QLinearGradient grad(rect().topLeft(), rect().topRight());
-        grad.setColorAt(0, QColor(c.wine));
-        grad.setColorAt(1, QColor(c.wineDeep));
-        p.setBrush(grad);
-        p.drawRoundedRect(rect(), 12, 12);
+        // A tint rather than a solid fill, so the selection doesn't compete with the balance card.
+        p.setBrush(QColor(c.wineTint));
+        p.drawRoundedRect(rect(), 10, 10);
     }
 };
 }
 
 #include "bitcoingui.moc"
-
-static constexpr int MAX_SYNCED_TIP_AGE_SECS = 45 * 60;
 
 static constexpr int NAVIGATION_SIDEBAR_WIDTH = 220;
 static constexpr int NAVIGATION_COLLAPSED_WIDTH = 80;
@@ -749,13 +757,17 @@ void BitcoinGUI::createToolBars()
         auto* themeRowLayout = new QHBoxLayout(navigationThemeRow);
         themeRowLayout->setContentsMargins(12, 8, 12, 8);
         themeRowLayout->setSpacing(6);
+        navigationThemeSunIcon = new QLabel(navigationThemeRow);
         navigationThemeLightLabel = new QLabel(tr("Light"), navigationThemeRow);
         navigationThemeSwitch = new ThemeToggleSwitch(navigationThemeRow);
         navigationThemeDarkLabel = new QLabel(tr("Dark"), navigationThemeRow);
+        navigationThemeMoonIcon = new QLabel(navigationThemeRow);
+        themeRowLayout->addWidget(navigationThemeSunIcon);
         themeRowLayout->addWidget(navigationThemeLightLabel);
         themeRowLayout->addWidget(navigationThemeSwitch);
         themeRowLayout->addStretch();
         themeRowLayout->addWidget(navigationThemeDarkLabel);
+        themeRowLayout->addWidget(navigationThemeMoonIcon);
         navigationThemeSwitch->setChecked(GUIUtil::isDarkMode());
         toolbar->addWidget(navigationThemeRow);
 
@@ -798,11 +810,6 @@ void BitcoinGUI::createToolBars()
 
         navigationSelectionHighlight = new NavigationSelectionHighlight(toolbar);
         navigationSelectionHighlight->lower();
-        auto* highlightShadow = new QGraphicsDropShadowEffect(navigationSelectionHighlight);
-        highlightShadow->setBlurRadius(20);
-        highlightShadow->setOffset(0, 6);
-        highlightShadow->setColor(QColor(130, 24, 51, 65));
-        navigationSelectionHighlight->setGraphicsEffect(highlightShadow);
 
         overviewAction->setChecked(true);
 
@@ -851,17 +858,15 @@ void BitcoinGUI::createToolBars()
         if (!clientModel)
             return;
         // Retry caches that were busy when the GUI first attached to the node.
-        modalOverlay->setKnownBestHeight(clientModel->getHeaderTipHeight(),
-            QDateTime::fromSecsSinceEpoch(clientModel->getHeaderTipTime()));
-        if (modalOverlay->isHeaderSyncPending()) {
-            updateHeadersSyncProgressLabel();
-        } else if (!navigationSyncCard && !syncInProgress()) {
-            updateConsolidationAction();
-            progressBarLabel->hide();
-            progressBar->hide();
-        } else {
-            updateNavigationSyncCard(progressBarLabel->text(), navigationSyncFraction);
+        const int headerHeight = clientModel->getHeaderTipHeight();
+        const int64_t headerTime = clientModel->getHeaderTipTime();
+        modalOverlay->setKnownBestHeight(headerHeight, headerTime > 0
+            ? QDateTime::fromSecsSinceEpoch(headerTime) : QDateTime());
+        if (blockSyncProgress >= 1.0 && blockchainSyncInProgress()) {
+            blockSyncProgress = clientModel->getVerificationProgress(nullptr);
+            modalOverlay->tipUpdate(clientModel->getNumBlocks(), clientModel->getLastBlockDate(), blockSyncProgress);
         }
+        updateSyncStatus();
     });
     syncStateTimer->start();
 }
@@ -903,24 +908,46 @@ void BitcoinGUI::applyNavigationTheme()
     if (clientModel && connectionsControl)
         updateNetworkState();
     if (labelBlocksIcon && masternodeSync.IsSynced())
-        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+        labelBlocksIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE),
+                                                             QColor(GUIUtil::themeColors().teal)));
     if (torStatusBadge) {
         torStatusBadge->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QLabel#torStatusBadge {"
-            " color: $INK; background: $WINE_TINT; border: none;"
-            " border-radius: 8px; padding: 2px 7px; font-weight: 700;"
+            " color: $TEAL_TEXT; background: $TEAL_TINT; border: none;"
+            " border-radius: 10px; padding: 2px 7px; font-weight: 700;"
             "}")));
+    }
+
+    // The unit selector reads as a pill so it looks clickable.
+    if (unitDisplayControl) {
+        unitDisplayControl->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel { background: $HOVER; color: $INK_SOFT; border: none; border-radius: 10px;"
+            " padding: 2px 10px; font-weight: 700; }")));
     }
 
     if (navigationThemeRow) {
         navigationThemeRow->setStyleSheet(GUIUtil::themed(QStringLiteral(
             "QFrame#navigationThemeRow {"
-            " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 14px;"
+            " background: transparent; border: none; border-top: 1px solid $BORDER; border-radius: 0px;"
             "}"
             "QFrame#navigationThemeRow QLabel {"
-            " background: transparent; border: none; color: $INK_SOFT;"
+            " background: transparent; border: none; color: $INK_FAINT;"
             " font-weight: 700;"
-            "}")));
+            "}"
+            "QFrame#navigationThemeRow QLabel[activeMode=\"true\"] { color: $INK; }")));
+        // Sun and moon frame the switch; the current mode reads in full ink.
+        const bool dark = GUIUtil::isDarkMode();
+        const GUIUtil::ThemeColors& c = GUIUtil::themeColors();
+        navigationThemeLightLabel->setProperty("activeMode", !dark);
+        navigationThemeDarkLabel->setProperty("activeMode", dark);
+        for (QLabel* label : {navigationThemeLightLabel, navigationThemeDarkLabel}) {
+            label->style()->unpolish(label);
+            label->style()->polish(label);
+        }
+        navigationThemeSunIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sun")), QSize(16, 16),
+                                                                    QColor(dark ? c.inkFaint : c.ink)));
+        navigationThemeMoonIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/moon")), QSize(16, 16),
+                                                                     QColor(dark ? c.ink : c.inkFaint)));
     }
 
     if (navigationSyncCard) {
@@ -984,7 +1011,7 @@ void BitcoinGUI::applyNavigationTheme()
             background: transparent;
             color: $INK_SOFT;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             min-height: 32px;
             max-height: 32px;
             font-weight: 700;
@@ -994,15 +1021,15 @@ void BitcoinGUI::applyNavigationTheme()
         }
 
         QToolBar#navigationSidebar QToolButton:hover {
-            background: $PANEL_SOFT;
+            background: $HOVER;
             color: $INK;
         }
 
         QToolBar#navigationSidebar QToolButton:checked {
             background: transparent;
-            color: #FFFFFF;
+            color: $WINE_TEXT;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             min-height: 32px;
             max-height: 32px;
             padding: 3px 14px;
@@ -1011,9 +1038,9 @@ void BitcoinGUI::applyNavigationTheme()
 
         QToolBar#navigationSidebar QToolButton:checked:hover {
             background: transparent;
-            color: #FFFFFF;
+            color: $WINE_TEXT;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             min-height: 32px;
             max-height: 32px;
             padding: 3px 14px;
@@ -1071,7 +1098,7 @@ void BitcoinGUI::applyNavigationTheme()
         navigationToggleButton->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
             QToolButton#navigationDrawerToggle {
                 background: $PANEL;
-                border: 1px solid $BORDER;
+                border: 1px solid $FIELD_BORDER;
                 border-radius: 14px;
                 color: $INK_SOFT;
             }
@@ -1081,7 +1108,7 @@ void BitcoinGUI::applyNavigationTheme()
             }
             QToolButton#navigationDrawerToggle:focus { border-color: $WINE; }
             QToolButton#navigationDrawerToggle:pressed {
-                background: $BORDER;
+                background: $FIELD_BORDER;
             }
         )")));
     }
@@ -1138,8 +1165,9 @@ bool BitcoinGUI::blockchainSyncInProgress() const
     if (::Params().NetworkIDString() == CBaseChainParams::REGTEST)
         return false;
 
-    if (modalOverlay && modalOverlay->isHeaderSyncPending())
+    if (modalOverlay && modalOverlay->isHeaderSyncPending()) {
         return true;
+    }
 
     if (clientModel->inInitialBlockDownload())
         return true;
@@ -1164,39 +1192,20 @@ bool BitcoinGUI::isActivelySyncing() const
 void BitcoinGUI::updateNavigationSyncCard(
     const QString& status, double progress)
 {
-    updateConsolidationAction();
     if (!navigationSyncCard || !navigationSyncLabel ||
         !navigationSyncPercent || !navigationSyncProgress)
         return;
 
     QString fullStatus = status;
     const bool networkActive = clientModel && clientModel->getNetworkActive();
-    const bool hasPeers = clientModel && clientModel->getNumConnections() > 0;
+    const bool hasPeers = numConnections > 0;
     const bool fullySynced = networkActive && hasPeers && !syncInProgress();
-    if (clientModel && progress >= 1.0 && blockchainSyncInProgress() &&
-        (clientModel->getBlockSource() == BLOCK_SOURCE_NETWORK || clientModel->getBlockSource() == BLOCK_SOURCE_NONE)) {
-        // A completed percentage is stale when the tip falls behind after sleep.
-        fullStatus = tr("Catching up...");
-        progressBarLabel->setText(fullStatus);
-        progress = clientModel->getVerificationProgress(nullptr);
-    }
-    if (clientModel && !networkActive) {
-        fullStatus = tr("Network activity disabled");
-    } else if (clientModel && !hasPeers) {
-        fullStatus = tr("Connecting to peers...");
-    } else if (fullySynced) {
-        fullStatus = tr("Synced");
-        progress = 1.0;
-    }
 
     if (navigationSyncProgress->property("synced").toBool() != fullySynced) {
         navigationSyncProgress->setProperty("synced", fullySynced);
         navigationSyncProgress->style()->unpolish(navigationSyncProgress);
         navigationSyncProgress->style()->polish(navigationSyncProgress);
     }
-    if (modalOverlay)
-        modalOverlay->setSyncComplete(fullySynced);
-
     const double clampedProgress = qBound(0.0, progress, 1.0);
     navigationSyncFraction = clampedProgress;
     if (fullStatus.isEmpty())
@@ -1236,6 +1245,8 @@ void BitcoinGUI::updateToolbarTabWidths()
     logoLabel->setAlignment((navigationSidebarExpanded ? Qt::AlignLeft : Qt::AlignHCenter) | Qt::AlignVCenter);
     navigationThemeLightLabel->setVisible(navigationSidebarExpanded);
     navigationThemeDarkLabel->setVisible(navigationSidebarExpanded);
+    navigationThemeSunIcon->setVisible(navigationSidebarExpanded);
+    navigationThemeMoonIcon->setVisible(navigationSidebarExpanded);
     navigationSyncLabel->setVisible(navigationSidebarExpanded);
     navigationSyncPercent->setVisible(navigationSidebarExpanded);
 }
@@ -1334,11 +1345,14 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         createTrayIconMenu();
 
         // Keep up to date with client
-        updateNetworkState();
+        setNumConnections(_clientModel->getNumConnections());
         connect(_clientModel, &ClientModel::numConnectionsChanged, this, &BitcoinGUI::setNumConnections);
         connect(_clientModel, &ClientModel::networkActiveChanged, this, &BitcoinGUI::setNetworkActive);
 
-        modalOverlay->setKnownBestHeight(_clientModel->getHeaderTipHeight(), QDateTime::fromSecsSinceEpoch(_clientModel->getHeaderTipTime()));
+        const int headerHeight = _clientModel->getHeaderTipHeight();
+        const int64_t headerTime = _clientModel->getHeaderTipTime();
+        modalOverlay->setKnownBestHeight(headerHeight, headerTime > 0
+            ? QDateTime::fromSecsSinceEpoch(headerTime) : QDateTime());
         setNumBlocks(_clientModel->getNumBlocks(), _clientModel->getLastBlockDate(), _clientModel->getVerificationProgress(NULL), false);
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &BitcoinGUI::setNumBlocks);
 
@@ -1654,240 +1668,146 @@ void BitcoinGUI::updateNetworkState()
 
 void BitcoinGUI::setNumConnections(int count)
 {
+    numConnections = count;
     updateNetworkState();
+    updateSyncStatus();
+}
 
-    if (!navigationSyncProgress || !navigationSyncLabel)
+void BitcoinGUI::setNetworkActive(bool)
+{
+    updateNetworkState();
+    updateSyncStatus();
+}
+
+void BitcoinGUI::updateSyncStatus()
+{
+    if (!clientModel)
         return;
 
-    const double progress = navigationSyncFraction;
-    const QString status = count == 0 && syncInProgress()
-        ? tr("Connecting to peers...")
-        : progressBarLabel->text();
-    updateNavigationSyncCard(status, progress);
-}
-
-void BitcoinGUI::setNetworkActive(bool networkActive)
-{
-    updateNetworkState();
-
-    if (!networkActive) {
-        updateNavigationSyncCard(tr("Network activity disabled"), navigationSyncFraction);
-    } else if (clientModel) {
-        setNumConnections(clientModel->getNumConnections());
-    }
-}
-
-void BitcoinGUI::updateHeadersSyncProgressLabel()
-{
     const auto blockSource = clientModel->getBlockSource();
-    const bool syncingHeaders = modalOverlay->isHeaderSyncPending() &&
-        blockSource != BLOCK_SOURCE_REINDEX && blockSource != BLOCK_SOURCE_DISK;
-    if (syncingHeaders)
-        progressBarLabel->setText(tr("Syncing Headers..."));
-    const double progress = syncingHeaders ? modalOverlay->headerSyncProgress() : navigationSyncFraction;
-    if (!navigationSyncCard && syncingHeaders) {
-        progressBarLabel->show();
-        progressBar->setFormat(QStringLiteral("%p%"));
-        progressBar->setMaximum(1000000000);
-        progressBar->setValue(qRound(progress * 1000000000.0));
-        progressBar->show();
+    const bool blockchainSyncing = blockchainSyncInProgress();
+    const bool syncing = blockchainSyncing || !masternodeSync.IsSynced();
+    const bool fullySynced = clientModel->getNetworkActive() && numConnections > 0 && !syncing;
+    const bool syncingHeaders = blockchainSyncing &&
+        modalOverlay->isHeaderSyncPending();
+    const QDateTime blockDate = clientModel->getLastBlockDate();
+    const qint64 secs = blockDate.isValid()
+        ? qMax<qint64>(0, blockDate.secsTo(QDateTime::currentDateTime())) : 0;
+    double progress = blockSyncProgress;
+    QString status;
+    if (blockchainSyncing && !coreSyncStatus.isEmpty()) {
+        status = coreSyncStatus;
+    } else if (blockSource == BLOCK_SOURCE_REINDEX) {
+        status = tr("Reindexing blocks on disk...");
+    } else if (blockSource == BLOCK_SOURCE_DISK) {
+        status = tr("Processing blocks on disk...");
+    } else if (!clientModel->getNetworkActive()) {
+        status = tr("Network activity disabled");
+    } else if (numConnections == 0) {
+        status = tr("Connecting to peers...");
+    } else if (syncingHeaders) {
+        status = tr("Syncing Headers (%1%)...").arg(
+            QString::number(modalOverlay->headerSyncProgress() * 100.0, 'f', 1));
+    } else if (blockchainSyncing) {
+        status = clientModel->inInitialBlockDownload()
+            ? tr("Synchronizing with network...") : tr("Catching up...");
+    } else if (!masternodeSync.IsSynced()) {
+        status = tr("Finishing sync...");
+    } else {
+        status = tr("Synced");
+        progress = 1.0;
     }
-    updateNavigationSyncCard(progressBarLabel->text(), progress);
+    progressBarLabel->setText(status);
+    progressBarLabel->setVisible(!navigationSyncCard && syncing);
+    progressBar->setMaximum(1000000000);
+    progressBar->setValue(qRound(qBound(0.0, progress, 1.0) * 1000000000.0));
+    progressBar->setFormat(blockchainSyncing && blockDate.isValid()
+        ? tr("%1 behind").arg(GUIUtil::formatNiceTimeOffset(secs)) : QStringLiteral("%p%"));
+    progressBar->setVisible(!navigationSyncCard && syncing);
+    updateNavigationSyncCard(status, progress);
+    // Manual consolidation stays available only while the wallet is fully synced.
+    updateConsolidationAction();
+    modalOverlay->setSyncComplete(fullySynced);
+
+    QString tooltip = tr("Processed %n block(s) of transaction history.", "", clientModel->getNumBlocks());
+    if (blockchainSyncing) {
+        tooltip = tr("Catching up...") + QStringLiteral("<br>") + tooltip;
+        if (blockDate.isValid()) {
+            tooltip += QStringLiteral("<br>") + tr("Last received block was generated %1 ago.")
+                .arg(GUIUtil::formatNiceTimeOffset(secs));
+        }
+        tooltip += QStringLiteral("<br>") + tr("Transactions after this will not yet be visible.");
+    } else if (fullySynced) {
+        tooltip = tr("Up to date") + QStringLiteral(".<br>") + tooltip;
+    } else {
+        tooltip = status + QStringLiteral("<br>") + tooltip;
+    }
+    if (!fullySynced) {
+        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
+            ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
+            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
+    } else {
+        // Synced is the one status that reads teal, as in the mockup.
+        labelBlocksIcon->setPixmap(GUIUtil::tintedIconPixmap(QIcon(":/icons/synced"),
+            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE), QColor(GUIUtil::themeColors().teal)));
+    }
+    tooltip = QStringLiteral("<nobr>") + tooltip + QStringLiteral("</nobr>");
+    labelBlocksIcon->setToolTip(tooltip);
+    progressBarLabel->setToolTip(tooltip);
+    progressBar->setToolTip(tooltip);
+
+#ifdef ENABLE_WALLET
+    if (walletFrame) {
+        walletFrame->showOutOfSyncWarning(blockchainSyncing);
+        if (blockDate.isValid()) {
+            const bool tipBehind = blockchainSyncing && secs >= MAX_SYNCED_TIP_AGE_SECS &&
+                (clientModel->inInitialBlockDownload() ||
+                 clientModel->getHeaderTipHeight() > clientModel->getNumBlocks());
+            if (tipBehind || tipWasBehind) {
+                modalOverlay->showHide(!tipBehind);
+            }
+            tipWasBehind = tipBehind;
+        }
+    }
+#endif // ENABLE_WALLET
 }
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
 {
-    if (modalOverlay)
-    {
-        if (header)
-            modalOverlay->setKnownBestHeight(count, blockDate);
-        else
-            modalOverlay->tipUpdate(count, blockDate, nVerificationProgress);
+    if (header) {
+        modalOverlay->setKnownBestHeight(count, blockDate);
+    } else {
+        if (count != prevBlocks) {
+            spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
+            prevBlocks = count;
+        }
+        blockSyncProgress = nVerificationProgress;
+        if (clientModel && ::Params().NetworkIDString() == CBaseChainParams::REGTEST &&
+            (clientModel->getBlockSource() == BLOCK_SOURCE_REINDEX || clientModel->getBlockSource() == BLOCK_SOURCE_DISK)) {
+            const int headerHeight = clientModel->getHeaderTipHeight();
+            if (headerHeight > 0)
+                blockSyncProgress = qBound(0.0, static_cast<double>(count) / headerHeight, 1.0);
+        }
+        modalOverlay->tipUpdate(count, blockDate, blockSyncProgress);
     }
     if (!clientModel)
         return;
 
-    // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbled text)
     statusBar()->clearMessage();
-
-    // Acquire current block source
-    enum BlockSource blockSource = clientModel->getBlockSource();
-    switch (blockSource) {
-        case BLOCK_SOURCE_NETWORK:
-            if (header) {
-                updateHeadersSyncProgressLabel();
-                return;
-            }
-            progressBarLabel->setText(tr("Synchronizing with network..."));
-            updateNavigationSyncCard(progressBarLabel->text(), nVerificationProgress);
-            break;
-        case BLOCK_SOURCE_DISK:
-            if (header) {
-                progressBarLabel->setText(tr("Indexing blocks on disk..."));
-            } else {
-                progressBarLabel->setText(tr("Processing blocks on disk..."));
-            }
-            break;
-        case BLOCK_SOURCE_REINDEX:
-            progressBarLabel->setText(tr("Reindexing blocks on disk..."));
-            break;
-        case BLOCK_SOURCE_NONE:
-            if (header) {
-                return;
-            }
-            progressBarLabel->setText(tr("Connecting to peers..."));
-            break;
-    }
-
-    QString tooltip;
-
-    QDateTime currentDate = QDateTime::currentDateTime();
-    qint64 secs = blockDate.secsTo(currentDate);
-
-    tooltip = tr("Processed %n block(s) of transaction history.", "", count);
-
+    updateSyncStatus();
 #ifdef ENABLE_WALLET
-    if(walletFrame)
-    {
-        if (secs < MAX_SYNCED_TIP_AGE_SECS) {
-            modalOverlay->showHide(true, true);
-            // TODO instead of hiding it forever, we should add meaningful information about MN sync to the overlay
-            modalOverlay->hideForever();
-        }
-        else
-        {
-            modalOverlay->showHide();
-        }
-    }
-#endif // ENABLE_WALLET
-
-    if (blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
-    {
-        QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
-
-        double displayVerificationProgress = nVerificationProgress;
-        if ((blockSource == BLOCK_SOURCE_REINDEX || blockSource == BLOCK_SOURCE_DISK) &&
-            ::Params().NetworkIDString() == CBaseChainParams::REGTEST) {
-            const int headerHeight = clientModel->getHeaderTipHeight();
-            if (headerHeight > 0)
-                displayVerificationProgress = qBound(0.0, static_cast<double>(count) / headerHeight, 1.0);
-        }
-
-        progressBarLabel->setVisible(!navigationSyncCard);
-        progressBar->setFormat(tr("%1 behind").arg(timeBehindText));
-        progressBar->setMaximum(1000000000);
-        progressBar->setValue(displayVerificationProgress * 1000000000.0 + 0.5);
-        progressBar->setVisible(!navigationSyncCard);
-        if (blockSource != BLOCK_SOURCE_NETWORK && blockSource != BLOCK_SOURCE_NONE)
-            updateNavigationSyncCard(progressBarLabel->text(), displayVerificationProgress);
-        else if (blockSource == BLOCK_SOURCE_NONE)
-            updateNavigationSyncCard(progressBarLabel->text(), 0.0);
-
-        tooltip = tr("Catching up...") + QString("<br>") + tooltip;
-        if(count != prevBlocks)
-        {
-            labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
-                ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
-                QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
-            spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
-        }
-        prevBlocks = count;
-
-#ifdef ENABLE_WALLET
-        if(walletFrame)
-        {
-            walletFrame->showOutOfSyncWarning(true);
-        }
-#endif // ENABLE_WALLET
-
-        tooltip += QString("<br>");
-        tooltip += tr("Last received block was generated %1 ago.").arg(timeBehindText);
-        tooltip += QString("<br>");
-        tooltip += tr("Transactions after this will not yet be visible.");
-    } else if (fLiteMode) {
-        setAdditionalDataSyncProgress(1);
-    } else if (masternodeSync.IsSynced()) {
-        progressBarLabel->hide();
-        progressBar->hide();
-        updateNavigationSyncCard(QString(), 1.0);
-#ifdef ENABLE_WALLET
-        if (walletFrame)
-            walletFrame->showOutOfSyncWarning(false);
-#endif // ENABLE_WALLET
-    }
-
-    // Don't word-wrap this (fixed-width) tooltip
-    tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
-
-    labelBlocksIcon->setToolTip(tooltip);
-    progressBarLabel->setToolTip(tooltip);
-    progressBar->setToolTip(tooltip);
-
-#ifdef ENABLE_WALLET
-    checkZnodeVisibility(count);
-    if (!header)
+    if (!header) {
+        checkZnodeVisibility(count);
         checkSparkNamesVisibility(count);
-    if (!header && walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock) {
-        sparkAddressbookUpdated = walletFrame->updateAddressbook();
+        if (walletFrame && !sparkAddressbookUpdated && count >= ::Params().GetConsensus().nSparkStartBlock)
+            sparkAddressbookUpdated = walletFrame->updateAddressbook();
     }
 #endif // ENABLE_WALLET
 }
 
-
-void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
+void BitcoinGUI::setAdditionalDataSyncProgress(double)
 {
-    if(!clientModel)
-        return;
-
-    // No additional data sync should be happening while blockchain is not synced, nothing to update
-    if(blockchainSyncInProgress() || !masternodeSync.IsBlockchainSynced())
-        return;
-
-    // Prevent orphan statusbar messages (e.g. hover Quit in main menu, wait until chain-sync starts -> garbelled text)
-    statusBar()->clearMessage();
-
-    QString tooltip;
-
-    QString strSyncStatus;
-    // Set icon state: spinning if catching up, tick otherwise
-    tooltip = tr("Up to date") + QString(".<br>") + tooltip;
-
-#ifdef ENABLE_WALLET
-    if(walletFrame)
-        walletFrame->showOutOfSyncWarning(false);
-#endif // ENABLE_WALLET
-
-    if(masternodeSync.IsSynced()) {
-        progressBarLabel->setVisible(false);
-        progressBar->setVisible(false);
-        updateNavigationSyncCard(QString(), 1.0);
-        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(":/icons/synced"), QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
-    } else {
-
-        labelBlocksIcon->setPixmap(GUIUtil::themedStatusIconPixmap(QIcon(QString(
-                        ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0'))),
-                                            QSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE)));
-        spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
-
-        progressBar->setFormat(tr("Synchronizing additional data: %p%"));
-        progressBar->setMaximum(1000000000);
-        progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
-        progressBarLabel->setVisible(!navigationSyncCard);
-        progressBar->setVisible(!navigationSyncCard);
-    }
-
-    strSyncStatus = QString(masternodeSync.GetSyncStatus().c_str());
-    progressBarLabel->setText(strSyncStatus);
-    if (!masternodeSync.IsSynced())
-        updateNavigationSyncCard(strSyncStatus, nSyncProgress);
-    tooltip = strSyncStatus + QString("<br>") + tooltip;
-
-    // Don't word-wrap this (fixed-width) tooltip
-    tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
-
-    labelBlocksIcon->setToolTip(tooltip);
-    progressBarLabel->setToolTip(tooltip);
-    progressBar->setToolTip(tooltip);
+    updateSyncStatus();
 }
 
 
@@ -2007,6 +1927,10 @@ void BitcoinGUI::showEvent(QShowEvent *event)
 #ifdef ENABLE_WALLET
 void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label)
 {
+    // Suppress historical transactions during catch-up after restart or sleep.
+    if (!masternodeSync.IsBlockchainSynced() || blockchainSyncInProgress()) {
+        return;
+    }
     // On new transaction, make an info balloon
     QString msg = tr("Date: %1\n").arg(date) +
                   tr("Amount: %1\n").arg(BitcoinUnits::formatWithUnit(unit, amount, true)) +
@@ -2020,12 +1944,9 @@ void BitcoinGUI::incomingTransaction(const QString& date, int unit, const CAmoun
     QString title = (amount < 0) ? tr("Sent transaction") : tr("Incoming transaction");
     QString finalMsg = msg;
 
-    // skip tx notifications in case it is not fully sync
-    if (masternodeSync.IsBlockchainSynced()) {
-        QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
-            message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
-        }, Qt::QueuedConnection);
-    }
+    QMetaObject::invokeMethod(this, [this, title, finalMsg]() {
+        message(title, finalMsg, CClientUIInterface::MSG_INFORMATION);
+    }, Qt::QueuedConnection);
 
 }
 #endif // ENABLE_WALLET
@@ -2194,8 +2115,8 @@ void BitcoinGUI::updateProgressBarLabel(const QString& text)
     if (!progressBarLabel)
         return;
 
-    progressBarLabel->setVisible(!text.isEmpty());
-    progressBarLabel->setText(text);
+    coreSyncStatus = text;
+    updateSyncStatus();
 }
 
 void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)

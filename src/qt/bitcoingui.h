@@ -143,9 +143,15 @@ private:
     QLabel *navigationSyncPercent{nullptr};
     QProgressBar *navigationSyncProgress{nullptr};
     double navigationSyncFraction{0.0};
+    double blockSyncProgress{0.0};
+    QString coreSyncStatus;
+    int numConnections{0};
+    bool tipWasBehind{false};
     QFrame *navigationThemeRow{nullptr};
     QLabel *navigationThemeLightLabel{nullptr};
     QLabel *navigationThemeDarkLabel{nullptr};
+    QLabel *navigationThemeSunIcon{nullptr};
+    QLabel *navigationThemeMoonIcon{nullptr};
     QAbstractButton *navigationThemeSwitch{nullptr};
     QWidget *navigationSelectionHighlight{nullptr};
     QLabel *logoLabel{nullptr};
@@ -156,9 +162,8 @@ private:
     HelpMessageDialog *helpMessageDialog;
     ModalOverlay *modalOverlay;
 
-    /** Keep track of previous number of blocks, to detect progress */
-    int prevBlocks;
     int spinnerFrame;
+    int prevBlocks{-1};
 #ifdef ENABLE_WALLET
     bool sparkAddressbookUpdated;
 #endif
@@ -205,7 +210,7 @@ private:
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
-    void updateHeadersSyncProgressLabel();
+    void updateSyncStatus();
 
 Q_SIGNALS:
     /** Signal raised when a URI was entered or dragged to the GUI */
