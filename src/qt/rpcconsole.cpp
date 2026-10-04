@@ -397,7 +397,7 @@ void RPCExecutor::request(const QString &command)
         std::string executableCommand = command.toStdString() + "\n";
         if(!RPCConsole::RPCExecuteCommandLine(result, executableCommand))
         {
-            Q_EMIT reply(RPCConsole::CMD_ERROR, QString("Parse error: unbalanced ' or \""));
+            Q_EMIT reply(RPCConsole::CMD_ERROR, tr("Parse error: unbalanced ' or \""));
             return;
         }
         Q_EMIT reply(RPCConsole::CMD_REPLY, QString::fromStdString(result));
@@ -408,7 +408,7 @@ void RPCExecutor::request(const QString &command)
         {
             int code = find_value(objError, "code").get_int();
             std::string message = find_value(objError, "message").get_str();
-            Q_EMIT reply(RPCConsole::CMD_ERROR, QString::fromStdString(message) + " (code " + QString::number(code) + ")");
+            Q_EMIT reply(RPCConsole::CMD_ERROR, tr("%1 (code %2)").arg(QString::fromStdString(message), QString::number(code)));
         }
         catch (const std::runtime_error&) // raised when converting to invalid type, i.e. missing code or message
         {   // Show raw JSON object
@@ -417,7 +417,7 @@ void RPCExecutor::request(const QString &command)
     }
     catch (const std::exception& e)
     {
-        Q_EMIT reply(RPCConsole::CMD_ERROR, QString("Error: ") + QString::fromStdString(e.what()));
+        Q_EMIT reply(RPCConsole::CMD_ERROR, tr("Error: %1").arg(QString::fromStdString(e.what())));
     }
 }
 
@@ -959,7 +959,7 @@ void RPCConsole::on_lineEdit_returnPressed()
             std::string dummy;
             if (!RPCParseCommandLine(dummy, cmd.toStdString(), false, &strFilteredCmd)) {
                 // Failed to parse command, so we cannot even filter it for the history
-                throw std::runtime_error("Invalid command line");
+                throw std::runtime_error(tr("Invalid command line").toStdString());
             }
         } catch (const std::exception& e) {
             QMessageBox::critical(this, tr("Error"), tr("Error: %1").arg(QString::fromStdString(e.what())));

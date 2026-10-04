@@ -5,6 +5,7 @@
 #include "walletuitests.h"
 
 #include "addresstablemodel.h"
+#include "base58.h"
 #include "bitcoingui.h"
 #include "bip47/defs.h"
 #include "chainparams.h"
@@ -22,10 +23,12 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "receiverequestdialog.h"
+#include "recentrequeststablemodel.h"
 #include "recover.h"
 #include "rpcconsole.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
+#include "spark/state.h"
 #include "sparkname.h"
 #include "sparknamespage.h"
 #include "splashscreen.h"
@@ -80,6 +83,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QToolTip>
+#include <QTranslator>
 #include <QVariant>
 
 #include <memory>
@@ -228,6 +232,92 @@ void WalletUiTests::paymentCodeIndexesWithoutAddressCache()
     addressBook.reset();
     QCOMPARE(uiInterface.NotifySparkNameAdded.num_slots(), addedSlots);
     QCOMPARE(uiInterface.NotifySparkNameRemoved.num_slots(), removedSlots);
+}
+
+void WalletUiTests::localizedAddressTypesKeepCanonicalRoles()
+{
+    Q_INIT_RESOURCE(bitcoin_locale);
+    QTranslator translator;
+    QVERIFY(translator.load(QStringLiteral(":/translations/es")));
+    QVERIFY(QCoreApplication::installTranslator(&translator));
+    const auto restoreTranslator = qScopeGuard([&] { QCoreApplication::removeTranslator(&translator); });
+
+    CWallet wallet;
+    AddressTableModel model(&wallet);
+    const QString transparent = QString::fromStdString(CBitcoinAddress(CKeyID()).ToString());
+    const QString spark = QStringLiteral("translation-test-spark-address");
+    const QString nameAddress = QStringLiteral("translation-test-name-address");
+    model.updateEntry(transparent, QString(), false, QStringLiteral("send"), CT_NEW);
+    model.updateEntry(spark, QString(), false, QStringLiteral("send"), CT_NEW);
+    const CSparkNameBlockIndexData name("translation-test-name", nameAddress.toStdString(), 100, "");
+    uiInterface.NotifySparkNameAdded(name);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+
+    const QStringList addresses{transparent, spark, nameAddress};
+    const QStringList displayed{QStringLiteral("transparente"), QStringLiteral("Spark"), QStringLiteral("nombre Spark")};
+    const QStringList edited{QStringLiteral("transparent"), QStringLiteral("spark"), QStringLiteral("spark name")};
+    const QStringList families{AddressTableModel::Transparent, AddressTableModel::Spark, AddressTableModel::SparkName};
+    for (int i = 0; i < addresses.size(); ++i) {
+        const auto matches = model.match(model.index(0, AddressTableModel::Address, QModelIndex()),
+            Qt::EditRole, addresses.at(i), 1, Qt::MatchExactly);
+        QCOMPARE(matches.size(), 1);
+        const auto index = matches.first().siblingAtColumn(AddressTableModel::AddressType);
+        QVERIFY(index.isValid());
+        QCOMPARE(model.data(index, Qt::DisplayRole).toString(), displayed.at(i));
+        QCOMPARE(model.data(index, Qt::EditRole).toString(), edited.at(i));
+        QCOMPARE(model.data(index, AddressTableModel::AddressTypeRole).toString(), families.at(i));
+    }
+}
+
+void WalletUiTests::localizedRequestTypesKeepFilters()
+{
+    Q_INIT_RESOURCE(bitcoin_locale);
+    QTranslator translator;
+    QVERIFY(translator.load(QStringLiteral(":/translations/es")));
+    QVERIFY(QCoreApplication::installTranslator(&translator));
+    const auto restoreTranslator = qScopeGuard([&] { QCoreApplication::removeTranslator(&translator); });
+
+    CWallet wallet;
+    OptionsModel options;
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    WalletModel walletModel(style.get(), &wallet, &options);
+    RecentRequestsTableModel* const requests = walletModel.getRecentRequestsTableModel();
+    QVERIFY(requests);
+
+    const spark::SpendKey spendKey(spark::Params::get_default());
+    const spark::FullViewKey fullViewKey(spendKey);
+    const spark::IncomingViewKey incomingViewKey(fullViewKey);
+    const spark::Address sparkAddress(incomingViewKey, 1);
+    const QStringList addresses{
+        QString::fromStdString(CBitcoinAddress(CKeyID()).ToString()),
+        QString::fromStdString(sparkAddress.encode(spark::GetNetworkType()))};
+    for (const QString& address : addresses) {
+        RecentRequestEntry entry;
+        entry.id = requests->rowCount(QModelIndex()) + 1;
+        entry.recipient.address = address;
+        requests->addNewRequest(entry);
+    }
+
+    RecentRequestsFilterProxy proxy;
+    proxy.setSourceModel(requests);
+    const struct {
+        quint32 filter;
+        QString displayed;
+        QString edited;
+    } cases[] = {
+        {ReceiveCoinsDialog::Spark, QStringLiteral("Spark"), QStringLiteral("spark")},
+        {ReceiveCoinsDialog::Transparent, QStringLiteral("transparente"), QStringLiteral("transparent")},
+    };
+    for (const auto& c : cases) {
+        proxy.setTypeFilter(c.filter);
+        QCOMPARE(proxy.rowCount(), 1);
+        const QModelIndex index = proxy.index(0, RecentRequestsTableModel::AddressType);
+        QCOMPARE(index.data(Qt::DisplayRole).toString(), c.displayed);
+        QCOMPARE(index.data(Qt::EditRole).toString(), c.edited);
+    }
+    proxy.setTypeFilter(ReceiveCoinsDialog::All);
+    QCOMPARE(proxy.rowCount(), 2);
 }
 
 void WalletUiTests::splashMessageDoesNotProcessEvents()

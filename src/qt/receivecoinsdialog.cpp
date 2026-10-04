@@ -123,7 +123,7 @@ public:
         }
         case RecentRequestsTableModel::AddressType: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            const bool spark = text.compare(QLatin1String("spark"), Qt::CaseInsensitive) == 0;
+            const bool spark = index.data(Qt::EditRole).toString() == QLatin1String("spark");
             GUIUtil::paintAddressTypeBadge(painter, option, text, spark);
             break;
         }
@@ -783,9 +783,11 @@ RecentRequestsFilterProxy::RecentRequestsFilterProxy(QObject *parent) :
 
 bool RecentRequestsFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
-    QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
-    bool res0 = sourceModel()->data(index).toString().contains("spark");
-    bool res1 = sourceModel()->data(index).toString().contains("transparent");
+    // Match the canonical edit value; the displayed type is translated.
+    QModelIndex index = sourceModel()->index(sourceRow, RecentRequestsTableModel::AddressType, sourceParent);
+    const QString addressType = sourceModel()->data(index, Qt::EditRole).toString();
+    bool res0 = addressType == QLatin1String("spark");
+    bool res1 = addressType == QLatin1String("transparent");
     if(res0 && typeFilter == 0)
         return true;
     if(res1 && typeFilter == 1)
