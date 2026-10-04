@@ -268,7 +268,6 @@
      <item row="1" column="0">
       <widget class="QFrame" name="detailsCard">
        <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
-       <property name="minimumSize"><size><width>0</width><height>280</height></size></property>
        <layout class="QVBoxLayout" name="detailsCardLayout">
         <property name="spacing"><number>8</number></property>
         <item>
@@ -486,7 +485,6 @@
      <item row="1" column="1">
       <widget class="QFrame" name="activityCard">
        <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
-       <property name="minimumSize"><size><width>0</width><height>280</height></size></property>
        <layout class="QVBoxLayout" name="activityCardLayout">
         <property name="spacing"><number>8</number></property>
         <item>
@@ -532,8 +530,9 @@
          <widget class="QListView" name="listTransactions">
           <property name="minimumSize"><size><width>0</width><height>180</height></size></property>
           <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
-          <property name="verticalScrollBarPolicy"><enum>Qt::ScrollBarAlwaysOff</enum></property>
+          <property name="verticalScrollBarPolicy"><enum>Qt::ScrollBarAsNeeded</enum></property>
           <property name="horizontalScrollBarPolicy"><enum>Qt::ScrollBarAlwaysOff</enum></property>
+          <property name="verticalScrollMode"><enum>QAbstractItemView::ScrollPerPixel</enum></property>
           <property name="selectionMode"><enum>QAbstractItemView::NoSelection</enum></property>
          </widget>
         </item>

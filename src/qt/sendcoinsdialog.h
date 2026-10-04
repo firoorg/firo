@@ -64,6 +64,9 @@ public Q_SLOTS:
 private:
     Ui::SendCoinsDialog *ui;
     QPushButton *balanceWarning;
+    QWidget *sendFromRow{nullptr};             //!< "Send from" caption and segmented choice
+    QPushButton *sendFromPrivate{nullptr};     //!< "Send from" choice: the Spark balance
+    QPushButton *sendFromTransparent{nullptr}; //!< "Send from" choice: the transparent balance
     ClientModel *clientModel;
     WalletModel *model;
     bool fNewRecipientAllowed;
@@ -71,6 +74,7 @@ private:
     bool fAnonymousMode;
     const PlatformStyle *platformStyle;
     void applyTheme();
+    void updateBalanceTitle();
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
     // of a message and message flags for use in Q_EMIT message().
@@ -83,7 +87,6 @@ private:
 private Q_SLOTS:
     void setAnonymizeMode(bool enableAnonymizeMode);
     void on_sendButton_clicked();
-    void on_switchFundButton_clicked();
     void on_buttonChooseFee_clicked();
     void on_buttonMinimizeFee_clicked();
     void removeEntry(SendCoinsEntry* entry);

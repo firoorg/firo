@@ -92,8 +92,6 @@ userClosed(false)
     ui->warningIcon->setFocusPolicy(Qt::NoFocus);
     ui->warningIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-    GUIUtil::applyPrimaryButtonShadow(ui->closeButton);
-
     connect(ui->closeButton, &QPushButton::clicked, this, &ModalOverlay::closeClicked);
     if (parent) {
         parent->installEventFilter(this);
@@ -123,7 +121,7 @@ void ModalOverlay::applyTheme()
 #contentWidget {
     background: $PANEL;
     border: 1px solid $BORDER;
-    border-radius: 22px;
+    border-radius: 20px;
 }
 #contentWidget QLabel {
     background: transparent;
@@ -140,7 +138,7 @@ void ModalOverlay::applyTheme()
 #contentWidget QFrame#syncStatsCard {
     background: $PANEL_SOFT;
     border: 1px solid $BORDER;
-    border-radius: 18px;
+    border-radius: 14px;
 }
 #contentWidget QLabel#labelNumberOfBlocksLeft,
 #contentWidget QLabel#labelLastBlockTime,
@@ -180,13 +178,11 @@ void ModalOverlay::applyTheme()
     color: #FFFFFF;
     font-weight: 700;
     border: none;
-    border-radius: 12px;
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 $WINE, stop:1 $WINE_DEEP);
+    border-radius: 10px;
+    background: $WINE;
 }
 #contentWidget QPushButton#closeButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 $WINE, stop:1 $WINE_DEEP);
+    background: $WINE_DEEP;
 }
 #contentWidget QPushButton#closeButton:pressed {
     background: $WINE_DEEP;
