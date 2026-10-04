@@ -847,7 +847,6 @@ void WalletUiTests::sparkNameCopyConfirmation()
     const QString address = QStringLiteral("sr1qexamplesparkaddress");
     QFrame* card = page.createSparkNameCard(name, address, 1000, QString(), 0);
     page.namesCardsLayout->addWidget(card);
-    page.show();
 
     QToolButton* copyName = nullptr;
     QToolButton* copyAddress = nullptr;
@@ -860,31 +859,30 @@ void WalletUiTests::sparkNameCopyConfirmation()
     QVERIFY(copyName && copyAddress);
 
     const QString confirmation = QStringLiteral("Copied to clipboard");
+    const QString nameHint = copyName->toolTip();
+    const QString addressHint = copyAddress->toolTip();
     const auto hideTooltip = qScopeGuard([] { QToolTip::hideText(); });
     const auto hover = [](QToolButton* button) {
         QHelpEvent event(QEvent::ToolTip, QPoint(1, 1), button->mapToGlobal(QPoint(1, 1)));
         QCoreApplication::sendEvent(button, &event);
+        return QToolTip::text();
     };
 
-    // From the keyboard, then with the mouse while the first confirmation is still up.
+    // Hovering the button repeats the confirmation rather than its usual hint.
     QTest::keyClick(copyName, Qt::Key_Space);
     QCOMPARE(QApplication::clipboard()->text(), name);
-    QVERIFY(QToolTip::isVisible());
     QCOMPARE(QToolTip::text(), confirmation);
-    hover(copyName);
-    QCOMPARE(QToolTip::text(), confirmation);
+    QCOMPARE(hover(copyName), confirmation);
 
+    // A second copy replaces the clipboard, so only its own button confirms.
     QTest::mouseClick(copyAddress, Qt::LeftButton);
     QCOMPARE(QApplication::clipboard()->text(), address);
-    QVERIFY(QToolTip::isVisible());
     QCOMPARE(QToolTip::text(), confirmation);
-    hover(copyAddress);
-    QCOMPARE(QToolTip::text(), confirmation);
+    QCOMPARE(hover(copyName), nameHint);
+    QCOMPARE(hover(copyAddress), confirmation);
 
-    // The confirmation expires on its own, and the hover hint works again.
-    QTRY_VERIFY_WITH_TIMEOUT(!QToolTip::isVisible(), 5000);
-    hover(copyAddress);
-    QCOMPARE(QToolTip::text(), copyAddress->toolTip());
+    QTRY_COMPARE_WITH_TIMEOUT(copyAddress->toolTip(), addressHint, 5000);
+    QCOMPARE(hover(copyAddress), addressHint);
 }
 
 void WalletUiTests::sparkNameRegistrationDetails()
