@@ -2008,6 +2008,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>PAYOUT ADDRESS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+57"/>
         <source>Filter masternodes</source>
         <translation type="unfinished"></translation>
@@ -2099,6 +2103,14 @@
     <message>
         <location line="+11"/>
         <source>Copy ProTx Hash</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy Payout Address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy Collateral Address</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2890,17 +2902,7 @@ Collateral outpoint: %13</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+29"/>
-        <source>↗  Send</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>↙  Receive</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+34"/>
         <location line="+393"/>
         <source>Make Private</source>
         <translation type="unfinished"></translation>
@@ -4449,13 +4451,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+35"/>
-        <location filename="../sendcoinsdialog.cpp" line="-1"/>
-        <source>Use Transparent Balance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="-98"/>
+        <location line="-63"/>
         <source>Clear all fields of the form.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4476,7 +4472,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     </message>
     <message>
         <location line="-25"/>
-        <location filename="../sendcoinsdialog.cpp" line="-257"/>
+        <location filename="../sendcoinsdialog.cpp" line="-258"/>
         <source>Confirm the send action</source>
         <translation>Confirm the send action</translation>
     </message>
@@ -4518,6 +4514,18 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     <message>
         <location line="+1"/>
         <source>Copy change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>SEND FROM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Send from your private (Spark) balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Send from your transparent balance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4619,6 +4627,14 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Private (Spark)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+118"/>
         <source>The recipient address is not valid. Please recheck.</source>
         <translation type="unfinished"></translation>
@@ -4687,12 +4703,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         </translation>
     </message>
     <message>
-        <location line="+44"/>
-        <source>Use Private Balance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+45"/>
         <source>Transparent Balance</source>
         <translation type="unfinished"></translation>
     </message>

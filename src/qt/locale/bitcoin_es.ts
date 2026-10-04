@@ -1623,14 +1623,6 @@
         <translation>Pruebas de regresión</translation>
     </message>
     <message>
-        <source>↗  Send</source>
-        <translation>↗  Enviar</translation>
-    </message>
-    <message>
-        <source>↙  Receive</source>
-        <translation>↙  Recibir</translation>
-    </message>
-    <message>
         <source>Make Private</source>
         <translation>Hacer privado</translation>
     </message>
@@ -2767,6 +2759,18 @@ Dirección de destino (hex): %4</translation>
         <translation>Copiar cambio</translation>
     </message>
     <message>
+        <source>SEND FROM</source>
+        <translation>ENVIAR DESDE</translation>
+    </message>
+    <message>
+        <source>Send from your private (Spark) balance</source>
+        <translation>Enviar desde su saldo privado (Spark)</translation>
+    </message>
+    <message>
+        <source>Send from your transparent balance</source>
+        <translation>Enviar desde su saldo transparente</translation>
+    </message>
+    <message>
         <source>%1 to %2</source>
         <translation>%1 a %2</translation>
     </message>
@@ -2881,10 +2885,6 @@ Dirección de destino (hex): %4</translation>
         <translation>Saldo privado</translation>
     </message>
     <message>
-        <source>Use Transparent Balance</source>
-        <translation>Usar saldo transparente</translation>
-    </message>
-    <message>
         <source>Error</source>
         <translation>Error</translation>
     </message>
@@ -2957,6 +2957,14 @@ Dirección de destino (hex): %4</translation>
         <translation>Cambie a Saldo transparente para enviar esta transferencia de Rosen Bridge.</translation>
     </message>
     <message>
+        <source>Private (Spark)</source>
+        <translation>Privado (Spark)</translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation>Transparente</translation>
+    </message>
+    <message>
         <source>Transaction creation failed: %1</source>
         <translation>No se pudo crear la transacción: %1</translation>
     </message>
@@ -2967,10 +2975,6 @@ Dirección de destino (hex): %4</translation>
     <message>
         <source>Rosen Bridge transfers must be sent from the transparent balance.</source>
         <translation>Las transferencias de Rosen Bridge deben enviarse desde el saldo transparente.</translation>
-    </message>
-    <message>
-        <source>Use Private Balance</source>
-        <translation>Usar saldo privado</translation>
     </message>
     <message>
         <source>Transparent Balance</source>
@@ -3040,8 +3044,8 @@ Dirección de destino (hex): %4</translation>
         <translation>I&amp;MPORTE</translation>
     </message>
     <message>
-        <source>S&amp;UBTRACT FEE FROM AMOUNT</source>
-        <translation>S&amp;USTRAER LA COMISIÓN DEL IMPORTE</translation>
+        <source>S&amp;ubtract fee from amount</source>
+        <translation>S&amp;ustraer la comisión del importe</translation>
     </message>
     <message>
         <source>Rosen Bridge:</source>
@@ -6254,6 +6258,10 @@ Datos sin procesar: %1</translation>
         <translation>GARANTÍA</translation>
     </message>
     <message>
+        <source>PAYOUT ADDRESS</source>
+        <translation>DIRECCIÓN DE PAGO</translation>
+    </message>
+    <message>
         <source>Filter masternodes</source>
         <translation>Filtrar masternodos</translation>
     </message>
@@ -6332,6 +6340,14 @@ Datos sin procesar: %1</translation>
     <message>
         <source>Copy ProTx Hash</source>
         <translation>Copiar hash ProTx</translation>
+    </message>
+    <message>
+        <source>Copy Payout Address</source>
+        <translation>Copiar dirección de pago</translation>
+    </message>
+    <message>
+        <source>Copy Collateral Address</source>
+        <translation>Copiar dirección de garantía</translation>
     </message>
     <message>
         <source>Copy Collateral Outpoint</source>
