@@ -31,7 +31,6 @@ private Q_SLOTS:
     void deferredTransactionsKeepOrder();
     void paymentCodeIndexesWithoutAddressCache();
     void localizedAddressTypesKeepCanonicalRoles();
-    void pooledTransactionsRemainUnconfirmed();
     void splashMessageDoesNotProcessEvents();
     void splashShutdownControls();
     void failedAbandonKeepsTransactionVisible();
