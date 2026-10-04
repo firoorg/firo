@@ -50,6 +50,7 @@
 #include <QComboBox>
 #include <QDateTimeEdit>
 #include <QElapsedTimer>
+#include <QFontDatabase>
 #include <QFrame>
 #include <QImage>
 #include <QLabel>
@@ -1191,6 +1192,9 @@ void WalletUiTests::paymentRequestFitsSmallScreen()
  */
 void WalletUiTests::dialogsFitWithoutScrolling()
 {
+    // These checks measure text set in the brand fonts; the minimal QPA plugin used by CI has no
+    // font database, so its placeholder glyphs wrap every label and nothing would fit.
+    if (QFontDatabase::families().isEmpty()) QSKIP("Needs a font database to measure dialog text");
     const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
     QVERIFY(style);
     const auto previousTheme = GUIUtil::currentThemeMode();
@@ -1331,7 +1335,9 @@ void WalletUiTests::sendFormFitsSmallScreen()
             auto* field = dialog.findChild<QWidget*>(name);
             QVERIFY(field);
             QVERIFY(field->isVisible());
-            scroll->ensureWidgetVisible(field);
+            // ensureWidgetVisible() stops once a line edit's cursor shows, so scroll to the whole field.
+            const QRect area(field->mapTo(scroll->widget(), QPoint()), field->size());
+            scroll->ensureVisible(area.center().x(), area.center().y(), area.width() / 2 + 1, area.height() / 2 + 1);
             QCoreApplication::processEvents();
             QVERIFY(scroll->viewport()->rect().contains(QRect(field->mapTo(scroll->viewport(), QPoint()), field->size())));
         }
