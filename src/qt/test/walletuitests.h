@@ -41,6 +41,7 @@ private Q_SLOTS:
     void failedAbandonKeepsTransactionVisible();
     void themeChangePreservesWidgetState();
     void sparkNamesRefreshAfterModelDestruction();
+    void sparkNameCopyConfirmation();
     void sparkNameRegistrationDetails();
     void masternodeStatusFollowsPoSe();
 };

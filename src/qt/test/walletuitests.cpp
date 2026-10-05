@@ -50,6 +50,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QCalendarWidget>
+#include <QClipboard>
 #include <QColor>
 #include <QComboBox>
 #include <QDateTimeEdit>
@@ -834,6 +835,29 @@ void WalletUiTests::sparkNamesRefreshAfterModelDestruction()
     QVERIFY(!page.model);
     QVERIFY(!page.addressModel);
     QTRY_VERIFY(!page.refreshScheduled);
+}
+
+void WalletUiTests::sparkNameCopyConfirmation()
+{
+    const std::unique_ptr<const PlatformStyle> style(PlatformStyle::instantiate("other"));
+    QVERIFY(style);
+    SparkNamesPage page(style.get());
+    const QString name = QStringLiteral("@sparky");
+    const QString address = QStringLiteral("sr1qexamplesparkaddress");
+    QFrame* card = page.createSparkNameCard(name, address, 1000, QString(), 0);
+    const QList<QToolButton*> buttons = card->findChildren<QToolButton*>(QStringLiteral("cardActionButton"));
+    QVERIFY(buttons.size() >= 2);
+    QCOMPARE(buttons[0]->text(), QStringLiteral("Copy Name"));
+    QCOMPARE(buttons[1]->text(), QStringLiteral("Copy Address"));
+
+    const auto hideTooltip = qScopeGuard([] { QToolTip::hideText(); });
+    for (const auto& [button, copied] : {std::pair{buttons[0], name}, std::pair{buttons[1], address}}) {
+        QToolTip::hideText();
+        QTRY_VERIFY(QToolTip::text().isEmpty());
+        QTest::keyClick(button, Qt::Key_Space);
+        QCOMPARE(QApplication::clipboard()->text(), copied);
+        QCOMPARE(QToolTip::text(), QStringLiteral("Copied to clipboard"));
+    }
 }
 
 void WalletUiTests::sparkNameRegistrationDetails()

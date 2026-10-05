@@ -22,6 +22,7 @@
 #include <QScrollArea>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVariant>
 #include <QVBoxLayout>
 
@@ -119,6 +120,13 @@ QToolButton* cardActionButton(const QString& text, const QString& icon, const QS
     btn->setCursor(Qt::PointingHandCursor);
     btn->setAutoRaise(true);
     return btn;
+}
+
+//! Copy text and say so under the button, since nothing on the card changes.
+void copyWithConfirmation(QToolButton* button, const QString& text)
+{
+    GUIUtil::setClipboard(text);
+    QToolTip::showText(button->mapToGlobal(QPoint(0, button->height())), SparkNamesPage::tr("Copied to clipboard"), button);
 }
 
 QLabel* metricCaption(const QString& text, QWidget* parent)
@@ -425,12 +433,12 @@ QFrame *SparkNamesPage::createSparkNameCard(const QString &name, const QString &
 
     auto* copyNameBtn = cardActionButton(tr("Copy Name"), QStringLiteral(":/icons/editcopy"),
                                           tr("Copy the Spark Name to the clipboard"), false, frame);
-    connect(copyNameBtn, &QToolButton::clicked, this, [name]() { GUIUtil::setClipboard(name); });
+    connect(copyNameBtn, &QToolButton::clicked, this, [copyNameBtn, name]() { copyWithConfirmation(copyNameBtn, name); });
     actionsRow->addWidget(copyNameBtn);
 
     auto* copyAddressBtn = cardActionButton(tr("Copy Address"), QStringLiteral(":/icons/editcopy"),
                                              tr("Copy the resolved Spark address to the clipboard"), false, frame);
-    connect(copyAddressBtn, &QToolButton::clicked, this, [address]() { GUIUtil::setClipboard(address); });
+    connect(copyAddressBtn, &QToolButton::clicked, this, [copyAddressBtn, address]() { copyWithConfirmation(copyAddressBtn, address); });
     actionsRow->addWidget(copyAddressBtn);
 
     auto* extendBtn = cardActionButton(tr("Extend"), QStringLiteral(":/icons/refresh"),
