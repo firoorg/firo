@@ -668,7 +668,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     {
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = nullptr;
-        mapPPBlockTemplates.clear();
+        // Jobs on the current tip are still valid blocks when only the mempool changed, and miners keep
+        // hashing them until they next ask for work. Keep those for pprpcsb; drop jobs on any other parent.
+        const uint256 tipHash = chainActive.Tip()->GetBlockHash();
+        std::erase_if(mapPPBlockTemplates, [&tipHash](const auto& entry) { return entry.second.hashPrevBlock != tipHash; });
 
         // Store the pindexBest used before CreateNewBlock, to avoid races
         nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
@@ -896,17 +899,20 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         result.pushKV("coinbase_message", strCoinbaseMessage);
 
     if (pblock->IsProgPow()) {
-        // Reuse a fresh job that was built for the same coinbase (reward address and message).
-        // Retain other jobs for pprpcsb until the template is rebuilt or the cache is full.
+        // Reuse a fresh job only if it matches this block apart from its time. The Merkle root covers the
+        // transactions and the coinbase (reward address and message). Jobs remain available to pprpcsb
+        // until the tip changes or the cache is full.
+        pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
         std::string header;
         for (const auto& entry : mapPPBlockTemplates) {
-            if (entry.second.vtx[0]->GetHash() == pblock->vtx[0]->GetHash() && (pblock->nTime - 30) < entry.second.nTime) {
+            const CBlock& job = entry.second;
+            if (job.hashMerkleRoot == pblock->hashMerkleRoot && job.nVersion == pblock->nVersion &&
+                job.nBits == pblock->nBits && (pblock->nTime - 30) < job.nTime) {
                 header = entry.first;
                 break;
             }
         }
         if (header.empty()) {
-            pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
             header = pblock->GetProgPowHeaderHash().GetHex();
             if (fRewardAddressSet) {
                 if (mapPPBlockTemplates.size() >= MAX_PP_BLOCK_TEMPLATES) {
