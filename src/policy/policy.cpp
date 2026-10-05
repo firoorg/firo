@@ -111,6 +111,11 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
             return false;
         }
 
+        if (whichType == TX_SPARKSMINT && !tx.IsSparkSpend()) {
+            reason = "spark-smint-without-spend";
+            return false;
+        }
+
         if (whichType == TX_NULL_DATA)
             nDataOut++;
         else if ((whichType == TX_MULTISIG) && (!fIsBareMultisigStd)) {
