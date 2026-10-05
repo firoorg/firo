@@ -6238,10 +6238,6 @@ Datos sin procesar: %1</translation>
         <translation>Garantía · %1</translation>
     </message>
     <message>
-        <source>PoSe %1</source>
-        <translation>PoSe %1</translation>
-    </message>
-    <message>
         <source>REGISTERED</source>
         <translation>REGISTRADO</translation>
     </message>
@@ -6362,16 +6358,16 @@ Datos sin procesar: %1</translation>
         <translation>Ordenar de forma descendente</translation>
     </message>
     <message>
-        <source>Pre-enabled</source>
-        <translation>Prehabilitado</translation>
-    </message>
-    <message>
         <source>Enabled</source>
         <translation>Habilitado</translation>
     </message>
     <message>
-        <source>PoSe Banned</source>
+        <source>PoSe banned</source>
         <translation>Bloqueado por PoSe</translation>
+    </message>
+    <message>
+        <source>Enabled · PoSe %1</source>
+        <translation>Habilitado · PoSe %1</translation>
     </message>
     <message>
         <source>None</source>

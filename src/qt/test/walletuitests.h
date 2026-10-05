@@ -42,6 +42,7 @@ private Q_SLOTS:
     void themeChangePreservesWidgetState();
     void sparkNamesRefreshAfterModelDestruction();
     void sparkNameRegistrationDetails();
+    void masternodeStatusFollowsPoSe();
 };
 
 #endif // BITCOIN_QT_TEST_WALLETUITESTS_H

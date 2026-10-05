@@ -2420,10 +2420,6 @@ After the notification transaction is received by the RAP address issuer, funds 
         <translation>抵押金 · %1</translation>
     </message>
     <message>
-        <source>PoSe %1</source>
-        <translation>PoSe %1</translation>
-    </message>
-    <message>
         <source>REGISTERED</source>
         <translation>注册区块</translation>
     </message>
@@ -2512,16 +2508,16 @@ After the notification transaction is received by the RAP address issuer, funds 
         <translation>降序排列</translation>
     </message>
     <message>
-        <source>Pre-enabled</source>
-        <translation>待启用</translation>
-    </message>
-    <message>
         <source>Enabled</source>
         <translation>已启用</translation>
     </message>
     <message>
-        <source>PoSe Banned</source>
+        <source>PoSe banned</source>
         <translation>已被 PoSe 封禁</translation>
+    </message>
+    <message>
+        <source>Enabled · PoSe %1</source>
+        <translation>已启用 · PoSe %1</translation>
     </message>
     <message>
         <source>None</source>
