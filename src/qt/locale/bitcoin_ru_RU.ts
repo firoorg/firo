@@ -6197,10 +6197,6 @@ Raw data: %1</source>
         <translation>Залог · %1</translation>
     </message>
     <message>
-        <source>PoSe %1</source>
-        <translation>PoSe %1</translation>
-    </message>
-    <message>
         <source>REGISTERED</source>
         <translation>РЕГИСТРАЦИЯ</translation>
     </message>
@@ -6305,16 +6301,16 @@ Raw data: %1</source>
         <translation>Сортировать по убыванию</translation>
     </message>
     <message>
-        <source>Pre-enabled</source>
-        <translation>Ожидает включения</translation>
-    </message>
-    <message>
         <source>Enabled</source>
         <translation>Включена</translation>
     </message>
     <message>
-        <source>PoSe Banned</source>
+        <source>PoSe banned</source>
         <translation>Заблокирована PoSe</translation>
+    </message>
+    <message>
+        <source>Enabled · PoSe %1</source>
+        <translation>Включена · PoSe %1</translation>
     </message>
     <message>
         <source>None</source>

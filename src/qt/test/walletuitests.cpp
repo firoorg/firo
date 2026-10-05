@@ -15,6 +15,7 @@
 #include "guiutil.h"
 #include "init.h"
 #include "masternode-sync.h"
+#include "masternodelist.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
 #include "optionsdialog.h"
@@ -1786,4 +1787,25 @@ void WalletUiTests::emptyRecoverySeed()
         }
     }
 #endif
+}
+
+/**
+ * Verify the masternode status pill reports the three PoSe states: enabled with no penalty,
+ * enabled while penalties accrue, and banned whatever the banned node's score.
+ */
+void WalletUiTests::masternodeStatusFollowsPoSe()
+{
+    const MasternodeList::Status enabled = MasternodeList::statusFor(false, 0);
+    QVERIFY(enabled.kind == MasternodeList::StatusKind::Enabled);
+    QCOMPARE(enabled.text, QStringLiteral("Enabled"));
+
+    const MasternodeList::Status penalised = MasternodeList::statusFor(false, 45);
+    QVERIFY(penalised.kind == MasternodeList::StatusKind::Penalised);
+    QCOMPARE(penalised.text, QStringLiteral("Enabled · PoSe 45"));
+
+    for (const int poseScore : {0, 100}) {
+        const MasternodeList::Status banned = MasternodeList::statusFor(true, poseScore);
+        QVERIFY(banned.kind == MasternodeList::StatusKind::Banned);
+        QCOMPARE(banned.text, QStringLiteral("PoSe banned"));
+    }
 }

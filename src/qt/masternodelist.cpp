@@ -88,7 +88,6 @@ enum MasternodeRole {
     StatusRole,
     StatusKindRole,
     PoseScoreRole,
-    MaxPoseRole,
     RegisteredHeightRole,
     LastPaidHeightRole,
     NextPaymentHeightRole,
@@ -137,7 +136,7 @@ public:
 
         const QString service = index.data(ServiceRole).toString();
         const QString status = index.data(StatusRole).toString();
-        const int statusKind = index.data(StatusKindRole).toInt();
+        const auto statusKind = static_cast<MasternodeList::StatusKind>(index.data(StatusKindRole).toInt());
         QFont boldFont = option.font;
         boldFont.setBold(true);
         const QFontMetrics boldMetrics(boldFont);
@@ -151,19 +150,18 @@ public:
         const QRect statusRect(headerRight - statusWidth, card.top() + 10 + (lineHeight + 6 - statusHeight) / 2,
                                statusWidth, statusHeight);
         if (statusWidth > 0) {
-            // Semantic status: teal enabled, gold pending, red banned.
+            // The pill carries the node's PoSe health: teal with no penalty, gold once
+            // penalties accrue, red when banned.
             painter->setFont(pillFont);
             GUIUtil::paintPill(painter, statusRect, status,
-                               statusKind == 2 ? GUIUtil::PillTone::Danger
-                               : statusKind == 1 ? GUIUtil::PillTone::Warning
-                                                 : GUIUtil::PillTone::Positive);
+                               statusKind == MasternodeList::StatusKind::Banned      ? GUIUtil::PillTone::Danger
+                               : statusKind == MasternodeList::StatusKind::Penalised ? GUIUtil::PillTone::Warning
+                                                                                     : GUIUtil::PillTone::Positive);
         }
 
         painter->setFont(boldFont);
         painter->setPen(QColor(tc.ink));
-        const bool showPose = headerWidth >= 300;
-        const int poseWidth = showPose ? 80 : 0;
-        const int titleRight = statusRect.left() - (showPose ? poseWidth + 16 : 8);
+        const int titleRight = statusRect.left() - 16;
         const QRect titleRect(headerLeft, card.top() + 3,
                               std::max(0, titleRight - headerLeft), lineHeight);
         if (titleRect.width() > 0) {
@@ -186,31 +184,6 @@ public:
             painter->drawText(subtitleRect, Qt::AlignLeft | Qt::AlignVCenter,
                               QFontMetrics(addressFont).elidedText(collateral, Qt::ElideMiddle,
                                                                   subtitleRect.width()));
-        }
-
-        painter->setFont(option.font);
-        painter->setPen(QColor(tc.inkSoft));
-        if (showPose) {
-            const QRect poseRect(titleRight + 8, card.top() + 3, poseWidth, 24);
-            painter->drawText(poseRect, Qt::AlignRight | Qt::AlignVCenter,
-                              masternodeText(QT_TRANSLATE_NOOP("MasternodeList", "PoSe %1"))
-                                  .arg(index.data(PoseScoreRole).toInt()));
-
-            const int trackWidth = std::min(64, poseRect.width());
-            const QRect trackRect(poseRect.right() - trackWidth + 1, card.top() + 33, trackWidth, 4);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.border));
-            painter->drawRoundedRect(trackRect, 2, 2);
-
-            const int poseScore = index.data(PoseScoreRole).toInt();
-            const int maxPose = std::max(1, index.data(MaxPoseRole).toInt());
-            const int fillWidth = statusKind == 2
-                ? std::max(18, std::min(trackWidth, trackWidth * poseScore / maxPose))
-                : (poseScore <= 0
-                       ? std::min(22, trackWidth)
-                       : std::max(10, std::min(trackWidth, trackWidth * poseScore / maxPose)));
-            painter->setBrush(QColor(statusKind == 2 ? tc.error : tc.teal));
-            painter->drawRoundedRect(QRect(trackRect.left(), trackRect.top(), fillWidth, trackRect.height()), 2, 2);
         }
 
         const int dividerY = card.top() + 2 * lineHeight + 8;
@@ -687,6 +660,14 @@ void MasternodeList::updateDIP3ListScheduled()
     }
 }
 
+MasternodeList::Status MasternodeList::statusFor(bool banned, int poseScore)
+{
+    // A node is either valid or PoSe-banned; a valid one may still carry penalties.
+    if (banned) return {tr("PoSe banned"), StatusKind::Banned};
+    if (poseScore > 0) return {tr("Enabled · PoSe %1").arg(poseScore), StatusKind::Penalised};
+    return {tr("Enabled"), StatusKind::Enabled};
+}
+
 bool MasternodeList::updateDIP3List()
 {
     if (!clientModel || ShutdownRequested()) {
@@ -739,7 +720,6 @@ bool MasternodeList::updateDIP3List()
     }
 
     const Consensus::Params& params = ::Params().GetConsensus();
-    const int maxPose = std::max(100, mnList.CalcMaxPoSePenalty());
     QList<QStandardItem*> modelRows;
 
     auto processMN = [&](const CDeterministicMNCPtr& dmn) {
@@ -752,15 +732,8 @@ bool MasternodeList::updateDIP3List()
         }
 
         const QString address = QString::fromStdString(dmn->pdmnState->addr.ToString());
-        int statusKind = 1;
-        QString status = tr("Pre-enabled");
-        if (mnList.IsMNValid(dmn)) {
-            statusKind = 0;
-            status = tr("Enabled");
-        } else if (mnList.IsMNPoSeBanned(dmn)) {
-            statusKind = 2;
-            status = tr("PoSe Banned");
-        }
+        const Status nodeStatus = statusFor(mnList.IsMNPoSeBanned(dmn), dmn->pdmnState->nPoSePenalty);
+        const QString& status = nodeStatus.text;
 
         const QString registered = formatBlockHeight(dmn->pdmnState->nRegisteredHeight, false);
         const bool lastPaidNone = dmn->pdmnState->nLastPaidHeight < params.DIP0003EnforcementHeight;
@@ -831,9 +804,8 @@ bool MasternodeList::updateDIP3List()
         item->setEditable(false);
         item->setData(address, ServiceRole);
         item->setData(status, StatusRole);
-        item->setData(statusKind, StatusKindRole);
+        item->setData(static_cast<int>(nodeStatus.kind), StatusKindRole);
         item->setData(dmn->pdmnState->nPoSePenalty, PoseScoreRole);
-        item->setData(maxPose, MaxPoseRole);
         item->setData(dmn->pdmnState->nRegisteredHeight, RegisteredHeightRole);
         item->setData(lastPaidNone ? -1 : dmn->pdmnState->nLastPaidHeight, LastPaidHeightRole);
         item->setData(nextUnknown ? -1 : nextPaymentIt->second, NextPaymentHeightRole);

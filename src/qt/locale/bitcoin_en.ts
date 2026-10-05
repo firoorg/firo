@@ -1983,12 +1983,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+15"/>
-        <source>PoSe %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+53"/>
+        <location line="+68"/>
         <source>REGISTERED</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2129,18 +2124,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+93"/>
-        <source>Pre-enabled</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+96"/>
         <source>Enabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>PoSe Banned</source>
+        <source>PoSe banned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Enabled · PoSe %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

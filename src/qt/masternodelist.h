@@ -43,6 +43,20 @@ public:
     void setWalletModel(WalletModel* walletModel);
     void showOutOfSyncWarning(bool fShow);
     void resizeEvent(QResizeEvent*) override;
+
+    //! What a masternode's status pill reports.
+    enum class StatusKind { Enabled, Penalised, Banned };
+    struct Status {
+        QString text;
+        StatusKind kind;
+    };
+    /**
+     * The status pill for a masternode: enabled, enabled with PoSe penalties, or PoSe-banned.
+     * @param[in] banned     Whether the node is PoSe-banned.
+     * @param[in] poseScore  The node's current PoSe penalty.
+     */
+    static Status statusFor(bool banned, int poseScore);
+
 private:
     int64_t nTimeUpdatedDIP3;
 
