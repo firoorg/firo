@@ -928,14 +928,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             try {
-                sparkUsedLTags = spark::GetSparkUsedTags(tx);
+                sparkUsedLTags = spark::ParseSparkSpend(tx).getUsedLTags();
             }
             catch (const std::bad_alloc &) {
                 return state.Error(
                     "AcceptToMemoryPool: memory allocation failed while parsing Spark linking tags");
             }
             catch (const std::exception &) {
-                return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark spend");
+                return state.DoS(100, false, REJECT_MALFORMED, "failed to deserialize spark spend");
             }
 
             for (const auto& lTag : sparkUsedLTags) {
