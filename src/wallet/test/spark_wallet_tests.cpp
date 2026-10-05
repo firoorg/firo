@@ -1,11 +1,13 @@
 #include <../../test/fixtures.h>
 #include "../../chainparams.h"
+#include "../coincontrol.h"
 #include "../wallet.h"
 #include "../../spark/sparkwallet.h"
 #include "../../validation.h"
 #include "../../validationinterface.h"
 
 #include <boost/test/unit_test.hpp>
+#include <limits>
 
 static std::vector<unsigned char> random_char_vector()
 {                                                    
@@ -60,6 +62,36 @@ BOOST_AUTO_TEST_CASE(create_mint_recipient)
     BOOST_CHECK_EQUAL(recipients[0].nAmount, v);
 }
 
+BOOST_AUTO_TEST_CASE(reject_out_of_range_mint_amounts)
+{
+    spark::MintedCoinData data;
+    data.address = pwalletMain->sparkWallet->getDefaultAddress();
+
+    const auto checkRejected = [&](const std::vector<spark::MintedCoinData>& outputs, bool fSplit = false) {
+        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
+        BOOST_CHECK_EQUAL(pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, fSplit),
+            "Spark mint amount out of range");
+
+        CAmount fee = 0;
+        std::list<CReserveKey> reservekeys;
+        int changePos = -1;
+        std::string error;
+        BOOST_CHECK(!pwalletMain->CreateSparkMintTransactions(outputs, wtxAndFee, fee,
+            reservekeys, changePos, false, error, fSplit, nullptr));
+        BOOST_CHECK_EQUAL(error, "Spark mint amount out of range");
+        BOOST_CHECK(wtxAndFee.empty());
+    };
+
+    data.v = std::numeric_limits<uint64_t>::max();
+    checkRejected({data});
+
+    data.v = MAX_MONEY;
+    spark::MintedCoinData extra = data;
+    extra.v = 1;
+    checkRejected({data, extra});
+    checkRejected({data, extra}, true);
+}
+
 BOOST_AUTO_TEST_CASE(mint_and_store_spark)
 {
     pwalletMain->SetBroadcastTransactions(true);
@@ -77,6 +109,24 @@ BOOST_AUTO_TEST_CASE(mint_and_store_spark)
 
     std::vector<spark::MintedCoinData> mintedCoins;
     mintedCoins.push_back(data);
+
+    const CFeeRate savedFee = payTxFee;
+    payTxFee = CFeeRate(MAX_MONEY);
+    BOOST_CHECK_EQUAL(pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false, true),
+        "Spark mint fee out of range");
+    payTxFee = savedFee;
+    BOOST_CHECK(wtxAndFee.empty());
+
+    CCoinControl coinControl;
+    coinControl.nMinimumTotalFee = std::numeric_limits<CAmount>::max();
+    CAmount fee = 0;
+    std::list<CReserveKey> reservekeys;
+    int changePos = -1;
+    std::string error;
+    BOOST_CHECK(!pwalletMain->CreateSparkMintTransactions(mintedCoins, wtxAndFee, fee,
+        reservekeys, changePos, false, error, true, &coinControl));
+    BOOST_CHECK_EQUAL(error, "Spark mint fee out of range");
+    BOOST_CHECK(wtxAndFee.empty());
 
     std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, false, true);
     BOOST_CHECK_EQUAL(result, "");
@@ -106,11 +156,17 @@ BOOST_AUTO_TEST_CASE(mint_and_store_spark)
 BOOST_AUTO_TEST_CASE(mint_subtract_fee)
 {
     pwalletMain->SetBroadcastTransactions(true);
-    GenerateBlocks(1001);
+    uint160 externalKey;
+    GetRandBytes(externalKey.begin(), externalKey.size());
+    CScript externalScript = GetScriptForDestination(CKeyID(externalKey));
+    GenerateBlocks(1001, &externalScript);
+    GenerateBlocks(1);
+    GenerateBlocks(100, &externalScript);
 
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
 
-    const uint64_t v = 1 * COIN;
+    const uint64_t v = pwalletMain->GetBalance();
+    BOOST_REQUIRE_GT(v, 0);
     spark::Address sparkAddress = pwalletMain->sparkWallet->getDefaultAddress();
 
     spark::MintedCoinData data;
@@ -121,7 +177,10 @@ BOOST_AUTO_TEST_CASE(mint_subtract_fee)
     std::vector<spark::MintedCoinData> mintedCoins;
     mintedCoins.push_back(data);
 
+    const CFeeRate savedFee = payTxFee;
+    payTxFee = CFeeRate(1000);
     std::string result = pwalletMain->MintAndStoreSpark(mintedCoins, wtxAndFee, true, true);
+    payTxFee = savedFee;
     BOOST_CHECK_EQUAL(result, "");
 
     size_t mintAmount = 0;
@@ -142,6 +201,7 @@ BOOST_AUTO_TEST_CASE(mint_subtract_fee)
         fee += wtx.second;
     }
 
+    BOOST_CHECK_GT(fee, 0);
     BOOST_CHECK_EQUAL(data.v, mintAmount + fee);
 
     auto sparkState = spark::CSparkState::GetState();
