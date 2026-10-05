@@ -110,6 +110,20 @@ class GetBlockTemplateRetainedJobsTest(BitcoinTestFramework):
         assert_equal(sorted(node.getblock(node.getbestblockhash())['tx'][1:]), sorted([paid, free_txid]))
         sync_blocks(self.nodes)
 
+        # A job timed more than 2 hours ahead, as before a correction of the node's time offset from its
+        # peers, is not handed out again by a rebuilt template with the same transactions, because its
+        # blocks would be rejected as time-too-new. The corrected clock has not passed the previous build
+        # time, so asking for the segwit rule forces the rebuild.
+        self.set_time(now + 3 * 3600)
+        future = node.getblocktemplate({}, address)
+        self.set_time(now + 18)
+        corrected = node.getblocktemplate({'rules': ['segwit']}, address)
+        assert_equal(corrected['curtime'], now + 18)
+        assert corrected['pprpcheader'] != future['pprpcheader']
+        assert_equal(node.pprpcsb(*solve(corrected)), None)
+        assert_equal(node.getblockcount(), corrected['height'])
+        sync_blocks(self.nodes)
+
 
 if __name__ == '__main__':
     GetBlockTemplateRetainedJobsTest().main()

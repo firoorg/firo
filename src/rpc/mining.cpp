@@ -902,14 +902,15 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
     if (pblock->IsProgPow()) {
         // Reuse a fresh job only if it matches this block apart from its time. The Merkle root covers the
-        // transactions and the coinbase (reward address and message). Jobs remain available to pprpcsb
-        // until the tip changes or the cache is full.
+        // transactions and the coinbase (reward address and message). A job timed after this block, as
+        // after a clock correction, could be too far in the future to be accepted. Jobs remain available
+        // to pprpcsb until the tip changes or the cache is full.
         pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
         std::string header;
         for (const auto& entry : mapPPBlockTemplates) {
             const CBlock& job = entry.second;
             if (job.hashMerkleRoot == pblock->hashMerkleRoot && job.nVersion == pblock->nVersion &&
-                job.nBits == pblock->nBits && (pblock->nTime - 30) < job.nTime) {
+                job.nBits == pblock->nBits && job.nTime <= pblock->nTime && pblock->nTime - job.nTime < 30) {
                 header = entry.first;
                 break;
             }
