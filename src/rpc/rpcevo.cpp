@@ -24,6 +24,7 @@
 #include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
 #include "evo/spork.h"
+#include "llmq/quorums_instantsend.h"
 
 #include "bls/bls.h"
 
@@ -946,8 +947,6 @@ UniValue protx_list(const JSONRPCRequest& request)
 
     UniValue ret(UniValue::VARR);
 
-    LOCK(cs_main);
-
     if (type == "wallet") {
         if (!pwallet) {
             throw std::runtime_error("\"protx list wallet\" not supported when wallet is disabled");
@@ -1289,7 +1288,10 @@ UniValue spork(const JSONRPCRequest& request)
         LOCK(cs_main);
         LOCK(mempool.cs);
 
-        result.pushKV("blockchain", spork_listToJSON(chainActive.Tip()->activeDisablingSporks));
+        if (const auto* tip = chainActive.Tip())
+            result.pushKV("blockchain", spork_listToJSON(tip->privacyData().activeDisablingSporks));
+        else
+            result.pushKV("blockchain", spork_listToJSON(ActiveSporkMap{}));
         result.pushKV("mempool", spork_listToJSON(mempool.GetActiveSporks()));
 
         return result;
@@ -1316,7 +1318,7 @@ UniValue spork(const JSONRPCRequest& request)
     UniValue sporkEnableOrDisableObj = request.params[2].get_obj();
     std::vector<std::string> enableOrDisableKeys = sporkEnableOrDisableObj.getKeys();
 
-    for (const std::string enableOrDisable: enableOrDisableKeys) {
+    for (const std::string& enableOrDisable: enableOrDisableKeys) {
 
         if (enableOrDisable == "enable") {
             UniValue featuresToEnable = sporkEnableOrDisableObj["enable"];
@@ -1402,10 +1404,8 @@ UniValue spork(const JSONRPCRequest& request)
         throw std::runtime_error("No spork actions specified");
 
     std::set<std::string> validFeatureNames {
-        CSporkAction::featureLelantus,
         CSporkAction::featureChainlocks,
         CSporkAction::featureInstantSend,
-        CSporkAction::featureLelantusTransparentLimit,
         CSporkAction::featureSpark,
         CSporkAction::featureSparkTransparentLimit
     };
@@ -1430,12 +1430,34 @@ UniValue spork(const JSONRPCRequest& request)
 #endif // ENABLE_WALLET
 }
 
+UniValue removeislock(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "removeislock \"txid\"\n"
+            "\nRemoves an InstantSend lock for a transaction.\n"
+            "\nArguments:\n"
+            "1. \"txid\"        (string, required) The transaction id\n"
+            "\nExamples:\n"
+            + HelpExampleCli("removeislock", "\"txid\"")
+        );
+
+    uint256 hash = ParseHashV(request.params[0], "txid");
+
+    if (llmq::quorumInstantSendManager->RemoveISLockByTxId(hash)) {
+        return "ISLock removed";
+    } else {
+        return "ISLock not found";
+    }
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "evo",                "bls",                    &_bls,                   false, {}  },
     { "evo",                "protx",                  &protx,                  false, {}  },
     { "evo",                "spork",                  &spork,                  false, {}  },
+    { "evo",                "removeislock",           &removeislock,           false, {}  },
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)

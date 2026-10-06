@@ -9,6 +9,8 @@
 #include <QDateTime>
 
 #include <atomic>
+#include <optional>
+#include <tuple>
 
 #include "evo/deterministicmns.h"
 
@@ -63,7 +65,8 @@ public:
     size_t getMempoolDynamicUsage() const;
 
     void setMasternodeList(const CDeterministicMNList& mnList);
-    CDeterministicMNList getMasternodeList() const;
+    //! Copy the cached masternode list without blocking. Returns false while the cache is busy.
+    bool tryGetMasternodeList(CDeterministicMNList& mnList) const;
     void refreshMasternodeList();
 
     quint64 getTotalBytesRecv() const;
@@ -71,8 +74,10 @@ public:
 
     double getVerificationProgress(const CBlockIndex *tip) const;
     QDateTime getLastBlockDate() const;
+    //! Cache tip notifications from validation threads for the next model update.
+    void updateBlockTip(bool initialSync, const CBlockIndex *tip, bool header);
 
-    //! Return true if core is doing initial block download
+    //! Return the cached initial block download state without waiting for validation.
     bool inInitialBlockDownload() const;
     //! Returns enum BlockSource of the current importing/syncing state
     enum BlockSource getBlockSource() const;
@@ -93,12 +98,21 @@ public:
     mutable std::atomic<int> cachedBestHeaderHeight;
     mutable std::atomic<int64_t> cachedBestHeaderTime;
 
+    mutable std::atomic<int> cachedNumBlocks;
+    mutable QDateTime cachedLastBlockDate;
+    mutable std::atomic<double> cachedVerificationProgress{0.0};
+    mutable std::atomic<bool> cachedInitialBlockDownload{true};
+
+
 private:
     OptionsModel *optionsModel;
     PeerTableModel *peerTableModel;
     BanTableModel *banTableModel;
 
     QTimer *pollTimer;
+    CCriticalSection cs_pendingTips;
+    std::optional<std::tuple<int, QDateTime, double>> pendingBlockTip;
+    std::optional<std::tuple<int, QDateTime, double>> pendingHeaderTip;
 
     // The cache for mn list is not technically needed because CDeterministicMNManager
     // caches it internally for recent blocks but it's not enough to get consistent

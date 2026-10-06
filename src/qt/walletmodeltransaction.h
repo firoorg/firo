@@ -5,13 +5,11 @@
 #ifndef BITCOIN_QT_WALLETMODELTRANSACTION_H
 #define BITCOIN_QT_WALLETMODELTRANSACTION_H
 
-#include "../hdmint/hdmint.h"
-#include "../primitives/mint_spend.h"
-#include "spark/state.h"
+#include "amount.h"
 
-#include "walletmodel.h"
+#include <QList>
 
-#include <QObject>
+#include <memory>
 
 class SendCoinsRecipient;
 
@@ -25,6 +23,11 @@ class WalletModelTransaction
 public:
     explicit WalletModelTransaction(const QList<SendCoinsRecipient> &recipients);
     ~WalletModelTransaction();
+
+    WalletModelTransaction(const WalletModelTransaction&) = delete;
+    WalletModelTransaction& operator=(const WalletModelTransaction&) = delete;
+    WalletModelTransaction(WalletModelTransaction&&) noexcept;
+    WalletModelTransaction& operator=(WalletModelTransaction&&) noexcept;
 
     QList<SendCoinsRecipient> getRecipients();
 
@@ -41,20 +44,11 @@ public:
 
     void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
 
-    std::vector<CLelantusEntry>& getSpendCoins();
-    std::vector<CSigmaEntry>& getSigmaSpendCoins();
-    std::vector<CHDMint>& getMintCoins();
-
 private:
     QList<SendCoinsRecipient> recipients;
-    CWalletTx *walletTransaction;
-    CReserveKey *keyChange;
+    std::unique_ptr<CWalletTx> walletTransaction;
+    std::unique_ptr<CReserveKey> keyChange;
     CAmount fee;
-
-    // lelantus transaction
-    std::vector<CLelantusEntry> spendCoins;
-    std::vector<CSigmaEntry> sigmaSpendCoins;
-    std::vector<CHDMint> mintCoins;
 };
 
 #endif // BITCOIN_QT_WALLETMODELTRANSACTION_H

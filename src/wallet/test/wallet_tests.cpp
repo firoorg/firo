@@ -3,6 +3,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet/wallet.h"
+#include "wallet/coincontrol.h"
+
+#include "evo/deterministicmns.h"
+#include "evo/evodb.h"
+#include "evo/providertx.h"
+#include "evo/specialtx.h"
+#include "script/standard.h"
 
 #include <set>
 #include <stdint.h>
@@ -10,6 +17,7 @@
 #include <vector>
 
 #include "rpc/server.h"
+#include "policy/policy.h"
 #include "test/test_bitcoin.h"
 #include "validation.h"
 #include "wallet/test/wallet_test_fixture.h"
@@ -40,7 +48,349 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 static const CWallet wallet;
 static vector<COutput> vCoins;
 
-static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
+BOOST_AUTO_TEST_CASE(consolidation_preserves_address_and_eligibility)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    CKey key, otherKey, watchKey;
+    key.MakeNewKey(true);
+    otherKey.MakeNewKey(true);
+    watchKey.MakeNewKey(true);
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(otherKey, otherKey.GetPubKey()));
+    const CTxDestination address = key.GetPubKey().GetID();
+    const CScript script = GetScriptForDestination(address);
+    const CScript otherScript = GetScriptForDestination(otherKey.GetPubKey().GetID());
+    const CScript watchScript = GetScriptForDestination(watchKey.GetPubKey().GetID());
+    BOOST_REQUIRE(pwalletMain->AddWatchOnly(watchScript, 0));
+    const CTxDestination exchange = CExchangeKeyID(key.GetPubKey().GetID());
+    const CScript exchangeScript = GetScriptForDestination(exchange);
+
+    CMutableTransaction funding;
+    funding.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    funding.vout = {{COIN, script}, {2 * COIN, script}, {3 * COIN, script}, {4 * COIN, otherScript},
+                    {COIN, watchScript}, {0, script}, {COIN, GetScriptForRawPubKey(key.GetPubKey())},
+                    {COIN, exchangeScript}, {COIN, exchangeScript}};
+    CWalletTx received(pwalletMain, MakeTransactionRef(funding));
+    received.hashBlock = chainActive.Tip()->GetBlockHash();
+    received.nIndex = 1;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(received));
+    const COutPoint locked(received.GetHash(), 2);
+    pwalletMain->LockCoin(locked);
+    auto groups = pwalletMain->GetConsolidationCoins();
+    BOOST_REQUIRE_EQUAL(groups.size(), 3);
+    BOOST_REQUIRE_EQUAL(groups.at(address).size(), 2);
+    BOOST_CHECK_EQUAL(groups.at(otherKey.GetPubKey().GetID()).size(), 1);
+    BOOST_CHECK_EQUAL(groups.at(exchange).size(), 2); // Same key, different exact script.
+    const auto plans = pwalletMain->GetConsolidationPlans();
+    BOOST_REQUIRE_EQUAL(plans.at(address).inputs.size(), 2);
+    BOOST_CHECK(!plans.at(address).sizeLimited);
+    BOOST_CHECK(!plans.at(otherKey.GetPubKey().GetID()).error.empty());
+    BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationPlans(address).size(), 1);
+
+    CWalletTx consolidated;
+    CReserveKey reserveKey(pwalletMain);
+    CAmount fee = 0;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error), error);
+    BOOST_REQUIRE_EQUAL(consolidated.tx->vin.size(), 2);
+    BOOST_REQUIRE_EQUAL(consolidated.tx->vout.size(), 1);
+    BOOST_CHECK(consolidated.tx->vout[0].scriptPubKey == script);
+    BOOST_CHECK_EQUAL(consolidated.tx->vout[0].nValue + fee, 3 * COIN);
+    BOOST_CHECK_EQUAL(fee, plans.at(address).fee);
+    BOOST_CHECK_GT(fee, 0);
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 0)); // Preparation/cancellation does not spend.
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 1));
+    for (size_t i = 0; i < consolidated.tx->vin.size(); ++i) {
+        const auto& input = consolidated.tx->vin[i];
+        BOOST_REQUIRE(input.prevout.hash == received.GetHash());
+        BOOST_REQUIRE_LT(input.prevout.n, 2);
+        const auto& prevout = received.tx->vout[input.prevout.n];
+        BOOST_CHECK(VerifyScript(input.scriptSig, script, &input.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS,
+            TransactionSignatureChecker(consolidated.tx.get(), i, prevout.nValue)));
+    }
+    CWalletTx exchangeConsolidated;
+    BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(exchange, exchangeConsolidated, reserveKey, fee, error), error);
+    BOOST_CHECK_EQUAL(exchangeConsolidated.tx->vin.size(), 2);
+    BOOST_CHECK(exchangeConsolidated.tx->vout[0].scriptPubKey == exchangeScript);
+
+    // These wallet-only inputs are absent from the chain UTXO set. Rejection
+    // must leave both the transaction history and its inputs untouched.
+    CValidationState state;
+    BOOST_CHECK(!pwalletMain->CommitTransaction(consolidated, reserveKey, nullptr, state, true));
+    BOOST_CHECK(!pwalletMain->mapWallet.count(consolidated.GetHash()));
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 0));
+    BOOST_CHECK(!pwalletMain->IsSpent(received.GetHash(), 1));
+
+    // A same-wallet change output belongs to its actual address, not its ancestor's.
+    CMutableTransaction change;
+    change.vin.emplace_back(COutPoint(received.GetHash(), 0));
+    change.vout.emplace_back(COIN / 2, otherScript);
+    CWalletTx changed(pwalletMain, MakeTransactionRef(change));
+    changed.hashBlock = received.hashBlock;
+    changed.nIndex = 2;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(changed));
+    groups = pwalletMain->GetConsolidationCoins();
+    BOOST_CHECK_EQUAL(groups.at(address).size(), 1);
+    BOOST_CHECK_EQUAL(groups.at(otherKey.GetPubKey().GetID()).size(), 2);
+    BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error));
+
+    // Unconfirmed and immature outputs are not candidates, even at this address.
+    CMutableTransaction pending;
+    pending.vin.emplace_back(COutPoint(uint256S("02"), 0));
+    pending.vout.assign(50, CTxOut(COIN, script));
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(pwalletMain, MakeTransactionRef(pending))));
+    pending.vin[0].prevout.SetNull();
+    CWalletTx immature(pwalletMain, MakeTransactionRef(pending));
+    immature.hashBlock = received.hashBlock;
+    immature.nIndex = 0;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(immature));
+    BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationCoins().at(address).size(), 1);
+    BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(CNoDestination(), consolidated, reserveKey, fee, error));
+}
+
+BOOST_AUTO_TEST_CASE(consolidation_transaction_limits_and_fee_failure)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    // Compressed, uncompressed, multisig, and wrapped witness addresses need different
+    // input sizes. Each batch must fit and the next maximum-size input must not.
+    for (int kind = 0; kind < 4; ++kind) {
+        CKey key;
+        key.MakeNewKey(kind != 1);
+        BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
+        CTxDestination address = key.GetPubKey().GetID();
+        if (kind == 2) {
+            const CScript redeem = GetScriptForMultisig(1, std::vector<CPubKey>(15, key.GetPubKey()));
+            BOOST_REQUIRE(pwalletMain->AddCScript(redeem));
+            address = CScriptID(redeem);
+        }
+        if (kind == 3) {
+            const CScript witness = GetScriptForWitness(GetScriptForRawPubKey(key.GetPubKey()));
+            BOOST_REQUIRE(pwalletMain->AddCScript(witness));
+            address = CScriptID(witness);
+        }
+        const CScript script = GetScriptForDestination(address);
+        CMutableTransaction funding;
+        funding.vin.emplace_back(COutPoint(uint256S("03"), kind));
+        funding.vout.assign(kind == 3 ? 7000 : 2000, CTxOut(COIN, script));
+        CWalletTx received(pwalletMain, MakeTransactionRef(funding));
+        received.hashBlock = chainActive.Tip()->GetBlockHash();
+        received.nIndex = 1;
+        BOOST_REQUIRE(pwalletMain->AddToWallet(received));
+        const auto plan = pwalletMain->GetConsolidationPlans(address).at(address);
+        BOOST_CHECK_EQUAL(plan.eligibleCount, funding.vout.size());
+        BOOST_CHECK(plan.sizeLimited);
+
+        CWalletTx consolidated;
+        CReserveKey reserveKey(pwalletMain);
+        CAmount fee = 0;
+        std::string error;
+        BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error), error);
+        BOOST_REQUIRE_GT(consolidated.tx->vin.size(), 252);
+        BOOST_REQUIRE_LT(consolidated.tx->vin.size(), funding.vout.size());
+        BOOST_CHECK_EQUAL(consolidated.tx->vin.size(), plan.inputs.size());
+        BOOST_CHECK_EQUAL(fee, plan.fee);
+        BOOST_REQUIRE_EQUAL(consolidated.tx->vout.size(), 1);
+        BOOST_CHECK(consolidated.tx->vout[0].scriptPubKey == script);
+        BOOST_CHECK_EQUAL(consolidated.tx->vout[0].nValue + fee, CAmount(consolidated.tx->vin.size()) * COIN);
+        BOOST_CHECK_LT(GetTransactionWeight(*consolidated.tx), MAX_NEW_TX_WEIGHT);
+        BOOST_CHECK(IsStandardTx(*consolidated.tx, error));
+
+        CCoinsView emptyView;
+        CCoinsViewCache view(&emptyView);
+        std::set<COutPoint> selected;
+        std::vector<std::pair<const CWalletTx*, unsigned int>> inputs;
+        for (const auto& input : consolidated.tx->vin) {
+            BOOST_REQUIRE(input.prevout.hash == received.GetHash());
+            BOOST_REQUIRE_LT(input.prevout.n, funding.vout.size());
+            selected.insert(input.prevout);
+            inputs.emplace_back(&received, input.prevout.n);
+            view.AddCoin(input.prevout, Coin(funding.vout[input.prevout.n], 0, false), false);
+        }
+        BOOST_CHECK_EQUAL(selected.size(), consolidated.tx->vin.size());
+        BOOST_CHECK_LE(GetTransactionSigOpCost(*consolidated.tx, view, STANDARD_SCRIPT_VERIFY_FLAGS), MAX_STANDARD_TX_SIGOPS_COST);
+        CMutableTransaction sized(*consolidated.tx);
+        BOOST_REQUIRE(pwalletMain->DummySignTx(sized, inputs));
+        BOOST_CHECK_EQUAL(::GetSerializeSize(sized, SER_NETWORK, PROTOCOL_VERSION), plan.signedBytes);
+        BOOST_CHECK_LT(GetTransactionWeight(sized), MAX_NEW_TX_WEIGHT);
+        unsigned int next = 0;
+        while (selected.count(COutPoint(received.GetHash(), next))) ++next;
+        const COutPoint extra(received.GetHash(), next);
+        sized.vin.emplace_back(extra);
+        inputs.emplace_back(&received, next);
+        view.AddCoin(extra, Coin(funding.vout[next], 0, false), false);
+        BOOST_REQUIRE(pwalletMain->DummySignTx(sized, inputs));
+        BOOST_CHECK(GetTransactionWeight(sized) >= MAX_NEW_TX_WEIGHT ||
+            GetTransactionSigOpCost(CTransaction(sized), view, STANDARD_SCRIPT_VERIFY_FLAGS) > MAX_STANDARD_TX_SIGOPS_COST);
+
+        if (kind == 0) {
+            CCoinControl allInputs;
+            for (unsigned int i = 0; i < funding.vout.size(); ++i)
+                allInputs.Select(COutPoint(received.GetHash(), i));
+            int changePosition = -1;
+            BOOST_CHECK(!pwalletMain->CreateTransaction({{script, CAmount(funding.vout.size()) * COIN, true}},
+                consolidated, reserveKey, fee, changePosition, error, &allInputs));
+            BOOST_CHECK(error.find("File > Consolidate outputs") != std::string::npos);
+            BOOST_CHECK(error.find("consolidateaddress") != std::string::npos);
+        }
+        if (kind == 2) {
+            // Even two large inputs exceed this fee cap despite ample value.
+            struct RestoreMaxFee {
+                CAmount original;
+                ~RestoreMaxFee() { maxTxFee = original; }
+            } restoreMaxFee{maxTxFee};
+            maxTxFee = ::minRelayTxFee.GetFee(1000);
+            const auto capped = pwalletMain->GetConsolidationPlans(address).at(address);
+            BOOST_CHECK(capped.inputs.empty());
+            BOOST_CHECK_EQUAL(capped.error, "Transaction too large for fee policy");
+        }
+    }
+
+    CKey dustKey;
+    dustKey.MakeNewKey(true);
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(dustKey, dustKey.GetPubKey()));
+    const CTxDestination dustAddress = dustKey.GetPubKey().GetID();
+    CMutableTransaction dust;
+    dust.vin.emplace_back(COutPoint(uint256S("04"), 0));
+    dust.vout.assign(50, CTxOut(1, GetScriptForDestination(dustAddress)));
+    CWalletTx receivedDust(pwalletMain, MakeTransactionRef(dust));
+    receivedDust.hashBlock = chainActive.Tip()->GetBlockHash();
+    receivedDust.nIndex = 1;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(receivedDust));
+    CWalletTx failed;
+    CReserveKey reserveKey(pwalletMain);
+    CAmount fee = 0;
+    std::string error;
+    // Firo permits dust outputs, but their combined value cannot pay the fee.
+    // Other addresses have ample funds, but must never subsidize this batch.
+    BOOST_CHECK(!pwalletMain->CreateConsolidationTransaction(dustAddress, failed, reserveKey, fee, error));
+    BOOST_CHECK_EQUAL(pwalletMain->GetConsolidationCoins().at(dustAddress).size(), 50);
+    const auto plan = pwalletMain->GetConsolidationPlans(dustAddress).at(dustAddress);
+    BOOST_CHECK_EQUAL(plan.eligibleCount, 50);
+    BOOST_CHECK(plan.inputs.empty());
+    BOOST_CHECK(!plan.error.empty());
+    BOOST_CHECK(!plan.sizeLimited);
+}
+
+BOOST_AUTO_TEST_CASE(consolidation_plan_fee_boundary_and_collateral)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    struct RestorePayTxFee {
+        CFeeRate original;
+        ~RestorePayTxFee() { payTxFee = original; }
+    } restorePayTxFee{payTxFee};
+    payTxFee = CFeeRate(1000);
+
+    CKey key;
+    key.MakeNewKey(true);
+    BOOST_REQUIRE(pwalletMain->AddKeyPubKey(key, key.GetPubKey()));
+    const CTxDestination address = key.GetPubKey().GetID();
+    const CScript script = GetScriptForDestination(address);
+    CMutableTransaction funding;
+    funding.vin.emplace_back(COutPoint(uint256S("05"), 0));
+    funding.vout.assign(300, CTxOut(1, script));
+    funding.vout[0].nValue = funding.vout[1].nValue = 18546;
+    CWalletTx received(pwalletMain, MakeTransactionRef(funding));
+    received.hashBlock = chainActive.Tip()->GetBlockHash();
+    received.nIndex = 1;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(received));
+    // Shrinking crosses the CompactSize boundary at 253 inputs.
+    const auto plan = pwalletMain->GetConsolidationPlans(address).at(address);
+    BOOST_REQUIRE_EQUAL(plan.inputs.size(), 252);
+    BOOST_CHECK_EQUAL(plan.signedBytes, 37340);
+    BOOST_CHECK_EQUAL(plan.fee, 37340);
+    BOOST_CHECK_EQUAL(plan.total - plan.fee, 2);
+    BOOST_CHECK(!plan.sizeLimited);
+    CWalletTx consolidated;
+    CReserveKey reserveKey(pwalletMain);
+    CAmount fee = 0;
+    std::string error;
+    BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(address, consolidated, reserveKey, fee, error), error);
+    BOOST_CHECK_EQUAL(consolidated.tx->vin.size(), plan.inputs.size());
+    BOOST_CHECK_EQUAL(fee, plan.fee);
+
+    const CScript witnessProgram = GetScriptForWitness(GetScriptForRawPubKey(key.GetPubKey()));
+    BOOST_REQUIRE(pwalletMain->AddCScript(witnessProgram));
+    const CTxDestination wrappedAddress = CScriptID(witnessProgram);
+    funding.vin[0].prevout.n = 1;
+    funding.vout.assign(300, CTxOut(1, GetScriptForDestination(wrappedAddress)));
+    funding.vout[0].nValue = funding.vout[1].nValue = 21570;
+    CWalletTx wrappedReceived(pwalletMain, MakeTransactionRef(funding));
+    wrappedReceived.hashBlock = received.hashBlock;
+    wrappedReceived.nIndex = 4;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(wrappedReceived));
+    const auto wrappedPlan = pwalletMain->GetConsolidationPlans(wrappedAddress).at(wrappedAddress);
+    BOOST_REQUIRE_EQUAL(wrappedPlan.inputs.size(), 252);
+    BOOST_CHECK_EQUAL(wrappedPlan.signedBytes, 43388);
+    BOOST_REQUIRE_MESSAGE(pwalletMain->CreateConsolidationTransaction(wrappedAddress, consolidated, reserveKey, fee, error), error);
+    std::vector<std::pair<const CWalletTx*, unsigned int>> wrappedInputs;
+    for (const auto& input : consolidated.tx->vin)
+        wrappedInputs.emplace_back(&wrappedReceived, input.prevout.n);
+    CMutableTransaction wrappedSized(*consolidated.tx);
+    BOOST_REQUIRE(pwalletMain->DummySignTx(wrappedSized, wrappedInputs));
+    BOOST_CHECK(wrappedSized.HasWitness());
+    BOOST_CHECK_EQUAL(::GetSerializeSize(wrappedSized, SER_NETWORK, PROTOCOL_VERSION), wrappedPlan.signedBytes);
+    BOOST_CHECK_EQUAL(fee, wrappedPlan.fee);
+
+    // Known collateral stays excluded even if manually unlocked. Ordinary
+    // 1000-FIRO outputs are still eligible for this same-address operation.
+    CMutableTransaction collateral;
+    collateral.nVersion = 3;
+    collateral.nType = TRANSACTION_PROVIDER_REGISTER;
+    collateral.vin.emplace_back(COutPoint(uint256S("06"), 0));
+    collateral.vout.emplace_back(1000 * COIN, script);
+    CProRegTx registration;
+    registration.collateralOutpoint.n = 0;
+    SetTxPayload(collateral, registration);
+    CWalletTx collateralTx(pwalletMain, MakeTransactionRef(collateral));
+    collateralTx.hashBlock = received.hashBlock;
+    collateralTx.nIndex = 2;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(collateralTx));
+    pwalletMain->UnlockCoin(COutPoint(collateralTx.GetHash(), 0));
+    collateral.nType = TRANSACTION_NORMAL;
+    collateral.vExtraPayload.clear();
+    CWalletTx ordinary(pwalletMain, MakeTransactionRef(collateral));
+    ordinary.hashBlock = received.hashBlock;
+    ordinary.nIndex = 3;
+    BOOST_REQUIRE(pwalletMain->AddToWallet(ordinary));
+    const auto coins = pwalletMain->GetConsolidationCoins(address).at(address);
+    BOOST_CHECK_EQUAL(coins.size(), 301);
+    BOOST_CHECK(std::find(coins.begin(), coins.end(), COutPoint(collateralTx.GetHash(), 0)) == coins.end());
+    BOOST_CHECK(std::find(coins.begin(), coins.end(), COutPoint(ordinary.GetHash(), 0)) != coins.end());
+}
+
+BOOST_AUTO_TEST_CASE(conflict_notifications_include_descendants)
+{
+    CMutableTransaction parent;
+    parent.vin.emplace_back(COutPoint(uint256S("01"), 0));
+    parent.vout.emplace_back(COIN, CScript());
+    const auto parentTx = MakeTransactionRef(parent);
+    CMutableTransaction child;
+    child.vin.emplace_back(COutPoint(parentTx->GetHash(), 0));
+    child.vout.emplace_back(COIN, CScript());
+    const auto childTx = MakeTransactionRef(child);
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(pwalletMain, parentTx)));
+    BOOST_REQUIRE(pwalletMain->AddToWallet(CWalletTx(pwalletMain, childTx)));
+
+    std::vector<uint256> changed;
+    boost::signals2::scoped_connection connection(pwalletMain->NotifyTransactionChanged.connect(
+        [&](CWallet* changedWallet, const uint256& hash, ChangeType status) {
+            BOOST_CHECK(changedWallet == pwalletMain);
+            BOOST_CHECK(status == CT_UPDATED);
+            changed.push_back(hash);
+        }));
+    CMutableTransaction conflicting(parent);
+    conflicting.vout[0].nValue = COIN / 2;
+    const CTransaction conflictingTx(conflicting);
+    pwalletMain->SyncTransaction(conflictingTx, chainActive.Tip(), 0);
+    BOOST_REQUIRE_EQUAL(changed.size(), 2);
+    const std::set<uint256> expected{parentTx->GetHash(), childTx->GetHash()};
+    BOOST_CHECK(std::set<uint256>(changed.begin(), changed.end()) == expected);
+
+    pwalletMain->SyncTransaction(conflictingTx, chainActive.Tip(), 0);
+    BOOST_CHECK_EQUAL(changed.size(), 2);
+}
+
+FIRO_UNUSED static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
 {
     static int nextLockTime = 0;
     CMutableTransaction tx;
@@ -63,13 +413,13 @@ static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = fa
     wtxn.emplace_back(std::move(wtx));
 }
 
-static void empty_wallet(void)
+FIRO_UNUSED static void empty_wallet(void)
 {
     vCoins.clear();
     wtxn.clear();
 }
 
-static bool equal_sets(CoinSet a, CoinSet b)
+FIRO_UNUSED static bool equal_sets(CoinSet a, CoinSet b)
 {
     pair<CoinSet::iterator, CoinSet::iterator> ret = mismatch(a.begin(), a.end(), b.begin());
     return ret.first == a.end() && ret.second == b.end();
@@ -363,14 +713,109 @@ BOOST_AUTO_TEST_CASE(ApproximateBestSubset)
     empty_wallet();
 }*/
 
+BOOST_AUTO_TEST_CASE(auto_lock_masternode_collaterals)
+{
+    CWallet testWallet;
+    LOCK2(cs_main, testWallet.cs_wallet);
+
+    CKey ownedKey, watchedKey, foreignKey;
+    ownedKey.MakeNewKey(true);
+    watchedKey.MakeNewKey(true);
+    foreignKey.MakeNewKey(true);
+    BOOST_REQUIRE(testWallet.AddKeyPubKey(ownedKey, ownedKey.GetPubKey()));
+    const CScript ownedScript = GetScriptForDestination(ownedKey.GetPubKey().GetID());
+    const CScript watchedScript = GetScriptForDestination(watchedKey.GetPubKey().GetID());
+    const CScript foreignScript = GetScriptForDestination(foreignKey.GetPubKey().GetID());
+    BOOST_REQUIRE(testWallet.AddWatchOnly(watchedScript, 0));
+
+    uint32_t nonce = 0;
+    const auto addOutput = [&](const CScript& script, CAmount amount, bool internal) {
+        CMutableTransaction tx;
+        tx.nLockTime = ++nonce;
+        // The other output has the collateral amount too, but is not collateral.
+        tx.vout.emplace_back(1000 * COIN, ownedScript);
+        tx.vout.emplace_back(amount, script);
+        if (internal) {
+            tx.nVersion = 3;
+            tx.nType = TRANSACTION_PROVIDER_REGISTER;
+            CProRegTx proTx;
+            proTx.collateralOutpoint.n = 1;
+            SetTxPayload(tx, proTx);
+        }
+        const auto txRef = MakeTransactionRef(tx);
+        // Exercise the startup scan, not AddToWallet's independent auto-locking.
+        BOOST_REQUIRE(testWallet.LoadToWallet(CWalletTx(&testWallet, txRef)));
+        return COutPoint(txRef->GetHash(), 1);
+    };
+
+    const auto internalOwned = addOutput(ownedScript, 1000 * COIN, true);
+    const auto internalWatched = addOutput(watchedScript, 1000 * COIN, true);
+    const auto internalForeign = addOutput(foreignScript, 1000 * COIN, true);
+    const auto internalSpent = addOutput(ownedScript, 1000 * COIN, true);
+    const auto wrongAmount = addOutput(ownedScript, 999 * COIN, true);
+    const auto ordinary = addOutput(ownedScript, 1000 * COIN, false);
+    const auto externalOwned = addOutput(ownedScript, 1000 * COIN, false);
+    const auto externalForeign = addOutput(foreignScript, 1000 * COIN, false);
+    const auto externalSpent = addOutput(ownedScript, 1000 * COIN, false);
+
+    // Supply an MN-list snapshot in the fixture's in-memory EvoDB. These
+    // ordinary transactions are collateral only through their registered MNs.
+    const CBlockIndex* tip = chainActive.Tip();
+    BOOST_REQUIRE(tip);
+    CDeterministicMNList mnList(tip->GetBlockHash(), tip->nHeight, 3);
+    for (const auto& collateral : {externalOwned, externalForeign, externalSpent}) {
+        auto dmn = std::make_shared<CDeterministicMN>();
+        dmn->proTxHash = SerializeHash(collateral);
+        dmn->internalId = mnList.GetAllMNsCount();
+        dmn->collateralOutpoint = collateral;
+        dmn->nOperatorReward = 0;
+        auto dmnState = std::make_shared<CDeterministicMNState>();
+        CKey ownerKey;
+        ownerKey.MakeNewKey(true);
+        dmnState->keyIDOwner = ownerKey.GetPubKey().GetID();
+        dmn->pdmnState = dmnState;
+        mnList.AddMN(dmn);
+    }
+    evoDb->Write(std::make_pair(std::string("dmn_S"), tip->GetBlockHash()), mnList);
+    deterministicMNManager->ClearCache();
+    deterministicMNManager->UpdatedBlockTip(tip);
+    BOOST_REQUIRE(deterministicMNManager->GetListAtChainTip().HasMNByCollateral(externalOwned));
+
+    CMutableTransaction spend;
+    spend.vin.emplace_back(internalSpent);
+    spend.vin.emplace_back(externalSpent);
+    spend.vout.emplace_back(1 * COIN, ownedScript);
+    BOOST_REQUIRE(testWallet.LoadToWallet(CWalletTx(&testWallet, MakeTransactionRef(spend))));
+    BOOST_REQUIRE(testWallet.IsSpent(internalSpent.hash, internalSpent.n));
+    BOOST_REQUIRE(testWallet.IsSpent(externalSpent.hash, externalSpent.n));
+
+    testWallet.LockCoin(ordinary); // Preserve existing manual locks as well.
+    testWallet.AutoLockMasternodeCollaterals();
+    std::vector<COutPoint> locked;
+    testWallet.ListLockedCoins(locked);
+    const std::set<COutPoint> expected{internalOwned, internalWatched, externalOwned, ordinary};
+    BOOST_CHECK(std::set<COutPoint>(locked.begin(), locked.end()) == expected);
+    BOOST_CHECK(!testWallet.IsLockedCoin(internalForeign.hash, internalForeign.n));
+    BOOST_CHECK(!testWallet.IsLockedCoin(externalForeign.hash, externalForeign.n));
+    BOOST_CHECK(!testWallet.IsLockedCoin(wrongAmount.hash, wrongAmount.n));
+
+    testWallet.AutoLockMasternodeCollaterals();
+    locked.clear();
+    testWallet.ListLockedCoins(locked);
+    BOOST_CHECK(std::set<COutPoint>(locked.begin(), locked.end()) == expected);
+}
+
 BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
 {
-    LOCK(cs_main);
-
     // Cap last block file size, and mine new block in a new block file.
-    CBlockIndex* oldTip = chainActive.Tip();
-    GetBlockFileInfo(oldTip->GetBlockPos().nFile)->nSize = MAX_BLOCKFILE_SIZE;
+    CBlockIndex* oldTip;
+    {
+        LOCK(cs_main);
+        oldTip = chainActive.Tip();
+        GetBlockFileInfo(oldTip->GetBlockPos().nFile)->nSize = MAX_BLOCKFILE_SIZE;
+    }
     CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+    LOCK(cs_main);
     CBlockIndex* newTip = chainActive.Tip();
 
     // Verify ScanForWalletTransactions picks up transactions in both the old
@@ -437,7 +882,6 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
 BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
 {
     CWallet *pwalletMainBackup = ::pwalletMain;
-    LOCK(cs_main);
 
     // Create two blocks with same timestamp to verify that importwallet rescan
     // will pick up both blocks, not just the first.
@@ -452,6 +896,7 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
     SetMockTime(KEY_TIME);
     coinbaseTxns.emplace_back(*CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
 
+    LOCK(cs_main);
     // Import key into wallet and call dumpwallet to create backup file.
     {
         CWallet wallet;

@@ -13,8 +13,6 @@ typedef std::map<std::string, std::pair<int, int64_t>> ActiveSporkMap;
 // one action to perform. Spork transaction can have multiple actions
 struct CSporkAction
 {
-    static constexpr const char *featureLelantus = "lelantus";
-    static constexpr const char *featureLelantusTransparentLimit = "lelantustransparentlimit";
     static constexpr const char *featureChainlocks = "chainlocks";
     static constexpr const char *featureInstantSend = "instantsend";
     static constexpr const char *featureSpark = "spark";

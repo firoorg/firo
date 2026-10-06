@@ -136,8 +136,6 @@ struct Params {
     int nSubsidyHalvingSecond;
     /** Subsequent subsidy halving intervals */
     int nSubsidyHalvingInterval;
-    /** Stop subsidy at this block number */
-    int nSubsidyHalvingStopBlock;
 
     /** parameters for coinbase payment distribution between first halving and stage 3 (aka stage 2) */
     /** P2PKH or P2SH address for developer funds */
@@ -162,6 +160,31 @@ struct Params {
     int stage3CommunityFundShare;
     /** percentage of block subsidy going to masternode */
     int stage3MasternodeShare;
+
+    /** parameters for coinbase payment distribution after stage three (aka stage 4) */
+    /** start time of stage 4 (usually the same as nSubsidyHalvingSecond)*/
+    int stage4StartBlock;
+    /** percentage of block subsidy going to developer fund */
+    int stage4DevelopmentFundShare;
+    /** percentage of block subsidy going to community fund */
+    int stage4CommunityFundShare;
+    /** percentage of block subsidy going to masternode */
+    int stage4MasternodeShare;
+
+    // after this block number dev fund address changes. Also spark name fee goes into community fund. This is known as stage 4.1.
+    int stage41StartBlockDevFundAddressChange;
+    // new dev fund address
+    std::string stage41DevelopmentFundAddress;
+    // number of "grace period" blocks that allows spark names to be registered with old address
+    int stage41SparkNamesGracefulPeriod;
+
+    std::string GetStage4DevelopmentFundAddress(int nHeight) const {
+        return stage41StartBlockDevFundAddressChange > 0 && nHeight >= stage41StartBlockDevFundAddressChange ?
+                stage41DevelopmentFundAddress : stage3DevelopmentFundAddress;
+    }
+
+    /**  tail emission (after stage 4) */
+    int tailEmissionBlockSubsidy;
 
     int nStartDuplicationCheck;
     int nStartBlacklist;
@@ -253,7 +276,24 @@ struct Params {
 
     int nSparkStartBlock;
 
+    // Activation height for the single-input Spark spend rule.
+    int nSparkSingleInputStartBlock;
+
+    // At and after this height, the explicitly versioned componentwise
+    // CHAUM_V2 Spark spend type is accepted, duplicate Spark mint coins
+    // are rejected, Spark output opcode/coin-type pairs are enforced,
+    // and coin group identifiers must be canonical 32-bit values.
+    // INT_MAX is the deployment blocker.
+    int nSparkChaumV2StartBlock;
+
+    int nSparkNamesStartBlock;
+    int nSparkNamesV2StartBlock;        // v2 enables spark name transfer
+    int nSparkNamesV21StartBlock;       // v2.1 tweaks rules for renewals and transfers
+    std::array<int,21> nSparkNamesFee;
+
     int nLelantusGracefulPeriod;
+
+    int nSigmaEndBlock;
 
     // Lelantus Blacklist
     std::unordered_set<secp_primitives::GroupElement> lelantusBlacklist;
@@ -324,9 +364,21 @@ struct Params {
 
     // Value of maximum spark spend per transaction
     int64_t nMaxValueSparkSpendPerTransaction;
-
     // Value of maximum spark spend per block.
     int64_t nMaxValueSparkSpendPerBlock;
+
+    // Two values above increase after this block number
+    int nSparkLimitV2StartBlock;
+    // ... by this factor
+    int nSparkLimitV2Factor;
+
+    // Functions to get the maximum spark spend per transaction and per block
+    int64_t GetMaxValueSparkSpendPerTransaction(int nHeight) const {
+        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerTransaction * nSparkLimitV2Factor : nMaxValueSparkSpendPerTransaction;
+    }
+    int64_t GetMaxValueSparkSpendPerBlock(int nHeight) const {
+        return nHeight >= nSparkLimitV2StartBlock ? nMaxValueSparkSpendPerBlock * nSparkLimitV2Factor : nMaxValueSparkSpendPerBlock;
+    }
 
     unsigned nMaxSparkOutLimitPerTx;
 
@@ -349,6 +401,10 @@ struct Params {
     int nInitialPPDifficulty;
     /** block height at the moment of PP transition (0 if unknown) */
     int nPPBlockNumber;
+
+    /** Clamp memory usage of ProgPOW (if epoch > nMaxPPEpoch it's set to nTerminalPPEpoch) */
+    int nMaxPPEpoch;
+    int nTerminalPPEpoch;
 
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;
@@ -384,9 +440,6 @@ struct Params {
     int nMaxReorgDepth;
     /** block to start reorg depth enforcement */
     int nMaxReorgDepthEnforcementBlock;
-
-    /** move lelantus data to v3 payload since this block */
-    int nLelantusV3PayloadStartBlock;
 
     /** whitelisted transactions */
     std::set<uint256> txidWhitelist;

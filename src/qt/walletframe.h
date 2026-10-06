@@ -76,11 +76,10 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
-    void gotoCreatePcodePage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to lelantus page */
-    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -93,9 +92,13 @@ public Q_SLOTS:
     void backupWallet();
     /** Change encrypted wallet passphrase */
     void changePassphrase();
+    /** Export the Spark View Key */
+    void exportViewKey();
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet();
 
+    /** Consolidate outputs at one transparent address. */
+    void consolidateCoins();
     /** Show used sending addresses */
     void usedSendingAddresses();
     /** Show used receiving addresses */
@@ -103,7 +106,7 @@ public Q_SLOTS:
     /** Pass on signal over requested out-of-sync-warning information */
     void outOfSyncWarningClicked();
 
-    void updateAddressbook();
+    bool updateAddressbook();
 };
 
 #endif // BITCOIN_QT_WALLETFRAME_H

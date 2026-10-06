@@ -15,6 +15,7 @@
 #include <QPoint>
 #include <QVariant>
 #include <QSortFilterProxyModel>
+#include <QResizeEvent>
 
 class OptionsModel;
 class PlatformStyle;
@@ -29,6 +30,8 @@ QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QComboBox;
 class QHBoxLayout;
+class QLabel;
+class QScrollArea;
 class QSortFilterProxyModel;
 QT_END_NAMESPACE
 
@@ -57,16 +60,18 @@ public:
     ~ReceiveCoinsDialog();
 
     void setModel(WalletModel *model);
-
+   
+    void resizeEvent(QResizeEvent* event) override;
 public Q_SLOTS:
     void clear();
-    void reject();
-    void accept();
+    void reject() override;
+    void accept() override;
     void chooseType(int idx);
     void displayCheckBox(int idx);
 
 protected:
-    virtual void keyPressEvent(QKeyEvent *event);
+    bool eventFilter(QObject* object, QEvent* event) override;
+    virtual void keyPressEvent(QKeyEvent *event) override;
 
 private:
     Ui::ReceiveCoinsDialog *ui;
@@ -77,7 +82,16 @@ private:
     QModelIndex selectedRow();
     void copyColumnToClipboard(int column);
     RecentRequestsFilterProxy *recentRequestsProxyModel;
-
+    QWidget *requestsEmptyState;
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyHint_{nullptr};
+    void updateRequestsEmptyState();
+    void updateRequestColumnWidths();
+    void applyTheme();
+    QWidget *requestFormContents{nullptr};
+    QScrollArea *requestFormScroll{nullptr};
+    void updateRequestFormScrollHeight();
 private Q_SLOTS:
     void on_receiveButton_clicked();
     void on_showRequestButton_clicked();
@@ -90,6 +104,8 @@ private Q_SLOTS:
     void copyLabel();
     void copyMessage();
     void copyAmount();
+    void createSparkName();
+    void mySparkNames();
 };
 
 class RecentRequestsFilterProxy : public QSortFilterProxyModel
@@ -106,7 +122,7 @@ public:
     void setTypeFilter(quint32 modes);
 
 protected:
-    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
+    bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const override;
     
 private:
     quint32 typeFilter;

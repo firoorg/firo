@@ -6,6 +6,7 @@
 #define BITCOIN_QT_ADDRESSTABLEMODEL_H
 
 #include <QAbstractTableModel>
+#include <QHash>
 #include <QStringList>
 
 class AddressTablePriv;
@@ -36,7 +37,9 @@ public:
     };
 
     enum RoleIndex {
-        TypeRole = Qt::UserRole /**< Type of address (#Send or #Receive) */
+        TypeRole = Qt::UserRole, /**< Type of address (#Send or #Receive) */
+        AddressTypeRole,         /**< Address family (#Transparent, #Spark, #SparkName, or #RAP) */
+        IsMineRole               /**< Whether the wallet owns the address */
     };
 
     /** Return status of edit/insert operation */
@@ -57,18 +60,19 @@ public:
     static const QString Zerocoin;   /**< Specifies stealth address */
     static const QString Transparent;
     static const QString Spark;
+    static const QString SparkName;
     static const QString RAP;
 
     /** @name Methods overridden from QAbstractTableModel
         @{*/
-    int rowCount(const QModelIndex &parent) const;
-    int columnCount(const QModelIndex &parent) const;
-    QVariant data(const QModelIndex &index, int role) const;
-    bool setData(const QModelIndex &index, const QVariant &value, int role);
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    QModelIndex index(int row, int column, const QModelIndex &parent) const;
-    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex());
-    Qt::ItemFlags flags(const QModelIndex &index) const;
+    int rowCount(const QModelIndex &parent) const override;
+    int columnCount(const QModelIndex &parent) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    bool setData(const QModelIndex &index, const QVariant &value, int role) override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    QModelIndex index(int row, int column, const QModelIndex &parent) const override;
+    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex()) override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
     /*@}*/
 
     /* Add an address to the model.
@@ -90,7 +94,12 @@ public:
     PcodeAddressTableModel * getPcodeAddressTableModel();
 
     bool IsSparkAllowed();
+    Q_INVOKABLE void ProcessPendingSparkNameChanges();
+
+    WalletModel *getWalletModel() const { return walletModel; }
 protected:
+    AddressTableModel(CWallet* wallet, WalletModel* parent, bool loadAddressBook);
+
     WalletModel *walletModel;
     CWallet *wallet;
     EditStatus editStatus;
@@ -98,6 +107,11 @@ protected:
 
 private:
     AddressTablePriv *priv;
+
+    /** Cache of address -> label lookups, used to answer labelForAddress()
+     * without blocking when cs_wallet is held by another thread. Only
+     * accessed from the GUI thread. */
+    mutable QHash<QString, QString> labelCache;
 
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);
@@ -126,13 +140,14 @@ public:
 
     /** @name Methods overridden from QAbstractTableModel
         @{*/
-    int rowCount(const QModelIndex &parent) const;
-    int columnCount(const QModelIndex &parent) const;
-    QVariant data(const QModelIndex &index, int role) const;
-    bool setData(const QModelIndex &index, const QVariant &value, int role);
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex());
-    Qt::ItemFlags flags(const QModelIndex &index) const;
+    int rowCount(const QModelIndex &parent) const override;
+    int columnCount(const QModelIndex &parent) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
+    bool setData(const QModelIndex &index, const QVariant &value, int role) override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex()) override;
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
     /*@}*/
 
     QString addRow(const QString &type, const QString &label, const QString &address, const QString &addressType) override;

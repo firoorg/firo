@@ -90,7 +90,7 @@ MerkleTree::Buffer MerkleTree::merkleRoot(const Elements& elements,
 MerkleTree::Elements MerkleTree::getProof(const Buffer& element) const
 {
     bool found = false;
-    size_t index;
+    size_t index = 0;
     for (size_t i = 0; (i < elements_.size()) && !found; ++i) {
         if (elements_[i] == element) {
             found = true;

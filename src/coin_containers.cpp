@@ -3,9 +3,8 @@
 
 #include <vector>
 
-namespace sigma {
-
-std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
+namespace lelantus {
+std::size_t CScalarHash::operator ()(const secp_primitives::Scalar& bn) const noexcept {
     std::vector<unsigned char> bnData(bn.memoryRequired());
     bn.serialize(&bnData[0]);
 
@@ -18,37 +17,8 @@ std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
     return result;
 }
 
-std::size_t CPublicCoinHash::operator ()(const sigma::PublicCoin& coin) const noexcept {
-    uint256 hash = coin.getValueHash();
-
-    std::size_t result;
-    std::memcpy(&result, hash.begin(), sizeof(std::size_t));
-    return result;
-}
-
-
-CMintedCoinInfo CMintedCoinInfo::make(CoinDenomination denomination,  int coinGroupId, int nHeight) {
-    CMintedCoinInfo coinInfo;
-    coinInfo.denomination = denomination;
-    coinInfo.coinGroupId = coinGroupId;
-    coinInfo.nHeight = nHeight;
-    return coinInfo;
-}
-
-CSpendCoinInfo CSpendCoinInfo::make(CoinDenomination denomination,  int coinGroupId) {
-    CSpendCoinInfo coinInfo;
-    coinInfo.denomination = denomination;
-    coinInfo.coinGroupId = coinGroupId;
-    return coinInfo;
-}
-
-
-} // namespace sigma
-
-namespace lelantus {
-
 std::size_t CPublicCoinHash::operator ()(const lelantus::PublicCoin& coin) const noexcept {
-    uint256 hash = coin.getValueHash();
+    ::uint256 hash = coin.getValueHash();
 
     std::size_t result;
     std::memcpy(&result, hash.begin(), sizeof(std::size_t));

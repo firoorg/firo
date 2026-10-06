@@ -16,6 +16,8 @@
 #include "utilstrencodings.h"
 #include "version.h"
 
+#include "compat_layer.h"
+
 #include <boost/algorithm/string.hpp>
 
 #include <univalue.h>
@@ -58,7 +60,7 @@ struct CCoin {
     }
 };
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock = true);
 extern UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDetails = false);
 extern UniValue mempoolInfoToJSON();
 extern UniValue mempoolToJSON(bool fVerbose = false);
@@ -462,6 +464,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         // convert hex to bin, continue then with bin part
         std::vector<unsigned char> strRequestV = ParseHex(strRequestMutable);
         strRequestMutable.assign(strRequestV.begin(), strRequestV.end());
+        FIRO_FALLTHROUGH;
     }
 
     case RF_BINARY: {

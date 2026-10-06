@@ -28,6 +28,7 @@ private Q_SLOTS:
 
 private:
     void setCreateNew();
+    void applyTheme();
 
 private:
     Ui::Recover *ui;

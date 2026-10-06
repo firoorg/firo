@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <string>
 #include "precomputed_hash.h"
+#include "../../compat_layer.h"
 
 unsigned char GetNfactor(int64_t nTimestamp) {
     int l = 0;
@@ -70,17 +71,17 @@ bool CBlockHeader::IsProgPow() const {
 }
 
 bool CBlockHeader::IsShorterBlocksSpacing() const {
-    return (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().stage3StartTime);
+    return (nTime > ZC_GENESIS_BLOCK_TIME && cmp::greater_equal(nTime, Params().GetConsensus().stage3StartTime));
 }
 
 int CBlockHeader::GetTargetBlocksSpacing() const {
     const Consensus::Params &params = Params().GetConsensus();
-    if (nTime <= ZC_GENESIS_BLOCK_TIME)
+    if (cmp::less_equal(nTime, ZC_GENESIS_BLOCK_TIME))
         return params.nPowTargetSpacing;
-    else if (nTime >= params.stage3StartTime)
+    else if (cmp::greater_equal(nTime, params.stage3StartTime))
         return params.nPowTargetSpacingMTP/2;
-    else if ((params.nMTPFiveMinutesStartBlock == 0 && nTime >= params.nMTPSwitchTime) ||
-                    (params.nMTPFiveMinutesStartBlock != 0 && nHeight >= params.nMTPFiveMinutesStartBlock))
+    else if ((params.nMTPFiveMinutesStartBlock == 0 && cmp::greater_equal(nTime, params.nMTPSwitchTime)) ||
+                    (params.nMTPFiveMinutesStartBlock != 0 && cmp::greater_equal(nHeight, params.nMTPFiveMinutesStartBlock)))
         return params.nPowTargetSpacingMTP;
     else
         return params.nPowTargetSpacing;

@@ -170,14 +170,21 @@ class ProxyTest(BitcoinTestFramework):
                 r[x['name']] = x
             return r
 
+        def assert_network_names(info):
+            assert_equal(sorted(x['name'] for x in info['networks']), ['ipv4', 'ipv6', 'onion'])
+
         # test RPC getnetworkinfo
-        n0 = networks_dict(self.nodes[0].getnetworkinfo())
+        n0_info = self.nodes[0].getnetworkinfo()
+        assert_network_names(n0_info)
+        n0 = networks_dict(n0_info)
         for net in ['ipv4','ipv6','onion']:
             assert_equal(n0[net]['proxy'], '%s:%i' % (self.conf1.addr))
             assert_equal(n0[net]['proxy_randomize_credentials'], True)
         assert_equal(n0['onion']['reachable'], True)
 
-        n1 = networks_dict(self.nodes[1].getnetworkinfo())
+        n1_info = self.nodes[1].getnetworkinfo()
+        assert_network_names(n1_info)
+        n1 = networks_dict(n1_info)
         for net in ['ipv4','ipv6']:
             assert_equal(n1[net]['proxy'], '%s:%i' % (self.conf1.addr))
             assert_equal(n1[net]['proxy_randomize_credentials'], False)
@@ -185,14 +192,18 @@ class ProxyTest(BitcoinTestFramework):
         assert_equal(n1['onion']['proxy_randomize_credentials'], False)
         assert_equal(n1['onion']['reachable'], True)
         
-        n2 = networks_dict(self.nodes[2].getnetworkinfo())
+        n2_info = self.nodes[2].getnetworkinfo()
+        assert_network_names(n2_info)
+        n2 = networks_dict(n2_info)
         for net in ['ipv4','ipv6','onion']:
             assert_equal(n2[net]['proxy'], '%s:%i' % (self.conf2.addr))
             assert_equal(n2[net]['proxy_randomize_credentials'], True)
         assert_equal(n2['onion']['reachable'], True)
 
         if self.have_ipv6:
-            n3 = networks_dict(self.nodes[3].getnetworkinfo())
+            n3_info = self.nodes[3].getnetworkinfo()
+            assert_network_names(n3_info)
+            n3 = networks_dict(n3_info)
             for net in ['ipv4','ipv6']:
                 assert_equal(n3[net]['proxy'], '[%s]:%i' % (self.conf3.addr))
                 assert_equal(n3[net]['proxy_randomize_credentials'], False)

@@ -42,8 +42,17 @@ CScript scriptPubKeyMtpHalving;
 
 
 struct MtpHalvingTestingSetup : public TestingSetup {
-    MtpHalvingTestingSetup() : TestingSetup(CBaseChainParams::REGTEST)
+    Consensus::Params &mutableParams;
+    Consensus::Params oldParams;
+
+    MtpHalvingTestingSetup() : TestingSetup(CBaseChainParams::REGTEST), mutableParams(const_cast<Consensus::Params&>(Params().GetConsensus()))
     {
+        oldParams = mutableParams;
+
+        // disable stage 3 stuff for now
+        mutableParams.stage3StartTime = INT_MAX;
+        mutableParams.stage3StartBlock = INT_MAX;
+
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
 
@@ -64,6 +73,10 @@ struct MtpHalvingTestingSetup : public TestingSetup {
                 pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
             }   
         }
+    }
+
+    ~MtpHalvingTestingSetup() {
+        mutableParams = oldParams;
     }
 
     CBlock CreateBlock(const CScript& scriptPubKeyMtpHalving, bool mtp = false) {
@@ -142,14 +155,14 @@ BOOST_AUTO_TEST_CASE(mtp_halving)
 
     CBlock bMtp = b;
     blockReward = 0;
-    for(int i = 0; i < oldBlock.vtx[0]->vout.size(); i++) {
+    for(int i = 0; cmp::less(i, oldBlock.vtx[0]->vout.size()); i++) {
         BOOST_CHECK_MESSAGE(oldBlock.vtx[0]->vout[i].nValue == bMtp.vtx[0]->vout[i].nValue * 2, "Block reward not halved");
     }
     for(auto txout : bMtp.vtx[0]->vout)
         blockReward += txout.nValue;
     BOOST_CHECK_MESSAGE(blockReward == 25 * COIN, "Block reward not correct in MTP block");
 
-    for(int i = 0; i < bMtp.vtx[0]->vout.size(); i++)
+    for(int i = 0; cmp::less(i, bMtp.vtx[0]->vout.size()); i++)
     {
         CBlock bModified = bMtp;
         CMutableTransaction modifiedTx = *bModified.vtx[0];
@@ -168,7 +181,7 @@ BOOST_AUTO_TEST_CASE(mtp_halving)
     }
 
 
-    for(int i = 1; i < bMtp.vtx[0]->vout.size() - 1; i++)
+    for(int i = 1; cmp::less(i, bMtp.vtx[0]->vout.size() - 1); i++)
     {
         CBlock bModified = bMtp;
         CPubKey modifiedKey;

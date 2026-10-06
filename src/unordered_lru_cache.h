@@ -82,6 +82,11 @@ public:
         cacheMap.clear();
     }
 
+    size_t size() const
+    {
+        return cacheMap.size();
+    }
+
 private:
     void truncate_if_needed()
     {

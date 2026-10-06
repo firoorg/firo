@@ -3,101 +3,69 @@
 
 #include <memory>
 #include "chain.h"
-#include "sigma/coinspend.h"
-#include "liblelantus/joinsplit.h"
 #include "libspark/spend_transaction.h"
+#include "sync.h"
 
 extern CChain chainActive;
 
 class BatchProofContainer {
 public:
+    enum class Mode { Disabled, Deferred, Block };
+
     static BatchProofContainer* get_instance();
 
-    struct SigmaProofData {
-        SigmaProofData() : sigmaProof(0, 0), coinSerialNumber(uint64_t(0)), fPadding(0), anonymitySetSize(0) {}
-        SigmaProofData(const sigma::SigmaPlusProof<Scalar, GroupElement>& sigmaProof_,
-                       const Scalar& coinSerialNumber_,
-                       bool fPadding_,
-                       size_t anonymitySetSize_)
-                       : sigmaProof(sigmaProof_),
-                       coinSerialNumber(coinSerialNumber_),
-                       fPadding(fPadding_),
-                       anonymitySetSize(anonymitySetSize_) {}
+    /** Discard this block's temps and select a mode; retain pending proofs and their failure state. */
+    void init(Mode mode = Mode::Disabled);
 
-        sigma::SigmaPlusProof<Scalar, GroupElement> sigmaProof;
-        Scalar coinSerialNumber;
-        bool fPadding;
-        size_t anonymitySetSize;
-    };
-
-    struct LelantusSigmaProofData {
-        LelantusSigmaProofData(const lelantus::SigmaExtendedProof& lelantusSigmaProof_,
-                               const Scalar& serialNumber_,
-                               const Scalar& challenge_,
-                               size_t anonymitySetSize_)
-                               : lelantusSigmaProof(lelantusSigmaProof_),
-                               serialNumber(serialNumber_),
-                               challenge(challenge_),
-                               anonymitySetSize(anonymitySetSize_) {}
-
-        lelantus::SigmaExtendedProof lelantusSigmaProof;
-        Scalar serialNumber;
-        Scalar challenge;
-        size_t anonymitySetSize;
-    };
-
-    void init();
-
+    /**
+     * Append deferred block proofs, then disable collection. Does not verify proofs.
+     * Block mode must be verified with verify_block_batch() first.
+     */
     void finalize();
 
-    void verify();
+    bool is_deferred() const;
 
-    void add(sigma::CoinSpend* spend,
-             bool fPadding,
-             int group_id,
-             size_t setSize,
-             bool fStartSigmaBlacklist);
+    /** Verify this block's temps under cs_main, without touching pending proofs. */
+    bool verify_block_batch();
 
-    void add(lelantus::JoinSplit* joinSplit,
-             const std::map<uint32_t, size_t>& setSizes,
-             const Scalar& challenge,
-             bool fStartLelantusBlacklist);
+    /**
+     * Verify a retained snapshot, retrying if the pending batch or active tip
+     * changes. Concurrent callers wait for the current verifier. Call without
+     * cs_main: only snapshot preparation and verdict publication hold it.
+     *
+     * While collecting, returns true without checking pending proofs.
+     * @return true if no batch is pending or it verifies; false on verification
+     *         failure (pending proofs kept).
+     */
+    bool verify_pending();
 
-    void add(lelantus::JoinSplit* joinSplit, const std::vector<lelantus::PublicCoin>& Cout);
+    static bool HasRecoveryMarker();
+    static void RemoveRecoveryMarker();
 
-    void removeSigma(const sigma::spend_info_container& spendSerials);
-    void removeLelantus(std::unordered_map<Scalar, int> spentSerials);
-    void remove(const std::vector<lelantus::RangeProof>& rangeProofsToRemove);
-    void erase(std::vector<LelantusSigmaProofData>* vProofs, const Scalar& serial);
-
-    void batch_sigma();
-    void batch_lelantus();
-    void batch_rangeProofs();
-
-    void add(const spark::SpendTransaction& tx);
+    bool add(const spark::SpendTransaction& tx, const uint256& txHash);
+    /** Use legacy proof rules; separate from Deferred mode's accumulation of old blocks. */
+    bool addHistorical(const spark::SpendTransaction& tx, const uint256& txHash);
     void remove(const spark::SpendTransaction& tx);
-    void batch_spark();
-public:
-    bool fCollectProofs = 0;
 
 private:
-    static std::unique_ptr<BatchProofContainer> instance;
-    // temp containers, to forget in case block connection fails
-    // map (denom, id) to (sigma proof, serial, set size)
-    std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> tempSigmaProofs;
-    // map ((id, afterFixes), fIsSigmaToLelantus) to (sigma proof, serial, set size, challenge)
-    std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> tempLelantusSigmaProofs;
-    // map (version to (Range proof, Pubcoins))
-    std::map<unsigned int, std::vector<std::pair<lelantus::RangeProof, std::vector<lelantus::PublicCoin>>>> tempRangeProofs;
-    // temp spark transaction proofs
+    // Lock order: cs_verify -> cs_main. Collection never takes cs_verify.
+    CCriticalSection cs_verify;
+    // All remaining mutable state is protected by cs_main.
+    Mode mode = Mode::Disabled;
+    uint64_t generation = 0;
+    // Fail fast until proofs are removed from the failed pending batch.
+    bool fBatchFailed = false;
+    // temp spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> tempSparkTransactions;
+    std::vector<uint256> tempSparkTxIds;
+    std::vector<spark::SpendTransaction> tempHistoricalSparkTransactions;
+    std::vector<uint256> tempHistoricalSparkTxIds;
 
-    // containers to keep proofs for batching
-    std::map<std::pair<sigma::CoinDenomination, std::pair<int, bool>>, std::vector<SigmaProofData>> sigmaProofs;
-    std::map<std::pair<std::pair<uint32_t, bool>, bool>, std::vector<LelantusSigmaProofData>> lelantusSigmaProofs;
-    std::map<unsigned int, std::vector<std::pair<lelantus::RangeProof, std::vector<lelantus::PublicCoin>>>> rangeProofs;
-    // spark transaction proofs
+    // spark transaction proofs and the txids they came from
     std::vector<spark::SpendTransaction> sparkTransactions;
+    std::vector<uint256> sparkTxIds;
+    std::vector<spark::SpendTransaction> historicalSparkTransactions;
+    std::vector<uint256> historicalSparkTxIds;
 };
 
 #endif //FIRO_BATCHPROOF_CONTAINER_H

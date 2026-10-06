@@ -10,10 +10,8 @@
 #include "automintmodel.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
-#include "createpcodedialog.h"
+#include "exportviewkeydialog.h"
 #include "guiutil.h"
-#include "lelantusdialog.h"
-#include "lelantusmodel.h"
 #include "sparkmodel.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
@@ -21,11 +19,11 @@
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
+#include "sparknamespage.h"
 #include "transactiontablemodel.h"
 #include "transactionview.h"
 #include "walletmodel.h"
 
-#include "ui_interface.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -44,38 +42,29 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     clientModel(0),
     walletModel(0),
     overviewPage(0),
-    lelantusView(0),
-    // blankLelantusView(0),
-    firoTransactionsView(0),
     platformStyle(_platformStyle)
 {
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
-    createPcodePage = new CreatePcodeDialog(platformStyle);
+    sparkNamesPage = new SparkNamesPage(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this, false);
-    lelantusPage = new QWidget(this);
 
     sendCoinsPage = new QWidget(this);
     masternodeListPage = new MasternodeList(platformStyle);
-
-    automintNotification = new AutomintNotification(this);
-    automintNotification->setWindowModality(Qt::NonModal);
 
     automintSparkNotification = new AutomintSparkNotification(this);
     automintSparkNotification->setWindowModality(Qt::NonModal);
 
     setupTransactionPage();
     setupSendCoinPage();
-    setupLelantusPage();
 
     addWidget(overviewPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
-    addWidget(createPcodePage);
+    addWidget(sparkNamesPage);
     addWidget(sendCoinsPage);
-    addWidget(lelantusPage);
     addWidget(masternodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
@@ -93,35 +82,13 @@ void WalletView::setupTransactionPage()
 
     connect(firoTransactionList, &TransactionView::message, this, &WalletView::message);
 
-    // Create export panel for Firo transactions
-    auto exportButton = new QPushButton(tr("&Export"));
-
-    exportButton->setToolTip(tr("Export the data in the current tab to a file"));
-
-    if (platformStyle->getImagesOnButtons()) {
-        exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
-    }
-
-    connect(exportButton, &QPushButton::clicked, firoTransactionList, &TransactionView::exportClicked);
-
-    auto exportLayout = new QHBoxLayout();
-    exportLayout->addStretch();
-    exportLayout->addWidget(exportButton);
-
-    // Compose transaction list and export panel together
-    auto firoLayout = new QVBoxLayout();
-    firoLayout->addWidget(firoTransactionList);
-    firoLayout->addLayout(exportLayout);
-    // TODO: fix this
     connect(overviewPage, &OverviewPage::transactionClicked, firoTransactionList, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
     connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
-    firoTransactionsView = new QWidget();
-    firoTransactionsView->setLayout(firoLayout);
-
     // Set layout for transaction page
     auto pageLayout = new QVBoxLayout();
-        pageLayout->addWidget(firoTransactionsView);
+    pageLayout->setContentsMargins(0, 0, 0, 0);
+    pageLayout->addWidget(firoTransactionList);
 
     transactionsPage->setLayout(pageLayout);
 }
@@ -129,6 +96,7 @@ void WalletView::setupTransactionPage()
 void WalletView::setupSendCoinPage()
 {
     sendFiroView = new SendCoinsDialog(platformStyle);
+    connect(sendFiroView, &SendCoinsDialog::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
 
     connect(sendFiroView, &SendCoinsDialog::message, this, &WalletView::message);
 
@@ -139,29 +107,16 @@ void WalletView::setupSendCoinPage()
     sendCoinsPage->setLayout(pageLayout);
 }
 
-void WalletView::setupLelantusPage()
-{
-    auto pageLayout = new QVBoxLayout();
-
-    // if (pwalletMain->IsHDSeedAvailable()) {
-        lelantusView = new LelantusDialog(platformStyle);
-        connect(lelantusView, &LelantusDialog::message, this, &WalletView::message);
-        pageLayout->addWidget(lelantusView);
-    // } else {
-
-    //     blankLelantusView = new BlankSigmaDialog();
-    //     pageLayout->addWidget(blankLelantusView);
-    // }
-
-    lelantusPage->setLayout(pageLayout);
-}
-
 void WalletView::setBitcoinGUI(BitcoinGUI *gui)
 {
     if (gui)
     {
+        overviewPage->setConsolidationAction(gui->getConsolidationAction());
         // Clicking on a transaction on the overview page simply sends you to transaction history page
         connect(overviewPage, &OverviewPage::transactionClicked, gui, &BitcoinGUI::gotoHistoryPage);
+
+        connect(overviewPage, &OverviewPage::gotoSendCoinsPage, gui, [gui] { gui->gotoSendCoinsPage(); });
+        connect(overviewPage, &OverviewPage::gotoReceiveCoinsPage, gui, &BitcoinGUI::gotoReceiveCoinsPage);
 
         // Receive and report messages
         connect(this, &WalletView::message, [gui](const QString &title, const QString &message, unsigned int style) {
@@ -186,31 +141,25 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     overviewPage->setClientModel(clientModel);
     sendFiroView->setClientModel(clientModel);
     masternodeListPage->setClientModel(clientModel);
-
-    if (pwalletMain->IsHDSeedAvailable()) {
-        lelantusView->setClientModel(clientModel);
-    }
+    sparkNamesPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)
 {
     this->walletModel = _walletModel;
+    walletModel->setClientModel(clientModel);
 
     // Put transaction list in tabs
     firoTransactionList->setModel(_walletModel);
     overviewPage->setWalletModel(_walletModel);
     receiveCoinsPage->setModel(_walletModel);
-    createPcodePage->setModel(_walletModel);
+    sparkNamesPage->setModel(_walletModel);
     // TODO: fix this
     //sendCoinsPage->setModel(_walletModel);
-    if (pwalletMain->IsHDSeedAvailable()) {
-        lelantusView->setWalletModel(_walletModel);
-    }
     usedReceivingAddressesPage->setModel(_walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(_walletModel->getAddressTableModel());
     masternodeListPage->setWalletModel(_walletModel);
     sendFiroView->setModel(_walletModel);
-    automintNotification->setModel(_walletModel);
     automintSparkNotification->setModel(_walletModel);
 
     if (_walletModel)
@@ -235,16 +184,7 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
         connect(_walletModel, &WalletModel::showProgress, this, &WalletView::showProgress);
 
         // Check mintable amount
-        connect(_walletModel, &WalletModel::balanceChanged, this, &WalletView::checkMintableAmount);
-
-        auto lelantusModel = _walletModel->getLelantusModel();
-        if (lelantusModel) {
-            connect(lelantusModel, &LelantusModel::askMintAll, this, &WalletView::askMintAll);
-            auto autoMintModel = lelantusModel->getAutoMintModel();
-            connect(autoMintModel, &AutoMintModel::message, this, &WalletView::message);
-            connect(autoMintModel, &AutoMintModel::requireShowAutomintNotification, this, &WalletView::showAutomintNotification);
-            connect(autoMintModel, &AutoMintModel::closeAutomintNotification, this, &WalletView::closeAutomintNotification);
-        }
+        connect(_walletModel, &WalletModel::balanceChanged, this, &WalletView::checkMintableSparkAmount);
 
         auto sparkModel = _walletModel->getSparkModel();
         if (sparkModel) {
@@ -308,14 +248,9 @@ void WalletView::gotoReceiveCoinsPage()
     setCurrentWidget(receiveCoinsPage);
 }
 
-void WalletView::gotoCreatePcodePage()
+void WalletView::gotoSparkNamesPage()
 {
-    setCurrentWidget(createPcodePage);
-}
-
-void WalletView::gotoLelantusPage()
-{
-    setCurrentWidget(lelantusPage);
+    setCurrentWidget(sparkNamesPage);
 }
 
 void WalletView::gotoSendCoinsPage(QString addr)
@@ -356,9 +291,17 @@ bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
     return sendFiroView->handlePaymentRequest(recipient);
 }
 
+void WalletView::consolidateCoins()
+{
+    overviewPage->consolidateCoins();
+}
+
 void WalletView::showOutOfSyncWarning(bool fShow)
 {
     overviewPage->showOutOfSyncWarning(fShow);
+    firoTransactionList->showOutOfSyncWarning(fShow);
+    sendFiroView->showOutOfSyncWarning(fShow);
+    masternodeListPage->showOutOfSyncWarning(fShow);
 }
 
 void WalletView::updateEncryptionStatus()
@@ -396,6 +339,12 @@ void WalletView::backupWallet()
     }
 }
 
+void WalletView::exportViewKey()
+{
+    ExportViewKeyDialog dlg(this, walletModel->getWallet()->GetSparkViewKeyStr());
+    dlg.exec();
+}
+
 void WalletView::changePassphrase()
 {
     AskPassphraseDialog dlg(AskPassphraseDialog::ChangePass, this);
@@ -426,10 +375,11 @@ void WalletView::usedSendingAddresses()
     usedSendingAddressesPage->activateWindow();
 }
 
-void WalletView::updateAddressbook()
+bool WalletView::updateAddressbook()
 {
-    usedReceivingAddressesPage->updateSpark();
-    usedSendingAddressesPage->updateSpark();
+    const bool receivingUpdated = usedReceivingAddressesPage->updateSpark();
+    const bool sendingUpdated = usedSendingAddressesPage->updateSpark();
+    return receivingUpdated || sendingUpdated;
 }
 
 void WalletView::usedReceivingAddresses()
@@ -470,55 +420,11 @@ void WalletView::requestedSyncWarningInfo()
     Q_EMIT outOfSyncWarningClicked();
 }
 
-void WalletView::showAutomintNotification()
-{
-    auto lelantusModel = walletModel->getLelantusModel();
-    if (!lelantusModel) {
-        return;
-    }
-
-    if (!isActiveWindow() || !underMouse()) {
-        lelantusModel->sendAckMintAll(AutoMintAck::WaitUserToActive);
-        return;
-    }
-
-    automintNotification->setWindowFlags(automintNotification->windowFlags() | Qt::Popup | Qt::FramelessWindowHint);
-
-    QRect rect(this->mapToGlobal(QPoint(0, 0)), this->size());
-    auto pos = QStyle::alignedRect(
-        Qt::LeftToRight,
-        Qt::AlignRight | Qt::AlignBottom,
-        automintNotification->size(),
-        rect).topLeft();
-
-    pos.setX(pos.x());
-    pos.setY(pos.y());
-    automintNotification->move(pos);
-
-    automintNotification->show();
-    automintNotification->raise();
-}
-
-void WalletView::repositionAutomintNotification()
-{
-    if (automintNotification->isVisible()) {
-        QRect rect(this->mapToGlobal(QPoint(0, 0)), this->size());
-        auto pos = QStyle::alignedRect(
-            Qt::LeftToRight,
-            Qt::AlignRight | Qt::AlignBottom,
-            automintNotification->size(),
-            rect).topLeft();
-
-        pos.setX(pos.x());
-        pos.setY(pos.y());
-        automintNotification->move(pos);
-    }
-}
-
 void WalletView::showAutomintSparkNotification()
 {
     auto sparkModel = walletModel->getSparkModel();
-    if (!sparkModel) {
+    auto wallet = walletModel->getWallet();
+   if (!sparkModel || !wallet || !wallet->sparkWallet) {
         return;
     }
 
@@ -560,14 +466,6 @@ void WalletView::repositionAutomintSparkNotification()
     }
 }
 
-void WalletView::checkMintableAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
-{
-    if (automintNotification->isVisible() && anonymizableBalance == 0) {
-        // hide if notification is showing but there no any fund to anonymize
-        closeAutomintNotification();
-    }
-}
-
 void WalletView::checkMintableSparkAmount(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance)
 {
     if (automintSparkNotification->isVisible() && anonymizableBalance == 0) {
@@ -576,27 +474,9 @@ void WalletView::checkMintableSparkAmount(CAmount, CAmount, CAmount, CAmount, CA
     }
 }
 
-void WalletView::closeAutomintNotification()
-{
-    automintNotification->close();
-}
-
 void WalletView::closeAutomintSparkNotification()
 {
     automintSparkNotification->close();
-}
-
-void WalletView::askMintAll(AutoMintMode mode)
-{
-    automintNotification->setVisible(false);
-
-    if (!walletModel) {
-        return;
-    }
-
-    AutoMintDialog dlg(mode, this);
-    dlg.setModel(walletModel);
-    dlg.exec();
 }
 
 void WalletView::askMintSparkAll(AutoMintSparkMode mode)
@@ -617,7 +497,9 @@ bool WalletView::eventFilter(QObject *watched, QEvent *event)
     switch (event->type()) {
     case QEvent::Type::Resize:
     case QEvent::Type::Move:
-        repositionAutomintNotification();
+        repositionAutomintSparkNotification();
+        break;
+    default:
         break;
     }
 

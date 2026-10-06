@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(batch)
     // Parameters
     const std::size_t n = 4;
     const std::size_t m = 3;
-    const std::size_t N = (std::size_t) std::pow(n, m); // N = 64
+    FIRO_UNUSED const std::size_t N = (std::size_t) std::pow(n, m); // N = 64
 
     // Generators
     GroupElement H;
@@ -87,6 +87,12 @@ BOOST_AUTO_TEST_CASE(batch)
     }
 
     BOOST_CHECK(grootle.verify(S, S1, V, V1, roots, sizes, proofs));
+
+    auto invalid_sizes = sizes;
+    invalid_sizes[0] = 0;
+    BOOST_CHECK(!grootle.verify(S, S1, V, V1, roots, invalid_sizes, proofs));
+    invalid_sizes[0] = S.size() + 1;
+    BOOST_CHECK(!grootle.verify(S, S1, V, V1, roots, invalid_sizes, proofs));
 }
 
 BOOST_AUTO_TEST_CASE(invalid_batch)
@@ -94,7 +100,7 @@ BOOST_AUTO_TEST_CASE(invalid_batch)
     // Parameters
     const std::size_t n = 4;
     const std::size_t m = 3;
-    const std::size_t N = (std::size_t) std::pow(n, m); // N = 64
+    FIRO_UNUSED const std::size_t N = (std::size_t) std::pow(n, m); // N = 64
 
     // Generators
     GroupElement H;

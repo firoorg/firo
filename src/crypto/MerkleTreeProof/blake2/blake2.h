@@ -1,3 +1,14 @@
+#define blake2b_state firo_blake2b_state
+#define blake2b_param firo_blake2b_param
+#define blake2b_init firo_blake2b_init
+#define blake2b_init_key firo_blake2b_init_key
+#define blake2b_init_param firo_blake2b_init_param
+#define blake2b_update firo_blake2b_update
+#define blake2b_final firo_blake2b_final
+#define blake2b blake2b_firo
+#define blake2b_long blake2b_long_firo
+#define blake2b_4r_update blake2b_4r_update_firo
+#define blake2b_4r_final blake2b_4r_final_firo
 /*
  * Argon2 reference source code package - reference C implementations
  *

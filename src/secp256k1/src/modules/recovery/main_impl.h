@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_MODULE_RECOVERY_MAIN_
-#define _SECP256K1_MODULE_RECOVERY_MAIN_
+#ifndef SECP256K1_MODULE_RECOVERY_MAIN_
+#define SECP256K1_MODULE_RECOVERY_MAIN_
 
 #include "include/secp256k1_recovery.h"
 
@@ -123,7 +123,7 @@ static int secp256k1_ecdsa_sig_recover(const secp256k1_ecmult_context *ctx, cons
 int secp256k1_ecdsa_sign_recoverable(const secp256k1_context* ctx, secp256k1_ecdsa_recoverable_signature *signature, const unsigned char *msg32, const unsigned char *seckey, secp256k1_nonce_function noncefp, const void* noncedata) {
     secp256k1_scalar r, s;
     secp256k1_scalar sec, non, msg;
-    int recid;
+    int recid = 0;
     int ret = 0;
     int overflow = 0;
     VERIFY_CHECK(ctx != NULL);

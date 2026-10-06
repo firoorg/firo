@@ -34,7 +34,11 @@ static std::string rpcWarmupStatus("RPC server started");
 static CCriticalSection cs_rpcWarmup;
 /* Timer-creating functions */
 static RPCTimerInterface* timerInterface = NULL;
-/* Map of name to timer. */
+/* Map of name to timer, and the lock protecting it. Callers may run on any of
+ * the RPC worker threads, so every access has to be serialized. The lock is
+ * held while a timer is destroyed, which blocks until a running timer callback
+ * has returned, so no timer callback may acquire it. */
+static CCriticalSection cs_deadlineTimers;
 static std::map<std::string, std::unique_ptr<RPCTimerBase> > deadlineTimers;
 
 static struct CRPCSignals
@@ -320,29 +324,39 @@ UniValue stop(const JSONRPCRequest& jsonRequest)
  * Call Table
  */
 static const CRPCCommand vRPCCommands[] =
-{ //  category              name                      actor (function)         okSafe argNames
-  //  --------------------- ------------------------  -----------------------  ------ ----------
+{ //  category              name                           actor (function)                    okSafe  argNames
+  //  --------------------- ------------------------       -----------------------             ------  ----------
     /* Overall control/query calls */
-    { "control",            "help",                   &help,                   true  },
-    { "control",            "stop",                   &stop,                   true  },
+    { "control",            "help",                        &help,                              true,   {} },
+    { "control",            "stop",                        &stop,                              true,   {} },
         /* Address index */
-    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true  },
-    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false },
-    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
-    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
-    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
+    { "addressindex",       "getaddressmempool",           &getaddressmempool,                 true,   {} },
+    { "addressindex",       "getaddressutxos",             &getaddressutxos,                   false,  {} },
+    { "addressindex",       "getaddressdeltas",            &getaddressdeltas,                  false,  {} },
+    { "addressindex",       "getaddresstxids",             &getaddresstxids,                   false,  {} },
+    { "addressindex",       "getaddressbalance",           &getaddressbalance,                 false,  {} },
+    { "addressindex",       "getAddressNumWBalance",       &getAddressNumWBalance,             false,  {} },
+
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
-    { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
-    { "mobile",             "getfeerate",             &getfeerate,             true  },
-    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+    { "mobile",             "getanonymityset",             &getanonymityset,                   false,  {} },
+    { "mobile",             "getmintmetadata",             &getmintmetadata,                   true,   {} },
+    { "mobile",             "getusedcoinserials",          &getusedcoinserials,                false,  {} },
+    { "mobile",             "getfeerate",                  &getfeerate,                        true,   {} },
+    { "mobile",             "getlatestcoinid",             &getlatestcoinid,                   true,   {} },
 
         /* Mobile Spark */
-    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
-    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
-    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
-    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
+    { "mobile",             "getsparkanonymityset",        &getsparkanonymityset,              false,  {} },
+    { "mobile",             "getsparkanonymitysetmeta",    &getsparkanonymitysetmeta,          false,  {} },
+    { "mobile",             "getsparkanonymitysetsector",  &getsparkanonymitysetsector,        false,  {} },
+    { "mobile",             "getsparkmintmetadata",        &getsparkmintmetadata,              true,   {} },
+    { "mobile",             "getusedcoinstags",            &getusedcoinstags,                  false,  {} },
+    { "mobile",             "getusedcoinstagstxhashes",    &getusedcoinstagstxhashes,          false,  {} },
+    { "mobile",             "getsparklatestcoinid",        &getsparklatestcoinid,              true,   {} },
+    { "mobile",             "getmempoolsparktxids",        &getmempoolsparktxids,              true,   {} },
+    { "mobile",             "getmempoolsparktxs",          &getmempoolsparktxs,                true,   {} },
+
+
+    { "mobile",             "checkifmncollateral",         &checkifmncollateral,               false,  {} },
 
 };
 
@@ -398,7 +412,10 @@ void InterruptRPC()
 void StopRPC()
 {
     LogPrint("rpc", "Stopping RPC\n");
-    deadlineTimers.clear();
+    {
+        LOCK(cs_deadlineTimers);
+        deadlineTimers.clear();
+    }
     DeleteAuthCookie();
     g_rpcSignals.Stopped();
 }
@@ -563,8 +580,6 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
     {
         throw JSONRPCError(RPC_MISC_ERROR, e.what());
     }
-
-    g_rpcSignals.PostCommand(*pcmd);
 }
 
 std::vector<std::string> CRPCTable::listCommands() const
@@ -591,28 +606,34 @@ std::string HelpExampleRpc(const std::string& methodname, const std::string& arg
 
 void RPCSetTimerInterfaceIfUnset(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     if (!timerInterface)
         timerInterface = iface;
 }
 
 void RPCSetTimerInterface(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     timerInterface = iface;
 }
 
 void RPCUnsetTimerInterface(RPCTimerInterface *iface)
 {
+    LOCK(cs_deadlineTimers);
     if (timerInterface == iface)
         timerInterface = NULL;
 }
 
 void RPCRunLater(const std::string& name, boost::function<void(void)> func, int64_t nSeconds)
 {
-    if (!timerInterface)
+    LOCK(cs_deadlineTimers);
+    RPCTimerInterface* iface = timerInterface;
+    if (!iface)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No timer handler registered for RPC");
+    LOCK(cs_deadlineTimers);
     deadlineTimers.erase(name);
-    LogPrint("rpc", "queue run of timer %s in %i seconds (using %s)\n", name, nSeconds, timerInterface->Name());
-    deadlineTimers.emplace(name, std::unique_ptr<RPCTimerBase>(timerInterface->NewTimer(func, nSeconds*1000)));
+    LogPrint("rpc", "queue run of timer %s in %i seconds (using %s)\n", name, nSeconds, iface->Name());
+    deadlineTimers.emplace(name, std::unique_ptr<RPCTimerBase>(iface->NewTimer(func, nSeconds*1000)));
 }
 
 int RPCSerializationFlags()

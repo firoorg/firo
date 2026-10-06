@@ -1,6 +1,7 @@
 #include "recover.h"
 #include "ui_recover.h"
 
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include "util.h"
@@ -13,9 +14,14 @@
 
 #include <boost/filesystem.hpp>
 
+#include <QCalendarWidget>
+#include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QPushButton>
+#include <QScrollArea>
 #include <QSettings>
 #include <QMessageBox>
+#include <QVBoxLayout>
 
 Recover::Recover(QWidget *parent) :
     QDialog(parent),
@@ -26,11 +32,148 @@ Recover::Recover(QWidget *parent) :
     GUIUtil::loadTheme();
     
     ui->setupUi(this);
+
+    auto* scrollContents = new QWidget(this);
+    scrollContents->setObjectName(QStringLiteral("recoverScrollContents"));
+    auto* scrollLayout = new QVBoxLayout(scrollContents);
+    scrollLayout->setContentsMargins(0, 0, 0, 0);
+    scrollLayout->setSpacing(ui->verticalLayout->spacing());
+    while (ui->verticalLayout->count() > 1) {
+        QLayoutItem* item = ui->verticalLayout->takeAt(0);
+        if (QWidget* widget = item->widget()) {
+            widget->setParent(scrollContents);
+            scrollLayout->addWidget(widget);
+            delete item;
+        } else if (QLayout* layout = item->layout()) {
+            layout->setParent(nullptr);
+            scrollLayout->addLayout(layout);
+        } else {
+            scrollLayout->addItem(item);
+        }
+    }
+
+    auto* scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("recoverScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(scrollContents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#recoverScroll, QWidget#recoverScrollContents { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, scroll, 1);
+
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
+
+    applyTheme();
     setCreateNew();
     thread = new QThread(this);
 
     connect(this, &Recover::stopThread, thread, &QThread::quit);
     thread->start();
+
+    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
+    ui->dateInput->setMinimumDate(QDate(2019, 12, 11));
+}
+
+void Recover::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog#Recover { background: $BG; }
+        QDialog#Recover QLabel { background: transparent; color: $INK; }
+        QDialog#Recover QLabel#errorMessage { color: $ERROR; font-weight: 700; }
+        QDialog#Recover QFrame { background: transparent; }
+        QDialog#Recover QLineEdit,
+        QDialog#Recover QDateEdit,
+        QDialog#Recover QSpinBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
+            padding: 8px 12px;
+            color: $INK;
+            selection-background-color: $WINE_DEEP;
+            selection-color: #FFFFFF;
+        }
+        QDialog#Recover QLineEdit:focus,
+        QDialog#Recover QDateEdit:focus,
+        QDialog#Recover QSpinBox:focus {
+            border: 2px solid $WINE;
+            padding: 7px 11px;
+        }
+        QDialog#Recover QLineEdit:disabled,
+        QDialog#Recover QDateEdit:disabled,
+        QDialog#Recover QSpinBox:disabled {
+            color: $INK_FAINT;
+        }
+        QDialog#Recover QAbstractSpinBox QLineEdit { %1 }
+        QDialog#Recover QRadioButton,
+        QDialog#Recover QCheckBox {
+            background: transparent;
+            color: $INK;
+        }
+        QDialog#Recover QRadioButton:disabled,
+        QDialog#Recover QCheckBox:disabled {
+            color: $INK_FAINT;
+        }
+        QDialog#Recover QRadioButton::indicator:unchecked {
+            image: url(:/images/radio_normal_$ASSET_THEME);
+        }
+        QDialog#Recover QRadioButton::indicator:checked {
+            image: url(:/images/radio_checked_$ASSET_THEME);
+        }
+        QDialog#Recover QCheckBox::indicator:unchecked {
+            image: url(:/images/checkbox_normal_$ASSET_THEME);
+        }
+        QDialog#Recover QCheckBox::indicator:checked {
+            image: url(:/images/checkbox_checked_$ASSET_THEME);
+        }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+
+    const QString primaryStyle = GUIUtil::primaryButtonStyle();
+    const QString secondaryStyle = GUIUtil::secondaryButtonStyle();
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok))
+        okButton->setStyleSheet(primaryStyle);
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(secondaryStyle);
+
+    if (QCalendarWidget* calendar = ui->dateInput->calendarWidget()) {
+        calendar->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+            QCalendarWidget { background: $PANEL; border: 1px solid $BORDER; }
+            #qt_calendar_navigationbar { background: $WINE; min-height: 42px; border: none; }
+            #qt_calendar_prevmonth, #qt_calendar_nextmonth {
+                background: transparent; border: none; width: 32px; height: 32px;
+                border-radius: 10px; qproperty-iconSize: 14px 14px;
+            }
+            #qt_calendar_prevmonth { qproperty-icon: url(:/images/arrow_light_left_hover); }
+            #qt_calendar_nextmonth { qproperty-icon: url(:/images/arrow_light_right_hover); }
+            #qt_calendar_monthbutton, #qt_calendar_yearbutton {
+                background: transparent; border: none; color: #FFFFFF;
+                font-weight: 700; border-radius: 10px; padding: 4px 10px;
+            }
+            #qt_calendar_prevmonth:hover, #qt_calendar_nextmonth:hover,
+            #qt_calendar_monthbutton:hover, #qt_calendar_yearbutton:hover {
+                background: rgba(255,255,255,0.16);
+            }
+            #qt_calendar_calendarview {
+                background: $PANEL; border: none; outline: none;
+                gridline-color: transparent;
+                selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
+            }
+            QCalendarWidget QWidget { alternate-background-color: $PANEL_SOFT; }
+            QCalendarWidget QToolButton::menu-indicator { image: none; }
+            QCalendarWidget QAbstractItemView:enabled {
+                color: $INK; selection-background-color: $WINE_DEEP; selection-color: #FFFFFF;
+            }
+            QCalendarWidget QAbstractItemView:disabled { color: $INK_FAINT; }
+            QCalendarWidget QMenu {
+                background: $PANEL; color: $INK; border: 1px solid $BORDER;
+            }
+            QCalendarWidget QSpinBox {
+                background: $PANEL; color: $INK; border: 1px solid $FIELD_BORDER;
+            }
+        )")));
+    }
 }
 
 Recover::~Recover()
@@ -47,6 +190,8 @@ void Recover::setCreateNew()
     ui->textLabel2->setEnabled(false);
     ui->mnemonicWords->setEnabled(false);
     ui->mnemonicWords->clear();
+    ui->dateInput->setEnabled(false);
+    ui->dateInput->clear();
     ui->use24->setChecked(true);
     ui->usePassphrase->setChecked(false);
     ui->textLabel3->setEnabled(false);
@@ -58,12 +203,18 @@ void Recover::setCreateNew()
 void Recover::on_createNew_clicked()
 {
     setCreateNew();
+    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
+    ui->dateInput->setDate(QDate(2019, 12, 11));
 }
 
 void Recover::on_recoverExisting_clicked()
 {
     ui->textLabel2->setEnabled(true);
     ui->mnemonicWords->setEnabled(true);
+    ui->dateInput->setEnabled(true);
+    ui->dateInput->setEnabled(true);
+    ui->dateInput->setDisplayFormat("dd-MM-yyyy");
+    ui->dateInput->setDate(ui->dateInput->minimumDate());
 }
 
 void Recover::on_usePassphrase_clicked()
@@ -105,7 +256,15 @@ bool Recover::askRecover(bool& newWallet)
 
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
+                    if(recover.ui->mnemonicWords->text().trimmed().isEmpty()) {
+                        recover.ui->errorMessage->setText(tr("Recovery seed phrase can't be empty."));
+                        continue;
+                    }
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
+                    QDate date = recover.ui->dateInput->date();
+                    QDate newDate = date.addDays(-1);
+                    recover.ui->dateInput->setDate(newDate);
+                    SoftSetArg("-wcdate", recover.ui->dateInput->text().toStdString());
                     const char* str = mnemonic.c_str();
                     bool space = true;
                     int n = 0;
@@ -129,11 +288,6 @@ bool Recover::askRecover(bool& newWallet)
                         continue;
                     }
 
-                    if(mnemonic.empty()) {
-                        recover.ui->errorMessage->setText("Recovery seed phrase can't be empty.");
-                        continue;
-                    }
-
                     SecureString secmnemonic(mnemonic.begin(), mnemonic.end());
                     if(!Mnemonic::mnemonic_check(secmnemonic)){
                         recover.ui->errorMessage->setText(tr("You have entered an invalid recovery seed phrase. Please double check the spelling and order."));
@@ -141,6 +295,9 @@ bool Recover::askRecover(bool& newWallet)
                     }
 
                     SoftSetArg("-mnemonic", mnemonic);
+                } else {
+                    newWallet = true;
+                    SoftSetBoolArg("-newwallet", newWallet);
                 }
 
                 if(recover.ui->usePassphrase->isChecked()) {

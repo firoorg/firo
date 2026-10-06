@@ -3,7 +3,7 @@
  <class>Recover</class>
  <widget class="QDialog" name="Recover">
   <property name="sizePolicy">
-   <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
@@ -23,7 +23,7 @@
    <item>
     <widget class="QLabel" name="textLabel">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -41,10 +41,11 @@ You can also choose to further encrypt your recovery seed phrase with an additio
 You will need to save this passphrase as well with the recovery seed phrase. Failing to save the passphrase will lead to your funds being irrecoverable.
 
 If you have an existing recovery seed phrase, please select "Recover existing wallet". If you have secured your recovery seed phrase with an additional passphrase, enter it too.
+Also you can choose wallet birth date for more faster and optimised wallet scan.
       </string>
      </property>
      <property name="wordWrap">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="margin">
       <number>10</number>
@@ -72,7 +73,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QHBoxLayout" name="horizontalLayout1">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -97,7 +98,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
      </item>
      <item>
       <widget class="QFrame" name="numberofwords">
-       <layout class="QHBoxLayout" name="horizontalLayout1">
+       <layout class="QHBoxLayout" name="horizontalLayout11">
         <item>
          <widget class="QRadioButton" name="use12">
           <property name="text">
@@ -118,7 +119,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </layout>
    </item>
    <item>
-    <spacer name="horizontalSpacer">
+    <spacer name="horizontalSpacer1">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
@@ -134,24 +135,55 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
     </spacer>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout2">
+    <layout class="QVBoxLayout" name="verticalLayout2">
      <item>
-      <widget class="QLabel" name="textLabel2">
-       <property name="text">
-        <string>Input recovery seed phrase here:</string>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
-       </property>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout2">
+       <item>
+        <widget class="QLabel" name="textLabel2">
+         <property name="text">
+          <string>Input recovery seed phrase here:</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="mnemonicWords"/>
+       </item>
+      </layout>
      </item>
      <item>
-      <widget class="QLineEdit" name="mnemonicWords"/>
-     </item>
+      <layout class="QHBoxLayout" name="horizontalLayoutDate">
+            <item>
+                  <widget class="QLabel" name="textLabelDate">
+                  <property name="text">
+                        <string>Choose the wallet creation date:</string>
+                  </property>
+                  <property name="wordWrap">
+                        <bool>true</bool>
+                  </property>
+                  </widget>
+            </item>
+            <item>
+                  <widget class="QDateEdit" name="dateInput">
+                  <property name="calendarPopup">
+                        <bool>true</bool>
+                  </property>
+                  <property name="displayFormat">
+                        <string>dd-MM-yyyy</string>
+                  </property>
+                  <property name="date">
+                  </property>
+                  </widget>
+            </item>
+      </layout>
+    </item>
+
     </layout>
    </item>
    <item>
-    <spacer name="horizontalSpacer1">
+    <spacer name="horizontalSpacer11">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
@@ -237,12 +269,6 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
      <property name="text">
       <string/>
      </property>
-     <property name="styleSheet">
-      <string notr="true">color:red;</string>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
      <property name="wordWrap">
       <bool>true</bool>
      </property>
@@ -251,7 +277,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
    <item>
     <widget class="QLabel" name="textLabelPcodes">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -260,7 +286,7 @@ If you have an existing recovery seed phrase, please select "Recover existing wa
       <string>If you use RAP addresses, and are restoring a wallet, enter the number of RAP addresses you have created to recover funds received using RAP addresses.</string>
      </property>
      <property name="wordWrap">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="margin">
       <number>10</number>

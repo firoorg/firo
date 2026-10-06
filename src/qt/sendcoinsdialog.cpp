@@ -3,40 +3,49 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "sendcoinsdialog.h"
+#include "compat_layer.h"
 #include "ui_sendcoinsdialog.h"
 
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "clientmodel.h"
 #include "coincontroldialog.h"
+#include "guitheme.h"
 #include "guiutil.h"
-#include "lelantusmodel.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "rosenbridge.h"
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
 
 #include "base58.h"
 #include "chainparams.h"
-#include "lelantus.h"
 #include "wallet/coincontrol.h"
 #include "validation.h" // mempool and minRelayTxFee
-#include "ui_interface.h"
 #include "txmempool.h"
 #include "wallet/wallet.h"
-#include "sendtopcodedialog.h"
-#include "pcodemodel.h"
 #include "overviewpage.h"
 
+#include <QButtonGroup>
 #include <QFontMetrics>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMessageBox>
-#include <QScrollBar>
+#include <QPainter>
 #include <QSettings>
 #include <QTextDocument>
 #include <QTimer>
 
+#include <functional>
+
 #define SEND_CONFIRM_DELAY   3
 
+/**
+ * Build the send form, connect its controls and restore the saved fee settings.
+ * @param _platformStyle Borrowed platform styling that must outlive this dialog.
+ * @param parent Optional Qt parent that owns this dialog.
+ * @pre Called on the GUI thread with the wallet application initialized and non-null _platformStyle.
+ */
 SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SendCoinsDialog),
@@ -48,6 +57,25 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     platformStyle(_platformStyle)
 {
     ui->setupUi(this);
+
+    balanceWarning = new QPushButton(ui->balancePill);
+    balanceWarning->setObjectName(QStringLiteral("balanceSyncWarning"));
+    balanceWarning->setIcon(QIcon(QStringLiteral(":/icons/warning")));
+    balanceWarning->setMaximumWidth(30);
+    balanceWarning->setAutoDefault(false);
+    balanceWarning->setAccessibleName(tr("Wallet is still syncing"));
+    balanceWarning->setToolTip(tr("The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet."));
+    balanceWarning->setStyleSheet(QStringLiteral("QPushButton { background: transparent; border: none; padding: 0px; }"));
+    ui->horizontalLayout_2->addWidget(balanceWarning);
+    connect(balanceWarning, &QPushButton::clicked, this, &SendCoinsDialog::outOfSyncWarningClicked);
+
+    // Let the form scroll as one unit while keeping the send actions visible.
+    ui->verticalLayout->removeWidget(ui->frameCoinControl);
+    ui->verticalLayout_2->insertWidget(0, ui->frameCoinControl);
+    ui->verticalLayout->removeWidget(ui->frameFee);
+    ui->verticalLayout_2->insertWidget(2, ui->frameFee);
+    ui->frameCoinControl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->frameFee->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->addButton->setIcon(QIcon());
@@ -92,16 +120,61 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
-    ui->frameCoinControl->setAutoFillBackground(true);
-    ui->scrollArea->setAutoFillBackground(true);
-    ui->frameFee->setAutoFillBackground(true);
+    ui->balancePill->setAttribute(Qt::WA_StyledBackground, true);
+
+    // "Send from" sits above the recipients, with both balances in view, so the source is
+    // chosen before the form is filled rather than read off the bottom bar.
+    sendFromRow = new QWidget(this);
+    sendFromRow->setObjectName(QStringLiteral("sendFromRow"));
+    auto* sendFromLayout = new QHBoxLayout(sendFromRow);
+    sendFromLayout->setContentsMargins(2, 0, 0, 0);
+    sendFromLayout->setSpacing(12);
+    auto* sendFromLabel = new QLabel(tr("SEND FROM"), sendFromRow);
+    sendFromLabel->setObjectName(QStringLiteral("sendFromLabel"));
+    auto* sendFromSegment = new QFrame(sendFromRow);
+    sendFromSegment->setObjectName(QStringLiteral("sendFromSegment"));
+    sendFromSegment->setAttribute(Qt::WA_StyledBackground, true);
+    auto* segmentLayout = new QHBoxLayout(sendFromSegment);
+    segmentLayout->setContentsMargins(2, 2, 2, 2);
+    segmentLayout->setSpacing(2);
+    sendFromPrivate = new QPushButton(sendFromSegment);
+    sendFromPrivate->setObjectName(QStringLiteral("sendFromPrivate"));
+    sendFromTransparent = new QPushButton(sendFromSegment);
+    sendFromTransparent->setObjectName(QStringLiteral("sendFromTransparent"));
+    auto* sendFromGroup = new QButtonGroup(this);
+    for (QPushButton* choice : {sendFromPrivate, sendFromTransparent}) {
+        choice->setCheckable(true);
+        choice->setAutoDefault(false);
+        choice->setCursor(Qt::PointingHandCursor);
+        choice->setIconSize(QSize(12, 8));
+        sendFromGroup->addButton(choice);
+        segmentLayout->addWidget(choice);
+    }
+    sendFromPrivate->setToolTip(tr("Send from your private (Spark) balance"));
+    sendFromTransparent->setToolTip(tr("Send from your transparent balance"));
+    sendFromLayout->addWidget(sendFromLabel);
+    sendFromLayout->addWidget(sendFromSegment);
+    sendFromLayout->addStretch();
+    ui->verticalLayout->insertWidget(0, sendFromRow);
+    const auto sendFrom = [this](bool privateBalance) {
+        if (fAnonymousMode != privateBalance) {
+            setAnonymizeMode(privateBalance);
+            coinControlUpdateLabels();
+        }
+    };
+    connect(sendFromPrivate, &QPushButton::clicked, this, [sendFrom] { sendFrom(true); });
+    connect(sendFromTransparent, &QPushButton::clicked, this, [sendFrom] { sendFrom(false); });
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &SendCoinsDialog::applyTheme);
+    applyTheme();
 
     {
-        auto allowed = lelantus::IsLelantusAllowed() || spark::IsSparkAllowed();
+        auto allowed = spark::IsSparkAllowed();
         setAnonymizeMode(allowed);
 
         if (!allowed) {
-            ui->switchFundButton->setEnabled(false);
+            sendFromPrivate->setEnabled(false);
         }
     }
 
@@ -132,6 +205,140 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     minimizeFeeSection(settings.value("fFeeSectionMinimized").toBool());
 }
 
+/**
+ * Apply the active theme to the send form, coin-control summary and fee controls.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
+void SendCoinsDialog::updateBalanceTitle()
+{
+    // A dot names the balance being spent: teal for Spark, grey for transparent.
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    const QString title = fAnonymousMode ? tr("Private Balance") : tr("Transparent Balance");
+    ui->labelBalanceText->setTextFormat(Qt::RichText);
+    ui->labelBalanceText->setText(GUIUtil::dotLabelHtml(fAnonymousMode ? tc.teal : tc.inkFaint, title));
+}
+
+void SendCoinsDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QDialog#SendCoinsDialog QPushButton { min-width: 0; }")));
+    ui->scrollArea->setStyleSheet(QStringLiteral("QScrollArea { background: transparent; border: none; }"));
+    ui->scrollAreaWidgetContents->setStyleSheet(QStringLiteral("QWidget#scrollAreaWidgetContents { background: transparent; }"));
+
+    const QString cardStyle = GUIUtil::themed(QStringLiteral(
+        "QFrame#frameFee, QFrame#frameCoinControl {"
+        " background: $PANEL;"
+        " border: 1px solid $BORDER;"
+        " border-radius: 14px;"
+        "}"));
+    ui->frameFee->setStyleSheet(cardStyle);
+    ui->frameCoinControl->setStyleSheet(cardStyle);
+
+    ui->labelFeeHeadline->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
+    ui->labelFeeMinimized->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; }")));
+
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("5px 14px"));
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("5px 14px"));
+    ui->sendButton->setStyleSheet(primaryButtonStyle);
+    sendFromRow->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QLabel#sendFromLabel { background: transparent; color: $INK_SOFT; font: $FONT_CAPTION; }
+        QFrame#sendFromSegment { background: $PANEL; border: 1px solid $BORDER; border-radius: 11px; }
+        QFrame#sendFromSegment QPushButton {
+            background: transparent; border: 1px solid transparent; border-radius: 9px;
+            padding: 4px 12px; min-width: 0; color: $INK_SOFT; font-weight: 700;
+        }
+        QFrame#sendFromSegment QPushButton:hover:enabled { background: $HOVER; color: $INK; }
+        QFrame#sendFromSegment QPushButton:disabled { color: $INK_FAINT; }
+        QFrame#sendFromSegment QPushButton#sendFromPrivate:checked {
+            background: $TEAL_TINT; border-color: $TEAL; color: $TEAL_TEXT;
+        }
+        QFrame#sendFromSegment QPushButton#sendFromTransparent:checked {
+            background: $HOVER; border-color: $FIELD_BORDER; color: $INK;
+        }
+    )")));
+    // The same dots as the balance pill and the Overview: teal for Spark, grey for transparent.
+    // The pixmap is wider than the dot to space it from the label.
+    const auto dot = [this](const QString& color) {
+        const qreal dpr = devicePixelRatioF();
+        QPixmap pixmap(qRound(12 * dpr), qRound(8 * dpr));
+        pixmap.setDevicePixelRatio(dpr);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(color));
+        painter.drawEllipse(QRectF(0, 0, 8, 8));
+        return QIcon(pixmap);
+    };
+    const GUIUtil::ThemeColors& colors = GUIUtil::themeColors();
+    sendFromPrivate->setIcon(dot(colors.teal));
+    sendFromTransparent->setIcon(dot(colors.inkFaint));
+    ui->clearButton->setStyleSheet(secondaryButtonStyle);
+    ui->addButton->setStyleSheet(secondaryButtonStyle);
+    ui->buttonChooseFee->setStyleSheet(secondaryButtonStyle);
+    ui->buttonMinimizeFee->setStyleSheet(secondaryButtonStyle);
+
+    ui->balancePill->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QFrame#balancePill { background: $PANEL; border: 1px solid $BORDER; border-radius: 17px; }"
+        "QFrame#balancePill QLabel { background: transparent; border: none; }"
+        "QFrame#balancePill QLabel#labelBalanceText { color: $INK_SOFT; font-weight: 400; }"
+        "QFrame#balancePill QLabel#labelBalance { color: $INK; font-weight: 700; }")));
+    updateBalanceTitle();
+
+    ui->labelCoinControlFeatures->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
+    ui->pushButtonCoinControl->setStyleSheet(secondaryButtonStyle);
+    ui->labelCoinControlAutomaticallySelected->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " padding: 4px 10px; color: $INK_SOFT; font-weight: 700; }")));
+    ui->labelCoinControlInsuffFunds->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $ERROR; font-weight: 700; }")));
+
+    // Include the caption/value gap in the size hint used by QFormLayout's wrapping.
+    const QString ccCaptionStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; font-weight: 700; padding-right: 10px; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    const QString ccValueStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }"
+        "QLabel[dust=\"true\"] { color: $ERROR; }"
+        "QLabel:disabled { color: $INK_FAINT; }"));
+    for (QLabel* caption : {ui->labelCoinControlQuantityText, ui->labelCoinControlBytesText,
+                            ui->labelCoinControlAmountText, ui->labelCoinControlLowOutputText,
+                            ui->labelCoinControlFeeText, ui->labelCoinControlAfterFeeText,
+                            ui->labelCoinControlChangeText}) {
+        caption->setStyleSheet(ccCaptionStyle);
+    }
+    for (QLabel* value : {ui->labelCoinControlQuantity, ui->labelCoinControlBytes,
+                          ui->labelCoinControlAmount, ui->labelCoinControlLowOutput,
+                          ui->labelCoinControlFee, ui->labelCoinControlAfterFee,
+                          ui->labelCoinControlChange}) {
+        value->setStyleSheet(ccValueStyle);
+    }
+
+    ui->checkBoxCoinControlChange->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QCheckBox { background: transparent; color: $INK_SOFT; font-weight: 700; }"
+        "QCheckBox::indicator:unchecked { image: url(:/images/checkbox_normal_$ASSET_THEME); }"
+        "QCheckBox::indicator:checked { image: url(:/images/checkbox_checked_$ASSET_THEME); }")));
+    const QString fieldStyle = GUIUtil::themed(QStringLiteral(
+        "QValidatedLineEdit, AmountSpinBox, QValueComboBox {"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
+        " padding: 4px 12px; color: $INK;"
+        "}"
+        "AmountSpinBox QLineEdit { %1 }"
+        "QValidatedLineEdit:focus, AmountSpinBox:focus { border: 2px solid $WINE; padding: 3px 11px; }"
+        "QValueComboBox:focus { border: 1px solid $WINE; }"
+        "QValidatedLineEdit[invalidInput=\"true\"], AmountSpinBox[invalidInput=\"true\"] { border-color: $ERROR; }"
+        "QValidatedLineEdit:disabled, AmountSpinBox:disabled, QValueComboBox:disabled { color: $INK_FAINT; }"
+    )).arg(GUIUtil::spinBoxInnerLineEditReset());
+    ui->lineEditCoinControlChange->setStyleSheet(fieldStyle);
+    ui->customFee->setStyleSheet(fieldStyle);
+    ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; }")));
+}
+
 void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
 {
     this->clientModel = _clientModel;
@@ -141,6 +348,11 @@ void SendCoinsDialog::setClientModel(ClientModel *_clientModel)
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(_clientModel, &ClientModel::numBlocksChanged, this, &SendCoinsDialog::updateBlocks);
     }
+}
+
+void SendCoinsDialog::showOutOfSyncWarning(bool fShow)
+{
+    balanceWarning->setVisible(fShow);
 }
 
 void SendCoinsDialog::setModel(WalletModel *_model)
@@ -158,16 +370,14 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             }
         }
 
-        auto privateBalance = _model->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = _model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        auto privateBalance = _model->getSparkBalance();
 
         if (model->getWallet()) {
-            auto allowed = lelantus::IsLelantusAllowed() || (spark::IsSparkAllowed() && model->getWallet()->sparkWallet);
+            auto allowed = (spark::IsSparkAllowed() && model->getWallet()->sparkWallet);
             setAnonymizeMode(allowed);
 
             if (!allowed) {
-                ui->switchFundButton->setEnabled(false);
+                sendFromPrivate->setEnabled(false);
             }
         }
 
@@ -190,11 +400,11 @@ void SendCoinsDialog::setModel(WalletModel *_model)
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::updateSmartFeeLabel);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::updateGlobalFeeVariables);
         connect(ui->sliderSmartFee, &QSlider::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateFeeSectionControls);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
-        connect(ui->groupFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
-        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
-        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::buttonClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::updateFeeSectionControls);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
+        connect(ui->groupFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::updateGlobalFeeVariables);
+        connect(ui->groupCustomFee, qOverload<int>(&QButtonGroup::idClicked), this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::updateGlobalFeeVariables);
         connect(ui->customFee, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
         connect(ui->checkBoxMinimumFee, &QCheckBox::stateChanged, this, &SendCoinsDialog::setMinimumFee);
@@ -229,6 +439,17 @@ SendCoinsDialog::~SendCoinsDialog()
     delete ui;
 }
 
+namespace {
+WalletModel::SendCoinsReturn runWalletOperation(std::function<WalletModel::SendCoinsReturn()> operation)
+{
+    WalletModel::SendCoinsReturn result;
+    GUIUtil::runWalletOperation([&] {
+        result = operation();
+    });
+    return result;
+}
+}
+
 void SendCoinsDialog::on_sendButton_clicked()
 {
     updateGlobalFeeVariables();
@@ -250,21 +471,6 @@ void SendCoinsDialog::on_sendButton_clicked()
             if(entry->validate())
             {
                 SendCoinsRecipient recipient = entry->getValue();
-                if(entry->isPayToPcode()) {
-                    if (!model->getPcodeModel()) return;
-                    std::unique_ptr<SendtoPcodeDialog> dialog(new SendtoPcodeDialog(this, recipient.address.toStdString(), recipient.label.toStdString()));
-                    dialog->setModel(model);
-                    dialog->exec();
-                    std::pair<SendtoPcodeDialog::Result, CBitcoinAddress> const sendResult = dialog->getResult();
-                    switch (sendResult.first) {
-                        case SendtoPcodeDialog::Result::addressSelected:
-                            recipient.address = sendResult.second.ToString().c_str();
-                            break;
-                        default:
-                            return;
-                    }
-                    ctx = dialog->getUnlockContext();
-                }
                 recipients.append(recipient);
             }
             else
@@ -276,6 +482,27 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     if(!valid || recipients.isEmpty())
     {
+        return;
+    }
+
+    int rosenMetadataCount = 0;
+    bool subtractFeeRequested = false;
+    for (const auto& recipient : recipients) {
+        if (!recipient.opReturnData.empty()) {
+            ++rosenMetadataCount;
+            if (!RosenBridge::Parse(recipient.opReturnData)) {
+                processSendCoinsReturn(WalletModel::InvalidRosenBridgeData);
+                return;
+            }
+        }
+        subtractFeeRequested |= recipient.fSubtractFeeFromAmount;
+    }
+    if (rosenMetadataCount > 1 || (rosenMetadataCount > 0 && subtractFeeRequested)) {
+        processSendCoinsReturn(WalletModel::InvalidRosenBridgeData);
+        return;
+    }
+    if (rosenMetadataCount > 0 && fAnonymousMode) {
+        processSendCoinsReturn(WalletModel::RosenBridgeRequiresTransparent);
         return;
     }
 
@@ -292,8 +519,8 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
 
     // prepare transaction for getting txFee earlier
-    WalletModelTransaction currentTransaction(recipients);
     std::vector<WalletModelTransaction> transactions;
+    std::vector<WalletModelTransaction> sparkSpendTransactions;
     WalletModel::SendCoinsReturn prepareStatus;
     std::vector<std::pair<CWalletTx, CAmount>> wtxAndFees;
     std::list<CReserveKey> reservekeys;
@@ -309,63 +536,185 @@ void SendCoinsDialog::on_sendButton_clicked()
     else
         ctrl.nConfirmTarget = 0;
 
-    int sparkAddressCount = 0;
-    for(int i = 0; i < recipients.size(); ++i){
-        bool check = model->validateSparkAddress(recipients[i].address);
-        if(check) {
-            sparkAddressCount++;
+    // resolve spark names in recipients list
+    for (auto &recipient : recipients) {
+        if (recipient.address.startsWith("@")) {
+            QString sparkName = recipient.address.mid(1);
+            QString address = model->getSparkNameAddress(sparkName);
+            if (address.isEmpty()) {
+                QMessageBox::critical(this, tr("Error"), tr("Spark name %1 not found").arg(sparkName));
+                return;
+            }
+            recipient.address = address;
         }
     }
+
+    int sparkAddressCount = 0;
+    int exchangeAddressCount = 0;
+    for(int i = 0; i < recipients.size(); ++i){
+        if (model->validateSparkAddress(recipients[i].address))
+            sparkAddressCount++;
+        if (model->validateExchangeAddress(recipients[i].address))
+            exchangeAddressCount++;
+    }
+
+    if (fAnonymousMode && exchangeAddressCount > 0) {
+        QMessageBox::critical(
+            this,
+            tr("Error"),
+            tr("Sending private funds to an exchange address is temporarily unavailable. "
+               "Move the funds to a transparent address first, then send from there."));
+        fNewRecipientAllowed = true;
+        return;
+    }
+
+    bool fGoThroughTransparentAddress = false;
+    __decltype(recipients) exchangeRecipients;
+    CScript intermediateAddressScript;
+    CAmount extraFee = 0;
+
+    if (fAnonymousMode && exchangeAddressCount > 0) {
+        CAmount exchangeAddressAmount = 0;
+        // if the transaction is performed in two stages through the intermediate address we need to calculate the size of the second transaction
+        uint32_t secondTxSize = 8 /*CTransaction: nVersion, nLockTime*/ + 1 /*vinSize*/ + 148 /*vin[0]*/ + 20 /*safety*/ + 1 /*voutSize*/;
+
+        fGoThroughTransparentAddress = true;
+
+        // remove exchange addresses from recipients array and add them to exchangeRecipients array
+        for(int i = 0; i < recipients.size(); ){
+            if (model->validateExchangeAddress(recipients[i].address)) {
+                exchangeAddressAmount += recipients[i].amount;
+                // we use different fee calculation system and therefore can't reliably do the calculation
+                // of fee for the second transaction if some of recipients have this flag set
+                recipients[i].fSubtractFeeFromAmount = false;
+                exchangeRecipients.push_back(recipients[i]);
+
+                secondTxSize += 8 /*amount*/ + 1 /*scriptSize*/ + 26 /*scriptPubKey*/;
+
+                recipients.erase(recipients.begin() + i);
+            }
+            else {
+                ++i;
+            }
+        }
+
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        // create a new transparent address and add it to the recipients array
+        if (!pwalletMain->IsLocked()) {
+            pwalletMain->TopUpKeyPool();
+        }
+        CPubKey newKey;
+        if (!pwalletMain->GetKeyFromPool(newKey)) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+        pwalletMain->SetAddressBook(newKey.GetID(), "", "receive");
+        intermediateAddressScript = GetScriptForDestination(newKey.GetID());
+
+        extraFee = CWallet::GetMinimumFee(secondTxSize, nTxConfirmTarget, mempool);
+
+        SendCoinsRecipient newRecipient;        
+        newRecipient.address = CBitcoinAddress(newKey.GetID()).ToString().c_str();
+        newRecipient.amount = exchangeAddressAmount + extraFee;
+        newRecipient.fSubtractFeeFromAmount = false;
+        recipients.push_back(newRecipient);
+    }
+
+    WalletModelTransaction currentTransaction(recipients);
 
     CAmount mintSparkAmount = 0;
     CAmount txFee = 0;
     CAmount totalAmount = 0;
-    if (model->getLelantusModel()->getPrivateBalance().first > 0 && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod) {
-        MigrateLelantusToSparkDialog migrateLelantusToSpark(model);
-        bool clickedButton = migrateLelantusToSpark.getClickedButton();
-        if(!clickedButton) {
+    const bool isSparkSpend = fAnonymousMode && spark::IsSparkAllowed();
+
+    if (isSparkSpend) {
+        prepareStatus = runWalletOperation([&] {
+            return model->prepareSpendSparkTransactions(
+                sparkSpendTransactions, recipients, &ctrl);
+        });
+    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
+        if (spark::IsSparkAllowed())
+            prepareStatus = runWalletOperation([&] {
+                return model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
+            });
+        else {
+            processSendCoinsReturn(WalletModel::InvalidAddress);
             fNewRecipientAllowed = true;
             return;
         }
-    }
-    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareJoinSplitTransaction(currentTransaction, &ctrl);
-    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        prepareStatus = model->prepareSpendSparkTransaction(currentTransaction, &ctrl);
-    } else if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount)) {
-        if (spark::IsSparkAllowed())
-            prepareStatus = model->prepareMintSparkTransaction(transactions, recipients, wtxAndFees, reservekeys, &ctrl);
-        else {
-            processSendCoinsReturn(WalletModel::InvalidAddress);
-            return;
-        }
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
-        if (spark::IsSparkAllowed()) {
-            SendGoPrivateDialog goPrivateDialog;
-            bool clickedButton = goPrivateDialog.getClickedButton();
-            if (!clickedButton) {
-                setAnonymizeMode(true);
-                fNewRecipientAllowed = true;
-                return;
-            }
-        }
-        prepareStatus = model->prepareTransaction(currentTransaction, &ctrl);
+        prepareStatus = runWalletOperation([&] {
+            return model->prepareTransaction(currentTransaction, &ctrl);
+        });
     } else {
         fNewRecipientAllowed = true;
         return;
     }
 
     // process prepareStatus and on error generate message shown to user
+    CAmount feeForMessage = currentTransaction.getTransactionFee();
+    if (isSparkSpend) {
+        feeForMessage = 0;
+        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+            feeForMessage += transaction.getTransactionFee();
+        }
+    }
     processSendCoinsReturn(prepareStatus,
-        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeForMessage));
 
     if(prepareStatus.status != WalletModel::OK) {
         fNewRecipientAllowed = true;
         return;
     }
 
+    // If the transaction is performed in two stages through the intermediate address we need to show the real
+    // recipients (for informational purposes), replacing the intermediate transparent address with the exchange address(es)
+    __decltype(recipients) realRecipients = recipients;
+    if (fGoThroughTransparentAddress) {
+        realRecipients.erase(realRecipients.end() - 1);
+        realRecipients.append(exchangeRecipients);
+    } else if (isSparkSpend) {
+        // Use the amounts from the prepared transactions. In particular, these
+        // reflect any fee subtracted from a private recipient.
+        for (SendCoinsRecipient& recipient : realRecipients) {
+            recipient.amount = 0;
+        }
+        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+            for (const SendCoinsRecipient& prepared :
+                 transaction.getRecipients()) {
+                for (SendCoinsRecipient& recipient : realRecipients) {
+                    if (recipient.address == prepared.address) {
+                        recipient.amount += prepared.amount;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     // Format confirmation message
     QStringList formatted;
+    QString warningMessage;
+
+    if (isSparkSpend) {
+        for (const SendCoinsRecipient& recipient : recipients) {
+            if (model->validateAddress(recipient.address)) {
+                warningMessage = entry->generateWarningText(recipient.address, fAnonymousMode);
+                break;
+            }
+        }
+        if (warningMessage.isEmpty() && !recipients.empty()) {
+            warningMessage = entry->generateWarningText(recipients.front().address, fAnonymousMode);
+        }
+    } else {
+        for(int i = 0; i < recipients.size(); ++i) {
+            warningMessage = entry->generateWarningText(recipients[i].address, fAnonymousMode);
+            if ((model->validateSparkAddress(recipients[i].address)) || (recipients[i].address.startsWith("EX"))) {
+                break;
+            }
+        }
+    }
+
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for(int i = 0; i < recipients.size(); i++) {
@@ -389,59 +738,26 @@ void SendCoinsDialog::on_sendButton_clicked()
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
             amount.append("</b>");
-            // generate monospace address string
-            QString address = "<span style='font-family: monospace;'>" + rcp.address;
-            address.append("</span>");
             QString recipientElement;
             {
                 if(rcp.label.length() > 0) // label with address
                 {
                     recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                    recipientElement.append(QString(" (%1)").arg(address));
+                    recipientElement.append(QString(" (%1)").arg(rcp.address));
                 }
                 else // just address
                 {
-                    recipientElement = tr("%1 to %2").arg(amount, address);
-                }
-            }
-            formatted.append(recipientElement);
-        }
-    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
-        for (auto &rcp : recipients)
-        {
-            // generate bold amount string
-            CAmount namount = rcp.amount;
-            if(rcp.fSubtractFeeFromAmount) {
-                namount = rcp.amount - currentTransaction.getTransactionFee();
-            }
-            QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), namount);
-            amount.append("</b>");
-            // generate monospace address string
-            QString address = "<span style='font-family: monospace;'>" + rcp.address;
-            address.append("</span>");
-            QString recipientElement;
-            {
-                if(rcp.label.length() > 0) // label with address
-                {
-                    recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                    recipientElement.append(QString(" (%1)").arg(address));
-                }
-                else // just address
-                {
-                    recipientElement = tr("%1 to %2").arg(amount, address);
+                    recipientElement = tr("%1 to %2").arg(amount, rcp.address);
                 }
             }
             formatted.append(recipientElement);
         }
     } else {
-        for (const SendCoinsRecipient &rcp : currentTransaction.getRecipients())
+        for (auto &rcp : realRecipients)
         {
             // generate bold amount string
             QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
             amount.append("</b>");
-            // generate monospace address string
-            QString address = "<span style='font-family: monospace;'>" + rcp.address;
-            address.append("</span>");
 
             QString recipientElement;
 
@@ -449,25 +765,67 @@ void SendCoinsDialog::on_sendButton_clicked()
                 if(rcp.label.length() > 0) // label with address
                 {
                     recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
-                    recipientElement.append(QString(" (%1)").arg(address));
+                    recipientElement.append(QString(" (%1)").arg(rcp.address));
                 }
                 else // just address
                 {
-                    recipientElement = tr("%1 to %2").arg(amount, address);
+                    recipientElement = tr("%1 to %2").arg(amount, rcp.address);
                 }
             }
             formatted.append(recipientElement);
         }
     }
+
+    if (fGoThroughTransparentAddress) {
+        formatted.append("<br />");
+        formatted.append(tr("EX-addresses can only receive FIRO from transparent addresses.<br /><br />"
+            "Your FIRO will go from Spark to a newly generated transparent address %1 and then immediately be sent to the EX-address.").arg(recipients[recipients.size()-1].address));
+    }
+
+    for (const auto& recipient : realRecipients) {
+        if (recipient.opReturnData.empty()) {
+            continue;
+        }
+        RosenBridge::Metadata metadata;
+        if (!RosenBridge::Parse(recipient.opReturnData, &metadata)) {
+            continue;
+        }
+        QString details = QString("<br /><b>%1</b>").arg(tr("Rosen Bridge metadata"));
+        details += QString("<br />%1: %2").arg(tr("Destination chain"), GUIUtil::HtmlEscape(metadata.chainName));
+        details += QString("<br />%1: %2").arg(tr("Bridge fee (atomic units)"), QString::number(static_cast<qulonglong>(metadata.bridgeFee)));
+        details += QString("<br />%1: %2").arg(tr("Network fee (atomic units)"), QString::number(static_cast<qulonglong>(metadata.networkFee)));
+        details += QString("<br />%1: %2").arg(tr("Destination address (hex)"), GUIUtil::HtmlEscape(RosenBridge::HexStr(metadata.address)));
+        details += QString("<br />%1: %2").arg(tr("Raw data"), GUIUtil::HtmlEscape(RosenBridge::HexStr(recipient.opReturnData)));
+        formatted.append(details);
+    }
+
     QString questionString = tr("Are you sure you want to send?");
+    questionString.append(warningMessage);
     questionString.append("<br /><br />%1");
-    double txSize;
+    bool firstMessage = true;
+    for (const auto& rec : recipients) {
+        if (!rec.message.isEmpty()) {
+            if (firstMessage) {
+                questionString.append("<hr><b>" + tr("Messages") + ":</b><br>");
+                firstMessage = false;
+            }
+            QString sanitizedMsg = GUIUtil::HtmlEscape(rec.message, true);
+            questionString.append("• " + sanitizedMsg + "<br>");
+        }
+    }
+
+    double txSize = 0.0;
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         for (auto &transaction : transactions) {
             txFee += transaction.getTransactionFee();
             mintSparkAmount += transaction.getTotalTransactionAmount();
             txSize +=  (double)transaction.getTransactionSize();
+        }
+    } else if (isSparkSpend) {
+        for (WalletModelTransaction& transaction : sparkSpendTransactions) {
+            txFee += transaction.getTransactionFee();
+            txSize += static_cast<double>(transaction.getTransactionSize());
         }
     } else {
         txFee = currentTransaction.getTransactionFee();
@@ -477,13 +835,34 @@ void SendCoinsDialog::on_sendButton_clicked()
     if(txFee > 0)
     {
         // append fee string if a fee is required
-        questionString.append("<hr /><span style='color:#aa0000;'>");
+        questionString.append("<hr /><span style='font-weight: 700;'>");
         questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
         questionString.append("</span> ");
         questionString.append(tr("added as transaction fee"));
 
         // append transaction size
         questionString.append(" (" + QString::number(txSize / 1000) + " kB)");
+
+        if (fGoThroughTransparentAddress) {
+            QString feeString;
+            feeString.append("<span style='font-weight: 700;'>");
+            feeString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), extraFee));
+            feeString.append("</span>");
+            
+            questionString.append(tr(". An additional transaction fee of %1 will apply to complete the send from the transparent address to the EX-address.").arg(feeString));
+        }
+    }
+
+    // Before versioned construction is active, a payment that needs several
+    // coins is sent as several transactions. Make the fee and partial-commit
+    // behavior explicit before confirmation.
+    if (isSparkSpend && sparkSpendTransactions.size() > 1) {
+        questionString.append("<hr />");
+        questionString.append(tr("This payment does not fit in one Spark coin and will be sent as "
+                                 "%1 separate transactions. Each pays its own fee, they can be "
+                                 "linked to each other, and if one of them is rejected the "
+                                 "recipients will have been paid only in part.")
+                                  .arg(sparkSpendTransactions.size()));
     }
 
     // add total amount in all subdivision units
@@ -491,11 +870,11 @@ void SendCoinsDialog::on_sendButton_clicked()
     if ((fAnonymousMode == false) && (recipients.size() == sparkAddressCount) && spark::IsSparkAllowed()) 
     {
         totalAmount = mintSparkAmount + txFee;
-    } else if ((fAnonymousMode == true) && (recipients.size() == 1) && spark::IsSparkAllowed()) {
-        if(recipients[0].fSubtractFeeFromAmount) {
-            totalAmount = recipients[0].amount;
-        } else {
-            totalAmount = recipients[0].amount + currentTransaction.getTransactionFee();
+    } else if (isSparkSpend) {
+        totalAmount = txFee;
+        for (WalletModelTransaction& transaction :
+             sparkSpendTransactions) {
+            totalAmount += transaction.getTotalTransactionAmount();
         }
     } else {
         totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
@@ -509,7 +888,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     }
     questionString.append(tr("Total Amount %1")
         .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
-    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
+    questionString.append(QString("<span style='font-weight:normal;'><br />(=%2)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
     SendConfirmationDialog confirmationDialog(tr("Confirm send coins"),
@@ -526,14 +905,18 @@ void SendCoinsDialog::on_sendButton_clicked()
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus;
 
-    if ((fAnonymousMode == true) && !spark::IsSparkAllowed()) {
-        sendStatus = model->sendPrivateCoins(currentTransaction);
-    } else if ((fAnonymousMode == true) && spark::IsSparkAllowed()) {
-        sendStatus = model->spendSparkCoins(currentTransaction);
+    if (isSparkSpend) {
+        sendStatus = runWalletOperation([&] {
+            return model->spendSparkCoins(sparkSpendTransactions);
+        });
     } else if ((fAnonymousMode == false) && (sparkAddressCount == recipients.size()) && spark::IsSparkAllowed()) {
-        sendStatus = model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
+        sendStatus = runWalletOperation([&] {
+            return model->mintSparkCoins(transactions, wtxAndFees, reservekeys);
+        });
     } else if ((fAnonymousMode == false) && (sparkAddressCount == 0)) {
-        sendStatus = model->sendCoins(currentTransaction);
+        sendStatus = runWalletOperation([&] {
+            return model->sendCoins(currentTransaction);
+        });
     } else {
         return;
     }
@@ -541,30 +924,86 @@ void SendCoinsDialog::on_sendButton_clicked()
     // process sendStatus and on error generate message shown to user
     processSendCoinsReturn(sendStatus);
 
-    if (sendStatus.status == WalletModel::OK)
+    if (sendStatus.status == WalletModel::OK || sendStatus.partiallyCommitted)
     {
         for(int i = 0; i < ui->entries->count(); ++i)
         {
-            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-            if(entry && entry->isPayToPcode())
-            {
-                SendCoinsRecipient recipient = entry->getValue();
-                model->getPcodeModel()->generateTheirNextAddress(recipient.address.toStdString());
-            }
+            FIRO_UNUSED SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         }
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
     }
+
+    if (sendStatus.status != WalletModel::OK) {
+        fNewRecipientAllowed = true;
+        return;
+    }
+
+    // Launch the second stage of the transaction if needed
+    if (fGoThroughTransparentAddress) {
+        if (sparkSpendTransactions.size() != 1) {
+            sendStatus.status = WalletModel::TransactionCreationFailed;
+            sendStatus.reasonCommitFailed =
+                tr("Private transaction staging produced an unexpected transaction count");
+            processSendCoinsReturn(sendStatus);
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        WalletModelTransaction& firstStage = sparkSpendTransactions.front();
+        // prepare the coin control so the transaction will use (by default) only the transparent address
+        // created in the first stage
+        COutPoint outpoint;
+        outpoint.hash = firstStage.getTransaction()->GetHash();
+        outpoint.n = UINT_MAX;
+
+        const auto &vout = firstStage.getTransaction()->tx->vout;
+        for (size_t i = 0; i < vout.size(); i++) {
+            if (vout[i].scriptPubKey == intermediateAddressScript) {
+                outpoint.n = i;
+                break;
+            }
+        }
+
+        if (outpoint.n == UINT_MAX) {
+            sendStatus.status = WalletModel::InvalidAddress;
+            sendStatus.reasonCommitFailed =
+                tr("Intermediate address was not found in the transaction");
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        CCoinControl ctrl;
+        ctrl.fAllowOtherInputs = false;
+        ctrl.fNoChange = true;
+        ctrl.Select(outpoint);
+
+        WalletModelTransaction  secondTransaction(exchangeRecipients);
+
+        prepareStatus = runWalletOperation([&] {
+            return model->prepareTransaction(secondTransaction, &ctrl);
+        });
+
+        // process prepareStatus and on error generate message shown to user
+        processSendCoinsReturn(prepareStatus,
+            BitcoinUnits::formatWithUnit(
+                model->getOptionsModel()->getDisplayUnit(),
+                firstStage.getTransactionFee()));
+
+        if(prepareStatus.status != WalletModel::OK) {
+            fNewRecipientAllowed = true;
+            return;
+        }
+
+        sendStatus = runWalletOperation([&] {
+            return model->sendCoins(secondTransaction);
+        });
+        // process sendStatus and on error generate message shown to user
+        processSendCoinsReturn(sendStatus);
+    }
+
     fNewRecipientAllowed = true;
-}
-
-void SendCoinsDialog::on_switchFundButton_clicked()
-{
-    setAnonymizeMode(!fAnonymousMode);
-    coinControlUpdateLabels();
-
-    entry->setWarning(fAnonymousMode);
 }
 
 void SendCoinsDialog::clear()
@@ -593,22 +1032,26 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
 {
     entry = new SendCoinsEntry(platformStyle, this);
     entry->setModel(model);
+    entry->setfAnonymousMode(fAnonymousMode);
     entry->setWarning(fAnonymousMode);
+
     ui->entries->addWidget(entry);
     connect(entry, &SendCoinsEntry::removeEntry, this, &SendCoinsDialog::removeEntry);
     connect(entry, &SendCoinsEntry::payAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
     connect(entry, &SendCoinsEntry::subtractFeeFromAmountChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
+    connect(entry, &SendCoinsEntry::rosenBridgeChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
+    connect(entry, &SendCoinsEntry::rosenBridgeChanged, this, &SendCoinsDialog::updateRosenBridgeState);
 
     // Focus the field, so that entry can start immediately
     entry->clear();
     entry->setFocus();
     ui->scrollAreaWidgetContents->resize(ui->scrollAreaWidgetContents->sizeHint());
     qApp->processEvents();
-    QScrollBar* bar = ui->scrollArea->verticalScrollBar();
-    if(bar)
-        bar->setSliderPosition(bar->maximum());
+    ui->scrollAreaWidgetContents->layout()->activate();
+    ui->scrollArea->ensureWidgetVisible(entry->focusWidget() ? entry->focusWidget() : entry);
 
     updateTabsAndLabels();
+    updateRosenBridgeState();
     return entry;
 }
 
@@ -619,19 +1062,28 @@ void SendCoinsDialog::updateBlocks(int count, const QDateTime& blockDate, double
         return;
     }
 
-    auto allowed = lelantus::IsLelantusAllowed() || (spark::IsSparkAllowed() && model->getWallet() && model->getWallet()->sparkWallet);
+    auto allowed = (spark::IsSparkAllowed(count) && model->getWallet() && model->getWallet()->sparkWallet);
 
 
-    if (allowed && !ui->switchFundButton->isEnabled())
+    if (allowed && !sendFromPrivate->isEnabled())
     {
         setAnonymizeMode(true);
-        ui->switchFundButton->setEnabled(true);
+        sendFromPrivate->setEnabled(true);
     }
-    else if (!allowed && ui->switchFundButton->isEnabled())
+    else if (!allowed && sendFromPrivate->isEnabled())
     {
         setAnonymizeMode(false);
-        ui->switchFundButton->setEnabled(false);
+        sendFromPrivate->setEnabled(false);
     }
+
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* sendEntry = qobject_cast<SendCoinsEntry*>(
+            ui->entries->itemAt(i)->widget());
+        if (sendEntry) {
+            sendEntry->setfAnonymousMode(fAnonymousMode);
+        }
+    }
+    coinControlUpdateLabels();
 }
 
 void SendCoinsDialog::updateTabsAndLabels()
@@ -651,6 +1103,25 @@ void SendCoinsDialog::removeEntry(SendCoinsEntry* entry)
     entry->deleteLater();
 
     updateTabsAndLabels();
+    updateRosenBridgeState();
+}
+
+void SendCoinsDialog::updateRosenBridgeState()
+{
+    bool hasRosenBridgeData = false;
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry && !entry->isHidden() && entry->hasRosenBridgeData()) {
+            hasRosenBridgeData = true;
+            break;
+        }
+    }
+
+    const bool requiresTransparentBalance = fAnonymousMode && hasRosenBridgeData;
+    ui->sendButton->setEnabled(!requiresTransparentBalance);
+    ui->sendButton->setToolTip(requiresTransparentBalance
+        ? tr("Switch to Transparent Balance to send this Rosen Bridge transfer.")
+        : tr("Confirm the send action"));
 }
 
 QWidget *SendCoinsDialog::setupTabChain(QWidget *prev)
@@ -685,7 +1156,6 @@ void SendCoinsDialog::setAddress(const QString &address)
     {
         entry = addEntry();
     }
-
     entry->setAddress(address);
 }
 
@@ -742,16 +1212,16 @@ void SendCoinsDialog::setBalance(
 
     if(model && model->getOptionsModel())
     {
-        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
-            fAnonymousMode ? privateBalance : balance));
+        const int unit = model->getOptionsModel()->getDisplayUnit();
+        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, fAnonymousMode ? privateBalance : balance));
+        sendFromPrivate->setText(tr("Private (Spark)") + QStringLiteral("  ·  ") + BitcoinUnits::formatWithUnit(unit, privateBalance));
+        sendFromTransparent->setText(tr("Transparent") + QStringLiteral("  ·  ") + BitcoinUnits::formatWithUnit(unit, balance));
     }
 }
 
 void SendCoinsDialog::updateDisplayUnit()
 {
-    auto privateBalance = model->getLelantusModel()->getPrivateBalance();
-    std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-    privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+    auto privateBalance = model->getSparkBalance();
     setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
@@ -785,7 +1255,9 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         msgParams.first = tr("Duplicate address found: addresses should only be used once each.");
         break;
     case WalletModel::TransactionCreationFailed:
-        msgParams.first = tr("Transaction creation failed!");
+        msgParams.first = sendCoinsReturn.reasonCommitFailed.isEmpty()
+            ? tr("Transaction creation failed!")
+            : tr("Transaction creation failed: %1").arg(sendCoinsReturn.reasonCommitFailed);
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
     case WalletModel::TransactionCommitFailed:
@@ -798,6 +1270,13 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
     case WalletModel::PaymentRequestExpired:
         msgParams.first = tr("Payment request expired.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case WalletModel::InvalidRosenBridgeData:
+        msgParams.first = tr("The Rosen Bridge metadata is invalid, duplicated, or incompatible with fee subtraction.");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case WalletModel::RosenBridgeRequiresTransparent:
+        msgParams.first = tr("Rosen Bridge transfers must be sent from the transparent balance.");
         break;
     // included to prevent a compiler warning.
     case WalletModel::OK:
@@ -814,7 +1293,6 @@ void SendCoinsDialog::minimizeFeeSection(bool fMinimize)
     ui->buttonChooseFee  ->setVisible(fMinimize);
     ui->buttonMinimizeFee->setVisible(!fMinimize);
     ui->frameFeeSelection->setVisible(!fMinimize);
-    ui->horizontalLayoutSmartFee->setContentsMargins(0, (fMinimize ? 0 : 6), 0, 0);
     fFeeMinimized = fMinimize;
 }
 
@@ -892,30 +1370,36 @@ void SendCoinsDialog::setAnonymizeMode(bool enableAnonymizeMode)
 {
     fAnonymousMode = enableAnonymizeMode;
 
-    if (fAnonymousMode) {
-        ui->switchFundButton->setText(QString(tr("Use Transparent Balance")));
-        ui->labelBalanceText->setText(QString(tr("Private Balance")));
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry) {
+            entry->setfAnonymousMode(fAnonymousMode);
+            entry->setWarning(fAnonymousMode);
+        }
+    }
 
+    sendFromPrivate->setChecked(fAnonymousMode);
+    sendFromTransparent->setChecked(!fAnonymousMode);
+
+    if (fAnonymousMode) {
         ui->checkBoxCoinControlChange->setEnabled(false);
         ui->lineEditCoinControlChange->setEnabled(false);
 
     } else {
-        ui->switchFundButton->setText(QString(tr("Use Private Balance")));
-        ui->labelBalanceText->setText(QString(tr("Transparent Balance")));
-
         ui->checkBoxCoinControlChange->setEnabled(true);
         if (ui->checkBoxCoinControlChange->isChecked()) {
             ui->lineEditCoinControlChange->setEnabled(true);
         }
 
     }
+    updateBalanceTitle();
 
     if (model) {
-        auto privateBalance = model->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = model->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        auto privateBalance = model->getSparkBalance();
         setBalance(model->getBalance(), 0, 0, 0, 0, 0, privateBalance.first, 0, 0);
     }
+
+    updateRosenBridgeState();
 }
 
 void SendCoinsDialog::removeUnmatchedOutput(CCoinControl &coinControl)
@@ -954,6 +1438,7 @@ void SendCoinsDialog::updateSmartFeeLabel()
     int nBlocksToConfirm = ui->sliderSmartFee->maximum() - ui->sliderSmartFee->value() + 2;
     int estimateFoundAtBlocks = nBlocksToConfirm;
     CFeeRate feeRate = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlocks);
+    ui->labelFeeEstimation->setVisible(feeRate > CFeeRate(0));
     if (feeRate <= CFeeRate(0)) // not enough data => minfee
     {
         ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(
@@ -964,8 +1449,9 @@ void SendCoinsDialog::updateSmartFeeLabel()
         ui->fallbackFeeWarningLabel->setVisible(true);
         int lightness = ui->fallbackFeeWarningLabel->palette().color(QPalette::WindowText).lightness();
         QColor warning_colour(255 - (lightness / 5), 176 - (lightness / 3), 48 - (lightness / 14));
-        ui->fallbackFeeWarningLabel->setStyleSheet("QLabel { color: " + warning_colour.name() + "; }");
-        ui->fallbackFeeWarningLabel->setIndent(QFontMetrics(ui->fallbackFeeWarningLabel->font()).width("x"));
+        ui->fallbackFeeWarningLabel->setStyleSheet(
+            "QLabel { background: transparent; color: " + warning_colour.name() + "; }");
+        ui->fallbackFeeWarningLabel->setIndent(GUIUtil::TextWidth(QFontMetrics(ui->fallbackFeeWarningLabel->font()), "x"));
     }
     else
     {
@@ -1065,7 +1551,8 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
     {
         // Default to no change address until verified
         CoinControlDialog::coinControl->destChange = CNoDestination();
-        ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
+        ui->labelCoinControlChangeLabel->setStyleSheet(
+            GUIUtil::themed(QStringLiteral("QLabel{background:transparent;color:$ERROR;}")));
 
         CBitcoinAddress addr = CBitcoinAddress(text.toStdString());
 
@@ -1094,13 +1581,13 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
                 else
                 {
                     ui->lineEditCoinControlChange->setText("");
-                    ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
+                    ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel{background:transparent;color:$INK;}")));
                     ui->labelCoinControlChangeLabel->setText("");
                 }
             }
             else // Known change address
             {
-                ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
+                ui->labelCoinControlChangeLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel{background:transparent;color:$INK;}")));
 
                 // Query label
                 QString associatedLabel = model->getAddressTableModel()->labelForAddress(text);
@@ -1141,15 +1628,20 @@ void SendCoinsDialog::coinControlUpdateLabels()
     // set pay amounts
     CoinControlDialog::payAmounts.clear();
     CoinControlDialog::fSubtractFeeFromAmount = false;
+    CoinControlDialog::extraOutputBytes = 0;
     for(int i = 0; i < ui->entries->count(); ++i)
     {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if(entry && !entry->isHidden())
         {
             SendCoinsRecipient rcp = entry->getValue();
-            CoinControlDialog::payAmounts.append(rcp.amount);
+            const bool isPrivate =
+                model->validateSparkAddress(rcp.address) || rcp.address.startsWith("@");
+            CoinControlDialog::payAmounts.append({rcp.amount, isPrivate});
             if (rcp.fSubtractFeeFromAmount)
                 CoinControlDialog::fSubtractFeeFromAmount = true;
+            if (!rcp.opReturnData.empty())
+                CoinControlDialog::extraOutputBytes += RosenBridge::SerializedOutputSize(rcp.opReturnData);
         }
     }
 
@@ -1177,6 +1669,26 @@ SendConfirmationDialog::SendConfirmationDialog(const QString &title, const QStri
 {
     setDefaultButton(QMessageBox::Cancel);
     yesButton = button(QMessageBox::Yes);
+    // Yes is the filled action and Cancel the secondary one; Enter still cancels.
+    QAbstractButton* cancelButton = button(QMessageBox::Cancel);
+    yesButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("6px 16px")));
+    cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 16px")));
+
+    // The send arrow on a tint circle instead of the generic question mark.
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+    const qreal dpr = devicePixelRatioF();
+    QPixmap icon(qRound(44 * dpr), qRound(44 * dpr));
+    icon.setDevicePixelRatio(dpr);
+    icon.fill(Qt::transparent);
+    QPainter painter(&icon);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(tc.wineTint));
+    painter.drawEllipse(QRectF(0, 0, 44, 44));
+    painter.drawPixmap(QRect(11, 11, 22, 22), GUIUtil::tintedIconPixmap(QIcon(QStringLiteral(":/icons/sidebar_send")),
+                                                                     QSize(22, 22), QColor(tc.wineText)));
+    painter.end();
+    setIconPixmap(icon);
     updateYesButton();
     connect(&countDownTimer, &QTimer::timeout, this, &SendConfirmationDialog::countDown);
 }
@@ -1211,70 +1723,4 @@ void SendConfirmationDialog::updateYesButton()
         yesButton->setEnabled(true);
         yesButton->setText(tr("Yes"));
     }
-}
-
-SendGoPrivateDialog::SendGoPrivateDialog():QMessageBox()
-{
-    QDialog::setWindowTitle("Make this a private transaction");
-    QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
-    
-    QLabel *ic = new QLabel();
-    QIcon icon_;
-    icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
-    ic->setPixmap(icon_.pixmap(18, 18));
-    ic->setFixedWidth(50);
-    ic->setAlignment(Qt::AlignRight);
-    ic->setStyleSheet("color:#92400E");
-    QLabel *text = new QLabel();
-    text->setText(tr("You are using a transparent transaction, please go private. If this is a masternode transaction, you do not have to go private"));
-    text->setAlignment(Qt::AlignLeft);
-    text->setWordWrap(true);
-    text->setStyleSheet("color:#92400E;");
-    
-    QPushButton *ignore = new QPushButton(this);
-    ignore->setText("Ignore");
-    ignore->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
-    QPushButton *goPrivate = new QPushButton(this);
-    goPrivate->setText("Go Private");
-    goPrivate->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
-    QHBoxLayout *groupButton = new QHBoxLayout(this);
-    groupButton->addWidget(ignore);
-    groupButton->addWidget(goPrivate);
-    
-    QHBoxLayout *hlayout = new QHBoxLayout(this);
-    hlayout->addWidget(ic);
-    hlayout->addWidget(text);
-    
-    QWidget *layout_ = new QWidget();
-    layout_->setLayout(hlayout);
-    layout_->setStyleSheet("background-color:#FEF3C7;");
-    
-    QVBoxLayout *vlayout = new QVBoxLayout(this);
-    vlayout->addWidget(layout_);
-    vlayout->addLayout(groupButton);
-    vlayout->setContentsMargins(0,0,0,0);
-    QWidget *wbody = new QWidget();
-    wbody->setLayout(vlayout);
-    layout()->addWidget(wbody);
-    setContentsMargins(0, 0, 0, 0);
-    setStyleSheet("margin-right:-30px;");
-    setStandardButtons(0);    
-    connect(ignore, &QPushButton::clicked, this, &SendGoPrivateDialog::onIgnoreClicked);
-    connect(goPrivate, &QPushButton::clicked, this, &SendGoPrivateDialog::onGoPrivateClicked);
-    exec();
-}
-void SendGoPrivateDialog::onIgnoreClicked()
-{
-    setVisible(false);
-    clickedButton = true;
-}
-void SendGoPrivateDialog::onGoPrivateClicked()
-{
-    setVisible(false);
-    clickedButton = false;
-}
-
-bool SendGoPrivateDialog::getClickedButton()
-{
-    return clickedButton;
 }

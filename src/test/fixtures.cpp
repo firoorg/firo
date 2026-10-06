@@ -16,7 +16,6 @@
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
-#include "sigma/openssl_context.h"
 #include "validation.h"
 #include "miner.h"
 #include "pubkey.h"
@@ -26,6 +25,7 @@
 #include "ui_interface.h"
 #include "rpc/server.h"
 #include "rpc/register.h"
+#include "spark/state.h"
 
 #include "test/testutil.h"
 #include "test/fixtures.h"
@@ -36,25 +36,16 @@
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
-
-#include "sigma.h"
-#include "lelantus.h"
 #include "../libspark/coin.h"
 
 
 ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
     TestingSetup(CBaseChainParams::REGTEST, "1") {
     // Crean sigma state, just in case someone forgot to do so.
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    sigmaState->Reset();
 };
 
 ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
     // Clean sigma state after us.
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    sigmaState->Reset();
-
-
 }
 
 CBlock ZerocoinTestingSetupBase::CreateBlock(const CScript& scriptPubKey) {
@@ -65,7 +56,7 @@ CBlock ZerocoinTestingSetupBase::CreateBlock(const CScript& scriptPubKey) {
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
     unsigned int extraNonce = 0;
     IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-    
+
     uint256 mix_hash;
     while (!CheckProofOfWork(block.GetHashFull(mix_hash), block.nBits, chainparams.GetConsensus())) {
         ++block.nNonce64;
@@ -211,106 +202,6 @@ CBlock MtpMalformedTestingSetup::CreateAndProcessBlock(
     return block;
 }
 
-LelantusTestingSetup::LelantusTestingSetup() :
-    params(lelantus::Params::get_default()) {
-    CPubKey key;
-    {
-        LOCK(pwalletMain->cs_wallet);
-        key = pwalletMain->GenerateNewKey();
-    }
-
-    script = GetScriptForDestination(key.GetID());
-}
-
-CBlockIndex* LelantusTestingSetup::GenerateBlock(std::vector<CMutableTransaction> const &txns, CScript *script) {
-    auto last = chainActive.Tip();
-
-    CreateAndProcessBlock(txns, script ? *script : this->script);
-    auto block = chainActive.Tip();
-
-    if (block != last) {
-        pwalletMain->ScanForWalletTransactions(block, true);
-    }
-
-    return block != last ? block : nullptr;
-}
-
-void LelantusTestingSetup::GenerateBlocks(size_t blocks, CScript *script) {
-    while (blocks--) {
-        GenerateBlock({}, script);
-    }
-}
-
-std::vector<lelantus::PrivateCoin> LelantusTestingSetup::GenerateMints(
-    std::vector<CAmount> const &amounts) {
-
-    auto const &p = lelantus::Params::get_default();
-
-    std::vector<lelantus::PrivateCoin> coins;
-    for (auto a : amounts) {
-        std::vector<unsigned char> k(32);
-        GetRandBytes(k.data(), k.size());
-
-        secp256k1_pubkey pubkey;
-
-        if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, k.data())) {
-            throw std::runtime_error("Fail to create public key");
-        }
-
-        auto serial = lelantus::PrivateCoin::serialNumberFromSerializedPublicKey(
-            OpenSSLContext::get_context(), &pubkey);
-
-        Scalar randomness;
-        randomness.randomize();
-
-        coins.emplace_back(p, serial, a, randomness, k, 0);
-    }
-
-    return coins;
-}
-
-std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
-    std::vector<CAmount> const &amounts,
-    std::vector<CMutableTransaction> &txs) {
-
-    std::vector<lelantus::PrivateCoin> coins;
-    return GenerateMints(amounts, txs, coins);
-}
-
-std::vector<CHDMint> LelantusTestingSetup::GenerateMints(
-    std::vector<CAmount> const &amounts,
-    std::vector<CMutableTransaction> &txs,
-    std::vector<lelantus::PrivateCoin> &coins) {
-
-    std::vector<CHDMint> hdMints;
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    for (auto a : amounts) {
-        std::vector<std::pair<CWalletTx, CAmount>> wtxAndFee;
-        std::vector<CHDMint> mints;
-        auto result = pwalletMain->MintAndStoreLelantus(a, wtxAndFee, mints);
-
-        if (result != "") {
-            throw std::runtime_error(_("Fail to generate mints, ") + result);
-        }
-
-        for(auto itr : wtxAndFee)
-            txs.emplace_back(itr.first);
-
-        hdMints.insert(hdMints.end(), mints.begin(), mints.end());
-    }
-
-    return hdMints;
-}
-
-CPubKey LelantusTestingSetup::GenerateAddress() {
-    LOCK(pwalletMain->cs_wallet);
-    return pwalletMain->GenerateNewKey();
-}
-
-LelantusTestingSetup::~LelantusTestingSetup() {
-    lelantus::CLelantusState::GetState()->Reset();
-}
-
 // SparkTestingSetup
 SparkTestingSetup::SparkTestingSetup() : params(spark::Params::get_default()) {
     CPubKey key;
@@ -352,7 +243,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     CWalletDB walletdb(pwalletMain->strWalletFile);
     std::vector<CSparkMintMeta> mints;
     // Parameters
-    const spark::Params* params;
+    FIRO_UNUSED const spark::Params* params;
     params = spark::Params::get_default();
 
     // Generate address
@@ -369,7 +260,7 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
         data.address = address;
         outputs.push_back(data);
 
-        auto result = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false);
+        auto result = pwalletMain->MintAndStoreSpark(outputs, wtxAndFee, false, true);
 
         if (result != "") {
             throw std::runtime_error(_("Fail to generate mints, ") + result);
@@ -383,8 +274,8 @@ std::vector<CSparkMintMeta> SparkTestingSetup::GenerateMints(
     }
     std::vector<CSparkMintMeta> walletMints = pwalletMain->sparkWallet->ListSparkMints();
 
-    for (int i = 0; i < walletMints.size(); ++i) {
-        for (int j = 0; j < wtxAndFeeAll.size(); ++j) {
+    for (int i = 0; cmp::less(i, walletMints.size()); ++i) {
+        for (int j = 0; cmp::less(j, wtxAndFeeAll.size()); ++j) {
             if (walletMints[i].txid == wtxAndFeeAll[j].first.GetHash()) {
                 mints.push_back(walletMints[i]);
             }
@@ -423,4 +314,5 @@ CTransaction SparkTestingSetup::GenerateSparkSpend(
 
 SparkTestingSetup::~SparkTestingSetup()
 {
+    spark::CSparkState::GetState()->Reset();
 }

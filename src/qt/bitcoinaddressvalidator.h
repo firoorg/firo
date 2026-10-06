@@ -6,7 +6,11 @@
 #define BITCOIN_QT_BITCOINADDRESSVALIDATOR_H
 
 #include <QValidator>
+
+#ifdef ENABLE_WALLET
 #include "../spark/sparkwallet.h"
+#endif
+
 #include "../spark/state.h"
 
 /** Base58 entry widget validator, checks for valid characters and
@@ -17,9 +21,12 @@ class BitcoinAddressEntryValidator : public QValidator
     Q_OBJECT
 
 public:
-    explicit BitcoinAddressEntryValidator(QObject *parent);
+    explicit BitcoinAddressEntryValidator(QObject *parent, bool _allowPaymentURI = false);
 
-    State validate(QString &input, int &pos) const;
+    State validate(QString &input, int &pos) const override;
+
+private:
+    const bool allowPaymentURI;
 };
 
 /** Bitcoin address widget validator, checks for a valid bitcoin address.
@@ -31,7 +38,7 @@ class BitcoinAddressCheckValidator : public QValidator
 public:
     explicit BitcoinAddressCheckValidator(QObject *parent);
 
-    State validate(QString &input, int &pos) const;
+    State validate(QString &input, int &pos) const override;
 
     bool validateSparkAddress(const std::string& address) const;
 };

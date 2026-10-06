@@ -38,8 +38,8 @@ public Q_SLOTS:
     void copyImage();
 
 protected:
-    virtual void mousePressEvent(QMouseEvent *event);
-    virtual void contextMenuEvent(QContextMenuEvent *event);
+    virtual void mousePressEvent(QMouseEvent *event) override;
+    virtual void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     QMenu *contextMenu;
@@ -53,8 +53,12 @@ public:
     explicit ReceiveRequestDialog(QWidget *parent = 0);
     ~ReceiveRequestDialog();
 
-    void setModel(OptionsModel *model);
+    void setModel(WalletModel *model);
     void setInfo(const SendCoinsRecipient &info);
+    void applyTheme();
+
+protected:
+    void showEvent(QShowEvent *event) override;
 
 private Q_SLOTS:
     void on_btnCopyURI_clicked();
@@ -63,6 +67,9 @@ private Q_SLOTS:
     void update();
 
 private:
+    /** Size the dialog to show the whole request, within the available screen. */
+    void fitToContent();
+
     Ui::ReceiveRequestDialog *ui;
     OptionsModel *model;
     WalletModel *walletModel;

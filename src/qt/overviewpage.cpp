@@ -2,23 +2,26 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "../lelantus.h"
-
 #include "overviewpage.h"
 #include "ui_overviewpage.h"
 
+#include "bitcoinamountfield.h"
 #include "bitcoinunits.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
+#include "guitheme.h"
 #include "guiutil.h"
-#include "lelantusmodel.h"
-#include "sparkmodel.h"
+#include "spark/state.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "sendcoinsdialog.h"
 #include "transactionfilterproxy.h"
+#include "transactionrecord.h"
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
 #include "validation.h"
+#include "chainparams.h"
+#include "askpassphrasedialog.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -27,11 +30,73 @@
 #include "util.h"
 #include "compat.h"
 
+#include <algorithm>
+
 #include <QAbstractItemDelegate>
+#include <QAbstractItemView>
+#include <QAction>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QEvent>
+#include <QFormLayout>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLocale>
 #include <QPainter>
+#include <QPainterPath>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QStyleOptionViewItem>
+#include <QVBoxLayout>
 
 #define DECORATION_SIZE 54
-#define NUM_ITEMS 5
+#define NUM_ITEMS 8
+#define MIN_VISIBLE_ITEMS 3
+#define ACTIVITY_ICON_SIZE 42
+#define ACTIVITY_CARD_HEIGHT 44
+#define SEND_CONFIRM_DELAY   3
+
+//! The Firo mark, faint and cropped by the balance card's top-right corner.
+class HeroWatermark : public QWidget
+{
+public:
+    explicit HeroWatermark(QWidget* card) : QWidget(card)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        card->installEventFilter(this);
+        setGeometry(card->rect());
+        lower();
+    }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (watched == parentWidget() && event->type() == QEvent::Resize)
+            setGeometry(parentWidget()->rect());
+        return QWidget::eventFilter(watched, event);
+    }
+
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        // The card's 20 px corner radius, so the mark never paints past the corner.
+        QPainterPath clip;
+        clip.addRoundedRect(QRectF(rect()), 20, 20);
+        painter.setClipPath(clip);
+        painter.setOpacity(0.07);
+        const QRect mark(width() - 234, -46, 270, 270);
+        painter.drawPixmap(mark, GUIUtil::tintedIconPixmap(markIcon_, mark.size(), QColor(GUIUtil::themeColors().heroInk)));
+    }
+
+private:
+    // One icon for the widget's lifetime, so its scaled pixmap is reused on every repaint.
+    const QIcon markIcon_{QStringLiteral(":/icons/firo_mark")};
+};
 
 class TxViewDelegate : public QAbstractItemDelegate
 {
@@ -45,77 +110,128 @@ public:
     }
 
     inline void paint(QPainter *painter, const QStyleOptionViewItem &option,
-                      const QModelIndex &index ) const
+                      const QModelIndex &index ) const override
     {
         painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        painter->setRenderHint(QPainter::TextAntialiasing, true);
 
-        QIcon icon = qvariant_cast<QIcon>(index.data(TransactionTableModel::RawDecorationRole));
-        QRect mainRect = option.rect;
-        QRect decorationRect(mainRect.topLeft(), QSize(DECORATION_SIZE, DECORATION_SIZE));
-        int xspace = DECORATION_SIZE + 8;
-        int ypad = 6;
-        int halfheight = (mainRect.height() - 2*ypad)/2;
-        QRect amountRect(mainRect.left() + xspace, mainRect.top()+ypad, mainRect.width() - xspace, halfheight);
-        QRect addressRect(mainRect.left() + xspace, mainRect.top()+ypad+halfheight, mainRect.width() - xspace, halfheight);
-        icon = platformStyle->SingleColorIcon(icon);
-        icon.paint(painter, decorationRect);
+        const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+        const bool selected = (option.state & QStyle::State_Selected);
+        const QRect card = option.rect.adjusted(2, 3, -2, -3);
+        if (card.width() <= 0 || card.height() <= 0) {
+            painter->restore();
+            return;
+        }
+
+        // Rows sit directly in the activity card, like every other list.
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
+
+        const int txType = index.data(TransactionTableModel::TypeRole).toInt();
+        const qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
+        const bool incoming =
+            txType == TransactionRecord::Generated ||
+            txType == TransactionRecord::RecvWithAddress ||
+            txType == TransactionRecord::RecvFromOther ||
+            txType == TransactionRecord::RecvWithPcode ||
+            txType == TransactionRecord::RecvSpark;
+        const bool positive = incoming || amount > 0;
+
+        const QRect iconRect(card.left() + 12, card.center().y() - 16, 32, 32);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(positive ? QColor(tc.tealTint) : QColor(tc.hover));
+        painter->drawEllipse(iconRect);
+        const QRect arrowRect = iconRect.adjusted(8, 8, -8, -8);
+        painter->drawPixmap(arrowRect, GUIUtil::tintedIconPixmap(incoming ? receivedIcon : sentIcon, arrowRect.size(),
+                                                                positive ? QColor(tc.teal) : QColor(tc.inkSoft)));
+        QFont boldFont = option.font;
+        boldFont.setBold(true);
+        painter->setFont(boldFont);
+
+        const QRect statusRect(iconRect.right() - 6, iconRect.bottom() - 12, 14, 14);
+        const QVariant statusDec = index.sibling(index.row(), TransactionTableModel::Status)
+                                       .data(TransactionTableModel::RawDecorationRole);
+        if (statusDec.canConvert<QIcon>()) {
+            const QIcon statusIcon = qvariant_cast<QIcon>(statusDec);
+            if (!statusIcon.isNull()) {
+                // A ring in the row's own surface, so the badge reads as cut out of the arrow circle.
+                const QRectF ring = QRectF(statusRect).adjusted(-1.5, -1.5, 1.5, 1.5);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(QColor(tc.panel));
+                painter->drawEllipse(ring);
+                if (selected) {
+                    painter->setBrush(QColor(tc.wineTint));
+                    painter->drawEllipse(ring);
+                }
+                GUIUtil::paintThemedStatusIcon(painter, statusIcon, statusRect,
+                                               GUIUtil::transactionStatusTint(index.data(TransactionTableModel::StatusRole).toInt()));
+            }
+        }
 
         QDateTime date = index.data(TransactionTableModel::DateRole).toDateTime();
         QString address = index.data(Qt::DisplayRole).toString();
-        qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
-        QVariant value = index.data(Qt::ForegroundRole);
-        QColor foreground = option.palette.color(QPalette::Text);
-        if(value.canConvert<QBrush>())
-        {
-            QBrush brush = qvariant_cast<QBrush>(value);
-            foreground = brush.color();
-        }
 
-        painter->setPen(foreground);
-        QRect boundingRect;
-        painter->drawText(addressRect, Qt::AlignLeft|Qt::AlignVCenter, address, &boundingRect);
-
-        if (index.data(TransactionTableModel::WatchonlyRole).toBool())
-        {
-            QIcon iconWatchonly = qvariant_cast<QIcon>(index.data(TransactionTableModel::WatchonlyDecorationRole));
-            QRect watchonlyRect(boundingRect.right() + 5, mainRect.top()+ypad+halfheight, 16, halfheight);
-            iconWatchonly.paint(painter, watchonlyRect);
-        }
-
-        if(amount < 0)
-        {
-            foreground = COLOR_NEGATIVE;
-        }
-        else if(!confirmed)
-        {
-            foreground = COLOR_UNCONFIRMED;
-        }
-        else
-        {
-            foreground = option.palette.color(QPalette::Text);
-        }
-        painter->setPen(foreground);
         QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
-        if(!confirmed)
-        {
+        if (!confirmed)
             amountText = QString("[") + amountText + QString("]");
+        const int metadataLeft = iconRect.right() + 12;
+        // Reserve the lock slot so dates and labels stay aligned across rows.
+        const int textLeft = metadataLeft + 20;
+        const int amountWidth = std::min(std::max(168, QFontMetrics(boldFont).horizontalAdvance(amountText)),
+                                         std::max(0, card.right() - textLeft - 14));
+        const int amountLeft = card.right() - amountWidth - 14;
+        const int textWidth = std::max(0, amountLeft - textLeft - 12);
+        const QString dateText = date.isValid() ? QLocale::system().toString(date, QLocale::ShortFormat)
+                                               : GUIUtil::dateTimeStr(date);
+        const int dateWidth = std::max(144, QFontMetrics(boldFont).horizontalAdvance(dateText));
+        const bool inlineAddress = textWidth >= dateWidth + 12 + 96;
+        const int lineHeight = option.fontMetrics.height();
+        const QRect dateRect(textLeft, inlineAddress ? card.top() : card.center().y() - lineHeight,
+                             inlineAddress ? dateWidth : textWidth, inlineAddress ? card.height() : lineHeight);
+        const QRect addressRect = inlineAddress
+            ? QRect(dateRect.right() + 13, card.top(), textWidth - dateWidth - 12, card.height())
+            : QRect(textLeft, dateRect.bottom() + 1, card.right() - textLeft - 14, lineHeight);
+        const QIcon instantSendIcon = qvariant_cast<QIcon>(index.data(TransactionTableModel::InstantSendDecorationRole));
+        if (!instantSendIcon.isNull() && amountLeft - metadataLeft >= 20) {
+            // Centred on the date's capitals, in the slot reserved left of it.
+            const QFontMetrics dateMetrics(boldFont);
+            const int baseline = dateRect.top() + (dateRect.height() - dateMetrics.height()) / 2 + dateMetrics.ascent();
+            GUIUtil::paintThemedStatusIcon(painter, instantSendIcon,
+                                         QRect(metadataLeft, baseline - dateMetrics.capHeight() / 2 - 8, 16, 16));
         }
-        painter->drawText(amountRect, Qt::AlignRight|Qt::AlignVCenter, amountText);
+        painter->setFont(boldFont);
+        painter->setPen(QColor(tc.ink));
+        painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          QFontMetrics(boldFont).elidedText(dateText, Qt::ElideRight, dateRect.width()));
 
-        painter->setPen(option.palette.color(QPalette::Text));
-        painter->drawText(amountRect, Qt::AlignLeft|Qt::AlignVCenter, GUIUtil::dateTimeStr(date));
+        QFont addrFont = boldFont;
+        addrFont.setBold(false);
+        painter->setFont(addrFont);
+        painter->setPen(QColor(tc.inkFaint));
+        painter->drawText(addressRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          QFontMetrics(addrFont).elidedText(address, Qt::ElideMiddle, addressRect.width()));
+
+        // Received is teal; sent stays in ink with its minus sign, since red means an error.
+        painter->setFont(boldFont);
+        const QRect amountRect(amountLeft, inlineAddress ? card.top() : dateRect.top(),
+                               amountWidth, inlineAddress ? card.height() : lineHeight);
+        GUIUtil::paintAmountRuns(painter, amountRect, amountText, amount < 0 ? QColor(tc.ink) : QColor(tc.teal),
+                                 Qt::AlignRight | Qt::AlignVCenter);
 
         painter->restore();
     }
 
-    inline QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
+    inline QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
-        return QSize(DECORATION_SIZE, DECORATION_SIZE);
+        return QSize(ACTIVITY_ICON_SIZE, std::max(ACTIVITY_CARD_HEIGHT, 2 * option.fontMetrics.height() + 12));
     }
 
     int unit;
     const PlatformStyle *platformStyle;
+    // The sidebar's Send and Receive icons mark the direction.
+    const QIcon sentIcon{QStringLiteral(":/icons/sidebar_send")};
+    const QIcon receivedIcon{QStringLiteral(":/icons/sidebar_receive")};
 
 };
 #include "overviewpage.moc"
@@ -131,66 +247,336 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     currentWatchOnlyBalance(-1),
     currentWatchUnconfBalance(-1),
     currentWatchImmatureBalance(-1),
+    currentPrivateBalance(-1),
+    currentUnconfirmedPrivateBalance(-1),
+    currentAnonymizableBalance(-1),
     txdelegate(new TxViewDelegate(platformStyle, this))
 {
     ui->setupUi(this);
 
-    // read config
-    bool torEnabled;
-    if(IsArgSet("-torsetup")){
-        torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
-    }else{
-        torEnabled = settings.value("fTorSetup").toBool();
-    }
+    ui->topLayout->removeItem(ui->mainGrid);
+    ui->mainGrid->setParent(nullptr);
 
-    if(torEnabled){
-        ui->checkboxEnabledTor->setChecked(true);
-    }else{
-        ui->checkboxEnabledTor->setChecked(false);
-    }
+    auto* overviewScrollContents = new QWidget(this);
+    overviewScrollContents->setObjectName(QStringLiteral("overviewScrollContents"));
+    auto* overviewScrollLayout = new QVBoxLayout(overviewScrollContents);
+    overviewScrollLayout->setContentsMargins(0, 0, 0, 0);
+    overviewScrollLayout->addLayout(ui->mainGrid);
 
-    QIcon icon = QIcon(":/icons/warning");
-    icon.addPixmap(icon.pixmap(QSize(64,64), QIcon::Normal), QIcon::Disabled); // also set the disabled icon because we are using a disabled QPushButton to work around missing HiDPI support of QLabel (https://bugreports.qt.io/browse/QTBUG-42503)
-    ui->labelTransactionsStatus->setIcon(icon);
-    ui->labelWalletStatus->setIcon(icon);
+    auto* overviewScroll = new QScrollArea(this);
+    overviewScroll->setObjectName(QStringLiteral("overviewScroll"));
+    overviewScroll->setWidgetResizable(true);
+    overviewScroll->setFrameShape(QFrame::NoFrame);
+    overviewScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    overviewScroll->setFocusPolicy(Qt::NoFocus);
+    overviewScroll->setWidget(overviewScrollContents);
+    overviewScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#overviewScroll, QWidget#overviewScrollContents { background: transparent; border: none; }"));
+    ui->topLayout->addWidget(overviewScroll, 1);
+
+    ui->labelTransactionsStatus->hide();
+    ui->labelWalletStatus->hide();
 
     // Recent transactions
     ui->listTransactions->setItemDelegate(txdelegate);
-    ui->listTransactions->setIconSize(QSize(DECORATION_SIZE, DECORATION_SIZE));
-    ui->listTransactions->setMinimumHeight(NUM_ITEMS * (DECORATION_SIZE + 2));
+    ui->listTransactions->setIconSize(QSize(ACTIVITY_ICON_SIZE, ACTIVITY_ICON_SIZE));
+    ui->listTransactions->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
+    ui->listTransactions->setAccessibleName(tr("Recent transactions"));
 
     connect(ui->listTransactions, &QListView::clicked, this, &OverviewPage::handleTransactionClicked);
-    connect(ui->checkboxEnabledTor, &QCheckBox::toggled, this, &OverviewPage::handleEnabledTorChanged);
+    connect(ui->listTransactions, &QListView::activated, this, &OverviewPage::handleTransactionClicked);
+
+    applyOverviewRedesign();
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
     connect(ui->labelWalletStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
     connect(ui->labelTransactionsStatus, &QPushButton::clicked, this, &OverviewPage::handleOutOfSyncWarningClicks);
+}
 
-    connect(&countDownTimer, &QTimer::timeout, this, &OverviewPage::countDown);
-    countDownTimer.start(30000);
-    connect(ui->migrateButton, &QPushButton::clicked, this, &OverviewPage::migrateClicked);
+void OverviewPage::applyOverviewRedesign()
+{
+    setAttribute(Qt::WA_StyledBackground, true);
+
+    ui->topLayout->setContentsMargins(24, 18, 24, 18);
+    ui->topLayout->setSpacing(16);
+    ui->mainGrid->setHorizontalSpacing(16);
+    ui->mainGrid->setVerticalSpacing(16);
+    ui->mainGrid->setColumnStretch(0, 1);
+    ui->mainGrid->setColumnStretch(1, 1);
+
+    ui->balancesCardLayout->setContentsMargins(24, 18, 24, 18);
+    ui->balancesCardLayout->setSpacing(8);
+    ui->detailsCardLayout->setContentsMargins(18, 16, 18, 16);
+    ui->detailsCardLayout->setSpacing(8);
+    ui->activityCardLayout->setContentsMargins(18, 16, 18, 16);
+    ui->activityCardLayout->setSpacing(8);
+
+    ui->detailsCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    ui->activityCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    ui->mainGrid->setRowStretch(1, 1);
+
+    new HeroWatermark(ui->balancesCard);
+
+    networkBadge_ = new QLabel(ui->balancesCard);
+    networkBadge_->setObjectName(QStringLiteral("networkBadge"));
+    const QString networkId = QString::fromStdString(Params().NetworkIDString());
+    QString networkLabel;
+    if (networkId == QLatin1String("main"))
+        networkLabel = tr("Mainnet");
+    else if (networkId == QLatin1String("test"))
+        networkLabel = tr("Testnet");
+    else if (networkId == QLatin1String("dev"))
+        networkLabel = tr("Devnet");
+    else if (networkId == QLatin1String("regtest"))
+        networkLabel = tr("Regtest");
+    else
+        networkLabel = networkId;
+    networkLabel_ = networkLabel;
+    networkBadge_->setTextFormat(Qt::RichText);
+    networkBadge_->setAlignment(Qt::AlignCenter);
+    ui->balanceHeaderRow->insertWidget(1, networkBadge_, 0, Qt::AlignVCenter);
+
+    ui->labelTotalText->hide();
+
+    ui->privateTransparentBarLayout->setSpacing(10);
+    ui->privateTransparentBarFrame->setAttribute(Qt::WA_StyledBackground, true);
+    ui->privateTransparentBarFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    ui->privateTransparentBarFrame->setFixedHeight(8);
+    if (!privateSplitProgress) {
+        privateSplitProgress = new QProgressBar(ui->privateTransparentBarFrame);
+        privateSplitProgress->setObjectName(QStringLiteral("privateSplitProgress"));
+        privateSplitProgress->setRange(0, 100);
+        privateSplitProgress->setValue(0);
+        privateSplitProgress->setTextVisible(false);
+        privateSplitProgress->setInvertedAppearance(true);
+        privateSplitProgress->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        privateSplitProgress->setFixedHeight(8);
+        ui->privateTransparentBarSegmentsLayout->addWidget(privateSplitProgress);
+    }
+    updatePrivateTransparentSplitBar();
+
+    ui->privateTransparentSplitRow->setSpacing(0);
+    ui->labelPrivateSplit->setTextFormat(Qt::RichText);
+    ui->labelTransparentSplit->setTextFormat(Qt::RichText);
+
+    // Drawn arrows, set with the theme, replace the arrow characters that used to lead the labels.
+    ui->sendButton->setText(tr("Send"));
+    ui->receiveButton->setText(tr("Receive"));
+
+    ui->anonymizeButton->setText(tr("Make Private"));
+
+    connect(ui->sendButton, &QPushButton::clicked, this, &OverviewPage::gotoSendCoinsPage);
+    connect(ui->receiveButton, &QPushButton::clicked, this, &OverviewPage::gotoReceiveCoinsPage);
+
+    ui->gridLayout->setHorizontalSpacing(12);
+    ui->gridLayout->setVerticalSpacing(8);
+
+    activityEmptyState_ = new QWidget(ui->activityCard);
+    activityEmptyState_->setObjectName(QStringLiteral("activityEmptyState"));
+    auto* emptyLayout = new QVBoxLayout(activityEmptyState_);
+    emptyLayout->setContentsMargins(0, 24, 0, 24);
+    emptyLayout->setSpacing(7);
+    emptyIcon_ = new QLabel(activityEmptyState_);
+    emptyIcon_->setFixedSize(48, 48);
+    emptyIcon_->setAlignment(Qt::AlignCenter);
+    emptyTitle_ = new QLabel(tr("No transactions yet"), activityEmptyState_);
+    emptyTitle_->setAlignment(Qt::AlignCenter);
+    emptyHint_ = new QLabel(
+        tr("Your history will appear here after the first transfer"), activityEmptyState_);
+    emptyHint_->setAlignment(Qt::AlignCenter);
+    emptyHint_->setWordWrap(true);
+    emptyLayout->addStretch();
+    emptyLayout->addWidget(emptyIcon_, 0, Qt::AlignHCenter);
+    emptyLayout->addWidget(emptyTitle_);
+    emptyLayout->addWidget(emptyHint_);
+    emptyLayout->addStretch();
+    ui->activityCardLayout->insertWidget(2, activityEmptyState_, 1);
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &OverviewPage::applyOverviewTheme);
+    applyOverviewTheme();
+
+    updateActivityEmptyState();
+}
+
+void OverviewPage::applyOverviewTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QWidget#OverviewPage { background: $BG; }")));
+
+    const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+
+    // The balance card carries the brand gradient; the other cards stay quiet.
+    ui->balancesCard->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QFrame#balancesCard {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 $HERO_START, stop:1 $HERO_END);
+            border: none;
+            border-radius: 20px;
+        }
+    )")));
+    const QString cardStyle = GUIUtil::themed(QStringLiteral(R"(
+        QFrame#detailsCard, QFrame#activityCard {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+        }
+    )"));
+    ui->detailsCard->setStyleSheet(cardStyle);
+    ui->activityCard->setStyleSheet(cardStyle);
+
+    ui->warningFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QFrame#warningFrame { background: $GOLD_TINT; border: 1px solid $GOLD; border-radius: 10px; }"
+        "QFrame#warningFrame QLabel { background: transparent; color: $INK; }")));
+    ui->labelAlerts->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel#labelAlerts { background: $GOLD_TINT; color: $INK;"
+        " border: 1px solid $GOLD; border-radius: 10px; padding: 8px 12px; }")));
+
+    const QString syncWarningStyle = QStringLiteral(
+        "QPushButton { background: transparent; border: none; padding: 0px; }");
+    ui->labelWalletStatus->setStyleSheet(syncWarningStyle);
+    ui->labelTransactionsStatus->setStyleSheet(syncWarningStyle);
+
+    // Text on the gradient: white for values, 78% white for captions.
+    if (networkBadge_) {
+        networkBadge_->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel#networkBadge {"
+            " color: $HERO_INK; background: $HERO_FILL; border: none;"
+            " border-radius: 10px; padding: 2px 10px 2px 8px; font: $FONT_CAPTION;"
+            "}")));
+        networkBadge_->setText(QStringLiteral("<span style=\"color:%1; font-size:10px\">\u25CF</span>&nbsp;%2")
+                                   .arg(tc.heroAccent, networkLabel_.toHtmlEscaped()));
+    }
+
+    ui->labelPrimaryText->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $HERO_INK_SOFT; font: $FONT_CAPTION; }")));
+
+    ui->labelTotal->setTextFormat(Qt::RichText);
+    ui->labelTotal->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $HERO_INK;"
+        " font: $FONT_H1; }")));
+
+    ui->privateTransparentBarFrame->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QFrame#privateTransparentBarFrame {"
+        " background: $HERO_FILL;"
+        " border: none;"
+        " border-radius: 4px;"
+        "}"
+        "QFrame#privateTransparentBarFrame QProgressBar {"
+        " background: transparent;"
+        " border: none;"
+        " border-radius: 4px;"
+        " min-height: 8px; max-height: 8px;"
+        "}"
+        "QFrame#privateTransparentBarFrame QProgressBar::chunk {"
+        " background: $HERO_ACCENT;"
+        " border: none;"
+        " border-radius: 4px;"
+        "}")));
+
+    const QString splitLabelStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $HERO_INK_SOFT; }"));
+    ui->labelPrivateSplit->setStyleSheet(splitLabelStyle);
+    ui->labelTransparentSplit->setStyleSheet(splitLabelStyle);
+
+    // One filled action on the card: Send is the inverse primary. Receive is quiet, and
+    // Make Private keeps its emphasis through the privacy teal instead of a second fill.
+    const QString actionStyle = QStringLiteral(
+        "QPushButton { border-radius: 10px; min-width: 0; min-height: 20px; padding: 8px 18px; font-weight: 700; }");
+    ui->sendButton->setStyleSheet(actionStyle + GUIUtil::themed(QStringLiteral(
+        "QPushButton { color: $HERO_START; background: $HERO_INK; border: 1px solid transparent; }"
+        "QPushButton:hover, QPushButton:pressed { background: $HERO_INK_SOFT; }"
+        "QPushButton:focus { border-color: $HERO_END; }")));
+    const QString quietActionStyle = actionStyle + GUIUtil::themed(QStringLiteral(
+        "QPushButton { color: $HERO_INK; background: $HERO_FILL; border: 1px solid $HERO_LINE; }"
+        "QPushButton:hover, QPushButton:pressed { background: $HERO_FILL_HOVER; }"
+        "QPushButton:focus { border-color: $HERO_INK; }"
+        "QPushButton:disabled { color: $HERO_INK_FAINT; background: $HERO_FILL; border-color: transparent; }"));
+    ui->receiveButton->setStyleSheet(quietActionStyle);
+    ui->anonymizeButton->setStyleSheet(actionStyle + GUIUtil::themed(QStringLiteral(
+        "QPushButton { color: $HERO_INK; background: $HERO_ACCENT_FILL; border: 1px solid $HERO_ACCENT_LINE; }"
+        "QPushButton:hover, QPushButton:pressed { background: $HERO_ACCENT_FILL_HOVER; }"
+        "QPushButton:focus { border-color: $HERO_ACCENT; }"
+        "QPushButton:disabled { color: $HERO_INK_FAINT; background: $HERO_FILL; border-color: transparent; }")));
+    // The sidebar icons, recolored for the gradient; Make Private uses the shield.
+    const QSize actionIconSize(18, 18);
+    GUIUtil::setTintedIcon(ui->sendButton, QStringLiteral(":/icons/sidebar_send"), actionIconSize, QColor(tc.heroStart));
+    GUIUtil::setTintedIcon(ui->receiveButton, QStringLiteral(":/icons/sidebar_receive"), actionIconSize, QColor(tc.heroInk));
+    GUIUtil::setTintedIcon(ui->anonymizeButton, QStringLiteral(":/icons/shield"), actionIconSize, QColor(tc.heroAccent));
+
+    // The out-of-sync warning sits on the gradient too; its glyph is solid black, so draw it in white.
+    GUIUtil::setTintedIcon(ui->labelWalletStatus, QStringLiteral(":/icons/warning"), ui->labelWalletStatus->iconSize(),
+                           QColor(tc.heroInk));
+
+    const QString sectionTitleStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font: $FONT_H3; }"));
+    ui->label_5->setStyleSheet(sectionTitleStyle);
+    ui->label->setStyleSheet(sectionTitleStyle);
+    // A dot marks each section: teal for Spark, grey for transparent, as on the split bar.
+    ui->label_5->setText(GUIUtil::dotLabelHtml(tc.teal, tr("Private Balances (Spark)")));
+    ui->label->setText(GUIUtil::dotLabelHtml(tc.inkFaint, tr("Transparent Balances")));
+    ui->label_4->setStyleSheet(sectionTitleStyle);
+    ui->labelWatchonly->setStyleSheet(sectionTitleStyle);
+
+    // Captions recede to regular weight so the amounts carry the card.
+    const QString captionStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; }"));
+    for (QLabel* caption : {ui->labelPrivateText, ui->labelUnconfirmedPrivateText,
+                            ui->labelAnonymizableText, ui->labelBalanceText,
+                            ui->labelPendingText, ui->labelImmatureText,
+                            ui->labelWatchAvailableText, ui->labelWatchPendingText,
+                            ui->labelWatchImmatureText, ui->labelWatchTotalText}) {
+        caption->setStyleSheet(captionStyle);
+    }
+
+    const QString amountStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font-weight: 700; }"));
+    for (QLabel* amount : {ui->labelPrivate, ui->labelUnconfirmedPrivate, ui->labelAnonymizable,
+                           ui->labelBalance, ui->labelUnconfirmed, ui->labelImmature,
+                           ui->labelWatchAvailable, ui->labelWatchPending,
+                           ui->labelWatchImmature, ui->labelWatchTotal}) {
+        amount->setTextFormat(Qt::RichText);
+        amount->setStyleSheet(amountStyle);
+    }
+
+    ui->listTransactions->setStyleSheet(QStringLiteral(
+        "QListView, QListView::viewport { background: transparent; border: none; }"
+        "QListView::item { border: none; padding: 0px; }"
+        "QListView::item:selected { background: transparent; }"));
+    // The list holds the NUM_ITEMS newest transactions and scrolls when they do not all fit, so
+    // the page fits the window; it keeps room for a few rows, measured in the font the
+    // stylesheet gives it.
+    ui->listTransactions->ensurePolished();
+    QStyleOptionViewItem activityOption;
+    activityOption.initFrom(ui->listTransactions);
+    ui->listTransactions->setMinimumHeight(MIN_VISIBLE_ITEMS * txdelegate->sizeHint(activityOption, QModelIndex()).height());
+    if (ui->listTransactions->viewport())
+        ui->listTransactions->viewport()->update();
+
+    if (emptyIcon_) {
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_transactions"));
+    }
+    if (emptyTitle_) {
+        emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
+    }
+    if (emptyHint_) {
+        emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel { background: transparent; color: $INK_SOFT; }")));
+    }
+
+    // The amount runs embed the theme's faded color, so render them again.
+    if (currentBalance != -1) {
+        updateBalanceLabels();
+    }
+    updateBalanceSplitLabels();
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 {
     if(filter)
         Q_EMIT transactionClicked(filter->mapToSource(index));
-}
-
-void OverviewPage::handleEnabledTorChanged(){
-
-    QMessageBox msgBox;
-
-    if(ui->checkboxEnabledTor->isChecked()){
-        settings.setValue("fTorSetup", true);
-        msgBox.setText(tr("Please restart the Firo wallet to route your connection through Tor to protect your IP address. <br>Syncing your wallet might be slower with TOR. <br>Note that -torsetup in firo.conf will always override any changes made here."));
-    }else{
-        settings.setValue("fTorSetup", false);
-        msgBox.setText(tr("Please restart the Firo wallet to disable routing of your connection through Tor to protect your IP address. <br>Note that -torsetup in firo.conf will always override any changes made here."));
-    }
-    msgBox.exec();
 }
 
 void OverviewPage::handleOutOfSyncWarningClicks()
@@ -205,24 +591,230 @@ OverviewPage::~OverviewPage()
 
 void OverviewPage::on_anonymizeButton_clicked()
 {
-    if (!walletModel) {
+    auto wallet = walletModel ? walletModel->getWallet() : nullptr;
+    if (!walletModel || !walletModel->getOptionsModel() || !wallet || !wallet->sparkWallet ||
+        !spark::IsSparkAllowed() || currentAnonymizableBalance <= 0) {
         return;
     }
 
-    if(lelantus::IsLelantusAllowed()) {
-        auto lelantusModel = walletModel->getLelantusModel();
-        if (!lelantusModel) {
+    const int unit = walletModel->getOptionsModel()->getDisplayUnit();
+    const CAmount available = currentAnonymizableBalance;
+    QDialog amountDialog(this);
+    amountDialog.setWindowTitle(tr("Make Funds Private"));
+    amountDialog.setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QLabel { background: transparent; color: $INK; }
+        QLabel#amountDialogAvailable { color: $INK_SOFT; font-weight: 700; }
+    )")));
+
+    auto layout = new QVBoxLayout(&amountDialog);
+    layout->setContentsMargins(24, 24, 24, 24);
+    layout->setSpacing(16);
+    layout->setSizeConstraint(QLayout::SetFixedSize);
+
+    auto description = new QLabel(
+        tr("Move FIRO from your transparent balance into Spark, Firo's private balance."),
+        &amountDialog);
+    description->setWordWrap(true);
+    layout->addWidget(description);
+
+    auto form = new QFormLayout();
+    form->setSpacing(12);
+    form->addRow(tr("From"), new QLabel(tr("Transparent balance"), &amountDialog));
+    form->addRow(tr("To"), new QLabel(tr("Private balance (Spark)"), &amountDialog));
+
+    auto amountLayout = new QHBoxLayout();
+    amountLayout->setSpacing(10);
+    auto amountField = new BitcoinAmountField(&amountDialog);
+    amountField->setDisplayUnit(unit);
+    amountField->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QAbstractSpinBox, QComboBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
+            padding: 5px 10px;
+            color: $INK;
+        }
+        QAbstractSpinBox:focus { border: 2px solid $WINE; padding: 4px 9px; }
+        QComboBox:focus { border: 1px solid $WINE; }
+        QAbstractSpinBox[invalidInput="true"] { border-color: $ERROR; }
+        QAbstractSpinBox QLineEdit { %1 }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+    auto maxButton = new QPushButton(tr("Max"), &amountDialog);
+    // Review stays the one filled action; Max only fills in the field.
+    maxButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    amountLayout->addWidget(amountField);
+    amountLayout->addWidget(maxButton);
+    form->addRow(tr("Amount"), amountLayout);
+    auto feeNoteLabel = new QLabel(
+        tr("The network fee will be deducted from this amount."), &amountDialog);
+    feeNoteLabel->setWordWrap(true);
+    feeNoteLabel->setVisible(false);
+    form->addRow(QString(), feeNoteLabel);
+    auto availableLabel = new QLabel(BitcoinUnits::formatWithUnit(unit, available), &amountDialog);
+    availableLabel->setObjectName(QStringLiteral("amountDialogAvailable"));
+    form->addRow(tr("Available"), availableLabel);
+    layout->addLayout(form);
+
+    auto buttons = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok, &amountDialog);
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Review"));
+    buttons->button(QDialogButtonBox::Ok)->setStyleSheet(GUIUtil::primaryButtonStyle());
+    buttons->button(QDialogButtonBox::Cancel)->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    layout->addWidget(buttons);
+
+    connect(maxButton, &QPushButton::clicked, [amountField, available] {
+        amountField->setValue(available);
+    });
+    connect(amountField, &BitcoinAmountField::valueChanged, [amountField, feeNoteLabel, available] {
+        bool valid = false;
+        const CAmount amount = amountField->value(&valid);
+        feeNoteLabel->setVisible(valid && amount == available);
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &amountDialog, &QDialog::reject);
+    connect(buttons->button(QDialogButtonBox::Ok), &QPushButton::clicked, [&, available] {
+        bool valid = false;
+        const CAmount amount = amountField->value(&valid);
+        if (!valid || amount <= 0 || amount > available) {
+            amountField->setValid(false);
+            return;
+        }
+        amountDialog.accept();
+    });
+
+    auto errorDetails = [unit](const WalletModel::SendCoinsReturn& result) {
+        switch (result.status) {
+        case WalletModel::AmountExceedsBalance:
+            return tr("The amount exceeds your available transparent balance.");
+        case WalletModel::AmountWithFeeExceedsBalance:
+            return tr("The amount and transaction fee exceed your available transparent balance.");
+        case WalletModel::AbsurdFee:
+            return tr("The transaction fee is higher than the configured maximum of %1.")
+                .arg(BitcoinUnits::formatWithUnit(unit, maxTxFee));
+        case WalletModel::TransactionCreationFailed:
+            return result.reasonCommitFailed;
+        case WalletModel::TransactionCommitFailed:
+            return tr("The transaction was rejected: %1").arg(result.reasonCommitFailed);
+        default:
+            return tr("Unable to create the Spark transaction.");
+        }
+    };
+
+    QString sparkAddress;
+    amountField->setFocus();
+    while (amountDialog.exec() == QDialog::Accepted) {
+        WalletModel::UnlockContext unlockContext(walletModel->requestUnlock(tr("Make funds private")));
+        if (!unlockContext.isValid()) {
+            return;
+        }
+        if (sparkAddress.isEmpty()) {
+            sparkAddress = walletModel->generateSparkAddress();
+        }
+
+        const CAmount amount = amountField->value();
+        SendCoinsRecipient recipient;
+        recipient.address = sparkAddress;
+        recipient.amount = amount;
+        recipient.fSubtractFeeFromAmount = amount == available;
+
+        QList<SendCoinsRecipient> recipients;
+        recipients.append(recipient);
+        std::vector<WalletModelTransaction> transactions;
+        std::vector<std::pair<CWalletTx, CAmount>> transactionsAndFees;
+        std::list<CReserveKey> reserveKeys;
+
+        WalletModel::SendCoinsReturn prepareResult;
+        GUIUtil::runWalletOperation([&] {
+            prepareResult = walletModel->prepareMintSparkTransaction(
+                transactions, recipients, transactionsAndFees, reserveKeys, nullptr);
+        });
+        if (prepareResult.status != WalletModel::OK) {
+            const bool amountTooHigh =
+                prepareResult.status == WalletModel::AmountExceedsBalance ||
+                prepareResult.status == WalletModel::AmountWithFeeExceedsBalance;
+            QMessageBox error(
+                QMessageBox::Warning,
+                tr("Unable to Make Funds Private"),
+                tr("Firo could not create a Spark transaction for this amount."),
+                QMessageBox::Cancel,
+                this);
+            const QString details = errorDetails(prepareResult);
+            error.setInformativeText(amountTooHigh
+                ? tr("Use Maximum fills in the highest amount that can be made private, with the network fee deducted from it. No funds were moved.")
+                : tr("%1\n\nNo funds were moved.").arg(details));
+            if (amountTooHigh && !details.isEmpty()) {
+                error.setDetailedText(details);
+            }
+            QPushButton* useMaxButton = nullptr;
+            if (amountTooHigh) {
+                useMaxButton = error.addButton(tr("Use Maximum"), QMessageBox::AcceptRole);
+            }
+            auto changeAmountButton = error.addButton(tr("Change Amount"), QMessageBox::AcceptRole);
+            error.setDefaultButton(QMessageBox::Cancel);
+            error.exec();
+            if (useMaxButton && error.clickedButton() == useMaxButton) {
+                amountField->setValue(available);
+            } else if (error.clickedButton() != changeAmountButton) {
+                return;
+            }
+            amountField->setFocus();
+            continue;
+        }
+
+        CAmount privateAmount = 0;
+        CAmount fee = 0;
+        for (auto& transaction : transactions) {
+            privateAmount += transaction.getTotalTransactionAmount();
+            fee += transaction.getTransactionFee();
+        }
+
+        QMessageBox confirmation(
+            QMessageBox::Question,
+            tr("Review Private Transfer"),
+            tr("Amount to make private: <b>%1</b><br>"
+               "Network fee: %2<br>"
+               "Total from transparent balance: %3")
+                .arg(BitcoinUnits::formatWithUnit(unit, privateAmount),
+                     BitcoinUnits::formatWithUnit(unit, fee),
+                     BitcoinUnits::formatWithUnit(unit, privateAmount + fee)),
+            QMessageBox::Cancel,
+            this);
+        auto confirmButton = confirmation.addButton(tr("Make Private"), QMessageBox::AcceptRole);
+        confirmation.setDefaultButton(QMessageBox::Cancel);
+        confirmation.exec();
+        if (confirmation.clickedButton() != confirmButton) {
             return;
         }
 
-        lelantusModel->mintAll(AutoMintMode::MintAll);
-    } else if (spark::IsSparkAllowed()) {
-        auto sparkModel = walletModel->getSparkModel();
-        if (!sparkModel) {
+        WalletModel::SendCoinsReturn sendResult;
+        GUIUtil::runWalletOperation([&] {
+            sendResult = walletModel->mintSparkCoins(transactions, transactionsAndFees, reserveKeys);
+        });
+        if (sendResult.status != WalletModel::OK) {
+            // The wallet may have split the request into several transactions
+            // (e.g. with the Split option) and committed some before failing,
+            // so the message must not claim that nothing was sent.
+            QMessageBox error(
+                QMessageBox::Critical,
+                tr("Unable to Make Funds Private"),
+                sendResult.partiallyCommitted
+                    ? tr("The transfer could not be fully completed. Part of it may already have been sent; check the Transactions tab before trying again.")
+                    : tr("The transfer could not be completed. No funds were moved."),
+                QMessageBox::Ok,
+                this);
+            const QString details = errorDetails(sendResult);
+            if (!details.isEmpty()) {
+                error.setDetailedText(details);
+            }
+            error.exec();
             return;
         }
 
-        sparkModel->mintSparkAll(AutoMintSparkMode::MintAll);
+        QMessageBox::information(
+            this,
+            tr("Funds Moving to Spark"),
+            tr("%1 is moving to your private Spark balance. It will become available after confirmation.")
+                .arg(BitcoinUnits::formatWithUnit(unit, privateAmount)));
+        return;
     }
 }
 
@@ -231,7 +823,6 @@ void OverviewPage::setBalance(
     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance,
     const CAmount& privateBalance, const CAmount& unconfirmedPrivateBalance, const CAmount& anonymizableBalance)
 {
-    int unit = walletModel->getOptionsModel()->getDisplayUnit();
     currentBalance = balance;
     currentUnconfirmedBalance = unconfirmedBalance;
     currentImmatureBalance = immatureBalance;
@@ -241,19 +832,11 @@ void OverviewPage::setBalance(
     currentPrivateBalance = privateBalance;
     currentUnconfirmedPrivateBalance = unconfirmedPrivateBalance;
     currentAnonymizableBalance = anonymizableBalance;
-    ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways));
-    ui->labelUnconfirmed->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelImmature->setText(BitcoinUnits::formatWithUnit(unit, immatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchAvailable->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchPending->setText(BitcoinUnits::formatWithUnit(unit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchImmature->setText(BitcoinUnits::formatWithUnit(unit, watchImmatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchTotal->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance + watchUnconfBalance + watchImmatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelPrivate->setText(BitcoinUnits::formatWithUnit(unit, privateBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelUnconfirmedPrivate->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelAnonymizable->setText(BitcoinUnits::formatWithUnit(unit, anonymizableBalance, false, BitcoinUnits::separatorAlways));
+    updateBalanceLabels();
 
-    ui->anonymizeButton->setEnabled((lelantus::IsLelantusAllowed() || spark::IsSparkAllowed()) && anonymizableBalance > 0);
+    auto wallet = walletModel->getWallet();
+    updateSparkAnonymizeRowVisibility();
+    ui->anonymizeButton->setEnabled(wallet && wallet->sparkWallet && spark::IsSparkAllowed() && anonymizableBalance > 0);
 
     // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
     // for the non-mining users
@@ -263,21 +846,110 @@ void OverviewPage::setBalance(
     // for symmetry reasons also show immature label when the watch-only one is shown
     ui->labelImmature->setVisible(showImmature || showWatchOnlyImmature);
     ui->labelImmatureText->setVisible(showImmature || showWatchOnlyImmature);
-    ui->labelWatchImmature->setVisible(showWatchOnlyImmature); // show watch-only immature balance
+    ui->labelWatchImmatureText->setVisible(showWatchOnlyImmature);
+    ui->labelWatchImmature->setVisible(showWatchOnlyImmature);
+
+    updateBalanceSplitLabels();
+    updatePrivateTransparentSplitBar();
+    updateActivityEmptyState();
+}
+
+void OverviewPage::updateBalanceLabels()
+{
+    if (!walletModel || !walletModel->getOptionsModel()) {
+        return;
+    }
+    const int unit = walletModel->getOptionsModel()->getDisplayUnit();
+    const QString faded = GUIUtil::themeColors().inkFaint;
+    const auto runs = [unit, &faded](const CAmount& amount) {
+        return GUIUtil::amountRunsHtml(BitcoinUnits::formatWithUnit(unit, amount, false, BitcoinUnits::separatorAlways), faded,
+                                       QStringLiteral("font-size:14px"));
+    };
+    ui->labelBalance->setText(runs(currentBalance));
+    ui->labelUnconfirmed->setText(runs(currentUnconfirmedBalance));
+    ui->labelImmature->setText(runs(currentImmatureBalance));
+    // The total sits on the gradient: decimals at 60% white, unit in the light display weight.
+    ui->labelTotal->setText(GUIUtil::amountRunsHtml(
+        BitcoinUnits::formatWithUnit(unit, currentBalance + currentUnconfirmedBalance + currentImmatureBalance + currentPrivateBalance + currentUnconfirmedPrivateBalance, false, BitcoinUnits::separatorAlways),
+        GUIUtil::themeColors().heroInkFaint, QStringLiteral("font-size:24px; font-weight:300")));
+    ui->labelWatchAvailable->setText(runs(currentWatchOnlyBalance));
+    ui->labelWatchPending->setText(runs(currentWatchUnconfBalance));
+    ui->labelWatchImmature->setText(runs(currentWatchImmatureBalance));
+    ui->labelWatchTotal->setText(runs(currentWatchOnlyBalance + currentWatchUnconfBalance + currentWatchImmatureBalance));
+    ui->labelPrivate->setText(runs(currentPrivateBalance));
+    ui->labelUnconfirmedPrivate->setText(runs(currentUnconfirmedPrivateBalance));
+    ui->labelAnonymizable->setText(runs(currentAnonymizableBalance));
+}
+
+void OverviewPage::updateBalanceSplitLabels()
+{
+    if (!walletModel || !walletModel->getOptionsModel())
+        return;
+    const int unit = walletModel->getOptionsModel()->getDisplayUnit();
+
+    const CAmount privateTotal = currentPrivateBalance + currentUnconfirmedPrivateBalance;
+    const CAmount transparentTotal = currentBalance + currentUnconfirmedBalance + currentImmatureBalance;
+    const CAmount splitTotal = privateTotal + transparentTotal;
+    int privatePercent = 0;
+    if (splitTotal > 0) {
+        privatePercent = static_cast<int>((privateTotal * 100 + splitTotal / 2) / splitTotal);
+        privatePercent = std::min(100, std::max(0, privatePercent));
+    }
+    privateBarSplitPercent_ = privatePercent;
+
+    // Legend on the balance gradient: dot, caption at 78% white, amount in white.
+    ui->labelTransparentSplit->setText(
+        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_INK_FAINT; font-size:10px\">●</span>&nbsp; "
+                                       "<span style=\"color:$HERO_INK_SOFT\">%3</span> "
+                                       "<span style=\"color:$HERO_INK; font-weight:700\">%1 (%2%)</span>"))
+            .arg(BitcoinUnits::formatWithUnit(unit, transparentTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
+            .arg(100 - privatePercent)
+            .arg(tr("Transparent")));
+    ui->labelPrivateSplit->setText(
+        GUIUtil::themed(QStringLiteral("<span style=\"color:$HERO_ACCENT; font-size:10px\">●</span>&nbsp; "
+                                       "<span style=\"color:$HERO_INK_SOFT\">%3</span> "
+                                       "<span style=\"color:$HERO_INK; font-weight:700\">%1 (%2%)</span>"))
+            .arg(BitcoinUnits::formatWithUnit(unit, privateTotal, false, BitcoinUnits::separatorAlways).toHtmlEscaped())
+            .arg(privatePercent)
+            .arg(tr("Private (Spark):")));
+}
+
+void OverviewPage::updatePrivateTransparentSplitBar()
+{
+    if (!privateSplitProgress)
+        return;
+    privateSplitProgress->setValue(privateBarSplitPercent_);
+    privateSplitProgress->setToolTip(
+        tr("Private (Spark) %1%  ·  Transparent %2%")
+            .arg(privateBarSplitPercent_)
+            .arg(100 - privateBarSplitPercent_));
+}
+
+void OverviewPage::updateActivityEmptyState()
+{
+    const bool hasTransactions = filter && filter->rowCount() > 0;
+    if (activityEmptyState_) {
+        activityEmptyState_->setVisible(!hasTransactions);
+        ui->listTransactions->setVisible(hasTransactions);
+    }
 }
 
 // show/hide watch-only labels
 void OverviewPage::updateWatchOnlyLabels(bool showWatchOnly)
 {
-    ui->labelSpendable->setVisible(showWatchOnly);      // show spendable label (only when watch-only is active)
-    ui->labelWatchonly->setVisible(showWatchOnly);      // show watch-only label
-    ui->lineWatchBalance->setVisible(showWatchOnly);    // show watch-only balance separator line
-    ui->labelWatchAvailable->setVisible(showWatchOnly); // show watch-only available balance
-    ui->labelWatchPending->setVisible(showWatchOnly);   // show watch-only pending balance
-    ui->labelWatchTotal->setVisible(showWatchOnly);     // show watch-only total balance
+    ui->labelWatchonly->setVisible(showWatchOnly);
+    ui->lineWatchBalance->setVisible(showWatchOnly);
+    ui->labelWatchAvailableText->setVisible(showWatchOnly);
+    ui->labelWatchAvailable->setVisible(showWatchOnly);
+    ui->labelWatchPendingText->setVisible(showWatchOnly);
+    ui->labelWatchPending->setVisible(showWatchOnly);
+    ui->labelWatchTotalText->setVisible(showWatchOnly);
+    ui->labelWatchTotal->setVisible(showWatchOnly);
 
-    if (!showWatchOnly)
+    if (!showWatchOnly) {
+        ui->labelWatchImmatureText->hide();
         ui->labelWatchImmature->hide();
+    }
 }
 
 void OverviewPage::setClientModel(ClientModel *model)
@@ -285,7 +957,7 @@ void OverviewPage::setClientModel(ClientModel *model)
     this->clientModel = model;
     if(model)
     {
-        connect(model, &ClientModel::numBlocksChanged, this, &OverviewPage::onRefreshClicked);
+        connect(model, &ClientModel::numBlocksChanged, this, [this]() { ui->warningFrame->hide(); });
         // Show warning if this is a prerelease version
         connect(model, &ClientModel::alertsChanged, this, &OverviewPage::updateAlerts);
         updateAlerts(model->getStatusBarWarnings());
@@ -295,24 +967,34 @@ void OverviewPage::setClientModel(ClientModel *model)
 void OverviewPage::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
-    onRefreshClicked();
+    ui->warningFrame->hide();
     if(model && model->getOptionsModel())
     {
         // Set up transaction list
         filter.reset(new TransactionFilterProxy());
         filter->setSourceModel(model->getTransactionTableModel());
+        connect(model->getTransactionTableModel(), &TransactionTableModel::confirmationsChanged,
+                filter.get(), &TransactionFilterProxy::refreshConfirmations);
         filter->setLimit(NUM_ITEMS);
         filter->setDynamicSortFilter(true);
         filter->setSortRole(Qt::EditRole);
         filter->setShowInactive(false);
         filter->sort(TransactionTableModel::Date, Qt::DescendingOrder);
 
+        // The row delegate paints status metadata in the address column.
+        connect(filter.get(), &QAbstractItemModel::dataChanged, this, [this] {
+            ui->listTransactions->viewport()->update();
+        });
+
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
-        auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
-        std::pair<CAmount, CAmount> sparkBalance = walletModel->getSparkBalance();
-        privateBalance = spark::IsSparkAllowed() ? sparkBalance : privateBalance;
+        connect(filter.get(), &QAbstractItemModel::rowsInserted, this, [this] { updateActivityEmptyState(); });
+        connect(filter.get(), &QAbstractItemModel::rowsRemoved, this, [this] { updateActivityEmptyState(); });
+        connect(filter.get(), &QAbstractItemModel::modelReset, this, [this] { updateActivityEmptyState(); });
+        updateActivityEmptyState();
+
+        auto privateBalance = walletModel->getSparkBalance();
 
         // Keep up to date with wallet
         setBalance(
@@ -328,9 +1010,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
         connect(model, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
 
         connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &OverviewPage::updateDisplayUnit);
+        connect(model->getOptionsModel(), &OptionsModel::sparkPageChanged, this, &OverviewPage::updateSparkAnonymizeRowVisibility);
 
         updateWatchOnlyLabels(model->haveWatchOnly());
         connect(model, &WalletModel::notifyWatchonlyChanged, this, &OverviewPage::updateWatchOnlyLabels);
+        updateSparkAnonymizeRowVisibility();
     }
 
     // update the display unit, to not use the default ("BTC")
@@ -363,116 +1047,210 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+    emptyTitle_->setText(fShow ? tr("Wallet is still syncing") : tr("No transactions yet"));
+    emptyHint_->setText(fShow
+        ? tr("Transactions will appear here as synchronization completes")
+        : tr("Your history will appear here after the first transfer"));
+    updateActivityEmptyState();
 }
 
-void OverviewPage::countDown()
+void OverviewPage::setConsolidationAction(QAction* action)
 {
-    secDelay--;
-    if(secDelay <= 0) {
-        if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
-            MigrateLelantusToSparkDialog migrate(walletModel);
-        }
-        countDownTimer.stop();
+    consolidationAction = action;
+}
+
+bool OverviewPage::canConsolidate() const
+{
+    return walletModel && consolidationAction && consolidationAction->isEnabled();
+}
+
+void OverviewPage::consolidateCoins()
+{
+    if (!canConsolidate())
+        return;
+    QPointer<OverviewPage> page(this);
+    std::vector<WalletModel::ConsolidationCandidate> addresses;
+    GUIUtil::runWalletOperation([&] { addresses = walletModel->getConsolidationAddresses(); });
+    if (!page || !canConsolidate())
+        return;
+    if (addresses.empty()) {
+        QMessageBox::information(this, tr("Consolidate Outputs"), tr("No address currently has an affordable batch of at least two confirmed, spendable outputs."));
+        return;
     }
-}
 
-void OverviewPage::onRefreshClicked()
-{
-    auto privateBalance = walletModel->getLelantusModel()->getPrivateBalance();
-    auto lGracefulPeriod = ::Params().GetConsensus().nLelantusGracefulPeriod;
-    if(privateBalance.first > 0 && chainActive.Height() < lGracefulPeriod && spark::IsSparkAllowed()) {
-        ui->warningFrame->show();
-        lelantusGracefulPeriod = QString::fromStdString(std::to_string(lGracefulPeriod));
-        currentBlock = QString::fromStdString(std::to_string(chainActive.Height()));
-        migrateAmount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), privateBalance.first);
-        migrateAmount.append("</b>");
-        ui->textWarning1->setText(tr("Firo is migrating to Spark. Redemption of coins in Lelantus will be disabled at block %1. <i>Current block is %2</i>.").arg(lelantusGracefulPeriod, currentBlock));
-        ui->textWarning2->setText(tr("to migrate %1 from Lelantus.").arg(migrateAmount));
-        QFont qFont = ui->migrateButton->font();
-        qFont.setUnderline(true);
-        ui->migrateButton->setFont(qFont);
-    } else {
-        ui->warningFrame->hide();
+    const int unit = walletModel->getOptionsModel()->getDisplayUnit();
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Consolidate Outputs"));
+    // The same surface and value treatment as Make Funds Private.
+    dialog.setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QLabel { background: transparent; color: $INK; }
+        QLabel#consolidationBatch, QLabel#consolidationFee, QLabel#consolidationReturned { color: $INK_SOFT; font-weight: 700; }
+    )")));
+    auto* layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 24, 24, 24);
+    layout->setSpacing(16);
+    auto* contents = new QWidget(&dialog);
+    contents->setObjectName(QStringLiteral("consolidationContents"));
+    auto* contentLayout = new QVBoxLayout(contents);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(16);
+    auto* explanation = new QLabel(tr("Combine confirmed outputs at one transparent address into a single output at that same address. "
+        "Outputs from other addresses are never used. The transaction is public, and its network fee is deducted from the returned amount."), contents);
+    explanation->setWordWrap(true);
+    contentLayout->addWidget(explanation);
+    auto* addressChoice = new QComboBox(contents);
+    addressChoice->setAccessibleName(tr("Address to consolidate"));
+    // Prefer the full label and address; on a narrow screen the choice can still shrink.
+    addressChoice->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    addressChoice->setMinimumContentsLength(1);
+    // Every candidate has at least two outputs, so the plural always applies.
+    for (const auto& entry : addresses) {
+        const QString name = entry.label.isEmpty() ? entry.address : tr("%1 (%2)").arg(entry.label, entry.address);
+        addressChoice->addItem(tr("%1 (%2 outputs)").arg(name, QString::number(qulonglong(entry.outputs))), entry.address);
     }
-}
+    auto* form = new QFormLayout();
+    form->setSpacing(12);
+    form->setRowWrapPolicy(QFormLayout::WrapLongRows);
+    form->addRow(tr("Address"), addressChoice);
+    auto* batchLabel = new QLabel(contents);
+    batchLabel->setObjectName(QStringLiteral("consolidationBatch"));
+    form->addRow(tr("This batch"), batchLabel);
+    auto* feeLabel = new QLabel(contents);
+    feeLabel->setObjectName(QStringLiteral("consolidationFee"));
+    form->addRow(tr("Network fee"), feeLabel);
+    auto* returnedLabel = new QLabel(contents);
+    returnedLabel->setObjectName(QStringLiteral("consolidationReturned"));
+    form->addRow(tr("Returned"), returnedLabel);
+    contentLayout->addLayout(form);
+    // Kept out of the form, which reserves a wrapped label's two-line size hint and leaves a gap.
+    auto* batchNote = new QLabel(tr("The remaining outputs can be combined in another transaction after this one."), contents);
+    batchNote->setObjectName(QStringLiteral("consolidationBatchNote"));
+    batchNote->setWordWrap(true);
+    contentLayout->addWidget(batchNote);
+    // An unsigned estimate from the scan; the review step shows the signed transaction.
+    const auto showBatch = [&addresses, addressChoice, batchLabel, batchNote, feeLabel, returnedLabel, unit] {
+        const int index = addressChoice->currentIndex();
+        if (index < 0 || size_t(index) >= addresses.size())
+            return;
+        const auto& entry = addresses[index];
+        batchLabel->setText(tr("%1 of %2 outputs").arg(QString::number(qulonglong(entry.batchInputs)), QString::number(qulonglong(entry.outputs))));
+        batchNote->setVisible(entry.batchInputs < entry.outputs);
+        feeLabel->setText(BitcoinUnits::formatWithUnit(unit, entry.fee));
+        returnedLabel->setText(BitcoinUnits::formatWithUnit(unit, entry.returnedAmount));
+    };
+    connect(addressChoice, &QComboBox::currentIndexChanged, &dialog, showBatch);
+    showBatch();
+    auto* scroll = new QScrollArea(&dialog);
+    scroll->setObjectName(QStringLiteral("consolidationScroll"));
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setWidget(contents);
+    scroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#consolidationScroll, QWidget#consolidationContents { background: transparent; border: none; }"));
+    layout->addWidget(scroll, 1);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok, &dialog);
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Review"));
+    buttons->button(QDialogButtonBox::Ok)->setStyleSheet(GUIUtil::primaryButtonStyle());
+    buttons->button(QDialogButtonBox::Cancel)->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    dialog.ensurePolished();
+    const QSize available = GUIUtil::availableScreenSize(&dialog);
+    const QMargins margins = layout->contentsMargins();
+    const int width = qMin(contents->sizeHint().width() + margins.left() + margins.right(), qMax(1, available.width() - 40));
+    // Show the full explanation when it fits; keep the buttons outside the scroll area.
+    const int height = layout->sizeHint().height() - scroll->sizeHint().height()
+        + contentLayout->totalHeightForWidth(width - margins.left() - margins.right());
+    dialog.resize(width, qMin(height, qMax(1, available.height() - 40)));
+    if (dialog.exec() != QDialog::Accepted || !canConsolidate())
+        return;
 
-void OverviewPage::migrateClicked()
-{
-    if(walletModel->getAvailableLelantusCoins() && spark::IsSparkAllowed() && chainActive.Height() < ::Params().GetConsensus().nLelantusGracefulPeriod){
-        MigrateLelantusToSparkDialog migrate(walletModel);
+    const QString address = addressChoice->currentData().toString();
+    WalletModelTransaction transaction{QList<SendCoinsRecipient>()};
+    WalletModel::SendCoinsReturn result;
+    {
+        WalletModel::UnlockContext unlock(walletModel->requestUnlock(tr("Consolidate outputs")));
+        if (!unlock.isValid() || !page || !canConsolidate())
+            return;
+        GUIUtil::runWalletOperation([&] {
+            result = walletModel->prepareConsolidationTransaction(transaction, address);
+        });
     }
+    if (!page || !canConsolidate())
+        return;
+    if (result.status != WalletModel::OK) {
+        QMessageBox error(QMessageBox::Warning, tr("Unable to Consolidate Outputs"),
+            tr("Firo could not create a consolidation transaction for this address."), QMessageBox::Ok, this);
+        error.setInformativeText(tr("%1\n\nNo funds were moved.").arg(result.reasonCommitFailed));
+        error.exec();
+        return;
+    }
+
+    // Review in the shared send confirmation: the same layout, emphasis and countdown as a payment.
+    const auto& tx = *transaction.getTransaction()->tx;
+    const auto chosen = std::find_if(addresses.begin(), addresses.end(), [&](const auto& entry) { return entry.address == address; });
+    const QString name = chosen != addresses.end() && !chosen->label.isEmpty() ? tr("%1 (%2)").arg(chosen->label, address) : address;
+    QString question = tr("Are you sure you want to consolidate these outputs?");
+    question.append("<br /><br />");
+    question.append(tr("%1 outputs at %2 will be combined into one output at the same address.")
+        .arg(QString::number(qulonglong(tx.vin.size())), "<b>" + GUIUtil::HtmlEscape(name) + "</b>"));
+    question.append("<hr /><span style='font-weight: 700;'>");
+    question.append(BitcoinUnits::formatHtmlWithUnit(unit, transaction.getTransactionFee()));
+    question.append("</span> ");
+    question.append(tr("added as transaction fee"));
+    question.append(" (" + QString::number(double(transaction.getTransactionSize()) / 1000) + " kB)");
+    question.append("<hr />");
+    question.append(tr("Amount returned to this address: %1")
+        .arg("<b>" + BitcoinUnits::formatHtmlWithUnit(unit, tx.vout[0].nValue) + "</b>"));
+    SendConfirmationDialog confirmation(tr("Confirm consolidation"), question, SEND_CONFIRM_DELAY, this);
+    confirmation.exec();
+    if (!page || static_cast<QMessageBox::StandardButton>(confirmation.result()) != QMessageBox::Yes || !canConsolidate())
+        return;
+
+    size_t remainingOutputs = 0;
+    bool anotherBatch = false;
+    GUIUtil::runWalletOperation([&] { result = walletModel->sendConsolidationTransaction(transaction, remainingOutputs, anotherBatch); });
+    if (!page)
+        return;
+    if (result.status != WalletModel::OK) {
+        // Submission validates before recording, so a failure leaves the wallet unchanged.
+        QMessageBox error(QMessageBox::Critical, tr("Unable to Consolidate Outputs"),
+            tr("The consolidation could not be completed. No funds were moved."), QMessageBox::Ok, this);
+        if (!result.reasonCommitFailed.isEmpty())
+            error.setDetailedText(result.reasonCommitFailed);
+        error.exec();
+        return;
+    }
+    showConsolidationResult(remainingOutputs, anotherBatch);
 }
 
-MigrateLelantusToSparkDialog::MigrateLelantusToSparkDialog(WalletModel *_model):QMessageBox()
+void OverviewPage::showConsolidationResult(qulonglong remainingOutputs, bool anotherBatch)
 {
-        this->model = _model;
-        QDialog::setWindowTitle("Migrate funds from Lelantus to Spark");
-        QDialog::setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
-        
-        QLabel *ic = new QLabel();
-        QIcon icon_;
-        icon_.addFile(QString::fromUtf8(":/icons/ic_info"), QSize(), QIcon::Normal, QIcon::On);
-        ic->setPixmap(icon_.pixmap(18, 18));
-        ic->setFixedWidth(90);
-        ic->setAlignment(Qt::AlignRight);
-        ic->setStyleSheet("color:#92400E");
-
-        QLabel *text = new QLabel();
-        text->setText(tr("Firo is migrating to Spark. Please migrate your funds."));
-        text->setAlignment(Qt::AlignLeft);
-        text->setWordWrap(true);
-        text->setStyleSheet("color:#92400E;text-align:center;word-wrap: break-word;");
-
-        QPushButton *ignore = new QPushButton(this);
-        ignore->setText("Ignore");
-        ignore->setStyleSheet("margin-top:30px;margin-bottom:60px;margin-left:20px;margin-right:50px;");
-        QPushButton *migrate = new QPushButton(this);
-        migrate->setText("Migrate");
-        migrate->setStyleSheet("color:#9b1c2e;background-color:none;margin-top:30px;margin-bottom:60px;margin-left:50px;margin-right:20px;border:1px solid #9b1c2e;");
-        QHBoxLayout *groupButton = new QHBoxLayout(this);
-        groupButton->addWidget(ignore);
-        groupButton->addWidget(migrate);
-        
-        QHBoxLayout *hlayout = new QHBoxLayout(this);
-        hlayout->addWidget(ic);
-        hlayout->addWidget(text);
-        
-        QWidget *layout_ = new QWidget();
-        layout_->setLayout(hlayout);
-        layout_->setStyleSheet("background-color:#FEF3C7;");
-        
-        QVBoxLayout *vlayout = new QVBoxLayout(this);
-        vlayout->addWidget(layout_);
-        vlayout->addLayout(groupButton);
-        vlayout->setContentsMargins(0,0,0,0);
-
-        QWidget *wbody = new QWidget();
-        wbody->setLayout(vlayout);
-
-        layout()->addWidget(wbody);
-        setContentsMargins(0, 0, 0, 0);
-        setStyleSheet("margin-right:-30px;");
-        setStandardButtons(0);    
-
-        connect(ignore, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onIgnoreClicked);
-        connect(migrate, &QPushButton::clicked, this, &MigrateLelantusToSparkDialog::onMigrateClicked);
-        exec();
+    QString message = tr("The consolidated funds will be available at the same address after confirmation.")
+        + "\n\n" + tr("Eligible outputs remaining at this address: %1").arg(remainingOutputs);
+    if (anotherBatch) {
+        message += "\n\n" + tr("Another affordable batch is available using File > Consolidate outputs.");
+    } else if (remainingOutputs == 1) {
+        message += "\n\n" + tr("After confirmation, you can try combining the consolidated output with the remaining output at this same address.");
+    } else if (remainingOutputs >= 2) {
+        message += "\n\n" + tr("The remaining outputs cannot currently form an affordable batch within the transaction limits. Try again after a larger output at this address confirms.");
+    }
+    message += "\n\n" + tr("Each additional consolidation requires your confirmation and a network fee.");
+    QMessageBox::information(this, tr("Consolidation Submitted"), message);
 }
 
-void MigrateLelantusToSparkDialog::onIgnoreClicked()
+void OverviewPage::updateSparkAnonymizeRowVisibility()
 {
-    setVisible(false);
-    clickedButton = true;
-}
-
-void MigrateLelantusToSparkDialog::onMigrateClicked()
-{
-    setVisible(false);
-    clickedButton = false;
-    model->migrateLelantusToSpark();
-}
-
-bool MigrateLelantusToSparkDialog::getClickedButton()
-{
-    return clickedButton;
+    if (!walletModel || !walletModel->getOptionsModel()) {
+        return;
+    }
+    const bool show = spark::IsSparkAllowed() && walletModel->getOptionsModel()->getSparkPage();
+    ui->labelAnonymizableText->setVisible(show);
+    ui->labelAnonymizable->setVisible(show);
+    // Watch-only funds cannot be spent, so wallets with nothing eligible
+    // (e.g. watch-only wallets) get no dead Make Private control.
+    ui->anonymizeButton->setVisible(show && currentAnonymizableBalance > 0);
 }

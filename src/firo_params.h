@@ -50,6 +50,9 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define ZC_SIGMA_DISABLE_UNPADDED_BLOCK         219904 //December 2nd 12PM UTC
 #define ZC_SIGMA_TESTNET_DISABLE_UNPADDED_BLOCK 109160
 
+#define ZC_SIGMA_END_BLOCK         1104500 // ~MAY 28th 2025
+#define ZC_SIGMA_TESTNET_END_BLOCK 174000
+
 // The block number after which old sigma clients are banned.
 #define ZC_OLD_SIGMA_BAN_BLOCK          181850 //Approx July 22nd, 2019, 4:00 AM UTC
 
@@ -184,6 +187,13 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 FIRO mininput
 #define SPARK_TESTNET_START_BLOCK 107000
 #define LELANTUS_GRACEFUL_PERIOD 1223500 // Approx Jan 30 2026
 #define LELANTUS_TESTNET_GRACEFUL_PERIOD 140000
+
+// Hard fork block numbers for spark name transfer and related features
+#define SPARK_NAME_TRANSFER_MAINNET_START_BLOCK     1205100     // Approx Nov 19 2025
+#define SPARK_NAME_TRANSFER_TESTNET_START_BLOCK     189800
+#define SPARK_NAME_TRANSFER_DEVNET_START_BLOCK      3900
+
+#define SPARK_NAME_V21_MAINNET_START_BLOCK          1329000     // Approx June 22 2026
 
 // Versions of zerocoin mint/spend transactions
 #define ZEROCOIN_TX_VERSION_3               30

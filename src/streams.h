@@ -61,6 +61,8 @@ public:
 
     int GetVersion() const { return nVersion; }
     int GetType() const { return nType; }
+    size_t size() const { return stream->size(); }
+    void ignore(size_t nSize) { return stream->ignore(nSize); }
 };
 
 template<typename S>

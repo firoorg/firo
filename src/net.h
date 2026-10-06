@@ -178,7 +178,8 @@ public:
     bool Start(CScheduler& scheduler, std::string& strNodeError, Options options);
     void Stop();
     void Interrupt();
-    bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
+    bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false,
+                        bool is_onion_listener = false, unsigned short* out_port = nullptr);
     bool GetNetworkActive() const { return fNetworkActive; };
     void SetNetworkActive(bool active);
     bool OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false, bool fAddnode = false, bool fConnectToMasternode = false);
@@ -318,7 +319,7 @@ public:
     void ReleaseNodeVector(const std::vector<CNode*>& vecNodes);
 
     void RelayTransaction(const CTransaction& tx);
-    void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
+    void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION, bool fForce = false);
     void RelayInvFiltered(CInv &inv, const CTransaction &relatedTx, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
     // This overload will not update node filters,  so use it only for the cases when other messages will update related transaction data in filters
     void RelayInvFiltered(CInv &inv, const uint256 &relatedTxHash, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
@@ -335,7 +336,7 @@ public:
 
     // Denial-of-service detection/prevention
     // The idea is to detect peers that are behaving
-    // badly and disconnect/ban them, but do it in a
+    // badly and disconnect/discourage them, but do it in a
     // one-coding-mistake-won't-shatter-the-entire-network
     // way.
     // IMPORTANT:  There should be nothing I can give a
@@ -347,11 +348,16 @@ public:
     // dangerous, because it can cause a network split
     // between nodes running old code and nodes running
     // new code.
+    // Manual bans are persisted and reject connections. Automatic
+    // discouragement is bounded, avoids outbound connections, and makes
+    // inbound peers preferred for eviction.
     void Ban(const CNetAddr& netAddr, const BanReason& reason, int64_t bantimeoffset = 0, bool sinceUnixEpoch = false);
     void Ban(const CSubNet& subNet, const BanReason& reason, int64_t bantimeoffset = 0, bool sinceUnixEpoch = false);
+    void Discourage(const CNetAddr& netAddr);
     void ClearBanned(); // needed for unit testing
-    bool IsBanned(CNetAddr ip);
-    bool IsBanned(CSubNet subnet);
+    bool IsBanned(const CNetAddr& ip);
+    bool IsBanned(const CSubNet& subnet);
+    bool IsDiscouraged(const CNetAddr& ip);
     bool Unban(const CNetAddr &ip);
     bool Unban(const CSubNet &ip);
     void GetBanned(banmap_t &banmap);
@@ -375,6 +381,8 @@ public:
     size_t GetNodeCount(NumConnections num);
     void GetNodeStats(std::vector<CNodeStats>& vstats);
     bool DisconnectNode(const std::string& node);
+    bool DisconnectNode(const CSubNet& subnet);
+    bool DisconnectNode(const CNetAddr& addr);
     bool DisconnectNode(NodeId id);
 
     unsigned int GetSendBufferSize() const;
@@ -420,8 +428,14 @@ private:
     struct ListenSocket {
         SOCKET socket;
         bool whitelisted;
+        /** Whether this socket is the local endpoint that receives inbound
+         *  connections forwarded from our Tor hidden service. Connections
+         *  accepted on such a socket originate from a peer that reached us
+         *  over Tor, even though the socket-level peer address is 127.0.0.1. */
+        bool is_onion_listener;
 
-        ListenSocket(SOCKET socket_, bool whitelisted_) : socket(socket_), whitelisted(whitelisted_) {}
+        ListenSocket(SOCKET socket_, bool whitelisted_, bool is_onion_listener_ = false)
+            : socket(socket_), whitelisted(whitelisted_), is_onion_listener(is_onion_listener_) {}
     };
 
     void ThreadOpenAddedConnections();
@@ -489,8 +503,17 @@ private:
     unsigned int nReceiveFloodSize;
 
     std::vector<ListenSocket> vhListenSocket;
+    /** Guards vhListenSocket. All current callers of BindListenPort run at
+     *  init time before ThreadSocketHandler starts, and Stop() runs after it
+     *  joins, so under the current call graph there is no concurrent access.
+     *  The lock is kept as defense-in-depth against a future runtime caller
+     *  (e.g. if the dedicated onion bind ever moves back to the Tor control
+     *  thread) mutating the vector while the socket handler or Stop() is
+     *  iterating it. */
+    mutable CCriticalSection cs_vhListenSocket;
     std::atomic<bool> fNetworkActive;
     banmap_t setBanned;
+    CRollingBloomFilter setDiscouraged{50000, 0.000001};
     CCriticalSection cs_setBanned;
     bool setBannedIsDirty;
     bool fAddressesInitialized;
@@ -598,6 +621,8 @@ void AdvertiseLocal(CNode *pnode);
 void SetLimited(enum Network net, bool fLimited = true);
 bool IsLimited(enum Network net);
 bool IsLimited(const CNetAddr& addr);
+void SetNetworkExplicitlyLimited(enum Network net, bool fLimited = true);
+bool IsNetworkExplicitlyLimited(enum Network net);
 bool AddLocal(const CService& addr, int nScore = LOCAL_NONE);
 bool AddLocal(const CNetAddr& addr, int nScore = LOCAL_NONE);
 bool RemoveLocal(const CService& addr);
@@ -641,6 +666,10 @@ public:
     int nVersion;
     std::string cleanSubVer;
     bool fInbound;
+    /** True when the peer connected to us over our Tor hidden service. The
+     *  socket-level address will be 127.0.0.1, but the connection really came
+     *  in through the onion listener, so we classify it as an onion peer. */
+    bool m_inbound_onion;
     bool fAddnode;
     int nStartingHeight;
     uint64_t nSendBytes;
@@ -751,11 +780,15 @@ public:
     std::string strSubVer, cleanSubVer;
     CCriticalSection cs_SubVer; // used for both cleanSubVer and strSubVer
     bool fWhitelisted; // This peer can bypass DoS banning.
+    bool fPreferEvict; // This peer is preferred for eviction.
     bool fFeeler; // If true this node is being used as a short lived feeler.
     bool fOneShot;
     bool fAddnode;
     bool fClient;
     const bool fInbound;
+    /** True when this peer reached us through our Tor hidden service (inbound
+     *  on the dedicated onion listener). See CNodeStats::m_inbound_onion. */
+    const bool m_inbound_onion;
     std::atomic_bool fSuccessfullyConnected;
     std::atomic_bool fDisconnect;
     // We use fRelayTxes for two purposes -
@@ -805,11 +838,14 @@ public:
 
     // inventory based relay
     CRollingBloomFilter filterInventoryKnown;
-    // Set of Dandelion transactions that should be known to this peer
-    std::set<uint256> setDandelionInventoryKnown;
+    // Bounded bloom filter for Dandelion inventory known (same semantics as filterInventoryKnown)
+    CRollingBloomFilter filterDandelionInventoryKnown;
     // Set of transaction ids we still have to announce.
     // They are sorted by the mempool before relay, so the order is not important.
     std::set<uint256> setInventoryTxToSend;
+    // Hashes force-pushed via PushInventory(fForce=true) that must bypass
+    // the filterInventoryKnown check at the actual send point in SendMessages.
+    std::set<uint256> setInventoryForcedToSend;
     // List of Dandelion transaction ids to announce.
     std::vector<uint256> vInventoryDandelionTxToSend;
     // List of block ids we still have announce.
@@ -865,8 +901,10 @@ public:
     std::atomic<bool> fSendRecSigs{false};
     // If true, we will send him all quorum related messages, even if he is not a member of our quorums
     std::atomic<bool> qwatch{false};
+    // If true, we will send and receive ADDRV2 messages (BIP155)
+    std::atomic<bool> m_wants_addrv2{false};
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const std::string &addrNameIn = "", bool fInboundIn = false);
+    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const std::string &addrNameIn = "", bool fInboundIn = false, bool inbound_onion = false);
     ~CNode();
 
 private:
@@ -977,23 +1015,27 @@ public:
         }
     }
 
-    void PushInventory(const CInv& inv)
+    void PushInventory(const CInv& inv, bool fForce = false)
     {
         LOCK(cs_inventory);
         if (inv.type == MSG_TX) {
-            if (!filterInventoryKnown.contains(inv.hash)) {
+            if (fForce || !filterInventoryKnown.contains(inv.hash)) {
                 setInventoryTxToSend.insert(inv.hash);
+                if (fForce)
+                    setInventoryForcedToSend.insert(inv.hash);
             }
         } else if (inv.type == MSG_DANDELION_TX) {
-        	if (setDandelionInventoryKnown.count(inv.hash) == 0) {
+        	if (fForce || !filterDandelionInventoryKnown.contains(inv.hash)) {
         		vInventoryDandelionTxToSend.push_back(inv.hash);
         	}
         } else if (inv.type == MSG_BLOCK) {
             vInventoryBlockToSend.push_back(inv.hash);
         } else {
-            if (!filterInventoryKnown.contains(inv.hash)) {
+            if (fForce || !filterInventoryKnown.contains(inv.hash)) {
                 LogPrint("net", "PushInventory --  inv: %s peer=%d\n", inv.ToString(), id);
                 vInventoryOtherToSend.push_back(inv);
+                if (fForce)
+                    setInventoryForcedToSend.insert(inv.hash);
             } else {
                 LogPrint("net", "PushInventory --  filtered inv: %s peer=%d\n", inv.ToString(), id);
             }

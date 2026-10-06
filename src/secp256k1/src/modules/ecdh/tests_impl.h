@@ -4,8 +4,8 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_MODULE_ECDH_TESTS_
-#define _SECP256K1_MODULE_ECDH_TESTS_
+#ifndef SECP256K1_MODULE_ECDH_TESTS_
+#define SECP256K1_MODULE_ECDH_TESTS_
 
 void test_ecdh_generator_basepoint(void) {
     unsigned char s_one[32] = { 0 };

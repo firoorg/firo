@@ -3,155 +3,14 @@
 #include "automintdialog.h"
 #include "automintmodel.h"
 #include "bitcoinunits.h"
-#include "lelantusmodel.h"
+#include "guitheme.h"
+#include "guiutil.h"
 #include "sparkmodel.h"
 #include "ui_automintdialog.h"
 
 #include <QMessageBox>
 #include <QPushButton>
 #include <QDebug>
-
-AutoMintDialog::AutoMintDialog(AutoMintMode mode, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::AutoMintDialog),
-    model(0),
-    lelantusModel(0),
-    requiredPassphase(true),
-    progress(AutoMintProgress::Start),
-    mode(mode)
-{
-    ENTER_CRITICAL_SECTION(cs_main);
-    ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
-
-    ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
-    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
-}
-
-AutoMintDialog::~AutoMintDialog()
-{
-    if (lelantusModel) {
-        LEAVE_CRITICAL_SECTION(lelantusModel->cs);
-    }
-
-    LEAVE_CRITICAL_SECTION(pwalletMain->cs_wallet);
-    LEAVE_CRITICAL_SECTION(cs_main);
-}
-
-void AutoMintDialog::accept()
-{
-    ensureLelantusModel();
-
-    ui->buttonBox->setVisible(false);
-    ui->passEdit->setVisible(false);
-    ui->passLabel->setVisible(false);
-    ui->lockWarningLabel->setVisible(false);
-    ui->lockCheckBox->setVisible(false);
-
-    if (requiredPassphase) {
-        auto rawPassphase = ui->passEdit->text().toStdString();
-        SecureString passphase(rawPassphase.begin(), rawPassphase.end());
-        auto lock = ui->lockCheckBox->isChecked();
-
-        progress = AutoMintProgress::Unlocking;
-        repaint();
-
-        if (!lelantusModel->unlockWallet(passphase, lock ? 0 : 60 * 1000)) {
-            QMessageBox::critical(this, tr("Wallet unlock failed"),
-                                  tr("The passphrase was incorrect."));
-            QDialog::reject();
-            return;
-        }
-    }
-
-    progress = AutoMintProgress::Minting;
-    repaint();
-
-    AutoMintAck status;
-    CAmount minted = 0;
-    QString error;
-
-    try {
-        minted = lelantusModel->mintAll();
-        status = AutoMintAck::Success;
-    } catch (std::runtime_error const &e) {
-        status = AutoMintAck::FailToMint;
-        error = e.what();
-        QMessageBox::critical(this, tr("Unable to generate mint"),
-                              tr(error.toLocal8Bit().data()));
-    }
-
-    QDialog::accept();
-
-    lelantusModel->sendAckMintAll(status, minted, error);
-}
-
-int AutoMintDialog::exec()
-{
-    ensureLelantusModel();
-    if (lelantusModel->getMintableAmount() <= 0) {
-        lelantusModel->sendAckMintAll(AutoMintAck::NotEnoughFund);
-        return 0;
-    }
-
-    return QDialog::exec();
-}
-
-void AutoMintDialog::reject()
-{
-    ensureLelantusModel();
-    lelantusModel->sendAckMintAll(AutoMintAck::UserReject);
-    QDialog::reject();
-}
-
-void AutoMintDialog::setModel(WalletModel *model)
-{
-    this->model = model;
-    if (!this->model) {
-        return;
-    }
-
-    lelantusModel = this->model->getLelantusModel();
-    if (!lelantusModel) {
-        return;
-    }
-
-    ENTER_CRITICAL_SECTION(lelantusModel->cs);
-
-    if (this->model->getEncryptionStatus() != WalletModel::Locked) {
-        ui->passLabel->setVisible(false);
-        ui->passEdit->setVisible(false);
-        ui->lockCheckBox->setVisible(false);
-        ui->lockWarningLabel->setText(QString(tr("Do you want to anonymize all transparent funds?")));
-
-        requiredPassphase = false;
-    }
-}
-
-void AutoMintDialog::paintEvent(QPaintEvent *event)
-{
-    QPainter painter;
-    painter.begin(this);
-
-    if (progress != AutoMintProgress::Start) {
-        auto progressMessage = progress == AutoMintProgress::Unlocking ? tr("Unlocking wallet...") : tr("Anonymizing...");
-        auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
-        painter.drawText(
-            (width() - size.width()) / 2,
-            (height() - size.height()) / 2,
-            QString(progressMessage));
-    }
-
-    QWidget::paintEvent(event);
-    painter.end();
-}
-
-void AutoMintDialog::ensureLelantusModel()
-{
-    if (!lelantusModel) {
-        throw std::runtime_error("Lelantus model is not set");
-    }
-}
 
 AutoMintSparkDialog::AutoMintSparkDialog(AutoMintSparkMode mode, QWidget *parent) :
     QDialog(parent),
@@ -166,15 +25,35 @@ AutoMintSparkDialog::AutoMintSparkDialog(AutoMintSparkMode mode, QWidget *parent
     ENTER_CRITICAL_SECTION(pwalletMain->cs_wallet);
 
     ui->setupUi(this);
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Anonymize"));
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Make Private"));
     ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Cancel"));
+
+    applyTheme();
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &AutoMintSparkDialog::applyTheme);
+}
+
+void AutoMintSparkDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QLabel { background: transparent; color: $INK_SOFT; }"
+        "QLineEdit {"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
+        " padding: 8px 12px; color: $INK;"
+        "}"
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 7px 11px; }"
+        "QCheckBox { background: transparent; color: $INK_SOFT; }")));
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 AutoMintSparkDialog::~AutoMintSparkDialog()
 {
-    if (sparkModel) {
-        LEAVE_CRITICAL_SECTION(sparkModel->cs);
-    }
+    sparkModelLock.reset();
 
     LEAVE_CRITICAL_SECTION(pwalletMain->cs_wallet);
     LEAVE_CRITICAL_SECTION(cs_main);
@@ -246,6 +125,23 @@ void AutoMintSparkDialog::reject()
     QDialog::reject();
 }
 
+/**
+ * @brief Attach a WalletModel to the dialog and configure UI based on wallet state.
+ *
+ * Sets the dialog's internal model and resolves its SparkModel. If a SparkModel is found,
+ * this function acquires the SparkModel critical section and leaves it only when the
+ * dialog is destroyed. If the wallet is
+ * currently unlocked, the passphrase input, passphrase label, and lock checkbox are
+ * hidden, the lock warning text asks whether to make all transparent funds private with Spark,
+ * and requiredPassphase is cleared.
+ *
+ * This method has the side effects of:
+ * - storing the provided WalletModel in the dialog,
+ * - storing and locking sparkModel->cs for the dialog's lifetime,
+ * - mutating UI visibility and the requiredPassphase flag when the wallet is unlocked.
+ *
+ * No action is taken if either the provided model or its SparkModel is null.
+ */
 void AutoMintSparkDialog::setModel(WalletModel *model)
 {
     this->model = model;
@@ -258,13 +154,13 @@ void AutoMintSparkDialog::setModel(WalletModel *model)
         return;
     }
 
-    ENTER_CRITICAL_SECTION(sparkModel->cs);
+    sparkModelLock = std::make_unique<CCriticalBlock>(sparkModel->cs, "sparkModel->cs", __FILE__, __LINE__);
 
     if (this->model->getEncryptionStatus() != WalletModel::Locked) {
         ui->passLabel->setVisible(false);
         ui->passEdit->setVisible(false);
         ui->lockCheckBox->setVisible(false);
-        ui->lockWarningLabel->setText(QString(tr("Do you want to anonymize all transparent funds?")));
+        ui->lockWarningLabel->setText(QString(tr("Make all available transparent funds private with Spark?")));
 
         requiredPassphase = false;
     }
@@ -276,8 +172,9 @@ void AutoMintSparkDialog::paintEvent(QPaintEvent *event)
     painter.begin(this);
 
     if (progress != AutoMintSparkProgress::Start) {
-        auto progressMessage = progress == AutoMintSparkProgress::Unlocking ? tr("Unlocking wallet...") : tr("Anonymizing...");
+        auto progressMessage = progress == AutoMintSparkProgress::Unlocking ? tr("Unlocking wallet...") : tr("Making funds private...");
         auto size = QFontMetrics(painter.font()).size(Qt::TextSingleLine, progressMessage);
+        painter.setPen(QColor(GUIUtil::themeColors().ink));
         painter.drawText(
             (width() - size.width()) / 2,
             (height() - size.height()) / 2,

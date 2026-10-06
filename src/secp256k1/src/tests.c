@@ -2952,7 +2952,7 @@ void run_ec_pubkey_parse_test(void) {
         0xB8, 0x00
     };
     unsigned char sout[65];
-    unsigned char shortkey[2];
+    unsigned char shortkey[2] = {0};
     secp256k1_ge ge;
     secp256k1_pubkey pubkey;
     size_t len;
@@ -3348,8 +3348,8 @@ void test_ecdsa_sign_verify(void) {
     secp256k1_scalar one;
     secp256k1_scalar msg, key;
     secp256k1_scalar sigr, sigs;
-    int recid;
-    int getrec;
+    int recid = 0;
+    int getrec = 0;
     random_scalar_order_test(&msg);
     random_scalar_order_test(&key);
     secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &pubj, &key);

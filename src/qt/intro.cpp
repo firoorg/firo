@@ -9,9 +9,13 @@
 #include "intro.h"
 #include "ui_intro.h"
 
+#include "guitheme.h"
 #include "guiutil.h"
 
 #include "util.h"
+
+#include <QDialogButtonBox>
+#include <QPushButton>
 
 #include <boost/filesystem.hpp>
 
@@ -138,6 +142,30 @@ Intro::Intro(QWidget *parent) :
     requiredSpace += CHAIN_STATE_SIZE;
     ui->sizeWarningLabel->setText(ui->sizeWarningLabel->text().arg(tr(PACKAGE_NAME)).arg(requiredSpace));
     startThread();
+
+    applyTheme();
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &Intro::applyTheme);
+}
+
+void Intro::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QDialog { background: $BG; }"
+        "QLabel { background: transparent; color: $INK_SOFT; }"
+        "QLabel#errorMessage, QLabel#freeSpace { color: $INK_SOFT; }"
+        "QRadioButton { background: transparent; color: $INK_SOFT; }"
+        "QLineEdit {"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
+        " padding: 8px 12px; color: $INK;"
+        "}"
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 7px 11px; }")));
+    ui->ellipsisButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
+    if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
+        okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
+    }
+    if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
+        cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
 }
 
 Intro::~Intro()
@@ -233,7 +261,7 @@ void Intro::setStatus(int status, const QString &message, quint64 bytesAvailable
         break;
     case FreespaceChecker::ST_ERROR:
         ui->errorMessage->setText(tr("Error") + ": " + message);
-        ui->errorMessage->setStyleSheet("QLabel { color: #800000 }");
+        ui->errorMessage->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
         break;
     }
     /* Indicate number of bytes available */
@@ -245,7 +273,7 @@ void Intro::setStatus(int status, const QString &message, quint64 bytesAvailable
         if(bytesAvailable < requiredSpace * GB_BYTES)
         {
             freeString += " " + tr("(of %n GB needed)", "", requiredSpace);
-            ui->freeSpace->setStyleSheet("QLabel { color: #800000 }");
+            ui->freeSpace->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
         } else {
             ui->freeSpace->setStyleSheet("");
         }
@@ -264,7 +292,7 @@ void Intro::on_dataDirectory_textChanged(const QString &dataDirStr)
 
 void Intro::on_ellipsisButton_clicked()
 {
-    QString dir = QDir::toNativeSeparators(QFileDialog::getExistingDirectory(0, "Choose data directory", ui->dataDirectory->text()));
+    QString dir = QDir::toNativeSeparators(QFileDialog::getExistingDirectory(0, tr("Choose data directory"), ui->dataDirectory->text()));
     if(!dir.isEmpty())
         ui->dataDirectory->setText(dir);
 }

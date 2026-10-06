@@ -6,10 +6,10 @@
 [![GitHub commits-since-last-version](https://img.shields.io/github/commits-since/firoorg/firo/latest/master)](https://github.com/firoorg/firo/graphs/commit-activity)
 [![GitHub commits-per-month](https://img.shields.io/github/commit-activity/m/firoorg/firo)](https://github.com/firoorg/firo/graphs/code-frequency)
 [![GitHub last-commit](https://img.shields.io/github/last-commit/firoorg/firo)](https://github.com/firoorg/firo/commits/master)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/firoorg/firo?utm_source=oss&utm_medium=github&utm_campaign=firoorg%2Ffiro&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/firoorg/firo)
 
-[Firo](https://firo.org) formerly known as Zcoin, is a privacy focused cryptocurrency that utilizes the [Lelantus Spark protocol](https://eprint.iacr.org/2021/1173) which supports high anonymity sets without requiring trusted setup and relying on standard cryptographic assumptions.
-
-The Lelantus Spark cryptographic library and implementation was audited by [HashCloak](https://firo.org/about/research/papers/lelantus_spark_code_audit_report.pdf). The Lelantus Spark cryptography paper has undergone two separate audits by [HashCloak](https://firo.org/about/research/papers/Lelantus_Spark_Audit_Report.pdf) and [Daniel (Linfeng) Zhao](https://firo.org/about/research/papers/LinfengSparkAudit.pdf).
+[Firo](https://firo.org) formerly known as Zcoin, is a privacy-focused cryptocurrency that utilizes the [Spark protocol](https://eprint.iacr.org/2021/1173) which supports high anonymity sets without requiring trusted setup and relying on standard cryptographic assumptions.
 
 Firo also utilises [Dandelion++](https://arxiv.org/abs/1805.11060) to obscure the originating IP of transactions without relying on any external services such as Tor/i2P.
 
@@ -17,7 +17,7 @@ Firo uses a hybrid PoW and LLMQ Chainlocks system combining fair distribution of
 
 # Running with Docker
 
-If you are already familiar with Docker, then running Firo with Docker might be the the easier method for you. To run Firo using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
+If you are already familiar with Docker, then running Firo with Docker might be the easier method for you. To run Firo using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
 continue with the following instructions.
 
 Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `firo-cli` utility) to interact with Firo via this method.
@@ -107,18 +107,20 @@ Bootstrappable builds can [be achieved with Guix.](contrib/guix/README.md)
 
 ```sh
 sudo apt-get update
-sudo apt-get install git curl python build-essential libtool automake pkg-config cmake
+sudo apt-get install python git curl build-essential cmake pkg-config ccache
 # Also needed for GUI wallet only:
-sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison
+sudo apt-get install qttools5-dev qttools5-dev-tools libxcb-xkb-dev bison ninja-build meson libx11-dev
 ```
+
+If you use a later version of Ubuntu, you may need to replace `python` with `python3`.
 
 - Redhat/Fedora:
 
 ```sh
 sudo dnf update
-sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ libtool make autoconf automake cmake patch which
+sudo dnf install bzip2 perl-lib perl-FindBin gcc-c++ make cmake patch which
 # Also needed for GUI wallet only:
-sudo dnf install qt5-qttools-devel qt5-qtbase-devel xz bison
+sudo dnf install qt6-qttools-devel qt6-qtbase-devel xz bison
 sudo ln /usr/bin/bison /usr/bin/yacc
 ```
 - Arch:
@@ -130,6 +132,9 @@ sudo pacman -S git base-devel python cmake
 
 ## Build Firo
 
+### Prerequisites (macOS Specific)
+Ensure [Homebrew](https://brew.sh/) is installed as per the [macOS build guide](https://github.com/firoorg/firo/blob/master/doc/build-macos.md).
+
 1.  Download the source:
 
 ```sh
@@ -137,7 +142,15 @@ git clone https://github.com/firoorg/firo
 cd firo
 ```
 
-2.  Build dependencies and firo:
+2.  Build dependencies:
+
+```sh
+cd depends
+make -j$(nproc)
+cd ..
+```
+
+3.  Configure and build Firo:
 
 Headless (command-line only for servers etc.):
 
@@ -145,30 +158,80 @@ Headless (command-line only for servers etc.):
 cd depends
 NO_QT=true make -j`nproc`
 cd ..
-./autogen.sh
-./configure --prefix=`pwd`/depends/`depends/config.guess` --without-gui
-make -j`nproc`
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$(depends/config.guess)/toolchain.cmake \
+-DBUILD_GUI=OFF -DBUILD_CLI=ON
+cd build && make -j$(nproc)
 ```
 
 Or with GUI wallet as well:
 
 ```sh
-cd depends
-make -j`nproc`
-cd ..
-./autogen.sh
-./configure --prefix=`pwd`/depends/`depends/config.guess`
-make -j`nproc`
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$(depends/config.guess)/toolchain.cmake \
+-DBUILD_GUI=ON -DBUILD_CLI=ON
+cd build && make -j$(nproc)
 ```
 
-3.  *(optional)* It is recommended to build and run the unit tests:
+4.  *(optional)* It is recommended to build and run the unit tests:
 
 ```sh
-./configure --prefix=`pwd`/depends/`depends/config.guess` --enable-tests
-make check
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/$(depends/config.guess)/toolchain.cmake \
+-DBUILD_TESTS=ON -DBUILD_GUI=OFF -DBUILD_CLI=ON
+cd build && make -j$(nproc)
+make test
 ```
 
-If the build succeeded, two binaries will be generated in `/src`: `firod` and `firo-cli`. If you chose to build the GUI, `firo-qt` will be also generated in the `qt` folder.
+If the build succeeded, binaries will be generated in `build/bin/`: `firod`, `firo-cli`, and if GUI is enabled, `firo-qt`.
+
+#### 3. Run GUI Client
+
+```
+./bin/firo-qt
+```
+
+### CMake Options Reference
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `BUILD_DAEMON` | Build `firod` executable | `ON` |
+| `BUILD_GUI` | Build `firo-qt` GUI client | `ON` |
+| `BUILD_CLI` | Build `firo-tx` and other command-line tools | `ON` |
+| `ENABLE_WALLET` | Enable wallet functionality | `ON` |
+| `BUILD_TESTS` | Build test suite | `OFF` |
+| `BUILD_TX` | Build `firo-tx` transaction tool | Subset of `BUILD_CLI` |
+| `ENABLE_CRASH_HOOKS` | Enable crash reporting/stack traces | `OFF` |
+| `WITH_ZMQ` | Enable ZeroMQ notifications | `ON` |
+
+### Supported Cross-Compilation Targets
+
+To build for other platforms, specify the `HOST` variable when building dependencies:
+| Host Target              | Platform                  |
+|--------------------------|---------------------------|
+| `x86_64-pc-linux-gnu`    | Linux 64-bit (default)    |
+| `x86_64-w64-mingw32`     | Windows 64-bit            |
+| `aarch64-apple-darwin`   | macOS                     |
+| `arm-linux-gnueabihf`    | Linux ARM 32-bit          |
+| `aarch64-linux-gnu`      | Linux ARM 64-bit          |
+
+#### Usage Example:
+1.  Build dependencies:
+
+```bash
+# Build dependencies for Windows 64-bit
+cd depends
+make HOST=x86_64-w64-mingw32 -j$(nproc)
+cd ..
+```
+2.  Configure and build Firo:
+```bash
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=$(pwd)/depends/x86_64-w64-mingw32/toolchain.cmake \
+  -DBUILD_TESTS=ON -DBUILD_CLI=ON -DBUILD_GUI=ON \
+cd build && make -j$(nproc)
+```
+
+### Notes
+ * The toolchain path in `CMAKE_TOOLCHAIN_FILE`must match your target architecture. 
+ * `BUILD_TX` is automatically enabled if `BUILD_CLI=ON` is enabled. 
+
 
 ## macOS Build Instructions and Notes
 
@@ -185,6 +248,15 @@ See [doc/build-windows.md](doc/build-windows.md) for instructions on building on
 # Run Firo
 
 Now that you have your self-built or precompiled binaries, it's time to run Firo! Depending by your skill level and/or setup, you might want to use the command line tool or the graphic user interface. If you have problems or need support, [contact the community](https://firo.org/community/social/).
+
+# Install Firo
+
+After building with `CMake`, generate `.sh` file with `make package`. Once you run `make package` you should have `./FiroCore-VERSION_MAJOR.VERSION_MINOR.VERSION_REVISION-Linux.sh` in your build directory. 
+
+For example, you can install `Firo` on your `/usr/bin` with: 
+```
+./FiroCore-0.14.14-Linux.sh --prefix=/usr/bin --exclude-subdir
+```
 
 # Contributors
 

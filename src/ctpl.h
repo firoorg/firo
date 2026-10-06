@@ -116,7 +116,7 @@ namespace ctpl {
 
 
         // wait for all computing threads to finish and stop all threads
-        // may be called asyncronously to not pause the calling thread while waiting
+        // may be called asynchronously to not pause the calling thread while waiting
         // if isWait == true, all the functions in the queue are run, otherwise the queue is cleared without running the functions
         void stop(bool isWait = false) {
             if (!isWait) {

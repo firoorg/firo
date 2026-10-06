@@ -13,6 +13,9 @@ bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValida
     if (tx.nType != TRANSACTION_SPORK) {
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-type");
     }
+    if (tx.nVersion != 3) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
+    }
 
     CSporkTx sporkTx;
     if (!GetTxPayload(tx, sporkTx)) {
@@ -53,19 +56,7 @@ bool CheckSporkTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValida
 
 static bool IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &sporkMap, CValidationState &state)
 {
-    if (tx.IsLelantusTransaction()) {
-        if (sporkMap.count(CSporkAction::featureLelantus) > 0)
-            return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Lelantus transactions are disabled at the moment");
-
-        if (tx.IsLelantusJoinSplit()) {
-            const auto &limitSpork = sporkMap.find(CSporkAction::featureLelantusTransparentLimit);
-            if (limitSpork != sporkMap.cend()) {
-                if (lelantus::GetSpendTransparentAmount(tx) > (CAmount)limitSpork->second.second)
-                    return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Lelantus transaction is over the transparent limit");
-            }
-        }
-    }
-    else if (tx.IsSparkTransaction()) {
+    if (tx.IsSparkTransaction()) {
         if (sporkMap.count(CSporkAction::featureSpark) > 0)
             return state.DoS(100, false, REJECT_CONFLICT, "txn-spark-disabled", false, "Spark transactions are disabled at the moment");
 
@@ -122,7 +113,17 @@ CSporkManager *CSporkManager::sharedSporkManager = new CSporkManager();
 
 bool CSporkManager::BlockConnected(const CBlock &block, CBlockIndex *pindex)
 {
-    return UpdateActiveSporkMap(pindex->activeDisablingSporks, pindex->pprev->activeDisablingSporks, pindex->nHeight, block.vtx);
+    // Build the map in a temporary and commit it through SetActiveDisablingSporks:
+    // updating the block index in place would allocate privacy data for every block
+    // in the evo spork range, including the vast majority that have no active sporks.
+    // Seeding from the current value keeps the out-of-range early return in
+    // UpdateActiveSporkMap a no-op, as it leaves the map untouched.
+    ActiveSporkMap sporkMap = pindex->privacyData().activeDisablingSporks;
+    if (!UpdateActiveSporkMap(sporkMap, pindex->pprev->privacyData().activeDisablingSporks, pindex->nHeight, block.vtx))
+        return false;
+
+    pindex->SetActiveDisablingSporks(std::move(sporkMap));
+    return true;
 }
 
 bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveSporkMap &previousSporkMap, int nHeight, const std::vector<CTransactionRef> &sporkTransactions)
@@ -140,7 +141,7 @@ bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveS
     }
 
     for (CTransactionRef ptx: sporkTransactions) {
-        if (ptx->nVersion >= 3 && ptx->nType == TRANSACTION_SPORK) {
+        if (ptx->nVersion == 3 && ptx->nType == TRANSACTION_SPORK) {
             CSporkTx sporkTx;
             if (!GetTxPayload<CSporkTx>(*ptx, sporkTx))
                 return false;
@@ -167,7 +168,7 @@ bool CSporkManager::UpdateActiveSporkMap(ActiveSporkMap &sporkMap, const ActiveS
 
 bool CSporkManager::IsFeatureEnabled(const std::string &featureName, const CBlockIndex *pindex)
 {
-    return pindex->activeDisablingSporks.count(featureName) == 0;
+    return pindex->privacyData().activeDisablingSporks.count(featureName) == 0;
 }
 
 bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const ActiveSporkMap &sporkMap, CValidationState &state)
@@ -176,25 +177,9 @@ bool CSporkManager::IsTransactionAllowed(const CTransaction &tx, const ActiveSpo
 }
 
 bool CSporkManager::IsBlockAllowed(const CBlock &block, const CBlockIndex *pindex, CValidationState &state) {
-    if (pindex->activeDisablingSporks.count(CSporkAction::featureLelantusTransparentLimit) > 0) {
-        // limit total transparent output of lelantus joinsplit
-        int64_t limit = pindex->activeDisablingSporks.at(CSporkAction::featureLelantusTransparentLimit).second;
-        CAmount totalTransparentOutput = 0;
-
-        for (const auto &tx: block.vtx) {
-            if (!tx->IsLelantusJoinSplit())
-                continue;
-
-            totalTransparentOutput += lelantus::GetSpendTransparentAmount(*tx);
-        }
-
-        if (totalTransparentOutput > CAmount(limit))
-            return state.DoS(100, false, REJECT_CONFLICT, "txn-lelantus-disabled", false, "Block is over the transparent output limit because of existing spork");
-    }
-
-    if (pindex->activeDisablingSporks.count(CSporkAction::featureSparkTransparentLimit) > 0) {
-        // limit total transparent output of lelantus joinsplit
-        int64_t limit = pindex->activeDisablingSporks.at(CSporkAction::featureSparkTransparentLimit).second;
+    const auto& pd = pindex->privacyData();
+    if (pd.activeDisablingSporks.count(CSporkAction::featureSparkTransparentLimit) > 0) {
+        int64_t limit = pd.activeDisablingSporks.at(CSporkAction::featureSparkTransparentLimit).second;
         CAmount totalTransparentOutput = 0;
 
         for (const auto &tx: block.vtx) {
@@ -226,7 +211,7 @@ bool CMempoolSporkManager::AcceptSporkToMemoryPool(const CTransaction &sporkTx)
             it++;
     }
 
-    if (sporkTx.nVersion >= 3 && sporkTx.nType == TRANSACTION_SPORK) {
+    if (sporkTx.nVersion == 3 && sporkTx.nType == TRANSACTION_SPORK) {
         CSporkTx sporkTxPayload;
         if (!GetTxPayload<CSporkTx>(sporkTx, sporkTxPayload))
             return false;
@@ -243,7 +228,7 @@ bool CMempoolSporkManager::AcceptSporkToMemoryPool(const CTransaction &sporkTx)
 
 void CMempoolSporkManager::RemovedFromMemoryPool(const CTransaction &sporkTx)
 {
-    if (sporkTx.nVersion >= 3 && sporkTx.nType == TRANSACTION_SPORK) {
+    if (sporkTx.nVersion == 3 && sporkTx.nType == TRANSACTION_SPORK) {
         CSporkTx sporkTxPayload;
         if (GetTxPayload<CSporkTx>(sporkTx, sporkTxPayload)) {
             // remove it from the mempool spork manager. If the removal is due to inclusion into the block
@@ -275,5 +260,5 @@ bool CMempoolSporkManager::IsTransactionAllowed(const CTransaction &tx, CValidat
     if (!chainTip)
         return true;
 
-    return ::IsTransactionAllowed(tx, chainTip->activeDisablingSporks, state);
+    return ::IsTransactionAllowed(tx, chainTip->privacyData().activeDisablingSporks, state);
 }

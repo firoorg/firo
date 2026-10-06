@@ -6,7 +6,7 @@
 #define BITCOIN_CRYPTO_COMMON_H
 
 #if defined(HAVE_CONFIG_H)
-#include "bitcoin-config.h"
+#include "../config/bitcoin-config.h"
 #endif
 
 #include <stdint.h>
@@ -51,6 +51,13 @@ void static inline WriteLE64(unsigned char* ptr, uint64_t x)
 {
     uint64_t v = htole64(x);
     memcpy(ptr, (char*)&v, 8);
+}
+
+uint16_t static inline ReadBE16(const unsigned char* ptr)
+{
+    uint16_t x;
+    memcpy((char*)&x, ptr, 2);
+    return be16toh(x);
 }
 
 uint32_t static inline ReadBE32(const unsigned char* ptr)

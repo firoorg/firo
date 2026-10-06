@@ -415,6 +415,10 @@ bool Grootle::verify(
 
     // Check proof semantics
     for (std::size_t t = 0; t < M; t++) {
+        if (sizes[t] == 0 || sizes[t] > S.size()) {
+            LogPrintf("Invalid Grootle cover set size");
+            return false;
+        }
         GrootleProof proof = proofs[t];
         if (proof.X.size() != m || proof.X1.size() != m) {
             LogPrintf("Bad proof vector size!");
@@ -426,13 +430,10 @@ bool Grootle::verify(
         }
     }
 
-    // Commitment binding weight; intentionally restricted range for efficiency, but must be nonzero
-    // NOTE: this may initialize with a PRNG, which should be sufficient for this use
-    std::random_device generator;
-    std::uniform_int_distribution<uint16_t> distribution;
+    // Commitment binding weight (must be nonzero for S/V equation binding)
     Scalar bind_weight(ZERO);
     while (bind_weight == ZERO) {
-        bind_weight = Scalar(distribution(generator));
+        bind_weight.randomize();
     }
 
     // Bind the commitment lists

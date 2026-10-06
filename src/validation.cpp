@@ -42,8 +42,6 @@
 #include "wallet/walletdb.h"
 #endif // ENABLE_WALLET
 #include "batchproof_container.h"
-#include "sigma.h"
-#include "lelantus.h"
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
@@ -51,12 +49,11 @@
 #include "definition.h"
 #include "utiltime.h"
 #include "mtpstate.h"
+#include "sparkname.h"
 
 #include "coins.h"
 
 #include "blacklists.h"
-
-#include "sigma/coinspend.h"
 #include "warnings.h"
 
 #include "masternode-payments.h"
@@ -69,10 +66,15 @@
 
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
+#include "llmq/quorums_blockprocessor.h"
 
+#include "libspark/coin.h"
+
+#include <algorithm>
 #include <atomic>
 #include <sstream>
 #include <chrono>
+#include <unordered_set>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/join.hpp>
@@ -85,7 +87,6 @@
 # error "Firo cannot be compiled without assertions."
 #endif
 
-bool AbortNode(const std::string& strMessage, const std::string& userMessage="");
 bool AbortNode(CValidationState &state, const std::string& strMessage, const std::string& userMessage="");
 
 /**
@@ -116,6 +117,7 @@ bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
 size_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
+int64_t nMinimumInputValue = 0;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
 
 uint256 hashAssumeValid;
@@ -137,7 +139,6 @@ static void CheckBlockIndex(const Consensus::Params& consensusParams);
 CScript COINBASE_FLAGS;
 
 const std::string strMessageMagic = "Zcoin Signed Message:\n";
-const std::string strLelantusMessageMagic = "Lelantus signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -328,74 +329,6 @@ bool CheckFinalTx(const CTransaction &tx, int flags)
 
 
     return IsFinalTx(tx, nBlockHeight, nBlockTime);
-}
-
-bool VerifyPrivateTxOwn(const uint256& txid, const std::vector<unsigned char>& vchSig, const std::string& message)
-{
-    CTransactionRef tx;
-    uint256 hashBlock;
-    if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
-        return false;
-
-    if (tx->IsLelantusJoinSplit()) {
-        CHashWriter ss(SER_GETHASH, 0);
-        ss << strLelantusMessageMagic;
-        ss << message;
-
-        std::unique_ptr<lelantus::JoinSplit> joinsplit;
-        try {
-            joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
-        } catch (const std::exception&) {
-            return false;
-        }
-        const auto& pubKeys = joinsplit->GetEcdsaPubkeys();
-
-        if((pubKeys.size() *64) != vchSig.size()) {
-            LogPrintf("Verification to serialNumbers and ecdsaSignatures/ecdsaPubkeys number mismatch.");
-            return false;
-        }
-
-        uint32_t count = 0;
-
-        for (const auto& pub : pubKeys) {
-            ss << count;
-            uint256 metahash = ss.GetHash();
-
-            // Check sizes
-            if (pub.size() != 33 ) {
-                LogPrintf("Verification failed due to incorrect size of ecdsaSignature.");
-                return false;
-            }
-
-            // Verify signature
-            secp256k1_pubkey pubkey;
-            secp256k1_ecdsa_signature signature;
-
-            if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, pub.data(), 33)) {
-                LogPrintf("Verification failed due to unable to parse ecdsaPubkey.");
-                return false;
-            }
-
-            if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, &vchSig[count * 64]) ) {
-                LogPrintf("Verification failed due to signature cannot be parsed.");
-                return false;
-            }
-
-            if (!secp256k1_ecdsa_verify(
-                    OpenSSLContext::get_context(), &signature, metahash.begin(), &pubkey)) {
-                LogPrintf("Verification failed due to signature cannot be verified.");
-                return false;
-            }
-
-            count++;
-        }
-    } else if (tx->IsCoinBase()) {
-        throw std::runtime_error("This is a coinbase transaction and not a private transaction");
-    } else {
-        throw std::runtime_error("Currently this is allowed only for Lelantus transactions");
-    }
-
-    return true;
 }
 
 /**
@@ -645,9 +578,28 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
     return (nPrevoutHeight > -1 && chainActive.Tip()) ? chainActive.Height() - nPrevoutHeight + 1 : -1;
 }
 
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, sigma::CSigmaTxInfo *sigmaTxInfo, lelantus::CLelantusTxInfo* lelantusTxInfo, spark::CSparkTxInfo* sparkTxInfo)
+static bool HasConsistentSparkCoinTypes(const CTransaction& tx)
 {
-    LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
+    for (const auto& txout : tx.vout) {
+        const CScript& script = txout.scriptPubKey;
+
+        if (script.IsSparkMint() &&
+            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_MINT))) {
+            return false;
+        }
+
+        if (script.IsSparkSMint() &&
+            (script.size() < 2 || script[1] != static_cast<unsigned char>(spark::COIN_TYPE_SPEND))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fCheckDuplicateInputs, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, spark::CSparkTxInfo* sparkTxInfo)
+{
+    LogPrint("validation", "CheckTransaction nHeight=%d, isVerifyDB=%d, isCheckWallet=%d, txHash=%s\n", nHeight, (int)isVerifyDB, (int)isCheckWallet, tx.GetHash().ToString());
 
     bool allowEmptyTxInOut = false;
     if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
@@ -662,8 +614,27 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
     // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
-    if (tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
-        return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
+
+    int nTxHeight = nHeight;
+    if (nTxHeight == INT_MAX) {
+        LOCK(cs_main);
+        nTxHeight = chainActive.Height();
+    }
+
+    const Consensus::Params& consensus = ::Params().GetConsensus();
+    if (nHeight != INT_MAX &&
+        nTxHeight >= consensus.nSparkChaumV2StartBlock &&
+        !HasConsistentSparkCoinTypes(tx)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-spark-coin-type");
+    }
+
+    if (nTxHeight < consensus.nSigmaEndBlock) {
+        if (tx.vExtraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
+    } else {
+        if (tx.vExtraPayload.size() > NEW_MAX_TX_EXTRA_PAYLOAD)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
+    }
 
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
@@ -714,13 +685,26 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
             break;
         }
     }
-    int nTxHeight = nHeight;
-    if (nTxHeight == INT_MAX) {
-        LOCK(cs_main);
-        nTxHeight = chainActive.Height();
-    }
+
     if (hasExchangeUTXOs && !isVerifyDB && nTxHeight < ::Params().GetConsensus().nExchangeAddressStartBlock)
         return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
+
+    // Spark name fee outputs (with OP_SPARKNAMEID) are only allowed after nSparkNamesV21StartBlock
+    for (const auto &vout : tx.vout) {
+        if (vout.scriptPubKey.IsSparkNameFee()) {
+            if (!isVerifyDB && nTxHeight < ::Params().GetConsensus().nSparkNamesV21StartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-sparkname-fee-output");
+            break;
+        }
+    }
+
+    // After Spark Names v2.1, Spark SMint (OP_SPARKSMINT) outputs must have nValue zero — value is committed only in the script.
+    if (nTxHeight >= ::Params().GetConsensus().nSparkNamesV21StartBlock) {
+        for (const auto &vout : tx.vout) {
+            if (vout.scriptPubKey.IsSparkSMint() && vout.nValue != 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-spark-smint-nvalue");
+        }
+    }
 
     if (tx.IsCoinBase())
     {
@@ -743,20 +727,6 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
                 || tx.IsSparkSpend()))
                 return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 
-        if (tx.IsZerocoinV3SigmaTransaction()) {
-            if (hasExchangeUTXOs)
-                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-            if (!CheckSigmaTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo))
-                return false;
-        }
-
-        if (tx.IsLelantusTransaction()) {
-            if (hasExchangeUTXOs)
-                return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
-            if (!CheckLelantusTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, sigmaTxInfo, lelantusTxInfo))
-                return false;
-        }
-
         if (tx.IsSparkTransaction()) {
             if (hasExchangeUTXOs)
                 return state.DoS(100, false, REJECT_INVALID, "bad-exchange-address");
@@ -765,20 +735,32 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, bool fChe
         }
 
         const auto &params = ::Params().GetConsensus();
+        // Use nTxHeight (not nHeight) so mempool calls with nHeight==INT_MAX use chain tip like
+        // nExchangeAddressStartBlock checks above — same idea as Sigma/Lelantus mempool gates.
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
-            if (!isVerifyDB && nHeight >= params.nDisableZerocoinStartBlock)
+            if (!isVerifyDB && nTxHeight >= params.nDisableZerocoinStartBlock)
                 return state.DoS(1, error("Zerocoin is disabled at this point"));
         }
 
+        if (tx.IsSigmaSpend() || tx.IsSigmaMint()) {
+            if (!isVerifyDB && nTxHeight >= params.nLelantusStartBlock)
+                return state.DoS(1, error("Sigma already is not available, start using Lelantus."));
+        }
+
+        if (tx.IsLelantusJoinSplit() || tx.IsLelantusMint()) {
+            if (!isVerifyDB && nTxHeight >= params.nLelantusGracefulPeriod)
+                return state.DoS(1, error("Lelantus already is not available, start using Spark."));
+        }
+
         if (tx.IsZerocoinRemint()) {
-            if (!isVerifyDB && (nHeight < params.nSigmaStartBlock || nHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
+            if (!isVerifyDB && (nTxHeight < params.nSigmaStartBlock || nTxHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize))
                 // we allow transactions of remint type only during specific window
                 return false;
         }
     }
 
     bool isInWhitelist = Params().GetConsensus().txidWhitelist.count(tx.GetHash()) > 0;
-    if (nHeight >= ::Params().GetConsensus().nStartBlacklist && !isInWhitelist) {
+    if (nTxHeight >= ::Params().GetConsensus().nStartBlacklist && !isInWhitelist) {
         for (const auto& vin : tx.vin) {
             if (txid_blacklist.count(vin.prevout.hash.GetHex()) > 0) {
                     return state.DoS(100, error("Spending this tx is temporarily disabled"),
@@ -807,18 +789,24 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
                 tx.nType != TRANSACTION_SPORK &&
                 tx.nType != TRANSACTION_LELANTUS &&
-                tx.nType != TRANSACTION_SPARK) {
+                tx.nType != TRANSACTION_SPARK &&
+                tx.nType != TRANSACTION_SPARK_V2) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
             if (tx.nType == TRANSACTION_SPORK &&
-                    !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
+                    (tx.nVersion != 3 ||
+                     !(nHeight >= consensusParams.nEvoSporkStartBlock &&
+                       nHeight < consensusParams.nEvoSporkStopBlock)))
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
-            if (tx.nType == TRANSACTION_LELANTUS && nHeight < consensusParams.nLelantusV3PayloadStartBlock)
+            if ((tx.nType == TRANSACTION_SPARK ||
+                 tx.nType == TRANSACTION_SPARK_V2) &&
+                nHeight < consensusParams.nSparkStartBlock)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
-            if (tx.nType == TRANSACTION_SPARK && nHeight < consensusParams.nSparkStartBlock)
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+            if (tx.nType == TRANSACTION_SPARK_V2 &&
+                nHeight < consensusParams.nSparkChaumV2StartBlock)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spark-v2-premature");
         }
         else if (tx.nType != TRANSACTION_NORMAL) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
@@ -868,16 +856,29 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                               bool fOverrideMempoolLimit, const CAmount& nAbsurdFee, std::vector<COutPoint>& coins_to_uncache,
                               bool isCheckWalletTransaction, bool markFiroSpendTransactionSerial)
 {
-    bool fTestNet = Params().GetConsensus().IsTestnet();
-    LogPrintf("AcceptToMemoryPoolWorker(), tx.IsSpend()=%s, fTestNet=%s\n", ptx->IsSigmaSpend() || ptx->IsLelantusJoinSplit(), fTestNet);
-
     const CTransaction& tx = *ptx;
     const uint256 hash = tx.GetHash();
     AssertLockHeld(cs_main);
+    (void)markFiroSpendTransactionSerial;
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
     const Consensus::Params& consensus = Params().GetConsensus();
+
+    if (!HasConsistentSparkCoinTypes(tx))
+        return state.DoS(0, false, REJECT_NONSTANDARD, "bad-spark-coin-type");
+
+    if (tx.IsSparkSpendV2() &&
+        chainActive.Height() + 1 < consensus.nSparkChaumV2StartBlock) {
+        // Reject the not-yet-mineable format before parsing any nested Spark
+        // or Spark Name data. Malformed future-format payloads are policy
+        // failures and must not increase the relaying peer's ban score.
+        return state.DoS(
+            0,
+            false,
+            REJECT_NONSTANDARD,
+            "spark-chaum-v2-not-active");
+    }
 
     bool startLelantusRejectSigma = (chainActive.Height() >= consensus.nLelantusStartBlock);
     if (startLelantusRejectSigma) {
@@ -911,97 +912,30 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                              REJECT_INVALID, "bad-txns-zerocoin");
         }
     }
-
-    // V3 sigma spends.
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    std::vector<Scalar> zcSpendSerialsV3;
-    std::vector<GroupElement> zcMintPubcoinsV3;
-
-    //lelantus
-    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
-    std::vector<Scalar> lelantusSpendSerials;
-    std::vector<GroupElement> lelantusMintPubcoins;
-    std::vector<uint64_t> lelantusAmounts;
-
     // Spark
     spark::CSparkState *sparkState = spark::CSparkState::GetState();
     std::vector<spark::Coin> sparkMintCoins;
+    std::unordered_set<uint256> txSparkMints;
     std::vector<GroupElement> sparkUsedLTags;
+
+    CSparkNameTxData sparkNameData;
 
     {
         LOCK(pool.cs);
-        if (tx.IsSigmaSpend()) {
-            BOOST_FOREACH(const CTxIn &txin, tx.vin)
-            {
-                Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(tx, txin);
-                Scalar zero;
-
-                if (zcSpendSerial == zero)
-                    return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
-                if (!sigmaState->CanAddSpendToMempool(zcSpendSerial)) {
-                    LogPrintf("AcceptToMemoryPool(): sigma serial number %s has been used\n", zcSpendSerial.tostring());
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                }
-                zcSpendSerialsV3.push_back(zcSpendSerial);
-            }
-        }
-        else if (tx.IsLelantusJoinSplit()) {
-            if (tx.vin.size() > 1) {
-                return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
-            }
-            std::unique_ptr<lelantus::JoinSplit> joinsplit;
-
-            try {
-                joinsplit = lelantus::ParseLelantusJoinSplit(tx);
-            }
-            catch (CBadTxIn&) {
-                return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
-            }
-            catch (const std::exception &) {
-                return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize joinsplit");
-            }
-
-            const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
-            const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
-
-            if (serials.size() != ids.size())
-                return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
-
-            for (size_t i = 0; i < serials.size(); ++i) {
-                if (!serials[i].isMember() || serials[i].isZero())
-                    return state.Invalid(false, REJECT_INVALID, "txn-invalid-lelantus-joinsplit-serial");
-
-                int coinGroupId = ids[i] % (CENT / 1000);
-                int64_t intDenom = (ids[i] - coinGroupId);
-                intDenom *= 1000;
-                sigma::CoinDenomination denomination;
-
-                if (chainActive.Height() < consensus.nLelantusV3PayloadStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
-                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i]) ||
-                        !sigmaState->CanAddSpendToMempool(serials[i])) {
-                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
-                                  serials[i].tostring());
-                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                    }
-                } else {
-                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i])) {
-                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
-                                  serials[i].tostring());
-                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                    }
-                }
-                lelantusSpendSerials.push_back(serials[i]);
-            }
-        } else if (tx.IsSparkSpend()) {
+        if (tx.IsSparkSpend()) {
             if (tx.vin.size() > 1) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-spark-spend");
             }
 
             try {
-                sparkUsedLTags = spark::GetSparkUsedTags(tx);
+                sparkUsedLTags = spark::ParseSparkSpend(tx).getUsedLTags();
+            }
+            catch (const std::bad_alloc &) {
+                return state.Error(
+                    "AcceptToMemoryPool: memory allocation failed while parsing Spark linking tags");
             }
             catch (const std::exception &) {
-                return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark spend");
+                return state.DoS(100, false, REJECT_MALFORMED, "failed to deserialize spark spend");
             }
 
             for (const auto& lTag : sparkUsedLTags) {
@@ -1011,36 +945,21 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
             }
-        }
 
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if (txout.scriptPubKey.IsSigmaMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                } catch (std::invalid_argument&) {
-                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
-                }
-                if (!sigmaState->CanAddMintToMempool(pubCoinValue)) {
-                    LogPrintf("AcceptToMemoryPool(): sigma mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                }
-                zcMintPubcoinsV3.push_back(pubCoinValue);
-            }
+            CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+            if (!sparkNameManager->CheckSparkNameTx(
+                    tx,
+                    chainActive.Height() + 1,
+                    state,
+                    &sparkNameData,
+                    /* nContextualFailureDoS */ 0))
+                return false;
 
-            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                } catch (std::invalid_argument&) {
-                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
-                }
-                if (lelantusState->HasCoin(pubCoinValue) || pool.lelantusState.HasMint(pubCoinValue)) {
-                    LogPrintf("AcceptToMemoryPool(): lelantus mint with the same value %s is already in the mempool\n", pubCoinValue.tostring());
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-                }
-                lelantusMintPubcoins.push_back(pubCoinValue);
+            if (!sparkNameData.name.empty() &&
+                        CSparkNameManager::IsInConflict(sparkNameData, pool.sparkNames, [=](decltype(pool.sparkNames)::const_iterator it)->std::string {
+                            return it->second.first;
+                        })) {
+                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
         }
 
@@ -1048,13 +967,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             try {
                 sparkMintCoins = spark::GetSparkMintCoins(tx);
             }
+            catch (const std::bad_alloc &) {
+                return state.Error(
+                    "AcceptToMemoryPool: memory allocation failed while parsing Spark mints");
+            }
             catch (const std::exception &) {
                 return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark mint");
             }
 
             for (const auto& coin : sparkMintCoins) {
-                if (sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
-                    LogPrintf("AcceptToMemoryPool(): Spark mint with the same value %s is already in the mempool\n", coin.getHash().GetHex());
+                if (!txSparkMints.insert(coin.getHash()).second ||
+                        sparkState->HasCoin(coin) || pool.sparkState.HasMint(coin)) {
+                    LogPrintf("AcceptToMemoryPool(): duplicate Spark mint coin %s\n", coin.getHash().GetHex());
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
             }
@@ -1214,9 +1138,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             //                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
             //
         }
-        else if (tx.IsSigmaSpend()) {
-            nValueIn = sigma::GetSigmaSpendInput(tx);
-        }
 
         // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
         view.SetBackend(dummy);
@@ -1237,22 +1158,16 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             CAmount nFees;
             if (!tx.IsLelantusJoinSplit() && !tx.IsSparkSpend()) {
                 nFees = nValueIn - nValueOut;
-            } else if (tx.IsLelantusJoinSplit()) {
-                try {
-                    nFees = lelantus::ParseLelantusJoinSplit(tx)->getFee();
-                }
-                catch (CBadTxIn&) {
-                    return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
-                }
-                catch (const std::exception &) {
-                    return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
-                }
             } else {
                 try {
-                    nFees = spark::ParseSparkSpend(tx).getFee();
+                    nFees = spark::GetSparkSpendFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
+                }
+                catch (const std::bad_alloc&) {
+                    return state.Error(
+                        "AcceptToMemoryPool: memory allocation failed while parsing Spark fee");
                 }
                 catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
@@ -1565,6 +1480,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
             // Store transaction in memory
             pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
+            for (const auto& coin : sparkMintCoins) {
+                pool.sparkState.AddMintToMempool(coin, hash);
+            }
 
             // Add memory address index
             if (fAddressIndex) {
@@ -1585,40 +1503,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         }
     }
 
-    if (tx.IsSigmaSpend()) {
-        if(markFiroSpendTransactionSerial)
-            sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
-        LogPrintf("Updating mint tracker state from Mempool..\n");
-#ifdef ENABLE_WALLET
-        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-            LogPrintf("Updating spend state from Mempool..\n");
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
-        }
-#endif
-    }
-
-    if (tx.IsLelantusJoinSplit()) {
-        if(markFiroSpendTransactionSerial) {
-            for (const auto &spendSerial: lelantusSpendSerials)
-                pool.lelantusState.AddSpendToMempool(spendSerial, hash);
-        }
-        LogPrintf("Updating mint tracker state from Mempool..\n");
-#ifdef ENABLE_WALLET
-        if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-            LogPrintf("Updating spend state from Mempool..\n");
-            pwalletMain->zwallet->GetTracker().UpdateJoinSplitStateFromMempool(lelantusSpendSerials);
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromMempool(lelantusSpendSerials);
-        }
-#endif
-    }
-
 
     if (tx.IsSparkSpend()) {
-        if(markFiroSpendTransactionSerial) {
-            LogPrintf("Adding spends to mempool state..\n");
-            for (const auto &usedLTag: sparkUsedLTags)
-                pool.sparkState.AddSpendToMempool(usedLTag, hash);
-        }
+        LogPrintf("Adding spends to mempool state..\n");
+        for (const auto &usedLTag: sparkUsedLTags)
+            pool.sparkState.AddSpendToMempool(usedLTag, hash);
+
+        if (!sparkNameData.name.empty())
+            pool.sparkNames[CSparkNameManager::ToUpper(sparkNameData.name)] = {sparkNameData.sparkAddress, hash};
 
 #ifdef ENABLE_WALLET
         if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
@@ -1628,50 +1520,12 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 #endif
     }
 
-    if(markFiroSpendTransactionSerial) {
-        sigmaState->AddMintsToMempool(zcMintPubcoinsV3);
-        for (const auto &pubCoin: lelantusMintPubcoins)
-            pool.lelantusState.AddMintToMempool(pubCoin);
-
-        //  Add spark mints to mempool
-        sparkState->AddMintsToMempool(sparkMintCoins);
-    }
 
 #ifdef ENABLE_WALLET
-    if(tx.IsSigmaMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        LogPrintf("Updating mint state from Mempool..\n");
-        pwalletMain->zwallet->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
-    }
 
     if(tx.IsSparkTransaction() && !GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
         LogPrintf("Adding Spark mints to Mempool..\n");
         pwalletMain->sparkWallet->UpdateMintStateFromMempool(sparkMintCoins, hash);
-    }
-
-    if(tx.IsLelantusMint() && !GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        LogPrintf("Updating mint state from Mempool..\n");
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
-                GroupElement pubCoinValue;
-                uint64_t amount = 0;
-                try {
-                    if (txout.scriptPubKey.IsLelantusMint()) {
-                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                        amount = txout.nValue;
-                    } else {
-                        std::vector<unsigned char> encryptedValue;
-                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                        if(!pwalletMain->DecryptMintAmount(encryptedValue, pubCoinValue, amount))
-                            amount = 0;
-                    }
-                } catch (std::invalid_argument&) {
-                    return state.DoS(100, false, PUBCOIN_NOT_VALIDATE, "bad-txns-zerocoin");
-                }
-                lelantusAmounts.push_back(amount);
-            }
-        }
-        pwalletMain->zwallet->GetTracker().UpdateLelantusMintStateFromMempool(lelantusMintPubcoins, lelantusAmounts);
     }
 #endif
     GetMainSignals().SyncTransaction(tx, NULL, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
@@ -1918,26 +1772,19 @@ CAmount GetBlockSubsidyWithMTPFlag(int nHeight, const Consensus::Params &consens
     if (nHeight == 0)
         return 0;
 
-    // Subsidy is cut in half after nSubsidyHalvingFirst block, then after nSubsidyHalvingSecond, then every nSubsidyHalvingInterval blocks.
-    // After block nSubsidyHalvingStopBlock there will be no subsidy at all
-    if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
-        return 0;
+    CAmount nSubsidy;
 
-    int halvings;
     if (nHeight < consensusParams.nSubsidyHalvingFirst)
-        halvings = 0;
+        nSubsidy = 50 * COIN;
     else if (nHeight < consensusParams.nSubsidyHalvingSecond)
-        halvings = 1;
+        nSubsidy = 25 * COIN;
+    else if (nHeight < consensusParams.stage4StartBlock)
+        nSubsidy = 25 * COIN / 2;
+    else if (nHeight < consensusParams.stage4StartBlock + consensusParams.nSubsidyHalvingInterval)
+        nSubsidy = 25 * COIN;
     else
-        halvings = (nHeight - consensusParams.nSubsidyHalvingSecond) / consensusParams.nSubsidyHalvingInterval + 2;
-
-    // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-        return 0;
-
-    CAmount nSubsidy = 50 * COIN;
-    nSubsidy >>= halvings;
-
+        nSubsidy = consensusParams.tailEmissionBlockSubsidy;    // 1 coin tail emission
+        
     if (nHeight > 0 && fMTP)
         nSubsidy /= consensusParams.nMTPRewardReduction;
 
@@ -1956,7 +1803,11 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
 CAmount GetMasternodePayment(int nHeight, int nTime, CAmount blockValue)
 {
     const Consensus::Params &params = Params().GetConsensus();
-    if (nTime >= params.stage3StartTime)
+    if (nHeight >= params.stage4StartBlock)
+        return blockValue*params.stage4MasternodeShare/100;
+    else if (nHeight >= params.nSubsidyHalvingSecond)
+        return blockValue/2;
+    else if (nTime >= params.stage3StartTime)
         return blockValue*params.stage3MasternodeShare/100;
     else if (nHeight >= params.nSubsidyHalvingFirst)
         return blockValue*params.stage2ZnodeShare/100;
@@ -2173,24 +2024,11 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
         }
 
         CAmount nTxFee;
-        if(!tx.IsLelantusJoinSplit()) {
-            // at Lelantus JoinSplit we check balance inside cryptographic proof verification
-            if (nValueIn < tx.GetValueOut())
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
-                        strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(tx.GetValueOut())));
-            // Tally transaction fees
-            nTxFee = nValueIn - tx.GetValueOut();
-        } else {
-            try {
-                nTxFee = lelantus::ParseLelantusJoinSplit(tx)->getFee();
-            }
-            catch (CBadTxIn&) {
-                return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
-            }
-            catch (const std::exception &) {
-                return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
-            }
-        }
+        if (nValueIn < tx.GetValueOut())
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-in-belowout", false,
+                    strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(tx.GetValueOut())));
+        // Tally transaction fees
+        nTxFee = nValueIn - tx.GetValueOut();
         if (nTxFee < 0)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-negative");
         nFees += nTxFee;
@@ -2382,36 +2220,6 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
                 }
             }
         }
-    } else if (tx.IsSigmaSpend()) {
-        // Total sum of inputs of transaction.
-        CAmount totalInputValue = 0;
-
-        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-            if(!txin.scriptSig.IsSigmaSpend()) {
-                return state.DoS(
-                    100, false,
-                    REJECT_MALFORMED,
-                    "CheckSpendFiroTransaction: can't mix zerocoin spend input with regular ones");
-            }
-            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
-                                            (const char *)&*txin.scriptSig.end(),
-                                            SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpend newSpend(sigma::Params::get_default(), serializedCoinSpend);
-            uint64_t denom = newSpend.getIntDenomination();
-            totalInputValue += denom;
-        }
-        if (totalInputValue < tx.GetValueOut()) {
-            return state.DoS(
-                100,
-                error("Spend transaction outputs larger than the inputs."));
-        }
-    } else if (tx.IsLelantusJoinSplit()) {
-        if(tx.vin.size() > 1 || !tx.vin[0].scriptSig.IsLelantusJoinSplit()) {
-            return state.DoS(
-                    100, false,
-                    REJECT_MALFORMED,
-                    " Can't mix Lelantus joinsplit input with regular ones or have more than one input");
-        }
     } else if (tx.IsSparkSpend()) {
         if(tx.vin.size() > 1) {
             return state.DoS(
@@ -2499,6 +2307,28 @@ bool AbortNode(CValidationState& state, const std::string& strMessage, const std
     return state.Error(strMessage);
 }
 
+static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
+{
+    // Defer Spark proof verification for blocks older than a day, which means we are syncing or reindexing
+    return ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
+}
+
+bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
+{
+    bool passed;
+    try {
+        passed = BatchProofContainer::get_instance()->verify_pending();
+    } catch (const std::exception& e) {
+        return AbortNode(state, strprintf("Unable to verify Spark batch before %s: %s", reason, e.what()));
+    }
+    if (!passed) {
+        return AbortNode(state,
+                         strprintf("Spark batch verification failed before %s", reason),
+                         _("Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block."));
+    }
+    return true;
+}
+
 enum DisconnectResult
 {
     DISCONNECT_OK,      // All good.
@@ -2575,8 +2405,31 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     CDbIndexHelper dbIndexHelper(fAddressIndex, fSpentIndex);
 
     CAmount nFees = 0;
+    if (fAddressIndex) {
+        try {
+            for (const CTransactionRef& tx : block.vtx) {
+                if (!tx->IsSparkSpend()) {
+                    continue;
+                }
 
-    if (!UndoSpecialTxsInBlock(block, pindex)) {
+                const CAmount fee = spark::GetSparkSpendFee(*tx);
+                if (!MoneyRange(fee) || fee > MAX_MONEY - nFees) {
+                    LogPrintf(
+                        "DisconnectBlock(): Spark spend fee is out of range\n");
+                    return DISCONNECT_FAILED;
+                }
+                nFees += fee;
+            }
+        }
+        catch (const std::exception& e) {
+            LogPrintf(
+                "DisconnectBlock(): failed to parse Spark spend fee: %s\n",
+                e.what());
+            return DISCONNECT_FAILED;
+        }
+    }
+
+    if (!UndoSpecialTxsInBlock(block, pindex, pfClean == nullptr)) {
         return DISCONNECT_FAILED;
     }
 
@@ -2616,25 +2469,6 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
                 }
             }
             // At this point, all of txundo.vprevout should have been moved out.
-        }
-
-        if(tx.IsSigmaSpend())
-            nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
-        else if (tx.IsLelantusJoinSplit()) {
-            try {
-                nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
-            }
-            catch (const std::exception &) {
-                // do nothing
-            }
-        }
-        else if (tx.IsSparkSpend()) {
-            try {
-                nFees = spark::ParseSparkSpend(tx).getFee();
-            }
-            catch (const std::exception &) {
-                // do nothing
-            }
         }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
@@ -2753,12 +2587,12 @@ private:
 public:
     WarningBitsConditionChecker(int bitIn) : bit(bitIn) {}
 
-    int64_t BeginTime(const Consensus::Params& params) const { return 0; }
-    int64_t EndTime(const Consensus::Params& params) const { return std::numeric_limits<int64_t>::max(); }
-    int Period(const Consensus::Params& params) const { return params.nMinerConfirmationWindow; }
-    int Threshold(const Consensus::Params& params) const { return params.nRuleChangeActivationThreshold; }
+    int64_t BeginTime(const Consensus::Params& params) const override { return 0; }
+    int64_t EndTime(const Consensus::Params& params) const override { return std::numeric_limits<int64_t>::max(); }
+    int Period(const Consensus::Params& params) const override { return params.nMinerConfirmationWindow; }
+    int Threshold(const Consensus::Params& params) const override { return params.nRuleChangeActivationThreshold; }
 
-    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const
+    bool Condition(const CBlockIndex* pindex, const Consensus::Params& params) const override
     {
         return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
                ((pindex->nVersion >> bit) & 1) != 0 &&
@@ -2779,20 +2613,29 @@ static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex,
-                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck)
+                  CCoinsViewCache& view, const CChainParams& chainparams,
+                  bool fJustCheck, bool isVerifyDB)
 {
     AssertLockHeld(cs_main);
+    assert(!isVerifyDB || fJustCheck);
 
     int64_t nTimeStart = GetTimeMicros();
     //btzc: update nHeight, isVerifyDB
     // Check it again in case a previous version let a bad block in
-    LogPrintf("ConnectBlock nHeight=%s, hash=%s\n", pindex->nHeight, block.GetHash().ToString());
-    if (!CheckBlock(block, state, chainparams.GetConsensus(), !fJustCheck, !fJustCheck, pindex->nHeight, false)) {
+    LogPrint("validation", "ConnectBlock nHeight=%d, hash=%s\n", pindex->nHeight, block.GetHash().ToString());
+    if (!CheckBlock(
+            block,
+            state,
+            chainparams.GetConsensus(),
+            !fJustCheck,
+            !fJustCheck,
+            pindex->nHeight,
+            isVerifyDB)) {
         LogPrintf("--> failed\n");
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     }
 
-    if (block.IsProgPow() && !fJustCheck)
+    if (block.IsProgPow() && (!fJustCheck || isVerifyDB))
     {
         // do full PP hash check
 
@@ -2942,6 +2785,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     CBlockUndo blockundo;
 
+    // Queued script checks hold pointers into txdata, so txdata must outlive the queue controller.
+    std::vector<PrecomputedTransactionData> txdata;
+    txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+
     CCheckQueueControl<CScriptCheck> control(fScriptChecks && nScriptCheckThreads ? &scriptcheckqueue : NULL);
 
     std::vector<int> prevheights;
@@ -2954,18 +2801,25 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
     CDbIndexHelper dbIndexHelper(fAddressIndex, fSpentIndex);
 
-    std::vector<PrecomputedTransactionData> txdata;
-    txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
-
     std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
-    // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindex->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-    batchProofContainer->init();
+    // Keep accumulated historical batches, but verify recent blocks before
+    // publishing state. Check-only paths must verify proofs directly.
+    auto batchMode = BatchProofContainer::Mode::Disabled;
+    if (!fJustCheck && GetBoolArg("-batching", true)) {
+        batchMode = ShouldBatchSparkProofs(pindex)
+            ? BatchProofContainer::Mode::Deferred : BatchProofContainer::Mode::Block;
+    }
+    batchProofContainer->init(batchMode);
+    struct ResetSparkBatch
+    {
+        BatchProofContainer* container;
+        ~ResetSparkBatch() { container->init(); }
+    } resetSparkBatch{batchProofContainer};
+    std::size_t nSigma = 0;
+    std::size_t nLelantus = 0;
 
-    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
-    block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
@@ -3012,35 +2866,42 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         || tx.IsLelantusMint()
         || tx.IsLelantusJoinSplit()
         || tx.IsSparkTransaction()) {
-            if( tx.IsSigmaSpend())
-                nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
-
+            if(tx.IsSigmaSpend())
+                ++nSigma;
             if(tx.IsLelantusJoinSplit()) {
-                try {
-                    nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
-                }
-                catch (CBadTxIn&) {
-                    return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
-                }
-                catch (const std::exception &) {
-                    return state.DoS(0, false, REJECT_INVALID, "failed to deserialize joinsplit");
-                }
+                ++nLelantus;
             }
 
             if(tx.IsSparkSpend()) {
                 try {
-                    nFees += spark::ParseSparkSpend(tx).getFee();
+                    nFees += spark::GetSparkSpendFee(tx);
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse spark spend");
+                }
+                catch (const std::bad_alloc&) {
+                    return state.Error(
+                        "ConnectBlock(): memory allocation failed while parsing Spark fee");
                 }
                 catch (const std::exception &) {
                     return state.DoS(0, false, REJECT_INVALID, "failed to deserialize spark spend");
                 }
             }
 
+            if (!MoneyRange(nFees))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-fee-outofrange");
+
             // Check transaction against signa/lelantus state
-            if (!CheckTransaction(tx, state, false, txHash, false, pindex->nHeight, false, true, block.sigmaTxInfo.get(), block.lelantusTxInfo.get(), block.sparkTxInfo.get()))
+            if (!CheckTransaction(
+                    tx,
+                    state,
+                    false,
+                    txHash,
+                    isVerifyDB,
+                    pindex->nHeight,
+                    false,
+                    true,
+                    block.sparkTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -3085,9 +2946,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     }
 
-    block.sigmaTxInfo->Complete();
-    block.lelantusTxInfo->Complete();
     block.sparkTxInfo->Complete();
+    if (pindex->nHeight >= chainparams.GetConsensus().nSparkChaumV2StartBlock &&
+            !spark::CheckSparkMintDuplicates(
+                state, block.sparkTxInfo->mints, pindex->nHeight)) {
+        return false;
+    }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
@@ -3100,6 +2964,16 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     //btzc: Add time to check
     CAmount blockSubsidy = GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
     CAmount blockReward = nFees + blockSubsidy;
+    const auto& consensusParams = ::Params().GetConsensus();
+    // Sigma: use coinbase as limit when block has Sigma tx; on strip (nLelantusStartBlock<=1) any height, else only Sigma era (height < Lelantus)
+    if (nSigma > 0 && pindex->nHeight >= consensusParams.nSigmaStartBlock &&
+        (consensusParams.nLelantusStartBlock <= 1 || pindex->nHeight < consensusParams.nLelantusStartBlock))
+        blockReward = block.vtx[0]->GetValueOut();
+
+    // Lelantus: use coinbase as limit (Lelantus fees are not in nFees), including in Spark era
+    if (nLelantus > 0 && pindex->nHeight >= consensusParams.nLelantusStartBlock)
+        blockReward = block.vtx[0]->GetValueOut();
+
     if (block.vtx[0]->GetValueOut() > blockReward)
         return state.DoS(100,
                          error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
@@ -3112,19 +2986,46 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     if (!IsBlockPayeeValid(*block.vtx[0], pindex->nHeight, pindex->nTime, blockSubsidy)) {
-        mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        if (!isVerifyDB) {
+            LOCK(cs_main);
+            mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+        }
         return state.DoS(0, error("ConnectBlock(EVPZNODES): couldn't find evo znode payments"),
                                 REJECT_INVALID, "bad-cb-payee");
     }
 
-    if (!ProcessSpecialTxsInBlock(block, pindex, state, fJustCheck, fScriptChecks)) {
+    // CheckSpecialTx skips nVersion != 3. A later version with a spork type
+    // tag must still be rejected before MN-list or spork state is updated.
+    if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
+                pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
+        for (const CTransactionRef& tx : block.vtx) {
+            if (tx->nVersion >= 3 &&
+                    tx->nType == TRANSACTION_SPORK &&
+                    !CheckSporkTx(*tx, pindex->pprev, state)) {
+                return false;
+            }
+        }
+    }
+
+    // Special transaction processing can publish notifications and cache
+    // changes. A recent block's proofs must pass before any of those effects.
+    try {
+        if (!batchProofContainer->verify_block_batch())
+            return state.DoS(100, false, REJECT_INVALID, "bad-spark-batch-proof");
+    } catch (const std::bad_alloc&) {
+        return state.Error("ConnectBlock(): memory allocation failed while verifying Spark batch");
+    }
+
+    if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
     }
     // END ZNODE
 
     //CHECK TRANSACTIONS FOR INSTANTSEND
-    if (pindex->nHeight >= Params().GetConsensus().nInstantSendBlockFilteringStartHeight && IsNewInstantSendEnabled()) {
+    if (!isVerifyDB &&
+        pindex->nHeight >= Params().GetConsensus().nInstantSendBlockFilteringStartHeight &&
+        IsNewInstantSendEnabled()) {
         // Require other nodes to comply, send them some data in case they are missing it.
         for (const auto& tx : block.vtx) {
             // skip txes that have no inputs
@@ -3150,39 +3051,48 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
     LogPrint("bench", "      - IS filter: %.2fms [%.2fs]\n", 0.001 * (nTime5_1 - nTime4), nTimeISFilter * 0.000001);
 
-    if (!fJustCheck)
-        MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
-
-    // evo spork handling
-    // back up spork state if fJustCheck is true
-    auto sporkSetBackup = pindex->activeDisablingSporks;
+    // Copy, do not move: the live map must stay intact until BlockConnected
+    // rewrites it. Restore on every failure and on fJustCheck.
+    struct SporkSetRollback
+    {
+        CBlockIndex* index;
+        ActiveSporkMap backup;
+        bool enabled;
+        ~SporkSetRollback()
+        {
+            if (enabled)
+                index->SetActiveDisablingSporks(std::move(backup));
+        }
+    } sporkSetRollback{
+        pindex, pindex->privacyData().activeDisablingSporks, true};
     CSporkManager *sporkManager = CSporkManager::GetSporkManager();
 
     if (pindex->nHeight >= chainparams.GetConsensus().nEvoSporkStartBlock &&
                 pindex->nHeight < chainparams.GetConsensus().nEvoSporkStopBlock) {
         if (!sporkManager->BlockConnected(block, pindex)) {
-            pindex->activeDisablingSporks = sporkSetBackup;
             return false;
         }
 
         // check if transaction is allowed under spork rules
         for (CTransactionRef tx: block.vtx) {
-            if (!sporkManager->IsTransactionAllowed(*tx, pindex->activeDisablingSporks, state))
+            if (!sporkManager->IsTransactionAllowed(*tx, pindex->privacyData().activeDisablingSporks, state))
                 return false;
         }
     }
 
-    if (!sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck) ||
-        !lelantus::ConnectBlockLelantus(state, chainparams, pindex, &block, fJustCheck) ||
-        !spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck))
-        return false;
-
+    // Reject before ConnectBlockSpark so a transparent-output spork failure
+    // cannot leave spends applied in global Spark state.
     if (!sporkManager->IsBlockAllowed(block, pindex, state))
         return false;
 
+    if (!spark::ConnectBlockSpark(state, chainparams, pindex, &block, fJustCheck || isVerifyDB, isVerifyDB))
+        return false;
+
     if (fJustCheck) {
-        // roll back spork set if needed
-        pindex->activeDisablingSporks = sporkSetBackup;
+        if (isVerifyDB) {
+            view.SetBestBlock(pindex->GetBlockHash());
+            evoDb->WriteBestBlock(pindex->GetBlockHash());
+        }
         return true;
     }
 
@@ -3230,7 +3140,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
 
-    // do batch verification if remains a day or collect proofs
+    // Only historical blocks contribute to the deferred batch.
     batchProofContainer->finalize();
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
@@ -3243,70 +3153,21 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     evoDb->WriteBestBlock(pindex->GetBlockHash());
 
+    MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
+
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint("bench", "    - Callbacks: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCallbacks * 0.000001);
 
+    sporkSetRollback.enabled = false;
     return true;
 }
 
-/**
- * Erase all of sigma/lelantus transactions conflicting with given block from the mempool
- */
-void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block) {
-    LOCK(mempool.cs);
+/** Erase Spark spend transactions conflicting with the given block from a pool. */
+void static RemoveConflictingSparkSpendsFromMempool(CTxMemPool& pool, const CBlock &block) {
+    LOCK(pool.cs);
 
-    // Erase conflicting sigma/lelantus txs from the mempool
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    lelantus::CLelantusState *lelantusState = lelantus::CLelantusState::GetState();
-    spark::CSparkState *sparkState = spark::CSparkState::GetState();
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
-        if (tx->IsSigmaSpend()) {
-            BOOST_FOREACH(const CTxIn &txin, tx->vin)
-            {
-                Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(*tx, txin);
-                uint256 thisTxHash = tx->GetHash();
-                uint256 conflictingTxHash = sigmaState->GetMempoolConflictingTxHash(zcSpendSerial);
-                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                    std::list<CTransaction> removed;
-                    auto pTx = mempool.get(conflictingTxHash);
-                    if (pTx)
-                        mempool.removeRecursive(*pTx);
-                    LogPrintf("ConnectBlock: removed conflicting sigma/lelantus spend tx %s from the mempool\n",
-                                conflictingTxHash.ToString());
-                }
-
-                // In any case we need to remove serial from mempool set
-                sigmaState->RemoveSpendFromMempool(zcSpendSerial);
-            }
-        }
-        else if (tx->IsLelantusJoinSplit()) {
-           std::vector<Scalar> serials;
-           try {
-               serials = lelantus::GetLelantusJoinSplitSerialNumbers(*tx, tx->vin[0]);
-           } catch (CBadTxIn&) {
-               // nothing
-           }
-
-           uint256 thisTxHash = tx->GetHash();
-            uint256 conflictingTxHash;
-           for(const auto& serial : serials) {
-                conflictingTxHash = lelantusState->GetMempoolConflictingTxHash(serial);
-                if(!conflictingTxHash.IsNull())
-                    break;
-           }
-           if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-               std::list<CTransaction> removed;
-               auto pTx = mempool.get(conflictingTxHash);
-               if (pTx)
-                   mempool.removeRecursive(*pTx);
-                LogPrintf("ConnectBlock: removed conflicting lelantus joinsplit tx %s from the mempool\n",
-                           conflictingTxHash.ToString());
-           }
-
-           // In any case we need to remove serial from mempool set
-           lelantusState->RemoveSpendFromMempool(serials);
-        }
-        else if (tx->IsSparkSpend()) {
+        if (tx->IsSparkSpend()) {
             std::vector<GroupElement> lTags;
             try {
                 lTags = spark::GetSparkUsedTags(*tx);
@@ -3315,56 +3176,41 @@ void static RemoveConflictingPrivacyTransactionsFromMempool(const CBlock &block)
             }
 
             uint256 thisTxHash = tx->GetHash();
-            uint256 conflictingTxHash;
-            for(const auto& lTag : lTags) {
-                conflictingTxHash = sparkState->GetMempoolConflictingTxHash(lTag);
-                if(!conflictingTxHash.IsNull())
-                    break;
-            }
-            if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                std::list<CTransaction> removed;
-                auto pTx = mempool.get(conflictingTxHash);
-                if (pTx)
-                    mempool.removeRecursive(*pTx);
-                LogPrintf("ConnectBlock: removed conflicting spark spend tx %s from the mempool\n",
-                          conflictingTxHash.ToString());
+            for (const auto& lTag : lTags) {
+                uint256 conflictingTxHash = pool.sparkState.GetMempoolConflictingTxHash(lTag);
+                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
+                    auto pTx = pool.get(conflictingTxHash);
+                    if (pTx)
+                        pool.removeRecursive(*pTx, MemPoolRemovalReason::CONFLICT);
+                    LogPrintf("ConnectBlock: removed conflicting spark spend tx %s from the mempool\n",
+                              conflictingTxHash.ToString());
+                }
             }
 
             // In any case we need to remove lTags from mempool set
-            sparkState->RemoveSpendFromMempool(lTags);
+            for (const auto& lTag : lTags)
+                pool.sparkState.RemoveSpendFromMempool(lTag);
         }
-        BOOST_FOREACH(const CTxOut &txout, tx->vout)
-        {
-            if (txout.scriptPubKey.IsSigmaMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
-                } catch (std::invalid_argument&) {
-                    // nothing
-                }
-                sigmaState->RemoveMintFromMempool(pubCoinValue);
-            }
-            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                } catch (std::invalid_argument&) {
-                    // nothing
-                }
-                lelantusState->RemoveMintFromMempool(pubCoinValue);
-            }
+    }
+}
 
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
-                try {
-                    const spark::Params* params = spark::Params::get_default();
+/** Erase Spark mint transactions conflicting with the given block from a pool. */
+void static RemoveConflictingSparkMintsFromMempool(CTxMemPool& pool, const CBlock &block) {
+    LOCK(pool.cs);
 
-                    spark::Coin txCoin(params);
-                    spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
-                    sparkState->RemoveMintFromMempool(txCoin);
-                } catch (std::invalid_argument&) {
-                    // nothing
-                }
+    BOOST_FOREACH(CTransactionRef tx, block.vtx) {
+        for (const auto& coin : spark::GetSparkMintCoins(*tx)) {
+            const uint256 conflictingTxHash =
+                pool.sparkState.GetMempoolConflictingMintTxHash(coin);
+            if (!conflictingTxHash.IsNull() && conflictingTxHash != tx->GetHash()) {
+                auto pTx = pool.get(conflictingTxHash);
+                if (pTx)
+                    pool.removeRecursive(
+                        *pTx, MemPoolRemovalReason::CONFLICT);
+                LogPrintf("ConnectBlock: removed conflicting Spark mint tx %s from the mempool\n",
+                          conflictingTxHash.ToString());
             }
+            pool.sparkState.RemoveMintFromMempool(coin);
         }
     }
 }
@@ -3496,7 +3342,7 @@ void PruneAndFlush() {
 
 /** Update chainActive and related internal data structures. */
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
-    LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
+    LogPrint("validation", "UpdateTip() pindexNew.nHeight=%d\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
 
     // New best block
@@ -3550,15 +3396,12 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
             }
         }
     }
-    LogPrintf("%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu date='%s' progress=%f cache=%.1fMiB(%utxo)", __func__,
-      chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(), chainActive.Tip()->nVersion,
-      log(chainActive.Tip()->nChainWork.getdouble())/log(2.0), (unsigned long)chainActive.Tip()->nChainTx,
-      DateTimeStrFormat("%Y-%m-%d %H:%M:%S", chainActive.Tip()->GetBlockTime()),
-      GuessVerificationProgress(chainParams.TxData(), chainActive.Tip()), pcoinsTip->DynamicMemoryUsage() * (1.0 / (1<<20)), pcoinsTip->GetCacheSize());
-    if (!warningMessages.empty())
-        LogPrintf(" warning='%s'", boost::algorithm::join(warningMessages, ", "));
-    LogPrintf("\n");
-
+    const std::string warning = warningMessages.empty() ? "" : strprintf(" warning='%s'", boost::algorithm::join(warningMessages, ", "));
+    LogPrintf("%s: new best=%s height=%d version=0x%08x log2_work=%.8g tx=%lu date='%s' progress=%f cache=%.1fMiB(%utxo)%s\n", __func__,
+        chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(), chainActive.Tip()->nVersion,
+        log(chainActive.Tip()->nChainWork.getdouble()) / log(2.0), (unsigned long)chainActive.Tip()->nChainTx,
+        DateTimeStrFormat("%Y-%m-%d %H:%M:%S", chainActive.Tip()->GetBlockTime()),
+        GuessVerificationProgress(chainParams.TxData(), chainActive.Tip()), pcoinsTip->DynamicMemoryUsage() * (1.0 / (1 << 20)), pcoinsTip->GetCacheSize(), warning);
 }
 
 /** Disconnect chainActive's tip. You probably want to call mempool.removeForReorg and manually re-limit mempool size after this, with cs_main held. */
@@ -3574,57 +3417,14 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
 
 
     // retrieve all mints
-    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
-    block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
     block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
 
-    std::unordered_map<Scalar, int> lelantusSerialsToRemove;
-    std::vector<lelantus::RangeProof> rangeProofsToRemove;
-    sigma::spend_info_container sigmaSerialsToRemove;
     std::vector<spark::SpendTransaction> sparkTransactionsToRemove;
     for (CTransactionRef tx : block.vtx) {
         CheckTransaction(*tx, state, false, tx->GetHash(), false, pindexDelete->pprev->nHeight,
-            false, false, block.sigmaTxInfo.get(), block.lelantusTxInfo.get(), block.sparkTxInfo.get());
+            false, false, block.sparkTxInfo.get());
         if(GetBoolArg("-batching", true)) {
-            if (tx->IsLelantusJoinSplit()) {
-                std::unique_ptr<lelantus::JoinSplit> joinsplit;
-
-                try {
-                    joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
-                }
-                catch (const std::exception &) {
-                    continue;
-                }
-
-                const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
-                const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
-
-                if (serials.size() != ids.size()) {
-                    continue;
-                }
-
-                for (size_t i = 0; i < serials.size(); i++) {
-                    lelantusSerialsToRemove.insert(std::make_pair(serials[i], ids[i]));
-                }
-
-                rangeProofsToRemove.push_back(joinsplit->getLelantusProof().bulletproofs);
-            } else if (tx->IsSigmaSpend()) {
-                for (const CTxIn &txin : tx->vin) {
-                    std::unique_ptr<sigma::CoinSpend> spend;
-                    uint32_t coinGroupId;
-
-                    try {
-                        std::tie(spend, coinGroupId) = sigma::ParseSigmaSpend(txin);
-                    }
-                    catch (CBadTxIn &) {
-                        continue;
-                    }
-
-                    Scalar serial = spend->getCoinSerialNumber();
-                    sigmaSerialsToRemove.insert(std::make_pair(
-                            serial, sigma::CSpendCoinInfo::make(spend->getDenomination(), coinGroupId)));
-                }
-            } else if (tx->IsSparkSpend()) {
+            if (tx->IsSparkSpend()) {
                 try {
                     spark::SpendTransaction spendTransaction = spark::ParseSparkSpend(*tx);
                     sparkTransactionsToRemove.push_back(spendTransaction);
@@ -3650,22 +3450,9 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     }
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
-	sigma::DisconnectTipSigma(block, pindexDelete);
-    lelantus::DisconnectTipLelantus(block, pindexDelete);
     spark::DisconnectTipSpark(block, pindexDelete);
 
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    if (sigmaSerialsToRemove.size() > 0) {
-        batchProofContainer->removeSigma(sigmaSerialsToRemove);
-    }
-
-    if (lelantusSerialsToRemove.size() > 0) {
-        batchProofContainer->removeLelantus(lelantusSerialsToRemove);
-    }
-
-    if (rangeProofsToRemove.size() > 0) {
-        batchProofContainer->remove(rangeProofsToRemove);
-    }
 
     for (auto& sparkTransaction : sparkTransactionsToRemove) {
         batchProofContainer->remove(sparkTransaction);
@@ -3718,30 +3505,32 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     UpdateTip(pindexDelete->pprev, chainparams);
 
 #ifdef ENABLE_WALLET
-    // update mint/spend wallet
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet) {
-        if (block.sigmaTxInfo->spentSerials.size() > 0) {
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
-        }
+    // Update mint/spend wallet. The rollback data is taken from the transactions of the
+    // block instead of block.sparkTxInfo: spark::GetSparkMintCoins() binds every coin to
+    // its serial context, which is not serialized with the coin but is required to
+    // identify it, and it covers the SMint outputs of spend transactions as well as pure
+    // mints.
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet) {
+        for (const CTransactionRef& tx : block.vtx) {
+            if (!tx->IsSparkTransaction())
+                continue;
 
-        if (block.sigmaTxInfo->mints.size() > 0) {
-            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
-        }
+            // A transaction resurrected into the pools above still exists, it is only
+            // unconfirmed again, and its acceptance has re-registered its coins with the
+            // wallet. Roll back the wallet for the transactions that did not make it back.
+            const uint256 txHash = tx->GetHash();
+            if (mempool.exists(txHash) || txpools.getStemTxPool().exists(txHash))
+                continue;
 
-        if (block.lelantusTxInfo->spentSerials.size() > 0) {
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(block.lelantusTxInfo->spentSerials);
-        }
+            if (tx->IsSparkSpend()) {
+                std::vector<GroupElement> lTags = spark::GetSparkUsedTags(*tx);
+                if (!lTags.empty())
+                    pwalletMain->sparkWallet->RemoveSparkSpends(lTags);
+            }
 
-        if (block.lelantusTxInfo->mints.size() > 0) {
-            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(block.lelantusTxInfo->mints);
-        }
-
-        if (block.sparkTxInfo->spentLTags.size() > 0) {
-            pwalletMain->sparkWallet->RemoveSparkSpends(block.sparkTxInfo->spentLTags);
-        }
-
-        if (block.sparkTxInfo->mints.size() > 0) {
-            pwalletMain->sparkWallet->RemoveSparkMints(block.sparkTxInfo->mints);
+            std::vector<spark::Coin> coins = spark::GetSparkMintCoins(*tx);
+            if (!coins.empty())
+                pwalletMain->sparkWallet->RemoveSparkMints(coins);
         }
     }
 #endif
@@ -3777,7 +3566,7 @@ struct ConnectTrace {
  */
 bool static ConnectTip(CValidationState& state, const CChainParams& chainparams, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace)
 {
-    LogPrintf("ConnectTip() nHeight=%s\n", pindexNew->nHeight);
+    LogPrint("validation", "ConnectTip() nHeight=%d\n", pindexNew->nHeight);
     assert(pindexNew->pprev == chainActive.Tip());
     // Read block from disk.
     int64_t nTime1 = GetTimeMicros();
@@ -3799,10 +3588,18 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
 
         CCoinsViewCache view(pcoinsTip);
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
-        if (rv)
-            RemoveConflictingPrivacyTransactionsFromMempool(blockConnecting);
+        if (rv) {
+            RemoveConflictingSparkSpendsFromMempool(mempool, blockConnecting);
+            RemoveConflictingSparkSpendsFromMempool(
+                txpools.getStemTxPool(), blockConnecting);
+            RemoveConflictingSparkMintsFromMempool(mempool, blockConnecting);
+            RemoveConflictingSparkMintsFromMempool(
+                txpools.getStemTxPool(), blockConnecting);
+        }
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
+            LogPrintf("ConnectTip(): ConnectBlock failed at height=%d, hash=%s: %s\n",
+                      pindexNew->nHeight, pindexNew->GetBlockHash().ToString(), FormatStateMessage(state));
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
             return error("ConnectTip(): ConnectBlock %s failed", pindexNew->GetBlockHash().ToString());
@@ -3828,29 +3625,10 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     UpdateTip(pindexNew, chainparams);
 
 #ifdef ENABLE_WALLET
-    // Sync with HDMint wallet
+    // Sync with Spark wallet
 
-    if (!GetBoolArg("-disablewallet", false) && pwalletMain->zwallet && blockConnecting.sigmaTxInfo) {
+    if (!GetBoolArg("-disablewallet", false) && pwalletMain->sparkWallet && blockConnecting.sparkTxInfo) {
         LogPrintf("Checking if block contains wallet mints..\n");
-        if (blockConnecting.sigmaTxInfo->spentSerials.size() > 0) {
-            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(blockConnecting.sigmaTxInfo->spentSerials);
-        }
-
-        if (blockConnecting.sigmaTxInfo->mints.size() > 0) {
-            LogPrintf("HDmint: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
-            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(blockConnecting.sigmaTxInfo->mints);
-        }
-
-        if (blockConnecting.lelantusTxInfo->spentSerials.size() > 0) {
-            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            pwalletMain->zwallet->GetTracker().UpdateSpendStateFromBlock(blockConnecting.lelantusTxInfo->spentSerials);
-        }
-
-        if (blockConnecting.lelantusTxInfo->mints.size() > 0) {
-            LogPrintf("HDmint: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
-            pwalletMain->zwallet->GetTracker().UpdateMintStateFromBlock(blockConnecting.lelantusTxInfo->mints);
-        }
 
         if (blockConnecting.sparkTxInfo->spentLTags.size() > 0) {
             LogPrintf("SparkWallet: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
@@ -3858,7 +3636,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         }
 
         if (blockConnecting.sparkTxInfo->mints.size() > 0) {
-            LogPrintf("SparkWallet: UpdateSpendStateFromBlock. [height: %d]\n", GetHeight());
+            LogPrintf("SparkWallet: UpdateMintStateFromBlock. [height: %d]\n", GetHeight());
             pwalletMain->sparkWallet->UpdateMintStateFromBlock(blockConnecting);
         }
     }
@@ -3927,24 +3705,26 @@ bool DisconnectBlocks(int blocks) {
 }
 
 void ReprocessBlocks(int nBlocks) {
-    LOCK(cs_main);
+    {
+        LOCK(cs_main);
 
-    std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
-    while (it != mapRejectedBlocks.end()) {
-        //use a window twice as large as is usual for the nBlocks we want to reset
-        if ((*it).second > GetTime() - (nBlocks * 60 * 5)) {
-            BlockMap::iterator mi = mapBlockIndex.find((*it).first);
-            if (mi != mapBlockIndex.end() && (*mi).second) {
+        std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
+        while (it != mapRejectedBlocks.end()) {
+            //use a window twice as large as is usual for the nBlocks we want to reset
+            if ((*it).second > GetTime() - (nBlocks * 60 * 5)) {
+                BlockMap::iterator mi = mapBlockIndex.find((*it).first);
+                if (mi != mapBlockIndex.end() && (*mi).second) {
 
-                CBlockIndex *pindex = (*mi).second;
-                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+                    CBlockIndex *pindex = (*mi).second;
+                    LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
 
-                ResetBlockFailureFlags(pindex);            }
+                    ResetBlockFailureFlags(pindex);            }
+            }
+            ++it;
         }
-        ++it;
-    }
 
-    DisconnectBlocks(nBlocks);
+        DisconnectBlocks(nBlocks);
+    }
 
     CValidationState state;
     ActivateBestChain(state, Params());
@@ -4011,13 +3791,22 @@ static CBlockIndex* FindMostWorkChain() {
 
 /** Delete all entries in setBlockIndexCandidates that are worse than the current tip. */
 static void PruneBlockIndexCandidates() {
-    // Note that we can't delete the current block itself, as we may need to return to it later in case a
-    // reorganization to a better block fails.
+    // Ensure the current tip is in the candidates set before pruning.
+    // This guards against edge cases in reorg/invalidation where it might be missing.
+    if (chainActive.Tip() &&
+        chainActive.Tip()->IsValid(BLOCK_VALID_TRANSACTIONS) &&
+        chainActive.Tip()->nChainTx &&
+        setBlockIndexCandidates.count(chainActive.Tip()) == 0) {
+        LogPrintf("WARNING: PruneBlockIndexCandidates: tip was missing from candidates, re-adding\n");
+        setBlockIndexCandidates.insert(chainActive.Tip());
+    }
+
     std::set<CBlockIndex*, CBlockIndexWorkComparator>::iterator it = setBlockIndexCandidates.begin();
     while (it != setBlockIndexCandidates.end() && setBlockIndexCandidates.value_comp()(*it, chainActive.Tip())) {
         setBlockIndexCandidates.erase(it++);
     }
-    // Either the current tip or a successor of it we're working towards is left in setBlockIndexCandidates.
+
+    // Keep the assertion - if we still fail here, something is seriously wrong
     assert(!setBlockIndexCandidates.empty());
 }
 
@@ -4027,7 +3816,7 @@ static void PruneBlockIndexCandidates() {
  */
 static bool ActivateBestChainStep(CValidationState& state, const CChainParams& chainparams, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace)
 {
-    LogPrintf("ActivateBestChainStep()\n");
+    LogPrint("validation", "ActivateBestChainStep()\n");
     AssertLockHeld(cs_main);
     const CBlockIndex *pindexOldTip = chainActive.Tip();
     const CBlockIndex *pindexFork = chainActive.FindFork(pindexMostWork);
@@ -4216,10 +4005,10 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
         }
-        // Do batch verification if we reach 1 day old block,
-        BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-        batchProofContainer->fCollectProofs = ((GetSystemTimeInSeconds() - pindexNewTip->GetBlockTime()) > 86400) && GetBoolArg("-batching", true);
-        batchProofContainer->verify();
+
+        if (!ShouldBatchSparkProofs(pindexNewTip) &&
+            !VerifyPendingSparkBatch(state, "connecting new tip"))
+            return false;
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
@@ -4542,6 +4331,8 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
         uint256 final_hash;
         if (block.IsProgPow())
         {
+            if (block.mix_hash.IsNull())
+                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash cannot be null");
             // If we use GetProgPowHashFull user may experience very slow header sync
             // We use simplified function for header check and then will use full check in ConnectBlock()
             // This won't make sync faster but it will give user a better experience
@@ -4562,15 +4353,9 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 }
 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot, int nHeight, bool isVerifyDB) {
-    // CheckBlock not only checks the block, but also fills up sparkTxInfo, lelantusTxInfo and sigmaTxInfo.
-    if (!block.sigmaTxInfo)
-        block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
-    if (!block.lelantusTxInfo)
-        block.lelantusTxInfo = std::make_shared<lelantus::CLelantusTxInfo>();
+    // CheckBlock not only checks the block, but also fills up sparkTxInfo.
     if (!block.sparkTxInfo)
         block.sparkTxInfo = std::make_shared<spark::CSparkTxInfo>();
-
-    LogPrintf("CheckBlock() nHeight=%s, blockHash= %s, isVerifyDB = %s\n", nHeight, block.GetHash().ToString(), isVerifyDB);
 
     // These are checks that are independent of context.
 
@@ -4620,16 +4405,14 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
         if (block.vtx[i]->IsCoinBase())
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
 
-    // Check transactions
+    // Derive the height for callers that do not have indexed block context.
     if (nHeight == INT_MAX)
         nHeight = GetNHeight(block.GetBlockHeader());
+    LogPrint("validation", "CheckBlock() nHeight=%d, blockHash=%s, isVerifyDB=%d\n", nHeight, block.GetHash().ToString(), isVerifyDB);
 
     for (CTransactionRef tx : block.vtx) {
-        if (nHeight >= consensusParams.nStartSigmaBlacklist && nHeight < consensusParams.nRestartSigmaWithBlacklistCheck && (tx->IsSigmaMint() || tx->IsSigmaSpend())) {
-            return state.DoS(100, error("Sigma is temporarily disabled"), REJECT_INVALID, "bad-txns-zerocoin");
-        }
         // We don't check transactions against sigma/lelantus state here, we'll check it again later in ConnectBlock
-        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL))
+        if (!CheckTransaction(*tx, state, false, tx->GetHash(), isVerifyDB, nHeight, false, false, NULL))
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                 strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), state.GetDebugMessage()));
 
@@ -4642,17 +4425,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
         return state.DoS(100, false, REJECT_INVALID, "bad-blk-sigops", false, "out-of-bounds SigOpCount");
 
+    if (!spark::CheckSparkBlock(state, block, nHeight))
+        return false;
+
     if (fCheckPOW && fCheckMerkleRoot)
         block.fChecked = true;
-
-    if (!sigma::CheckSigmaBlock(state, block))
-        return false;
-
-    if (!lelantus::CheckLelantusBlock(state, block))
-        return false;
-
-    if (!spark::CheckSparkBlock(state, block))
-        return false;
 
     return true;
 }
@@ -4746,6 +4523,9 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
     if (block.IsMTP() != fBlockHasMTP)
 		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));
 
+    if (block.IsProgPow() && block.nHeight != static_cast<uint32_t>(pindexPrev->nHeight + 1))
+        return state.DoS(100, false, REJECT_INVALID, "bad-blk-progpow", "ProgPOW height doesn't match chain height");
+
 	// Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
@@ -4799,13 +4579,17 @@ bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
 
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
-    const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+    const uint32_t nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
 
     // once ProgPow always ProgPow
-    if (pindexPrev && pindexPrev->nTime >= consensusParams.nPPSwitchTime && block.nTime < consensusParams.nPPSwitchTime)
+    if (pindexPrev
+        && cmp::greater_equal(pindexPrev->nTime, consensusParams.nPPSwitchTime)
+        && cmp::less(block.nTime, consensusParams.nPPSwitchTime))
         return state.Invalid(false, REJECT_INVALID, "bad-blk-progpow-state", "Cannot go back from ProgPOW");
 
-    if (pindexPrev && pindexPrev->nTime >= consensusParams.stage3StartTime && block.nTime < consensusParams.stage3StartTime)
+    if (pindexPrev
+        && cmp::greater_equal(pindexPrev->nTime, consensusParams.stage3StartTime)
+        && cmp::less(block.nTime, consensusParams.stage3StartTime))
         return state.Invalid(false, REJECT_INVALID, "bad-blk-stage3-state", "Cannot go back to 5 minutes between blocks");
 
     if (block.IsProgPow() && block.nHeight != nHeight)
@@ -4821,7 +4605,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
                               ? pindexPrev->GetMedianTimePast()
                               : block.GetBlockTime();
 
-    bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
+    bool fDIP0003Active_context = cmp::greater_equal(nHeight, consensusParams.DIP0003Height);
 
     // Check that all transactions are finalized
     for (const auto& tx : block.vtx) {
@@ -4834,13 +4618,20 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
         }
     }
 
-    if (nHeight >= consensusParams.nSubsidyHalvingFirst) {
-        if (nHeight < consensusParams.nSubsidyHalvingSecond) {
-            if (block.nTime >= consensusParams.stage3StartTime) {
-                CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3DevelopmentFundAddress).Get());
-                CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage3DevelopmentFundShare) / 100;
-                CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
-                CAmount communityPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage3CommunityFundShare) / 100;
+    if (cmp::greater_equal(nHeight, consensusParams.nSubsidyHalvingFirst)) {
+        if (cmp::greater_equal(block.nTime, consensusParams.stage3StartTime)) {
+            bool fStage3 = cmp::less(nHeight, consensusParams.nSubsidyHalvingSecond);
+            bool fStage4 = cmp::greater_equal(nHeight, consensusParams.stage4StartBlock);
+            CAmount devPayoutValue = 0, communityPayoutValue = 0;
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.GetStage4DevelopmentFundAddress(nHeight)).Get());
+            CScript communityPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage3CommunityFundAddress).Get());
+
+            // There is no dev/community payout for testnet for some time
+            if (fStage3 || fStage4) {
+                int devShare = fStage3 ? consensusParams.stage3DevelopmentFundShare : consensusParams.stage4DevelopmentFundShare;
+                int communityShare = fStage3 ? consensusParams.stage3CommunityFundShare : consensusParams.stage4CommunityFundShare;
+                devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * devShare) / 100;
+                communityPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * communityShare) / 100;
 
                 bool devFound = false, communityFound = false;
                 for (const CTxOut &txout: block.vtx[0]->vout) {
@@ -4852,18 +4643,18 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
                 if (!devFound || !communityFound)
                     return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 3 developer/community reward check failed");
             }
-            else {
-                // "stage 2" interval between first and second halvings
-                CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get());
-                CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage2DevelopmentFundShare) / 100;
-                bool found = false;
-                for (const CTxOut &txout: block.vtx[0]->vout) {
-                    if ((found = txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue) == true)
-                        break;
-                }
-                if (!found)
-                    return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 2 developer reward check failed");
+        }
+        else {
+            // "stage 2" interval between first and second halvings
+            CScript devPayoutScript = GetScriptForDestination(CBitcoinAddress(consensusParams.stage2DevelopmentFundAddress).Get());
+            CAmount devPayoutValue = (GetBlockSubsidy(nHeight, consensusParams, block.nTime) * consensusParams.stage2DevelopmentFundShare) / 100;
+            bool found = false;
+            for (const CTxOut &txout: block.vtx[0]->vout) {
+                if ((found = txout.scriptPubKey == devPayoutScript && txout.nValue == devPayoutValue) == true)
+                    break;
             }
+            if (!found)
+                return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Stage 2 developer reward check failed");
         }
     }
     else if (!CheckZerocoinFoundersInputs(*block.vtx[0], state, consensusParams, nHeight, block.IsMTP())) {
@@ -5023,7 +4814,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     if (!AcceptBlockHeader(block, state, chainparams, &pindex))
         return false;
 
-    LogPrintf("AcceptBlock nHeight=%s\n", pindex->nHeight);
+    LogPrint("validation", "AcceptBlock nHeight=%d\n", pindex->nHeight);
     // Try to process all requested blocks that we don't have, but only
     // process an unrequested block if it's new and has enough work to
     // advance our tip, and isn't too many blocks ahead.
@@ -5049,8 +4840,6 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
         if (!fHasMoreWork) return true;     // Don't process less-work chains
         if (fTooFarAhead) return true;      // Block height is too high
     }
-    if (fNewBlock) *fNewBlock = true;
-
     if (!CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, false) ||
         !ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
@@ -5068,6 +4857,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     int nHeight = pindex->nHeight;
 
     // Write block to history file
+    if (fNewBlock) *fNewBlock = true;
     try {
         unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
         CDiskBlockPos blockPos;
@@ -5100,9 +4890,17 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         // TODO: refactor code so CheckTransaction and CheckBlock don't need cs_main
         LOCK(cs_main);
 
-        // Ensure that CheckBlock() passes before calling AcceptBlock, as
-        // belt-and-suspenders.
-        bool ret = CheckBlock(*pblock, state, chainparams.GetConsensus());
+        // A Spark type mismatch must not enter legacy parsing
+        // until AcceptBlock has contextualized its header and applied the
+        // unrequested-block gates. Keep the belt-and-suspenders check for all
+        // other blocks.
+        const bool fDeferBlockCheck = std::any_of(
+            pblock->vtx.begin(), pblock->vtx.end(),
+            [](const CTransactionRef& tx) {
+                return !HasConsistentSparkCoinTypes(*tx);
+            });
+        bool ret = fDeferBlockCheck ||
+            CheckBlock(*pblock, state, chainparams.GetConsensus());
 
         if (ret) {
             // Store to disk
@@ -5110,6 +4908,7 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
         }
         CheckBlockIndex(chainparams.GetConsensus());
         if (!ret) {
+            LogPrintf("ProcessNewBlock: block %s rejected: %s\n", pblock->GetHash().ToString(), FormatStateMessage(state));
             GetMainSignals().BlockChecked(*pblock, state);
             return error("%s: AcceptBlock FAILED", __func__);
         }
@@ -5118,8 +4917,10 @@ bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<cons
     NotifyHeaderTip();
 
     CValidationState state; // Only used to report errors, not invalidity - ignore it
-    if (!ActivateBestChain(state, chainparams, pblock))
+    if (!ActivateBestChain(state, chainparams, pblock)) {
+        LogPrintf("ProcessNewBlock: ActivateBestChain failed: %s\n", FormatStateMessage(state));
         return error("%s: ActivateBestChain failed", __func__);
+    }
 
     return true;
 }
@@ -5475,8 +5276,6 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
 
     PruneBlockIndexCandidates();
 
-    sigma::BuildSigmaStateFromIndex(&chainActive);
-    lelantus::BuildLelantusStateFromIndex(&chainActive);
     spark::BuildSparkStateFromIndex(&chainActive);
 
     // Initialize MTP state
@@ -5506,7 +5305,24 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
 
-    // begin tx and let it rollback
+    struct VerifyDBCacheCleanup
+    {
+        ~VerifyDBCacheCleanup()
+        {
+            // Temporary disconnect/reconnect traversals alter database-derived
+            // caches even though the EvoDB transaction itself rolls back.
+            // Discard those entries on every return path so later reads are
+            // rebuilt from the restored database state.
+            if (deterministicMNManager) {
+                deterministicMNManager->ClearCache();
+            }
+            if (llmq::quorumBlockProcessor) {
+                llmq::quorumBlockProcessor->ClearMinedCommitmentCache();
+            }
+        }
+    } verifyDBCacheCleanup;
+    // Declare the temporary transaction after the cache guard so rollback
+    // completes before the derived caches are discarded.
     auto dbTx = evoDb->BeginTransaction();
 
     // Verify blocks in the best chain
@@ -5544,7 +5360,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         // check level 0: read from disk
         if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
             return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-        LogPrintf("VerifyDB->CheckBlock() nHeight=%s\n", pindex->nHeight);
+        LogPrintf("VerifyDB->CheckBlock() nHeight=%d\n", pindex->nHeight);
         // check level 1: verify block validity
         if (nCheckLevel >= 1 && !CheckBlock(block, state, chainparams.GetConsensus(), true, true, pindex->nHeight, true))
             return error("%s: *** found bad block at %d, hash=%s (%s)\n", __func__,
@@ -5581,6 +5397,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
 
     // check level 4: try reconnecting blocks
     if (nCheckLevel >= 4) {
+        spark::CSparkVerifyDBContext sparkContext(pindexState);
         CBlockIndex *pindex = pindexState;
         while (pindex != chainActive.Tip()) {
             boost::this_thread::interruption_point();
@@ -5589,7 +5406,8 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-            if (!ConnectBlock(block, state, pindex, coins, chainparams))
+            if (!ConnectBlock(
+                    block, state, pindex, coins, chainparams, true, true))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }
     }
@@ -5832,8 +5650,10 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                     CValidationState state;
                     if (AcceptBlock(pblock, state, chainparams, NULL, true, dbp, NULL))
                         nLoaded++;
-                    if (state.IsError())
+                    if (state.IsError()) {
+                        LogPrintf("LoadBlockIndex: block %s rejected: %s\n", hash.ToString(), FormatStateMessage(state));
                         break;
+                    }
                 } else if (hash != chainparams.GetConsensus().hashGenesisBlock && mapBlockIndex[hash]->nHeight % 1000 == 0) {
                     LogPrint("reindex", "Block Import: already had block %s at height %d\n", hash.ToString(), mapBlockIndex[hash]->nHeight);
                 }

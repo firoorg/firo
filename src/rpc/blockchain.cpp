@@ -8,6 +8,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
+#include "compat_layer.h"
 #include "core_io.h"
 #include "consensus/validation.h"
 #include "validation.h"
@@ -25,6 +26,7 @@
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "../sparkname.h"
 
 #include "llmq/quorums_chainlocks.h"
 #include "llmq/quorums_instantsend.h"
@@ -48,7 +50,7 @@ static std::mutex cs_blockchange;
 static std::condition_variable cond_blockchange;
 static CUpdatedBlock latestblock;
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock = true);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -133,7 +135,11 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
         if(txDetails)
         {
             UniValue objTx(UniValue::VOBJ);
-            TxToJSON(*tx, uint256(), objTx);
+            // Pass the block hash so TxToJSON can include block context
+            // Pass false for includeChainlock since chainlock is reported at block level only
+            TxToJSON(*tx, blockindex->GetBlockHash(), objTx, false);
+            // Add raw transaction hex like Bitcoin does for verbosity >= 2
+            objTx.push_back(Pair("hex", EncodeHexTx(*tx, RPCSerializationFlags())));
             txs.push_back(objTx);
         }
         else
@@ -174,6 +180,248 @@ UniValue getblockcount(const JSONRPCRequest& request)
 
     LOCK(cs_main);
     return chainActive.Height();
+}
+
+UniValue getsparknamedata(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknamedata ( sparkname )\n"
+            "\nReturns info about spark name.\n"
+            "\nArguments:\n"
+            "Spark name (string)\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"address\": spark address (string)\n"
+            "  \"validUntil\": block height until this spark name is valid (int)\n"
+            "  \"additionalInfo\": additional info (string)\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknamedata", "sparkname")
+            + HelpExampleRpc("getsparknamedata", "sparkname")
+        );
+    }
+
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string sparkName = request.params[0].get_str();
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    std::string SparkAddr;
+    sparkNameManager->GetSparkAddress(sparkName, SparkAddr);
+
+    UniValue result(UniValue::VOBJ);
+    FIRO_UNUSED unsigned char network = spark::GetNetworkType();
+
+    result.push_back(Pair("address", SparkAddr));
+
+    uint64_t nameBlockHeight = sparkNameManager->GetSparkNameBlockHeight(sparkName);
+    result.push_back(Pair("validUntil", nameBlockHeight));
+
+    std::string sparkNameData = sparkNameManager->GetSparkNameAdditionalData(sparkName);
+    result.push_back(Pair("additionalInfo", sparkNameData));
+
+    return result;
+}
+
+UniValue getsparknames(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "getsparknames [fOnlyOwn] \n"
+            "\nReturns a list of all Spark names and additional info.\n"
+            "\nArguments:\n"
+            "1. onlyown       (boolean, optional, default=false) Display only the spark names that belong to this wallet\n"
+            "\nResult:\n"
+            "[\n"
+            "  \"Name (string)\n"
+            "  \"Address (string)\"\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknames", "")
+            + HelpExampleRpc("getsparknames", "")
+        );
+    }
+
+    LOCK(cs_main);
+
+    bool fOnlyOwn = request.params.size() > 0 ? request.params[0].get_bool() : false;
+
+#ifdef ENABLE_WALLET
+    CWallet *wallet = GetWalletForJSONRPCRequest(request);
+    if (fOnlyOwn && !wallet)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet functionality is disabled");
+
+    if (wallet) {
+        LOCK(wallet->cs_wallet);
+    }
+#else
+    if (fOnlyOwn)
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet functionality is disabled");
+#endif
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+    std::set<std::string> sparkNames = sparkNameManager->GetSparkNames();
+    UniValue result(UniValue::VARR);
+    for (const auto &name : sparkNames) {
+        UniValue entry(UniValue::VOBJ);
+
+        std::string sparkAddress;
+        if (sparkNameManager->GetSparkAddress(name, sparkAddress)) {
+#ifdef ENABLE_WALLET
+            if (fOnlyOwn && wallet && !wallet->IsSparkAddressMine(sparkAddress))
+                continue;
+#endif
+            entry.push_back(Pair("name", name));
+            entry.push_back(Pair("address", sparkAddress));
+            entry.push_back(Pair("validUntil", sparkNameManager->GetSparkNameBlockHeight(name)));
+            std::string addData = sparkNameManager->GetSparkNameAdditionalData(name);
+            if (!addData.empty())
+                entry.push_back(Pair("additionalInfo", addData));
+            result.push_back(entry);
+        }
+    }
+    return result;
+}
+
+UniValue getsparknametxdetails(const JSONRPCRequest &request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "getsparknametxdetails \"txhash\"\n"
+            "\nReturns the Spark name registration associated with txhash.\n"
+            "\nArguments:\n"
+            "1. txhash    (string, required) The Spark name transaction id\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"name\":            (string) Spark name\n"
+            "  \"address\":         (string) Spark address registered by this transaction\n"
+            "  \"validUntil\":      (numeric) Block height until this registration is valid\n"
+            "  \"additionalInfo\":  (string, optional) Additional info from this transaction\n"
+            "}\n"
+            "\nFor a confirmed transaction, validUntil is the expiry height stored with\n"
+            "the registration in its containing block (sparkNameValidityHeight), not the\n"
+            "name manager's current state after later renewals or transfers.\n"
+            "For an unconfirmed transaction, validUntil is the pending expiry if the\n"
+            "transaction is included in the next block.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getsparknametxdetails", "txhash")
+            + HelpExampleRpc("getsparknametxdetails", "txhash")
+        );
+    }
+    LOCK(cs_main);
+
+    if (!spark::IsSparkAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Spark is not activated yet");
+    }
+
+    std::string strTxId = request.params[0].get_str();
+    uint256 txid = uint256S(strTxId);
+
+    CTransactionRef txRef;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, txRef, Params().GetConsensus(), hashBlock, true))
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Unknown transaction.");
+
+    CSparkNameTxData sparkNameData;
+    CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+
+    const CTransaction& tx = *txRef;
+    const CSparkNameBlockIndexData* historicalRecord = nullptr;
+    uint64_t pendingValidityHeight = 0;
+    if (!hashBlock.IsNull()) {
+        const auto block = mapBlockIndex.find(hashBlock);
+        if (block == mapBlockIndex.end()) {
+            throw JSONRPCError(
+                RPC_INTERNAL_ERROR,
+                "Transaction block is not indexed");
+        }
+        CBlockIndex* blockIndex = block->second;
+        spark::SpendTransaction spend(spark::Params::get_default());
+        std::size_t extensionPosition = 0;
+        const bool requireCanonicalExtension =
+            tx.IsSparkSpendV2() ||
+            blockIndex->nHeight >=
+                Params().GetConsensus().nSparkChaumV2StartBlock;
+        if (!CSparkNameManager::ParseSparkNameTxData(
+                tx,
+                spend,
+                sparkNameData,
+                extensionPosition,
+                requireCanonicalExtension)) {
+            throw JSONRPCError(
+                RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+        }
+
+        const auto& addedSparkNames =
+            blockIndex->privacyData().addedSparkNames;
+        const auto record = addedSparkNames.find(
+            CSparkNameManager::ToUpper(sparkNameData.name));
+        if (record == addedSparkNames.end() ||
+            record->second.name != sparkNameData.name ||
+            record->second.sparkAddress != sparkNameData.sparkAddress ||
+            record->second.additionalInfo != sparkNameData.additionalInfo) {
+            throw JSONRPCError(
+                RPC_TRANSACTION_ERROR,
+                "Spark name transaction does not match its block index");
+        }
+        historicalRecord = &record->second;
+    } else {
+        const int nextBlockHeight = chainActive.Height() + 1;
+        CValidationState state;
+        if (!sparkNameManager->CheckSparkNameTx(
+                tx,
+                nextBlockHeight,
+                state,
+                &sparkNameData,
+                0)) {
+            throw JSONRPCError(
+                RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+        }
+
+        pendingValidityHeight =
+            static_cast<uint64_t>(nextBlockHeight) +
+            sparkNameData.sparkNameValidityBlocks;
+        if (nextBlockHeight >=
+            Params().GetConsensus().nSparkNamesV21StartBlock) {
+            try {
+                const uint64_t existingValidity =
+                    sparkNameManager->GetSparkNameBlockHeight(
+                        sparkNameData.name);
+                if (existingValidity >
+                    static_cast<uint64_t>(nextBlockHeight)) {
+                    pendingValidityHeight = existingValidity +
+                        sparkNameData.sparkNameValidityBlocks;
+                }
+            } catch (const std::runtime_error&) {
+                // A new registration has no active record yet.
+            }
+        }
+    }
+
+    if (sparkNameData.name.empty() && sparkNameData.sparkAddress.empty())
+        throw JSONRPCError(RPC_TRANSACTION_ERROR, "Invalid spark name tx hash");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("name", sparkNameData.name));
+    result.push_back(Pair("address", sparkNameData.sparkAddress));
+    uint64_t nameBlockHeight = historicalRecord
+        ? historicalRecord->sparkNameValidityHeight
+        : pendingValidityHeight;
+    result.push_back(Pair("validUntil", nameBlockHeight));
+    if (sparkNameData.additionalInfo != "")
+        result.push_back(Pair("additionalInfo", sparkNameData.additionalInfo));
+
+    return result;
 }
 
 UniValue getbestblockhash(const JSONRPCRequest& request)
@@ -770,13 +1018,16 @@ UniValue getblock(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw std::runtime_error(
-            "getblock \"blockhash\" ( verbose )\n"
-            "\nIf verbose is false, returns a string that is serialized, hex-encoded data for block 'hash'.\n"
-            "If verbose is true, returns an Object with information about block <hash>.\n"
+            "getblock \"blockhash\" ( verbosity )\n"
+            "\nIf verbosity is 0, returns a string that is serialized, hex-encoded data for block 'hash'.\n"
+            "If verbosity is 1, returns an Object with information about block <hash>.\n"
+            "If verbosity is 2, returns an Object with information about block <hash> and information about each transaction.\n"
             "\nArguments:\n"
             "1. \"blockhash\"          (string, required) The block hash\n"
-            "2. verbose                (boolean, optional, default=true) true for a json object, false for the hex encoded data\n"
-            "\nResult (for verbose = true):\n"
+            "2. verbosity              (numeric, optional, default=1) 0 for hex-encoded data, 1 for a json object, and 2 for json object with transaction data\n"
+            "\nResult (for verbosity = 0):\n"
+            "\"data\"             (string) A string that is serialized, hex-encoded data for block 'hash'.\n"
+            "\nResult (for verbosity = 1):\n"
             "{\n"
             "  \"hash\" : \"hash\",     (string) the block hash (same as provided)\n"
             "  \"confirmations\" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain\n"
@@ -803,10 +1054,33 @@ UniValue getblock(const JSONRPCRequest& request)
             "  \"difficulty\" : x.xxx,  (numeric) The difficulty\n"
             "  \"chainwork\" : \"xxxx\",  (string) Expected number of hashes required to produce the chain up to this block (in hex)\n"
             "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
-            "  \"nextblockhash\" : \"hash\"       (string) The hash of the next block\n"
+            "  \"nextblockhash\" : \"hash\",      (string) The hash of the next block\n"
+            "  \"chainlock\" : true|false        (bool) The state of the ChainLock for this block\n"
             "}\n"
-            "\nResult (for verbose=false):\n"
-            "\"data\"             (string) A string that is serialized, hex-encoded data for block 'hash'.\n"
+            "\nResult (for verbosity = 2):\n"
+            "{\n"
+            "  ...,                     Same output as verbosity = 1.\n"
+            "  \"tx\" : [               (array of Objects) The transactions in the format of the getrawtransaction RPC.\n"
+            "     {\n"
+            "       \"txid\" : \"id\",        (string) The transaction id\n"
+            "       \"hash\" : \"id\",        (string) The transaction hash\n"
+            "       \"size\" : n,             (numeric) The transaction size\n"
+            "       \"vsize\" : n,            (numeric) The virtual transaction size\n"
+            "       \"version\" : n,          (numeric) The version\n"
+            "       \"locktime\" : n,         (numeric) The lock time\n"
+            "       \"vin\" : [...],          (array) The transaction inputs\n"
+            "       \"vout\" : [...],         (array) The transaction outputs\n"
+            "       \"hex\" : \"data\",       (string) Raw transaction data\n"
+            "       \"blockhash\" : \"hash\", (string) The block hash\n"
+            "       \"confirmations\" : n,    (numeric) The confirmations\n"
+            "       \"time\" : n,             (numeric) The transaction time\n"
+            "       \"blocktime\" : n,        (numeric) The block time\n"
+            "       \"instantlock\" : true|false (bool) Current transaction InstantSend lock status\n"
+            "     }\n"
+            "     ,...\n"
+            "  ],\n"
+            "  ,...                     Same output as verbosity = 1.\n"
+            "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
             + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
@@ -817,9 +1091,21 @@ UniValue getblock(const JSONRPCRequest& request)
     std::string strHash = request.params[0].get_str();
     uint256 hash(uint256S(strHash));
 
-    bool fVerbose = true;
-    if (request.params.size() > 1)
-        fVerbose = request.params[1].get_bool();
+    int verbosity = 1;
+    if (request.params.size() > 1) {
+        if (request.params[1].isNum()) {
+            verbosity = request.params[1].get_int();
+        } else if (request.params[1].isBool()) {
+            // Backwards compatibility: accept boolean for verbosity
+            verbosity = request.params[1].get_bool() ? 1 : 0;
+        } else {
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. Verbosity must be a number or boolean.");
+        }
+    }
+
+    if (verbosity < 0 || verbosity > 2) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Verbosity must be 0, 1, or 2");
+    }
 
     if (mapBlockIndex.count(hash) == 0)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
@@ -838,7 +1124,7 @@ UniValue getblock(const JSONRPCRequest& request)
         // block).
         throw JSONRPCError(RPC_MISC_ERROR, "Block not found on disk");
 
-    if (!fVerbose)
+    if (verbosity <= 0)
     {
         CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
         ssBlock << block;
@@ -846,7 +1132,7 @@ UniValue getblock(const JSONRPCRequest& request)
         return strHex;
     }
 
-    return blockToJSON(block, pblockindex);
+    return blockToJSON(block, pblockindex, verbosity >= 2);
 }
 
 struct CCoinsStats
@@ -868,7 +1154,7 @@ static void ApplyStats(CCoinsStats &stats, CHashWriter& ss, const uint256& hash,
     ss << hash;
     ss << VARINT(outputs.begin()->second.nHeight * 2 + outputs.begin()->second.fCoinBase);
     stats.nTransactions++;
-    for (const auto output : outputs) {
+    for (const auto& output : outputs) {
         ss << VARINT(output.first + 1);
         ss << *(const CScriptBase*)(&output.second.out.scriptPubKey);
         ss << VARINT(output.second.out.nValue);
@@ -1658,7 +1944,10 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      true,  {} },
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true,  {} },
     { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
-    { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbose"} },
+    { "blockchain",         "getsparknamedata",       &getsparknamedata,       true,  {"sparkname"} },
+    { "blockchain",         "getsparknametxdetails",  &getsparknametxdetails,  true,  {"txhash"} },
+    { "blockchain",         "getsparknames",          &getsparknames,          true,  {} },
+    { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbosity"} },
     { "blockchain",         "getblockhash",           &getblockhash,           true,  {"height"} },
     { "blockchain",         "getblockhashes",         &getblockhashes,         true,  {"high", "low"} },
     { "blockchain",         "getblockheader",         &getblockheader,         true,  {"blockhash","verbose"} },

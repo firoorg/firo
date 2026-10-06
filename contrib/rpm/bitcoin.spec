@@ -9,7 +9,7 @@
 %if 0%{?_use_qt4}
 %define buildargs --with-qrencode --with-gui=qt4
 %else
-%define buildargs --with-qrencode --with-gui=qt5
+%define buildargs --with-qrencode --with-gui=qt6
 %endif
 %endif
 
@@ -67,9 +67,9 @@ Provides:	%{name} = %{version}-%{release}
 %if 0%{?_use_qt4}
 BuildRequires:	qt-devel
 %else
-BuildRequires:	qt5-qtbase-devel
-# for /usr/bin/lrelease-qt5
-BuildRequires:	qt5-linguist
+BuildRequires:	qt6-qtbase-devel
+# for /usr/bin/lrelease-qt6
+BuildRequires:	qt6-linguist
 %endif
 BuildRequires:	protobuf-devel
 BuildRequires:	qrencode-devel
@@ -429,7 +429,7 @@ rm -rf %{buildroot}
 * Fri Feb 26 2016 Alice Wonder <buildmaster@librelamp.com> - 0.12.0-2
 - Rename Qt package from bitcoin to bitcoin-core
 - Make building of the Qt package optional
-- When building the Qt package, default to Qt5 but allow building
+- When building the Qt package, default to Qt6 but allow building
 -  against Qt4
 - Only run SELinux stuff in post scripts if it is not set to disabled
 

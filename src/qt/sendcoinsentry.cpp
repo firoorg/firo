@@ -7,14 +7,27 @@
 
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "rosenbridge.h"
 #include "walletmodel.h"
+#include "../spark/sparkwallet.h"
+#include "../wallet/wallet.h"
 
 #include <QApplication>
 #include <QClipboard>
 
+#include <QRegularExpression>
+#include <QStyle>
+
+/**
+ * Build one recipient entry and connect its amount, memo and removal controls.
+ * @param _platformStyle Borrowed platform styling that must outlive this entry.
+ * @param parent Optional Qt parent that owns this entry.
+ * @pre Called on the GUI thread with a QApplication and non-null _platformStyle.
+ */
 SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *parent) :
     QStackedWidget(parent),
     ui(new Ui::SendCoinsEntry),
@@ -27,12 +40,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     QIcon icon_;
     icon_.addFile(QString::fromUtf8(":/icons/ic_warning"), QSize(), QIcon::Normal, QIcon::On);
     ui->iconWarning->setPixmap(icon_.pixmap(18, 18));
-
-    ui->addressBookButton->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
-    ui->pasteButton->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
-    ui->deleteButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-    ui->deleteButton_is->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-    ui->deleteButton_s->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
+    ui->iconMessageWarning->setPixmap(icon_.pixmap(18, 18));
 
     setCurrentWidget(ui->SendCoins);
 
@@ -43,16 +51,166 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
 #endif
 
     // normal Firo address field
-    GUIUtil::setupAddressWidget(ui->payTo, this);
-    // just a label for displaying Firo address(es)
-    ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
+    GUIUtil::setupAddressWidget(ui->payTo, this, true);
 
     // Connect signals
     connect(ui->payAmount, &BitcoinAmountField::valueChanged, this, &SendCoinsEntry::payAmountChanged);
     connect(ui->checkboxSubtractFeeFromAmount, &QCheckBox::toggled, this, &SendCoinsEntry::subtractFeeFromAmountChanged);
     connect(ui->deleteButton, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
-    connect(ui->deleteButton_is, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
-    connect(ui->deleteButton_s, &QToolButton::clicked, this, &SendCoinsEntry::deleteClicked);
+    connect(ui->messageTextLabel, &QLineEdit::textChanged, this, &SendCoinsEntry::on_MemoTextChanged);
+
+    ui->messageLabel->setVisible(false);
+    ui->messageTextLabel->setVisible(false);
+    ui->iconMessageWarning->setVisible(false);
+    ui->rosenBridgeLabel->setVisible(false);
+    ui->rosenBridgeDetails->setVisible(false);
+
+    ui->SendCoins->setAttribute(Qt::WA_StyledBackground, true);
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &SendCoinsEntry::applyTheme);
+    applyTheme();
+    ui->payAmount->setExpanding(true, 420);
+}
+
+/**
+ * Restyle recipient inputs, warnings and fee subtraction for the active theme.
+ * @pre The UI is initialized and the caller is on the GUI thread.
+ */
+void SendCoinsEntry::applyTheme()
+{
+    ui->SendCoins->setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QFrame#SendCoins {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+        }
+        QFrame#SendCoins QLabel {
+            background: transparent;
+            border: none;
+        }
+        QFrame#SendCoins QLabel#payToLabel,
+        QFrame#SendCoins QLabel#labellLabel,
+        QFrame#SendCoins QLabel#amountLabel,
+        QFrame#SendCoins QLabel#messageLabel {
+            color: $INK_SOFT;
+            font: $FONT_CAPTION;
+        }
+        QFrame#SendCoins QLabel#sparkNameResolvedLabel {
+            color: $INK_SOFT;
+            font-weight: 700;
+        }
+        QFrame#SendCoins QLabel#sparkNameResolvedAddress {
+            color: $TEAL;
+            font-weight: 700;
+        }
+        QFrame#SendCoins QLabel#textWarning,
+        QFrame#SendCoins QLabel#messageWarning {
+            background: $GOLD_TINT;
+            border: 1px solid $GOLD;
+            border-radius: 6px;
+            color: $INK;
+            font-weight: 700;
+            padding: 4px 6px;
+        }
+        QFrame#SendCoins QLabel#rosenBridgeDetails {
+            color: $INK_SOFT;
+        }
+        QFrame#SendCoins QLabel#rosenBridgeDetails[warning="true"] {
+            background: $WINE_TINT;
+            border: 1px solid $WINE;
+            border-radius: 6px;
+            color: $INK;
+            font-weight: 700;
+            padding: 6px;
+        }
+        QFrame#SendCoins QValidatedLineEdit,
+        QFrame#SendCoins QLineEdit,
+        QFrame#SendCoins AmountSpinBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
+            padding: 4px 12px;
+            min-height: 30px;
+            color: $INK;
+            selection-background-color: $WINE_DEEP;
+            selection-color: #FFFFFF;
+        }
+        /* QSS has no outline, so a 2 px wine border on a white field is the focus ring. */
+        QFrame#SendCoins QValidatedLineEdit:focus,
+        QFrame#SendCoins QLineEdit:focus,
+        QFrame#SendCoins AmountSpinBox:focus {
+            background: $PANEL;
+            border: 2px solid $WINE;
+            border-radius: 10px;
+            padding: 3px 11px;
+            color: $INK;
+        }
+        QFrame#SendCoins AmountSpinBox[invalidInput="true"],
+        QFrame#SendCoins QValidatedLineEdit[invalidInput="true"],
+        QFrame#SendCoins QLineEdit[invalidInput="true"] {
+            border-color: $ERROR;
+        }
+        QFrame#SendCoins AmountSpinBox QLineEdit { %1 }
+        QFrame#SendCoins QValueComboBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
+            padding: 4px 12px;
+            min-height: 30px;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox QAbstractItemView {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 10px;
+            padding: 4px;
+            outline: none;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox::item {
+            padding: 8px 10px;
+            border-radius: 6px;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox::item:alternate {
+            background: $PANEL;
+            color: $INK;
+        }
+        QFrame#SendCoins QValueComboBox::item:selected {
+            background: $WINE_TINT;
+            color: $INK;
+        }
+        QFrame#SendCoins QToolButton {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 8px;
+        }
+        QFrame#SendCoins QToolButton:hover,
+        QFrame#SendCoins QToolButton:pressed {
+            background: $HOVER;
+        }
+        QFrame#SendCoins QToolButton:focus {
+            border-color: $FIELD_BORDER;
+        }
+        QFrame#SendCoins QCheckBox {
+            background: transparent;
+            color: $INK;
+        }
+        QFrame#SendCoins QCheckBox::indicator:unchecked {
+            image: url(:/images/checkbox_normal_$ASSET_THEME);
+        }
+        QFrame#SendCoins QCheckBox::indicator:checked {
+            image: url(:/images/checkbox_checked_$ASSET_THEME);
+        }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+
+    // Thin outline icons on ghost buttons, matching the sidebar set.
+    const QColor iconColor(GUIUtil::themeColors().inkSoft);
+    const QSize iconSize(20, 20);
+    GUIUtil::setTintedIcon(ui->addressBookButton, QStringLiteral(":/icons/address-book"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->pasteButton, QStringLiteral(":/icons/editpaste"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->deleteButton, QStringLiteral(":/icons/remove"), iconSize, iconColor);
 }
 
 SendCoinsEntry::~SendCoinsEntry()
@@ -60,10 +218,43 @@ SendCoinsEntry::~SendCoinsEntry()
     delete ui;
 }
 
+void SendCoinsEntry::on_MemoTextChanged(const QString &text)
+{
+    QString sanitized = text;
+    sanitized.remove(QRegularExpression("[\\x00-\\x1F\\x7F]"));
+    if (sanitized != text) {
+        ui->messageTextLabel->setText(sanitized);
+        return;
+    }
+
+    const spark::Params* params = spark::Params::get_default();
+    int maxLength = params->get_memo_bytes();
+    bool isOverLimit = text.toUtf8().size() > maxLength;
+
+    ui->messageTextLabel->setProperty("invalidInput", isOverLimit);
+    ui->messageTextLabel->style()->unpolish(ui->messageTextLabel);
+    ui->messageTextLabel->style()->polish(ui->messageTextLabel);
+
+    if (isOverLimit) {
+        ui->messageWarning->setText(tr("Message exceeds %1 bytes limit").arg(maxLength));
+        ui->messageWarning->setVisible(true);
+        ui->iconMessageWarning->setVisible(true);
+        ui->messageWarningRow->setVisible(true);
+    } else {
+        ui->messageWarning->clear();
+        ui->messageWarning->setVisible(false);
+        ui->iconMessageWarning->setVisible(false);
+        ui->messageWarningRow->setVisible(false);
+    }
+}
+
 void SendCoinsEntry::on_pasteButton_clicked()
 {
-    // Paste text from clipboard into recipient field
-    ui->payTo->setText(QApplication::clipboard()->text());
+    const QString text = QApplication::clipboard()->text().trimmed();
+    if (!applyPaymentURI(text)) {
+        clearRosenBridgeData();
+        ui->payTo->setText(text);
+    }
 }
 
 void SendCoinsEntry::on_addressBookButton_clicked()
@@ -74,6 +265,7 @@ void SendCoinsEntry::on_addressBookButton_clicked()
     dlg.setModel(model->getAddressTableModel());
     if(dlg.exec())
     {
+        clearRosenBridgeData();
         ui->payTo->setText(dlg.getReturnValue());
         ui->payAmount->setFocus();
     }
@@ -81,8 +273,122 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
+    if (!applyingRecipient && address.startsWith(QStringLiteral("firo:"), Qt::CaseInsensitive) &&
+        applyPaymentURI(address)) {
+        return;
+    }
+    if (!applyingRecipient && !recipient.opReturnData.empty()) {
+        clearRosenBridgeData();
+    }
+
     updateLabel(address);
+    setWarning(fAnonymousMode);
+
+    bool isSparkAddress = false;
+    if (model) {
+        const QString payToText = ui->payTo->text();
+        isSparkAddress = model->validateSparkAddress(address) ||
+                        (payToText.startsWith("@") && payToText.size() <= CSparkNameManager::maximumSparkNameLength + 1);
+    }
+    ui->messageLabel->setVisible(isSparkAddress);
+    ui->messageTextLabel->setVisible(isSparkAddress);
+
+    updateSparkNameResolution();
 }
+
+void SendCoinsEntry::updateSparkNameResolution()
+{
+    const QString payToText = ui->payTo->text();
+    QString resolvedAddress;
+    if (model && payToText.startsWith(QStringLiteral("@")) && payToText.size() > 1 &&
+        cmp::less_equal(payToText.size(), CSparkNameManager::maximumSparkNameLength + 1)) {
+        resolvedAddress = model->getSparkNameAddress(payToText.mid(1));
+    }
+
+    const bool resolved = !resolvedAddress.isEmpty();
+    ui->sparkNameResolvedRow->setVisible(resolved);
+    if (resolved) {
+        const QString truncated = resolvedAddress.size() > 24
+            ? resolvedAddress.left(14) + QStringLiteral("...") + resolvedAddress.right(8)
+            : resolvedAddress;
+        ui->sparkNameResolvedAddress->setText(truncated);
+        ui->sparkNameResolvedAddress->setToolTip(resolvedAddress);
+    } else {
+        ui->sparkNameResolvedAddress->clear();
+        ui->sparkNameResolvedAddress->setToolTip(QString());
+    }
+}
+
+bool SendCoinsEntry::applyPaymentURI(const QString& uri)
+{
+    if (!uri.startsWith(QStringLiteral("firo:"), Qt::CaseInsensitive)) {
+        return false;
+    }
+
+    SendCoinsRecipient parsed;
+    if (!GUIUtil::parseBitcoinURI(uri, &parsed) || parsed.address.isEmpty()) {
+        return false;
+    }
+
+    setValue(parsed);
+    return true;
+}
+
+
+void SendCoinsEntry::clearRosenBridgeData()
+{
+    if (recipient.opReturnData.empty()) {
+        return;
+    }
+
+    recipient.opReturnData.clear();
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
+}
+
+void SendCoinsEntry::updateRosenBridgeDisplay()
+{
+    RosenBridge::Metadata metadata;
+    const bool valid = !recipient.opReturnData.empty() && RosenBridge::Parse(recipient.opReturnData, &metadata);
+
+    const bool subtractFeeAllowed =
+        (!fAnonymousMode || (model && model->versionedSparkSpendsAllowed())) && !valid;
+
+    ui->rosenBridgeLabel->setVisible(valid);
+    ui->rosenBridgeDetails->setVisible(valid);
+    ui->rosenBridgeRow->setVisible(valid);
+    ui->payAmount->setReadOnly(valid);
+
+    ui->checkboxSubtractFeeFromAmount->setEnabled(subtractFeeAllowed);
+    if (!subtractFeeAllowed) {
+        ui->checkboxSubtractFeeFromAmount->setChecked(false);
+    }
+
+    if (!valid) {
+        ui->rosenBridgeDetails->clear();
+        ui->rosenBridgeDetails->setToolTip(QString());
+        ui->rosenBridgeDetails->setProperty("warning", false);
+        ui->rosenBridgeDetails->style()->unpolish(ui->rosenBridgeDetails);
+        ui->rosenBridgeDetails->style()->polish(ui->rosenBridgeDetails);
+        return;
+    }
+
+    QString details = tr("Metadata: %1 bytes\n").arg(static_cast<qulonglong>(recipient.opReturnData.size()));
+    details += RosenBridge::FormatDetails(metadata);
+    details += tr("\nRaw data: %1").arg(RosenBridge::HexStr(recipient.opReturnData));
+
+    const bool showModeWarning = fAnonymousMode;
+    if (showModeWarning) {
+        details.prepend(tr("Switch to Transparent Balance to send this Rosen Bridge transfer.\n"));
+    }
+    ui->rosenBridgeDetails->setProperty("warning", showModeWarning);
+    ui->rosenBridgeDetails->style()->unpolish(ui->rosenBridgeDetails);
+    ui->rosenBridgeDetails->style()->polish(ui->rosenBridgeDetails);
+
+    ui->rosenBridgeDetails->setText(details);
+    ui->rosenBridgeDetails->setToolTip(tr("This transaction includes Rosen Bridge OP_RETURN metadata."));
+}
+
 
 void SendCoinsEntry::setModel(WalletModel *_model)
 {
@@ -96,6 +402,9 @@ void SendCoinsEntry::setModel(WalletModel *_model)
 
 void SendCoinsEntry::clear()
 {
+    applyingRecipient = true;
+    recipient = SendCoinsRecipient();
+
     // clear UI elements for normal payment
     ui->payTo->clear();
     ui->addAsLabel->clear();
@@ -104,14 +413,11 @@ void SendCoinsEntry::clear()
     ui->messageTextLabel->clear();
     ui->messageTextLabel->hide();
     ui->messageLabel->hide();
-    // clear UI elements for unauthenticated payment request
-    ui->payTo_is->clear();
-    ui->memoTextLabel_is->clear();
-    ui->payAmount_is->clear();
-    // clear UI elements for authenticated payment request
-    ui->payTo_s->clear();
-    ui->memoTextLabel_s->clear();
-    ui->payAmount_s->clear();
+    updateSparkNameResolution();
+
+    applyingRecipient = false;
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
 
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();
@@ -122,15 +428,47 @@ void SendCoinsEntry::deleteClicked()
     Q_EMIT removeEntry(this);
 }
 
-void SendCoinsEntry::setWarning(bool fAnonymousMode)
-{
-    if(fAnonymousMode) {
+void SendCoinsEntry::setWarning(bool fAnonymousMode) {
+    if (!model) {
+        ui->textWarning->clear();
         ui->textWarning->hide();
         ui->iconWarning->hide();
-    } else {
-        ui->textWarning->show();
-        ui->iconWarning->show();
+        ui->addressWarningRow->hide();
+        return;
     }
+
+    const QString address = ui->payTo->text();
+    const QString warningText = generateWarningText(address, fAnonymousMode);
+    const bool hasValidAddress = model &&
+        (model->validateAddress(address) || model->validateSparkAddress(address));
+    ui->textWarning->setText(warningText);
+    ui->textWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+    ui->iconWarning->setVisible(!warningText.isEmpty() && hasValidAddress);
+    ui->addressWarningRow->setVisible(!warningText.isEmpty() && hasValidAddress);
+}
+
+QString SendCoinsEntry::generateWarningText(const QString& address, const bool fAnonymousMode)
+{
+    QString warningText;
+
+    if (address.startsWith("EX")) {
+        warningText = tr(" You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.");
+    } else {
+        if (!fAnonymousMode) {
+            if (pwalletMain->validateAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.");
+            } else if (pwalletMain->validateSparkAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a transparent address to a Spark address.");
+            }
+        } else {
+            if (pwalletMain->validateSparkAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a Spark address to another Spark address. This transaction is fully private.");
+            } else if (pwalletMain->validateAddress(address.toStdString())) {
+                warningText = tr(" You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.");
+            }
+        }
+    }
+    return warningText;
 }
 
 bool SendCoinsEntry::validate()
@@ -141,10 +479,32 @@ bool SendCoinsEntry::validate()
     // Check input validity
     bool retval = true;
 
+    if (!recipient.opReturnData.empty()) {
+        if (fAnonymousMode || !model->validateAddress(ui->payTo->text()) ||
+            !RosenBridge::Parse(recipient.opReturnData) ||
+            ui->checkboxSubtractFeeFromAmount->isChecked()) {
+            retval = false;
+        }
+    }
+
     isPcodeEntry = bip47::CPaymentCode::validate(ui->payTo->text().toStdString());
-    if (!(model->validateAddress(ui->payTo->text()) || model->validateSparkAddress(ui->payTo->text()) || isPcodeEntry))
+    bool isSparkAddress = model->validateSparkAddress(ui->payTo->text());
+
+    if (ui->payTo->text().startsWith("@") && cmp::less_equal(ui->payTo->text().size(), CSparkNameManager::maximumSparkNameLength+1)) {
+        const bool nameResolves = !model->getSparkNameAddress(ui->payTo->text().mid(1)).isEmpty();
+        isSparkAddress = nameResolves;
+        ui->payTo->setValid(nameResolves);
+        if (!nameResolves)
+            retval = false;
+    }
+    else if (!(model->validateAddress(ui->payTo->text()) || isSparkAddress || isPcodeEntry))
     {
         ui->payTo->setValid(false);
+        retval = false;
+    }
+
+    if (isSparkAddress && cmp::greater(ui->messageTextLabel->text().toUtf8().size(),
+                                     spark::Params::get_default()->get_memo_bytes())) {
         retval = false;
     }
 
@@ -175,7 +535,8 @@ SendCoinsRecipient SendCoinsEntry::getValue()
     recipient.label = ui->addAsLabel->text();
     recipient.amount = ui->payAmount->value();
     recipient.message = ui->messageTextLabel->text();
-    recipient.fSubtractFeeFromAmount = (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
+    recipient.fSubtractFeeFromAmount = recipient.opReturnData.empty() &&
+        (ui->checkboxSubtractFeeFromAmount->checkState() == Qt::Checked);
 
     return recipient;
 }
@@ -194,7 +555,14 @@ QWidget *SendCoinsEntry::setupTabChain(QWidget *prev)
 
 void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
 {
+    applyingRecipient = true;
     recipient = value;
+    if (!recipient.opReturnData.empty() && !RosenBridge::Parse(recipient.opReturnData)) {
+        recipient.opReturnData.clear();
+    }
+    if (!recipient.opReturnData.empty()) {
+        recipient.fSubtractFeeFromAmount = false;
+    }
     {
         // message
         ui->messageTextLabel->setText(recipient.message);
@@ -206,28 +574,45 @@ void SendCoinsEntry::setValue(const SendCoinsRecipient &value)
         if (!recipient.label.isEmpty()) // if a label had been set from the addressbook, don't overwrite with an empty label
             ui->addAsLabel->setText(recipient.label);
         ui->payAmount->setValue(recipient.amount);
+        ui->checkboxSubtractFeeFromAmount->setChecked(recipient.fSubtractFeeFromAmount);
     }
+    applyingRecipient = false;
+    updateRosenBridgeDisplay();
+    Q_EMIT rosenBridgeChanged();
 }
 
 void SendCoinsEntry::setAddress(const QString &address)
 {
+    clearRosenBridgeData();
     ui->payTo->setText(address);
     ui->payAmount->setFocus();
 }
 
 void SendCoinsEntry::setSubtractFeeFromAmount(bool enable)
 {
-    ui->checkboxSubtractFeeFromAmount->setCheckState(enable ? Qt::Checked : Qt::Unchecked);
+    ui->checkboxSubtractFeeFromAmount->setCheckState(enable && recipient.opReturnData.empty() ? Qt::Checked : Qt::Unchecked);
 }
 
 bool SendCoinsEntry::isClear()
 {
-    return ui->payTo->text().isEmpty() && ui->payTo_is->text().isEmpty() && ui->payTo_s->text().isEmpty();
+    return ui->payTo->text().isEmpty();
 }
+
+bool SendCoinsEntry::hasRosenBridgeData() const
+{
+    return !recipient.opReturnData.empty();
+}
+
 
 bool SendCoinsEntry::isPayToPcode() const
 {
     return isPcodeEntry;
+}
+
+void SendCoinsEntry::setfAnonymousMode(bool fAnonymousMode)
+{
+    this->fAnonymousMode = fAnonymousMode;
+    updateRosenBridgeDisplay();
 }
 
 void SendCoinsEntry::setFocus()
@@ -239,10 +624,7 @@ void SendCoinsEntry::updateDisplayUnit()
 {
     if(model && model->getOptionsModel())
     {
-        // Update payAmount with the current unit
         ui->payAmount->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-        ui->payAmount_is->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-        ui->payAmount_s->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     }
 }
 

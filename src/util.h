@@ -5,7 +5,7 @@
 
 /**
  * Server/client environment: argument handling, config file parsing,
- * logging, thread wrappers
+ * thread wrappers
  */
 #ifndef BITCOIN_UTIL_H
 #define BITCOIN_UTIL_H
@@ -16,6 +16,8 @@
 #endif
 
 #include "compat.h"
+#include "compat_layer.h"
+#include "logging.h"
 #include "tinyformat.h"
 #include "utiltime.h"
 
@@ -37,10 +39,6 @@
 namespace boost { namespace placeholders {}}
 using namespace boost::placeholders;
 
-static const bool DEFAULT_LOGTIMEMICROS = false;
-static const bool DEFAULT_LOGIPS        = false;
-static const bool DEFAULT_LOGTIMESTAMPS = true;
-
 /** Signals for translation. */
 class CTranslationInterface
 {
@@ -53,15 +51,6 @@ extern bool fLiteMode;
 extern int nWalletBackups;
 
 extern const std::map<std::string, std::vector<std::string> >& mapMultiArgs;
-extern bool fDebug;
-extern bool fPrintToConsole;
-extern bool fPrintToDebugLog;
-extern bool fNoDebug;
-
-extern bool fLogTimestamps;
-extern bool fLogTimeMicros;
-extern bool fLogIPs;
-extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
 
 extern const char * const BITCOIN_CONF_FILENAME;
@@ -91,21 +80,6 @@ inline int64_t roundint64(double d)
 
 void SetupEnvironment();
 bool SetupNetworking();
-
-/** Return true if log accepts specified category */
-bool LogAcceptCategory(const char* category);
-/** Send a string to the log output */
-int LogPrintStr(const std::string &str);
-
-#define LogPrint(category, ...) do { \
-    if (LogAcceptCategory((category))) { \
-        LogPrintStr(tfm::format(__VA_ARGS__)); \
-    } \
-} while(0)
-
-#define LogPrintf(...) do { \
-    LogPrintStr(tfm::format(__VA_ARGS__)); \
-} while(0)
 
 template<typename... Args>
 bool error(const char* fmt, const Args&... args)
@@ -137,8 +111,6 @@ void ReadConfigFile(const std::string& confPath);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
-void OpenDebugLog();
-void ShrinkDebugFile();
 void runCommand(const std::string& strCommand);
 
 inline bool IsSwitchChar(char c)
@@ -162,7 +134,7 @@ bool IsArgSet(const std::string& strArg);
  * Return string argument or default value
  *
  * @param strArg Argument to get (e.g. "-foo")
- * @param default (e.g. "1")
+ * @param strDefault (e.g. "1")
  * @return command-line argument or default value
  */
 std::string GetArg(const std::string& strArg, const std::string& strDefault);
@@ -171,7 +143,7 @@ std::string GetArg(const std::string& strArg, const std::string& strDefault);
  * Return integer argument or default value
  *
  * @param strArg Argument to get (e.g. "-foo")
- * @param default (e.g. 1)
+ * @param nDefault (e.g. 1)
  * @return command-line argument (0 if invalid number) or default value
  */
 int64_t GetArg(const std::string& strArg, int64_t nDefault);
@@ -180,7 +152,7 @@ int64_t GetArg(const std::string& strArg, int64_t nDefault);
  * Return boolean argument or default value
  *
  * @param strArg Argument to get (e.g. "-foo")
- * @param default (true or false)
+ * @param fDefault (true or false)
  * @return command-line argument or default value
  */
 bool GetBoolArg(const std::string& strArg, bool fDefault);
@@ -240,6 +212,8 @@ int GetNumCores();
 void SetThreadPriority(int nPriority);
 
 void RenameThread(const char* name);
+//! Set the internal name used for logging without changing the OS-level thread name.
+void SetInternalThreadName(const char* name);
 std::string GetThreadName();
 
 namespace ctpl {

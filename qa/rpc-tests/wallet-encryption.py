@@ -64,6 +64,11 @@ class WalletEncryptionTest(BitcoinTestFramework):
         assert_raises_jsonrpc(-1, "walletpassphrasechange <oldpassphrase> <newpassphrase>\nChanges the wallet passphrase from <oldpassphrase> to <newpassphrase>.",
             self.nodes[0].walletpassphrasechange, '', 'ff')
 
+        # Check that a negative timeout is rejected without unlocking the wallet
+        assert_raises_jsonrpc(-8, "Timeout cannot be negative.", self.nodes[0].walletpassphrase, passphrase, -10)
+        otp = self.get_otp(address)
+        assert_raises_jsonrpc(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address, otp)
+
         # Check that walletpassphrase works
         self.nodes[0].walletpassphrase(passphrase, 2)
         otp = self.get_otp(address)

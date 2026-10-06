@@ -6,11 +6,13 @@
 #include "txmempool.h"
 
 #include "clientversion.h"
+#include "chainparams.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "validation.h"
 #include "policy/policy.h"
 #include "policy/fees.h"
+#include "spark/state.h"
 #include "streams.h"
 #include "timedata.h"
 #include "util.h"
@@ -518,8 +520,12 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
 {
     NotifyEntryRemoved(it->GetSharedTx(), reason);
     const uint256 hash = it->GetTx().GetHash();
+
+    removeAddressIndex(hash);
+    removeSpentIndex(hash);
+
     if (!it->GetTx().HasPrivateInputs()) {
-        LogPrintf("removeUnchecked txHash=%s, IsSpend()=%s\n", hash.ToString(), it->GetTx().HasPrivateInputs());
+        LogPrintf("removeUnchecked txHash=%s (no private inputs)\n", hash.ToString());
         BOOST_FOREACH(const CTxIn& txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
     }
@@ -579,39 +585,6 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         sporkManager.RemovedFromMemoryPool(it->GetTx());
     }
 
-    else if (it->GetTx().IsLelantusTransaction()) {
-        // Remove mints and spend serials from lelantus mempool state
-        const CTransaction &tx = it->GetTx();
-        if (tx.IsLelantusJoinSplit()) {
-            std::vector<Scalar> serials;
-            try {
-                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
-                for (const Scalar &serial: serials)
-                    lelantusState.RemoveSpendFromMempool(serial);
-            }
-            catch (CBadTxIn&) {
-            }
-        }
-
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if (txout.scriptPubKey.IsLelantusMint() || txout.scriptPubKey.IsLelantusJMint()) {
-                GroupElement pubCoinValue;
-                try {
-                    if (txout.scriptPubKey.IsLelantusMint()) {
-                        lelantus::ParseLelantusMintScript(txout.scriptPubKey, pubCoinValue);
-                    } else {
-                        std::vector<unsigned char> encryptedValue;
-                        lelantus::ParseLelantusJMintScript(txout.scriptPubKey, pubCoinValue, encryptedValue);
-                    }
-                    lelantusState.RemoveMintFromMempool(pubCoinValue);
-                }
-                catch (std::invalid_argument&) {
-                }
-            }
-        }
-    }
-
     else if (it->GetTx().IsSparkTransaction()) {
         // Remove mints and spends from spark mempool state
         const CTransaction &tx = it->GetTx();
@@ -624,22 +597,21 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
             }
             catch (CBadTxIn&) {
             }
-        }
 
-        BOOST_FOREACH(const CTxOut &txout, tx.vout)
-        {
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
-                try {
-                    const spark::Params* params = spark::Params::get_default();
+            spark::EraseCheckedSparkSpendTransaction(tx.GetHash());
 
-                    spark::Coin txCoin(params);
-                    spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
-                    sparkState.RemoveMintFromMempool(txCoin);
-                }
-                catch (std::invalid_argument&) {
+            // remove all the spark name transactions referencing this tx
+            for (auto it = sparkNames.begin(); it!=sparkNames.end();) {
+                if (it->second.second == tx.GetHash()) {
+                    it = sparkNames.erase(it);
+                } else {
+                    ++it;
                 }
             }
         }
+
+        for (const auto& coin : spark::GetSparkMintCoins(tx))
+            sparkState.RemoveMintFromMempool(coin);
     }
 
     totalTxSize -= it->GetTxSize();
@@ -671,7 +643,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
             CMempoolAddressDelta delta(entry.GetTime(), prevout.nValue * -1, input.prevout.hash, input.prevout.n);
             mapAddress.insert(std::make_pair(key, delta));
             inserted.push_back(key);
-        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
+        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash() || prevout.scriptPubKey.IsSparkNameFee()) {
             std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23);
             CMempoolAddressDeltaKey key(AddressType::payToPubKeyHash, uint160(hashBytes), txhash, j, 1);
             CMempoolAddressDelta delta(entry.GetTime(), prevout.nValue * -1, input.prevout.hash, input.prevout.n);
@@ -693,7 +665,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
             CMempoolAddressDeltaKey key(AddressType::payToScriptHash, uint160(hashBytes), txhash, k, 0);
             mapAddress.insert(std::make_pair(key, CMempoolAddressDelta(entry.GetTime(), out.nValue)));
             inserted.push_back(key);
-        } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
+        } else if (out.scriptPubKey.IsPayToPublicKeyHash() || out.scriptPubKey.IsSparkNameFee()) {
             std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
             std::pair<addressDeltaMap::iterator,bool> ret;
             CMempoolAddressDeltaKey key(AddressType::payToPubKeyHash, uint160(hashBytes), txhash, k, 0);
@@ -762,7 +734,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             addressHash = uint160(std::vector<unsigned char> (prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
             addressType = AddressType::payToScriptHash;
-        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
+        } else if (prevout.scriptPubKey.IsPayToPublicKeyHash() || prevout.scriptPubKey.IsSparkNameFee()) {
             addressHash = uint160(std::vector<unsigned char> (prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
             addressType = AddressType::payToPubKeyHash;
         } else if (prevout.scriptPubKey.IsPayToExchangeAddress()) {
@@ -883,7 +855,10 @@ void CTxMemPool::removeForReorg(const CCoinsViewCache *pcoins, unsigned int nMem
         const CTransaction& tx = it->GetTx();
         LockPoints lp = it->GetLockPoints();
         bool validLP =  TestLockPointValidity(&lp);
-        if (!CheckFinalTx(tx, flags) || !CheckSequenceLocks(*this, tx, flags, &lp, validLP)) {
+        if (!spark::IsSparkSpendFormatAllowed(
+                tx, static_cast<int>(nMemPoolHeight)) ||
+            !CheckFinalTx(tx, flags) ||
+            !CheckSequenceLocks(*this, tx, flags, &lp, validLP)) {
             // Note if CheckSequenceLocks fails the LockPoints may still be invalid
             // So it's critical that we remove the tx and not depend on the LockPoints.
             txToRemove.insert(it);
@@ -1103,6 +1078,37 @@ void CTxMemPool::removeForBlock(const std::vector<CTransactionRef>& vtx, unsigne
         removeProTxConflicts(*tx);
         ClearPrioritisation(tx->GetHash());
     }
+
+    // After HF-1 connects, the next block is H2. Drop leftover Spark spends
+    // that will fail consensus there so CreateNewBlock does not assemble a
+    // template that TestBlockValidity then rejects. Valid spends are kept.
+    const int h2Height = ::Params().GetConsensus().nSparkChaumV2StartBlock;
+    if (static_cast<int64_t>(nBlockHeight) + 1 ==
+            static_cast<int64_t>(h2Height)) {
+        setEntries toRemove;
+        for (txiter it = mapTx.begin(); it != mapTx.end(); ++it) {
+            if (!it->GetTx().IsSparkSpend())
+                continue;
+            CValidationState consensusState;
+            if (!spark::CheckSparkTransaction(
+                    it->GetTx(),
+                    consensusState,
+                    it->GetTx().GetHash(),
+                    false,
+                    h2Height,
+                    false,
+                    true,
+                    nullptr)) {
+                LogPrintf(
+                    "Removing Spark spend %s from the mempool; it fails H2 consensus: %s\n",
+                    it->GetTx().GetHash().ToString(),
+                    consensusState.GetRejectReason());
+                CalculateDescendants(it, toRemove);
+            }
+        }
+        RemoveStaged(toRemove, false, MemPoolRemovalReason::REORG);
+    }
+
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = true;
 }
@@ -1119,8 +1125,8 @@ void CTxMemPool::_clear()
     lastRollingFeeUpdate = GetTime();
     blockSinceLastRollingFeeBump = false;
     rollingMinimumFeeRate = 0;
-    lelantusState.Reset();
     sparkState.Reset();
+    sparkNames.clear();
     ++nTransactionsUpdated;
 }
 
@@ -1149,7 +1155,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
     LOCK(cs);
     std::list<const CTxMemPoolEntry*> waitingOnDependants;
     for (indexed_transaction_set::const_iterator it = mapTx.begin(); it != mapTx.end(); it++) {
-        unsigned int i = 0;
+        FIRO_UNUSED unsigned int i = 0;
         checkTotal += it->GetTxSize();
         innerUsage += it->DynamicMemoryUsage();
         const CTransaction& tx = it->GetTx();
@@ -1161,8 +1167,8 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
             innerUsage += memusage::DynamicUsage(links.parents);
         bool fDependsWait = false;
         setEntries setParentCheck;
-        int64_t parentSizes = 0;
-        int64_t parentSigOpCost = 0;
+        FIRO_UNUSED int64_t parentSizes = 0;
+        FIRO_UNUSED int64_t parentSigOpCost = 0;
         if (!tx.HasPrivateInputs()) {
             BOOST_FOREACH(const CTxIn &txin, tx.vin) {
                 // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.
@@ -1267,11 +1273,16 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const
 
 bool CTxMemPool::CompareDepthAndScore(const uint256& hasha, const uint256& hashb)
 {
+    /* Return true if hasha should be considered sooner than hashb. Namely when:
+     *   a is not in the mempool, but b is
+     *   both are in the mempool and a has fewer ancestors than b
+     *   both are in the mempool and a has a higher score than b
+     */
     LOCK(cs);
-    indexed_transaction_set::const_iterator i = mapTx.find(hasha);
-    if (i == mapTx.end()) return false;
     indexed_transaction_set::const_iterator j = mapTx.find(hashb);
-    if (j == mapTx.end()) return true;
+    if (j == mapTx.end()) return false;
+    indexed_transaction_set::const_iterator i = mapTx.find(hasha);
+    if (i == mapTx.end()) return true;
     uint64_t counta = i->GetCountWithAncestors();
     uint64_t countb = j->GetCountWithAncestors();
     if (counta == countb) {

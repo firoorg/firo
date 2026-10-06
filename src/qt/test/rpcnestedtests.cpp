@@ -137,15 +137,15 @@ void RPCNestedTests::rpcNestedTests()
 
 #if QT_VERSION >= 0x050300
     // do the QVERIFY_EXCEPTION_THROWN checks only with Qt5.3 and higher (QVERIFY_EXCEPTION_THROWN was introduced in Qt5.3)
-    QVERIFY_EXCEPTION_THROWN(RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo() .\n"), std::runtime_error); //invalid syntax
-    QVERIFY_EXCEPTION_THROWN(RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo() getblockchaininfo()"), std::runtime_error); //invalid syntax
+    QVERIFY_THROWS_EXCEPTION(std::runtime_error, RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo() .\n")); //invalid syntax
+    QVERIFY_THROWS_EXCEPTION(std::runtime_error, RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo() getblockchaininfo()")); //invalid syntax
     (RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo(")); //tolerate non closing brackets if we have no arguments
     (RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo()()()")); //tolerate non command brackts
-    QVERIFY_EXCEPTION_THROWN(RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo(True)"), UniValue); //invalid argument
-    QVERIFY_EXCEPTION_THROWN(RPCConsole::RPCExecuteCommandLine(result, "a(getblockchaininfo(True))"), UniValue); //method not found
-    QVERIFY_EXCEPTION_THROWN(RPCConsole::RPCExecuteCommandLine(result, "rpcNestedTest abc,,abc"), std::runtime_error); //don't tollerate empty arguments when using ,
-    QVERIFY_EXCEPTION_THROWN(RPCConsole::RPCExecuteCommandLine(result, "rpcNestedTest(abc,,abc)"), std::runtime_error); //don't tollerate empty arguments when using ,
-    QVERIFY_EXCEPTION_THROWN(RPCConsole::RPCExecuteCommandLine(result, "rpcNestedTest(abc,,)"), std::runtime_error); //don't tollerate empty arguments when using ,
+    QVERIFY_THROWS_EXCEPTION(UniValue, RPCConsole::RPCExecuteCommandLine(result, "getblockchaininfo(True)")); //invalid argument
+    QVERIFY_THROWS_EXCEPTION(UniValue, RPCConsole::RPCExecuteCommandLine(result, "a(getblockchaininfo(True))")); //method not found
+    QVERIFY_THROWS_EXCEPTION(std::runtime_error, RPCConsole::RPCExecuteCommandLine(result, "rpcNestedTest abc,,abc")); //don't tollerate empty arguments when using ,
+    QVERIFY_THROWS_EXCEPTION(std::runtime_error, RPCConsole::RPCExecuteCommandLine(result, "rpcNestedTest(abc,,abc)")); //don't tollerate empty arguments when using ,
+    QVERIFY_THROWS_EXCEPTION(std::runtime_error, RPCConsole::RPCExecuteCommandLine(result, "rpcNestedTest(abc,,)")); //don't tollerate empty arguments when using ,
 #endif
 
     delete pcoinsTip;

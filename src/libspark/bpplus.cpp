@@ -31,7 +31,7 @@ BPPlus::BPPlus(
 
     // Compute 2**N-1 for optimized verification
     TWO_N_MINUS_ONE = TWO;
-    for (int i = 0; i < log2(N); i++) {
+    for (int i = 0; cmp::less(i, log2(N)); i++) {
         TWO_N_MINUS_ONE *= TWO_N_MINUS_ONE;
     }
     TWO_N_MINUS_ONE -= ONE;
@@ -317,7 +317,7 @@ bool BPPlus::verify(const std::vector<std::vector<GroupElement>>& unpadded_C, co
             return false;
         }
         if (!is_nonzero_power_of_2(M)) {
-            M = 1 << log2(unpadded_M) + 1;
+            M = 1 << (log2(unpadded_M) + 1);
         }
 
         // Track the maximum value

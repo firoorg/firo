@@ -9,8 +9,11 @@
 #include "rpcconsole.h"
 #include "ui_debugwindow.h"
 
+#include "../compat_layer.h"
+
 #include "bantablemodel.h"
 #include "clientmodel.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "bantablemodel.h"
@@ -22,6 +25,8 @@
 #include "util.h"
 
 #include <openssl/crypto.h>
+
+#include <algorithm>
 
 #include <univalue.h>
 
@@ -44,11 +49,14 @@
 #include <QUrl>
 #endif
 
-// TODO: add a scrollback limit, as there is currently none
 // TODO: make it possible to filter out categories (esp debug messages when implemented)
 // TODO: receive errors and debug messages through ClientModel
 
 const int CONSOLE_HISTORY = 50;
+const int CONSOLE_SCROLLBACK_MESSAGES = 2000;
+const int CONSOLE_SCROLLBACK_MESSAGES_HIGH_WATER = 2200;
+const qint64 CONSOLE_SCROLLBACK_CHARACTERS = 4 * 1024 * 1024;
+const qint64 CONSOLE_SCROLLBACK_CHARACTERS_HIGH_WATER = 5 * 1024 * 1024;
 const int INITIAL_TRAFFIC_GRAPH_MINS = 30;
 const QSize FONT_RANGE(4, 40);
 const char fontSizeSettingsKey[] = "consoleFontSize";
@@ -117,8 +125,8 @@ class QtRPCTimerInterface: public RPCTimerInterface
 {
 public:
     ~QtRPCTimerInterface() {}
-    const char *Name() { return "Qt"; }
-    RPCTimerBase* NewTimer(boost::function<void(void)>& func, int64_t millis)
+    const char *Name() override { return "Qt"; }
+    RPCTimerBase* NewTimer(boost::function<void(void)>& func, int64_t millis) override
     {
         return new QtRPCTimerBase(func, millis);
     }
@@ -140,7 +148,7 @@ public:
  *   - Within double quotes, only escape \c " and backslashes before a \c " or another backslash
  *   - Within single quotes, no escaping is possible and no special interpretation takes place
  *
- * @param[out]   result      stringified Result from the executed command(chain)
+ * @param[out]   strResult   stringified Result from the executed command(chain)
  * @param[in]    strCommand  Command line to split
  * @param[in]    fExecute    set true if you want the command to be executed
  * @param[out]   pstrFilteredOut  Command line, filtered to remove any sensitive data
@@ -201,7 +209,7 @@ bool RPCConsole::RPCParseCommandLine(std::string &strResult, const std::string &
         char ch = strCommandTerminated[chpos];
         switch(state)
         {
-            case STATE_COMMAND_EXECUTED_INNER:
+            case STATE_COMMAND_EXECUTED_INNER:     FIRO_FALLTHROUGH;
             case STATE_COMMAND_EXECUTED:
             {
                 bool breakParsing = true;
@@ -264,10 +272,11 @@ bool RPCConsole::RPCParseCommandLine(std::string &strResult, const std::string &
                 }
                 if (breakParsing)
                     break;
+                FIRO_FALLTHROUGH;
             }
-            case STATE_ARGUMENT: // In or after argument
-            case STATE_EATING_SPACES_IN_ARG:
-            case STATE_EATING_SPACES_IN_BRACKETS:
+            case STATE_ARGUMENT:                    FIRO_FALLTHROUGH;// In or after argument
+            case STATE_EATING_SPACES_IN_ARG:        FIRO_FALLTHROUGH;
+            case STATE_EATING_SPACES_IN_BRACKETS:   FIRO_FALLTHROUGH;
             case STATE_EATING_SPACES: // Handle runs of whitespace
                 switch(ch)
             {
@@ -370,7 +379,9 @@ bool RPCConsole::RPCParseCommandLine(std::string &strResult, const std::string &
                 strResult = lastResult.get_str();
             else
                 strResult = lastResult.write(2);
+            FIRO_FALLTHROUGH;
         case STATE_ARGUMENT:
+            FIRO_FALLTHROUGH;
         case STATE_EATING_SPACES:
             return true;
         default: // ERROR to end in one of the other states
@@ -386,7 +397,7 @@ void RPCExecutor::request(const QString &command)
         std::string executableCommand = command.toStdString() + "\n";
         if(!RPCConsole::RPCExecuteCommandLine(result, executableCommand))
         {
-            Q_EMIT reply(RPCConsole::CMD_ERROR, QString("Parse error: unbalanced ' or \""));
+            Q_EMIT reply(RPCConsole::CMD_ERROR, tr("Parse error: unbalanced ' or \""));
             return;
         }
         Q_EMIT reply(RPCConsole::CMD_REPLY, QString::fromStdString(result));
@@ -397,7 +408,7 @@ void RPCExecutor::request(const QString &command)
         {
             int code = find_value(objError, "code").get_int();
             std::string message = find_value(objError, "message").get_str();
-            Q_EMIT reply(RPCConsole::CMD_ERROR, QString::fromStdString(message) + " (code " + QString::number(code) + ")");
+            Q_EMIT reply(RPCConsole::CMD_ERROR, tr("%1 (code %2)").arg(QString::fromStdString(message), QString::number(code)));
         }
         catch (const std::runtime_error&) // raised when converting to invalid type, i.e. missing code or message
         {   // Show raw JSON object
@@ -406,7 +417,7 @@ void RPCExecutor::request(const QString &command)
     }
     catch (const std::exception& e)
     {
-        Q_EMIT reply(RPCConsole::CMD_ERROR, QString("Error: ") + QString::fromStdString(e.what()));
+        Q_EMIT reply(RPCConsole::CMD_ERROR, tr("Error: %1").arg(QString::fromStdString(e.what())));
     }
 }
 
@@ -432,9 +443,6 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     if (platformStyle->getImagesOnButtons()) {
         ui->openDebugLogfileButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
     }
-    ui->clearButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-    ui->fontBiggerButton->setIcon(platformStyle->SingleColorIcon(":/icons/fontbigger"));
-    ui->fontSmallerButton->setIcon(platformStyle->SingleColorIcon(":/icons/fontsmaller"));
 
     // Install event filter for up and down arrow
     ui->lineEdit->installEventFilter(this);
@@ -444,6 +452,10 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     connect(ui->fontBiggerButton, &QPushButton::clicked, this, &RPCConsole::fontBigger);
     connect(ui->fontSmallerButton, &QPushButton::clicked, this, &RPCConsole::fontSmaller);
     connect(ui->btnClearTrafficGraph, &QPushButton::clicked, ui->trafficGraph, &TrafficGraphWidget::clear);
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &RPCConsole::applyConsoleTheme);
+    applyConsoleTheme();
 
     // set library version labels
 #ifdef ENABLE_WALLET
@@ -465,6 +477,84 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
 
     consoleFontSize = settings.value(fontSizeSettingsKey, QFontInfo(QFont()).pointSize()).toInt();
     clear();
+}
+
+void RPCConsole::applyConsoleTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QWidget#RPCConsole { background: $BG; }
+        QWidget#tab_peers, QWidget#detailWidget { background: $BG; }
+        QGroupBox {
+            background: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+            font-weight: 700;
+            color: $INK;
+            margin-top: 10px;
+            padding-top: 12px;
+        }
+        QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; color: $INK_SOFT; background-color: $PANEL; }
+        QTextEdit#messagesWidget {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+            padding: 8px;
+            color: $INK;
+        }
+        QTableView {
+            background: $PANEL;
+            alternate-background-color: $PANEL_SOFT;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+            color: $INK;
+            gridline-color: $BORDER;
+            selection-background-color: $WINE_TINT;
+            selection-color: $INK;
+        }
+        QHeaderView::section {
+            background: $PANEL_SOFT;
+            color: $INK_SOFT;
+            border: none;
+            border-bottom: 1px solid $BORDER;
+            padding: 4px 8px;
+            font-weight: 700;
+        }
+        QLabel#peerHeading, QLabel#banHeading {
+            color: $INK;
+            font-weight: 700;
+        }
+        QWidget#RPCConsole QGroupBox QFrame#line { background: $TEAL; }
+        QWidget#RPCConsole QGroupBox QFrame#line_2 { background: $WINE; }
+        QPushButton {
+            color: $INK;
+            background: $PANEL;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
+            font-weight: 700;
+            padding: 6px 14px;
+        }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
+    )")));
+
+    // Font size and clear are ghost icon buttons with outline icons, as elsewhere in the app.
+    const QString iconButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("0px"));
+    const QColor iconColor(GUIUtil::themeColors().inkSoft);
+    const QSize iconSize(18, 18);
+    GUIUtil::setTintedIcon(ui->fontSmallerButton, QStringLiteral(":/icons/fontsmaller"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->fontBiggerButton, QStringLiteral(":/icons/fontbigger"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->clearButton, QStringLiteral(":/icons/trash"), iconSize, iconColor);
+    for (QPushButton* button : {ui->fontSmallerButton, ui->fontBiggerButton, ui->clearButton})
+        button->setStyleSheet(iconButtonStyle);
+    ui->promptIcon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    ui->promptIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
+        QIcon(QStringLiteral(":/icons/prompticon")), QSize(14, 14)));
+    ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 4px 8px; }"
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 3px 7px; }")));
+
+    if (consoleFontSize > 0)
+        rebuildConsoleMessages();
 }
 
 RPCConsole::~RPCConsole()
@@ -491,7 +581,14 @@ bool RPCConsole::eventFilter(QObject* obj, QEvent *event)
         case Qt::Key_PageDown:
             if(obj == ui->lineEdit)
             {
-                QApplication::postEvent(ui->messagesWidget, new QKeyEvent(*keyevt));
+                QApplication::postEvent(ui->messagesWidget, new QKeyEvent(
+                    keyevt->type(),
+                    keyevt->key(),
+                    keyevt->modifiers(),
+                    keyevt->text(),
+                    keyevt->isAutoRepeat(),
+                    keyevt->count()
+                ));
                 return true;
             }
             break;
@@ -499,7 +596,14 @@ bool RPCConsole::eventFilter(QObject* obj, QEvent *event)
         case Qt::Key_Enter:
             // forward these events to lineEdit
             if(obj == autoCompleter->popup()) {
-                QApplication::postEvent(ui->lineEdit, new QKeyEvent(*keyevt));
+                QApplication::postEvent(ui->lineEdit, new QKeyEvent(
+                    keyevt->type(),
+                    keyevt->key(),
+                    keyevt->modifiers(),
+                    keyevt->text(),
+                    keyevt->isAutoRepeat(),
+                    keyevt->count()
+                ));
                 return true;
             }
             break;
@@ -512,7 +616,14 @@ bool RPCConsole::eventFilter(QObject* obj, QEvent *event)
                   ((mod & Qt::ShiftModifier) && key == Qt::Key_Insert)))
             {
                 ui->lineEdit->setFocus();
-                QApplication::postEvent(ui->lineEdit, new QKeyEvent(*keyevt));
+                QApplication::postEvent(ui->lineEdit, new QKeyEvent(
+                    keyevt->type(),
+                    keyevt->key(),
+                    keyevt->modifiers(),
+                    keyevt->text(),
+                    keyevt->isAutoRepeat(),
+                    keyevt->count()
+                ));
                 return true;
             }
         }
@@ -548,6 +659,7 @@ void RPCConsole::setClientModel(ClientModel *model)
         ui->peerWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
         ui->peerWidget->setContextMenuPolicy(Qt::CustomContextMenu);
         ui->peerWidget->setColumnWidth(PeerTableModel::Address, ADDRESS_COLUMN_WIDTH);
+        ui->peerWidget->setColumnWidth(PeerTableModel::Network, NETWORK_COLUMN_WIDTH);
         ui->peerWidget->setColumnWidth(PeerTableModel::Subversion, SUBVERSION_COLUMN_WIDTH);
         ui->peerWidget->setColumnWidth(PeerTableModel::Ping, PING_COLUMN_WIDTH);
         ui->peerWidget->horizontalHeader()->setStretchLastSection(true);
@@ -669,26 +781,17 @@ void RPCConsole::setFontSize(int newSize)
     if (newSize < FONT_RANGE.width() || newSize > FONT_RANGE.height())
         return;
 
-    // temp. store the console content
-    QString str = ui->messagesWidget->toHtml();
-
-    // replace font tags size in current content
-    str.replace(QString("font-size:%1pt").arg(consoleFontSize), QString("font-size:%1pt").arg(newSize));
-
     // store the new font size
     consoleFontSize = newSize;
     settings.setValue(fontSizeSettingsKey, consoleFontSize);
 
-    // clear console (reset icon sizes, default stylesheet) and re-add the content
-    float oldPosFactor = 1.0 / ui->messagesWidget->verticalScrollBar()->maximum() * ui->messagesWidget->verticalScrollBar()->value();
-    clear(false);
-    ui->messagesWidget->setHtml(str);
-    ui->messagesWidget->verticalScrollBar()->setValue(oldPosFactor * ui->messagesWidget->verticalScrollBar()->maximum());
+    rebuildConsoleMessages();
 }
 
 void RPCConsole::clear(bool clearHistory)
 {
-    ui->messagesWidget->clear();
+    consoleMessages.clear();
+    consoleMessageCharacters = 0;
     if(clearHistory)
     {
         history.clear();
@@ -697,29 +800,7 @@ void RPCConsole::clear(bool clearHistory)
     ui->lineEdit->clear();
     ui->lineEdit->setFocus();
 
-    // Add smoothly scaled icon images.
-    // (when using width/height on an img, Qt uses nearest instead of linear interpolation)
-    for(int i=0; ICON_MAPPING[i].url; ++i)
-    {
-        ui->messagesWidget->document()->addResource(
-                    QTextDocument::ImageResource,
-                    QUrl(ICON_MAPPING[i].url),
-                    QImage(ICON_MAPPING[i].source).scaled(QSize(consoleFontSize*2, consoleFontSize*2), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-    }
-
-    // Set default style sheet
-    QFontInfo fixedFontInfo(GUIUtil::fixedPitchFont());
-    ui->messagesWidget->document()->setDefaultStyleSheet(
-        QString(
-                "table { }"
-                "td.time { color: #808080; font-size: %2; padding-top: 3px; } "
-                "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; } "
-                "td.cmd-request { color: #006060; } "
-                "td.cmd-error { color: red; } "
-                ".secwarning { color: red; }"
-                "b { color: #006060; } "
-            ).arg(fixedFontInfo.family(), QString("%1pt").arg(consoleFontSize))
-        );
+    rebuildConsoleMessages();
 
     message(CMD_REPLY, (tr("Welcome to the %1 RPC console.").arg(tr(PACKAGE_NAME)) + "<br>" +
                         tr("Use up and down arrows to navigate history, and <b>Ctrl-L</b> to clear screen.") + "<br>" +
@@ -728,6 +809,54 @@ void RPCConsole::clear(bool clearHistory)
                         tr("WARNING: Scammers have been active, telling users to type commands here, stealing their wallet contents. Do not use this console without fully understanding the ramification of a command.") +
                         "</span>",
                         true);
+}
+
+void RPCConsole::updateConsoleDocumentStyle()
+{
+    QFontInfo fixedFontInfo(GUIUtil::fixedPitchFont());
+    const QString style = QStringLiteral(
+        "table { }"
+        "td.time { color: $INK_FAINT; font-family: %1; font-size: %3; padding-top: 3px; white-space: nowrap; } "
+        "td.message { color: $INK_SOFT; font-family: %1; font-size: %2; white-space:pre-wrap; } "
+        "td.cmd-request { color: $INK; font-weight: 500; } "
+        "td.cmd-error { color: $ERROR; } "
+        ".prompt { color: $WINE_TEXT; } "
+        ".secwarning { color: $ERROR; }"
+        "b { color: $WINE_TEXT; font-weight: 500; } ")
+        .arg(fixedFontInfo.family(), QStringLiteral("%1pt").arg(consoleFontSize),
+             QStringLiteral("%1pt").arg(std::max(consoleFontSize - 1, 1)));
+    ui->messagesWidget->document()->setDefaultStyleSheet(GUIUtil::themed(style));
+}
+
+void RPCConsole::rebuildConsoleMessages()
+{
+    QScrollBar* scrollBar = ui->messagesWidget->verticalScrollBar();
+    const int oldMaximum = scrollBar->maximum();
+    const bool wasAtEnd = scrollBar->value() >= oldMaximum;
+    const double oldPosition = oldMaximum > 0
+        ? static_cast<double>(scrollBar->value()) / oldMaximum
+        : 1.0;
+
+    ui->messagesWidget->clear();
+
+    // Add smoothly scaled icon images, tinted for dark mode like the other status icons.
+    // (when using width/height on an img, Qt uses nearest instead of linear interpolation)
+    for(int i=0; ICON_MAPPING[i].url; ++i)
+    {
+        ui->messagesWidget->document()->addResource(
+                    QTextDocument::ImageResource,
+                    QUrl(ICON_MAPPING[i].url),
+                    GUIUtil::themedStatusIconPixmap(QIcon(ICON_MAPPING[i].source),
+                                                    QSize(consoleFontSize * 2, consoleFontSize * 2)).toImage());
+    }
+
+    updateConsoleDocumentStyle();
+    for (const QString& messageHtml : consoleMessages)
+        ui->messagesWidget->append(messageHtml);
+
+    scrollBar->setValue(wasAtEnd
+        ? scrollBar->maximum()
+        : qRound(oldPosition * scrollBar->maximum()));
 }
 
 void RPCConsole::keyPressEvent(QKeyEvent *event)
@@ -746,12 +875,33 @@ void RPCConsole::message(int category, const QString &message, bool html)
     out += "<table><tr><td class=\"time\" width=\"65\">" + timeString + "</td>";
     out += "<td class=\"icon\" width=\"32\"><img src=\"" + categoryClass(category) + "\"></td>";
     out += "<td class=\"message " + categoryClass(category) + "\" valign=\"middle\">";
+    // Commands read like a terminal: a wine prompt before what was typed.
+    if (category == CMD_REQUEST)
+        out += "<span class=\"prompt\">&#8250;&nbsp;</span>";
     if(html)
         out += message;
     else
         out += GUIUtil::HtmlEscape(message, false);
     out += "</td></tr></table>";
-    ui->messagesWidget->append(out);
+    consoleMessages.append(out);
+    consoleMessageCharacters += out.size();
+
+    bool trimmed = false;
+    if (consoleMessages.size() > CONSOLE_SCROLLBACK_MESSAGES_HIGH_WATER
+        || consoleMessageCharacters > CONSOLE_SCROLLBACK_CHARACTERS_HIGH_WATER) {
+        while (consoleMessages.size() > 1
+               && (consoleMessages.size() > CONSOLE_SCROLLBACK_MESSAGES
+                   || consoleMessageCharacters > CONSOLE_SCROLLBACK_CHARACTERS)) {
+            consoleMessageCharacters -= consoleMessages.first().size();
+            consoleMessages.removeFirst();
+            trimmed = true;
+        }
+    }
+
+    if (trimmed)
+        rebuildConsoleMessages();
+    else
+        ui->messagesWidget->append(out);
 }
 
 void RPCConsole::updateNetworkState()
@@ -809,10 +959,10 @@ void RPCConsole::on_lineEdit_returnPressed()
             std::string dummy;
             if (!RPCParseCommandLine(dummy, cmd.toStdString(), false, &strFilteredCmd)) {
                 // Failed to parse command, so we cannot even filter it for the history
-                throw std::runtime_error("Invalid command line");
+                throw std::runtime_error(tr("Invalid command line").toStdString());
             }
         } catch (const std::exception& e) {
-            QMessageBox::critical(this, "Error", QString("Error: ") + QString::fromStdString(e.what()));
+            QMessageBox::critical(this, tr("Error"), tr("Error: %1").arg(QString::fromStdString(e.what())));
             return;
         }
 
@@ -1016,6 +1166,8 @@ void RPCConsole::updateNodeDetail(const CNodeCombinedStats *stats)
 {
     // update the detail ui with latest node information
     QString peerAddrDetails(QString::fromStdString(stats->nodeStats.addrName) + " ");
+    if (stats->nodeStats.m_inbound_onion)
+        peerAddrDetails += tr("(inbound onion)") + " ";
     peerAddrDetails += tr("(node id: %1)").arg(QString::number(stats->nodeStats.nodeid));
     if (!stats->nodeStats.addrLocal.empty())
         peerAddrDetails += "<br />" + tr("via %1").arg(QString::fromStdString(stats->nodeStats.addrLocal));
@@ -1128,16 +1280,16 @@ void RPCConsole::banSelectedNode(int bantime)
         // Get currently selected peer address
         NodeId id = nodes.at(i).data().toLongLong();
 
-	// Get currently selected peer address
-	int detailNodeRow = clientModel->getPeerTableModel()->getRowByNodeId(id);
-	if(detailNodeRow < 0)
-	    return;
+        // Get currently selected peer address
+        int detailNodeRow = clientModel->getPeerTableModel()->getRowByNodeId(id);
+        if(detailNodeRow < 0)
+            return;
 
-	// Find possible nodes, ban it and clear the selected node
-	const CNodeCombinedStats *stats = clientModel->getPeerTableModel()->getNodeStats(detailNodeRow);
-	if(stats) {
-	    g_connman->Ban(stats->nodeStats.addr, BanReasonManuallyAdded, bantime);
-	}
+        // Find possible nodes, ban it and clear the selected node
+        const CNodeCombinedStats *stats = clientModel->getPeerTableModel()->getNodeStats(detailNodeRow);
+        if(stats) {
+            g_connman->Ban(stats->nodeStats.addr, BanReasonManuallyAdded, bantime);
+        }
     }
     clearSelectedNode();
     clientModel->getBanTableModel()->refresh();

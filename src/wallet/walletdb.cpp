@@ -271,155 +271,8 @@ void CWalletDB::ListAccountCreditDebit(const std::string& strAccount, std::list<
     pcursor->close();
 }
 
-bool CWalletDB::WriteCoinSpendSerialEntry(const CSigmaSpendEntry &sigmaSpend) {
-    return Write(std::make_pair(std::string("sigma_spend"), sigmaSpend.coinSerial), sigmaSpend, true);
-}
-
-bool CWalletDB::WriteLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend) {
-    return Write(std::make_pair(std::string("lelantus_spend"), lelantusSpend.coinSerial), lelantusSpend, true);
-}
-
-bool CWalletDB::HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial) {
-    return Exists(std::make_pair(std::string("sigma_spend"), serial));
-}
-
-bool CWalletDB::HasLelantusSpendSerialEntry(const secp_primitives::Scalar& serial) {
-    return Exists(std::make_pair(std::string("lelantus_spend"), serial));
-}
-
-bool CWalletDB::EraseCoinSpendSerialEntry(const CSigmaSpendEntry &sigmaSpend) {
-    return Erase(std::make_pair(std::string("sigma_spend"), sigmaSpend.coinSerial));
-}
-
-bool CWalletDB::EraseLelantusSpendSerialEntry(const CLelantusSpendEntry& lelantusSpend) {
-    return Erase(std::make_pair(std::string("lelantus_spend"), lelantusSpend.coinSerial));
-}
-
-bool CWalletDB::ReadLelantusSpendSerialEntry(const secp_primitives::Scalar& serial, CLelantusSpendEntry& lelantusSpend) {
-    return Read(std::make_pair(std::string("lelantus_spend"), serial), lelantusSpend);
-}
-
-bool CWalletDB::WriteSigmaEntry(const CSigmaEntry &sigma) {
-    return Write(std::make_pair(std::string("sigma_mint"), sigma.value), sigma, true);
-}
-
-bool CWalletDB::ReadSigmaEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry) {
-    return Read(std::make_pair(std::string("sigma_mint"), pub), entry);
-}
-
-bool CWalletDB::HasSigmaEntry(const secp_primitives::GroupElement& pub) {
-    return Exists(std::make_pair(std::string("sigma_mint"), pub));
-}
-
-bool CWalletDB::EraseSigmaEntry(const CSigmaEntry &sigma) {
-    return Erase(std::make_pair(std::string("sigma_mint"), sigma.value));
-}
-
 bool CWalletDB::WriteCalculatedZCBlock(int height) {
     return Write(std::string("calculatedzcblock"), height);
-}
-
-void CWalletDB::ListSigmaPubCoin(std::list <CSigmaEntry> &listPubCoin) {
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error("CWalletDB::ListSigmaPubCoin() : cannot create DB cursor");
-    bool setRange = true;
-    while (true) {
-        // Read next record
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("sigma_mint"), secp_primitives::GroupElement());
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0) {
-            pcursor->close();
-            throw std::runtime_error("CWalletDB::ListSigmaPubCoin() : error scanning DB");
-        }
-        // Unserialize
-        std::string strType;
-        ssKey >> strType;
-        if (strType != "sigma_mint")
-            break;
-        GroupElement value;
-        ssKey >> value;
-        CSigmaEntry sigmaItem;
-        ssValue >> sigmaItem;
-        listPubCoin.push_back(sigmaItem);
-    }
-    pcursor->close();
-}
-
-void CWalletDB::ListCoinSpendSerial(std::list <CSigmaSpendEntry> &listCoinSpendSerial) {
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
-    bool setRange = true;
-    while (true) {
-        // Read next record
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("sigma_spend"), secp_primitives::GroupElement());
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0) {
-            pcursor->close();
-            throw std::runtime_error("CWalletDB::ListCoinSpendSerial() : error scanning DB");
-        }
-
-        // Unserialize
-        std::string strType;
-        ssKey >> strType;
-        if (strType != "sigma_spend")
-            break;
-        Scalar value;
-        ssKey >> value;
-        CSigmaSpendEntry sigmaSpendItem;
-        ssValue >> sigmaSpendItem;
-        listCoinSpendSerial.push_back(sigmaSpendItem);
-    }
-
-    pcursor->close();
-}
-
-void CWalletDB::ListLelantusSpendSerial(std::list <CLelantusSpendEntry>& listLelantusSpendSerial) {
-    Dbc *pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error("CWalletDB::ListLelantusSpendSerial() : cannot create DB cursor");
-    bool setRange = true;
-    while (true) {
-        // Read next record
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("lelantus_spend"), secp_primitives::Scalar());
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0) {
-            pcursor->close();
-            throw std::runtime_error("CWalletDB::ListLelantusSpendSerial() : error scanning DB");
-        }
-
-        // Unserialize
-        std::string strType;
-        ssKey >> strType;
-        if (strType != "lelantus_spend")
-            break;
-        Scalar value;
-        ssKey >> value;
-        CLelantusSpendEntry lelantusSpendItem;
-        ssValue >> lelantusSpendItem;
-        listLelantusSpendSerial.push_back(lelantusSpendItem);
-    }
-
-    pcursor->close();
 }
 
 DBErrors CWalletDB::ReorderTransactions(CWallet* pwallet)
@@ -496,36 +349,6 @@ DBErrors CWalletDB::ReorderTransactions(CWallet* pwallet)
     WriteOrderPosNext(nOrderPosNext);
 
     return DB_LOAD_OK;
-}
-
-bool CWalletDB::WriteHDMint(const uint256& hashPubcoin, const CHDMint& dMint, bool isLelantus)
-{
-    std::string name;
-    if(!isLelantus)
-        name = "hdmint";
-    else
-        name = "hdmint_lelantus";
-    return Write(std::make_pair(name, hashPubcoin), dMint, true);
-}
-
-bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint)
-{
-    std::string name;
-    if(!isLelantus)
-        name = "hdmint";
-    else
-        name = "hdmint_lelantus";
-    return Read(std::make_pair(name, hashPubcoin), dMint);
-}
-
-bool CWalletDB::EraseHDMint(const CHDMint& dMint) {
-    nWalletDBUpdateCounter++;
-    uint256 hash = dMint.GetPubCoinHash();
-    return Erase(std::make_pair(std::string("hdmint"), hash)) || Erase(std::make_pair(std::string("hdmint_lelantus"), hash));
-}
-
-bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
-    return Exists(std::make_pair(std::string("hdmint"), primitives::GetPubCoinValueHash(pub))) || Exists(std::make_pair(std::string("hdmint_lelantus"), primitives::GetPubCoinValueHash(pub)));
 }
 
 bool CWalletDB::WritePubcoinHashes(const uint256& fullHash, const uint256& reducedHash) {
@@ -870,6 +693,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     CWalletScanState wss;
     bool fNoncriticalErrors = false;
     DBErrors result = DB_LOAD_OK;
+    unsigned int nLoadedTxs = 0;
 
     LOCK2(cs_main, pwallet->cs_wallet);
     try {
@@ -905,7 +729,8 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
 
             // Try to be tolerant of single corrupt records:
             std::string strType, strErr;
-            if (!ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr))
+            bool fReadOK = ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr);
+            if (!fReadOK)
             {
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
@@ -922,6 +747,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             }
             if (!strErr.empty())
                 LogPrintf("%s\n", strErr);
+
+            // Keep the splash screen alive while large wallets load
+            if (fReadOK && strType == "tx" && ++nLoadedTxs % 1000 == 0)
+                uiInterface.InitMessage(strprintf(_("Loading wallet... (%d transactions)"), nLoadedTxs));
         }
         pcursor->close();
     }
@@ -1080,45 +909,6 @@ DBErrors CWalletDB::ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vTxHashI
     return DB_LOAD_OK;
 }
 
-DBErrors CWalletDB::ZapSigmaMints(CWallet *pwallet) {
-    // get list of HD Mints
-    std::list<CHDMint> vHDMints = ListHDMints(false);
-
-    // get list of non HD Mints
-    std::list <CSigmaEntry> sigmaEntries;
-    ListSigmaPubCoin(sigmaEntries);
-
-    // erase each HD Mint
-    BOOST_FOREACH(CHDMint & hdMint, vHDMints)
-    {
-        if (!EraseHDMint(hdMint))
-            return DB_CORRUPT;
-    }
-
-    // erase each non HD Mint
-    BOOST_FOREACH(CSigmaEntry & sigmaEntry, sigmaEntries)
-    {
-        if (!EraseSigmaEntry(sigmaEntry))
-            return DB_CORRUPT;
-    }
-
-    return DB_LOAD_OK;
-}
-
-DBErrors CWalletDB::ZapLelantusMints(CWallet *pwallet) {
-    // get list of HD Mints
-    std::list<CHDMint> lelantusHDMints = ListHDMints(true);
-
-    // erase each HD Mint
-    BOOST_FOREACH(CHDMint & hdMint, lelantusHDMints)
-    {
-        if (!EraseHDMint(hdMint))
-            return DB_CORRUPT;
-    }
-
-    return DB_LOAD_OK;
-}
-
 DBErrors CWalletDB::ZapSparkMints(CWallet *pwallet) {
     // get list of spark Mints
     std::unordered_map<uint256, CSparkMintMeta> sparkMints = ListSparkMints();
@@ -1127,6 +917,13 @@ DBErrors CWalletDB::ZapSparkMints(CWallet *pwallet) {
     BOOST_FOREACH(auto & mint, sparkMints)
     {
         if (!EraseSparkMint(mint.first))
+            return DB_CORRUPT;
+    }
+
+    std::list<CSparkSpendEntry> sparkSpends;
+    ListSparkSpends(sparkSpends);
+    for (const auto& spend : sparkSpends) {
+        if (!EraseSparkSpendEntry(spend.lTag))
             return DB_CORRUPT;
     }
 
@@ -1570,158 +1367,6 @@ bool CWalletDB::ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMa
     return true;
 }
 
-//! list of MintPoolEntry objects mapped with pubCoin hash, returned as pairs
-std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListMintPool()
-{
-    std::vector<std::pair<uint256, MintPoolEntry>> listPool;
-    Dbc* pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error(std::string(__func__)+" : cannot create DB cursor");
-    bool setRange = true;
-    for (;;)
-    {
-        // Read next record
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(std::string("mintpool"), ArithToUint256(arith_uint256(0)));
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0)
-        {
-            pcursor->close();
-            throw std::runtime_error(std::string(__func__)+" : error scanning DB");
-        }
-
-        // Unserialize
-
-        try {
-            std::string strType;
-            ssKey >> strType;
-            if (strType != "mintpool")
-                break;
-
-            uint256 hashPubcoin;
-            ssKey >> hashPubcoin;
-
-            uint160 hashSeedMaster;
-            ssValue >> hashSeedMaster;
-
-            CKeyID seedId;
-            ssValue >> seedId;
-
-            int32_t nCount;
-            ssValue >> nCount;
-
-            MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
-
-            listPool.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
-        } catch (std::ios_base::failure const &) {
-            // There maybe some old entries that don't conform to the latest version. Just skipping those.
-        }
-    }
-
-    pcursor->close();
-
-    return listPool;
-}
-
-std::list<CHDMint> CWalletDB::ListHDMints(bool isLelantus)
-{
-    std::list<CHDMint> listMints;
-    Dbc* pcursor = GetCursor();
-    if (!pcursor)
-        throw std::runtime_error(std::string(__func__)+" : cannot create DB cursor");
-
-    std::string mintName;
-
-    if(isLelantus)
-        mintName = "hdmint_lelantus";
-    else
-        mintName = "hdmint";
-
-    bool setRange = true;
-    for (;;)
-    {
-        // Read next record
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        if (setRange)
-            ssKey << std::make_pair(mintName, ArithToUint256(arith_uint256(0)));
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, setRange);
-        setRange = false;
-        if (ret == DB_NOTFOUND)
-            break;
-        else if (ret != 0)
-        {
-            pcursor->close();
-            throw std::runtime_error(std::string(__func__)+" : error scanning DB");
-        }
-
-        // Unserialize
-        std::string strType;
-        ssKey >> strType;
-        if (strType != mintName)
-            break;
-
-        uint256 hashPubcoin;
-        ssKey >> hashPubcoin;
-
-        CHDMint mint;
-        ssValue >> mint;
-
-        listMints.emplace_back(mint);
-    }
-
-    pcursor->close();
-    return listMints;
-}
-
-bool CWalletDB::ArchiveDeterministicOrphan(const CHDMint& dMint)
-{
-    if (!Write(std::make_pair(std::string("dzco"), dMint.GetPubCoinHash()), dMint))
-        return error("%s: write failed", __func__);
-
-    if (!Erase(std::make_pair(std::string("hdmint"), dMint.GetPubCoinHash())))
-        return error("%s: failed to erase", __func__);
-
-    if (!Erase(std::make_pair(std::string("hdmint_lelantus"), dMint.GetPubCoinHash())))
-        return error("%s: failed to erase lelantus", __func__);
-
-    return true;
-}
-
-bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, bool isLelantus, CHDMint& dMint)
-{
-    if (!Read(std::make_pair(std::string("dzco"), hashPubcoin), dMint))
-        return error("%s: failed to retrieve deterministic mint from archive", __func__);
-
-    if (!WriteHDMint(hashPubcoin, dMint, isLelantus))
-        return error("%s: failed to write deterministic mint", __func__);
-
-    if (!Erase(std::make_pair(std::string("dzco"), dMint.GetPubCoinHash())))
-        return error("%s : failed to erase archived deterministic mint", __func__);
-
-    return true;
-}
-
-bool CWalletDB::UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigma)
-{
-    if (!Read(std::make_pair(std::string("zco"), hashPubcoin), sigma))
-        return error("%s: failed to retrieve sigmamint from archive", __func__);
-
-    if (!WriteSigmaEntry(sigma))
-        return error("%s: failed to write sigmamint", __func__);
-
-    uint256 hash = primitives::GetPubCoinValueHash(sigma.value);
-    if (!Erase(std::make_pair(std::string("zco"), hash)))
-        return error("%s : failed to erase archived sigma mint", __func__);
-
-    return true;
-}
-
 void CWalletDB::IncrementUpdateCounter()
 {
     nWalletDBUpdateCounter++;
@@ -1784,6 +1429,11 @@ bool CWalletDB::WriteSparkOutputTx(const CScript& scriptPubKey, const CSparkOutp
 bool CWalletDB::ReadSparkOutputTx(const CScript& scriptPubKey, CSparkOutputTx& output)
 {
     return Read(std::make_pair(std::string("sparkOutputTx"), scriptPubKey), output);
+}
+
+bool CWalletDB::EraseSparkOutputTx(const CScript& scriptPubKey)
+{
+    return Erase(std::make_pair(std::string("sparkOutputTx"), scriptPubKey));
 }
 
 bool CWalletDB::WriteSparkMint(const uint256& lTagHash, const CSparkMintMeta& mint)

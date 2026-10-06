@@ -8,23 +8,157 @@
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
+#include "createsparknamepage.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "receiverequestdialog.h"
 #include "recentrequeststablemodel.h"
+#include "sparkname.h"
 #include "walletmodel.h"
 
 #include <QAction>
 #include <QCursor>
+#include <QEvent>
 #include <QItemSelection>
+#include <QLabel>
 #include <QMessageBox>
+#include <QPainter>
 #include <QScrollBar>
+#include <QStyledItemDelegate>
 #include <QTextDocument>
 #include <QComboBox>
 #include <QPushButton>
 #include <QButtonGroup>
+#include <QScreen>
+#include <QScrollArea>
+#include <QVBoxLayout>
+#include <QVector>
 
+#include <algorithm>
+
+namespace {
+
+class RequestFormScrollArea final : public QScrollArea
+{
+public:
+    using QScrollArea::QScrollArea;
+
+    /**
+     * @pre Called on the GUI thread.
+     * @return The content widget's preferred size, or QScrollArea's hint when empty.
+     */
+    QSize sizeHint() const override
+    {
+        // QScrollArea caps its hint, which can make the form scroll while the list has spare room.
+        return widget() ? widget()->sizeHint() : QScrollArea::sizeHint();
+    }
+
+protected:
+    /**
+     * Notify the parent layout when the content's size requirements change.
+     * @param event The event delivered by Qt.
+     * @pre event is non-null and the caller is on the GUI thread.
+     * @return Whether QScrollArea handled the event.
+     */
+    bool event(QEvent* event) override
+    {
+        const bool handled = QScrollArea::event(event);
+        if (event->type() == QEvent::LayoutRequest)
+            updateGeometry();
+        return handled;
+    }
+};
+
+class PaymentRequestCardDelegate final : public QStyledItemDelegate
+{
+public:
+    explicit PaymentRequestCardDelegate(QTableView* view)
+        : QStyledItemDelegate(view)
+    {
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        painter->setRenderHint(QPainter::TextAntialiasing, true);
+        painter->setClipRect(option.rect, Qt::IntersectClip);
+
+        const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
+        const bool selected = option.state & QStyle::State_Selected;
+        const int lineHeight = option.fontMetrics.height();
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
+
+        switch (index.column()) {
+        case RecentRequestsTableModel::Date: {
+            // Every request is incoming, so the row needs no direction icon.
+            QFont dateFont = option.font;
+            dateFont.setBold(true);
+            painter->setFont(dateFont);
+            const QString raw = index.data(Qt::DisplayRole).toString();
+            const QString dateText = raw.section(QLatin1Char(' '), 0, -2);
+            const QString timeText = raw.section(QLatin1Char(' '), -1);
+            painter->setPen(QColor(tc.ink));
+            const QRect dateRect(option.rect.left() + 14, option.rect.center().y() - lineHeight,
+                                 option.rect.width() - 20, lineHeight);
+            painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
+
+            painter->setFont(option.font);
+            painter->setPen(QColor(tc.inkFaint));
+            painter->drawText(QRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), lineHeight),
+                              Qt::AlignLeft | Qt::AlignVCenter, timeText);
+            break;
+        }
+        case RecentRequestsTableModel::Label: {
+            const QString text = index.data(Qt::DisplayRole).toString();
+            QFont font = option.font;
+            font.setBold(true);
+            painter->setFont(font);
+            painter->setPen(QColor(tc.ink));
+            painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
+                              QFontMetrics(font).elidedText(text, Qt::ElideRight, option.rect.width() - 18));
+            break;
+        }
+        case RecentRequestsTableModel::AddressType: {
+            const QString text = index.data(Qt::DisplayRole).toString();
+            const bool spark = index.data(Qt::EditRole).toString() == QLatin1String("spark");
+            GUIUtil::paintAddressTypeBadge(painter, option, text, spark);
+            break;
+        }
+        case RecentRequestsTableModel::Message: {
+            const QString text = index.data(Qt::DisplayRole).toString();
+            painter->setFont(option.font);
+            painter->setPen(QColor(tc.inkSoft));
+            painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
+                              QFontMetrics(option.font).elidedText(text, Qt::ElideRight, option.rect.width() - 18));
+            break;
+        }
+        case RecentRequestsTableModel::Amount: {
+            const QString amountText = index.data(Qt::DisplayRole).toString();
+            QFont amtFont = option.font;
+            amtFont.setBold(true);
+            painter->setFont(amtFont);
+            GUIUtil::paintAmountRuns(painter, option.rect.adjusted(8, 0, -14, 0), amountText, QColor(tc.ink),
+                                     Qt::AlignRight | Qt::AlignVCenter, Qt::ElideLeft);
+            break;
+        }
+        default:
+            break;
+        }
+        painter->restore();
+    }
+};
+
+}
+
+/**
+ * Build the payment-request form and history, reserving space for the form first.
+ * @param _platformStyle Borrowed platform styling that must outlive this dialog.
+ * @param parent Optional Qt parent that owns this dialog.
+ * @pre Called on the GUI thread with a QApplication and non-null _platformStyle.
+ */
 ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ReceiveCoinsDialog),
@@ -33,6 +167,23 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     recentRequestsProxyModel(0)
 {
     ui->setupUi(this);
+    ui->recentRequestsView->viewport()->installEventFilter(this);
+
+    ui->verticalLayout->removeWidget(ui->frame2);
+    requestFormContents = new QWidget(this);
+    auto* requestFormLayout = new QVBoxLayout(requestFormContents);
+    requestFormLayout->setContentsMargins(0, 0, 0, 0);
+    requestFormLayout->addWidget(ui->frame2);
+    requestFormScroll = new RequestFormScrollArea(this);
+    requestFormScroll->setObjectName(QStringLiteral("requestFormScroll"));
+    requestFormScroll->setWidgetResizable(true);
+    requestFormScroll->setFrameShape(QFrame::NoFrame);
+    requestFormScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    requestFormScroll->setWidget(requestFormContents);
+    requestFormScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#requestFormScroll { background: transparent; border: none; }"));
+    requestFormScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->verticalLayout->insertWidget(0, requestFormScroll);
 
     if (!_platformStyle->getImagesOnButtons()) {
         ui->clearButton->setIcon(QIcon());
@@ -49,21 +200,23 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     ui->addressTypeCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeCombobox->addItem(tr("Transparent"), Transparent);
 
-    if(ui->addressTypeCombobox->currentText() == "Spark"){
-        ui->reuseAddress->hide();
-    } else {
-        ui->reuseAddress->show();
-    }
-
     ui->addressTypeHistoryCombobox->addItem(tr("All"), All);
     ui->addressTypeHistoryCombobox->addItem(tr("Spark"), Spark);
     ui->addressTypeHistoryCombobox->addItem(tr("Transparent"), Transparent);
+    ui->addressTypeCombobox->setMinimumWidth(130);
+    ui->addressTypeHistoryCombobox->setMinimumWidth(130);
+    ui->addressTypeCombobox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    ui->addressTypeHistoryCombobox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
     // context menu actions
     QAction *copyURIAction = new QAction(tr("Copy URI"), this);
     QAction *copyLabelAction = new QAction(tr("Copy label"), this);
     QAction *copyMessageAction = new QAction(tr("Copy message"), this);
     QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
+    GUIUtil::setThemedIcon(copyURIAction, QStringLiteral(":/icons/link"));
+    GUIUtil::setThemedIcon(copyLabelAction, QStringLiteral(":/icons/tag"));
+    GUIUtil::setThemedIcon(copyMessageAction, QStringLiteral(":/icons/message"));
+    GUIUtil::setThemedIcon(copyAmountAction, QStringLiteral(":/icons/coins"));
 
     // context menu
     contextMenu = new QMenu(this);
@@ -80,8 +233,178 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     connect(copyAmountAction, &QAction::triggered, this, &ReceiveCoinsDialog::copyAmount);
 
     connect(ui->clearButton, &QPushButton::clicked, this, &ReceiveCoinsDialog::clear);
+    connect(ui->createSparkNameButton, &QPushButton::clicked,
+            this, &ReceiveCoinsDialog::createSparkName);
+    connect(ui->mySparkNamesButton, &QPushButton::clicked,
+            this, &ReceiveCoinsDialog::mySparkNames);
     connect(ui->addressTypeHistoryCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::chooseType);
     connect(ui->addressTypeCombobox, qOverload<int>(&QComboBox::activated), this, &ReceiveCoinsDialog::displayCheckBox);
+    displayCheckBox(ui->addressTypeCombobox->currentIndex());
+
+    ui->frame2->setAttribute(Qt::WA_StyledBackground, true);
+    ui->frame->setAttribute(Qt::WA_StyledBackground, true);
+
+    requestsEmptyState = new QWidget(ui->frame);
+    requestsEmptyState->setObjectName(QStringLiteral("requestsEmptyState"));
+    auto* emptyLayout = new QVBoxLayout(requestsEmptyState);
+    emptyLayout->setContentsMargins(0, 24, 0, 24);
+    emptyLayout->setSpacing(7);
+    emptyIcon_ = new QLabel(requestsEmptyState);
+    emptyIcon_->setFixedSize(48, 48);
+    emptyIcon_->setAlignment(Qt::AlignCenter);
+    emptyTitle_ = new QLabel(tr("No payment requests yet"), requestsEmptyState);
+    emptyTitle_->setAlignment(Qt::AlignCenter);
+    emptyHint_ = new QLabel(
+        tr("Requests you create will be listed here"), requestsEmptyState);
+    emptyHint_->setAlignment(Qt::AlignCenter);
+    emptyHint_->setWordWrap(true);
+    emptyLayout->addStretch();
+    emptyLayout->addWidget(emptyIcon_, 0, Qt::AlignHCenter);
+    emptyLayout->addWidget(emptyTitle_);
+    emptyLayout->addWidget(emptyHint_);
+    emptyLayout->addStretch();
+    ui->verticalLayout_2->insertWidget(2, requestsEmptyState, 1);
+    requestsEmptyState->setVisible(false);
+
+    connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
+            this, &ReceiveCoinsDialog::applyTheme);
+    applyTheme();
+}
+
+void ReceiveCoinsDialog::applyTheme()
+{
+    setStyleSheet(GUIUtil::themed(QStringLiteral("QDialog { background: $BG; }")));
+
+    const QString scrollBgStyle = GUIUtil::themed(QStringLiteral("background: $BG;"));
+    if (requestFormScroll)
+        requestFormScroll->viewport()->setStyleSheet(scrollBgStyle);
+    if (requestFormContents)
+        requestFormContents->setStyleSheet(scrollBgStyle);
+
+    const QString cardStyle = GUIUtil::themed(QStringLiteral(
+        "QFrame#frame2, QFrame#frame {"
+        " background: $PANEL;"
+        " border: 1px solid $BORDER;"
+        " border-radius: 14px;"
+        "}"));
+    ui->frame2->setStyleSheet(cardStyle);
+    ui->frame->setStyleSheet(cardStyle);
+    ui->sparkNameActions->setStyleSheet(QStringLiteral("background: transparent;"));
+
+    const QString captionStyle = GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK_SOFT; font: $FONT_CAPTION; }"));
+    for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
+        caption->setStyleSheet(captionStyle);
+    }
+    ui->label_6->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QLabel { background: transparent; color: $INK; font: $FONT_H3; }")));
+
+    ui->reuseAddress->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QCheckBox { background: transparent; color: $INK; }")));
+
+    const QString fieldStyle = GUIUtil::themed(QStringLiteral(
+        "QLineEdit, AmountSpinBox, QValueComboBox {"
+        " background: $PANEL_SOFT;"
+        " border: 1px solid $FIELD_BORDER;"
+        " border-radius: 10px;"
+        " padding: 4px 12px;"
+        " min-height: 30px;"
+        " color: $INK;"
+        "}"
+        "AmountSpinBox QLineEdit { %1 }"
+        "QLineEdit[invalidInput=\"true\"], AmountSpinBox[invalidInput=\"true\"] {"
+        " border-color: $ERROR;"
+        "}"
+        "QLineEdit:focus, AmountSpinBox:focus, QValueComboBox:focus {"
+        " background: $PANEL;"
+        " border: 2px solid $WINE;"
+        " border-radius: 10px;"
+        " padding: 3px 11px;"
+        " color: $INK;"
+        "}")).arg(GUIUtil::spinBoxInnerLineEditReset());
+    ui->reqLabel->setStyleSheet(fieldStyle);
+    ui->reqMessage->setStyleSheet(fieldStyle);
+    ui->reqAmount->setStyleSheet(fieldStyle);
+
+    const QString comboStyle = GUIUtil::themed(QStringLiteral(
+        "QComboBox {"
+        " background: $PANEL;"
+        " border: 1px solid $FIELD_BORDER;"
+        " border-radius: 10px;"
+        " padding: 4px 12px;"
+        " min-height: 30px;"
+        " color: $INK;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        " background: $PANEL;"
+        " border: 1px solid $BORDER;"
+        " border-radius: 10px;"
+        " padding: 4px;"
+        " outline: none;"
+        "}"
+        "QComboBox::item {"
+        " padding: 8px 10px;"
+        " border-radius: 6px;"
+        " color: $INK;"
+        "}"
+        "QComboBox::item:alternate {"
+        " background: $PANEL;"
+        " color: $INK;"
+        "}"
+        "QComboBox::item:selected {"
+        " background: $WINE_TINT;"
+        " color: $INK;"
+        "}"));
+    ui->addressTypeCombobox->setStyleSheet(comboStyle);
+    ui->addressTypeHistoryCombobox->setStyleSheet(comboStyle);
+
+    const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("6px 14px"));
+    const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px"));
+    ui->receiveButton->setStyleSheet(primaryButtonStyle);
+    ui->clearButton->setStyleSheet(secondaryButtonStyle);
+    // The Spark Name actions recede so Request payment is the one filled button.
+    const QString ghostButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("6px 10px"));
+    ui->mySparkNamesButton->setStyleSheet(ghostButtonStyle);
+    ui->createSparkNameButton->setStyleSheet(ghostButtonStyle);
+    const QColor actionIconColor(GUIUtil::themeColors().inkSoft);
+    GUIUtil::setTintedIcon(ui->mySparkNamesButton, QStringLiteral(":/icons/spark"), QSize(16, 16), actionIconColor);
+    GUIUtil::setTintedIcon(ui->createSparkNameButton, QStringLiteral(":/icons/tag"), QSize(16, 16), actionIconColor);
+    ui->showRequestButton->setStyleSheet(secondaryButtonStyle);
+    ui->removeRequestButton->setStyleSheet(secondaryButtonStyle);
+
+    ui->recentRequestsView->setStyleSheet(GUIUtil::themed(QStringLiteral(
+        "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
+        "QHeaderView::section {"
+        " background: transparent; border: none; color: $INK_FAINT;"
+        " font: $FONT_CAPTION; padding: 6px;"
+        "}"
+        "QTableView::item { padding: 6px; }")));
+    if (ui->recentRequestsView->viewport())
+        ui->recentRequestsView->viewport()->update();
+
+    if (emptyIcon_) {
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_receive"));
+    }
+    if (emptyTitle_) {
+        emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
+    }
+    if (emptyHint_) {
+        emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
+            "QLabel { background: transparent; color: $INK_SOFT; }")));
+    }
+
+    updateRequestFormScrollHeight();
+}
+
+void ReceiveCoinsDialog::updateRequestFormScrollHeight()
+{
+    if (!requestFormScroll || !requestFormContents)
+        return;
+
+    ui->frame2->layout()->activate();
+    requestFormContents->layout()->activate();
+    requestFormScroll->setMaximumHeight(requestFormContents->sizeHint().height());
 }
 
 void ReceiveCoinsDialog::setModel(WalletModel *_model)
@@ -106,7 +429,11 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->verticalHeader()->hide();
         tableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         tableView->setModel(recentRequestsProxyModel);
-        tableView->setAlternatingRowColors(true);
+        tableView->setAlternatingRowColors(false);
+        tableView->setShowGrid(false);
+        tableView->setFrameShape(QFrame::NoFrame);
+        tableView->verticalHeader()->setDefaultSectionSize(2 * QFontMetrics(GUIUtil::brandFont()).height() + 12);
+        tableView->setItemDelegate(new PaymentRequestCardDelegate(tableView));
         tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);
         tableView->setColumnWidth(RecentRequestsTableModel::Date, DATE_COLUMN_WIDTH);
@@ -114,10 +441,32 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setColumnWidth(RecentRequestsTableModel::AddressType, ADDRESSTYPE_COLUMN_WIDTH);
         tableView->setColumnWidth(RecentRequestsTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
         tableView->horizontalHeader()->setMinimumSectionSize(23);
-        tableView->horizontalHeader()->setStretchLastSection(true);
+        tableView->horizontalHeader()->setStretchLastSection(false);
+        updateRequestColumnWidths();
+
+        auto wallet = _model->getWallet();
+        if (!wallet || !wallet->sparkWallet) {
+            ui->addressTypeCombobox->removeItem(0);
+            ui->reuseAddress->show();
+        }
+        displayCheckBox(ui->addressTypeCombobox->currentIndex());
 
         connect(tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
                 this, &ReceiveCoinsDialog::recentRequestsView_selectionChanged);
+
+        connect(recentRequestsProxyModel, &QAbstractItemModel::rowsInserted, this, [this] { updateRequestsEmptyState(); });
+        connect(recentRequestsProxyModel, &QAbstractItemModel::rowsRemoved, this, [this] { updateRequestsEmptyState(); });
+        connect(recentRequestsProxyModel, &QAbstractItemModel::modelReset, this, [this] { updateRequestsEmptyState(); });
+        updateRequestsEmptyState();
+    }
+}
+
+void ReceiveCoinsDialog::updateRequestsEmptyState()
+{
+    const bool hasRequests = recentRequestsProxyModel && recentRequestsProxyModel->rowCount() > 0;
+    if (requestsEmptyState) {
+        requestsEmptyState->setVisible(!hasRequests);
+        ui->recentRequestsView->setVisible(hasRequests);
     }
 }
 
@@ -132,6 +481,7 @@ void ReceiveCoinsDialog::clear()
     ui->reqLabel->setText("");
     ui->reqMessage->setText("");
     ui->reuseAddress->setChecked(false);
+    displayCheckBox(ui->addressTypeCombobox->currentIndex());
     updateDisplayUnit();
 }
 
@@ -161,14 +511,23 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
     QString address;
     QString label = ui->reqLabel->text();
     QString addressType = ui->addressTypeCombobox->currentText();
-    if(ui->reuseAddress->isChecked() && ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent)
+    const int selectedAddressType = ui->addressTypeCombobox->currentData().toInt();
+    if(ui->reuseAddress->isChecked())
     {
         /* Choose existing receiving address */
         AddressBookPage dlg(platformStyle, AddressBookPage::ForSelection, AddressBookPage::ReceivingTab, this);
+        if (selectedAddressType == Spark)
+            dlg.setInitialAddressType(AddressBookPage::Spark);
         dlg.setModel(model->getAddressTableModel());
         if(dlg.exec())
         {
             address = dlg.getReturnValue();
+            if (selectedAddressType == Spark && !model->isSparkAddressMine(address)) {
+                QMessageBox::critical(
+                    this, tr("Error"),
+                    tr("The selected Spark address does not belong to this wallet."));
+                return;
+            }
             if(label.isEmpty()) /* If no label provided, use the previously used label */
             {
                 label = model->getAddressTableModel()->labelForAddress(address);
@@ -178,17 +537,44 @@ void ReceiveCoinsDialog::on_receiveButton_clicked()
         }
     } else {
         /* Generate new receiving address */
-        if(ui->addressTypeCombobox->currentText() == AddressTableModel::Transparent) {
+        if(selectedAddressType == Transparent) {
             address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Transparent);
-        } else if(ui->addressTypeCombobox->currentText() == AddressTableModel::Spark) {
-            address = model->getAddressTableModel()->addRow(AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+        } else if(selectedAddressType == Spark) {
+            if (label.startsWith(QLatin1Char('@'))) {
+                const QString sparkName = label.mid(1);
+                if (!CSparkNameManager::IsSparkNameValid(sparkName.toStdString())) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("\"%1\" is not a valid Spark Name.").arg(label));
+                    return;
+                }
+                address = model->getSparkNameAddress(sparkName);
+                if (address.isEmpty()) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("Spark Name \"%1\" was not found or has expired.").arg(sparkName));
+                    return;
+                }
+                if (!model->isSparkAddressMine(address)) {
+                    QMessageBox::critical(
+                        this, tr("Error"),
+                        tr("Spark Name \"%1\" does not belong to this wallet.").arg(sparkName));
+                    return;
+                }
+            } else {
+                address = model->getAddressTableModel()->addRow(
+                    AddressTableModel::Receive, label, "", AddressTableModel::Spark);
+            }
         }
     }
+    if(address.isEmpty())
+        return;
+
     SendCoinsRecipient info(address, addressType, label,
         ui->reqAmount->value(), ui->reqMessage->text());
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setModel(model->getOptionsModel());
+    dialog->setModel(model);
     dialog->setInfo(info);
     dialog->show();
     clear();
@@ -202,7 +588,7 @@ void ReceiveCoinsDialog::on_recentRequestsView_doubleClicked(const QModelIndex &
     QModelIndex targetIdx = recentRequestsProxyModel->mapToSource(index);
     const RecentRequestsTableModel *submodel = model->getRecentRequestsTableModel();
     ReceiveRequestDialog *dialog = new ReceiveRequestDialog(this);
-    dialog->setModel(model->getOptionsModel());
+    dialog->setModel(model);
     dialog->setInfo(submodel->entry(targetIdx.row()).recipient);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
@@ -229,15 +615,27 @@ void ReceiveCoinsDialog::on_showRequestButton_clicked()
 
 void ReceiveCoinsDialog::on_removeRequestButton_clicked()
 {
-    if(!model || !model->getRecentRequestsTableModel() || !ui->recentRequestsView->selectionModel())
+    if(!model || !model->getRecentRequestsTableModel() || !recentRequestsProxyModel || !ui->recentRequestsView->selectionModel())
         return;
     QModelIndexList selection = ui->recentRequestsView->selectionModel()->selectedRows();
     if(selection.empty())
         return;
-    // correct for selection mode ContiguousSelection
-    QModelIndex index = selection.at(0);
-    QModelIndex firstIndex = recentRequestsProxyModel->mapToSource(index);
-    model->getRecentRequestsTableModel()->removeRows(firstIndex.row(), selection.length(), firstIndex.parent());
+
+    QVector<int> sourceRows;
+    sourceRows.reserve(selection.size());
+    for (const QModelIndex& index : selection) {
+        QModelIndex sourceIndex = recentRequestsProxyModel->mapToSource(index);
+        if (sourceIndex.isValid())
+            sourceRows.append(sourceIndex.row());
+    }
+
+    std::sort(sourceRows.begin(), sourceRows.end(), [](int left, int right) {
+        return left > right;
+    });
+
+    for (int row : sourceRows) {
+        model->getRecentRequestsTableModel()->removeRows(row, 1);
+    }
 }
 
 void ReceiveCoinsDialog::keyPressEvent(QKeyEvent *event)
@@ -258,14 +656,13 @@ void ReceiveCoinsDialog::keyPressEvent(QKeyEvent *event)
 
 QModelIndex ReceiveCoinsDialog::selectedRow()
 {
-    if(!model || !model->getRecentRequestsTableModel() || !ui->recentRequestsView->selectionModel())
+    if(!model || !model->getRecentRequestsTableModel() || !recentRequestsProxyModel || !ui->recentRequestsView->selectionModel())
         return QModelIndex();
     QModelIndexList selection = ui->recentRequestsView->selectionModel()->selectedRows();
     if(selection.empty())
         return QModelIndex();
-    // correct for selection mode ContiguousSelection
     QModelIndex firstIndex = selection.at(0);
-    return firstIndex;
+    return recentRequestsProxyModel->mapToSource(firstIndex);
 }
 
 // copy column of selected row to clipboard
@@ -275,7 +672,7 @@ void ReceiveCoinsDialog::copyColumnToClipboard(int column)
     if (!firstIndex.isValid()) {
         return;
     }
-    GUIUtil::setClipboard(model->getRecentRequestsTableModel()->data(firstIndex.child(firstIndex.row(), column), Qt::EditRole).toString());
+    GUIUtil::setClipboard(model->getRecentRequestsTableModel()->index(firstIndex.row(), column).data(Qt::EditRole).toString());
 }
 
 // context menu
@@ -320,11 +717,54 @@ void ReceiveCoinsDialog::copyAmount()
 
 void ReceiveCoinsDialog::displayCheckBox(int idx)
 {
-    if(idx==0){
-        ui->reuseAddress->hide();
+    const bool sparkSelected = idx >= 0 && ui->addressTypeCombobox->itemData(idx).toInt() == Spark;
+    ui->reuseAddress->setChecked(false);
+    ui->reuseAddress->setVisible(true);
+    if (sparkSelected) {
+        ui->reuseAddress->setText(tr("&Use an existing Spark address"));
+        ui->reuseAddress->setToolTip(tr(
+            "Spark addresses can safely receive multiple payments, although sharing one address can link those requests."));
     } else {
-        ui->reuseAddress->show();
+        ui->reuseAddress->setText(tr("R&euse an existing transparent address (not recommended)"));
+        ui->reuseAddress->setToolTip(tr(
+            "Reusing transparent addresses has security and privacy risks. Only use this to recreate an earlier payment request."));
     }
+    ui->sparkNameActions->setVisible(sparkSelected);
+    updateRequestFormScrollHeight();
+}
+
+void ReceiveCoinsDialog::createSparkName()
+{
+    if (!model)
+        return;
+
+    auto* dialog = new CreateSparkNamePage(platformStyle, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModel(model);
+    dialog->show();
+}
+
+void ReceiveCoinsDialog::mySparkNames()
+{
+    if (!model || !model->getAddressTableModel())
+        return;
+
+    AddressBookPage dialog(
+        platformStyle, AddressBookPage::ForSelection,
+        AddressBookPage::ReceivingTab, this);
+    dialog.setInitialAddressType(AddressBookPage::SparkNameMine);
+    dialog.setModel(model->getAddressTableModel());
+    if (!dialog.exec())
+        return;
+
+    QString label = dialog.getReturnLabel();
+    if (label.isEmpty())
+        return;
+    if (!label.startsWith(QLatin1Char('@')))
+        label.prepend(QLatin1Char('@'));
+
+    ui->reuseAddress->setChecked(false);
+    ui->reqLabel->setText(label);
 }
 
 void ReceiveCoinsDialog::chooseType(int idx)
@@ -343,9 +783,11 @@ RecentRequestsFilterProxy::RecentRequestsFilterProxy(QObject *parent) :
 
 bool RecentRequestsFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
-    QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
-    bool res0 = sourceModel()->data(index).toString().contains("spark");
-    bool res1 = sourceModel()->data(index).toString().contains("transparent");
+    // Match the canonical edit value; the displayed type is translated.
+    QModelIndex index = sourceModel()->index(sourceRow, RecentRequestsTableModel::AddressType, sourceParent);
+    const QString addressType = sourceModel()->data(index, Qt::EditRole).toString();
+    bool res0 = addressType == QLatin1String("spark");
+    bool res1 = addressType == QLatin1String("transparent");
     if(res0 && typeFilter == 0)
         return true;
     if(res1 && typeFilter == 1)
@@ -360,4 +802,41 @@ void RecentRequestsFilterProxy::setTypeFilter(quint32 modes)
 {
     this->typeFilter = modes;
     invalidateFilter();
+}
+
+// Handles resize events for the ReceiveCoinsDialog widget by adjusting internal component sizes.
+void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
+{
+    QDialog::resizeEvent(event); 
+
+    updateRequestFormScrollHeight();
+}
+
+bool ReceiveCoinsDialog::eventFilter(QObject* object, QEvent* event)
+{
+    if (object == ui->recentRequestsView->viewport()
+        && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
+        updateRequestColumnWidths();
+    }
+
+    return QDialog::eventFilter(object, event);
+}
+
+void ReceiveCoinsDialog::updateRequestColumnWidths()
+{
+    const int availableWidth = ui->recentRequestsView->viewport()->width();
+    if (availableWidth <= 0)
+        return;
+
+    const int dateWidth = availableWidth * 23 / 100;
+    const int labelWidth = availableWidth * 17 / 100;
+    const int addressTypeWidth = availableWidth * 17 / 100;
+    const int messageWidth = availableWidth * 20 / 100;
+    const int amountWidth = availableWidth - dateWidth - labelWidth - addressTypeWidth - messageWidth;
+
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Date, dateWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Label, labelWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Message, messageWidth);
+    ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountWidth);
 }

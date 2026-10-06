@@ -3,7 +3,7 @@
 
 ## Setup
 
-[Firo Core] (https://firo.org/get-firo/download/) is the original Firo client and it builds the backbone of the network. However, it downloads and stores the entire history of Firo transactions (which is currently several hundreds MBs); depending on the speed of your computer and network connection, the synchronization process can take anywhere from a few hours to a day or more.
+[Firo Core](https://firo.org/get-firo/download/) is the original Firo client and it builds the backbone of the network. However, it downloads and stores the entire history of Firo transactions (which is currently several hundreds MBs); depending on the speed of your computer and network connection, the synchronization process can take anywhere from a few hours to a day or more.
 
 
 ## Building

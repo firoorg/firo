@@ -5,9 +5,8 @@
 #ifndef BITCOIN_QT_WALLETMODEL_H
 #define BITCOIN_QT_WALLETMODEL_H
 
-#include "walletmodeltransaction.h"
-
 #include "support/allocators/secure.h"
+#include "walletmodeltransaction.h"
 #ifdef ENABLE_WALLET
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
@@ -21,15 +20,13 @@
 
 class AddressTableModel;
 class PcodeAddressTableModel;
-class LelantusModel;
 class SparkModel;
 class OptionsModel;
 class PlatformStyle;
 class RecentRequestsTableModel;
 class TransactionTableModel;
 class WalletModelTransaction;
-class PcodeModel;
-
+class ClientModel;
 class CCoinControl;
 class CKeyID;
 class COutPoint;
@@ -37,6 +34,8 @@ class COutput;
 class CPubKey;
 class CWallet;
 class uint256;
+class CSparkNameTxData;
+class CValidationState;
 
 QT_BEGIN_NAMESPACE
 class QTimer;
@@ -66,6 +65,7 @@ public:
     QString authenticatedMerchant;
 
     bool fSubtractFeeFromAmount; // memory only
+    std::vector<unsigned char> opReturnData; // memory only, Rosen Bridge metadata
 
     static const int CURRENT_VERSION = 1;
     int nVersion;
@@ -118,7 +118,9 @@ public:
         TransactionCommitFailed,
         AbsurdFee,
         PaymentRequestExpired,
-        ExceedLimit
+        ExceedLimit,
+        InvalidRosenBridgeData,
+        RosenBridgeRequiresTransparent
     };
 
     enum EncryptionStatus
@@ -132,11 +134,11 @@ public:
     OptionsModel *getOptionsModel();
     AddressTableModel *getAddressTableModel();
     PcodeAddressTableModel *getPcodeAddressTableModel();
-    LelantusModel *getLelantusModel();
     SparkModel *getSparkModel();
     TransactionTableModel *getTransactionTableModel();
     RecentRequestsTableModel *getRecentRequestsTableModel();
-    PcodeModel *getPcodeModel();
+
+    void setClientModel(ClientModel* client_model);
 
     CWallet *getWallet() const { return wallet; }
 
@@ -153,34 +155,49 @@ public:
 
     // Check address for validity
     bool validateAddress(const QString &address);
+    bool validateExchangeAddress(const QString &address);
     bool validateSparkAddress(const QString &address);
+    bool isSparkAddressMine(const QString &address);
     std::pair<CAmount, CAmount> getSparkBalance();
+    CAmount getCachedPrivateBalance() const { return cachedPrivateBalance; }
+
+    // Sign a message with a Spark address held by this wallet. Returns the ownership proof
+    // as hex, or a null QString with `error` set to a message fit to show the user.
+    QString signSparkMessage(const QString &sparkAddress, const QString &message, QString &error);
+
+    // Generate spark address
+    QString generateSparkAddress();
 
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
     {
-        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "")
+        SendCoinsReturn(StatusCode _status = OK, QString _reasonCommitFailed = "", bool _partiallyCommitted = false)
             : status(_status),
-              reasonCommitFailed(_reasonCommitFailed)
+              reasonCommitFailed(_reasonCommitFailed),
+              partiallyCommitted(_partiallyCommitted)
         {
         }
         StatusCode status;
         QString reasonCommitFailed;
+        bool partiallyCommitted;
     };
 
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
-    // prepare transaction for getting txfee before sending coins in anonymous mode
-    SendCoinsReturn prepareJoinSplitTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
-
-    // prepare transaction for getting txfee before anonymizing coins
-    SendCoinsReturn prepareMintTransactions(
-        CAmount amount,
-        std::vector<WalletModelTransaction> &transactions,
-        std::list<CReserveKey> &reserveKeys,
-        std::vector<CHDMint> &mints,
-        const CCoinControl *coinControl);
+    struct ConsolidationCandidate {
+        QString address;
+        QString label;
+        size_t outputs;
+        // Unsigned estimate of the next batch, shown before the wallet is unlocked.
+        size_t batchInputs{0};
+        CAmount fee{0};
+        CAmount returnedAmount{0};
+    };
+    // Addresses with an affordable batch, most eligible outputs first.
+    std::vector<ConsolidationCandidate> getConsolidationAddresses() const;
+    SendCoinsReturn prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address);
+    SendCoinsReturn sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs, bool& anotherBatch);
 
     SendCoinsReturn prepareMintSparkTransaction(
         std::vector<WalletModelTransaction> &transactions,
@@ -189,12 +206,54 @@ public:
         std::list<CReserveKey> &reserveKeys,
         const CCoinControl *coinControl);
 
-    SendCoinsReturn prepareSpendSparkTransaction(
-        WalletModelTransaction &transaction,
+    SendCoinsReturn prepareSpendSparkTransactionsSingleInput(
+        std::vector<WalletModelTransaction> &transactions,
+        const QList<SendCoinsRecipient> &recipients,
+        const CCoinControl *coinControl);
+
+    /**
+     * Prepare Spark spend(s) for broadcast. Before Chaum V2 activation the
+     * spend may be split into multiple single-input transactions; afterward
+     * one V2 spend is built.
+     * @param[in,out] transactions Cleared, then filled with the prepared batch
+     *     on success. On failure it is empty, except AmountWithFeeExceedsBalance
+     *     may hold a fee-only hint.
+     * @return Status of preparation; OK only if the batch is ready.
+     */
+    SendCoinsReturn prepareSpendSparkTransactions(
+        std::vector<WalletModelTransaction> &transactions,
+        const QList<SendCoinsRecipient> &recipients,
         const CCoinControl *coinControl);
 
     SendCoinsReturn spendSparkCoins(
         WalletModelTransaction &transaction);
+
+    SendCoinsReturn spendSparkCoins(
+        std::vector<WalletModelTransaction> &transactions);
+
+    bool sparkNamesAllowed() const;
+
+    /**
+     * True when the next block (chainActive.Height()+1) is at or past
+     * Spark Chaum V2 activation.
+     * @return true if versioned Spark spends are allowed at the next block.
+     */
+    bool versionedSparkSpendsAllowed() const;
+
+    bool GetSparkNameByAddress(const QString& sparkAddress, QString& name);
+
+    bool validateSparkNameData(const QString &name, const QString &sparkAddress, const QString &additionalData, QString &strError);
+
+    WalletModelTransaction initSparkNameTransaction(CAmount sparkNameFee);
+
+    QString getSparkNameAddress(const QString &sparkName);
+
+    SendCoinsReturn prepareSparkNameTransaction(
+        WalletModelTransaction &transaction,
+        CSparkNameTxData &sparkNameData,
+        CAmount sparkNameFee,
+        const CCoinControl *coinControl,
+        int expectedNextBlockHeight);
         
     SendCoinsReturn mintSparkCoins(
         std::vector<WalletModelTransaction> &transactions,
@@ -202,22 +261,8 @@ public:
         std::list<CReserveKey> &reserveKeys
         );
     
-    bool migrateLelantusToSpark();
-    
-    bool getAvailableLelantusCoins();
-
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(WalletModelTransaction &transaction);
-
-    // Send private coins to a list of recipients
-    SendCoinsReturn sendPrivateCoins(WalletModelTransaction &transaction);
-
-    // Anonymize coins.
-    SendCoinsReturn sendAnonymizingCoins(
-        std::vector<WalletModelTransaction> &transactions,
-        std::list<CReserveKey> &reservekeys,
-        std::vector<CHDMint> &mints);
-
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
     // Passphrase only needed when unlocking
@@ -266,7 +311,7 @@ public:
     void unlockCoin(COutPoint& output);
     void listLockedCoins(std::vector<COutPoint>& vOutpts);
 
-    void listProTxCoins(std::vector<COutPoint>& vOutpts);
+    bool listProTxCoins(std::vector<COutPoint>& vOutpts);
 
     bool hasMasternode();
 
@@ -285,7 +330,7 @@ public:
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash, CValidationState &state);
 
-    CAmount GetJMintCredit(const CTxOut& txout) const;
+    CAmount GetJMintCredit(const CTxOut& txout, const CTransaction& tx) const;
 
 private:
     CWallet *wallet;
@@ -297,13 +342,13 @@ private:
     // (transaction fee, for example)
     OptionsModel *optionsModel;
 
+    ClientModel *_client_model;
+
     AddressTableModel *addressTableModel;
     PcodeAddressTableModel *pcodeAddressTableModel;
-    LelantusModel *lelantusModel;
     SparkModel *sparkModel;
     TransactionTableModel *transactionTableModel;
     RecentRequestsTableModel *recentRequestsTableModel;
-    PcodeModel *pcodeModel;
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;
@@ -324,9 +369,6 @@ private:
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
-    void checkBalanceChanged();
-
-
 
 Q_SIGNALS:
     // Signal that balance in wallet changed
@@ -358,6 +400,8 @@ Q_SIGNALS:
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
 public Q_SLOTS:
+
+    void checkBalanceChanged();
     /* Wallet status might have changed */
     void updateStatus();
     /* New transaction, or transaction changed status */

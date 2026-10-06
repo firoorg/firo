@@ -10,15 +10,18 @@
 #include "ui_optionsdialog.h"
 
 #include "bitcoinunits.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "optionsmodel.h"
 
 #include "validation.h" // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
 #include "netbase.h"
 #include "txdb.h" // for -dbcache defaults
+#include "util.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h" // for CWallet::GetRequiredFee()
+#include "spark/state.h"
 #endif
 
 #include <boost/thread.hpp>
@@ -28,7 +31,11 @@
 #include <QIntValidator>
 #include <QLocale>
 #include <QMessageBox>
+#include <QScrollArea>
+#include <QStyle>
+#include <QStyleOption>
 #include <QTimer>
+#include <QVBoxLayout>
 
 OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     QDialog(parent),
@@ -37,6 +44,97 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     mapper(0)
 {
     ui->setupUi(this);
+
+    ui->verticalLayout->removeWidget(ui->tabWidget);
+    auto* optionsScrollContents = new QWidget(this);
+    optionsScrollContents->setObjectName(QStringLiteral("optionsScrollContents"));
+    auto* optionsScrollLayout = new QVBoxLayout(optionsScrollContents);
+    optionsScrollLayout->setContentsMargins(0, 0, 0, 0);
+    optionsScrollLayout->addWidget(ui->tabWidget);
+    auto* optionsScroll = new QScrollArea(this);
+    optionsScroll->setObjectName(QStringLiteral("optionsScroll"));
+    optionsScroll->setWidgetResizable(true);
+    optionsScroll->setFrameShape(QFrame::NoFrame);
+    optionsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    optionsScroll->setWidget(optionsScrollContents);
+    optionsScroll->setStyleSheet(QStringLiteral(
+        "QScrollArea#optionsScroll, QWidget#optionsScrollContents { background: transparent; border: none; }"));
+    ui->verticalLayout->insertWidget(0, optionsScroll, 1);
+
+    const QSize available = GUIUtil::availableScreenSize(this);
+    resize(qMin(width(), qMax(1, available.width() - 40)),
+           qMin(height(), qMax(1, available.height() - 40)));
+
+    setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
+        QDialog { background: $BG; }
+        QTabWidget::pane { background: transparent; border: none; border-top: 1px solid $BORDER; top: -1px; }
+        QGroupBox {
+            background: $PANEL;
+            border: 1px solid $BORDER;
+            border-radius: 14px;
+            color: $INK;
+            margin-top: 22px;
+            padding: 0px 14px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; subcontrol-position: top left; left: 2px; top: 2px;
+            padding: 0; color: $INK_FAINT; font: $FONT_CAPTION; background: transparent;
+        }
+        QGroupBox QCheckBox { color: $INK; min-height: 28px; }
+        QGroupBox QCheckBox[rowDivider="true"] { border-bottom: 1px solid $BORDER; }
+        QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
+            background: $PANEL;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
+            padding: 4px 8px;
+            color: $INK;
+        }
+        QSpinBox QLineEdit { %1 }
+        QLineEdit:focus, QSpinBox:focus { border: 2px solid $WINE; padding: 3px 7px; }
+        QComboBox:focus { border: 1px solid $WINE; }
+        QLineEdit[invalidInput="true"] { border-color: $ERROR; }
+        QCheckBox { color: $INK_SOFT; }
+        QLabel#torStatusLabel { color: $INK_SOFT; }
+        QPushButton {
+            color: $INK;
+            background: $PANEL;
+            border: 1px solid $FIELD_BORDER;
+            border-radius: 10px;
+            font-weight: 700;
+            min-width: 0;
+            padding: 7px 16px;
+        }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
+        QPushButton#okButton {
+            color: #FFFFFF;
+            background: $WINE;
+            border: 1px solid transparent;
+        }
+        QPushButton#okButton:hover:enabled {
+            background: $WINE_DEEP;
+        }
+        QPushButton#okButton:pressed { background: $WINE_DEEP; }
+        QPushButton#resetButton { color: $ERROR; }
+    )")).arg(GUIUtil::spinBoxInnerLineEditReset()));
+
+    // Settings sections: a caption title above a white card, one setting per row.
+    for (QGroupBox* group : {ui->groupBox, ui->sparkGroupBox}) {
+        group->setTitle(group->title().toUpper());
+        const QList<QCheckBox*> rows = group->findChildren<QCheckBox*>();
+        for (int i = 0; i + 1 < rows.size(); ++i)
+            rows[i]->setProperty("rowDivider", true);
+    }
+
+    for (QLineEdit* port : {ui->proxyPort, ui->proxyPortTor}) {
+        port->ensurePolished();
+        QStyleOptionFrame option;
+        option.initFrom(port);
+        const QFontMetrics metrics = port->fontMetrics();
+        // Include QLineEdit's two-pixel internal margin on each side.
+        const QSize contents(metrics.horizontalAdvance(QStringLiteral("65535")) + 4, metrics.height());
+        port->setFixedWidth(port->style()->sizeFromContents(QStyle::CT_LineEdit, &option, contents, port).width());
+    }
 
     /* Main elements init */
     ui->databaseCache->setMinimum(nMinDbCache);
@@ -93,7 +191,11 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
         {
 #if QT_VERSION >= 0x040800
             /** display language strings as "native language - native country (locale name)", e.g. "Deutsch - Deutschland (de)" */
+#if QT_VERSION >= 0x060000
+            ui->lang->addItem(locale.nativeLanguageName() + QString(" - ") + locale.nativeTerritoryName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
+#else
             ui->lang->addItem(locale.nativeLanguageName() + QString(" - ") + locale.nativeCountryName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
+#endif
 #else
             /** display language strings as "language - country (locale name)", e.g. "German - Germany (de)" */
             ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" - ") + QLocale::countryToString(locale.country()) + QString(" (") + langStr + QString(")"), QVariant(langStr));
@@ -155,6 +257,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
         mapper->toFirst();
 
         updateDefaultProxyNets();
+        updateTorStatusLabel();
     }
 
     /* warn when one of the following settings changes by user action (placed here so init via mapper doesn't trigger them) */
@@ -164,11 +267,15 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->threadsScriptVerif, qOverload<int>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     /* Wallet */
     connect(ui->spendZeroConfChange, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
-    connect(ui->reindexLelantus, &QCheckBox::clicked, this, &OptionsDialog::handleEnabledZapChanged);
+#ifdef ENABLE_WALLET
+    connect(ui->reindexSpark, &QCheckBox::clicked, this, &OptionsDialog::handleEnabledZapChanged);
+#endif
     /* Network */
     connect(ui->allowIncoming, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocksTor, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
+    connect(ui->checkboxEnabledTor, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
+    connect(ui->checkboxEnabledTor, &QCheckBox::clicked, this, &OptionsDialog::updateTorStatusLabel);
     /* Display */
     connect(ui->lang, qOverload<>(&QValueComboBox::valueChanged), [this]{ showRestartWarning(); });
     connect(ui->thirdPartyTxUrls, &QLineEdit::textChanged, [this]{ showRestartWarning(); });
@@ -183,16 +290,20 @@ void OptionsDialog::setMapper()
 
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
-    mapper->addMapping(ui->reindexLelantus, OptionsModel::ReindexLelantus);
+#ifdef ENABLE_WALLET
+    mapper->addMapping(ui->reindexSpark, OptionsModel::ReindexSpark);
+#endif
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
-
-    /* Lelantus */
     mapper->addMapping(ui->autoAnonymize, OptionsModel::AutoAnonymize);
-    if (!lelantus::IsLelantusAllowed()) {
-        ui->lelantusPage->setVisible(false);
+    mapper->addMapping(ui->fSplit, OptionsModel::Split);
+    mapper->addMapping(ui->sparkPage, OptionsModel::SparkPage);
+#ifdef ENABLE_WALLET
+    if (!spark::IsSparkAllowed()) {
+        ui->sparkGroupBox->setVisible(false);
     }
-    mapper->addMapping(ui->lelantusPage, OptionsModel::LelantusPage);
-
+#else
+    ui->sparkGroupBox->setVisible(false);
+#endif
     /* Network */
     mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
     mapper->addMapping(ui->allowIncoming, OptionsModel::Listen);
@@ -204,6 +315,8 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->connectSocksTor, OptionsModel::ProxyUseTor);
     mapper->addMapping(ui->proxyIpTor, OptionsModel::ProxyIPTor);
     mapper->addMapping(ui->proxyPortTor, OptionsModel::ProxyPortTor);
+
+    mapper->addMapping(ui->checkboxEnabledTor, OptionsModel::TorSetup);
 
     /* Window */
 #ifndef Q_OS_MAC
@@ -265,27 +378,56 @@ void OptionsDialog::on_hideTrayIcon_stateChanged(int fState)
         ui->minimizeToTray->setEnabled(true);
     }
 }
-void OptionsDialog::handleEnabledZapChanged(){
-	QMessageBox msgBox;
-
-	if(ui->reindexLelantus->isChecked()){
-        QMessageBox::StandardButton retval = QMessageBox::warning(this, tr("Confirm Reindex Lelantus"),
-                     tr("Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore the list from the seed in your wallet. This will likely take a few hours. Are you sure?"),
-                     QMessageBox::Yes|QMessageBox::Cancel,
-                     QMessageBox::Cancel);
-        if(retval == QMessageBox::Cancel) {
-            ui->reindexLelantus->setChecked(false);
-        }else {
+void OptionsDialog::handleEnabledZapChanged()
+{
+#ifdef ENABLE_WALLET
+    if (ui->reindexSpark->isChecked()) {
+        QMessageBox::StandardButton retval = QMessageBox::warning(this, tr("Confirm Spark reindex"),
+            tr("Warning: On restart, this setting will wipe your transaction list, reindex the blockchain, and restore wallet data from your seed. Spark mint records are cleared and rebuilt from the chain. This will likely take a few hours. Are you sure?"),
+            QMessageBox::Yes | QMessageBox::Cancel,
+            QMessageBox::Cancel);
+        if (retval == QMessageBox::Cancel) {
+            ui->reindexSpark->setChecked(false);
+        } else {
             showRestartWarning();
         }
-    }else {
+    } else
+#endif
+    {
         clearStatusLabel();
+    }
+}
+
+void OptionsDialog::updateTorStatusLabel()
+{
+    const bool runningWithTor = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    const bool overridden = model && model->getOverriddenByCommandLine().contains(QLatin1String("-torsetup"));
+    if (overridden) {
+        ui->checkboxEnabledTor->setEnabled(false);
+        ui->torStatusLabel->setText(runningWithTor
+            ? tr("Tor quickstart is enabled for this session by -torsetup. It cannot be changed here.")
+            : tr("Tor quickstart is disabled for this session by -torsetup. It cannot be changed here."));
+        return;
+    }
+
+    ui->checkboxEnabledTor->setEnabled(true);
+
+    const bool checked = ui->checkboxEnabledTor->isChecked();
+
+    if (checked && runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled for this session."));
+    } else if (checked && !runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is enabled. Restart the client to apply this change."));
+    } else if (!checked && runningWithTor) {
+        ui->torStatusLabel->setText(tr("Tor quickstart is disabled. Restart the client to apply this change."));
+    } else {
+        ui->torStatusLabel->setText(tr("Tor quickstart is disabled."));
     }
 }
 
 void OptionsDialog::showRestartWarning(bool fPersistent)
 {
-    ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+    ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
 
     if(fPersistent)
     {
@@ -320,7 +462,7 @@ void OptionsDialog::updateProxyValidationState()
     else
     {
         setOkButtonState(false);
-        ui->statusLabel->setStyleSheet("QLabel { color: red; }");
+        ui->statusLabel->setStyleSheet(GUIUtil::themed(QStringLiteral("QLabel { color: $ERROR; }")));
         ui->statusLabel->setText(tr("The supplied proxy address is invalid."));
     }
 }
@@ -341,7 +483,7 @@ void OptionsDialog::updateDefaultProxyNets()
     strDefaultProxyGUI = ui->proxyIp->text() + ":" + ui->proxyPort->text();
     (strProxy == strDefaultProxyGUI.toStdString()) ? ui->proxyReachIPv6->setChecked(true) : ui->proxyReachIPv6->setChecked(false);
 
-    GetProxy(NET_TOR, proxy);
+    GetProxy(NET_ONION, proxy);
     strProxy = proxy.proxy.ToStringIP() + ":" + proxy.proxy.ToStringPort();
     strDefaultProxyGUI = ui->proxyIp->text() + ":" + ui->proxyPort->text();
     (strProxy == strDefaultProxyGUI.toStdString()) ? ui->proxyReachTor->setChecked(true) : ui->proxyReachTor->setChecked(false);

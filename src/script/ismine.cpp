@@ -11,6 +11,8 @@
 #include "script/standard.h"
 #include "script/sign.h"
 
+#include "../compat_layer.h"
+
 #include <boost/foreach.hpp>
 
 typedef std::vector<unsigned char> valtype;
@@ -89,6 +91,7 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey, bool& 
     }
     case TX_PUBKEYHASH:
     case TX_EXCHANGEADDRESS:
+    case TX_SPARKNAMEFEE:
         keyID = CKeyID(uint160(vSolutions[0]));
         if (sigversion != SIGVERSION_BASE) {
             CPubKey pubkey;
@@ -148,6 +151,8 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey, bool& 
             return ISMINE_SPENDABLE;
         break;
     }
+    case TX_SPARKMINT: { FIRO_FALLTHROUGH; }
+    case TX_SPARKSMINT: {}
     }
 
     if (keystore.HaveWatchOnly(scriptPubKey)) {

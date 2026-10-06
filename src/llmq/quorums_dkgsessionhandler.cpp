@@ -64,7 +64,7 @@ std::list<CDKGPendingMessages::BinaryMessage> CDKGPendingMessages::PopPendingMes
         pendingMessages.pop_front();
     }
 
-    return std::move(ret);
+    return ret;
 }
 
 bool CDKGPendingMessages::HasSeen(const uint256& hash) const
@@ -143,7 +143,7 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pindexQuorum)
 {
     //AssertLockHeld(cs_main);
 
-    const auto& consensus = Params().GetConsensus();
+    FIRO_UNUSED const auto& consensus = Params().GetConsensus();
 
     curSession = std::make_shared<CDKGSession>(params, blsWorker, dkgManager);
 
@@ -295,6 +295,14 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
             continue;
         }
 
+        if (!msg.sig.IsValid()) {
+            // An invalid signature cannot be aggregated (CBLSSignature::AggregateInsecure
+            // asserts that its operands are valid, which would abort the process). Fall back
+            // to single verification, which safely identifies and bans the offending node(s).
+            revertToSingleVerification = true;
+            break;
+        }
+
         if (first) {
             aggSig = msg.sig;
         } else {
@@ -325,23 +333,11 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
         }
 
         // are all messages from the same node?
-        NodeId firstNodeId;
-        first = true;
-        bool nodeIdsAllSame = true;
-        for (auto it = messages.begin(); it != messages.end(); ++it) {
-            if (first) {
-                firstNodeId = it->first;
-            } else {
-                first = false;
-                if (it->first != firstNodeId) {
-                    nodeIdsAllSame = false;
-                    break;
-                }
-            }
-        }
+        const bool nodeIdsAllSame = detail::BatchNodeIdsAllSame(messages);
+
         // if yes, take a short path and return a set with only him
         if (nodeIdsAllSame) {
-            ret.emplace(firstNodeId);
+            ret.emplace(messages[0].first);
             return ret;
         }
         // different nodes, let's figure out who are the bad ones
@@ -442,7 +438,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
 void CDKGSessionHandler::HandleDKGRound()
 {
     uint256 curQuorumHash;
-    int curQuorumHeight;
+    FIRO_UNUSED int curQuorumHeight;
 
     WaitForNextPhase(QuorumPhase_None, QuorumPhase_Initialized, uint256(), []{return false;});
 
@@ -493,7 +489,7 @@ void CDKGSessionHandler::HandleDKGRound()
                     if (!dmn) {
                         debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
                     } else {
-                        debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString(false));
+                        debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString());
                     }
                 }
                 LogPrint("llmq-dkg", debugMsg);
@@ -553,7 +549,7 @@ void CDKGSessionHandler::PhaseHandlerThread()
             HandleDKGRound();
         } catch (AbortPhaseException& e) {
             quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
-                status.aborted = true;
+                status.debugStatus.status.aborted = true;
                 return true;
             });
             LogPrint("llmq-dkg", "CDKGSessionHandler::%s -- aborted current DKG session for llmq=%s\n", __func__, params.name);

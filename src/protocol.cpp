@@ -16,6 +16,8 @@ namespace NetMsgType {
     const char *VERSION="version";
     const char *VERACK="verack";
     const char *ADDR="addr";
+    const char *ADDRV2="addrv2";
+    const char *SENDADDRV2="sendaddrv2";
     const char *INV="inv";
     const char *GETDATA="getdata";
     const char *MERKLEBLOCK="merkleblock";
@@ -67,6 +69,8 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::VERSION,
     NetMsgType::VERACK,
     NetMsgType::ADDR,
+    NetMsgType::ADDRV2,
+    NetMsgType::SENDADDRV2,
     NetMsgType::INV,
     NetMsgType::GETDATA,
     NetMsgType::MERKLEBLOCK,
@@ -125,7 +129,7 @@ CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn, const
 {
     memcpy(pchMessageStart, pchMessageStartIn, MESSAGE_START_SIZE);
     memset(pchCommand, 0, sizeof(pchCommand));
-    strncpy(pchCommand, pszCommand, COMMAND_SIZE);
+    memcpy(pchCommand, pszCommand, strnlen(pszCommand, COMMAND_SIZE));
     nMessageSize = nMessageSizeIn;
     memset(pchChecksum, 0, CHECKSUM_SIZE);
 }
@@ -178,6 +182,13 @@ CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn) : CService(ipIn)
     nServices = nServicesIn;
 }
 
+CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn, unsigned int nTimeIn) : CService(ipIn)
+{
+    Init();
+    nServices = nServicesIn;
+    nTime = nTimeIn;
+}
+
 void CAddress::Init()
 {
     nServices = NODE_NONE;
@@ -206,7 +217,7 @@ std::string CInv::GetCommand() const
     std::string cmd;
     if (type & MSG_WITNESS_FLAG)
         cmd.append("witness-");
-    int masked = type & MSG_TYPE_MASK;
+    FIRO_UNUSED int masked = type & MSG_TYPE_MASK;
     // TODO: switch(masked)
     switch (type)
     {

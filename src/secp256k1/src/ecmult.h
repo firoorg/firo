@@ -4,13 +4,14 @@
  * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
  **********************************************************************/
 
-#ifndef _SECP256K1_ECMULT_
-#define _SECP256K1_ECMULT_
+#ifndef SECP256K1_ECMULT_
+#define SECP256K1_ECMULT_
 
 #include "num.h"
 #include "group.h"
 #include "scalar.h"
 #include "scratch.h"
+#include "scratch_impl.h"
 
 typedef struct {
     /* For accelerating the computation of a*P + b*G: */

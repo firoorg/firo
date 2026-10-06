@@ -12,11 +12,15 @@
 #include "validation.h"
 #include "bip47/defs.h"
 #include "bip47/paymentchannel.h"
+#include "../sparkname.h"
 
 #include <boost/foreach.hpp>
 
+#include <algorithm>
+
 #include <QFont>
 #include <QDebug>
+#include <QMetaObject>
 
 const QString AddressTableModel::Send = "S";
 const QString AddressTableModel::Receive = "R";
@@ -24,6 +28,7 @@ const QString AddressTableModel::Zerocoin = "X";
 const QString AddressTableModel::Transparent = "Transparent";
 const QString AddressTableModel::Spark = "Spark";
 const QString AddressTableModel::RAP = "RAP";
+const QString AddressTableModel::SparkName = "Spark names";
 
 struct AddressTableEntry
 {
@@ -34,21 +39,23 @@ struct AddressTableEntry
         Hidden /* QSortFilterProxyModel will filter these out */
     };
 
-    enum AddressType {
+/*    enum AddressType {
         Spark,
         Transparent,
-        RAP
-    };
+        RAP,
+        SparkName
+    };*/
 
     Type type;
     QString label;
     QString address;
     QString addressType;
     QString pubcoin;
+    bool isMine{false};
 
     AddressTableEntry() {}
-    AddressTableEntry(Type _type, const QString &_label, const QString &_address, const QString &_addressType):
-        type(_type), label(_label), address(_address), addressType(_addressType) {}
+    AddressTableEntry(Type _type, const QString &_label, const QString &_address, const QString &_addressType, bool _isMine):
+        type(_type), label(_label), address(_address), addressType(_addressType), isMine(_isMine) {}
     AddressTableEntry(Type _type, const QString &_pubcoin):
         type(_type), pubcoin(_pubcoin) {}
 };
@@ -91,14 +98,78 @@ public:
     QList<AddressTableEntry> cachedAddressTable;
     AddressTableModel *parent;
 
-    AddressTablePriv(CWallet *_wallet, AddressTableModel *_parent):
-        wallet(_wallet), parent(_parent) {}
+    struct PendingSparkNameChange {
+        int changeType;
+        CSparkNameBlockIndexData sparkNameData;
+    };
+    QList<PendingSparkNameChange> pendingSparkNameChanges;
+    bool pendingSparkNameDrainScheduled = false;
+
+    CCriticalSection cs_pendingSparkNameChanges;
+
+private:
+    void queueProcessPendingSparkNameChanges() {
+        // Caller must hold cs_pendingSparkNameChanges. Coalesce bursts into a
+        // single queued drain so a block full of spark-name mutations doesn't
+        // flood the Qt event loop.
+        if (pendingSparkNameDrainScheduled)
+            return;
+        pendingSparkNameDrainScheduled = true;
+        QMetaObject::invokeMethod(parent, "ProcessPendingSparkNameChanges", Qt::QueuedConnection);
+    }
+
+    void sparkNameAdded(const CSparkNameBlockIndexData &sparkNameData) {
+        LOCK(cs_pendingSparkNameChanges);
+        pendingSparkNameChanges.append(PendingSparkNameChange{CT_NEW, sparkNameData});
+        queueProcessPendingSparkNameChanges();
+    }
+
+    void sparkNameRemoved(const CSparkNameBlockIndexData &sparkNameData) {
+        LOCK(cs_pendingSparkNameChanges);
+        pendingSparkNameChanges.append(PendingSparkNameChange{CT_DELETED, sparkNameData});
+        queueProcessPendingSparkNameChanges();
+    }
+
+public:
+    AddressTablePriv(CWallet* _wallet, AddressTableModel* _parent, bool subscribe):
+        wallet(_wallet), parent(_parent) {
+
+        if (subscribe) {
+            uiInterface.NotifySparkNameAdded.connect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
+            uiInterface.NotifySparkNameRemoved.connect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
+        }
+    }
+
+    ~AddressTablePriv() {
+        uiInterface.NotifySparkNameAdded.disconnect(boost::bind(&AddressTablePriv::sparkNameAdded, this, _1));
+        uiInterface.NotifySparkNameRemoved.disconnect(boost::bind(&AddressTablePriv::sparkNameRemoved, this, _1));
+    }
+
+    void refreshSparkNames()
+    {
+        CSparkNameManager *sparkNameManager = CSparkNameManager::GetInstance();
+        std::vector<CSparkNameBlockIndexData> sparkNames = sparkNameManager->DumpSparkNameData();
+
+        for (const auto &entry : sparkNames) {
+            const std::string &sparkAddress = entry.sparkAddress;
+            const std::string &strName = std::string("@") + entry.name;
+            bool fMine = wallet->IsSparkAddressMine(sparkAddress);
+            AddressTableEntry::Type addressType = translateTransactionType("send", fMine);
+            cachedAddressTable.append(AddressTableEntry(addressType,
+                        QString::fromStdString(strName),
+                        QString::fromStdString(sparkAddress),
+                        AddressTableModel::SparkName,
+                        fMine));
+        }
+    }
 
     void refreshAddressTable()
     {
         cachedAddressTable.clear();
         {
+            LOCK(cs_main);      // for CSparkNameManager
             LOCK(wallet->cs_wallet);
+
             BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, wallet->mapAddressBook)
             {
                 const CBitcoinAddress& address = item.first;
@@ -109,7 +180,8 @@ public:
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                 QString::fromStdString(strName),
                                 QString::fromStdString(address.ToString()),
-                                AddressTableModel::Transparent));
+                                AddressTableModel::Transparent,
+                                fMine));
             }
 
             BOOST_FOREACH(const PAIRTYPE(std::string, CAddressBookData)& item, wallet->mapSparkAddressBook)
@@ -122,7 +194,8 @@ public:
                 cachedAddressTable.append(AddressTableEntry(addressType,
                                 QString::fromStdString(strName),
                                 QString::fromStdString(address),
-                                AddressTableModel::Spark));
+                                AddressTableModel::Spark,
+                                fMine));
             }
 
             BOOST_FOREACH(const PAIRTYPE(std::string, CAddressBookData)& item, wallet->mapRAPAddressBook)
@@ -137,29 +210,46 @@ public:
                         cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Sending,
                                         QString::fromStdString(strName),
                                         QString::fromStdString(address),
-                                        AddressTableModel::RAP));
+                                        AddressTableModel::RAP,
+                                        false));
                     }
                 }
             }
+
+            refreshSparkNames();
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
         // Even though the map is already sorted this re-sorting step is needed because the originating map
         // is sorted by binary address, not by base58() address.
-        qSort(cachedAddressTable.begin(), cachedAddressTable.end(), AddressTableEntryLessThan());
+        std::sort(cachedAddressTable.begin(), cachedAddressTable.end(), AddressTableEntryLessThan());
     }
 
     void updateEntry(const QString &address, const QString &label, bool isMine, const QString &purpose, int status)
     {
-        // Find address / label in model
-        QList<AddressTableEntry>::iterator lower = qLowerBound(
-            cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
-        QList<AddressTableEntry>::iterator upper = qUpperBound(
-            cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
-        int lowerIndex = (lower - cachedAddressTable.begin());
-        int upperIndex = (upper - cachedAddressTable.begin());
-        bool inModel = (lower != upper);
-        AddressTableEntry::Type newEntryType = translateTransactionType(purpose, isMine);
         CBitcoinAddress addressParsed(address.toStdString());
+        QString addressType;
+        if (addressParsed.IsValid())
+            addressType = AddressTableModel::Transparent;
+        else if (bip47::CPaymentCode::validate(address.toStdString()))
+            addressType = AddressTableModel::RAP;
+        else
+            addressType = AddressTableModel::Spark;
+
+        // A registered Spark Name and its wallet address intentionally share
+        // the same address. Match the address-book row by type so updates do
+        // not overwrite or remove the separate Spark Name row.
+        QList<AddressTableEntry>::iterator lower = std::lower_bound(
+            cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
+        QList<AddressTableEntry>::iterator upper = std::upper_bound(
+            cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
+        int upperIndex = (upper - cachedAddressTable.begin());
+        QList<AddressTableEntry>::iterator entry = std::find_if(lower, upper,
+            [&addressType](const AddressTableEntry &candidate) {
+                return candidate.addressType == addressType;
+            });
+        int entryIndex = (entry - cachedAddressTable.begin());
+        bool inModel = (entry != upper);
+        AddressTableEntry::Type newEntryType = translateTransactionType(purpose, isMine);
 
         switch(status)
         {
@@ -169,14 +259,8 @@ public:
                 qWarning() << "AddressTablePriv::updateEntry: Warning: Got CT_NEW, but entry is already in model";
                 break;
             }
-            parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
-            if(addressParsed.IsValid()){
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Transparent));
-            } else if (bip47::CPaymentCode::validate(address.toStdString())){
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::RAP));
-            } else {
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address, AddressTableModel::Spark));
-            }
+            parent->beginInsertRows(QModelIndex(), upperIndex, upperIndex);
+            cachedAddressTable.insert(upperIndex, AddressTableEntry(newEntryType, label, address, addressType, isMine));
             parent->endInsertRows();
             break;
         case CT_UPDATED:
@@ -185,9 +269,10 @@ public:
                 qWarning() << "AddressTablePriv::updateEntry: Warning: Got CT_UPDATED, but entry is not in model";
                 break;
             }
-            lower->type = newEntryType;
-            lower->label = label;
-            parent->emitDataChanged(lowerIndex);
+            entry->type = newEntryType;
+            entry->label = label;
+            entry->isMine = isMine;
+            parent->emitDataChanged(entryIndex);
             break;
         case CT_DELETED:
             if(!inModel)
@@ -195,19 +280,69 @@ public:
                 qWarning() << "AddressTablePriv::updateEntry: Warning: Got CT_DELETED, but entry is not in model";
                 break;
             }
-            parent->beginRemoveRows(QModelIndex(), lowerIndex, upperIndex-1);
-            cachedAddressTable.erase(lower, upper);
+            parent->beginRemoveRows(QModelIndex(), entryIndex, entryIndex);
+            cachedAddressTable.erase(entry);
             parent->endRemoveRows();
             break;
+        }
+    }
+
+    void updateSparkNameEntry(const CSparkNameBlockIndexData &sparkNameData, int status)
+    {
+        const QString address = QString::fromStdString(sparkNameData.sparkAddress);
+        const QString label = QString("@") + QString::fromStdString(sparkNameData.name);
+        const bool isMine = wallet->IsSparkAddressMine(sparkNameData.sparkAddress);
+        const AddressTableEntry::Type entryType = translateTransactionType("send", isMine);
+        QList<AddressTableEntry>::iterator lower = std::lower_bound(
+            cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
+        QList<AddressTableEntry>::iterator upper = std::upper_bound(
+            cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
+        QList<AddressTableEntry>::iterator entry = std::find_if(lower, upper,
+            [](const AddressTableEntry &candidate) {
+                return candidate.addressType == AddressTableModel::SparkName;
+            });
+
+        if (status == CT_NEW) {
+            if (entry != upper) {
+                entry->type = entryType;
+                entry->label = label;
+                entry->isMine = isMine;
+                parent->emitDataChanged(entry - cachedAddressTable.begin());
+                return;
+            }
+
+            const int insertIndex = upper - cachedAddressTable.begin();
+            parent->beginInsertRows(QModelIndex(), insertIndex, insertIndex);
+            cachedAddressTable.insert(insertIndex, AddressTableEntry(
+                entryType, label, address, AddressTableModel::SparkName, isMine));
+            parent->endInsertRows();
+            return;
+        }
+
+        if (status == CT_DELETED) {
+            entry = std::find_if(lower, upper,
+                [&label](const AddressTableEntry &candidate) {
+                    return candidate.addressType == AddressTableModel::SparkName &&
+                        candidate.label.compare(label, Qt::CaseInsensitive) == 0;
+                });
+            if (entry == upper) {
+                qWarning() << "AddressTablePriv::updateSparkNameEntry: Warning: Got CT_DELETED, but entry is not in model";
+                return;
+            }
+
+            const int entryIndex = entry - cachedAddressTable.begin();
+            parent->beginRemoveRows(QModelIndex(), entryIndex, entryIndex);
+            cachedAddressTable.erase(entry);
+            parent->endRemoveRows();
         }
     }
     //[firo] updateEntry
     void updateEntry(const QString &pubCoin, const QString &isUsed, int status)
     {
         // Find address / label in model
-        QList<AddressTableEntry>::iterator lower = qLowerBound(
+        QList<AddressTableEntry>::iterator lower = std::lower_bound(
                 cachedAddressTable.begin(), cachedAddressTable.end(), pubCoin, AddressTableEntryLessThan());
-        QList<AddressTableEntry>::iterator upper = qUpperBound(
+        QList<AddressTableEntry>::iterator upper = std::upper_bound(
                 cachedAddressTable.begin(), cachedAddressTable.end(), pubCoin, AddressTableEntryLessThan());
         int lowerIndex = (lower - cachedAddressTable.begin());
         bool inModel = (lower != upper);
@@ -221,7 +356,7 @@ public:
                     qWarning() << "Warning: AddressTablePriv::updateEntry: Got CT_NOW, but entry is already in model";
                 }
                 parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
-                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, isUsed, pubCoin, ""));
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, isUsed, pubCoin, "", false));
                 parent->endInsertRows();
                 break;
             case CT_UPDATED:
@@ -253,14 +388,35 @@ public:
             return 0;
         }
     }
+
+    void processPendingSparkNameChanges() {
+        QList<PendingSparkNameChange> pendingChanges;
+        {
+            LOCK(cs_pendingSparkNameChanges);
+            pendingChanges = pendingSparkNameChanges;
+            pendingSparkNameChanges.clear();
+            pendingSparkNameDrainScheduled = false;
+        }
+
+        LOCK(wallet->cs_wallet);
+        for (const PendingSparkNameChange &change : pendingChanges)
+            updateSparkNameEntry(change.sparkNameData, change.changeType);
+    }
 };
 
 AddressTableModel::AddressTableModel(CWallet *_wallet, WalletModel *parent) :
+    AddressTableModel(_wallet, parent, true)
+{
+}
+
+AddressTableModel::AddressTableModel(CWallet* _wallet, WalletModel* parent, bool loadAddressBook) :
     QAbstractTableModel(parent),walletModel(parent),wallet(_wallet),priv(0)
 {
     columns << tr("Label") << tr("Address") << tr("Address Type");
-    priv = new AddressTablePriv(wallet, this);
-    priv->refreshAddressTable();
+    priv = new AddressTablePriv(wallet, this, loadAddressBook);
+    if (loadAddressBook) {
+        priv->refreshAddressTable();
+    }
 }
 
 AddressTableModel::~AddressTableModel()
@@ -305,25 +461,23 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
         case AddressType:
             if(rec->addressType == AddressTableModel::Transparent)
             {
-                return tr("transparent");
+                return role == Qt::DisplayRole ? tr("transparent") : "transparent";
             }
             else if(rec->addressType == AddressTableModel::Spark)
             {
-                return tr("spark");
-            } else if(rec->addressType == AddressTableModel::RAP)
+                return role == Qt::DisplayRole ? tr("spark") : "spark";
+            }
+            else if (rec->addressType == AddressTableModel::SparkName)
             {
-                return tr("RAP");
+                if (role == Qt::DisplayRole)
+                    return rec->isMine ? tr("own spark name") : tr("spark name");
+                return rec->isMine ? "own spark name" : "spark name";
+            }
+            else if(rec->addressType == AddressTableModel::RAP)
+            {
+                return "RAP";
             }
         }
-    }
-    else if (role == Qt::FontRole)
-    {
-        QFont font;
-        if(index.column() == Address)
-        {
-            font = GUIUtil::fixedPitchFont();
-        }
-        return font;
     }
     else if (role == TypeRole)
     {
@@ -337,6 +491,14 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             return Zerocoin;
         default: break;
         }
+    }
+    else if (role == AddressTypeRole)
+    {
+        return rec->addressType;
+    }
+    else if (role == IsMineRole)
+    {
+        return rec->isMine;
     }
     return QVariant();
 }
@@ -463,13 +625,13 @@ QVariant AddressTableModel::headerData(int section, Qt::Orientation orientation,
 Qt::ItemFlags AddressTableModel::flags(const QModelIndex &index) const
 {
     if(!index.isValid())
-        return 0;
+        return Qt::ItemFlags();
     AddressTableEntry *rec = static_cast<AddressTableEntry*>(index.internalPointer());
 
     Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     // Can edit address and label for sending addresses,
     // and only label for receiving addresses.
-    if(rec->type == AddressTableEntry::Sending ||
+    if((rec->type == AddressTableEntry::Sending && rec->addressType != SparkName) ||
       (rec->type == AddressTableEntry::Receiving && index.column()==Label))
     {
         retval |= Qt::ItemIsEditable;
@@ -494,6 +656,7 @@ QModelIndex AddressTableModel::index(int row, int column, const QModelIndex &par
 void AddressTableModel::updateEntry(const QString &address,
         const QString &label, bool isMine, const QString &purpose, int status)
 {
+    labelCache.remove(address);
     // Update address book model from Bitcoin core
     priv->updateEntry(address, label, isMine, purpose, status);
 }
@@ -501,6 +664,7 @@ void AddressTableModel::updateEntry(const QString &address,
 //[firo] AddressTableModel.updateEntry()
 void AddressTableModel::updateEntry(const QString &pubCoin, const QString &isUsed, int status)
 {
+    labelCache.remove(pubCoin);
     // Update stealth address book model from Bitcoin core
     priv->updateEntry(pubCoin, isUsed, status);
 }
@@ -632,44 +796,54 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex &parent
  */
 QString AddressTableModel::labelForAddress(const QString &address) const
 {
+    QString label;
     {
-        LOCK(wallet->cs_wallet);
+        // This is called from the transaction list paint path for every
+        // visible row, so it must not block: cs_wallet can be held for a long
+        // time while a block or transaction is being processed. Fall back to
+        // the cached label if the lock is not available; the view repaints
+        // shortly after via updateConfirmations() and picks up fresh data.
+        TRY_LOCK(wallet->cs_wallet, lockWallet);
+        if (!lockWallet)
+            return labelCache.value(address);
+
         CBitcoinAddress address_parsed(address.toStdString());
         if(address_parsed.IsValid()) {
             std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(address_parsed.Get());
             if (mi != wallet->mapAddressBook.end())
             {
-                return QString::fromStdString(mi->second.name);
+                label = QString::fromStdString(mi->second.name);
             }
         } else if(walletModel->validateSparkAddress(address)) {
             std::map<std::string, CAddressBookData>::iterator mi = wallet->mapSparkAddressBook.find(address.toStdString());
             if(mi != wallet->mapSparkAddressBook.end())
             {
-                return QString::fromStdString(mi->second.name);
+                label = QString::fromStdString(mi->second.name);
             }
         } else if(bip47::CPaymentCode::validate(address.toStdString())) {
             std::map<std::string, CAddressBookData>::iterator mi = wallet->mapRAPAddressBook.find(address.toStdString());
             if(mi != wallet->mapRAPAddressBook.end())
             {
-                return QString::fromStdString(mi->second.name);
+                label = QString::fromStdString(mi->second.name);
             }
         }
     }
-    return QString();
+    labelCache.insert(address, label);
+    return label;
 }
 
 int AddressTableModel::lookupAddress(const QString &address) const
 {
     QModelIndexList lst = match(index(0, Address, QModelIndex()),
-                                Qt::EditRole, address, 1, Qt::MatchExactly);
-    if(lst.isEmpty())
-    {
-        return -1;
+                                Qt::EditRole, address, -1, Qt::MatchExactly);
+    for (const QModelIndex& candidate : lst) {
+        // Spark Name rows are read-only aliases for the editable Spark
+        // address-book row and can intentionally have the same address.
+        if (candidate.data(AddressTypeRole).toString() != SparkName)
+            return candidate.row();
     }
-    else
-    {
-        return lst.at(0).row();
-    }
+
+    return -1;
 }
 
 void AddressTableModel::emitDataChanged(int idx)
@@ -688,6 +862,11 @@ bool AddressTableModel::IsSparkAllowed(){
     return spark::IsSparkAllowed();
 }
 
+void AddressTableModel::ProcessPendingSparkNameChanges()
+{
+    priv->processPendingSparkNameChanges();
+}
+
 
 // RAP pcodes
 
@@ -701,9 +880,9 @@ static void NotifyPcodeLabeled(PcodeAddressTableModel *walletmodel, std::string 
 }
 
 PcodeAddressTableModel::PcodeAddressTableModel(CWallet *wallet_, WalletModel *parent)
-:AddressTableModel(wallet_, parent)
+:AddressTableModel(wallet_, parent, false)
 {
-    // columns[AddressTableModel::Address] = tr("RAP payment code");
+    columns = { tr("Label"), tr("RAP payment code") };
     updatePcodeData();
     wallet->NotifyPcodeLabeled.connect(boost::bind(NotifyPcodeLabeled, this, _1, _2, _3));
 }
@@ -729,7 +908,7 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
         return QVariant();
 
     int const row = index.row();
-    if(row >= pcodeData.size())
+    if(cmp::greater_equal(row, pcodeData.size()))
         return QVariant();
 
     if(role == Qt::DisplayRole || role == Qt::EditRole)
@@ -742,16 +921,15 @@ QVariant PcodeAddressTableModel::data(const QModelIndex &index, int role) const
                 return QString::fromStdString(pcodeData[row].first);
         }
     }
-    else if (role == Qt::FontRole)
-    {
-        QFont font;
-        if(ColumnIndex(index.column()) == ColumnIndex::Pcode)
-        {
-            font = GUIUtil::fixedPitchFont();
-        }
-        return font;
-    }
     return QVariant();
+}
+
+QModelIndex PcodeAddressTableModel::index(int row, int column, const QModelIndex& parent) const
+{
+    if (parent.isValid() || !hasIndex(row, column, parent)) {
+        return QModelIndex();
+    }
+    return createIndex(row, column);
 }
 
 bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &value, int role)
@@ -759,7 +937,7 @@ bool PcodeAddressTableModel::setData(const QModelIndex &index, const QVariant &v
     if(!index.isValid())
         return false;
     int const row = index.row();
-    if(row >= pcodeData.size())
+    if(cmp::greater_equal(row, pcodeData.size()))
         return false;
 
     if(role == Qt::EditRole)
@@ -812,7 +990,7 @@ QVariant PcodeAddressTableModel::headerData(int section, Qt::Orientation orienta
 
 bool PcodeAddressTableModel::removeRows(int row, int count, const QModelIndex &)
 {
-    if(count != 1 || row >= pcodeData.size())
+    if(count != 1 || cmp::greater_equal(row, pcodeData.size()))
         return false;
 
     wallet->LabelSendingPcode(pcodeData[row].first, "", true);
@@ -822,7 +1000,7 @@ bool PcodeAddressTableModel::removeRows(int row, int count, const QModelIndex &)
 Qt::ItemFlags PcodeAddressTableModel::flags(const QModelIndex &index) const
 {
     if(!index.isValid())
-        return 0;
+        return Qt::ItemFlags();
     Qt::ItemFlags retval = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     if(index.column() == int(ColumnIndex::Label))
     {

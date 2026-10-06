@@ -20,7 +20,7 @@ public:
     const GroupElement& get_H() const;
     const GroupElement& get_U() const;
 
-    const std::size_t get_memo_bytes() const;
+    std::size_t get_memo_bytes() const;
 
     std::size_t get_max_M_range() const;
     const std::vector<GroupElement>& get_G_range() const;

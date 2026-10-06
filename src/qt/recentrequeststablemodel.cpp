@@ -11,6 +11,8 @@
 #include "clientversion.h"
 #include "streams.h"
 
+#include "../compat_layer.h"
+
 #include <boost/foreach.hpp>
 
 const QString RecentRequestsTableModel::Transparent = "Transparent";
@@ -78,12 +80,13 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index, int role) cons
         case AddressType:
             if(walletModel->validateAddress(rec->recipient.address))
             {
-                return tr("transparent");
+                return role == Qt::DisplayRole ? tr("transparent") : "transparent";
             }
             else if(walletModel->validateSparkAddress(rec->recipient.address))
             {
-                return tr("spark");
+                return role == Qt::DisplayRole ? tr("spark") : "spark";
             }
+            FIRO_FALLTHROUGH;
         case Message:
             if(rec->recipient.message.isEmpty() && role == Qt::DisplayRole)
             {
@@ -123,6 +126,10 @@ QVariant RecentRequestsTableModel::headerData(int section, Qt::Orientation orien
         {
             return columns[section];
         }
+        else if (role == Qt::TextAlignmentRole)
+        {
+            return (int)((section == Amount ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter);
+        }
     }
     return QVariant();
 }
@@ -137,7 +144,7 @@ void RecentRequestsTableModel::updateAmountColumnTitle()
 /** Gets title for amount column including current display unit if optionsModel reference available. */
 QString RecentRequestsTableModel::getAmountTitle()
 {
-    return (this->walletModel->getOptionsModel() != NULL) ? tr("Requested") + " ("+BitcoinUnits::name(this->walletModel->getOptionsModel()->getDisplayUnit()) + ")" : "";
+    return (this->walletModel->getOptionsModel() != NULL) ? tr("Requested") + " ("+BitcoinUnits::name(this->walletModel->getOptionsModel()->getDisplayUnit()) + ")" : QString("");
 }
 
 QModelIndex RecentRequestsTableModel::index(int row, int column, const QModelIndex &parent) const
@@ -220,7 +227,7 @@ void RecentRequestsTableModel::addNewRequest(RecentRequestEntry &recipient)
 
 void RecentRequestsTableModel::sort(int column, Qt::SortOrder order)
 {
-    qSort(list.begin(), list.end(), RecentRequestEntryLessThan(column, order));
+    std::sort(list.begin(), list.end(), RecentRequestEntryLessThan(column, order));
     Q_EMIT dataChanged(index(0, 0, QModelIndex()), index(list.size() - 1, NUMBER_OF_COLUMNS - 1, QModelIndex()));
 }
 
@@ -239,7 +246,7 @@ bool RecentRequestEntryLessThan::operator()(RecentRequestEntry &left, RecentRequ
     switch(column)
     {
     case RecentRequestsTableModel::Date:
-        return pLeft->date.toTime_t() < pRight->date.toTime_t();
+        return pLeft->date.toSecsSinceEpoch() < pRight->date.toSecsSinceEpoch();
     case RecentRequestsTableModel::Label:
         return pLeft->recipient.label < pRight->recipient.label;
     case RecentRequestsTableModel::Message:

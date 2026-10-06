@@ -13,7 +13,6 @@
 #include "automintnotification.h"
 #include "amount.h"
 #include "masternodelist.h"
-#include "lelantusdialog.h"
 
 #include <QStackedWidget>
 
@@ -22,9 +21,9 @@ class ClientModel;
 class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
-class CreatePcodeDialog;
 class SendCoinsDialog;
 class SendCoinsRecipient;
+class SparkNamesPage;
 class TransactionView;
 class WalletModel;
 class AddressBookPage;
@@ -64,12 +63,11 @@ public:
 
     void showOutOfSyncWarning(bool fShow);
 
-    bool eventFilter(QObject *watched, QEvent *event);
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void setupTransactionPage();
     void setupSendCoinPage();
-    void setupLelantusPage();
 
 private:
     ClientModel *clientModel;
@@ -79,24 +77,21 @@ private:
     QWidget *transactionsPage;
     QWidget *smartPropertyPage;
     ReceiveCoinsDialog *receiveCoinsPage;
-    CreatePcodeDialog *createPcodePage;
+    SparkNamesPage *sparkNamesPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
     QWidget *sendCoinsPage;
     SendCoinsDialog *sendFiroView;
-    LelantusDialog *lelantusView;
-    QWidget *lelantusPage;
     TransactionView *firoTransactionList;
-    QWidget *firoTransactionsView;
     MasternodeList *masternodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
 
-    AutomintNotification *automintNotification;
     AutomintSparkNotification *automintSparkNotification;
 
 public Q_SLOTS:
+    void consolidateCoins();
     /** Switch to overview (home) page */
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
@@ -109,11 +104,10 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
-    void gotoCreatePcodePage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to lelantus page */
-    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -131,13 +125,15 @@ public Q_SLOTS:
     void backupWallet();
     /** Change encrypted wallet passphrase */
     void changePassphrase();
+    /** Show the Spark view key */
+    void exportViewKey();
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet(const QString & info = "");
 
     /** Show used sending addresses */
     void usedSendingAddresses();
 
-    void updateAddressbook();
+    bool updateAddressbook();
 
     /** Show used receiving addresses */
     void usedReceivingAddresses();
@@ -152,30 +148,19 @@ public Q_SLOTS:
     void requestedSyncWarningInfo();
 
     /** Show automint notification */
-    void showAutomintNotification();
-
     void showAutomintSparkNotification();
 
     /** Re-position automint notification */
-    void repositionAutomintNotification();
-
     void repositionAutomintSparkNotification();
 
     /** Check mintable amount to close automint notification */
-    void checkMintableAmount(
-        CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
-
     void checkMintableSparkAmount(
         CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount anonymizableBalance);
 
     /** Close automint notification */
-    void closeAutomintNotification();
-
     void closeAutomintSparkNotification();
 
     /** Ask user to do auto mint */
-    void askMintAll(AutoMintMode mode);
-
     void askMintSparkAll(AutoMintSparkMode mode);
 
 Q_SIGNALS:

@@ -75,7 +75,7 @@ example:
 2. `honggfuzz -i ../input -- ./../libspark/bpplus_hfuzz ___FILE___`
 3. To stop press `ctrl+c`
 
-Here we are providing an empty corpora. In case of an already available corpora, we can provide the availabe corpora.
+Here we are providing an empty corpora. In case of an already available corpora, we can provide the available corpora.
 The flag `-i` is for the input folder which we are providing `./../<filename>_hfuzz>` is the target binary which we want to fuzz.
 
 ### Analyzing the crashes
@@ -129,7 +129,7 @@ sudo make install
 Once successfully installed, follow the below instructions to generate the code-coverage
 
 1. First compile the harness with gdb flag. run `make <filename>_debug` inside src/fuzz to compile using gdb debugger.
-2. take the input_folder as the input corpora from fuzzing or one can also create it by running: `honggfuzz -i <input_folder> -– ./<filename>_hfuzz ___FILE___ @@`. This will start the fuzzer. Kill it by `ctrl+C`. The fuzzer will generate some random inputs inside the input_folder. Since kcov will generate coverage for each input inside the input_folder, it's preffered to have only a few inputs, otherwise it will take a long time to generate the entire coverage.
+2. take the input_folder as the input corpora from fuzzing or one can also create it by running: `honggfuzz -i <input_folder> -– ./<filename>_hfuzz ___FILE___ @@`. This will start the fuzzer. Kill it by `ctrl+C`. The fuzzer will generate some random inputs inside the input_folder. Since kcov will generate coverage for each input inside the input_folder, it's preferred to have only a few inputs, otherwise it will take a long time to generate the entire coverage.
 
 3. inside the `generate_coverage.sh` replace the input_folder, output_folder and fuzz_exe by your inpur corpora, coverage output folder and harness binary.
 4. run `./generate_coverage.sh`. This will generated a merged output for all the inputs present in the input_folder.

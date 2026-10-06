@@ -102,12 +102,10 @@ if ENABLE_ZMQ:
 
 testScripts = [
     'spark_mint.py',
+    'spark_mintspend.py',
+    'spark_batching.py',
     'spark_spend_gettransaction.py',
     'spark_setmintstatus_validation.py',
-    'lelantus_mint.py',
-    'lelantus_setmintstatus_validation.py',
-    'lelantus_mintspend.py',
-    'lelantus_spend_gettransaction.py',
     'mempool_doublesend_oneblock.py',
     'mempool_reorg.py',
     'mempool_spendcoinbase.py',
@@ -129,6 +127,7 @@ testScripts = [
     # 'p2p-segwit.py',
     'listtransactions.py',
     # vv Tests less than 60s vv
+    'p2p-block-source.py',
     # 'sendheaders.py',
     # 'importmulti.py',
     # 'mempool_limit.py',
@@ -146,6 +145,8 @@ testScripts = [
     'httpbasics.py',
     'reindex.py',
     'p2p-addr.py',
+    'p2p-addrv2-relay.py',
+    'p2p-addrv2-invalid.py',
     'multi_rpc.py',
     'zapwallettxes.py',
     'proxy_test.py',
@@ -154,6 +155,7 @@ testScripts = [
     'decodescript.py',
     # 'blockchain.py',
     'disablewallet.py',
+    'dbcache.py',
     'keypool.py',
     'p2p-mempool.py',
     # 'prioritise_transaction.py',
@@ -172,24 +174,9 @@ testScripts = [
     'notifications.py',
 
     # Firo-specific tests
-    'wallet_dumpsigma.py',
     'transactions_verification_after_restart.py',
-    'sigma_zapwalletmints.py',
-    'sigma_nonhd_wallet.py',
-    'sigma_meetspend.py',
-    'sigma_listsigmamints_validation.py',
-    'sigma_listsigmaspends_validation.py',
-    'sigma_listunspentmints_sigma_validation.py',
-    'sigma_resetsigmamint_validation.py',
-    'sigma_setsigmamintstatus_validation.py',
-    'sigma_spend_gettransaction.py',
-    'sigma_spend_validation.py',
-    'sigma_spend_extra_validation.py',
-    'sigma_mint_validation.py',
-    'sigma_mintspend.py',
-    'sigma_blocklimit.py',
-    'hdmint_mempool_zap.py',
-    'sigma_zapwalletmints_unconf_trans.py',
+    'getblocktemplate_coinbase.py',
+    'consolidation.py',
 
     # Evo Znodes
     'dip3-deterministicmns.py',
@@ -200,14 +187,19 @@ testScripts = [
     'llmq-cl-evospork.py',
     'llmq-is-cl-conflicts.py',
     'llmq-is-retroactive.py',
-    'llmq-is-lelantus.py',
 
     # Unstable tests
     #, 'dip4-coinbasemerkleroots.py'
 
     # bip47
-    'bip47-sendreceive.py',
-    'bip47-walletrestore.py'
+    'bip47-walletrestore.py',
+
+    'sendtoaddress.py',
+    'sendmany.py',
+    'sendtransparent.py',
+    'spendspark.py',
+    'sendspark.py',
+    'sendsparkmany.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')

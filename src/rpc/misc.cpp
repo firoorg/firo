@@ -19,11 +19,12 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
-#include "sigma.h"
 #include "txdb.h"
+#include "spark/sparkmessage.h"
 
 #include "masternode-sync.h"
-
+#include "evo/deterministicmns.h"
+#include "llmq/quorums_instantsend.h"
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
@@ -487,6 +488,46 @@ UniValue verifymessage(const JSONRPCRequest& request)
     return (pubkey.GetID() == keyID);
 }
 
+UniValue verifymessagewithsparkaddress(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 3)
+        throw std::runtime_error(
+            "verifymessagewithsparkaddress \"sparkaddress\" \"signature\" \"message\"\n"
+            "\nVerify a message signature produced by signmessagewithsparkaddress.\n"
+            "\nArguments:\n"
+            "1. \"sparkaddress\"   (string, required) The Spark address that was used to sign.\n"
+            "2. \"signature\"      (string, required) The ownership proof signature as a hex string.\n"
+            "3. \"message\"        (string, required) The message that was signed.\n"
+            "\nResult:\n"
+            "true|false   (boolean) Whether the signature is valid for the given address and message.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("verifymessagewithsparkaddress", "\"sm1...\" \"signature\" \"my message\"") +
+            "\nAs json rpc\n"
+            + HelpExampleRpc("verifymessagewithsparkaddress", "\"sm1...\", \"signature\", \"my message\"")
+        );
+
+    std::string strAddress  = request.params[0].get_str();
+    std::string strSign     = request.params[1].get_str();
+    std::string strMessage  = request.params[2].get_str();
+
+    switch (spark::VerifyMessage(strAddress, strSign, strMessage)) {
+    case spark::VerifyResult::Ok:
+        return true;
+    case spark::VerifyResult::Mismatch:
+        return false;
+    case spark::VerifyResult::InvalidAddress:
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Spark address");
+    case spark::VerifyResult::WrongNetwork:
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Spark address is for a different network");
+    case spark::VerifyResult::NotHex:
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Signature must be a hex string");
+    case spark::VerifyResult::MalformedProof:
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Malformed ownership proof");
+    }
+
+    return false; // every enumerator is handled above
+}
+
 UniValue signmessagewithprivkey(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
@@ -527,41 +568,6 @@ UniValue signmessagewithprivkey(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Sign failed");
 
     return EncodeBase64(&vchSig[0], vchSig.size());
-}
-
-UniValue verifyprivatetxown(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 3)
-        throw std::runtime_error(
-                "verifyprivatetxown \"txid\" \"signature\" \"message\"\n"
-                "\nVerify a lelantus tx ownership\n"
-                "\nArguments:\n"
-                "1. \"txid\"        (string, required) Txid, in which we spend lelantus coins.\n"
-                "2. \"proof\"       (string, required) The signatures of the message encoded in base 64\n"
-                "3. \"message\"     (string, required) The message that was signed.\n"
-                "\nResult:\n"
-                "true|false   (boolean) If the signature is verified or not.\n"
-                "\nExamples:\n"
-                "\nVerify the signature\n"
-                + HelpExampleCli("verifyprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9\" \"signature\" \"my message\"") +
-                "\nAs json rpc\n"
-                + HelpExampleRpc("verifyprivatetxown", "\"34df0ec7bcc8a2bda2c0df41ac560172d974c56ffc9adc0e2377d0fc54b4e8f9\", \"signature\", \"my message\"")
-        );
-
-    LOCK(cs_main);
-
-    std::string strTxId  = request.params[0].get_str();
-    std::string strProof = request.params[1].get_str();
-    std::string strMessage  = request.params[2].get_str();
-
-    uint256 txid = uint256S(strTxId);
-    bool fInvalid = false;
-    std::vector<unsigned char> vchSig = DecodeBase64(strProof.c_str(), &fInvalid);
-
-    if (fInvalid)
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Malformed base64 encoding");
-
-    return VerifyPrivateTxOwn(txid, vchSig, strMessage);
 }
 
 
@@ -684,6 +690,8 @@ void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint1
 
     } else if(zerocoin::utils::isZerocoinRemint(addr)) {
         addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinRemint));
+    } else if(zerocoin::utils::isSparkName(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::sparkName));
     } else {
         CBitcoinAddress address(addr);
         uint160 hashBytes;
@@ -1010,178 +1018,18 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
 
 }
 
-UniValue getanonymityset(const JSONRPCRequest& request)
+UniValue getAddressNumWBalance(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 2)
+    if (request.fHelp || request.params.size() > 0)
         throw std::runtime_error(
-                "getanonymityset\n"
-                        "\nReturns the anonymity set and latest block hash.\n"
-                        "\nArguments:\n"
-                        "{\n"
-                        "      \"coinGroupId\"  (int)\n"
-                        "      \"startBlockHash\"    (string)\n" // if this is empty it returns the full set
-                        "}\n"
-                        "\nResult:\n"
-                        "{\n"
-                        "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
-                        "  \"setHash\"   (string) Anonymity set hash\n"
-                        "  \"mints\" (Pair<string,Pair<string,Pair<<string, uint64_t>>) Serialized GroupElements paired with txhash which is paired with mint tag and mint value\n"
-                        "}\n"
-                + HelpExampleCli("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
-                + HelpExampleRpc("getanonymityset", "\"1\"" "{\"ca511f07489e35c9bc60ca62c82de225ba7aae7811ce4c090f95aa976639dc4e\"}")
+                "getAddressNumWBalance\n"
+                "Gives the number of addresses which has positive balance."
         );
-
-
-    int coinGroupId;
-    std::string startBlockHash;
-    try {
-        coinGroupId = std::stol(request.params[0].get_str());
-        startBlockHash = request.params[1].get_str();
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-    if(!GetBoolArg("-mobile", false)){
-        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
-    }
-
-    uint256 blockHash;
-    std::vector<std::pair <lelantus::PublicCoin,std::pair<lelantus::MintValueData, uint256>>> coins;
-    std::vector<unsigned char> setHash;
-
-    {
-        LOCK(cs_main);
-        lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-        lelantusState->GetCoinsForRecovery(
-                &chainActive,
-                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                coinGroupId,
-                startBlockHash,
-                blockHash,
-                coins,
-                setHash);
-    }
-
-    UniValue ret(UniValue::VOBJ);
-    UniValue mints(UniValue::VARR);
-
-    int i = 0;
-    for (const auto& coin : coins) {
-        std::vector<unsigned char> vch = coin.first.getValue().getvch();
-        std::vector<UniValue> data;
-        data.push_back(EncodeBase64(vch.data(), size_t(34)));
-        data.push_back(EncodeBase64(coin.second.second.begin(), coin.second.second.size()));
-        if (coin.second.first.isJMint) {
-            data.push_back(EncodeBase64(coin.second.first.encryptedValue.data(), coin.second.first.encryptedValue.size()));
-        } else {
-            data.push_back(coin.second.first.amount);
-        }
-        data.push_back(EncodeBase64(coin.second.first.txHash.begin(), coin.second.first.txHash.size()));
-
-        UniValue entity(UniValue::VARR);
-        entity.push_backV(data);
-        mints.push_back(entity);
-        i++;
-    }
-
-    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
-    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
-    ret.push_back(Pair("coins", mints));
-
-    return ret;
-}
-
-UniValue getmintmetadata(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
+    if (!GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX))
         throw std::runtime_error(
-                "getmintmetadata\n"
-                        "\nReturns the anonymity set id and nHeight of mint.\n"
-                        "\nArguments:\n"
-                        "  \"mints\"\n"
-                        "    [\n"
-                        "      {\n"
-                        "        \"pubcoin\" (string) The PubCoin value\n"
-                        "      }\n"
-                        "      ,...\n"
-                        "    ]\n"
-                        "\nResult:\n"
-                        "{\n"
-                        "  \"metadata\"   (Pair<string,int>) nHeight and id for each pubcoin\n"
-                        "}\n"
-                + HelpExampleCli("getmintmetadata", "'{\"mints\": [{\"denom\":5000000, \"pubcoin\":\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"}]}'")
-                + HelpExampleRpc("getmintmetadata", "{\"mints\": [{\"denom\":5000000, \"pubcoin\":\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"}]}")
-        );
+        "You have to reindex with -addressindex flag to get an accurate result.");
 
-    UniValue mintValues = find_value(request.params[0].get_obj(), "mints");
-    if (!mintValues.isArray()) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "mints is expected to be an array");
-    }
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    UniValue ret(UniValue::VARR);
-    for(UniValue const & mintData : mintValues.getValues()){
-        std::vector<unsigned char> serializedCoin = ParseHex(find_value(mintData, "pubcoin").get_str().c_str());
-
-        secp_primitives::GroupElement pubCoin;
-        pubCoin.deserialize(serializedCoin.data());
-
-        std::pair<int, int> coinHeightAndId;
-        {
-            LOCK(cs_main);
-            coinHeightAndId = lelantusState->GetMintedCoinHeightAndId(lelantus::PublicCoin(pubCoin));
-        }
-        UniValue metaData(UniValue::VOBJ);
-        metaData.pushKV(std::to_string(coinHeightAndId.first), coinHeightAndId.second);
-        ret.push_back(metaData);
-    }
-    return ret;
-}
-
-UniValue getusedcoinserials(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-                "getusedcoinserials\n"
-                "\nReturns the set of used coin serial.\n"
-                "\nArguments:\n"
-                "{\n"
-                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
-                "}\n"
-                "\nResult:\n"
-                "{\n"
-                "  \"serials\" (std::string[]) array of Serialized Scalars\n"
-                "}\n"
-        );
-
-    int startNumber;
-    try {
-        startNumber = std::stol(request.params[0].get_str());
-    } catch (std::logic_error const & e) {
-        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
-    }
-
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    std::unordered_map<Scalar, int>  serials;
-    {
-        LOCK(cs_main);
-        serials = lelantusState->GetSpends();
-    }
-
-    UniValue serializedSerials(UniValue::VARR);
-    int i = 0;
-    for ( auto it = serials.begin(); it != serials.end(); ++it, ++i) {
-        if ((serials.size() - i - 1) < startNumber)
-            continue;
-        std::vector<unsigned char> serialized;
-        serialized.resize(32);
-        it->first.serialize(serialized.data());
-        serializedSerials.push_back(EncodeBase64(serialized.data(), 32));
-    }
-
-    UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("serials", serializedSerials));
-
-    return ret;
+    return uint64_t(pblocktree->findAddressNumWBalance());
 }
 
 UniValue getfeerate(const JSONRPCRequest& request)
@@ -1202,31 +1050,29 @@ UniValue getfeerate(const JSONRPCRequest& request)
     return ret;
 }
 
+// Lelantus RPC stubs (protocol removed; throw if called).
+UniValue getanonymityset(const JSONRPCRequest& request)
+{
+    (void)request;
+    throw std::runtime_error("getanonymityset is disabled (Lelantus has been removed). Use getsparkanonymityset for Spark.");
+}
+
+UniValue getmintmetadata(const JSONRPCRequest& request)
+{
+    (void)request;
+    throw std::runtime_error("getmintmetadata is disabled (Lelantus has been removed). Use getsparkmintmetadata for Spark.");
+}
+
+UniValue getusedcoinserials(const JSONRPCRequest& request)
+{
+    (void)request;
+    throw std::runtime_error("getusedcoinserials is disabled (Lelantus has been removed). Use getusedcoinstags for Spark.");
+}
+
 UniValue getlatestcoinid(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0)
-        throw std::runtime_error(
-                "getlatestcoinid\n"
-                "\nReturns the set of used coin serial.\n"
-                "\nResult:\n"
-                "{\n"
-                "  [\n"
-                "      {\n"
-                "        \"coinGroupId\" (int) The latest group id\n"
-                "      }\n"
-                "      ,...\n"
-                "    ]\n"
-                "}\n"
-        );
-
-    lelantus::CLelantusState* lelantusState = lelantus::CLelantusState::GetState();
-    int latestCoinId;
-    {
-        LOCK(cs_main);
-        latestCoinId = lelantusState->GetLatestCoinID();
-    }
-
-    return UniValue(latestCoinId);
+    (void)request;
+    throw std::runtime_error("getlatestcoinid is disabled (Lelantus has been removed). Use getsparklatestcoinid for Spark.");
 }
 
 UniValue getsparkanonymityset(const JSONRPCRequest& request)
@@ -1301,6 +1147,150 @@ UniValue getsparkanonymityset(const JSONRPCRequest& request)
 
     ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
     ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
+    ret.push_back(Pair("coins", mints));
+
+    return ret;
+}
+
+UniValue getsparkanonymitysetmeta(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getsparkanonymitysetmeta\n"
+                "\nReturns the anonymity set and latest block hash.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"blockHash\"   (string) Latest block hash for anonymity set\n"
+                "  \"setHash\"   (string) Anonymity set hash\n"
+                "  \"size\" (int) set size\n"
+                "}\n"
+                + HelpExampleCli("getsparkanonymitysetmeta", "\"1\" ")
+                + HelpExampleRpc("getsparkanonymitysetmeta", "\"1\" ")
+        );
+
+
+    int coinGroupId;
+    try {
+        coinGroupId = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)){
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+
+    uint256 blockHash;
+    std::vector<unsigned char> setHash;
+    int size;
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        sparkState->GetAnonSetMetaData(
+                &chainActive,
+                chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                coinGroupId,
+                blockHash,
+                setHash,
+                size);
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("blockHash", EncodeBase64(blockHash.begin(), blockHash.size())));
+    ret.push_back(Pair("setHash", UniValue(EncodeBase64(setHash.data(), setHash.size()))));
+    ret.push_back(Pair("size", size));
+
+    return ret;
+}
+
+UniValue getsparkanonymitysetsector(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 4)
+        throw std::runtime_error(
+                "getsparkanonymitysetsector\n"
+                "\nReturns the anonymity sector based on provided data.\n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"coinGroupId\"  (int)\n"
+                "      \"latestBlock\"    (string) it should be encoded in base64 format\n"
+                "      \"startIndex\"  (int)\n"
+                "      \"endIndex\"    (int)\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"mints\" (Pair<string, string>) Serialized Spark coin paired with txhash\n"
+                "}\n"
+                + HelpExampleCli("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
+                + HelpExampleRpc("getsparkanonymitysetsector", "\"1\" " "\"Gy3sLu3zrVdJwaK6ZzM/1zdJy7hji9xT6l4FSrWgFUM=\" " "\"0\" " "\"1000\" ")
+        );
+
+
+    int coinGroupId;
+    std::string latestBlock;
+    int startIndex;
+    int endIndex;
+
+    try {
+        coinGroupId = std::stol(request.params[0].get_str());
+        latestBlock = request.params[1].get_str();
+        startIndex = std::stol(request.params[2].get_str());
+        endIndex = std::stol(request.params[3].get_str());
+
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)) {
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+    std::vector<std::pair<spark::Coin, std::pair<uint256, std::vector<unsigned char>>>> coins;
+
+    std::string  strHash = DecodeBase64(latestBlock);
+    std::vector<unsigned char> vec(strHash.begin(), strHash.end());
+    if (vec.size() != 32)
+        throw std::runtime_error(std::string("Provided blockHash data is not correct."));
+
+    uint256 blockHash(vec);
+    {
+        LOCK(cs_main);
+        spark::CSparkState* sparkState = spark::CSparkState::GetState();
+        try {
+            sparkState->GetCoinsForRecovery(
+                    &chainActive,
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                    coinGroupId,
+                    startIndex,
+                    endIndex,
+                    blockHash,
+                    coins);
+        } catch (std::exception & e) {
+            throw std::runtime_error(std::string("Unable to get anonymity set by provided parameters: ") + e.what());
+        }
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    UniValue mints(UniValue::VARR);
+
+
+    for (const auto& coin : coins) {
+        CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
+        serializedCoin << coin;
+        std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
+
+        std::vector<UniValue> data;
+        data.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coin
+        data.push_back(EncodeBase64(coin.second.first.begin(), coin.second.first.size())); // tx hash
+        data.push_back(EncodeBase64(coin.second.second.data(), coin.second.second.size())); // spark serial context
+
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        mints.push_back(entity);
+    }
+
     ret.push_back(Pair("coins", mints));
 
     return ret;
@@ -1381,15 +1371,15 @@ UniValue getusedcoinstags(const JSONRPCRequest& request)
     }
 
     spark::CSparkState* sparkState =  spark::CSparkState::GetState();
-    std::unordered_map<GroupElement, int, spark::CLTagHash>  tags;
+    std::vector<std::pair<GroupElement, int>>  tags;
     {
         LOCK(cs_main);
-        tags = sparkState->GetSpends();
+        tags = sparkState->GetSpendsMobile();
     }
     UniValue serializedTags(UniValue::VARR);
     int i = 0;
     for ( auto it = tags.begin(); it != tags.end(); ++it, ++i) {
-        if ((tags.size() - i - 1) < startNumber)
+        if (cmp::less((tags.size() - i - 1), startNumber))
             continue;
         std::vector<unsigned char> serialized;
         serialized.resize(34);
@@ -1399,6 +1389,74 @@ UniValue getusedcoinstags(const JSONRPCRequest& request)
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("tags", serializedTags));
+
+    return ret;
+}
+
+UniValue getusedcoinstagstxhashes(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getusedcoinstagstxhashes\n"
+                "\nReturns the set of used coin tags paired with tx ids in which it was spent, this rpc required -mobile argument, \n"
+                "\nArguments:\n"
+                "{\n"
+                "      \"startNumber \"  (int) Number of elements already existing on user side\n"
+                "}\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"tags\" (std::string[]) array of Serialized GroupElements paired with unit256 (tx ids) \n"
+                "}\n"
+        );
+
+    int startNumber;
+    try {
+        startNumber = std::stol(request.params[0].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    if(!GetBoolArg("-mobile", false)) {
+        throw std::runtime_error(std::string("Please rerun Firo with -mobile "));
+    }
+
+    spark::CSparkState* sparkState =  spark::CSparkState::GetState();
+    std::vector<std::pair<GroupElement, int>>  tags;
+    std::unordered_map<uint256, uint256> ltagTxhash;
+    {
+        LOCK(cs_main);
+        tags = sparkState->GetSpendsMobile();
+        ltagTxhash = sparkState->GetSpendTxIds();
+    }
+
+    // Handle edge cases: negative startNumber or too large.
+    size_t skip = 0;
+    if (startNumber > 0) {
+        skip = static_cast<size_t>(startNumber);
+        if (skip > tags.size()) {
+            skip = tags.size();
+        }
+    }
+
+    UniValue serializedTagsTxIds(UniValue::VARR);
+    for (auto it = tags.begin() + skip; it != tags.end(); ++it) {
+        std::vector<unsigned char> serialized;
+        serialized.resize(34);
+        it->first.serialize(serialized.data());
+        std::vector<UniValue> data;
+        data.push_back(EncodeBase64(serialized.data(), 34));
+        uint256 txid;
+        uint256 ltagHash = primitives::GetLTagHash(it->first);
+        if (ltagTxhash.count(ltagHash) > 0)
+            txid = ltagTxhash[ltagHash];
+        data.push_back(EncodeBase64(txid.begin(), txid.size()));
+        UniValue entity(UniValue::VARR);
+        entity.push_backV(data);
+        serializedTagsTxIds.push_back(entity);
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("tagsandtxids", serializedTagsTxIds));
 
     return ret;
 }
@@ -1428,6 +1486,146 @@ UniValue getsparklatestcoinid(const JSONRPCRequest& request)
     }
 
     return UniValue(latestCoinId);
+}
+
+UniValue getmempoolsparktxids(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getmempoolsparktxids\n"
+                "\nReturns spark transaction ids existing in the mempool.\n"
+        );
+
+    UniValue result(UniValue::VARR);
+    std::vector<TxMempoolInfo> txs = mempool.infoAll();
+    for (auto it = txs.begin(); it != txs.end(); it++) {
+        if (!it->tx->IsSparkTransaction())
+            continue;
+        result.push_back(EncodeBase64(it->tx->GetHash().begin(), it->tx->GetHash().size()));
+    }
+
+    return result;
+}
+
+UniValue getmempoolsparktxs(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "getmempoolsparktxs\n"
+                "\nReturns spark metadata for each transaction id, in case tx already was removed from mempool, nothing will be returned for specific id.\n"
+                "\nArguments:\n"
+                "  \"txids\"\n"
+                "    [\n"
+                "      {\n"
+                "        \"txid\" (string) The transaction hash\n"
+                "      }\n"
+                "      ,...\n"
+                "    ]\n"
+                "\nResult:\n"
+                "txid , {\n"
+                "  \"lTags\"   Array of GroupElements, or a string 'MintTX' in case it is mint tx\n"
+                "  \"serial_context\"   byte array which is used to identify the output spark coins, it is unique for each ix\n"
+                "  \"coins\" Array of serialized spar::Coin elements, the output coins of the tx\n"
+                "}\n"
+                + HelpExampleCli("getmempoolsparktxs", "'{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}'")
+                + HelpExampleRpc("getmempoolsparktxs", "{\"txids\": [\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\",\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"]}")
+
+        );
+
+    UniValue txids = find_value(request.params[0].get_obj(), "txids");
+
+    UniValue result(UniValue::VOBJ);
+    for(UniValue const & element : txids.getValues()){
+        uint256 txid;
+        txid.SetHex(element.get_str());
+        CTransactionRef tx = mempool.get(txid);
+        if (tx == nullptr || !tx->IsSparkTransaction())
+            continue;
+
+        UniValue data(UniValue::VOBJ);
+        std::vector<UniValue> lTags_;
+        UniValue lTags_json(UniValue::VARR);
+        if (tx->IsSparkSpend())
+        {
+            try {
+                spark::SpendTransaction spend = spark::ParseSparkSpend(*tx);
+                auto lTags = spend.getUsedLTags();
+                for ( auto it = lTags.begin(); it != lTags.end(); ++it) {
+                    std::vector<unsigned char> serialized;
+                    serialized.resize(34);
+                    it->serialize(serialized.data());
+                    lTags_.push_back(EncodeBase64(serialized.data(), 34));
+                }
+            } catch (const std::exception &) {
+                continue;
+            }
+        } else {
+            lTags_.push_back("MintTX");
+        }
+        lTags_json.push_backV(lTags_);
+
+        data.push_back(Pair("lTags ", lTags_json)); // Spend lTags for corresponding tx,
+
+        std::vector<unsigned char> serial_context = spark::getSerialContext(*tx);
+        UniValue serial_context_json(UniValue::VARR);
+        serial_context_json.push_back(EncodeBase64(serial_context.data(), serial_context.size()));
+        data.push_back(Pair("serial_context", serial_context_json)); // spark serial context
+
+        std::vector<spark::Coin>  coins = spark::GetSparkMintCoins(*tx);
+        std::vector<UniValue> serialized_coins;
+        UniValue serialized_json(UniValue::VARR);
+        for (auto& coin: coins) {
+            CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
+            serializedCoin << coin;
+            std::vector<unsigned char> vch(serializedCoin.begin(), serializedCoin.end());
+            serialized_coins.push_back(EncodeBase64(vch.data(), size_t(vch.size()))); // coi
+        }
+        serialized_json.push_backV(serialized_coins);
+        data.push_back(Pair("coins", serialized_json));
+
+        bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);
+        data.push_back(Pair("isLocked", fLLMQLocked));
+
+        result.push_back(Pair(EncodeBase64(txid.begin(), txid.size()), data));
+    }
+
+    return result;
+}
+
+UniValue checkifmncollateral(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+                "checkifmncollateral\n"
+                "\nReturns bool value.\n"
+                "\nArguments:\n"
+                "  \"txHash\"\n"
+                "  \"index\"\n"
+                + HelpExampleCli("checkifmncollateral", "\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\""  "\"0\" ")
+                + HelpExampleRpc("checkifmncollateral", "\"b476ed2b374bb081ea51d111f68f0136252521214e213d119b8dc67b92f5a390\"" "\"0\" ")
+        );
+
+    std::string strTxId;
+    int index;
+
+    try {
+        strTxId = request.params[0].get_str();
+        index = std::stol(request.params[1].get_str());
+    } catch (std::logic_error const & e) {
+        throw std::runtime_error(std::string("An exception occurred while parsing parameters: ") + e.what());
+    }
+
+    uint256 txid = uint256S(strTxId);
+
+    CTransactionRef tx;
+    uint256 hashBlock;
+    if(!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true))
+        throw std::runtime_error("Unknown transaction.");
+
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    COutPoint o(txid, index);
+    bool fMnExists = deterministicMNManager->IsProTxWithCollateral(tx, index) || mnList.HasMNByCollateral(o);
+    return UniValue(fMnExists);
 }
 
 UniValue getaddresstxids(const JSONRPCRequest& request)
@@ -1561,6 +1759,154 @@ UniValue getspentinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+CAmount getzerocoinpoolbalance()
+{
+    CAmount nTotalAmount = 0;
+
+    // Iterate over all  mints
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    if (GetAddressIndex(uint160(), AddressType::zerocoinMint, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+    addressIndex.clear();
+
+    // Iterate over all  spends
+    if (GetAddressIndex(uint160(), AddressType::zerocoinSpend, addressIndex)) {
+        for (auto& it : addressIndex) {
+            nTotalAmount += it.second;
+        }
+    }
+
+    return  nTotalAmount;
+}
+
+CAmount getCVE17144amount()
+{
+    // CVE-2018-17144 was a critical bug that allowed double-spending of inputs
+    // in the same transaction. This function calculates the total amount of coins
+    // that were created due to this vulnerability at block 293526.
+    LOCK(cs_main);
+    if (chainActive.Height() < 293526) {
+        throw std::runtime_error("Chain height is less than 293,526.");
+    }
+
+    if (!Params().GetConsensus().IsMain()) {
+        throw std::runtime_error("Attack only occurred on mainnet");
+    }
+
+    CBlockIndex *atackedBlock = chainActive[293526];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, atackedBlock, ::Params().GetConsensus())) {
+        throw std::runtime_error("Failed to read block 293526 from disk");
+    }
+    CAmount amount = 0;
+    for (CTransactionRef tx : block.vtx) {
+        if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
+            std::set<COutPoint> vInOutPoints;
+            for (const auto& txin : tx->vin)
+            {
+                if (!vInOutPoints.insert(txin.prevout).second) {
+                    CTransactionRef tx;
+                    uint256 hashBlock;
+                    if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
+                        continue;
+                    }
+                    if (txin.prevout.n >= tx->vout.size()) {
+                        continue;  // Skip if output index is out of bounds
+                    }
+                    amount += tx->vout[txin.prevout.n].nValue;
+                }
+            }
+        }
+    }
+    return amount;
+}
+
+// another way to calculate the forged amount
+CAmount getCVE17144amountNew()
+{
+    // CVE-2018-17144 was a critical bug that allowed double-spending of inputs
+    // in the same transaction. This function calculates the total amount of coins
+    // that were created due to this vulnerability at block 293526.
+    LOCK(cs_main);
+    if (chainActive.Height() < 293526) {
+        throw std::runtime_error("Chain height is less than 293,526.");
+    }
+
+    if (!Params().GetConsensus().IsMain()) {
+        throw std::runtime_error("Attack only occurred on mainnet");
+    }
+
+    CBlockIndex *atackedBlock = chainActive[293526];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, atackedBlock, ::Params().GetConsensus())) {
+        throw std::runtime_error("Failed to read block 293526 from disk");
+    }
+
+    std::unordered_map<uint160, AddressType> addresses;
+    for (CTransactionRef tx : block.vtx) {
+        if (!tx->IsCoinBase() && !tx->HasNoRegularInputs()) {
+            for (const auto& txout : tx->vout)
+            {
+                CTxDestination addr;
+                if (!ExtractDestination(txout.scriptPubKey, addr))
+                    continue;
+                CBitcoinAddress address(addr);
+                uint160 hashBytes;
+                AddressType type = AddressType::unknown;
+                if (!address.GetIndexKey(hashBytes, type)) {
+                    continue;
+                }
+                addresses.insert({hashBytes, type});
+            }
+
+            for (const auto& txin : tx->vin)
+            {
+                CTransactionRef tx;
+                uint256 hashBlock;
+                if (!GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hashBlock, true)) {
+                    continue;
+                }
+                if (txin.prevout.n >= tx->vout.size()) {
+                    continue;  // Skip if output index is out of bounds
+                }
+
+                CTxDestination addr;
+                if (!ExtractDestination(tx->vout[txin.prevout.n].scriptPubKey, addr))
+                    continue;
+                CBitcoinAddress address(addr);
+                uint160 hashBytes;
+                AddressType type = AddressType::unknown;
+                if (!address.GetIndexKey(hashBytes, type)) {
+                    continue;
+                }
+                addresses.insert({hashBytes, type});
+            }
+        }
+    }
+
+    CAmount result = 0;
+    for (const auto& it : addresses) {
+        std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+        if (!GetAddressIndex(it.first, it.second, addressIndex)) {
+            continue;
+        }
+        CAmount amount = 0;
+        for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+            amount += it->second;
+        }
+
+        if (amount < 0)
+            result += amount;
+    }
+
+
+
+    return result;
+}
+
 UniValue gettotalsupply(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -1582,10 +1928,53 @@ UniValue gettotalsupply(const JSONRPCRequest& request)
     if(!pblocktree->ReadTotalSupply(total))
         throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
 
+    total -= getzerocoinpoolbalance(); //498,397.00000000 The actual amount of coins forged during the Zerocoin attacks (the negative balance after the pool closed),
+    total += getCVE17144amount(); //320,841.99803185 The cmount of forged coins during CVE-2018-17144 attacks,
+    total -= 16810168037465;// burnt Coins sent to unrecoverable address https://explorer.firo.org/tx/0b53178c1b22bae4c04ef943ee6d6d30f2483327fe9beb54952951592e8ce368
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("total", total));
 
     return result;
+}
+
+UniValue getzerocoinpoolbalance(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getzerocoinpoolbalance\n"
+                "\nReturns the total coin amount, which remains after zerocoin pool closed.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getzerocoinpoolbalance", "")
+                + HelpExampleRpc("getzerocoinpoolbalance", "")
+        );
+
+    return  getzerocoinpoolbalance();
+}
+
+UniValue getCVE17144amount(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getCVE17144amount\n"
+                "\nReturns the total amount of forged coins during CVE-2018-17144 attacks.\n"
+                "\nArguments: none\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"total\"  (string) The total balance\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getCVE17144amount", "")
+                + HelpExampleRpc("getCVE17144amount", "")
+        );
+    UniValue results(UniValue::VOBJ);
+    results.push_back(Pair("firstWay",getCVE17144amount()));
+    results.push_back(Pair("secondWay",getCVE17144amountNew()));
+    return results;
 }
 
 UniValue getinfoex(const JSONRPCRequest& request)
@@ -1688,49 +2077,56 @@ UniValue echo(const JSONRPCRequest& request)
 }
 
 static const CRPCCommand commands[] =
-{ //  category              name                      actor (function)         okSafeMode
-  //  --------------------- ------------------------  -----------------------  ----------
-    { "control",            "getinfo",                &getinfo,                true,  {} }, /* uses wallet if enabled */
-    { "control",            "getmemoryinfo",          &getmemoryinfo,          true,  {} },
-    { "util",               "validateaddress",        &validateaddress,        true,  {"address"} }, /* uses wallet if enabled */
-    { "util",               "createmultisig",         &createmultisig,         true,  {"nrequired","keys"} },
-    { "util",               "verifymessage",          &verifymessage,          true,  {"address","signature","message"} },
-    { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true,  {"privkey","message"} },
+{ //  category              name                      actor (function)         okSafeMode   ArgNames
+  //  --------------------- ------------------------  -----------------------  ----------   ---------
+    { "control",            "getinfo",                &getinfo,                true,        {} }, /* uses wallet if enabled */
+    { "control",            "getmemoryinfo",          &getmemoryinfo,          true,        {} },
+    { "util",               "validateaddress",        &validateaddress,        true,        {"address"} }, /* uses wallet if enabled */
+    { "util",               "createmultisig",         &createmultisig,         true,        {"nrequired","keys"} },
+    { "util",               "verifymessage",          &verifymessage,          true,        {"address","signature","message"} },
+    { "util",               "verifymessagewithsparkaddress", &verifymessagewithsparkaddress, true, {"sparkaddress","signature","message"} },
+    { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true,        {"privkey","message"} },
 
         /* Address index */
-    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true  },
-    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false },
-    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
-    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
-    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
+    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true,         {} },
+    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false,        {} },
+    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false,        {} },
+    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false,        {} },
+    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false,        {} },
+    { "addressindex",       "getspentinfo",           &getspentinfo,           false,        {} },
 
     /* Znode features */
-    { "firo",              "znsync",                 &mnsync,                 true,  {} },
-    { "firo",              "evoznsync",              &mnsync,                 true,  {} },
-
-    { "firo",              "verifyprivatetxown",      &verifyprivatetxown,      true,  {} },
+    { "firo",              "znsync",                 &mnsync,                 true,           {} },
+    { "firo",              "evoznsync",              &mnsync,                 true,           {} },
 
     /* Not shown in help */
-    { "hidden",             "getinfoex",              &getinfoex,              false },
-    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
-
+    { "hidden",             "getinfoex",              &getinfoex,              false,         {} },
+    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false,         {} },
+    { "addressindex",       "getzerocoinpoolbalance", &getzerocoinpoolbalance, false,         {} },
+    { "addressindex",       "getCVE17144amount",      &getCVE17144amount,      false,         {} },
         /* Mobile related */
-    { "mobile",             "getanonymityset",        &getanonymityset,        false  },
-    { "mobile",             "getmintmetadata",        &getmintmetadata,        true  },
-    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false  },
-    { "mobile",             "getfeerate",             &getfeerate,             true  },
-    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true  },
+    { "mobile",             "getanonymityset",        &getanonymityset,        false,         {} },
+    { "mobile",             "getmintmetadata",        &getmintmetadata,        true,          {} },
+    { "mobile",             "getusedcoinserials",     &getusedcoinserials,     false,         {} },
+    { "mobile",             "getfeerate",             &getfeerate,             true,          {} },
+    { "mobile",             "getlatestcoinid",        &getlatestcoinid,        true,          {} },
 
         /* Mobile Spark */
-    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false },
-    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true  },
-    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false },
-    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true  },
+    { "mobile",             "getsparkanonymityset",   &getsparkanonymityset, false,            {} },
+    { "mobile",             "getsparkanonymitysetmeta",   &getsparkanonymitysetmeta, false,    {} },
+    { "mobile",             "getsparkanonymitysetsector",   &getsparkanonymitysetsector, false,{} },
+    { "mobile",             "getsparkmintmetadata",   &getsparkmintmetadata, true,             {} },
+    { "mobile",             "getusedcoinstags",       &getusedcoinstags,     false,            {} },
+    { "mobile",             "getusedcoinstagstxhashes", &getusedcoinstagstxhashes, false,      {} },
+    { "mobile",             "getsparklatestcoinid",   &getsparklatestcoinid, true,             {} },
+    { "mobile",             "getmempoolsparktxids",   &getmempoolsparktxids, true,             {} },
+    { "mobile",             "getmempoolsparktxs",     &getmempoolsparktxs,       true,         {} },
 
+    { "mobile",             "checkifmncollateral",   &checkifmncollateral, false,              {} },
 
-    { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
-    { "hidden",             "echo",                   &echo,                   true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
-    { "hidden",             "echojson",               &echo,                  true,  {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"}},
+    { "hidden",             "setmocktime",            &setmocktime,            true,           {"timestamp"} },
+    { "hidden",             "echo",                   &echo,                   true,           {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"} },
+    { "hidden",             "echojson",               &echo,                  true,            {"arg0","arg1","arg2","arg3","arg4","arg5","arg6","arg7","arg8","arg9"} },
 };
 
 void RegisterMiscRPCCommands(CRPCTable &t)

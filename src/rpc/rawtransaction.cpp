@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <boost/assign/list_of.hpp>
 #include <univalue.h>
-#include "sigma.h"
 #include "evo/cbtx.h"
 #include "evo/specialtx.h"
 #include "evo/spork.h"
@@ -40,7 +39,9 @@
 #include "llmq/quorums_instantsend.h"
 #include "llmq/quorums_chainlocks.h"
 #include "evo/providertx.h"
-#include "lelantus.h"
+
+// Forward declaration with default parameter for calls within this file
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock = true);
 
 namespace {
     template<class Tx>
@@ -88,7 +89,7 @@ namespace {
     }
 }
 
-void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, bool includeChainlock)
 {
     uint256 txid = tx.GetHash();
     entry.push_back(Pair("txid", txid.GetHex()));
@@ -105,53 +106,24 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsSigmaSpend()) {
-            std::unique_ptr<sigma::CoinSpend> spend;
-            uint32_t pubcoinId;
-            try {
-                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
-            } catch (CBadTxIn&) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
-            } catch (std::ios_base::failure &) {
-                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
-            }
-            in.push_back(Pair("anonymityGroup", int64_t(pubcoinId)));
-            fillStdFields(in, txin);
-
-            in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
-            in.push_back(Pair("valueSat", spend->getIntDenomination()));
-        } else if (txin.IsLelantusJoinSplit()) {
-            in.push_back("joinsplit");
-            fillStdFields(in, txin);
-            std::unique_ptr <lelantus::JoinSplit> jsplit;
-            try {
-                jsplit = lelantus::ParseLelantusJoinSplit(tx);
-            }
-            catch (const std::exception &) {
-                continue;
-            }
-            in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));
-            UniValue serials(UniValue::VARR);
-            for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
-                serials.push_back(serial.GetHex());
-            }
-            in.push_back(Pair("serials", serials));
         } else if (tx.IsSparkSpend()) {
             in.push_back("sparkSpend");
             fillStdFields(in, txin);
-            std::unique_ptr<spark::SpendTransaction> sparkSpend;
             try {
-                sparkSpend = std::make_unique<spark::SpendTransaction>(spark::ParseSparkSpend(tx));
+                spark::SpendTransaction sparkSpend = spark::ParseSparkSpend(tx);
+                const uint64_t fee = sparkSpend.getFee();
+                if (fee > static_cast<uint64_t>(MAX_MONEY)) {
+                    throw std::invalid_argument("Spark spend fee is out of range");
+                }
+                in.push_back(Pair("nFees", ValueFromAmount(static_cast<CAmount>(fee))));
+                UniValue lTags(UniValue::VARR);
+                for (GroupElement const & lTag : sparkSpend.getUsedLTags()) {
+                    lTags.push_back(lTag.GetHex());
+                }
+                in.push_back(Pair("lTags", lTags));
+            } catch (const std::exception &) {
+                // Leave Spark metadata unset and still emit this vin entry.
             }
-            catch (const std::exception &) {
-                continue;
-            }
-            in.push_back(Pair("nFees", ValueFromAmount(sparkSpend->getFee())));
-            UniValue lTags(UniValue::VARR);
-            for (GroupElement const & lTag : sparkSpend->getUsedLTags()) {
-                lTags.push_back(lTag.GetHex());
-            }
-            in.push_back(Pair("lTags", lTags));
         } else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
@@ -228,7 +200,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     }
     bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);
     entry.push_back(Pair("instantlock", fLLMQLocked));
-    entry.push_back(Pair("chainlock", chainLock));
+    if (includeChainlock) {
+        entry.push_back(Pair("chainlock", chainLock));
+    }
 
     if (tx.nVersion >= 3) {
         switch(tx.nType){
@@ -257,6 +231,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 entry.push_back(Pair("lelantusData", HexStr(tx.vExtraPayload)));
                 break;
             case TRANSACTION_SPARK:
+            case TRANSACTION_SPARK_V2:
                 entry.push_back(Pair("sparkData", HexStr(tx.vExtraPayload)));
                 break;
             default:
@@ -549,12 +524,12 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
     }
 
     for (unsigned int idx = 0; idx < inputs.size(); idx++) {
-        const UniValue& input = inputs[idx];
-        const UniValue& o = input.get_obj();
+        const auto input = inputs[idx];
+        const auto o = input.get_obj();
 
         uint256 txid = ParseHashO(o, "txid");
 
-        const UniValue& vout_v = find_value(o, "vout");
+        const auto vout_v = find_value(o, "vout");
         if (!vout_v.isNum())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
         int nOutput = vout_v.get_int();
@@ -564,13 +539,13 @@ UniValue createrawtransaction(const JSONRPCRequest& request)
         uint32_t nSequence = (rawTx.nLockTime ? std::numeric_limits<uint32_t>::max() - 1 : std::numeric_limits<uint32_t>::max());
 
         // set the sequence number if passed in the parameters object
-        const UniValue& sequenceObj = find_value(o, "sequence");
+        const auto sequenceObj = find_value(o, "sequence");
         if (sequenceObj.isNum()) {
             int64_t seqNr64 = sequenceObj.get_int64();
             if (seqNr64 < 0 || seqNr64 > std::numeric_limits<uint32_t>::max())
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, sequence number is out of range");
             else
-                nSequence = (uint32_t)seqNr64;
+                nSequence = static_cast<uint32_t>(seqNr64);
         }
 
         CTxIn in(COutPoint(txid, nOutput), CScript(), nSequence);

@@ -28,9 +28,11 @@ const unsigned char HASH_MODE_KDF = 3; // a key derivation function derived from
 // Transcript labels
 const std::string LABEL_TRANSCRIPT_BPPLUS = "BULLETPROOF_PLUS_V1";
 const std::string LABEL_TRANSCRIPT_CHAUM = "CHAUM_V1";
+const std::string LABEL_TRANSCRIPT_CHAUM_V2 = "CHAUM_V2";
 const std::string LABEL_TRANSCRIPT_GROOTLE = "GROOTLE_V1";
 const std::string LABEL_TRANSCRIPT_SCHNORR = "SCHNORR_V1";
-const std::string LABEL_TRANSCRIPT_CLAIM = "CLAIM_V1";
+const std::string LABEL_TRANSCRIPT_CLAIM = "CLAIM_V2";
+const std::string LABEL_TRANSCRIPT_OWNERSHIP = "OWNERSHIP_V1";
 
 // Generator labels
 const std::string LABEL_GENERATOR_F = "F";

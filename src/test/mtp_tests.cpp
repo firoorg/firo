@@ -83,7 +83,9 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     auto hash3 = mtp::hash(block3, pow_limit);
 
     BOOST_CHECK(hash1 != hash3);
-    BOOST_CHECK(block1.nNonce != block3.nNonce);
+    CBlock block3WithBlock1MtpData(block3);
+    block3WithBlock1MtpData.mtpHashData = block1.mtpHashData;
+    BOOST_CHECK(false == mtp::verify(block1.nNonce, block3WithBlock1MtpData, pow_limit));
 
     BOOST_CHECK(mtp::verify(block1.nNonce, block1, pow_limit));
     BOOST_CHECK(mtp::verify(block2.nNonce, block2, pow_limit));

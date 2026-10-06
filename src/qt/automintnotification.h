@@ -1,7 +1,6 @@
 #ifndef FIRO_QT_AUTOMINTNOTIFICATION_H
 #define FIRO_QT_AUTOMINTNOTIFICATION_H
 
-#include "lelantusmodel.h"
 #include "sparkmodel.h"
 #include "walletmodel.h"
 
@@ -11,31 +10,6 @@ namespace Ui {
     class AutomintNotification;
 }
 
-class AutomintNotification : public QDialog
-{
-    Q_OBJECT;
-
-public:
-    explicit AutomintNotification(QWidget *parent = 0);
-    ~AutomintNotification();
-
-public:
-    void setModel(WalletModel *model);
-
-Q_SIGNALS:
-    void ackMintAll(AutoMintAck, CAmount, QString);
-
-public Q_SLOTS:
-    bool close();
-
-private Q_SLOTS:
-    void accept();
-    void reject();
-
-private:
-    Ui::AutomintNotification *ui;
-    LelantusModel *lelantusModel;
-};
 
 class AutomintSparkNotification : public QDialog
 {
@@ -47,6 +21,7 @@ public:
 
 public:
     void setModel(WalletModel *model);
+    void applyTheme();
 
 Q_SIGNALS:
     void ackMintSparkAll(AutoMintSparkAck, CAmount, QString);
@@ -55,8 +30,8 @@ public Q_SLOTS:
     bool close();
 
 private Q_SLOTS:
-    void accept();
-    void reject();
+    void accept() override;
+    void reject() override;
 
 private:
     Ui::AutomintNotification *ui;

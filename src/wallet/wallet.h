@@ -7,8 +7,7 @@
 #define BITCOIN_WALLET_WALLET_H
 
 #include "amount.h"
-#include "../sigma/coin.h"
-#include "../liblelantus/coin.h"
+#include "libspark/keys.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -26,9 +25,6 @@
 #include "../base58.h"
 #include "firo_params.h"
 #include "univalue.h"
-
-#include "hdmint/tracker.h"
-#include "hdmint/wallet.h"
 
 #include "primitives/mint_spend.h"
 
@@ -189,7 +185,8 @@ struct CRecipient
     CScript scriptPubKey;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
-    std::string address;
+    std::string address {};
+    std::string memo {};
 };
 
 typedef std::map<std::string, std::string> mapValue_t;
@@ -212,6 +209,18 @@ static inline void WriteOrderPos(const int64_t& nOrderPos, mapValue_t& mapValue)
         return;
     mapValue["n"] = i64tostr(nOrderPos);
 }
+
+/** An affordable batch has at least two inputs and no error. Amounts are estimates until construction. */
+struct ConsolidationPlan
+{
+    std::vector<COutPoint> inputs;
+    CAmount total{0}; //!< Selected value before deducting the fee.
+    CAmount fee{0};
+    unsigned int signedBytes{0};
+    size_t eligibleCount{0};
+    bool sizeLimited{false}; //!< All eligible outputs exceed the weight or sigop limit.
+    std::string error;
+};
 
 struct COutputEntry
 {
@@ -329,6 +338,11 @@ public:
     int64_t nOrderPos; //!< position in ordered transaction list
     std::unordered_set<uint32_t> changes; //!< positions of changes in vout
 
+    // Memory-only Spark output metadata staged by transaction construction.
+    // CommitTransaction persists it atomically before mempool acceptance, and
+    // erases it again if acceptance fails.
+    std::vector<std::pair<CScript, CSparkOutputTx>> pendingSparkOutputRecords;
+
     // memory only
     mutable bool fDebitCached;
     mutable bool fCreditCached;
@@ -389,6 +403,7 @@ public:
         nChangeCached = 0;
         nOrderPos = -1;
         changes.clear();
+        pendingSparkOutputRecords.clear();
     }
 
     ADD_SERIALIZE_METHODS;
@@ -640,8 +655,6 @@ private:
     std::vector<char> _ssExtra;
 };
 
-class LelantusJoinSplitBuilder;
-
 
 /**Open unlock wallet window**/
 //static boost::signals2::signal<void (CWallet *wallet)> UnlockWallet;
@@ -734,6 +747,17 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
+    /*
+     * Serializes the walletpassphrase RPC for this wallet, so that unlocking
+     * the wallet and scheduling the matching relock timer happen atomically
+     * with respect to other walletpassphrase calls.
+     *
+     * This must never be acquired while cs_wallet is held: it is held across
+     * RPCRunLater(), which blocks until a running relock callback has returned,
+     * and that callback acquires cs_wallet.
+     */
+    CCriticalSection cs_unlock;
+
     const std::string strWalletFile;
 
     void LoadKeyPool(int nIndex, const CKeyPool &keypool)
@@ -759,8 +783,6 @@ public:
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
 
-    std::unique_ptr<CHDMintWallet> zwallet;
-
     std::unique_ptr<CSparkWallet> sparkWallet;
 
     std::atomic<bool> fUnlockRequested;
@@ -778,6 +800,9 @@ public:
 
     ~CWallet()
     {
+        // Spark jobs can notify subscribers that access this wallet's members.
+        if (sparkWallet)
+            sparkWallet->FinishTasks();
         delete pwalletdbEncryption;
         pwalletdbEncryption = NULL;
     }
@@ -798,7 +823,6 @@ public:
         fAnonymizableTallyCachedNonDenom = false;
         vecAnonymizableTallyCached.clear();
         vecAnonymizableTallyCachedNonDenom.clear();
-        zwallet = NULL;
         bip47wallet.reset();
     }
 
@@ -830,6 +854,15 @@ public:
      * populate vCoins with vector of available COutputs.
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, bool fForUseInInstantSend = false) const;
+
+    /** Confirmed, spendable, unlocked non-collateral coins grouped by their exact destination script. */
+    std::map<CTxDestination, std::vector<COutPoint>> GetConsolidationCoins(const CTxDestination& destination = CNoDestination()) const;
+
+    /** Plan affordable batches without private keys, key reservation, or wallet changes. */
+    std::map<CTxDestination, ConsolidationPlan> GetConsolidationPlans(const CTxDestination& destination = CNoDestination()) const;
+
+    /** The plan for one destination; its error is set when the destination has no eligible outputs. */
+    ConsolidationPlan GetConsolidationPlan(const CTxDestination& destination) const;
 
     void AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const;
 
@@ -929,47 +962,18 @@ public:
     void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock) override;
     bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex* pIndex, int posInBlock, bool fUpdate);
     CBlockIndex* ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false, bool fRecoverMnemonic = false);
+    CBlockIndex* GetBlockByDate(CBlockIndex* pindexStart, const std::string& dateStr);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) override;
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime, CConnman* connman);
     CAmount GetBalance(bool fExcludeLocked = false) const;
-    std::pair<CAmount, CAmount> GetPrivateBalance() const;
-    std::pair<CAmount, CAmount> GetPrivateBalance(size_t &confirmed, size_t &unconfirmed) const;
+    bool TryGetBalances(CAmount& balance, CAmount& unconfirmedBalance, CAmount& newImmatureBalance, CAmount& mintableBalance) const;
     CAmount GetUnconfirmedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetWatchOnlyBalance() const;
     CAmount GetUnconfirmedWatchOnlyBalance() const;
     CAmount GetImmatureWatchOnlyBalance() const;
     CAmount GetLegacyBalance(const isminefilter& filter, int minDepth, const std::string* account, bool fAddLocked = false) const;
-
-    static std::vector<CRecipient> CreateSigmaMintRecipients(
-        std::vector<sigma::PrivateCoin>& coins,
-        std::vector<CHDMint>& vDMints);
-
-    static CRecipient CreateLelantusMintRecipient(
-        lelantus::PrivateCoin& coin,
-        CHDMint& vDMint,
-        bool generate = true);
-
-    static int GetRequiredCoinCountForAmount(
-        const CAmount& required,
-        const std::vector<sigma::CoinDenomination>& denominations);
-
-    static CAmount SelectMintCoinsForAmount(
-        const CAmount& required,
-        const std::vector<sigma::CoinDenomination>& denominations,
-        std::vector<sigma::CoinDenomination>& coinsOut);
-
-    static CAmount SelectSpendCoinsForAmount(
-        const CAmount& required,
-        const std::list<CSigmaEntry>& coinsIn,
-        std::vector<CSigmaEntry>& coinsOut);
-
-    // Returns a list of unspent and verified coins, I.E. coins which are ready
-    // to be spent.
-    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
-
-    std::list<CLelantusEntry> GetAvailableLelantusCoins(const CCoinControl *coinControl = NULL, bool includeUnsafe = false, bool forEstimation = false) const;
 
     // Returns the list of pairs of coins and meta data for that coin,
     std::list<CSparkMintMeta> GetAvailableSparkCoins(const CCoinControl *coinControl = NULL) const;
@@ -985,25 +989,6 @@ public:
      * \param[out] coinsToMint_out Coins which will be re-minted by the user to get the change back.
      * \returns true, if it was possible to spend exactly required(rounded up to 0.1 firo) amount using coins we have.
      */
-    bool GetCoinsToSpend(
-        CAmount required,
-        std::vector<CSigmaEntry>& coinsToSpend_out,
-        std::vector<sigma::CoinDenomination>& coinsToMint_out,
-        std::list<CSigmaEntry>& coins,
-        const size_t coinsLimit = SIZE_MAX,
-        const CAmount amountLimit = MAX_MONEY,
-        const CCoinControl *coinControl = NULL) const;
-
-    bool GetCoinsToJoinSplit(
-            CAmount required,
-            std::vector<CLelantusEntry>& coinsToSpend_out,
-            CAmount& changeToMint,
-            std::list<CLelantusEntry> coins,
-            const size_t coinsToSpendLimit = SIZE_MAX,
-            const CAmount amountToSpendLimit = MAX_MONEY,
-            const CCoinControl *coinControl = NULL) const;
-
-    std::vector<unsigned char> ProvePrivateTxOwn(const uint256& txid, const std::string& message) const;
 
     /**
      * Insert additional inputs into the transaction by
@@ -1019,21 +1004,13 @@ public:
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, int nExtraPayloadSize = 0, bool fUseInstantSend=false);
 
+    /** Prepare one size-limited self-transfer, optionally returning its fresh plan. Does not commit. */
+    bool CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
+                                       CReserveKey& reserveKey, CAmount& fee, std::string& error, ConsolidationPlan* usedPlan = nullptr);
+
     /**
      * Add Mint and Spend functions
      */
-    void ListAvailableSigmaMintCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed) const;
-    void ListAvailableLelantusMintCoins(std::vector<COutput> &vCoins, bool fOnlyConfirmed) const;
-
-    bool CreateMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
-    bool CreateMintTransaction(CScript pubCoin, int64_t nValue,
-                                       CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
-    bool CreateLelantusMintTransactions(CAmount valueToMint, std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
-                                        CAmount& nAllFeeRet, std::vector<CHDMint>& dMints,
-                                        std::list<CReserveKey>& reservekeys, int& nChangePosInOut,
-                                        std::string& strFailReason, const CCoinControl *coinControl, bool autoMintAll = false, bool sign = true);
-
     std::pair<CAmount, CAmount> GetSparkBalance();
     bool IsSparkAddressMine(const std::string& address);
 
@@ -1045,61 +1022,57 @@ public:
         int& nChangePosInOut,
         bool subtractFeeFromAmount,
         std::string& strFailReason,
+        bool fSplit,
         const CCoinControl *coinControl,
         bool autoMintAll = false);
 
-    CWalletTx CreateSigmaSpendTransaction(
-        const std::vector<CRecipient>& recipients,
-        CAmount& fee,
-        std::vector<CSigmaEntry>& selected,
-        std::vector<CHDMint>& changes,
-        bool& fChangeAddedToFee,
-        const CCoinControl *coinControl = NULL);
-
-    CWalletTx CreateLelantusJoinSplitTransaction(
-        const std::vector<CRecipient>& recipients,
-        CAmount& fee,
-        const std::vector<CAmount>& newMints,
-        std::vector<CLelantusEntry>& spendCoins,
-        std::vector<CSigmaEntry>& sigmaSpendCoins,
-        std::vector<CHDMint>& mintCoins,
-        const CCoinControl *coinControl = NULL,
-        std::function<void(CTxOut & , LelantusJoinSplitBuilder const &)> modifier = nullptr);
-
-    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
-    bool CommitLelantusTransaction(CWalletTx& wtxNew, std::vector<CLelantusEntry>& spendCoins, std::vector<CSigmaEntry>& sigmaSpendCoins, std::vector<CHDMint>& mintCoins);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
-
-    std::string MintAndStoreSigma(
-        const std::vector<CRecipient>& vecSend,
-        const std::vector<sigma::PrivateCoin>& privCoins,
-        std::vector<CHDMint> vDMints,
-        CWalletTx &wtxNew,
-        bool fAskFee=false,
-        const CCoinControl *coinControl = NULL);
-
-    std::string MintAndStoreLelantus(
-            const CAmount& value,
-            std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
-            std::vector<CHDMint>& mints,
-            bool autoMintAll = false,
-            bool fAskFee = false,
-            const CCoinControl *coinControl = NULL);
 
     std::string MintAndStoreSpark(
             const std::vector<spark::MintedCoinData>& outputs,
             std::vector<std::pair<CWalletTx, CAmount>>& wtxAndFee,
             bool subtractFeeFromAmount,
+            bool fSplit,
             bool autoMintAll = false,
             bool fAskFee = false,
             const CCoinControl *coinControl = NULL);
 
+    /**
+     * Build a Spark spend. Chaum V2 is selected when the next block is at or
+     * past nSparkChaumV2StartBlock.
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @param[out] recipientAmounts Optional caller-owned vector. If non-null it
+     *     is overwritten with post-fee amounts (transparent, then private).
+     *     The wallet does not take ownership of the container.
+     * @return The constructed wallet transaction.
+     * @pre The wallet is unlocked and a Spark wallet is available.
+     */
     CWalletTx CreateSparkSpendTransaction(
             const std::vector<CRecipient>& recipients,
             const std::vector<std::pair<spark::OutputCoinData, bool>>&  privateRecipients,
             CAmount &fee,
-            const CCoinControl *coinControl = NULL);
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1,
+            std::vector<CAmount>* recipientAmounts = nullptr);
+
+    /**
+     * Build a Spark name transaction using the next block's activation rules
+     * (name format, fee script, and Chaum V2).
+     * @param[in] expectedNextBlockHeight Caller snapshot of chainActive.Height()+1.
+     *     If >= 0, it must still match at construction or the call throws.
+     *     The default -1 skips that check.
+     * @return The constructed wallet transaction.
+     * @pre The wallet is unlocked and a Spark wallet is available.
+     */
+    CWalletTx CreateSparkNameTransaction(
+            CSparkNameTxData &sparkNameData,
+            CAmount sparkNameFee,
+            CAmount &txFee,
+            const CCoinControl *coinControl = NULL,
+            int expectedNextBlockHeight = -1);
 
     CWalletTx SpendAndStoreSpark(
             const std::vector<CRecipient>& recipients,
@@ -1107,21 +1080,26 @@ public:
             CAmount &fee,
             const CCoinControl *coinControl = NULL);
 
-    bool LelantusToSpark(std::string& strFailReason);
+    std::vector<CWalletTx> SpendAndStoreSparkSingleInput(
+            const std::vector<CRecipient>& recipients,
+            const std::vector<std::pair<spark::OutputCoinData, bool>>& privateRecipients,
+            CAmount& totalFee,
+            const CCoinControl* coinControl = NULL);
 
-    std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
-    std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
+    /**
+     * Persist a constructed transaction. If fCheckTransaction is true, require
+     * mempool acceptance before AddToWallet so a rejection fails the commit.
+     * That check does not override -walletbroadcast=0; relay still requires
+     * fBroadcastTransactions.
+     */
+    bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state, bool fCheckTransaction = false);
 
-    std::vector<CLelantusEntry> JoinSplitLelantus(const std::vector<CRecipient>& recipients, const std::vector<CAmount>& newMints, CWalletTx& result,  const CCoinControl *coinControl = NULL);
-
-    std::pair<CAmount, unsigned int> EstimateJoinSplitFee(CAmount required, bool subtractFeeFromAmount, std::list<CSigmaEntry> sigmaCoins, std::list<CLelantusEntry> coins, const CCoinControl *coinControl);
-
-    bool GetMint(const uint256& hashSerial, CSigmaEntry& sigmaEntry, bool forEstimation = false) const;
-
-    bool GetMint(const uint256& hashSerial, CLelantusEntry& mint, bool forEstimation = false) const;
-
-    bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey, CConnman* connman, CValidationState& state);
-
+    /**
+     * Testing-only hook for Spark output persistence in CommitTransaction.
+     * Negative values disable the hook. 0 fails before any write. A positive
+     * value succeeds that many writes, then fails (to test transactional abort).
+     */
+    static void SetSparkOutputWriteFailureForTesting(int failAfterWrites);
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
     bool ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecAmounts);
@@ -1130,7 +1108,7 @@ public:
     bool AddAccountingEntry(const CAccountingEntry&);
     bool AddAccountingEntry(const CAccountingEntry&, CWalletDB *pwalletdb);
     template <typename ContainerType>
-    bool DummySignTx(CMutableTransaction &txNew, const ContainerType &coins);
+    bool DummySignTx(CMutableTransaction &txNew, const ContainerType &coins) const;
 
     static CFeeRate minTxFee;
     static CFeeRate fallbackFee;
@@ -1139,6 +1117,16 @@ public:
      * and the required fee
      */
     static CAmount GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool);
+    /**
+     * Estimate the minimum fee, applying coin-control overrides when present.
+     * Confirmation target is coinControl->nConfirmTarget when it is greater
+     * than 0, otherwise nTxConfirmTarget. nMinimumTotalFee raises that
+     * estimate when higher. fOverrideFeeRate then replaces the result with
+     * coinControl->nFeeRate.
+     * @param[in] coinControl May be null; then only the wallet confirmation target is used.
+     * @return The selected fee in satoshis.
+     */
+    static CAmount GetMinimumFee(unsigned int nTxBytes, const CCoinControl* coinControl, const CTxMemPool& pool);
     /**
      * Estimate the minimum fee considering required fee and targetFee or if 0
      * then fee estimation for nConfirmTarget
@@ -1163,6 +1151,9 @@ public:
     void MarkReserveKeysAsUsed(int64_t keypool_id);
     const std::map<CKeyID, int64_t>& GetAllReserveKeys() const { return m_pool_key_to_index; }
 
+    spark::FullViewKey GetSparkViewKey();
+    std::string GetSparkViewKeyStr();
+
     std::set< std::set<CTxDestination> > GetAddressGroupings();
     std::map<CTxDestination, CAmount> GetAddressBalances();
 
@@ -1175,7 +1166,26 @@ public:
      */
     CAmount GetDebit(const CTxIn& txin, const CTransaction&tx, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
+    /**
+     * Determine ownership of an output using its containing transaction,
+     * avoiding a wallet-wide scan to recover the Spark serial context.
+     * @param[in] txout   Output to inspect
+     * @param[in] tx      Transaction containing txout
+     * @return Ownership flags for txout
+     * @pre txout is an output of tx
+     */
+    isminetype IsMine(const CTxOut& txout, const CTransaction& tx) const;
     CAmount GetCredit(const CTxOut& txout, const isminefilter& filter) const;
+    /**
+     * Return the credit of an output using its containing transaction,
+     * avoiding a wallet-wide scan to recover the Spark serial context.
+     * @param[in] txout   Output to inspect
+     * @param[in] tx      Transaction containing txout
+     * @param[in] filter  Ownership filter
+     * @return Credit amount if the output matches the filter, otherwise 0
+     * @pre txout is an output of tx
+     */
+    CAmount GetCredit(const CTxOut& txout, const CTransaction& tx, const isminefilter& filter) const;
     bool IsChange(const uint256& tx, const CTxOut& txout) const;
     CAmount GetChange(const uint256& tx, const CTxOut& txout) const;
     bool IsMine(const CTransaction& tx) const;
@@ -1193,10 +1203,6 @@ public:
     DBErrors ZapWalletTx(std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
 
-    // Remove all CSigmaEntry and CHDMint objects from WalletDB.
-    DBErrors ZapSigmaMints();
-    // Remove all Lelantus HDMint objects from WalletDB
-    DBErrors ZapLelantusMints();
     // Remove all Spark Mint objects from WalletDB
     DBErrors ZapSparkMints();
 
@@ -1280,10 +1286,7 @@ public:
      */
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx,
             ChangeType status)> NotifyTransactionChanged;
-    /**
-     * sigma/lelantus entry changed.
-     * @note called with lock cs_wallet held.
-     */
+
     boost::signals2::signal<void (CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)> NotifyZerocoinChanged;
 
 
@@ -1364,9 +1367,6 @@ public:
     /* Generates and strores a new payment code for receiving*/
     bip47::CPaymentCode GeneratePcode(std::string const & label);
 
-    /*Prepares and sends a notification tx using Lelantus facilities*/
-    CWalletTx PrepareAndSendNotificationTx(bip47::CPaymentCode const & theirPcode);
-
     /* Lists all receiving pcodes as tuples of (pcode, label, notification address) */
     std::vector<bip47::CPaymentCodeDescription> ListPcodes();
 
@@ -1439,7 +1439,7 @@ public:
     void ReturnKey();
     bool GetReservedKey(CPubKey &pubkey);
     void KeepKey();
-    void KeepScript() { KeepKey(); }
+    void KeepScript() override { KeepKey(); }
 };
 
 
@@ -1473,14 +1473,13 @@ public:
     }
 };
 
-bool CompSigmaHeight(const CSigmaEntry& a, const CSigmaEntry& b);
-bool CompSigmaID(const CSigmaEntry& a, const CSigmaEntry& b);
+void ShutdownWallet();
 
 // Helper for producing a bunch of max-sized low-S signatures (eg 72 bytes)
 // ContainerType is meant to hold pair<CWalletTx *, int>, and be iterable
 // so that each entry corresponds to each vIn, in order.
 template <typename ContainerType>
-bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins)
+bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins) const
 {
     // Fill in dummy signatures for fee calculation.
     int nIn = 0;
@@ -1500,7 +1499,5 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew, const ContainerType &coins
     }
     return true;
 }
-
-CWalletTx PrepareAndSendNotificationTx(CWallet* pwallet, bip47::CPaymentCode const & theirPcode);
 
 #endif // BITCOIN_WALLET_WALLET_H

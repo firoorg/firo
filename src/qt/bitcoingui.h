@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_BITCOINGUI_H
 #define BITCOIN_QT_BITCOINGUI_H
 
+#include "exportviewkeydialog.h"
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
 #endif
@@ -17,6 +18,8 @@
 #include <QMenu>
 #include <QPoint>
 #include <QSystemTrayIcon>
+#include <QPushButton>
+#include <QWidget>
 
 class ClientModel;
 class NetworkStyle;
@@ -34,9 +37,12 @@ class ModalOverlay;
 class CWallet;
 
 QT_BEGIN_NAMESPACE
+class QAbstractButton;
 class QAction;
+class QFrame;
 class QProgressBar;
 class QProgressDialog;
+class QToolButton;
 QT_END_NAMESPACE
 
 namespace GUIUtil {
@@ -63,6 +69,7 @@ public:
         The client model represents the part of the core that communicates with the P2P network, and is wallet-agnostic.
     */
     void setClientModel(ClientModel *clientModel);
+    QAction* getConsolidationAction() const { return consolidateOutputsAction; }
 
 #ifdef ENABLE_WALLET
     /** Set the wallet model.
@@ -76,14 +83,16 @@ public:
     bool enableWallet;
 
 protected:
-    void changeEvent(QEvent *e);
-    void closeEvent(QCloseEvent *event);
-    void showEvent(QShowEvent *event);
-    void dragEnterEvent(QDragEnterEvent *event);
-    void dropEvent(QDropEvent *event);
-    bool eventFilter(QObject *object, QEvent *event);
+    void changeEvent(QEvent *e) override;
+    void closeEvent(QCloseEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+    bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
+    friend class WalletUiTests;
+
     ClientModel *clientModel;
     WalletFrame *walletFrame;
 
@@ -91,6 +100,7 @@ private:
     QLabel *labelWalletEncryptionIcon;
     QLabel *labelWalletHDStatusIcon;
     GUIUtil::ClickableLabel *connectionsControl;
+    QLabel *torStatusBadge;
     GUIUtil::ClickableLabel *labelBlocksIcon;
     QLabel *progressBarLabel;
     GUIUtil::ClickableProgressBar *progressBar;
@@ -104,25 +114,47 @@ private:
     QAction *sendCoinsMenuAction;
     QAction *usedSendingAddressesAction;
     QAction *usedReceivingAddressesAction;
+    QAction *consolidateOutputsAction;
     QAction *signMessageAction;
     QAction *verifyMessageAction;
     QAction *aboutAction;
     QAction *receiveCoinsAction;
     QAction *receiveCoinsMenuAction;
+    QAction *sparkNamesAction;
     QAction *optionsAction;
     QAction *toggleHideAction;
     QAction *encryptWalletAction;
     QAction *backupWalletAction;
+    QAction *exportViewKeyAction;
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
+    QAction *consoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
-    QAction *lelantusAction;
     QAction *masternodeAction;
-    QAction *createPcodeAction;
     QAction *logoAction;
-
+    QToolBar *toolbar{nullptr};
+    QToolButton *navigationToggleButton{nullptr};
+    bool navigationSidebarExpanded{true};
+    QFrame *navigationSyncCard{nullptr};
+    QAction *navigationSyncCardAction{nullptr};
+    QLabel *navigationSyncLabel{nullptr};
+    QLabel *navigationSyncPercent{nullptr};
+    QProgressBar *navigationSyncProgress{nullptr};
+    double navigationSyncFraction{0.0};
+    double blockSyncProgress{0.0};
+    QString coreSyncStatus;
+    int numConnections{0};
+    bool tipWasBehind{false};
+    QFrame *navigationThemeRow{nullptr};
+    QLabel *navigationThemeLightLabel{nullptr};
+    QLabel *navigationThemeDarkLabel{nullptr};
+    QLabel *navigationThemeSunIcon{nullptr};
+    QLabel *navigationThemeMoonIcon{nullptr};
+    QAbstractButton *navigationThemeSwitch{nullptr};
+    QWidget *navigationSelectionHighlight{nullptr};
+    QLabel *logoLabel{nullptr};
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     Notificator *notificator;
@@ -130,9 +162,12 @@ private:
     HelpMessageDialog *helpMessageDialog;
     ModalOverlay *modalOverlay;
 
-    /** Keep track of previous number of blocks, to detect progress */
-    int prevBlocks;
     int spinnerFrame;
+    int prevBlocks{-1};
+#ifdef ENABLE_WALLET
+    bool sparkAddressbookUpdated;
+#endif
+    int cachedEncryptionStatus{-1};
 
     const PlatformStyle *platformStyle;
 
@@ -142,6 +177,16 @@ private:
     void createMenuBar();
     /** Create the toolbars */
     void createToolBars();
+    void resizeEvent(QResizeEvent*) override;
+    void updateToolbarTabWidths();
+    void updateNavigationSidebarGeometry();
+    void toggleNavigationSidebar();
+    void updateNavigationSyncCard(const QString& status, double progress);
+    bool blockchainSyncInProgress() const;
+    bool syncInProgress() const;
+    bool isActivelySyncing() const;
+    void applyNavigationTheme();
+    void updateNavigationSelectionHighlight();
     /** Create system tray icon and notification */
     void createTrayIcon(const NetworkStyle *networkStyle);
     /** Create system tray menu (or setup the dock menu) */
@@ -149,6 +194,7 @@ private:
 
     /** Enable or disable all wallet-related actions */
     void setWalletActionsEnabled(bool enabled);
+    void updateConsolidationAction();
 
     /** Connect core signals to GUI client */
     void subscribeToCoreSignals();
@@ -157,12 +203,14 @@ private:
 
     /** Updates Znode visibility */
     void checkZnodeVisibility(int numBlocks);
-    /** Updates Lelantus visibility */
-    void checkLelantusVisibility(int numBlocks);
+
+    /** Updates Spark Names tab visibility */
+    void checkSparkNamesVisibility(int numBlocks);
+
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
-    void updateHeadersSyncProgressLabel();
+    void updateSyncStatus();
 
 Q_SIGNALS:
     /** Signal raised when a URI was entered or dragged to the GUI */
@@ -195,7 +243,7 @@ public Q_SLOTS:
     void setEncryptionStatus(int status);
 
     /** Set the hd-enabled status as shown in the UI.
-     @param[in] status            current hd enabled status
+     @param[in] hdEnabled            current hd enabled status
      @see WalletModel::EncryptionStatus
      */
     void setHDStatus(int hdEnabled);
@@ -218,12 +266,10 @@ public Q_SLOTS:
     void gotoMasternodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
-    /** Switch to create payment code page */
-    void gotoCreatePcodePage();
+    /** Switch to Spark Names page */
+    void gotoSparkNamesPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to lelantus page */
-    void gotoLelantusPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");
@@ -272,11 +318,6 @@ public Q_SLOTS:
 
     void showModalOverlay();
 
-    /** Update Lelantus page visibility */
-    void updateLelantusPage();
-
-    /** Update RAP Addresses page visibility */
-    void setRapAddressesVisible(bool);
 };
 
 class UnitDisplayStatusBarControl : public QLabel
@@ -290,7 +331,7 @@ public:
 
 protected:
     /** So that it responds to left-button clicks */
-    void mousePressEvent(QMouseEvent *event);
+    void mousePressEvent(QMouseEvent *event) override;
 
 private:
     OptionsModel *optionsModel;

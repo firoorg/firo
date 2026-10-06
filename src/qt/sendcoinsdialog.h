@@ -24,6 +24,7 @@ namespace Ui {
 
 QT_BEGIN_NAMESPACE
 class QUrl;
+class QPushButton;
 QT_END_NAMESPACE
 
 /** Dialog for sending bitcoins */
@@ -37,6 +38,7 @@ public:
 
     void setClientModel(ClientModel *clientModel);
     void setModel(WalletModel *model);
+    void showOutOfSyncWarning(bool fShow);
 
     /** Set up the tab chain manually, as Qt messes up the tab chain by default in some cases (issue https://bugreports.qt-project.org/browse/QTBUG-10907).
      */
@@ -50,8 +52,8 @@ public:
 
 public Q_SLOTS:
     void clear();
-    void reject();
-    void accept();
+    void reject() override;
+    void accept() override;
     SendCoinsEntry *addEntry();
     void updateBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void updateTabsAndLabels();
@@ -61,12 +63,18 @@ public Q_SLOTS:
 
 private:
     Ui::SendCoinsDialog *ui;
+    QPushButton *balanceWarning;
+    QWidget *sendFromRow{nullptr};             //!< "Send from" caption and segmented choice
+    QPushButton *sendFromPrivate{nullptr};     //!< "Send from" choice: the Spark balance
+    QPushButton *sendFromTransparent{nullptr}; //!< "Send from" choice: the transparent balance
     ClientModel *clientModel;
     WalletModel *model;
     bool fNewRecipientAllowed;
     bool fFeeMinimized;
     bool fAnonymousMode;
     const PlatformStyle *platformStyle;
+    void applyTheme();
+    void updateBalanceTitle();
 
     // Process WalletModel::SendCoinsReturn and generate a pair consisting
     // of a message and message flags for use in Q_EMIT message().
@@ -74,12 +82,11 @@ private:
     void processSendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
     void minimizeFeeSection(bool fMinimize);
     void updateFeeMinimizedLabel();
-    void setAnonymizeMode(bool enableAnonymizeMode);
     void removeUnmatchedOutput(CCoinControl &coinControl);
 
 private Q_SLOTS:
+    void setAnonymizeMode(bool enableAnonymizeMode);
     void on_sendButton_clicked();
-    void on_switchFundButton_clicked();
     void on_buttonChooseFee_clicked();
     void on_buttonMinimizeFee_clicked();
     void removeEntry(SendCoinsEntry* entry);
@@ -101,10 +108,12 @@ private Q_SLOTS:
     void updateMinFeeLabel();
     void updateSmartFeeLabel();
     void updateGlobalFeeVariables();
+    void updateRosenBridgeState();
 
 Q_SIGNALS:
     // Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
+    void outOfSyncWarningClicked();
 };
 
 
@@ -115,7 +124,7 @@ class SendConfirmationDialog : public QMessageBox
 
 public:
     SendConfirmationDialog(const QString &title, const QString &text, int secDelay = 0, QWidget *parent = 0);
-    int exec();
+    int exec() override;
 
 private Q_SLOTS:
     void countDown();
@@ -125,20 +134,7 @@ private:
     QAbstractButton *yesButton;
     QTimer countDownTimer;
     int secDelay;
-};
-
-class SendGoPrivateDialog : public QMessageBox
-{
-    Q_OBJECT
-private:
-    bool clickedButton;
-public:
-    SendGoPrivateDialog();
-    bool getClickedButton();
-
-private Q_SLOTS:
-    void onIgnoreClicked();
-    void onGoPrivateClicked();
+    
 };
 
 #endif // BITCOIN_QT_SENDCOINSDIALOG_H

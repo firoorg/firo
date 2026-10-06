@@ -28,7 +28,7 @@ class ProxyAddressValidator : public QValidator
 public:
     explicit ProxyAddressValidator(QObject *parent);
 
-    State validate(QString &input, int &pos) const;
+    State validate(QString &input, int &pos) const override;
 };
 
 /** Preferences dialog. */
@@ -54,6 +54,7 @@ private Q_SLOTS:
 
     void showRestartWarning(bool fPersistent = false);
     void handleEnabledZapChanged();
+    void updateTorStatusLabel();
     void clearStatusLabel();
     void updateProxyValidationState();
     /* query the networks, for which the default proxy is used */

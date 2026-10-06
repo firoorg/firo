@@ -47,6 +47,8 @@ static const int64_t nMaxCoinsDBCache = 8;
 static const bool DEFAULT_FULL_BLOCKINDEX_CHECK = false;
 //! If not doing full check of block index, check only N of the latest blocks
 static const int DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK = 10000;
+//! Check fewer blocks if low on memory
+static const int DEFAULT_BLOCKINDEX_LOWMEM_NUMBER_OF_BLOCKS_TO_CHECK = 50;
 
 struct CDiskTxPos : public CDiskBlockPos
 {
@@ -98,12 +100,12 @@ class CCoinsViewDBCursor: public CCoinsViewCursor
 public:
     ~CCoinsViewDBCursor() {}
 
-    bool GetKey(COutPoint &key) const;
-    bool GetValue(Coin &coin) const;
-    unsigned int GetValueSize() const;
+    bool GetKey(COutPoint &key) const override;
+    bool GetValue(Coin &coin) const override;
+    unsigned int GetValueSize() const override;
 
-    bool Valid() const;
-    void Next();
+    bool Valid() const override;
+    void Next() override;
 
 private:
     CCoinsViewDBCursor(CDBIterator* pcursorIn, const uint256 &hashBlockIn):
@@ -140,6 +142,7 @@ public:
     bool ReadAddressIndex(uint160 addressHash, AddressType type,
                           std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
                           int start = 0, int end = 0);
+    size_t findAddressNumWBalance();
 
     bool WriteTimestampIndex(const CTimestampIndexKey &timestampIndex);
     bool ReadTimestampIndex(const unsigned int &high, const unsigned int &low, std::vector<uint256> &vect);
@@ -155,15 +158,18 @@ public:
 
 /**
  * This class was introduced as the logic for address and tx indices became too intricate.
- *
- * @param addressIndex, spentIndex - true if to update the corresponding index
- *
- * It is undefined behavior if the helper was created with addressIndex == false
- * and getAddressIndex was called later (same for spentIndex and unspentIndex).
  */
 class CDbIndexHelper : boost::noncopyable
 {
 public:
+
+    /**
+     *  @brief It is undefined behavior if the helper was created with addressIndex == false
+     *      and getAddressIndex was called later (same for spentIndex and unspentIndex).
+     *
+     *  @param addressIndex true if to update the corresponding index
+     *  @param spentIndex true if to update the corresponding index
+     */
     CDbIndexHelper(bool addressIndex, bool spentIndex);
 
     void ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);

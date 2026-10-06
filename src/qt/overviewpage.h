@@ -9,13 +9,14 @@
 #include "uint256.h"
 
 #include <QWidget>
+#include <QPointer>
 #include <memory>
 
 #include "walletmodel.h"
 
-#include <QSettings>
 #include <QMessageBox>
 #include <QTimer>
+
 
 class ClientModel;
 class TransactionFilterProxy;
@@ -28,7 +29,10 @@ namespace Ui {
 }
 
 QT_BEGIN_NAMESPACE
+class QAction;
 class QModelIndex;
+class QProgressBar;
+class QLabel;
 QT_END_NAMESPACE
 
 /** Overview ("home") page widget */
@@ -42,16 +46,16 @@ public:
 
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
+    void setConsolidationAction(QAction *action);
     void showOutOfSyncWarning(bool fShow);
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
-    void migrateClicked();
-    void onRefreshClicked();
+    void consolidateCoins();
 
     void setBalance(
-        const CAmount& balance,
+        const CAmount& balance, 
         const CAmount& unconfirmedBalance,
         const CAmount& immatureBalance,
         const CAmount& watchOnlyBalance,
@@ -63,12 +67,14 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
-    void enabledTorChanged();
     void outOfSyncWarningClicked();
+    void gotoSendCoinsPage();
+    void gotoReceiveCoinsPage();
 private:
+    bool canConsolidate() const;
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
-    WalletModel *walletModel;
+    QPointer<WalletModel> walletModel;
     CAmount currentBalance;
     CAmount currentUnconfirmedBalance;
     CAmount currentImmatureBalance;
@@ -79,40 +85,40 @@ private:
     CAmount currentUnconfirmedPrivateBalance;
     CAmount currentAnonymizableBalance;
 
-    QSettings settings;
-
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
 
     QTimer countDownTimer;
     int secDelay;
-    QString lelantusGracefulPeriod;
-    QString currentBlock;
+    QString migrationWindowClosesIn;
+    QString blocksRemaining;
     QString migrateAmount;
 
+    int privateBarSplitPercent_{0};
+    QProgressBar *privateSplitProgress{nullptr};
+    QWidget *activityEmptyState_{nullptr};
+    QLabel *networkBadge_{nullptr};
+    QString networkLabel_;
+    QLabel *emptyIcon_{nullptr};
+    QLabel *emptyTitle_{nullptr};
+    QLabel *emptyHint_{nullptr};
+    QPointer<QAction> consolidationAction;
+
+    void applyOverviewRedesign();
+    void applyOverviewTheme();
+    /** Render the cached balances into the amount labels, without querying wallet or chain state. */
+    void updateBalanceLabels();
+    void updatePrivateTransparentSplitBar();
+    void updateBalanceSplitLabels();
+    void updateActivityEmptyState();
 private Q_SLOTS:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
-    void handleEnabledTorChanged();
     void updateAlerts(const QString &warnings);
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
-    void countDown();
-};
-
-class MigrateLelantusToSparkDialog : public QMessageBox
-{
-    Q_OBJECT
-private:
-    bool clickedButton;
-    WalletModel *model;
-public:
-    MigrateLelantusToSparkDialog(WalletModel *model);
-    bool getClickedButton();
-
-private Q_SLOTS:
-    void onIgnoreClicked();
-    void onMigrateClicked();
+    void updateSparkAnonymizeRowVisibility();
+    void showConsolidationResult(qulonglong remainingOutputs, bool anotherBatch);
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

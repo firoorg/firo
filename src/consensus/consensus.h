@@ -36,6 +36,7 @@ static const unsigned int MAX_BLOCK_BASE_SIZE = 2000000;
 static const int64_t MAX_BLOCK_SIGOPS_COST = 400000;
 /** The maximum allowed size of version 3 extra payload */
 static const unsigned int MAX_TX_EXTRA_PAYLOAD = 150000;
+static const unsigned int NEW_MAX_TX_EXTRA_PAYLOAD = 230000;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
 

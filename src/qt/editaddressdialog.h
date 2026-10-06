@@ -46,9 +46,10 @@ public:
 
     QString getAddress() const;
     void setAddress(const QString &address);
+    void applyTheme();
 
 public Q_SLOTS:
-    void accept();
+    void accept() override;
 
 private:
     bool saveCurrentRow();

@@ -14,8 +14,13 @@
 #include "base58.h"
 
 #include <stdint.h>
+#include <utility>
 
 #include <boost/thread.hpp>
+
+#ifdef __linux__
+#include <sys/sysinfo.h>
+#endif
 
 static const char DB_COIN = 'C';
 static const char DB_COINS = 'c';
@@ -189,8 +194,22 @@ bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockF
         batch.Write(std::make_pair(DB_BLOCK_FILES, it->first), *it->second);
     }
     batch.Write(DB_LAST_BLOCK, nLastFile);
+    const auto& consensus = Params().GetConsensus();
     for (std::vector<const CBlockIndex*>::const_iterator it=blockinfo.begin(); it != blockinfo.end(); it++) {
-        batch.Write(std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash()), CDiskBlockIndex(*it));
+        const auto key = std::make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash());
+        CDiskBlockIndex diskIndex(*it);
+
+        // Preserve retired protocol data when an existing historical record is
+        // dirtied for an unrelated reason. No such data is valid at or after the
+        // Lelantus graceful-period height, so current tip writes avoid this read.
+        if ((*it)->nHeight < consensus.nLelantusGracefulPeriod && Exists(key)) {
+            CDiskBlockIndex storedIndex;
+            if (!Read(key, storedIndex))
+                return error("WriteBatchSync: failed to read existing block index %s", (*it)->GetBlockHash().ToString());
+            diskIndex.TakeDiskOnlyPrivacyData(std::move(storedIndex));
+        }
+
+        batch.Write(key, diskIndex);
     }
     return WriteBatch(batch, true);
 }
@@ -309,6 +328,32 @@ bool CBlockTreeDB::ReadAddressIndex(uint160 addressHash, AddressType type,
     return true;
 }
 
+size_t CBlockTreeDB::findAddressNumWBalance() {
+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->SeekToFirst();
+    std::unordered_map<uint160, CAmount> addrMap;
+    while (pcursor->Valid()) {
+        boost::this_thread::interruption_point();
+        std::pair<char,CAddressIndexKey> key;
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && (key.second.type == AddressType::payToPubKeyHash || key.second.type == AddressType::payToExchangeAddress)) {
+            CAmount nValue;
+            // Retrieve the associated value
+            if (pcursor->GetValue(nValue) && nValue != 0) { // Only process non-zero values
+                addrMap[key.second.hashBytes] += nValue; // Accumulate balance for the address
+            }
+        }
+        pcursor->Next();
+    }
+
+    size_t counter = 0;
+    for (auto& itr : addrMap) {
+        if (itr.second > 0) {
+            ++counter;
+        }
+    }
+
+    return counter;
+}
 
 bool CBlockTreeDB::WriteTimestampIndex(const CTimestampIndexKey &timestampIndex) {
     CDBBatch batch(*this);
@@ -365,6 +410,14 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
     int firstInLastNBlocksHeight = 0;
 
     bool fCheckPoWForAllBlocks = GetBoolArg("-fullblockindexcheck", DEFAULT_FULL_BLOCKINDEX_CHECK);
+    int64_t nBlocksToCheck = GetArg("-numberofblockstocheckonstartup", DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK);
+
+#ifdef __linux__
+    struct sysinfo sysInfo;
+
+    if (sysinfo(&sysInfo) == 0 && sysInfo.freeram < 2ul*1024ul*1024ul*1024ul)
+        nBlocksToCheck = DEFAULT_BLOCKINDEX_LOWMEM_NUMBER_OF_BLOCKS_TO_CHECK;
+#endif
 
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
@@ -401,20 +454,11 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                     pindexNew->reserved[1] = diskindex.reserved[1];
                 }
 
-                pindexNew->sigmaMintedPubCoins   = diskindex.sigmaMintedPubCoins;
-                pindexNew->sigmaSpentSerials     = diskindex.sigmaSpentSerials;
-
-                pindexNew->lelantusMintedPubCoins   = diskindex.lelantusMintedPubCoins;
-                pindexNew->lelantusMintData         = diskindex.lelantusMintData;
-                pindexNew->lelantusSpentSerials     = diskindex.lelantusSpentSerials;
-                pindexNew->anonymitySetHash         = diskindex.anonymitySetHash;
-
-                pindexNew->sparkMintedCoins   = diskindex.sparkMintedCoins;
-                pindexNew->sparkSetHash       = diskindex.sparkSetHash;
-                pindexNew->spentLTags         = diskindex.spentLTags;
-                pindexNew->sparkTxHashContext = diskindex.sparkTxHashContext;
-
-                pindexNew->activeDisablingSporks = diskindex.activeDisablingSporks;
+                if (diskindex.hasPrivacyData()) {
+                    auto& dpd = diskindex.ensurePrivacyData();
+                    if (!dpd.IsEmpty())
+                        pindexNew->ensurePrivacyData() = std::move(dpd);
+                }
 
                 if (fCheckPoWForAllBlocks) {
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
@@ -423,7 +467,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 else {
                     if (pindexNew->nHeight >= firstInLastNBlocksHeight) {
                         lastNBlocks.insert(std::pair<int, CBlockIndex*>(pindexNew->nHeight, pindexNew));
-                        if (lastNBlocks.size() > DEFAULT_BLOCKINDEX_NUMBER_OF_BLOCKS_TO_CHECK) {
+                        if (cmp::greater(lastNBlocks.size(), nBlocksToCheck)) {
                             // pop the first element from the map
                             auto firstElement = lastNBlocks.begin();
                             auto elementToPop = firstElement++;
@@ -533,7 +577,7 @@ std::pair<AddressType, uint160> classifyAddress(txnouttype type, std::vector<std
     } else if(type == TX_SCRIPTHASH) {
         result.first = AddressType::payToScriptHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
-    } else if(type == TX_PUBKEYHASH) {
+    } else if(type == TX_PUBKEYHASH || type == TX_SPARKNAMEFEE) {
         result.first = AddressType::payToPubKeyHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
     } else if(type == TX_EXCHANGEADDRESS) {
@@ -606,6 +650,17 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
         addrType = AddressType::sigmaSpend;
     }  else if(tx.IsSparkSpend()){
         addrType = AddressType::sparkSpend;
+
+        if (height >= Params().GetConsensus().nSparkNamesStartBlock) {
+            spark::SpendTransaction spendTx(spark::Params::get_default());
+            CSparkNameTxData sparkNameData;
+            size_t pos;
+            CSparkNameManager* sparkNameManager = CSparkNameManager::GetInstance();
+
+            if (sparkNameManager->ParseSparkNameTxData(tx, spendTx, sparkNameData, pos))
+                addressIndex->push_back(std::make_pair(
+                    CAddressIndexKey(AddressType::sparkName, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+        }
     }
 
     addressIndex->push_back(std::make_pair(CAddressIndexKey(addrType, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
@@ -634,7 +689,6 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 
     if(out.scriptPubKey.IsSparkSMint())
         addressIndex->push_back(std::make_pair(CAddressIndexKey(AddressType::sparksMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
-
 
     txnouttype type;
     std::vector<std::vector<unsigned char> > addresses;
@@ -791,7 +845,7 @@ public:
     void Unserialize(Stream &s) {
         unsigned int nCode = 0;
         // version
-        int nVersionDummy;
+        int nVersionDummy = 0;
         ::Unserialize(s, VARINT(nVersionDummy));
         // header code
         ::Unserialize(s, VARINT(nCode));

@@ -8,16 +8,16 @@
 #define CRYPTO_PROGPOW_ATTRIBUTES_H_
 
 /** inline */
-#if _MSC_VER || __STDC_VERSION__
+#if defined(_MSC_VER) || defined(__STDC_VERSION__)
 #define INLINE inline
 #else
 #define INLINE
 #endif
 
 /** [[always_inline]] */
-#if _MSC_VER
+#if defined(_MSC_VER)
 #define ALWAYS_INLINE __forceinline
-#elif defined(__has_attribute) && __STDC_VERSION__
+#elif defined(__has_attribute) && defined(__STDC_VERSION__)
 #if __has_attribute(always_inline)
 #define ALWAYS_INLINE __attribute__((always_inline))
 #endif
@@ -27,7 +27,7 @@
 #endif
 
 /** [[no_sanitize()]] */
-#if __clang__
+#if defined(__clang__)
 #define NO_SANITIZE(sanitizer) \
     __attribute__((no_sanitize(sanitizer)))
 #else

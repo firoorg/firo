@@ -1,5 +1,7 @@
 #include "keys.h"
 #include "../hash.h"
+#include "../support/cleanse.h"
+#include "transcript.h"
 
 namespace spark {
 
@@ -15,28 +17,31 @@ SpendKey::SpendKey(const Params* params) {
 SpendKey::SpendKey(const Params* params, const Scalar& r_) {
     this->params = params;
     this->r = r_;
-    std::vector<unsigned char> data;
-    data.resize(32);
+    std::vector<unsigned char> data(32);
     r.serialize(data.data());
-    std::vector<unsigned char> result(CSHA256().OUTPUT_SIZE);
+    std::vector<unsigned char> result(CSHA256::OUTPUT_SIZE);
 
     CHash256 hash256;
     std::string prefix1 = "s1_generation";
     hash256.Write(reinterpret_cast<const unsigned char*>(prefix1.c_str()), prefix1.size());
     hash256.Write(data.data(), data.size());
-    hash256.Finalize(&result[0]);
-    this->s1.memberFromSeed(&result[0]);
+    hash256.Finalize(result.data());
+    this->s1.memberFromSeed(result.data());
 
-    data.clear();
-    result.clear();
     hash256.Reset();
-    s1.serialize(data.data());
 
+    // Consensus-critical: the s2 seed commits only to the prefix below. The
+    // historical code cleared `data` before this point, so its Write()
+    // contributed zero bytes; every deployed wallet derives s2 that way.
+    // Hashing anything else here (e.g. s1) changes all existing view keys
+    // and addresses. See spend_key_derivation in test/address_test.cpp.
     std::string prefix2 = "s2_generation";
     hash256.Write(reinterpret_cast<const unsigned char*>(prefix2.c_str()), prefix2.size());
-    hash256.Write(data.data(), data.size());
-    hash256.Finalize(&result[0]);
-    this->s2.memberFromSeed(&result[0]);
+    hash256.Finalize(result.data());
+    this->s2.memberFromSeed(result.data());
+
+    memory_cleanse(data.data(), data.size());
+    memory_cleanse(result.data(), result.size());
 }
 
 const Params* SpendKey::get_params() const {
@@ -211,7 +216,10 @@ unsigned char Address::decode(const std::string& str) {
 		throw std::invalid_argument("Bad address encoding");
 	}
 
-	// Check the encoding prefix
+	// Check the hrp length and encoding prefix
+	if (decoded.hrp.size() < 2) {
+		throw std::invalid_argument("Bad address format");
+	}
 	if (decoded.hrp[0] != ADDRESS_ENCODING_PREFIX) {
 		throw std::invalid_argument("Bad address prefix");
 	}
@@ -241,6 +249,71 @@ unsigned char Address::decode(const std::string& str) {
 	this->Q2.deserialize(component.data());
 
 	return network;
+}
+
+Scalar Address::challenge(const Scalar& m, const GroupElement& A, const GroupElement& H) const {
+    Transcript transcript(LABEL_TRANSCRIPT_OWNERSHIP);
+    transcript.add("G", this->params->get_G());
+    transcript.add("F", this->params->get_F());
+    transcript.add("H", H);
+    transcript.add("A", A);
+    transcript.add("m", m);
+    transcript.add("d", this->d);
+    transcript.add("Q1", this->Q1);
+    transcript.add("Q2", this->Q2);
+
+    return transcript.challenge("c");
+}
+
+
+void Address::prove_own(const Scalar& m,
+                        const SpendKey& spend_key,
+                        const IncomingViewKey& incomingViewKey,
+                        OwnershipProof& proof) const {
+    Scalar a, b, c;
+    a.randomize();
+    b.randomize();
+    c.randomize();
+
+    GroupElement H = SparkUtils::hash_div(this->d);
+    proof.A = H * a + this->params->get_G() * b + this->params->get_F() * c;
+
+    if (proof.A.isInfinity()) {
+        throw std::invalid_argument("Bad Proof construction!");
+    }
+
+    Scalar x = challenge(m, proof.A, H);
+
+    if (x.isZero()) {
+        throw std::invalid_argument("Unexpected challenge!");
+    }
+
+    Scalar x_sqr = x.square();
+
+    uint64_t i = incomingViewKey.get_diversifier(this->d);
+    proof.t1 = a + x * spend_key.get_s1();
+    proof.t2 = b + x_sqr * spend_key.get_r();
+    proof.t3 = c + x_sqr * (SparkUtils::hash_Q2(spend_key.get_s1(), i) + spend_key.get_s2());
+}
+
+bool Address::verify_own(const Scalar& m,
+                        OwnershipProof& proof) const {
+    if (proof.A.isInfinity()) {
+        throw std::invalid_argument("Bad Ownership Proof!");
+    }
+
+    GroupElement H = SparkUtils::hash_div(this->d);
+    Scalar x = challenge(m, proof.A, H);
+    if (x.isZero()) {
+        throw std::invalid_argument("Unexpected challenge!");
+    }
+
+    Scalar x_sqr = x.square();
+
+    GroupElement left = proof.A + this->Q1 * x + this->Q2 * x_sqr;
+    GroupElement right = H * proof.t1 + this->params->get_G() * proof.t2 + this->params->get_F() * proof.t3;
+
+    return left == right;
 }
 
 }

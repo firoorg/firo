@@ -27,6 +27,8 @@ class CScheduler;
 
 namespace llmq
 {
+struct CSigSharesVerificationTestAccess;
+
 // <signHash, quorumMember>
 typedef std::pair<uint256, uint16_t> SigShareKey;
 
@@ -85,6 +87,10 @@ public:
 class CSigSharesInv
 {
 public:
+    // One inventory bit is stored for each quorum member. The largest quorum
+    // configured on any current network has 400 members.
+    static constexpr uint64_t MAX_INV_SIZE = 400;
+
     uint32_t sessionId{(uint32_t)-1};
     std::vector<bool> inv;
 
@@ -98,6 +104,9 @@ public:
 
         READWRITE(VARINT(sessionId));
         READWRITE(COMPACTSIZE(invSize));
+        if (invSize > MAX_INV_SIZE) {
+            throw std::ios_base::failure("CSigSharesInv::inv size exceeds maximum quorum size");
+        }
         READWRITE(AUTOBITSET(inv, (size_t)invSize));
     }
 
@@ -307,8 +316,9 @@ public:
         CSigSharesInv announced;
         CSigSharesInv requested;
         CSigSharesInv knows;
+
+        bool fReceivedAnnouncement{false};
     };
-    // TODO limit number of sessions per node
     std::unordered_map<uint256, Session, StaticSaltedHasher> sessions;
 
     std::unordered_map<uint32_t, Session*> sessionByRecvId;
@@ -321,6 +331,10 @@ public:
 
     Session& GetOrCreateSessionFromShare(const CSigShare& sigShare);
     Session& GetOrCreateSessionFromAnn(const CSigSesAnn& ann);
+    bool CanCreateSessionFromAnn(const CSigSesAnn& ann, size_t maxSessions) const;
+    size_t GetSessionCount() const;
+    size_t GetSessionCount(Consensus::LLMQType llmqType) const;
+    size_t GetAnnouncementSessionCount(Consensus::LLMQType llmqType) const;
     Session* GetSessionBySignHash(const uint256& signHash);
     Session* GetSessionByRecvId(uint32_t sessionId);
     bool GetSessionInfoByRecvId(uint32_t sessionId, SessionInfo& retInfo);
@@ -330,6 +344,8 @@ public:
 
 class CSigSharesManager : public CRecoveredSigsListener
 {
+    friend struct CSigSharesVerificationTestAccess;
+
     static const int64_t SESSION_NEW_SHARES_TIMEOUT = 60;
     static const int64_t SIG_SHARE_REQUEST_TIMEOUT = 5;
 
@@ -379,8 +395,9 @@ public:
     void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
     void Sign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
     void ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
+    void MarkNodeBanned(NodeId nodeId);
 
-    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
+    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override;
 
 private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
@@ -392,9 +409,10 @@ private:
     bool VerifySigSharesInv(NodeId from, Consensus::LLMQType llmqType, const CSigSharesInv& inv);
     bool PreVerifyBatchedSigShares(NodeId nodeId, const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
-    void CollectPendingSigSharesToVerify(size_t maxUniqueSessions,
-            std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
-            std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
+    // Collect at most maxShares actual sig shares in randomized peer order.
+    void CollectPendingSigSharesToVerify(size_t maxShares,
+        std::unordered_map<NodeId, std::vector<CSigShare> >& retSigShares,
+        std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
     bool ProcessPendingSigShares(CConnman& connman);
 
     void ProcessPendingSigSharesFromNode(NodeId nodeId,

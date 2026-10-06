@@ -137,11 +137,11 @@ typedef UniValue(*rpcfn_type)(const JSONRPCRequest& jsonRequest);
 class CRPCCommand
 {
 public:
-    std::string category;
-    std::string name;
+    std::string category {};
+    std::string name {};
     rpcfn_type actor;
-    bool okSafeMode;
-    std::vector<std::string> argNames;
+    bool okSafeMode {};
+    std::vector<std::string> argNames {};
 };
 
 /**
@@ -206,6 +206,8 @@ extern UniValue getaddressutxos(const JSONRPCRequest &request);
 extern UniValue getaddressdeltas(const JSONRPCRequest &request);
 extern UniValue getaddresstxids(const JSONRPCRequest &request);
 extern UniValue getaddressbalance(const JSONRPCRequest &request);
+extern UniValue getAddressNumWBalance(const JSONRPCRequest &request);
+
 
 extern UniValue getanonymityset(const JSONRPCRequest& params);
 extern UniValue getmintmetadata(const JSONRPCRequest& params);
@@ -214,9 +216,16 @@ extern UniValue getfeerate(const JSONRPCRequest& params);
 extern UniValue getlatestcoinid(const JSONRPCRequest& params);
 
 extern UniValue getsparkanonymityset(const JSONRPCRequest& params);
+extern UniValue getsparkanonymitysetmeta(const JSONRPCRequest& params);
+extern UniValue getsparkanonymitysetsector(const JSONRPCRequest& params);
 extern UniValue getsparkmintmetadata(const JSONRPCRequest& params);
 extern UniValue getusedcoinstags(const JSONRPCRequest& params);
+extern UniValue getusedcoinstagstxhashes(const JSONRPCRequest& params);
 extern UniValue getsparklatestcoinid(const JSONRPCRequest& params);
+extern UniValue getmempoolsparktxids(const JSONRPCRequest& params);
+extern UniValue getmempoolsparktxs(const JSONRPCRequest& params);
+
+extern UniValue checkifmncollateral(const JSONRPCRequest& params);
 
 extern UniValue znode(const JSONRPCRequest &request);
 extern UniValue znodelist(const JSONRPCRequest &request);
@@ -228,9 +237,6 @@ void InterruptRPC();
 void StopRPC();
 std::string JSONRPCExecBatch(const UniValue& vReq);
 void RPCNotifyBlockChange(bool ibd, const CBlockIndex *);
-
-// Retrieves any serialization flags requested in command line argument
-int RPCSerializationFlags();
 
 // Retrieves any serialization flags requested in command line argument
 int RPCSerializationFlags();

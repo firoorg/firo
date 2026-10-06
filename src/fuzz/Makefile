@@ -1,14 +1,14 @@
 CXX := hfuzz-clang++
 
-CXXFLAGS := -DHAVE_CONFIG_H -I../../src/  -iquote ../../src/config/  -iquote ../secp256k1/  -iquote ../secp256k1/src/  -iquote ../secp256k1/include/
-CXXFLAGS2 := -DHAVE_CONFIG_H
+CXXFLAGS := -std=c++20 -DHAVE_CONFIG_H -I../../src/  -iquote ../../src/config/  -iquote ../secp256k1/  -iquote ../secp256k1/src/  -iquote ../secp256k1/include/
+CXXFLAGS2 := -std=c++20 -DHAVE_CONFIG_H
 
 LIBS := -lcrypto -lstdc++ -lboost_thread -lboost_filesystem -lboost_program_options -lboost_chrono
 LIBS2 := -lstdc++ -lcrypto
 
 INCLUDE_HEADER := -include ../streams.h -include ../version.h
 
-BPPLUS_SRCS := libspark/bpplus_fuzz.cpp ../libspark/bpplus.cpp ../libspark/util.cpp fuzzing_utilities.cpp ../libspark/hash.cpp ../libspark/kdf.cpp ../libspark/transcript.cpp ../crypto/aes.cpp ../crypto/chacha20.cpp ../crypto/sha512.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp ../secp256k1/src/cpp/MultiExponent.cpp ../support/cleanse.cpp ../util.cpp ../utiltime.cpp ../utilstrencodings.cpp ../random.cpp ../chainparamsbase.cpp
+BPPLUS_SRCS := libspark/bpplus_fuzz.cpp ../libspark/bpplus.cpp ../libspark/util.cpp fuzzing_utilities.cpp ../libspark/hash.cpp ../libspark/kdf.cpp ../libspark/transcript.cpp ../crypto/aes.cpp ../crypto/chacha20.cpp ../crypto/sha512.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp ../secp256k1/src/cpp/MultiExponent.cpp ../support/cleanse.cpp ../util.cpp ../logging.cpp ../fs.cpp ../utiltime.cpp ../utilstrencodings.cpp ../random.cpp ../chainparamsbase.cpp
 BPPLUS_OUTPUT := libspark/bpplus_hfuzz
 BPPLUS_OUTPUT_DEBUG := libspark/bpplus_debug
 
@@ -20,7 +20,7 @@ AEAD_SRCS := libspark/aead_fuzz.cpp ../libspark/aead.cpp ../libspark/util.cpp ..
 AEAD_OUTPUT := libspark/aead_hfuzz
 AEAD_OUTPUT_DEBUG := libspark/aead_debug
 
-GROOTLE_SRCS := libspark/grootle_fuzz.cpp ../libspark/grootle.cpp ../libspark/util.cpp fuzzing_utilities.cpp ../libspark/hash.cpp ../libspark/kdf.cpp ../libspark/transcript.cpp ../crypto/aes.cpp ../crypto/chacha20.cpp ../crypto/sha512.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp ../secp256k1/src/cpp/MultiExponent.cpp ../support/cleanse.cpp  ../util.cpp ../utiltime.cpp ../utilstrencodings.cpp ../random.cpp ../chainparamsbase.cpp
+GROOTLE_SRCS := libspark/grootle_fuzz.cpp ../libspark/grootle.cpp ../libspark/util.cpp fuzzing_utilities.cpp ../libspark/hash.cpp ../libspark/kdf.cpp ../libspark/transcript.cpp ../crypto/aes.cpp ../crypto/chacha20.cpp ../crypto/sha512.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp ../secp256k1/src/cpp/MultiExponent.cpp ../support/cleanse.cpp  ../util.cpp ../logging.cpp ../fs.cpp ../utiltime.cpp ../utilstrencodings.cpp ../random.cpp ../chainparamsbase.cpp
 GROOTLE_OUTPUT := libspark/grootle_hfuzz
 GROOTLE_OUTPUT_DEBUG := libspark/grootle_debug
 
@@ -40,9 +40,13 @@ MINT_TRANSACTION_SRCS := libspark/mint_transaction_fuzz.cpp ../libspark/mint_tra
 MINT_TRANSACTION_OUTPUT := libspark/mint_transaction_hfuzz
 MINT_TRANSACTION_OUTPUT_DEBUG := libspark/mint_transaction_debug
 
-SPEND_TRANSACTION_SRCS := libspark/spend_transaction_fuzz.cpp ../libspark/spend_transaction.cpp ../libspark/coin.cpp ../libspark/keys.cpp ../libspark/schnorr.cpp ../fuzz/fuzzing_utilities.cpp ../libspark/util.cpp ../libspark/hash.cpp ../libspark/kdf.cpp ../libspark/transcript.cpp ../libspark/f4grumble.cpp ../libspark/params.cpp ../libspark/bech32.cpp ../libspark/aead.cpp ../libspark/chaum.cpp ../libspark/bpplus.cpp ../libspark/grootle.cpp ../crypto/aes.cpp ../crypto/ripemd160.cpp ../crypto/sha256.cpp ../crypto/chacha20.cpp ../crypto/sha512.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp ../secp256k1/src/cpp/MultiExponent.cpp ../support/cleanse.cpp ../uint256.cpp ../utilstrencodings.cpp ../util.cpp ../utiltime.cpp ../chainparamsbase.cpp ../random.cpp
+SPEND_TRANSACTION_SRCS := libspark/spend_transaction_fuzz.cpp ../libspark/spend_transaction.cpp ../libspark/coin.cpp ../libspark/keys.cpp ../libspark/schnorr.cpp ../fuzz/fuzzing_utilities.cpp ../libspark/util.cpp ../libspark/hash.cpp ../libspark/kdf.cpp ../libspark/transcript.cpp ../libspark/f4grumble.cpp ../libspark/params.cpp ../libspark/bech32.cpp ../libspark/aead.cpp ../libspark/chaum.cpp ../libspark/bpplus.cpp ../libspark/grootle.cpp ../crypto/aes.cpp ../crypto/ripemd160.cpp ../crypto/sha256.cpp ../crypto/chacha20.cpp ../crypto/sha512.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp ../secp256k1/src/cpp/MultiExponent.cpp ../support/cleanse.cpp ../uint256.cpp ../utilstrencodings.cpp ../util.cpp ../logging.cpp ../fs.cpp ../utiltime.cpp ../chainparamsbase.cpp ../random.cpp
 SPEND_TRANSACTION_OUTPUT := libspark/spend_transaction_hfuzz
 SPEND_TRANSACTION_OUTPUT_DEBUG := libspark/spend_transaction_debug
+
+SPEND_TRANSACTION_V2_PAYLOAD_SRCS := libspark/spend_transaction_v2_payload_fuzz.cpp ../libspark/spend_transaction.cpp ../libspark/coin.cpp ../libspark/keys.cpp ../libspark/schnorr.cpp ../libspark/util.cpp ../libspark/hash.cpp ../libspark/kdf.cpp ../libspark/transcript.cpp ../libspark/f4grumble.cpp ../libspark/params.cpp ../libspark/bech32.cpp ../libspark/aead.cpp ../libspark/chaum.cpp ../libspark/bpplus.cpp ../libspark/grootle.cpp ../crypto/aes.cpp ../crypto/ripemd160.cpp ../crypto/sha256.cpp ../crypto/chacha20.cpp ../crypto/sha512.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp ../secp256k1/src/cpp/MultiExponent.cpp ../support/cleanse.cpp ../uint256.cpp ../utilstrencodings.cpp ../util.cpp ../logging.cpp ../fs.cpp ../utiltime.cpp ../chainparamsbase.cpp ../random.cpp
+SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT := libspark/spend_transaction_v2_payload_hfuzz
+SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT_DEBUG := libspark/spend_transaction_v2_payload_debug
 
 F4GRUMBLE_SRCS := libspark/f4grumble_fuzz.cpp ../libspark/f4grumble.cpp  ../libspark/util.cpp ../libspark/kdf.cpp ../libspark/hash.cpp ../crypto/aes.cpp ../support/lockedpool.cpp ../support/cleanse.cpp ../secp256k1/src/cpp/Scalar.cpp ../secp256k1/src/cpp/GroupElement.cpp
 F4GRUMBLE_OUTPUT := libspark/f4grumble_hfuzz
@@ -122,6 +126,14 @@ spend_transaction_debug: $(SPEND_TRANSACTION_OUTPUT_DEBUG)
 $(SPEND_TRANSACTION_OUTPUT_DEBUG): $(SPEND_TRANSACTION_SRCS)
 	$(CXX) $(DEBUG_FLAGS) $(CXXFLAGS) $^ -o $@ $(LIBS)
 
+spend_transaction_v2_payload: $(SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT)
+$(SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT): $(SPEND_TRANSACTION_V2_PAYLOAD_SRCS)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(INCLUDE_HEADER) $(LIBS)
+
+spend_transaction_v2_payload_debug: $(SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT_DEBUG)
+$(SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT_DEBUG): $(SPEND_TRANSACTION_V2_PAYLOAD_SRCS)
+	$(CXX) $(DEBUG_FLAGS) $(CXXFLAGS) $^ -o $@ $(INCLUDE_HEADER) $(LIBS)
+
 f4grumble: $(F4GRUMBLE_OUTPUT)
 $(F4GRUMBLE_OUTPUT): $(F4GRUMBLE_SRCS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LIBS)
@@ -131,4 +143,4 @@ $(F4GRUMBLE_OUTPUT_DEBUG): $(F4GRUMBLE_SRCS)
 	$(CXX) $(DEBUG_FLAGS) $(CXXFLAGS) $^ -o $@ $(LIBS)
 
 clean:
-	rm -f $(BPPLUS_OUTPUT) $(BPPLUS_OUTPUT_DEBUG) $(BECH32_OUTPUT) $(BECH32_OUTPUT_DEBUG) $(AEAD_OUTPUT) $(AEAD_OUTPUT_DEBUG) $(GROOTLE_OUTPUT) $(GROOTLE_OUTPUT_DEBUG) $(CHAUM_OUTPUT) $(CHAUM_OUTPUT_DEBUG) $(SCHNORR_OUTPUT) $(SCHNORR_OUTPUT_DEBUG) $(COIN_OUTPUT) $(COIN_OUTPUT_DEBUG) $(MINT_TRANSACTION_OUTPUT) $(MINT_TRANSACTION_OUTPUT_DEBUG) $(SPEND_TRANSACTION_OUTPUT) $(SPEND_TRANSACTION_OUTPUT_DEBUG) *.o
+	rm -f $(BPPLUS_OUTPUT) $(BPPLUS_OUTPUT_DEBUG) $(BECH32_OUTPUT) $(BECH32_OUTPUT_DEBUG) $(AEAD_OUTPUT) $(AEAD_OUTPUT_DEBUG) $(GROOTLE_OUTPUT) $(GROOTLE_OUTPUT_DEBUG) $(CHAUM_OUTPUT) $(CHAUM_OUTPUT_DEBUG) $(SCHNORR_OUTPUT) $(SCHNORR_OUTPUT_DEBUG) $(COIN_OUTPUT) $(COIN_OUTPUT_DEBUG) $(MINT_TRANSACTION_OUTPUT) $(MINT_TRANSACTION_OUTPUT_DEBUG) $(SPEND_TRANSACTION_OUTPUT) $(SPEND_TRANSACTION_OUTPUT_DEBUG) $(SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT) $(SPEND_TRANSACTION_V2_PAYLOAD_OUTPUT_DEBUG) *.o

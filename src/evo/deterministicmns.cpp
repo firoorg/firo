@@ -38,14 +38,14 @@ std::string CDeterministicMNState::ToString() const
     return strprintf("CDeterministicMNState(nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
         "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutAddress=%s, operatorPayoutAddress=%s)",
         nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight, nRevocationReason,
-        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.Get().ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(false), payoutAddress, operatorPayoutAddress);
+        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.Get().ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(), payoutAddress, operatorPayoutAddress);
 }
 
 void CDeterministicMNState::ToJson(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
-    obj.push_back(Pair("service", addr.ToStringIPPort(false)));
+    obj.push_back(Pair("service", addr.ToStringIPPort()));
     obj.push_back(Pair("registeredHeight", nRegisteredHeight));
     obj.push_back(Pair("lastPaidHeight", nLastPaidHeight));
     obj.push_back(Pair("PoSePenalty", nPoSePenalty));
@@ -235,7 +235,7 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee() const
 
 std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int nCount) const
 {
-    if (nCount > GetValidMNsCount()) {
+    if (cmp::greater(nCount, GetValidMNsCount())) {
         nCount = GetValidMNsCount();
     }
 
@@ -503,9 +503,20 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 {
 }
 
-bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck)
+bool CDeterministicMNManager::ProcessBlock(
+        const CBlock& block,
+        const CBlockIndex* pindex,
+        CValidationState& _state,
+        bool fJustCheck,
+        CDeterministicMNList* newListRet,
+        bool* cbTxMerkleRootMNListChangedRet,
+        bool fNotify)
 {
     AssertLockHeld(cs_main);
+
+    if (cbTxMerkleRootMNListChangedRet) {
+        *cbTxMerkleRootMNListChangedRet = true;
+    }
 
     const auto& consensusParams = Params().GetConsensus();
     bool fDIP0003Active = pindex->nHeight >= consensusParams.DIP0003Height;
@@ -525,18 +536,27 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
             return false;
         }
 
-        if (fJustCheck) {
-            return true;
-        }
-
         if (newList.GetHeight() == -1) {
             newList.SetHeight(nHeight);
         }
-
         newList.SetBlockHash(block.GetHash());
+
+        if (fJustCheck) {
+            if (newListRet) {
+                *newListRet = newList;
+            }
+            return true;
+        }
+
+        if (newListRet) {
+            *newListRet = newList;
+        }
 
         oldList = GetListForBlock(pindex->pprev);
         diff = oldList.BuildDiff(newList);
+        if (cbTxMerkleRootMNListChangedRet) {
+            *cbTxMerkleRootMNListChangedRet = diff.HasCbTxMerkleRootChanges();
+        }
 
         evoDb.Write(std::make_pair(DB_LIST_DIFF, newList.GetBlockHash()), diff);
         if ((nHeight % SNAPSHOT_LIST_PERIOD) == 0 || oldList.GetHeight() == -1) {
@@ -547,7 +567,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     }
 
     // Don't hold cs while calling signals
-    if (diff.HasChanges()) {
+    if (fNotify && diff.HasChanges()) {
         GetMainSignals().NotifyMasternodeListChanged(false, oldList, diff);
         uiInterface.NotifyMasternodeListChanged(newList);
     }
@@ -567,7 +587,8 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     return true;
 }
 
-bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* pindex)
+bool CDeterministicMNManager::UndoBlock(
+        const CBlock& block, const CBlockIndex* pindex, bool fNotify)
 {
     int nHeight = pindex->nHeight;
     uint256 blockHash = block.GetHash();
@@ -585,13 +606,10 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
             prevList = GetListForBlock(pindex->pprev);
         }
 
-        evoDb.Erase(std::make_pair(DB_LIST_DIFF, blockHash));
-        evoDb.Erase(std::make_pair(DB_LIST_SNAPSHOT, blockHash));
-
         mnListsCache.erase(blockHash);
     }
 
-    if (diff.HasChanges()) {
+    if (fNotify && diff.HasChanges()) {
         auto inversedDiff = curList.BuildDiff(prevList);
         GetMainSignals().NotifyMasternodeListChanged(true, curList, inversedDiff);
         uiInterface.NotifyMasternodeListChanged(prevList);
@@ -607,6 +625,11 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
 
 void CDeterministicMNManager::UpdatedBlockTip(const CBlockIndex* pindex)
 {
+    LOCK(cs_main);
+    if (pindex != chainActive.Tip()) {
+        return;
+    }
+
     LOCK(cs);
 
     tipIndex = pindex;
@@ -957,6 +980,12 @@ CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
         return {};
     }
     return GetListForBlock(tipIndex);
+}
+
+void CDeterministicMNManager::ClearCache()
+{
+    LOCK(cs);
+    mnListsCache.clear();
 }
 
 bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)

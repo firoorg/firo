@@ -4,6 +4,7 @@
 
 #include "base58.h"
 #include "chain.h"
+#include "libspark/keys.h"
 #include "rpc/server.h"
 #include "init.h"
 #include "validation.h"
@@ -18,6 +19,7 @@
 #include "authhelper.h"
 
 #include "rpcwallet.h"
+#include "rpcdump.h"
 
 #include <fstream>
 #include <stdint.h>
@@ -475,8 +477,6 @@ UniValue importwallet(const JSONRPCRequest& request)
 
     bool fGood = true;
 
-    bool fMintUpdate = false;
-
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
     file.seekg(0, file.beg);
 
@@ -552,14 +552,6 @@ UniValue importwallet(const JSONRPCRequest& request)
             fGood = false;
             continue;
         }
-
-        if(!masterKeyID.IsNull() && fHd){
-            // If change component in HD path is 2, this is a mint seed key. Add to mintpool. (Have to call after key addition)
-            if(pwallet->mapKeyMetadata[keyid].nChange.first==2){
-                pwallet->zwallet->RegenerateMintPoolEntry(walletdb, hdMasterKeyID, keyid, pwallet->mapKeyMetadata[keyid].nChild.first);
-                fMintUpdate = true;
-            }
-        }
         if (fLabel)
             pwallet->SetAddressBook(keyid, strLabel, "receive");
         nTimeBegin = std::min(nTimeBegin, nTime);
@@ -574,15 +566,31 @@ UniValue importwallet(const JSONRPCRequest& request)
     pwallet->ScanForWalletTransactions(pindex);
     pwallet->MarkDirty();
 
-    if(fMintUpdate){
-        pwallet->zwallet->SyncWithChain();
-        pwallet->zwallet->GetTracker().ListMints(false, false);
-    }
-
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");
 
     return NullUniValue;
+}
+
+UniValue dumpsparkviewkey(const JSONRPCRequest& request) {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        throw std::runtime_error("wallet not available");
+    }
+
+    if (request.fHelp || request.params.size() != 0)  {
+        throw std::runtime_error(
+            "dumpsparkviewkey\n"
+            "\nDisplay our Spark View Key.\n"
+            "\nResult:\n"
+            "\"key\"                (string) The Spark view key\n"
+            "\nExamples:\n"
+            + HelpExampleCli("dumpsparkviewkey", "")
+            + HelpExampleRpc("dumpsparkviewkey", "")
+        );
+    }
+
+  return {pwallet->GetSparkViewKeyStr()};
 }
 
 UniValue dumpprivkey(const JSONRPCRequest& request)
@@ -652,7 +660,7 @@ UniValue dumpprivkey_firo(const JSONRPCRequest& request)
             "WARNING! Your one time authorization code is: " + AuthorizationHelper::inst().generateAuthorizationCode(__FUNCTION__ + request.params[0].get_str()) + "\n"
             "This command exports your wallet private key. Anyone with this key has complete control over your funds. \n"
             "If someone asked you to type in this command, chances are they want to steal your coins. \n"
-            "Firo team members will never ask for this command's output and it is not needed for Znode setup or diagnosis!\n"
+            "Firo team members will never ask for this command's output and it is not needed for masternode setup or diagnosis!\n"
             "\n"
             " Please seek help on one of our public channels. \n"
             " Telegram: https://t.me/firoproject \n"
@@ -849,7 +857,7 @@ UniValue dumpwallet_firo(const JSONRPCRequest& request)
             "WARNING! Your one time authorization code is: " + AuthorizationHelper::inst().generateAuthorizationCode(__FUNCTION__ + request.params[0].get_str()) + "\n"
             "This command exports all your private keys. Anyone with these keys has complete control over your funds. \n"
             "If someone asked you to type in this command, chances are they want to steal your coins. \n"
-            "Firo team members will never ask for this command's output and it is not needed for Znode setup or diagnosis!\n"
+            "Firo team members will never ask for this command's output and it is not needed for masternode setup or diagnosis!\n"
             "\n"
             " Please seek help on one of our public channels. \n"
             " Telegram: https://t.me/firoproject \n"

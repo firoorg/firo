@@ -51,6 +51,8 @@ public:
     /** Enable/Disable. */
     void setEnabled(bool fEnabled);
 
+    void setExpanding(bool expanding, int maximumWidth = QWIDGETSIZE_MAX);
+
     /** Qt messes up the tab chain by default in some cases (issue https://bugreports.qt-project.org/browse/QTBUG-10907),
         in these cases we have to set it up manually.
     */
@@ -61,7 +63,7 @@ Q_SIGNALS:
 
 protected:
     /** Intercept focus-in event and ',' key presses */
-    bool eventFilter(QObject *object, QEvent *event);
+    bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
     AmountSpinBox *amount;

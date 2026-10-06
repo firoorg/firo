@@ -18,8 +18,6 @@ namespace Ui {
 
 /**
  * A single entry in the dialog for sending bitcoins.
- * Stacked widget, with different UIs for payment requests
- * with a strong payee identity.
  */
 class SendCoinsEntry : public QStackedWidget
 {
@@ -35,6 +33,7 @@ public:
 
     /** Return whether the entry is still empty and unedited */
     bool isClear();
+    bool hasRosenBridgeData() const;
     /** Needs validate() to be called before calling isPayToPcode()*/
     bool isPayToPcode() const;
 
@@ -49,7 +48,10 @@ public:
 
     void setFocus();
     void setWarning(bool fAnonymousMode);
-    
+    void setfAnonymousMode(bool fAnonymousMode);
+    static QString generateWarningText(const QString& address, const bool fAnonymousMode);
+    void applyTheme();
+
 public Q_SLOTS:
     void clear();
 
@@ -57,10 +59,12 @@ Q_SIGNALS:
     void removeEntry(SendCoinsEntry *entry);
     void payAmountChanged();
     void subtractFeeFromAmountChanged();
+    void rosenBridgeChanged();
 
 private Q_SLOTS:
     void deleteClicked();
     void on_payTo_textChanged(const QString &address);
+    void on_MemoTextChanged(const QString &text);
     void on_addressBookButton_clicked();
     void on_pasteButton_clicked();
     void updateDisplayUnit();
@@ -71,8 +75,14 @@ private:
     WalletModel *model;
     const PlatformStyle *platformStyle;
     bool isPcodeEntry;
-
+    bool fAnonymousMode = false;
+    bool applyingRecipient = false;
     bool updateLabel(const QString &address);
+    bool applyPaymentURI(const QString& uri);
+    void clearRosenBridgeData();
+    void updateRosenBridgeDisplay();
+    void updateSparkNameResolution();
+    
 };
 
 #endif // BITCOIN_QT_SENDCOINSENTRY_H

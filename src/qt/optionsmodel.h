@@ -45,21 +45,22 @@ public:
         ThreadsScriptVerif,     // int
         DatabaseCache,          // int
         SpendZeroConfChange,    // bool
-        ReindexLelantus,        // bool
         Listen,                 // bool
         TorSetup,               // bool
         AutoAnonymize,          // bool
-        LelantusPage,           // bool
+        Split,                  // bool
         enableRapAddresses,     // bool
+        ReindexSpark,           // bool (wallet: zap Spark mints + reindex; QSettings bReindexSpark)
+        SparkPage,              // bool (show Spark privacy controls; QSettings fSparkPage)
         OptionIDRowCount,
     };
 
     void Init(bool resetSettings = false);
     void Reset();
 
-    int rowCount(const QModelIndex & parent = QModelIndex()) const;
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const;
-    bool setData(const QModelIndex & index, const QVariant & value, int role = Qt::EditRole);
+    int rowCount(const QModelIndex & parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const override;
+    bool setData(const QModelIndex & index, const QVariant & value, int role = Qt::EditRole) override;
     /** Updates current unit in memory, settings and emits displayUnitChanged(newUnit) signal */
     void setDisplayUnit(const QVariant &value);
 
@@ -73,7 +74,8 @@ public:
     bool getRapAddresses() {    return fenableRapAddresses; }
     const QString& getOverriddenByCommandLine() { return strOverriddenByCommandLine; }
     bool getAutoAnonymize() { return fAutoAnonymize; }
-    bool getLelantusPage() {return fLelantusPage; }
+    bool getfSplit() { return fSplit; }
+    bool getSparkPage() { return fSparkPage; }
 
     /* Restart flag helper */
     void setRestartRequired(bool fRequired);
@@ -89,7 +91,8 @@ private:
     QString strThirdPartyTxUrls;
     bool fCoinControlFeatures;
     bool fAutoAnonymize;
-    bool fLelantusPage;
+    bool fSplit;
+    bool fSparkPage;
     bool fenableRapAddresses;
 
     /* settings that were overridden by command-line */
@@ -105,7 +108,7 @@ Q_SIGNALS:
     void coinControlFeaturesChanged(bool);
     void enableRapAddressesChanged(bool);
     void autoAnonymizeChanged(bool);
-    void lelantusPageChanged(bool);
+    void sparkPageChanged(bool);
     void hideTrayIconChanged(bool);
 };
 

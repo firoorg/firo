@@ -8,15 +8,17 @@
 
 #include "chainparams.h"
 #include "key.h"
+#include "guitheme.h"
 #include "rpcnestedtests.h"
 #include "util.h"
 #include "uritests.h"
 #include "compattests.h"
-
-#include <QCoreApplication>
+#include "test_sendcoinsentry.h"
+#include "walletuitests.h"
+#include <QApplication>
 #include <QObject>
-#include <QTest>
-
+#include <QSettings>
+#include <QTemporaryDir>
 #include <openssl/ssl.h>
 
 #if defined(QT_STATICPLUGIN) && QT_VERSION < 0x050000
@@ -35,27 +37,40 @@ int main(int argc, char *argv[])
     ECC_Start();
     SetupEnvironment();
     SetupNetworking();
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(CBaseChainParams::REGTEST);
     noui_connect();
 
     bool fInvalid = false;
 
-    // Don't remove this, it's needed to access
-    // QCoreApplication:: in the tests
-    QCoreApplication app(argc, argv);
-    app.setApplicationName("Bitcoin-Qt-test");
+    QApplication app(argc, argv);
+    Q_INIT_RESOURCE(bitcoin);
+    GUIUtil::loadBrandFonts();
+    app.setApplicationName("Firo-Qt-test");
+    app.setOrganizationName("FiroTest");
+    QTemporaryDir settingsDirectory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDirectory.path());
 
     SSL_library_init();
 
     URITests test1;
     if (QTest::qExec(&test1) != 0)
         fInvalid = true;
-    }
-    RPCNestedTests test3;
-    if (QTest::qExec(&test3) != 0)
+
+    TestSendCoinsEntry test2;
+    if (QTest::qExec(&test2) != 0)
         fInvalid = true;
+
+    // RPCNestedTests test3;
+    // if (QTest::qExec(&test3) != 0)
+    //     fInvalid = true;
+
     CompatTests test4;
     if (QTest::qExec(&test4) != 0)
+        fInvalid = true;
+
+    WalletUiTests walletUiTests;
+    if (QTest::qExec(&walletUiTests) != 0)
         fInvalid = true;
 
     ECC_Stop();

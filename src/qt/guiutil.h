@@ -7,11 +7,14 @@
 
 #include "amount.h"
 
+#include <functional>
+
 #include <QEvent>
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QObject>
 #include <QProgressBar>
+#include <QSize>
 #include <QString>
 #include <QTableView>
 #include <QLabel>
@@ -35,6 +38,13 @@ QT_END_NAMESPACE
  */
 namespace GUIUtil
 {
+    /** Return the usable size of the screen containing a widget. */
+    QSize availableScreenSize(const QWidget* widget);
+
+    /** Run a slow wallet operation on a worker while the GUI repaints.
+     * User input is excluded until completion and exceptions are rethrown. */
+    void runWalletOperation(const std::function<void()>& operation);
+
     // Create human-readable string from date
     QString dateTimeStr(const QDateTime &datetime);
     QString dateTimeStr(qint64 nTime);
@@ -43,7 +53,7 @@ namespace GUIUtil
     QFont fixedPitchFont();
 
     // Set up widgets for address and amounts
-    void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent);
+    void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent, bool allowPaymentURI = false);
     void setupAmountWidget(QLineEdit *widget, QWidget *parent);
 
     // Parse "bitcoin:" URI into recipient object, return true on successful parsing
@@ -130,7 +140,7 @@ namespace GUIUtil
         explicit ToolTipToRichTextFilter(int size_threshold, QObject *parent = 0);
 
     protected:
-        bool eventFilter(QObject *obj, QEvent *evt);
+        bool eventFilter(QObject *obj, QEvent *evt) override;
 
     private:
         int size_threshold;
@@ -172,7 +182,7 @@ namespace GUIUtil
          */
         void clicked(const QPoint& point);
     protected:
-        void mouseReleaseEvent(QMouseEvent *event);
+        void mouseReleaseEvent(QMouseEvent *event) override;
     };
 
     class ClickableProgressBar : public QProgressBar
@@ -185,7 +195,7 @@ namespace GUIUtil
          */
         void clicked(const QPoint& point);
     protected:
-        void mouseReleaseEvent(QMouseEvent *event);
+        void mouseReleaseEvent(QMouseEvent *event) override;
     };
 
 #if defined(Q_OS_MAC) && QT_VERSION >= 0x050000
@@ -194,7 +204,7 @@ namespace GUIUtil
     // QProgressBar uses around 10% CPU even when app is in background
     class ProgressBar : public ClickableProgressBar
     {
-        bool event(QEvent *e) {
+        bool event(QEvent *e) override {
             return (e->type() != QEvent::StyleAnimationUpdate) ? QProgressBar::event(e) : false;
         }
     };
@@ -216,6 +226,50 @@ namespace GUIUtil
     protected:
         void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override;
     };
+
+    /**
+     * Returns the distance in pixels appropriate for drawing a subsequent character after text.
+     *
+     * In Qt 5.12 and before the QFontMetrics::width() is used and it is deprecated since Qt 5.13.
+     * In Qt 5.11 the QFontMetrics::horizontalAdvance() was introduced.
+     */
+    int TextWidth(const QFontMetrics& fm, const QString& text);
+
+    /**
+     * Returns the start-moment of the day in local time.
+     *
+     * QDateTime::QDateTime(const QDate& date) is deprecated since Qt 5.15.
+     * QDate::startOfDay() was introduced in Qt 5.14.
+     */
+    QDateTime StartOfDay(const QDate& date);    
+
+    /**
+     * Returns true if pixmap has been set.
+     *
+     * QPixmap* QLabel::pixmap() is deprecated since Qt 5.15.
+     */
+    bool HasPixmap(const QLabel* label);
+    QImage GetImage(const QLabel* label);
+
+    /**
+     * Splits the string into substrings wherever separator occurs, and returns
+     * the list of those strings. Empty strings do not appear in the result.
+     *
+     * QString::split() signature differs in different Qt versions:
+     *  - QString::SplitBehavior is deprecated since Qt 5.15
+     *  - Qt::SplitBehavior was introduced in Qt 5.14
+     * If {QString|Qt}::SkipEmptyParts behavior is required, use this
+     * function instead of QString::split().
+     */
+    template <typename SeparatorType>
+    QStringList SplitSkipEmptyParts(const QString& string, const SeparatorType& separator)
+    {
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+        return string.split(separator, Qt::SkipEmptyParts);
+    #else
+        return string.split(separator, QString::SkipEmptyParts);
+    #endif
+    }
 
 } // namespace GUIUtil
 

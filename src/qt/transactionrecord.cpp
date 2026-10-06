@@ -8,7 +8,6 @@
 
 #include "base58.h"
 #include "consensus/consensus.h"
-#include "lelantus.h"
 #include "validation.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
@@ -47,28 +46,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
     bool isAllSigmaSpendFromMe = false;
-    for (const auto& vin : wtx.tx->vin) {
-        isAllSigmaSpendFromMe = (wallet->IsMine(vin, *wtx.tx) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
-        if (!isAllSigmaSpendFromMe)
-            break;
+    if (wtx.tx->vin[0].IsSigmaSpend()) {
+        isAllSigmaSpendFromMe = (wallet->IsMine(wtx.tx->vin[0], *wtx.tx) & ISMINE_SPENDABLE);
     }
 
-    bool isAllJoinSplitFromMe = false;
-    for (const auto& vin : wtx.tx->vin) {
-        isAllJoinSplitFromMe = (wallet->IsMine(vin, *wtx.tx) & ISMINE_SPENDABLE) && vin.IsLelantusJoinSplit();
-        if (!isAllJoinSplitFromMe)
-            break;
-    }
-
-    if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe || isAllJoinSplitFromMe) {
+    if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe) {
         CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
-        if (isAllJoinSplitFromMe && wtx.tx->vin.size() > 0) {
-            try {
-                nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
-            } catch (const std::exception &) {
-                // do nothing
-            }
-        }
 
         bool first = true;
 
@@ -78,7 +61,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         bool firstAddress = true;
 
         for (const CTxOut& txout : wtx.tx->vout) {
-            isminetype mine = wallet->IsMine(txout);
+            isminetype mine = wallet->IsMine(txout, *wtx.tx);
             if (!mine) {
                 isAllToMe = false;
                 break;
@@ -108,7 +91,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 if (wtx.IsChange(txout) || txout.scriptPubKey.IsLelantusJMint()) {
                     continue;
                 }
-                isminetype mine = wallet->IsMine(txout);
+                isminetype mine = wallet->IsMine(txout, *wtx.tx);
 
                 TransactionRecord sub(hash, nTime);
                 CTxDestination address;
@@ -163,7 +146,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         for(unsigned int i = 0; i < wtx.tx->vout.size(); i++)
         {
             const CTxOut& txout = wtx.tx->vout[i];
-            isminetype mine = wallet->IsMine(txout);
+            isminetype mine = wallet->IsMine(txout, *wtx.tx);
             if (mine)
             {
                 TransactionRecord sub(hash, nTime);
@@ -229,7 +212,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         isminetype fAllToMe = ISMINE_SPENDABLE;
         BOOST_FOREACH(const CTxOut& txout, wtx.tx->vout)
         {
-            isminetype mine = wallet->IsMine(txout);
+            isminetype mine = wallet->IsMine(txout, *wtx.tx);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
             if(fAllToMe > mine) fAllToMe = mine;
         }
@@ -249,10 +232,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::MintSparkToSelf, "",
                     -(nDebit - nChange), 0));
             } else if (wtx.tx->IsSparkSpend()) {
-                CAmount fee;
+                CAmount fee = 0;
                 try {
-                    spark::SpendTransaction spend = spark::ParseSparkSpend(*wtx.tx);
-                    fee = spend.getFee();
+                    fee = spark::GetSparkSpendFee(*wtx.tx);
                 } catch (...) {
                 }
                 parts.append(TransactionRecord(hash, nTime, TransactionRecord::SpendSparkToSelf, "",
@@ -273,7 +255,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
             if (wtx.tx->IsSparkSpend() && wtx.tx->vin.size() > 0) {
                 try {
-                    nTxFee = spark::ParseSparkSpend(*wtx.tx).getFee();
+                    nTxFee = spark::GetSparkSpendFee(*wtx.tx);
                 }
                 catch (...) {
                     //do nothing
@@ -288,7 +270,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 sub.involvesWatchAddress = involvesWatchAddress;
                 CSparkOutputTx output;
 
-                if(wallet->IsMine(txout))
+                if(wallet->IsMine(txout, *wtx.tx))
                 {
                     // Ignore parts sent to self, as this is usually the change
                     // from a transaction sent back to our own address.

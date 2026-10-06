@@ -11,6 +11,7 @@
 #include "chainparams.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
+#include "guitheme.h"
 #include "guiutil.h"
 #include "intro.h"
 #include "recover.h"
@@ -22,6 +23,9 @@
 #include "utilitydialog.h"
 #include "winshutdownmonitor.h"
 #include "askpassphrasedialog.h"
+#ifdef Q_OS_MAC
+#include "macnapinhibitor.h"
+#endif
 #ifdef ENABLE_WALLET
 #include "paymentserver.h"
 #include "walletmodel.h"
@@ -31,7 +35,6 @@
 #include "rpc/server.h"
 #include "scheduler.h"
 #include "stacktraces.h"
-#include "ui_interface.h"
 #include "util.h"
 #include "warnings.h"
 
@@ -47,10 +50,13 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QMessageBox>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QThread>
 #include <QTimer>
 #include <QTranslator>
@@ -71,6 +77,19 @@ Q_IMPORT_PLUGIN(AccessibleFactory)
 #endif
 #if defined(QT_QPA_PLATFORM_XCB)
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin);
+#ifdef HAVE_WAYLAND
+Q_IMPORT_PLUGIN(QWaylandIntegrationPlugin);
+Q_IMPORT_PLUGIN(QWaylandEglPlatformIntegrationPlugin);
+#ifdef HAVE_QT_WAYLAND_XDG_SHELL_INTEGRATION_PLUGIN
+Q_IMPORT_PLUGIN(QWaylandXdgShellIntegrationPlugin);
+#endif
+#ifdef HAVE_QT_WAYLAND_EGL_CLIENT_BUFFER_PLUGIN
+Q_IMPORT_PLUGIN(QWaylandEglClientBufferPlugin);
+#endif
+#ifdef HAVE_QT_WAYLAND_BRADIENT_DECORATION_PLUGIN
+Q_IMPORT_PLUGIN(QWaylandBradientDecorationPlugin);
+#endif
+#endif
 #elif defined(QT_QPA_PLATFORM_WINDOWS)
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin);
 #elif defined(QT_QPA_PLATFORM_COCOA)
@@ -82,8 +101,6 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #if QT_VERSION < 0x050000
 #include <QTextCodec>
 #endif
-
-#include <QFontDatabase>
 
 static bool newWallet = false;
 
@@ -141,11 +158,21 @@ static void initTranslations(QTranslator &qtTranslatorBase, QTranslator &qtTrans
     // - Then load the more specific locale translator
 
     // Load e.g. qt_de.qm
-    if (qtTranslatorBase.load("qt_" + lang, QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+    if (qtTranslatorBase.load("qt_" + lang,
+#if QT_VERSION >= 0x060000
+                              QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+#else
+                              QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+#endif
         QApplication::installTranslator(&qtTranslatorBase);
 
     // Load e.g. qt_de_DE.qm
-    if (qtTranslator.load("qt_" + lang_territory, QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+    if (qtTranslator.load("qt_" + lang_territory,
+#if QT_VERSION >= 0x060000
+                          QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+#else
+                          QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+#endif
         QApplication::installTranslator(&qtTranslator);
 
     // Load e.g. bitcoin_de.qm (shortcut "de" needs to be defined in bitcoin.qrc)
@@ -231,6 +258,8 @@ public:
     /// Request core shutdown
     void requestShutdown();
 
+    void showCloseWindow();
+
     /// Get process return value
     int getReturnValue() { return returnValue; }
 
@@ -286,6 +315,7 @@ void BitcoinCore::initialize()
 {
     try
     {
+        RenameThread("firo-qt-init");
         qDebug() << __func__ << ": Running AppInit2 in thread";
         if (!AppInitBasicSetup())
         {
@@ -429,7 +459,7 @@ void BitcoinApplication::createWindow(const NetworkStyle *networkStyle)
 
 void BitcoinApplication::createSplashScreen(const NetworkStyle *networkStyle)
 {
-    SplashScreen *splash = new SplashScreen(QPixmap(), 0);
+    SplashScreen *splash = new SplashScreen(networkStyle);
     // We don't hold a direct pointer to the splash screen after creation, but the splash
     // screen will take care of deleting itself when slotFinish happens.
     splash->show();
@@ -483,7 +513,7 @@ void BitcoinApplication::requestShutdown()
     window->hide();
     window->setClientModel(0);
     pollShutdownTimer->stop();
-
+    showCloseWindow();
 #ifdef ENABLE_WALLET
     window->removeAllWallets();
     delete walletModel;
@@ -493,9 +523,15 @@ void BitcoinApplication::requestShutdown()
     clientModel = 0;
 
     StartShutdown();
+    // Delay shutdown signal by 500 milliseconds
+    QTimer::singleShot(1000, this, [this]() {
+        // Request shutdown from core thread after delay
+        Q_EMIT requestedShutdown();
+    });
+}
 
-    // Request shutdown from core thread
-    Q_EMIT requestedShutdown();
+void BitcoinApplication::showCloseWindow(){
+    shutdownWindow->show();
 }
 
 void BitcoinApplication::initializeResult(int retval)
@@ -517,7 +553,7 @@ void BitcoinApplication::initializeResult(int retval)
 
             window->addWallet(BitcoinGUI::DEFAULT_WALLET, walletModel);
             window->setCurrentWallet(BitcoinGUI::DEFAULT_WALLET);
-
+        }
 #endif
 
         // If -min option passed, start window minimized.
@@ -532,9 +568,10 @@ void BitcoinApplication::initializeResult(int retval)
         Q_EMIT splashFinished(window);
 
 #ifdef ENABLE_WALLET
-        if(newWallet)
-            NotifyMnemonic::notify();
-        }
+
+        if (pwalletMain)
+            if(newWallet)
+                NotifyMnemonic::notify();
 
         // Now that initialization/startup is done, process any command-line
         // firo: URIs or payment requests:
@@ -553,12 +590,16 @@ void BitcoinApplication::initializeResult(int retval)
 void BitcoinApplication::shutdownResult(int retval)
 {
     qDebug() << __func__ << ": Shutdown result: " << retval;
+    if (shutdownWindow) {
+        shutdownWindow->close();
+        shutdownWindow.reset();
+    }
     quit(); // Exit main loop after shutdown finished
 }
 
 void BitcoinApplication::handleRunawayException(const QString &message)
 {
-    QMessageBox::critical(0, "Runaway exception", BitcoinGUI::tr("A fatal error occurred. Firo can no longer continue safely and will quit.") + QString("\n\n") + message);
+    QMessageBox::critical(0, tr("Runaway exception"), BitcoinGUI::tr("A fatal error occurred. Firo can no longer continue safely and will quit.") + QString("\n\n") + message);
     ::exit(EXIT_FAILURE);
 }
 
@@ -627,14 +668,12 @@ void BitcoinApplication::migrateToFiro()
     if (boost::filesystem::exists(dontMigrateFilePath) && !GetBoolArg("-migratetofiro", false))
         return;
 
-    QCheckBox *doNotAskMeAgainCheckbox = new QCheckBox("Do not ask me again");
+    QCheckBox *doNotAskMeAgainCheckbox = new QCheckBox(tr("Do not ask me again"));
     QMessageBox messageBox;
-    QString messageText;
-    QTextStream(&messageText) <<
-        "Migrate directory structure from zcoin to firo? "
-        "Directory " << GUIUtil::boostPathToQString(zcoinDefaultDataDir) <<
-          " will be renamed to " << GUIUtil::boostPathToQString(firoDefaultDataDir) <<
-          " and file zcoin.conf in it will be renamed to firo.conf";
+    QString messageText = tr("Migrate directory structure from zcoin to firo? "
+                             "Directory %1 will be renamed to %2 "
+                             "and file zcoin.conf in it will be renamed to firo.conf")
+        .arg(GUIUtil::boostPathToQString(zcoinDefaultDataDir), GUIUtil::boostPathToQString(firoDefaultDataDir));
     messageBox.setText(messageText);
 
     messageBox.setIcon(QMessageBox::Icon::Question);
@@ -662,6 +701,37 @@ void BitcoinApplication::migrateToFiro()
     }
 }
 
+#if defined(Q_OS_LINUX)
+// Write the app icon and desktop file to the user's XDG data directory so the
+// Wayland compositor can find them without a system-wide installation.
+static void RegisterXdgResources()
+{
+    const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+
+    const QString iconDir = dataDir + "/icons/hicolor/scalable/apps";
+    QDir().mkpath(iconDir);
+    const QString iconDst = iconDir + "/firo-qt.svg";
+    // Always overwrite so the icon stays in sync with the running binary version.
+    QFile::remove(iconDst);
+    QFile::copy(":/icons/firo_svg", iconDst);
+
+    const QString appDir = dataDir + "/applications";
+    QDir().mkpath(appDir);
+    QFile desktopFile(appDir + "/firo-qt.desktop");
+    if (desktopFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&desktopFile);
+        out << "[Desktop Entry]\n"
+            << "Name=Firo\n"
+            << "Comment=Connect to Firo\n"
+            << "Exec=" << QCoreApplication::applicationFilePath() << " %u\n"
+            << "Terminal=false\n"
+            << "Type=Application\n"
+            << "Icon=firo-qt\n"
+            << "Categories=Office;Finance;\n";
+    }
+}
+#endif
+
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -670,6 +740,7 @@ int main(int argc, char *argv[])
     RegisterPrettySignalHandlers();
 #endif    
     SetupEnvironment();
+    SetInternalThreadName("main");
 
     /// 1. Parse command-line options. These take precedence over anything else.
     // Command-line options take precedence:
@@ -687,18 +758,25 @@ int main(int argc, char *argv[])
     Q_INIT_RESOURCE(bitcoin);
     Q_INIT_RESOURCE(bitcoin_locale);
 
-#if QT_VERSION > 0x050100
+#if QT_VERSION > 0x050100 && QT_VERSION < 0x060000
     // Generate high-dpi pixmaps
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 #endif
-#if QT_VERSION >= 0x050600
+#if QT_VERSION >= 0x050600 && QT_VERSION < 0x060000
     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
 #ifdef Q_OS_MAC
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
+    // Prevent macOS App Nap from throttling background threads (e.g. block
+    // reindex/resync) once the wallet window loses focus or is hidden.
+    MacNapInhibitor::disableAppNap();
 #endif
 
     BitcoinApplication app(argc, argv);
+
+#if defined(Q_OS_LINUX)
+    RegisterXdgResources();
+#endif
 
     // Register meta types used for QMetaObject::invokeMethod
     qRegisterMetaType< bool* >();
@@ -713,12 +791,11 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName(QAPP_ORG_NAME);
     QApplication::setOrganizationDomain(QAPP_ORG_DOMAIN);
     QApplication::setApplicationName(QAPP_APP_NAME_DEFAULT);
+    // Required on Wayland: compositor uses the desktop file name to look up the
+    // application icon from the XDG icon theme instead of the runtime-set window icon.
+    QGuiApplication::setDesktopFileName("firo-qt");
 
-    // GUIUtil::SubstituteFonts(GetLangTerritory()); // use inlcuded fonts below
-    // load included fonts
-    QFontDatabase::addApplicationFont(":/fonts/Saira_SemiCondensed-Bold");
-    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Bold");
-    QFontDatabase::addApplicationFont(":/fonts/SourceSansPro-Regular");
+    GUIUtil::loadBrandFonts();
 
     /// 4. Initialization of translations, so that intro dialog is in user's language
     // Now that QSettings are accessible, initialize translations
@@ -858,6 +935,9 @@ int main(int argc, char *argv[])
         PrintExceptionContinue(std::current_exception(), "Runaway exception");
         app.handleRunawayException(QString::fromStdString(GetWarnings("gui")));
     }
+#ifdef Q_OS_MAC
+    MacNapInhibitor::enableAppNap();
+#endif
     return app.getReturnValue();
 }
 #endif // BITCOIN_QT_TEST

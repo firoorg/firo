@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include <iterator>
+#include <type_traits>
 
 #pragma pack(push, 1)
 /** Implements a drop-in replacement for std::vector<T> which stores up to N
@@ -147,16 +148,16 @@ private:
     size_type _size;
     union direct_or_indirect {
         char direct[sizeof(T) * N];
-        struct {
+        struct indirect{
             size_type capacity;
             char* indirect;
-        };
-    } _union;
+        } data;
+    } _union = {};
 
     T* direct_ptr(difference_type pos) { return reinterpret_cast<T*>(_union.direct) + pos; }
     const T* direct_ptr(difference_type pos) const { return reinterpret_cast<const T*>(_union.direct) + pos; }
-    T* indirect_ptr(difference_type pos) { return reinterpret_cast<T*>(_union.indirect) + pos; }
-    const T* indirect_ptr(difference_type pos) const { return reinterpret_cast<const T*>(_union.indirect) + pos; }
+    T* indirect_ptr(difference_type pos) { return reinterpret_cast<T*>(_union.data.indirect) + pos; }
+    const T* indirect_ptr(difference_type pos) const { return reinterpret_cast<const T*>(_union.data.indirect) + pos; }
     bool is_direct() const { return _size <= N; }
 
     void change_capacity(size_type new_capacity) {
@@ -174,17 +175,17 @@ private:
                 /* FIXME: Because malloc/realloc here won't call new_handler if allocation fails, assert
                     success. These should instead use an allocator or new/delete so that handlers
                     are called as necessary, but performance would be slightly degraded by doing so. */
-                _union.indirect = static_cast<char*>(realloc(_union.indirect, ((size_t)sizeof(T)) * new_capacity));
-                assert(_union.indirect);
-                _union.capacity = new_capacity;
+                _union.data.indirect = static_cast<char*>(realloc(_union.data.indirect, ((size_t)sizeof(T)) * new_capacity));
+                assert(_union.data.indirect);
+                _union.data.capacity = new_capacity;
             } else {
                 char* new_indirect = static_cast<char*>(malloc(((size_t)sizeof(T)) * new_capacity));
                 assert(new_indirect);
                 T* src = direct_ptr(0);
                 T* dst = reinterpret_cast<T*>(new_indirect);
                 memcpy(dst, src, size() * sizeof(T));
-                _union.indirect = new_indirect;
-                _union.capacity = new_capacity;
+                _union.data.indirect = new_indirect;
+                _union.data.capacity = new_capacity;
                 _size += N + 1;
             }
         }
@@ -300,7 +301,7 @@ public:
         if (is_direct()) {
             return N;
         } else {
-            return _union.capacity;
+            return _union.data.capacity;
         }
     }
 
@@ -388,10 +389,14 @@ public:
     iterator erase(iterator first, iterator last) {
         iterator p = first;
         char* endp = (char*)&(*end());
-        while (p != last) {
-            (*p).~T();
-            _size--;
-            ++p;
+        if (!std::is_trivially_destructible<T>::value) {
+            while (p != last) {
+                (*p).~T();
+                _size--;
+                ++p;
+            }
+        } else {
+            _size -= last - p;
         }
         memmove(&(*first), &(*last), endp - ((char*)(&(*last))));
         return first;
@@ -432,10 +437,12 @@ public:
     }
 
     ~prevector() {
-        clear();
+        if (!std::is_trivially_destructible<T>::value) {
+            clear();
+        }
         if (!is_direct()) {
-            free(_union.indirect);
-            _union.indirect = NULL;
+            free(_union.data.indirect);
+            _union.data.indirect = NULL;
         }
     }
 
@@ -487,7 +494,7 @@ public:
         if (is_direct()) {
             return 0;
         } else {
-            return ((size_t)(sizeof(T))) * _union.capacity;
+            return ((size_t)(sizeof(T))) * _union.data.capacity;
         }
     }
 
