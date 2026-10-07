@@ -184,6 +184,8 @@ static char *convert_str(const std::string &s) {
 
 std::atomic<bool> fRequestShutdown(false);
 static bool fInitializationCompleted = false;
+// Owned by the daemon or Qt thread group, which outlives Shutdown().
+static boost::thread* threadImport = nullptr;
 std::atomic<bool> fDumpMempoolLater(false);
 
 void StartShutdown()
@@ -267,6 +269,12 @@ void Shutdown()
     StopREST();
     StopRPC();
     StopHTTPServer();
+    // Failed startup skips joining the thread group. Stop the importer before
+    // verifying its final batch or tearing down anything it still uses.
+    if (threadImport && threadImport->joinable()) {
+        threadImport->join();
+    }
+    threadImport = nullptr;
     llmq::StopLLMQSystem();
 
 #ifdef ENABLE_WALLET
@@ -296,6 +304,14 @@ void Shutdown()
     // cleanup; the embedded Tor itself is torn down by process exit.
     g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
+    bool sparkBatchVerified = false;
+    // Before chainstate initialization, an existing marker belongs to the
+    // previous run and must not be cleared by verifying an empty batch.
+    if (pcoinsTip) {
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState batchState;
+        sparkBatchVerified = VerifyPendingSparkBatch(batchState, "shutdown");
+    }
     if (fDumpMempoolLater)
         DumpMempool();
 
@@ -310,10 +326,10 @@ void Shutdown()
         fFeeEstimatesInitialized = false;
     }
 
-    // Failed daemon initialization may skip joining the block import thread.
-    FlushStateToDiskForShutdown(fInitializationCompleted);
     {
         LOCK(cs_main);
+        // Incomplete startup still takes the conservative recovery path.
+        FlushStateToDiskForShutdown(fInitializationCompleted && sparkBatchVerified);
         delete pcoinsTip;
         pcoinsTip = NULL;
         delete pcoinscatcher;
@@ -763,10 +779,18 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             if (!boost::filesystem::exists(GetBlockPosFilename(pos, "blk")))
                 break; // No block files left to reindex
             FILE *file = OpenBlockFile(pos, true);
-            if (!file)
-                break; // This error is logged in OpenBlockFile
+            if (!file) {
+                // OpenBlockFile logs the error. An incomplete import must not
+                // clear the reindex flag or Spark recovery marker.
+                StartShutdown();
+                return;
+            }
             LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
             LoadExternalBlockFile(chainparams, file, &pos);
+            // Activation or a state flush may have requested shutdown. Do not
+            // treat the processed prefix as a successfully completed reindex.
+            if (ShutdownRequested())
+                return;
             nFile++;
         }
         BatchProofContainer::get_instance()->finalize();
@@ -2321,16 +2345,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             vImportFiles.push_back(strFile);
     }
 
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+    threadImport = threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
 
-    // Wait for genesis block to be processed
+    // Wait for genesis, unless the import fails or shutdown is requested.
     {
         boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
-        while (!fHaveGenesis) {
-            condvar_GenesisWait.wait(lock);
+        while (!fHaveGenesis && !ShutdownRequested()) {
+            condvar_GenesisWait.wait_for(lock, boost::chrono::milliseconds(500));
         }
         uiInterface.NotifyBlockTip.disconnect(&BlockNotifyGenesisWait);
     }
+    if (ShutdownRequested())
+        return false;
 
     // ********************************************************* Step 12: start node
 

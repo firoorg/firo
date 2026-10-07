@@ -204,6 +204,14 @@ BOOST_AUTO_TEST_CASE(reindex_shutdown_recovery_marker)
             SetMiscWarning(warning);
         }
     } restore{*pcoinsdbview};
+    const auto flushForShutdown = [](bool allowReindexResume) {
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState state;
+        const bool verified = VerifyPendingSparkBatch(state, "shutdown");
+        LOCK(cs_main);
+        const bool flushed = FlushStateToDiskForShutdown(allowReindexResume && verified);
+        return verified && flushed;
+    };
     fReindex = true;
     BOOST_REQUIRE(pblocktree->WriteReindexing(true));
     const auto tip = chainActive.Tip()->GetBlockHash();
@@ -220,9 +228,21 @@ BOOST_AUTO_TEST_CASE(reindex_shutdown_recovery_marker)
     BOOST_CHECK(container->verify_pending());
     BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
     // Early startup failure must not authorize resuming an unchecked import.
-    BOOST_CHECK(FlushStateToDiskForShutdown(false));
+    BOOST_CHECK(flushForShutdown(false));
     BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
-    BOOST_CHECK(FlushStateToDiskForShutdown(true));
+    // A marker-forced, unbatched recovery must stay unbatched across shutdown.
+    {
+        struct RestoreBatching
+        {
+            std::string value = GetArg("-batching", "1");
+            ~RestoreBatching() { ForceSetArg("-batching", value); }
+        } restoreBatching;
+        ForceSetArg("-batching", "0");
+        BOOST_CHECK(flushForShutdown(true));
+        BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+        BOOST_CHECK(pcoinsdbview->GetBestBlock() == tip);
+    }
+    BOOST_CHECK(flushForShutdown(true));
     BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
     BOOST_CHECK(pcoinsdbview->GetBestBlock() == tip);
     bool reindexing = false;
@@ -230,39 +250,47 @@ BOOST_AUTO_TEST_CASE(reindex_shutdown_recovery_marker)
     BOOST_CHECK(reindexing);
     BOOST_CHECK(fReindex);
 
-    container->init(BatchProofContainer::Mode::Deferred);
-    container->finalize();
-    struct FailedFlush : CCoinsViewBacked
-    {
-        FailedFlush(CCoinsView* view) : CCoinsViewBacked(view) {}
-        bool BatchWrite(CCoinsMap&, const uint256&) override
-        {
-            BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
-            return false;
-        }
-    } failedFlush(pcoinsdbview);
-    pcoinsTip->SetBackend(failedFlush);
-    BOOST_CHECK(!FlushStateToDiskForShutdown(true));
-    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
-    pcoinsTip->SetBackend(*pcoinsdbview);
-
-    // Even a now-empty verified batch must keep its marker until the flush succeeds.
-    BOOST_CHECK(container->verify_pending());
-    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
-    BOOST_CHECK(FlushStateToDiskForShutdown(true));
-    BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
-
     // A failed proof must keep recovery enabled even when the database flush works.
     auto invalidSpend = spark::ParseSparkSpend(spend);
     invalidSpend.setVout(0);
     container->init(BatchProofContainer::Mode::Deferred);
     container->add(invalidSpend, spend.GetHash());
     container->finalize();
-    BOOST_CHECK(!FlushStateToDiskForShutdown(true));
+    BOOST_CHECK(!flushForShutdown(true));
     BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
     container->remove(invalidSpend);
-    BOOST_CHECK(FlushStateToDiskForShutdown(true));
+    BOOST_CHECK(flushForShutdown(true));
     BOOST_CHECK(!BatchProofContainer::HasRecoveryMarker());
+
+    container->init(BatchProofContainer::Mode::Deferred);
+    container->finalize();
+    const COutPoint lostCoin(uint256S("01"), 0);
+    BOOST_REQUIRE(!pcoinsdbview->HaveCoin(lostCoin));
+    pcoinsTip->AddCoin(lostCoin, Coin(CTxOut(COIN, CScript() << OP_TRUE), chainActive.Height(), false), false);
+    struct FailedFlush : CCoinsViewBacked
+    {
+        FailedFlush(CCoinsView* view) : CCoinsViewBacked(view) {}
+        bool BatchWrite(CCoinsMap& coins, const uint256&) override
+        {
+            BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+            BOOST_CHECK(!coins.empty());
+            // CCoinsViewDB consumes dirty entries before writing its batch.
+            coins.clear();
+            return false;
+        }
+    } failedFlush(pcoinsdbview);
+    pcoinsTip->SetBackend(failedFlush);
+    // A runtime flush failure must remain fatal to resume even if shutdown's
+    // subsequent flush succeeds with the now-empty cache.
+    FlushStateToDisk();
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    pcoinsTip->SetBackend(*pcoinsdbview);
+
+    BOOST_CHECK(container->verify_pending());
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(flushForShutdown(true));
+    BOOST_CHECK(BatchProofContainer::HasRecoveryMarker());
+    BOOST_CHECK(!pcoinsdbview->HaveCoin(lostCoin));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
