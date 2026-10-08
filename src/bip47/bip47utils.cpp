@@ -47,42 +47,19 @@ std::unique_ptr<CPaymentCode> PcodeFromMaskedPayload(Bytes payload, unsigned cha
     return std::unique_ptr<CPaymentCode>(new CPaymentCode(pubkey, chaincode));
 }
 
-namespace {
-std::pair<CScript::const_iterator, CScript::const_iterator> FindOpreturnData(CScript const & script)
-{
-    if (script.size() < 2 || script[0] != OP_RETURN)
-        return {script.end(), script.end()};
-    CScript::const_iterator iter = script.begin() + 1;
-    if (*iter < OP_PUSHDATA1) {
-        uint8_t sz = *iter;
-        return {iter + 1, iter + 1 + sz};
-    }
-    if (*iter == OP_PUSHDATA1) {
-        uint8_t sz = *(iter + 1);
-        return {iter + 1 + sizeof(sz), iter +  1 + sizeof(sz) + sz};
-    }
-    if (*iter == OP_PUSHDATA2) {
-        uint16_t sz = ReadLE16(&*(iter + 1));
-        return {iter + 1 + sizeof(sz), iter +  1 + sizeof(sz) + sz};
-    }
-    if (*iter == OP_PUSHDATA4) {
-        uint32_t sz = ReadLE32(&*(iter + 1));
-        return {iter + 1 + sizeof(sz), iter +  1 + sizeof(sz) + sz};
-    }
-    return {script.end(), script.end()};
-}
-}
-
 Bytes GetMaskedPcode(CTxOut const & txout)
 {
-    std::pair<CScript::const_iterator, CScript::const_iterator> opRetData = FindOpreturnData(txout.scriptPubKey);
-    if (opRetData.first == txout.scriptPubKey.end())
-        return Bytes();
+    CScript const & script = txout.scriptPubKey;
+    if (script.size() < 2 || script[0] != OP_RETURN)
+        return {};
 
-    if (*opRetData.first == 0x01 && *(opRetData.first + 1) == 0x00)
-        return Bytes(opRetData.first, opRetData.second);
-
-    return Bytes();
+    CScript::const_iterator iter = script.begin() + 1;
+    opcodetype opcode;
+    Bytes data;
+    if (!script.GetOp(iter, opcode, data) || opcode > OP_PUSHDATA4 ||
+        data.size() < 2 || data[0] != 0x01 || data[1] != 0x00)
+        return {};
+    return data;
 }
 
 Bytes GetMaskedPcode(CTransactionRef const & tx)
