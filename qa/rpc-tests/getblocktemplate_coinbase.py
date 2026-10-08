@@ -9,14 +9,12 @@ coinbase of the block the node builds for pprpcsb and echoes it in the result.
 """
 
 from io import BytesIO
-import os
-import subprocess
 import time
 
 from test_framework.mininode import CTransaction
 from test_framework.script import CScript, OP_0, OP_RETURN
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_jsonrpc, connect_nodes_bi, start_nodes, sync_blocks
+from test_framework.util import assert_equal, assert_raises_jsonrpc, connect_nodes_bi, progpow_solve, start_nodes, sync_blocks
 
 RPC_TYPE_ERROR = -3
 RPC_INVALID_PARAMETER = -8
@@ -107,21 +105,12 @@ class GetBlockTemplateCoinbaseMessageTest(BitcoinTestFramework):
         for header in (headers[1], headers[-1], newest):
             assert_raises_jsonrpc(RPC_INVALID_PARAMS, 'Bad solution', node.pprpcsb, header, '00' * 32, '0x1')
 
-        miner = os.path.join(os.path.dirname(os.getenv('FIROD', 'firod')),
-                             'progpow_test_miner' + ('.exe' if os.name == 'nt' else ''))
-
-        def solve(job):
-            nonce, mix = subprocess.check_output(
-                [miner, str(job['height']), job['pprpcheader'], job['target']],
-                universal_newlines=True, timeout=60).split()
-            return job['pprpcheader'], mix, hex(int(nonce))
-
         # Submit real proofs across DIP3 activation, including an 80-byte UTF-8 message.
         node.generate(498 - node.getblockcount())
         sync_blocks(self.nodes)
         for message in ('a' * 80, 'é' * 40, ''):
             job = node.getblocktemplate({'coinbase_message': message}, address)
-            solution = solve(job)
+            solution = progpow_solve(job)
             assert_equal(node.pprpcsb(*solution), None)
             assert_equal(node.getblockcount(), job['height'])
             block = node.getblock(node.getbestblockhash())
@@ -143,7 +132,7 @@ class GetBlockTemplateCoinbaseMessageTest(BitcoinTestFramework):
         # It must not be reported as an accepted duplicate.
         node.setmocktime(now + 3 * 3600)
         job = node.getblocktemplate({'coinbase_message': 'future'}, address)
-        solution = solve(job)
+        solution = progpow_solve(job)
         node.setmocktime(now + 66)
         tip = node.getbestblockhash()
         assert_equal(node.pprpcsb(*solution), 'time-too-new')

@@ -10,12 +10,10 @@ solution to it is still a valid block, so pprpcsb must accept it until the tip c
 """
 
 from decimal import Decimal
-import os
-import subprocess
 import time
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_jsonrpc, connect_nodes_bi, start_nodes, sync_blocks
+from test_framework.util import assert_equal, assert_raises_jsonrpc, connect_nodes_bi, progpow_solve, start_nodes, sync_blocks
 
 RPC_INVALID_PARAMS = -32602
 
@@ -55,15 +53,6 @@ class GetBlockTemplateRetainedJobsTest(BitcoinTestFramework):
         address = node.getnewaddress()
         self.spent = set()
 
-        miner = os.path.join(os.path.dirname(os.getenv('FIROD', 'firod')),
-                             'progpow_test_miner' + ('.exe' if os.name == 'nt' else ''))
-
-        def solve(job):
-            nonce, mix = subprocess.check_output(
-                [miner, str(job['height']), job['pprpcheader'], job['target']],
-                universal_newlines=True, timeout=60).split()
-            return job['pprpcheader'], mix, hex(int(nonce))
-
         def txids(job):
             return [tx['txid'] for tx in job['transactions']]
 
@@ -78,7 +67,7 @@ class GetBlockTemplateRetainedJobsTest(BitcoinTestFramework):
         assert new['pprpcheader'] != old['pprpcheader']
 
         # A miner still working on the previous job finds a valid block, and the node accepts it
-        assert_equal(node.pprpcsb(*solve(old)), None)
+        assert_equal(node.pprpcsb(*progpow_solve(old)), None)
         assert_equal(node.getblockcount(), old['height'])
         assert_equal(len(node.getblock(node.getbestblockhash())['tx']), 1)
         assert paid in node.getrawmempool()
@@ -105,7 +94,7 @@ class GetBlockTemplateRetainedJobsTest(BitcoinTestFramework):
         # While fresh, a job is reused for the same transactions
         assert_equal(node.getblocktemplate({}, address)['pprpcheader'], both['pprpcheader'])
 
-        assert_equal(node.pprpcsb(*solve(both)), None)
+        assert_equal(node.pprpcsb(*progpow_solve(both)), None)
         assert_equal(node.getblockcount(), both['height'])
         assert_equal(sorted(node.getblock(node.getbestblockhash())['tx'][1:]), sorted([paid, free_txid]))
         sync_blocks(self.nodes)
@@ -120,7 +109,7 @@ class GetBlockTemplateRetainedJobsTest(BitcoinTestFramework):
         corrected = node.getblocktemplate({'rules': ['segwit']}, address)
         assert_equal(corrected['curtime'], now + 18)
         assert corrected['pprpcheader'] != future['pprpcheader']
-        assert_equal(node.pprpcsb(*solve(corrected)), None)
+        assert_equal(node.pprpcsb(*progpow_solve(corrected)), None)
         assert_equal(node.getblockcount(), corrected['height'])
         sync_blocks(self.nodes)
 
