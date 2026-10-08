@@ -668,9 +668,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     {
         // As with Bitcoin's former getwork cache, only a new tip makes cached jobs obsolete. After a
         // mempool-only rebuild they are still valid blocks, and miners keep hashing them until they
-        // next ask for work, so pprpcsb must still find them.
-        if (pindexPrev != chainActive.Tip())
-            mapPPBlockTemplates.clear();
+        // next ask for work, so pprpcsb must still find them. Check each job's parent rather than
+        // pindexPrev, which is also null after a failed rebuild while the tip is unchanged.
+        const uint256 tipHash = chainActive.Tip()->GetBlockHash();
+        std::erase_if(mapPPBlockTemplates, [&tipHash](const auto& entry) { return entry.second.hashPrevBlock != tipHash; });
 
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = nullptr;
