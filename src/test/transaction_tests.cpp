@@ -811,14 +811,13 @@ BOOST_AUTO_TEST_CASE(negative_version_encodings)
     BOOST_CHECK_EQUAL(rejectReason(raw, consensus.DIP0003Height - 1), "");
     BOOST_CHECK_EQUAL(rejectReason(canonical, consensus.DIP0003Height - 1), "");
 
-    // From DIP3 on, only the re-serialized form fails the type check,
-    // although both encodings share a txid.
-    BOOST_CHECK_EQUAL(rejectReason(raw, consensus.DIP0003Height), "");
+    // From DIP3 on, both encodings get the same result.
+    BOOST_CHECK_EQUAL(rejectReason(raw, consensus.DIP0003Height), "bad-txns-type");
     BOOST_CHECK_EQUAL(rejectReason(canonical, consensus.DIP0003Height), "bad-txns-type");
 
     CMutableTransaction edge(rawTx);
     edge.nVersion = -1;
-    BOOST_CHECK_EQUAL(rejectReason(CTransaction(edge), consensus.DIP0003Height), "");
+    BOOST_CHECK_EQUAL(rejectReason(CTransaction(edge), consensus.DIP0003Height), "bad-txns-type");
     edge.nVersion = 0;
     BOOST_CHECK_EQUAL(rejectReason(CTransaction(edge), consensus.DIP0003Height), "");
 }
