@@ -1599,6 +1599,190 @@ BOOST_AUTO_TEST_CASE(spark_historical_v1_rules_accept_pre_activation_blocks)
     sparkState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(spark_single_input_interval_before_chaum_v2_block_validation)
+{
+    // Mainnet keeps H1 < H2 (1355970 through 1370999). Block validation in that
+    // window must enforce single-input V1 spends while still accepting the
+    // pre-H2 32-bit group-id interpretation; H2 canonical reference rules must
+    // not apply yet.
+    RestoreSparkActivationHeights restoreHeights;
+    BatchProofContainer* batch = BatchProofContainer::get_instance();
+    struct ResetBatch {
+        BatchProofContainer* batch;
+        ~ResetBatch()
+        {
+            batch->fCollectProofs = false;
+            batch->init();
+        }
+    } resetBatch{batch};
+
+    const int dip3Height = ::Params().GetConsensus().DIP0003Height;
+    if (chainActive.Height() < dip3Height) {
+        GenerateBlocks(dip3Height - chainActive.Height());
+    }
+
+    std::vector<CMutableTransaction> mintTransactions;
+    const auto createdMints = GenerateMints(
+        {5 * COIN, 5 * COIN, 5 * COIN}, mintTransactions);
+    BOOST_REQUIRE_EQUAL(mintTransactions.size(), 3U);
+    mempool.clear();
+    BOOST_REQUIRE(GenerateBlock(mintTransactions));
+    GenerateBlocks(10);
+
+    std::vector<CSparkMintMeta> groupOne;
+    for (const auto& mint : createdMints) {
+        groupOne.push_back(pwalletMain->sparkWallet->getMintMeta(mint.k));
+    }
+    BOOST_REQUIRE_EQUAL(groupOne.size(), 3U);
+
+    const int baseHeight = chainActive.Height();
+    const int h1Height = baseHeight + 2;
+    const int h2Height = baseHeight + 10;
+    const int intervalHeight = baseHeight + 5;
+    BOOST_REQUIRE_LT(h1Height, h2Height);
+    BOOST_REQUIRE_GE(intervalHeight, h1Height);
+    BOOST_REQUIRE_LT(intervalHeight, h2Height);
+    UpdateRegtestSparkActivationHeights(&h1Height, &h2Height);
+
+    const CTransaction multiInput(GenerateCustomSparkSpend(
+        {groupOne[0], groupOne[1]}, 9 * COIN));
+    BOOST_REQUIRE_EQUAL(ParseSparkSpend(multiInput).getUsedLTags().size(), 2U);
+
+    constexpr uint64_t groupIdAliasOffset = uint64_t{1} << 32;
+    const CTransaction aliased(GenerateCustomSparkSpend(
+        {groupOne[2]}, 4 * COIN, groupIdAliasOffset));
+    const CTransaction aliasedForPostH2Check(GenerateCustomSparkSpend(
+        {groupOne[1]}, 4 * COIN, groupIdAliasOffset));
+    BOOST_REQUIRE(
+        ParseSparkSpend(aliased).getCoinGroupIds().front() >
+        static_cast<uint64_t>(std::numeric_limits<int32_t>::max()));
+
+    const CTransaction canonicalSingle(GenerateCustomSparkSpend(
+        {groupOne[0]}, 4 * COIN));
+    SpendTransaction unknownParsed = ParseSparkSpend(canonicalSingle);
+    auto unknownReferences = unknownParsed.getBlockHashes();
+    BOOST_REQUIRE_EQUAL(unknownReferences.size(), 1U);
+    unknownReferences.begin()->second = uint256S("01");
+    unknownParsed.setBlockHashes(unknownReferences);
+    CDataStream unknownPayload(SER_NETWORK, PROTOCOL_VERSION);
+    unknownPayload << unknownParsed;
+    CMutableTransaction unknownMutable(canonicalSingle);
+    unknownMutable.vExtraPayload.assign(
+        unknownPayload.begin(), unknownPayload.end());
+    const CTransaction unknownReference(unknownMutable);
+
+    const int preH1Height = baseHeight + 1;
+    {
+        batch->fCollectProofs = false;
+        batch->init();
+        CValidationState preH1State;
+        CSparkTxInfo preH1Info;
+        BOOST_REQUIRE(CheckSparkTransaction(
+            multiInput,
+            preH1State,
+            multiInput.GetHash(),
+            false,
+            preH1Height,
+            false,
+            true,
+            &preH1Info));
+    }
+
+    const std::pair<const CTransaction*, const char*> rejectInInterval[] = {
+        {&multiInput,
+         "CheckSparkSpendTransaction: multi-input Spark spends are disabled"},
+        {&unknownReference,
+         "CheckSparkSpendTransaction: unknown cover-set reference"},
+    };
+    for (const auto& [tx, reason] : rejectInInterval) {
+        batch->fCollectProofs = false;
+        batch->init();
+        CValidationState blockState;
+        CSparkTxInfo blockInfo;
+        BOOST_CHECK(!CheckSparkTransaction(
+            *tx,
+            blockState,
+            tx->GetHash(),
+            false,
+            intervalHeight,
+            false,
+            true,
+            &blockInfo));
+        int dos = -1;
+        BOOST_REQUIRE(blockState.IsInvalid(dos));
+        BOOST_CHECK_EQUAL(dos, 100);
+        BOOST_CHECK_EQUAL(blockState.GetRejectReason(), reason);
+    }
+
+    {
+        batch->fCollectProofs = false;
+        batch->init();
+        CValidationState aliasedState;
+        CSparkTxInfo aliasedInfo;
+        BOOST_REQUIRE(CheckSparkTransaction(
+            aliased,
+            aliasedState,
+            aliased.GetHash(),
+            false,
+            intervalHeight,
+            false,
+            true,
+            &aliasedInfo));
+
+        batch->init();
+        batch->fCollectProofs = true;
+        CValidationState batchState;
+        CSparkTxInfo batchInfo;
+        BOOST_REQUIRE(CheckSparkTransaction(
+            aliased,
+            batchState,
+            aliased.GetHash(),
+            false,
+            intervalHeight,
+            false,
+            true,
+            &batchInfo));
+        batch->finalize();
+        BOOST_CHECK(batch->verify_pending());
+        batch->remove(ParseSparkSpend(aliased));
+        batch->fCollectProofs = false;
+        batch->init();
+    }
+
+    const int advance = (intervalHeight - 1) - chainActive.Height();
+    if (advance > 0) {
+        GenerateBlocks(advance);
+    }
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), intervalHeight - 1);
+
+    BOOST_CHECK(!GenerateBlock({CMutableTransaction(multiInput)}));
+    BOOST_REQUIRE(GenerateBlock({CMutableTransaction(aliased)}));
+    BOOST_REQUIRE_EQUAL(chainActive.Height(), intervalHeight);
+
+    batch->fCollectProofs = false;
+    batch->init();
+    CValidationState postH2State;
+    CSparkTxInfo postH2Info;
+    BOOST_CHECK(!CheckSparkTransaction(
+        aliasedForPostH2Check,
+        postH2State,
+        aliasedForPostH2Check.GetHash(),
+        false,
+        h2Height,
+        false,
+        true,
+        &postH2Info));
+    int postH2Dos = -1;
+    BOOST_REQUIRE(postH2State.IsInvalid(postH2Dos));
+    BOOST_CHECK_EQUAL(postH2Dos, 100);
+    BOOST_CHECK_EQUAL(
+        postH2State.GetRejectReason(),
+        "CheckSparkSpendTransaction: invalid coin group id");
+
+    mempool.clear();
+    sparkState->Reset();
+}
+
 BOOST_AUTO_TEST_CASE(spark_v2_activation_and_wallet_selection)
 {
     Consensus::Params& mutableConsensus =

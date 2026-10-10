@@ -82,7 +82,8 @@ private:
     void clearRosenBridgeData();
     void updateRosenBridgeDisplay();
     void updateSparkNameResolution();
-    
+    void updateSubtractFeeFromAmountControls();
+
 };
 
 #endif // BITCOIN_QT_SENDCOINSENTRY_H

@@ -506,6 +506,20 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
+    if (fAnonymousMode) {
+        for (const SendCoinsRecipient& recipient : recipients) {
+            if (model->validateExchangeAddress(recipient.address) &&
+                recipient.fSubtractFeeFromAmount) {
+                QMessageBox::critical(
+                    this,
+                    tr("Error"),
+                    tr("Fee subtraction from the amount is not supported when sending private "
+                       "funds to an exchange address."));
+                return;
+            }
+        }
+    }
+
     fNewRecipientAllowed = false;
     if(!ctx)
     {
@@ -556,6 +570,16 @@ void SendCoinsDialog::on_sendButton_clicked()
             sparkAddressCount++;
         if (model->validateExchangeAddress(recipients[i].address))
             exchangeAddressCount++;
+    }
+
+    if (fAnonymousMode && exchangeAddressCount > 0) {
+        QMessageBox::critical(
+            this,
+            tr("Error"),
+            tr("Sending private funds to an exchange address is temporarily unavailable. "
+               "Move the funds to a transparent address first, then send from there."));
+        fNewRecipientAllowed = true;
+        return;
     }
 
     bool fGoThroughTransparentAddress = false;
