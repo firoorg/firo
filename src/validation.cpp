@@ -104,6 +104,7 @@ CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
 bool fReindex = false;
+static bool fStateFlushFailed GUARDED_BY(cs_main) = false;
 bool fTxIndex = false;
 bool fHavePruned = false;
 bool fPruneMode = false;
@@ -3230,6 +3231,13 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     static int64_t nLastSetChain = 0;
     std::set<int> setFilesToPrune;
     bool fFlushForPrune = false;
+    // Failed writes may already have consumed dirty cache entries. A later
+    // successful flush cannot make that state safe to resume.
+    struct FlushFailureGuard
+    {
+        bool succeeded = false;
+        ~FlushFailureGuard() { if (!succeeded) fStateFlushFailed = true; }
+    } failureGuard;
     try {
     if (fPruneMode && (fCheckForPruning || nManualPruneHeight > 0) && !fReindex) {
         if (nManualPruneHeight > 0) {
@@ -3326,12 +3334,29 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     } catch (const std::runtime_error& e) {
         return AbortNode(state, std::string("System error while flushing: ") + e.what());
     }
+    failureGuard.succeeded = true;
     return true;
 }
 
 void FlushStateToDisk() {
     CValidationState state;
     FlushStateToDisk(state, FLUSH_STATE_ALWAYS);
+}
+
+bool FlushStateToDiskForShutdown(bool allowReindexResume)
+{
+    AssertLockHeld(cs_main);
+    if (!pcoinsTip)
+        return false;
+
+    CValidationState flushState;
+    const bool flushed = FlushStateToDisk(flushState, FLUSH_STATE_ALWAYS);
+    if (allowReindexResume && fReindex && flushed && !fStateFlushFailed && GetBoolArg("-batching", true)) {
+        // Leave the database's reindex flag set so import resumes. Unbatched
+        // recovery must retain its marker until the entire reindex completes.
+        BatchProofContainer::RemoveRecoveryMarker();
+    }
+    return flushed;
 }
 
 void PruneAndFlush() {
@@ -5508,6 +5533,7 @@ bool RewindBlockIndex(const CChainParams& params)
 void UnloadBlockIndex()
 {
     LOCK(cs_main);
+    fStateFlushFailed = false;
     setBlockIndexCandidates.clear();
     chainActive.SetTip(NULL);
     pindexBestInvalid = NULL;
