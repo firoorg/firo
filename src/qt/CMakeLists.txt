@@ -196,6 +196,7 @@ set_property(SOURCE macnotificationhandler.mm
 set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/clientmodel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/clientmodel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/splashscreen.cpp
     PROPERTIES SKIP_AUTOUIC ON 
 )
 target_link_libraries(firoqt

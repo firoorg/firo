@@ -33,6 +33,8 @@
 #include "bip47/bip47utils.h"
 #include "cancelpassworddialog.h"
 
+#include <algorithm>
+#include <set>
 #include <stdint.h>
 
 #include <QDebug>
@@ -56,11 +58,17 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet, O
     fHaveWatchOnly = wallet->HaveWatchOnly();
     fForceCheckBalanceChanged = false;
 
+    uiInterface.InitMessage(tr("Loading address book...").toStdString());
     addressTableModel = new AddressTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Loading payment codes...").toStdString());
     pcodeAddressTableModel = new PcodeAddressTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Preparing Spark interface...").toStdString());
     sparkModel = new SparkModel(platformStyle, wallet, _optionsModel, this);
+    uiInterface.InitMessage(tr("Loading transaction history...").toStdString());
     transactionTableModel = new TransactionTableModel(platformStyle, wallet, this);
+    uiInterface.InitMessage(tr("Loading receive requests...").toStdString());
     recentRequestsTableModel = new RecentRequestsTableModel(wallet, this);
+    uiInterface.InitMessage(tr("Reticulating splines...").toStdString());
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -407,6 +415,70 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     }
 
     return SendCoinsReturn(OK);
+}
+
+std::vector<WalletModel::ConsolidationCandidate> WalletModel::getConsolidationAddresses() const
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    std::vector<ConsolidationCandidate> addresses;
+    for (const auto& group : wallet->GetConsolidationPlans()) {
+        const auto& plan = group.second;
+        if (!plan.error.empty())
+            continue;
+        const auto label = wallet->mapAddressBook.find(group.first);
+        addresses.push_back({QString::fromStdString(CBitcoinAddress(group.first).ToString()),
+            label == wallet->mapAddressBook.end() ? QString() : QString::fromStdString(label->second.name),
+            plan.eligibleCount, plan.inputs.size(), plan.fee, plan.total - plan.fee});
+    }
+    std::sort(addresses.begin(), addresses.end(), [](const auto& a, const auto& b) {
+        return a.outputs != b.outputs ? a.outputs > b.outputs : a.address < b.address;
+    });
+    return addresses;
+}
+
+WalletModel::SendCoinsReturn WalletModel::prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address)
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    transaction.newPossibleKeyChange(wallet);
+    CAmount fee = 0;
+    std::string error;
+    if (!wallet->CreateConsolidationTransaction(CBitcoinAddress(address.toStdString()).Get(),
+            *transaction.getTransaction(), *transaction.getPossibleKeyChange(), fee, error)) {
+        return SendCoinsReturn(TransactionCreationFailed, QString::fromStdString(error));
+    }
+    transaction.setTransactionFee(fee);
+    if (fee > maxTxFee)
+        return SendCoinsReturn(AbsurdFee, tr("The network fee exceeds the maximum configured fee."));
+    return OK;
+}
+
+WalletModel::SendCoinsReturn WalletModel::sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs, bool& anotherBatch)
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    auto& newTx = *transaction.getTransaction();
+    // Locks and collateral registration can change while the user reviews.
+    CTxDestination destination;
+    ExtractDestination(newTx.tx->vout[0].scriptPubKey, destination);
+    const auto available = wallet->GetConsolidationCoins(destination);
+    const auto group = available.find(destination);
+    const std::set<COutPoint> eligible = group == available.end() ? std::set<COutPoint>()
+        : std::set<COutPoint>(group->second.begin(), group->second.end());
+    if (!std::all_of(newTx.tx->vin.begin(), newTx.tx->vin.end(), [&](const auto& input) { return eligible.count(input.prevout) != 0; }))
+        return SendCoinsReturn(TransactionCommitFailed, tr("The selected outputs are no longer eligible for consolidation. Please try again."));
+    // Validate before recording the self-transfer or marking its inputs spent.
+    CValidationState state;
+    if (!wallet->CommitTransaction(newTx, *transaction.getPossibleKeyChange(), g_connman.get(), state, true)) {
+        const QString reason = QString::fromStdString(state.GetRejectReason());
+        return SendCoinsReturn(TransactionCommitFailed, reason.isEmpty()
+            ? tr("The selected outputs are no longer available. Please try again.") : reason);
+    }
+    // Count again after committing; the wallet may have changed during review.
+    // The new output is not eligible until it confirms.
+    const auto remaining = wallet->GetConsolidationPlan(destination);
+    remainingOutputs = remaining.eligibleCount;
+    anotherBatch = remaining.error.empty();
+    QMetaObject::invokeMethod(this, "checkBalanceChanged", Qt::QueuedConnection);
+    return OK;
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &transaction)
@@ -1218,7 +1290,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareMintSparkTransaction(std::vecto
             if (!validateSparkAddress(rcp.address)) {
                 return InvalidAddress;
             }
-            if (rcp.amount <= 0) {
+            if (rcp.amount <= 0 || !MoneyRange(rcp.amount) ||
+                total > MAX_MONEY - rcp.amount) {
                 return InvalidAmount;
             }
             setAddress.insert(rcp.address);

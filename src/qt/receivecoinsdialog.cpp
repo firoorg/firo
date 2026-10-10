@@ -25,7 +25,6 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
-#include <QPainterPath>
 #include <QScrollBar>
 #include <QStyledItemDelegate>
 #include <QTextDocument>
@@ -77,7 +76,6 @@ class PaymentRequestCardDelegate final : public QStyledItemDelegate
 public:
     explicit PaymentRequestCardDelegate(QTableView* view)
         : QStyledItemDelegate(view)
-        , view_(view)
     {
     }
 
@@ -90,58 +88,32 @@ public:
 
         const GUIUtil::ThemeColors& tc = GUIUtil::themeColors();
         const bool selected = option.state & QStyle::State_Selected;
-        painter->fillRect(option.rect, QColor(tc.panel));
-
-        if (view_) {
-            const QRect left = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Date));
-            const QRect right = view_->visualRect(index.sibling(index.row(), RecentRequestsTableModel::Amount));
-            const QRect card(left.left() + 4, option.rect.top() + 3,
-                             qMax(40, right.right() - left.left() - 8),
-                             option.rect.height() - 6);
-            QPainterPath cardPath;
-            cardPath.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), 14, 14);
-            painter->setPen(QPen(selected ? QColor(tc.wine) : QColor(tc.border), 1));
-            painter->setBrush(selected ? QColor(tc.panelSoft) : QColor(tc.panel));
-            painter->drawPath(cardPath);
-        }
+        const int lineHeight = option.fontMetrics.height();
+        GUIUtil::paintRowBackground(painter, option.rect, selected);
 
         switch (index.column()) {
         case RecentRequestsTableModel::Date: {
-            QRect icon(option.rect.left() + 14, option.rect.center().y() - 16, 32, 32);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(tc.wineTint));
-            painter->drawRoundedRect(icon, 10, 10);
-            QFont iconFont = option.font;
-            iconFont.setPixelSize(14);
-            iconFont.setBold(true);
-            painter->setFont(iconFont);
-            painter->setPen(QColor(tc.wine));
-            painter->drawText(icon, Qt::AlignCenter, QStringLiteral("↙"));
-
+            // Every request is incoming, so the row needs no direction icon.
+            QFont dateFont = option.font;
+            dateFont.setBold(true);
+            painter->setFont(dateFont);
             const QString raw = index.data(Qt::DisplayRole).toString();
             const QString dateText = raw.section(QLatin1Char(' '), 0, -2);
             const QString timeText = raw.section(QLatin1Char(' '), -1);
-            QFont dateFont = option.font;
-            dateFont.setPixelSize(12);
-            dateFont.setBold(true);
-            painter->setFont(dateFont);
             painter->setPen(QColor(tc.ink));
-            const QRect dateRect(icon.right() + 10, option.rect.center().y() - 18,
-                                 option.rect.right() - icon.right() - 16, 18);
+            const QRect dateRect(option.rect.left() + 14, option.rect.center().y() - lineHeight,
+                                 option.rect.width() - 20, lineHeight);
             painter->drawText(dateRect, Qt::AlignLeft | Qt::AlignVCenter, dateText);
 
-            QFont timeFont = option.font;
-            timeFont.setPixelSize(12);
-            painter->setFont(timeFont);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.inkFaint));
-            painter->drawText(QRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), 18),
+            painter->drawText(QRect(dateRect.left(), dateRect.bottom() + 1, dateRect.width(), lineHeight),
                               Qt::AlignLeft | Qt::AlignVCenter, timeText);
             break;
         }
         case RecentRequestsTableModel::Label: {
             const QString text = index.data(Qt::DisplayRole).toString();
             QFont font = option.font;
-            font.setPixelSize(12);
             font.setBold(true);
             painter->setFont(font);
             painter->setPen(QColor(tc.ink));
@@ -151,30 +123,25 @@ public:
         }
         case RecentRequestsTableModel::AddressType: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            const bool spark = text.compare(QLatin1String("spark"), Qt::CaseInsensitive) == 0;
+            const bool spark = index.data(Qt::EditRole).toString() == QLatin1String("spark");
             GUIUtil::paintAddressTypeBadge(painter, option, text, spark);
             break;
         }
         case RecentRequestsTableModel::Message: {
             const QString text = index.data(Qt::DisplayRole).toString();
-            QFont font = option.font;
-            font.setPixelSize(12);
-            painter->setFont(font);
+            painter->setFont(option.font);
             painter->setPen(QColor(tc.inkSoft));
             painter->drawText(option.rect.adjusted(10, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft,
-                              QFontMetrics(font).elidedText(text, Qt::ElideRight, option.rect.width() - 18));
+                              QFontMetrics(option.font).elidedText(text, Qt::ElideRight, option.rect.width() - 18));
             break;
         }
         case RecentRequestsTableModel::Amount: {
             const QString amountText = index.data(Qt::DisplayRole).toString();
             QFont amtFont = option.font;
-            amtFont.setPixelSize(14);
             amtFont.setBold(true);
             painter->setFont(amtFont);
-            painter->setPen(QColor(tc.ink));
-            painter->drawText(option.rect.adjusted(8, 0, -14, 0),
-                              Qt::AlignRight | Qt::AlignVCenter,
-                              QFontMetrics(amtFont).elidedText(amountText, Qt::ElideLeft, option.rect.width() - 24));
+            GUIUtil::paintAmountRuns(painter, option.rect.adjusted(8, 0, -14, 0), amountText, QColor(tc.ink),
+                                     Qt::AlignRight | Qt::AlignVCenter, Qt::ElideLeft);
             break;
         }
         default:
@@ -182,9 +149,6 @@ public:
         }
         painter->restore();
     }
-
-private:
-    QTableView* view_;
 };
 
 }
@@ -249,6 +213,10 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     QAction *copyLabelAction = new QAction(tr("Copy label"), this);
     QAction *copyMessageAction = new QAction(tr("Copy message"), this);
     QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
+    GUIUtil::setThemedIcon(copyURIAction, QStringLiteral(":/icons/link"));
+    GUIUtil::setThemedIcon(copyLabelAction, QStringLiteral(":/icons/tag"));
+    GUIUtil::setThemedIcon(copyMessageAction, QStringLiteral(":/icons/message"));
+    GUIUtil::setThemedIcon(copyAmountAction, QStringLiteral(":/icons/coins"));
 
     // context menu
     contextMenu = new QMenu(this);
@@ -281,7 +249,7 @@ ReceiveCoinsDialog::ReceiveCoinsDialog(const PlatformStyle *_platformStyle, QWid
     auto* emptyLayout = new QVBoxLayout(requestsEmptyState);
     emptyLayout->setContentsMargins(0, 24, 0, 24);
     emptyLayout->setSpacing(7);
-    emptyIcon_ = new QLabel(QStringLiteral("↙"), requestsEmptyState);
+    emptyIcon_ = new QLabel(requestsEmptyState);
     emptyIcon_->setFixedSize(48, 48);
     emptyIcon_->setAlignment(Qt::AlignCenter);
     emptyTitle_ = new QLabel(tr("No payment requests yet"), requestsEmptyState);
@@ -317,19 +285,19 @@ void ReceiveCoinsDialog::applyTheme()
         "QFrame#frame2, QFrame#frame {"
         " background: $PANEL;"
         " border: 1px solid $BORDER;"
-        " border-radius: 18px;"
+        " border-radius: 14px;"
         "}"));
     ui->frame2->setStyleSheet(cardStyle);
     ui->frame->setStyleSheet(cardStyle);
     ui->sparkNameActions->setStyleSheet(QStringLiteral("background: transparent;"));
 
     const QString captionStyle = GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; font-weight: 700; }"));
+        "QLabel { background: transparent; color: $INK_SOFT; font: $FONT_CAPTION; }"));
     for (QLabel* caption : {ui->addressTypeLabel, ui->label_2, ui->label, ui->label_3}) {
         caption->setStyleSheet(captionStyle);
     }
     ui->label_6->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLabel { background: transparent; color: $INK; font-size: 18px; font-weight: 700; }")));
+        "QLabel { background: transparent; color: $INK; font: $FONT_H3; }")));
 
     ui->reuseAddress->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QCheckBox { background: transparent; color: $INK; }")));
@@ -337,9 +305,10 @@ void ReceiveCoinsDialog::applyTheme()
     const QString fieldStyle = GUIUtil::themed(QStringLiteral(
         "QLineEdit, AmountSpinBox, QValueComboBox {"
         " background: $PANEL_SOFT;"
-        " border: 1px solid $BORDER;"
+        " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
+        " min-height: 30px;"
         " color: $INK;"
         "}"
         "AmountSpinBox QLineEdit { %1 }"
@@ -347,10 +316,10 @@ void ReceiveCoinsDialog::applyTheme()
         " border-color: $ERROR;"
         "}"
         "QLineEdit:focus, AmountSpinBox:focus, QValueComboBox:focus {"
-        " background: $PANEL_SOFT;"
-        " border: 1px solid $WINE;"
+        " background: $PANEL;"
+        " border: 2px solid $WINE;"
         " border-radius: 10px;"
-        " padding: 4px 12px;"
+        " padding: 3px 11px;"
         " color: $INK;"
         "}")).arg(GUIUtil::spinBoxInnerLineEditReset());
     ui->reqLabel->setStyleSheet(fieldStyle);
@@ -360,9 +329,10 @@ void ReceiveCoinsDialog::applyTheme()
     const QString comboStyle = GUIUtil::themed(QStringLiteral(
         "QComboBox {"
         " background: $PANEL;"
-        " border: 1px solid $BORDER;"
+        " border: 1px solid $FIELD_BORDER;"
         " border-radius: 10px;"
         " padding: 4px 12px;"
+        " min-height: 30px;"
         " color: $INK;"
         "}"
         "QComboBox QAbstractItemView {"
@@ -374,7 +344,7 @@ void ReceiveCoinsDialog::applyTheme()
         "}"
         "QComboBox::item {"
         " padding: 8px 10px;"
-        " border-radius: 8px;"
+        " border-radius: 6px;"
         " color: $INK;"
         "}"
         "QComboBox::item:alternate {"
@@ -382,8 +352,8 @@ void ReceiveCoinsDialog::applyTheme()
         " color: $INK;"
         "}"
         "QComboBox::item:selected {"
-        " background: $WINE_DEEP;"
-        " color: #FFFFFF;"
+        " background: $WINE_TINT;"
+        " color: $INK;"
         "}"));
     ui->addressTypeCombobox->setStyleSheet(comboStyle);
     ui->addressTypeHistoryCombobox->setStyleSheet(comboStyle);
@@ -391,35 +361,37 @@ void ReceiveCoinsDialog::applyTheme()
     const QString primaryButtonStyle = GUIUtil::primaryButtonStyle(QStringLiteral("6px 14px"));
     const QString secondaryButtonStyle = GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px"));
     ui->receiveButton->setStyleSheet(primaryButtonStyle);
-    GUIUtil::applyPrimaryButtonShadow(ui->receiveButton);
     ui->clearButton->setStyleSheet(secondaryButtonStyle);
-    ui->mySparkNamesButton->setStyleSheet(secondaryButtonStyle);
-    ui->createSparkNameButton->setStyleSheet(secondaryButtonStyle);
+    // The Spark Name actions recede so Request payment is the one filled button.
+    const QString ghostButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("6px 10px"));
+    ui->mySparkNamesButton->setStyleSheet(ghostButtonStyle);
+    ui->createSparkNameButton->setStyleSheet(ghostButtonStyle);
+    const QColor actionIconColor(GUIUtil::themeColors().inkSoft);
+    GUIUtil::setTintedIcon(ui->mySparkNamesButton, QStringLiteral(":/icons/spark"), QSize(16, 16), actionIconColor);
+    GUIUtil::setTintedIcon(ui->createSparkNameButton, QStringLiteral(":/icons/tag"), QSize(16, 16), actionIconColor);
     ui->showRequestButton->setStyleSheet(secondaryButtonStyle);
     ui->removeRequestButton->setStyleSheet(secondaryButtonStyle);
 
     ui->recentRequestsView->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QTableView { background: transparent; border: none; gridline-color: $BORDER; }"
         "QHeaderView::section {"
-        " background: transparent; border: none; color: $INK_SOFT;"
-        " font-size: 12px; font-weight: 700; padding: 6px;"
+        " background: transparent; border: none; color: $INK_FAINT;"
+        " font: $FONT_CAPTION; padding: 6px;"
         "}"
         "QTableView::item { padding: 6px; }")));
     if (ui->recentRequestsView->viewport())
         ui->recentRequestsView->viewport()->update();
 
     if (emptyIcon_) {
-        emptyIcon_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { color: $WINE; background: $WINE_TINT; border-radius: 14px;"
-            " font-size: 22px; font-weight: 700; }")));
+        GUIUtil::styleEmptyStateIcon(emptyIcon_, QStringLiteral(":/icons/sidebar_receive"));
     }
     if (emptyTitle_) {
         emptyTitle_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK; font-size: 14px; font-weight: 700; }")));
+            "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     }
     if (emptyHint_) {
         emptyHint_->setStyleSheet(GUIUtil::themed(QStringLiteral(
-            "QLabel { background: transparent; color: $INK_SOFT; font-size: 12px; }")));
+            "QLabel { background: transparent; color: $INK_SOFT; }")));
     }
 
     updateRequestFormScrollHeight();
@@ -460,7 +432,7 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setAlternatingRowColors(false);
         tableView->setShowGrid(false);
         tableView->setFrameShape(QFrame::NoFrame);
-        tableView->verticalHeader()->setDefaultSectionSize(44);
+        tableView->verticalHeader()->setDefaultSectionSize(2 * QFontMetrics(GUIUtil::brandFont()).height() + 12);
         tableView->setItemDelegate(new PaymentRequestCardDelegate(tableView));
         tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
         tableView->setSelectionMode(QAbstractItemView::ContiguousSelection);
@@ -811,9 +783,11 @@ RecentRequestsFilterProxy::RecentRequestsFilterProxy(QObject *parent) :
 
 bool RecentRequestsFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
-    QModelIndex index = sourceModel()->index(sourceRow, 2, sourceParent);
-    bool res0 = sourceModel()->data(index).toString().contains("spark");
-    bool res1 = sourceModel()->data(index).toString().contains("transparent");
+    // Match the canonical edit value; the displayed type is translated.
+    QModelIndex index = sourceModel()->index(sourceRow, RecentRequestsTableModel::AddressType, sourceParent);
+    const QString addressType = sourceModel()->data(index, Qt::EditRole).toString();
+    bool res0 = addressType == QLatin1String("spark");
+    bool res1 = addressType == QLatin1String("transparent");
     if(res0 && typeFilter == 0)
         return true;
     if(res1 && typeFilter == 1)
@@ -835,11 +809,7 @@ void ReceiveCoinsDialog::resizeEvent(QResizeEvent* event)
 {
     QDialog::resizeEvent(event); 
 
-    // Get new size from the event
-    const int newWidth = event->size().width();
-    const int newHeight = event->size().height();
-    
-    adjustTextSize(newWidth,newHeight);
+    updateRequestFormScrollHeight();
 }
 
 bool ReceiveCoinsDialog::eventFilter(QObject* object, QEvent* event)
@@ -869,31 +839,4 @@ void ReceiveCoinsDialog::updateRequestColumnWidths()
     ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::AddressType, addressTypeWidth);
     ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Message, messageWidth);
     ui->recentRequestsView->setColumnWidth(RecentRequestsTableModel::Amount, amountWidth);
-}
-void ReceiveCoinsDialog::adjustTextSize(int width,int height){
-
-    const double fontSizeScalingFactor = 70.0;
-    int baseFontSize = std::min(width, height) / fontSizeScalingFactor;
-    int fontSize = std::min(15, std::max(12, baseFontSize));
-    QFont font = this->font();
-    font.setPointSize(fontSize);
-
-    // Set font size for all labels
-    ui->reuseAddress->setFont(font);
-    ui->label_3->setFont(font);
-    ui->addressTypeLabel->setFont(font);
-    ui->label_2->setFont(font);
-    ui->label->setFont(font);
-    ui->label_6->setFont(font);
-    ui->receiveButton->setFont(font);
-    ui->clearButton->setFont(font);
-    ui->showRequestButton->setFont(font);
-    ui->removeRequestButton->setFont(font);
-    ui->addressTypeCombobox->setFont(font);
-    ui->addressTypeHistoryCombobox->setFont(font);
-    ui->recentRequestsView->setFont(font);
-    ui->recentRequestsView->horizontalHeader()->setFont(font);
-    ui->recentRequestsView->verticalHeader()->setFont(font);
-
-    updateRequestFormScrollHeight();
 }

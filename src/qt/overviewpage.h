@@ -9,6 +9,7 @@
 #include "uint256.h"
 
 #include <QWidget>
+#include <QPointer>
 #include <memory>
 
 #include "walletmodel.h"
@@ -28,6 +29,7 @@ namespace Ui {
 }
 
 QT_BEGIN_NAMESPACE
+class QAction;
 class QModelIndex;
 class QProgressBar;
 class QLabel;
@@ -44,11 +46,13 @@ public:
 
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
+    void setConsolidationAction(QAction *action);
     void showOutOfSyncWarning(bool fShow);
     void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
 
 public Q_SLOTS:
     void on_anonymizeButton_clicked();
+    void consolidateCoins();
 
     void setBalance(
         const CAmount& balance, 
@@ -67,9 +71,10 @@ Q_SIGNALS:
     void gotoSendCoinsPage();
     void gotoReceiveCoinsPage();
 private:
+    bool canConsolidate() const;
     Ui::OverviewPage *ui;
     ClientModel *clientModel;
-    WalletModel *walletModel;
+    QPointer<WalletModel> walletModel;
     CAmount currentBalance;
     CAmount currentUnconfirmedBalance;
     CAmount currentImmatureBalance;
@@ -93,13 +98,16 @@ private:
     QProgressBar *privateSplitProgress{nullptr};
     QWidget *activityEmptyState_{nullptr};
     QLabel *networkBadge_{nullptr};
+    QString networkLabel_;
     QLabel *emptyIcon_{nullptr};
     QLabel *emptyTitle_{nullptr};
     QLabel *emptyHint_{nullptr};
+    QPointer<QAction> consolidationAction;
 
     void applyOverviewRedesign();
     void applyOverviewTheme();
-    void addShadow(QWidget *w, int blurRadius = 18, int yOffset = 4, int alpha = 60);
+    /** Render the cached balances into the amount labels, without querying wallet or chain state. */
+    void updateBalanceLabels();
     void updatePrivateTransparentSplitBar();
     void updateBalanceSplitLabels();
     void updateActivityEmptyState();
@@ -110,6 +118,7 @@ private Q_SLOTS:
     void updateWatchOnlyLabels(bool showWatchOnly);
     void handleOutOfSyncWarningClicks();
     void updateSparkAnonymizeRowVisibility();
+    void showConsolidationResult(qulonglong remainingOutputs, bool anotherBatch);
 };
 
 #endif // BITCOIN_QT_OVERVIEWPAGE_H

@@ -183,6 +183,9 @@ static char *convert_str(const std::string &s) {
 //
 
 std::atomic<bool> fRequestShutdown(false);
+static bool fInitializationCompleted = false;
+// Owned by the daemon or Qt thread group, which outlives Shutdown().
+static boost::thread* threadImport = nullptr;
 std::atomic<bool> fDumpMempoolLater(false);
 
 void StartShutdown()
@@ -266,14 +269,13 @@ void Shutdown()
     StopREST();
     StopRPC();
     StopHTTPServer();
-    llmq::StopLLMQSystem();
-
-    {
-        LOCK(cs_main);
-        BatchProofContainer::get_instance()->finalize();
-        CValidationState state;
-        VerifyPendingSparkBatch(state, "shutdown");
+    // Failed startup skips joining the thread group. Stop the importer before
+    // verifying its final batch or tearing down anything it still uses.
+    if (threadImport && threadImport->joinable()) {
+        threadImport->join();
     }
+    threadImport = nullptr;
+    llmq::StopLLMQSystem();
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -302,6 +304,14 @@ void Shutdown()
     // cleanup; the embedded Tor itself is torn down by process exit.
     g_connman.reset();
     UnregisterNodeSignals(GetNodeSignals());
+    bool sparkBatchVerified = false;
+    // Before chainstate initialization, an existing marker belongs to the
+    // previous run and must not be cleared by verifying an empty batch.
+    if (pcoinsTip) {
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState batchState;
+        sparkBatchVerified = VerifyPendingSparkBatch(batchState, "shutdown");
+    }
     if (fDumpMempoolLater)
         DumpMempool();
 
@@ -318,9 +328,8 @@ void Shutdown()
 
     {
         LOCK(cs_main);
-        if (pcoinsTip != NULL) {
-            FlushStateToDisk();
-        }
+        // Incomplete startup still takes the conservative recovery path.
+        FlushStateToDiskForShutdown(fInitializationCompleted && sparkBatchVerified);
         delete pcoinsTip;
         pcoinsTip = NULL;
         delete pcoinscatcher;
@@ -483,8 +492,8 @@ std::string HelpMessage(HelpMessageMode mode)
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
-    strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"), DEFAULT_BANSCORE_THRESHOLD));
-    strUsage += HelpMessageOpt("-bantime=<n>", strprintf(_("Number of seconds to keep misbehaving peers from reconnecting (default: %u)"), DEFAULT_MISBEHAVING_BANTIME));
+    strUsage += HelpMessageOpt("-banscore=<n>", strprintf(_("Threshold for disconnecting and discouraging misbehaving peers (default: %u)"), DEFAULT_BANSCORE_THRESHOLD));
+    strUsage += HelpMessageOpt("-bantime=<n>", strprintf(_("Default duration (in seconds) of manually configured bans (default: %u)"), DEFAULT_MISBEHAVING_BANTIME));
     strUsage += HelpMessageOpt("-bind=<addr>", _("Bind to given address and always listen on it. Use [host]:port notation for IPv6"));
     strUsage += HelpMessageOpt("-connect=<ip>", _("Connect only to the specified node(s); -noconnect or -connect=0 alone to disable automatic connections"));
     strUsage += HelpMessageOpt("-discover", _("Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)"));
@@ -770,20 +779,25 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             if (!boost::filesystem::exists(GetBlockPosFilename(pos, "blk")))
                 break; // No block files left to reindex
             FILE *file = OpenBlockFile(pos, true);
-            if (!file)
-                break; // This error is logged in OpenBlockFile
-            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
-            LoadExternalBlockFile(chainparams, file, &pos);
-            nFile++;
-        }
-        {
-            LOCK(cs_main);
-            BatchProofContainer::get_instance()->finalize();
-            CValidationState state;
-            if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
-                LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+            if (!file) {
+                // OpenBlockFile logs the error. An incomplete import must not
+                // clear the reindex flag or Spark recovery marker.
+                StartShutdown();
                 return;
             }
+            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
+            LoadExternalBlockFile(chainparams, file, &pos);
+            // Activation or a state flush may have requested shutdown. Do not
+            // treat the processed prefix as a successfully completed reindex.
+            if (ShutdownRequested())
+                return;
+            nFile++;
+        }
+        BatchProofContainer::get_instance()->finalize();
+        CValidationState state;
+        if (!VerifyPendingSparkBatch(state, "clearing reindex flag")) {
+            LogPrintf("Reindexing stopped before clearing reindex flag: %s\n", FormatStateMessage(state));
+            return;
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
@@ -2331,16 +2345,18 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             vImportFiles.push_back(strFile);
     }
 
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+    threadImport = threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
 
-    // Wait for genesis block to be processed
+    // Wait for genesis, unless the import fails or shutdown is requested.
     {
         boost::unique_lock<boost::mutex> lock(cs_GenesisWait);
-        while (!fHaveGenesis) {
-            condvar_GenesisWait.wait(lock);
+        while (!fHaveGenesis && !ShutdownRequested()) {
+            condvar_GenesisWait.wait_for(lock, boost::chrono::milliseconds(500));
         }
         uiInterface.NotifyBlockTip.disconnect(&BlockNotifyGenesisWait);
     }
+    if (ShutdownRequested())
+        return false;
 
     // ********************************************************* Step 12: start node
 
@@ -2392,5 +2408,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
 
-    return !fRequestShutdown;
+    fInitializationCompleted = !fRequestShutdown;
+    return fInitializationCompleted;
 }

@@ -53,7 +53,9 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/key_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/dbwrapper_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/limitedmap_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq_chainlock_cache_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/logging_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/llmq_dkgsessionhandler_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/llmq_signing_shares_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/main_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mbstring_tests.cpp
@@ -68,6 +70,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/net_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/pmt_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/prevector_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quorums_signing_queue_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/raii_event_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/random_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/reverselock_tests.cpp
@@ -101,6 +104,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/evo_simplifiedmns_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/progpow_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bls_tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quorums_signing_share_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkmessage_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/sparkname_tests.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/ownership_test.cpp

@@ -80,11 +80,11 @@ QVariant RecentRequestsTableModel::data(const QModelIndex &index, int role) cons
         case AddressType:
             if(walletModel->validateAddress(rec->recipient.address))
             {
-                return tr("transparent");
+                return role == Qt::DisplayRole ? tr("transparent") : "transparent";
             }
             else if(walletModel->validateSparkAddress(rec->recipient.address))
             {
-                return tr("spark");
+                return role == Qt::DisplayRole ? tr("spark") : "spark";
             }
             FIRO_FALLTHROUGH;
         case Message:

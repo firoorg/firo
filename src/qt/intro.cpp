@@ -156,14 +156,13 @@ void Intro::applyTheme()
         "QLabel#errorMessage, QLabel#freeSpace { color: $INK_SOFT; }"
         "QRadioButton { background: transparent; color: $INK_SOFT; }"
         "QLineEdit {"
-        " background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px;"
+        " background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " padding: 8px 12px; color: $INK;"
         "}"
-        "QLineEdit:focus { border: 1px solid $WINE; }")));
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 7px 11px; }")));
     ui->ellipsisButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
@@ -293,7 +292,7 @@ void Intro::on_dataDirectory_textChanged(const QString &dataDirStr)
 
 void Intro::on_ellipsisButton_clicked()
 {
-    QString dir = QDir::toNativeSeparators(QFileDialog::getExistingDirectory(0, "Choose data directory", ui->dataDirectory->text()));
+    QString dir = QDir::toNativeSeparators(QFileDialog::getExistingDirectory(0, tr("Choose data directory"), ui->dataDirectory->text()));
     if(!dir.isEmpty())
         ui->dataDirectory->setText(dir);
 }

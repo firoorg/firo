@@ -1623,6 +1623,10 @@ isminetype CWallet::IsMine(const CTxOut &txout, const CTransaction& tx) const
 {
     LOCK(cs_wallet);
 
+    // SMint values are authenticated by the containing Spark spend proof.
+    if (txout.scriptPubKey.IsSparkSMint() && !tx.IsSparkSpend())
+        return ISMINE_NO;
+
     if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
         if (serialContext.empty())
@@ -1675,6 +1679,8 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const CTransaction& tx, const is
         throw std::runtime_error(std::string(__func__) + ": value out of range");
 
     if (txout.scriptPubKey.IsSparkSMint()) {
+        if (!tx.IsSparkSpend())
+            return 0;
         if (!(filter & ISMINE_SPENDABLE))
             return 0;
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
@@ -1734,6 +1740,8 @@ bool CWallet::IsMine(const CTransaction& tx) const
             return false;
         std::vector<unsigned char> serialContext = spark::getSerialContext(tx);
         for (const auto& txout : tx.vout) {
+            if (txout.scriptPubKey.IsSparkSMint() && !tx.IsSparkSpend())
+                continue;
             if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
                 spark::Coin coin(spark::Params::get_default());
                 try {
@@ -2990,6 +2998,182 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
     }
 }
 
+std::map<CTxDestination, std::vector<COutPoint>> CWallet::GetConsolidationCoins(const CTxDestination& target) const
+{
+    LOCK2(cs_main, cs_wallet);
+    std::vector<COutput> available;
+    AvailableCoins(available);
+    const auto mnList = deterministicMNManager ? deterministicMNManager->GetListAtChainTip() : CDeterministicMNList();
+    std::map<CTxDestination, std::vector<COutPoint>> groups;
+    for (const auto& coin : available) {
+        const auto& script = coin.tx->tx->vout[coin.i].scriptPubKey;
+        CTxDestination destination;
+        const COutPoint outpoint(coin.tx->GetHash(), coin.i);
+        // Do not follow change ancestry or combine different scripts that decode
+        // to the same address (e.g. bare public keys and Spark Name fee outputs).
+        if (coin.fSpendable && coin.nDepth > 0 && ExtractDestination(script, destination) &&
+            script == GetScriptForDestination(destination) &&
+            (boost::get<CNoDestination>(&target) || target == destination) &&
+            (!deterministicMNManager || !deterministicMNManager->IsProTxWithCollateral(coin.tx->tx, coin.i)) &&
+            !mnList.HasMNByCollateral(outpoint)) {
+            groups[destination].push_back(outpoint);
+        }
+    }
+    return groups;
+}
+
+std::map<CTxDestination, ConsolidationPlan> CWallet::GetConsolidationPlans(const CTxDestination& target) const
+{
+    LOCK2(cs_main, cs_wallet);
+    std::map<CTxDestination, ConsolidationPlan> plans;
+    for (const auto& group : GetConsolidationCoins(target)) {
+        auto& plan = plans[group.first];
+        plan.eligibleCount = group.second.size();
+        if (plan.eligibleCount < 2) {
+            plan.error = _("There are fewer than two eligible outputs at this address.");
+            continue;
+        }
+
+        // Cache values before sorting; map lookups do not belong in the comparator.
+        std::vector<std::pair<CAmount, COutPoint>> coins;
+        coins.reserve(group.second.size());
+        for (const auto& outpoint : group.second)
+            coins.emplace_back(mapWallet.at(outpoint.hash).tx->vout[outpoint.n].nValue, outpoint);
+        std::sort(coins.begin(), coins.end(), [](const auto& a, const auto& b) {
+            return a.first != b.first ? a.first > b.first : a.second < b.second;
+        });
+
+        // Even an unsigned input needs this much weight. Bound the sizing work.
+        coins.resize(std::min(coins.size(), size_t(MAX_NEW_TX_WEIGHT /
+            (WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxIn(), SER_NETWORK, PROTOCOL_VERSION)))));
+        CMutableTransaction sized;
+        sized.vout.emplace_back(0, GetScriptForDestination(group.first));
+        CCoinsView emptyView;
+        CCoinsViewCache view(&emptyView);
+        const auto& first = coins.front().second;
+        const auto& firstTx = mapWallet.at(first.hash);
+        sized.vin.emplace_back(first);
+        const std::vector<std::pair<const CWalletTx*, unsigned int>> inputs{{&firstTx, first.n}};
+        view.AddCoin(first, Coin(firstTx.tx->vout[first.n], 0, false), false);
+        if (!DummySignTx(sized, inputs)) {
+            plan.error = _("Signing transaction failed");
+            continue;
+        }
+
+        // Exact script groups share one maximum-size dummy satisfaction. Derive
+        // its cost once, including witness data and the input-count CompactSize.
+        const CTxIn signedInput = sized.vin.front();
+        const CTransaction singleInput(sized);
+        const size_t witnessBytes = sized.HasWitness() ? ::GetSerializeSize(signedInput.scriptWitness.stack, SER_NETWORK, PROTOCOL_VERSION) : 0;
+        const size_t inputBytes = ::GetSerializeSize(signedInput, SER_NETWORK, PROTOCOL_VERSION) + witnessBytes;
+        const size_t inputWeight = WITNESS_SCALE_FACTOR * (inputBytes - witnessBytes) + witnessBytes;
+        const size_t singleWeight = GetTransactionWeight(singleInput);
+        const int64_t outputSigOps = int64_t(sized.vout[0].scriptPubKey.GetSigOpCount(false)) * WITNESS_SCALE_FACTOR;
+        const int64_t inputSigOps = GetTransactionSigOpCost(singleInput, view, STANDARD_SCRIPT_VERIFY_FLAGS) - outputSigOps;
+        size_t low = 0, high = coins.size();
+        while (low < high) {
+            const size_t count = low + (high - low + 1) / 2;
+            const size_t weight = singleWeight + (count - 1) * inputWeight +
+                size_t(WITNESS_SCALE_FACTOR) * (GetSizeOfCompactSize(count) - GetSizeOfCompactSize(1));
+            if (weight < MAX_NEW_TX_WEIGHT && outputSigOps + int64_t(count) * inputSigOps <= MAX_STANDARD_TX_SIGOPS_COST) {
+                low = count;
+            } else {
+                high = count - 1;
+            }
+        }
+        plan.sizeLimited = low < plan.eligibleCount;
+        if (low < 2) {
+            plan.error = _("Too few outputs fit within the transaction limits.");
+            continue;
+        }
+
+        CAmount total = 0;
+        for (size_t i = 0; i < low; ++i)
+            total += coins[i].first;
+        unsigned int bytes = singleInput.GetTotalSize() + (low - 1) * inputBytes +
+            GetSizeOfCompactSize(low) - GetSizeOfCompactSize(1);
+        CAmount requiredFee = 0;
+        bool feePolicyFailure = false;
+        // Drop the smallest outputs until the batch pays its fee. Update its
+        // serialized size instead of reserializing every remaining input.
+        while (low >= 2) {
+            requiredFee = GetMinimumFee(bytes, nTxConfirmTarget, mempool);
+            feePolicyFailure = requiredFee < ::minRelayTxFee.GetFee(bytes);
+            if (total > requiredFee && !feePolicyFailure)
+                break;
+            bytes -= inputBytes;
+            bytes -= GetSizeOfCompactSize(low) - GetSizeOfCompactSize(low - 1);
+            total -= coins[--low].first;
+        }
+        if (low < 2) {
+            plan.error = feePolicyFailure ? _("Transaction too large for fee policy") : _("The transaction amount is too small to pay the fee");
+            continue;
+        }
+
+        sized.vin.assign(low, signedInput);
+        for (size_t i = 0; i < low; ++i) {
+            const auto& outpoint = coins[i].second;
+            sized.vin[i].prevout = outpoint;
+            if (i != 0)
+                view.AddCoin(outpoint, Coin(mapWallet.at(outpoint.hash).tx->vout[outpoint.n], 0, false), false);
+        }
+        const CTransaction candidate(sized);
+        if (candidate.GetTotalSize() != bytes || GetTransactionWeight(candidate) >= MAX_NEW_TX_WEIGHT ||
+            GetTransactionSigOpCost(candidate, view, STANDARD_SCRIPT_VERIFY_FLAGS) > MAX_STANDARD_TX_SIGOPS_COST) {
+            plan.error = _("Unable to create a same-address consolidation transaction.");
+            continue;
+        }
+        for (size_t i = 0; i < low; ++i)
+            plan.inputs.push_back(coins[i].second);
+        plan.total = total;
+        plan.fee = requiredFee;
+        plan.signedBytes = bytes;
+    }
+    return plans;
+}
+
+ConsolidationPlan CWallet::GetConsolidationPlan(const CTxDestination& destination) const
+{
+    auto plans = GetConsolidationPlans(destination);
+    const auto found = plans.find(destination);
+    if (found != plans.end())
+        return std::move(found->second);
+    ConsolidationPlan plan;
+    plan.error = _("There are fewer than two eligible outputs at this address.");
+    return plan;
+}
+
+bool CWallet::CreateConsolidationTransaction(const CTxDestination& destination, CWalletTx& transaction,
+                                           CReserveKey& reserveKey, CAmount& fee, std::string& error, ConsolidationPlan* usedPlan)
+{
+    LOCK2(cs_main, cs_wallet);
+    const auto plan = GetConsolidationPlan(destination);
+    if (!plan.error.empty()) {
+        error = plan.error;
+        return false;
+    }
+    CCoinControl control;
+    control.destChange = destination;
+    for (const auto& input : plan.inputs)
+        control.Select(input);
+
+    const CScript script = GetScriptForDestination(destination);
+    int changePosition = -1;
+    if (!CreateTransaction({{script, plan.total, true}}, transaction, reserveKey, fee, changePosition, error, &control))
+        return false;
+
+    const auto& tx = *transaction.tx;
+    if (tx.vout.size() != 1 || tx.vout[0].nValue <= 0 || tx.vout[0].scriptPubKey != script || tx.vout[0].nValue != plan.total - fee ||
+        tx.vin.size() != plan.inputs.size() ||
+        !std::all_of(tx.vin.begin(), tx.vin.end(), [&](const CTxIn& input) { return control.IsSelected(input.prevout); })) {
+        error = _("Unable to create a same-address consolidation transaction.");
+        return false;
+    }
+    if (usedPlan)
+        *usedPlan = plan;
+    return true;
+}
+
 void CWallet::AvailableCoinsForLMint(std::vector<std::pair<CAmount, std::vector<COutput>>>& valueAndUTXO, const CCoinControl *coinControl) const
 {
     valueAndUTXO.clear();
@@ -3629,7 +3813,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
 
                 if (GetTransactionWeight(txNew) >= MAX_NEW_TX_WEIGHT) {
                     // Do not create oversized transactions (bad-txns-oversize).
-                    strFailReason = _("Transaction is too large (size limit: 250Kb). Select less inputs or consolidate your UTXOs");
+                    strFailReason = _("Transaction is too large (size limit: 250Kb). Select fewer inputs. If many inputs belong to one transparent address, use File > Consolidate outputs in the GUI or the consolidateaddress RPC, then retry after confirmation.");
                     return false;
                 }
 
@@ -4190,8 +4374,9 @@ void CWallet::AutoLockMasternodeCollaterals()
     LOCK2(cs_main, cs_wallet);
     for (const auto& pair : mapWallet) {
         for (unsigned int i = 0; i < pair.second.tx->vout.size(); ++i) {
-            if (IsMine(pair.second.tx->vout[i], *pair.second.tx) && !IsSpent(pair.first, i)) {
-                if (deterministicMNManager->IsProTxWithCollateral(pair.second.tx, i) || mnList.HasMNByCollateral(COutPoint(pair.first, i))) {
+            // Avoid Spark ownership/spent checks for outputs that are not collateral.
+            if (deterministicMNManager->IsProTxWithCollateral(pair.second.tx, i) || mnList.HasMNByCollateral(COutPoint(pair.first, i))) {
+                if (IsMine(pair.second.tx->vout[i], *pair.second.tx) && !IsSpent(pair.first, i)) {
                     LockCoin(COutPoint(pair.first, i));
                 }
             }

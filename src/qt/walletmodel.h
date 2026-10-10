@@ -185,6 +185,20 @@ public:
     // prepare transaction for getting txfee before sending coins
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const CCoinControl *coinControl = NULL);
 
+    struct ConsolidationCandidate {
+        QString address;
+        QString label;
+        size_t outputs;
+        // Unsigned estimate of the next batch, shown before the wallet is unlocked.
+        size_t batchInputs{0};
+        CAmount fee{0};
+        CAmount returnedAmount{0};
+    };
+    // Addresses with an affordable batch, most eligible outputs first.
+    std::vector<ConsolidationCandidate> getConsolidationAddresses() const;
+    SendCoinsReturn prepareConsolidationTransaction(WalletModelTransaction& transaction, const QString& address);
+    SendCoinsReturn sendConsolidationTransaction(WalletModelTransaction& transaction, size_t& remainingOutputs, bool& anotherBatch);
+
     SendCoinsReturn prepareMintSparkTransaction(
         std::vector<WalletModelTransaction> &transactions,
         QList<SendCoinsRecipient> recipients,

@@ -104,6 +104,7 @@ CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
 bool fReindex = false;
+static bool fStateFlushFailed GUARDED_BY(cs_main) = false;
 bool fTxIndex = false;
 bool fHavePruned = false;
 bool fPruneMode = false;
@@ -928,14 +929,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             }
 
             try {
-                sparkUsedLTags = spark::GetSparkUsedTags(tx);
+                sparkUsedLTags = spark::ParseSparkSpend(tx).getUsedLTags();
             }
             catch (const std::bad_alloc &) {
                 return state.Error(
                     "AcceptToMemoryPool: memory allocation failed while parsing Spark linking tags");
             }
             catch (const std::exception &) {
-                return state.Invalid(false, REJECT_CONFLICT, "failed to deserialize spark spend");
+                return state.DoS(100, false, REJECT_MALFORMED, "failed to deserialize spark spend");
             }
 
             for (const auto& lTag : sparkUsedLTags) {
@@ -2315,7 +2316,13 @@ static bool ShouldBatchSparkProofs(const CBlockIndex* pindex)
 
 bool VerifyPendingSparkBatch(CValidationState& state, const std::string& reason)
 {
-    if (!BatchProofContainer::get_instance()->verify_pending()) {
+    bool passed;
+    try {
+        passed = BatchProofContainer::get_instance()->verify_pending();
+    } catch (const std::exception& e) {
+        return AbortNode(state, strprintf("Unable to verify Spark batch before %s: %s", reason, e.what()));
+    }
+    if (!passed) {
         return AbortNode(state,
                          strprintf("Spark batch verification failed before %s", reason),
                          _("Spark batch verification failed. The invalid spend transactions are listed in debug.log. Restart the node: batching is disabled and a reindex is started automatically so chainstate is rebuilt and Spark proofs are checked block by block."));
@@ -2797,10 +2804,20 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     std::set<uint256> txIds;
     bool isMainNet = chainparams.GetConsensus().IsMain();
-    // batch verify Lelantus/Sigma if block is older than a day, that means we are syncing or reindexing
     BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-    batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindex);
-    batchProofContainer->init();
+    // Keep accumulated historical batches, but verify recent blocks before
+    // publishing state. Check-only paths must verify proofs directly.
+    auto batchMode = BatchProofContainer::Mode::Disabled;
+    if (!fJustCheck && GetBoolArg("-batching", true)) {
+        batchMode = ShouldBatchSparkProofs(pindex)
+            ? BatchProofContainer::Mode::Deferred : BatchProofContainer::Mode::Block;
+    }
+    batchProofContainer->init(batchMode);
+    struct ResetSparkBatch
+    {
+        BatchProofContainer* container;
+        ~ResetSparkBatch() { container->init(); }
+    } resetSparkBatch{batchProofContainer};
     std::size_t nSigma = 0;
     std::size_t nLelantus = 0;
 
@@ -2991,6 +3008,15 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
+    // Special transaction processing can publish notifications and cache
+    // changes. A recent block's proofs must pass before any of those effects.
+    try {
+        if (!batchProofContainer->verify_block_batch())
+            return state.DoS(100, false, REJECT_INVALID, "bad-spark-batch-proof");
+    } catch (const std::bad_alloc&) {
+        return state.Error("ConnectBlock(): memory allocation failed while verifying Spark batch");
+    }
+
     if (!ProcessSpecialTxsInBlock(block, pindex, state, isVerifyDB ? false : fJustCheck, fScriptChecks, !isVerifyDB)) {
         return error("ConnectBlock(): ProcessSpecialTxsInBlock for block %s at height %i failed with %s",
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
@@ -3115,7 +3141,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
 
-    // do batch verification if remains a day or collect proofs
+    // Only historical blocks contribute to the deferred batch.
     batchProofContainer->finalize();
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
@@ -3174,29 +3200,18 @@ void static RemoveConflictingSparkMintsFromMempool(CTxMemPool& pool, const CBloc
     LOCK(pool.cs);
 
     BOOST_FOREACH(CTransactionRef tx, block.vtx) {
-        BOOST_FOREACH(const CTxOut &txout, tx->vout)
-        {
-            if (txout.scriptPubKey.IsSparkMint() || txout.scriptPubKey.IsSparkSMint()) {
-                try {
-                    const spark::Params* params = spark::Params::get_default();
-
-                    spark::Coin txCoin(params);
-                    spark::ParseSparkMintCoin(txout.scriptPubKey, txCoin);
-                    const uint256 conflictingTxHash =
-                        pool.sparkState.GetMempoolConflictingMintTxHash(txCoin);
-                    if (!conflictingTxHash.IsNull() && conflictingTxHash != tx->GetHash()) {
-                        auto pTx = pool.get(conflictingTxHash);
-                        if (pTx)
-                            pool.removeRecursive(
-                                *pTx, MemPoolRemovalReason::CONFLICT);
-                        LogPrintf("ConnectBlock: removed conflicting Spark mint tx %s from the mempool\n",
-                                  conflictingTxHash.ToString());
-                    }
-                    pool.sparkState.RemoveMintFromMempool(txCoin);
-                } catch (std::invalid_argument&) {
-                    // nothing
-                }
+        for (const auto& coin : spark::GetSparkMintCoins(*tx)) {
+            const uint256 conflictingTxHash =
+                pool.sparkState.GetMempoolConflictingMintTxHash(coin);
+            if (!conflictingTxHash.IsNull() && conflictingTxHash != tx->GetHash()) {
+                auto pTx = pool.get(conflictingTxHash);
+                if (pTx)
+                    pool.removeRecursive(
+                        *pTx, MemPoolRemovalReason::CONFLICT);
+                LogPrintf("ConnectBlock: removed conflicting Spark mint tx %s from the mempool\n",
+                          conflictingTxHash.ToString());
             }
+            pool.sparkState.RemoveMintFromMempool(coin);
         }
     }
 }
@@ -3216,6 +3231,13 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     static int64_t nLastSetChain = 0;
     std::set<int> setFilesToPrune;
     bool fFlushForPrune = false;
+    // Failed writes may already have consumed dirty cache entries. A later
+    // successful flush cannot make that state safe to resume.
+    struct FlushFailureGuard
+    {
+        bool succeeded = false;
+        ~FlushFailureGuard() { if (!succeeded) fStateFlushFailed = true; }
+    } failureGuard;
     try {
     if (fPruneMode && (fCheckForPruning || nManualPruneHeight > 0) && !fReindex) {
         if (nManualPruneHeight > 0) {
@@ -3312,12 +3334,29 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode, int n
     } catch (const std::runtime_error& e) {
         return AbortNode(state, std::string("System error while flushing: ") + e.what());
     }
+    failureGuard.succeeded = true;
     return true;
 }
 
 void FlushStateToDisk() {
     CValidationState state;
     FlushStateToDisk(state, FLUSH_STATE_ALWAYS);
+}
+
+bool FlushStateToDiskForShutdown(bool allowReindexResume)
+{
+    AssertLockHeld(cs_main);
+    if (!pcoinsTip)
+        return false;
+
+    CValidationState flushState;
+    const bool flushed = FlushStateToDisk(flushState, FLUSH_STATE_ALWAYS);
+    if (allowReindexResume && fReindex && flushed && !fStateFlushFailed && GetBoolArg("-batching", true)) {
+        // Leave the database's reindex flag set so import resumes. Unbatched
+        // recovery must retain its marker until the entire reindex completes.
+        BatchProofContainer::RemoveRecoveryMarker();
+    }
+    return flushed;
 }
 
 void PruneAndFlush() {
@@ -3691,24 +3730,26 @@ bool DisconnectBlocks(int blocks) {
 }
 
 void ReprocessBlocks(int nBlocks) {
-    LOCK(cs_main);
+    {
+        LOCK(cs_main);
 
-    std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
-    while (it != mapRejectedBlocks.end()) {
-        //use a window twice as large as is usual for the nBlocks we want to reset
-        if ((*it).second > GetTime() - (nBlocks * 60 * 5)) {
-            BlockMap::iterator mi = mapBlockIndex.find((*it).first);
-            if (mi != mapBlockIndex.end() && (*mi).second) {
+        std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
+        while (it != mapRejectedBlocks.end()) {
+            //use a window twice as large as is usual for the nBlocks we want to reset
+            if ((*it).second > GetTime() - (nBlocks * 60 * 5)) {
+                BlockMap::iterator mi = mapBlockIndex.find((*it).first);
+                if (mi != mapBlockIndex.end() && (*mi).second) {
 
-                CBlockIndex *pindex = (*mi).second;
-                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+                    CBlockIndex *pindex = (*mi).second;
+                    LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
 
-                ResetBlockFailureFlags(pindex);            }
+                    ResetBlockFailureFlags(pindex);            }
+            }
+            ++it;
         }
-        ++it;
-    }
 
-    DisconnectBlocks(nBlocks);
+        DisconnectBlocks(nBlocks);
+    }
 
     CValidationState state;
     ActivateBestChain(state, Params());
@@ -3988,11 +4029,11 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                 for (unsigned int i = 0; i < block.vtx.size(); i++)
                     GetMainSignals().SyncTransaction(*block.vtx[i], pair.first, i);
             }
-            BatchProofContainer* batchProofContainer = BatchProofContainer::get_instance();
-            batchProofContainer->fCollectProofs = ShouldBatchSparkProofs(pindexNewTip);
-            if (!VerifyPendingSparkBatch(state, "connecting new tip"))
-                return false;
         }
+
+        if (!ShouldBatchSparkProofs(pindexNewTip) &&
+            !VerifyPendingSparkBatch(state, "connecting new tip"))
+            return false;
 
         // When we reach this point, we switched to a new tip (stored in pindexNewTip).
 
@@ -5492,6 +5533,7 @@ bool RewindBlockIndex(const CChainParams& params)
 void UnloadBlockIndex()
 {
     LOCK(cs_main);
+    fStateFlushFailed = false;
     setBlockIndexCandidates.clear();
     chainActive.SetTip(NULL);
     pindexBestInvalid = NULL;

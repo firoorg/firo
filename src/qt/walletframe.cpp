@@ -217,6 +217,13 @@ void WalletFrame::usedSendingAddresses()
         walletView->usedSendingAddresses();
 }
 
+void WalletFrame::consolidateCoins()
+{
+    WalletView *walletView = currentWalletView();
+    if (walletView)
+        walletView->consolidateCoins();
+}
+
 void WalletFrame::usedReceivingAddresses()
 {
     WalletView *walletView = currentWalletView();

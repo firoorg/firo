@@ -88,7 +88,7 @@ void Recover::applyTheme()
         QDialog#Recover QDateEdit,
         QDialog#Recover QSpinBox {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
@@ -98,7 +98,8 @@ void Recover::applyTheme()
         QDialog#Recover QLineEdit:focus,
         QDialog#Recover QDateEdit:focus,
         QDialog#Recover QSpinBox:focus {
-            border: 1px solid $WINE;
+            border: 2px solid $WINE;
+            padding: 7px 11px;
         }
         QDialog#Recover QLineEdit:disabled,
         QDialog#Recover QDateEdit:disabled,
@@ -142,11 +143,13 @@ void Recover::applyTheme()
             #qt_calendar_navigationbar { background: $WINE; min-height: 42px; border: none; }
             #qt_calendar_prevmonth, #qt_calendar_nextmonth {
                 background: transparent; border: none; width: 32px; height: 32px;
-                border-radius: 8px; qproperty-iconSize: 14px 14px;
+                border-radius: 10px; qproperty-iconSize: 14px 14px;
             }
+            #qt_calendar_prevmonth { qproperty-icon: url(:/images/arrow_light_left_hover); }
+            #qt_calendar_nextmonth { qproperty-icon: url(:/images/arrow_light_right_hover); }
             #qt_calendar_monthbutton, #qt_calendar_yearbutton {
                 background: transparent; border: none; color: #FFFFFF;
-                font-weight: 700; border-radius: 8px; padding: 4px 10px;
+                font-weight: 700; border-radius: 10px; padding: 4px 10px;
             }
             #qt_calendar_prevmonth:hover, #qt_calendar_nextmonth:hover,
             #qt_calendar_monthbutton:hover, #qt_calendar_yearbutton:hover {
@@ -167,7 +170,7 @@ void Recover::applyTheme()
                 background: $PANEL; color: $INK; border: 1px solid $BORDER;
             }
             QCalendarWidget QSpinBox {
-                background: $PANEL; color: $INK; border: 1px solid $BORDER;
+                background: $PANEL; color: $INK; border: 1px solid $FIELD_BORDER;
             }
         )")));
     }
@@ -253,6 +256,10 @@ bool Recover::askRecover(bool& newWallet)
 
                 if(recover.ui->recoverExisting->isChecked()) {
                     newWallet = false;
+                    if(recover.ui->mnemonicWords->text().trimmed().isEmpty()) {
+                        recover.ui->errorMessage->setText(tr("Recovery seed phrase can't be empty."));
+                        continue;
+                    }
                     std::string mnemonic = recover.ui->mnemonicWords->text().toStdString();
                     QDate date = recover.ui->dateInput->date();
                     QDate newDate = date.addDays(-1);
@@ -278,11 +285,6 @@ bool Recover::askRecover(bool& newWallet)
 
                     if((n == 12 && !use12) || (n != 24 && n != 12) || (n != 12 && use12)) {
                         recover.ui->errorMessage->setText(tr("Wrong number of words. Please try again."));
-                        continue;
-                    }
-
-                    if(mnemonic.empty()) {
-                        recover.ui->errorMessage->setText("Recovery seed phrase can't be empty.");
                         continue;
                     }
 

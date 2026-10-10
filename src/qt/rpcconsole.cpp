@@ -26,6 +26,8 @@
 
 #include <openssl/crypto.h>
 
+#include <algorithm>
+
 #include <univalue.h>
 
 #ifdef ENABLE_WALLET
@@ -395,7 +397,7 @@ void RPCExecutor::request(const QString &command)
         std::string executableCommand = command.toStdString() + "\n";
         if(!RPCConsole::RPCExecuteCommandLine(result, executableCommand))
         {
-            Q_EMIT reply(RPCConsole::CMD_ERROR, QString("Parse error: unbalanced ' or \""));
+            Q_EMIT reply(RPCConsole::CMD_ERROR, tr("Parse error: unbalanced ' or \""));
             return;
         }
         Q_EMIT reply(RPCConsole::CMD_REPLY, QString::fromStdString(result));
@@ -406,7 +408,7 @@ void RPCExecutor::request(const QString &command)
         {
             int code = find_value(objError, "code").get_int();
             std::string message = find_value(objError, "message").get_str();
-            Q_EMIT reply(RPCConsole::CMD_ERROR, QString::fromStdString(message) + " (code " + QString::number(code) + ")");
+            Q_EMIT reply(RPCConsole::CMD_ERROR, tr("%1 (code %2)").arg(QString::fromStdString(message), QString::number(code)));
         }
         catch (const std::runtime_error&) // raised when converting to invalid type, i.e. missing code or message
         {   // Show raw JSON object
@@ -415,7 +417,7 @@ void RPCExecutor::request(const QString &command)
     }
     catch (const std::exception& e)
     {
-        Q_EMIT reply(RPCConsole::CMD_ERROR, QString("Error: ") + QString::fromStdString(e.what()));
+        Q_EMIT reply(RPCConsole::CMD_ERROR, tr("Error: %1").arg(QString::fromStdString(e.what())));
     }
 }
 
@@ -441,9 +443,6 @@ RPCConsole::RPCConsole(const PlatformStyle *_platformStyle, QWidget *parent) :
     if (platformStyle->getImagesOnButtons()) {
         ui->openDebugLogfileButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
     }
-    ui->clearButton->setIcon(platformStyle->SingleColorIcon(":/icons/remove"));
-    ui->fontBiggerButton->setIcon(platformStyle->SingleColorIcon(":/icons/fontbigger"));
-    ui->fontSmallerButton->setIcon(platformStyle->SingleColorIcon(":/icons/fontsmaller"));
 
     // Install event filter for up and down arrow
     ui->lineEdit->installEventFilter(this);
@@ -484,20 +483,11 @@ void RPCConsole::applyConsoleTheme()
 {
     setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QWidget#RPCConsole { background: $BG; }
-        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
-        QTabBar::tab {
-            background: transparent;
-            color: $INK_SOFT;
-            font-weight: 700;
-            padding: 8px 14px;
-            border: none;
-        }
-        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
-        QTabBar::tab:hover { color: $INK; }
+        QWidget#tab_peers, QWidget#detailWidget { background: $BG; }
         QGroupBox {
             background: $PANEL_SOFT;
             border: 1px solid $BORDER;
-            border-radius: 12px;
+            border-radius: 14px;
             font-weight: 700;
             color: $INK;
             margin-top: 10px;
@@ -507,7 +497,7 @@ void RPCConsole::applyConsoleTheme()
         QTextEdit#messagesWidget {
             background: $PANEL;
             border: 1px solid $BORDER;
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 8px;
             color: $INK;
         }
@@ -515,7 +505,7 @@ void RPCConsole::applyConsoleTheme()
             background: $PANEL;
             alternate-background-color: $PANEL_SOFT;
             border: 1px solid $BORDER;
-            border-radius: 12px;
+            border-radius: 14px;
             color: $INK;
             gridline-color: $BORDER;
             selection-background-color: $WINE_TINT;
@@ -538,28 +528,30 @@ void RPCConsole::applyConsoleTheme()
         QPushButton {
             color: $INK;
             background: $PANEL;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             font-weight: 700;
             padding: 6px 14px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
     )")));
 
-    const QString iconButtonStyle = GUIUtil::themed(QStringLiteral(
-        "QPushButton { background-color: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 4px; padding: 0px; }"
-        "QPushButton:hover:enabled { background-color: $PANEL; }"
-        "QPushButton:disabled { background-color: $PANEL_SOFT; border-color: $PANEL_SOFT; }"));
-    ui->fontSmallerButton->setStyleSheet(iconButtonStyle);
-    ui->fontBiggerButton->setStyleSheet(iconButtonStyle);
-    ui->clearButton->setStyleSheet(iconButtonStyle);
+    // Font size and clear are ghost icon buttons with outline icons, as elsewhere in the app.
+    const QString iconButtonStyle = GUIUtil::ghostButtonStyle(QStringLiteral("0px"));
+    const QColor iconColor(GUIUtil::themeColors().inkSoft);
+    const QSize iconSize(18, 18);
+    GUIUtil::setTintedIcon(ui->fontSmallerButton, QStringLiteral(":/icons/fontsmaller"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->fontBiggerButton, QStringLiteral(":/icons/fontbigger"), iconSize, iconColor);
+    GUIUtil::setTintedIcon(ui->clearButton, QStringLiteral(":/icons/trash"), iconSize, iconColor);
+    for (QPushButton* button : {ui->fontSmallerButton, ui->fontBiggerButton, ui->clearButton})
+        button->setStyleSheet(iconButtonStyle);
     ui->promptIcon->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     ui->promptIcon->setPixmap(GUIUtil::themedStatusIconPixmap(
         QIcon(QStringLiteral(":/icons/prompticon")), QSize(14, 14)));
     ui->lineEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
-        "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $BORDER; border-radius: 10px; padding: 4px 8px; }"
-        "QLineEdit:focus { border: 1px solid $WINE; }")));
+        "QLineEdit { background-color: $PANEL; color: $INK; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 4px 8px; }"
+        "QLineEdit:focus { border: 2px solid $WINE; padding: 3px 7px; }")));
 
     if (consoleFontSize > 0)
         rebuildConsoleMessages();
@@ -824,13 +816,15 @@ void RPCConsole::updateConsoleDocumentStyle()
     QFontInfo fixedFontInfo(GUIUtil::fixedPitchFont());
     const QString style = QStringLiteral(
         "table { }"
-        "td.time { color: $INK_FAINT; font-size: %2; padding-top: 3px; } "
-        "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; } "
-        "td.cmd-request { color: $TEAL; } "
+        "td.time { color: $INK_FAINT; font-family: %1; font-size: %3; padding-top: 3px; white-space: nowrap; } "
+        "td.message { color: $INK_SOFT; font-family: %1; font-size: %2; white-space:pre-wrap; } "
+        "td.cmd-request { color: $INK; font-weight: 500; } "
         "td.cmd-error { color: $ERROR; } "
+        ".prompt { color: $WINE_TEXT; } "
         ".secwarning { color: $ERROR; }"
-        "b { color: $TEAL; } ")
-        .arg(fixedFontInfo.family(), QStringLiteral("%1pt").arg(consoleFontSize));
+        "b { color: $WINE_TEXT; font-weight: 500; } ")
+        .arg(fixedFontInfo.family(), QStringLiteral("%1pt").arg(consoleFontSize),
+             QStringLiteral("%1pt").arg(std::max(consoleFontSize - 1, 1)));
     ui->messagesWidget->document()->setDefaultStyleSheet(GUIUtil::themed(style));
 }
 
@@ -845,14 +839,15 @@ void RPCConsole::rebuildConsoleMessages()
 
     ui->messagesWidget->clear();
 
-    // Add smoothly scaled icon images.
+    // Add smoothly scaled icon images, tinted for dark mode like the other status icons.
     // (when using width/height on an img, Qt uses nearest instead of linear interpolation)
     for(int i=0; ICON_MAPPING[i].url; ++i)
     {
         ui->messagesWidget->document()->addResource(
                     QTextDocument::ImageResource,
                     QUrl(ICON_MAPPING[i].url),
-                    QImage(ICON_MAPPING[i].source).scaled(QSize(consoleFontSize*2, consoleFontSize*2), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+                    GUIUtil::themedStatusIconPixmap(QIcon(ICON_MAPPING[i].source),
+                                                    QSize(consoleFontSize * 2, consoleFontSize * 2)).toImage());
     }
 
     updateConsoleDocumentStyle();
@@ -880,6 +875,9 @@ void RPCConsole::message(int category, const QString &message, bool html)
     out += "<table><tr><td class=\"time\" width=\"65\">" + timeString + "</td>";
     out += "<td class=\"icon\" width=\"32\"><img src=\"" + categoryClass(category) + "\"></td>";
     out += "<td class=\"message " + categoryClass(category) + "\" valign=\"middle\">";
+    // Commands read like a terminal: a wine prompt before what was typed.
+    if (category == CMD_REQUEST)
+        out += "<span class=\"prompt\">&#8250;&nbsp;</span>";
     if(html)
         out += message;
     else
@@ -961,10 +959,10 @@ void RPCConsole::on_lineEdit_returnPressed()
             std::string dummy;
             if (!RPCParseCommandLine(dummy, cmd.toStdString(), false, &strFilteredCmd)) {
                 // Failed to parse command, so we cannot even filter it for the history
-                throw std::runtime_error("Invalid command line");
+                throw std::runtime_error(tr("Invalid command line").toStdString());
             }
         } catch (const std::exception& e) {
-            QMessageBox::critical(this, "Error", QString("Error: ") + QString::fromStdString(e.what()));
+            QMessageBox::critical(this, tr("Error"), tr("Error: %1").arg(QString::fromStdString(e.what())));
             return;
         }
 

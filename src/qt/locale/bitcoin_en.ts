@@ -201,6 +201,22 @@
         <source>(no label)</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>transparent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>spark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>own spark name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>spark name</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>AskPassphraseDialog</name>
@@ -449,6 +465,10 @@
         <source>Make all available transparent funds private with Spark?</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>You have incoming transaction(s)!</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>AutomintSparkNotification</name>
@@ -481,6 +501,18 @@
     <message>
         <location filename="../bitcoin.cpp" line="+433"/>
         <source>You need to unlock to allow Spark wallet be created.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Runaway exception</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Do not ask me again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Migrate directory structure from zcoin to firo? Directory %1 will be renamed to %2 and file zcoin.conf in it will be renamed to firo.conf</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -694,26 +726,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-333"/>
-        <location line="+1"/>
-        <location line="+457"/>
-        <source>Hide navigation</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="-143"/>
         <location line="+538"/>
         <source>Network activity disabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-534"/>
-        <source>Synced</source>
+        <source>Syncing Headers (%1%)...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+139"/>
-        <source>Show navigation</source>
+        <source>Finishing sync...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-534"/>
+        <source>Synced</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -855,12 +883,7 @@
         </translation>
     </message>
     <message>
-        <location line="+76"/>
-        <source>Indexing blocks on disk...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+78"/>
         <source>Processing blocks on disk...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -925,22 +948,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-44"/>
-        <source>Syncing Headers...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+84"/>
+        <location line="+40"/>
         <source>Catching up...</source>
         <translation>Catching up...</translation>
     </message>
     <message>
-        <location line="+84"/>
-        <source>Synchronizing additional data: %p%</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+137"/>
+        <location line="+221"/>
         <source>Date: %1
 </source>
         <translation type="unfinished"></translation>
@@ -1002,6 +1015,14 @@
     <message>
         <location filename="../bitcoin.cpp" line="+170"/>
         <source>A fatal error occurred. Firo can no longer continue safely and will quit.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Collapse navigation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expand navigation</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1217,51 +1238,6 @@
 <context>
     <name>CreateSparkNamePage</name>
     <message>
-        <location filename="../forms/createsparkname.ui" line="+35"/>
-        <source>Create spark name</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+58"/>
-        <source>Spark Names serve as a convenient way to associate your Spark Address with a memorable name of your choice. This way you can share your Spark Names to other users for them to send funds to you (for e.g. @sparky) instead of a long Spark Address while protecting your privacy.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+32"/>
-        <source>Spark address:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+35"/>
-        <source>Generate new</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+29"/>
-        <source>Spark name:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+17"/>
-        <source>1-20 characters</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+44"/>
-        <source>Number of years:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+54"/>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To get this spark name you must pay a fee of &lt;span style=&quot; font-weight:600;&quot;&gt;%1 FIRO(s)&lt;/span&gt;. Fee depends on spark name lengths, shorter names are more expensive. Fee can be paid only with private funds.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+52"/>
-        <source>Additional information you want to associate with this spark name (max. 1024 symbols):</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../createsparknamepage.cpp" line="+63"/>
         <source>Register</source>
         <translation type="unfinished"></translation>
@@ -1338,16 +1314,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+52"/>
-        <source>Fee: %1 FIRO. New estimated expiration: %2</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Extension fee: %1 FIRO. The updated expiration estimate is unavailable.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+43"/>
         <source>Error validating Spark Name parameter</source>
         <translation type="unfinished"></translation>
@@ -1415,6 +1381,190 @@
     <message>
         <location line="+1"/>
         <source>⚠️ Not enough private funds to register this Spark Name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Register Spark Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Spark Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>About Spark Names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>e.g. sparky</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Receiving address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose or paste a Spark address…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Receiving Spark address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use a Spark address that belongs to this wallet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a Spark address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose an existing address, generate a new one, or paste an address.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Registration period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Registration fee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>About registration fees</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Registration period in years</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paid from your private balance. Network fee additional.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Public details (optional)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This information is public. Maximum 1024 UTF-8 bytes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Public details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A memorable name, such as @sparky, that people can use to send FIRO to your Spark address while preserving your transaction privacy.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use 1–20 letters (A–Z), numbers, hyphens or periods. Names are not case-sensitive.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1 character</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 characters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1–%2 characters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shorter names cost more. The registration fee depends on your name’s length and the number of years selected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name length</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FIRO per year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The network fee is additional.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fees are charged per year based on the length of the name. The network fee is additional.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose existing address…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generate new address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paste address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extend by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extension fee</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a Spark address that belongs to this wallet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Address already registered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This address is already registered as @%1. Extend that name from the Spark Names page, or choose another address.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Spark address does not belong to this wallet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> years</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a valid name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 FIRO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New estimated expiration: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The updated expiration estimate is unavailable.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1706,6 +1856,10 @@
             <numerusform>(of %n GB needed)</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Choose data directory</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ManualMintDialog</name>
@@ -1829,12 +1983,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+15"/>
-        <source>PoSe %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+53"/>
+        <location line="+68"/>
         <source>REGISTERED</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1854,23 +2003,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
         <source>PAYOUT ADDRESS</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>OPERATOR REWARD</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>COLLATERAL ADDRESS</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>OWNER ADDRESS</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1944,6 +2077,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Masternode information may be out of date while the wallet is syncing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+36"/>
         <source>Masternode list</source>
         <translation type="unfinished"></translation>
@@ -1964,6 +2101,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Copy Payout Address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy Collateral Address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+1"/>
         <source>Copy Collateral Outpoint</source>
         <translation type="unfinished"></translation>
@@ -1979,18 +2124,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+93"/>
-        <source>Pre-enabled</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+96"/>
         <source>Enabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>PoSe Banned</source>
+        <source>PoSe banned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Enabled · PoSe %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2038,6 +2183,10 @@ Collateral outpoint: %13</source>
     <message>
         <location line="+92"/>
         <source>Additional information for DIP3 Masternode %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Details...</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2170,6 +2319,10 @@ Collateral outpoint: %13</source>
     <message>
         <location line="+28"/>
         <source>Your entered words do not match, please press back to re-check your mnemonic.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wallet creation date:  %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2615,11 +2768,6 @@ Collateral outpoint: %13</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-398"/>
-        <source>font-size: 14px; color: #92400E; background-color:#FEF3C7;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+86"/>
         <source>FIRO (Primary)</source>
         <translation type="unfinished"></translation>
@@ -2749,17 +2897,7 @@ Collateral outpoint: %13</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+29"/>
-        <source>↗  Send</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>↙  Receive</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+34"/>
         <location line="+393"/>
         <source>Make Private</source>
         <translation type="unfinished"></translation>
@@ -2960,6 +3098,10 @@ Collateral outpoint: %13</source>
     <message>
         <location line="+17"/>
         <source>Current total balance in watch-only addresses</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>color: #92400E; background-color:#FEF3C7;</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3205,34 +3347,6 @@ Network fee: %3 atomic units
 Destination address (hex): %4</source>
         <translation type="unfinished"></translation>
     </message>
-    <message>
-        <location filename="../test/test_sendcoinsentry.cpp" line="+14"/>
-        <source> You are sending Firo to an Exchange Address. Exchange Addresses can only receive funds from a transparent address.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source> You are sending Firo from a transparent address to another transparent address. To protect your privacy, we recommend using Spark addresses instead.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source> You are sending Firo from a transparent address to a Spark address.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source> You are sending Firo from a Spark address to another Spark address. This transaction is fully private.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source> You are sending Firo from a private Spark pool to a transparent address. Please note that some exchanges do not accept direct Spark deposits.</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>QObject::QObject</name>
     <message>
         <location filename="../bitcoin.cpp" line="-93"/>
         <source>Error: Specified data directory &quot;%1&quot; does not exist.</source>
@@ -3692,6 +3806,18 @@ Destination address (hex): %4</source>
         <source>Unknown</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Invalid command line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ReceiveCoinsDialog</name>
@@ -3774,21 +3900,6 @@ Destination address (hex): %4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+29"/>
-        <source>LABEL</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>AMOUNT</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+26"/>
-        <source>MESSAGE</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+161"/>
         <source>Show the selected request (does the same as double clicking an entry)</source>
         <translation type="unfinished"></translation>
@@ -3806,11 +3917,6 @@ Destination address (hex): %4</source>
     <message>
         <location line="+3"/>
         <source>Remove</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../receivecoinsdialog.cpp" line="+157"/>
-        <source>REQUESTED</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3906,6 +4012,18 @@ Destination address (hex): %4</source>
     <message>
         <location line="+1"/>
         <source>Reusing transparent addresses has security and privacy risks. Only use this to recreate an earlier payment request.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;LABEL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;AMOUNT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;MESSAGE</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -4137,6 +4255,10 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Recovery seed phrase can&apos;t be empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../recover.cpp" line="+280"/>
         <source>Wrong number of words. Please try again.</source>
         <translation type="unfinished"></translation>
@@ -4324,13 +4446,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+35"/>
-        <location filename="../sendcoinsdialog.cpp" line="-1"/>
-        <source>Use Transparent Balance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="-98"/>
+        <location line="-63"/>
         <source>Clear all fields of the form.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4351,7 +4467,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     </message>
     <message>
         <location line="-25"/>
-        <location filename="../sendcoinsdialog.cpp" line="-257"/>
+        <location filename="../sendcoinsdialog.cpp" line="-258"/>
         <source>Confirm the send action</source>
         <translation>Confirm the send action</translation>
     </message>
@@ -4393,6 +4509,18 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     <message>
         <location line="+1"/>
         <source>Copy change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>SEND FROM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Send from your private (Spark) balance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Send from your transparent balance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4489,6 +4617,14 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Private (Spark)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transparent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+118"/>
         <source>The recipient address is not valid. Please recheck.</source>
         <translation type="unfinished"></translation>
@@ -4557,12 +4693,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         </translation>
     </message>
     <message>
-        <location line="+44"/>
-        <source>Use Private Balance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+45"/>
         <source>Transparent Balance</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4609,6 +4740,14 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
         <location line="+19"/>
         <source>Error</source>
         <translation type="unfinished">Error</translation>
+    </message>
+    <message>
+        <source>Wallet is still syncing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Firo network after a connection is established, but this process has not completed yet.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -4681,7 +4820,7 @@ Also you can choose wallet birth date for more faster and optimised wallet scan.
     </message>
     <message>
         <location line="+3"/>
-        <source>S&amp;UBTRACT FEE FROM AMOUNT</source>
+        <source>S&amp;ubtract fee from amount</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5010,7 +5149,12 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../sparknamespage.cpp" line="+215"/>
+        <location filename="../sparknamespage.cpp" line="+129"/>
+        <source>Copied to clipboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+94"/>
         <source>No Spark Names yet</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5086,6 +5230,38 @@ Raw data: %1</source>
     <message>
         <location line="+1"/>
         <source>[devnet]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Testnet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Devnet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Quit application</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting Firo...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shutting down...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>[regtest]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Regtest</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5347,6 +5523,18 @@ Raw data: %1</source>
         <location line="-1"/>
         <location line="+1"/>
         <source>false</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>0/unconfirmed, in memory pool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>0/unconfirmed, in dandelion stem pool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>0/unconfirmed, not in memory pool</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5997,6 +6185,14 @@ Raw data: %1</source>
         <source>to</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Copy label</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy RAP address/label</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>UnitDisplayStatusBarControl</name>
@@ -6086,6 +6282,30 @@ Raw data: %1</source>
         <location line="+87"/>
         <location line="+27"/>
         <source>Refusing to commit an incompatible Spark transaction format.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loading address book...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loading payment codes...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preparing Spark interface...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loading transaction history...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loading receive requests...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reticulating splines...</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -7667,11 +7887,6 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>Number of seconds to keep misbehaving peers from reconnecting (default: %u)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+15"/>
         <source>Output debugging information (default: %u, supplying &lt;category&gt; is optional)</source>
         <translation type="unfinished"></translation>
@@ -7867,11 +8082,6 @@ Raw data: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Threshold for disconnecting misbehaving peers (default: %u)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Transaction amounts must not be negative</source>
         <translation type="unfinished"></translation>
@@ -7939,6 +8149,51 @@ Raw data: %1</source>
     <message>
         <location filename="../transactionrecord.cpp" line="+137"/>
         <source>Zerocoin-&gt;Sigma remint</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Threshold for disconnecting and discouraging misbehaving peers (default: %u)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default duration (in seconds) of manually configured bans (default: %u)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>BitcoinUnits</name>
+    <message>
+        <source>Milli-firos (1 / %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Micro-firos (1 / %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PcodeAddressTableModel</name>
+    <message>
+        <source>Label</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RAP payment code</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>RPCExecutor</name>
+    <message>
+        <source>Parse error: unbalanced ' or "</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (code %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
