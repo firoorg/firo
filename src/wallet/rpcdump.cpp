@@ -522,6 +522,8 @@ UniValue importwallet(const JSONRPCRequest& request)
                 fLabel = false;
             if (!masterKeyID.IsNull() && vstr[nStr] == "sigma=1")
                 fLabel = false;
+            if (!masterKeyID.IsNull() && vstr[nStr] == "internal=1")
+                fLabel = false;
             if (vstr[nStr] == "reserve=1")
                 fLabel = false;
             if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
@@ -793,6 +795,8 @@ UniValue dumpwallet(const JSONRPCRequest& request)
                 file << "inactivehdmaster=1";
             } else if (!masterKeyID.IsNull() && pwallet->mapKeyMetadata[keyid].nChange.first == 2) {
                 file << "sigma=1";
+            } else if (!masterKeyID.IsNull() && pwallet->mapKeyMetadata[keyid].nChange.first == BIP44_INTERNAL_INDEX) {
+                file << "internal=1";
             } else {
                 file << "change=1";
             }
