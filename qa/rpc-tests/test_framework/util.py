@@ -844,3 +844,14 @@ def wait_to_sync_znodes(node, fast_znsync=False):
 def get_full_balance(node):
     wallet_info = node.getwalletinfo()
     return wallet_info["balance"] + wallet_info["immature_balance"] + wallet_info["unconfirmed_balance"]
+
+def progpow_solve(job):
+    """Solve a ProgPoW getblocktemplate job with progpow_test_miner, which is built next to firod.
+
+    Returns the header hash, mix hash and nonce to pass to pprpcsb."""
+    miner = os.path.join(os.path.dirname(os.getenv('FIROD', 'firod')),
+                         'progpow_test_miner' + ('.exe' if os.name == 'nt' else ''))
+    nonce, mix = subprocess.check_output(
+        [miner, str(job['height']), job['pprpcheader'], job['target']],
+        universal_newlines=True, timeout=60).split()
+    return job['pprpcheader'], mix, hex(int(nonce))
