@@ -32,13 +32,4 @@ private:
     CAmount nRequiredFee{0};
 };
 
-/** Balance is enough in aggregate, but no single Spark coin can fund the spend. */
-class SparkFundsFragmented : public WalletError
-{
-public:
-    SparkFundsFragmented();
-    explicit SparkFundsFragmented(const char *what);
-    explicit SparkFundsFragmented(const std::string& what);
-};
-
 #endif // FIRO_WALLET_WALLETEXCEPT_H

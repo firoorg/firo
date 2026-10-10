@@ -22,9 +22,8 @@ class SparkMintSpendTest(BitcoinTestFramework):
         sparkAddress = self.nodes[0].getsparkdefaultaddress()[0]
 
         mint_trans = list()
-        # Mint one large coin that can alone cover later spend amount + fee
-        # (multi-input Spark spends are disabled), plus a second mint for the
-        # confirmation / balance accounting checks below.
+        # Mint one coin large enough to cover a later spend and its fee,
+        # plus a second mint for the confirmation and balance checks below.
         mint_trans.append(self.nodes[0].mintspark({sparkAddress: {"amount": 5, "memo": "Test memo"}}))
         mint_trans.append(self.nodes[0].mintspark({sparkAddress: {"amount": 2, "memo":"Test memo"}}))
 
