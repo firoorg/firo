@@ -752,7 +752,7 @@ jobs:
                   int nameOffset =
                       lengthOffset + sizeof(uint);
                   int size =
-                      nameOffset + name.Length;
+                      nameOffset + name.Length + sizeof(char);
                   IntPtr information =
                       Marshal.AllocHGlobal(size);
                   try {

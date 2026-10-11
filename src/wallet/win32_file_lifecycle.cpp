@@ -3145,7 +3145,7 @@ MoveResult MoveFileReplace(
     };
     constexpr size_t name_offset = offsetof(RenameInfoEx, name);
     if (destination_native.size() >
-        (std::numeric_limits<DWORD>::max() - name_offset) / sizeof(WCHAR)) {
+        (std::numeric_limits<DWORD>::max() - name_offset - sizeof(WCHAR)) / sizeof(WCHAR)) {
         error = "Wallet lifecycle replacement destination exceeds the native rename buffer limit.";
         ReconcileReplace(
             source_full, source, source_identity,
@@ -3156,7 +3156,8 @@ MoveResult MoveFileReplace(
     const DWORD name_length =
         static_cast<DWORD>(destination_native.size() * sizeof(WCHAR));
     const DWORD information_size =
-        static_cast<DWORD>(name_offset + name_length);
+        static_cast<DWORD>(name_offset + name_length + sizeof(WCHAR));
+    // The Win32 path conversion reads a NUL-terminated name before using its length.
     std::vector<unsigned char> information(information_size, 0);
     auto* const rename = reinterpret_cast<RenameInfoEx*>(information.data());
     rename->flags = 0x1 | 0x2; // REPLACE_IF_EXISTS | POSIX_SEMANTICS
