@@ -1677,6 +1677,19 @@ BOOST_AUTO_TEST_CASE(berkeley_migration_backup_is_exclusive_and_private)
     source->Flush(true);
     backup.reset();
     source.reset();
+#ifdef WIN32
+    bitdb.Flush(true);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE(bitdb.mapFileUseCount.empty());
+        for (const auto& database : bitdb.mapDb) {
+            BOOST_REQUIRE(database.second == nullptr);
+        }
+        BOOST_REQUIRE_EQUAL(bitdb.migrationLogPins.size(), 1U);
+        BOOST_REQUIRE(bitdb.migrationLogPins.count(sourceFilename) == 1);
+        bitdb.mapDb.clear();
+    }
+#endif
     bitdb.Close();
     bitdb.Reset();
 
