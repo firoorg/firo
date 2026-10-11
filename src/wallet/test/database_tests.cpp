@@ -1469,6 +1469,8 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
             error);
     BOOST_REQUIRE(sqliteSymlinkTarget);
     sqliteSymlinkTarget.reset();
+    const std::string sqliteSymlinkTargetContents =
+        ReadFile(sqliteSymlinkTargetPath);
     symlinkError.clear();
     fs::create_symlink(
         sqliteSymlinkTargetPath,
@@ -1483,6 +1485,10 @@ BOOST_AUTO_TEST_CASE(wallet_database_factory_policy)
         BOOST_CHECK(
             status ==
             DatabaseStatus::FAILED_BAD_PATH);
+        const bool targetUnchanged =
+            ReadFile(sqliteSymlinkTargetPath) ==
+            sqliteSymlinkTargetContents;
+        BOOST_CHECK(targetUnchanged);
         BOOST_CHECK(fs::remove(
             sqliteSymlinkPath));
     } else {

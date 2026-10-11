@@ -79,15 +79,6 @@ bool GetLegacyWalletDatabasePath(
 
 bool IsSQLiteDatabase(const fs::path& path)
 {
-    boost::system::error_code error;
-    const uintmax_t size = fs::file_size(path, error);
-    if (error) {
-        throw std::runtime_error(strprintf("cannot determine file size: %s", error.message()));
-    }
-    if (size < 16) {
-        return false;
-    }
-
     fs::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("cannot open file");
