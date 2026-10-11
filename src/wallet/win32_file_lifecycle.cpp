@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstring>
 #include <cwchar>
 #include <cwctype>
 #include <limits>
@@ -3160,7 +3161,7 @@ MoveResult MoveFileReplace(
     auto* const rename = reinterpret_cast<RenameInfoEx*>(information.data());
     rename->flags = 0x1 | 0x2; // REPLACE_IF_EXISTS | POSIX_SEMANTICS
     rename->name_length = name_length;
-    std::copy(destination_native.begin(), destination_native.end(), rename->name);
+    std::memcpy(information.data() + name_offset, destination_native.data(), name_length);
 
     bool moved = false;
     DWORD native_error = ERROR_SUCCESS;
