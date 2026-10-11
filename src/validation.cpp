@@ -779,6 +779,13 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
     bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
 
     if (fDIP0003Active_context) {
+        // Serialization sign-extends a negative nVersion into the nType half,
+        // so every relayed or stored copy decodes with nType == -1 and fails
+        // the type check below. Reject the nType == 0 encoding of the same
+        // txid as well, so the result does not depend on which one arrived.
+        if (tx.nVersion < 0)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+
         // check version 3 transaction types
         if (tx.nVersion >= 3) {
             if (tx.nType != TRANSACTION_NORMAL &&
