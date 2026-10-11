@@ -37,6 +37,7 @@
 
 #ifndef WIN32
 #include <csignal>
+#include <fcntl.h>
 #include <sys/stat.h>
 #if defined(__linux__)
 #include <sys/syscall.h>
@@ -5369,6 +5370,10 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
     BOOST_CHECK_EQUAL(
         fs::status(path).permissions() & privatePermissions,
         privatePermissions);
+    // Closing an incidental descriptor must not release the wallet's claim.
+    const int incidentalDescriptor = open(path.string().c_str(), O_RDONLY);
+    BOOST_REQUIRE(incidentalDescriptor >= 0);
+    BOOST_CHECK_EQUAL(close(incidentalDescriptor), 0);
 #endif
 
     DatabaseOptions existingOptions;

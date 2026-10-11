@@ -817,6 +817,24 @@ public:
 #endif
 };
 
+#ifndef WIN32
+int ClaimSQLiteFileDescriptor(int descriptor)
+{
+#ifdef __APPLE__
+    // Darwin flock conflicts with SQLite's POSIX locks; claim a separate byte
+    // with descriptor lifetime, outside SQLite's range starting at 0x40000000.
+    struct flock claim{};
+    claim.l_type = F_WRLCK;
+    claim.l_whence = SEEK_SET;
+    claim.l_start = 0;
+    claim.l_len = 1;
+    return fcntl(descriptor, F_OFD_SETLK, &claim);
+#else
+    return flock(descriptor, LOCK_EX | LOCK_NB);
+#endif
+}
+#endif
+
 struct SQLiteFileIdentity {
 #ifdef WIN32
     DatabaseFileIdentity native{};
@@ -1840,9 +1858,7 @@ bool PreflightSQLiteHeader(
     }
 
     if (retained_descriptor &&
-        flock(
-            opened.Get(),
-            LOCK_EX | LOCK_NB) != 0) {
+        ClaimSQLiteFileDescriptor(opened.Get()) != 0) {
         const int saved_errno = errno;
         error = strprintf(
             "Unable to claim SQLite wallet '%s'; another Firo process may "
@@ -2211,7 +2227,7 @@ CandidateResult CreateOwnedCandidate(
             if (fchmod(descriptor, S_IRUSR | S_IWUSR) != 0) {
                 valid = false;
                 saved_errno = errno;
-            } else if (flock(descriptor, LOCK_EX | LOCK_NB) != 0) {
+            } else if (ClaimSQLiteFileDescriptor(descriptor) != 0) {
                 valid = false;
                 saved_errno = errno;
             }
