@@ -3728,6 +3728,8 @@ private:
     std::unique_ptr<SQLiteStatementExecutor> m_next_batch_executor;
     std::atomic<bool> m_usable{true};
     std::atomic<bool> m_poisoned{false};
+    // A recovered write failure still invalidates pending wallet initialization.
+    std::atomic<bool> m_mutation_failed{false};
 
     mutable std::shared_mutex m_connection_mutex;
     std::mutex m_writer_mutex;
@@ -4797,6 +4799,24 @@ private:
         const char* operation,
         Operation&& execute)
     {
+        try {
+            const bool result = ExecuteCheckedWriteInternal(
+                operation, std::forward<Operation>(execute));
+            if (!result) {
+                m_database.m_mutation_failed.store(true);
+            }
+            return result;
+        } catch (...) {
+            m_database.m_mutation_failed.store(true);
+            throw;
+        }
+    }
+
+    template <typename Operation>
+    bool ExecuteCheckedWriteInternal(
+        const char* operation,
+        Operation&& execute)
+    {
         if (IsActive()) {
             return execute();
         }
@@ -5531,6 +5551,13 @@ DatabaseCreationResult SQLiteDatabase::CompleteCreation(
         return MarkCreationIndeterminate(
             error,
             "an unrelated transaction is active");
+    }
+    if (m_mutation_failed.load()) {
+        error = strprintf(
+            "Cannot complete SQLite wallet creation for '%s': an initialization database mutation failed. "
+            "The wallet remains incomplete; resolve the database error before creating it again.",
+            m_filename);
+        return DatabaseCreationResult::FAILED;
     }
 
     std::string marker_error;

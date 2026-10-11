@@ -3235,16 +3235,26 @@ UniValue walletpassphrasechange(const JSONRPCRequest& request)
             "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
 
     bool indeterminate = false;
+    bool databaseError = false;
     if (!pwallet->ChangeWalletPassphrase(
             strOldWalletPass,
             strNewWalletPass,
-            &indeterminate)) {
+            &indeterminate,
+            &databaseError)) {
         if (pwallet->GetDatabase().Format() == DatabaseFormat::SQLITE &&
             indeterminate) {
             throw JSONRPCError(
                 RPC_WALLET_ERROR,
                 "Error: Wallet passphrase change did not complete cleanly, and the new passphrase may already be required. "
                 "Retain both the old and new passphrases. Firo server is stopping; restart and try both passphrases before making another change.");
+        }
+        if (databaseError) {
+            throw JSONRPCError(
+                RPC_WALLET_ERROR,
+                strprintf(
+                    "Error: SQLite wallet '%s': failed to store the new passphrase. "
+                    "The old passphrase remains valid; resolve the database error before retrying.",
+                    pwallet->strWalletFile));
         }
         throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
     }

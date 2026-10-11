@@ -959,7 +959,8 @@ public:
     bool ChangeWalletPassphrase(
         const SecureString& strOldWalletPassphrase,
         const SecureString& strNewWalletPassphrase,
-        bool* indeterminate = nullptr);
+        bool* indeterminate = nullptr,
+        bool* databaseError = nullptr);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
     void RequestUnlock();

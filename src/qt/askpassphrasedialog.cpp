@@ -201,10 +201,12 @@ void AskPassphraseDialog::accept()
         if(newpass1 == newpass2)
         {
             bool indeterminate = false;
+            bool databaseError = false;
             if(model->changePassphrase(
                     oldpass,
                     newpass1,
-                    &indeterminate))
+                    &indeterminate,
+                    &databaseError))
             {
                 QMessageBox::information(this, tr("Wallet encrypted"),
                                      tr("Wallet passphrase was successfully changed."));
@@ -220,6 +222,15 @@ void AskPassphraseDialog::accept()
                        "Keep both the old and new passphrases. %1 will close now; restart and try both passphrases before making another change.")
                         .arg(tr(PACKAGE_NAME)));
                 QApplication::quit();
+            }
+            else if (databaseError)
+            {
+                QMessageBox::critical(
+                    this,
+                    tr("Wallet passphrase change failed"),
+                    tr("SQLite wallet '%1': failed to store the new passphrase. "
+                       "The old passphrase remains valid; resolve the database error before retrying.")
+                        .arg(QString::fromStdString(model->getWallet()->strWalletFile)));
             }
             else
             {

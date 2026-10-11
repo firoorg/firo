@@ -20,6 +20,8 @@
 #include "chainparams.h"
 #include "crypto/common.h"
 #include "init.h"
+#include "rpc/protocol.h"
+#include "rpc/server.h"
 #include "wallet/sqlite.h"
 #ifdef WIN32
 #include "wallet/win32_file_lifecycle.h"
@@ -44,6 +46,7 @@
 #endif
 #endif
 
+#include <boost/scope_exit.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <algorithm>
@@ -67,6 +70,7 @@
 
 #ifdef USE_SQLITE
 extern std::atomic<bool> fRequestShutdown;
+extern UniValue walletpassphrasechange(const JSONRPCRequest& request);
 #endif
 
 namespace
@@ -8888,6 +8892,49 @@ BOOST_AUTO_TEST_CASE(sqlite_logical_wallet_creation_lifecycle)
     }
 
     {
+        ShutdownRequestReset shutdownReset;
+        const std::string filename{
+            "sqlite_initialization_write_failure.dat"};
+        const fs::path path = GetDataDir() / filename;
+        RemoveSQLiteTestFiles(filename);
+        DatabaseStatus status;
+        std::string error;
+        {
+            auto database = createLogicalDatabase(filename, status, error);
+            BOOST_REQUIRE_MESSAGE(database, error);
+            CWallet wallet(std::move(database));
+            bool firstRun = false;
+            BOOST_REQUIRE(wallet.LoadWallet(firstRun) == DB_LOAD_OK);
+            BOOST_REQUIRE(firstRun);
+            CPubKey pubkey;
+            {
+                LOCK(wallet.cs_wallet);
+                pubkey = wallet.GenerateNewKey();
+            }
+            BOOST_REQUIRE(SetSQLiteNextBatchStatementExecutorForTesting(
+                wallet.GetDatabase(),
+                std::make_unique<BlockingSQLiteStatementExecutor>(
+                    std::set<std::string>{"COMMIT TRANSACTION"})));
+            BOOST_CHECK(!wallet.SetDefaultKey(pubkey));
+            BOOST_CHECK(!wallet.vchDefaultKey.IsValid());
+            // Later successful initialization writes cannot hide an earlier failure.
+            BOOST_REQUIRE(wallet.SetAddressBook(pubkey.GetID(), "", "receive"));
+            BOOST_CHECK(wallet.GetDatabase().CompleteCreation(error) ==
+                        DatabaseCreationResult::FAILED);
+            BOOST_CHECK(error.find(filename) != std::string::npos);
+            BOOST_CHECK(!ShutdownRequested());
+        }
+#ifdef WIN32
+        BOOST_CHECK(ShutdownRequested());
+        BOOST_REQUIRE(ResetExpectedSQLiteQuarantine());
+#else
+        BOOST_CHECK(!ShutdownRequested());
+#endif
+        BOOST_CHECK(!fs::exists(path));
+        RemoveSQLiteTestFiles(filename);
+    }
+
+    {
         const std::string filename{
             "sqlite_completed_wallet.dat"};
         RemoveSQLiteTestFiles(filename);
@@ -10199,13 +10246,8 @@ BOOST_FIXTURE_TEST_CASE(
                     !wallet.ChangeWalletPassphrase(
                         wrongPassphrase,
                         newPassphrase));
-                if (format == DatabaseFormat::BERKELEY) {
-                    BOOST_CHECK(wallet.IsLocked());
-                    BOOST_REQUIRE(
-                        wallet.Unlock(passphrase));
-                } else {
-                    BOOST_CHECK(!wallet.IsLocked());
-                }
+                BOOST_CHECK(wallet.IsLocked());
+                BOOST_REQUIRE(wallet.Unlock(passphrase));
                 BOOST_REQUIRE(
                     wallet.ChangeWalletPassphrase(
                         passphrase,
@@ -10459,10 +10501,26 @@ BOOST_FIXTURE_TEST_CASE(
                     BlockingSQLiteStatementExecutor>(
                     std::set<std::string>{
                         "COMMIT TRANSACTION"})));
-        BOOST_CHECK(
-            !walletAndKey.first->ChangeWalletPassphrase(
-                passphrase,
-                newPassphrase));
+        {
+            CWallet* const savedWallet = pwalletMain;
+            BOOST_SCOPE_EXIT_ALL(savedWallet)
+            {
+                pwalletMain = savedWallet;
+            };
+            pwalletMain = walletAndKey.first.get();
+            JSONRPCRequest request;
+            request.params.setArray();
+            request.params.push_back(std::string(passphrase.begin(), passphrase.end()));
+            request.params.push_back(std::string(newPassphrase.begin(), newPassphrase.end()));
+            BOOST_CHECK_EXCEPTION(
+                walletpassphrasechange(request),
+                UniValue,
+                [&](const UniValue& rpcError) {
+                    return rpcError["code"].get_int() == RPC_WALLET_ERROR &&
+                           rpcError["message"].get_str().find(filename) != std::string::npos &&
+                           rpcError["message"].get_str().find("SQLite") != std::string::npos;
+                });
+        }
         BOOST_CHECK(
             !walletAndKey.first->IsLocked());
         BOOST_CHECK(!ShutdownRequested());

@@ -3,7 +3,7 @@ name: SQLite Wallet Platform Evidence
 on:
   push:
     branches:
-      - 'dev/navidr/sqlite-wallet'
+      - 'goethe/sqlite-wallet'
 
 permissions:
   contents: read

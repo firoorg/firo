@@ -271,7 +271,8 @@ public:
     bool changePassphrase(
         const SecureString& oldPass,
         const SecureString& newPass,
-        bool* indeterminate = nullptr);
+        bool* indeterminate = nullptr,
+        bool* databaseError = nullptr);
     // Wallet backup
     bool backupWallet(const QString &filename);
     bool backupWallet(const QString& filename, QString& error);
