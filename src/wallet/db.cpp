@@ -308,21 +308,54 @@ bool CloseAndCheckpointMigrationDatabaseWin32(
     return true;
 }
 
-bool VerifyMigrationBackupWin32(
-    CDBEnv& environment,
-    const std::string& filename,
+bool ResetMigrationBackupWin32(
     const fs::path& path,
     std::string& error)
 {
-    if (environment.Verify(filename, nullptr) !=
-        CDBEnv::VERIFY_OK) {
+    // Never register a candidate pathname in the production mpool: it will
+    // change at publication, including for later cache-wide synchronization.
+    DbEnv independent(DB_CXX_NO_EXCEPTIONS);
+    const int open_result = independent.open(
+        path.parent_path().string().c_str(),
+        DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE,
+        S_IRUSR | S_IWUSR);
+    if (open_result != 0) {
+        error = strprintf("Failed to open a private BDB environment for migration backup '%s': %s",
+            path.string(), DbEnv::strerror(open_result));
+        return false;
+    }
+    const std::string filename = path.string();
+    int reset_result = independent.fileid_reset(filename.c_str(), 0);
+    if (reset_result == 0) {
+        reset_result = independent.lsn_reset(filename.c_str(), 0);
+    }
+    const int close_result = independent.close(0);
+    if (reset_result != 0 || close_result != 0) {
+        error = strprintf("Failed to reset and close the independent BDB migration backup '%s': %s",
+            path.string(), DbEnv::strerror(reset_result != 0 ? reset_result : close_result));
+        return false;
+    }
+    return true;
+}
+
+bool VerifyMigrationBackupWin32(
+    const fs::path& path,
+    std::string& error)
+{
+    // The production mpool can retain the candidate name by file ID after
+    // publication. Verify the pinned backup outside that filename cache.
+    const std::string filename = path.string();
+    Db verifier(nullptr, DB_CXX_NO_EXCEPTIONS);
+    const int verify_result = verifier.verify(filename.c_str(), nullptr, nullptr, 0);
+    if (verify_result != 0) {
         error = strprintf(
-            "Failed to verify BDB migration backup '%s'.",
-            path.string());
+            "Failed to verify BDB migration backup '%s': %s",
+            path.string(),
+            DbEnv::strerror(verify_result));
         return false;
     }
 
-    Db reopened(environment.dbenv, 0);
+    Db reopened(nullptr, DB_CXX_NO_EXCEPTIONS);
     const int open_result = reopened.open(
         nullptr,
         filename.c_str(),
@@ -2055,35 +2088,16 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
         return fail_created_candidate();
     }
 
-    const int file_id_result =
-        m_env->dbenv->fileid_reset(
-            candidate_filename.c_str(),
-            0);
-    if (file_id_result != 0 ||
+    if (!ResetMigrationBackupWin32(
+            candidate_path,
+            error) ||
         !DurableSyncMigrationFile(
             candidate_file,
             error)) {
         if (error.empty()) {
             error = strprintf(
-                "Failed to assign and synchronize an independent Berkeley file identity for migration backup '%s': %s",
-                candidate_path.string(),
-                DbEnv::strerror(file_id_result));
-        }
-        return fail_created_candidate();
-    }
-    const int lsn_result =
-        m_env->dbenv->lsn_reset(
-            candidate_filename.c_str(),
-            0);
-    if (lsn_result != 0 ||
-        !DurableSyncMigrationFile(
-            candidate_file,
-            error)) {
-        if (error.empty()) {
-            error = strprintf(
-                "Failed to reset and synchronize the Berkeley log sequence number in migration backup '%s': %s",
-                candidate_path.string(),
-                DbEnv::strerror(lsn_result));
+                "Failed to synchronize the independent Berkeley identity and log sequence number in migration backup '%s'.",
+                candidate_path.string());
         }
         return fail_created_candidate();
     }
@@ -2105,8 +2119,6 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
         candidate_filename);
     if (cached_target_close_result != 0 ||
         !VerifyMigrationBackupWin32(
-            *m_env,
-            candidate_filename,
             candidate_path,
             error) ||
         !Win32MigrationFileMatches(
@@ -2186,8 +2198,6 @@ MigrationBackupResult BerkeleyDatabase::CreateMigrationBackup(
             win32_wallet::SecurityPolicy::PRIVATE,
             error) ||
         !VerifyMigrationBackupWin32(
-            *m_env,
-            backup_filename,
             target_path,
             error) ||
         !Win32MigrationFileMatches(

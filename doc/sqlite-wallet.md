@@ -52,14 +52,19 @@ throughout each operation.
 
 Windows no-replace publication uses
 `MoveFileExW(..., MOVEFILE_WRITE_THROUGH)` without
-`MOVEFILE_REPLACE_EXISTING`. Migration and recovery replacement add
-`MOVEFILE_REPLACE_EXISTING`; neither operation permits `MOVEFILE_COPY_ALLOWED`.
+`MOVEFILE_REPLACE_EXISTING`. Migration and recovery use `FileRenameInfoEx`
+with replacement and POSIX semantics, allowing the old file to remain readable
+through retained handles. The exact source is reopened with DELETE access and
+`FILE_FLAG_WRITE_THROUGH`; neither operation permits a cross-volume copy.
+Replacement requires native rename-ex support (Windows 10 version 1709 or
+later). Missing support fails closed; ordinary writable BDB remains available.
 Firo flushes the closed candidate first, reconciles the result using exact
 retained file identities, then reopens, verifies, and flushes the final file.
 
 Windows provides no documented generic directory-`fsync` equivalent for an
 ordinary user. `MOVEFILE_WRITE_THROUGH` waits for the move to complete on disk,
-but it is not a generic directory flush. This contract therefore does not
+and NTFS write-through handles synchronize rename metadata, but neither is a
+generic directory flush. This contract therefore does not
 claim stronger atomicity or durability across power loss, and cleanup of a
 failed pre-publication operation cannot be claimed power-loss durable.
 Creation, backup, recovery, or migration fails closed when a required

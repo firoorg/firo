@@ -3133,20 +3133,63 @@ MoveResult MoveFileReplace(
         return result;
     }
 
-    const std::wstring source_native =
-        Win32ExtendedPath(source_full);
     const std::wstring destination_native =
         Win32ExtendedPath(destination_full);
-    const bool moved =
-        MoveFileExW(
-            source_native.c_str(),
-            destination_native.c_str(),
-            MOVEFILE_REPLACE_EXISTING |
-                MOVEFILE_WRITE_THROUGH) != FALSE;
-    const DWORD native_error =
-        moved ?
-            ERROR_SUCCESS :
-            GetLastError();
+    // Keep the older SDK/loader baseline while using the native rename-ex ABI.
+    struct RenameInfoEx {
+        DWORD flags;
+        HANDLE root_directory;
+        DWORD name_length;
+        WCHAR name[1];
+    };
+    constexpr size_t name_offset = offsetof(RenameInfoEx, name);
+    if (destination_native.size() >
+        (std::numeric_limits<DWORD>::max() - name_offset) / sizeof(WCHAR)) {
+        error = "Wallet lifecycle replacement destination exceeds the native rename buffer limit.";
+        ReconcileReplace(
+            source_full, source, source_identity,
+            destination_full, replaced, replaced_identity,
+            ERROR_INVALID_PARAMETER, false, result);
+        return result;
+    }
+    const DWORD name_length =
+        static_cast<DWORD>(destination_native.size() * sizeof(WCHAR));
+    const DWORD information_size =
+        static_cast<DWORD>(name_offset + name_length);
+    std::vector<unsigned char> information(information_size, 0);
+    auto* const rename = reinterpret_cast<RenameInfoEx*>(information.data());
+    rename->flags = 0x1 | 0x2; // REPLACE_IF_EXISTS | POSIX_SEMANTICS
+    rename->name_length = name_length;
+    std::copy(destination_native.begin(), destination_native.end(), rename->name);
+
+    bool moved = false;
+    DWORD native_error = ERROR_SUCCESS;
+    {
+        // Reopen the retained object, rather than resolving the source pathname.
+        ScopedHandle rename_source(ReOpenFile(
+            NativeHandle(source),
+            GENERIC_READ | GENERIC_WRITE | DELETE | FILE_READ_ATTRIBUTES | READ_CONTROL,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            FILE_FLAG_WRITE_THROUGH | FILE_FLAG_OPEN_REPARSE_POINT));
+        if (!rename_source) {
+            native_error = GetLastError();
+        } else {
+            FileState rename_state;
+            if (!QueryFileState(rename_source.Get(), rename_state, native_error) ||
+                !SameIdentity(rename_state.identity, source_identity)) {
+                if (native_error == ERROR_SUCCESS) {
+                    native_error = ERROR_FILE_INVALID;
+                }
+            } else {
+                moved = SetFileInformationByHandle(
+                            rename_source.Get(),
+                            static_cast<FILE_INFO_BY_HANDLE_CLASS>(22), // FileRenameInfoEx
+                            information.data(),
+                            information_size) != FALSE;
+                native_error = moved ? ERROR_SUCCESS : GetLastError();
+            }
+        }
+    } // Final reopening does not share DELETE; close this transient handle first.
     ReconcileReplace(
         source_full,
         source,
@@ -3183,6 +3226,11 @@ MoveResult MoveFileReplace(
             destination_full,
             native_error,
             error);
+        if (native_error == ERROR_INVALID_PARAMETER ||
+            native_error == ERROR_NOT_SUPPORTED ||
+            native_error == ERROR_INVALID_FUNCTION) {
+            error += " Native FileRenameInfoEx replacement support is required (Windows 10 version 1709 or later).";
+        }
     } else {
         error =
             "Write-through wallet lifecycle replacement reported success, but exact source, destination, and delete-pending identities could not be reconciled.";

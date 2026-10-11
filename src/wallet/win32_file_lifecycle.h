@@ -262,8 +262,8 @@ enum class MoveDisposition {
 };
 
 /**
- * Reconciled result of a MoveFileExW operation. write_through_confirmed is
- * true only when MoveFileExW itself reported success and post-move identity,
+ * Reconciled result of a native move operation. write_through_confirmed is
+ * true only when the native write-through operation succeeded and post-move identity,
  * security, and final-file flush checks also succeeded.
  */
 struct MoveResult {

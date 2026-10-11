@@ -3148,7 +3148,7 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
 }
 
 #ifdef WIN32
-BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bdb)
+BOOST_AUTO_TEST_CASE(sqlite_win32_migration_retained_destination_preserves_backup)
 {
     ShutdownRequestReset shutdownReset;
     BOOST_REQUIRE(!ShutdownRequested());
@@ -3213,16 +3213,15 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bd
         error);
 
     std::string backupPath;
-    BOOST_CHECK(
-        !MigrateWalletDatabaseToSQLite(
+    BOOST_REQUIRE_MESSAGE(
+        MigrateWalletDatabaseToSQLite(
             *source,
             backupPath,
-            error));
-    const std::string migrationError =
-        error;
+            error),
+        error);
     BOOST_REQUIRE_MESSAGE(
         !backupPath.empty(),
-        migrationError);
+        error);
     const fs::path backupFilesystemPath{
         backupPath};
     BOOST_REQUIRE(
@@ -3232,31 +3231,22 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bd
         ReadFile(
             backupFilesystemPath);
 
-    BOOST_CHECK(ShutdownRequested());
-    BOOST_CHECK_MESSAGE(
-        migrationError.find(
-            "Failed to perform write-through wallet lifecycle replacement") !=
-            std::string::npos,
-        migrationError);
-    BOOST_CHECK_MESSAGE(
-        migrationError.find(
-            "candidate cleanup is indeterminate") !=
-            std::string::npos,
-        migrationError);
-    BOOST_CHECK(
-        migrationError.find(
-            sourcePath.string()) !=
-        std::string::npos);
-    BOOST_CHECK(
-        migrationError.find(
-            backupFilesystemPath.string()) !=
-        std::string::npos);
+    BOOST_CHECK(!ShutdownRequested());
+    win32_wallet::FileState retainedSourceState;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::GetFileState(blocker, retainedSourceState, error),
+        error);
+    BOOST_CHECK(retainedSourceState.delete_pending);
+    BOOST_CHECK_EQUAL(retainedSourceState.identity.device, blockerIdentity.device);
+    BOOST_CHECK_EQUAL(retainedSourceState.identity.inode, blockerIdentity.inode);
+    BOOST_CHECK_EQUAL(retainedSourceState.size, sourceContents.size());
+    std::string retainedSourceContents(sourceContents.size(), '\0');
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::ReadExact(blocker, 0, retainedSourceContents.data(), retainedSourceContents.size(), error),
+        error);
     BOOST_CHECK_EQUAL(
-        ReadFile(sourcePath),
+        retainedSourceContents,
         sourceContents);
-    BOOST_CHECK(
-        IsBerkeleyDatabase(
-            sourcePath));
     BOOST_CHECK(
         IsBerkeleyDatabase(
             backupFilesystemPath));
@@ -3271,31 +3261,17 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bd
     BOOST_REQUIRE(sourceFormat);
     BOOST_CHECK(
         *sourceFormat ==
-        DatabaseFormat::BERKELEY);
+        DatabaseFormat::SQLITE);
     BOOST_CHECK(
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-")
             .empty());
-    BOOST_CHECK_THROW(
-        source->MakeBatch(
-            {DatabaseBatchMode::READ_ONLY}),
-        std::runtime_error);
-    BOOST_CHECK_THROW(
-        source->MakeBatch(
-            {DatabaseBatchMode::READ_WRITE}),
-        std::runtime_error);
-    BOOST_CHECK(!source->Rewrite());
-    BOOST_CHECK(!source->PeriodicFlush());
-
     std::string closeError;
     BOOST_REQUIRE_MESSAGE(
         blocker.Close(
             closeError),
         closeError);
     source.reset();
-    BOOST_REQUIRE_MESSAGE(
-        ResetExpectedSQLiteQuarantine(),
-        migrationError);
     BOOST_CHECK(!ShutdownRequested());
     bitdb.Close();
     bitdb.Reset();
@@ -3303,15 +3279,9 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bd
         GetDataDir()));
 
     BOOST_CHECK_EQUAL(
-        ReadFile(sourcePath),
-        sourceContents);
-    BOOST_CHECK_EQUAL(
         ReadFile(
             backupFilesystemPath),
         backupContents);
-    BOOST_CHECK(
-        IsBerkeleyDatabase(
-            sourcePath));
     BOOST_CHECK(
         IsBerkeleyDatabase(
             backupFilesystemPath));
@@ -3325,10 +3295,12 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_replace_sharing_failure_preserves_bd
     openBerkeley.require_format =
         DatabaseFormat::BERKELEY;
     openBerkeley.recover = false;
+    DatabaseOptions openSQLite = openBerkeley;
+    openSQLite.require_format = DatabaseFormat::SQLITE;
     std::unique_ptr<WalletDatabase> reopenedSource =
         MakeWalletDatabase(
             sourceFilename,
-            openBerkeley,
+            openSQLite,
             status,
             error);
     BOOST_REQUIRE_MESSAGE(
@@ -5200,6 +5172,32 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_replace_reconciles_retained_identities)
         WritePrivateWin32File(
             sourcePath,
             oldSourceContents));
+
+    // A non-delete-sharing source handle must prevent the DELETE-capable reopen.
+    win32_wallet::File candidateBlocker;
+    DatabaseFileIdentity candidateBlockerIdentity;
+    BOOST_REQUIRE_MESSAGE(
+        win32_wallet::OpenExistingFile(
+            candidatePath, win32_wallet::FileAccess::READ_ONLY,
+            win32_wallet::SecurityPolicy::PRIVATE, false,
+            candidateBlocker, candidateBlockerIdentity, error) ==
+            win32_wallet::OpenResult::OPENED,
+        error);
+    const win32_wallet::MoveResult blocked = win32_wallet::MoveFileReplace(
+        candidatePath, candidate, candidateIdentity,
+        sourcePath, oldSource, oldSourceIdentity,
+        win32_wallet::SecurityPolicy::PRIVATE, error);
+    BOOST_CHECK(blocked.disposition == win32_wallet::MoveDisposition::NOT_MOVED);
+    BOOST_CHECK_EQUAL(blocked.native_error, ERROR_SHARING_VIOLATION);
+    BOOST_CHECK(!blocked.write_through_confirmed);
+    BOOST_CHECK(blocked.source_path == win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(blocked.destination_replaced == win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(blocked.moving_handle == win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(blocked.replaced_handle == win32_wallet::IdentityState::MATCH);
+    BOOST_CHECK(!blocked.replaced_delete_pending);
+    BOOST_CHECK_EQUAL(ReadFile(candidatePath), candidateContents);
+    BOOST_CHECK_EQUAL(ReadFile(sourcePath), oldSourceContents);
+    BOOST_REQUIRE_MESSAGE(candidateBlocker.Close(error), error);
 
     const win32_wallet::MoveResult result =
         win32_wallet::MoveFileReplace(
