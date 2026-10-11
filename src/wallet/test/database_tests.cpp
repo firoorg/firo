@@ -1946,6 +1946,17 @@ BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
     source.reset();
     BOOST_REQUIRE(
         ResetExpectedSQLiteQuarantine());
+    bitdb.Flush(true);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE(bitdb.mapFileUseCount.empty());
+        for (const auto& database : bitdb.mapDb) {
+            BOOST_REQUIRE(database.second == nullptr);
+        }
+        BOOST_REQUIRE_EQUAL(bitdb.migrationLogPins.size(), 1U);
+        BOOST_REQUIRE(bitdb.migrationLogPins.count(sourceFilename) == 1);
+        bitdb.mapDb.clear();
+    }
     bitdb.Close();
     bitdb.Reset();
     BOOST_REQUIRE(bitdb.Open(GetDataDir()));
@@ -1966,6 +1977,7 @@ BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
             value,
             "source-remains-authoritative");
     }
+    BOOST_REQUIRE(source->PeriodicFlush());
     BOOST_CHECK(IsBerkeleyDatabase(sourcePath));
     BOOST_CHECK(
         FindMigrationPaths(
@@ -3286,6 +3298,16 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_retained_destination_preserves_backu
     retainedSource.release();
     source.reset();
     BOOST_CHECK(!ShutdownRequested());
+    bitdb.Flush(true);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE(bitdb.mapFileUseCount.empty());
+        for (const auto& database : bitdb.mapDb) {
+            BOOST_REQUIRE(database.second == nullptr);
+        }
+        BOOST_REQUIRE(bitdb.migrationLogPins.empty());
+        bitdb.mapDb.clear();
+    }
     bitdb.Close();
     bitdb.Reset();
     BOOST_REQUIRE(bitdb.Open(
@@ -3347,6 +3369,7 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_retained_destination_preserves_backu
             expectedRecords;
         BOOST_CHECK(recordsMatch);
     }
+    BOOST_REQUIRE(backup->PeriodicFlush());
 }
 #endif
 
