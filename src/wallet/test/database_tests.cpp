@@ -4,6 +4,11 @@
 
 #include "config/bitcoin-config.h"
 
+#if defined(WIN32) && defined(USE_SQLITE)
+// Retain the configured Windows API declarations before legacy compat.h changes the version.
+#include <windows.h>
+#endif
+
 #include "base58.h"
 #include "bip47/account.h"
 #include "hash.h"
@@ -27,7 +32,6 @@
 #include "wallet/win32_file_lifecycle.h"
 
 #include <aclapi.h>
-#include <windows.h>
 #include <winioctl.h>
 #endif
 
@@ -3199,19 +3203,26 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_retained_destination_preserves_backu
     const std::string sourceContents =
         ReadFile(sourcePath);
 
-    win32_wallet::File blocker;
-    DatabaseFileIdentity blockerIdentity;
-    BOOST_REQUIRE_MESSAGE(
-        win32_wallet::OpenExistingFile(
-            sourcePath,
-            win32_wallet::FileAccess::READ_ONLY,
-            win32_wallet::SecurityPolicy::SOURCE_CONTROLLED,
-            false,
-            blocker,
-            blockerIdentity,
-            error) ==
-            win32_wallet::OpenResult::OPENED,
-        error);
+    // Retain the old destination without blocking DELETE access or claiming its sentinel.
+    auto closeHandle = [](void* handle) {
+        if (handle && handle != INVALID_HANDLE_VALUE) {
+            CloseHandle(handle);
+        }
+    };
+    std::unique_ptr<void, decltype(closeHandle)> retainedSource(
+        CreateFileW(
+            sourcePath.wstring().c_str(),
+            GENERIC_READ | FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT,
+            nullptr),
+        closeHandle);
+    BOOST_REQUIRE_MESSAGE(retainedSource.get() != INVALID_HANDLE_VALUE,
+        "Failed to retain migration source with error " << GetLastError());
+    BY_HANDLE_FILE_INFORMATION sourceIdentity{};
+    BOOST_REQUIRE(GetFileInformationByHandle(retainedSource.get(), &sourceIdentity));
 
     std::string backupPath;
     BOOST_REQUIRE_MESSAGE(
@@ -3233,18 +3244,22 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_retained_destination_preserves_backu
             backupFilesystemPath);
 
     BOOST_CHECK(!ShutdownRequested());
-    win32_wallet::FileState retainedSourceState;
-    BOOST_REQUIRE_MESSAGE(
-        win32_wallet::GetFileState(blocker, retainedSourceState, error),
-        error);
-    BOOST_CHECK(retainedSourceState.delete_pending);
-    BOOST_CHECK_EQUAL(retainedSourceState.identity.device, blockerIdentity.device);
-    BOOST_CHECK_EQUAL(retainedSourceState.identity.inode, blockerIdentity.inode);
-    BOOST_CHECK_EQUAL(retainedSourceState.size, sourceContents.size());
+    BY_HANDLE_FILE_INFORMATION retainedSourceIdentity{};
+    BOOST_REQUIRE(GetFileInformationByHandle(retainedSource.get(), &retainedSourceIdentity));
+    BOOST_CHECK_EQUAL(retainedSourceIdentity.dwVolumeSerialNumber, sourceIdentity.dwVolumeSerialNumber);
+    BOOST_CHECK_EQUAL(retainedSourceIdentity.nFileIndexHigh, sourceIdentity.nFileIndexHigh);
+    BOOST_CHECK_EQUAL(retainedSourceIdentity.nFileIndexLow, sourceIdentity.nFileIndexLow);
+    FILE_STANDARD_INFO retainedSourceState{};
+    BOOST_REQUIRE(GetFileInformationByHandleEx(retainedSource.get(), FileStandardInfo,
+        &retainedSourceState, sizeof(retainedSourceState)));
+    BOOST_CHECK(retainedSourceState.DeletePending);
+    BOOST_CHECK_EQUAL(static_cast<uint64_t>(retainedSourceState.EndOfFile.QuadPart), sourceContents.size());
+    BOOST_REQUIRE(sourceContents.size() <= std::numeric_limits<DWORD>::max());
     std::string retainedSourceContents(sourceContents.size(), '\0');
-    BOOST_REQUIRE_MESSAGE(
-        win32_wallet::ReadExact(blocker, 0, retainedSourceContents.data(), retainedSourceContents.size(), error),
-        error);
+    DWORD bytesRead = 0;
+    BOOST_REQUIRE(::ReadFile(retainedSource.get(), retainedSourceContents.data(),
+        static_cast<DWORD>(retainedSourceContents.size()), &bytesRead, nullptr));
+    BOOST_CHECK_EQUAL(bytesRead, retainedSourceContents.size());
     BOOST_CHECK_EQUAL(
         retainedSourceContents,
         sourceContents);
@@ -3267,11 +3282,8 @@ BOOST_AUTO_TEST_CASE(sqlite_win32_migration_retained_destination_preserves_backu
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-")
             .empty());
-    std::string closeError;
-    BOOST_REQUIRE_MESSAGE(
-        blocker.Close(
-            closeError),
-        closeError);
+    BOOST_REQUIRE(CloseHandle(retainedSource.get()));
+    retainedSource.release();
     source.reset();
     BOOST_CHECK(!ShutdownRequested());
     bitdb.Close();
