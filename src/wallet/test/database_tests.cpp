@@ -1888,7 +1888,12 @@ BOOST_AUTO_TEST_CASE(sqlite_migration_candidate_sync_failure_preserves_source)
         error);
     BOOST_REQUIRE_MESSAGE(source, error);
 
+#ifdef WIN32
+    // Windows directory validation does not consume a file-sync injection.
+    InjectSQLiteFileSyncFailureForTesting(EIO, 1);
+#else
     InjectSQLiteFileSyncFailureForTesting(EIO, 2);
+#endif
     std::string backupPath;
     BOOST_CHECK(!MigrateWalletDatabaseToSQLite(
         *source,
@@ -2142,6 +2147,9 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_raw_records)
             ReadRawRecords(*batch) ==
             expected);
     }
+#ifdef WIN32
+    BOOST_REQUIRE(backup->PeriodicFlush());
+#endif
 
     {
         CWalletDB walletDatabase(*migrated);
@@ -2517,6 +2525,9 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_preserves_bip47_accounts)
             error);
     BOOST_REQUIRE_MESSAGE(backup, error);
     checkState(*backup);
+#ifdef WIN32
+    BOOST_REQUIRE(backup->PeriodicFlush());
+#endif
 }
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
@@ -2685,6 +2696,21 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_malformed_bip47)
                 FindMigrationPaths(
                     ".firo-wallet-sqlite-migration-")
                     .empty());
+#ifdef WIN32
+            backup.reset();
+            source.reset();
+            bitdb.Flush(false);
+            {
+                LOCK(bitdb.cs_db);
+                BOOST_REQUIRE(bitdb.mapFileUseCount.empty());
+                for (const auto& database : bitdb.mapDb) {
+                    BOOST_REQUIRE(database.second == nullptr);
+                }
+                BOOST_REQUIRE_EQUAL(bitdb.migrationLogPins.size(), index + 1);
+                BOOST_REQUIRE(bitdb.migrationLogPins.count(sourceFilename) == 1);
+                bitdb.mapDb.clear();
+            }
+#endif
         }
     }
 }
@@ -2917,6 +2943,21 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_unloadable_spark_state)
                 FindMigrationPaths(
                     ".firo-wallet-sqlite-migration-")
                     .empty());
+#ifdef WIN32
+            backup.reset();
+            source.reset();
+            bitdb.Flush(false);
+            {
+                LOCK(bitdb.cs_db);
+                BOOST_REQUIRE(bitdb.mapFileUseCount.empty());
+                for (const auto& database : bitdb.mapDb) {
+                    BOOST_REQUIRE(database.second == nullptr);
+                }
+                BOOST_REQUIRE_EQUAL(bitdb.migrationLogPins.size(), index + 1);
+                BOOST_REQUIRE(bitdb.migrationLogPins.count(sourceFilename) == 1);
+                bitdb.mapDb.clear();
+            }
+#endif
         }
     }
 }
@@ -3076,6 +3117,22 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_rejects_corrupt_and_empty_keys)
         FindMigrationPaths(
             ".firo-wallet-sqlite-migration-")
             .empty());
+#ifdef WIN32
+    empty.reset();
+    corrupt.reset();
+    bitdb.Flush(false);
+    {
+        LOCK(bitdb.cs_db);
+        BOOST_REQUIRE(bitdb.mapFileUseCount.empty());
+        for (const auto& database : bitdb.mapDb) {
+            BOOST_REQUIRE(database.second == nullptr);
+        }
+        BOOST_REQUIRE_EQUAL(bitdb.migrationLogPins.size(), 2U);
+        BOOST_REQUIRE(bitdb.migrationLogPins.count(corruptFilename) == 1);
+        BOOST_REQUIRE(bitdb.migrationLogPins.count(emptyFilename) == 1);
+        bitdb.mapDb.clear();
+    }
+#endif
 }
 
 BOOST_AUTO_TEST_CASE(wallet_database_migration_exchange_error_is_indeterminate)
