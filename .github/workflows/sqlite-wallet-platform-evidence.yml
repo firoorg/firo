@@ -139,7 +139,7 @@ jobs:
             cmake -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$(realpath depends/$HOST_TRIPLET/toolchain.cmake)" \
               -DBUILD_CLI=OFF \
-              -DBUILD_DAEMON=OFF \
+              -DBUILD_DAEMON=ON \
               -DBUILD_GUI=OFF \
               -DBUILD_TX=OFF \
               -DBUILD_TESTS=ON \
@@ -161,7 +161,7 @@ jobs:
           grep -Fqx '#define USE_SQLITE 1' \
             "$PWD/build-windows-dual/src/config/bitcoin-config.h"
           cmake --build build-windows-dual \
-            --target test_firo \
+            --target test_firo firod \
             --parallel "$EVIDENCE_JOBS"
 
           DUAL_AUDIT_DIR=$(mktemp -d)
@@ -208,7 +208,7 @@ jobs:
             cmake -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$(realpath depends/$HOST_TRIPLET/toolchain.cmake)" \
               -DBUILD_CLI=OFF \
-              -DBUILD_DAEMON=OFF \
+              -DBUILD_DAEMON=ON \
               -DBUILD_GUI=OFF \
               -DBUILD_TX=OFF \
               -DBUILD_TESTS=ON \
@@ -230,7 +230,7 @@ jobs:
           grep -Fqx '/* #undef USE_SQLITE */' \
             "$PWD/build-windows-bdb-only/src/config/bitcoin-config.h"
           cmake --build build-windows-bdb-only \
-            --target test_firo \
+            --target test_firo firod \
             --parallel "$EVIDENCE_JOBS"
 
           BDB_AUDIT_DIR=$(mktemp -d)
@@ -268,10 +268,12 @@ jobs:
             sqlite-wallet-platform-evidence/bdb-only
           cp \
             build-windows-dual/bin/test_firo.exe \
-            sqlite-wallet-platform-evidence/dual/test_firo.exe
+            build-windows-dual/bin/firod.exe \
+            sqlite-wallet-platform-evidence/dual/
           cp \
             build-windows-bdb-only/bin/test_firo.exe \
-            sqlite-wallet-platform-evidence/bdb-only/test_firo.exe
+            build-windows-bdb-only/bin/firod.exe \
+            sqlite-wallet-platform-evidence/bdb-only/
 
       - name: Upload wallet test executables
         uses: actions/upload-artifact@v6
@@ -287,6 +289,14 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install native Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
       - name: Download wallet test executables
         uses: actions/download-artifact@v7
         with:
@@ -1362,6 +1372,59 @@ jobs:
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
           Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
 
+          foreach ($backend in @('dual', 'bdb-only')) {
+            $env:FIROD = (Resolve-Path ".\$backend\firod.exe").Path
+            $functionalRoot = Join-Path $testTemp "functional-$backend"
+            $functionalLog = Join-Path $testTemp "functional-$backend.stdout"
+            $functionalErrors = Join-Path $testTemp "functional-$backend.stderr"
+            $script = Join-Path $env:GITHUB_WORKSPACE 'qa/rpc-tests/wallet-database-format.py'
+            $arguments = "-u `"$script`" `"--tmpdir=$functionalRoot`" --nocleanup"
+            $process = Start-Process -FilePath (Get-Command python).Source `
+              -ArgumentList $arguments -PassThru -NoNewWindow `
+              -RedirectStandardOutput $functionalLog `
+              -RedirectStandardError $functionalErrors
+            if (!$process.WaitForExit(900000)) {
+              & taskkill.exe /PID $process.Id /T /F
+              throw "Native $backend wallet lifecycle exceeded 900 seconds"
+            }
+            Get-Content -LiteralPath $functionalLog
+            Get-Content -LiteralPath $functionalErrors
+            if ($process.ExitCode -ne 0) {
+              $failure = ConvertTo-WorkflowCommandValue (
+                (Get-Content -LiteralPath $functionalLog -Tail 40) -join "`n"
+              )
+              Write-Output "::error title=Native Windows wallet lifecycle failure::$failure"
+              throw "Native $backend wallet lifecycle failed with exit $($process.ExitCode)"
+            }
+
+            # The fixture inherits only the current user's full-control grant.
+            # Check native owner/DACLs instead of POSIX uid and mode bits.
+            foreach ($file in Get-ChildItem -LiteralPath $functionalRoot -File -Recurse) {
+              $fileAcl = Get-Acl -LiteralPath $file.FullName
+              if (!$fileAcl.GetOwner([System.Security.Principal.SecurityIdentifier]).Equals($currentSid)) {
+                throw "Functional fixture file has an unexpected owner: $($file.FullName)"
+              }
+              $rules = $fileAcl.GetAccessRules(
+                $true, $true, [System.Security.Principal.SecurityIdentifier]
+              )
+              $hasUserGrant = $false
+              foreach ($rule in $rules) {
+                if ($rule.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow) {
+                  if (!$rule.IdentityReference.Equals($currentSid)) {
+                    throw "Functional fixture file grants another user access: $($file.FullName)"
+                  }
+                  if (($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -eq [System.Security.AccessControl.FileSystemRights]::FullControl) {
+                    $hasUserGrant = $true
+                  }
+                }
+              }
+              if (!$hasUserGrant) {
+                throw "Functional fixture file lacks the current user's full control: $($file.FullName)"
+              }
+            }
+            Write-Output "::notice title=Native Windows wallet lifecycle::$backend passed with private file owners and DACLs"
+          }
+
   run-native-macos-wallet-tests:
     name: Run SQLite wallet tests on native macOS
     runs-on: macos-latest
@@ -1369,6 +1432,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Install native Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
 
       - name: Select Xcode and install build tools
         run: |
@@ -1646,7 +1714,7 @@ jobs:
             cmake -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$PREFIX/toolchain.cmake" \
               -DBUILD_CLI=OFF \
-              -DBUILD_DAEMON=OFF \
+              -DBUILD_DAEMON=ON \
               -DBUILD_GUI=OFF \
               -DBUILD_TX=OFF \
               -DBUILD_TESTS=ON \
@@ -1669,7 +1737,7 @@ jobs:
           run_logged_phase \
             'dual-wallet clean generated-header CMake build' \
             cmake --build build-mac-dual \
-              --target test_firo \
+              --target test_firo firod \
               --parallel "$EVIDENCE_JOBS"
 
           PRETEST_PHASE='audit dual-wallet static SQLite linkage'
@@ -2012,7 +2080,7 @@ jobs:
             cmake -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$PREFIX/toolchain.cmake" \
               -DBUILD_CLI=OFF \
-              -DBUILD_DAEMON=OFF \
+              -DBUILD_DAEMON=ON \
               -DBUILD_GUI=OFF \
               -DBUILD_TX=OFF \
               -DBUILD_TESTS=ON \
@@ -2035,7 +2103,7 @@ jobs:
           run_logged_phase \
             'BDB-only clean generated-header CMake build' \
             cmake --build build-mac-bdb-only \
-              --target test_firo \
+              --target test_firo firod \
               --parallel "$EVIDENCE_JOBS"
 
           PRETEST_PHASE='audit BDB-only absence of SQLite linkage'
@@ -2172,3 +2240,21 @@ jobs:
           run_firo_test \
             build-mac-bdb-only/bin/test_firo \
             wallet_database_factory_preopen_policy,wallet_database_tests
+
+      - name: Run native wallet lifecycles
+        shell: bash
+        run: |
+          set -euo pipefail
+          for backend in dual bdb-only; do
+            case "$backend" in
+              dual) BUILD_ROOT=build-mac-dual ;;
+              bdb-only) BUILD_ROOT=build-mac-bdb-only ;;
+            esac
+            TEST_PARENT=$(mktemp -d)
+            TEST_ROOT="$(cd "$TEST_PARENT" && pwd -P)/wallet-lifecycle"
+            FIROD="$PWD/$BUILD_ROOT/bin/firod" \
+              timeout --kill-after=15s 900 \
+                python -u qa/rpc-tests/wallet-database-format.py \
+                  --tmpdir="$TEST_ROOT"
+            echo "::notice title=Native macOS wallet lifecycle::$backend passed"
+          done

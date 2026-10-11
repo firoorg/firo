@@ -256,11 +256,12 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         assert stat.S_ISREG(backup_stat.st_mode)
         backup_hash = self.file_sha256(backup_path)
         if wallet_format == "sqlite":
-            assert_equal(backup_stat.st_uid, os.geteuid())
             assert_equal(backup_stat.st_nlink, 1)
-            assert_equal(
-                stat.S_IMODE(backup_stat.st_mode),
-                0o600)
+            if os.name == "posix":
+                assert_equal(backup_stat.st_uid, os.geteuid())
+                assert_equal(
+                    stat.S_IMODE(backup_stat.st_mode),
+                    0o600)
             for suffix in ("-journal", "-wal", "-shm"):
                 assert not os.path.lexists(backup_path + suffix)
 
@@ -320,11 +321,12 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             stat.S_IMODE(copied_stat.st_mode),
             stat.S_IMODE(current_backup_stat.st_mode))
         if wallet_format == "sqlite":
-            assert_equal(copied_stat.st_uid, os.geteuid())
             assert_equal(copied_stat.st_nlink, 1)
-            assert_equal(
-                stat.S_IMODE(copied_stat.st_mode),
-                0o600)
+            if os.name == "posix":
+                assert_equal(copied_stat.st_uid, os.geteuid())
+                assert_equal(
+                    stat.S_IMODE(copied_stat.st_mode),
+                    0o600)
         for suffix in ("-journal", "-wal", "-shm"):
             assert not os.path.lexists(restored_path + suffix)
 
@@ -379,10 +381,7 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         self.stop_wallet()
 
     def run_test(self):
-        if (
-            os.name != "posix"
-            or platform.system() not in ("Linux", "Darwin")
-        ):
+        if platform.system() not in ("Linux", "Darwin", "Windows"):
             return
 
         if not self.sqlite_wallet_supported():
@@ -539,31 +538,32 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
                 bdb_wallet_state)
             assert_equal(self.migration_artifacts(), artifacts)
 
-        unsafe_ancestor = os.path.dirname(
-            os.path.dirname(bdb_wallet_path))
-        original_ancestor_mode = stat.S_IMODE(
-            os.lstat(unsafe_ancestor).st_mode)
-        artifacts = self.migration_artifacts()
-        try:
-            os.chmod(
-                unsafe_ancestor,
-                (original_ancestor_mode | 0o022) &
-                ~stat.S_ISVTX)
-            self.assert_start_fails(
-                [
-                    "-wallet=" + bdb_wallet,
-                    "-migratewalletdb",
-                ],
-                "writable by group or other without trusted "
-                "sticky-directory protection")
-            assert_equal(
-                self.wallet_database_state(bdb_wallet),
-                bdb_wallet_state)
-            assert_equal(self.migration_artifacts(), artifacts)
-        finally:
-            os.chmod(
-                unsafe_ancestor,
-                original_ancestor_mode)
+        if os.name == "posix":
+            unsafe_ancestor = os.path.dirname(
+                os.path.dirname(bdb_wallet_path))
+            original_ancestor_mode = stat.S_IMODE(
+                os.lstat(unsafe_ancestor).st_mode)
+            artifacts = self.migration_artifacts()
+            try:
+                os.chmod(
+                    unsafe_ancestor,
+                    (original_ancestor_mode | 0o022) &
+                    ~stat.S_ISVTX)
+                self.assert_start_fails(
+                    [
+                        "-wallet=" + bdb_wallet,
+                        "-migratewalletdb",
+                    ],
+                    "writable by group or other without trusted "
+                    "sticky-directory protection")
+                assert_equal(
+                    self.wallet_database_state(bdb_wallet),
+                    bdb_wallet_state)
+                assert_equal(self.migration_artifacts(), artifacts)
+            finally:
+                os.chmod(
+                    unsafe_ancestor,
+                    original_ancestor_mode)
 
         migration_log_offset = os.path.getsize(self.debug_log_path())
         node = self.start_wallet([
@@ -609,7 +609,8 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
         assert not os.path.samefile(backup_path, bdb_wallet_path)
         backup_stat = os.lstat(backup_path)
         assert stat.S_ISREG(backup_stat.st_mode)
-        assert_equal(stat.S_IMODE(backup_stat.st_mode), 0o600)
+        if os.name == "posix":
+            assert_equal(stat.S_IMODE(backup_stat.st_mode), 0o600)
 
         node = self.start_wallet(["-wallet=" + bdb_wallet])
         self.assert_wallet_state(
