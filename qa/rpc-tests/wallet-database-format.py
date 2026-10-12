@@ -604,8 +604,8 @@ class WalletDatabaseFormatTest(BitcoinTestFramework):
             migration_log,
             bdb_wallet)
         assert_equal(
-            os.path.dirname(backup_path),
-            os.path.dirname(bdb_wallet_path))
+            os.path.normpath(os.path.dirname(backup_path)),
+            os.path.normpath(os.path.dirname(bdb_wallet_path)))
         assert not os.path.samefile(backup_path, bdb_wallet_path)
         backup_stat = os.lstat(backup_path)
         assert stat.S_ISREG(backup_stat.st_mode)

@@ -1414,6 +1414,7 @@ jobs:
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/wallet_record_logical_parity' -DiagnosticOnly -LogLevel all
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests' -LogLevel all
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
           Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
 
           foreach ($backend in @('dual', 'bdb-only')) {
