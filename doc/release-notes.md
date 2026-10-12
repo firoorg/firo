@@ -34,8 +34,24 @@ but severe issues with the libc++ version on 10.7.x keep it from running reliabl
 Notable changes
 ===============
 
+Wallet GUI
+----------
+
+- **File > Consolidate outputs** combines an affordable batch of confirmed
+  outputs at one transparent address, returning funds to that same address
+  after deducting a network fee. It is available after full synchronization.
+  Oversized transparent sends and Make Private transactions explain how to
+  access consolidation.
+
 RPC
 ---
+
+- `consolidateaddress "address" (dryrun)`: previews one affordable batch within
+  transaction limits, returning confirmed transparent funds to the same
+  address. `dryrun` defaults to `true` and works with a locked wallet without
+  signing or spending. Pass `false` with an unlocked wallet to submit one batch;
+  the result includes its transaction ID and remaining eligible output count.
+  Each batch incurs a network fee. Outputs from other addresses are never used.
 
 - `getblocktemplate`: the template request accepts `coinbase_message`, a text of
   at most 80 UTF-8 bytes that is put into the coinbase of the block the node

@@ -856,6 +856,24 @@ void Unserialize(Stream& is, std::basic_string<C>& str)
 
 
 
+/** Read byte vectors in bounded chunks, growing capacity geometrically. */
+template<typename Stream, typename V>
+void UnserializeByteVector(Stream& is, V& v)
+{
+    v.clear();
+    unsigned int nSize = ReadCompactSize(is);
+    unsigned int i = 0;
+    while (i < nSize)
+    {
+        unsigned int blk = std::min(nSize - i, 4096U);
+        if (v.capacity() < i + blk)
+            v.reserve(std::min<size_t>(nSize, std::max<size_t>(i + blk, 2 * v.capacity())));
+        v.resize(i + blk);
+        is.read((char*)&v[i], blk);
+        i += blk;
+    }
+}
+
 /**
  * prevector
  */
@@ -885,17 +903,7 @@ inline void Serialize(Stream& os, const prevector<N, T>& v)
 template<typename Stream, unsigned int N, typename T>
 void Unserialize_impl(Stream& is, prevector<N, T>& v, const unsigned char&)
 {
-    // Limit size per read so bogus size value won't cause out of memory
-    v.clear();
-    unsigned int nSize = ReadCompactSize(is);
-    unsigned int i = 0;
-    while (i < nSize)
-    {
-        unsigned int blk = std::min(nSize - i, (unsigned int)(1 + 4999999 / sizeof(T)));
-        v.resize(i + blk);
-        is.read((char*)&v[i], blk * sizeof(T));
-        i += blk;
-    }
+    UnserializeByteVector(is, v);
 }
 
 template<typename Stream, unsigned int N, typename T, typename V>
@@ -953,17 +961,7 @@ inline void Serialize(Stream& os, const std::vector<T, A>& v)
 template<typename Stream, typename T, typename A>
 void Unserialize_impl(Stream& is, std::vector<T, A>& v, const unsigned char&)
 {
-    // Limit size per read so bogus size value won't cause out of memory
-    v.clear();
-    unsigned int nSize = ReadCompactSize(is);
-    unsigned int i = 0;
-    while (i < nSize)
-    {
-        unsigned int blk = std::min(nSize - i, (unsigned int)(1 + 4999999 / sizeof(T)));
-        v.resize(i + blk);
-        is.read((char*)&v[i], blk * sizeof(T));
-        i += blk;
-    }
+    UnserializeByteVector(is, v);
 }
 
 template<typename Stream, typename T, typename A, typename V>
@@ -971,16 +969,10 @@ void Unserialize_impl(Stream& is, std::vector<T, A>& v, const V&)
 {
     v.clear();
     unsigned int nSize = ReadCompactSize(is);
-    unsigned int i = 0;
-    unsigned int nMid = 0;
-    while (nMid < nSize)
+    for (unsigned int i = 0; i < nSize; ++i)
     {
-        nMid += 5000000 / sizeof(T);
-        if (nMid > nSize)
-            nMid = nSize;
-        v.resize(nMid);
-        for (; i < nMid; i++)
-            Unserialize(is, v[i]);
+        v.emplace_back();
+        Unserialize(is, v.back());
     }
 }
 

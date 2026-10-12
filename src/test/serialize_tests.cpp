@@ -244,6 +244,33 @@ BOOST_AUTO_TEST_CASE(compactsize)
     }
 }
 
+BOOST_AUTO_TEST_CASE(vector_count_does_not_preallocate)
+{
+    auto check = [](auto values, size_t max_capacity) {
+        CDataStream truncated(SER_NETWORK, PROTOCOL_VERSION);
+        WriteCompactSize(truncated, MAX_SIZE);
+        BOOST_CHECK_THROW(truncated >> values, std::ios_base::failure);
+        BOOST_CHECK_LE(values.capacity(), max_capacity);
+
+        for (unsigned int size : {0U, 1U, 4095U, 4096U, 4097U, 8193U, 0U}) {
+            BOOST_TEST_CONTEXT("size " << size << ", capacity limit " << max_capacity) {
+                decltype(values) expected(size, 0);
+                for (unsigned int i = 0; i < size; ++i)
+                    expected[i] = i;
+                CDataStream valid(SER_NETWORK, PROTOCOL_VERSION);
+                valid << expected;
+                valid >> values;
+                BOOST_CHECK(values == expected);
+                BOOST_CHECK(valid.empty());
+            }
+        }
+    };
+
+    check(std::vector<uint64_t>(), 1024U);
+    check(std::vector<unsigned char>(), 65536U);
+    check(prevector<28, unsigned char>(), 4096U);
+}
+
 static bool isCanonicalException(const std::ios_base::failure& ex)
 {
     std::ios_base::failure expectedException("non-canonical ReadCompactSize()");

@@ -38,7 +38,7 @@
    <item>
     <widget class="QLabel" name="warningLabel">
      <property name="text">
-      <string notr="true">You have incoming transaction(s)!</string>
+      <string>You have incoming transaction(s)!</string>
      </property>
      <property name="textFormat">
       <enum>Qt::RichText</enum>

@@ -336,7 +336,7 @@ public:
 
     // Denial-of-service detection/prevention
     // The idea is to detect peers that are behaving
-    // badly and disconnect/ban them, but do it in a
+    // badly and disconnect/discourage them, but do it in a
     // one-coding-mistake-won't-shatter-the-entire-network
     // way.
     // IMPORTANT:  There should be nothing I can give a
@@ -348,11 +348,16 @@ public:
     // dangerous, because it can cause a network split
     // between nodes running old code and nodes running
     // new code.
+    // Manual bans are persisted and reject connections. Automatic
+    // discouragement is bounded, avoids outbound connections, and makes
+    // inbound peers preferred for eviction.
     void Ban(const CNetAddr& netAddr, const BanReason& reason, int64_t bantimeoffset = 0, bool sinceUnixEpoch = false);
     void Ban(const CSubNet& subNet, const BanReason& reason, int64_t bantimeoffset = 0, bool sinceUnixEpoch = false);
+    void Discourage(const CNetAddr& netAddr);
     void ClearBanned(); // needed for unit testing
-    bool IsBanned(CNetAddr ip);
-    bool IsBanned(CSubNet subnet);
+    bool IsBanned(const CNetAddr& ip);
+    bool IsBanned(const CSubNet& subnet);
+    bool IsDiscouraged(const CNetAddr& ip);
     bool Unban(const CNetAddr &ip);
     bool Unban(const CSubNet &ip);
     void GetBanned(banmap_t &banmap);
@@ -376,6 +381,8 @@ public:
     size_t GetNodeCount(NumConnections num);
     void GetNodeStats(std::vector<CNodeStats>& vstats);
     bool DisconnectNode(const std::string& node);
+    bool DisconnectNode(const CSubNet& subnet);
+    bool DisconnectNode(const CNetAddr& addr);
     bool DisconnectNode(NodeId id);
 
     unsigned int GetSendBufferSize() const;
@@ -506,6 +513,7 @@ private:
     mutable CCriticalSection cs_vhListenSocket;
     std::atomic<bool> fNetworkActive;
     banmap_t setBanned;
+    CRollingBloomFilter setDiscouraged{50000, 0.000001};
     CCriticalSection cs_setBanned;
     bool setBannedIsDirty;
     bool fAddressesInitialized;
@@ -772,6 +780,7 @@ public:
     std::string strSubVer, cleanSubVer;
     CCriticalSection cs_SubVer; // used for both cleanSubVer and strSubVer
     bool fWhitelisted; // This peer can bypass DoS banning.
+    bool fPreferEvict; // This peer is preferred for eviction.
     bool fFeeler; // If true this node is being used as a short lived feeler.
     bool fOneShot;
     bool fAddnode;

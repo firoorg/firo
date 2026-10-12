@@ -32,7 +32,6 @@ void AutomintSparkNotification::applyTheme()
         "QLabel { background: transparent; color: $INK; font-weight: 700; }")));
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());

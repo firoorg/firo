@@ -461,14 +461,16 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
         case AddressType:
             if(rec->addressType == AddressTableModel::Transparent)
             {
-                return "transparent";
+                return role == Qt::DisplayRole ? tr("transparent") : "transparent";
             }
             else if(rec->addressType == AddressTableModel::Spark)
             {
-                return "spark";
+                return role == Qt::DisplayRole ? tr("spark") : "spark";
             }
             else if (rec->addressType == AddressTableModel::SparkName)
             {
+                if (role == Qt::DisplayRole)
+                    return rec->isMine ? tr("own spark name") : tr("spark name");
                 return rec->isMine ? "own spark name" : "spark name";
             }
             else if(rec->addressType == AddressTableModel::RAP)

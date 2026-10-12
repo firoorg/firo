@@ -130,9 +130,8 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     b = CreateAndProcessBlock(scriptPubKeyMtp, mtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height() - 1, "Block not connected");
     coinbaseTxns.push_back(*b.vtx[0]);
-    LOCK(cs_main);
     {
-        LOCK(pwalletMain->cs_wallet);
+        LOCK2(cs_main, pwalletMain->cs_wallet);
         pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
     }
 
@@ -140,6 +139,7 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     //Disconnect MTP block
     BOOST_CHECK_MESSAGE(DisconnectBlocks(1), "Block disconnect failed");
     {
+        LOCK(cs_main);
         CValidationState state;
         const CChainParams& chainparams = Params();
         InvalidateBlock(state, chainparams, mapBlockIndex[b.GetHash()]);
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     b = CreateAndProcessBlock(scriptPubKeyMtp, mtp);
     coinbaseTxns.push_back(*b.vtx[0]);
     {
-        LOCK(pwalletMain->cs_wallet);
+        LOCK2(cs_main, pwalletMain->cs_wallet);
         pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
     }
 
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     b = CreateAndProcessBlock(scriptPubKeyMtp, mtp);
     coinbaseTxns.push_back(*b.vtx[0]);
     {
-        LOCK(pwalletMain->cs_wallet);
+        LOCK2(cs_main, pwalletMain->cs_wallet);
         pwalletMain->AddToWalletIfInvolvingMe(*b.vtx[0], chainActive.Tip(), 0, true);
     }
 

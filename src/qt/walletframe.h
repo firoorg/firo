@@ -97,6 +97,8 @@ public Q_SLOTS:
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet();
 
+    /** Consolidate outputs at one transparent address. */
+    void consolidateCoins();
     /** Show used sending addresses */
     void usedSendingAddresses();
     /** Show used receiving addresses */
