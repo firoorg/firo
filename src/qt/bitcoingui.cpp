@@ -54,7 +54,6 @@
 #include <QDragEnterEvent>
 #include <QEasingCurve>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
@@ -158,7 +157,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *_platformStyle, const NetworkStyle *
     bip47DismissButton(0),
     bip47WalletModel(0),
 #endif
-    prevBlocks(0),
     spinnerFrame(0),
 #ifdef ENABLE_WALLET
     sparkAddressbookUpdated(false),
@@ -1485,7 +1483,6 @@ void BitcoinGUI::applyBip47BannerTheme()
         "QFrame#bip47BannerCard { background: $GOLD_TINT; border: 1px solid $GOLD; border-radius: 10px; }"
         "QFrame#bip47BannerCard QLabel { background: transparent; border: none; color: $INK; font-size: 14px; }")));
     bip47SweepButton->setStyleSheet(GUIUtil::primaryButtonStyle(QStringLiteral("6px 14px")));
-    GUIUtil::applyPrimaryButtonShadow(bip47SweepButton);
     bip47DismissButton->setStyleSheet(GUIUtil::secondaryButtonStyle(QStringLiteral("6px 14px")));
 }
 

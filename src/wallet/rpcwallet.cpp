@@ -5885,6 +5885,7 @@ UniValue sweepbip47addresses(const JSONRPCRequest& request)
             "    \"txid\",                    (string)\n"
             "    ...\n"
             "  ],\n"
+            "  \"fundsleft\": true|false,     (boolean) Whether anything, locked or not yet confirmed, is still held on the BIP47 addresses\n"
             "  \"skippedlocked\": {          (object, optional) Present when locked outputs were left behind\n"
             "    \"count\": n,               (numeric) How many locked outputs were skipped\n"
             "    \"amount\": n               (numeric) Their total value\n"
@@ -5914,6 +5915,8 @@ UniValue sweepbip47addresses(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Firo or Spark address: ") + destStr);
     case Bip47SweepStatus::WrongNetwork:
         throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("Invalid address, wrong network type: ") + destStr);
+    case Bip47SweepStatus::DestinationIsBip47:
+        throw JSONRPCError(RPC_INVALID_PARAMETER, std::string("The destination is one of the BIP47 addresses being swept: ") + destStr);
     case Bip47SweepStatus::SparkUnavailable:
         throw JSONRPCError(RPC_WALLET_ERROR, "Spark wallet is not available for this wallet (legacy or disabled)");
     case Bip47SweepStatus::SparkNotActivated:
@@ -5943,6 +5946,7 @@ UniValue sweepbip47addresses(const JSONRPCRequest& request)
     result.push_back(Pair("fee", ValueFromAmount(sweep.fee)));
     result.push_back(Pair("inputs", uint64_t(sweep.inputs)));
     result.push_back(Pair("txids", txids));
+    result.push_back(Pair("fundsleft", sweep.fFundsLeft));
     if (sweep.fLockedSkipped) {
         UniValue skipped(UniValue::VOBJ);
         skipped.push_back(Pair("count", uint64_t(sweep.lockedCount)));

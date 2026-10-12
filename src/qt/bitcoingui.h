@@ -172,8 +172,6 @@ private:
     WalletModel *bip47WalletModel;
 #endif
 
-    /** Keep track of previous number of blocks, to detect progress */
-    int prevBlocks;
     int spinnerFrame;
     int prevBlocks{-1};
 #ifdef ENABLE_WALLET

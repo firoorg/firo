@@ -681,6 +681,7 @@ enum class Bip47SweepStatus
     OK,
     InvalidAddress,     //!< The destination is neither a transparent nor a spark address
     WrongNetwork,       //!< The destination is a spark address of another network
+    DestinationIsBip47, //!< The destination is one of the bip47 addresses being swept
     SparkUnavailable,   //!< This wallet holds no spark wallet
     SparkNotActivated,  //!< Spark is not active on the chain yet
     P2PDisabled,        //!< Broadcasting is on but peer-to-peer functionality is missing
@@ -701,9 +702,10 @@ struct CBip47SweepResult
     size_t lockedCount;   //!< Locked bip47 outputs found, swept or skipped
     CAmount lockedAmount; //!< Their total value
     bool fLockedSkipped;  //!< Whether those outputs were left behind
+    bool fFundsLeft;      //!< Whether any output, locked or not yet confirmed, is still held on the bip47 addresses after the sweep
     std::string strError; //!< Set when the status is Failed
 
-    CBip47SweepResult(): fSpark(false), amount(0), fee(0), inputs(0), lockedCount(0), lockedAmount(0), fLockedSkipped(false) {}
+    CBip47SweepResult(): fSpark(false), amount(0), fee(0), inputs(0), lockedCount(0), lockedAmount(0), fLockedSkipped(false), fFundsLeft(false) {}
 };
 
 /**

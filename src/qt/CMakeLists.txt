@@ -113,8 +113,6 @@ add_library(firoqt STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/automintmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/automintnotification.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bantablemodel.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/bip47sweepdialog.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/bip47sweepmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinaddressvalidator.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bitcoinamountfield.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/bitcoingui.cpp

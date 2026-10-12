@@ -5894,6 +5894,36 @@ void SelectBip47Coins(CWallet & wallet, std::set<CScript> const & scripts, bool 
         nTotal += txout.nValue;
         ++nInputs;
     }
+
+    /* A released output AvailableCoins passed over, an unconfirmed one for instance, takes no part
+     * in the sweep, so it gets its lock back right away rather than staying spendable after it. */
+    std::vector<COutPoint> selected;
+    for (COutPoint const & outpoint : unlockedForSweep) {
+        if (coinControl && coinControl->IsSelected(outpoint))
+            selected.push_back(outpoint);
+        else
+            wallet.LockCoin(outpoint);
+    }
+    unlockedForSweep.swap(selected);
+}
+
+/**
+ * Checks whether anything is still held on the given bip47 addresses: locked and unconfirmed
+ * outputs included, outputs spent by a transaction that is not yet confirmed excluded.
+ * Both cs_main and cs_wallet have to be held.
+ */
+bool HasUnspentBip47Outputs(CWallet const & wallet, std::set<CScript> const & scripts)
+{
+    for (std::pair<uint256 const, CWalletTx> const & item : wallet.mapWallet) {
+        CWalletTx const & wtx = item.second;
+        if (wtx.GetDepthInMainChain() < 0)
+            continue;
+        for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+            if (scripts.count(wtx.tx->vout[i].scriptPubKey) && !wallet.IsSpent(item.first, i))
+                return true;
+        }
+    }
+    return false;
 }
 }
 
@@ -5950,15 +5980,20 @@ Bip47SweepStatus CWallet::SweepBip47(std::string const & strDest, bool fIncludeL
 
     CCoinControl coinControl;
     std::vector<COutPoint> unlockedForSweep;
+    std::set<CScript> scripts;
 
     {
         LOCK2(cs_main, cs_wallet);
 
         /* Only the addresses the wallet derived for itself are swept; the ones derived for a
          * counterparty belong to them, not to us. */
-        std::set<CScript> const scripts = GetBip47Scripts();
+        scripts = GetBip47Scripts();
         if (scripts.empty())
             return Bip47SweepStatus::NoAddresses;
+
+        /* Sending the funds to one of those addresses would only move them along to another. */
+        if (!result.fSpark && scripts.count(GetScriptForDestination(transparentDest.Get())))
+            return Bip47SweepStatus::DestinationIsBip47;
 
         SelectBip47Coins(*this, scripts, fIncludeLocked, &coinControl, result.amount, result.inputs, unlockedForSweep, result.lockedAmount, result.lockedCount);
     }
@@ -5985,7 +6020,12 @@ Bip47SweepStatus CWallet::SweepBip47(std::string const & strDest, bool fIncludeL
             result.strError = MintAndStoreSpark(outputs, wtxAndFee, true, false, false, false, &coinControl);
             if (!result.strError.empty())
                 status = Bip47SweepStatus::Failed;
+            /* wtxAndFee holds what was created, which on a failure need not be what was committed.
+             * Only a committed transaction makes it into the wallet. */
+            LOCK(cs_wallet);
             for (std::pair<CWalletTx, CAmount> const & wtx : wtxAndFee) {
+                if (status != Bip47SweepStatus::OK && !mapWallet.count(wtx.first.GetHash()))
+                    continue;
                 result.txids.push_back(wtx.first.GetHash());
                 result.fee += wtx.second;
             }
@@ -6035,6 +6075,11 @@ Bip47SweepStatus CWallet::SweepBip47(std::string const & strDest, bool fIncludeL
         LOCK(cs_wallet);
         for (COutPoint const & outpoint : unlockedForSweep)
             LockCoin(outpoint);
+    }
+
+    if (status == Bip47SweepStatus::OK) {
+        LOCK2(cs_main, cs_wallet);
+        result.fFundsLeft = HasUnspentBip47Outputs(*this, scripts);
     }
 
     return status;

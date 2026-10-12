@@ -65,6 +65,11 @@ class Bip47Sweep(BitcoinTestFramework):
         expected = sum(u["amount"] for u in held)
         assert(expected > 0)
 
+        # Sweeping onto one of the addresses being swept would leave the funds where they are.
+        assert_raises_jsonrpc(-8, "one of the BIP47 addresses being swept",
+                              node.sweepbip47addresses, bip47addr)
+        assert_equal(self.unspent(node, bip47addr), held)
+
         dest = node.getnewaddress()
         result = node.sweepbip47addresses(dest)
 
@@ -73,6 +78,7 @@ class Bip47Sweep(BitcoinTestFramework):
         assert_equal(result["amount"], expected)
         assert_equal(result["inputs"], len(held))
         assert_equal(len(result["txids"]), 1)
+        assert_equal(result["fundsleft"], False)
         assert("skippedlocked" not in result)
 
         node.generate(1)
@@ -102,6 +108,7 @@ class Bip47Sweep(BitcoinTestFramework):
         assert_equal(result["inputs"], len(held) - 1)
         assert_equal(result["skippedlocked"]["count"], 1)
         assert_equal(result["skippedlocked"]["amount"], locked_amount)
+        assert_equal(result["fundsleft"], True)
         # The skipped output is still locked.
         assert_equal(len(node.listlockunspent()), 1)
         node.generate(1)
@@ -111,6 +118,7 @@ class Bip47Sweep(BitcoinTestFramework):
         result = node.sweepbip47addresses(dest, True)
         assert_equal(result["amount"], locked_amount)
         assert_equal(result["inputs"], 1)
+        assert_equal(result["fundsleft"], False)
         assert("skippedlocked" not in result)
         node.generate(1)
         assert_equal(node.getreceivedbyaddress(dest), result["amount"] - result["fee"])

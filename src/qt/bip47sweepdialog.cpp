@@ -73,7 +73,6 @@ void Bip47SweepDialog::applyTheme()
 
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setStyleSheet(GUIUtil::primaryButtonStyle());
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
     if (QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel))
         cancelButton->setStyleSheet(GUIUtil::secondaryButtonStyle());
@@ -195,6 +194,9 @@ void Bip47SweepDialog::accept()
         case Bip47SweepStatus::WrongNetwork:
             message = tr("%1 is a Spark address of another network.").arg(destination);
             break;
+        case Bip47SweepStatus::DestinationIsBip47:
+            message = tr("%1 is one of the BIP47 (RAP) addresses being emptied. Choose another address.").arg(destination);
+            break;
         case Bip47SweepStatus::SparkUnavailable:
             message = tr("This wallet cannot hold Spark funds.");
             break;
@@ -232,12 +234,14 @@ void Bip47SweepDialog::accept()
         message += "\n\n" + tr("%1 on %2 locked notification output(s) was left behind.")
             .arg(BitcoinUnits::formatWithUnit(unit, result.lockedAmount))
             .arg(result.lockedCount);
+    } else if (result.fFundsLeft) {
+        message += "\n\n" + tr("Some funds on the BIP47 (RAP) addresses are not confirmed yet and were left behind. You will be reminded about them again.");
     }
     QMessageBox::information(this, windowTitle(), message);
 
     /* With the addresses emptied there is nothing left to remind the user about. Anything left
-     * behind is still worth a reminder on the next run. */
-    if (!result.fLockedSkipped)
+     * behind, locked or not yet confirmed, is still worth a reminder on the next run. */
+    if (!result.fFundsLeft)
         model->dismissBip47Sweep();
 
     QDialog::accept();
