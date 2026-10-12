@@ -1137,12 +1137,19 @@ jobs:
           function Invoke-FiroTest(
             [string]$Executable,
             [string]$Filter,
-            [switch]$DiagnosticOnly
+            [switch]$DiagnosticOnly,
+            [string]$LogLevel = 'test_suite'
           ) {
             $testOutput = @(
-              & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=test_suite" "--" "DEBUG_LOG_OUT" 2>&1
+              & $Executable "--run_test=$Filter" "--catch_system_error=no" "--log_level=$LogLevel" "--" "DEBUG_LOG_OUT" 2>&1
             )
             $exitCode = $LASTEXITCODE
+            $script:FiroTestSequence += 1
+            $logDirectory = Join-Path $PWD 'wallet-test-logs'
+            New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
+            $logPath = Join-Path $logDirectory "test-$script:FiroTestSequence.log"
+            @("$Executable $Filter (exit $exitCode)") + $testOutput |
+              Set-Content -LiteralPath $logPath -Encoding utf8
             $testOutput | ForEach-Object { Write-Output $_ }
 
             $summaryLines = @(
@@ -1404,8 +1411,9 @@ jobs:
           )) {
             Invoke-FiroTest '.\dual\test_firo.exe' "wallet_database_tests/$case" -DiagnosticOnly
           }
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/wallet_record_logical_parity' -DiagnosticOnly -LogLevel all
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
-          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
+          Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests' -LogLevel all
           Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
 
           foreach ($backend in @('dual', 'bdb-only')) {
@@ -1460,6 +1468,14 @@ jobs:
             }
             Write-Output "::notice title=Native Windows wallet lifecycle::$backend passed with private file owners and DACLs"
           }
+
+      - name: Upload native Windows wallet test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-wallet-windows-runtime-${{ github.sha }}
+          path: wallet-tests/wallet-test-logs/*.log
+          if-no-files-found: warn
 
   run-native-macos-wallet-tests:
     name: Run SQLite wallet tests on native macOS
