@@ -40,14 +40,14 @@ void NotifyMnemonic::applyTheme()
         QWizard#NotifyMnemonic QFrame#mnemonicBox {
             background: $WINE_TINT;
             border: 1.5px solid $WINE;
-            border-radius: 16px;
+            border-radius: 14px;
         }
         QWizard#NotifyMnemonic QLabel#mnemonic {
             color: $INK;
         }
         QWizard#NotifyMnemonic QTextEdit {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
@@ -89,7 +89,7 @@ void NotifyMnemonic::notify()
     NotifyMnemonic notify;
     notify.setWindowIcon(QIcon(":icons/firo"));
     notify.show();
-    notify.ui->walletBirthDate->setText("Wallet creation date:  " + getCurrentDate());
+    notify.ui->walletBirthDate->setText(tr("Wallet creation date:  %1").arg(getCurrentDate()));
     notify.ui->mnemonic->setText(mnemonic.c_str());
     notify.restart();
     while(true)

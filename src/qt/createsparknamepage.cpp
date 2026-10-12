@@ -89,6 +89,10 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
              tr("The network fee is additional.").toHtmlEscaped()));
     ui->feeHelpButton->setAccessibleDescription(tr("Fees are charged per year based on the length of the name. The network fee is additional."));
     ui->feeLabel->setToolTip(ui->feeHelpButton->toolTip());
+    // The name and address edits sit borderless inside a field frame, so the frame carries
+    // the focus ring; QSS has no :focus-within, hence the hasFocus property.
+    for (QLineEdit* edit : {ui->sparkNameEdit, ui->sparkAddressEdit})
+        edit->installEventFilter(this);
     for (QToolButton* button : {ui->nameHelpButton, ui->feeHelpButton}) {
         button->installEventFilter(this);
         connect(button, &QToolButton::clicked, this, [button] {
@@ -122,7 +126,6 @@ CreateSparkNamePage::CreateSparkNamePage(const PlatformStyle *platformStyle, QWi
     ui->numberOfYearsEdit->setAlignment(Qt::AlignLeft);
     if (QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok)) {
         okButton->setText(tr("Register"));
-        GUIUtil::applyPrimaryButtonShadow(okButton);
     }
 
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
@@ -140,16 +143,16 @@ void CreateSparkNamePage::applyTheme()
         "QLabel#feeTextLabel { font: $FONT_H3; }"
         "QLabel#feeHintLabel, QLabel#detailsHintLabel, QLabel#expiryLabel { color: $INK_SOFT; }"
         "QLabel#balanceWarningLabel { color: $ERROR; font-weight: 700; }"
-        "QLabel#namePrefix { color: $WINE; }"
-        "QFrame#nameField, QFrame#addressField { background: $PANEL_SOFT; border: 1px solid $BORDER; border-radius: 10px; }"
+        "QLabel#namePrefix { color: $WINE_TEXT; }"
+        "QFrame#nameField, QFrame#addressField { background: $PANEL_SOFT; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 1px; }"
+        "QFrame#nameField[hasFocus=\"true\"], QFrame#addressField[hasFocus=\"true\"] { background: $PANEL; border: 2px solid $WINE; padding: 0px; }"
         "QLineEdit { background: transparent; color: $INK; border: 1px solid transparent; border-radius: 4px; padding: 4px 0; min-height: 28px; }"
-        "QLineEdit:focus { border-bottom-color: $WINE; }"
         "QLineEdit:disabled { color: $INK_SOFT; }"
-        "QTextEdit { background: $PANEL_SOFT; color: $INK; border: 1px solid $BORDER; border-radius: 10px; padding: 6px 10px; }"
-        "QTextEdit:focus { border-color: $WINE; }"
+        "QTextEdit { background: $PANEL_SOFT; color: $INK; border: 1px solid $FIELD_BORDER; border-radius: 10px; padding: 6px 10px; }"
+        "QTextEdit:focus { border: 2px solid $WINE; padding: 5px 9px; }"
         "QToolButton { color: $INK_SOFT; background: transparent; border: 1px solid transparent; padding: 0; }"
         "QToolButton:hover, QToolButton:focus { color: $INK; border-color: $WINE; }"
-        "QToolButton#nameHelpButton, QToolButton#feeHelpButton { border-color: $BORDER; border-radius: 10px; min-width: 18px; max-width: 18px; min-height: 18px; max-height: 18px; font-weight: 700; }"
+        "QToolButton#nameHelpButton, QToolButton#feeHelpButton { border-color: $FIELD_BORDER; border-radius: 10px; min-width: 18px; max-width: 18px; min-height: 18px; max-height: 18px; font-weight: 700; }"
         "QToolButton#nameHelpButton:hover, QToolButton#feeHelpButton:hover, QToolButton#nameHelpButton:focus, QToolButton#feeHelpButton:focus { border-color: $WINE; }"
         "QToolButton#addressOptionsButton { min-width: 28px; min-height: 28px; border-radius: 6px; }"
         "QToolButton#addressOptionsButton::menu-indicator { image: none; }"
@@ -158,10 +161,10 @@ void CreateSparkNamePage::applyTheme()
     ui->numberOfYearsEdit->setStyleSheet(GUIUtil::themed(QStringLiteral(
         "QSpinBox {"
         " background: $PANEL_SOFT; color: $INK;"
-        " border: 1px solid $BORDER; border-radius: 10px;"
+        " border: 1px solid $FIELD_BORDER; border-radius: 10px;"
         " min-height: 36px;"
         "}"
-        "QSpinBox:focus { border: 1px solid $WINE; }"
+        "QSpinBox:focus { border: 2px solid $WINE; padding: 0 7px; }"
         "QSpinBox QLineEdit { %1 }"))
         .arg(GUIUtil::spinBoxInnerLineEditReset()));
 
@@ -203,6 +206,13 @@ void CreateSparkNamePage::expandForPublicDetails()
 
 bool CreateSparkNamePage::eventFilter(QObject *watched, QEvent *event)
 {
+    if ((event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut) &&
+        (watched == ui->sparkNameEdit || watched == ui->sparkAddressEdit)) {
+        QWidget* field = static_cast<QWidget*>(watched)->parentWidget();
+        field->setProperty("hasFocus", event->type() == QEvent::FocusIn);
+        field->style()->unpolish(field);
+        field->style()->polish(field);
+    }
     if (event->type() == QEvent::FocusIn &&
         (watched == ui->nameHelpButton || watched == ui->feeHelpButton)) {
         auto* button = qobject_cast<QToolButton*>(watched);

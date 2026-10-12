@@ -170,6 +170,9 @@ void AssertLockHeldInternal(const char* pszName, const char* pszFile, int nLine,
 
 void AssertLockNotHeldInternal(const char* pszName, const char* pszFile, int nLine, void* cs)
 {
+    // A thread that has never acquired a tracked lock has no lock stack yet.
+    if (!lockstack.get())
+        return;
     for (const std::pair<void*, CLockLocation>& i : *lockstack) {
         if (i.first == cs) {
             fprintf(stderr, "Assertion failed: lock %s held in %s:%i; locks held:\n%s", pszName, pszFile, nLine, LocksHeld().c_str());

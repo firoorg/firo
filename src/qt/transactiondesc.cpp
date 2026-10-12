@@ -42,13 +42,13 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
             strTxStatus =  tr("%1/offline").arg(nDepth);
         else if (nDepth == 0) {
             if (wtx.InMempool()) {
-                strTxStatus = "0/unconfirmed, in memory pool" +
+                strTxStatus = tr("0/unconfirmed, in memory pool") +
                     (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             } else if (wtx.InStempool()) {
-                strTxStatus = "0/unconfirmed, in dandelion stem pool"+
+                strTxStatus = tr("0/unconfirmed, in dandelion stem pool")+
                     (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             } else {
-                strTxStatus = "0/unconfirmed, not in memory pool" +
+                strTxStatus = tr("0/unconfirmed, not in memory pool") +
                     (wtx.isAbandoned() ? ", "+tr("abandoned") : QString(""));
             }
         }
@@ -231,9 +231,9 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
                         strHTML += GUIUtil::HtmlEscape(sparkOutput.address);
                     }
                     if(toSelf == ISMINE_SPENDABLE)
-                        strHTML += " (own address)";
+                        strHTML += " (" + tr("own address") + ")";
                     else if(toSelf & ISMINE_WATCH_ONLY)
-                        strHTML += " (watch-only)";
+                        strHTML += " (" + tr("watch-only") + ")";
                     strHTML += "<br>";
                 }
                 if(wtx.tx->IsSparkSpend() && wallet->validateSparkAddress(sparkOutput.address)) {

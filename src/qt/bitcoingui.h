@@ -70,6 +70,7 @@ public:
         The client model represents the part of the core that communicates with the P2P network, and is wallet-agnostic.
     */
     void setClientModel(ClientModel *clientModel);
+    QAction* getConsolidationAction() const { return consolidateOutputsAction; }
 
 #ifdef ENABLE_WALLET
     /** Set the wallet model.
@@ -114,6 +115,7 @@ private:
     QAction *sendCoinsMenuAction;
     QAction *usedSendingAddressesAction;
     QAction *usedReceivingAddressesAction;
+    QAction *consolidateOutputsAction;
     QAction *signMessageAction;
     QAction *verifyMessageAction;
     QAction *aboutAction;
@@ -142,9 +144,15 @@ private:
     QLabel *navigationSyncPercent{nullptr};
     QProgressBar *navigationSyncProgress{nullptr};
     double navigationSyncFraction{0.0};
+    double blockSyncProgress{0.0};
+    QString coreSyncStatus;
+    int numConnections{0};
+    bool tipWasBehind{false};
     QFrame *navigationThemeRow{nullptr};
     QLabel *navigationThemeLightLabel{nullptr};
     QLabel *navigationThemeDarkLabel{nullptr};
+    QLabel *navigationThemeSunIcon{nullptr};
+    QLabel *navigationThemeMoonIcon{nullptr};
     QAbstractButton *navigationThemeSwitch{nullptr};
     QWidget *navigationSelectionHighlight{nullptr};
     QLabel *logoLabel{nullptr};
@@ -167,6 +175,7 @@ private:
     /** Keep track of previous number of blocks, to detect progress */
     int prevBlocks;
     int spinnerFrame;
+    int prevBlocks{-1};
 #ifdef ENABLE_WALLET
     bool sparkAddressbookUpdated;
 #endif
@@ -205,6 +214,7 @@ private:
 
     /** Enable or disable all wallet-related actions */
     void setWalletActionsEnabled(bool enabled);
+    void updateConsolidationAction();
 
     /** Connect core signals to GUI client */
     void subscribeToCoreSignals();
@@ -220,7 +230,7 @@ private:
     /** Update UI with latest network info from model. */
     void updateNetworkState();
 
-    void updateHeadersSyncProgressLabel();
+    void updateSyncStatus();
 
 Q_SIGNALS:
     /** Signal raised when a URI was entered or dragged to the GUI */

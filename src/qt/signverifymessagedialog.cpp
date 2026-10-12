@@ -37,59 +37,52 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(const PlatformStyle *_platformS
     const auto applyTheme = [this] {
         setStyleSheet(GUIUtil::themed(QStringLiteral(R"(
         QDialog { background: $BG; }
-        QTabWidget::pane { background: $PANEL; border: 1px solid $BORDER; border-radius: 14px; top: -1px; }
-        QTabBar::tab {
-            background: transparent;
-            color: $INK_SOFT;
-            font-weight: 700;
-            padding: 8px 14px;
-            border: none;
-        }
-        QTabBar::tab:selected { color: $INK; border-bottom: 2px solid $WINE; }
-        QTabBar::tab:hover { color: $INK; }
         QLineEdit, QPlainTextEdit, QTextEdit {
             background: $PANEL_SOFT;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             padding: 8px 12px;
             color: $INK;
         }
-        QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus { border: 1px solid $WINE; }
+        QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus { background: $PANEL; border: 2px solid $WINE; padding: 7px 11px; }
         QLineEdit[invalidInput="true"] { border-color: $ERROR; }
         QCheckBox { color: $INK_SOFT; }
         QPushButton {
             color: $INK;
             background: $PANEL;
-            border: 1px solid $BORDER;
+            border: 1px solid $FIELD_BORDER;
             border-radius: 10px;
             font-weight: 700;
             padding: 7px 16px;
         }
-        QPushButton:hover:enabled { background: $PANEL_SOFT; border-color: $BORDER; }
-        QPushButton:pressed { background: $PANEL_SOFT; }
+        QPushButton:hover:enabled { background: $HOVER; }
+        QPushButton:pressed { background: $HOVER; }
         QPushButton#signMessageButton_SM, QPushButton#verifyMessageButton_VM {
             color: #FFFFFF;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE;
             border: none;
         }
         QPushButton#signMessageButton_SM:hover:enabled, QPushButton#verifyMessageButton_VM:hover:enabled {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 $WINE, stop:1 $WINE_DEEP);
+            background: $WINE_DEEP;
         }
         QPushButton#signMessageButton_SM:pressed, QPushButton#verifyMessageButton_VM:pressed { background: $WINE_DEEP; }
         QLabel[status="error"] { color: $ERROR; font-weight: 700; }
         QLabel[status="success"] { color: $TEAL; font-weight: 700; }
     )")));
+        // Outline icons on ghost buttons, as on the Send form.
+        const QString ghostStyle = GUIUtil::ghostButtonStyle(QStringLiteral("7px"));
+        const QColor iconColor(GUIUtil::themeColors().inkSoft);
+        const QSize iconSize(16, 16);
+        GUIUtil::setTintedIcon(ui->addressBookButton_SM, QStringLiteral(":/icons/address-book"), iconSize, iconColor);
+        GUIUtil::setTintedIcon(ui->pasteButton_SM, QStringLiteral(":/icons/editpaste"), iconSize, iconColor);
+        GUIUtil::setTintedIcon(ui->copySignatureButton_SM, QStringLiteral(":/icons/editcopy"), iconSize, iconColor);
+        GUIUtil::setTintedIcon(ui->addressBookButton_VM, QStringLiteral(":/icons/address-book"), iconSize, iconColor);
+        for (QPushButton* button : {ui->addressBookButton_SM, ui->pasteButton_SM, ui->copySignatureButton_SM, ui->addressBookButton_VM})
+            button->setStyleSheet(ghostStyle);
     };
     connect(&GUIUtil::ThemeNotifier::instance(), &GUIUtil::ThemeNotifier::themeChanged,
             this, applyTheme);
     applyTheme();
-
-    ui->addressBookButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
-    ui->pasteButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/editpaste"));
-    ui->copySignatureButton_SM->setIcon(platformStyle->SingleColorIcon(":/icons/editcopy"));
-    ui->addressBookButton_VM->setIcon(platformStyle->SingleColorIcon(":/icons/address-book"));
 
 #if QT_VERSION >= 0x040700
     ui->signatureOut_SM->setPlaceholderText(tr("Click \"Sign Message\" to generate signature"));

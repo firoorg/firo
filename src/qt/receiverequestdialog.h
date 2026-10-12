@@ -57,6 +57,9 @@ public:
     void setInfo(const SendCoinsRecipient &info);
     void applyTheme();
 
+protected:
+    void showEvent(QShowEvent *event) override;
+
 private Q_SLOTS:
     void on_btnCopyURI_clicked();
     void on_btnCopyAddress_clicked();
@@ -64,6 +67,9 @@ private Q_SLOTS:
     void update();
 
 private:
+    /** Size the dialog to show the whole request, within the available screen. */
+    void fitToContent();
+
     Ui::ReceiveRequestDialog *ui;
     OptionsModel *model;
     WalletModel *walletModel;

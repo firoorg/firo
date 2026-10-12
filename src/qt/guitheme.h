@@ -5,12 +5,17 @@
 #ifndef BITCOIN_QT_GUITHEME_H
 #define BITCOIN_QT_GUITHEME_H
 
+#include <QColor>
 #include <QFont>
 #include <QObject>
 #include <QString>
 
 QT_BEGIN_NAMESPACE
+class QAbstractButton;
+class QAction;
+class QFontMetrics;
 class QIcon;
+class QLabel;
 class QPainter;
 class QPixmap;
 class QRect;
@@ -21,7 +26,8 @@ QT_END_NAMESPACE
 
 namespace GUIUtil
 {
-    enum class TextStyle { Body, Heading1, Heading2, Heading3 };
+    //! Caption is the small bold label over a value or field; QSS cannot carry its letter spacing.
+    enum class TextStyle { Body, Heading1, Heading2, Heading3, Caption };
 
     // Brand sizes are logical pixels; Qt scales fonts and widget geometry together.
     QFont brandFont(TextStyle style = TextStyle::Body);
@@ -48,6 +54,24 @@ namespace GUIUtil
         QString error;
         QString gold;
         QString goldTint;
+        QString hover;       //!< Hover and pressed fill for quiet controls
+        QString fieldBorder; //!< Edge of inputs and secondary buttons; $BORDER is the card hairline
+        QString wineText;    //!< Wine for text and icons, readable on both surfaces
+        QString tealText;    //!< Teal for text on teal tints
+        QString errorTint;
+        QString heroStart;   //!< Overview balance card gradient
+        QString heroEnd;
+        // On the balance gradient, identical in both themes
+        QString heroInk;       //!< Values and filled-button surface
+        QString heroInkSoft;   //!< Captions and legend text
+        QString heroInkFaint;  //!< Decimals, units and the transparent dot
+        QString heroFill;      //!< Badge, track and quiet button surface
+        QString heroFillHover; //!< Quiet button hover
+        QString heroLine;      //!< Quiet button edge
+        QString heroAccent;    //!< Private funds: a light teal that holds up on wine
+        QString heroAccentFill;      //!< Make Private surface
+        QString heroAccentFillHover; //!< Make Private hover
+        QString heroAccentLine;      //!< Make Private edge
     };
 
     class ThemeNotifier : public QObject
@@ -71,17 +95,105 @@ namespace GUIUtil
 
     QString primaryButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
     QString secondaryButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
+    //! A borderless action that recedes next to the primary and secondary buttons.
+    QString ghostButtonStyle(const QString& padding = QStringLiteral("8px 16px"));
 
     QString spinBoxInnerLineEditReset();
 
-    void applyPrimaryButtonShadow(QWidget* button);
+    /** Meaning of a pill: teal for private or healthy, gold for pending, red for failed. */
+    enum class PillTone { Neutral, Positive, Warning, Danger };
+
+    struct PillColors {
+        QString background;
+        QString dot;
+        QString text;
+    };
+
+    /** @return The colors of a pill with tone in the active theme. */
+    PillColors pillColors(PillTone tone);
+
+    /** @return The 13 px bold label font every pill uses. */
+    QFont pillFont();
+
+    /** @return The width a pill needs to show text in metrics' font, with its padding and, if withDot, its dot. */
+    int pillWidth(const QFontMetrics& metrics, const QString& text, bool withDot = true);
+
+    /**
+     * Paint a rounded pill, eliding text to fit.
+     * @param[in] painter  Painter whose current font is used for text.
+     * @param[in] pill     Bounds of the pill.
+     * @param[in] text     Label.
+     * @param[in] tone     Meaning, which sets the colors.
+     * @param[in] withDot  Lead with a dot; statuses use it so the state reads without relying on color alone.
+     */
+    void paintPill(QPainter* painter, const QRect& pill, const QString& text, PillTone tone, bool withDot = true);
 
     void paintAddressTypeBadge(QPainter* painter, const QStyleOptionViewItem& option,
                               const QString& text, bool isPrivate);
 
-    void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect);
+    /**
+     * Fill a list cell as part of a flat row: panel surface, wine tint when selected,
+     * and a hairline along the bottom edge. Cells of one row together form the row.
+     */
+    void paintRowBackground(QPainter* painter, const QRect& rect, bool selected);
 
+    /**
+     * Rich text for a formatted amount with the decimals and unit faded, so the whole
+     * number reads first. The digits are the same as in formatted; a minus sign is shown
+     * as the typographic minus.
+     * @param[in] formatted  Output of BitcoinUnits::formatWithUnit().
+     * @param[in] fadedColor CSS color for the decimals and unit.
+     * @param[in] unitStyle  Extra CSS for the unit run, e.g. a smaller size.
+     */
+    QString amountRunsHtml(const QString& formatted, const QString& fadedColor, const QString& unitStyle = QString());
+
+    /**
+     * Paint a formatted amount with the decimals and unit at reduced opacity, and a minus
+     * sign as the typographic minus. Falls back to a single run, elided with elide, when the text has no decimal point
+     * (e.g. a placeholder) or does not fit rect.
+     */
+    void paintAmountRuns(QPainter* painter, const QRect& rect, const QString& text, const QColor& color, Qt::Alignment align,
+                         Qt::TextElideMode elide = Qt::ElideRight);
+
+    /**
+     * Paint a single-color status icon in the muted ink, or in tint when one is given
+     * (e.g. teal once a transaction is confirmed).
+     */
+    void paintThemedStatusIcon(QPainter* painter, const QIcon& icon, const QRect& rect, const QColor& tint = QColor());
+
+    /**
+     * Tint for a transaction's status icon in every list: teal once confirmed, red when it
+     * can no longer confirm, and gold while pending.
+     * @param[in] status  A TransactionStatus::Status value.
+     */
+    QColor transactionStatusTint(int status);
+
+    //! A single-color status icon in the muted ink of the current theme.
     QPixmap themedStatusIconPixmap(const QIcon& icon, const QSize& size);
+
+    /**
+     * Recolor a single-color icon, keeping its shape and anti-aliasing. Results are cached.
+     * @param[in] icon   Icon whose alpha channel gives the shape, e.g. a sidebar icon.
+     * @param[in] size   Logical size of the pixmap.
+     * @param[in] tint   Opaque color to fill the shape with.
+     */
+    QPixmap tintedIconPixmap(const QIcon& icon, const QSize& size, const QColor& tint);
+
+    /** Give a button a single-color icon recolored to tint, shown at size. */
+    void setTintedIcon(QAbstractButton* button, const QString& resource, const QSize& size, const QColor& tint);
+
+    /** Style the 48 px icon of an empty list: the resource in wine on a wine-tint circle. */
+    void styleEmptyStateIcon(QLabel* icon, const QString& resource);
+
+    /** @return Rich text for a label led by a small dot in dotColor, e.g. a balance's source. */
+    QString dotLabelHtml(const QString& dotColor, const QString& text);
+
+    /**
+     * Give a menu action an outline icon in the muted ink, re-tinted whenever the theme changes.
+     * @param[in] action    Action shown in a menu; owns the theme connection.
+     * @param[in] resource  Single-color icon resource, e.g. ":/icons/editcopy".
+     */
+    void setThemedIcon(QAction* action, const QString& resource);
 } // namespace GUIUtil
 
 #endif // BITCOIN_QT_GUITHEME_H

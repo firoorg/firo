@@ -184,6 +184,23 @@ BOOST_AUTO_TEST_CASE(masked_paymentcode)
     }
 }
 
+BOOST_AUTO_TEST_CASE(malformed_op_return)
+{
+    for (char const * hex : {
+        "6a4c", "6a4d01", "6a4e010000",
+        "6a0201", "6a4c0201", "6a4d020001", "6a4e000000400100",
+        "6a0101"
+    }) {
+        Bytes const script = ParseHex(hex);
+        BOOST_CHECK(utils::GetMaskedPcode(CTxOut(0, CScript(script.begin(), script.end()))).empty());
+    }
+
+    for (char const * hex : {"6a020100", "6a4c020100"}) {
+        Bytes const script = ParseHex(hex);
+        BOOST_CHECK(utils::GetMaskedPcode(CTxOut(0, CScript(script.begin(), script.end()))) == ParseHex("0100"));
+    }
+}
+
 BOOST_AUTO_TEST_CASE(account_for_sending)
 {
     ChangeBase58Prefixes _(Params());
