@@ -1397,6 +1397,7 @@ jobs:
             'wallet_database_tests/sqlite_win32_replace_reconciles_retained_identities' `
             -DiagnosticOnly
           foreach ($case in @(
+            'wallet_database_migration_candidate_is_one_shot',
             'sqlite_batch_transaction_rewrite_backup_contract',
             'sqlite_post_publish_failure_cleanup',
             'sqlite_key_only_salvage_rejects_hot_journal_identity'

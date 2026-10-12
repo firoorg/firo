@@ -3579,8 +3579,10 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
         std::string::npos);
     BOOST_CHECK(!fRequestShutdown.load());
 #endif
+#ifndef WIN32
     BOOST_CHECK(!fs::exists(
         GetDataDir() / candidateFilename));
+#endif
     std::optional<DatabaseFormat> sourceFormat;
     BOOST_REQUIRE(
         ReadWalletDatabaseFormat(
@@ -3609,6 +3611,8 @@ BOOST_AUTO_TEST_CASE(wallet_database_migration_candidate_is_one_shot)
         ResetExpectedSQLiteQuarantine(),
         error);
     BOOST_CHECK(!ShutdownRequested());
+    BOOST_CHECK(!fs::exists(
+        GetDataDir() / candidateFilename));
 #endif
     candidate = MakeWalletDatabase(
         candidateFilename,
