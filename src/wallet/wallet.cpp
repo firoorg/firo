@@ -364,6 +364,7 @@ uint32_t InternalChainLookahead()
 }
 
 std::string const internalChainRescanKey = "internal_chain_rescan";
+std::string const internalChainTargetKey = "internal_chain_target";
 
 }
 
@@ -384,7 +385,29 @@ void CWallet::RegisterInternalChainKey(const CTxDestination& dest, const CKeyMet
     m_internal_chain_keys[*keyid] = nChild;
 }
 
-bool CWallet::TopUpInternalChain(uint32_t nSize)
+uint32_t CWallet::GetInternalChainTarget() const
+{
+    AssertLockHeld(cs_wallet);
+    std::multimap<std::string, std::string>::const_iterator iter = mapCustomKeyValues.find(internalChainTargetKey);
+    uint32_t nTarget;
+    if (iter == mapCustomKeyValues.end() || !ParseUInt32(iter->second, &nTarget))
+        return 0;
+    return nTarget;
+}
+
+void CWallet::WriteInternalChainValue(const std::string& key, const std::string& value)
+{
+    LOCK(cs_wallet);
+    mapCustomKeyValues.erase(key);
+    if (!value.empty())
+        mapCustomKeyValues.insert(std::make_pair(key, value));
+
+    CWalletDB walletDb(strWalletFile);
+    if (!walletDb.EraseKV(key) || (!value.empty() && !walletDb.WriteKV(key, value)))
+        throw std::runtime_error(std::string(__func__) + ": Writing " + key + " failed");
+}
+
+bool CWallet::TopUpInternalChain(uint32_t nSize, bool fMarkRescan)
 {
     LOCK(cs_wallet);
 
@@ -392,7 +415,7 @@ bool CWallet::TopUpInternalChain(uint32_t nSize)
         return false;
 
     if (nSize == 0)
-        nSize = InternalChainLookahead();
+        nSize = std::max(InternalChainLookahead(), GetInternalChainTarget());
     // Change is a normal, non-hardened chain, so it ends where the hardened range begins.
     nSize = std::min(nSize, BIP32_HARDENED_KEY_LIMIT);
 
@@ -401,9 +424,15 @@ bool CWallet::TopUpInternalChain(uint32_t nSize)
         return false;
 
     if (IsLocked()) {
+        // Keys used while the wallet was locked must still be looked past once it is unlocked.
+        if (nSize > GetInternalChainTarget())
+            WriteInternalChainValue(internalChainTargetKey, std::to_string(nSize));
         LogPrintf("%s: Deriving internal chain keys failed (locked wallet)\n", __func__);
         return false;
     }
+
+    if (fMarkRescan)
+        SetInternalChainRescanPending(true);
 
     std::string const prefix = InternalChainKeypathPrefix();
     // These keys are as old as the seed they come from, so they must not move the wallet birthday
@@ -459,16 +488,7 @@ bool CWallet::IsInternalChainRescanPending() const
 
 void CWallet::SetInternalChainRescanPending(bool fPending)
 {
-    CWalletDB walletDb(strWalletFile);
-    {
-        LOCK(cs_wallet);
-        mapCustomKeyValues.erase(internalChainRescanKey);
-        if (fPending)
-            mapCustomKeyValues.insert(std::make_pair(internalChainRescanKey, "1"));
-    }
-    walletDb.EraseKV(internalChainRescanKey);
-    if (fPending)
-        walletDb.WriteKV(internalChainRescanKey, "1");
+    WriteInternalChainValue(internalChainRescanKey, fPending ? "1" : "");
 }
 
 bool CWallet::AddKeyPubKey(const CKey& secret, const CPubKey &pubkey)
@@ -624,12 +644,12 @@ bool CWallet::Unlock(const SecureString &strWalletPassphrase, const bool& fFirst
                 continue; // try another master key
             if (CCryptoKeyStore::Unlock(vMasterKey, fFirstUnlock)) {
                 fUnlockRequested.store(false);
-                // An encrypted wallet is locked while it starts up, so this is the first chance to
-                // derive the internal chain. What was received on it earlier is found by the rescan
-                // the flag asks for on the next start; unlocking is not a good time for one.
+                // An encrypted wallet is locked while it starts up or while keys it would derive are
+                // used, so this is the first chance to derive them. What was received on them earlier
+                // is found by the rescan the flag asks for on the next start; unlocking is not a good
+                // time for one.
                 try {
-                    if (TopUpInternalChain() && !mnemonicContainer.IsNull())
-                        SetInternalChainRescanPending(true);
+                    TopUpInternalChain(0, true);
                 } catch (std::exception const & e) {
                     LogPrintf("%s: Deriving internal chain keys failed: %s\n", __func__, e.what());
                 }
@@ -5304,8 +5324,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
     // Watch the bip44 internal chain, see CWallet::TopUpInternalChain. On a wallet that was used
     // before this was done, whatever it was paid there went unnoticed, so the chain has to be
     // rescanned once. A wallet being restored is rescanned anyway, and a new one has no history.
-    if (walletInstance->TopUpInternalChain() && !fFirstRun && !walletInstance->mnemonicContainer.IsNull())
-        walletInstance->SetInternalChainRescanPending(true);
+    walletInstance->TopUpInternalChain(0, !fFirstRun);
 
     CBlockIndex *pindexRescan = chainActive.Tip();
     if (GetBoolArg("-rescan", false))
@@ -5326,10 +5345,11 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
             InitWarning(_("Coins received on the bip44 internal chain before now cannot be found on a pruned node. Reindex to look for them."));
             walletInstance->SetInternalChainRescanPending(false);
         } else {
-            // ScanForWalletTransactions walks this forward to the wallet birthday, which no key on
-            // the internal chain is older than.
+            // The seed may have been used long before this wallet file was made from it, so the
+            // wallet birthday does not bound this scan; it is scanned the way a restored seed is.
             LogPrintf("Rescanning for transactions on the bip44 internal chain\n");
             pindexRescan = chainActive.Genesis();
+            fRecoverMnemonic = true;
         }
     }
     if (chainActive.Tip() && chainActive.Tip() != pindexRescan)

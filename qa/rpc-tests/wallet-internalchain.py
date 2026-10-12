@@ -10,6 +10,7 @@ the internal chain, and once that seed comes back, those coins have to be seen a
 """
 
 import os
+import time
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -32,13 +33,15 @@ class WalletInternalChainTest(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
         self.setup_clean_chain = True
-        self.num_nodes = 3
+        self.num_nodes = 4
         # node0 mines. node1 holds the wallet under test and comes up without a lookahead, the way
         # a wallet that predates the internal chain being watched does. node2 is restored from the
         # same seed and stands in for the other bip44 wallet the coins are received through.
+        # node3 is restored from that seed too, but only after the coins were received.
         self.node_args = [
             ['-usemnemonic=1'],
             ['-usemnemonic=1', '-keypool=0'],
+            ['-usemnemonic=1', '-keypool=%d' % LOOKAHEAD],
             ['-usemnemonic=1', '-keypool=%d' % LOOKAHEAD],
         ]
 
@@ -117,6 +120,21 @@ class WalletInternalChainTest(BitcoinTestFramework):
         restored = self.internal_chain(1, 'node1-restored.dump')
         assert_equal(restored[0], internal[0])
         assert_equal(max(restored), 2 * LOOKAHEAD - 1)
+
+        # A wallet file made from the seed after it was paid carries a birthday later than those
+        # payments, which must not cut the rescan short. It is restored a day later without a
+        # lookahead, the way such a wallet predating the internal chain being watched looks.
+        later = '-mocktime=%d' % (int(time.time()) + 86400)
+        self.nodes.append(start_node(3, self.options.tmpdir, ['-usemnemonic=1', '-keypool=0', '-mnemonic=' + mnemonic, later]))
+        connect_nodes_bi(self.nodes, 0, 3)
+        sync_blocks(self.nodes)
+        assert_equal(self.nodes[3].getbalance(), 0)
+
+        stop_node(self.nodes[3], 3)
+        self.nodes[3] = start_node(3, self.options.tmpdir, self.node_args[3] + [later])
+        connect_nodes_bi(self.nodes, 0, 3)
+        sync_blocks(self.nodes)
+        assert_equal(self.nodes[3].getbalance(), 15)
 
         # Addresses are still handed out off the external chain, nothing comes off the internal one
         for _ in range(5):

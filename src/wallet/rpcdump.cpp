@@ -522,7 +522,7 @@ UniValue importwallet(const JSONRPCRequest& request)
                 fLabel = false;
             if (!masterKeyID.IsNull() && vstr[nStr] == "sigma=1")
                 fLabel = false;
-            if (!masterKeyID.IsNull() && vstr[nStr] == "internal=1")
+            if (vstr[nStr] == "internal=1")
                 fLabel = false;
             if (vstr[nStr] == "reserve=1")
                 fLabel = false;

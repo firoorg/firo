@@ -722,6 +722,13 @@ private:
     /* Records the key in the map above if its keypath places it on the internal chain. */
     void RegisterInternalChainKey(const CTxDestination& dest, const CKeyMetadata& metadata);
 
+    /* How many keys the internal chain was asked to hold while the wallet was locked, kept so
+     * they are derived once it is unlocked. 0 if it was never asked to. */
+    uint32_t GetInternalChainTarget() const;
+
+    /* Stores a value of the internal chain's state in the wallet, or erases it if value is empty. */
+    void WriteInternalChainValue(const std::string& key, const std::string& value);
+
     int64_t nTimeFirstKey;
 
     std::shared_ptr<bip47::CWallet> bip47wallet;
@@ -1140,10 +1147,14 @@ public:
      * wallet. They are watched so that coins another bip44 wallet sent there are seen and
      * stay spendable; they are kept out of the keypool, so this wallet keeps taking both its
      * addresses and its change from the external chain.
-     * @param[in] nSize  How many keys the chain should hold, 0 for the default lookahead.
+     * A locked wallet cannot derive them, so it remembers nSize and they are derived on unlock.
+     * @param[in] nSize        How many keys the chain should hold, 0 for the default lookahead
+     *                         or for what was asked for while the wallet was locked.
+     * @param[in] fMarkRescan  Whether the chain is to be rescanned if any key is added. The
+     *                         flag is stored before the keys, so a crash cannot lose it.
      * @return whether any key was added.
      */
-    bool TopUpInternalChain(uint32_t nSize = 0);
+    bool TopUpInternalChain(uint32_t nSize = 0, bool fMarkRescan = false);
     /**
      * Extends the internal chain past keyid when it turns out to have been used, the way a
      * used keypool key tops the keypool up. No-op for a key that is not on that chain.
