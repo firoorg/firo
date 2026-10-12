@@ -1165,6 +1165,26 @@ jobs:
                 $testOutput |
                   Where-Object { "$_" -notmatch 'is skipped because disabled' }
               )
+              $firstFailures = @(
+                $diagnosticLines |
+                  Where-Object {
+                    "$_" -match 'error:|fatal error|failure(s)? (is|are) detected|exception|last checkpoint|assert'
+                  } |
+                  Select-Object -First 20
+              ) -join "`n"
+              if ($firstFailures.Length -gt 5000) {
+                $firstFailures = $firstFailures.Substring(0, 5000)
+              }
+              $firstFailures = ConvertTo-WorkflowCommandValue $firstFailures
+              Write-Output "::error title=Firo wallet first failures::$firstFailures"
+              $crashContext = (
+                ($diagnosticLines | Select-Object -Last 40) -join "`n"
+              )
+              if ($crashContext.Length -gt 5000) {
+                $crashContext = $crashContext.Substring($crashContext.Length - 5000)
+              }
+              $crashContext = ConvertTo-WorkflowCommandValue $crashContext
+              Write-Output "::error title=Firo wallet terminal context::$crashContext"
               $failureLines = @(
                 $diagnosticLines | Select-Object -Last 40
                 $diagnosticLines |
@@ -1376,6 +1396,13 @@ jobs:
             '.\dual\test_firo.exe' `
             'wallet_database_tests/sqlite_win32_replace_reconciles_retained_identities' `
             -DiagnosticOnly
+          foreach ($case in @(
+            'sqlite_batch_transaction_rewrite_backup_contract',
+            'sqlite_post_publish_failure_cleanup',
+            'sqlite_key_only_salvage_rejects_hot_journal_identity'
+          )) {
+            Invoke-FiroTest '.\dual\test_firo.exe' "wallet_database_tests/$case" -DiagnosticOnly
+          }
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_tests/sqlite_win32_*'
           Invoke-FiroTest '.\dual\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
           Invoke-FiroTest '.\bdb-only\test_firo.exe' 'wallet_database_factory_preopen_policy,wallet_database_tests'
