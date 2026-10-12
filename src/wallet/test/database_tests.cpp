@@ -5944,9 +5944,31 @@ BOOST_AUTO_TEST_CASE(sqlite_batch_transaction_rewrite_backup_contract)
             "an existing path.",
             filename,
             publicationCollisionPath.string());
+#ifdef WIN32
+    BOOST_CHECK_MESSAGE(
+        backupError.find("the destination path appeared concurrently and was not overwritten") !=
+            std::string::npos,
+        backupError);
+    BOOST_CHECK_MESSAGE(
+        backupError.find("cannot prove that removal durable") !=
+            std::string::npos,
+        backupError);
+    BOOST_CHECK(ShutdownRequested());
+    BOOST_CHECK_THROW(database->MakeBatch(), std::runtime_error);
+    database.reset();
+    BOOST_REQUIRE(ResetExpectedSQLiteQuarantine());
+    database = MakeSQLiteDatabase(filename, existingOptions, status, error);
+    BOOST_REQUIRE_MESSAGE(database, error);
+    batch = database->MakeBatch();
+    BOOST_REQUIRE(batch);
+    BOOST_REQUIRE(batch->Read(std::string("after-reset"), value));
+    BOOST_CHECK_EQUAL(value, "usable");
+    batch.reset();
+#else
     BOOST_CHECK_EQUAL(
         backupError,
         expectedPublicationCollisionError);
+#endif
     BOOST_CHECK(!fs::exists(publicationCollisionPath));
     for (const char* suffix : {"-journal", "-wal", "-shm"}) {
         BOOST_CHECK(!fs::exists(
@@ -6513,7 +6535,8 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
 #ifdef WIN32
     auto expectIndeterminateCreate =
         [&](const std::string& filename,
-            const std::string& expectedDiagnostic) {
+            const std::string& expectedDiagnostic,
+            bool retainsPublishedPath = false) {
             status = DatabaseStatus::SUCCESS;
             error = "unchanged";
             std::unique_ptr<WalletDatabase> failed =
@@ -6533,17 +6556,31 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
             BOOST_CHECK(
                 error.find(expectedDiagnostic) !=
                 std::string::npos);
-            BOOST_CHECK(
-                error.find(
-                    "cannot prove that removal durable") !=
-                std::string::npos);
+            const std::string cleanupDiagnostic =
+                retainsPublishedPath ?
+                    "Refusing to remove published SQLite path" :
+                    "cannot prove that removal durable";
+            BOOST_CHECK_MESSAGE(
+                error.find(cleanupDiagnostic) != std::string::npos,
+                error);
             BOOST_CHECK(
                 error.find("restart Firo") !=
                 std::string::npos);
+            const fs::path finalPath = GetDataDir() / filename;
+            std::string retainedContents;
+            if (retainsPublishedPath) {
+                BOOST_REQUIRE(fs::is_regular_file(finalPath));
+                retainedContents = ReadFile(finalPath);
+                BOOST_REQUIRE(!retainedContents.empty());
+            }
             BOOST_REQUIRE(
                 ResetExpectedSQLiteQuarantine());
-            BOOST_CHECK(!fs::exists(
-                GetDataDir() / filename));
+            if (retainsPublishedPath) {
+                BOOST_REQUIRE(fs::is_regular_file(finalPath));
+                BOOST_CHECK(ReadFile(finalPath) == retainedContents);
+                RemoveSQLiteTestFiles(filename);
+            }
+            BOOST_CHECK(!fs::exists(finalPath));
             BOOST_CHECK(
                 !HasSQLiteTestCandidate(filename));
         };
@@ -6556,7 +6593,8 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     InjectSQLitePostPublishFailureForTesting();
     expectIndeterminateCreate(
         createFilename,
-        "Injected failure after publishing SQLite wallet candidate");
+        "Injected failure after publishing SQLite wallet candidate",
+        true);
 
     InjectSQLiteAmbiguousPublishFailureForTesting();
     expectIndeterminateCreate(
@@ -6659,7 +6697,8 @@ BOOST_AUTO_TEST_CASE(sqlite_post_publish_failure_cleanup)
     InjectSQLiteDirectorySyncFailureForTesting(EIO, 1);
     expectIndeterminateCreate(
         indeterminateFilename,
-        "Injected failure after publishing SQLite wallet candidate");
+        "Injected failure after publishing SQLite wallet candidate",
+        true);
 #else
     InjectSQLiteDirectorySyncFailureForTesting(EINVAL);
     std::unique_ptr<WalletDatabase> database = MakeWalletDatabase(
@@ -8315,32 +8354,14 @@ BOOST_AUTO_TEST_CASE(sqlite_key_only_salvage_rejects_hot_journal_identity)
         status,
         error);
     BOOST_CHECK(!database);
-#ifdef WIN32
-    BOOST_CHECK(
-        status ==
-        DatabaseStatus::FAILED_LOAD);
-#else
     BOOST_CHECK(
         status ==
         DatabaseStatus::FAILED_VERIFY);
-#endif
     BOOST_CHECK_MESSAGE(
         error.find("application ID 0") !=
             std::string::npos,
         error);
-#ifdef WIN32
-    BOOST_CHECK(ShutdownRequested());
-    BOOST_CHECK_MESSAGE(
-        error.find(
-            "candidate cleanup is indeterminate") !=
-            std::string::npos,
-        error);
-    BOOST_REQUIRE_MESSAGE(
-        ResetExpectedSQLiteQuarantine(),
-        error);
-#else
     BOOST_CHECK(!fRequestShutdown.load());
-#endif
     BOOST_CHECK(!fs::exists(journalPath));
     BOOST_CHECK(!fs::exists(backupPath));
     BOOST_CHECK(!HasSQLiteTestCandidate(filename));
