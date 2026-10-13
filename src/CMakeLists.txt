@@ -283,6 +283,7 @@ add_library(firo_node STATIC EXCLUDE_FROM_ALL
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/bech32.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/bpplus.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/chaum.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/libspark/claim.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/coin.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/f4grumble.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/libspark/grootle.cpp
