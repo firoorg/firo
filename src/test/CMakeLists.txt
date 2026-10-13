@@ -111,6 +111,7 @@ add_executable(test_firo
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/transcript_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/schnorr_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/chaum_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/claim_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/bpplus_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/grootle_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../libspark/test/aead_test.cpp

@@ -16,6 +16,7 @@
 #include "grootle.h"
 #include "bpplus.h"
 #include "chaum.h"
+#include "claim.h"
 
 namespace spark {
 
@@ -105,6 +106,14 @@ public:
     static bool verifyHistorical(
         const SpendTransaction& transaction,
         const std::unordered_map<uint64_t, std::vector<Coin>>& cover_sets);
+
+    // Claims use ChaumProofV2 for either transaction version, with at most
+    // MAX_CHAUM_V2_INPUTS inputs. The transaction must have its full verification
+    // context restored and be independently verified against the ledger.
+    static void proveClaim(const FullViewKey& full_view_key, const SpendKey& spend_key, const SpendTransaction& transaction, const std::vector<InputCoinData>& inputs, const std::vector<unsigned char>& identifier, const std::vector<unsigned char>& message, ChaumProofV2& claim);
+    // Returns false for invalid proof shapes or claims; deserialization errors
+    // remain the caller's responsibility.
+    static bool verifyClaim(const SpendTransaction& transaction, const std::vector<unsigned char>& identifier, const std::vector<unsigned char>& message, const ChaumProofV2& claim);
     
 	static std::vector<unsigned char> hash_bind_inner(
 		const std::map<uint64_t, std::vector<unsigned char>>& cover_set_representations,
