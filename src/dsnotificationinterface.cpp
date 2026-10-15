@@ -4,7 +4,6 @@
 
 #include "chainparams.h"
 #include "dsnotificationinterface.h"
-//#include "governance.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "validation.h"

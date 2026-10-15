@@ -285,10 +285,6 @@ public:
         consensus.nZnodePaymentsStartBlock = HF_ZNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
         // consensus.nZnodePaymentsIncreaseBlock = 680000; // actual historical value // not used for now, probably later
         // consensus.nZnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value // not used for now, probably later
-        // consensus.nSuperblockStartBlock = 614820;
-        // consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
-        // consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
-        // consensus.nBudgetPaymentsWindowBlocks = 100;
 
         // evo znodes
         consensus.DIP0003Height = 278300; // Approximately June 22 2020, 12:00 UTC
@@ -624,10 +620,6 @@ public:
         consensus.nZnodePaymentsStartBlock = 2200;
         //consensus.nZnodePaymentsIncreaseBlock = 360; // not used for now, probably later
         //consensus.nZnodePaymentsIncreasePeriod = 650; // not used for now, probably later
-        //consensus.nSuperblockStartBlock = 61000;
-        //consensus.nBudgetPaymentsStartBlock = 60000;
-        //consensus.nBudgetPaymentsCycleBlocks = 50;
-        //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
         // evo znodes
@@ -1307,7 +1299,7 @@ public:
         consensus.nMnemonicBlock = 0;
 
         // ProgPow
-        // this can be overridden with either -ppswitchtime or -ppswitchtimefromnow flags
+        // this can be overridden with -ppswitchtime
         consensus.nPPSwitchTime = INT_MAX;
         consensus.nPPBlockNumber = INT_MAX;
         consensus.nInitialPPDifficulty = 0x2000ffff;
