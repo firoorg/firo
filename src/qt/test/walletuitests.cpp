@@ -1365,12 +1365,17 @@ void WalletUiTests::brandTypography()
             }
             QCoreApplication::processEvents();
             for (const char* name : {"labelFeeHeadline", "labelFeeMinimized", "payTo", "labelBalance",
-                                    "labelCoinControlFee", "labelCoinControlFeeText"}) {
+                                    "labelCoinControlFee"}) {
                 auto* widget = send.findChild<QWidget*>(name);
                 QVERIFY(widget);
                 QCOMPARE(widget->font().family(), QStringLiteral("Source Sans Pro"));
                 QCOMPARE(widget->font().pixelSize(), 16);
             }
+            // Coin-control captions sit above their values in the caption style.
+            auto* feeCaption = send.findChild<QWidget*>("labelCoinControlFeeText");
+            QVERIFY(feeCaption);
+            QCOMPARE(feeCaption->font().family(), QStringLiteral("Source Sans Pro"));
+            QCOMPARE(feeCaption->font().pixelSize(), GUIUtil::brandFont(GUIUtil::TextStyle::Caption).pixelSize());
             auto* requests = receive.findChild<QTableView*>();
             QVERIFY(requests);
             QCOMPARE(requests->font().pixelSize(), 16);
@@ -1634,6 +1639,21 @@ void WalletUiTests::sendFormFitsSmallScreen()
             QVERIFY(child);
             QVERIFY(amount->rect().contains(QRect(child->mapTo(amount, QPoint()), child->size())));
         }
+    }
+
+    // The coin-control summary spans the card in aligned columns, however many fit: the Change
+    // column ends at the card's edge and inputs sit under the amounts. A wide card holds all four amounts.
+    auto* summary = dialog.findChild<QWidget*>("widgetCoinControl");
+    QVERIFY(summary);
+    const auto summaryLabel = [&dialog](const char* name) { return dialog.findChild<QLabel*>(name); };
+    for (const bool wide : {false, true}) {
+        if (wide) {
+            dialog.resize(2100, 1400);
+            QTRY_COMPARE(summaryLabel("labelCoinControlChange")->y(), summaryLabel("labelCoinControlAmount")->y());
+        }
+        QTRY_COMPARE(summaryLabel("labelCoinControlChange")->geometry().right(), summary->contentsRect().right());
+        QCOMPARE(summaryLabel("labelCoinControlQuantity")->x(), summaryLabel("labelCoinControlAmount")->x());
+        QCOMPARE(summaryLabel("labelCoinControlBytes")->x(), summaryLabel("labelCoinControlFee")->x());
     }
 
     dialog.resize(964, 480);
